@@ -22,6 +22,7 @@ var _mask_cache := {}       # fname -> Image
 var _tex_cache := {}        # "tile|main|detail|fill" -> ImageTexture
 var _texmat_cache := {}     # key -> StandardMaterial3D (floors)
 var _colmat_cache := {}     # color html -> StandardMaterial3D
+var _wallmat_cache := {}    # "top|main|detail" / "side|..." -> ImageTexture (wall face art)
 
 var _plane: PlaneMesh
 var _wall_mi: MeshInstance3D   # single merged wall mesh, rebuilt per snapshot
@@ -122,12 +123,18 @@ func _rebuild_walls(wall_set: Dictionary) -> void:
 	if wall_set.is_empty():
 		_wall_mi.mesh = null
 		return
-	_wall_mi.mesh = _build_wall_mesh(wall_set)
-	_wall_mi.material_override = _wall_material()
+	var mesh := _build_wall_mesh(wall_set)
+	_wall_mi.mesh = mesh
+	_wall_mi.material_override = null
+	# surface 0 = tops (body art), surface 1 = sides (front-face art)
+	if mesh.get_surface_count() >= 1:
+		mesh.surface_set_material(0, _wall_top_material())
+	if mesh.get_surface_count() >= 2:
+		mesh.surface_set_material(1, _wall_side_material())
 
 func _build_wall_mesh(wall_set: Dictionary) -> ArrayMesh:
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var st_top := SurfaceTool.new(); st_top.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var st_side := SurfaceTool.new(); st_side.begin(Mesh.PRIMITIVE_TRIANGLES)
 
 	var minx := 1 << 30; var maxx := -(1 << 30)
 	var minz := 1 << 30; var maxz := -(1 << 30)
@@ -157,15 +164,18 @@ func _build_wall_mesh(wall_set: Dictionary) -> ArrayMesh:
 			for xx in range(x, x1 + 1):
 				for zz in range(z, z1 + 1):
 					visited[Vector2i(xx, zz)] = true
-			_quad_top(st, x, x1, z, z1)
+			_quad_top(st_top, x, x1, z, z1)
 
 	# side faces: exposed edges merged into runs
-	_sides_x(st, wall_set, minx, maxx, minz, maxz, 1)
-	_sides_x(st, wall_set, minx, maxx, minz, maxz, -1)
-	_sides_z(st, wall_set, minx, maxx, minz, maxz, 1)
-	_sides_z(st, wall_set, minx, maxx, minz, maxz, -1)
+	_sides_x(st_side, wall_set, minx, maxx, minz, maxz, 1)
+	_sides_x(st_side, wall_set, minx, maxx, minz, maxz, -1)
+	_sides_z(st_side, wall_set, minx, maxx, minz, maxz, 1)
+	_sides_z(st_side, wall_set, minx, maxx, minz, maxz, -1)
 
-	return st.commit()
+	var mesh := ArrayMesh.new()
+	st_top.commit(mesh)
+	st_side.commit(mesh)
+	return mesh
 
 # Baked directional shade per face (multiplies albedo via vertex colour), so the
 # carved form reads without depending on scene lighting. Fake sun from +X/+Z.
@@ -228,21 +238,57 @@ func _sides_z(st: SurfaceTool, wall_set: Dictionary, minx: int, maxx: int, minz:
 func _quad_side(st: SurfaceTool, a: Vector3, b: Vector3, n: Vector3, ulen: float, s: float) -> void:
 	var top_a := a + Vector3(0, WALL_H, 0)
 	var top_b := b + Vector3(0, WALL_H, 0)
-	_v(st, a, n, Vector2(0, 0), s)
-	_v(st, top_b, n, Vector2(ulen, WALL_H), s)
-	_v(st, top_a, n, Vector2(0, WALL_H), s)
-	_v(st, a, n, Vector2(0, 0), s)
-	_v(st, b, n, Vector2(ulen, 0), s)
-	_v(st, top_b, n, Vector2(ulen, WALL_H), s)
+	# u tiles one front-face per cell; v stretches one face over the wall height
+	_v(st, a, n, Vector2(0, 1), s)
+	_v(st, top_b, n, Vector2(ulen, 0), s)
+	_v(st, top_a, n, Vector2(0, 0), s)
+	_v(st, a, n, Vector2(0, 1), s)
+	_v(st, b, n, Vector2(ulen, 1), s)
+	_v(st, top_b, n, Vector2(ulen, 0), s)
 
-func _wall_material() -> Material:
+# A Qud wall tile is 16x24: the top w×w square is the top-down body, the bottom
+# w×(h-w) strip is the south front-face. Tops use the body from the interior tile
+# (-11111111); sides use the front-face from a south-open variant (-11100000).
+func _wall_top_material() -> Material:
+	return _wall_mat_from_tex(_wall_region_tex("top"))
+
+func _wall_side_material() -> Material:
+	var tex := _wall_region_tex("side")
+	if tex == null:
+		tex = _wall_region_tex("top")  # fallback: body on sides if no face variant
+	return _wall_mat_from_tex(tex)
+
+func _wall_region_tex(kind: String) -> ImageTexture:
+	if _wall_tile == "":
+		return null
+	var key := "%s|%s|%s" % [kind, _wall_main, _wall_detail]
+	if _wallmat_cache.has(key):
+		return _wallmat_cache[key]
+	var tex: ImageTexture = null
+	if kind == "top":
+		var mask := _mask(_wall_tile)  # -11111111 = pure body
+		if mask != null:
+			var w := mask.get_width()
+			var region := mask.get_region(Rect2i(0, 0, w, min(w, mask.get_height())))
+			tex = _recolor_image(region, _wall_main, _wall_detail, true)
+	else:
+		var face_tile := _wall_tile.replace("-11111111", "-11100000")  # north-walled, south-open
+		var mask := _mask(face_tile)
+		if mask != null:
+			var w := mask.get_width()
+			var h := mask.get_height()
+			if h > w:
+				var region := mask.get_region(Rect2i(0, w, w, h - w))  # the front-face strip
+				tex = _recolor_image(region, _wall_main, _wall_detail, true)
+	if tex != null:
+		_wallmat_cache[key] = tex
+	return tex
+
+func _wall_mat_from_tex(tex: ImageTexture) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	m.vertex_color_use_as_albedo = true   # baked face shade multiplies the rock colour
+	m.vertex_color_use_as_albedo = true   # baked per-face shade multiplies the rock
 	m.cull_mode = BaseMaterial3D.CULL_DISABLED
-	var tex: ImageTexture = null
-	if _wall_tile != "":
-		tex = _colored_tex(_wall_tile, _wall_main, _wall_detail, true)
 	if tex != null:
 		m.albedo_texture = tex
 		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
@@ -261,6 +307,13 @@ func _colored_tex(tile: String, main_c: String, detail_c: String, fill := false)
 	var mask := _mask(tile)
 	if mask == null:
 		return null
+	var tex := _recolor_image(mask, main_c, detail_c, fill)
+	_tex_cache[key] = tex
+	return tex
+
+# Recolour a 2-colour mask Image: black -> main, white -> detail; transparent ->
+# main (opaque) when `fill`, else transparent.
+func _recolor_image(mask: Image, main_c: String, detail_c: String, fill: bool) -> ImageTexture:
 	var main := _qud_color(main_c)
 	var detail := _qud_color(detail_c)
 	var w := mask.get_width()
@@ -275,9 +328,7 @@ func _colored_tex(tile: String, main_c: String, detail_c: String, fill := false)
 				var lum := (p.r + p.g + p.b) / 3.0
 				var c := main.lerp(detail, lum)
 				img.set_pixel(x, y, Color(c.r, c.g, c.b, p.a))
-	var tex := ImageTexture.create_from_image(img)
-	_tex_cache[key] = tex
-	return tex
+	return ImageTexture.create_from_image(img)
 
 func _canon_wall_tile(tile: String) -> String:
 	var dot := tile.rfind(".")
