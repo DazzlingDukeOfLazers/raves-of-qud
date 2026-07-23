@@ -258,10 +258,34 @@ frame — crop to the opaque rows to seat things on the ground.
 **Classification rules (in `ZoneRenderer.gd`):**
 - **prism** (3D box): `wall && occluding` → rock/metal/brinestalk. `occluding` is what
   separates real walls (occlude) from **fences** (don't).
+- **deck** (flat + opaque): the object carries the `Bridge` int-property (see below).
+  Checked *before* layer, because bridges are RenderLayer 3.
 - **flat floor**: `layer <= FLOOR_LAYER_MAX (2)`.
 - **directional connector** (oriented standing panels): wall-flagged tile matching
   `family_<dirs>` (fences, pipes).
 - **upright billboard**: everything else.
+
+### Water depth & bridges
+Both are **first-class Qud concepts** — don't infer them from tile names.
+
+- **Depth** is `LiquidVolume.Volume` (`Base/ObjectBlueprints/PhysicalPhenomena.xml`: puddle 500 →
+  deep pool 4000 → extra-deep 8000), surfaced as `Cell.HasWadingDepthLiquid()` /
+  `HasSwimmingDepthLiquid()`. The `deep-`/`shallow-`/`puddle_N` tile family is *chosen from*
+  volume by the `PaintedLiquidAtlas` system, so it's a symptom, not the source of truth.
+- **Bridges** are `<intproperty Name="Bridge" Value="1" />` on the blueprint —
+  `Walkway`, `Bridge`, `BrineBridge`, `WoodFloor`, `MarbleFloor` in `ZoneTerrain.xml`.
+  `Cell.HasBridge()` for the cell; `GameObject.HasIntProperty("Bridge")` for the object.
+- **Tile shape gotcha**: bridge art (`Tiles/sw_floor_brickb1-4.bmp`) is **line-work on a fully
+  transparent field** — only ~25% of pixels are opaque. Rendered as-is it does *not* hide the
+  water beneath it. Recolour it with `fill = true` so the transparent field becomes ground colour.
+  Water tiles (`Liquids/Water/deep-*`) are the opposite: **100% opaque** noise masks.
+
+**The rendering rule: keep the water flat, recess the actor.** Water renders as an ordinary floor
+quad. A creature standing in it (`sinks` = `IsCreature && !IsFlying`) is drawn with its sprite
+**cropped at the waterline** rather than lowered — the water is a flat quad with no volume, so a
+lowered sprite would just poke out beneath it as soon as the camera tilts. The crop is measured
+against the tile's **opaque band** (`_opaque_v`), not the 16×24 frame, because the art is padded
+inside the frame. A bridge sets `sink = 0`: you cross at full height over an opaque deck.
 
 ---
 
@@ -350,19 +374,8 @@ QupKit.ThreadTaskQueue:
 
 ## Open problems / next steps
 
-- **Deep water & bridges** (design clarified, not yet built) — *keep the water flat; recess the
-  actors, not the water.* `deep-*` (layer 2) renders **flat at floor level, and that is correct.**
-  The mechanic to add:
-  - A creature/player **standing in** deep water (and not on a bridge) renders **half-submerged**
-    — sink its sprite ~half into the ground. Wading/swimming is core to mobility (escaping or
-    reaching mobs), so the player must *see* they're in deep water.
-  - A **bridge** is a flat opaque surface that sits over the water and **completely covers** it;
-    anything on a bridge renders at normal (unsubmerged) height.
-  - Detection: `GameObject.IsWadingDepthLiquid()` / `IsOpenLiquidVolume()`, or compute in Godot
-    from the cell's floor stack ("has a deep-water floor and no bridge tile on top"). Cleanest is
-    a per-object `submerged` flag (and a `bridge`/floor-covers flag) from the mod. Bridges exist in
-    Qud but weren't present in the captured Joppa scene, so the bridge tile family is still TBD —
-    capture one to confirm its tile name and how it stacks over water.
+- **Water depth tuning**: `SINK_WADE` / `SINK_SWIM` in `ZoneRenderer.gd` are eyeballed fractions.
+  There's no swim animation or waterline ripple yet, and the cut edge is hard.
 - **Tents** occlude, so they're currently prisms; probably want them as sprites (special-case).
 - **Non-rock wall tops/sides**: the top-16×16 / bottom-16×8 split is rock-specific; brinestalk/metal
   tiles are structured differently, so their tops/sides are approximate (colours are correct).

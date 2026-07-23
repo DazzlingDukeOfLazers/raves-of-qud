@@ -18,6 +18,15 @@ const PIXEL_SIZE := 0.042
 const FLOOR_Y := 0.02
 const LAYER_STEP := 0.02
 
+# --- water & bridges --------------------------------------------------------
+# Deep water stays FLAT at floor level; we recess the actor, not the water. A
+# creature standing in it is drawn cropped at the waterline so it reads as
+# half-submerged. A bridge cancels that: it's an opaque deck laid over the water.
+const BRIDGE_Y := 0.08     # deck height — clears every floor quad below it
+const WATER_LINE_Y := 0.05 # where a submerged sprite gets cut off
+const SINK_WADE := 0.45    # fraction of the sprite's art hidden (wading depth)
+const SINK_SWIM := 0.72    # ... and swimming depth
+
 var _tiles_dir := ""
 var _mask_cache := {}       # fname -> Image
 var _tex_cache := {}        # "tile|main|detail|fill" -> ImageTexture
@@ -107,13 +116,26 @@ func render_snapshot(data: Dictionary) -> void:
 		var cx := int(cell.get("x", 0))
 		var cy := int(cell.get("y", 0))
 		var in_wall: bool = wall_cells.has(Vector2i(cx, cy))
+		var sink := _cell_sink(cell)
+		var wet: bool = bool(cell.get("wade", false)) or bool(cell.get("swim", false))
 		var idx := 0
 		for obj in cell.get("objs", []):
 			if not _is_prism(obj):
-				_place_nonwall(obj, cx, cy, idx, in_wall)
+				_place_nonwall(obj, cx, cy, idx, in_wall, sink, wet)
 			idx += 1
 
 	_rebuild_walls(wall_types)
+
+# How far an actor standing in this cell sinks, as a fraction of its art height.
+# A bridge decks over the water, so you walk across at full height.
+func _cell_sink(cell: Dictionary) -> float:
+	if bool(cell.get("bridge", false)):
+		return 0.0
+	if bool(cell.get("swim", false)):
+		return SINK_SWIM
+	if bool(cell.get("wade", false)):
+		return SINK_WADE
+	return 0.0
 
 func _is_prism(obj: Dictionary) -> bool:
 	# a solid, sight-blocking wall -> render as a 3D prism (rock, metal, brinestalk).
@@ -228,12 +250,30 @@ func _opaque_v(img: Image) -> Vector2:
 		return Vector2(0, 1)
 	return Vector2(float(first) / h, float(last - first + 1) / h)
 
-func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool) -> void:
+func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, sink := 0.0, wet := false) -> void:
 	var tile := String(obj.get("tile", ""))
 	var main_c := String(obj.get("tilecolor", ""))
 	if main_c == "": main_c = String(obj.get("color", ""))
 	var detail_c := String(obj.get("detail", ""))
 	var layer := int(obj.get("layer", 99))
+
+	# Anything flagged Bridge (bridge, walkway, hut floor) is a DECK, not scenery:
+	# flat and OPAQUE. The brick art is line-work on a transparent field, so it
+	# only hides what's beneath once the gaps are filled with the ground colour.
+	# Only a deck spanning water gets lifted to bridge height; a hut floor stays
+	# down with the other floor quads so its edges don't step up off the ground.
+	if bool(obj.get("bridge", false)) and not in_wall:
+		var deck := _colored_tex(tile, main_c, detail_c, true)
+		if deck != null:
+			var d := _take_floor()
+			d.material_override = _deck_material(tile, main_c, detail_c, deck)
+			d.scale = Vector3.ONE
+			var y := (BRIDGE_Y + idx * 0.002) if wet else (FLOOR_Y + idx * 0.005)
+			d.position = Vector3(cx, y, cy)
+			d.visible = true
+			_active.append(d)
+			return
+
 	var tex := _colored_tex(tile, main_c, detail_c)
 
 	if layer <= FLOOR_LAYER_MAX:
@@ -258,7 +298,11 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool) 
 		else:
 			var s := _take_sprite()
 			s.texture = tex
-			s.position = Vector3(cx, PIXEL_SIZE * tex.get_height() * 0.5, cy)
+			var wet: bool = sink > 0.0 and bool(obj.get("sinks", false))
+			if wet:
+				_submerge(s, tex, tile, cx, cy, sink)
+			else:
+				s.position = Vector3(cx, PIXEL_SIZE * tex.get_height() * 0.5, cy)
 			s.visible = true
 			_active.append(s)
 	else:
@@ -268,6 +312,22 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool) 
 		l.position = Vector3(cx, 0.5 + idx * LAYER_STEP, cy)
 		l.visible = true
 		_active.append(l)
+
+# Draw only the part of a sprite above the waterline, and sit that cut edge on
+# the water. Cropping beats lowering the sprite: the water is a flat quad, so a
+# sunk sprite would just poke out underneath it when the camera tilts.
+#
+# The crop is measured against the tile's OPAQUE BAND, not the 16x24 frame —
+# Qud art is padded inside its frame, so cutting the frame in half cuts an
+# unpredictable amount off the creature.
+func _submerge(s: Sprite3D, tex: ImageTexture, tile: String, cx: int, cy: int, sink: float) -> void:
+	var h := tex.get_height()
+	var vr := _opaque_v(_mask(tile))
+	var top := vr.x * h
+	var shown: float = max(1.0, vr.y * h * (1.0 - sink))
+	s.region_enabled = true
+	s.region_rect = Rect2(0, top, tex.get_width(), shown)
+	s.position = Vector3(cx, WATER_LINE_Y + PIXEL_SIZE * shown * 0.5, cy)
 
 # --- greedy-meshed walls ----------------------------------------------------
 
@@ -580,6 +640,19 @@ func _mesh_material(tile: String, main_c: String, detail_c: String, tex: ImageTe
 	_texmat_cache[key] = m
 	return m
 
+# Bridge deck: same as a floor, but fully opaque so nothing shows through.
+func _deck_material(tile: String, main_c: String, detail_c: String, tex: ImageTexture) -> StandardMaterial3D:
+	var key := "deck|%s|%s|%s" % [tile, main_c, detail_c]
+	if _texmat_cache.has(key):
+		return _texmat_cache[key]
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.albedo_texture = tex
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_texmat_cache[key] = m
+	return m
+
 func _color_material(col: Color) -> StandardMaterial3D:
 	var key := col.to_html()
 	if _colmat_cache.has(key):
@@ -605,9 +678,11 @@ func _take_sprite() -> Sprite3D:
 		s.transparent = true
 		s.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
 		add_child(s)
-	# reset per take — fence panels override these, normal sprites need defaults back
+	# reset per take — fence panels and submerged actors override these, normal
+	# sprites need the defaults back
 	s.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
 	s.rotation = Vector3.ZERO
+	s.region_enabled = false
 	return s
 
 func _take_floor() -> MeshInstance3D:

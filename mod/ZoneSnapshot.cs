@@ -17,6 +17,11 @@ namespace RavesOfQud
     ///   XRL.World.Parts.Render fields (CAPITALIZED): RenderString, ColorString,
     ///     DetailColor, TileColor, Tile (all string), RenderLayer (int);
     ///     Visible is a bool property (use it for FOV filtering in v2).
+    ///   Water/bridge (all first-class Qud concepts, no heuristics needed):
+    ///     Cell.HasBridge() / HasWadingDepthLiquid() / HasSwimmingDepthLiquid()
+    ///     GameObject.HasIntProperty("Bridge")  — set by Walkway/Bridge/BrineBridge/
+    ///       WoodFloor/MarbleFloor blueprints in Base/ObjectBlueprints/ZoneTerrain.xml
+    ///     GameObject.IsCreature / IsFlying (properties)
     ///
     /// We emit RAW Qud color strings (e.g. "&amp;Y") and let Godot interpret them.
     /// FOV / fog-of-war filtering is intentionally deferred (v2): for now we ship
@@ -70,7 +75,14 @@ namespace RavesOfQud
 
                         if (!opened)
                         {
-                            j.BeginObject().Member("x", x).Member("y", y).Name("objs").BeginArray();
+                            // Cell-level water/bridge facts. Godot turns these into a
+                            // "sink" depth for the actors standing here; a bridge
+                            // cancels it (you walk over the water, not through it).
+                            j.BeginObject().Member("x", x).Member("y", y)
+                                .Member("bridge", c.HasBridge())
+                                .Member("wade", c.HasWadingDepthLiquid())
+                                .Member("swim", c.HasSwimmingDepthLiquid())
+                            .Name("objs").BeginArray();
                             opened = true;
                         }
 
@@ -88,6 +100,13 @@ namespace RavesOfQud
                             .Member("wall", go.IsWall())
                             .Member("solid", phys != null && phys.Solid)
                             .Member("occluding", r.Occluding)
+                            // deck: a walkable surface laid over whatever is beneath it
+                            // (bridges are RenderLayer 3, so without this flag Godot
+                            // would stand them up as billboards instead of decking them).
+                            .Member("bridge", go.HasIntProperty("Bridge"))
+                            // only creatures sink; scenery/plants rooted in the water
+                            // (watervines) must keep their full height. Flyers skim over.
+                            .Member("sinks", go.IsCreature && !go.IsFlying)
                         .EndObject();
                     }
 

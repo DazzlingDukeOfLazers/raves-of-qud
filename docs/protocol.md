@@ -20,9 +20,10 @@ Every message is a frame:
   "cells": [
     {
       "x": 41, "y": 12,
+      "bridge": false, "wade": true, "swim": false,
       "objs": [
-        { "glyph": ".", "tile": "Tiles/sw_floor_1.png", "color": "&y", "tilecolor": "&y", "detail": "k", "layer": 0 },
-        { "glyph": "@", "tile": "Creatures/sw_humanoid.png", "color": "&Y", "tilecolor": "&Y", "detail": "y", "layer": 8 }
+        { "glyph": "~", "tile": "Liquids/Water/deep-11111111.png", "color": "&b^B", "layer": 2 },
+        { "glyph": "@", "tile": "Creatures/sw_humanoid.png", "color": "&Y", "tilecolor": "&Y", "detail": "y", "layer": 8, "sinks": true }
       ]
     }
   ]
@@ -40,6 +41,29 @@ Every message is a frame:
 - Client render classification: `wall` → BoxMesh prism; else `layer` ≤ 2 → flat
   ground quad; else → upright billboard. (Calibrated: layer 0 = ground clutter,
   3 = trees, 7 = rock walls, 10 = creatures.)
+
+### Water & bridges
+
+Per **cell** (all from first-class Qud predicates, no heuristics):
+
+| field    | source                          | meaning                                    |
+|----------|---------------------------------|--------------------------------------------|
+| `bridge` | `Cell.HasBridge()`              | something decks over this cell              |
+| `wade`   | `Cell.HasWadingDepthLiquid()`   | liquid deep enough to wade through          |
+| `swim`   | `Cell.HasSwimmingDepthLiquid()` | liquid deep enough to swim in               |
+
+Per **object**:
+
+| field    | source                              | meaning                                       |
+|----------|-------------------------------------|-----------------------------------------------|
+| `bridge` | `GameObject.HasIntProperty("Bridge")` | this object *is* the deck surface           |
+| `sinks`  | `IsCreature && !IsFlying`           | submerge this one; scenery/flyers keep height |
+
+The client's rule: **the water stays flat, the actor recesses.** `_cell_sink()`
+turns `wade`/`swim` into a fraction of the sprite's art to hide, and `bridge`
+cancels it — you cross at full height. A `bridge` object is drawn as a flat
+opaque quad (`fill = true`, so the brick line-art's transparent field becomes
+ground colour) lifted above the water it spans.
 - Colors are **raw Qud strings** (e.g. `&Y`); the client resolves them. Godot's
   MVP renderer keys off the trailing letter — see `ZoneRenderer._qud_color`.
   Remember Qud's palette: `Y`=white, `y`=gray, `W`=gold, `w`=brown.
