@@ -39,15 +39,19 @@ func _ready() -> void:
 	client.snapshot.connect(_on_snapshot)
 
 	var sun := DirectionalLight3D.new()
-	sun.rotation_degrees = Vector3(-55, -40, 0)
+	sun.rotation_degrees = Vector3(-60, -45, 0)
+	sun.light_energy = 1.4
 	add_child(sun)
 
 	var we := WorldEnvironment.new()
 	var env := Environment.new()
 	env.background_mode = Environment.BG_COLOR
 	env.background_color = Color(0.05, 0.05, 0.07)
-	env.ambient_light_color = Color(0.4, 0.4, 0.45)
-	env.ambient_light_energy = 0.7
+	# Use the explicit ambient colour as fill (default source is the dark BG, which
+	# left lit surfaces almost black). This is what makes the rock read as lit.
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color(0.55, 0.55, 0.62)
+	env.ambient_light_energy = 0.65
 	we.environment = env
 	add_child(we)
 
