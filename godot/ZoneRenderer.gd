@@ -1,12 +1,14 @@
 extends Node3D
 class_name ZoneRenderer
 
-## Renders a zone snapshot, classifying each object by Qud render layer + IsWall:
-##   layer <= FLOOR_LAYER_MAX  -> flat quad on the ground (shale *, dirt, water)
-##   wall (IsWall)             -> rectangular BoxMesh prism, a cell tall
-##   otherwise                 -> upright billboard sprite (plants, creatures, items)
-## Tiles are 2-colour masks (black = TileColor, white = DetailColor) recoloured on
-## the CPU. Objects with no exported tile fall back to an ASCII glyph.
+## Renders a zone snapshot:
+##   layer <= FLOOR_LAYER_MAX -> flat quad on the ground (shale *, dirt, water)
+##   wall (IsWall)            -> merged into ONE greedy-meshed rock mesh per zone
+##   otherwise                -> upright billboard sprite (plants, creatures, items)
+## Walls are greedy-meshed: adjacent wall cells become a single mesh with merged
+## top faces, only exposed side faces, and real normals — so a lit material makes
+## the rock read as carved 3D instead of flat cubes. Tiles are 2-colour masks
+## (black = TileColor, white = DetailColor) recoloured on the CPU.
 
 const CELL := 1.0
 const FLOOR_LAYER_MAX := 2
@@ -17,24 +19,28 @@ const LAYER_STEP := 0.02
 
 var _tiles_dir := ""
 var _mask_cache := {}       # fname -> Image
-var _tex_cache := {}        # "tile|main|detail" -> ImageTexture
-var _texmat_cache := {}     # same key -> StandardMaterial3D (for meshes)
+var _tex_cache := {}        # "tile|main|detail|fill" -> ImageTexture
+var _texmat_cache := {}     # key -> StandardMaterial3D (floors)
 var _colmat_cache := {}     # color html -> StandardMaterial3D
 
 var _plane: PlaneMesh
-var _box: BoxMesh
+var _wall_mi: MeshInstance3D   # single merged wall mesh, rebuilt per snapshot
+
+# collected per snapshot for the wall mesh
+var _wall_tile := ""
+var _wall_main := ""
+var _wall_detail := ""
 
 var _active: Array = []
 var _sprite_pool: Array[Sprite3D] = []
 var _floor_pool: Array[MeshInstance3D] = []
-var _wall_pool: Array[MeshInstance3D] = []
 var _label_pool: Array[Label3D] = []
 
 func _ready() -> void:
 	_plane = PlaneMesh.new()
-	_plane.size = Vector2(CELL, CELL)           # XZ plane, normal +Y
-	_box = BoxMesh.new()
-	_box.size = Vector3(CELL * 0.96, WALL_H, CELL * 0.96)
+	_plane.size = Vector2(CELL, CELL)
+	_wall_mi = MeshInstance3D.new()
+	add_child(_wall_mi)
 
 func render_snapshot(data: Dictionary) -> void:
 	_tiles_dir = String(data.get("tilesDir", ""))
@@ -43,53 +49,57 @@ func render_snapshot(data: Dictionary) -> void:
 		n.visible = false
 		if n is Sprite3D: _sprite_pool.append(n)
 		elif n is Label3D: _label_pool.append(n)
-		elif n is MeshInstance3D:
-			if n.mesh == _plane: _floor_pool.append(n)
-			else: _wall_pool.append(n)
+		elif n is MeshInstance3D: _floor_pool.append(n)
 	_active.clear()
 
-	for cell in data.get("cells", []):
+	var cells = data.get("cells", [])
+
+	# pass 1: collect wall cells (+ a representative rock colour/tile)
+	var wall_set := {}
+	_wall_tile = ""; _wall_main = ""; _wall_detail = ""
+	for cell in cells:
 		var cx := int(cell.get("x", 0))
 		var cy := int(cell.get("y", 0))
+		for obj in cell.get("objs", []):
+			if bool(obj.get("wall", false)):
+				wall_set[Vector2i(cx, cy)] = true
+				if _wall_tile == "":
+					_wall_tile = _canon_wall_tile(String(obj.get("tile", "")))
+					_wall_main = String(obj.get("tilecolor", obj.get("color", "")))
+					_wall_detail = String(obj.get("detail", ""))
+
+	# pass 2: floors + verticals (skip walls; they're in the merged mesh)
+	for cell in cells:
+		var cx := int(cell.get("x", 0))
+		var cy := int(cell.get("y", 0))
+		var in_wall: bool = wall_set.has(Vector2i(cx, cy))
 		var idx := 0
 		for obj in cell.get("objs", []):
-			_place(obj, cx, cy, idx)
+			if not bool(obj.get("wall", false)):
+				_place_nonwall(obj, cx, cy, idx, in_wall)
 			idx += 1
 
-func _place(obj: Dictionary, cx: int, cy: int, idx: int) -> void:
+	_rebuild_walls(wall_set)
+
+func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool) -> void:
 	var tile := String(obj.get("tile", ""))
 	var main_c := String(obj.get("tilecolor", ""))
 	if main_c == "": main_c = String(obj.get("color", ""))
 	var detail_c := String(obj.get("detail", ""))
-	var tex := _colored_tex(tile, main_c, detail_c)
 	var layer := int(obj.get("layer", 99))
-	var is_wall: bool = bool(obj.get("wall", false))
+	var tex := _colored_tex(tile, main_c, detail_c)
 
-	if is_wall:
-		var w := _take_wall()
-		# 2D autotile variants (…-00111100) exist only to fake connected edges in a
-		# top-down view; on a 3D box that's noise. Collapse them all to the solid
-		# interior tile (…-11111111) so every wall face uses one clean rock texture.
-		var wtile := _canon_wall_tile(tile)
-		var wtex := _colored_tex(wtile, main_c, detail_c, true)  # opaque-filled: solid prism
-		if wtex != null:
-			w.material_override = _mesh_material(wtile, main_c, detail_c, wtex, true)
-		else:
-			w.material_override = _color_material(_qud_color(main_c))  # prism until tile exports
-		w.position = Vector3(cx, WALL_H * 0.5, cy)
-		w.visible = true
-		_active.append(w)
-	elif layer <= FLOOR_LAYER_MAX:
+	if layer <= FLOOR_LAYER_MAX:
+		if in_wall:
+			return  # hidden under a wall; don't bother
 		var f := _take_floor()
-		var y := FLOOR_Y + idx * 0.005
 		if tex != null:
 			f.material_override = _mesh_material(tile, main_c, detail_c, tex)
 			f.scale = Vector3.ONE
 		else:
-			# no tile (e.g. the * ground clutter): a small flat coloured dot
 			f.material_override = _color_material(_qud_color(String(obj.get("color", ""))))
 			f.scale = Vector3(0.5, 1.0, 0.5)
-		f.position = Vector3(cx, y, cy)
+		f.position = Vector3(cx, FLOOR_Y + idx * 0.005, cy)
 		f.visible = true
 		_active.append(f)
 	elif tex != null:
@@ -106,13 +116,136 @@ func _place(obj: Dictionary, cx: int, cy: int, idx: int) -> void:
 		l.visible = true
 		_active.append(l)
 
-# --- textures & materials ---------------------------------------------------
+# --- greedy-meshed walls ----------------------------------------------------
+
+func _rebuild_walls(wall_set: Dictionary) -> void:
+	if wall_set.is_empty():
+		_wall_mi.mesh = null
+		return
+	_wall_mi.mesh = _build_wall_mesh(wall_set)
+	_wall_mi.material_override = _wall_material()
+
+func _build_wall_mesh(wall_set: Dictionary) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+
+	var minx := 1 << 30; var maxx := -(1 << 30)
+	var minz := 1 << 30; var maxz := -(1 << 30)
+	for k in wall_set:
+		minx = min(minx, k.x); maxx = max(maxx, k.x)
+		minz = min(minz, k.y); maxz = max(maxz, k.y)
+
+	# top faces: greedy 2D rectangles at y = WALL_H
+	var visited := {}
+	for z in range(minz, maxz + 1):
+		for x in range(minx, maxx + 1):
+			var key := Vector2i(x, z)
+			if not wall_set.has(key) or visited.has(key):
+				continue
+			var x1 := x
+			while wall_set.has(Vector2i(x1 + 1, z)) and not visited.has(Vector2i(x1 + 1, z)):
+				x1 += 1
+			var z1 := z
+			var grow := true
+			while grow:
+				var nz := z1 + 1
+				for xx in range(x, x1 + 1):
+					if not wall_set.has(Vector2i(xx, nz)) or visited.has(Vector2i(xx, nz)):
+						grow = false
+						break
+				if grow: z1 = nz
+			for xx in range(x, x1 + 1):
+				for zz in range(z, z1 + 1):
+					visited[Vector2i(xx, zz)] = true
+			_quad_top(st, x, x1, z, z1)
+
+	# side faces: exposed edges merged into runs
+	_sides_x(st, wall_set, minx, maxx, minz, maxz, 1)
+	_sides_x(st, wall_set, minx, maxx, minz, maxz, -1)
+	_sides_z(st, wall_set, minx, maxx, minz, maxz, 1)
+	_sides_z(st, wall_set, minx, maxx, minz, maxz, -1)
+
+	return st.commit()
+
+func _v(st: SurfaceTool, p: Vector3, n: Vector3, uv: Vector2) -> void:
+	st.set_normal(n)
+	st.set_uv(uv)
+	st.add_vertex(p)
+
+func _quad_top(st: SurfaceTool, x0: int, x1: int, z0: int, z1: int) -> void:
+	var ax := x0 - 0.5; var bx := x1 + 0.5
+	var az := z0 - 0.5; var bz := z1 + 0.5
+	var y := WALL_H
+	var uu := float(x1 - x0 + 1); var vv := float(z1 - z0 + 1)
+	var n := Vector3.UP
+	_v(st, Vector3(ax, y, az), n, Vector2(0, 0))
+	_v(st, Vector3(bx, y, bz), n, Vector2(uu, vv))
+	_v(st, Vector3(bx, y, az), n, Vector2(uu, 0))
+	_v(st, Vector3(ax, y, az), n, Vector2(0, 0))
+	_v(st, Vector3(ax, y, bz), n, Vector2(0, vv))
+	_v(st, Vector3(bx, y, bz), n, Vector2(uu, vv))
+
+func _sides_x(st: SurfaceTool, wall_set: Dictionary, minx: int, maxx: int, minz: int, maxz: int, dir: int) -> void:
+	var n := Vector3(dir, 0, 0)
+	for x in range(minx, maxx + 1):
+		var z := minz
+		while z <= maxz:
+			if not (wall_set.has(Vector2i(x, z)) and not wall_set.has(Vector2i(x + dir, z))):
+				z += 1
+				continue
+			var z1 := z
+			while z1 + 1 <= maxz and wall_set.has(Vector2i(x, z1 + 1)) and not wall_set.has(Vector2i(x + dir, z1 + 1)):
+				z1 += 1
+			var px := (x + 0.5) if dir > 0 else (x - 0.5)
+			_quad_side(st, Vector3(px, 0, z - 0.5), Vector3(px, 0, z1 + 0.5), n, float(z1 - z + 1))
+			z = z1 + 1
+
+func _sides_z(st: SurfaceTool, wall_set: Dictionary, minx: int, maxx: int, minz: int, maxz: int, dir: int) -> void:
+	var n := Vector3(0, 0, dir)
+	for z in range(minz, maxz + 1):
+		var x := minx
+		while x <= maxx:
+			if not (wall_set.has(Vector2i(x, z)) and not wall_set.has(Vector2i(x, z + dir))):
+				x += 1
+				continue
+			var x1 := x
+			while x1 + 1 <= maxx and wall_set.has(Vector2i(x1 + 1, z)) and not wall_set.has(Vector2i(x1 + 1, z + dir)):
+				x1 += 1
+			var pz := (z + 0.5) if dir > 0 else (z - 0.5)
+			_quad_side(st, Vector3(x - 0.5, 0, pz), Vector3(x1 + 0.5, 0, pz), n, float(x1 - x + 1))
+			x = x1 + 1
+
+# a vertical quad from base a..b (y=0) up to WALL_H; `ulen` cells wide for UV tiling
+func _quad_side(st: SurfaceTool, a: Vector3, b: Vector3, n: Vector3, ulen: float) -> void:
+	var top_a := a + Vector3(0, WALL_H, 0)
+	var top_b := b + Vector3(0, WALL_H, 0)
+	_v(st, a, n, Vector2(0, 0))
+	_v(st, top_b, n, Vector2(ulen, WALL_H))
+	_v(st, top_a, n, Vector2(0, WALL_H))
+	_v(st, a, n, Vector2(0, 0))
+	_v(st, b, n, Vector2(ulen, 0))
+	_v(st, top_b, n, Vector2(ulen, WALL_H))
+
+func _wall_material() -> Material:
+	var m := StandardMaterial3D.new()
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.roughness = 1.0
+	m.metallic = 0.0
+	var tex: ImageTexture = null
+	if _wall_tile != "":
+		tex = _colored_tex(_wall_tile, _wall_main, _wall_detail, true)
+	if tex != null:
+		m.albedo_texture = tex
+		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	else:
+		m.albedo_color = _qud_color(_wall_main)
+	return m  # default shading is lit, so tops/sides shade differently
+
+# --- textures & materials (floors/sprites) ----------------------------------
 
 func _colored_tex(tile: String, main_c: String, detail_c: String, fill := false) -> ImageTexture:
 	if tile.is_empty() or _tiles_dir.is_empty():
 		return null
-	# `fill`: transparent pixels become the main colour (opaque) — used for walls so
-	# prisms are solid instead of speckled with holes.
 	var key := "%s|%s|%s|%s" % [tile, main_c, detail_c, fill]
 	if _tex_cache.has(key):
 		return _tex_cache[key]
@@ -138,8 +271,6 @@ func _colored_tex(tile: String, main_c: String, detail_c: String, fill := false)
 	return tex
 
 func _canon_wall_tile(tile: String) -> String:
-	# Rewrite an 8-bit adjacency suffix (…-01101011.bmp) to the solid interior
-	# variant (…-11111111.bmp). Leaves non-autotiled wall tiles unchanged.
 	var dot := tile.rfind(".")
 	var base := tile if dot < 0 else tile.substr(0, dot)
 	var ext := "" if dot < 0 else tile.substr(dot)
@@ -163,8 +294,6 @@ func _mask(tile: String) -> Image:
 	var path := _tiles_dir.path_join(fname)
 	if not FileAccess.file_exists(path):
 		return null
-	# Files are always PNG content even when the name ends in .bmp (Qud tile paths),
-	# so parse PNG explicitly rather than letting the extension pick the loader.
 	var bytes := FileAccess.get_file_as_bytes(path)
 	if bytes.is_empty():
 		return null
@@ -176,20 +305,16 @@ func _mask(tile: String) -> Image:
 	_mask_cache[fname] = img
 	return img
 
-func _mesh_material(tile: String, main_c: String, detail_c: String, tex: ImageTexture, opaque := false) -> StandardMaterial3D:
-	var key := "%s|%s|%s|%s" % [tile, main_c, detail_c, opaque]
+func _mesh_material(tile: String, main_c: String, detail_c: String, tex: ImageTexture) -> StandardMaterial3D:
+	var key := "%s|%s|%s" % [tile, main_c, detail_c]
 	if _texmat_cache.has(key):
 		return _texmat_cache[key]
 	var m := StandardMaterial3D.new()
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	m.albedo_texture = tex
 	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	if opaque:
-		m.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
-		m.cull_mode = BaseMaterial3D.CULL_BACK
-	else:
-		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
-		m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
 	_texmat_cache[key] = m
 	return m
 
@@ -222,13 +347,6 @@ func _take_floor() -> MeshInstance3D:
 	if _floor_pool.size() > 0: return _floor_pool.pop_back()
 	var mi := MeshInstance3D.new()
 	mi.mesh = _plane
-	add_child(mi)
-	return mi
-
-func _take_wall() -> MeshInstance3D:
-	if _wall_pool.size() > 0: return _wall_pool.pop_back()
-	var mi := MeshInstance3D.new()
-	mi.mesh = _box
 	add_child(mi)
 	return mi
 
