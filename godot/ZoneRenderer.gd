@@ -137,8 +137,13 @@ func _mask(tile: String) -> Image:
 	var path := _tiles_dir.path_join(fname)
 	if not FileAccess.file_exists(path):
 		return null
-	var img := Image.load_from_file(path)
-	if img == null:
+	# Files are always PNG content even when the name ends in .bmp (Qud tile paths),
+	# so parse PNG explicitly rather than letting the extension pick the loader.
+	var bytes := FileAccess.get_file_as_bytes(path)
+	if bytes.is_empty():
+		return null
+	var img := Image.new()
+	if img.load_png_from_buffer(bytes) != OK:
 		return null
 	if img.get_format() != Image.FORMAT_RGBA8:
 		img.convert(Image.FORMAT_RGBA8)
