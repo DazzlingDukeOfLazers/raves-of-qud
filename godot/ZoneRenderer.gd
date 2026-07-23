@@ -2,16 +2,19 @@ extends Node3D
 class_name ZoneRenderer
 
 ## Renders a zone snapshot as billboards on a 3D grid.
-## Prefers real Qud tile sprites (PNGs the mod exports to `tilesDir`); falls back
-## to an ASCII glyph (Label3D) for any object whose tile isn't on disk yet.
+## Real Qud tiles are 2-color masks (black = main / TileColor, white = detail /
+## DetailColor, on transparent). We recolor each tile on the CPU per colour combo
+## (cached) and show it as a Sprite3D; objects whose tile isn't exported yet fall
+## back to an ASCII glyph and retry on later frames.
 
-const CELL := 1.0        # world units per Qud cell
-const LAYER_STEP := 0.02 # tiny Y offset so stacked objects don't z-fight
-const PIXEL_SIZE := 0.04 # a 24px-tall tile ~= 1 cell
+const CELL := 1.0
+const LAYER_STEP := 0.02
+const PIXEL_SIZE := 0.042   # 24px tile ~= 1 cell tall
 
 var _tiles_dir := ""
-var _tex_cache := {}     # sanitized filename -> ImageTexture (hits only; misses retry)
-var _active: Array = []  # nodes shown this frame
+var _mask_cache := {}       # tile filename -> Image (raw 2-colour mask); hits only
+var _tex_cache := {}        # "tile|main|detail" -> ImageTexture
+var _active: Array = []
 var _sprite_pool: Array[Sprite3D] = []
 var _label_pool: Array[Label3D] = []
 
@@ -29,16 +32,17 @@ func render_snapshot(data: Dictionary) -> void:
 		var cy := int(cell.get("y", 0))
 		var idx := 0
 		for obj in cell.get("objs", []):
+			var tile := String(obj.get("tile", ""))
+			var main_c := String(obj.get("tilecolor", ""))
+			if main_c == "": main_c = String(obj.get("color", ""))
+			var detail_c := String(obj.get("detail", ""))
+			var tex := _colored_tex(tile, main_c, detail_c)
 			var pos := Vector3(cx * CELL, idx * LAYER_STEP, cy * CELL)
-			var tex := _tex_for(String(obj.get("tile", "")))
 			if tex != null:
 				var s := _take_sprite()
 				s.texture = tex
-				# Qud tints the tile by TileColor (fall back to the glyph color).
-				var c: String = obj.get("tilecolor", "")
-				if c == "": c = String(obj.get("color", ""))
-				s.modulate = _qud_color(c)
-				s.position = pos
+				# stand the sprite up on the ground plane
+				s.position = pos + Vector3(0, PIXEL_SIZE * tex.get_height() * 0.5, 0)
 				s.visible = true
 				_active.append(s)
 			else:
@@ -50,34 +54,62 @@ func render_snapshot(data: Dictionary) -> void:
 				_active.append(l)
 			idx += 1
 
-func _tex_for(tile: String) -> ImageTexture:
+# --- tile recolouring -------------------------------------------------------
+
+func _colored_tex(tile: String, main_c: String, detail_c: String) -> ImageTexture:
 	if tile.is_empty() or _tiles_dir.is_empty():
 		return null
-	var key := tile.replace("/", "_").replace("\\", "_").replace(":", "_")
+	var key := "%s|%s|%s" % [tile, main_c, detail_c]
 	if _tex_cache.has(key):
 		return _tex_cache[key]
-	# Not cached: try to load. Misses are NOT cached, so a tile the mod exports a
-	# moment later gets picked up on a subsequent frame.
-	var path := _tiles_dir.path_join(key)
+	var mask := _mask(tile)
+	if mask == null:
+		return null   # not exported yet; retry next frame
+	var main := _qud_color(main_c)
+	var detail := _qud_color(detail_c)
+	var w := mask.get_width()
+	var h := mask.get_height()
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	for y in h:
+		for x in w:
+			var p := mask.get_pixel(x, y)
+			if p.a < 0.5:
+				img.set_pixel(x, y, Color(0, 0, 0, 0))
+			else:
+				var lum := (p.r + p.g + p.b) / 3.0
+				var c := main.lerp(detail, lum)   # black->main, white->detail
+				img.set_pixel(x, y, Color(c.r, c.g, c.b, p.a))
+	var tex := ImageTexture.create_from_image(img)
+	_tex_cache[key] = tex
+	return tex
+
+func _mask(tile: String) -> Image:
+	var fname := tile.replace("/", "_").replace("\\", "_").replace(":", "_")
+	if _mask_cache.has(fname):
+		return _mask_cache[fname]
+	var path := _tiles_dir.path_join(fname)
 	if not FileAccess.file_exists(path):
 		return null
 	var img := Image.load_from_file(path)
 	if img == null:
 		return null
-	var tex := ImageTexture.create_from_image(img)
-	_tex_cache[key] = tex
-	return tex
+	if img.get_format() != Image.FORMAT_RGBA8:
+		img.convert(Image.FORMAT_RGBA8)
+	_mask_cache[fname] = img
+	return img
+
+# --- node pools -------------------------------------------------------------
 
 func _take_sprite() -> Sprite3D:
 	if _sprite_pool.size() > 0:
 		return _sprite_pool.pop_back()
 	var s := Sprite3D.new()
-	s.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	s.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y   # upright, faces camera (2.5D)
 	s.pixel_size = PIXEL_SIZE
 	s.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	s.shaded = false
 	s.transparent = true
-	s.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD  # crisp edges, correct depth sorting
+	s.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
 	add_child(s)
 	return s
 
@@ -92,8 +124,7 @@ func _take_label() -> Label3D:
 	add_child(l)
 	return l
 
-# Qud's 16-color palette. Non-obvious mapping (Base/Colors.xml):
-#   Y = white, y = gray, K = black; W = GOLD/yellow, w = BROWN; O/o = orange.
+# Qud palette (Base/Colors.xml): Y=white y=gray K=black W=gold w=brown O/o=orange
 const COLORS := {
 	"r": Color(0.60, 0.20, 0.15), "R": Color(1.00, 0.30, 0.30),
 	"g": Color(0.00, 0.50, 0.00), "G": Color(0.20, 0.90, 0.20),
