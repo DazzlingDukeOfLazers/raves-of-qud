@@ -221,21 +221,21 @@ func _family_ew(tile: String) -> String:
 		return tile
 	return tile.substr(0, us + 1) + "ew" + tile.substr(dot)
 
-func _place_connector(tile: String, main_c: String, detail_c: String, cx: int, cy: int, dirs: String, h := FENCE_H) -> void:
+func _place_connector(tile: String, main_c: String, detail_c: String, cx: int, cy: int, dirs: String, h := FENCE_H, fill := false) -> void:
 	if dirs == "":
-		_fence_half(cx, cy, "post", tile, main_c, detail_c, h)
+		_fence_half(cx, cy, "post", tile, main_c, detail_c, h, fill)
 		return
 	for d in dirs:
-		_fence_half(cx, cy, d, tile, main_c, detail_c, h)
+		_fence_half(cx, cy, d, tile, main_c, detail_c, h, fill)
 
 # One upright half-panel from the cell centre out to the edge in direction d, using
 # the family's E-W elevation art. Adjacent cells' halves meet at the shared edge,
 # so runs are continuous and corners form a clean L. Used for every directional
 # family: picket fences, pipes, and tent walls (which differ only in height).
-func _fence_half(cx: int, cy: int, d: String, tile: String, main_c: String, detail_c: String, h := FENCE_H) -> void:
+func _fence_half(cx: int, cy: int, d: String, tile: String, main_c: String, detail_c: String, h := FENCE_H, fill := false) -> void:
 	var mi := _take_fence()
 	var half := "r" if (d == "e" or d == "s") else "l"
-	mi.material_override = _fence_material(_family_ew(tile), main_c, detail_c, half)
+	mi.material_override = _fence_material(_family_ew(tile), main_c, detail_c, half, fill)
 	mi.scale = Vector3(0.5, h, 1.0)
 	var pos := Vector3(cx, h * 0.5, cy)
 	var rot := 0.0
@@ -262,20 +262,26 @@ func _take_fence() -> MeshInstance3D:
 	add_child(mi)
 	return mi
 
-func _fence_material(ew_tile: String, main_c: String, detail_c: String, half: String) -> StandardMaterial3D:
-	var key := "%s|%s|%s|%s" % [ew_tile, main_c, detail_c, half]
+# `fill`: paint the art's transparent pixels with the Qud cell background (the
+# dark green) instead of leaving them see-through. A sight-blocking panel — a
+# tent wall — should read as solid; a picket fence should not, so this rides on
+# the same `occluding` flag that picks the height.
+func _fence_material(ew_tile: String, main_c: String, detail_c: String, half: String, fill := false) -> StandardMaterial3D:
+	var key := "%s|%s|%s|%s|%s" % [ew_tile, main_c, detail_c, half, fill]
 	if _fencemat_cache.has(key):
 		return _fencemat_cache[key]
 	var m := StandardMaterial3D.new()
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	m.cull_mode = BaseMaterial3D.CULL_DISABLED
-	var tex := _colored_tex(ew_tile, main_c, detail_c)
+	var tex := _colored_tex(ew_tile, main_c, detail_c, fill)
 	if tex != null:
 		m.albedo_texture = tex
 		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+		if not fill:
+			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
 		# crop V to the opaque content band so the panel sits flush on the ground
-		# (the picket art is vertically centred with empty padding).
+		# (the art is vertically centred with empty padding). Measured on the RAW
+		# mask, so filling doesn't turn the padding into a green slab.
 		var vr := _opaque_v(_mask(ew_tile))
 		m.uv1_scale = Vector3(0.5, vr.y, 1)
 		m.uv1_offset = Vector3(0.5 if half == "r" else 0.0, vr.x, 0)
@@ -352,10 +358,13 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 		# standing panels, not billboards. Gated on wall so creatures don't match.
 		var dirs = _connector_dirs(tile) if bool(obj.get("wall", false)) else null
 		if dirs != null:
+			# sight-blocking connectors stand tall AND read as solid (background
+			# filled); see-through ones stay low and open.
+			var solid := bool(obj.get("occluding", false))
 			var ph := _panel_height(obj)
-			_place_connector(tile, main_c, detail_c, cx, cy, dirs, ph)
-			_note(cx, cy, idx, "connector panels [%s] h=%.2f" % [
-				"post" if dirs == "" else dirs, ph], ph * 0.5)
+			_place_connector(tile, main_c, detail_c, cx, cy, dirs, ph, solid)
+			_note(cx, cy, idx, "connector panels [%s] h=%.2f%s" % [
+				"post" if dirs == "" else dirs, ph, " filled-bg" if solid else ""], ph * 0.5)
 		else:
 			var s := _take_sprite()
 			s.texture = tex
