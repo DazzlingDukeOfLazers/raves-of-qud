@@ -1,0 +1,15 @@
+; Raves of Qud — Godot client (Godot 4.x)
+; Renders zone snapshots streamed from the Caves of Qud bridge mod.
+
+config_version=5
+
+[application]
+
+config/name="Raves of Qud"
+run/main_scene="res://Main.tscn"
+config/features=PackedStringArray("4.3", "Forward Plus")
+
+[rendering]
+
+; keep the pixel-art crisp when we later swap Label3D glyphs for tile sprites
+textures/canvas_textures/default_texture_filter=0

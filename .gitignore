@@ -1,0 +1,16 @@
+# Godot 4
+godot/.godot/
+godot/*.translation
+godot/export_presets.cfg
+godot/.import/
+
+# Never commit Qud's assets or binaries — this project ships none.
+# Point the client at your own local install at runtime instead.
+assets/qud/
+*.dll
+
+# OS / editor
+.DS_Store
+*.swp
+.idea/
+.vscode/

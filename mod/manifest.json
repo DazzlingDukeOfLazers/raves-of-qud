@@ -1,0 +1,8 @@
+{
+  "Title": "Raves of Qud Bridge",
+  "Author": "DazzlingDukeOfLazers",
+  "Version": "0.1.0",
+  "Description": "Publishes the active zone to a localhost socket each turn and accepts movement commands back, so an external Godot client can render Qud in 2.5D. Requires your own paid copy of Caves of Qud; ships no game assets.",
+  "LoadOrder": 100,
+  "Tags": "Scripting"
+}
