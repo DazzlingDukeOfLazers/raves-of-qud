@@ -13,7 +13,7 @@ class_name ZoneRenderer
 const CELL := 1.0
 const FLOOR_LAYER_MAX := 2
 const WALL_H := 1.2
-const FENCE_H := 0.85 # standing height of fence/pipe panels
+const FENCE_H := 0.6  # standing height of fence/pipe panels (content, sat on ground)
 const PIXEL_SIZE := 0.042
 const FLOOR_Y := 0.02
 const LAYER_STEP := 0.02
@@ -52,6 +52,19 @@ func _ready() -> void:
 	_fence_quad.size = Vector2(1, 1)  # scaled per instance
 	_wall_root = Node3D.new()
 	add_child(_wall_root)
+
+	# Qud-green ground surface under everything, so the world reads as ground
+	# (the dark-green cell background) instead of a black void between the dots.
+	var ground := MeshInstance3D.new()
+	var gpm := PlaneMesh.new()
+	gpm.size = Vector2(400, 400)
+	ground.mesh = gpm
+	ground.position = Vector3(40, -0.02, 12)  # big enough to cover any zone
+	var gm := StandardMaterial3D.new()
+	gm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	gm.albedo_color = WORLD_BG
+	ground.material_override = gm
+	add_child(ground)
 
 func render_snapshot(data: Dictionary) -> void:
 	_tiles_dir = String(data.get("tilesDir", ""))
@@ -186,12 +199,34 @@ func _fence_material(ew_tile: String, main_c: String, detail_c: String, half: St
 		m.albedo_texture = tex
 		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
-		m.uv1_scale = Vector3(0.5, 1, 1)
-		m.uv1_offset = Vector3(0.5 if half == "r" else 0.0, 0, 0)
+		# crop V to the opaque content band so the panel sits flush on the ground
+		# (the picket art is vertically centred with empty padding).
+		var vr := _opaque_v(_mask(ew_tile))
+		m.uv1_scale = Vector3(0.5, vr.y, 1)
+		m.uv1_offset = Vector3(0.5 if half == "r" else 0.0, vr.x, 0)
 	else:
 		m.albedo_color = _qud_color(main_c)
 	_fencemat_cache[key] = m
 	return m
+
+# (offset, scale) in V covering the opaque rows of an image — used to trim the
+# vertical padding from a directional tile so its content sits on the ground.
+func _opaque_v(img: Image) -> Vector2:
+	if img == null:
+		return Vector2(0, 1)
+	var w := img.get_width()
+	var h := img.get_height()
+	var first := -1
+	var last := -1
+	for y in h:
+		for x in w:
+			if img.get_pixel(x, y).a >= 0.5:
+				if first < 0: first = y
+				last = y
+				break
+	if first < 0:
+		return Vector2(0, 1)
+	return Vector2(float(first) / h, float(last - first + 1) / h)
 
 func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool) -> void:
 	var tile := String(obj.get("tile", ""))
