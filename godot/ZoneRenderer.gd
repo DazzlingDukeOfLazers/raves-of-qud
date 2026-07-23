@@ -164,6 +164,15 @@ func tile_image(tile: String) -> Image:
 func tile_opaque_band(tile: String) -> Vector2:
 	return _opaque_v(_mask(tile))
 
+## How many transparent pixels this tile's art encloses — the ones repainted as
+## background. 0 means the silhouette has no interior gaps.
+func tile_interior_px(tile: String) -> int:
+	var n := 0
+	for row in _interior(tile):
+		for v in row:
+			if v: n += 1
+	return n
+
 ## The on-disk filename a tile path maps to under tilesDir.
 func tile_filename(tile: String) -> String:
 	return tile.replace("/", "_").replace("\\", "_").replace(":", "_")
@@ -389,8 +398,10 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 				s.position = Vector3(cx, PIXEL_SIZE * btex.get_height() * 0.5, cy)
 			s.visible = true
 			_active.append(s)
-			_note(cx, cy, idx,
+			var gaps := tile_interior_px(tile)
+			_note(cx, cy, idx, "%s, %s" % [
 				("billboard(submerged %d%%)" % roundi(sink * 100.0)) if submerged else "billboard",
+				("%d px enclosed gap -> bg" % gaps) if gaps > 0 else "no enclosed gaps"],
 				s.position.y)
 	else:
 		var l := _take_label()
