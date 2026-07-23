@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    DEV-TIME TYPE-CHECK HARNESS ONLY.
+
+    Caves of Qud compiles these .cs files itself at runtime (bundled Roslyn), so
+    the mod is SHIPPED AS SOURCE — you never deploy the DLL this project builds.
+    Its sole purpose is to compile the mod against the game's real assemblies so
+    API mismatches surface here instead of at game launch.
+
+    Build:  dotnet build mod/RavesOfQudBridge.csproj
+    Point at a different install:
+            dotnet build mod/RavesOfQudBridge.csproj -p:CoQManaged="/path/to/Managed"
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <!-- We never ship this output; don't drag Unity DLLs into bin/. -->
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+
+    <!-- Default = the install discovered on this machine. Override with -p:CoQManaged=... -->
+    <CoQManaged Condition="'$(CoQManaged)' == ''">/Users/homefolder/Library/Application Support/Steam/steamapps/common/Caves of Qud/CoQ.app/Contents/Resources/Data/Managed</CoQManaged>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="*.cs" />
+  </ItemGroup>
+
+  <!--
+    Reference the game's own assemblies. Private=false so they're used for
+    compilation only and not copied. If the compiler reports an unresolved type
+    from some UnityEngine.*Module or XRL dependency, add that DLL from $(CoQManaged)
+    here — do NOT reference the game's mscorlib/netstandard/System (the SDK supplies
+    those; duplicating them causes conflicts).
+  -->
+  <ItemGroup>
+    <Reference Include="$(CoQManaged)/Assembly-CSharp.dll" Private="false" />
+    <Reference Include="$(CoQManaged)/UnityEngine.CoreModule.dll" Private="false" />
+    <Reference Include="$(CoQManaged)/UnityEngine.dll" Private="false" />
+  </ItemGroup>
+
+</Project>

@@ -1,5 +1,6 @@
 using System;
-using XRL.World;
+using XRL;        // IEventRegistrar (XRL.IEventRegistrar)
+using XRL.World;  // IPart, GameObject, EndTurnEvent
 
 namespace RavesOfQud
 {
@@ -8,29 +9,21 @@ namespace RavesOfQud
     /// Its only job is to fire <see cref="Bridge.Tick"/> once per turn, on the
     /// main thread.
     ///
-    /// CONFIRM (see header in Bridge.cs): the Register/FireEvent signatures and
-    /// the "EndTurn" event name. If your version uses pooled events instead,
-    /// replace the body with:
-    ///     public override bool WantEvent(int id, int casc) =&gt;
-    ///         base.WantEvent(id, casc) || id == EndTurnEvent.ID;
-    ///     public override bool HandleEvent(EndTurnEvent e) { Bridge.Tick(ParentObject); return base.HandleEvent(e); }
+    /// Uses the pooled-event path, verified against the 1.0 build:
+    ///   IPart.WantEvent(int, int), IPart.HandleEvent(EndTurnEvent), EndTurnEvent.ID.
     /// </summary>
     [Serializable]
     public class BridgePart : IPart
     {
-        public override void Register(GameObject Object, IEventRegistrar Registrar)
+        public override bool WantEvent(int ID, int cascade)
         {
-            Registrar.Register("EndTurn");
-            base.Register(Object, Registrar);
+            return base.WantEvent(ID, cascade) || ID == EndTurnEvent.ID;
         }
 
-        public override bool FireEvent(Event E)
+        public override bool HandleEvent(EndTurnEvent E)
         {
-            if (E.ID == "EndTurn")
-            {
-                Bridge.Tick(ParentObject);
-            }
-            return base.FireEvent(E);
+            Bridge.Tick(ParentObject);
+            return base.HandleEvent(E);
         }
     }
 }

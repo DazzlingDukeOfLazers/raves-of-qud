@@ -80,30 +80,39 @@ Prove the round trip end to end with **one live zone**:
 Only after that's solid: neighbor-zone (3×3 parasang) streaming for the
 over-the-horizon look, FOV, and the stats/log chrome mirror.
 
-## CONFIRM checklist
+## Compile harness (verify against the real API)
 
-Confirmed against this install by grepping `Assembly-CSharp.dll` metadata
-(existence + casing) and reading the XML data files. Signatures/overloads still
-want ILSpy — string metadata proves a name exists, not its parameters.
+`mod/RavesOfQudBridge.csproj` references the game's own assemblies so the mod
+**type-checks against the real API** — this is dev-time only; Qud still compiles
+the shipped `.cs` at runtime. On this machine the whole mod currently builds clean:
 
-Confirmed ✓
-- `[PlayerMutator]` + `IPlayerMutator` present; method is lowercase `mutate`
-- `The.ActiveZone` (`get_ActiveZone`), `CurrentCell` (`get_CurrentCell`)
-- `GetFirstPart<T>()` + `AddPart` present (`GetPart<T>`/`HasPart<T>` were NOT)
-- `Render` fields are **lowercase**: `renderString`, `colorString`, `detailColor`
-- Movement command IDs: `CmdMoveN/S/E/W/NE/NW/SE/SW` (`Commands.xml`)
-- `CommandEvent` exists (`World/Events/CommandEvent.cs`) — used to inject moves
-- Color letters: `Y`=white `y`=gray `K`=black `W`=gold `w`=brown `O/o`=orange
-  (`Colors.xml`) — palette baked into `godot/ZoneRenderer.gd`
+```bash
+dotnet build mod/RavesOfQudBridge.csproj
+```
 
-Still confirm in ILSpy ☐
-- [ ] `IPart.Register(GameObject, IEventRegistrar)` + `FireEvent(Event)` signatures,
-      and the `"EndTurn"` event name (or the pooled `EndTurnEvent`)
-- [ ] `CommandEvent.Send(actor, command)` exact signature
-- [ ] `Zone.Width/Height/GetCell/ZoneID`, `Cell.Objects/X/Y` (property chains)
-- [ ] Render **tile** field names (sprite path / tile color / render layer) —
-      didn't surface as bare strings; read them off `Parts/Render.cs`
+Every Qud symbol below was verified by reflecting `Assembly-CSharp.dll`
+(`MetadataLoadContext`) and confirmed by that build succeeding — not from string
+grepping, which was actively misleading (it reported the `Render` fields as
+lowercase when they're capitalized).
+
+Verified API ✓
+- `XRL.IPlayerMutator.mutate(GameObject)` + `[PlayerMutator]`
+- `XRL.The.ActiveZone` → `Zone`; `GameObject.CurrentCell` (prop)
+- `GameObject.GetPart<T>()`, `HasPart<T>()`, `AddPart(IPart)`
+- `Zone`: fields `Width`/`Height`, prop `ZoneID`, `GetCell(int,int)` → `Cell`
+- `XRL.World.Cell`: `X`, `Y`, `Objects`, `ParentZone`
+- `XRL.World.Parts.Render` fields (**capitalized**): `RenderString`, `Tile`,
+  `ColorString`, `TileColor`, `DetailColor`, `RenderLayer`; `Visible` (bool prop)
+- Per-turn hook: pooled `XRL.World.EndTurnEvent` (+ static `.ID`), via
+  `IPart.WantEvent(int,int)` / `HandleEvent(EndTurnEvent)`
+- Movement: `XRL.World.CommandEvent.Send(actor, "CmdMove"+dir, target, cell,
+  standoff, forced, silent, handler)`; command IDs from `Commands.xml`
+- Palette (`Colors.xml`): `Y`=white `y`=gray `K`=black `W`=gold `w`=brown `O/o`=orange
+
+Still to validate at runtime (types are right; behavior needs the game) ☐
 - [ ] `manifest.json` required fields + enabling a local scripting mod
+- [ ] that `EndTurnEvent` actually fires on the player part each turn (vs. needing
+      a different cadence event) — trivial to see once it's running
 
 ## PERF (defer until it bites)
 

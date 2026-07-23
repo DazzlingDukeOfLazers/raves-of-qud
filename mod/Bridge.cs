@@ -1,7 +1,6 @@
 using System;
-using XRL;
-using XRL.World;
-using XRL.World.Events; // CommandEvent (confirmed: World/Events/CommandEvent.cs)
+using XRL;        // The, IPlayerMutator, IEventRegistrar
+using XRL.World;  // GameObject, Zone, Cell, CommandEvent, EndTurnEvent
 
 namespace RavesOfQud
 {
@@ -10,16 +9,14 @@ namespace RavesOfQud
     //  this file, BridgePart.cs, and ZoneSnapshot.cs — nowhere else.
     //  Re-targeting a new Qud patch = fixing symbols in these three spots.
     //
-    //  CONFIRMED against the installed 1.0 build (Assembly-CSharp.dll metadata):
-    //    - The.ActiveZone (get_ActiveZone), The.Player
-    //    - Movement command IDs are "CmdMoveN/S/E/W/NE/NW/SE/SW" (Commands.xml)
-    //    - CommandEvent exists (World/Events/CommandEvent.cs) — the right way to
-    //      inject a command so combat/doors/NPC turns resolve like a keypress.
-    //    - GameObject.GetFirstPart<T>() (GetPart<T> not present), AddPart
-    //  STILL CONFIRM in ILSpy (signatures/overloads, not just names):
-    //    - IPart.Register(GameObject, IEventRegistrar) + FireEvent(Event) shape,
-    //      and the "EndTurn" event name (or pooled EndTurnEvent). See BridgePart.
-    //    - CommandEvent.Send(...) exact signature (see Step() below).
+    //  VERIFIED against the installed 1.0 build by reflecting Assembly-CSharp.dll
+    //  (exact signatures, not string guesses):
+    //    - XRL.The.ActiveZone / The.Player
+    //    - Movement command IDs "CmdMoveN/S/E/W/NE/NW/SE/SW" (Commands.xml)
+    //    - XRL.World.CommandEvent.Send(actor, command, target, cell, standoff,
+    //        forced, silent, handler) — no 2-arg overload; pass nulls/defaults.
+    //    - GameObject.GetPart<T>(), HasPart<T>(), AddPart(IPart)
+    //    - Per-turn hook: pooled XRL.World.EndTurnEvent (has static .ID). See BridgePart.
     // ========================================================================
 
     /// <summary>Process-wide holder for the single bridge server + per-turn tick.</summary>
@@ -101,11 +98,9 @@ namespace RavesOfQud
             if (player == null || string.IsNullOrEmpty(dir) || !Dirs.Contains(dir)) return;
 
             // Route through the command system so doors/combat/NPC turns resolve
-            // exactly as from a keypress. Command IDs confirmed in Commands.xml.
-            // TODO(qud-api): confirm CommandEvent.Send's exact signature in ILSpy
-            // (World/Events/CommandEvent.cs). Fallback if Send differs:
-            //     player.FireEvent(Event.New("Command" + "CmdMove" + dir));
-            CommandEvent.Send(player, "CmdMove" + dir);
+            // exactly as from a keypress. Verified overload:
+            //   Send(Actor, Command, Target, TargetCell, StandoffDistance, Forced, Silent, Handler)
+            CommandEvent.Send(player, "CmdMove" + dir, null, null, 0, false, false, null);
         }
     }
 }

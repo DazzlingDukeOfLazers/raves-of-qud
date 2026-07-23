@@ -8,18 +8,15 @@ namespace RavesOfQud
     /// Serializes the active zone into the snapshot JSON that Godot renders.
     /// Reads game state — MUST be called on the main thread (it is: via Bridge.Tick).
     ///
-    /// CONFIRMED against the installed 1.0 build via Assembly-CSharp.dll metadata:
-    ///   The.ActiveZone            (get_ActiveZone exists)
-    ///   GameObject.GetFirstPart&lt;T&gt;()  (GetPart&lt;T&gt; was NOT present; GetFirstPart is)
-    ///   Render fields are lowercase: renderString, colorString, detailColor
-    ///   GameObject.CurrentCell    (get_CurrentCell exists)
-    ///
-    /// STILL CONFIRM in ILSpy (not resolvable from string metadata alone):
-    ///   Zone.Width / Zone.Height / Zone.GetCell(x,y) / Zone.ZoneID (property chains)
-    ///   Cell.Objects, Cell.X, Cell.Y
-    ///   Render tile fields — the sprite path / tile color / render layer field
-    ///   names didn't surface as bare strings; read them off Parts/Render.cs.
-    ///   (Deferred below; the MVP renderer only needs glyph + color.)
+    /// VERIFIED against the installed 1.0 build by reflecting Assembly-CSharp.dll
+    /// (MetadataLoadContext — exact signatures, not string heuristics):
+    ///   The.ActiveZone -> XRL.World.Zone
+    ///   Zone: fields Width, Height (int); prop ZoneID (string); GetCell(int,int) -> Cell
+    ///   XRL.World.Cell: X, Y, ParentZone, Objects
+    ///   GameObject.GetPart&lt;T&gt;() ; GameObject.CurrentCell (prop)
+    ///   XRL.World.Parts.Render fields (CAPITALIZED): RenderString, ColorString,
+    ///     DetailColor, TileColor, Tile (all string), RenderLayer (int);
+    ///     Visible is a bool property (use it for FOV filtering in v2).
     ///
     /// We emit RAW Qud color strings (e.g. "&amp;Y") and let Godot interpret them.
     /// FOV / fog-of-war filtering is intentionally deferred (v2): for now we ship
@@ -62,8 +59,8 @@ namespace RavesOfQud
                     bool opened = false;
                     foreach (GameObject go in c.Objects)
                     {
-                        Render r = go.GetFirstPart<Render>();
-                        if (r == null || string.IsNullOrEmpty(r.renderString)) continue;
+                        Render r = go.GetPart<Render>();
+                        if (r == null || string.IsNullOrEmpty(r.RenderString)) continue;
 
                         if (!opened)
                         {
@@ -71,12 +68,13 @@ namespace RavesOfQud
                             opened = true;
                         }
 
-                        // Confirmed fields only. Add tile/tilecolor/layer once you've
-                        // read their exact field names off Parts/Render.cs in ILSpy.
                         j.BeginObject()
-                            .Member("glyph", r.renderString)
-                            .Member("color", r.colorString ?? "")
-                            .Member("detail", r.detailColor ?? "")
+                            .Member("glyph", r.RenderString)
+                            .Member("tile", r.Tile ?? "")
+                            .Member("color", r.ColorString ?? "")
+                            .Member("tilecolor", r.TileColor ?? "")
+                            .Member("detail", r.DetailColor ?? "")
+                            .Member("layer", r.RenderLayer)
                         .EndObject();
                     }
 

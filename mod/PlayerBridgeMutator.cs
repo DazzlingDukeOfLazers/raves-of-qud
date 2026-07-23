@@ -15,9 +15,8 @@ namespace RavesOfQud
     {
         public void mutate(GameObject player)
         {
-            // GetFirstPart + AddPart are both confirmed present in the 1.0 build
-            // (HasPart<T> / GetPart<T> did not surface in metadata).
-            if (player.GetFirstPart<BridgePart>() == null)
+            // HasPart<T>() and AddPart(IPart) both verified on the 1.0 build.
+            if (!player.HasPart<BridgePart>())
                 player.AddPart(new BridgePart());
         }
     }

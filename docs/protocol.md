@@ -20,8 +20,8 @@ Every message is a frame:
     {
       "x": 41, "y": 12,
       "objs": [
-        { "glyph": ".", "color": "&y", "detail": "k" },
-        { "glyph": "@", "color": "&Y", "detail": "y" }
+        { "glyph": ".", "tile": "Tiles/sw_floor_1.png", "color": "&y", "tilecolor": "&y", "detail": "k", "layer": 0 },
+        { "glyph": "@", "tile": "Creatures/sw_humanoid.png", "color": "&Y", "tilecolor": "&Y", "detail": "y", "layer": 8 }
       ]
     }
   ]
@@ -29,16 +29,16 @@ Every message is a frame:
 ```
 
 - Only **non-empty** cells are sent. Objects are ordered bottom→top of the cell stack.
-- `glyph` is the ASCII render char (Qud `Render.renderString`).
+- Fields map directly to `XRL.World.Parts.Render`: `glyph`=`RenderString`,
+  `tile`=`Tile`, `color`=`ColorString`, `tilecolor`=`TileColor`,
+  `detail`=`DetailColor`, `layer`=`RenderLayer`.
 - Colors are **raw Qud strings** (e.g. `&Y`); the client resolves them. Godot's
   MVP renderer keys off the trailing letter — see `ZoneRenderer._qud_color`.
   Remember Qud's palette: `Y`=white, `y`=gray, `W`=gold, `w`=brown.
 
 ### Deferred (v2)
-- `tile` / `tilecolor` / `layer` — the sprite-path fields on `Render` weren't
-  resolvable from DLL string metadata; add them once confirmed in ILSpy. The MVP
-  renders glyphs, so they aren't needed yet.
-- FOV / fog-of-war flags (currently every object with a Render is sent)
+- FOV / fog-of-war flags (currently every object with a Render is sent;
+  `Render.Visible` is available for this).
 - HP / stats / message-log mirror (the "copy the rest of the window" chrome)
 - neighbor-zone payloads for over-the-horizon streaming (the 3×3 parasang)
 

@@ -4,6 +4,10 @@ godot/*.translation
 godot/export_presets.cfg
 godot/.import/
 
+# .NET build output (the csproj is a dev-time type-check harness only)
+mod/bin/
+mod/obj/
+
 # Never commit Qud's assets or binaries — this project ships none.
 # Point the client at your own local install at runtime instead.
 assets/qud/
