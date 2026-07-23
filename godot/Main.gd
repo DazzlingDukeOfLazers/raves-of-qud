@@ -9,9 +9,12 @@ extends Node3D
 ##   Left-drag              -> orbit (yaw/pitch)      Q/E, R/F -> orbit by keyboard
 ##   Right- or middle-drag  -> pan across the zone
 ##   Mouse wheel            -> zoom
+##   Ctrl/Cmd+click, or I   -> inspect the cell under the cursor (CellInspector)
+##   Esc                    -> dismiss the inspector
 
 var client: BridgeClient
 var renderer: ZoneRenderer
+var inspector: CellInspector
 
 var _pivot: Node3D
 var _cam: Camera3D
@@ -62,8 +65,14 @@ func _ready() -> void:
 	_apply_pivot()
 	_update_camera()
 
+	# needs the camera, so it's built after it
+	inspector = CellInspector.new()
+	add_child(inspector)
+	inspector.setup(renderer, _cam)
+
 func _on_snapshot(data: Dictionary) -> void:
 	renderer.render_snapshot(data)
+	inspector.on_snapshot(data)
 	var z: Dictionary = data.get("zone", {})
 	if z.has("width") and z.has("height"):
 		_zone_center = Vector3(float(z["width"]) / 2.0, 0.0, float(z["height"]) / 2.0)
@@ -90,6 +99,8 @@ func _update_camera() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		match event.keycode:
+			KEY_I:               inspector.inspect_at_mouse()
+			KEY_ESCAPE:          inspector.hide_panel()
 			KEY_UP, KEY_KP_8:    client.send_command("move", {"dir": "N"})
 			KEY_DOWN, KEY_KP_2:  client.send_command("move", {"dir": "S"})
 			KEY_LEFT, KEY_KP_4:  client.send_command("move", {"dir": "W"})
@@ -100,7 +111,12 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_KP_3:            client.send_command("move", {"dir": "SE"})
 	elif event is InputEventMouseButton:
 		match event.button_index:
-			MOUSE_BUTTON_LEFT:   _orbiting = event.pressed
+			MOUSE_BUTTON_LEFT:
+				# Ctrl/Cmd+click inspects; a plain click still starts an orbit
+				if event.pressed and (event.ctrl_pressed or event.meta_pressed):
+					inspector.inspect_at_mouse()
+				else:
+					_orbiting = event.pressed
 			MOUSE_BUTTON_RIGHT, MOUSE_BUTTON_MIDDLE: _panning = event.pressed
 			MOUSE_BUTTON_WHEEL_UP:   if event.pressed: _dist = clampf(_dist * 0.9, DIST_MIN, DIST_MAX)
 			MOUSE_BUTTON_WHEEL_DOWN: if event.pressed: _dist = clampf(_dist * 1.1, DIST_MIN, DIST_MAX)

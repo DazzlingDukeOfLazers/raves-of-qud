@@ -49,6 +49,12 @@ var _wall_bg := ""       # background colour code (the ^X in the ColorString)
 # Qud's dark-green cell background — what shows through gaps when a wall has no ^bg
 const WORLD_BG := Color(0.05, 0.13, 0.10)
 
+# What the renderer actually DID with each object, keyed by cell. The wire data
+# says what Qud sent; this says how it was classified and where it landed — the
+# gap between those two is where every rendering bug so far has lived.
+# Read by CellInspector; rebuilt each snapshot.
+var _placed := {}   # Vector2i -> Array[{idx, kind, y}]
+
 var _active: Array = []
 var _sprite_pool: Array[Sprite3D] = []
 var _floor_pool: Array[MeshInstance3D] = []
@@ -77,6 +83,7 @@ func _ready() -> void:
 
 func render_snapshot(data: Dictionary) -> void:
 	_tiles_dir = String(data.get("tilesDir", ""))
+	_placed.clear()
 
 	for n in _active:
 		n.visible = false
@@ -95,11 +102,14 @@ func render_snapshot(data: Dictionary) -> void:
 	for cell in cells:
 		var cx := int(cell.get("x", 0))
 		var cy := int(cell.get("y", 0))
+		var widx := -1
 		for obj in cell.get("objs", []):
+			widx += 1
 			# Only solid, sight-blocking walls become prisms. Non-occluding "walls"
 			# (fences) fall through to the sprite path below.
 			if not _is_prism(obj):
 				continue
+			_note(cx, cy, widx, "prism", WALL_H)
 			var tile := _canon_wall_tile(String(obj.get("tile", "")))
 			var main_c := String(obj.get("tilecolor", ""))
 			if main_c == "": main_c = String(obj.get("color", ""))
@@ -125,6 +135,38 @@ func render_snapshot(data: Dictionary) -> void:
 			idx += 1
 
 	_rebuild_walls(wall_types)
+
+# --- introspection (for CellInspector) --------------------------------------
+
+func _note(cx: int, cy: int, idx: int, kind: String, y: float) -> void:
+	var k := Vector2i(cx, cy)
+	if not _placed.has(k):
+		_placed[k] = []
+	_placed[k].append({"idx": idx, "kind": kind, "y": y})
+
+## What the renderer did with cell (cx, cy): [{idx, kind, y}, ...]
+func placements_at(cx: int, cy: int) -> Array:
+	return _placed.get(Vector2i(cx, cy), [])
+
+## The decoded tile mask for a tile path, or null if it hasn't been exported yet.
+func tile_image(tile: String) -> Image:
+	return _mask(tile)
+
+## (offset, height) of the tile's opaque rows, as fractions of its height.
+func tile_opaque_band(tile: String) -> Vector2:
+	return _opaque_v(_mask(tile))
+
+## The on-disk filename a tile path maps to under tilesDir.
+func tile_filename(tile: String) -> String:
+	return tile.replace("/", "_").replace("\\", "_").replace(":", "_")
+
+func tiles_dir() -> String:
+	return _tiles_dir
+
+## Public form of the sink rule, so the inspector reports the same number the
+## renderer used rather than recomputing it and risking drift.
+func cell_sink(cell: Dictionary) -> float:
+	return _cell_sink(cell)
 
 # How far an actor standing in this cell sinks, as a fraction of its art height.
 # A bridge decks over the water, so you walk across at full height.
@@ -272,29 +314,35 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			d.position = Vector3(cx, y, cy)
 			d.visible = true
 			_active.append(d)
+			_note(cx, cy, idx, "deck(over water)" if wet else "deck(on ground)", y)
 			return
 
 	var tex := _colored_tex(tile, main_c, detail_c)
 
 	if layer <= FLOOR_LAYER_MAX:
 		if in_wall:
+			_note(cx, cy, idx, "skipped(under wall)", 0.0)
 			return  # hidden under a wall; don't bother
 		var f := _take_floor()
+		var fkind := "floor"
 		if tex != null:
 			f.material_override = _mesh_material(tile, main_c, detail_c, tex)
 			f.scale = Vector3.ONE
 		else:
 			f.material_override = _color_material(_qud_color(String(obj.get("color", ""))))
 			f.scale = Vector3(0.5, 1.0, 0.5)
+			fkind = "floor(no tile: flat colour dot)"
 		f.position = Vector3(cx, FLOOR_Y + idx * 0.005, cy)
 		f.visible = true
 		_active.append(f)
+		_note(cx, cy, idx, fkind, f.position.y)
 	elif tex != null:
 		# directional connectors (fences/pipes: family_<dirs>) -> orientation-locked
 		# standing panels, not billboards. Gated on wall so creatures don't match.
 		var dirs = _connector_dirs(tile) if bool(obj.get("wall", false)) else null
 		if dirs != null:
 			_place_connector(tile, main_c, detail_c, cx, cy, dirs)
+			_note(cx, cy, idx, "connector panels [%s]" % ("post" if dirs == "" else dirs), FENCE_H * 0.5)
 		else:
 			var s := _take_sprite()
 			s.texture = tex
@@ -305,6 +353,9 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 				s.position = Vector3(cx, PIXEL_SIZE * tex.get_height() * 0.5, cy)
 			s.visible = true
 			_active.append(s)
+			_note(cx, cy, idx,
+				("billboard(submerged %d%%)" % roundi(sink * 100.0)) if submerged else "billboard",
+				s.position.y)
 	else:
 		var l := _take_label()
 		l.text = String(obj.get("glyph", "?"))
@@ -312,6 +363,7 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 		l.position = Vector3(cx, 0.5 + idx * LAYER_STEP, cy)
 		l.visible = true
 		_active.append(l)
+		_note(cx, cy, idx, "label(NO TILE EXPORTED — glyph fallback)", l.position.y)
 
 # Draw only the part of a sprite above the waterline, and sit that cut edge on
 # the water. Cropping beats lowering the sprite: the water is a flat quad, so a
