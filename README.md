@@ -286,12 +286,16 @@ Both are **first-class Qud concepts** — don't infer them from tile names.
   deep pool 4000 → extra-deep 8000), surfaced as `Cell.HasWadingDepthLiquid()` /
   `HasSwimmingDepthLiquid()`. The `deep-`/`shallow-`/`puddle_N` tile family is *chosen from*
   volume by the `PaintedLiquidAtlas` system, so it's a symptom, not the source of truth.
-  Observed on live data (`JoppaWorld.11.22.1.1.10`): `wade` correlated 1:1 with `deep-*` tiles
-  — 52 cells, 52 `deep-*`, zero `shallow-`/`puddle_N`. Watervines sit in cells that are **not**
-  wading depth. ⚠️ *That first capture contained no shallow water at all*, so it showed only
-  that shallow water was never seen wading — not that it can't be. A later capture of the same
-  zone did contain 13 `shallow-*` and 4 `puddle_*`; re-run `snap.py water` against a frame like
-  that for the real control case before treating "wading depth == deep water" as settled.
+  **Confirmed against a control** (`JoppaWorld.11.22.1.1.10`, `snap.py water`): in a frame that
+  contains *all three* water families, `wade` holds all 52 `deep-*` and the `dry` bucket holds
+  all 13 `shallow-*` and all 4 `puddle_*`. So wading depth **is** deep water, and you don't
+  sink in puddles. Watervines also sit in non-wading cells, so they keep full height.
+
+  > Methodology note worth repeating: the *first* capture of this zone happened to contain no
+  > shallow water at all, and "no shallow tiles in a wade cell" looked like proof. It wasn't —
+  > it was absence of evidence. The claim only became real once a frame contained shallow water
+  > that could have been flagged wading and wasn't. When a correlation here looks perfect, check
+  > that the negative case is actually present in the sample.
 - **Bridges** are `<intproperty Name="Bridge" Value="1" />` on the blueprint —
   `Walkway`, `Bridge`, `BrineBridge`, `WoodFloor`, `MarbleFloor` in `ZoneTerrain.xml`.
   `Cell.HasBridge()` for the cell; `GameObject.HasIntProperty("Bridge")` for the object.
