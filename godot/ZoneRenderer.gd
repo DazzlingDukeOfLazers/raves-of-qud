@@ -67,9 +67,13 @@ func _place(obj: Dictionary, cx: int, cy: int, idx: int) -> void:
 
 	if is_wall:
 		var w := _take_wall()
-		var wtex := _colored_tex(tile, main_c, detail_c, true)  # opaque-filled: solid prism
+		# 2D autotile variants (…-00111100) exist only to fake connected edges in a
+		# top-down view; on a 3D box that's noise. Collapse them all to the solid
+		# interior tile (…-11111111) so every wall face uses one clean rock texture.
+		var wtile := _canon_wall_tile(tile)
+		var wtex := _colored_tex(wtile, main_c, detail_c, true)  # opaque-filled: solid prism
 		if wtex != null:
-			w.material_override = _mesh_material(tile, main_c, detail_c, wtex, true)
+			w.material_override = _mesh_material(wtile, main_c, detail_c, wtex, true)
 		else:
 			w.material_override = _color_material(_qud_color(main_c))  # prism until tile exports
 		w.position = Vector3(cx, WALL_H * 0.5, cy)
@@ -132,6 +136,25 @@ func _colored_tex(tile: String, main_c: String, detail_c: String, fill := false)
 	var tex := ImageTexture.create_from_image(img)
 	_tex_cache[key] = tex
 	return tex
+
+func _canon_wall_tile(tile: String) -> String:
+	# Rewrite an 8-bit adjacency suffix (…-01101011.bmp) to the solid interior
+	# variant (…-11111111.bmp). Leaves non-autotiled wall tiles unchanged.
+	var dot := tile.rfind(".")
+	var base := tile if dot < 0 else tile.substr(0, dot)
+	var ext := "" if dot < 0 else tile.substr(dot)
+	var dash := base.rfind("-")
+	if dash >= 0:
+		var suffix := base.substr(dash + 1)
+		if suffix.length() == 8 and _is_binary(suffix):
+			return base.substr(0, dash) + "-11111111" + ext
+	return tile
+
+func _is_binary(s: String) -> bool:
+	for ch in s:
+		if ch != "0" and ch != "1":
+			return false
+	return true
 
 func _mask(tile: String) -> Image:
 	var fname := tile.replace("/", "_").replace("\\", "_").replace(":", "_")
