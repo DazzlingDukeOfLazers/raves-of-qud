@@ -167,8 +167,14 @@ func _build_wall_mesh(wall_set: Dictionary) -> ArrayMesh:
 
 	return st.commit()
 
-func _v(st: SurfaceTool, p: Vector3, n: Vector3, uv: Vector2) -> void:
+# Baked directional shade per face (multiplies albedo via vertex colour), so the
+# carved form reads without depending on scene lighting. Fake sun from +X/+Z.
+const SHADE_TOP := 1.0
+const SHADE := {1: {"x": 0.72, "z": 0.86}, -1: {"x": 0.52, "z": 0.44}}
+
+func _v(st: SurfaceTool, p: Vector3, n: Vector3, uv: Vector2, s: float) -> void:
 	st.set_normal(n)
+	st.set_color(Color(s, s, s))
 	st.set_uv(uv)
 	st.add_vertex(p)
 
@@ -178,15 +184,17 @@ func _quad_top(st: SurfaceTool, x0: int, x1: int, z0: int, z1: int) -> void:
 	var y := WALL_H
 	var uu := float(x1 - x0 + 1); var vv := float(z1 - z0 + 1)
 	var n := Vector3.UP
-	_v(st, Vector3(ax, y, az), n, Vector2(0, 0))
-	_v(st, Vector3(bx, y, bz), n, Vector2(uu, vv))
-	_v(st, Vector3(bx, y, az), n, Vector2(uu, 0))
-	_v(st, Vector3(ax, y, az), n, Vector2(0, 0))
-	_v(st, Vector3(ax, y, bz), n, Vector2(0, vv))
-	_v(st, Vector3(bx, y, bz), n, Vector2(uu, vv))
+	var s := SHADE_TOP
+	_v(st, Vector3(ax, y, az), n, Vector2(0, 0), s)
+	_v(st, Vector3(bx, y, bz), n, Vector2(uu, vv), s)
+	_v(st, Vector3(bx, y, az), n, Vector2(uu, 0), s)
+	_v(st, Vector3(ax, y, az), n, Vector2(0, 0), s)
+	_v(st, Vector3(ax, y, bz), n, Vector2(0, vv), s)
+	_v(st, Vector3(bx, y, bz), n, Vector2(uu, vv), s)
 
 func _sides_x(st: SurfaceTool, wall_set: Dictionary, minx: int, maxx: int, minz: int, maxz: int, dir: int) -> void:
 	var n := Vector3(dir, 0, 0)
+	var s: float = SHADE[dir]["x"]
 	for x in range(minx, maxx + 1):
 		var z := minz
 		while z <= maxz:
@@ -197,11 +205,12 @@ func _sides_x(st: SurfaceTool, wall_set: Dictionary, minx: int, maxx: int, minz:
 			while z1 + 1 <= maxz and wall_set.has(Vector2i(x, z1 + 1)) and not wall_set.has(Vector2i(x + dir, z1 + 1)):
 				z1 += 1
 			var px := (x + 0.5) if dir > 0 else (x - 0.5)
-			_quad_side(st, Vector3(px, 0, z - 0.5), Vector3(px, 0, z1 + 0.5), n, float(z1 - z + 1))
+			_quad_side(st, Vector3(px, 0, z - 0.5), Vector3(px, 0, z1 + 0.5), n, float(z1 - z + 1), s)
 			z = z1 + 1
 
 func _sides_z(st: SurfaceTool, wall_set: Dictionary, minx: int, maxx: int, minz: int, maxz: int, dir: int) -> void:
 	var n := Vector3(0, 0, dir)
+	var s: float = SHADE[dir]["z"]
 	for z in range(minz, maxz + 1):
 		var x := minx
 		while x <= maxx:
@@ -212,25 +221,25 @@ func _sides_z(st: SurfaceTool, wall_set: Dictionary, minx: int, maxx: int, minz:
 			while x1 + 1 <= maxx and wall_set.has(Vector2i(x1 + 1, z)) and not wall_set.has(Vector2i(x1 + 1, z + dir)):
 				x1 += 1
 			var pz := (z + 0.5) if dir > 0 else (z - 0.5)
-			_quad_side(st, Vector3(x - 0.5, 0, pz), Vector3(x1 + 0.5, 0, pz), n, float(x1 - x + 1))
+			_quad_side(st, Vector3(x - 0.5, 0, pz), Vector3(x1 + 0.5, 0, pz), n, float(x1 - x + 1), s)
 			x = x1 + 1
 
 # a vertical quad from base a..b (y=0) up to WALL_H; `ulen` cells wide for UV tiling
-func _quad_side(st: SurfaceTool, a: Vector3, b: Vector3, n: Vector3, ulen: float) -> void:
+func _quad_side(st: SurfaceTool, a: Vector3, b: Vector3, n: Vector3, ulen: float, s: float) -> void:
 	var top_a := a + Vector3(0, WALL_H, 0)
 	var top_b := b + Vector3(0, WALL_H, 0)
-	_v(st, a, n, Vector2(0, 0))
-	_v(st, top_b, n, Vector2(ulen, WALL_H))
-	_v(st, top_a, n, Vector2(0, WALL_H))
-	_v(st, a, n, Vector2(0, 0))
-	_v(st, b, n, Vector2(ulen, 0))
-	_v(st, top_b, n, Vector2(ulen, WALL_H))
+	_v(st, a, n, Vector2(0, 0), s)
+	_v(st, top_b, n, Vector2(ulen, WALL_H), s)
+	_v(st, top_a, n, Vector2(0, WALL_H), s)
+	_v(st, a, n, Vector2(0, 0), s)
+	_v(st, b, n, Vector2(ulen, 0), s)
+	_v(st, top_b, n, Vector2(ulen, WALL_H), s)
 
 func _wall_material() -> Material:
 	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.vertex_color_use_as_albedo = true   # baked face shade multiplies the rock colour
 	m.cull_mode = BaseMaterial3D.CULL_DISABLED
-	m.roughness = 1.0
-	m.metallic = 0.0
 	var tex: ImageTexture = null
 	if _wall_tile != "":
 		tex = _colored_tex(_wall_tile, _wall_main, _wall_detail, true)
@@ -239,7 +248,7 @@ func _wall_material() -> Material:
 		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	else:
 		m.albedo_color = _qud_color(_wall_main)
-	return m  # default shading is lit, so tops/sides shade differently
+	return m
 
 # --- textures & materials (floors/sprites) ----------------------------------
 
