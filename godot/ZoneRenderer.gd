@@ -264,21 +264,33 @@ func _wall_region_tex(kind: String) -> ImageTexture:
 	var key := "%s|%s|%s" % [kind, _wall_main, _wall_detail]
 	if _wallmat_cache.has(key):
 		return _wallmat_cache[key]
+	var iso := _wall_tile.replace("-11111111", "-00000000")  # isolated wall: real border on all 4 sides
 	var tex: ImageTexture = null
 	if kind == "top":
-		var mask := _mask(_wall_tile)  # -11111111 = pure body checker
-		if mask != null:
-			var w := mask.get_width()
-			var region := mask.get_region(Rect2i(0, 0, w, min(w, mask.get_height())))
-			tex = _framed_top(region)   # tan-framed red/dark checker (per cell)
+		var iso_mask := _mask(iso)
+		if iso_mask != null:
+			# REAL fully-framed tile — recolor its top square as-is (real crenellated border)
+			var w := iso_mask.get_width()
+			var region := iso_mask.get_region(Rect2i(0, 0, w, min(w, iso_mask.get_height())))
+			tex = _recolor_image(region, _wall_main, _wall_detail, true)
+		else:
+			var mask := _mask(_wall_tile)  # fallback: synthetic frame on the interior checker
+			if mask != null:
+				var w := mask.get_width()
+				var region := mask.get_region(Rect2i(0, 0, w, min(w, mask.get_height())))
+				tex = _framed_top(region)
 	else:
-		var face_tile := _wall_tile.replace("-11111111", "-11100000")  # north-walled, south-open
+		# front-face strip: prefer the isolated tile's face, else a south-open variant
+		var face_tile := iso
 		var mask := _mask(face_tile)
+		if mask == null:
+			face_tile = _wall_tile.replace("-11111111", "-11100000")
+			mask = _mask(face_tile)
 		if mask != null:
 			var w := mask.get_width()
 			var h := mask.get_height()
 			if h > w:
-				var region := mask.get_region(Rect2i(0, w, w, h - w))  # the front-face strip
+				var region := mask.get_region(Rect2i(0, w, w, h - w))
 				tex = _recolor_image(region, _wall_main, _wall_detail, true)
 	if tex != null:
 		_wallmat_cache[key] = tex

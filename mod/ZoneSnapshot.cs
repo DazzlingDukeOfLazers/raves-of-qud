@@ -31,6 +31,11 @@ namespace RavesOfQud
             j.Member("type", Protocol.TypeSnapshot);
             j.Member("tilesDir", TileExporter.Dir); // where Godot loads exported PNGs
 
+            // Force-export reference tiles the client wants but that don't occur
+            // naturally in a zone — e.g. the isolated wall (bordered on all sides),
+            // used for the real framed wall-top. Cached after the first export.
+            TileExporter.Ensure("Assets/Content/Textures/Tiles/wall_rock-00000000.bmp");
+
             Zone z = The.ActiveZone;
             if (z == null) { j.EndObject(); return j.ToString(); }
 
