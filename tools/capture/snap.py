@@ -210,13 +210,66 @@ def cmd_find(snap, args):
         print("  (none)")
 
 
+def connector_dirs(tile):
+    """Mirror of ZoneRenderer._connector_dirs: the family_<dirs> connection set."""
+    name = base(tile)
+    if "." in name:
+        name = name.rsplit(".", 1)[0]
+    if "_" not in name:
+        return None
+    suffix = name.rsplit("_", 1)[1]
+    if len(suffix) > 4:
+        return None
+    return suffix if all(ch in "nsew" for ch in suffix) else None
+
+
+def classify(obj, cell):
+    """Mirror of ZoneRenderer's classification, in the SAME order it applies.
+
+    Lets you answer "what will the renderer do with this zone?" without the
+    viewport — and catches a rule change silently recategorising something.
+    """
+    wall = bool(obj.get("wall"))
+    occ = bool(obj.get("occluding"))
+    dirs = connector_dirs(obj.get("tile", ""))
+    if wall and occ and dirs is None:
+        return "prism"
+    if obj.get("bridge"):
+        return "deck(over water)" if (cell.get("wade") or cell.get("swim")) else "deck(on ground)"
+    if (obj.get("layer") or 0) <= 2:
+        return "floor"
+    if not obj.get("tile"):
+        return "label(no tile)"
+    if wall and dirs is not None:
+        return "panel(tall)" if occ else "panel(low)"
+    if obj.get("sinks") and not cell.get("bridge") and (cell.get("wade") or cell.get("swim")):
+        return "billboard(submerged)"
+    return "billboard"
+
+
+def cmd_classify(snap, _args):
+    header(snap)
+    buckets = defaultdict(Counter)
+    for c in snap.get("cells", []):
+        for o in c.get("objs", []):
+            buckets[classify(o, c)][family(o.get("tile", "")) or "(no tile)"] += 1
+    print("\nwhat the renderer will do with this zone:")
+    for kind in sorted(buckets, key=lambda k: -sum(buckets[k].values())):
+        total = sum(buckets[kind].values())
+        print(f"\n  {kind}  —  {total} object(s), {len(buckets[kind])} family/families")
+        for fam, n in buckets[kind].most_common(10):
+            print(f"      n={n:<5} {fam[:64]}")
+        if len(buckets[kind]) > 10:
+            print(f"      … {len(buckets[kind]) - 10} more families")
+
+
 def cmd_raw(snap, _args):
     json.dump(snap, sys.stdout, indent=1)
 
 
 COMMANDS = {
     "summary": cmd_summary, "cell": cmd_cell, "families": cmd_families,
-    "water": cmd_water, "find": cmd_find, "raw": cmd_raw,
+    "water": cmd_water, "find": cmd_find, "classify": cmd_classify, "raw": cmd_raw,
 }
 
 if __name__ == "__main__":
