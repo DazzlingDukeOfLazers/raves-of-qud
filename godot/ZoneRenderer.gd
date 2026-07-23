@@ -13,6 +13,7 @@ class_name ZoneRenderer
 const CELL := 1.0
 const FLOOR_LAYER_MAX := 2
 const WALL_H := 1.2
+const FENCE_H := 0.85 # standing height of fence/pipe panels
 const PIXEL_SIZE := 0.042
 const FLOOR_Y := 0.02
 const LAYER_STEP := 0.02
@@ -25,6 +26,9 @@ var _colmat_cache := {}     # color html -> StandardMaterial3D
 var _wallmat_cache := {}    # "kind|tile|main|detail|bg" -> ImageTexture (wall face art)
 
 var _plane: PlaneMesh
+var _fence_quad: QuadMesh          # unit quad; scaled per fence half-panel
+var _fence_pool: Array[MeshInstance3D] = []
+var _fencemat_cache := {}          # "ewtile|main|detail|half" -> StandardMaterial3D
 var _wall_root: Node3D   # one MeshInstance per wall TYPE, rebuilt per snapshot
 
 # set per wall-type while building that type's mesh
@@ -44,6 +48,8 @@ var _label_pool: Array[Label3D] = []
 func _ready() -> void:
 	_plane = PlaneMesh.new()
 	_plane.size = Vector2(CELL, CELL)
+	_fence_quad = QuadMesh.new()
+	_fence_quad.size = Vector2(1, 1)  # scaled per instance
 	_wall_root = Node3D.new()
 	add_child(_wall_root)
 
@@ -54,7 +60,9 @@ func render_snapshot(data: Dictionary) -> void:
 		n.visible = false
 		if n is Sprite3D: _sprite_pool.append(n)
 		elif n is Label3D: _label_pool.append(n)
-		elif n is MeshInstance3D: _floor_pool.append(n)
+		elif n is MeshInstance3D:
+			if n.mesh == _fence_quad: _fence_pool.append(n)
+			else: _floor_pool.append(n)
 	_active.clear()
 
 	var cells = data.get("cells", [])
@@ -127,28 +135,63 @@ func _family_ew(tile: String) -> String:
 	return tile.substr(0, us + 1) + "ew" + tile.substr(dot)
 
 func _place_connector(tile: String, main_c: String, detail_c: String, cx: int, cy: int, dirs: String) -> void:
-	var tex := _colored_tex(_family_ew(tile), main_c, detail_c)
-	if tex == null:
-		tex = _colored_tex(tile, main_c, detail_c)  # fallback to own art
-	if tex == null:
+	if dirs == "":
+		_fence_half(cx, cy, "post", tile, main_c, detail_c)
 		return
-	var has_ew := dirs.contains("e") or dirs.contains("w")
-	var has_ns := dirs.contains("n") or dirs.contains("s")
-	if has_ew:
-		_fence_panel(cx, cy, 0.0, tex)     # runs E-W, faces south
-	if has_ns:
-		_fence_panel(cx, cy, 90.0, tex)    # runs N-S, faces east
-	if not has_ew and not has_ns:
-		_fence_panel(cx, cy, 0.0, tex)     # lone post
+	for d in dirs:
+		_fence_half(cx, cy, d, tile, main_c, detail_c)
 
-func _fence_panel(cx: int, cy: int, rot_deg: float, tex: ImageTexture) -> void:
-	var s := _take_sprite()
-	s.billboard = BaseMaterial3D.BILLBOARD_DISABLED
-	s.rotation_degrees = Vector3(0, rot_deg, 0)
-	s.texture = tex
-	s.position = Vector3(cx, PIXEL_SIZE * tex.get_height() * 0.5, cy)
-	s.visible = true
-	_active.append(s)
+# One upright half-panel from the cell centre out to the edge in direction d, using
+# the family's E-W elevation art. Adjacent cells' halves meet at the shared edge,
+# so runs are continuous and corners form a clean L.
+func _fence_half(cx: int, cy: int, d: String, tile: String, main_c: String, detail_c: String) -> void:
+	var mi := _take_fence()
+	var half := "r" if (d == "e" or d == "s") else "l"
+	mi.material_override = _fence_material(_family_ew(tile), main_c, detail_c, half)
+	mi.scale = Vector3(0.5, FENCE_H, 1.0)
+	var pos := Vector3(cx, FENCE_H * 0.5, cy)
+	var rot := 0.0
+	match d:
+		"e": pos.x += 0.25
+		"w": pos.x -= 0.25
+		"n":
+			pos.z -= 0.25
+			rot = 90.0
+		"s":
+			pos.z += 0.25
+			rot = 90.0
+		_: pass  # post: centred, faces south
+	mi.rotation_degrees = Vector3(0, rot, 0)
+	mi.position = pos
+	mi.visible = true
+	_active.append(mi)
+
+func _take_fence() -> MeshInstance3D:
+	if _fence_pool.size() > 0:
+		return _fence_pool.pop_back()
+	var mi := MeshInstance3D.new()
+	mi.mesh = _fence_quad
+	add_child(mi)
+	return mi
+
+func _fence_material(ew_tile: String, main_c: String, detail_c: String, half: String) -> StandardMaterial3D:
+	var key := "%s|%s|%s|%s" % [ew_tile, main_c, detail_c, half]
+	if _fencemat_cache.has(key):
+		return _fencemat_cache[key]
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var tex := _colored_tex(ew_tile, main_c, detail_c)
+	if tex != null:
+		m.albedo_texture = tex
+		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+		m.uv1_scale = Vector3(0.5, 1, 1)
+		m.uv1_offset = Vector3(0.5 if half == "r" else 0.0, 0, 0)
+	else:
+		m.albedo_color = _qud_color(main_c)
+	_fencemat_cache[key] = m
+	return m
 
 func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool) -> void:
 	var tile := String(obj.get("tile", ""))
