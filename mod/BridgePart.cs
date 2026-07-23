@@ -17,20 +17,12 @@ namespace RavesOfQud
     {
         public override bool WantEvent(int ID, int cascade)
         {
-            return base.WantEvent(ID, cascade)
-                || ID == EndTurnEvent.ID       // per-turn: publish snapshot (game thread)
-                || ID == BeforeRenderEvent.ID; // per-frame: drain tile export (maybe main thread)
+            return base.WantEvent(ID, cascade) || ID == EndTurnEvent.ID;
         }
 
         public override bool HandleEvent(EndTurnEvent E)
         {
             Bridge.Tick(ParentObject);
-            return base.HandleEvent(E);
-        }
-
-        public override bool HandleEvent(BeforeRenderEvent E)
-        {
-            TileExportPump.Pump(); // guarded: only does graphics if on the Unity main thread
             return base.HandleEvent(E);
         }
     }

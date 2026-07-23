@@ -1,30 +1,26 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 
 namespace RavesOfQud
 {
     /// <summary>
-    /// Engine-assisted tile export — QUEUE side (turn-thread safe).
+    /// Engine-assisted tile export — dispatch side (game-thread safe).
     ///
-    /// CRITICAL THREADING: Qud runs turn logic (EndTurnEvent → our Tick) on a
-    /// DEDICATED BACKGROUND THREAD, not Unity's main/render thread. Any Unity
-    /// graphics call off that thread → "Graphics device is null" → a hard native
-    /// crash that try/catch cannot catch (learned the hard way).
-    ///
-    /// Therefore this class does NO Unity work. <see cref="Ensure"/> — called from
-    /// the turn thread while building a snapshot — only records tile paths. The
-    /// actual atlas readback + PNG write happens on the Unity main thread in
-    /// TileExportPump.cs, which drains <see cref="Pending"/>.
+    /// THREADING: Qud runs turn logic on a background thread; Unity graphics there
+    /// crashes ("Graphics device is null"), and Harmony patching is blocked on
+    /// macOS. The escape hatch is Qud's own cross-thread primitive: GameManager
+    /// has a <c>uiQueue</c> (QupKit.ThreadTaskQueue) drained on the UI/main thread.
+    /// <see cref="Ensure"/> (called while building a snapshot on the turn thread)
+    /// does NO graphics — it just marshals the actual readback onto uiQueue via
+    /// queueTask, so <see cref="TileExportPump.Export"/> runs on the main thread.
     /// </summary>
     public static class TileExporter
     {
         private static readonly HashSet<string> _seen = new HashSet<string>();  // turn thread only
-        public static readonly ConcurrentQueue<string> Pending = new ConcurrentQueue<string>();
         private static string _dir;
 
-        /// <summary>Shared output dir; also sent to Godot in each snapshot. (File IO only — thread safe.)</summary>
+        /// <summary>Shared output dir; also sent to Godot in each snapshot. (File IO only.)</summary>
         public static string Dir
         {
             get
@@ -43,11 +39,21 @@ namespace RavesOfQud
         public static string FileFor(string tilePath) =>
             tilePath.Replace('/', '_').Replace('\\', '_').Replace(':', '_');
 
-        /// <summary>Turn-thread safe: record a tile to export later. NO Unity calls.</summary>
+        /// <summary>
+        /// Turn-thread safe: queue this tile's export onto Unity's main thread.
+        /// No Unity graphics here — only enqueue. If GameManager isn't ready yet we
+        /// return WITHOUT marking it seen, so it's retried on a later turn.
+        /// </summary>
         public static void Ensure(string tilePath)
         {
-            if (string.IsNullOrEmpty(tilePath) || !_seen.Add(tilePath)) return;
-            Pending.Enqueue(tilePath);
+            if (string.IsNullOrEmpty(tilePath) || _seen.Contains(tilePath)) return;
+
+            GameManager gm = GameManager.Instance;
+            if (gm == null || gm.uiQueue == null) return;
+
+            _seen.Add(tilePath);
+            string path = tilePath; // capture for the main-thread closure
+            gm.uiQueue.queueTask(() => TileExportPump.Export(path), 0);
         }
     }
 }
