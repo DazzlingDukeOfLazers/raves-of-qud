@@ -27,8 +27,16 @@ const WATER_LINE_Y := 0.05 # where a submerged sprite gets cut off
 const SINK_WADE := 0.45    # fraction of the sprite's art hidden (wading depth)
 const SINK_SWIM := 0.72    # ... and swimming depth
 
+# How a tile's TRANSPARENT pixels are treated when recolouring.
+#   NONE     leave see-through (fences, floors)
+#   ALL      paint every one with the cell background (wall faces, decks, tents)
+#   INTERIOR paint only the gaps enclosed by the art (billboards) — so a chest's
+#            lock reads as background but the world still shows past its outline
+enum Fill { NONE, ALL, INTERIOR }
+
 var _tiles_dir := ""
 var _mask_cache := {}       # fname -> Image
+var _interior_cache := {}   # fname -> Array[Array[bool]]
 var _tex_cache := {}        # "tile|main|detail|fill" -> ImageTexture
 var _texmat_cache := {}     # key -> StandardMaterial3D (floors)
 var _colmat_cache := {}     # color html -> StandardMaterial3D
@@ -221,7 +229,7 @@ func _family_ew(tile: String) -> String:
 		return tile
 	return tile.substr(0, us + 1) + "ew" + tile.substr(dot)
 
-func _place_connector(tile: String, main_c: String, detail_c: String, cx: int, cy: int, dirs: String, h := FENCE_H, fill := false) -> void:
+func _place_connector(tile: String, main_c: String, detail_c: String, cx: int, cy: int, dirs: String, h := FENCE_H, fill := Fill.NONE) -> void:
 	if dirs == "":
 		_fence_half(cx, cy, "post", tile, main_c, detail_c, h, fill)
 		return
@@ -232,7 +240,7 @@ func _place_connector(tile: String, main_c: String, detail_c: String, cx: int, c
 # the family's E-W elevation art. Adjacent cells' halves meet at the shared edge,
 # so runs are continuous and corners form a clean L. Used for every directional
 # family: picket fences, pipes, and tent walls (which differ only in height).
-func _fence_half(cx: int, cy: int, d: String, tile: String, main_c: String, detail_c: String, h := FENCE_H, fill := false) -> void:
+func _fence_half(cx: int, cy: int, d: String, tile: String, main_c: String, detail_c: String, h := FENCE_H, fill := Fill.NONE) -> void:
 	var mi := _take_fence()
 	var half := "r" if (d == "e" or d == "s") else "l"
 	mi.material_override = _fence_material(_family_ew(tile), main_c, detail_c, half, fill)
@@ -266,8 +274,8 @@ func _take_fence() -> MeshInstance3D:
 # dark green) instead of leaving them see-through. A sight-blocking panel — a
 # tent wall — should read as solid; a picket fence should not, so this rides on
 # the same `occluding` flag that picks the height.
-func _fence_material(ew_tile: String, main_c: String, detail_c: String, half: String, fill := false) -> StandardMaterial3D:
-	var key := "%s|%s|%s|%s|%s" % [ew_tile, main_c, detail_c, half, fill]
+func _fence_material(ew_tile: String, main_c: String, detail_c: String, half: String, fill := Fill.NONE) -> StandardMaterial3D:
+	var key := "%s|%s|%s|%s|%d" % [ew_tile, main_c, detail_c, half, fill]
 	if _fencemat_cache.has(key):
 		return _fencemat_cache[key]
 	var m := StandardMaterial3D.new()
@@ -277,7 +285,7 @@ func _fence_material(ew_tile: String, main_c: String, detail_c: String, half: St
 	if tex != null:
 		m.albedo_texture = tex
 		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-		if not fill:
+		if fill == Fill.NONE:
 			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
 		# crop V to the opaque content band so the panel sits flush on the ground
 		# (the art is vertically centred with empty padding). Measured on the RAW
@@ -322,7 +330,7 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 	# Only a deck spanning water gets lifted to bridge height; a hut floor stays
 	# down with the other floor quads so its edges don't step up off the ground.
 	if bool(obj.get("bridge", false)) and not in_wall:
-		var deck := _colored_tex(tile, main_c, detail_c, true)
+		var deck := _colored_tex(tile, main_c, detail_c, Fill.ALL)
 		if deck != null:
 			var d := _take_floor()
 			d.material_override = _deck_material(tile, main_c, detail_c, deck)
@@ -361,18 +369,24 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			# sight-blocking connectors stand tall AND read as solid (background
 			# filled); see-through ones stay low and open.
 			var solid := bool(obj.get("occluding", false))
+			var pfill: int = Fill.ALL if solid else Fill.NONE
 			var ph := _panel_height(obj)
-			_place_connector(tile, main_c, detail_c, cx, cy, dirs, ph, solid)
+			_place_connector(tile, main_c, detail_c, cx, cy, dirs, ph, pfill)
 			_note(cx, cy, idx, "connector panels [%s] h=%.2f%s" % [
 				"post" if dirs == "" else dirs, ph, " filled-bg" if solid else ""], ph * 0.5)
 		else:
+			# Gaps *enclosed* by the art read as the cell background, the way Qud
+			# draws them; everything outside the silhouette stays see-through.
+			var btex := _colored_tex(tile, main_c, detail_c, Fill.INTERIOR)
+			if btex == null:
+				btex = tex
 			var s := _take_sprite()
-			s.texture = tex
+			s.texture = btex
 			var submerged: bool = sink > 0.0 and bool(obj.get("sinks", false))
 			if submerged:
-				_submerge(s, tex, tile, cx, cy, sink)
+				_submerge(s, btex, tile, cx, cy, sink)
 			else:
-				s.position = Vector3(cx, PIXEL_SIZE * tex.get_height() * 0.5, cy)
+				s.position = Vector3(cx, PIXEL_SIZE * btex.get_height() * 0.5, cy)
 			s.visible = true
 			_active.append(s)
 			_note(cx, cy, idx,
@@ -574,7 +588,7 @@ func _wall_region_tex(kind: String) -> ImageTexture:
 			# REAL fully-framed tile — recolor its top square as-is (real crenellated border)
 			var w := iso_mask.get_width()
 			var region := iso_mask.get_region(Rect2i(0, 0, w, min(w, iso_mask.get_height())))
-			tex = _recolor_image(region, _wall_main, _wall_detail, true)
+			tex = _recolor_image(region, _wall_main, _wall_detail, Fill.ALL)
 		else:
 			var mask := _mask(_wall_tile)  # fallback: synthetic frame on the interior checker
 			if mask != null:
@@ -593,7 +607,7 @@ func _wall_region_tex(kind: String) -> ImageTexture:
 			var h := mask.get_height()
 			if h > w:
 				var region := mask.get_region(Rect2i(0, w, w, h - w))
-				tex = _recolor_image(region, _wall_main, _wall_detail, true)
+				tex = _recolor_image(region, _wall_main, _wall_detail, Fill.ALL)
 	if tex != null:
 		_wallmat_cache[key] = tex
 	return tex
@@ -633,22 +647,80 @@ func _wall_mat_from_tex(tex: ImageTexture) -> StandardMaterial3D:
 
 # --- textures & materials (floors/sprites) ----------------------------------
 
-func _colored_tex(tile: String, main_c: String, detail_c: String, fill := false) -> ImageTexture:
+func _colored_tex(tile: String, main_c: String, detail_c: String, fill := Fill.NONE) -> ImageTexture:
 	if tile.is_empty() or _tiles_dir.is_empty():
 		return null
-	var key := "%s|%s|%s|%s" % [tile, main_c, detail_c, fill]
+	var key := "%s|%s|%s|%d" % [tile, main_c, detail_c, fill]
 	if _tex_cache.has(key):
 		return _tex_cache[key]
 	var mask := _mask(tile)
 	if mask == null:
 		return null
-	var tex := _recolor_image(mask, main_c, detail_c, fill)
+	var inner = _interior(tile) if fill == Fill.INTERIOR else null
+	var tex := _recolor_image(mask, main_c, detail_c, fill, inner)
 	_tex_cache[key] = tex
 	return tex
 
-# Recolour a 2-colour mask Image: black -> main, white -> detail; transparent ->
-# main (opaque) when `fill`, else transparent.
-func _recolor_image(mask: Image, main_c: String, detail_c: String, fill: bool) -> ImageTexture:
+# Which transparent pixels are INSIDE the art rather than around it.
+#
+# The tile itself can't tell us: alpha is strictly binary, and the RGB left under
+# transparent pixels is atlas bleed from neighbouring tiles (it appears in rows
+# entirely outside the sprite, and visually identical gaps carry different
+# colours). So the test is geometric — a pixel is interior when the art spans it
+# BOTH vertically in its column and horizontally in its row.
+#
+# Why not a border flood fill, the textbook answer? Qud art often has a
+# transparent separator line that reaches the tile edge — the chest has one under
+# its lid — and a flood fill drains the whole interior out through it, leaving
+# you seeing the world through the middle of the chest. Span testing never asks
+# about connectivity, so a leak can't propagate.
+#
+# Known limit: a sprite whose interior SHOULD stay see-through (a basket you look
+# into) is geometrically indistinguishable from one that shouldn't. No rule here
+# separates them. Note Qud's own 2D view shows the cell background through that
+# interior too, so filling it matches the game.
+func _interior(tile: String) -> Array:
+	var fname := tile.replace("/", "_").replace("\\", "_").replace(":", "_")
+	if _interior_cache.has(fname):
+		return _interior_cache[fname]
+	var mask := _mask(tile)
+	var out := []
+	if mask == null:
+		return out
+	var w := mask.get_width()
+	var h := mask.get_height()
+	var solid := []
+	for y in h:
+		var row := []
+		for x in w:
+			row.append(mask.get_pixel(x, y).a >= 0.5)
+		solid.append(row)
+	# first/last opaque pixel per column and per row
+	var col_lo := []; var col_hi := []
+	for x in w:
+		var lo := -1; var hi := -1
+		for y in h:
+			if solid[y][x]:
+				if lo < 0: lo = y
+				hi = y
+		col_lo.append(lo); col_hi.append(hi)
+	for y in h:
+		var lo := -1; var hi := -1
+		for x in w:
+			if solid[y][x]:
+				if lo < 0: lo = x
+				hi = x
+		var row := []
+		for x in w:
+			row.append(not solid[y][x] and lo >= 0 and x > lo and x < hi
+				and col_lo[x] >= 0 and y > col_lo[x] and y < col_hi[x])
+		out.append(row)
+	_interior_cache[fname] = out
+	return out
+
+# Recolour a 2-colour mask Image: black -> main, white -> detail. Transparent
+# pixels become the cell background per `fill` (see the Fill enum).
+func _recolor_image(mask: Image, main_c: String, detail_c: String, fill: int, inner = null) -> ImageTexture:
 	var main := _qud_color(main_c)
 	var detail := _qud_color(detail_c)
 	var w := mask.get_width()
@@ -658,8 +730,10 @@ func _recolor_image(mask: Image, main_c: String, detail_c: String, fill: bool) -
 		for x in w:
 			var p := mask.get_pixel(x, y)
 			if p.a < 0.5:
-				# transparent = the cell/object BACKGROUND (^X colour, or world dark-green)
-				img.set_pixel(x, y, _wall_bg_color() if fill else Color(0, 0, 0, 0))
+				# transparent = the cell/object BACKGROUND (world dark-green)
+				var paint: bool = fill == Fill.ALL or (fill == Fill.INTERIOR
+					and inner != null and y < inner.size() and bool(inner[y][x]))
+				img.set_pixel(x, y, _wall_bg_color() if paint else Color(0, 0, 0, 0))
 			else:
 				var lum := (p.r + p.g + p.b) / 3.0
 				var c := main.lerp(detail, lum)
