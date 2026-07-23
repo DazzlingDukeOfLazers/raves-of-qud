@@ -266,11 +266,11 @@ func _wall_region_tex(kind: String) -> ImageTexture:
 		return _wallmat_cache[key]
 	var tex: ImageTexture = null
 	if kind == "top":
-		var mask := _mask(_wall_tile)  # -11111111 = pure body
+		var mask := _mask(_wall_tile)  # -11111111 = pure body checker
 		if mask != null:
 			var w := mask.get_width()
 			var region := mask.get_region(Rect2i(0, 0, w, min(w, mask.get_height())))
-			tex = _recolor_image(region, _wall_main, _wall_detail, true)
+			tex = _framed_top(region)   # tan-framed red/dark checker (per cell)
 	else:
 		var face_tile := _wall_tile.replace("-11111111", "-11100000")  # north-walled, south-open
 		var mask := _mask(face_tile)
@@ -283,6 +283,27 @@ func _wall_region_tex(kind: String) -> ImageTexture:
 	if tex != null:
 		_wallmat_cache[key] = tex
 	return tex
+
+# Build the framed wall-top tile the sprite shows: a tan border around a
+# red/dark checker (from the -11111111 body mask). Tiled per cell on the mesh
+# tops, so the tan frames form the stone-block grid.
+func _framed_top(src: Image) -> ImageTexture:
+	var w := src.get_width()
+	var h := src.get_height()
+	var main := _qud_color(_wall_main)                                    # red rock
+	var dark := main.darkened(0.62)                                       # checker gaps
+	var tan := _qud_color(_wall_detail).lerp(Color(1.0, 0.92, 0.6), 0.45) # cap/frame
+	var border := 2
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	for y in h:
+		for x in w:
+			if x < border or x >= w - border or y < border or y >= h - border:
+				img.set_pixel(x, y, tan)
+			else:
+				var p := src.get_pixel(x, y)
+				var lit: bool = p.a >= 0.5 and (p.r + p.g + p.b) / 3.0 < 0.5
+				img.set_pixel(x, y, main if lit else dark)
+	return ImageTexture.create_from_image(img)
 
 func _wall_mat_from_tex(tex: ImageTexture) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
