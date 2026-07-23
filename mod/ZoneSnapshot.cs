@@ -72,6 +72,7 @@ namespace RavesOfQud
                         string tile = r.Tile ?? "";
                         if (tile.Length > 0) TileExporter.Ensure(tile); // export-on-sight, cached
 
+                        Physics phys = go.GetPart<Physics>();
                         j.BeginObject()
                             .Member("glyph", r.RenderString)
                             .Member("tile", tile)
@@ -80,6 +81,8 @@ namespace RavesOfQud
                             .Member("detail", r.DetailColor ?? "")
                             .Member("layer", r.RenderLayer)
                             .Member("wall", go.IsWall())
+                            .Member("solid", phys != null && phys.Solid)
+                            .Member("occluding", r.Occluding)
                         .EndObject();
                     }
 
