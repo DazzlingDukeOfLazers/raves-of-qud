@@ -68,6 +68,16 @@ def base(tile):
     return tile.replace("\\", "/").split("/")[-1]
 
 
+def meaningful(tile):
+    """Lowercased name with the boilerplate path prefix stripped.
+
+    Match against THIS, never the raw path: nearly every tile is under
+    Assets_Content_Textures_, so a search for "tent" hits "Content" and
+    returns the whole zone.
+    """
+    return base(tile).lower().replace("assets_content_textures_", "")
+
+
 def family(tile):
     """Collapse an autotile bitmask so variants group: wall_rock-0110 -> -*"""
     return re.sub(r"[-_][01]{8}", "-*", base(tile))
@@ -187,10 +197,11 @@ def cmd_find(snap, args):
     hits = 0
     for c in snap.get("cells", []):
         for i, o in enumerate(c.get("objs", [])):
-            if needle in o.get("tile", "").lower() or needle == o.get("glyph", "").lower():
+            if needle in meaningful(o.get("tile", "")) or needle == o.get("glyph", "").lower():
                 hits += 1
                 print(f"  ({c['x']},{c['y']}) idx={i} layer={o.get('layer')} "
-                      f"{o.get('tile','')!r} color={o.get('color','')!r} "
+                      f"{base(o.get('tile',''))!r} color={o.get('color','')!r} "
+                      f"wall={int(bool(o.get('wall')))} occ={int(bool(o.get('occluding')))} "
                       f"bridge={int(bool(o.get('bridge')))} sinks={int(bool(o.get('sinks')))}")
                 if hits >= 60:
                     print("  … truncated at 60")
