@@ -13,13 +13,17 @@ class_name CellInspector
 ## the opaque-row band, so tiles can be decoded directly without a screenshot.
 ##
 ## Controls:  Ctrl/Cmd + Left-click, or hover and press I
+##            - / =  shrink or grow the panel text   (Esc dismisses)
 ##
 ## Output (all three, so it's there however you want to grab it):
 ##   - on-screen panel
 ##   - the clipboard
 ##   - <tilesDir>/../selection.txt   (latest)  and  selections.log  (history)
 
-const MAX_ON_SCREEN_LINES := 34
+const FONT_SIZE_DEFAULT := 22
+const FONT_SIZE_MIN := 10
+const FONT_SIZE_MAX := 48
+const LINE_HEIGHT_RATIO := 1.35   # approximate, for fitting lines to the viewport
 
 var _renderer: ZoneRenderer
 var _cam: Camera3D
@@ -30,6 +34,8 @@ var _panel: PanelContainer
 var _label: RichTextLabel
 var _mark_pad: MeshInstance3D
 var _mark_pin: MeshInstance3D
+var _font_size := FONT_SIZE_DEFAULT
+var _last_report := ""
 
 func setup(renderer: ZoneRenderer, cam: Camera3D) -> void:
 	_renderer = renderer
@@ -164,19 +170,37 @@ func _write(report: String) -> void:
 		hist.close()
 
 func _show(report: String, cx: int, cy: int) -> void:
-	var lines := report.split("\n")
-	var shown := lines
-	if lines.size() > MAX_ON_SCREEN_LINES:
-		shown = lines.slice(0, MAX_ON_SCREEN_LINES)
-	_label.text = "\n".join(shown)
-	if lines.size() > MAX_ON_SCREEN_LINES:
-		_label.text += "\n… %d more lines — full report copied to the clipboard and selection.txt" % (
-			lines.size() - MAX_ON_SCREEN_LINES)
+	_last_report = report
+	_repaint()
 	_panel.visible = true
 	_mark_pad.position = Vector3(cx, 0.30, cy)
 	_mark_pin.position = Vector3(cx, 1.60, cy)
 	_mark_pad.visible = true
 	_mark_pin.visible = true
+
+## Re-flow the current report for the current font size. How many lines fit
+## depends on the font size, so this is recomputed rather than a fixed cap.
+func _repaint() -> void:
+	if _last_report == "":
+		return
+	var lines := _last_report.split("\n")
+	var avail := get_viewport().get_visible_rect().size.y - 48.0
+	var fits := maxi(6, floori(avail / (_font_size * LINE_HEIGHT_RATIO)))
+	if lines.size() <= fits:
+		_label.text = _last_report
+	else:
+		_label.text = "\n".join(lines.slice(0, fits - 1))
+		_label.text += "\n… %d more lines — full report is on the clipboard and in selection.txt" % (
+			lines.size() - (fits - 1))
+
+## '-' / '=' while the panel is up. Sizing is a matter of the user's display, not
+## something to hard-code and hope for.
+func nudge_font(delta: int) -> void:
+	if not _panel.visible:
+		return
+	_font_size = clampi(_font_size + delta, FONT_SIZE_MIN, FONT_SIZE_MAX)
+	_label.add_theme_font_size_override("normal_font_size", _font_size)
+	_repaint()
 
 func hide_panel() -> void:
 	_panel.visible = false
@@ -204,9 +228,14 @@ func _build_ui() -> void:
 	_label.bbcode_enabled = false
 	_label.fit_content = true
 	_label.scroll_active = false
-	_label.custom_minimum_size = Vector2(620, 0)
+	# no wrapping: the report is column-aligned, and a wrap destroys the alignment
+	_label.autowrap_mode = TextServer.AUTOWRAP_OFF
 	_label.add_theme_color_override("default_color", Color(0.85, 0.95, 0.85))
-	_label.add_theme_font_size_override("normal_font_size", 12)
+	_label.add_theme_font_size_override("normal_font_size", _font_size)
+	# monospace, so tile names and flag columns line up
+	var mono := SystemFont.new()
+	mono.font_names = PackedStringArray(["Menlo", "SF Mono", "Monaco", "Courier New", "monospace"])
+	_label.add_theme_font_override("normal_font", mono)
 	_panel.add_child(_label)
 
 func _build_marker() -> void:

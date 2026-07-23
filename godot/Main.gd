@@ -10,6 +10,7 @@ extends Node3D
 ##   Right- or middle-drag  -> pan across the zone
 ##   Mouse wheel            -> zoom
 ##   Ctrl/Cmd+click, or I   -> inspect the cell under the cursor (CellInspector)
+##   - / =                  -> shrink / grow the inspector text
 ##   Esc                    -> dismiss the inspector
 
 var client: BridgeClient
@@ -101,6 +102,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		match event.keycode:
 			KEY_I:               inspector.inspect_at_mouse()
 			KEY_ESCAPE:          inspector.hide_panel()
+			KEY_MINUS:           inspector.nudge_font(-2)
+			KEY_EQUAL:           inspector.nudge_font(2)
 			KEY_UP, KEY_KP_8:    client.send_command("move", {"dir": "N"})
 			KEY_DOWN, KEY_KP_2:  client.send_command("move", {"dir": "S"})
 			KEY_LEFT, KEY_KP_4:  client.send_command("move", {"dir": "W"})
