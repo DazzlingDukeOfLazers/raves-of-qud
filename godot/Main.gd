@@ -1,13 +1,14 @@
 extends Node3D
 
-## Wires the bridge client to the renderer, builds an orbit camera, and maps
-## keyboard input to Qud movement commands. Everything is created in code so the
-## scene file stays a single node.
+## Wires the bridge client to the renderer, builds an orbit/pan/zoom camera, and
+## maps keyboard input to Qud movement commands. Built in code so the scene file
+## stays a single node.
 ##
 ## Controls:
-##   Arrows / numpad  -> move (sent to Qud; the sim resolves the turn)
-##   Q / E            -> orbit yaw      R / F -> orbit pitch
-##   mouse wheel      -> zoom
+##   Arrows / numpad        -> move the player (sent to Qud)
+##   Left-drag              -> orbit (yaw/pitch)      Q/E, R/F -> orbit by keyboard
+##   Right- or middle-drag  -> pan across the zone
+##   Mouse wheel            -> zoom
 
 var client: BridgeClient
 var renderer: ZoneRenderer
@@ -15,8 +16,19 @@ var renderer: ZoneRenderer
 var _pivot: Node3D
 var _cam: Camera3D
 var _yaw := 0.7
-var _pitch := 0.9   # radians below horizontal
+var _pitch := 0.9            # radians above the ground plane
 var _dist := 34.0
+var _zone_center := Vector3(40, 0, 12)
+var _pan := Vector3.ZERO     # user pan offset; persists across turns
+
+var _orbiting := false
+var _panning := false
+
+const ORBIT_SENS := 0.006
+const PITCH_MIN := 0.12
+const PITCH_MAX := 1.45
+const DIST_MIN := 4.0
+const DIST_MAX := 140.0
 
 func _ready() -> void:
 	renderer = ZoneRenderer.new()
@@ -40,24 +52,28 @@ func _ready() -> void:
 	add_child(we)
 
 	_pivot = Node3D.new()
-	_pivot.position = Vector3(40, 0, 12)  # center of an 80x25 zone
 	add_child(_pivot)
 	_cam = Camera3D.new()
 	_pivot.add_child(_cam)
+	_apply_pivot()
 	_update_camera()
 
 func _on_snapshot(data: Dictionary) -> void:
 	renderer.render_snapshot(data)
 	var z: Dictionary = data.get("zone", {})
 	if z.has("width") and z.has("height"):
-		_pivot.position = Vector3(float(z["width"]) / 2.0, 0.0, float(z["height"]) / 2.0)
+		_zone_center = Vector3(float(z["width"]) / 2.0, 0.0, float(z["height"]) / 2.0)
+		_apply_pivot()
 
 func _process(dt: float) -> void:
 	if Input.is_key_pressed(KEY_Q): _yaw -= 1.5 * dt
 	if Input.is_key_pressed(KEY_E): _yaw += 1.5 * dt
-	if Input.is_key_pressed(KEY_R): _pitch = clampf(_pitch + 1.0 * dt, 0.1, 1.45)
-	if Input.is_key_pressed(KEY_F): _pitch = clampf(_pitch - 1.0 * dt, 0.1, 1.45)
+	if Input.is_key_pressed(KEY_R): _pitch = clampf(_pitch + 1.0 * dt, PITCH_MIN, PITCH_MAX)
+	if Input.is_key_pressed(KEY_F): _pitch = clampf(_pitch - 1.0 * dt, PITCH_MIN, PITCH_MAX)
 	_update_camera()
+
+func _apply_pivot() -> void:
+	_pivot.position = _zone_center + _pan
 
 func _update_camera() -> void:
 	var offset := Vector3(
@@ -78,6 +94,23 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_KP_9:            client.send_command("move", {"dir": "NE"})
 			KEY_KP_1:            client.send_command("move", {"dir": "SW"})
 			KEY_KP_3:            client.send_command("move", {"dir": "SE"})
-	elif event is InputEventMouseButton and event.pressed:
-		if event.button_index == MOUSE_BUTTON_WHEEL_UP:   _dist = maxf(6.0, _dist - 2.0)
-		if event.button_index == MOUSE_BUTTON_WHEEL_DOWN: _dist = minf(90.0, _dist + 2.0)
+	elif event is InputEventMouseButton:
+		match event.button_index:
+			MOUSE_BUTTON_LEFT:   _orbiting = event.pressed
+			MOUSE_BUTTON_RIGHT, MOUSE_BUTTON_MIDDLE: _panning = event.pressed
+			MOUSE_BUTTON_WHEEL_UP:   if event.pressed: _dist = clampf(_dist * 0.9, DIST_MIN, DIST_MAX)
+			MOUSE_BUTTON_WHEEL_DOWN: if event.pressed: _dist = clampf(_dist * 1.1, DIST_MIN, DIST_MAX)
+	elif event is InputEventMouseMotion:
+		if _orbiting:
+			_yaw += event.relative.x * ORBIT_SENS
+			_pitch = clampf(_pitch + event.relative.y * ORBIT_SENS, PITCH_MIN, PITCH_MAX)
+		elif _panning:
+			# pan along the ground plane, scaled by zoom so it feels constant
+			var right := _cam.global_transform.basis.x
+			var fwd := -_cam.global_transform.basis.z
+			right.y = 0.0; fwd.y = 0.0
+			right = right.normalized(); fwd = fwd.normalized()
+			var speed := _dist * 0.0016
+			# grab-the-world: drag right moves the world right (camera goes left)
+			_pan += (-right * event.relative.x - fwd * event.relative.y) * speed
+			_apply_pivot()
