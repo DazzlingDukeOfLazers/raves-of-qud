@@ -256,14 +256,28 @@ frame — crop to the opaque rows to seat things on the ground.
 | 100 | special NPCs | upright billboard |
 
 **Classification rules (in `ZoneRenderer.gd`):**
-- **prism** (3D box): `wall && occluding` → rock/metal/brinestalk. `occluding` is what
-  separates real walls (occlude) from **fences** (don't).
+- **prism** (3D box): `wall && occluding` **and the tile is not a `family_<dirs>` set** →
+  rock/metal/brinestalk.
 - **deck** (flat + opaque): the object carries the `Bridge` int-property (see below).
   Checked *before* layer, because bridges are RenderLayer 3.
 - **flat floor**: `layer <= FLOOR_LAYER_MAX (2)`.
 - **directional connector** (oriented standing panels): wall-flagged tile matching
-  `family_<dirs>` (fences, pipes).
+  `family_<dirs>` — fences, pipes, **and tent walls**.
 - **upright billboard**: everything else.
+
+**`occluding` sets a panel's HEIGHT, not its shape.** This is the subtle one. A tent wall
+is a fence at full height: its art is `tent_nw`/`tent_ew`/`tent_ns` — the same connection-set
+naming as `fence_`/`pipe_` — but it *occludes*. Testing `wall && occluding` first claimed
+tents as blocks before they could reach the connector path. So the directional-family test
+comes first, and `occluding` only chooses `WALL_H` (tents) vs `FENCE_H` (pickets, pipes).
+Real walls are safe because `wall_rock-11111111` / `wall_brinestalk-*` / `wall_metal-*` are
+**autotile bitmasks**, which don't parse as a connection set.
+
+Verify a rule change with `python3 tools/capture/snap.py classify`, which buckets every
+object in the live zone by outcome. After the tent change: `panel(tall)` = 13, all `tent_*`;
+`prism` = 186, only `wall_brinestalk-*` and `wall_metal-*`; `panel(low)` = 28, all `fence_*`.
+Note it *reimplements* the renderer's rules in Python, so it's a cross-check, not proof —
+the authoritative answer is the `RENDERED` line from `CellInspector`.
 
 ### Water depth & bridges
 Both are **first-class Qud concepts** — don't infer them from tile names.
@@ -272,9 +286,12 @@ Both are **first-class Qud concepts** — don't infer them from tile names.
   deep pool 4000 → extra-deep 8000), surfaced as `Cell.HasWadingDepthLiquid()` /
   `HasSwimmingDepthLiquid()`. The `deep-`/`shallow-`/`puddle_N` tile family is *chosen from*
   volume by the `PaintedLiquidAtlas` system, so it's a symptom, not the source of truth.
-  **Confirmed on live data** (`JoppaWorld.11.22.1.1.10`): `wade` correlated 1:1 with `deep-*`
-  tiles — 52 cells, 52 `deep-*`, zero `shallow-`/`puddle_N`. So wading depth *is* "deep water",
-  and you don't get ankle-deep in puddles. Watervines sit in cells that are **not** wading depth.
+  Observed on live data (`JoppaWorld.11.22.1.1.10`): `wade` correlated 1:1 with `deep-*` tiles
+  — 52 cells, 52 `deep-*`, zero `shallow-`/`puddle_N`. Watervines sit in cells that are **not**
+  wading depth. ⚠️ *That first capture contained no shallow water at all*, so it showed only
+  that shallow water was never seen wading — not that it can't be. A later capture of the same
+  zone did contain 13 `shallow-*` and 4 `puddle_*`; re-run `snap.py water` against a frame like
+  that for the real control case before treating "wading depth == deep water" as settled.
 - **Bridges** are `<intproperty Name="Bridge" Value="1" />` on the blueprint —
   `Walkway`, `Bridge`, `BrineBridge`, `WoodFloor`, `MarbleFloor` in `ZoneTerrain.xml`.
   `Cell.HasBridge()` for the cell; `GameObject.HasIntProperty("Bridge")` for the object.
