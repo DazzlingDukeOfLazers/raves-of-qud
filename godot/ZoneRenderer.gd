@@ -22,15 +22,19 @@ var _mask_cache := {}       # fname -> Image
 var _tex_cache := {}        # "tile|main|detail|fill" -> ImageTexture
 var _texmat_cache := {}     # key -> StandardMaterial3D (floors)
 var _colmat_cache := {}     # color html -> StandardMaterial3D
-var _wallmat_cache := {}    # "top|main|detail" / "side|..." -> ImageTexture (wall face art)
+var _wallmat_cache := {}    # "kind|tile|main|detail|bg" -> ImageTexture (wall face art)
 
 var _plane: PlaneMesh
-var _wall_mi: MeshInstance3D   # single merged wall mesh, rebuilt per snapshot
+var _wall_root: Node3D   # one MeshInstance per wall TYPE, rebuilt per snapshot
 
-# collected per snapshot for the wall mesh
+# set per wall-type while building that type's mesh
 var _wall_tile := ""
 var _wall_main := ""
 var _wall_detail := ""
+var _wall_bg := ""       # background colour code (the ^X in the ColorString)
+
+# Qud's dark-green cell background — what shows through gaps when a wall has no ^bg
+const WORLD_BG := Color(0.05, 0.13, 0.10)
 
 var _active: Array = []
 var _sprite_pool: Array[Sprite3D] = []
@@ -40,8 +44,8 @@ var _label_pool: Array[Label3D] = []
 func _ready() -> void:
 	_plane = PlaneMesh.new()
 	_plane.size = Vector2(CELL, CELL)
-	_wall_mi = MeshInstance3D.new()
-	add_child(_wall_mi)
+	_wall_root = Node3D.new()
+	add_child(_wall_root)
 
 func render_snapshot(data: Dictionary) -> void:
 	_tiles_dir = String(data.get("tilesDir", ""))
@@ -55,32 +59,38 @@ func render_snapshot(data: Dictionary) -> void:
 
 	var cells = data.get("cells", [])
 
-	# pass 1: collect wall cells (+ a representative rock colour/tile)
-	var wall_set := {}
-	_wall_tile = ""; _wall_main = ""; _wall_detail = ""
+	# pass 1: group wall cells by TYPE (family + colours + background)
+	var wall_types := {}   # key -> {cells, tile, main, detail, bg}
+	var wall_cells := {}
 	for cell in cells:
 		var cx := int(cell.get("x", 0))
 		var cy := int(cell.get("y", 0))
 		for obj in cell.get("objs", []):
-			if bool(obj.get("wall", false)):
-				wall_set[Vector2i(cx, cy)] = true
-				if _wall_tile == "":
-					_wall_tile = _canon_wall_tile(String(obj.get("tile", "")))
-					_wall_main = String(obj.get("tilecolor", obj.get("color", "")))
-					_wall_detail = String(obj.get("detail", ""))
+			if not bool(obj.get("wall", false)):
+				continue
+			var tile := _canon_wall_tile(String(obj.get("tile", "")))
+			var main_c := String(obj.get("tilecolor", ""))
+			if main_c == "": main_c = String(obj.get("color", ""))
+			var detail_c := String(obj.get("detail", ""))
+			var bg := _parse_bg(String(obj.get("color", "")))
+			var key := "%s|%s|%s|%s" % [tile, main_c, detail_c, bg]
+			if not wall_types.has(key):
+				wall_types[key] = {"cells": {}, "tile": tile, "main": main_c, "detail": detail_c, "bg": bg}
+			wall_types[key]["cells"][Vector2i(cx, cy)] = true
+			wall_cells[Vector2i(cx, cy)] = true
 
-	# pass 2: floors + verticals (skip walls; they're in the merged mesh)
+	# pass 2: floors + verticals (skip walls)
 	for cell in cells:
 		var cx := int(cell.get("x", 0))
 		var cy := int(cell.get("y", 0))
-		var in_wall: bool = wall_set.has(Vector2i(cx, cy))
+		var in_wall: bool = wall_cells.has(Vector2i(cx, cy))
 		var idx := 0
 		for obj in cell.get("objs", []):
 			if not bool(obj.get("wall", false)):
 				_place_nonwall(obj, cx, cy, idx, in_wall)
 			idx += 1
 
-	_rebuild_walls(wall_set)
+	_rebuild_walls(wall_types)
 
 func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool) -> void:
 	var tile := String(obj.get("tile", ""))
@@ -119,18 +129,31 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool) 
 
 # --- greedy-meshed walls ----------------------------------------------------
 
-func _rebuild_walls(wall_set: Dictionary) -> void:
-	if wall_set.is_empty():
-		_wall_mi.mesh = null
-		return
-	var mesh := _build_wall_mesh(wall_set)
-	_wall_mi.mesh = mesh
-	_wall_mi.material_override = null
-	# surface 0 = tops (body art), surface 1 = sides (front-face art)
-	if mesh.get_surface_count() >= 1:
-		mesh.surface_set_material(0, _wall_top_material())
-	if mesh.get_surface_count() >= 2:
-		mesh.surface_set_material(1, _wall_side_material())
+func _parse_bg(color: String) -> String:
+	# "&r^w" -> "w"  (the background colour); "" if no ^ component
+	var i := color.find("^")
+	if i >= 0 and i + 1 < color.length():
+		return color.substr(i + 1, 1)
+	return ""
+
+func _wall_bg_color() -> Color:
+	return _qud_color(_wall_bg) if _wall_bg != "" else WORLD_BG
+
+func _rebuild_walls(wall_types: Dictionary) -> void:
+	for c in _wall_root.get_children():
+		c.queue_free()
+	# one greedy-meshed MeshInstance per wall type, each with its own tile + colours
+	for key in wall_types:
+		var t = wall_types[key]
+		_wall_tile = t["tile"]; _wall_main = t["main"]; _wall_detail = t["detail"]; _wall_bg = t["bg"]
+		var mesh := _build_wall_mesh(t["cells"])
+		if mesh.get_surface_count() >= 1:
+			mesh.surface_set_material(0, _wall_top_material())
+		if mesh.get_surface_count() >= 2:
+			mesh.surface_set_material(1, _wall_side_material())
+		var mi := MeshInstance3D.new()
+		mi.mesh = mesh
+		_wall_root.add_child(mi)
 
 func _build_wall_mesh(wall_set: Dictionary) -> ArrayMesh:
 	var st_top := SurfaceTool.new(); st_top.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -261,7 +284,7 @@ func _wall_side_material() -> Material:
 func _wall_region_tex(kind: String) -> ImageTexture:
 	if _wall_tile == "":
 		return null
-	var key := "%s|%s|%s" % [kind, _wall_main, _wall_detail]
+	var key := "%s|%s|%s|%s|%s" % [kind, _wall_tile, _wall_main, _wall_detail, _wall_bg]
 	if _wallmat_cache.has(key):
 		return _wallmat_cache[key]
 	var iso := _wall_tile.replace("-11111111", "-00000000")  # isolated wall: real border on all 4 sides
@@ -302,8 +325,8 @@ func _wall_region_tex(kind: String) -> ImageTexture:
 func _framed_top(src: Image) -> ImageTexture:
 	var w := src.get_width()
 	var h := src.get_height()
-	var main := _qud_color(_wall_main)                                    # red rock (fg)
-	var bg := _qud_color(_wall_detail)                                    # brown background (^w gaps)
+	var main := _qud_color(_wall_main)                                    # rock foreground
+	var bg := _wall_bg_color()                                            # cell background (^X or world green)
 	var tan := _qud_color(_wall_detail).lerp(Color(1.0, 0.92, 0.6), 0.45) # cap/frame
 	var border := 2
 	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
@@ -356,9 +379,8 @@ func _recolor_image(mask: Image, main_c: String, detail_c: String, fill: bool) -
 		for x in w:
 			var p := mask.get_pixel(x, y)
 			if p.a < 0.5:
-				# transparent = the cell BACKGROUND (Qud's ^w brown), not the rock;
-				# filling with main is what made walls read solid-red.
-				img.set_pixel(x, y, Color(detail.r, detail.g, detail.b, 1.0) if fill else Color(0, 0, 0, 0))
+				# transparent = the cell/object BACKGROUND (^X colour, or world dark-green)
+				img.set_pixel(x, y, _wall_bg_color() if fill else Color(0, 0, 0, 0))
 			else:
 				var lum := (p.r + p.g + p.b) / 3.0
 				var c := main.lerp(detail, lum)
