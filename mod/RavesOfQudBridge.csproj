@@ -42,6 +42,7 @@
     <Reference Include="$(CoQManaged)/UnityEngine.CoreModule.dll" Private="false" />
     <Reference Include="$(CoQManaged)/UnityEngine.dll" Private="false" />
     <Reference Include="$(CoQManaged)/UnityEngine.ImageConversionModule.dll" Private="false" />
+    <Reference Include="$(CoQManaged)/0Harmony.dll" Private="false" />
   </ItemGroup>
 
 </Project>
