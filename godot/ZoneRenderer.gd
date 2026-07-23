@@ -66,7 +66,9 @@ func render_snapshot(data: Dictionary) -> void:
 		var cx := int(cell.get("x", 0))
 		var cy := int(cell.get("y", 0))
 		for obj in cell.get("objs", []):
-			if not bool(obj.get("wall", false)):
+			# Only solid, sight-blocking walls become prisms. Non-occluding "walls"
+			# (fences) fall through to the sprite path below.
+			if not _is_prism(obj):
 				continue
 			var tile := _canon_wall_tile(String(obj.get("tile", "")))
 			var main_c := String(obj.get("tilecolor", ""))
@@ -86,11 +88,16 @@ func render_snapshot(data: Dictionary) -> void:
 		var in_wall: bool = wall_cells.has(Vector2i(cx, cy))
 		var idx := 0
 		for obj in cell.get("objs", []):
-			if not bool(obj.get("wall", false)):
+			if not _is_prism(obj):
 				_place_nonwall(obj, cx, cy, idx, in_wall)
 			idx += 1
 
 	_rebuild_walls(wall_types)
+
+func _is_prism(obj: Dictionary) -> bool:
+	# a solid, sight-blocking wall -> render as a 3D prism (rock, metal, brinestalk).
+	# fences are walls but don't occlude -> sprites.
+	return bool(obj.get("wall", false)) and bool(obj.get("occluding", false))
 
 func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool) -> void:
 	var tile := String(obj.get("tile", ""))
@@ -137,7 +144,10 @@ func _parse_bg(color: String) -> String:
 	return ""
 
 func _wall_bg_color() -> Color:
-	return _qud_color(_wall_bg) if _wall_bg != "" else WORLD_BG
+	# Qud fills transparent gaps with the world/cell background (dark green), NOT the
+	# object's ^X. The ^X-derived colour was flooding e.g. metal walls cyan; the cyan
+	# actually belongs to the detail pixels (the border), handled by the recolor.
+	return WORLD_BG
 
 func _rebuild_walls(wall_types: Dictionary) -> void:
 	for c in _wall_root.get_children():
