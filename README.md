@@ -272,6 +272,9 @@ Both are **first-class Qud concepts** — don't infer them from tile names.
   deep pool 4000 → extra-deep 8000), surfaced as `Cell.HasWadingDepthLiquid()` /
   `HasSwimmingDepthLiquid()`. The `deep-`/`shallow-`/`puddle_N` tile family is *chosen from*
   volume by the `PaintedLiquidAtlas` system, so it's a symptom, not the source of truth.
+  **Confirmed on live data** (`JoppaWorld.11.22.1.1.10`): `wade` correlated 1:1 with `deep-*`
+  tiles — 52 cells, 52 `deep-*`, zero `shallow-`/`puddle_N`. So wading depth *is* "deep water",
+  and you don't get ankle-deep in puddles. Watervines sit in cells that are **not** wading depth.
 - **Bridges** are `<intproperty Name="Bridge" Value="1" />` on the blueprint —
   `Walkway`, `Bridge`, `BrineBridge`, `WoodFloor`, `MarbleFloor` in `ZoneTerrain.xml`.
   `Cell.HasBridge()` for the cell; `GameObject.HasIntProperty("Bridge")` for the object.
@@ -279,6 +282,17 @@ Both are **first-class Qud concepts** — don't infer them from tile names.
   transparent field** — only ~25% of pixels are opaque. Rendered as-is it does *not* hide the
   water beneath it. Recolour it with `fill = true` so the transparent field becomes ground colour.
   Water tiles (`Liquids/Water/deep-*`) are the opposite: **100% opaque** noise masks.
+- **A bridge cell's stack**, straight off the wire — the water is a separate object *below* the
+  deck, so the deck has to out-Y it rather than replace it:
+  ```
+  (66,6) wade=true swim=false
+     idx=0  layer=2  bridge=false  Liquids/Water/deep-00100010.png  &b^B
+     idx=1  layer=3  bridge=true   Tiles/sw_floor_brickb3.bmp       &w    <- BrineBridge
+  ```
+- **Tile paths mix separators**: creature tiles arrive with **backslashes**
+  (`creatures\sw_glowfish.bmp`), most others with `/`. `_mask()`/`TileExporter.FileFor` normalise
+  both to `_`. Anything new that parses a tile path must handle both — note `_connector_dirs()`
+  uses `get_file()`, which splits on `/` only.
 
 **The rendering rule: keep the water flat, recess the actor.** Water renders as an ordinary floor
 quad. A creature standing in it (`sinks` = `IsCreature && !IsFlying`) is drawn with its sprite
