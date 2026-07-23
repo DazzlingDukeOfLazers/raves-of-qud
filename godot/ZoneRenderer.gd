@@ -290,8 +290,8 @@ func _wall_region_tex(kind: String) -> ImageTexture:
 func _framed_top(src: Image) -> ImageTexture:
 	var w := src.get_width()
 	var h := src.get_height()
-	var main := _qud_color(_wall_main)                                    # red rock
-	var dark := main.darkened(0.62)                                       # checker gaps
+	var main := _qud_color(_wall_main)                                    # red rock (fg)
+	var bg := _qud_color(_wall_detail)                                    # brown background (^w gaps)
 	var tan := _qud_color(_wall_detail).lerp(Color(1.0, 0.92, 0.6), 0.45) # cap/frame
 	var border := 2
 	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
@@ -302,7 +302,7 @@ func _framed_top(src: Image) -> ImageTexture:
 			else:
 				var p := src.get_pixel(x, y)
 				var lit: bool = p.a >= 0.5 and (p.r + p.g + p.b) / 3.0 < 0.5
-				img.set_pixel(x, y, main if lit else dark)
+				img.set_pixel(x, y, main if lit else bg)
 	return ImageTexture.create_from_image(img)
 
 func _wall_mat_from_tex(tex: ImageTexture) -> StandardMaterial3D:
@@ -344,7 +344,9 @@ func _recolor_image(mask: Image, main_c: String, detail_c: String, fill: bool) -
 		for x in w:
 			var p := mask.get_pixel(x, y)
 			if p.a < 0.5:
-				img.set_pixel(x, y, Color(main.r, main.g, main.b, 1.0) if fill else Color(0, 0, 0, 0))
+				# transparent = the cell BACKGROUND (Qud's ^w brown), not the rock;
+				# filling with main is what made walls read solid-red.
+				img.set_pixel(x, y, Color(detail.r, detail.g, detail.b, 1.0) if fill else Color(0, 0, 0, 0))
 			else:
 				var lum := (p.r + p.g + p.b) / 3.0
 				var c := main.lerp(detail, lum)
