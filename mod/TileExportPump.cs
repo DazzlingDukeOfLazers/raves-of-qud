@@ -1,30 +1,41 @@
 using System.IO;
-using HarmonyLib;
+using System.Threading;
 using Kobold;      // SpriteManager
 using UnityEngine; // Sprite, Texture2D, RenderTexture, Graphics, Rect, Mathf, Vector2
 
 namespace RavesOfQud
 {
     /// <summary>
-    /// Main-thread export pump. A Harmony postfix on <c>GameManager.LateUpdate</c>
-    /// (which Unity calls every frame on the MAIN thread) drains
-    /// <see cref="TileExporter.Pending"/> and does the actual atlas readback +
-    /// PNG write here — the only place Unity graphics calls are legal.
+    /// Main-thread tile export pump — Harmony-free.
     ///
-    /// Why here and not in Bridge.Tick: Qud runs turn logic on a background thread;
-    /// graphics there crashes ("Graphics device is null"). LateUpdate is main-thread.
-    /// Because export happens ONLY in this postfix, the turn thread stays
-    /// graphics-free and cannot crash even if this patch fails to apply.
+    /// Harmony's runtime method-patching is BLOCKED on Apple Silicon macOS
+    /// (mprotect EACCES), so we can't patch GameManager.LateUpdate. Instead
+    /// BridgePart calls <see cref="Pump"/> from HandleEvent(BeforeRenderEvent).
     ///
-    /// Qud auto-applies mod [HarmonyPatch] classes (ApplyHarmonyPatches).
+    /// We can't assume that handler runs on Unity's main/render thread, and Unity
+    /// graphics off the main thread crashes hard. So every call is GUARDED: the
+    /// atlas readback runs only when we're demonstrably on Unity's main thread
+    /// (its SynchronizationContext is installed only there). Off the main thread
+    /// we no-op — never crash. The one-time log line reports which it is.
     /// </summary>
-    [HarmonyPatch(typeof(GameManager), "LateUpdate")]
     public static class TileExportPump
     {
-        private const int PerFrame = 8; // throttle so a fresh zone's tiles don't hitch
+        private const int PerFrame = 8; // throttle so a fresh zone doesn't hitch
+        private static int _logged;
 
-        private static void Postfix()
+        public static bool OnUnityMainThread()
         {
+            var ctx = SynchronizationContext.Current;
+            return ctx != null && ctx.GetType().Name == "UnitySynchronizationContext";
+        }
+
+        public static void Pump()
+        {
+            bool main = OnUnityMainThread();
+            if (Interlocked.Exchange(ref _logged, 1) == 0)
+                System.Console.WriteLine($"[raves] BeforeRender on Unity main thread = {main}");
+            if (!main) return;
+
             for (int i = 0; i < PerFrame; i++)
             {
                 if (!TileExporter.Pending.TryDequeue(out string path)) break;
