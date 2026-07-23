@@ -298,8 +298,8 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 		else:
 			var s := _take_sprite()
 			s.texture = tex
-			var wet: bool = sink > 0.0 and bool(obj.get("sinks", false))
-			if wet:
+			var submerged: bool = sink > 0.0 and bool(obj.get("sinks", false))
+			if submerged:
 				_submerge(s, tex, tile, cx, cy, sink)
 			else:
 				s.position = Vector3(cx, PIXEL_SIZE * tex.get_height() * 0.5, cy)
