@@ -13,7 +13,6 @@ class_name ZoneRenderer
 const CELL := 1.0
 const FLOOR_LAYER_MAX := 2
 const WALL_H := 1.2
-const CAP_W := 0.16   # tan rim width on exposed wall-top edges (cell fraction)
 const PIXEL_SIZE := 0.042
 const FLOOR_Y := 0.02
 const LAYER_STEP := 0.02
@@ -127,18 +126,15 @@ func _rebuild_walls(wall_set: Dictionary) -> void:
 	var mesh := _build_wall_mesh(wall_set)
 	_wall_mi.mesh = mesh
 	_wall_mi.material_override = null
-	# surface 0 = tops (body), 1 = sides (front-face), 2 = tan cap rim
+	# surface 0 = tops (body art), surface 1 = sides (front-face art)
 	if mesh.get_surface_count() >= 1:
 		mesh.surface_set_material(0, _wall_top_material())
 	if mesh.get_surface_count() >= 2:
 		mesh.surface_set_material(1, _wall_side_material())
-	if mesh.get_surface_count() >= 3:
-		mesh.surface_set_material(2, _wall_cap_material())
 
 func _build_wall_mesh(wall_set: Dictionary) -> ArrayMesh:
 	var st_top := SurfaceTool.new(); st_top.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var st_side := SurfaceTool.new(); st_side.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var st_cap := SurfaceTool.new(); st_cap.begin(Mesh.PRIMITIVE_TRIANGLES)
 
 	var minx := 1 << 30; var maxx := -(1 << 30)
 	var minz := 1 << 30; var maxz := -(1 << 30)
@@ -170,16 +166,15 @@ func _build_wall_mesh(wall_set: Dictionary) -> ArrayMesh:
 					visited[Vector2i(xx, zz)] = true
 			_quad_top(st_top, x, x1, z, z1)
 
-	# side faces (+ tan cap rim on each exposed top edge): merged runs
-	_sides_x(st_side, st_cap, wall_set, minx, maxx, minz, maxz, 1)
-	_sides_x(st_side, st_cap, wall_set, minx, maxx, minz, maxz, -1)
-	_sides_z(st_side, st_cap, wall_set, minx, maxx, minz, maxz, 1)
-	_sides_z(st_side, st_cap, wall_set, minx, maxx, minz, maxz, -1)
+	# side faces: exposed edges merged into runs
+	_sides_x(st_side, wall_set, minx, maxx, minz, maxz, 1)
+	_sides_x(st_side, wall_set, minx, maxx, minz, maxz, -1)
+	_sides_z(st_side, wall_set, minx, maxx, minz, maxz, 1)
+	_sides_z(st_side, wall_set, minx, maxx, minz, maxz, -1)
 
 	var mesh := ArrayMesh.new()
 	st_top.commit(mesh)
 	st_side.commit(mesh)
-	st_cap.commit(mesh)
 	return mesh
 
 # Baked directional shade per face (multiplies albedo via vertex colour), so the
@@ -207,7 +202,7 @@ func _quad_top(st: SurfaceTool, x0: int, x1: int, z0: int, z1: int) -> void:
 	_v(st, Vector3(ax, y, bz), n, Vector2(0, vv), s)
 	_v(st, Vector3(bx, y, bz), n, Vector2(uu, vv), s)
 
-func _sides_x(st: SurfaceTool, st_cap: SurfaceTool, wall_set: Dictionary, minx: int, maxx: int, minz: int, maxz: int, dir: int) -> void:
+func _sides_x(st: SurfaceTool, wall_set: Dictionary, minx: int, maxx: int, minz: int, maxz: int, dir: int) -> void:
 	var n := Vector3(dir, 0, 0)
 	var s: float = SHADE[dir]["x"]
 	for x in range(minx, maxx + 1):
@@ -221,10 +216,9 @@ func _sides_x(st: SurfaceTool, st_cap: SurfaceTool, wall_set: Dictionary, minx: 
 				z1 += 1
 			var px := (x + 0.5) if dir > 0 else (x - 0.5)
 			_quad_side(st, Vector3(px, 0, z - 0.5), Vector3(px, 0, z1 + 0.5), n, float(z1 - z + 1), s)
-			_quad_cap(st_cap, Vector3(px, WALL_H, z - 0.5), Vector3(px, WALL_H, z1 + 0.5), Vector3(-dir * CAP_W, 0, 0))
 			z = z1 + 1
 
-func _sides_z(st: SurfaceTool, st_cap: SurfaceTool, wall_set: Dictionary, minx: int, maxx: int, minz: int, maxz: int, dir: int) -> void:
+func _sides_z(st: SurfaceTool, wall_set: Dictionary, minx: int, maxx: int, minz: int, maxz: int, dir: int) -> void:
 	var n := Vector3(0, 0, dir)
 	var s: float = SHADE[dir]["z"]
 	for z in range(minz, maxz + 1):
@@ -238,22 +232,7 @@ func _sides_z(st: SurfaceTool, st_cap: SurfaceTool, wall_set: Dictionary, minx: 
 				x1 += 1
 			var pz := (z + 0.5) if dir > 0 else (z - 0.5)
 			_quad_side(st, Vector3(x - 0.5, 0, pz), Vector3(x1 + 0.5, 0, pz), n, float(x1 - x + 1), s)
-			_quad_cap(st_cap, Vector3(x - 0.5, WALL_H, pz), Vector3(x1 + 0.5, WALL_H, pz), Vector3(0, 0, -dir * CAP_W))
 			x = x1 + 1
-
-# A thin horizontal tan strip inset from an exposed top edge (a + b are the edge
-# endpoints at y=WALL_H; `inward` points into the wall footprint).
-func _quad_cap(st: SurfaceTool, a: Vector3, b: Vector3, inward: Vector3) -> void:
-	var lift := Vector3(0, 0.02, 0)  # sit just above the top face
-	var a0 := a + lift; var b0 := b + lift
-	var a1 := a0 + inward; var b1 := b0 + inward
-	var n := Vector3.UP
-	_v(st, a0, n, Vector2(0, 0), 1.0)
-	_v(st, b1, n, Vector2(0, 0), 1.0)
-	_v(st, b0, n, Vector2(0, 0), 1.0)
-	_v(st, a0, n, Vector2(0, 0), 1.0)
-	_v(st, a1, n, Vector2(0, 0), 1.0)
-	_v(st, b1, n, Vector2(0, 0), 1.0)
 
 # a vertical quad from base a..b (y=0) up to WALL_H; `ulen` cells wide for UV tiling
 func _quad_side(st: SurfaceTool, a: Vector3, b: Vector3, n: Vector3, ulen: float, s: float) -> void:
@@ -304,14 +283,6 @@ func _wall_region_tex(kind: String) -> ImageTexture:
 	if tex != null:
 		_wallmat_cache[key] = tex
 	return tex
-
-func _wall_cap_material() -> Material:
-	var m := StandardMaterial3D.new()
-	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	m.cull_mode = BaseMaterial3D.CULL_DISABLED
-	# the sprite's tan cap = the detail colour (brown), lightened toward gold
-	m.albedo_color = _qud_color(_wall_detail).lerp(Color(1.0, 0.92, 0.6), 0.4)
-	return m
 
 func _wall_mat_from_tex(tex: ImageTexture) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
