@@ -67,8 +67,9 @@ func _place(obj: Dictionary, cx: int, cy: int, idx: int) -> void:
 
 	if is_wall:
 		var w := _take_wall()
-		if tex != null:
-			w.material_override = _mesh_material(tile, main_c, detail_c, tex)
+		var wtex := _colored_tex(tile, main_c, detail_c, true)  # opaque-filled: solid prism
+		if wtex != null:
+			w.material_override = _mesh_material(tile, main_c, detail_c, wtex, true)
 		else:
 			w.material_override = _color_material(_qud_color(main_c))  # prism until tile exports
 		w.position = Vector3(cx, WALL_H * 0.5, cy)
@@ -103,10 +104,12 @@ func _place(obj: Dictionary, cx: int, cy: int, idx: int) -> void:
 
 # --- textures & materials ---------------------------------------------------
 
-func _colored_tex(tile: String, main_c: String, detail_c: String) -> ImageTexture:
+func _colored_tex(tile: String, main_c: String, detail_c: String, fill := false) -> ImageTexture:
 	if tile.is_empty() or _tiles_dir.is_empty():
 		return null
-	var key := "%s|%s|%s" % [tile, main_c, detail_c]
+	# `fill`: transparent pixels become the main colour (opaque) — used for walls so
+	# prisms are solid instead of speckled with holes.
+	var key := "%s|%s|%s|%s" % [tile, main_c, detail_c, fill]
 	if _tex_cache.has(key):
 		return _tex_cache[key]
 	var mask := _mask(tile)
@@ -121,7 +124,7 @@ func _colored_tex(tile: String, main_c: String, detail_c: String) -> ImageTextur
 		for x in w:
 			var p := mask.get_pixel(x, y)
 			if p.a < 0.5:
-				img.set_pixel(x, y, Color(0, 0, 0, 0))
+				img.set_pixel(x, y, Color(main.r, main.g, main.b, 1.0) if fill else Color(0, 0, 0, 0))
 			else:
 				var lum := (p.r + p.g + p.b) / 3.0
 				var c := main.lerp(detail, lum)
@@ -150,16 +153,20 @@ func _mask(tile: String) -> Image:
 	_mask_cache[fname] = img
 	return img
 
-func _mesh_material(tile: String, main_c: String, detail_c: String, tex: ImageTexture) -> StandardMaterial3D:
-	var key := "%s|%s|%s" % [tile, main_c, detail_c]
+func _mesh_material(tile: String, main_c: String, detail_c: String, tex: ImageTexture, opaque := false) -> StandardMaterial3D:
+	var key := "%s|%s|%s|%s" % [tile, main_c, detail_c, opaque]
 	if _texmat_cache.has(key):
 		return _texmat_cache[key]
 	var m := StandardMaterial3D.new()
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	m.albedo_texture = tex
 	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
-	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	if opaque:
+		m.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
+		m.cull_mode = BaseMaterial3D.CULL_BACK
+	else:
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+		m.cull_mode = BaseMaterial3D.CULL_DISABLED
 	_texmat_cache[key] = m
 	return m
 
