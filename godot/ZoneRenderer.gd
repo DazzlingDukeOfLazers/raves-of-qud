@@ -67,7 +67,10 @@ func _place(obj: Dictionary, cx: int, cy: int, idx: int) -> void:
 
 	if is_wall:
 		var w := _take_wall()
-		w.material_override = _mesh_material(tile, main_c, detail_c, tex)
+		if tex != null:
+			w.material_override = _mesh_material(tile, main_c, detail_c, tex)
+		else:
+			w.material_override = _color_material(_qud_color(main_c))  # prism until tile exports
 		w.position = Vector3(cx, WALL_H * 0.5, cy)
 		w.visible = true
 		_active.append(w)
