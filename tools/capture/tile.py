@@ -105,8 +105,12 @@ if __name__ == "__main__":
         sys.exit(__doc__)
     if args[0] == "--list":
         pat = args[1].lower() if len(args) > 1 else ""
-        names = sorted(f for f in os.listdir(TILES) if pat in f.lower())
-        print(f"{len(names)} tile(s) matching {pat!r} of {len(os.listdir(TILES))} exported:")
+        all_names = os.listdir(TILES)
+        # Match the meaningful tail, not the boilerplate path prefix — otherwise
+        # "tent" matches every Assets_CONTENT_Textures_* tile in the directory.
+        names = sorted(f for f in all_names
+                       if pat in f.lower().replace("assets_content_textures_", ""))
+        print(f"{len(names)} tile(s) matching {pat!r} of {len(all_names)} exported:")
         for n in names[:200]:
             print("  " + n)
     else:

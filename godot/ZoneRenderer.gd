@@ -181,8 +181,18 @@ func _cell_sink(cell: Dictionary) -> float:
 
 func _is_prism(obj: Dictionary) -> bool:
 	# a solid, sight-blocking wall -> render as a 3D prism (rock, metal, brinestalk).
-	# fences are walls but don't occlude -> sprites.
-	return bool(obj.get("wall", false)) and bool(obj.get("occluding", false))
+	if not (bool(obj.get("wall", false)) and bool(obj.get("occluding", false))):
+		return false
+	# ... UNLESS its art is a directional family (family_<dirs>). Tent walls are
+	# `tent_nw`/`tent_ew` — the same connection-set naming as fences and pipes —
+	# and they read as oriented panels, not blocks. They just happen to occlude.
+	# So `occluding` doesn't decide panel-vs-prism; it decides the panel's HEIGHT.
+	return _connector_dirs(String(obj.get("tile", ""))) == null
+
+# Panel height: a tent wall is a fence at full height. Sight-blocking connectors
+# stand wall-tall, see-through ones (picket fences, pipes) stay low.
+func _panel_height(obj: Dictionary) -> float:
+	return WALL_H if bool(obj.get("occluding", false)) else FENCE_H
 
 # A "family_<dirs>" tile (fence_ns, ironfence_ew, pipe_ne, bare fence_) is a
 # directional connector. Returns the dirs string ("", "ns", "ew", "ne"...) or null.
@@ -211,22 +221,23 @@ func _family_ew(tile: String) -> String:
 		return tile
 	return tile.substr(0, us + 1) + "ew" + tile.substr(dot)
 
-func _place_connector(tile: String, main_c: String, detail_c: String, cx: int, cy: int, dirs: String) -> void:
+func _place_connector(tile: String, main_c: String, detail_c: String, cx: int, cy: int, dirs: String, h := FENCE_H) -> void:
 	if dirs == "":
-		_fence_half(cx, cy, "post", tile, main_c, detail_c)
+		_fence_half(cx, cy, "post", tile, main_c, detail_c, h)
 		return
 	for d in dirs:
-		_fence_half(cx, cy, d, tile, main_c, detail_c)
+		_fence_half(cx, cy, d, tile, main_c, detail_c, h)
 
 # One upright half-panel from the cell centre out to the edge in direction d, using
 # the family's E-W elevation art. Adjacent cells' halves meet at the shared edge,
-# so runs are continuous and corners form a clean L.
-func _fence_half(cx: int, cy: int, d: String, tile: String, main_c: String, detail_c: String) -> void:
+# so runs are continuous and corners form a clean L. Used for every directional
+# family: picket fences, pipes, and tent walls (which differ only in height).
+func _fence_half(cx: int, cy: int, d: String, tile: String, main_c: String, detail_c: String, h := FENCE_H) -> void:
 	var mi := _take_fence()
 	var half := "r" if (d == "e" or d == "s") else "l"
 	mi.material_override = _fence_material(_family_ew(tile), main_c, detail_c, half)
-	mi.scale = Vector3(0.5, FENCE_H, 1.0)
-	var pos := Vector3(cx, FENCE_H * 0.5, cy)
+	mi.scale = Vector3(0.5, h, 1.0)
+	var pos := Vector3(cx, h * 0.5, cy)
 	var rot := 0.0
 	match d:
 		"e": pos.x += 0.25
@@ -341,8 +352,10 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 		# standing panels, not billboards. Gated on wall so creatures don't match.
 		var dirs = _connector_dirs(tile) if bool(obj.get("wall", false)) else null
 		if dirs != null:
-			_place_connector(tile, main_c, detail_c, cx, cy, dirs)
-			_note(cx, cy, idx, "connector panels [%s]" % ("post" if dirs == "" else dirs), FENCE_H * 0.5)
+			var ph := _panel_height(obj)
+			_place_connector(tile, main_c, detail_c, cx, cy, dirs, ph)
+			_note(cx, cy, idx, "connector panels [%s] h=%.2f" % [
+				"post" if dirs == "" else dirs, ph], ph * 0.5)
 		else:
 			var s := _take_sprite()
 			s.texture = tex
