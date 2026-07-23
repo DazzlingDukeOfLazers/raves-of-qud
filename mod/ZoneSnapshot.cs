@@ -29,6 +29,7 @@ namespace RavesOfQud
             var j = new JsonWriter();
             j.BeginObject();
             j.Member("type", Protocol.TypeSnapshot);
+            j.Member("tilesDir", TileExporter.Dir); // where Godot loads exported PNGs
 
             Zone z = The.ActiveZone;
             if (z == null) { j.EndObject(); return j.ToString(); }
@@ -68,9 +69,12 @@ namespace RavesOfQud
                             opened = true;
                         }
 
+                        string tile = r.Tile ?? "";
+                        if (tile.Length > 0) TileExporter.Ensure(tile); // export-on-sight, cached
+
                         j.BeginObject()
                             .Member("glyph", r.RenderString)
-                            .Member("tile", r.Tile ?? "")
+                            .Member("tile", tile)
                             .Member("color", r.ColorString ?? "")
                             .Member("tilecolor", r.TileColor ?? "")
                             .Member("detail", r.DetailColor ?? "")

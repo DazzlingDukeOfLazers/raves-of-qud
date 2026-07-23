@@ -14,7 +14,7 @@
   -->
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetFramework>netstandard2.1</TargetFramework>
     <LangVersion>latest</LangVersion>
     <Nullable>disable</Nullable>
     <EnableDefaultItems>false</EnableDefaultItems>
@@ -41,6 +41,7 @@
     <Reference Include="$(CoQManaged)/Assembly-CSharp.dll" Private="false" />
     <Reference Include="$(CoQManaged)/UnityEngine.CoreModule.dll" Private="false" />
     <Reference Include="$(CoQManaged)/UnityEngine.dll" Private="false" />
+    <Reference Include="$(CoQManaged)/UnityEngine.ImageConversionModule.dll" Private="false" />
   </ItemGroup>
 
 </Project>

@@ -14,6 +14,7 @@ Every message is a frame:
 ```json
 {
   "type": "snapshot",
+  "tilesDir": "/Users/you/Library/Application Support/RavesOfQud/tiles",
   "zone":   { "id": "JoppaWorld.53.3.1.0.10", "width": 80, "height": 25 },
   "player": { "x": 40, "y": 12 },
   "cells": [
@@ -28,6 +29,10 @@ Every message is a frame:
 }
 ```
 
+- `tilesDir` is where the mod writes exported tile PNGs (see below). The client
+  loads `tilesDir/<tile-with-slashes-as-underscores>` — e.g. tile
+  `Creatures/sw_bearman.png` → `tilesDir/Creatures_sw_bearman.png`. Missing files
+  fall back to the glyph and are retried on later frames (export is on-demand).
 - Only **non-empty** cells are sent. Objects are ordered bottom→top of the cell stack.
 - Fields map directly to `XRL.World.Parts.Render`: `glyph`=`RenderString`,
   `tile`=`Tile`, `color`=`ColorString`, `tilecolor`=`TileColor`,
