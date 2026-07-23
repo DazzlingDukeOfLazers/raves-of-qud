@@ -36,7 +36,10 @@ Every message is a frame:
 - Only **non-empty** cells are sent. Objects are ordered bottom→top of the cell stack.
 - Fields map directly to `XRL.World.Parts.Render`: `glyph`=`RenderString`,
   `tile`=`Tile`, `color`=`ColorString`, `tilecolor`=`TileColor`,
-  `detail`=`DetailColor`, `layer`=`RenderLayer`.
+  `detail`=`DetailColor`, `layer`=`RenderLayer`. Plus `wall`=`GameObject.IsWall()`.
+- Client render classification: `wall` → BoxMesh prism; else `layer` ≤ 2 → flat
+  ground quad; else → upright billboard. (Calibrated: layer 0 = ground clutter,
+  3 = trees, 7 = rock walls, 10 = creatures.)
 - Colors are **raw Qud strings** (e.g. `&Y`); the client resolves them. Godot's
   MVP renderer keys off the trailing letter — see `ZoneRenderer._qud_color`.
   Remember Qud's palette: `Y`=white, `y`=gray, `W`=gold, `w`=brown.

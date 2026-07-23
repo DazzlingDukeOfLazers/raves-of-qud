@@ -79,6 +79,7 @@ namespace RavesOfQud
                             .Member("tilecolor", r.TileColor ?? "")
                             .Member("detail", r.DetailColor ?? "")
                             .Member("layer", r.RenderLayer)
+                            .Member("wall", go.IsWall())
                         .EndObject();
                     }
 
