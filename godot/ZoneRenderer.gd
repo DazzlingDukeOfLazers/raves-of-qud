@@ -99,6 +99,57 @@ func _is_prism(obj: Dictionary) -> bool:
 	# fences are walls but don't occlude -> sprites.
 	return bool(obj.get("wall", false)) and bool(obj.get("occluding", false))
 
+# A "family_<dirs>" tile (fence_ns, ironfence_ew, pipe_ne, bare fence_) is a
+# directional connector. Returns the dirs string ("", "ns", "ew", "ne"...) or null.
+func _connector_dirs(tile: String):
+	var base := tile.get_file()
+	var dot := base.rfind(".")
+	if dot >= 0:
+		base = base.substr(0, dot)
+	var us := base.rfind("_")
+	if us < 0:
+		return null
+	var suf := base.substr(us + 1)
+	if suf.length() > 4:
+		return null
+	for ch in suf:
+		if not "nsew".contains(ch):
+			return null
+	return suf
+
+# The family's east-west (elevation) variant, used for every orientation so all
+# segments read as consistent standing panels (option 1).
+func _family_ew(tile: String) -> String:
+	var us := tile.rfind("_")
+	var dot := tile.rfind(".")
+	if us < 0 or dot < 0 or dot < us:
+		return tile
+	return tile.substr(0, us + 1) + "ew" + tile.substr(dot)
+
+func _place_connector(tile: String, main_c: String, detail_c: String, cx: int, cy: int, dirs: String) -> void:
+	var tex := _colored_tex(_family_ew(tile), main_c, detail_c)
+	if tex == null:
+		tex = _colored_tex(tile, main_c, detail_c)  # fallback to own art
+	if tex == null:
+		return
+	var has_ew := dirs.contains("e") or dirs.contains("w")
+	var has_ns := dirs.contains("n") or dirs.contains("s")
+	if has_ew:
+		_fence_panel(cx, cy, 0.0, tex)     # runs E-W, faces south
+	if has_ns:
+		_fence_panel(cx, cy, 90.0, tex)    # runs N-S, faces east
+	if not has_ew and not has_ns:
+		_fence_panel(cx, cy, 0.0, tex)     # lone post
+
+func _fence_panel(cx: int, cy: int, rot_deg: float, tex: ImageTexture) -> void:
+	var s := _take_sprite()
+	s.billboard = BaseMaterial3D.BILLBOARD_DISABLED
+	s.rotation_degrees = Vector3(0, rot_deg, 0)
+	s.texture = tex
+	s.position = Vector3(cx, PIXEL_SIZE * tex.get_height() * 0.5, cy)
+	s.visible = true
+	_active.append(s)
+
 func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool) -> void:
 	var tile := String(obj.get("tile", ""))
 	var main_c := String(obj.get("tilecolor", ""))
@@ -121,11 +172,17 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool) 
 		f.visible = true
 		_active.append(f)
 	elif tex != null:
-		var s := _take_sprite()
-		s.texture = tex
-		s.position = Vector3(cx, PIXEL_SIZE * tex.get_height() * 0.5, cy)
-		s.visible = true
-		_active.append(s)
+		# directional connectors (fences/pipes: family_<dirs>) -> orientation-locked
+		# standing panels, not billboards. Gated on wall so creatures don't match.
+		var dirs = _connector_dirs(tile) if bool(obj.get("wall", false)) else null
+		if dirs != null:
+			_place_connector(tile, main_c, detail_c, cx, cy, dirs)
+		else:
+			var s := _take_sprite()
+			s.texture = tex
+			s.position = Vector3(cx, PIXEL_SIZE * tex.get_height() * 0.5, cy)
+			s.visible = true
+			_active.append(s)
 	else:
 		var l := _take_label()
 		l.text = String(obj.get("glyph", "?"))
@@ -459,15 +516,20 @@ func _color_material(col: Color) -> StandardMaterial3D:
 # --- node pools -------------------------------------------------------------
 
 func _take_sprite() -> Sprite3D:
-	if _sprite_pool.size() > 0: return _sprite_pool.pop_back()
-	var s := Sprite3D.new()
+	var s: Sprite3D
+	if _sprite_pool.size() > 0:
+		s = _sprite_pool.pop_back()
+	else:
+		s = Sprite3D.new()
+		s.pixel_size = PIXEL_SIZE
+		s.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		s.shaded = false
+		s.transparent = true
+		s.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+		add_child(s)
+	# reset per take — fence panels override these, normal sprites need defaults back
 	s.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
-	s.pixel_size = PIXEL_SIZE
-	s.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	s.shaded = false
-	s.transparent = true
-	s.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
-	add_child(s)
+	s.rotation = Vector3.ZERO
 	return s
 
 func _take_floor() -> MeshInstance3D:
