@@ -3,17 +3,21 @@ extends Node3D
 ## Wires the bridge client to the renderer, drives the camera, and maps input to
 ## Qud movement commands. Built in code so the scene file stays a single node.
 ##
-## CAMERA MODES — the mode decides what the arrow keys do, so it's on screen.
-##   FOLLOW    (default)  rides behind the player, looking ahead. Arrows move the
-##                        player. Nothing to set up each time you reload.
-##   MOUSE     (Shift+C)  orbit/pan with the mouse, centred on the SELECTED tile
-##                        (falls back to the player). Arrows still move the player.
-##   KEYBOARD  (Shift+K)  free flight. WASD moves the camera, arrows AIM it —
-##                        so arrows no longer reach the player.
+## CAMERA MODES — pick with the ` debug menu or number keys 1-6; the current mode
+## and its controls show on screen.
+##   1 COMPASS  (default)  cardinal-LOCKED low-angle view. Follows the player's
+##                         position but NEVER rotates on movement, so the world
+##                         doesn't spin under you. Q/E rotate the heading 90°,
+##                         R/F zoom. This is the stable, non-disorienting default.
+##   2 FOLLOW              rides behind your heading, looking ahead (trails movement).
+##   3 FIRST_PERSON        at the player, eye-level, looking along the locked heading.
+##   4 CINEMATIC           frames you + the selected tile, slowly orbiting (v1;
+##                         combat-aware framing via an event buffer is future work).
+##   5 MOUSE               orbit/pan with the mouse around the SELECTED tile.
+##   6 KEYBOARD            free flight. WASD moves the camera, arrows AIM it.
 ##
-##   Shift+F returns to FOLLOW (Esc does too, and dismisses the report).
-##   Wheel zooms in every mode.
-##   Ctrl/Cmd+click or I inspects a tile;  - / =  resize the report.
+##   Esc returns to COMPASS (and dismisses the report). Shift+C/K/F still jump to
+##   mouse/keyboard/follow. Wheel zooms. Ctrl/Cmd+click or I inspects a tile.
 ##   F12                   -> save the viewport to <tilesDir>/../shot.png
 ##   Ctrl/Cmd + right-click -> inspect the tile AND photograph both apps
 ##
@@ -52,14 +56,20 @@ const NIGHT_TINT := Color(0.34, 0.40, 0.62)   # cool moonlit blue (Qud has no mo
 const DAY_TINT := Color(1.0, 0.99, 0.96)       # near-neutral, a hair warm
 const DUSK_TINT := Color(1.0, 0.72, 0.50)      # warm dawn/dusk
 
-enum CamMode { FOLLOW, MOUSE, KEYBOARD }
-var _mode: int = CamMode.FOLLOW
+enum CamMode { COMPASS, FOLLOW, FIRST_PERSON, CINEMATIC, MOUSE, KEYBOARD }
+var _mode: int = CamMode.COMPASS   # cardinal-locked: stable, doesn't spin on movement
 
 var _pivot: Node3D
 var _cam: Camera3D
 var _yaw := 0.7
-var _pitch := 0.9            # radians above the ground plane
+var _pitch := 0.9            # radians above the ground plane (MOUSE orbit)
 var _dist := 14.0
+
+# --- compass cam (cardinal-locked, the disorientation fix) -------------------
+const COMPASS_PITCH := 0.61     # ~35° above the ground: a low, dramatic angle
+var _compass_yaw := 0.0         # locked heading in radians; Q/E rotate in 90° steps
+var _cine_t := 0.0              # cinematic auto-orbit phase
+const FP_EYE_H := 0.55          # first-person eye height above the ground
 var _zone_center := Vector3(40, 0, 12)
 var _pan := Vector3.ZERO     # user pan offset (MOUSE mode); persists across turns
 
@@ -171,6 +181,7 @@ func _ready() -> void:
 	_cam.attributes = attrs
 
 	_build_mode_label()
+	_build_debug_menu()
 	_update_camera(0.0)
 
 	inspector = CellInspector.new()
@@ -266,13 +277,19 @@ func _process(dt: float) -> void:
 
 	if _mode == CamMode.KEYBOARD:
 		_fly(dt)
-	elif not Input.is_key_pressed(KEY_SHIFT):
-		# Shift-guarded: Shift+F switches mode, and F alone lowers the pitch —
-		# without this the mode switch would also tilt the camera on the way out.
+	elif _mode == CamMode.MOUSE and not Input.is_key_pressed(KEY_SHIFT):
+		# orbit params: Q/E yaw, R/F pitch
 		if Input.is_key_pressed(KEY_Q): _yaw -= 1.5 * dt
 		if Input.is_key_pressed(KEY_E): _yaw += 1.5 * dt
 		if Input.is_key_pressed(KEY_R): _pitch = clampf(_pitch + 1.0 * dt, PITCH_MIN, PITCH_MAX)
 		if Input.is_key_pressed(KEY_F): _pitch = clampf(_pitch - 1.0 * dt, PITCH_MIN, PITCH_MAX)
+	elif _mode == CamMode.CINEMATIC:
+		_cine_t += dt * 0.35   # slow auto-orbit
+	# R/F zoom in the player-relative modes (Shift-guarded so Shift+F still switches)
+	if (_mode == CamMode.COMPASS or _mode == CamMode.FOLLOW or _mode == CamMode.FIRST_PERSON) \
+			and not Input.is_key_pressed(KEY_SHIFT):
+		if Input.is_key_pressed(KEY_R): _dist = clampf(_dist * (1.0 - dt), DIST_MIN, DIST_MAX)
+		if Input.is_key_pressed(KEY_F): _dist = clampf(_dist * (1.0 + dt), DIST_MIN, DIST_MAX)
 	_update_camera(dt)
 
 # --- camera placement -------------------------------------------------------
@@ -298,6 +315,31 @@ func _orbit_center() -> Vector3:
 		c = Vector3(sel.x, 0, sel.y)
 	return c + _pan
 
+# The fixed compass heading as a unit direction (what the camera looks ALONG).
+func _compass_dir() -> Vector3:
+	return Vector3(sin(_compass_yaw), 0, cos(_compass_yaw))
+
+# COMPASS: behind the player along the LOCKED heading at a low angle. Follows the
+# player's position but never rotates on movement — this is the disorientation fix.
+func _compass_eye() -> Vector3:
+	var back := TILES_BEHIND + _dist * cos(COMPASS_PITCH)
+	return _player - _compass_dir() * back + Vector3(0, _dist * sin(COMPASS_PITCH), 0)
+
+# CINEMATIC v1: frame the player and the selected target tile (their midpoint), at a
+# distance that fits both, slowly orbiting. Combat-aware framing (an event buffer of
+# attackers) is future work once Qud sends combat events.
+func _frame_center() -> Vector3:
+	var sel = inspector.selected_tile() if inspector != null else null
+	if sel != null:
+		return (_player + Vector3(sel.x, 0.0, sel.y)) * 0.5
+	return _player
+
+func _frame_radius() -> float:
+	var sel = inspector.selected_tile() if inspector != null else null
+	if sel != null:
+		return clampf(_player.distance_to(Vector3(sel.x, 0.0, sel.y)) * 0.9 + 7.0, 9.0, 40.0)
+	return 13.0
+
 func _update_camera(dt: float) -> void:
 	var target_eye: Vector3
 	var target_look: Vector3
@@ -312,9 +354,23 @@ func _update_camera(dt: float) -> void:
 				_dist * sin(_pitch),
 				_dist * cos(_pitch) * cos(_yaw))
 			target_look = c
-		_:
+		CamMode.FOLLOW:
 			target_eye = _follow_eye()
 			target_look = _follow_look()
+		CamMode.FIRST_PERSON:
+			target_eye = _player + Vector3(0, FP_EYE_H, 0)
+			target_look = target_eye + _compass_dir() + Vector3(0, -0.15, 0)
+		CamMode.CINEMATIC:
+			var cc := _frame_center()
+			var r := _frame_radius()
+			target_eye = cc + Vector3(
+				r * cos(COMPASS_PITCH) * sin(_cine_t),
+				r * sin(COMPASS_PITCH) + 2.0,
+				r * cos(COMPASS_PITCH) * cos(_cine_t))
+			target_look = cc
+		_:  # COMPASS — the default, stable, cardinal-locked view
+			target_eye = _compass_eye()
+			target_look = _player
 
 	if dt <= 0.0 or not _seeded:
 		_eye = target_eye
@@ -542,16 +598,57 @@ func _build_mode_label() -> void:
 	layer.add_child(_mode_label)
 	_update_mode_label()
 
+const _MODE_NAMES := {
+	CamMode.COMPASS: "COMPASS — cardinal-locked · Q/E rotate · R/F zoom",
+	CamMode.FOLLOW: "FOLLOW — trails your heading · R/F zoom",
+	CamMode.FIRST_PERSON: "FIRST-PERSON",
+	CamMode.CINEMATIC: "CINEMATIC — frames you + selected tile",
+	CamMode.MOUSE: "ORBIT — drag around the selected tile",
+	CamMode.KEYBOARD: "FLY — WASD move, arrows aim",
+}
+
 func _update_mode_label() -> void:
-	match _mode:
-		CamMode.KEYBOARD:
-			_mode_label.text = "camera: KEYBOARD — WASD fly, arrows aim, Space/Z up-down  ·  Shift+F: follow"
-		CamMode.MOUSE:
-			_mode_label.text = "camera: MOUSE — drag to orbit/pan around the selected tile  ·  Shift+F: follow"
-		_:
-			_mode_label.text = "camera: FOLLOW  ·  Shift+C mouse  ·  Shift+K keyboard  ·  Shift+F follow"
+	_mode_label.text = "camera: %s     ·  ` menu · 1-6 modes" % _MODE_NAMES.get(_mode, "?")
 	if _time_label != "":
 		_mode_label.text += "     ⏱ " + _time_label
+	_update_debug_menu()
+
+# --- debug menu -------------------------------------------------------------
+
+var _debug_menu: PanelContainer
+var _mode_buttons := {}
+
+func _build_debug_menu() -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 2
+	add_child(layer)
+	var panel := PanelContainer.new()
+	panel.position = Vector2(14, 34)
+	panel.visible = false
+	layer.add_child(panel)
+	var vb := VBoxContainer.new()
+	panel.add_child(vb)
+	var title := Label.new()
+	title.text = "Debug · camera  (`)"
+	vb.add_child(title)
+	for m in [CamMode.COMPASS, CamMode.FOLLOW, CamMode.FIRST_PERSON, CamMode.CINEMATIC,
+			CamMode.MOUSE, CamMode.KEYBOARD]:
+		var b := Button.new()
+		b.text = "%d  %s" % [m + 1, String(_MODE_NAMES[m]).split(" —")[0].split(" ·")[0]]
+		var mv: int = m
+		b.pressed.connect(func(): _set_mode(mv))
+		vb.add_child(b)
+		_mode_buttons[m] = b
+	_debug_menu = panel
+	_update_debug_menu()
+
+func _toggle_debug_menu() -> void:
+	if _debug_menu != null:
+		_debug_menu.visible = not _debug_menu.visible
+
+func _update_debug_menu() -> void:
+	for m in _mode_buttons:
+		(_mode_buttons[m] as Button).modulate = Color(0.55, 1.0, 0.55) if m == _mode else Color(1, 1, 1)
 
 # --- input ------------------------------------------------------------------
 
@@ -564,9 +661,23 @@ func _unhandled_input(event: InputEvent) -> void:
 			_set_mode(CamMode.KEYBOARD); return
 		if event.shift_pressed and event.keycode == KEY_F:
 			_set_mode(CamMode.FOLLOW); return
+		# camera modes by number (mirrored in the ` debug menu)
+		if event.keycode == KEY_1: _set_mode(CamMode.COMPASS); return
+		if event.keycode == KEY_2: _set_mode(CamMode.FOLLOW); return
+		if event.keycode == KEY_3: _set_mode(CamMode.FIRST_PERSON); return
+		if event.keycode == KEY_4: _set_mode(CamMode.CINEMATIC); return
+		if event.keycode == KEY_5: _set_mode(CamMode.MOUSE); return
+		if event.keycode == KEY_6: _set_mode(CamMode.KEYBOARD); return
+		if event.keycode == KEY_QUOTELEFT:      # ` toggles the debug menu
+			_toggle_debug_menu(); return
+		# Q/E rotate the locked compass heading 90° (COMPASS mode only)
+		if _mode == CamMode.COMPASS and event.keycode == KEY_Q:
+			_compass_yaw -= PI * 0.5; return
+		if _mode == CamMode.COMPASS and event.keycode == KEY_E:
+			_compass_yaw += PI * 0.5; return
 		if event.keycode == KEY_ESCAPE:
 			_dismiss_selection()
-			_set_mode(CamMode.FOLLOW); return
+			_set_mode(CamMode.COMPASS); return
 		if event.keycode == KEY_I:
 			_inspect(); return
 		if event.keycode == KEY_F12:
