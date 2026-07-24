@@ -84,6 +84,28 @@ namespace RavesOfQud
             catch (Exception e) { server.Log("snapshot error: " + e.Message); }
         }
 
+        /// <summary>
+        /// Runs EVERY rendered frame (BeforeRenderEvent), on the main thread, even while
+        /// the player is idle at the input prompt. Drains + applies any commands that
+        /// arrived from an external driver, and — if one applied while idle — publishes a
+        /// snapshot immediately so the driver gets a response without waiting for a turn.
+        /// </summary>
+        public static void TickRender(GameObject player)
+        {
+            BridgeServer server = Server;
+            bool applied = false;
+            while (server.Incoming.TryDequeue(out string json))
+            {
+                try { Apply(player, json); applied = true; }
+                catch (Exception e) { server.Log("apply error: " + e.Message); }
+            }
+            if (applied)
+            {
+                try { server.Publish(Protocol.Frame(ZoneSnapshot.BuildJson(player))); }
+                catch (Exception e) { server.Log("snapshot error: " + e.Message); }
+            }
+        }
+
         private static void Apply(GameObject player, string json)
         {
             var f = MiniJson.ParseFlat(json);
@@ -92,6 +114,7 @@ namespace RavesOfQud
             {
                 case "move":
                     f.TryGetValue("dir", out string dir);
+                    Server.Log("[raves] apply move " + dir);
                     Step(player, dir);
                     break;
                 case "shot":
