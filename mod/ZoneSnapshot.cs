@@ -198,7 +198,17 @@ namespace RavesOfQud
                     foreach (GameObject go in c.Objects)
                     {
                         Render r = go.GetPart<Render>();
-                        if (r == null || string.IsNullOrEmpty(r.RenderString)) continue;
+                        if (r == null) continue;
+
+                        // Drawable = has ART or a GLYPH. Requiring RenderString
+                        // silently dropped every tile-only object: RenderString is
+                        // just the ASCII fallback, and in tile mode Qud draws from
+                        // the tile. Objects filtered here never reach the wire, so
+                        // no amount of querying the snapshot could find them.
+                        bool painted;
+                        string tile = ResolvedTile(go, r, out painted);
+                        string glyph = r.RenderString ?? "";
+                        if (glyph.Length == 0 && tile.Length == 0) continue;
 
                         if (!opened)
                         {
@@ -213,8 +223,6 @@ namespace RavesOfQud
                             opened = true;
                         }
 
-                        bool painted;
-                        string tile = ResolvedTile(go, r, out painted);
                         if (tile.Length > 0) TileExporter.Ensure(tile); // export-on-sight, cached
 
                         Physics phys = go.GetPart<Physics>();
@@ -224,7 +232,7 @@ namespace RavesOfQud
                             // colour and cannot tell grass from a glowpad.
                             .Member("name", go.Blueprint ?? "")
                             .Member("display", DisplayNameOf(go))
-                            .Member("glyph", r.RenderString)
+                            .Member("glyph", glyph)
                             .Member("tile", tile)
                             .Member("color", r.ColorString ?? "")
                             .Member("tilecolor", r.TileColor ?? "")
