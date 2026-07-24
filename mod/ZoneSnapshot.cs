@@ -197,6 +197,44 @@ namespace RavesOfQud
             try { return c.RenderedObjectsCount; } catch { return -1; }
         }
 
+        /// <summary>
+        /// Ask Qud's own compositor what it would draw on a cell holding NO
+        /// objects. The counts proved we send every object a cell reports, so
+        /// whatever is drawn on apparently-bare ground is not in the object model
+        /// — this is where to look for it.
+        /// </summary>
+        private static void WriteBareTiles(JsonWriter j, Zone z, int w, int h)
+        {
+            int found = 0;
+            var samples = new System.Collections.Generic.List<string>();
+            try
+            {
+                for (int y = 0; y < h; y++)
+                {
+                    for (int x = 0; x < w; x++)
+                    {
+                        Cell c = z.GetCell(x, y);
+                        if (c == null || CountSafe(c) != 0) continue;
+                        string tile = null;
+                        try
+                        {
+                            var ev = c.Render();
+                            if (ev != null) tile = ev._Tile;
+                        }
+                        catch { continue; }
+                        if (string.IsNullOrEmpty(tile)) continue;
+                        found++;
+                        if (samples.Count < 8) samples.Add(x + "," + y + "=" + tile);
+                    }
+                }
+            }
+            catch { }
+            j.Name("bare").BeginObject().Member("n", found);
+            j.Name("samples").BeginArray();
+            foreach (string sm in samples) j.Value(sm);
+            j.EndArray().EndObject();
+        }
+
         public static string BuildJson(GameObject player)
         {
             var j = new JsonWriter();
@@ -327,6 +365,8 @@ namespace RavesOfQud
                 }
             }
             j.EndArray();
+
+            WriteBareTiles(j, z, w, h);
 
             j.EndObject();
             return j.ToString();
