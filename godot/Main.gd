@@ -263,11 +263,17 @@ func _on_snapshot(data: Dictionary) -> void:
 		var oo: Vector3i = store.record(old_zid).get("origin", Vector3i.ZERO)
 		var no: Vector3i = store.record(zid).get("origin", Vector3i.ZERO)
 		var shift := Vector3(oo.x - no.x, 0.0, oo.y - no.y)
-		print("[cross] %s -> %s  oo=%s no=%s shift=%s  eye_before=%s player=%s" % [
-			old_zid, zid, oo, no, shift, _eye, _player])
 		_eye += shift
 		_look += shift
 		_free_eye += shift
+		# _update_camera already ran THIS frame (Main._process precedes the client's),
+		# positioning the camera from the pre-shift eye — but the world just re-anchored.
+		# Shift the live camera transform too so this frame renders in sync (no 1-frame
+		# flip); next frame's lerp continues seamlessly from the shifted eye.
+		if _cam != null:
+			_cam.position += shift
+			if _cam.position.distance_to(_look) > 0.001:
+				_cam.look_at(_look, Vector3.UP)
 	elif crossed:
 		print("[cross] SKIPPED shift: old=%s has=%s  new=%s has=%s" % [
 			old_zid, store.has_zone(old_zid), zid, store.has_zone(zid)])
