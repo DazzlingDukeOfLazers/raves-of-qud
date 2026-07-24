@@ -117,6 +117,14 @@ outstanding, delete a file once addressed. Deleting a note never changes the ren
 
 ## Lighting is FAKED (the world is unshaded)
 
+Day/night is a full-screen **MULTIPLY** ColorRect (`Main._grade`) tinting the whole viewport by
+time of day — the only way to grade an unshaded scene. It sits on CanvasLayer 0, below the UI
+(layer 1), so the world dims but panels/text stay bright. The mod sends `time` (hour, dawn/dusk
+boundaries, `isDay`, label) from `The.Game.Turns` + the static `Calendar` fields. Night is a cool
+moonlit blue, dawn/dusk warm, midday neutral. **Qud has no moon phase** — the only "moon" is the
+Moonstair location — so none is sent or faked.
+
+
 Every material in `ZoneRenderer` is `SHADING_MODE_UNSHADED` so tiles show their exact colours.
 A real `OmniLight3D`/`DirectionalLight3D` therefore does **nothing** to the scene. Any "light"
 must be **additive geometry**: `_place_light()` draws a warm radial ground-glow quad plus a

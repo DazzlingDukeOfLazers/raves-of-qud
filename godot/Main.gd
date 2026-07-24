@@ -26,6 +26,17 @@ var renderer: ZoneRenderer
 var inspector: CellInspector
 var reporter: TileReport
 
+# Day/night grade. The world is UNSHADED, so a real light does nothing; instead a
+# full-screen MULTIPLY rect tints the whole viewport by time of day. It sits below
+# the UI layer, so panels and text stay at full brightness.
+var _grade: ColorRect
+var _tint := Color.WHITE          # current, smoothed
+var _tint_target := Color.WHITE
+var _time_label := ""
+const NIGHT_TINT := Color(0.34, 0.40, 0.62)   # cool moonlit blue (Qud has no moon phase)
+const DAY_TINT := Color(1.0, 0.99, 0.96)       # near-neutral, a hair warm
+const DUSK_TINT := Color(1.0, 0.72, 0.50)      # warm dawn/dusk
+
 enum CamMode { FOLLOW, MOUSE, KEYBOARD }
 var _mode: int = CamMode.FOLLOW
 
@@ -88,6 +99,20 @@ func _ready() -> void:
 	we.environment = env
 	add_child(we)
 
+	# MULTIPLY grade over the 3D, under the UI. layer 0 keeps it below the panels
+	# (default layer 1), so the world dims at night but text does not.
+	var glayer := CanvasLayer.new()
+	glayer.layer = 0
+	add_child(glayer)
+	_grade = ColorRect.new()
+	_grade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_grade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var gmat := CanvasItemMaterial.new()
+	gmat.blend_mode = CanvasItemMaterial.BLEND_MODE_MUL
+	_grade.material = gmat
+	_grade.color = DAY_TINT
+	glayer.add_child(_grade)
+
 	_pivot = Node3D.new()
 	add_child(_pivot)
 	_cam = Camera3D.new()
@@ -117,6 +142,8 @@ func _on_snapshot(data: Dictionary) -> void:
 	renderer.render_snapshot(data)
 	inspector.on_snapshot(data)
 
+	_update_time(data.get("time", {}))
+
 	var z: Dictionary = data.get("zone", {})
 	if z.has("width") and z.has("height"):
 		_zone_center = Vector3(float(z["width"]) / 2.0, 0.0, float(z["height"]) / 2.0)
@@ -141,6 +168,11 @@ func _on_snapshot(data: Dictionary) -> void:
 		_look = _follow_look()
 
 func _process(dt: float) -> void:
+	# ease the grade so time-of-day shifts smoothly between turns
+	_tint = _tint.lerp(_tint_target, clampf(dt * 2.0, 0.0, 1.0))
+	if _grade != null:
+		_grade.color = _tint
+
 	if _mode == CamMode.KEYBOARD:
 		_fly(dt)
 	elif not Input.is_key_pressed(KEY_SHIFT):
@@ -247,6 +279,35 @@ func _inspect_and_capture() -> void:
 	_inspect()
 	await _screenshot(true)
 
+## Turn Qud's hour into a day/night tint. hour arrives as hour*1000 (int wire).
+## Uses the calendar's own dawn/dusk boundaries, so it matches when Qud calls it
+## day. Night is a cool moonlit blue; dawn and dusk are warm; midday is neutral.
+func _update_time(t: Dictionary) -> void:
+	if t.is_empty():
+		return
+	var hpd: float = float(t.get("hoursPerDay", 24))
+	var hour: float = float(t.get("hour", 12000)) / 1000.0
+	var dawn: float = float(t.get("startOfDay", 6))
+	var dusk: float = float(t.get("startOfNight", 18))
+	_time_label = String(t.get("label", ""))
+	_tint_target = _tint_for_hour(hour, dawn, dusk, hpd)
+	_update_mode_label()
+
+func _tint_for_hour(hour: float, dawn: float, dusk: float, hpd: float) -> Color:
+	# widths of the dawn/dusk transitions, in hours
+	var w := 2.0
+	if hour < dawn - w or hour > dusk + w:
+		return NIGHT_TINT
+	if hour < dawn:                                   # pre-dawn -> dawn glow
+		return NIGHT_TINT.lerp(DUSK_TINT, (hour - (dawn - w)) / w)
+	if hour < dawn + w:                               # dawn glow -> full day
+		return DUSK_TINT.lerp(DAY_TINT, (hour - dawn) / w)
+	if hour < dusk - w:                               # full day
+		return DAY_TINT
+	if hour < dusk:                                   # day -> dusk glow
+		return DAY_TINT.lerp(DUSK_TINT, (hour - (dusk - w)) / w)
+	return DUSK_TINT.lerp(NIGHT_TINT, (hour - dusk) / w)  # dusk glow -> night
+
 ## Clear everything a selection put on screen: report form, inspector panel, marker.
 ## Bound to Esc and to the form's Cancel button.
 func _dismiss_selection() -> void:
@@ -306,6 +367,8 @@ func _update_mode_label() -> void:
 			_mode_label.text = "camera: MOUSE — drag to orbit/pan around the selected tile  ·  Shift+F: follow"
 		_:
 			_mode_label.text = "camera: FOLLOW  ·  Shift+C mouse  ·  Shift+K keyboard  ·  Shift+F follow"
+	if _time_label != "":
+		_mode_label.text += "     ⏱ " + _time_label
 
 # --- input ------------------------------------------------------------------
 

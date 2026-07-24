@@ -305,6 +305,49 @@ namespace RavesOfQud
             j.EndObject();
         }
 
+        /// <summary>
+        /// Time of day for the client's day/night grade. Everything derives from
+        /// The.Game.Turns and the static Calendar fields — no Calendar instance
+        /// needed. Qud has NO moon phase (the only "moon" is the Moonstair
+        /// location), so none is sent; the client gives night a generic moonlit
+        /// tint rather than inventing a phase.
+        /// </summary>
+        private static void WriteTime(JsonWriter j)
+        {
+            try
+            {
+                long turns = The.Game != null ? The.Game.Turns : 0L;
+                int tpd = Calendar.TurnsPerDay > 0 ? Calendar.TurnsPerDay : 1200;
+                int tph = Calendar.TurnsPerHour > 0 ? Calendar.TurnsPerHour : 50;
+                long into = ((turns % tpd) + tpd) % tpd;
+                double hour = tph > 0 ? (double)into / tph : 12.0;   // 0..hoursPerDay
+                j.Name("time").BeginObject()
+                    .Member("hour", (int)System.Math.Round(hour * 1000))   // hour*1000, int on the wire
+                    .Member("hoursPerDay", tph > 0 ? tpd / tph : 24)
+                    .Member("startOfDay", Calendar.StartOfDay)
+                    .Member("startOfNight", Calendar.StartOfNight)
+                    .Member("isDay", CalendarIsDay())
+                    .Member("label", TimeLabel())
+                .EndObject();
+            }
+            catch { /* time is cosmetic; never fail a snapshot over it */ }
+        }
+
+        private static bool CalendarIsDay()
+        {
+            try { return Calendar.IsDay(); } catch { return true; }
+        }
+
+        private static string TimeLabel()
+        {
+            try
+            {
+                long t = The.Game != null ? The.Game.TimeTicks : 0L;
+                return Calendar.GetTime(t) ?? "";
+            }
+            catch { return ""; }
+        }
+
         public static string BuildJson(GameObject player)
         {
             var j = new JsonWriter();
@@ -312,6 +355,7 @@ namespace RavesOfQud
             j.Member("type", Protocol.TypeSnapshot);
             j.Member("tilesDir", TileExporter.Dir); // where Godot loads exported PNGs
             j.Member("mod", Protocol.Build);        // which mod build is actually live
+            WriteTime(j);
             WritePalette(j);
 
             // Force-export reference tiles the client wants but that don't occur
