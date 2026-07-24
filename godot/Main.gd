@@ -11,7 +11,8 @@ extends Node3D
 ##   KEYBOARD  (Shift+K)  free flight. WASD moves the camera, arrows AIM it —
 ##                        so arrows no longer reach the player.
 ##
-##   Esc returns to FOLLOW.  Wheel zooms in every mode.
+##   Shift+F returns to FOLLOW (Esc does too, and dismisses the report).
+##   Wheel zooms in every mode.
 ##   Ctrl/Cmd+click or I inspects a tile;  - / =  resize the report.
 ##
 ## Terminology: "tile" here means a map square (Qud's Cell). Note the collision —
@@ -134,7 +135,9 @@ func _on_snapshot(data: Dictionary) -> void:
 func _process(dt: float) -> void:
 	if _mode == CamMode.KEYBOARD:
 		_fly(dt)
-	else:
+	elif not Input.is_key_pressed(KEY_SHIFT):
+		# Shift-guarded: Shift+F switches mode, and F alone lowers the pitch —
+		# without this the mode switch would also tilt the camera on the way out.
 		if Input.is_key_pressed(KEY_Q): _yaw -= 1.5 * dt
 		if Input.is_key_pressed(KEY_E): _yaw += 1.5 * dt
 		if Input.is_key_pressed(KEY_R): _pitch = clampf(_pitch + 1.0 * dt, PITCH_MIN, PITCH_MAX)
@@ -242,11 +245,11 @@ func _build_mode_label() -> void:
 func _update_mode_label() -> void:
 	match _mode:
 		CamMode.KEYBOARD:
-			_mode_label.text = "camera: KEYBOARD — WASD fly, arrows aim, Space/Z up-down  ·  Esc: follow"
+			_mode_label.text = "camera: KEYBOARD — WASD fly, arrows aim, Space/Z up-down  ·  Shift+F: follow"
 		CamMode.MOUSE:
-			_mode_label.text = "camera: MOUSE — drag to orbit/pan around the selected tile  ·  Esc: follow"
+			_mode_label.text = "camera: MOUSE — drag to orbit/pan around the selected tile  ·  Shift+F: follow"
 		_:
-			_mode_label.text = "camera: FOLLOW  ·  Shift+C mouse  ·  Shift+K keyboard"
+			_mode_label.text = "camera: FOLLOW  ·  Shift+C mouse  ·  Shift+K keyboard  ·  Shift+F follow"
 
 # --- input ------------------------------------------------------------------
 
@@ -257,6 +260,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			_set_mode(CamMode.MOUSE); return
 		if event.shift_pressed and event.keycode == KEY_K:
 			_set_mode(CamMode.KEYBOARD); return
+		if event.shift_pressed and event.keycode == KEY_F:
+			_set_mode(CamMode.FOLLOW); return
 		if event.keycode == KEY_ESCAPE:
 			inspector.hide_panel()
 			_set_mode(CamMode.FOLLOW); return
