@@ -56,6 +56,33 @@ The report pairs **WIRE** (what Qud sent) with **RENDERED** (what `ZoneRenderer`
 actually did, and at what Y). Every rendering bug so far has lived in the gap
 between those two, so always read both halves.
 
+## Debugging rules, learned expensively
+
+- **A cell is not just its objects.** Qud paints a ground layer (dirt, grass) onto cells with
+  no `GameObject` at all — 1103 of 2000 in a Joppa zone. `Cell.Render()` composites it. Missing
+  this cost six wrong hypotheses and four shipped-but-inert fixes.
+- **Measure before hypothesising.** When a search keeps coming up empty, verify the dataset is
+  complete instead of refining the search. Emitting `nHeld`/`nRendered`/`nSent` per cell proved
+  in one turn that nothing was being dropped, which eliminated the entire object path — after
+  six rounds of guessing had not.
+- **Know which build is running.** Mod `.cs` only compiles at Qud startup. `Protocol.Build`
+  ships in every snapshot and the inspector prints it. Several rounds here were spent reasoning
+  over a build that did not contain the fix being tested.
+- **Verify a fix did something.** `RenderTile` was deployed and reasoned about for several
+  rounds before `fg=` being empty on every object revealed it had never once fired.
+- **Prefer accessors to fields.** `Render.getTile()` / `getRenderString()` resolve what is
+  actually drawn; the `Tile`/`RenderString` fields are static blueprint values, empty for
+  anything runtime-chosen.
+- **Verify a value, don't trust a field name.** `ColorUtility.CAMERA_BACKGROUND` sounds like the
+  world's background colour. It is the alias `"camera background"` → `#40a4b9`, plain cyan.
+  Trusting it turned the entire world turquoise.
+- **Python: `0` is falsy.** `(obj.get("layer") or 99)` silently excluded every layer-0 object —
+  the most common layer in Qud data — and printed an empty result that read like a real finding.
+- **Don't truncate the output you are searching.** Three separate `head`/`tail`/`[:30]` caps in
+  this project cut off exactly the rows being looked for.
+- **Ask the user to click, don't infer from screenshots.** The inspector exists for this. Five
+  hypotheses were formed from pixels; one selection would have beaten all of them.
+
 ## Ground rules learned the hard way
 
 - **Reflect, don't grep.** String-grepping `Assembly-CSharp.dll` once "proved"

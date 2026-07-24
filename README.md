@@ -32,6 +32,7 @@ Godot input → Qud command, and Qud zone state → 3D scene.
 6. [Wire protocol (the snapshot)](#wire-protocol-the-snapshot)
 7. [Qud data model & mappings](#qud-data-model--mappings) ← the "datatypes" reference
 8. [Godot rendering model](#godot-rendering-model)
+8b. [The feedback loop (cell inspector)](#the-feedback-loop-cell-inspector)
 9. [The investigation toolkit](#the-investigation-toolkit)
 10. [Verified Qud API reference](#verified-qud-api-reference)
 11. [Open problems / next steps](#open-problems--next-steps)
@@ -194,6 +195,44 @@ capture scripts get nothing until you take a step.
 
 This is the reference the project was reverse-engineered into. **All verified against the
 live 1.0 build (Unity `6000.0.77f1`) by reflection + live capture, not from memory.**
+
+### ⚠️ The single most important thing: a cell is NOT just its objects
+
+**Qud draws a painted ground layer that is not in the object model.** In a Joppa zone,
+**1103 of 2000 cells contain no `GameObject` at all** — and Qud still paints dirt and grass
+on them:
+
+```
+object-free cells whose compositor still yields a tile: 1103
+   1,0 = Tiles/tile-dirt1.png        3,0 = Terrain/sw_grass2.bmp
+   2,0 = Terrain/sw_grass1.bmp       4,0 = assets_content_textures_tiles_tile-grass1.png
+```
+
+`Cell.Render()` composites it and returns a `RenderEvent` carrying `Tile`, `ColorString`,
+`DetailColor`, `BackgroundString`, `RenderString`, `HFlip`/`VFlip`. **Iterating `Cell.Objects`
+alone gives you a world with no ground cover.** `ZoneSnapshot` emits this as a RenderLayer 0
+floor at the bottom of every cell's stack.
+
+> **Cost of not knowing this:** the missing grass survived *six* wrong hypotheses and four
+> shipped fixes (`RenderTile`, the `Render` accessors, a tile-only filter, `GetObjects()`) —
+> every one of which operated on the object path and was therefore **inert by construction**.
+> "There is no grass blueprint in this zone" was true and useless: grass is not a blueprint.
+>
+> What broke it was **measuring instead of hypothesising**. The mod started emitting, per cell,
+> `nHeld` (`GetObjectCount`), `nRendered` (`RenderedObjectsCount`) and `nSent`. They came back
+> `1001 == 1001 == 1001`, which proved nothing was being dropped and eliminated the entire
+> object path in one step — leaving only "Qud draws it from somewhere else." **When a search
+> keeps failing, stop refining the search and verify the dataset is complete.**
+
+### Accessors vs fields — `getTile()`, not `.Tile`
+`Render.Tile` / `Render.RenderString` are the **blueprint's static values** and are empty for
+anything that picks its art at runtime (`PickRandomTile`, `RandomTileOnMove`, harvestable
+states). The `Render` part has accessors that resolve what is actually drawn:
+`getTile()`, `getRenderString()`, `getTileColor()`, `getTileOrRenderColor()`, `GetRenderColor()`.
+
+`GameObject.RenderTile(ConsoleChar)` is the **override hook** for parts that paint themselves.
+In a whole Joppa zone it fired for **zero** objects — don't rely on it, but when it does fire
+its `ConsoleChar` carries already-resolved RGB (`TileForeground`/`TileBackground`/`Detail`).
 
 ### Per-object fields (from `XRL.World.Parts.Render` + `GameObject`)
 | snapshot field | Qud source | notes |
@@ -360,6 +399,42 @@ are rebuilt meshes.
   corners form a clean L. Every segment uses the family's **E-W elevation art** (rotated per
   axis), UV-cropped to the opaque rows so it sits flush on the ground.
 - **Camera** (`Main.gd`): left-drag orbit, right/middle-drag pan (persistent offset), wheel zoom.
+
+---
+
+## The feedback loop (cell inspector)
+
+Claude cannot see the Godot viewport, and describing a render in prose is the slowest and
+least reliable channel in this project. So the client reports on itself.
+
+**Ctrl/Cmd+click a tile, or hover and press `I`.** The report goes to an on-screen panel, the
+clipboard, and `~/Library/Application Support/RavesOfQud/selection.txt` (plus an append-only
+`selections.log`). Nothing needs transcribing — read the file.
+
+It pairs the two things that can disagree:
+
+```
+mod build: 2026-07-23h painted-ground        <- WHICH BUILD produced this
+ [1] 'brinestalk' Brinestalk
+     layer=3  glyph=''
+     tile     'assets_content_textures_tiles_tile-brinestalk.png'
+     png      ...png  16x24  opaque rows 2..21     <- art on disk, or MISSING
+     colour   color='&w' tilecolor='' detail='g'
+     flags    wall=0 occluding=1 solid=0 bridge=0 sinks=0
+     RENDERED billboard, 24 px enclosed gap -> bg  y=0.31   <- what the renderer DID
+```
+
+- **`mod build:`** — mod `.cs` only compiles at Qud startup, so a deploy does nothing until a
+  restart. Without this line you cannot tell whether the running code contains your fix.
+  Several rounds of this project's debugging were spent reasoning over the wrong build.
+- **`RENDERED`** — recorded by `ZoneRenderer` itself (`_note`/`placements_at`), not re-derived,
+  so it cannot drift from what actually drew. It names its failure modes out loud:
+  `skipped(no tile — not drawn by Qud)`, `skipped(under wall)`, `RENDERED (nothing — dropped)`.
+- **An empty pick lists the nearest occupied tiles**, because bare ground is common and
+  correct in Qud, so "EMPTY" alone cannot distinguish a mis-click from nothing-being-there.
+- **Sprite preview** (upper right): the *real* billboard texture turning over a checkerboard.
+  Transparency is invisible against dark ground — a filled gap and a see-through one look
+  identical — so this is the only way to actually see the fill rules working.
 
 ---
 

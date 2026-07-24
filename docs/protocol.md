@@ -21,8 +21,12 @@ Every message is a frame:
     {
       "x": 41, "y": 12,
       "bridge": false, "wade": true, "swim": false,
+      "nHeld": 2, "nRendered": 2, "nSent": 3,
       "objs": [
-        { "glyph": "~", "tile": "Liquids/Water/deep-11111111.png", "color": "&b^B", "layer": 2 },
+        { "name": "[painted ground]", "display": "ground", "ground": true,
+          "tile": "Terrain/sw_grass1.bmp", "color": "&g", "detail": "G", "layer": 0 },
+        { "name": "Pond", "display": "pond", "glyph": "~",
+          "tile": "Liquids/Water/deep-11111111.png", "color": "&b^B", "layer": 2 },
         { "glyph": "@", "tile": "Creatures/sw_humanoid.png", "color": "&Y", "tilecolor": "&Y", "detail": "y", "layer": 8, "sinks": true }
       ]
     }
@@ -41,6 +45,48 @@ Every message is a frame:
 - Client render classification: `wall` → BoxMesh prism; else `layer` ≤ 2 → flat
   ground quad; else → upright billboard. (Calibrated: layer 0 = ground clutter,
   3 = trees, 7 = rock walls, 10 = creatures.)
+
+### The painted ground layer  ← read this first
+
+**A cell is not just its objects.** Qud composites a ground layer onto cells that hold **no
+`GameObject` at all` — in a Joppa zone, 1103 of 2000 cells. `Cell.Render()` returns a
+`RenderEvent` with the tile, colours and flip flags; the mod emits it as a `RenderLayer 0`
+floor, **first in `objs`**, tagged `"ground": true`.
+
+Without it you get a world with no grass or dirt — and no amount of querying the objects will
+reveal the problem, because the objects genuinely aren't there.
+
+### Per-cell accounting
+
+| field | source | why |
+|---|---|---|
+| `nHeld` | `Cell.GetObjectCount()` | what Qud says the cell contains |
+| `nRendered` | `Cell.RenderedObjectsCount` | what Qud considers renderable |
+| `nSent` | count actually emitted | what reached the wire (incl. the ground layer) |
+
+`nHeld > nSent` means **we are dropping objects** and the number says where. These exist
+because "the client shows nothing here" and "the mod sent nothing here" were previously
+indistinguishable — which is exactly how the missing ground cover hid through six rounds of
+debugging.
+
+### Identity and build
+
+| field | source | why |
+|---|---|---|
+| `mod` (top level) | `Protocol.Build` | **which mod build produced this frame.** Mod `.cs` only compiles at Qud startup, so a deploy is inert until a restart. Bump the constant when changing the mod. |
+| `name` | `GameObject.Blueprint` | an object with no tile is otherwise unidentifiable |
+| `display` | `GameObject.DisplayNameOnly` | read defensively — the getter runs Qud's markup pipeline |
+
+### Colours
+
+`palette` (top level) maps each colour char to `#rrggbb`, read from
+`ConsoleLib.Console.ColorUtility.colorFromChar`. **`Base/Colors.xml` names the colours but
+contains no RGB** — the values live in code. Notably **`k` is `#0f3b3a`, a dark teal, and is
+the colour of the Qud world**, not black.
+
+When `RenderTile` paints an object, `fgHex`/`bgHex`/`detailHex` carry already-resolved RGB and
+`hflip`/`vflip` carry Qud's sprite flipping; the client prefers those over the palette. In
+practice `RenderTile` fires for almost nothing, so most objects use the `ColorString` path.
 
 ### Water & bridges
 
