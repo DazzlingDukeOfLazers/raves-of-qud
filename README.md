@@ -293,16 +293,28 @@ Tiles are **16×24**, packing two views into one image:
 **The boundary is NOT at row 16, and is not the same for every family.** Measured from the
 isolated (`-00000000`) tiles:
 
+All three wall families share the same structure — the face is the **last 10 rows**:
+
+```
+row 13   #o............o#     cap's bottom rim (matches the interior pattern)
+row 14   #oooo##oo##oooo#     the wall's TOP LIP — belongs to the FACE
+row 15+  #o###o####o###o#     face proper
+```
+
 | family | cap | separator | face |
 |---|---|---|---|
-| `wall_rock` | rows 0–14 | none | rows 15–23 |
-| `wall_brinestalk` | rows 0–14 | none | rows 15–23 |
-| `wall_metal` | rows 0–12 | **row 13 fully transparent** | rows 14–23 |
+| `wall_rock-00000000` | rows 0–13 | none | rows 14–23 |
+| `wall_brinestalk-00000000` | rows 0–13 | none | rows 14–23 |
+| `wall_metal-00000000` | rows 0–13 | none | rows 14–23 |
+| `wall_metal-10100010` | rows 0–12 | **row 13 blank** | rows 14–23 |
 
-Splitting at the tile *width* (16) — the obvious guess, and what this originally did — puts the
-face's first pixel row on the roof and removes it from the wall. Visible as a stray row of wall
-texture along the roof edge. `_wall_split()` honours an explicit transparent separator when the
-art has one, else takes the last `WALL_FACE_ROWS` (9) rows.
+Two guesses were wrong before this: the tile **width** (16), and **9 rows** (face at 15). Both
+leave row 14 — the wall's lip — sitting on the roof, which reads as a stray band of wall texture
+along the roof's front edge. `_wall_split()` honours an explicit transparent separator when the
+art has one, else takes the last `WALL_FACE_ROWS` (10) rows.
+
+> Getting this from the `-11111111` interior tile is impossible — it has no borders. Always
+> measure against the **isolated `-00000000`** variant, where every edge is drawn.
 
 North faces are *never drawn* — Qud only draws south faces in its top-down view. Directional
 tiles (fences) are drawn as a **front elevation** when perpendicular to view (E-W) and

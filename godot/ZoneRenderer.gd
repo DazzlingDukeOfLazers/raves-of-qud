@@ -671,12 +671,18 @@ func _wall_side_material() -> Material:
 		tex = _wall_region_tex("top")  # fallback: body on sides if no face variant
 	return _wall_mat_from_tex(tex)
 
-# Height of a wall tile's south face when the art gives no explicit separator.
-# Rock and brinestalk both run their top-down cap to row 14 and start the face at
-# 15 of 24 — the last 9 rows. Splitting at the tile WIDTH (16) instead, as this
-# used to, stole the face's first row for the roof and dropped it from the wall:
-# exactly one pixel row on the wrong surface.
-const WALL_FACE_ROWS := 9
+# Height of a wall tile's south face. Measured across rock, brinestalk and metal —
+# all three share the same structure:
+#
+#   row 13   #o............o#     cap's bottom rim (matches the interior)
+#   row 14   #oooo##oo##oooo#     the wall's TOP LIP — belongs to the FACE
+#   row 15+  #o###o####o###o#     face proper
+#
+# So the face is the last TEN rows, starting at 14. Two earlier guesses were
+# wrong: the tile WIDTH (16), and 9 rows (starting at 15) — the latter left row
+# 14, the wall's lip, sitting on the roof. Metal's `-10100010` variant confirms
+# the boundary independently with a fully transparent row at 13.
+const WALL_FACE_ROWS := 10
 
 ## Where a wall tile's top-down cap ends and its south face begins: (capRows, faceStart).
 ##
