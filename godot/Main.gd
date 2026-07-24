@@ -485,8 +485,9 @@ func _inspect() -> void:
 		reporter.set_target(sel.x, sel.y, inspector.zone_id(),
 			inspector.last_objects(), inspector.last_report())
 
-## F9: write the Pareto timing report to profile.txt (Claude reads it), then reset
+## P: write the Pareto timing report to profile.txt (Claude reads it), then reset
 ## so the next sample is a fresh window. Walk around a bit before pressing it.
+## (P, not F9 — macOS grabs F9 for Mission Control before Godot sees it.)
 func _write_profile() -> void:
 	var dir := renderer.tiles_dir().get_base_dir()
 	if dir == "":
@@ -563,8 +564,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			_inspect(); return
 		if event.keycode == KEY_F12:
 			_screenshot(); return
-		if event.keycode == KEY_F9:
-			_write_profile(); return
+		if event.keycode == KEY_P:
+			_write_profile(); return   # P: macOS grabs F9 (Mission Control)
 		if event.keycode == KEY_MINUS:
 			inspector.nudge_font(-2)
 			reporter.nudge_font(-2); return

@@ -84,8 +84,45 @@ func _persist(id: String) -> void:
 	var f := FileAccess.open(_dir.path_join(id.validate_filename() + ".json"), FileAccess.WRITE)
 	if f == null:
 		return
-	f.store_string(JSON.stringify(_zones[id]["snapshot"]))
+	# Qud glyphs are CP437 control bytes (e.g. 0x0B). Godot's JSON.stringify emits
+	# them raw/malformed, so the file then FAILS its own JSON.parse_string on load.
+	# Strip control chars from a deep copy before writing (glyphs are inspector-only
+	# for a remembered zone, so nothing rendered is lost). Done here, not per step —
+	# persist only fires on zone entry/leave.
+	var safe: Dictionary = _zones[id]["snapshot"].duplicate(true)
+	_sanitize(safe)
+	f.store_string(JSON.stringify(safe))
 	f.close()
+
+## Recursively strip control characters (< 0x20) from every string in a snapshot,
+## in place. Short-circuits clean strings so the common case is cheap.
+static func _sanitize(v: Variant) -> void:
+	if typeof(v) == TYPE_DICTIONARY:
+		for k in v:
+			if typeof(v[k]) == TYPE_STRING:
+				v[k] = _strip_controls(v[k])
+			else:
+				_sanitize(v[k])
+	elif typeof(v) == TYPE_ARRAY:
+		for i in v.size():
+			if typeof(v[i]) == TYPE_STRING:
+				v[i] = _strip_controls(v[i])
+			else:
+				_sanitize(v[i])
+
+static func _strip_controls(s: String) -> String:
+	var dirty := false
+	for i in s.length():
+		if s.unicode_at(i) < 0x20:
+			dirty = true
+			break
+	if not dirty:
+		return s
+	var out := ""
+	for i in s.length():
+		if s.unicode_at(i) >= 0x20:
+			out += s[i]
+	return out
 
 func _load_from_disk() -> void:
 	if _dir == "":

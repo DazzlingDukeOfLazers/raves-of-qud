@@ -2,8 +2,7 @@ extends SceneTree
 
 ## Headless check for WorldStore on-disk persistence. Run:
 ##   Godot --headless --path godot/ --script res://tests/test_persist.gd
-## Writes to a unique /tmp dir, so re-runs don't collide and CI leaves no residue
-## worth caring about.
+## Writes to a unique /tmp dir, so re-runs don't collide.
 
 const Store := preload("res://WorldStore.gd")
 
@@ -32,5 +31,16 @@ func _init() -> void:
 	assert(not s3.has_zone("JoppaWorld.11.22.1.1.10"), "cross-game leak: saw another game's zone")
 	assert(s3.zone_count() == 1, "cross-game store should hold only its own zone")
 
-	print("test_persist OK  s2=%d s3=%d  dir=%s" % [s2.zone_count(), s3.zone_count(), base])
+	# control chars in a glyph (Qud CP437 bytes) must not corrupt the JSON on disk
+	var glyph_cells := [{"x": 0, "y": 0, "objs": [{"tile": "x.bmp", "glyph": char(0x0B)}]}]
+	var zoneC := {"id": "JoppaWorld.9.9.0.0.10", "wx": 9, "wy": 9, "zx": 0, "zy": 0, "z": 10}
+	var s4 := Store.new()
+	s4.ingest({"tilesDir": base + "/tiles", "gameId": "GLYPHGAME", "zone": zoneC, "cells": glyph_cells})
+	var s5 := Store.new()
+	s5.ingest({"tilesDir": base + "/tiles", "gameId": "GLYPHGAME",
+			"zone": {"id": "JoppaWorld.9.9.1.0.10", "wx": 9, "wy": 9, "zx": 1, "zy": 0, "z": 10},
+			"cells": []})
+	assert(s5.has_zone("JoppaWorld.9.9.0.0.10"), "glyph zone failed to persist/reload (bad JSON)")
+
+	print("test_persist OK  s2=%d s3=%d glyph-reload=ok  dir=%s" % [s2.zone_count(), s3.zone_count(), base])
 	quit()
