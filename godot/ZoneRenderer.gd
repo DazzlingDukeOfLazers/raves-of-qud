@@ -370,6 +370,21 @@ func _opaque_v(img: Image) -> Vector2:
 		return Vector2(0, 1)
 	return Vector2(float(first) / h, float(last - first + 1) / h)
 
+## Ground-layer tiles that should stand up rather than lie flat.
+##
+## This is a NAME heuristic, which the rest of this codebase deliberately avoids
+## in favour of Qud's own predicates — but the painted ground layer comes from
+## Cell.Render() and has no GameObject or blueprint behind it to ask. The tile
+## path is the only signal available. Extend the list as new cover turns up.
+const UPRIGHT_GROUND := ["grass", "weed", "flower", "shrub", "moss", "fern"]
+
+func _is_vegetation(tile: String) -> bool:
+	var name := tile.replace("\\", "/").get_file().to_lower()
+	for word in UPRIGHT_GROUND:
+		if name.contains(word):
+			return true
+	return false
+
 func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, sink := 0.0, wet := false) -> void:
 	var tile := String(obj.get("tile", ""))
 
@@ -407,7 +422,12 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 
 	var tex := _colored_tex_rgb(tile, _obj_main(obj), _obj_detail(obj), _color_key(obj))
 
-	if layer <= FLOOR_LAYER_MAX:
+	# Qud's painted ground layer is flat by default — dirt, gravel, cracked earth.
+	# But vegetation in that layer is cover you stand among, not a texture you walk
+	# on, so it reads far better standing up. Route it to the billboard path.
+	var upright_ground: bool = bool(obj.get("ground", false)) and _is_vegetation(tile)
+
+	if layer <= FLOOR_LAYER_MAX and not upright_ground:
 		if in_wall:
 			_note(cx, cy, idx, "skipped(under wall)", 0.0)
 			return  # hidden under a wall; don't bother
@@ -427,6 +447,7 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 	elif tex != null:
 		# directional connectors (fences/pipes: family_<dirs>) -> orientation-locked
 		# standing panels, not billboards. Gated on wall so creatures don't match.
+		# (painted vegetation has no wall flag, so it falls straight through)
 		var dirs = _connector_dirs(tile) if bool(obj.get("wall", false)) else null
 		if dirs != null:
 			# sight-blocking connectors stand tall AND read as solid (background
@@ -453,8 +474,12 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			s.visible = true
 			_active.append(s)
 			var gaps := tile_interior_px(tile)
-			_note(cx, cy, idx, "%s, %s" % [
-				("billboard(submerged %d%%)" % roundi(sink * 100.0)) if submerged else "billboard",
+			var kind := "billboard"
+			if submerged:
+				kind = "billboard(submerged %d%%)" % roundi(sink * 100.0)
+			elif upright_ground:
+				kind = "billboard(painted cover, stood up)"
+			_note(cx, cy, idx, "%s, %s" % [kind,
 				("%d px enclosed gap -> bg" % gaps) if gaps > 0 else "no enclosed gaps"],
 				s.position.y)
 	else:

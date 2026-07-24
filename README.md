@@ -319,6 +319,14 @@ frame — crop to the opaque rows to seat things on the ground.
   `family_<dirs>` — fences, pipes, **and tent walls**.
 - **upright billboard**: everything else.
 
+**Painted ground vegetation stands up.** The painted layer is flat by default — dirt, gravel —
+but grass is cover you stand among, not a texture you walk on, so it routes to the billboard
+path and is seated on the ground like any plant. The test is `UPRIGHT_GROUND` in
+`ZoneRenderer.gd`, matched against the tile name. **This is a name heuristic**, which this
+codebase otherwise avoids in favour of Qud's own predicates — but the painted layer comes from
+`Cell.Render()` with no GameObject or blueprint behind it, so the tile path is the only signal
+there is. Extend the list as new cover appears.
+
 **`occluding` sets a panel's HEIGHT, not its shape.** This is the subtle one. A tent wall
 is a fence at full height: its art is `tent_nw`/`tent_ew`/`tent_ns` — the same connection-set
 naming as `fence_`/`pipe_` — but it *occludes*. Testing `wall && occluding` first claimed
