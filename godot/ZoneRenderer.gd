@@ -671,6 +671,33 @@ func _wall_side_material() -> Material:
 		tex = _wall_region_tex("top")  # fallback: body on sides if no face variant
 	return _wall_mat_from_tex(tex)
 
+# Height of a wall tile's south face when the art gives no explicit separator.
+# Rock and brinestalk both run their top-down cap to row 14 and start the face at
+# 15 of 24 — the last 9 rows. Splitting at the tile WIDTH (16) instead, as this
+# used to, stole the face's first row for the roof and dropped it from the wall:
+# exactly one pixel row on the wrong surface.
+const WALL_FACE_ROWS := 9
+
+## Where a wall tile's top-down cap ends and its south face begins: (capRows, faceStart).
+##
+## Qud packs both into one image and the boundary is NOT at a fixed row. Rock and
+## brinestalk butt them together at 15; metal separates them with a fully
+## transparent row (13), so its cap is shorter and its face taller. Honour a real
+## separator when one exists, else fall back to the last WALL_FACE_ROWS rows.
+func _wall_split(img: Image) -> Vector2i:
+	var w := img.get_width()
+	var h := img.get_height()
+	for y in range(int(h / 2), h):
+		var blank := true
+		for x in w:
+			if img.get_pixel(x, y).a >= 0.5:
+				blank = false
+				break
+		if blank:
+			return Vector2i(y, y + 1)      # cap ends above it, face starts below
+	var start: int = maxi(1, h - WALL_FACE_ROWS)
+	return Vector2i(start, start)
+
 func _wall_region_tex(kind: String) -> ImageTexture:
 	if _wall_tile == "":
 		return null
@@ -684,13 +711,13 @@ func _wall_region_tex(kind: String) -> ImageTexture:
 		if iso_mask != null:
 			# REAL fully-framed tile — recolor its top square as-is (real crenellated border)
 			var w := iso_mask.get_width()
-			var region := iso_mask.get_region(Rect2i(0, 0, w, min(w, iso_mask.get_height())))
+			var region := iso_mask.get_region(Rect2i(0, 0, w, _wall_split(iso_mask).x))
 			tex = _recolor_image(region, _wall_main, _wall_detail, Fill.ALL)
 		else:
 			var mask := _mask(_wall_tile)  # fallback: synthetic frame on the interior checker
 			if mask != null:
 				var w := mask.get_width()
-				var region := mask.get_region(Rect2i(0, 0, w, min(w, mask.get_height())))
+				var region := mask.get_region(Rect2i(0, 0, w, _wall_split(mask).x))
 				tex = _framed_top(region)
 	else:
 		# front-face strip: prefer the isolated tile's face, else a south-open variant
@@ -702,8 +729,9 @@ func _wall_region_tex(kind: String) -> ImageTexture:
 		if mask != null:
 			var w := mask.get_width()
 			var h := mask.get_height()
-			if h > w:
-				var region := mask.get_region(Rect2i(0, w, w, h - w))
+			var split := _wall_split(mask)
+			if split.y < h:
+				var region := mask.get_region(Rect2i(0, split.y, w, h - split.y))
 				tex = _recolor_image(region, _wall_main, _wall_detail, Fill.ALL)
 	if tex != null:
 		_wallmat_cache[key] = tex

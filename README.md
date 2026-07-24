@@ -286,9 +286,23 @@ prefers the shipped `palette` over the hand-estimated fallback table.
 > is why walls and water looked correct and the bug stayed hidden.
 
 ### Tile geometry: the 2.5D convention
-Tiles are **16×24**. The vertical split matters:
-- **top 16×16** = the top-down body (what you see looking down).
-- **bottom 16×8** = the **south front-face** (the elevation you see looking north at a wall).
+Tiles are **16×24**, packing two views into one image:
+- the **top-down cap** (what you see looking down)
+- below it, the **south front-face** (the elevation you see looking north at a wall)
+
+**The boundary is NOT at row 16, and is not the same for every family.** Measured from the
+isolated (`-00000000`) tiles:
+
+| family | cap | separator | face |
+|---|---|---|---|
+| `wall_rock` | rows 0–14 | none | rows 15–23 |
+| `wall_brinestalk` | rows 0–14 | none | rows 15–23 |
+| `wall_metal` | rows 0–12 | **row 13 fully transparent** | rows 14–23 |
+
+Splitting at the tile *width* (16) — the obvious guess, and what this originally did — puts the
+face's first pixel row on the roof and removes it from the wall. Visible as a stray row of wall
+texture along the roof edge. `_wall_split()` honours an explicit transparent separator when the
+art has one, else takes the last `WALL_FACE_ROWS` (9) rows.
 
 North faces are *never drawn* — Qud only draws south faces in its top-down view. Directional
 tiles (fences) are drawn as a **front elevation** when perpendicular to view (E-W) and
@@ -525,8 +539,7 @@ QupKit.ThreadTaskQueue:
 - **Water depth tuning**: `SINK_WADE` / `SINK_SWIM` in `ZoneRenderer.gd` are eyeballed fractions.
   There's no swim animation or waterline ripple yet, and the cut edge is hard.
 - **Tents** occlude, so they're currently prisms; probably want them as sprites (special-case).
-- **Non-rock wall tops/sides**: the top-16×16 / bottom-16×8 split is rock-specific; brinestalk/metal
-  tiles are structured differently, so their tops/sides are approximate (colours are correct).
+
 - **Neighbour-zone streaming** (the original day-one goal): the 3×3 parasang, so you can see
   adjacent zones "over the horizon." Not started. The map hierarchy: world 80×25 parasangs;
   parasang = 3×3 zones; zone = 80×25 cells; plus Z-strata.
