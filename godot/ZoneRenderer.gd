@@ -108,6 +108,25 @@ var _placed := {}   # Vector2i -> Array[{idx, kind, y}]
 # small flickering flame — brightening the flat tiles the way an additive decal
 # would, and reading correctly in the top-down 2.5D view.
 var _light_root: Node3D
+var _remembered_root: Node3D    # frozen neighbour geometry (see _rebuild_remembered)
+var _bank: Node3D = null        # non-null while building a remembered zone INTO it
+var _remembered_sig := ""       # signature of the last-built neighbour set
+
+## Parent for freshly-spawned nodes: the frozen bank when building a remembered
+## zone, else the renderer itself (live zone, pooled).
+func _spawn_parent() -> Node:
+	return _bank if _bank != null else self
+
+## Track a live node for pooling next frame. Remembered nodes persist in _bank, so
+## they are never pooled.
+func _track(n: Node) -> void:
+	if _bank == null:
+		_active.append(n)
+
+## Parent for wall meshes: the frozen bank when building a remembered zone, else
+## the per-turn _wall_root.
+func _wall_parent() -> Node:
+	return _bank if _bank != null else _wall_root
 var _glow_tex: Texture2D
 var _flame_tex: Texture2D
 var _lights: Array = []           # [{glow, flame, x, z, base_energy}]
@@ -141,6 +160,12 @@ func _ready() -> void:
 
 	_light_root = Node3D.new()
 	add_child(_light_root)
+
+	# Remembered neighbour zones live here, built ONCE and frozen — only rebuilt when
+	# the neighbour set changes (crossing into a new zone), never per step. The live
+	# zone keeps its per-turn rebuild in _wall_root / the pools.
+	_remembered_root = Node3D.new()
+	add_child(_remembered_root)
 	_glow_tex = _make_radial(64, Color(1.0, 0.62, 0.25), 1.0)   # warm pool of light
 	_flame_tex = _make_radial(32, Color(1.0, 0.80, 0.35), 1.6)  # tighter, brighter core
 
@@ -200,14 +225,22 @@ func render_snapshot(data: Dictionary, neighbors: Array = []) -> void:
 
 	_load_overrides()
 
-	# Build the live zone, then any remembered neighbours from the store. Wall types
-	# accumulate across every zone so a single _rebuild_walls covers them all (and
-	# walls join across zone seams for free — same type + adjacent offset = one run).
+	# Build (and rebuild every step) only the LIVE zone.
 	var wall_types := {}
 	_build_zone(data.get("cells", []), Vector2i.ZERO, false, wall_types)
-	for nb in neighbors:
-		_build_zone(nb.get("cells", []), nb.get("offset", Vector2i.ZERO), true, wall_types)
 	_rebuild_walls(wall_types)
+
+	# Remembered neighbours are FROZEN: built once into _remembered_root and left
+	# alone. Rebuild only when the set changes (a new zone, or a different live zone
+	# shifting every offset) — signature = live id + each neighbour's offset. This is
+	# what keeps per-step cost to the live zone instead of every stored zone.
+	var sig := String(data.get("zone", {}).get("id", ""))
+	for nb in neighbors:
+		var o: Vector2i = nb.get("offset", Vector2i.ZERO)
+		sig += "|%d,%d" % [o.x, o.y]
+	if sig != _remembered_sig:
+		_remembered_sig = sig
+		_rebuild_remembered(neighbors)
 
 ## Build one zone's geometry into the scene, its cells shifted by `offset` (in cells
 ## = world units) so a remembered neighbour lands in its true position relative to
@@ -227,7 +260,8 @@ func _build_zone(cells: Array, offset: Vector2i, remembered: bool, wall_types: D
 			# (fences) fall through to the sprite path below.
 			if not _is_prism(obj):
 				continue
-			_note(cx, cy, widx, "prism", WALL_H)
+			if not remembered:
+				_note(cx, cy, widx, "prism", WALL_H)
 			var tile := _canon_wall_tile(String(obj.get("tile", "")))
 			var main_c := String(obj.get("tilecolor", ""))
 			if main_c == "": main_c = String(obj.get("color", ""))
@@ -256,6 +290,21 @@ func _build_zone(cells: Array, offset: Vector2i, remembered: bool, wall_types: D
 			if obj.has("lightRadius"):
 				_place_light(cx, cy, float(obj["lightRadius"]))
 			idx += 1
+
+## Rebuild all remembered neighbour zones into the frozen bank. Called only when the
+## neighbour set changes, not per step. Everything spawned while `_bank` is set goes
+## into _remembered_root and is left untouched by the per-turn live rebuild.
+func _rebuild_remembered(neighbors: Array) -> void:
+	for c in _remembered_root.get_children():
+		c.queue_free()
+	if neighbors.is_empty():
+		return
+	_bank = _remembered_root
+	var nb_wall_types := {}
+	for nb in neighbors:
+		_build_zone(nb.get("cells", []), nb.get("offset", Vector2i.ZERO), true, nb_wall_types)
+	_rebuild_walls(nb_wall_types)   # _bank set -> builds into the bank, skips the clear
+	_bank = null
 
 # --- introspection (for CellInspector) --------------------------------------
 
@@ -502,6 +551,9 @@ func _override_for(tile: String) -> String:
 ## An additive warm glow on the ground (the "light") plus a small flickering flame
 ## above the sconce. Qud's radius is in cells; 1 cell == 1 world unit.
 func _place_light(cx: int, cy: int, radius: float) -> void:
+	# frozen neighbours park their lights in the bank (static, no flicker); the live
+	# zone uses _light_root and registers for the _process flicker.
+	var lp: Node = _bank if _bank != null else _light_root
 	var glow := MeshInstance3D.new()
 	var gm := PlaneMesh.new()
 	var d: float = maxf(2.0, radius * 1.6)   # pool a bit wider than the sconce
@@ -509,7 +561,7 @@ func _place_light(cx: int, cy: int, radius: float) -> void:
 	glow.mesh = gm
 	glow.position = Vector3(cx, FLOOR_Y + 0.01, cy)
 	glow.material_override = _fx_material(_glow_tex)
-	_light_root.add_child(glow)
+	lp.add_child(glow)
 
 	var flame := Sprite3D.new()
 	flame.texture = _flame_tex
@@ -519,9 +571,10 @@ func _place_light(cx: int, cy: int, radius: float) -> void:
 	flame.transparent = true
 	flame.material_override = _fx_material(_flame_tex)   # additive
 	flame.position = Vector3(cx, 0.7, cy)                # above the sconce
-	_light_root.add_child(flame)
+	lp.add_child(flame)
 
-	_lights.append({"glow": glow, "flame": flame, "energy": 1.0})
+	if _bank == null:
+		_lights.append({"glow": glow, "flame": flame, "energy": 1.0})
 
 ## Unshaded + additive: brightens whatever is behind it, no scene lighting needed.
 func _fx_material(tex: Texture2D) -> StandardMaterial3D:
@@ -671,14 +724,14 @@ func _fence_half(cx: int, cy: int, d: String, tile: String, main_c: String, deta
 	mi.rotation_degrees = Vector3(0, rot, 0)
 	mi.position = pos
 	mi.visible = true
-	_active.append(mi)
+	_track(mi)
 
 func _take_fence() -> MeshInstance3D:
-	if _fence_pool.size() > 0:
+	if _bank == null and _fence_pool.size() > 0:
 		return _fence_pool.pop_back()
 	var mi := MeshInstance3D.new()
 	mi.mesh = _fence_quad
-	add_child(mi)
+	_spawn_parent().add_child(mi)
 	return mi
 
 # `fill`: paint the art's transparent pixels with the Qud cell background (the
@@ -788,7 +841,7 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			var y := (BRIDGE_Y + idx * TIEBREAK) if wet else (FLOOR_Y + layer * LAYER_LIFT + idx * TIEBREAK)
 			d.position = Vector3(cx, y, cy)
 			d.visible = true
-			_active.append(d)
+			_track(d)
 			_note(cx, cy, idx, "deck(over water)" if wet else "deck(on ground)", y)
 			return
 
@@ -834,7 +887,7 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			fkind = "floor(no tile: flat colour dot)"
 		f.position = Vector3(cx, FLOOR_Y + layer * LAYER_LIFT + idx * TIEBREAK, cy)
 		f.visible = true
-		_active.append(f)
+		_track(f)
 		_note(cx, cy, idx, fkind, f.position.y)
 	elif tex != null:
 		# directional connectors (fences, pipes, axles: family_<dirs>) ->
@@ -866,7 +919,7 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			var submerged: bool = sink > 0.0 and bool(obj.get("sinks", false))
 			_seat(s, btex, tile, cx, cy, sink if submerged else 0.0, position_for(tile) == "float")
 			s.visible = true
-			_active.append(s)
+			_track(s)
 			var fmode := _fill_for(tile, Fill.INTERIOR)
 			var gaps := tile_fill_px(tile, fmode)
 			var kind := "billboard"
@@ -883,7 +936,7 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 		l.modulate = _qud_color(String(obj.get("color", "")))
 		l.position = Vector3(cx, 0.5 + idx * LAYER_STEP, cy)
 		l.visible = true
-		_active.append(l)
+		_track(l)
 		_note(cx, cy, idx, "label(NO TILE EXPORTED — glyph fallback)", l.position.y)
 
 # Seat a billboard on the ground, showing only its art.
@@ -931,8 +984,11 @@ func _wall_bg_color() -> Color:
 	return _world_bg
 
 func _rebuild_walls(wall_types: Dictionary) -> void:
-	for c in _wall_root.get_children():
-		c.queue_free()
+	# Live rebuild clears _wall_root; when banking, _rebuild_remembered already
+	# cleared _remembered_root, so don't wipe it again mid-build.
+	if _bank == null:
+		for c in _wall_root.get_children():
+			c.queue_free()
 	for key in wall_types:
 		var t = wall_types[key]
 		_wall_tile = t["tile"]; _wall_main = t["main"]; _wall_detail = t["detail"]; _wall_bg = t["bg"]
@@ -955,7 +1011,7 @@ func _rebuild_walls(wall_types: Dictionary) -> void:
 			core.mesh = bm
 			core.material_override = core_mat
 			core.position = Vector3(k.x, core_top * 0.5, k.y)
-			_wall_root.add_child(core)
+			_wall_parent().add_child(core)
 
 		# ROOFS are per-cell, grouped by autotile variant. Merging them under one
 		# texture drew the fully-bordered isolated tile on every cell, so a run of
@@ -977,7 +1033,7 @@ func _rebuild_walls(wall_types: Dictionary) -> void:
 					rmi.mesh = vmesh
 					rmi.material_override = _voxel_material()
 					rmi.position = Vector3(k.x, 0.0, k.y)
-					_wall_root.add_child(rmi)
+					_wall_parent().add_child(rmi)
 				# a voxel side on each edge whose orthogonal neighbour isn't this wall.
 				# the side mesh faces +Z (south); rotate it onto each exposed edge.
 				if smesh != null:
@@ -992,7 +1048,7 @@ func _place_side(mesh: ArrayMesh, k: Vector2i, deg: float) -> void:
 	mi.material_override = _voxel_material()
 	mi.position = Vector3(k.x, 0.0, k.y)
 	mi.rotation = Vector3(0, deg_to_rad(deg), 0)
-	_wall_root.add_child(mi)
+	_wall_parent().add_child(mi)
 
 # --- voxel wall caps --------------------------------------------------------
 
@@ -1840,7 +1896,7 @@ func _color_material(col: Color) -> StandardMaterial3D:
 
 func _take_sprite() -> Sprite3D:
 	var s: Sprite3D
-	if _sprite_pool.size() > 0:
+	if _bank == null and _sprite_pool.size() > 0:
 		s = _sprite_pool.pop_back()
 	else:
 		s = Sprite3D.new()
@@ -1849,7 +1905,7 @@ func _take_sprite() -> Sprite3D:
 		s.shaded = false
 		s.transparent = true
 		s.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
-		add_child(s)
+		_spawn_parent().add_child(s)
 	# reset per take — fence panels and submerged actors override these, normal
 	# sprites need the defaults back
 	s.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
@@ -1860,20 +1916,20 @@ func _take_sprite() -> Sprite3D:
 	return s
 
 func _take_floor() -> MeshInstance3D:
-	if _floor_pool.size() > 0: return _floor_pool.pop_back()
+	if _bank == null and _floor_pool.size() > 0: return _floor_pool.pop_back()
 	var mi := MeshInstance3D.new()
 	mi.mesh = _plane
-	add_child(mi)
+	_spawn_parent().add_child(mi)
 	return mi
 
 func _take_label() -> Label3D:
-	if _label_pool.size() > 0: return _label_pool.pop_back()
+	if _bank == null and _label_pool.size() > 0: return _label_pool.pop_back()
 	var l := Label3D.new()
 	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	l.pixel_size = 0.02
 	l.font_size = 64
 	l.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	add_child(l)
+	_spawn_parent().add_child(l)
 	return l
 
 # FALLBACK ONLY — hand-estimated, and measurably wrong: Qud's 'k' is #0f3b3a
