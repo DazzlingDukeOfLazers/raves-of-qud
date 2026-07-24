@@ -38,7 +38,16 @@ const SINK_SWIM := 0.72    # ... and swimming depth
 #   ALL      paint every one with the cell background (wall faces, decks, tents)
 #   INTERIOR paint only the gaps enclosed by the art (billboards) — so a chest's
 #            lock reads as background but the world still shows past its outline
-enum Fill { NONE, ALL, INTERIOR }
+## How a tile's TRANSPARENT pixels are treated.
+##   NONE      leave see-through (fences, floors)
+##   ALL       paint every one — including outside the art, so the tile becomes a
+##             filled rectangle (wall faces, decks, tents)
+##   INTERIOR  only gaps ENCLOSED by the art (default for billboards)
+##   SPAN      every gap between the first and last opaque pixel in its ROW.
+##             Sits between INTERIOR and ALL: a water wheel's open-bottomed paddle
+##             compartments are not enclosed, so INTERIOR leaves them see-through
+##             while SPAN closes them without squaring off the silhouette.
+enum Fill { NONE, ALL, INTERIOR, SPAN }
 
 # Widest horizontal transparent run still treated as a seam in the art rather
 # than a genuine opening. Tuned against sw_chest (1px channels beside its bands,
@@ -285,6 +294,7 @@ const VERDICT_KEYS := {
 }
 
 const FILL_KEYS := {
+	"fill MORE": Fill.SPAN,
 	"gaps should be BACKGROUND": Fill.INTERIOR,
 	"gaps should be TRANSPARENT": Fill.NONE,
 	"whole tile OPAQUE": Fill.ALL,
@@ -983,7 +993,11 @@ func _colored_tex_rgb(tile: String, main: Color, detail: Color, ckey: String, fi
 	var mask := _mask(tile)
 	if mask == null:
 		return null
-	var inner = _interior(tile) if fill == Fill.INTERIOR else null
+	var inner = null
+	if fill == Fill.INTERIOR:
+		inner = _interior(tile)
+	elif fill == Fill.SPAN:
+		inner = _row_span(tile)
 	var tex := _recolor_rgb(mask, main, detail, fill, inner)
 	_tex_cache[key] = tex
 	return tex
@@ -1093,6 +1107,34 @@ func _interior(tile: String) -> Array:
 # vertical gap cross; this closes them generically rather than by special case.
 # It cannot leak into open space — a real opening's boundary always touches a
 # genuinely outside pixel, so the fill has nowhere to start.
+## Every transparent pixel between the first and last opaque pixel in its row.
+## Unlike _interior() this asks nothing about enclosure, so a shape open at the
+## bottom — a wheel's paddle compartments — still fills, while pixels outside the
+## silhouette stay clear.
+func _row_span(tile: String) -> Array:
+	var fname := tile_filename(tile) + "|span"
+	if _interior_cache.has(fname):
+		return _interior_cache[fname]
+	var mask := _mask(tile)
+	var out := []
+	if mask == null:
+		return out
+	var w := mask.get_width()
+	var h := mask.get_height()
+	for y in h:
+		var lo := -1
+		var hi := -1
+		for x in w:
+			if mask.get_pixel(x, y).a >= 0.5:
+				if lo < 0: lo = x
+				hi = x
+		var row := []
+		for x in w:
+			row.append(lo >= 0 and x > lo and x < hi and mask.get_pixel(x, y).a < 0.5)
+		out.append(row)
+	_interior_cache[fname] = out
+	return out
+
 func _close_pinholes(w: int, h: int, solid: Array, inner: Array) -> void:
 	var changed := true
 	while changed:
@@ -1129,8 +1171,8 @@ func _recolor_rgb(mask: Image, main: Color, detail: Color, fill: int, inner = nu
 			var p := mask.get_pixel(x, y)
 			if p.a < 0.5:
 				# transparent = the cell/object BACKGROUND (world dark-green)
-				var paint: bool = fill == Fill.ALL or (fill == Fill.INTERIOR
-					and inner != null and y < inner.size() and bool(inner[y][x]))
+				var paint: bool = fill == Fill.ALL or (inner != null
+					and y < inner.size() and bool(inner[y][x]))
 				img.set_pixel(x, y, _wall_bg_color() if paint else Color(0, 0, 0, 0))
 			else:
 				var lum := (p.r + p.g + p.b) / 3.0

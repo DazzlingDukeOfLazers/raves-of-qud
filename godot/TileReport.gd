@@ -23,6 +23,7 @@ const VERDICTS := [
 	"should be FLAT on the floor",
 	"should be a WALKABLE DECK (bridge-like)",
 	"should NOT be drawn at all",
+	"FILL: fill MORE — close open compartments too",
 	"FILL: gaps should be BACKGROUND colour",
 	"FILL: gaps should be TRANSPARENT (see through)",
 	"FILL: whole tile OPAQUE",

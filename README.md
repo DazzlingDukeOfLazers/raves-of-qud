@@ -369,7 +369,12 @@ take a turn, see it. Verdicts come on **two independent axes**, and a tile can c
 | axis | verdicts | effect |
 |---|---|---|
 | **shape** | wall · panel N–S · panel E–W · billboard · flat · not-drawn | what geometry gets built |
-| **fill** | gaps BACKGROUND · gaps TRANSPARENT · whole tile OPAQUE | how the art's transparent pixels are treated |
+| **fill** | fill MORE · gaps BACKGROUND · gaps TRANSPARENT · whole tile OPAQUE | how the art's transparent pixels are treated |
+
+`fill MORE` (`Fill.SPAN`) fills every gap between the first and last opaque pixel in each row.
+It sits between `INTERIOR` (enclosed gaps only) and `ALL` (a filled rectangle): a water wheel's
+paddle compartments are open at the bottom, so `INTERIOR` leaves them see-through, while `SPAN`
+closes them without squaring off the silhouette — 130px → 141px on that tile.
 
 Colour, height, position and duplicated remain notes for a human. Fill is its own axis because
 the geometric rules genuinely cannot settle it — whether a water wheel's paddle compartments
