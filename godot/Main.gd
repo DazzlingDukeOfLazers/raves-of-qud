@@ -320,9 +320,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.keycode == KEY_F12:
 			_screenshot(); return
 		if event.keycode == KEY_MINUS:
-			inspector.nudge_font(-2); return
+			inspector.nudge_font(-2)
+			reporter.nudge_font(-2); return
 		if event.keycode == KEY_EQUAL:
-			inspector.nudge_font(2); return
+			inspector.nudge_font(2)
+			reporter.nudge_font(2); return
 		# in KEYBOARD mode the arrows drive the camera, not the player
 		if _mode == CamMode.KEYBOARD:
 			return

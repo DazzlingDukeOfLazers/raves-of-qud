@@ -345,6 +345,8 @@ func _build_preview() -> void:
 	var checker := TextureRect.new()
 	checker.texture = _checker_texture()
 	checker.stretch_mode = TextureRect.STRETCH_TILE
+	# explicit, since the project canvas default is linear for text
+	checker.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	checker.size = Vector2(PREVIEW_PX, PREVIEW_PX)
 	checker.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_preview.add_child(checker)

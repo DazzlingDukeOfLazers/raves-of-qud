@@ -37,6 +37,14 @@ var _verdict: OptionButton
 var _notes: TextEdit
 var _status: Label
 
+const FONT := 19          # matches the inspector's readable default
+const PANEL_W := 520
+const PANEL_H := 430
+
+var _font := FONT
+var _title: Label
+var _send: Button
+
 var _cx := -1
 var _cy := -1
 var _zone := ""
@@ -119,8 +127,8 @@ func _build() -> void:
 
 	_panel = PanelContainer.new()
 	_panel.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	_panel.offset_left = -340
-	_panel.offset_top = -250
+	_panel.offset_left = -(PANEL_W + 14)
+	_panel.offset_top = -(PANEL_H + 14)
 	_panel.offset_right = -14
 	_panel.offset_bottom = -14
 	_panel.visible = false
@@ -136,14 +144,12 @@ func _build() -> void:
 	box.add_theme_constant_override("separation", 6)
 	_panel.add_child(box)
 
-	var title := Label.new()
-	title.text = "Report this tile"
-	title.add_theme_font_size_override("font_size", 15)
-	title.add_theme_color_override("font_color", Color(0.65, 0.95, 0.7))
-	box.add_child(title)
+	_title = Label.new()
+	_title.text = "Report this tile"
+	_title.add_theme_color_override("font_color", Color(0.65, 0.95, 0.7))
+	box.add_child(_title)
 
 	_target = Label.new()
-	_target.add_theme_font_size_override("font_size", 12)
 	_target.add_theme_color_override("font_color", Color(0.8, 0.9, 0.8))
 	box.add_child(_target)
 
@@ -155,18 +161,37 @@ func _build() -> void:
 
 	_notes = TextEdit.new()
 	_notes.placeholder_text = "what's wrong, in your words…"
-	_notes.custom_minimum_size = Vector2(0, 74)
+	_notes.custom_minimum_size = Vector2(0, 120)
 	box.add_child(_notes)
 
-	var send := Button.new()
-	send.text = "Submit report"
-	send.pressed.connect(_submit)
-	box.add_child(send)
+	_send = Button.new()
+	_send.text = "Submit report"
+	_send.pressed.connect(_submit)
+	box.add_child(_send)
 
 	_status = Label.new()
-	_status.add_theme_font_size_override("font_size", 11)
 	_status.add_theme_color_override("font_color", Color(0.95, 0.85, 0.5))
 	box.add_child(_status)
+
+	_apply_font()
+
+## Same '-' / '=' keys as the inspector, so both panels scale together rather
+## than one being legible and the other not.
+func nudge_font(delta: int) -> void:
+	_font = clampi(_font + delta, 10, 40)
+	_apply_font()
+
+func _apply_font() -> void:
+	for c in [_title, _target, _status]:
+		c.add_theme_font_size_override("font_size", _font)
+	_verdict.add_theme_font_size_override("font_size", _font)
+	# the dropdown is a separate PopupMenu and does not inherit the button's size
+	var pop := _verdict.get_popup()
+	if pop != null:
+		pop.add_theme_font_size_override("font_size", _font)
+	_notes.add_theme_font_size_override("font_size", _font)
+	_send.add_theme_font_size_override("font_size", _font)
+	_notes.custom_minimum_size = Vector2(0, _font * 6)
 
 func hide_panel() -> void:
 	_panel.visible = false

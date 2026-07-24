@@ -20,4 +20,8 @@ config/features=PackedStringArray("4.7", "Forward Plus")
 
 [rendering]
 
-textures/canvas_textures/default_texture_filter=0
+; Canvas/2D default is LINEAR so UI TEXT is antialiased. This was NEAREST, which
+; applies to font atlases too and made every glyph pixel-crawl. Tile crispness does
+; not depend on it: ZoneRenderer sets TEXTURE_FILTER_NEAREST on its own 3D
+; materials and sprites, and the checkerboard sets it explicitly.
+textures/canvas_textures/default_texture_filter=1
