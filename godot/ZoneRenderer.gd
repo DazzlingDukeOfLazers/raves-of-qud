@@ -45,6 +45,12 @@ enum Fill { NONE, ALL, INTERIOR }
 # must fill) vs sw_dromad (10px gap between its legs, must not).
 const MAX_SLOT_PX := 2
 
+# User verdicts from RavesOfQud/reports/, keyed by TILE FAMILY. Some things are
+# simply not in Qud's data — a water wheel runs east-west, but nothing in
+# `sw_waterwheel_1` says so. This is how a human supplies what cannot be derived,
+# and it applies live: file a report, take a turn, see it.
+var _overrides := {}        # tile family -> verdict key
+
 var _palette := {}          # colour char -> "#rrggbb", from the mod (authoritative)
 var _tiles_dir := ""
 var _mask_cache := {}       # fname -> Image
@@ -139,6 +145,8 @@ func render_snapshot(data: Dictionary) -> void:
 			if n.mesh == _fence_quad: _fence_pool.append(n)
 			else: _floor_pool.append(n)
 	_active.clear()
+
+	_load_overrides()
 
 	var cells = data.get("cells", [])
 
@@ -243,7 +251,77 @@ func _cell_sink(cell: Dictionary) -> float:
 		return SINK_WADE
 	return 0.0
 
+# --- user overrides ----------------------------------------------------------
+
+## A tile path reduced to its family, so one verdict covers every variant:
+## `sw_waterwheel_1` and `_3`, `wall_rock-10100010` and every other bitmask.
+func _tile_family(tile: String) -> String:
+	var t := tile.replace("\\", "/").get_file().get_basename().to_lower()
+	var dash := t.rfind("-")
+	if dash > 0 and _is_binary(t.substr(dash + 1)):
+		t = t.substr(0, dash)
+	var end := t.length()
+	while end > 0 and t[end - 1] >= "0" and t[end - 1] <= "9":
+		end -= 1
+	if end > 0 and end < t.length() and t[end - 1] == "_":
+		end -= 1
+	return t.substr(0, end) if end > 0 else t
+
+## Phrase -> renderer behaviour. Matched as substrings of the filed verdict, so
+## the wording in TileReport.VERDICTS can be reworded without breaking this.
+const VERDICT_KEYS := {
+	"WALL": "wall",
+	"running N–S": "panel_ns",
+	"running E–W": "panel_ew",
+	"UPRIGHT BILLBOARD": "billboard",
+	"FLAT on the floor": "floor",
+	"NOT be drawn": "skip",
+}
+
+## Re-read the reports directory. A handful of small files, read once per snapshot,
+## so a filed verdict takes effect on the next turn with no restart.
+func _load_overrides() -> void:
+	if _tiles_dir == "":
+		return
+	var dir := _tiles_dir.get_base_dir().path_join("reports")
+	var da := DirAccess.open(dir)
+	if da == null:
+		_overrides.clear()
+		return
+	var found := {}
+	for f in da.get_files():
+		if not f.ends_with(".md"):
+			continue
+		var text := FileAccess.get_file_as_string(dir.path_join(f))
+		if text == "":
+			continue
+		var tile := ""
+		var verdict := ""
+		for line in text.split("\n"):
+			if line.begins_with("- **tile**:") and line.contains("`"):
+				tile = line.get_slice("`", 1)
+			elif line.begins_with("- **verdict**:"):
+				verdict = line.substr(line.find(":") + 1).strip_edges()
+		if tile == "" or verdict == "":
+			continue
+		for phrase in VERDICT_KEYS:
+			if verdict.contains(phrase):
+				found[_tile_family(tile)] = VERDICT_KEYS[phrase]
+				break
+	_overrides = found
+
+func _override_for(tile: String) -> String:
+	if _overrides.is_empty() or tile == "":
+		return ""
+	return String(_overrides.get(_tile_family(tile), ""))
+
 func _is_prism(obj: Dictionary) -> bool:
+	# a user verdict wins outright — that's the point of filing one
+	var ov := _override_for(String(obj.get("tile", "")))
+	if ov == "wall":
+		return true
+	if ov != "":
+		return false          # any other verdict means "not a block"
 	# a solid, sight-blocking wall -> render as a 3D prism (rock, metal, brinestalk).
 	if not (bool(obj.get("wall", false)) and bool(obj.get("occluding", false))):
 		return false
@@ -457,12 +535,32 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 
 	var tex := _colored_tex_rgb(tile, _obj_main(obj), _obj_detail(obj), _color_key(obj))
 
+	# A filed verdict overrides everything below it. This is how facts that are not
+	# in Qud's data get in: nothing in `sw_waterwheel_1` says the wheel runs
+	# east-west, so a human says it and this honours it.
+	var verdict := _override_for(tile)
+	if verdict == "skip":
+		_note(cx, cy, idx, "skipped(user verdict: not drawn)", 0.0)
+		return
+	if verdict == "panel_ew" or verdict == "panel_ns":
+		var vtex := _colored_tex_rgb(tile, _obj_main(obj), _obj_detail(obj), _color_key(obj))
+		if vtex != null:
+			var axis := "ew" if verdict == "panel_ew" else "ns"
+			var vh := _panel_height(obj, tile)
+			_place_connector(tile, main_c, detail_c, cx, cy, axis, vh,
+				Fill.ALL if bool(obj.get("occluding", false)) else Fill.NONE)
+			_note(cx, cy, idx, "connector panels [%s] h=%.2f (user verdict)" % [axis, vh], vh * 0.5)
+			return
+
 	# Qud's painted ground layer is flat by default — dirt, gravel, cracked earth.
 	# But vegetation in that layer is cover you stand among, not a texture you walk
 	# on, so it reads far better standing up. Route it to the billboard path.
 	var upright_ground: bool = bool(obj.get("ground", false)) and _is_vegetation(tile)
+	if verdict == "billboard":
+		upright_ground = true        # force it off the floor path
+	var as_floor: bool = (layer <= FLOOR_LAYER_MAX and not upright_ground) or verdict == "floor"
 
-	if layer <= FLOOR_LAYER_MAX and not upright_ground:
+	if as_floor:
 		if in_wall:
 			_note(cx, cy, idx, "skipped(under wall)", 0.0)
 			return  # hidden under a wall; don't bother

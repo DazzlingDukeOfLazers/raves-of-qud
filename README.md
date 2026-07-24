@@ -358,6 +358,17 @@ shared edges join seamlessly. Sides stay greedy-merged; only the cap needs per-c
   fences, pipes, tent walls, **and axles**. See the gate note below.
 - **upright billboard**: everything else.
 
+**User verdicts override everything.** Some facts are not in Qud's data at all: a water wheel
+runs east–west, but nothing in `sw_waterwheel_1` says so — no suffix, no blueprint flag. Inspect
+a tile, use the form in the lower right, and the verdict is written to
+`RavesOfQud/reports/<zone>_<x>-<y>_<tile>_v<n>.md`. `ZoneRenderer._load_overrides()` re-reads
+that directory every snapshot and keys verdicts by **tile family**, so one report covers every
+variant (`sw_waterwheel_1` and `_3`; every `wall_rock-XXXXXXXX`). Verdicts apply live — file one,
+take a turn, see it. Actionable verdicts: wall, panel N–S, panel E–W, billboard, flat, not-drawn.
+The rest (colour, height, position, duplicated) are notes for a human.
+
+> Mind the axis wording: **running E–W means the faces point N/S.** The form labels say both.
+
 **What counts as a directional connector.** The `family_<dirs>` suffix alone is too weak — an
 item or creature tile ending `_e`/`_ne` would match by accident. This was originally gated on the
 **wall** flag, which was safe but too narrow: axles (`sw_axle_2_ew`) are machinery, not walls, so

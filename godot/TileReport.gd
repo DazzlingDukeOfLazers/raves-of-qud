@@ -17,8 +17,8 @@ class_name TileReport
 const VERDICTS := [
 	"— pick one —",
 	"should be a WALL (solid 3D block)",
-	"should be an ORIENTED PANEL running N–S",
-	"should be an ORIENTED PANEL running E–W",
+	"ORIENTED PANEL running N–S (faces E/W)",
+	"ORIENTED PANEL running E–W (faces N/S)",
 	"should be an UPRIGHT BILLBOARD sprite",
 	"should be FLAT on the floor",
 	"should be a WALKABLE DECK (bridge-like)",
