@@ -24,6 +24,7 @@ extends Node3D
 var client: BridgeClient
 var renderer: ZoneRenderer
 var store := WorldStore.new()   # Phase-0 world store; renderer reads the live zone from it
+var _prof_turns := 0            # for the periodic profile auto-dump
 var inspector: CellInspector
 var reporter: TileReport
 
@@ -195,6 +196,12 @@ func _on_snapshot(data: Dictionary) -> void:
 	renderer.render_snapshot(store.live_snapshot(), nbs)
 	Profiler.done("render")
 	inspector.on_snapshot(data)
+
+	# Auto-dump the profile every N turns (cumulative, no reset) so it's always fresh
+	# without needing a keypress — the manual P key can be flaky (window focus / UI).
+	_prof_turns += 1
+	if _prof_turns % 40 == 0:
+		_dump_profile(false)
 
 	_update_time(data.get("time", {}))
 
@@ -485,10 +492,9 @@ func _inspect() -> void:
 		reporter.set_target(sel.x, sel.y, inspector.zone_id(),
 			inspector.last_objects(), inspector.last_report())
 
-## P: write the Pareto timing report to profile.txt (Claude reads it), then reset
-## so the next sample is a fresh window. Walk around a bit before pressing it.
-## (P, not F9 — macOS grabs F9 for Mission Control before Godot sees it.)
-func _write_profile() -> void:
+## Write the Pareto timing report to profile.txt (Claude reads it). Auto-called every
+## 40 turns (reset=false, cumulative), and by the P key (reset=true, fresh window).
+func _dump_profile(reset := true) -> void:
 	var dir := renderer.tiles_dir().get_base_dir()
 	if dir == "":
 		return
@@ -496,7 +502,8 @@ func _write_profile() -> void:
 	if f != null:
 		f.store_string(Profiler.report())
 		f.close()
-	Profiler.reset()
+	if reset:
+		Profiler.reset()
 
 ## Save the viewport to a known path so a collaborator can just read it.
 ##
@@ -565,7 +572,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.keycode == KEY_F12:
 			_screenshot(); return
 		if event.keycode == KEY_P:
-			_write_profile(); return   # P: macOS grabs F9 (Mission Control)
+			_dump_profile(); return   # P: macOS grabs F9 (Mission Control)
 		if event.keycode == KEY_MINUS:
 			inspector.nudge_font(-2)
 			reporter.nudge_font(-2); return
