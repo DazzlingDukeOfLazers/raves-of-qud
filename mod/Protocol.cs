@@ -18,7 +18,7 @@ namespace RavesOfQud
         /// no way to tell from the outside whether the running code included a
         /// given fix. Every snapshot now says. Bump this when changing the mod.
         /// </summary>
-        public const string Build = "2026-07-23h painted-ground";
+        public const string Build = "2026-07-23i ground-dedup";
 
         // Arbitrary high port; keep in sync with godot/BridgeClient.gd (PORT).
         public const int DefaultPort = 48710;
