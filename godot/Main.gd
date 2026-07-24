@@ -252,7 +252,7 @@ func _inspect() -> void:
 	var sel = inspector.selected_tile()
 	if sel != null:
 		reporter.set_target(sel.x, sel.y, inspector.zone_id(),
-			inspector.last_tile(), inspector.last_report())
+			inspector.last_objects(), inspector.last_report())
 
 ## Save the viewport to a known path so a collaborator can just read it.
 ##

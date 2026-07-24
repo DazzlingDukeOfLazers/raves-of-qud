@@ -34,6 +34,7 @@ var _renderer: ZoneRenderer
 var _panel: PanelContainer
 var _target: Label
 var _verdict: OptionButton
+var _subject: OptionButton      # WHICH object in the tile the report is about
 var _notes: TextEdit
 var _status: Label
 
@@ -44,6 +45,8 @@ const PANEL_H := 430
 var _font := FONT
 var _title: Label
 var _send: Button
+
+var _objects: Array = []
 
 var _cx := -1
 var _cy := -1
@@ -56,15 +59,39 @@ func setup(renderer: ZoneRenderer) -> void:
 	_build()
 
 ## Point the form at whatever was just inspected.
-func set_target(cx: int, cy: int, zone: String, tile: String, report: String) -> void:
+##
+## `objects` arrives TOPMOST FIRST. A tile routinely holds several things — a
+## water wheel standing in a puddle — so the subject is chosen explicitly rather
+## than guessed. Defaulting to the top object is right far more often than
+## defaulting to the last one in the array, which is what filed a verdict about a
+## water wheel against the water underneath it.
+func set_target(cx: int, cy: int, zone: String, objects: Array, report: String) -> void:
 	_cx = cx
 	_cy = cy
 	_zone = zone
-	_tile = tile
 	_report = report
-	_target.text = "tile (%d, %d)\n%s" % [cx, cy, tile.get_file() if tile != "" else "(no tile)"]
+	_objects = objects
+
+	_subject.clear()
+	for o in objects:
+		var nm := String(o.get("display", ""))
+		if nm == "":
+			nm = String(o.get("name", "?"))
+		_subject.add_item("L%s  %s" % [str(o.get("layer", "?")), nm])
+	if objects.is_empty():
+		_subject.add_item("(nothing here)")
+	_subject.selected = 0
+	_sync_subject()
+
+	_target.text = "tile (%d, %d)" % [cx, cy]
 	_status.text = ""
 	_panel.visible = true
+
+func _sync_subject() -> void:
+	_tile = ""
+	if _subject.selected >= 0 and _subject.selected < _objects.size():
+		_tile = String(_objects[_subject.selected].get("tile", ""))
+	_status.text = "" if _tile == "" else _tile.replace("\\", "/").get_file()
 
 func _submit() -> void:
 	if _cx < 0:
@@ -153,6 +180,10 @@ func _build() -> void:
 	_target.add_theme_color_override("font_color", Color(0.8, 0.9, 0.8))
 	box.add_child(_target)
 
+	_subject = OptionButton.new()
+	_subject.item_selected.connect(func(_i): _sync_subject())
+	box.add_child(_subject)
+
 	_verdict = OptionButton.new()
 	for v in VERDICTS:
 		_verdict.add_item(v)
@@ -184,11 +215,12 @@ func nudge_font(delta: int) -> void:
 func _apply_font() -> void:
 	for c in [_title, _target, _status]:
 		c.add_theme_font_size_override("font_size", _font)
-	_verdict.add_theme_font_size_override("font_size", _font)
-	# the dropdown is a separate PopupMenu and does not inherit the button's size
-	var pop := _verdict.get_popup()
-	if pop != null:
-		pop.add_theme_font_size_override("font_size", _font)
+	for ob in [_verdict, _subject]:
+		ob.add_theme_font_size_override("font_size", _font)
+		# the dropdown is a separate PopupMenu and does not inherit the button's size
+		var pop: PopupMenu = ob.get_popup()
+		if pop != null:
+			pop.add_theme_font_size_override("font_size", _font)
 	_notes.add_theme_font_size_override("font_size", _font)
 	_send.add_theme_font_size_override("font_size", _font)
 	_notes.custom_minimum_size = Vector2(0, _font * 6)
