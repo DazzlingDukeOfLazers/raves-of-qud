@@ -499,6 +499,15 @@ QupKit.ThreadTaskQueue:
 
 ## Open problems / next steps
 
+- **Snapshot payload roughly doubled** — the painted ground layer adds ~1100 objects per
+  frame. Cell-level diffing is now the obvious win, and becomes necessary before
+  neighbour-zone streaming multiplies it again.
+- **Ground drawn twice?** `DirtPath`/`DirtFloor` objects (the tan dots) sit on cells that now
+  also carry a painted ground tile. Both are RenderLayer 0. Check for z-fighting or
+  double-drawn floors, and whether the dots are redundant with the painted layer.
+- **`RenderTile` fires for essentially nothing**, so `fgHex`/`detailHex` almost never arrive and
+  the colour path is still the `ColorString` + palette route. If exact colours matter, the
+  `RenderEvent` from `Cell.Render()` carries resolved values for the ground layer already.
 - **Water depth tuning**: `SINK_WADE` / `SINK_SWIM` in `ZoneRenderer.gd` are eyeballed fractions.
   There's no swim animation or waterline ripple yet, and the cut edge is hard.
 - **Tents** occlude, so they're currently prisms; probably want them as sprites (special-case).

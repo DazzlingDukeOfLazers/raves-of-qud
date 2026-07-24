@@ -38,18 +38,20 @@ Every message is a frame:
   loads `tilesDir/<tile-with-slashes-as-underscores>` — e.g. tile
   `Creatures/sw_bearman.png` → `tilesDir/Creatures_sw_bearman.png`. Missing files
   fall back to the glyph and are retried on later frames (export is on-demand).
-- Only **non-empty** cells are sent. Objects are ordered bottom→top of the cell stack.
-- Fields map directly to `XRL.World.Parts.Render`: `glyph`=`RenderString`,
-  `tile`=`Tile`, `color`=`ColorString`, `tilecolor`=`TileColor`,
-  `detail`=`DetailColor`, `layer`=`RenderLayer`. Plus `wall`=`GameObject.IsWall()`.
+- A cell is sent if it has objects **or** a painted ground tile; only truly blank cells are
+  omitted. Objects are ordered bottom→top, with the painted ground first.
+- Fields come from `XRL.World.Parts.Render`, but via its **accessors**, not its fields:
+  `glyph`=`getRenderString()`, `tile`=`getTile()` (the `Tile`/`RenderString` *fields* are
+  static blueprint values, empty for runtime-chosen art). `color`=`ColorString`,
+  `tilecolor`=`TileColor`, `detail`=`DetailColor`, `layer`=`RenderLayer`,
+  `wall`=`GameObject.IsWall()`.
 - Client render classification: `wall` → BoxMesh prism; else `layer` ≤ 2 → flat
   ground quad; else → upright billboard. (Calibrated: layer 0 = ground clutter,
   3 = trees, 7 = rock walls, 10 = creatures.)
 
 ### The painted ground layer  ← read this first
 
-**A cell is not just its objects.** Qud composites a ground layer onto cells that hold **no
-`GameObject` at all` — in a Joppa zone, 1103 of 2000 cells. `Cell.Render()` returns a
+**A cell is not just its objects.** Qud composites a ground layer onto cells that hold **no `GameObject` at all** — in a Joppa zone, 1103 of 2000 cells. `Cell.Render()` returns a
 `RenderEvent` with the tile, colours and flip flags; the mod emits it as a `RenderLayer 0`
 floor, **first in `objs`**, tagged `"ground": true`.
 
