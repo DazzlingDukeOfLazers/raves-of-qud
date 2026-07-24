@@ -40,6 +40,7 @@ var _mark_pad: MeshInstance3D
 var _mark_pin: MeshInstance3D
 var _font_size := FONT_SIZE_DEFAULT
 var _last_report := ""
+var _selected = null      # Vector2i of the last inspected tile
 
 # sprite preview (upper right): the real billboard texture turning over a
 # checkerboard, so filled-vs-transparent is visible rather than inferred
@@ -82,12 +83,17 @@ func _ground_hit() -> Variant:
 		return null
 	return from + dir * t
 
+## The tile the user last inspected, or null. MOUSE camera mode orbits this.
+func selected_tile() -> Variant:
+	return _selected
+
 func inspect_at_mouse() -> void:
 	var hit = _ground_hit()
 	if hit == null:
 		return
 	var cx := roundi(hit.x)
 	var cy := roundi(hit.z)
+	_selected = Vector2i(cx, cy)
 	var report := build_report(cx, cy, hit)
 	_show(report, cx, cy)
 	DisplayServer.clipboard_set(report)

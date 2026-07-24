@@ -1,37 +1,62 @@
 extends Node3D
 
-## Wires the bridge client to the renderer, builds an orbit/pan/zoom camera, and
-## maps keyboard input to Qud movement commands. Built in code so the scene file
-## stays a single node.
+## Wires the bridge client to the renderer, drives the camera, and maps input to
+## Qud movement commands. Built in code so the scene file stays a single node.
 ##
-## Controls:
-##   Arrows / numpad        -> move the player (sent to Qud)
-##   Left-drag              -> orbit (yaw/pitch)      Q/E, R/F -> orbit by keyboard
-##   Right- or middle-drag  -> pan across the zone
-##   Mouse wheel            -> zoom
-##   Ctrl/Cmd+click, or I   -> inspect the cell under the cursor (CellInspector)
-##   - / =                  -> shrink / grow the inspector text
-##   Esc                    -> dismiss the inspector
+## CAMERA MODES — the mode decides what the arrow keys do, so it's on screen.
+##   FOLLOW    (default)  rides behind the player, looking ahead. Arrows move the
+##                        player. Nothing to set up each time you reload.
+##   MOUSE     (Shift+C)  orbit/pan with the mouse, centred on the SELECTED tile
+##                        (falls back to the player). Arrows still move the player.
+##   KEYBOARD  (Shift+K)  free flight. WASD moves the camera, arrows AIM it —
+##                        so arrows no longer reach the player.
+##
+##   Esc returns to FOLLOW.  Wheel zooms in every mode.
+##   Ctrl/Cmd+click or I inspects a tile;  - / =  resize the report.
+##
+## Terminology: "tile" here means a map square (Qud's Cell). Note the collision —
+## the `tile` field on the wire is the sprite-art path. Code touching Qud's API
+## keeps the name Cell.
 
 var client: BridgeClient
 var renderer: ZoneRenderer
 var inspector: CellInspector
 
+enum CamMode { FOLLOW, MOUSE, KEYBOARD }
+var _mode: int = CamMode.FOLLOW
+
 var _pivot: Node3D
 var _cam: Camera3D
 var _yaw := 0.7
 var _pitch := 0.9            # radians above the ground plane
-var _dist := 34.0
+var _dist := 14.0
 var _zone_center := Vector3(40, 0, 12)
-var _pan := Vector3.ZERO     # user pan offset; persists across turns
+var _pan := Vector3.ZERO     # user pan offset (MOUSE mode); persists across turns
+
+# --- follow-cam -------------------------------------------------------------
+const TILES_BEHIND := 2.0    # how far back down the facing the camera sits
+const FOCUS_AHEAD := 2.0     # look at a point this far in FRONT of the player
+const FOLLOW_LERP := 6.0     # per-second approach; keeps steps from snapping
+var _player := Vector3(40, 0, 12)
+var _prev_tile := Vector2i(-9999, -9999)
+var _facing := Vector2(0, 1)     # +z is south; Qud y grows southward
+var _eye := Vector3.ZERO         # smoothed camera position
+var _look := Vector3.ZERO        # smoothed look-at target
+var _seeded := false
+
+# --- free camera ------------------------------------------------------------
+const FLY_SPEED := 9.0
+const AIM_SPEED := 1.6
+var _free_eye := Vector3.ZERO
 
 var _orbiting := false
 var _panning := false
+var _mode_label: Label
 
 const ORBIT_SENS := 0.006
 const PITCH_MIN := 0.12
 const PITCH_MAX := 1.45
-const DIST_MIN := 4.0
+const DIST_MIN := 3.0
 const DIST_MAX := 140.0
 
 func _ready() -> void:
@@ -63,10 +88,18 @@ func _ready() -> void:
 	add_child(_pivot)
 	_cam = Camera3D.new()
 	_pivot.add_child(_cam)
-	_apply_pivot()
-	_update_camera()
+	# Depth of field: a field of vinewafer reads as one flat colour blob without
+	# it. Far blur only — near blur would smear the player.
+	var attrs := CameraAttributesPractical.new()
+	attrs.dof_blur_far_enabled = true
+	attrs.dof_blur_far_distance = 18.0
+	attrs.dof_blur_far_transition = 12.0
+	attrs.dof_blur_amount = 0.10
+	_cam.attributes = attrs
 
-	# needs the camera, so it's built after it
+	_build_mode_label()
+	_update_camera(0.0)
+
 	inspector = CellInspector.new()
 	add_child(inspector)
 	inspector.setup(renderer, _cam)
@@ -74,36 +107,169 @@ func _ready() -> void:
 func _on_snapshot(data: Dictionary) -> void:
 	renderer.render_snapshot(data)
 	inspector.on_snapshot(data)
+
 	var z: Dictionary = data.get("zone", {})
 	if z.has("width") and z.has("height"):
 		_zone_center = Vector3(float(z["width"]) / 2.0, 0.0, float(z["height"]) / 2.0)
-		_apply_pivot()
+
+	var p: Dictionary = data.get("player", {})
+	var px := int(p.get("x", -1))
+	var py := int(p.get("y", -1))
+	if px < 0 or py < 0:
+		return
+	var tile := Vector2i(px, py)
+	# facing = the direction of the last actual step, so the camera trails behind
+	if _prev_tile.x > -9999 and tile != _prev_tile:
+		var d := Vector2(tile.x - _prev_tile.x, tile.y - _prev_tile.y)
+		if d.length() > 0.0:
+			_facing = d.normalized()
+	_prev_tile = tile
+	_player = Vector3(px, 0, py)
+	if not _seeded:
+		_seeded = true
+		_free_eye = _follow_eye()
+		_eye = _free_eye
+		_look = _follow_look()
 
 func _process(dt: float) -> void:
-	if Input.is_key_pressed(KEY_Q): _yaw -= 1.5 * dt
-	if Input.is_key_pressed(KEY_E): _yaw += 1.5 * dt
-	if Input.is_key_pressed(KEY_R): _pitch = clampf(_pitch + 1.0 * dt, PITCH_MIN, PITCH_MAX)
-	if Input.is_key_pressed(KEY_F): _pitch = clampf(_pitch - 1.0 * dt, PITCH_MIN, PITCH_MAX)
-	_update_camera()
+	if _mode == CamMode.KEYBOARD:
+		_fly(dt)
+	else:
+		if Input.is_key_pressed(KEY_Q): _yaw -= 1.5 * dt
+		if Input.is_key_pressed(KEY_E): _yaw += 1.5 * dt
+		if Input.is_key_pressed(KEY_R): _pitch = clampf(_pitch + 1.0 * dt, PITCH_MIN, PITCH_MAX)
+		if Input.is_key_pressed(KEY_F): _pitch = clampf(_pitch - 1.0 * dt, PITCH_MIN, PITCH_MAX)
+	_update_camera(dt)
 
-func _apply_pivot() -> void:
-	_pivot.position = _zone_center + _pan
+# --- camera placement -------------------------------------------------------
 
-func _update_camera() -> void:
-	var offset := Vector3(
-		_dist * cos(_pitch) * sin(_yaw),
-		_dist * sin(_pitch),
-		_dist * cos(_pitch) * cos(_yaw))
-	_cam.position = offset
-	_cam.look_at(_pivot.global_position, Vector3.UP)
+func _facing3() -> Vector3:
+	return Vector3(_facing.x, 0, _facing.y).normalized()
+
+## Behind the player along the facing, raised by the current zoom/pitch.
+func _follow_eye() -> Vector3:
+	var f := _facing3()
+	var back := TILES_BEHIND + _dist * cos(_pitch)
+	return _player - f * back + Vector3(0, _dist * sin(_pitch), 0)
+
+func _follow_look() -> Vector3:
+	return _player + _facing3() * FOCUS_AHEAD
+
+## MOUSE mode orbits whatever tile is selected, so inspecting and then looking
+## around don't fight each other. Falls back to the player.
+func _orbit_center() -> Vector3:
+	var sel = inspector.selected_tile() if inspector != null else null
+	var c: Vector3 = _player
+	if sel != null:
+		c = Vector3(sel.x, 0, sel.y)
+	return c + _pan
+
+func _update_camera(dt: float) -> void:
+	var target_eye: Vector3
+	var target_look: Vector3
+	match _mode:
+		CamMode.KEYBOARD:
+			target_eye = _free_eye
+			target_look = _free_eye + _aim_dir()
+		CamMode.MOUSE:
+			var c := _orbit_center()
+			target_eye = c + Vector3(
+				_dist * cos(_pitch) * sin(_yaw),
+				_dist * sin(_pitch),
+				_dist * cos(_pitch) * cos(_yaw))
+			target_look = c
+		_:
+			target_eye = _follow_eye()
+			target_look = _follow_look()
+
+	if dt <= 0.0 or not _seeded:
+		_eye = target_eye
+		_look = target_look
+	else:
+		var k: float = clampf(FOLLOW_LERP * dt, 0.0, 1.0)
+		_eye = _eye.lerp(target_eye, k)
+		_look = _look.lerp(target_look, k)
+
+	_pivot.position = Vector3.ZERO
+	_cam.position = _eye
+	if _eye.distance_to(_look) > 0.001:
+		_cam.look_at(_look, Vector3.UP)
+
+func _aim_dir() -> Vector3:
+	return Vector3(cos(_pitch) * sin(_yaw + PI), -sin(_pitch), cos(_pitch) * cos(_yaw + PI))
+
+func _fly(dt: float) -> void:
+	# arrows AIM in this mode; they do not reach the player
+	if Input.is_key_pressed(KEY_LEFT):  _yaw -= AIM_SPEED * dt
+	if Input.is_key_pressed(KEY_RIGHT): _yaw += AIM_SPEED * dt
+	if Input.is_key_pressed(KEY_UP):    _pitch = clampf(_pitch + AIM_SPEED * dt, -PITCH_MAX, PITCH_MAX)
+	if Input.is_key_pressed(KEY_DOWN):  _pitch = clampf(_pitch - AIM_SPEED * dt, -PITCH_MAX, PITCH_MAX)
+	var fwd := _aim_dir()
+	fwd.y = 0.0
+	if fwd.length() > 0.001: fwd = fwd.normalized()
+	var right := fwd.cross(Vector3.UP).normalized()
+	var move := Vector3.ZERO
+	if Input.is_key_pressed(KEY_W): move += fwd
+	if Input.is_key_pressed(KEY_S): move -= fwd
+	if Input.is_key_pressed(KEY_D): move -= right
+	if Input.is_key_pressed(KEY_A): move += right
+	if Input.is_key_pressed(KEY_SPACE): move += Vector3.UP
+	if Input.is_key_pressed(KEY_Z): move -= Vector3.UP
+	if move.length() > 0.001:
+		_free_eye += move.normalized() * FLY_SPEED * dt
+
+func _set_mode(m: int) -> void:
+	if m == _mode:
+		return
+	# entering free flight, start from where the camera already is
+	if m == CamMode.KEYBOARD:
+		_free_eye = _eye
+	if m == CamMode.MOUSE:
+		_pan = Vector3.ZERO
+	_mode = m
+	_update_mode_label()
+
+func _build_mode_label() -> void:
+	var layer := CanvasLayer.new()
+	add_child(layer)
+	_mode_label = Label.new()
+	_mode_label.position = Vector2(14, 8)
+	_mode_label.add_theme_font_size_override("font_size", 15)
+	_mode_label.add_theme_color_override("font_color", Color(0.75, 0.9, 0.75))
+	layer.add_child(_mode_label)
+	_update_mode_label()
+
+func _update_mode_label() -> void:
+	match _mode:
+		CamMode.KEYBOARD:
+			_mode_label.text = "camera: KEYBOARD — WASD fly, arrows aim, Space/Z up-down  ·  Esc: follow"
+		CamMode.MOUSE:
+			_mode_label.text = "camera: MOUSE — drag to orbit/pan around the selected tile  ·  Esc: follow"
+		_:
+			_mode_label.text = "camera: FOLLOW  ·  Shift+C mouse  ·  Shift+K keyboard"
+
+# --- input ------------------------------------------------------------------
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
+		# mode switches first — they reassign what the arrows mean
+		if event.shift_pressed and event.keycode == KEY_C:
+			_set_mode(CamMode.MOUSE); return
+		if event.shift_pressed and event.keycode == KEY_K:
+			_set_mode(CamMode.KEYBOARD); return
+		if event.keycode == KEY_ESCAPE:
+			inspector.hide_panel()
+			_set_mode(CamMode.FOLLOW); return
+		if event.keycode == KEY_I:
+			inspector.inspect_at_mouse(); return
+		if event.keycode == KEY_MINUS:
+			inspector.nudge_font(-2); return
+		if event.keycode == KEY_EQUAL:
+			inspector.nudge_font(2); return
+		# in KEYBOARD mode the arrows drive the camera, not the player
+		if _mode == CamMode.KEYBOARD:
+			return
 		match event.keycode:
-			KEY_I:               inspector.inspect_at_mouse()
-			KEY_ESCAPE:          inspector.hide_panel()
-			KEY_MINUS:           inspector.nudge_font(-2)
-			KEY_EQUAL:           inspector.nudge_font(2)
 			KEY_UP, KEY_KP_8:    client.send_command("move", {"dir": "N"})
 			KEY_DOWN, KEY_KP_2:  client.send_command("move", {"dir": "S"})
 			KEY_LEFT, KEY_KP_4:  client.send_command("move", {"dir": "W"})
@@ -115,12 +281,13 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventMouseButton:
 		match event.button_index:
 			MOUSE_BUTTON_LEFT:
-				# Ctrl/Cmd+click inspects; a plain click still starts an orbit
+				# Ctrl/Cmd+click inspects; a plain click orbits (MOUSE mode)
 				if event.pressed and (event.ctrl_pressed or event.meta_pressed):
 					inspector.inspect_at_mouse()
 				else:
-					_orbiting = event.pressed
-			MOUSE_BUTTON_RIGHT, MOUSE_BUTTON_MIDDLE: _panning = event.pressed
+					_orbiting = event.pressed and _mode == CamMode.MOUSE
+			MOUSE_BUTTON_RIGHT, MOUSE_BUTTON_MIDDLE:
+				_panning = event.pressed and _mode == CamMode.MOUSE
 			MOUSE_BUTTON_WHEEL_UP:   if event.pressed: _dist = clampf(_dist * 0.9, DIST_MIN, DIST_MAX)
 			MOUSE_BUTTON_WHEEL_DOWN: if event.pressed: _dist = clampf(_dist * 1.1, DIST_MIN, DIST_MAX)
 	elif event is InputEventMouseMotion:
@@ -136,4 +303,3 @@ func _unhandled_input(event: InputEvent) -> void:
 			var speed := _dist * 0.0016
 			# grab-the-world: drag right moves the world right (camera goes left)
 			_pan += (-right * event.relative.x - fwd * event.relative.y) * speed
-			_apply_pivot()

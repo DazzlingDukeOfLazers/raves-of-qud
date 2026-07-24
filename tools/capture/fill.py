@@ -149,6 +149,57 @@ def rule_and_plus_slots(w, h, solid):
                 for k in range(x, run):
                     inner[y][k] = True
             x = run
+    # ...and the same test vertically. The chest has a 1px-tall separator line
+    # under its lid; that row's OWN span covers only the middle, so the part
+    # crossing the side bands never fills and reads as a slit of daylight.
+    for x in range(w):
+        col = [y for y in range(h) if solid[y][x]]
+        if not col:
+            continue
+        y = col[0] + 1
+        while y < col[-1]:
+            if solid[y][x]:
+                y += 1
+                continue
+            run = y
+            while run < col[-1] and not solid[run][x]:
+                run += 1
+            if run - y <= MAX_SLOT:
+                for k in range(y, run):
+                    inner[k][x] = True
+            y = run
+    return close_pinholes(w, h, solid, inner)
+
+
+def close_pinholes(w, h, solid, inner):
+    """Fill any transparent pixel whose 4 neighbours are all opaque-or-filled.
+
+    The slot passes leave single-pixel holes where a horizontal and a vertical
+    gap cross (the chest's separator row, where it meets the channels beside the
+    bands). This closes them generically instead of adding a third special case.
+
+    It cannot leak into open space: a real opening's boundary always touches a
+    genuinely outside pixel, so it never satisfies the all-neighbours test and
+    the fill has nowhere to start.
+    """
+    def filled(x, y):
+        # off the tile counts as OPEN, not enclosed — otherwise art touching the
+        # image edge would seal itself against the border
+        if not (0 <= x < w and 0 <= y < h):
+            return False
+        return solid[y][x] or inner[y][x]
+
+    changed = True
+    while changed:
+        changed = False
+        for y in range(h):
+            for x in range(w):
+                if solid[y][x] or inner[y][x]:
+                    continue
+                if (filled(x - 1, y) and filled(x + 1, y)
+                        and filled(x, y - 1) and filled(x, y + 1)):
+                    inner[y][x] = True
+                    changed = True
     return inner
 
 

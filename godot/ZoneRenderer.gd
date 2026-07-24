@@ -757,8 +757,58 @@ func _interior(tile: String) -> Array:
 						row[k] = true
 				x = run
 		out.append(row)
+
+	# the same slot test VERTICALLY: the chest has a 1px-tall separator under its
+	# lid, and that row's own span covers only the middle, so the part crossing
+	# the side bands would stay a slit of daylight.
+	for x in w:
+		var top: int = col_lo[x]
+		var bot: int = col_hi[x]
+		if top < 0:
+			continue
+		var y: int = top + 1
+		while y < bot:
+			if solid[y][x]:
+				y += 1
+				continue
+			var run: int = y
+			while run < bot and not solid[run][x]:
+				run += 1
+			if run - y <= MAX_SLOT_PX:
+				for k in range(y, run):
+					out[k][x] = true
+			y = run
+
+	_close_pinholes(w, h, solid, out)
 	_interior_cache[fname] = out
 	return out
+
+# Fill any transparent pixel whose 4 neighbours are all opaque-or-filled, to
+# stability. The slot passes leave single-pixel holes where a horizontal and a
+# vertical gap cross; this closes them generically rather than by special case.
+# It cannot leak into open space — a real opening's boundary always touches a
+# genuinely outside pixel, so the fill has nowhere to start.
+func _close_pinholes(w: int, h: int, solid: Array, inner: Array) -> void:
+	var changed := true
+	while changed:
+		changed = false
+		for y in h:
+			for x in w:
+				if solid[y][x] or inner[y][x]:
+					continue
+				if (_filled(w, h, solid, inner, x - 1, y)
+					and _filled(w, h, solid, inner, x + 1, y)
+					and _filled(w, h, solid, inner, x, y - 1)
+					and _filled(w, h, solid, inner, x, y + 1)):
+					inner[y][x] = true
+					changed = true
+
+func _filled(w: int, h: int, solid: Array, inner: Array, x: int, y: int) -> bool:
+	# off the tile counts as OPEN, not enclosed — otherwise art touching the
+	# image edge would seal itself against the border
+	if x < 0 or y < 0 or x >= w or y >= h:
+		return false
+	return solid[y][x] or inner[y][x]
 
 # Recolour a 2-colour mask Image: black -> main, white -> detail. Transparent
 # pixels become the cell background per `fill` (see the Fill enum).
