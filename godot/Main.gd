@@ -79,6 +79,8 @@ const FOCUS_AHEAD := 2.0     # look at a point this far in FRONT of the player
 const FOLLOW_LERP := 6.0     # per-second approach; keeps steps from snapping
 var _player := Vector3(40, 0, 12)
 var _prev_tile := Vector2i(-9999, -9999)
+var _prev_zone_id := ""          # to detect zone crossings (camera snap, not sweep)
+var _snap_camera := false        # one-shot: cut the camera this frame instead of lerping
 var _facing := Vector2(0, 1)     # +z is south; Qud y grows southward
 var _eye := Vector3.ZERO         # smoothed camera position
 var _look := Vector3.ZERO        # smoothed look-at target
@@ -92,6 +94,23 @@ var _free_eye := Vector3.ZERO
 var _orbiting := false
 var _panning := false
 var _mode_label: Label
+var _debug_menu_title: Label
+
+# Responsive HUD text: a fraction of viewport height, but never below a floor —
+# "min(px, %vh)" web sensibility, re-applied on window resize.
+const FONT_FRAC := 0.024
+const MIN_FONT := 20
+func _ui_font_size() -> int:
+	return maxi(MIN_FONT, int(get_viewport().get_visible_rect().size.y * FONT_FRAC))
+
+func _apply_ui_fonts() -> void:
+	var fs := _ui_font_size()
+	if _mode_label != null:
+		_mode_label.add_theme_font_size_override("font_size", fs)
+	if _debug_menu_title != null:
+		_debug_menu_title.add_theme_font_size_override("font_size", fs)
+	for m in _mode_buttons:
+		(_mode_buttons[m] as Button).add_theme_font_size_override("font_size", fs)
 
 const ORBIT_SENS := 0.006
 const PITCH_MIN := 0.12
@@ -182,6 +201,8 @@ func _ready() -> void:
 
 	_build_mode_label()
 	_build_debug_menu()
+	_apply_ui_fonts()
+	get_viewport().size_changed.connect(_apply_ui_fonts)
 	_update_camera(0.0)
 
 	inspector = CellInspector.new()
@@ -220,14 +241,24 @@ func _on_snapshot(data: Dictionary) -> void:
 	if z.has("width") and z.has("height"):
 		_zone_center = Vector3(float(z["width"]) / 2.0, 0.0, float(z["height"]) / 2.0)
 
+	# Crossing a zone edge re-anchors the live zone to local coords, so the player's
+	# (px,py) jumps discontinuously (e.g. 0 -> 79). Detect it so we DON'T read the
+	# jump as a step (which flipped `_facing`) and SNAP the camera instead of sweeping
+	# it across the whole zone.
+	var zid := String(z.get("id", ""))
+	var crossed := _prev_zone_id != "" and zid != _prev_zone_id
+	_prev_zone_id = zid
+
 	var p: Dictionary = data.get("player", {})
 	var px := int(p.get("x", -1))
 	var py := int(p.get("y", -1))
 	if px < 0 or py < 0:
 		return
 	var tile := Vector2i(px, py)
-	# facing = the direction of the last actual step, so the camera trails behind
-	if _prev_tile.x > -9999 and tile != _prev_tile:
+	if crossed:
+		_snap_camera = true      # cut, don't sweep, into the new zone
+	elif _prev_tile.x > -9999 and tile != _prev_tile:
+		# facing = the direction of the last actual step, so the camera trails behind
 		var d := Vector2(tile.x - _prev_tile.x, tile.y - _prev_tile.y)
 		if d.length() > 0.0:
 			_facing = d.normalized()
@@ -372,9 +403,10 @@ func _update_camera(dt: float) -> void:
 			target_eye = _compass_eye()
 			target_look = _player
 
-	if dt <= 0.0 or not _seeded:
+	if dt <= 0.0 or not _seeded or _snap_camera:
 		_eye = target_eye
 		_look = target_look
+		_snap_camera = false
 	else:
 		var k: float = clampf(FOLLOW_LERP * dt, 0.0, 1.0)
 		_eye = _eye.lerp(target_eye, k)
@@ -630,6 +662,7 @@ func _build_debug_menu() -> void:
 	panel.add_child(vb)
 	var title := Label.new()
 	title.text = "Debug · camera  (`)"
+	_debug_menu_title = title
 	vb.add_child(title)
 	for m in [CamMode.COMPASS, CamMode.FOLLOW, CamMode.FIRST_PERSON, CamMode.CINEMATIC,
 			CamMode.MOUSE, CamMode.KEYBOARD]:
