@@ -229,11 +229,17 @@ func billboard_texture(tile: String, main_c: String, detail_c: String) -> ImageT
 func tile_opaque_band(tile: String) -> Vector2:
 	return _opaque_v(_mask(tile))
 
-## How many transparent pixels this tile's art encloses — the ones repainted as
-## background. 0 means the silhouette has no interior gaps.
-func tile_interior_px(tile: String) -> int:
+## How many transparent pixels a given fill mode would repaint as background.
+## Reports the mode ACTUALLY applied (a filed verdict changes it), so the inspector
+## no longer says "76 px" while 96 are filled.
+func tile_fill_px(tile: String, mode: int) -> int:
+	var mask
+	match mode:
+		Fill.INTERIOR: mask = _interior(tile)
+		Fill.SPAN:     mask = _fill_holes(tile)
+		_: return 0
 	var n := 0
-	for row in _interior(tile):
+	for row in mask:
 		for v in row:
 			if v: n += 1
 	return n
@@ -351,6 +357,10 @@ func _load_overrides() -> void:
 ## The fill mode for a tile: a filed FILL verdict if there is one, else the
 ## caller's default. Whether a wheel's paddle gaps read as background or as
 ## see-through is a judgement about the art, not something derivable from it.
+## The fill mode a billboard of this tile would use — the inspector previews with it.
+func fill_mode_for(tile: String) -> int:
+	return _fill_for(tile, Fill.INTERIOR)
+
 func _fill_for(tile: String, fallback: int) -> int:
 	if _fill_overrides.is_empty() or tile == "":
 		return fallback
@@ -667,15 +677,16 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			_seat(s, btex, tile, cx, cy, sink if submerged else 0.0)
 			s.visible = true
 			_active.append(s)
-			var gaps := tile_interior_px(tile)
+			var fmode := _fill_for(tile, Fill.INTERIOR)
+			var gaps := tile_fill_px(tile, fmode)
 			var kind := "billboard"
 			if submerged:
 				kind = "billboard(submerged %d%%)" % roundi(sink * 100.0)
 			elif upright_ground:
 				kind = "billboard(painted cover, stood up)"
-			_note(cx, cy, idx, "%s, %s" % [kind,
-				("%d px enclosed gap -> bg" % gaps) if gaps > 0 else "no enclosed gaps"],
-				s.position.y)
+			var names := ["none", "all", "interior", "fill-holes"]
+			var fname: String = names[fmode] if fmode < names.size() else str(fmode)
+			_note(cx, cy, idx, "%s, fill=%s %dpx" % [kind, fname, gaps], s.position.y)
 	else:
 		var l := _take_label()
 		l.text = String(obj.get("glyph", "?"))
@@ -1119,22 +1130,58 @@ func _interior(tile: String) -> Array:
 # vertical gap cross; this closes them generically rather than by special case.
 # It cannot leak into open space — a real opening's boundary always touches a
 # genuinely outside pixel, so the fill has nowhere to start.
-## "Fill the holes" — the UNION of enclosed gaps (_interior) and row-spans. Each
-## catches holes the other misses (a wheel\'s open paddle bottoms; a millstone\'s
-## pinched side notches), and neither alone is a superset of the other, so the mode
-## a user reaches for when they say "fill it in more" must be both. Always fills at
-## least as much as INTERIOR, never less.
+## "Fill the holes" — the UNION of enclosed gaps, row-spans and column-spans. Each
+## catches holes the others miss: a wheel\'s open paddle bottoms (row), a millstone\'s
+## side notches (enclosure) and the pinched neck between its cap and body (column).
+## None is a superset of the others, so "fill it in more" is all three. Always fills
+## at least as much as INTERIOR, never less. Squares nothing off — that\'s Fill.ALL.
 func _fill_holes(tile: String) -> Array:
 	var fname := tile_filename(tile) + "|holes"
 	if _interior_cache.has(fname):
 		return _interior_cache[fname]
 	var a := _interior(tile)
 	var b := _row_span(tile)
+	var col := _col_span(tile)
 	var out := []
 	for y in a.size():
 		var row := []
 		for x in a[y].size():
-			row.append(bool(a[y][x]) or (y < b.size() and x < b[y].size() and bool(b[y][x])))
+			row.append(bool(a[y][x])
+				or (y < b.size() and x < b[y].size() and bool(b[y][x]))
+				or (y < col.size() and x < col[y].size() and bool(col[y][x])))
+		out.append(row)
+	_interior_cache[fname] = out
+	return out
+
+## Vertical counterpart to _row_span: every transparent pixel between the first and
+## last opaque pixel in its COLUMN. This is what reconnects a shape pinched into two
+## lobes — a millstone's cap floats above its body joined only by a thin neck, and
+## column-span fills the neck's flanks so the two read as one solid stone.
+func _col_span(tile: String) -> Array:
+	var fname := tile_filename(tile) + "|col"
+	if _interior_cache.has(fname):
+		return _interior_cache[fname]
+	var mask := _mask(tile)
+	var out := []
+	if mask == null:
+		return out
+	var w := mask.get_width()
+	var h := mask.get_height()
+	var col_lo := []
+	var col_hi := []
+	for x in w:
+		var lo := -1
+		var hi := -1
+		for y in h:
+			if mask.get_pixel(x, y).a >= 0.5:
+				if lo < 0: lo = y
+				hi = y
+		col_lo.append(lo); col_hi.append(hi)
+	for y in h:
+		var row := []
+		for x in w:
+			row.append(col_lo[x] >= 0 and y > col_lo[x] and y < col_hi[x]
+				and mask.get_pixel(x, y).a < 0.5)
 		out.append(row)
 	_interior_cache[fname] = out
 	return out

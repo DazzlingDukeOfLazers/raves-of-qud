@@ -371,11 +371,12 @@ take a turn, see it. Verdicts come on **two independent axes**, and a tile can c
 | **shape** | wall · panel N–S · panel E–W · billboard · flat · not-drawn | what geometry gets built |
 | **fill** | fill MORE · gaps BACKGROUND · gaps TRANSPARENT · whole tile OPAQUE | how the art's transparent pixels are treated |
 
-`fill the holes with BACKGROUND` (`Fill.SPAN`) is the **union** of enclosed gaps (`INTERIOR`) and
-row-spanned gaps. Neither alone is a superset: a water wheel's paddle compartments are open at the
-bottom (filled only by row-span), a millstone's pinched notches are enclosed (filled only by
-`INTERIOR`). So "more fill" must be both, and it always fills at least as much as the default —
-wheel 130→141, millstone 76→80. `ALL` beyond that squares off the whole silhouette.
+`fill the holes with BACKGROUND` (`Fill.SPAN`) is the **union of three** rules — enclosed gaps
+(`INTERIOR`), row-spans and column-spans. Each catches holes the others miss, and none is a
+superset: a water wheel's paddle bottoms fill only by row-span; a millstone's side notches only by
+enclosure; the pinched neck joining a millstone's cap to its body only by column-span. So "fill it
+in" is all three. It always fills ≥ the default and never squares off the silhouette — that's
+`ALL`. Wheel 130→141, millstone 76→96 (the cap now reads as one solid stone with the body).
 
 Colour, height, position and duplicated remain notes for a human. Fill is its own axis because
 the geometric rules genuinely cannot settle it — whether a water wheel's paddle compartments

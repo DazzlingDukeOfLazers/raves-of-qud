@@ -411,10 +411,10 @@ func _update_preview(cell: Dictionary) -> void:
 			continue
 		_preview_sprite.texture = tex
 		_preview_sprite.rotation = Vector3.ZERO
-		var gaps := _renderer.tile_interior_px(tile)
+		var gaps := _renderer.tile_fill_px(tile, _renderer.fill_mode_for(tile))
 		_preview_caption.text = "%s  ·  %s" % [
 			tile.replace("\\", "/").get_file(),
-			("%d px gap filled" % gaps) if gaps > 0 else "no enclosed gaps"]
+			("%d px gap filled" % gaps) if gaps > 0 else "no gaps filled"]
 		_preview.visible = true
 		return
 	_preview.visible = false
