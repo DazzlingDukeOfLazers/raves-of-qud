@@ -931,6 +931,7 @@ func _rebuild_walls(wall_types: Dictionary) -> void:
 			st.begin(Mesh.PRIMITIVE_TRIANGLES)
 			for k in by_variant[v]:
 				_quad_top(st, k.x, k.x, k.y, k.y)
+			st.generate_tangents()      # normal mapping needs a tangent frame
 			var roof := ArrayMesh.new()
 			st.commit(roof)
 			if roof.get_surface_count() == 0:
@@ -974,6 +975,7 @@ func _build_wall_mesh(wall_set: Dictionary) -> ArrayMesh:
 	_sides_z(st_side, wall_set, minx, maxx, minz, maxz, 1)
 	_sides_z(st_side, wall_set, minx, maxx, minz, maxz, -1)
 
+	st_side.generate_tangents()      # normal mapping needs a tangent frame
 	var mesh := ArrayMesh.new()
 	st_side.commit(mesh)
 	return mesh
