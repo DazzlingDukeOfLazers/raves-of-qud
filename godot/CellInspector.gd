@@ -262,6 +262,15 @@ func nudge_font(delta: int) -> void:
 	_label.add_theme_font_size_override("normal_font_size", _font_size)
 	_repaint()
 
+## Temporarily hide the report so a screenshot shows the scene, not the text.
+## The 3D marker stays up — the point of the shot is to see WHAT was selected.
+func panel_visible() -> bool:
+	return _panel != null and _panel.visible
+
+func set_panel_visible(v: bool) -> void:
+	if _panel != null:
+		_panel.visible = v
+
 func hide_panel() -> void:
 	_panel.visible = false
 	_preview.visible = false

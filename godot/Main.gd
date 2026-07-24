@@ -14,7 +14,8 @@ extends Node3D
 ##   Shift+F returns to FOLLOW (Esc does too, and dismisses the report).
 ##   Wheel zooms in every mode.
 ##   Ctrl/Cmd+click or I inspects a tile;  - / =  resize the report.
-##   F12                    -> save the viewport to <tilesDir>/../shot.png
+##   F12                   -> save the viewport to <tilesDir>/../shot.png
+##   Ctrl/Cmd + right-click -> inspect the tile AND photograph both apps
 ##
 ## Terminology: "tile" here means a map square (Qud's Cell). Note the collision —
 ## the `tile` field on the wire is the sprite-art path. Code touching Qud's API
@@ -233,17 +234,32 @@ func _set_mode(m: int) -> void:
 	_mode = m
 	_update_mode_label()
 
+## One gesture -> everything a collaborator needs about a tile: the report
+## (selection.txt), this viewer's view (shot.png) and Qud's own view
+## (qud_shot.png), all pointing at the same tile.
+func _inspect_and_capture() -> void:
+	inspector.inspect_at_mouse()
+	await _screenshot(true)
+
 ## Save the viewport to a known path so a collaborator can just read it.
 ##
 ## The OS-level `screencapture` is blocked without Screen Recording permission,
 ## and this is better anyway: it captures the rendered viewport exactly, with no
 ## window chrome and nothing overlapping it.
-func _screenshot() -> void:
+func _screenshot(clean := false) -> void:
 	var dir := renderer.tiles_dir().get_base_dir()
 	if dir == "":
 		return
+	# `clean` drops the text report out of frame so the shot shows the scene; the
+	# 3D marker stays, so the picture still says which tile was picked.
+	var restore := false
+	if clean and inspector.panel_visible():
+		inspector.set_panel_visible(false)
+		restore = true
 	await RenderingServer.frame_post_draw      # let the frame finish first
 	var img := get_viewport().get_texture().get_image()
+	if restore:
+		inspector.set_panel_visible(true)
 	if img == null:
 		return
 	var path := dir.path_join("shot.png")
@@ -314,7 +330,13 @@ func _unhandled_input(event: InputEvent) -> void:
 				else:
 					_orbiting = event.pressed and _mode == CamMode.MOUSE
 			MOUSE_BUTTON_RIGHT, MOUSE_BUTTON_MIDDLE:
-				_panning = event.pressed and _mode == CamMode.MOUSE
+				# Ctrl/Cmd + right-click = inspect AND photograph both apps, so a
+				# single gesture hands over coordinates, wire data and the picture.
+				if (event.pressed and event.button_index == MOUSE_BUTTON_RIGHT
+						and (event.ctrl_pressed or event.meta_pressed)):
+					_inspect_and_capture()
+				else:
+					_panning = event.pressed and _mode == CamMode.MOUSE
 			MOUSE_BUTTON_WHEEL_UP:   if event.pressed: _dist = clampf(_dist * 0.9, DIST_MIN, DIST_MAX)
 			MOUSE_BUTTON_WHEEL_DOWN: if event.pressed: _dist = clampf(_dist * 1.1, DIST_MIN, DIST_MAX)
 	elif event is InputEventMouseMotion:

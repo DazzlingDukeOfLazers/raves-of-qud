@@ -61,7 +61,19 @@ between those two, so always read both halves.
 Claude **cannot** capture the screen: macOS `screencapture` fails without Screen Recording
 permission (`could not create image from display`). So both apps capture themselves.
 
-**F12 in the Raves window** writes both, next to the exported tiles:
+**Ctrl/Cmd + right-click a tile in the Raves window** is the one to use: it inspects that tile
+*and* photographs both apps. One gesture produces everything needed to discuss it —
+
+| file | what |
+|---|---|
+| `RavesOfQud/selection.txt` | the report: blueprint, tile, colours, flags, and what the renderer DID |
+| `RavesOfQud/shot.png` | the Raves viewport, with the 3D marker on the picked tile |
+| `RavesOfQud/qud_shot.png` | Qud's own window, for side-by-side comparison |
+
+The text report is hidden from the shot (the marker stays), so the picture shows the scene
+rather than the panel.
+
+**F12** does the screenshots alone, without inspecting:
 
 | file | what |
 |---|---|
