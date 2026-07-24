@@ -360,13 +360,25 @@ func _panel_height(obj: Dictionary, tile: String) -> float:
 		return WALL_H          # sight-blocking: tent walls stand full height
 	# Scale to the art. An axle is 2 opaque rows; stretching that to a fence's
 	# 0.6 would smear a thin shaft into a tall band.
-	var img := _mask(_family_ew(tile))
+	var img := _mask(_panel_art(tile))
 	if img == null:
 		return FENCE_H
 	var rows: float = _opaque_v(img).y * img.get_height()
 	if rows <= 0.0:
 		return FENCE_H
 	return maxf(0.05, FENCE_H * rows / PANEL_REF_ROWS)
+
+## The art a panel should actually draw.
+##
+## Directional families (fence_ns, pipe_ne, tent_nw) all use their `_ew` elevation
+## so every segment of a run reads consistently. But a tile forced onto the panel
+## path by a USER VERDICT need not belong to such a family at all: `sw_waterwheel_1`
+## has no `sw_waterwheel_ew` sibling, so asking for one yielded a null mask and the
+## material fell back to a solid colour — a flat rectangle where the wheel should
+## be. Fall back to the tile's own art when the family variant doesn't exist.
+func _panel_art(tile: String) -> String:
+	var ew := _family_ew(tile)
+	return ew if _mask(ew) != null else tile
 
 # A "family_<dirs>" tile (fence_ns, ironfence_ew, pipe_ne, bare fence_) is a
 # directional connector. Returns the dirs string ("", "ns", "ew", "ne"...) or null.
@@ -409,7 +421,7 @@ func _place_connector(tile: String, main_c: String, detail_c: String, cx: int, c
 func _fence_half(cx: int, cy: int, d: String, tile: String, main_c: String, detail_c: String, h := FENCE_H, fill := Fill.NONE) -> void:
 	var mi := _take_fence()
 	var half := "r" if (d == "e" or d == "s") else "l"
-	mi.material_override = _fence_material(_family_ew(tile), main_c, detail_c, half, fill)
+	mi.material_override = _fence_material(_panel_art(tile), main_c, detail_c, half, fill)
 	mi.scale = Vector3(0.5, h, 1.0)
 	var pos := Vector3(cx, h * 0.5, cy)
 	var rot := 0.0
