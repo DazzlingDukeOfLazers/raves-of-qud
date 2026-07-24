@@ -139,7 +139,9 @@ func build_report(cx: int, cy: int, hit: Vector3) -> String:
 		var o: Dictionary = objs[i]
 		var tile := String(o.get("tile", ""))
 		L.append("")
-		L.append(" [%d] layer=%s  glyph=%s" % [i, o.get("layer", "?"), _q(String(o.get("glyph", "")))])
+		L.append(" [%d] %s  %s" % [i,
+			_q(String(o.get("display", ""))), String(o.get("name", "?"))])
+		L.append("     layer=%s  glyph=%s" % [o.get("layer", "?"), _q(String(o.get("glyph", "")))])
 		L.append("     tile     %s" % (_q(tile) if tile != "" else "(none)"))
 		L.append("     png      %s" % _png_line(tile))
 		L.append("     colour   color=%s tilecolor=%s detail=%s" % [

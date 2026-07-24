@@ -263,13 +263,49 @@ def cmd_classify(snap, _args):
             print(f"      … {len(buckets[kind]) - 10} more families")
 
 
+def cmd_ident(snap, args):
+    """What IS this? Blueprint + display name + colours for a tile, or by name.
+
+        snap.py ident 0 0          a specific tile
+        snap.py ident watervine    every object whose blueprint/display matches
+    """
+    header(snap)
+    def show(c, i, o):
+        print(f"  ({c['x']},{c['y']}) idx={i} {o.get('display','')!r} [{o.get('name','')}]")
+        print(f"      layer={o.get('layer')} glyph={o.get('glyph')!r} tile={base(o.get('tile',''))!r}")
+        print(f"      color={o.get('color','')!r} tilecolor={o.get('tilecolor','')!r} "
+              f"detail={o.get('detail','')!r}")
+    if len(args) >= 2 and args[0].lstrip("-").isdigit():
+        cx, cy = int(args[0]), int(args[1])
+        for c in snap.get("cells", []):
+            if c.get("x") == cx and c.get("y") == cy:
+                print(f"\ntile ({cx},{cy}) — {len(c.get('objs', []))} object(s)")
+                for i, o in enumerate(c.get("objs", [])):
+                    show(c, i, o)
+                return
+        print(f"\ntile ({cx},{cy}) is EMPTY")
+        return
+    needle = args[0].lower() if args else ""
+    seen = 0
+    for c in snap.get("cells", []):
+        for i, o in enumerate(c.get("objs", [])):
+            hay = (o.get("name", "") + " " + o.get("display", "")).lower()
+            if needle in hay:
+                show(c, i, o); seen += 1
+                if seen >= 25:
+                    print("  … truncated at 25"); return
+    if not seen:
+        print(f"  nothing matching {needle!r} (is the new mod loaded? it needs a Qud restart)")
+
+
 def cmd_raw(snap, _args):
     json.dump(snap, sys.stdout, indent=1)
 
 
 COMMANDS = {
     "summary": cmd_summary, "cell": cmd_cell, "families": cmd_families,
-    "water": cmd_water, "find": cmd_find, "classify": cmd_classify, "raw": cmd_raw,
+    "water": cmd_water, "find": cmd_find, "classify": cmd_classify,
+    "ident": cmd_ident, "raw": cmd_raw,
 }
 
 if __name__ == "__main__":

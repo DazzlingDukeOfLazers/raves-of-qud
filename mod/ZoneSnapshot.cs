@@ -29,6 +29,17 @@ namespace RavesOfQud
     /// </summary>
     public static class ZoneSnapshot
     {
+        /// <summary>
+        /// Plain display name, defended against a throwing getter. DisplayName
+        /// runs the full markup/adjective pipeline on some objects, and a
+        /// snapshot must never be the thing that breaks someone's game.
+        /// </summary>
+        private static string DisplayNameOf(GameObject go)
+        {
+            try { return go.DisplayNameOnly ?? ""; }
+            catch { return ""; }
+        }
+
         public static string BuildJson(GameObject player)
         {
             var j = new JsonWriter();
@@ -91,6 +102,11 @@ namespace RavesOfQud
 
                         Physics phys = go.GetPart<Physics>();
                         j.BeginObject()
+                            // Identity. Without this an object with no Tile is
+                            // unidentifiable on the client — you see a glyph and a
+                            // colour and cannot tell grass from a glowpad.
+                            .Member("name", go.Blueprint ?? "")
+                            .Member("display", DisplayNameOf(go))
                             .Member("glyph", r.RenderString)
                             .Member("tile", tile)
                             .Member("color", r.ColorString ?? "")
