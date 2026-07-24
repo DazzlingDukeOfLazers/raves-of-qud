@@ -364,8 +364,17 @@ a tile, use the form in the lower right, and the verdict is written to
 `RavesOfQud/reports/<zone>_<x>-<y>_<tile>_v<n>.md`. `ZoneRenderer._load_overrides()` re-reads
 that directory every snapshot and keys verdicts by **tile family**, so one report covers every
 variant (`sw_waterwheel_1` and `_3`; every `wall_rock-XXXXXXXX`). Verdicts apply live — file one,
-take a turn, see it. Actionable verdicts: wall, panel N–S, panel E–W, billboard, flat, not-drawn.
-The rest (colour, height, position, duplicated) are notes for a human.
+take a turn, see it. Verdicts come on **two independent axes**, and a tile can carry one of each:
+
+| axis | verdicts | effect |
+|---|---|---|
+| **shape** | wall · panel N–S · panel E–W · billboard · flat · not-drawn | what geometry gets built |
+| **fill** | gaps BACKGROUND · gaps TRANSPARENT · whole tile OPAQUE | how the art's transparent pixels are treated |
+
+Colour, height, position and duplicated remain notes for a human. Fill is its own axis because
+the geometric rules genuinely cannot settle it — whether a water wheel's paddle compartments
+should read as background or as see-through is a judgement about the picture, not a property
+of it.
 
 > Mind the axis wording: **running E–W means the faces point N/S.** The form labels say both.
 

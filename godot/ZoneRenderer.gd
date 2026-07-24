@@ -49,7 +49,8 @@ const MAX_SLOT_PX := 2
 # simply not in Qud's data — a water wheel runs east-west, but nothing in
 # `sw_waterwheel_1` says so. This is how a human supplies what cannot be derived,
 # and it applies live: file a report, take a turn, see it.
-var _overrides := {}        # tile family -> verdict key
+var _overrides := {}        # tile family -> shape verdict
+var _fill_overrides := {}   # tile family -> Fill mode
 
 var _palette := {}          # colour char -> "#rrggbb", from the mod (authoritative)
 var _tiles_dir := ""
@@ -269,6 +270,11 @@ func _tile_family(tile: String) -> String:
 
 ## Phrase -> renderer behaviour. Matched as substrings of the filed verdict, so
 ## the wording in TileReport.VERDICTS can be reworded without breaking this.
+## Verdict phrase -> behaviour. Matched as substrings, so TileReport's wording can
+## be edited without breaking already-filed reports.
+##
+## SHAPE verdicts (what geometry to build) and FILL verdicts (how to treat the
+## art's transparent pixels) are independent axes — a tile can carry one of each.
 const VERDICT_KEYS := {
 	"WALL": "wall",
 	"running N–S": "panel_ns",
@@ -276,6 +282,12 @@ const VERDICT_KEYS := {
 	"UPRIGHT BILLBOARD": "billboard",
 	"FLAT on the floor": "floor",
 	"NOT be drawn": "skip",
+}
+
+const FILL_KEYS := {
+	"gaps should be BACKGROUND": Fill.INTERIOR,
+	"gaps should be TRANSPARENT": Fill.NONE,
+	"whole tile OPAQUE": Fill.ALL,
 }
 
 ## Re-read the reports directory. A handful of small files, read once per snapshot,
@@ -287,8 +299,10 @@ func _load_overrides() -> void:
 	var da := DirAccess.open(dir)
 	if da == null:
 		_overrides.clear()
+		_fill_overrides.clear()
 		return
 	var found := {}
+	var fills := {}
 	for f in da.get_files():
 		if not f.ends_with(".md"):
 			continue
@@ -304,11 +318,25 @@ func _load_overrides() -> void:
 				verdict = line.substr(line.find(":") + 1).strip_edges()
 		if tile == "" or verdict == "":
 			continue
+		var fam := _tile_family(tile)
 		for phrase in VERDICT_KEYS:
 			if verdict.contains(phrase):
-				found[_tile_family(tile)] = VERDICT_KEYS[phrase]
+				found[fam] = VERDICT_KEYS[phrase]
+				break
+		for phrase in FILL_KEYS:
+			if verdict.contains(phrase):
+				fills[fam] = FILL_KEYS[phrase]
 				break
 	_overrides = found
+	_fill_overrides = fills
+
+## The fill mode for a tile: a filed FILL verdict if there is one, else the
+## caller's default. Whether a wheel's paddle gaps read as background or as
+## see-through is a judgement about the art, not something derivable from it.
+func _fill_for(tile: String, fallback: int) -> int:
+	if _fill_overrides.is_empty() or tile == "":
+		return fallback
+	return int(_fill_overrides.get(_tile_family(tile), fallback))
 
 func _override_for(tile: String) -> String:
 	if _overrides.is_empty() or tile == "":
@@ -560,7 +588,7 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			var axis := "ew" if verdict == "panel_ew" else "ns"
 			var vh := _panel_height(obj, tile)
 			_place_connector(tile, main_c, detail_c, cx, cy, axis, vh,
-				Fill.ALL if bool(obj.get("occluding", false)) else Fill.NONE)
+				_fill_for(tile, Fill.ALL if bool(obj.get("occluding", false)) else Fill.NONE))
 			_note(cx, cy, idx, "connector panels [%s] h=%.2f (user verdict)" % [axis, vh], vh * 0.5)
 			return
 
@@ -606,7 +634,7 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			# Gaps *enclosed* by the art read as the cell background, the way Qud
 			# draws them; everything outside the silhouette stays see-through.
 			var btex := _colored_tex_rgb(tile, _obj_main(obj), _obj_detail(obj),
-				_color_key(obj), Fill.INTERIOR)
+				_color_key(obj), _fill_for(tile, Fill.INTERIOR))
 			if btex == null:
 				btex = tex
 			var s := _take_sprite()
