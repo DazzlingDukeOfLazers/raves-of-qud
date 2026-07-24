@@ -114,6 +114,8 @@ var _dynamic_root: Node3D       # the live zone's creatures, rebuilt every step
 var _live_static_id := ""       # which zone's static is currently built as "live"
 var _bank: Node3D = null        # non-null while building a zone's geometry INTO it
 var _noting := true             # whether _note records (off during dynamic-only rebuilds)
+var _live_build := false        # true only while building the LIVE zone's static (its
+                                # torches register for the _process flicker; neighbours don't)
 
 ## Parent for freshly-spawned nodes: the frozen bank when building a remembered
 ## zone, else the renderer itself (live zone, pooled).
@@ -226,6 +228,7 @@ func render_snapshot(data: Dictionary, neighbors: Array = []) -> void:
 	Profiler.begin("render.static")
 	if live_id != _live_static_id:
 		_placed.clear()
+		_lights.clear()                # the old live zone's torches stop flickering
 		_drop_static(live_id)          # replace any stale (neighbour-built) copy
 		_noting = true
 		_build_static(live_id, cells)
@@ -306,9 +309,11 @@ func _build_static(id: String, cells: Array) -> void:
 	_remembered_root.add_child(sub)
 	_static_zones[id] = sub
 	_bank = sub
+	_live_build = true          # this zone's torches get the flicker (see _place_light)
 	var wt := {}
 	_build_zone(cells, Vector2i.ZERO, true, wt)
 	_rebuild_walls(wt)
+	_live_build = false
 	_bank = null
 
 ## Re-place ONLY the live zone's creatures, every step, into _dynamic_root (cleared
@@ -624,8 +629,9 @@ func _override_for(tile: String) -> String:
 ## An additive warm glow on the ground (the "light") plus a small flickering flame
 ## above the sconce. Qud's radius is in cells; 1 cell == 1 world unit.
 func _place_light(cx: int, cy: int, radius: float) -> void:
-	# frozen neighbours park their lights in the bank (static, no flicker); the live
-	# zone uses _light_root and registers for the _process flicker.
+	# All torch nodes live in their zone's frozen subtree (the bank). Only the LIVE
+	# zone's register in _lights for the _process flicker; a remembered neighbour's
+	# glow steadily (no flicker), which reads fine at distance.
 	var lp: Node = _bank if _bank != null else _light_root
 	var glow := MeshInstance3D.new()
 	var gm := PlaneMesh.new()
@@ -646,7 +652,7 @@ func _place_light(cx: int, cy: int, radius: float) -> void:
 	flame.position = Vector3(cx, 0.7, cy)                # above the sconce
 	lp.add_child(flame)
 
-	if _bank == null:
+	if _live_build:
 		_lights.append({"glow": glow, "flame": flame, "energy": 1.0})
 
 ## Unshaded + additive: brightens whatever is behind it, no scene lighting needed.
