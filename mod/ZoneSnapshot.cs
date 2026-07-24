@@ -160,6 +160,7 @@ namespace RavesOfQud
             j.BeginObject();
             j.Member("type", Protocol.TypeSnapshot);
             j.Member("tilesDir", TileExporter.Dir); // where Godot loads exported PNGs
+            j.Member("mod", Protocol.Build);        // which mod build is actually live
             WritePalette(j);
 
             // Force-export reference tiles the client wants but that don't occur

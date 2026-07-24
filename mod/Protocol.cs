@@ -12,6 +12,14 @@ namespace RavesOfQud
     /// </summary>
     public static class Protocol
     {
+        /// <summary>
+        /// Which build of the mod is actually running. Mod .cs only compiles at
+        /// Qud startup, so a deploy does nothing until a restart — and there was
+        /// no way to tell from the outside whether the running code included a
+        /// given fix. Every snapshot now says. Bump this when changing the mod.
+        /// </summary>
+        public const string Build = "2026-07-23c rendertile+paintedcolors";
+
         // Arbitrary high port; keep in sync with godot/BridgeClient.gd (PORT).
         public const int DefaultPort = 48710;
 
