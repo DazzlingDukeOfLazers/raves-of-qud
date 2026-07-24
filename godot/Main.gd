@@ -23,6 +23,7 @@ extends Node3D
 
 var client: BridgeClient
 var renderer: ZoneRenderer
+var store := WorldStore.new()   # Phase-0 world store; renderer reads the live zone from it
 var inspector: CellInspector
 var reporter: TileReport
 
@@ -169,7 +170,11 @@ func _ready() -> void:
 	reporter.dismissed.connect(_dismiss_selection)
 
 func _on_snapshot(data: Dictionary) -> void:
-	renderer.render_snapshot(data)
+	# Route the render through the store. Today live_snapshot() hands back the exact
+	# dict just ingested, so this is a no-op; Phase 1 grows the store into remembered
+	# neighbours + fog without touching this path again. See docs/roadmap.md.
+	store.ingest(data)
+	renderer.render_snapshot(store.live_snapshot())
 	inspector.on_snapshot(data)
 
 	_update_time(data.get("time", {}))
