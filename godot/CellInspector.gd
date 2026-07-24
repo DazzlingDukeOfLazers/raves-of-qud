@@ -324,8 +324,14 @@ func _build_ui() -> void:
 	_label.add_theme_color_override("default_color", Color(0.85, 0.95, 0.85))
 	_label.add_theme_font_size_override("normal_font_size", _font_size)
 	# monospace, so tile names and flag columns line up
-	var mono := SystemFont.new()
-	mono.font_names = PackedStringArray(["Menlo", "SF Mono", "Monaco", "Courier New", "monospace"])
+	# Atkinson Hyperlegible Mono (bundled). The report is column-aligned — tile
+	# names, flag columns — so the label needs a MONOSPACE cut, not the project's
+	# proportional default. Falls back to a system mono if the file is ever missing.
+	var mono := load("res://fonts/AtkinsonHyperlegibleMono-Regular.ttf")
+	if mono == null:
+		var sys := SystemFont.new()
+		sys.font_names = PackedStringArray(["Menlo", "SF Mono", "Monaco", "monospace"])
+		mono = sys
 	_label.add_theme_font_override("normal_font", mono)
 	_panel.add_child(_label)
 

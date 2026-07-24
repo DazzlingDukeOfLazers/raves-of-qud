@@ -24,11 +24,8 @@ config/features=PackedStringArray("4.7", "Forward Plus")
 ; real fix for the "aliased text": on a Retina Mac, hidpi=false renders at logical
 ; resolution and lets macOS upscale -> blur. hidpi=true draws at physical pixels ->
 ; crisp, without a 3840-wide window the OS then clamps and appears to "jump".
-; mode=2 starts MAXIMISED, so it fills whatever screen is attached (the real want
-; behind setting 3840) without a fixed size the display can't satisfy. 1600x900 is
-; just the restore size when un-maximised. Resizable, so drag it however you like.
+; Resizable — drag it to whatever size you like.
 window/size/viewport_width=1600
 window/size/viewport_height=900
 window/size/resizable=true
-window/size/mode=2
 window/dpi/allow_hidpi=true
