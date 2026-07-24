@@ -58,69 +58,64 @@ from the isolated **`-00000000`** variant — the `-11111111` interior tile has 
 
 ---
 
-## 4. Voxel walls  ← the active area
+## 4. Voxel walls — flush surface + carved gaps
 
-Walls are **voxel relief geometry**, not flat boxes. Each pixel of the wall art becomes a column
-whose height is a colour rank, so the sun rakes across real relief and casts pixel-level shadows.
+Walls are **relief geometry** built per-pixel from the wall art, so the sun rakes across real depth
+and casts pixel-level shadows. The model is **flush-and-carve**: the solid material sits flush at
+the cell boundary and only the background gaps recess.
 
-### The height algorithm — `_rank_levels(img)` — LUMINANCE, not count
+### The 2-bit constraint that decided the model
+Qud wall tiles are **2-bit masks** (measured — 60/60 sampled tiles are black + white + transparent,
+*no* anti-aliasing). After recolour a cell holds **at most 3 colours** (bg, main, detail), so a
+colour→height *ranking* could only ever make ≤3 heights, and the interior "egg-crate" is the
+**grating the art literally draws**, not noise to smooth. That measurement — made in
+`tools/capture/voxel.py`, which prototyped an abandoned luminance-ranking rule — is *why* height
+isn't ranked at all now: with so little to rank, a **binary** surface-vs-gap carve reads better and
+is what shipped.
 
-**First, the constraint that decides everything:** Qud wall tiles are **2-bit masks** (measured —
-60/60 sampled tiles are black + white + transparent, *no* anti-aliasing). After recolour a cell
-holds **at most 3 colours** (bg, main, detail), so there are **at most 3 voxel heights**. No height
-*rule* can add relief the art doesn't contain — the only real choices are *which* 3 heights and in
-*what order*. (Don't reach for smoothing/continuous rules to de-noise the interior "egg-crate": that
-pattern is the **grating the art literally draws** — real bg holes between body pixels — not noise.)
+### The rule: flush non-bg, carve the bg
+Every **non-background** pixel — red `main` AND bright `detail` — sits at ONE flush depth; they are
+coplanar, no colour stands proud of another. Only **background** pixels (the gaps / rivet holes)
+recess. Consequences: the highlight sits at the same depth as the body, and **corners meet** — the
+flush skin lands exactly on the cell boundary, so a face's edge column and the perpendicular face's
+edge column share the corner line.
 
-Given that, height is driven by **luminance** (the art's own light/dark), not pixel count:
-1. Transparent/background → **level 0 (deepest)**. Scenery you look past; it recesses.
-2. Each non-bg pixel → `LUMA_FLOOR + (LUMA_GAIN − LUMA_FLOOR) · luma^LUMA_GAMMA`, where
-   `luma` is Rec.601 (0..1). Brighter pixel ⇒ prouder, so the bright **detail** lines (mortar,
-   rivets, plant spines) ridge up and the darker body sits below them. `LUMA_FLOOR` keeps even the
-   darkest wall pixel standing above the recessed bg gaps.
-3. `LUMA_GAMMA < 1` spikes the detail ridges harder — **the one visible depth dial 2-bit art
-   allows.** Ships at `1.0` (straight luminance); tuned against a screenshot with the shading.
-4. Level (a **float** now) × step = height.
+### The pieces per wall cell
+| piece | fn | geometry |
+|---|---|---|
+| **Cap** | `_voxel_cap_mesh` | top-down art. Non-bg flush at `WALL_H`; bg carves DOWN by `CAP_CARVE`, its floor drawn in the recess colour. |
+| **Sides** | `_side_voxel_mesh` | south front-face art, flush at the cell edge (`z=0.5`); bg carves INWARD by `SIDE_CARVE`, bottoming on the core. One cached mesh (facing +Z), instanced and **rotated** onto each exposed edge (S/E/N/W). "Exposed" = the orthogonal neighbour isn't wall. |
+| **Core** | `_wall_core_material` | a `BoxMesh` (`(0.5−SIDE_CARVE)·2` wide) filling the cell just behind the skins, so side gaps bottom out on it. Its top sits just below the cap's gap floor (`WALL_H−CAP_CARVE`) so it can't poke up through a roof gap. |
 
-This replaced count-rank, which ordered by frequency and needed a special-case to stop a merely
-*common* mid colour from floating above the body. Luminance orders correctly **by construction** —
-the bg is the darkest colour, so it recesses without a hack.
+`_wall_recess_color()` is shared by the cap gap floors and the core: the wall's own `main`, darkened
+and nudged ~12% toward the scene ambient — a recess *in the material*, not a foreign hole.
 
-> **Verify in Python before changing it:** `python3 tools/capture/voxel.py <tile> --rule luma`
-> (`--gamma 0.45` to see detail spike, `--smooth N` to experiment) prints the colour→luma→level
-> table, an ASCII height map, and an oblique preview PNG. The 2-bit fact above was *measured* here
-> before the rule was ported. See [tools.md](tools.md#voxelpy).
+### Carve walls & the cell-seam fix (`_vc_step` / `_side_step`)
+A carved gap draws its trench walls toward any lower/deeper neighbour — the higher (flush) pixel
+owns the wall, so it's drawn once. At a **cell boundary** the art's checker runs to the edge, so an
+edge pixel can be a gap whose flush neighbour lives in the *next cell's mesh*, which can't see it and
+won't close it. Left unhandled that opened the pit sideways onto the dark background — the dark
+grooves that showed along roof seams. **Fix:** when a pixel IS the gap at a boundary, it closes its
+own wall up to the neighbour's (assumed flush) surface, in the material colour so it matches the
+in-cell walls. Applied to both cap and sides. Normals are explicit; material is `CULL_DISABLED`.
 
-### The three pieces per wall cell
-- **Cap** (`_voxel_cap_mesh`) — the top-down art, columns rising **up** from `WALL_H` by
-  `level × VOXEL_STEP` (0.075). Cached per variant+colour, instanced per cell.
-- **Sides** (`_side_voxel_mesh`) — the south front-face art, extruded **outward** from the cell
-  edge by `level × SIDE_STEP` (0.06). Qud uses that one face on all four sides, so a single cached
-  mesh (facing +Z) is instanced and **rotated** onto each exposed edge (S/E/N/W = 0/90/180/270°).
-  "Exposed" = the orthogonal neighbour isn't this wall (`cells.has(...)`).
-- **Solid core** (`_wall_core_material`) — a `BoxMesh` (0.96 × WALL_H × 0.96) filling the cell
-  just inside the skin, coloured a *darker shade of the wall's darkest colour*. Without it you see
-  straight through the gaps between columns into the empty cell; with it, recesses read as deep
-  shadow.
-
-Each column emits a top/front face plus **step faces** toward any *shallower* neighbour (or the
-base at a grid edge), so protrusions show their sides. Normals are set explicitly (up for tops,
-outward for steps); material is `CULL_DISABLED` so nothing depends on winding.
+### Colour is sRGB (a gotcha)
+The wall meshes bake colour into **vertices**, so `_voxel_material` sets `vertex_color_is_srgb =
+true`. Godot defaults that to `false` and treats vertex colours as linear, which desaturated the
+palette reds into a pale tan (measured #805840 sat 0.50 vs palette #993326 sat 0.75). Tiles that use
+an albedo *texture* are unaffected. See CLAUDE.md's debugging rules.
 
 ### Constants to tune
-`LUMA_GAMMA` (detail-ridge sharpness — the main depth dial) · `LUMA_FLOOR`/`LUMA_GAIN` (body
-lift / overall relief) · `VOXEL_STEP` (cap height/level) · `SIDE_STEP` (side protrusion/level) ·
-the core inset (0.96) · `SHADED_WORLD` (flip to the flat unshaded look).
+`CAP_CARVE` (roof gap depth) · `SIDE_CARVE` (face gap depth) · the core sizing (half-width
+`0.5−SIDE_CARVE`, top at `WALL_H−CAP_CARVE`) · the recess mix in `_wall_recess_color` ·
+`SHADED_WORLD` (flip to the flat unshaded look).
 
-### Ideas / next steps for voxels
-- **Detail-proudness + shading** (the active work): tune `LUMA_GAMMA` and the sun/ambient/roughness
-  so the 3-level relief actually catches light and casts shadow. Needs a screenshot to judge —
-  the *rule* is settled (luminance), the *look* is not.
-- Match cap and side height scales so the transition at the top edge is seamless.
-- Cell-seam grooves: sides drop to base at every cell edge; could match the neighbour instead.
-- `MultiMesh` per (variant, mesh, rotation) if draw calls (≈5/cell) ever hitch.
-- Note: a *smarter height rule* is a dead end — 2-bit art gives ≤3 heights (see above). Spend
-  effort on the profile + shading, not the ranking.
+### Ideas / next steps
+- Cell-seam phase: if a faint seam still shows, adjacent autotile variants' checker phase may differ
+  across the boundary; chase it with the neighbour data from `snap.py`.
+- `MultiMesh` per (variant, mesh, rotation) if per-cell instance counts ever hitch at render radius.
+- The abandoned luminance rule still lives in `voxel.py` (`--rule luma`) as the tool that *measured*
+  the 2-bit fact — it is **not** what the renderer uses; the renderer is binary flush-and-carve.
 
 ---
 

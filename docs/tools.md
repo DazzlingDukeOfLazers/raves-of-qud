@@ -67,25 +67,23 @@ A/B's the interior-fill rules (`column AND row`, `row only`, `AND + narrow slots
 ASCII, with filled-pixel counts. This is how the chest/dromad/basket fill rule was chosen — and
 how to check any change to `Fill.SPAN`/`INTERIOR` before touching `_interior`/`_fill_holes`.
 
-### `voxel.py`
-Mirrors `ZoneRenderer._rank_levels`. Recolours a tile and maps each pixel to a voxel height.
-Two rules: `--rule luma` (**the shipping rule** — height ∝ Rec.601 luminance, bg pinned deepest,
-`--gamma <1` spikes the bright detail) and `--rule count` (the retired frequency-rank, kept for
-comparison). `--smooth N` box-blurs the height field. Prints:
-- the **colour → luma/count → level** table (with `<- filled bg / main / detail` tags),
-- an **ASCII height map** (0 = base/deepest),
-- an **oblique preview PNG** (`/tmp/voxel_preview.png`) so the relief is visible.
+### `voxel.py` (historical — the tool that killed its own rule)
+Recolours a tile and maps each pixel to a voxel height, with two rules: `--rule luma` (height ∝
+Rec.601 luminance, `--gamma <1` spikes detail) and `--rule count` (frequency-rank). `--smooth N`
+box-blurs the field. Prints a colour→level table, an ASCII height map, and an oblique preview PNG
+(`/tmp/voxel_preview.png`).
 
 ```
 python3 tools/capture/voxel.py wall_metal-00000000 --rule luma
-python3 tools/capture/voxel.py wall_metal-00000000 --rule luma --gamma 0.45   # detail ridges
-python3 tools/capture/voxel.py sw_chest --main '#98875f' --detail '#b1c9c3'
+python3 tools/capture/voxel.py wall_metal-00000000 --rule count
 ```
 
-This tool **measured the fact that decides the whole subsystem**: every sampled tile is a 2-bit
-mask (≤3 colours ⇒ ≤3 heights), so a smarter height *rule* can't add relief — see
-[rendering.md §4](rendering.md#4-voxel-walls--the-active-area). **Any change to the height rule
-goes here first**, then into `ZoneRenderer._rank_levels` — keep the two identical.
+**The renderer no longer ranks height at all.** This tool's value was proving the fact that decides
+the subsystem: every sampled tile is a **2-bit mask** (≤3 colours ⇒ ≤3 heights), so no ranking rule
+can add relief. That measurement is *why* the walls shipped as **binary flush-and-carve** (non-bg
+flush, bg carved) instead of any luminance/count ranking — see
+[rendering.md §4](rendering.md#4-voxel-walls--flush-surface--carved-gaps). Kept as the record of that
+investigation; it does **not** mirror current renderer code.
 
 ---
 

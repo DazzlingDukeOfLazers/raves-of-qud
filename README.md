@@ -551,18 +551,18 @@ Done since the early drafts: deep water/bridges, tents-as-panels, the painted gr
 per-family user overrides (shape/fill/position), the real palette + day/night + sun/moon, **voxel
 walls**, and the Python-first verification workflow. What's left:
 
-**Voxels** (the active area — see [docs/rendering.md §4](docs/rendering.md#4-voxel-walls--the-active-area)):
-- Match cap (`VOXEL_STEP`) and side (`SIDE_STEP`) height scales so the top edge is seamless.
-- Cell-seam grooves: side voxels drop to base at every cell edge; could match the neighbour.
-- `MultiMesh` per (variant, mesh, rotation) if the ≈5 draw calls/cell ever hitch.
-- Alternate height rules (luminance; force detail highest) — prototype in `voxel.py` first.
+**Voxel walls** — the flush-and-carve model shipped and looks right (see
+[docs/rendering.md §4](docs/rendering.md#4-voxel-walls--flush-surface--carved-gaps)). Largely done:
+- Faint cell-seam phase can still differ between autotile variants; chase with `snap.py` if it shows.
+- `MultiMesh` per (variant, mesh, rotation) if per-cell instance counts hitch at render radius.
 
-**Perf / streaming**:
+**World model / streaming** — see [docs/roadmap.md](docs/roadmap.md) for the full plan. The pivot:
+stop rendering the live snapshot; maintain a persistent chunked block-store, snapshot as one writer.
+That single change is the spine for fog of war, remembered zones, memory freeze/unfreeze, Z-height,
+cross-zone distance, and a future block-editing fork. Hierarchy: world of parasangs; parasang = 3×3
+zones; zone = 80×25 cells; plus Z-strata.
 - Full re-render per snapshot; the painted ground doubled the payload (~2000 objects/frame).
-  **Cell-level diffing** is the next win and a prerequisite for streaming.
-- **Neighbour-zone streaming** (the original day-one goal): the 3×3 parasang, so adjacent zones
-  show "over the horizon." Not started. Hierarchy: world 80×25 parasangs; parasang = 3×3 zones;
-  zone = 80×25 cells; plus Z-strata.
+  **Cell-level diffing** is a prerequisite for streaming.
 
 **Rendering polish**:
 - Sprites/floors don't cast or receive shadows (only walls + ground do). Shadows on the ground
