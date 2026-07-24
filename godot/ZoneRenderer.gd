@@ -17,6 +17,12 @@ const FENCE_H := 0.6  # standing height of fence/pipe panels (content, sat on gr
 const PIXEL_SIZE := 0.042
 const FLOOR_Y := 0.02
 const LAYER_STEP := 0.02
+# Floor quads stack by RenderLayer, NOT by their order in the cell's object
+# array — Qud sends objects in cell-stack order, which is not render order. A
+# crack (layer 1) arriving after the water (layer 2) would otherwise be drawn on
+# top of it, showing through a pool that hides it completely in-game.
+const LAYER_LIFT := 0.004
+const TIEBREAK := 0.0005   # separates equal-layer floors without reordering them
 
 # --- water & bridges --------------------------------------------------------
 # Deep water stays FLAT at floor level; we recess the actor, not the water. A
@@ -355,7 +361,7 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			var d := _take_floor()
 			d.material_override = _deck_material(tile, main_c, detail_c, deck)
 			d.scale = Vector3.ONE
-			var y := (BRIDGE_Y + idx * 0.002) if wet else (FLOOR_Y + idx * 0.005)
+			var y := (BRIDGE_Y + idx * TIEBREAK) if wet else (FLOOR_Y + layer * LAYER_LIFT + idx * TIEBREAK)
 			d.position = Vector3(cx, y, cy)
 			d.visible = true
 			_active.append(d)
@@ -377,7 +383,7 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			f.material_override = _color_material(_qud_color(String(obj.get("color", ""))))
 			f.scale = Vector3(0.5, 1.0, 0.5)
 			fkind = "floor(no tile: flat colour dot)"
-		f.position = Vector3(cx, FLOOR_Y + idx * 0.005, cy)
+		f.position = Vector3(cx, FLOOR_Y + layer * LAYER_LIFT + idx * TIEBREAK, cy)
 		f.visible = true
 		_active.append(f)
 		_note(cx, cy, idx, fkind, f.position.y)
@@ -403,10 +409,7 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			var s := _take_sprite()
 			s.texture = btex
 			var submerged: bool = sink > 0.0 and bool(obj.get("sinks", false))
-			if submerged:
-				_submerge(s, btex, tile, cx, cy, sink)
-			else:
-				s.position = Vector3(cx, PIXEL_SIZE * btex.get_height() * 0.5, cy)
+			_seat(s, btex, tile, cx, cy, sink if submerged else 0.0)
 			s.visible = true
 			_active.append(s)
 			var gaps := tile_interior_px(tile)
@@ -423,21 +426,27 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 		_active.append(l)
 		_note(cx, cy, idx, "label(NO TILE EXPORTED — glyph fallback)", l.position.y)
 
-# Draw only the part of a sprite above the waterline, and sit that cut edge on
-# the water. Cropping beats lowering the sprite: the water is a flat quad, so a
-# sunk sprite would just poke out underneath it when the camera tilts.
+# Seat a billboard on the ground, showing only its art.
 #
-# The crop is measured against the tile's OPAQUE BAND, not the 16x24 frame —
-# Qud art is padded inside its frame, so cutting the frame in half cuts an
-# unpredictable amount off the creature.
-func _submerge(s: Sprite3D, tex: ImageTexture, tile: String, cx: int, cy: int, sink: float) -> void:
+# Everything here is measured against the tile's OPAQUE BAND, not the 16x24
+# frame. Qud pads its art inside the frame — the chest occupies rows 6..17, so
+# drawing the whole frame with its bottom edge on the ground leaves 6 rows of
+# nothing underneath and the chest hovers. Cropping to the band and sitting THAT
+# on the ground is what puts objects on the floor.
+#
+# `sink` > 0 (standing in deep water) trims the bottom of the band and rests the
+# cut edge at the waterline. Cropping beats lowering the sprite: the water is a
+# flat quad with no volume, so a sunk sprite would just poke out underneath it
+# as soon as the camera tilts.
+func _seat(s: Sprite3D, tex: ImageTexture, tile: String, cx: int, cy: int, sink: float) -> void:
 	var h := tex.get_height()
 	var vr := _opaque_v(_mask(tile))
 	var top := vr.x * h
 	var shown: float = max(1.0, vr.y * h * (1.0 - sink))
+	var base := WATER_LINE_Y if sink > 0.0 else 0.0
 	s.region_enabled = true
 	s.region_rect = Rect2(0, top, tex.get_width(), shown)
-	s.position = Vector3(cx, WATER_LINE_Y + PIXEL_SIZE * shown * 0.5, cy)
+	s.position = Vector3(cx, base + PIXEL_SIZE * shown * 0.5, cy)
 
 # --- greedy-meshed walls ----------------------------------------------------
 
