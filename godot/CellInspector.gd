@@ -113,7 +113,12 @@ func build_report(cx: int, cy: int, hit: Vector3) -> String:
 
 	if not _by_cell.has(Vector2i(cx, cy)):
 		L.append("")
-		L.append("EMPTY — no objects here (Qud only sends non-empty cells).")
+		L.append("EMPTY — nothing here. In Qud a bare tile holds no object at all;")
+		L.append("the background colour you see is the world, not a floor sprite.")
+		L.append("")
+		L.append("Nearest tiles that DO hold something (so you can retarget):")
+		for line in _neighbours(cx, cy):
+			L.append("  " + line)
 		_preview.visible = false
 		return "\n".join(L)
 
@@ -156,6 +161,35 @@ func build_report(cx: int, cy: int, hit: Vector3) -> String:
 		else:
 			L.append("     RENDERED (nothing — object was dropped)")
 	return "\n".join(L)
+
+## Populated tiles nearest an empty pick, closest first. Clicking bare ground is
+## normal and common, so "EMPTY" alone can't distinguish a miss from a genuinely
+## empty tile — this gives you somewhere to aim instead.
+func _neighbours(cx: int, cy: int, radius := 3, limit := 6) -> Array:
+	var found := []
+	for r in range(1, radius + 1):
+		for dy in range(-r, r + 1):
+			for dx in range(-r, r + 1):
+				if maxi(absi(dx), absi(dy)) != r:
+					continue    # ring at exactly distance r, so results come out sorted
+				var k := Vector2i(cx + dx, cy + dy)
+				if not _by_cell.has(k):
+					continue
+				var objs: Array = _by_cell[k].get("objs", [])
+				var what := "?"
+				if objs.size() > 0:
+					var top: Dictionary = objs[objs.size() - 1]
+					what = String(top.get("display", ""))
+					if what == "":
+						what = String(top.get("name", "?"))
+					if objs.size() > 1:
+						what += " (+%d more)" % (objs.size() - 1)
+				found.append("(%d,%d)  %+d,%+d   %s" % [k.x, k.y, dx, dy, what])
+				if found.size() >= limit:
+					return found
+	if found.is_empty():
+		found.append("nothing within %d tiles either" % radius)
+	return found
 
 func _png_line(tile: String) -> String:
 	if tile == "" or _renderer == null:
