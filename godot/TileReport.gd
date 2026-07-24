@@ -36,6 +36,8 @@ const VERDICTS := [
 	"FILL: make TRANSPARENT (see through)",
 	"FILL: solid OPAQUE block",
 	"FILL: wrong — see notes",
+	"POS: FLOAT centered in the tile",
+	"POS: seat on the GROUND (default)",
 	"wrong COLOUR",
 	"wrong HEIGHT / scale",
 	"wrong POSITION / offset",
@@ -127,6 +129,8 @@ func _submit() -> void:
 ## Which overrides slot a verdict belongs in: "shape", "fill", or "" for a note.
 func _rule_slot(verdict: String) -> String:
 	var v := verdict.to_lower()
+	if v.contains("pos:"):
+		return "position"
 	if v.contains("fill"):
 		return "fill"
 	for k in ["wall", "panel", "n–s", "e–w", "billboard", "flat", "not be drawn"]:

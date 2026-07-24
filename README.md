@@ -370,7 +370,8 @@ take a turn, see it. Verdicts come on **two independent axes**, and a tile can c
 | axis | verdicts | effect |
 |---|---|---|
 | **shape** | wall · panel N–S · panel E–W · billboard · flat · not-drawn | what geometry gets built |
-| **fill** | fill MORE · gaps BACKGROUND · gaps TRANSPARENT · whole tile OPAQUE | how the art's transparent pixels are treated |
+| **fill** | fill the holes · enclosed only · transparent · opaque block | how the art's transparent pixels are treated |
+| **position** | `POS: float` · `POS: ground` | vertical placement — seated on the floor (default) or centred at cell mid-height |
 
 `fill the holes with BACKGROUND` (`Fill.SPAN`) is the **union of three** rules — enclosed gaps
 (`INTERIOR`), row-spans and column-spans. Each catches holes the others miss, and none is a

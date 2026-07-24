@@ -14,6 +14,7 @@ const CELL := 1.0
 const FLOOR_LAYER_MAX := 2
 const WALL_H := 1.2
 const FENCE_H := 0.6  # standing height of fence/pipe panels (content, sat on ground)
+const FLOAT_Y := WALL_H * 0.5  # cell mid-height, where a "float" verdict centres a tile
 const PIXEL_SIZE := 0.042
 const FLOOR_Y := 0.02
 const LAYER_STEP := 0.02
@@ -60,6 +61,7 @@ const MAX_SLOT_PX := 2
 # and it applies live: file a report, take a turn, see it.
 var _overrides := {}        # tile family -> shape verdict
 var _fill_overrides := {}   # tile family -> Fill mode
+var _position_overrides := {} # tile family -> "float" (default is ground-seated)
 var _overrides_raw := "?"   # last overrides.json text, to skip re-parsing
 
 var _palette := {}          # colour char -> "#rrggbb", from the mod (authoritative)
@@ -274,15 +276,31 @@ func _cell_sink(cell: Dictionary) -> float:
 ## `sw_waterwheel_1` and `_3`, `wall_rock-10100010` and every other bitmask.
 func tile_family(tile: String) -> String:
 	var t := tile.replace("\\", "/").get_file().get_basename().to_lower()
+	# 1) trailing autotile bitmask: wall_rock-11111111 -> wall_rock
 	var dash := t.rfind("-")
 	if dash > 0 and _is_binary(t.substr(dash + 1)):
 		t = t.substr(0, dash)
+	# 2) trailing direction suffix: fence_ew, sw_axle_2_EW -> drop the _<dirs>.
+	# Overrides are never direction-specific (a "float" or "wall" verdict applies to
+	# every orientation), so all directions of one family share a key.
+	var us := t.rfind("_")
+	if us > 0:
+		var suf := t.substr(us + 1)
+		if suf.length() >= 1 and suf.length() <= 4 and _all_dirs(suf):
+			t = t.substr(0, us)
+	# 3) trailing variant number: sw_waterwheel_1, sw_axle_2 -> strip the digits (+_)
 	var end := t.length()
 	while end > 0 and t[end - 1] >= "0" and t[end - 1] <= "9":
 		end -= 1
 	if end > 0 and end < t.length() and t[end - 1] == "_":
 		end -= 1
 	return t.substr(0, end) if end > 0 else t
+
+func _all_dirs(suf: String) -> bool:
+	for c in suf:
+		if not "nsew".contains(c):
+			return false
+	return true
 
 ## Phrase -> renderer behaviour. Matched as substrings of the filed verdict, so
 ## the wording in TileReport.VERDICTS can be reworded without breaking this.
@@ -331,6 +349,7 @@ func _load_overrides() -> void:
 	_overrides_raw = text
 	_overrides.clear()
 	_fill_overrides.clear()
+	_position_overrides.clear()
 	if text == "":
 		return
 	var data = JSON.parse_string(text)
@@ -349,6 +368,9 @@ func _load_overrides() -> void:
 		var fill := _match_fill(String(entry.get("fill", "")))
 		if fill >= 0:
 			_fill_overrides[fam] = fill
+		var pos := _match_position(String(entry.get("position", "")))
+		if pos != "":
+			_position_overrides[fam] = pos
 
 ## Verdict phrase -> shape key, or "" if none matches.
 func _match_shape(verdict: String) -> String:
@@ -365,6 +387,24 @@ func _match_fill(verdict: String) -> int:
 		if v.contains(pair[0]):
 			return pair[1]
 	return -1
+
+## Vertical placement verdicts. "ground" is the default (seated), so only "float"
+## is stored; matching "ground" explicitly lets a verdict UNDO a float.
+const POSITION_KEYS := [["float", "float"], ["ground", "ground"]]
+
+func _match_position(verdict: String) -> String:
+	var v := verdict.to_lower()
+	for pair in POSITION_KEYS:
+		if v.contains(pair[0]):
+			return pair[1]
+	return ""
+
+## "float" if this tile is verdict-floated, else "" (ground-seated default).
+func position_for(tile: String) -> String:
+	if _position_overrides.is_empty() or tile == "":
+		return ""
+	var p := String(_position_overrides.get(tile_family(tile), ""))
+	return p if p == "float" else ""
 
 ## The fill mode a billboard of this tile would use — the inspector previews with it.
 func fill_mode_for(tile: String) -> int:
@@ -388,6 +428,8 @@ func override_summary(tile: String) -> String:
 		var names := ["none", "all", "interior", "fill-holes"]
 		var m := int(_fill_overrides[fam])
 		parts.append("fill=" + (names[m] if m < names.size() else str(m)))
+	if _position_overrides.has(fam):
+		parts.append("pos=" + String(_position_overrides[fam]))
 	return "" if parts.is_empty() else "  ".join(parts)
 
 func _override_for(tile: String) -> String:
@@ -487,23 +529,23 @@ func _family_ew(tile: String) -> String:
 		return tile
 	return tile.substr(0, us + 1) + "ew" + tile.substr(dot)
 
-func _place_connector(tile: String, main_c: String, detail_c: String, cx: int, cy: int, dirs: String, h := FENCE_H, fill := Fill.NONE) -> void:
+func _place_connector(tile: String, main_c: String, detail_c: String, cx: int, cy: int, dirs: String, h := FENCE_H, fill := Fill.NONE, y_center := -1.0) -> void:
 	if dirs == "":
-		_fence_half(cx, cy, "post", tile, main_c, detail_c, h, fill)
+		_fence_half(cx, cy, "post", tile, main_c, detail_c, h, fill, y_center)
 		return
 	for d in dirs:
-		_fence_half(cx, cy, d, tile, main_c, detail_c, h, fill)
+		_fence_half(cx, cy, d, tile, main_c, detail_c, h, fill, y_center)
 
 # One upright half-panel from the cell centre out to the edge in direction d, using
 # the family's E-W elevation art. Adjacent cells' halves meet at the shared edge,
 # so runs are continuous and corners form a clean L. Used for every directional
 # family: picket fences, pipes, and tent walls (which differ only in height).
-func _fence_half(cx: int, cy: int, d: String, tile: String, main_c: String, detail_c: String, h := FENCE_H, fill := Fill.NONE) -> void:
+func _fence_half(cx: int, cy: int, d: String, tile: String, main_c: String, detail_c: String, h := FENCE_H, fill := Fill.NONE, y_center := -1.0) -> void:
 	var mi := _take_fence()
 	var half := "r" if (d == "e" or d == "s") else "l"
 	mi.material_override = _fence_material(_panel_art(tile), main_c, detail_c, half, fill)
 	mi.scale = Vector3(0.5, h, 1.0)
-	var pos := Vector3(cx, h * 0.5, cy)
+	var pos := Vector3(cx, (y_center if y_center >= 0.0 else h * 0.5), cy)
 	var rot := 0.0
 	match d:
 		"e": pos.x += 0.25
@@ -683,9 +725,12 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			var solid := bool(obj.get("occluding", false))
 			var pfill: int = Fill.ALL if solid else Fill.NONE
 			var ph := _panel_height(obj, tile)
-			_place_connector(tile, main_c, detail_c, cx, cy, dirs, ph, pfill)
-			_note(cx, cy, idx, "connector panels [%s] h=%.2f%s" % [
-				"post" if dirs == "" else dirs, ph, " filled-bg" if solid else ""], ph * 0.5)
+			var floated: bool = position_for(tile) == "float"
+			var yc: float = FLOAT_Y if floated else ph * 0.5
+			_place_connector(tile, main_c, detail_c, cx, cy, dirs, ph, pfill, yc)
+			_note(cx, cy, idx, "connector panels [%s] h=%.2f%s%s" % [
+				"post" if dirs == "" else dirs, ph,
+				" filled-bg" if solid else "", "  floated" if floated else ""], yc)
 		else:
 			# Gaps *enclosed* by the art read as the cell background, the way Qud
 			# draws them; everything outside the silhouette stays see-through.
@@ -698,7 +743,7 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			s.flip_h = bool(obj.get("hflip", false))
 			s.flip_v = bool(obj.get("vflip", false))
 			var submerged: bool = sink > 0.0 and bool(obj.get("sinks", false))
-			_seat(s, btex, tile, cx, cy, sink if submerged else 0.0)
+			_seat(s, btex, tile, cx, cy, sink if submerged else 0.0, position_for(tile) == "float")
 			s.visible = true
 			_active.append(s)
 			var fmode := _fill_for(tile, Fill.INTERIOR)
@@ -732,15 +777,21 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 # cut edge at the waterline. Cropping beats lowering the sprite: the water is a
 # flat quad with no volume, so a sunk sprite would just poke out underneath it
 # as soon as the camera tilts.
-func _seat(s: Sprite3D, tex: ImageTexture, tile: String, cx: int, cy: int, sink: float) -> void:
+func _seat(s: Sprite3D, tex: ImageTexture, tile: String, cx: int, cy: int, sink: float, float_center := false) -> void:
 	var h := tex.get_height()
 	var vr := _opaque_v(_mask(tile))
 	var top := vr.x * h
 	var shown: float = max(1.0, vr.y * h * (1.0 - sink))
-	var base := WATER_LINE_Y if sink > 0.0 else 0.0
 	s.region_enabled = true
 	s.region_rect = Rect2(0, top, tex.get_width(), shown)
-	s.position = Vector3(cx, base + PIXEL_SIZE * shown * 0.5, cy)
+	# ground-seated: band bottom on the floor (or the waterline when submerged).
+	# floated: band CENTRE at cell mid-height, e.g. an axle shaft crossing the cell.
+	var cy_center: float
+	if float_center:
+		cy_center = FLOAT_Y
+	else:
+		cy_center = (WATER_LINE_Y if sink > 0.0 else 0.0) + PIXEL_SIZE * shown * 0.5
+	s.position = Vector3(cx, cy_center, cy)
 
 # --- greedy-meshed walls ----------------------------------------------------
 
