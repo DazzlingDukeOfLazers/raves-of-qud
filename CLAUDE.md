@@ -3,7 +3,9 @@
 **Docs map:** `README.md` is the hub (architecture, platform constraints, Qud data model, API).
 Subsystems: [`docs/rendering.md`](docs/rendering.md) (the 3D pipeline + **voxel walls**),
 [`docs/tools.md`](docs/tools.md) (Python tools + in-viewer inspector/report + the **Python-first
-workflow**), [`docs/protocol.md`](docs/protocol.md) (wire format). Read the relevant page before
+workflow**), [`docs/protocol.md`](docs/protocol.md) (wire format), [`docs/roadmap.md`](docs/roadmap.md)
+(**forward strategy**: persistent chunked block-store — fog of war, remembered zones, freeze/unfreeze,
+Z-height, cross-zone distance, future block-editing fork). Read the relevant page before
 changing a subsystem.
 
 `README.md` explains the project and the data model. **This file is the local
