@@ -217,13 +217,28 @@ masks recoloured on the CPU:
   gaps with the object's `^X` — for e.g. metal (`&r^C`) the cyan belongs to the *detail/border*
   pixels, not the gap fill. Gaps read as the world green.
 
-**Palette (single letters, from `Colors.xml`) — note the counter-intuitive ones:**
-| | | | | | | | |
-|---|---|---|---|---|---|---|---|
-| `Y`=**white** | `y`=gray | `K`=black | `W`=**gold** | `w`=**brown** | `O`/`o`=orange | | |
-| `r`/`R`=dark red/red | `g`/`G`=dark green/green | `b`/`B`=dark blue/blue | `c`/`C`=dark cyan/cyan | `m`/`M`=dark magenta/magenta | | | |
+**Palette — don't hand-estimate it. `Base/Colors.xml` names the 16 colours but contains
+NO RGB**; the values live in code. The mod reads them out of
+`ConsoleLib.Console.ColorUtility.colorFromChar(char)` (a static dictionary lookup returning a
+struct — no graphics calls, safe on the turn thread) and ships them in every snapshot as
+`palette`. Measured values:
 
-`_qud_color()` in `ZoneRenderer.gd` keys off the **trailing letter** of a colour code.
+| | | | |
+|---|---|---|---|
+| `k` **#0f3b3a** | `K` #155352 | `y` #b1c9c3 | `Y` #ffffff |
+| `w` #98875f | `W` #cfc041 | `g` #009403 | `G` #00c420 |
+| `b` #0048bd | `B` #0096ff | `c` #40a4b9 | `C` #77bfcf |
+
+> **`k` is not black — it is `#0f3b3a`, a dark teal, and it IS the colour of the Qud world.**
+> Guessing it as near-black is what made the 3D view render on a black void instead of Qud's
+> field, and flattened wall-vs-floor contrast. `WORLD_BG` derives from `palette["k"]`.
+>
+> Also: `ColorUtility.CAMERA_BACKGROUND` is **not** the field colour despite the name — it's
+> the alias `"camera background"` → `#40a4b9`, plain cyan. Trusting it painted the entire world
+> turquoise. Verify a value before believing a field name.
+
+`_qud_color()` in `ZoneRenderer.gd` keys off the **trailing letter** of a colour code, and
+prefers the shipped `palette` over the hand-estimated fallback table.
 
 ### Tile geometry: the 2.5D convention
 Tiles are **16×24**. The vertical split matters:

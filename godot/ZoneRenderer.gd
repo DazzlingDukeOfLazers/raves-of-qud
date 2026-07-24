@@ -69,7 +69,7 @@ var _wall_bg := ""       # background colour code (the ^X in the ColorString)
 # What Qud paints behind the world. WORLD_BG_FALLBACK is a hand-estimate; the mod
 # sends the real ColorUtility.CAMERA_BACKGROUND and _world_bg takes over. Ours read
 # black next to Qud's dark teal, which flattened the whole scene.
-const WORLD_BG_FALLBACK := Color(0.07, 0.20, 0.18)  # sampled from Qud's own field
+const WORLD_BG_FALLBACK := Color("#0f3b3a")  # Qud's 'k'; only used pre-palette
 var _world_bg := WORLD_BG_FALLBACK
 var _ground_mat: StandardMaterial3D
 
@@ -113,15 +113,18 @@ func render_snapshot(data: Dictionary) -> void:
 	# Qud's real palette, sent by the mod. Base/Colors.xml names the colours but
 	# has no RGB, so COLORS below is a hand-estimate kept only as a fallback for
 	# an older mod build. Changing the palette invalidates every recoloured tile.
-	# NOTE: `bg` (ColorUtility.CAMERA_BACKGROUND) is NOT the colour Qud paints the
-	# field with — using it directly turned the whole world saturated cyan. It's a
-	# key/tint used elsewhere in Qud's renderer. Until we know how Qud derives the
-	# dark teal you actually see, WORLD_BG_FALLBACK stays authoritative; `bg` and
-	# `bgRaw` still arrive on the wire for diagnosis.
+	# The field colour is Qud's 'k'. Not a guess and not CAMERA_BACKGROUND (that
+	# is the alias "camera background" -> #40a4b9, plain cyan, which painted the
+	# whole world turquoise when trusted). Qud's "black" is #0f3b3a, a dark teal —
+	# which is exactly the field you see in game. The palette had the answer.
 
 	var pal: Dictionary = data.get("palette", {})
 	if not pal.is_empty() and pal != _palette:
 		_palette = pal
+		if pal.has("k"):
+			_world_bg = Color(String(pal["k"]))
+			if _ground_mat != null:
+				_ground_mat.albedo_color = _world_bg
 		_tex_cache.clear()
 		_texmat_cache.clear()
 		_fencemat_cache.clear()
@@ -975,9 +978,11 @@ func _take_label() -> Label3D:
 	add_child(l)
 	return l
 
-# FALLBACK ONLY — hand-estimated. The mod sends the real palette out of
-# ConsoleLib (see _palette); this is what gets used if an older mod build is
-# loaded. Base/Colors.xml names the colours but carries no RGB.
+# FALLBACK ONLY — hand-estimated, and measurably wrong: Qud's 'k' is #0f3b3a
+# (a dark teal, the colour of the world itself), NOT the near-black guessed here.
+# The mod sends the real table out of ConsoleLib (see _palette); this is used
+# only if an older mod build is loaded. Base/Colors.xml names the colours but
+# carries no RGB, which is what made the guessing necessary.
 const COLORS := {
 	"r": Color(0.60, 0.20, 0.15), "R": Color(1.00, 0.30, 0.30),
 	"g": Color(0.00, 0.50, 0.00), "G": Color(0.20, 0.90, 0.20),
