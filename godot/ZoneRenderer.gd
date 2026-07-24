@@ -906,6 +906,19 @@ func _rebuild_walls(wall_types: Dictionary) -> void:
 		_wall_tile = t["tile"]; _wall_main = t["main"]; _wall_detail = t["detail"]; _wall_bg = t["bg"]
 		var cells: Dictionary = t["cells"]
 
+		# SOLID CORE: a dark box filling each cell, just inside the voxel skin, so
+		# the relief has something behind it. Without it you see straight through the
+		# gaps between protruding columns into the empty cell. Coloured a darker
+		# shade of the wall's darkest colour, so recesses read as deep shadow.
+		var core_mat := _wall_core_material()
+		for k in cells:
+			var core := MeshInstance3D.new()
+			var bm := BoxMesh.new()
+			bm.size = Vector3(0.96, WALL_H - 0.02, 0.96)
+			core.mesh = bm
+			core.material_override = core_mat
+			core.position = Vector3(k.x, (WALL_H - 0.02) * 0.5, k.y)
+			_wall_root.add_child(core)
 
 		# ROOFS are per-cell, grouped by autotile variant. Merging them under one
 		# texture drew the fully-bordered isolated tile on every cell, so a run of
@@ -1088,6 +1101,23 @@ func _side_step(st: SurfaceTool, x: int, y: int, l: int, lev: Array, w: int, h: 
 
 ## Shared material for voxel caps: shaded, colour comes from the per-pixel vertex
 ## colour, so one material covers every wall type and the sun shades the relief.
+## A darker shade of the wall's DARKEST colour — the fill for the solid core, so
+## gaps between voxel columns read as deep shadow inside the block, not through it.
+func _wall_core_material() -> StandardMaterial3D:
+	var cols := [_qud_color(_wall_main), _qud_color(_wall_detail), _world_bg]
+	if _wall_bg != "":
+		cols.append(_qud_color(_wall_bg))
+	var darkest: Color = cols[0]
+	for c in cols:
+		if (c.r + c.g + c.b) < (darkest.r + darkest.g + darkest.b):
+			darkest = c
+	var dark: Color = darkest.darkened(0.45)
+	var m := StandardMaterial3D.new()
+	m.albedo_color = dark
+	m.roughness = 0.95
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL if SHADED_WORLD else BaseMaterial3D.SHADING_MODE_UNSHADED
+	return m
+
 func _voxel_material() -> StandardMaterial3D:
 	if _voxel_mat != null:
 		return _voxel_mat

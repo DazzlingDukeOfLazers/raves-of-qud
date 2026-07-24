@@ -132,6 +132,16 @@ flickering flame billboard, both `BLEND_MODE_ADD`, which brighten whatever's beh
 scene lighting. The mod sends `lightRadius` (from `LightSource.Radius` where `Lit`); Qud's flame
 itself is procedural (particles + `AnimatedMaterialFire`), so there's no tile to extract.
 
+## Prototype geometry algorithms in Python first
+
+I cannot see the Godot viewport, so voxel/relief algorithms were being written straight into
+GDScript and verified only by the user's screenshots — slow, and it hid an off depth order. Do the
+algorithm in Python where its output is inspectable, THEN port. `tools/capture/voxel.py` mirrors
+`ZoneRenderer._rank_levels`: it recolours a tile, ranks colours by count into height levels, and
+prints the colour→count→level table + an ASCII height map + an oblique preview PNG. Use it to check
+depth ordering before touching the renderer. (Lighting/shadow *appearance* still needs a screenshot;
+the height *algorithm* does not.)
+
 ## Debugging rules, learned expensively
 
 - **A cell is not just its objects.** Qud paints a ground layer (dirt, grass) onto cells with
