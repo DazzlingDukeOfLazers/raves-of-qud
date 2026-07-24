@@ -209,6 +209,40 @@ namespace RavesOfQud
         /// Cell.Render() composites it. We emit it as a RenderLayer 0 floor so the
         /// client draws it like any other ground.
         /// </summary>
+        /// <summary>
+        /// A tile path reduced to its FAMILY, for comparing "is this the same art?".
+        ///
+        /// Comparing exact paths is not enough: a water wheel cell handed back
+        /// `sw_waterwheel_3` from the compositor while the object drew
+        /// `sw_waterwheel_1`, so the duplicate slipped through and a second wheel
+        /// was laid flat under the first. Variant numbers and autotile bitmasks are
+        /// both just "which picture of this thing", so both are stripped.
+        /// </summary>
+        private static string TileFamily(string tile)
+        {
+            if (string.IsNullOrEmpty(tile)) return "";
+            string t = tile.Replace('\\', '/');
+            int slash = t.LastIndexOf('/');
+            if (slash >= 0) t = t.Substring(slash + 1);
+            int dot = t.LastIndexOf('.');
+            if (dot >= 0) t = t.Substring(0, dot);
+            // trailing autotile bitmask: wall_rock-10100010
+            int dash = t.LastIndexOf('-');
+            if (dash >= 0 && dash < t.Length - 1)
+            {
+                bool bits = true;
+                for (int i = dash + 1; i < t.Length; i++)
+                    if (t[i] != '0' && t[i] != '1') { bits = false; break; }
+                if (bits) t = t.Substring(0, dash);
+            }
+            // trailing variant number: sw_waterwheel_1, sw_ground_dots3
+            int end = t.Length;
+            while (end > 0 && t[end - 1] >= '0' && t[end - 1] <= '9') end--;
+            if (end < t.Length && end > 0 && t[end - 1] == '_') end--;
+            if (end > 0) t = t.Substring(0, end);
+            return t.ToLowerInvariant();
+        }
+
         private sealed class Ground
         {
             public string Tile, Color, Detail, Glyph;
@@ -321,11 +355,11 @@ namespace RavesOfQud
                         if (rr == null) continue;
                         bool ignored;
                         string t = ResolvedTile(go, rr, out ignored);
-                        if (!string.IsNullOrEmpty(t)) drawn.Add(t);
+                        if (!string.IsNullOrEmpty(t)) drawn.Add(TileFamily(t));
                     }
 
                     Ground ground = ResolveGround(c);
-                    if (ground != null && drawn.Contains(ground.Tile)) ground = null;
+                    if (ground != null && drawn.Contains(TileFamily(ground.Tile))) ground = null;
                     if (ground == null && objects.Count == 0) continue;
 
                     bool opened = true;

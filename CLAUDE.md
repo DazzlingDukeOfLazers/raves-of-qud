@@ -87,6 +87,24 @@ same rule as tile export. Qud's file appears at end-of-frame, so allow a moment.
 Claude reads both with the Read tool. This replaces the user manually screenshotting and
 pasting, which is how most of this project's visual debugging has worked so far.
 
+## Tile reports — the user tells us what can't be derived
+
+Some things are simply not in Qud's data. A water wheel faces north–south, but its tile is
+`sw_waterwheel_1` — no `_ns` suffix, no blueprint flag, nothing to infer from. Guessing at these
+is how this project has burned the most time.
+
+**Inspect a tile, then use the form in the lower right.** Pick a verdict (wall / oriented panel
+N–S / billboard / flat / deck / not drawn / wrong colour / wrong height / duplicated / other),
+add notes, submit. It writes one markdown file per tile+verdict to:
+
+```
+~/Library/Application Support/RavesOfQud/reports/
+```
+
+Each file carries the verdict, the notes, and **the full inspector report at time of filing** —
+so the evidence travels with the complaint. Read the whole directory to see everything
+outstanding; delete a file once it's fixed.
+
 ## Debugging rules, learned expensively
 
 - **A cell is not just its objects.** Qud paints a ground layer (dirt, grass) onto cells with

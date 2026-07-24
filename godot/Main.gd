@@ -24,6 +24,7 @@ extends Node3D
 var client: BridgeClient
 var renderer: ZoneRenderer
 var inspector: CellInspector
+var reporter: TileReport
 
 enum CamMode { FOLLOW, MOUSE, KEYBOARD }
 var _mode: int = CamMode.FOLLOW
@@ -106,6 +107,10 @@ func _ready() -> void:
 	inspector = CellInspector.new()
 	add_child(inspector)
 	inspector.setup(renderer, _cam)
+
+	reporter = TileReport.new()
+	add_child(reporter)
+	reporter.setup(renderer)
 
 func _on_snapshot(data: Dictionary) -> void:
 	renderer.render_snapshot(data)
@@ -238,8 +243,16 @@ func _set_mode(m: int) -> void:
 ## (selection.txt), this viewer's view (shot.png) and Qud's own view
 ## (qud_shot.png), all pointing at the same tile.
 func _inspect_and_capture() -> void:
-	inspector.inspect_at_mouse()
+	_inspect()
 	await _screenshot(true)
+
+## Inspect, and aim the report form at the same tile.
+func _inspect() -> void:
+	inspector.inspect_at_mouse()
+	var sel = inspector.selected_tile()
+	if sel != null:
+		reporter.set_target(sel.x, sel.y, inspector.zone_id(),
+			inspector.last_tile(), inspector.last_report())
 
 ## Save the viewport to a known path so a collaborator can just read it.
 ##
@@ -300,9 +313,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			_set_mode(CamMode.FOLLOW); return
 		if event.keycode == KEY_ESCAPE:
 			inspector.hide_panel()
+			reporter.hide_panel()
 			_set_mode(CamMode.FOLLOW); return
 		if event.keycode == KEY_I:
-			inspector.inspect_at_mouse(); return
+			_inspect(); return
 		if event.keycode == KEY_F12:
 			_screenshot(); return
 		if event.keycode == KEY_MINUS:
@@ -326,7 +340,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			MOUSE_BUTTON_LEFT:
 				# Ctrl/Cmd+click inspects; a plain click orbits (MOUSE mode)
 				if event.pressed and (event.ctrl_pressed or event.meta_pressed):
-					inspector.inspect_at_mouse()
+					_inspect()
 				else:
 					_orbiting = event.pressed and _mode == CamMode.MOUSE
 			MOUSE_BUTTON_RIGHT, MOUSE_BUTTON_MIDDLE:

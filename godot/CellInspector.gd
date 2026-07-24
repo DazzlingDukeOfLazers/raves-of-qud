@@ -83,6 +83,23 @@ func _ground_hit() -> Variant:
 		return null
 	return from + dir * t
 
+## The report text and tile of the last inspection, for the report form.
+func last_report() -> String:
+	return _last_report
+
+func last_tile() -> String:
+	if _selected == null or not _by_cell.has(_selected):
+		return ""
+	var objs: Array = _by_cell[_selected].get("objs", [])
+	for i in range(objs.size() - 1, -1, -1):          # topmost with art
+		var t := String(objs[i].get("tile", ""))
+		if t != "":
+			return t
+	return ""
+
+func zone_id() -> String:
+	return String(_snap.get("zone", {}).get("id", "?"))
+
 ## The tile the user last inspected, or null. MOUSE camera mode orbits this.
 func selected_tile() -> Variant:
 	return _selected
