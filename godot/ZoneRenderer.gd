@@ -43,10 +43,10 @@ const SINK_SWIM := 0.72    # ... and swimming depth
 ##   ALL       paint every one — including outside the art, so the tile becomes a
 ##             filled rectangle (wall faces, decks, tents)
 ##   INTERIOR  only gaps ENCLOSED by the art (default for billboards)
-##   SPAN      every gap between the first and last opaque pixel in its ROW.
-##             Sits between INTERIOR and ALL: a water wheel's open-bottomed paddle
-##             compartments are not enclosed, so INTERIOR leaves them see-through
-##             while SPAN closes them without squaring off the silhouette.
+##   SPAN      "fill the holes": INTERIOR's enclosed gaps UNION every gap spanned
+##             within a row. Neither alone is a superset — a wheel's open paddle
+##             bottoms fill only by row-span, a millstone's pinched notches only by
+##             enclosure — so the "more fill" mode is both. Always >= INTERIOR.
 enum Fill { NONE, ALL, INTERIOR, SPAN }
 
 # Widest horizontal transparent run still treated as a seam in the art rather
@@ -284,21 +284,28 @@ func _tile_family(tile: String) -> String:
 ##
 ## SHAPE verdicts (what geometry to build) and FILL verdicts (how to treat the
 ## art's transparent pixels) are independent axes — a tile can carry one of each.
-const VERDICT_KEYS := {
-	"WALL": "wall",
-	"running N–S": "panel_ns",
-	"running E–W": "panel_ew",
-	"UPRIGHT BILLBOARD": "billboard",
-	"FLAT on the floor": "floor",
-	"NOT be drawn": "skip",
-}
+const VERDICT_KEYS := [
+	["wall", "wall"],
+	["n–s", "panel_ns"],
+	["e–w", "panel_ew"],
+	["billboard", "billboard"],
+	["flat", "floor"],
+	["not be drawn", "skip"],
+]
 
-const FILL_KEYS := {
-	"fill MORE": Fill.SPAN,
-	"gaps should be BACKGROUND": Fill.INTERIOR,
-	"gaps should be TRANSPARENT": Fill.NONE,
-	"whole tile OPAQUE": Fill.ALL,
-}
+## Matched case-insensitively as substrings of the filed verdict, so old reports
+## keep parsing and TileReport's wording can change freely. Order matters where one
+## phrase contains another: "enclosed" is checked before "background".
+const FILL_KEYS := [
+	["enclosed", Fill.INTERIOR],       # the conservative option, if asked for by name
+	["background", Fill.SPAN],         # "fill the holes" — the common intent
+	["fill the holes", Fill.SPAN],
+	["fill more", Fill.SPAN],
+	["transparent", Fill.NONE],
+	["see-through", Fill.NONE],
+	["opaque", Fill.ALL],
+	["solid block", Fill.ALL],
+]
 
 ## Re-read the reports directory. A handful of small files, read once per snapshot,
 ## so a filed verdict takes effect on the next turn with no restart.
@@ -329,13 +336,14 @@ func _load_overrides() -> void:
 		if tile == "" or verdict == "":
 			continue
 		var fam := _tile_family(tile)
-		for phrase in VERDICT_KEYS:
-			if verdict.contains(phrase):
-				found[fam] = VERDICT_KEYS[phrase]
+		var vlow := verdict.to_lower()
+		for pair in VERDICT_KEYS:
+			if vlow.contains(pair[0]):
+				found[fam] = pair[1]
 				break
-		for phrase in FILL_KEYS:
-			if verdict.contains(phrase):
-				fills[fam] = FILL_KEYS[phrase]
+		for pair in FILL_KEYS:
+			if vlow.contains(pair[0]):
+				fills[fam] = pair[1]
 				break
 	_overrides = found
 	_fill_overrides = fills
@@ -1001,7 +1009,7 @@ func _colored_tex_rgb(tile: String, main: Color, detail: Color, ckey: String, fi
 	if fill == Fill.INTERIOR:
 		inner = _interior(tile)
 	elif fill == Fill.SPAN:
-		inner = _row_span(tile)
+		inner = _fill_holes(tile)
 	var tex := _recolor_rgb(mask, main, detail, fill, inner)
 	_tex_cache[key] = tex
 	return tex
@@ -1111,10 +1119,29 @@ func _interior(tile: String) -> Array:
 # vertical gap cross; this closes them generically rather than by special case.
 # It cannot leak into open space — a real opening's boundary always touches a
 # genuinely outside pixel, so the fill has nowhere to start.
+## "Fill the holes" — the UNION of enclosed gaps (_interior) and row-spans. Each
+## catches holes the other misses (a wheel\'s open paddle bottoms; a millstone\'s
+## pinched side notches), and neither alone is a superset of the other, so the mode
+## a user reaches for when they say "fill it in more" must be both. Always fills at
+## least as much as INTERIOR, never less.
+func _fill_holes(tile: String) -> Array:
+	var fname := tile_filename(tile) + "|holes"
+	if _interior_cache.has(fname):
+		return _interior_cache[fname]
+	var a := _interior(tile)
+	var b := _row_span(tile)
+	var out := []
+	for y in a.size():
+		var row := []
+		for x in a[y].size():
+			row.append(bool(a[y][x]) or (y < b.size() and x < b[y].size() and bool(b[y][x])))
+		out.append(row)
+	_interior_cache[fname] = out
+	return out
+
 ## Every transparent pixel between the first and last opaque pixel in its row.
-## Unlike _interior() this asks nothing about enclosure, so a shape open at the
-## bottom — a wheel's paddle compartments — still fills, while pixels outside the
-## silhouette stay clear.
+## Open at the bottom (a wheel\'s paddle compartments) still fills; outside the
+## silhouette stays clear. A component of _fill_holes, not used directly.
 func _row_span(tile: String) -> Array:
 	var fname := tile_filename(tile) + "|span"
 	if _interior_cache.has(fname):
