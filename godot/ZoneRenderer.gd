@@ -17,7 +17,7 @@ const WALL_H := 1.2
 # cast/receive directional shadows. When false, everything is UNSHADED (exact tile
 # colours, no shadows) -- the original look. Flip this to compare.
 const SHADED_WORLD := true
-const WALL_NORMAL_SCALE := 1.4   # strength of the tile-derived wall relief
+const WALL_NORMAL_SCALE := 4.0   # strength of the tile-derived wall relief (cranked to confirm it applies)
 const FENCE_H := 0.6  # standing height of fence/pipe panels (content, sat on ground)
 const FLOAT_Y := WALL_H * 0.5  # cell mid-height, where a "float" verdict centres a tile
 const PIXEL_SIZE := 0.042
@@ -1174,6 +1174,7 @@ func _wall_mat_from_tex(tex: ImageTexture) -> StandardMaterial3D:
 				m.normal_enabled = true
 				m.normal_texture = nm
 				m.normal_scale = WALL_NORMAL_SCALE
+			m.roughness = 0.7    # a little specular so raked light reads as form
 	else:
 		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 		m.vertex_color_use_as_albedo = true   # baked per-face shade multiplies the rock
