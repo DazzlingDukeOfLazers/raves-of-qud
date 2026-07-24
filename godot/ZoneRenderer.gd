@@ -109,23 +109,11 @@ var _placed := {}   # Vector2i -> Array[{idx, kind, y}]
 # would, and reading correctly in the top-down 2.5D view.
 var _light_root: Node3D
 var _remembered_root: Node3D    # parent of the frozen per-zone neighbour subtrees
-var _static_zones := {}         # zoneId -> Node3D (that zone's frozen geometry)
-var _bank: Node3D = null        # non-null while building a remembered zone INTO it
-var _live_wall_sig := 0         # hash of the live zone's walls; skip rebuild if unchanged
-
-## A deterministic signature of the live zone's walls (zone id + every wall cell's
-## coord and autotile variant + colour key), so _rebuild_walls is skipped while you
-## step within a zone and only fires when a wall actually changes.
-func _wall_sig_parts(zone_id: String, wall_types: Dictionary) -> Array:
-	var parts: Array = [zone_id]
-	for key in wall_types:
-		parts.append(key)
-		var cells: Dictionary = wall_types[key]["cells"]
-		for k in cells:
-			parts.append(k.x)
-			parts.append(k.y)
-			parts.append(cells[k])
-	return parts
+var _static_zones := {}         # zoneId -> Node3D (that zone's frozen static geometry)
+var _dynamic_root: Node3D       # the live zone's creatures, rebuilt every step
+var _live_static_id := ""       # which zone's static is currently built as "live"
+var _bank: Node3D = null        # non-null while building a zone's geometry INTO it
+var _noting := true             # whether _note records (off during dynamic-only rebuilds)
 
 ## Parent for freshly-spawned nodes: the frozen bank when building a remembered
 ## zone, else the renderer itself (live zone, pooled).
@@ -176,11 +164,13 @@ func _ready() -> void:
 	_light_root = Node3D.new()
 	add_child(_light_root)
 
-	# Remembered neighbour zones live here, built ONCE and frozen — only rebuilt when
-	# the neighbour set changes (crossing into a new zone), never per step. The live
-	# zone keeps its per-turn rebuild in _wall_root / the pools.
+	# Frozen static geometry (walls + floors + static sprites + lights) for every zone
+	# — the live one AND remembered neighbours — each its own subtree, built once and
+	# only repositioned. Only creatures rebuild per step, into _dynamic_root.
 	_remembered_root = Node3D.new()
 	add_child(_remembered_root)
+	_dynamic_root = Node3D.new()
+	add_child(_dynamic_root)
 	_glow_tex = _make_radial(64, Color(1.0, 0.62, 0.25), 1.0)   # warm pool of light
 	_flame_tex = _make_radial(32, Color(1.0, 0.80, 0.35), 1.6)  # tighter, brighter core
 
@@ -202,7 +192,6 @@ func _make_radial(n: int, tint: Color, power: float) -> Texture2D:
 ## live zone. Neighbours render full-fidelity but static-only (no creatures).
 func render_snapshot(data: Dictionary, neighbors: Array = []) -> void:
 	_tiles_dir = String(data.get("tilesDir", ""))
-	_placed.clear()
 
 	# Qud's real palette, sent by the mod. Base/Colors.xml names the colours but
 	# has no RGB, so COLORS below is a hand-estimate kept only as a fallback for
@@ -224,36 +213,36 @@ func render_snapshot(data: Dictionary, neighbors: Array = []) -> void:
 		_fencemat_cache.clear()
 		_wallmat_cache.clear()
 		_colmat_cache.clear()
-
-	for n in _active:
-		n.visible = false
-		if n is Sprite3D: _sprite_pool.append(n)
-		elif n is Label3D: _label_pool.append(n)
-		elif n is MeshInstance3D:
-			if n.mesh == _fence_quad: _fence_pool.append(n)
-			else: _floor_pool.append(n)
-	_active.clear()
-
-	for c in _light_root.get_children():
-		c.queue_free()
-	_lights.clear()
+		_drop_all_static()   # frozen geometry holds recoloured textures; rebuild it
 
 	_load_overrides()
 
-	# Build (and rebuild every step) only the LIVE zone.
+	var live_id := String(data.get("zone", {}).get("id", ""))
+	var cells: Array = data.get("cells", [])
+
+	# LIVE STATIC — walls + floors + static sprites + lights. Rebuilt only when you
+	# ENTER a new zone (fresh Qud data), then frozen while you step within it. This
+	# is what took ~69ms EVERY step before; now it is paid once per zone.
+	Profiler.begin("render.static")
+	if live_id != _live_static_id:
+		_placed.clear()
+		_drop_static(live_id)          # replace any stale (neighbour-built) copy
+		_noting = true
+		_build_static(live_id, cells)
+		_live_static_id = live_id
+	if _static_zones.has(live_id):
+		_static_zones[live_id].position = Vector3.ZERO
+	Profiler.done("render.static")
+
+	# LIVE DYNAMICS — creatures only, every step. The sole per-step render cost now.
 	Profiler.begin("render.live")
-	var wall_types := {}
-	_build_zone(data.get("cells", []), Vector2i.ZERO, false, wall_types)
-	# Freeze the walls: their voxel meshes/instances are the heavy part and don't
-	# change as you step within a zone. Only rebuild when the wall set actually
-	# changes (a new zone, or a dug/built wall), keyed by a hash of every wall cell.
-	Profiler.begin("render.walls")
-	var wsig := hash(_wall_sig_parts(String(data.get("zone", {}).get("id", "")), wall_types))
-	if wsig != _live_wall_sig:
-		_live_wall_sig = wsig
-		_rebuild_walls(wall_types)
-	Profiler.done("render.walls")
+	_rebuild_dynamics(cells)
 	Profiler.done("render.live")
+
+	# NEIGHBOURS — frozen per-zone subtrees, repositioned by transform (Step A).
+	Profiler.begin("render.remembered")
+	_sync_neighbors(neighbors)
+	Profiler.done("render.remembered")
 
 	# Remembered neighbours are FROZEN per-zone subtrees: each built ONCE, then only
 	# repositioned by a cheap transform when the live zone shifts. A crossing no longer
@@ -263,12 +252,11 @@ func render_snapshot(data: Dictionary, neighbors: Array = []) -> void:
 	_sync_neighbors(neighbors)
 	Profiler.done("render.remembered")
 
-## Build one zone's geometry into the scene, its cells shifted by `offset` (in cells
-## = world units) so a remembered neighbour lands in its true position relative to
-## the live zone. Wall types are accumulated into the shared `wall_types` (one
-## _rebuild_walls covers every zone). A `remembered` zone drops its creatures — they
-## have moved since it was last live (see _place_nonwall).
-func _build_zone(cells: Array, offset: Vector2i, remembered: bool, wall_types: Dictionary) -> void:
+## Build one zone's STATIC geometry (walls + non-creature nonwalls + lights) into the
+## current bank, cells shifted by `offset`. `skip_creatures` drops mobile actors —
+## always true here; creatures render separately in _rebuild_dynamics. Inspector
+## notes are gated by the `_noting` flag (true only for the live static build).
+func _build_zone(cells: Array, offset: Vector2i, skip_creatures: bool, wall_types: Dictionary) -> void:
 	# pass 1: group wall cells by TYPE (family + colours + background)
 	var wall_cells := {}
 	for cell in cells:
@@ -281,8 +269,7 @@ func _build_zone(cells: Array, offset: Vector2i, remembered: bool, wall_types: D
 			# (fences) fall through to the sprite path below.
 			if not _is_prism(obj):
 				continue
-			if not remembered:
-				_note(cx, cy, widx, "prism", WALL_H)
+			_note(cx, cy, widx, "prism", WALL_H)
 			var tile := _canon_wall_tile(String(obj.get("tile", "")))
 			var main_c := String(obj.get("tilecolor", ""))
 			if main_c == "": main_c = String(obj.get("color", ""))
@@ -307,10 +294,56 @@ func _build_zone(cells: Array, offset: Vector2i, remembered: bool, wall_types: D
 		var idx := 0
 		for obj in cell.get("objs", []):
 			if not _is_prism(obj):
-				_place_nonwall(obj, cx, cy, idx, in_wall, sink, wet, remembered)
+				_place_nonwall(obj, cx, cy, idx, in_wall, sink, wet, skip_creatures)
 			if obj.has("lightRadius"):
 				_place_light(cx, cy, float(obj["lightRadius"]))
 			idx += 1
+
+## Build the live zone's static geometry into its own frozen subtree (once per zone
+## entry). Creatures are excluded — they render per step in _rebuild_dynamics.
+func _build_static(id: String, cells: Array) -> void:
+	var sub := Node3D.new()
+	_remembered_root.add_child(sub)
+	_static_zones[id] = sub
+	_bank = sub
+	var wt := {}
+	_build_zone(cells, Vector2i.ZERO, true, wt)
+	_rebuild_walls(wt)
+	_bank = null
+
+## Re-place ONLY the live zone's creatures, every step, into _dynamic_root (cleared
+## first). Few objects, so this is the cheap per-step cost that replaced the ~69ms
+## full rebuild. Not noted (the inspector's _placed holds the static zone).
+func _rebuild_dynamics(cells: Array) -> void:
+	for c in _dynamic_root.get_children():
+		c.free()
+	_bank = _dynamic_root
+	_noting = false
+	for cell in cells:
+		var cx := int(cell.get("x", 0))
+		var cy := int(cell.get("y", 0))
+		var sink := _cell_sink(cell)
+		var wet: bool = bool(cell.get("wade", false)) or bool(cell.get("swim", false))
+		var idx := 0
+		for obj in cell.get("objs", []):
+			if not _is_prism(obj) and _is_creature(obj):
+				_place_nonwall(obj, cx, cy, idx, false, sink, wet, false)
+			idx += 1
+	_noting = true
+	_bank = null
+
+func _drop_static(id: String) -> void:
+	if _static_zones.has(id):
+		_static_zones[id].free()
+		_static_zones.erase(id)
+
+func _drop_all_static() -> void:
+	for id in _static_zones:
+		_static_zones[id].free()
+	_static_zones.clear()
+	_live_static_id = ""
+	for c in _dynamic_root.get_children():
+		c.free()
 
 ## Sync the remembered-neighbour subtrees to the wanted set. Each neighbour is its
 ## own frozen Node3D under _remembered_root, built ONCE (at local cell coords) and
@@ -321,9 +354,10 @@ func _sync_neighbors(neighbors: Array) -> void:
 	var want := {}
 	for nb in neighbors:
 		want[String(nb.get("id", ""))] = nb
-	# drop subtrees for zones that are no longer neighbours (e.g. the one now live)
+	# drop subtrees for zones that are no longer neighbours — but NEVER the live
+	# zone's static (it isn't in `neighbors`; render_snapshot owns its lifetime).
 	for id in _static_zones.keys():
-		if not want.has(id):
+		if id != _live_static_id and not want.has(id):
 			_static_zones[id].queue_free()
 			_static_zones.erase(id)
 	# ensure each wanted neighbour is built once, then position it by its offset
@@ -334,9 +368,11 @@ func _sync_neighbors(neighbors: Array) -> void:
 			_remembered_root.add_child(sub)
 			_static_zones[id] = sub
 			_bank = sub
+			_noting = false     # neighbours aren't inspected; don't touch _placed
 			var wt := {}
 			_build_zone(nb.get("cells", []), Vector2i.ZERO, true, wt)   # local coords
 			_rebuild_walls(wt)     # _bank set -> into the subtree, no clear
+			_noting = true
 			_bank = null
 		var o: Vector2i = nb.get("offset", Vector2i.ZERO)
 		_static_zones[id].position = Vector3(o.x, 0, o.y)
@@ -344,6 +380,8 @@ func _sync_neighbors(neighbors: Array) -> void:
 # --- introspection (for CellInspector) --------------------------------------
 
 func _note(cx: int, cy: int, idx: int, kind: String, y: float) -> void:
+	if not _noting:
+		return   # dynamic-only (creature) rebuilds don't record; _placed holds the static zone
 	var k := Vector2i(cx, cy)
 	if not _placed.has(k):
 		_placed[k] = []
@@ -841,10 +879,10 @@ func _is_vegetation(tile: String) -> bool:
 func _is_creature(obj: Dictionary) -> bool:
 	return bool(obj.get("creature", obj.get("sinks", false)))
 
-func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, sink := 0.0, wet := false, remembered := false) -> void:
-	# Remembered neighbour zones show their static terrain but not their creatures —
-	# those have wandered off since the zone was last live.
-	if remembered and _is_creature(obj):
+func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, sink := 0.0, wet := false, skip_creatures := false) -> void:
+	# Static builds exclude creatures (they render per step in _rebuild_dynamics);
+	# remembered zones drop them entirely (they've wandered off since last live).
+	if skip_creatures and _is_creature(obj):
 		return
 	var tile := String(obj.get("tile", ""))
 
