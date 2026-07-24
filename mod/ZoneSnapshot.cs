@@ -212,12 +212,22 @@ namespace RavesOfQud
         /// <summary>
         /// A tile path reduced to its FAMILY, for comparing "is this the same art?".
         ///
+        /// This is an INDEPENDENT copy of the family reduction, by design. The two
+        /// GDScript copies (ZoneRenderer.tile_family, used by the form too) are
+        /// unified into one; this one is server-side and used ONLY for ground-dedup
+        /// within a single snapshot. It never crosses to the client's override
+        /// keying, so drift here cannot mis-apply a user rule — at worst it emits or
+        /// drops one duplicate ground tile. Keep the reduction rules matching the
+        /// GDScript one anyway, for consistency.</summary>
+        /// <remarks>Original doc:
+        /// A tile path reduced to its FAMILY, for comparing "is this the same art?".
+        ///
         /// Comparing exact paths is not enough: a water wheel cell handed back
         /// `sw_waterwheel_3` from the compositor while the object drew
         /// `sw_waterwheel_1`, so the duplicate slipped through and a second wheel
         /// was laid flat under the first. Variant numbers and autotile bitmasks are
         /// both just "which picture of this thing", so both are stripped.
-        /// </summary>
+        /// </remarks>
         private static string TileFamily(string tile)
         {
             if (string.IsNullOrEmpty(tile)) return "";

@@ -143,7 +143,7 @@ func _upsert_override(slot: String, verdict: String) -> void:
 		_status.text = "no tiles dir yet — take a turn in Qud"
 		return
 	var data := _read_overrides(path)
-	var fam := _family(_tile)
+	var fam := _renderer.tile_family(_tile)
 	var tiles: Dictionary = data.get("tiles", {})
 	var entry: Dictionary = tiles.get(fam, {})
 	entry[slot] = verdict
@@ -162,7 +162,7 @@ func _clear_override() -> void:
 		return
 	var data := _read_overrides(path)
 	var tiles: Dictionary = data.get("tiles", {})
-	var fam := _family(_tile)
+	var fam := _renderer.tile_family(_tile)
 	if tiles.has(fam):
 		tiles.erase(fam)
 		data["tiles"] = tiles
@@ -188,27 +188,6 @@ func _write_overrides(path: String, data: Dictionary) -> void:
 	if f != null:
 		f.store_string(JSON.stringify(data, "  "))
 		f.close()
-
-## Tile path -> family, matching ZoneRenderer._tile_family so keys line up.
-func _family(tile: String) -> String:
-	var t := tile.replace("\\", "/").get_file().get_basename().to_lower()
-	var dash := t.rfind("-")
-	if dash > 0 and _is_binary(t.substr(dash + 1)):
-		t = t.substr(0, dash)
-	var end := t.length()
-	while end > 0 and t[end - 1] >= "0" and t[end - 1] <= "9":
-		end -= 1
-	if end > 0 and end < t.length() and t[end - 1] == "_":
-		end -= 1
-	return t.substr(0, end) if end > 0 else t
-
-func _is_binary(s: String) -> bool:
-	if s.length() == 0:
-		return false
-	for c in s:
-		if c != "0" and c != "1":
-			return false
-	return true
 
 # --- one-off notes: reports/*.md --------------------------------------------
 

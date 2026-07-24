@@ -173,6 +173,10 @@ func build_report(cx: int, cy: int, hit: Vector3) -> String:
 			int(bool(o.get("wall", false))), int(bool(o.get("occluding", false))),
 			int(bool(o.get("solid", false))), int(bool(o.get("bridge", false))),
 			int(bool(o.get("sinks", false)))])
+		if _renderer != null and tile != "":
+			var ov := _renderer.override_summary(tile)
+			if ov != "":
+				L.append("     OVERRIDE %s  (from overrides.json)" % ov)
 		if acts.has(i):
 			for p in acts[i]:
 				L.append("     RENDERED %s  y=%.3f" % [p["kind"], p["y"]])

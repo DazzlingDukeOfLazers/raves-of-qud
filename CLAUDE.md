@@ -104,6 +104,13 @@ until changed. The form's **Clear rules** button removes a tile's entry; that is
 hand-delete an entry to "resolve" a tile unless you mean to revert its render. Hand-editing the
 JSON is fine (read-modify-write preserves it).
 
+The tile→family reduction has **one** GDScript source, `ZoneRenderer.tile_family()`; the form
+calls it rather than duplicating it, so a written key and a looked-up key can't drift. The
+inspector prints `OVERRIDE shape=… fill=…` for any tile that has an entry, so a rule that
+doesn't take (typo'd family, wrong tile) is visible, not silent. The C# `TileFamily()` in the
+mod is a separate copy on purpose — it's server-side, used only for ground-dedup within a
+snapshot, and never touches override keying.
+
 **One-off notes** (colour, position, free text) → dated `.md` files under `reports/`, each with
 the full inspector capture attached. These are **tickets**: read the directory for what's
 outstanding, delete a file once addressed. Deleting a note never changes the render.

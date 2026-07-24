@@ -272,7 +272,7 @@ func _cell_sink(cell: Dictionary) -> float:
 
 ## A tile path reduced to its family, so one verdict covers every variant:
 ## `sw_waterwheel_1` and `_3`, `wall_rock-10100010` and every other bitmask.
-func _tile_family(tile: String) -> String:
+func tile_family(tile: String) -> String:
 	var t := tile.replace("\\", "/").get_file().get_basename().to_lower()
 	var dash := t.rfind("-")
 	if dash > 0 and _is_binary(t.substr(dash + 1)):
@@ -374,12 +374,26 @@ func fill_mode_for(tile: String) -> int:
 func _fill_for(tile: String, fallback: int) -> int:
 	if _fill_overrides.is_empty() or tile == "":
 		return fallback
-	return int(_fill_overrides.get(_tile_family(tile), fallback))
+	return int(_fill_overrides.get(tile_family(tile), fallback))
+
+## Active standing rules on a tile, as text — so the inspector can show whether a
+## filed rule actually took. A key that doesn\'t match returns "", which reads as
+## "no override" and makes a typo'd overrides.json entry visible instead of silent.
+func override_summary(tile: String) -> String:
+	var fam := tile_family(tile)
+	var parts := []
+	if _overrides.has(fam):
+		parts.append("shape=" + String(_overrides[fam]))
+	if _fill_overrides.has(fam):
+		var names := ["none", "all", "interior", "fill-holes"]
+		var m := int(_fill_overrides[fam])
+		parts.append("fill=" + (names[m] if m < names.size() else str(m)))
+	return "" if parts.is_empty() else "  ".join(parts)
 
 func _override_for(tile: String) -> String:
 	if _overrides.is_empty() or tile == "":
 		return ""
-	return String(_overrides.get(_tile_family(tile), ""))
+	return String(_overrides.get(tile_family(tile), ""))
 
 func _is_prism(obj: Dictionary) -> bool:
 	# a user verdict wins outright — that's the point of filing one
