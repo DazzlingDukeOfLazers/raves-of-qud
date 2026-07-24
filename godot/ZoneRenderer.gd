@@ -920,10 +920,13 @@ func _rebuild_walls(wall_types: Dictionary) -> void:
 		# gaps between protruding columns into the empty cell. Coloured a darker
 		# shade of the wall's darkest colour, so recesses read as deep shadow.
 		var core_mat := _wall_core_material()
+		# The core fills the block just BEHIND the carved gap floors (0.5 - SIDE_CARVE),
+		# so a gap bottoms out on the core rather than punching through to empty space.
+		var core_half := 0.5 - SIDE_CARVE - 0.005
 		for k in cells:
 			var core := MeshInstance3D.new()
 			var bm := BoxMesh.new()
-			bm.size = Vector3(0.96, WALL_H - 0.02, 0.96)
+			bm.size = Vector3(core_half * 2.0, WALL_H - 0.02, core_half * 2.0)
 			core.mesh = bm
 			core.material_override = core_mat
 			core.position = Vector3(k.x, (WALL_H - 0.02) * 0.5, k.y)
@@ -969,7 +972,7 @@ func _place_side(mesh: ArrayMesh, k: Vector2i, deg: float) -> void:
 # --- voxel wall caps --------------------------------------------------------
 
 const VOXEL_STEP := 0.075   # world height per luminance level (caps)
-const SIDE_STEP := 0.06     # outward protrusion per luminance level (sides)
+const SIDE_CARVE := 0.10    # how deep a background gap recesses INTO the wall face
 # Luminance -> height mapping (see _rank_levels). Non-bg pixels span
 # [LUMA_FLOOR .. LUMA_GAIN]; bg is pinned to 0. LUMA_GAMMA<1 pushes the bright
 # detail pixels up into proud ridges (the one depth dial 2-bit art allows).
@@ -1072,71 +1075,76 @@ func _side_voxel_mesh(variant_tile: String) -> ArrayMesh:
 		return _side_cache[key]
 	var w := img.get_width()
 	var h := img.get_height()
-	var lev := _rank_levels(img)
+	var bg := _wall_bg_color().to_html(false)
+	# Depth per pixel: every NON-background pixel (red main AND blue detail) shares
+	# ONE flush depth at the cell boundary (z=0.5), so the highlight sits at the same
+	# depth as the red body, and the flush skins of adjacent faces meet cleanly at the
+	# corners (south edge and east edge both land on the corner line). Only the
+	# background (the gaps/rivet holes) carves INWARD, revealing the dark core.
+	var dep := []
+	for y in h:
+		var row := []
+		for x in w:
+			row.append(0.5 - SIDE_CARVE if img.get_pixel(x, y).to_html(false) == bg else 0.5)
+		dep.append(row)
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var pw := 1.0 / w
 	var ph := WALL_H / h
 	for y in h:
 		for x in w:
-			var l: float = lev[y][x]
 			var col := img.get_pixel(x, y)
-			var d: float = 0.5 + l * SIDE_STEP           # outward from the cell edge
+			var d: float = dep[y][x]
 			var xa := -0.5 + x * pw                       # along the edge
 			var xb := xa + pw
 			var yt: float = WALL_H - y * ph               # row 0 = top of the wall
 			var yb: float = yt - ph
-			# front face (normal +Z)
+			# outward face at this pixel's depth (normal +Z)
 			for p in [Vector3(xa, yb, d), Vector3(xb, yb, d), Vector3(xb, yt, d),
 					  Vector3(xa, yb, d), Vector3(xb, yt, d), Vector3(xa, yt, d)]:
 				st.set_normal(Vector3(0, 0, 1)); st.set_color(col); st.add_vertex(p)
-			# side steps down to a shallower neighbour (or the base at grid edges)
-			_side_step(st, x, y, l, lev, w, h, xa, xb, yt, yb, d, col)
+			# walls of the carved gaps (only toward a deeper neighbour)
+			_side_step(st, x, y, d, dep, w, h, xa, xb, yt, yb, col)
 	var mesh := ArrayMesh.new()
 	st.commit(mesh)
 	_side_cache[key] = mesh
 	return mesh
 
-## Vertical/horizontal step faces around a protruding side pixel, only toward a
-## shallower neighbour, from that neighbour's depth out to this pixel's depth.
-func _side_step(st: SurfaceTool, x: int, y: int, l: float, lev: Array, w: int, h: int,
-		xa: float, xb: float, yt: float, yb: float, d: float, col: Color) -> void:
+## Walls of a carved-in background gap: for each neighbour that sits DEEPER than
+## this pixel, draw the connecting face from the neighbour's depth out to this
+## pixel's depth. Off-cell neighbours are the flush surface (0.5), so the outer
+## boundary stays closed and the corners meet.
+func _side_step(st: SurfaceTool, x: int, y: int, d: float, dep: Array, w: int, h: int,
+		xa: float, xb: float, yt: float, yb: float, col: Color) -> void:
 	for dir in [[1, 0], [-1, 0], [0, 1], [0, -1]]:
 		var nx: int = x + dir[0]
 		var ny: int = y + dir[1]
-		var nl := -1.0                                 # off-cell -> base (below any level)
+		var nd := 0.5                                  # off-cell -> flush surface
 		if nx >= 0 and nx < w and ny >= 0 and ny < h:
-			nl = float(lev[ny][nx])
-		if nl >= l:
-			continue
-		var d0: float = 0.5 + maxf(nl, 0.0) * SIDE_STEP
+			nd = float(dep[ny][nx])
+		if nd >= d:
+			continue                                   # neighbour not deeper -> no wall
 		var a: Vector3; var b: Vector3; var nrm: Vector3
 		if dir == [1, 0]:      a = Vector3(xb, yb, 0); b = Vector3(xb, yt, 0); nrm = Vector3(1, 0, 0)
 		elif dir == [-1, 0]:   a = Vector3(xa, yt, 0); b = Vector3(xa, yb, 0); nrm = Vector3(-1, 0, 0)
 		elif dir == [0, 1]:    a = Vector3(xb, yb, 0); b = Vector3(xa, yb, 0); nrm = Vector3(0, -1, 0)
 		else:                  a = Vector3(xa, yt, 0); b = Vector3(xb, yt, 0); nrm = Vector3(0, 1, 0)
 		var af := Vector3(a.x, a.y, d); var bf := Vector3(b.x, b.y, d)
-		var a0 := Vector3(a.x, a.y, d0); var b0 := Vector3(b.x, b.y, d0)
-		for p in [a0, bf, af, a0, b0, bf]:
+		var an := Vector3(a.x, a.y, nd); var bn := Vector3(b.x, b.y, nd)
+		for p in [an, bf, af, an, bn, bf]:
 			st.set_normal(nrm); st.set_color(col); st.add_vertex(p)
 
 ## Shared material for voxel caps:
 
-## Shared material for voxel caps: shaded, colour comes from the per-pixel vertex
-## colour, so one material covers every wall type and the sun shades the relief.
-## A darker shade of the wall's DARKEST colour — the fill for the solid core, so
-## gaps between voxel columns read as deep shadow inside the block, not through it.
+## The core seen through the carved gaps. Art theory: a recess reads as a darker,
+## slightly ambient-tinted shade of the material ITSELF, not a foreign colour. So
+## take the wall's MAIN (the "red"), darken it, and nudge it toward the scene
+## background (the teal ambient) — a colour between the red and the world bg, as
+## requested — so gaps read as deep shadow in the material rather than a teal hole.
 func _wall_core_material() -> StandardMaterial3D:
-	var cols := [_qud_color(_wall_main), _qud_color(_wall_detail), _world_bg]
-	if _wall_bg != "":
-		cols.append(_qud_color(_wall_bg))
-	var darkest: Color = cols[0]
-	for c in cols:
-		if (c.r + c.g + c.b) < (darkest.r + darkest.g + darkest.b):
-			darkest = c
-	var dark: Color = darkest.darkened(0.45)
+	var recess: Color = _qud_color(_wall_main).darkened(0.55).lerp(_world_bg, 0.25)
 	var m := StandardMaterial3D.new()
-	m.albedo_color = dark
+	m.albedo_color = recess
 	m.roughness = 0.95
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL if SHADED_WORLD else BaseMaterial3D.SHADING_MODE_UNSHADED
 	return m
