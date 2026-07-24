@@ -906,14 +906,6 @@ func _rebuild_walls(wall_types: Dictionary) -> void:
 		_wall_tile = t["tile"]; _wall_main = t["main"]; _wall_detail = t["detail"]; _wall_bg = t["bg"]
 		var cells: Dictionary = t["cells"]
 
-		# SIDES stay greedy-merged: exposed faces run together and the art tiles
-		# cleanly along a wall.
-		var mesh := _build_wall_mesh(cells)
-		if mesh.get_surface_count() >= 1:
-			mesh.surface_set_material(0, _wall_side_material())
-		var mi := MeshInstance3D.new()
-		mi.mesh = mesh
-		_wall_root.add_child(mi)
 
 		# ROOFS are per-cell, grouped by autotile variant. Merging them under one
 		# texture drew the fully-bordered isolated tile on every cell, so a run of
@@ -928,18 +920,34 @@ func _rebuild_walls(wall_types: Dictionary) -> void:
 			by_variant[v].append(k)
 		for v in by_variant:
 			var vmesh: ArrayMesh = _voxel_cap_mesh(v)
-			if vmesh == null:
-				continue
+			var smesh: ArrayMesh = _side_voxel_mesh(v)
 			for k in by_variant[v]:
-				var rmi := MeshInstance3D.new()
-				rmi.mesh = vmesh
-				rmi.material_override = _voxel_material()
-				rmi.position = Vector3(k.x, 0.0, k.y)
-				_wall_root.add_child(rmi)
+				if vmesh != null:
+					var rmi := MeshInstance3D.new()
+					rmi.mesh = vmesh
+					rmi.material_override = _voxel_material()
+					rmi.position = Vector3(k.x, 0.0, k.y)
+					_wall_root.add_child(rmi)
+				# a voxel side on each edge whose orthogonal neighbour isn't this wall.
+				# the side mesh faces +Z (south); rotate it onto each exposed edge.
+				if smesh != null:
+					if not cells.has(Vector2i(k.x, k.y + 1)): _place_side(smesh, k, 0.0)     # S
+					if not cells.has(Vector2i(k.x + 1, k.y)): _place_side(smesh, k, 90.0)    # E
+					if not cells.has(Vector2i(k.x, k.y - 1)): _place_side(smesh, k, 180.0)   # N
+					if not cells.has(Vector2i(k.x - 1, k.y)): _place_side(smesh, k, 270.0)   # W
+
+func _place_side(mesh: ArrayMesh, k: Vector2i, deg: float) -> void:
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	mi.material_override = _voxel_material()
+	mi.position = Vector3(k.x, 0.0, k.y)
+	mi.rotation = Vector3(0, deg_to_rad(deg), 0)
+	_wall_root.add_child(mi)
 
 # --- voxel wall caps --------------------------------------------------------
 
-const VOXEL_STEP := 0.075   # world height per colour-rank level
+const VOXEL_STEP := 0.075   # world height per colour-rank level (caps)
+const SIDE_STEP := 0.06     # outward protrusion per colour-rank level (sides)
 var _voxel_cache := {}      # cap key -> ArrayMesh
 var _voxel_mat: StandardMaterial3D
 
@@ -948,7 +956,32 @@ var _voxel_mat: StandardMaterial3D
 ## of its colour by pixel count — the commonest colour (usually the filled
 ## background) is the base, rarer colours (the border/detail) stand proud, which
 ## is the "transparent is deepest, each colour extrudes" idea as real geometry.
-## Cached per variant+colour, so it is built once and instanced per cell.
+## Per-pixel height LEVEL grid: rank each colour by pixel count (commonest -> 0,
+## rarest -> highest), so the border/detail stands proudest and the filled
+## background is the base. Shared by cap and side voxels.
+func _rank_levels(img: Image) -> Array:
+	var w := img.get_width()
+	var h := img.get_height()
+	var counts := {}
+	for y in h:
+		for x in w:
+			var c := img.get_pixel(x, y).to_html(false)
+			counts[c] = int(counts.get(c, 0)) + 1
+	var order := counts.keys()
+	order.sort_custom(func(a, b): return int(counts[a]) > int(counts[b]))
+	var level := {}
+	for i in order.size():
+		level[order[i]] = i
+	var lev := []
+	for y in h:
+		var row := []
+		for x in w:
+			row.append(int(level[img.get_pixel(x, y).to_html(false)]))
+		lev.append(row)
+	return lev
+
+## Voxel relief mesh for a wall variant's cap, centred on its cell, rising from
+## WALL_H. Cached per variant+colour, built once and instanced per cell.
 func _voxel_cap_mesh(variant_tile: String) -> ArrayMesh:
 	# reuse the recoloured, fully-framed cap the flat path already produced
 	var tex := _cap_tex(variant_tile)
@@ -963,25 +996,7 @@ func _voxel_cap_mesh(variant_tile: String) -> ArrayMesh:
 
 	var w := img.get_width()
 	var h := img.get_height()
-	# rank colours by pixel count: commonest -> level 0, rarest -> highest
-	var counts := {}
-	for y in h:
-		for x in w:
-			var c := img.get_pixel(x, y).to_html(false)
-			counts[c] = int(counts.get(c, 0)) + 1
-	var order := counts.keys()
-	order.sort_custom(func(a, b): return int(counts[a]) > int(counts[b]))
-	var level := {}
-	for i in order.size():
-		level[order[i]] = i
-
-	# per-pixel level grid, so steps can be culled against neighbours
-	var lev := []
-	for y in h:
-		var row := []
-		for x in w:
-			row.append(int(level[img.get_pixel(x, y).to_html(false)]))
-		lev.append(row)
+	var lev := _rank_levels(img)
 
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -1003,6 +1018,73 @@ func _voxel_cap_mesh(variant_tile: String) -> ArrayMesh:
 	st.commit(mesh)
 	_voxel_cache[key] = mesh
 	return mesh
+
+## Voxel relief for ONE wall face, in local cell space facing +Z (the south edge):
+## the front-face art extruded OUTWARD per colour rank, so the wall's surface reads
+## as bumpy stone that catches the sun. Qud uses the same south-face art on all four
+## sides, so this one cached mesh is instanced+rotated onto each exposed edge.
+var _side_cache := {}
+func _side_voxel_mesh(variant_tile: String) -> ArrayMesh:
+	var tex := _wall_region_tex("side")
+	if tex == null:
+		return null
+	var img := tex.get_image()
+	if img == null:
+		return null
+	var key := "%s|%s|%s|%s" % [variant_tile, _wall_main, _wall_detail, _wall_bg]
+	if _side_cache.has(key):
+		return _side_cache[key]
+	var w := img.get_width()
+	var h := img.get_height()
+	var lev := _rank_levels(img)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var pw := 1.0 / w
+	var ph := WALL_H / h
+	for y in h:
+		for x in w:
+			var l: int = lev[y][x]
+			var col := img.get_pixel(x, y)
+			var d: float = 0.5 + l * SIDE_STEP           # outward from the cell edge
+			var xa := -0.5 + x * pw                       # along the edge
+			var xb := xa + pw
+			var yt: float = WALL_H - y * ph               # row 0 = top of the wall
+			var yb: float = yt - ph
+			# front face (normal +Z)
+			for p in [Vector3(xa, yb, d), Vector3(xb, yb, d), Vector3(xb, yt, d),
+					  Vector3(xa, yb, d), Vector3(xb, yt, d), Vector3(xa, yt, d)]:
+				st.set_normal(Vector3(0, 0, 1)); st.set_color(col); st.add_vertex(p)
+			# side steps down to a shallower neighbour (or the base at grid edges)
+			_side_step(st, x, y, l, lev, w, h, xa, xb, yt, yb, d, col)
+	var mesh := ArrayMesh.new()
+	st.commit(mesh)
+	_side_cache[key] = mesh
+	return mesh
+
+## Vertical/horizontal step faces around a protruding side pixel, only toward a
+## shallower neighbour, from that neighbour's depth out to this pixel's depth.
+func _side_step(st: SurfaceTool, x: int, y: int, l: int, lev: Array, w: int, h: int,
+		xa: float, xb: float, yt: float, yb: float, d: float, col: Color) -> void:
+	for dir in [[1, 0], [-1, 0], [0, 1], [0, -1]]:
+		var nx: int = x + dir[0]
+		var ny: int = y + dir[1]
+		var nl := -1
+		if nx >= 0 and nx < w and ny >= 0 and ny < h:
+			nl = int(lev[ny][nx])
+		if nl >= l:
+			continue
+		var d0: float = 0.5 + maxi(nl, 0) * SIDE_STEP
+		var a: Vector3; var b: Vector3; var nrm: Vector3
+		if dir == [1, 0]:      a = Vector3(xb, yb, 0); b = Vector3(xb, yt, 0); nrm = Vector3(1, 0, 0)
+		elif dir == [-1, 0]:   a = Vector3(xa, yt, 0); b = Vector3(xa, yb, 0); nrm = Vector3(-1, 0, 0)
+		elif dir == [0, 1]:    a = Vector3(xb, yb, 0); b = Vector3(xa, yb, 0); nrm = Vector3(0, -1, 0)
+		else:                  a = Vector3(xa, yt, 0); b = Vector3(xb, yt, 0); nrm = Vector3(0, 1, 0)
+		var af := Vector3(a.x, a.y, d); var bf := Vector3(b.x, b.y, d)
+		var a0 := Vector3(a.x, a.y, d0); var b0 := Vector3(b.x, b.y, d0)
+		for p in [a0, bf, af, a0, b0, bf]:
+			st.set_normal(nrm); st.set_color(col); st.add_vertex(p)
+
+## Shared material for voxel caps:
 
 ## Shared material for voxel caps: shaded, colour comes from the per-pixel vertex
 ## colour, so one material covers every wall type and the sun shades the relief.

@@ -504,8 +504,9 @@ Wall **caps are voxel geometry** (`_voxel_cap_mesh`): each pixel of the cap art 
 whose height is the RANK of its colour by pixel count — the commonest colour (the filled
 background) is the base, rarer colours (border/detail) stand proud. Real relief that catches the
 sun and casts pixel-level shadows. Built once per autotile variant+colour (`_voxel_cache`) and
-INSTANCED per cell, so the per-turn cost is a MeshInstance, not a rebuild. Wall SIDES still use a
-normal map (`_normal_from_tex`) for cheaper relief: a Sobel of the tile's
+INSTANCED per cell, so the per-turn cost is a MeshInstance, not a rebuild. Wall SIDES are voxelised the same way (`_side_voxel_mesh`): the south-face art
+extruded outward per colour rank. Qud uses that one face on all four sides, so a single cached
+side mesh is instanced and rotated onto each exposed edge. Caps + sides = one voxel look: a Sobel of the tile's
 luminance encoded as a tangent-space normal, so bright detail reads as raised and the filled
 background as deep. It costs no extra triangles and, because it feeds the real sun, the relief
 rakes and shifts as the sun moves. True geometry (voxels / displacement) would cast pixel-level
