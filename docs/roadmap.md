@@ -269,3 +269,21 @@ Ordered by when they're needed. Each is additive to the snapshot.
 `globalCoord(zoneId, x, y)` in the mod + a headless print of two cells' vector — one afternoon,
 zero render risk, and it forces us to confirm the zone-id field order (ask 5) that everything else
 stacks on. From there, Phase 0's store is the real spine.
+
+---
+
+## Parked (post-MVP polish)
+
+Deliberately deferred until the MVP is together — hardcoded sensible defaults for now.
+
+- **User-facing sliders** for the render/atmosphere tunables: fog begin/end/curve (currently
+  `Main` constants), and likely ambient/sun energy, `SIDE_CARVE`/`CAP_CARVE`, day-length. An
+  in-viewer settings panel so Daniel dials the look live instead of editing constants + reloading.
+
+## Progress (as of 2026-07-24)
+
+Phase 0 done (global coords + store). Phase 1 landed: remembered-neighbour rendering (full
+fidelity, frozen — built once, rebuilt only on zone crossing), **depth-fog dimming**, and **on-disk
+persistence** keyed by `gameId`. Remaining Phase 1: a render radius + LRU eviction, and growing the
+ground plane (far zones currently sit over a 400×400 void). Then Phase 2 (Z-strata) and Phase 3
+(fork).
