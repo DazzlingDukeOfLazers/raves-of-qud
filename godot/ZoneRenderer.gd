@@ -13,6 +13,10 @@ class_name ZoneRenderer
 const CELL := 1.0
 const FLOOR_LAYER_MAX := 2
 const WALL_H := 1.2
+# When true, walls and the ground use SHADED materials lit by the sun so they
+# cast/receive directional shadows. When false, everything is UNSHADED (exact tile
+# colours, no shadows) -- the original look. Flip this to compare.
+const SHADED_WORLD := true
 const FENCE_H := 0.6  # standing height of fence/pipe panels (content, sat on ground)
 const FLOAT_Y := WALL_H * 0.5  # cell mid-height, where a "float" verdict centres a tile
 const PIXEL_SIZE := 0.042
@@ -128,7 +132,7 @@ func _ready() -> void:
 	ground.mesh = gpm
 	ground.position = Vector3(40, -0.02, 12)  # big enough to cover any zone
 	var gm := StandardMaterial3D.new()
-	gm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	gm.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL if SHADED_WORLD else BaseMaterial3D.SHADING_MODE_UNSHADED
 	gm.albedo_color = _world_bg
 	_ground_mat = gm
 	ground.material_override = gm
@@ -1149,9 +1153,17 @@ func _framed_top(src: Image) -> ImageTexture:
 
 func _wall_mat_from_tex(tex: ImageTexture) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
-	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	m.vertex_color_use_as_albedo = true   # baked per-face shade multiplies the rock
-	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	if SHADED_WORLD:
+		# real lighting shades the faces by their normals and lets them receive the
+		# sun\'s shadow. Drop the baked per-face vertex shade so it does not double up.
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
+		m.vertex_color_use_as_albedo = false
+		# back faces would self-shadow oddly once lit; cull them now that form is real.
+		m.cull_mode = BaseMaterial3D.CULL_BACK
+	else:
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		m.vertex_color_use_as_albedo = true   # baked per-face shade multiplies the rock
+		m.cull_mode = BaseMaterial3D.CULL_DISABLED
 	if tex != null:
 		m.albedo_texture = tex
 		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST

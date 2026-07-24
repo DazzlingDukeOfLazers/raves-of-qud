@@ -490,6 +490,16 @@ are rebuilt meshes.
 
 ---
 
+## Shading: unshaded by default, shaded for shadows
+
+`ZoneRenderer.SHADED_WORLD` flips the model. **false** = every material `UNSHADED` (exact tile
+colours, no lighting — the original look). **true** (current) = walls and the ground use
+`SHADING_MODE_PER_PIXEL`, lit by a day/night `DirectionalLight3D` (in `Main`) that casts
+orthogonal shadows and fades its energy with daylight. Ambient is raised (~0.72) so tiles keep
+their colour where the sun doesn't reach; the baked per-face vertex shade is dropped when shaded
+so it doesn't double with the real light. Billboards/floors stay unshaded. This is the one place
+the exact-colour guarantee is traded for atmosphere — flip the flag to compare.
+
 ## The feedback loop (cell inspector)
 
 Claude cannot see the Godot viewport, and describing a render in prose is the slowest and

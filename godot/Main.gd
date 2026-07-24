@@ -95,11 +95,6 @@ func _ready() -> void:
 	add_child(client)
 	client.snapshot.connect(_on_snapshot)
 
-	var sun := DirectionalLight3D.new()
-	sun.rotation_degrees = Vector3(-60, -45, 0)
-	sun.light_energy = 1.4
-	add_child(sun)
-
 	var we := WorldEnvironment.new()
 	var env := Environment.new()
 	env.background_mode = Environment.BG_COLOR
@@ -107,8 +102,10 @@ func _ready() -> void:
 	# Use the explicit ambient colour as fill (default source is the dark BG, which
 	# left lit surfaces almost black). This is what makes the rock read as lit.
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.55, 0.55, 0.62)
-	env.ambient_light_energy = 0.65
+	# high, near-neutral ambient so shaded surfaces keep their tile colour where the
+	# sun does not reach; the sun then adds directional highlight + shadow on top.
+	env.ambient_light_color = Color(0.72, 0.72, 0.74)
+	env.ambient_light_energy = 0.72
 	_env = env
 	we.environment = env
 	add_child(we)
@@ -139,8 +136,11 @@ func _ready() -> void:
 	# materials, but it is the hook directional shadows will hang on once walls
 	# move to a shaded material.
 	_sun_light = DirectionalLight3D.new()
-	_sun_light.light_energy = 0.6
-	_sun_light.shadow_enabled = false
+	_sun_light.light_energy = 0.0            # set per hour in _update_sky
+	_sun_light.shadow_enabled = true
+	_sun_light.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
+	_sun_light.shadow_bias = 0.04
+	_sun_light.shadow_normal_bias = 1.5
 	add_child(_sun_light)
 
 	_pivot = Node3D.new()
@@ -376,10 +376,12 @@ func _update_sky(hour: float, dawn: float, dusk: float) -> void:
 	_sun.visible = sun_a > 0.01
 	_moon.visible = sun_a < 0.99
 
-	# aim the sun light down its arc (for future shadows)
+	# aim the sun light down its arc and fade its energy with daylight, so shadows
+	# appear during the day and vanish at night (ambient + grade carry the night).
 	if _sun_light != null:
 		var d := (_zone_center - _sun.position).normalized()
 		_sun_light.rotation = Vector3(asin(clampf(d.y, -1.0, 1.0)), atan2(d.x, d.z), 0.0)
+		_sun_light.light_energy = sun_a * 0.6
 
 ## A body's world position for arc progress 0(rise)..1(set), tilted so it clears
 ## the horizon in a tilted view rather than sitting straight overhead.
