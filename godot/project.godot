@@ -20,5 +20,11 @@ config/features=PackedStringArray("4.7", "Forward Plus")
 
 [display]
 
-window/size/viewport_width=3840
-window/size/viewport_height=2160
+; A logical 1600x900 window rendered at NATIVE pixel density (allow_hidpi) is the
+; real fix for the "aliased text": on a Retina Mac, hidpi=false renders at logical
+; resolution and lets macOS upscale -> blur. hidpi=true draws at physical pixels ->
+; crisp, without a 3840-wide window the OS then clamps and appears to "jump".
+window/size/viewport_width=1600
+window/size/viewport_height=900
+window/size/resizable=true
+window/dpi/allow_hidpi=true

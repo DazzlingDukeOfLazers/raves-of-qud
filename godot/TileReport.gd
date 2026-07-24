@@ -53,7 +53,6 @@ var _status: Label
 
 const FONT := 19          # matches the inspector's readable default
 const PANEL_W := 520
-const PANEL_H := 430
 
 var _font := FONT
 var _title: Label
@@ -242,11 +241,19 @@ func _build() -> void:
 	add_child(layer)
 
 	_panel = PanelContainer.new()
-	_panel.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	_panel.offset_left = -(PANEL_W + 14)
-	_panel.offset_top = -(PANEL_H + 14)
+	# Pin the BOTTOM-RIGHT corner and grow up/left to fit the content. The panel
+	# used to be a fixed 520x430 box, so when the fonts and the extra controls made
+	# the content taller than 430 it overflowed off the bottom — taking the Submit
+	# button with it. Auto-height from a pinned bottom keeps the button on screen.
+	_panel.anchor_left = 1.0
+	_panel.anchor_top = 1.0
+	_panel.anchor_right = 1.0
+	_panel.anchor_bottom = 1.0
 	_panel.offset_right = -14
 	_panel.offset_bottom = -14
+	_panel.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_panel.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_panel.custom_minimum_size = Vector2(PANEL_W, 0)   # fixed width, height from content
 	_panel.visible = false
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.03, 0.05, 0.04, 0.94)
@@ -323,7 +330,7 @@ func _apply_font() -> void:
 	_notes.add_theme_font_size_override("font_size", _font)
 	_send.add_theme_font_size_override("font_size", _font)
 	_clear.add_theme_font_size_override("font_size", _font)
-	_notes.custom_minimum_size = Vector2(0, _font * 6)
+	_notes.custom_minimum_size = Vector2(0, mini(_font * 5, 130))
 
 func hide_panel() -> void:
 	_panel.visible = false
