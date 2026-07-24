@@ -111,6 +111,21 @@ var _light_root: Node3D
 var _remembered_root: Node3D    # parent of the frozen per-zone neighbour subtrees
 var _static_zones := {}         # zoneId -> Node3D (that zone's frozen geometry)
 var _bank: Node3D = null        # non-null while building a remembered zone INTO it
+var _live_wall_sig := 0         # hash of the live zone's walls; skip rebuild if unchanged
+
+## A deterministic signature of the live zone's walls (zone id + every wall cell's
+## coord and autotile variant + colour key), so _rebuild_walls is skipped while you
+## step within a zone and only fires when a wall actually changes.
+func _wall_sig_parts(zone_id: String, wall_types: Dictionary) -> Array:
+	var parts: Array = [zone_id]
+	for key in wall_types:
+		parts.append(key)
+		var cells: Dictionary = wall_types[key]["cells"]
+		for k in cells:
+			parts.append(k.x)
+			parts.append(k.y)
+			parts.append(cells[k])
+	return parts
 
 ## Parent for freshly-spawned nodes: the frozen bank when building a remembered
 ## zone, else the renderer itself (live zone, pooled).
@@ -229,7 +244,15 @@ func render_snapshot(data: Dictionary, neighbors: Array = []) -> void:
 	Profiler.begin("render.live")
 	var wall_types := {}
 	_build_zone(data.get("cells", []), Vector2i.ZERO, false, wall_types)
-	_rebuild_walls(wall_types)
+	# Freeze the walls: their voxel meshes/instances are the heavy part and don't
+	# change as you step within a zone. Only rebuild when the wall set actually
+	# changes (a new zone, or a dug/built wall), keyed by a hash of every wall cell.
+	Profiler.begin("render.walls")
+	var wsig := hash(_wall_sig_parts(String(data.get("zone", {}).get("id", "")), wall_types))
+	if wsig != _live_wall_sig:
+		_live_wall_sig = wsig
+		_rebuild_walls(wall_types)
+	Profiler.done("render.walls")
 	Profiler.done("render.live")
 
 	# Remembered neighbours are FROZEN per-zone subtrees: each built ONCE, then only
