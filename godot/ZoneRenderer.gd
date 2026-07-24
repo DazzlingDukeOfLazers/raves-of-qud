@@ -920,9 +920,9 @@ func _rebuild_walls(wall_types: Dictionary) -> void:
 		# gaps between protruding columns into the empty cell. Coloured a darker
 		# shade of the wall's darkest colour, so recesses read as deep shadow.
 		var core_mat := _wall_core_material()
-		# The core fills the block just BEHIND the carved gap floors (0.5 - SIDE_CARVE),
-		# so a gap bottoms out on the core rather than punching through to empty space.
-		var core_half := 0.5 - SIDE_CARVE - 0.005
+		# The core's outer face sits exactly at the carved gap floor (0.5 - SIDE_CARVE),
+		# so a gap bottoms out ON the core — the core colour IS the deepest colour seen.
+		var core_half := 0.5 - SIDE_CARVE
 		for k in cells:
 			var core := MeshInstance3D.new()
 			var bm := BoxMesh.new()
@@ -1099,10 +1099,13 @@ func _side_voxel_mesh(variant_tile: String) -> ArrayMesh:
 			var xb := xa + pw
 			var yt: float = WALL_H - y * ph               # row 0 = top of the wall
 			var yb: float = yt - ph
-			# outward face at this pixel's depth (normal +Z)
-			for p in [Vector3(xa, yb, d), Vector3(xb, yb, d), Vector3(xb, yt, d),
-					  Vector3(xa, yb, d), Vector3(xb, yt, d), Vector3(xa, yt, d)]:
-				st.set_normal(Vector3(0, 0, 1)); st.set_color(col); st.add_vertex(p)
+			# Flush material pixels get an outward face; a GAP pixel gets NONE — its
+			# hole bottoms out on the dark core, so you see the recess colour, not a
+			# background-coloured quad floating at the carve depth.
+			if d >= 0.5:
+				for p in [Vector3(xa, yb, d), Vector3(xb, yb, d), Vector3(xb, yt, d),
+						  Vector3(xa, yb, d), Vector3(xb, yt, d), Vector3(xa, yt, d)]:
+					st.set_normal(Vector3(0, 0, 1)); st.set_color(col); st.add_vertex(p)
 			# walls of the carved gaps (only toward a deeper neighbour)
 			_side_step(st, x, y, d, dep, w, h, xa, xb, yt, yb, col)
 	var mesh := ArrayMesh.new()
@@ -1142,7 +1145,9 @@ func _side_step(st: SurfaceTool, x: int, y: int, d: float, dep: Array, w: int, h
 ## background (the teal ambient) — a colour between the red and the world bg, as
 ## requested — so gaps read as deep shadow in the material rather than a teal hole.
 func _wall_core_material() -> StandardMaterial3D:
-	var recess: Color = _qud_color(_wall_main).darkened(0.55).lerp(_world_bg, 0.25)
+	# Mostly the wall's own red, darkened, with only a faint ambient nudge — the
+	# earlier 25%-toward-teal read as "the same background", so keep it clearly red.
+	var recess: Color = _qud_color(_wall_main).darkened(0.5).lerp(_world_bg, 0.12)
 	var m := StandardMaterial3D.new()
 	m.albedo_color = recess
 	m.roughness = 0.95
