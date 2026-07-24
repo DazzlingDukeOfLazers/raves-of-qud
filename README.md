@@ -547,25 +547,31 @@ QupKit.ThreadTaskQueue:
 
 ## Open problems / next steps
 
-- **Snapshot payload roughly doubled** — the painted ground layer adds ~1100 objects per
-  frame. Cell-level diffing is now the obvious win, and becomes necessary before
-  neighbour-zone streaming multiplies it again.
-- **Ground drawn twice?** `DirtPath`/`DirtFloor` objects (the tan dots) sit on cells that now
-  also carry a painted ground tile. Both are RenderLayer 0. Check for z-fighting or
-  double-drawn floors, and whether the dots are redundant with the painted layer.
-- **`RenderTile` fires for essentially nothing**, so `fgHex`/`detailHex` almost never arrive and
-  the colour path is still the `ColorString` + palette route. If exact colours matter, the
-  `RenderEvent` from `Cell.Render()` carries resolved values for the ground layer already.
-- **Water depth tuning**: `SINK_WADE` / `SINK_SWIM` in `ZoneRenderer.gd` are eyeballed fractions.
-  There's no swim animation or waterline ripple yet, and the cut edge is hard.
-- **Tents** occlude, so they're currently prisms; probably want them as sprites (special-case).
+Done since the early drafts: deep water/bridges, tents-as-panels, the painted ground layer,
+per-family user overrides (shape/fill/position), the real palette + day/night + sun/moon, **voxel
+walls**, and the Python-first verification workflow. What's left:
 
-- **Neighbour-zone streaming** (the original day-one goal): the 3×3 parasang, so you can see
-  adjacent zones "over the horizon." Not started. The map hierarchy: world 80×25 parasangs;
-  parasang = 3×3 zones; zone = 80×25 cells; plus Z-strata.
-- **Exact world background colour**: `WORLD_BG` is an estimate of Qud's dark-green cell background.
-- **Perf**: full re-render per snapshot; cell-level diffing and MultiMesh are the obvious wins if
-  neighbour-zones multiply the payload.
+**Voxels** (the active area — see [docs/rendering.md §4](docs/rendering.md#4-voxel-walls--the-active-area)):
+- Match cap (`VOXEL_STEP`) and side (`SIDE_STEP`) height scales so the top edge is seamless.
+- Cell-seam grooves: side voxels drop to base at every cell edge; could match the neighbour.
+- `MultiMesh` per (variant, mesh, rotation) if the ≈5 draw calls/cell ever hitch.
+- Alternate height rules (luminance; force detail highest) — prototype in `voxel.py` first.
+
+**Perf / streaming**:
+- Full re-render per snapshot; the painted ground doubled the payload (~2000 objects/frame).
+  **Cell-level diffing** is the next win and a prerequisite for streaming.
+- **Neighbour-zone streaming** (the original day-one goal): the 3×3 parasang, so adjacent zones
+  show "over the horizon." Not started. Hierarchy: world 80×25 parasangs; parasang = 3×3 zones;
+  zone = 80×25 cells; plus Z-strata.
+
+**Rendering polish**:
+- Sprites/floors don't cast or receive shadows (only walls + ground do). Shadows on the ground
+  from a sprite would need the sprite shaded.
+- `SINK_WADE`/`SINK_SWIM` are eyeballed; no swim animation or waterline ripple; the crop edge is hard.
+- Possible double-drawn ground: `DirtPath`/`DirtFloor` dots sit on cells that also carry a painted
+  ground tile, both RenderLayer 0. Check for z-fighting / redundancy.
+- Sun/moon are tint-drivers + sky discs; no directional shadows from the moon, no visible-body arc
+  unless the camera tilts low.
 
 ### Working style that paid off
 Ground every change in real data (reflect the DLL, capture a live snapshot, decode a tile) rather

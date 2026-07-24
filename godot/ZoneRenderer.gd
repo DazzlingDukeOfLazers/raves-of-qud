@@ -314,6 +314,15 @@ func _cell_sink(cell: Dictionary) -> float:
 ## `sw_waterwheel_1` and `_3`, `wall_rock-10100010` and every other bitmask.
 func tile_family(tile: String) -> String:
 	var t := tile.replace("\\", "/").get_file().get_basename().to_lower()
+	# 0) boilerplate asset prefix: some tiles have a slash path (Items/sw_...) and
+	# some are one flat filename (Assets_Content_Textures_Tiles_sw_axle...). Strip
+	# the prefix so both yield the same clean family (sw_axle, not
+	# assets_content_textures_tiles_sw_axle) -- otherwise keys drift by tile source.
+	for pre in ["assets_content_textures_tiles_", "assets_content_textures_walls_",
+			"assets_content_textures_creatures_", "assets_content_textures_"]:
+		if t.begins_with(pre):
+			t = t.substr(pre.length())
+			break
 	# 1) trailing autotile bitmask: wall_rock-11111111 -> wall_rock
 	var dash := t.rfind("-")
 	if dash > 0 and _is_binary(t.substr(dash + 1)):

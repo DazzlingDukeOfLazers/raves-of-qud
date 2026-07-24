@@ -21,6 +21,7 @@ them after a compaction. If a path here is wrong, fix it here.
 | Qud game data (XML) | `<Qud>/Contents/Resources/Data/StreamingAssets/Base` |
 | mod deploy target | `~/Library/Application Support/com.FreeholdGames.CavesOfQud/Mods/RavesOfQudBridge/` |
 | exported tiles | `~/Library/Application Support/RavesOfQud/tiles` |
+| standing overrides | `~/Library/Application Support/RavesOfQud/overrides.json` (seed copy committed at repo `overrides.seed.json`) |
 | inspector output | `~/Library/Application Support/RavesOfQud/selection.txt` (latest), `selections.log` (history) |
 | Qud crash log | `~/Library/Logs/Freehold Games/CavesOfQud/Player.log` |
 | bridge socket | `127.0.0.1:48710` |
