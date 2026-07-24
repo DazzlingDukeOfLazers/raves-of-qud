@@ -1159,6 +1159,14 @@ func _voxel_material() -> StandardMaterial3D:
 		return _voxel_mat
 	var m := StandardMaterial3D.new()
 	m.vertex_color_use_as_albedo = true
+	# The vertex colours ARE sRGB (from _qud_color / the recoloured tile). Godot
+	# defaults vertex_color_is_srgb=false, treating them as linear, which skips the
+	# sRGB->linear step and lifts the dark green/blue channels — the wall reds came
+	# out a pale, desaturated tan. Flag them sRGB so they're converted correctly and
+	# the brick red keeps its saturation. (Other tiles look right because they use an
+	# albedo TEXTURE, which is already sRGB-flagged; only the vertex-coloured walls
+	# were affected.)
+	m.vertex_color_is_srgb = true
 	m.roughness = 0.85
 	m.cull_mode = BaseMaterial3D.CULL_DISABLED
 	if SHADED_WORLD:
