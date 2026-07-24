@@ -116,6 +116,10 @@ var _bank: Node3D = null        # non-null while building a zone's geometry INTO
 var _noting := true             # whether _note records (off during dynamic-only rebuilds)
 var _live_build := false        # true only while building the LIVE zone's static (its
                                 # torches register for the _process flicker; neighbours don't)
+var _hidden_cell := Vector2i(-9999, -9999)   # a live cell whose creature is not drawn (first-person: the player)
+
+func set_hidden_cell(c: Vector2i) -> void:
+	_hidden_cell = c
 
 ## Parent for freshly-spawned nodes: the frozen bank when building a remembered
 ## zone, else the renderer itself (live zone, pooled).
@@ -327,6 +331,8 @@ func _rebuild_dynamics(cells: Array) -> void:
 	for cell in cells:
 		var cx := int(cell.get("x", 0))
 		var cy := int(cell.get("y", 0))
+		if Vector2i(cx, cy) == _hidden_cell:
+			continue     # first-person hides the player (the camera sits on this cell)
 		var sink := _cell_sink(cell)
 		var wet: bool = bool(cell.get("wade", false)) or bool(cell.get("swim", false))
 		var idx := 0

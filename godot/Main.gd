@@ -69,7 +69,8 @@ var _dist := 14.0
 const COMPASS_PITCH := 0.61     # ~35° above the ground: a low, dramatic angle
 var _compass_yaw := 0.0         # locked heading in radians; Q/E rotate in 90° steps
 var _cine_t := 0.0              # cinematic auto-orbit phase
-const FP_EYE_H := 0.55          # first-person eye height above the ground
+const FP_EYE_H := 0.55          # first-person default eye height above the ground
+var _fp_height := FP_EYE_H      # live first-person eye height (debug-menu slider)
 var _zone_center := Vector3(40, 0, 12)
 var _pan := Vector3.ZERO     # user pan offset (MOUSE mode); persists across turns
 
@@ -79,8 +80,7 @@ const FOCUS_AHEAD := 2.0     # look at a point this far in FRONT of the player
 const FOLLOW_LERP := 6.0     # per-second approach; keeps steps from snapping
 var _player := Vector3(40, 0, 12)
 var _prev_tile := Vector2i(-9999, -9999)
-var _prev_zone_id := ""          # to detect zone crossings (camera snap, not sweep)
-var _snap_camera := false        # one-shot: cut the camera this frame instead of lerping
+var _prev_zone_id := ""          # to detect zone crossings (shift the camera to stay continuous)
 var _facing := Vector2(0, 1)     # +z is south; Qud y grows southward
 var _eye := Vector3.ZERO         # smoothed camera position
 var _look := Vector3.ZERO        # smoothed look-at target
@@ -111,6 +111,11 @@ func _apply_ui_fonts() -> void:
 		_debug_menu_title.add_theme_font_size_override("font_size", fs)
 	for m in _mode_buttons:
 		(_mode_buttons[m] as Button).add_theme_font_size_override("font_size", fs)
+	# keep the debug menu just BELOW the help label so they never overlap, even as
+	# the responsive font grows the label's height
+	if _debug_menu != null and _mode_label != null:
+		var lh: float = maxf(_mode_label.get_minimum_size().y, float(fs))
+		_debug_menu.position = Vector2(14, _mode_label.position.y + lh + 8.0)
 
 const ORBIT_SENS := 0.006
 const PITCH_MIN := 0.12
@@ -224,6 +229,10 @@ func _on_snapshot(data: Dictionary) -> void:
 	Profiler.begin("neighbors")
 	var nbs := _neighbor_zones()
 	Profiler.done("neighbors")
+	# first-person: hide the player creature (the camera sits on its cell)
+	var pc: Dictionary = data.get("player", {})
+	renderer.set_hidden_cell(Vector2i(int(pc.get("x", -1)), int(pc.get("y", -1)))
+			if _mode == CamMode.FIRST_PERSON else Vector2i(-9999, -9999))
 	Profiler.begin("render")
 	renderer.render_snapshot(store.live_snapshot(), nbs)
 	Profiler.done("render")
@@ -242,12 +251,21 @@ func _on_snapshot(data: Dictionary) -> void:
 		_zone_center = Vector3(float(z["width"]) / 2.0, 0.0, float(z["height"]) / 2.0)
 
 	# Crossing a zone edge re-anchors the live zone to local coords, so the player's
-	# (px,py) jumps discontinuously (e.g. 0 -> 79). Detect it so we DON'T read the
-	# jump as a step (which flipped `_facing`) and SNAP the camera instead of sweeping
-	# it across the whole zone.
+	# (px,py) jumps discontinuously (e.g. 0 -> 79) and everything on screen shifts.
+	# Shift the camera by the SAME amount (the two zones' global-origin difference) so
+	# it stays locked on the same world content — a seamless continuous crossing, no
+	# cut or sweep. Also don't read the coord jump as a step (it flipped `_facing`).
 	var zid := String(z.get("id", ""))
-	var crossed := _prev_zone_id != "" and zid != _prev_zone_id
+	var old_zid := _prev_zone_id
+	var crossed := old_zid != "" and zid != old_zid
 	_prev_zone_id = zid
+	if crossed and store.has_zone(old_zid) and store.has_zone(zid):
+		var oo: Vector3i = store.record(old_zid).get("origin", Vector3i.ZERO)
+		var no: Vector3i = store.record(zid).get("origin", Vector3i.ZERO)
+		var shift := Vector3(oo.x - no.x, 0.0, oo.y - no.y)
+		_eye += shift
+		_look += shift
+		_free_eye += shift
 
 	var p: Dictionary = data.get("player", {})
 	var px := int(p.get("x", -1))
@@ -255,9 +273,7 @@ func _on_snapshot(data: Dictionary) -> void:
 	if px < 0 or py < 0:
 		return
 	var tile := Vector2i(px, py)
-	if crossed:
-		_snap_camera = true      # cut, don't sweep, into the new zone
-	elif _prev_tile.x > -9999 and tile != _prev_tile:
+	if not crossed and _prev_tile.x > -9999 and tile != _prev_tile:
 		# facing = the direction of the last actual step, so the camera trails behind
 		var d := Vector2(tile.x - _prev_tile.x, tile.y - _prev_tile.y)
 		if d.length() > 0.0:
@@ -314,8 +330,8 @@ func _process(dt: float) -> void:
 		if Input.is_key_pressed(KEY_E): _yaw += 1.5 * dt
 		if Input.is_key_pressed(KEY_R): _pitch = clampf(_pitch + 1.0 * dt, PITCH_MIN, PITCH_MAX)
 		if Input.is_key_pressed(KEY_F): _pitch = clampf(_pitch - 1.0 * dt, PITCH_MIN, PITCH_MAX)
-	elif _mode == CamMode.CINEMATIC:
-		_cine_t += dt * 0.35   # slow auto-orbit
+	elif _mode == CamMode.CINEMATIC and (inspector == null or inspector.selected_tile() == null):
+		_cine_t += dt * 0.35   # slow auto-orbit ONLY with no target; a selected tile holds the framing still
 	# R/F zoom in the player-relative modes (Shift-guarded so Shift+F still switches)
 	if (_mode == CamMode.COMPASS or _mode == CamMode.FOLLOW or _mode == CamMode.FIRST_PERSON) \
 			and not Input.is_key_pressed(KEY_SHIFT):
@@ -389,7 +405,7 @@ func _update_camera(dt: float) -> void:
 			target_eye = _follow_eye()
 			target_look = _follow_look()
 		CamMode.FIRST_PERSON:
-			target_eye = _player + Vector3(0, FP_EYE_H, 0)
+			target_eye = _player + Vector3(0, _fp_height, 0)
 			target_look = target_eye + _compass_dir() + Vector3(0, -0.15, 0)
 		CamMode.CINEMATIC:
 			var cc := _frame_center()
@@ -403,10 +419,9 @@ func _update_camera(dt: float) -> void:
 			target_eye = _compass_eye()
 			target_look = _player
 
-	if dt <= 0.0 or not _seeded or _snap_camera:
+	if dt <= 0.0 or not _seeded:
 		_eye = target_eye
 		_look = target_look
-		_snap_camera = false
 	else:
 		var k: float = clampf(FOLLOW_LERP * dt, 0.0, 1.0)
 		_eye = _eye.lerp(target_eye, k)
@@ -672,6 +687,18 @@ func _build_debug_menu() -> void:
 		b.pressed.connect(func(): _set_mode(mv))
 		vb.add_child(b)
 		_mode_buttons[m] = b
+	# first-person eye-height slider
+	var hl := Label.new()
+	hl.text = "first-person height"
+	vb.add_child(hl)
+	var sld := HSlider.new()
+	sld.min_value = 0.15
+	sld.max_value = 3.0
+	sld.step = 0.05
+	sld.value = _fp_height
+	sld.custom_minimum_size = Vector2(160, 0)
+	sld.value_changed.connect(func(v): _fp_height = v)
+	vb.add_child(sld)
 	_debug_menu = panel
 	_update_debug_menu()
 
