@@ -300,6 +300,20 @@ def cmd_ident(snap, args):
         print(f"  nothing matching {needle!r} (is the new mod loaded? it needs a Qud restart)")
 
 
+def cmd_time(snap, _args):
+    header(snap)
+    t = snap.get("time", {})
+    if not t:
+        print("\nno time payload (old mod build — restart Qud)"); return
+    spd = t.get("segmentsPerDay", 12000)
+    seg = t.get("segment", 0)
+    hour = seg / spd * 24 if spd else 0
+    print(f"\n  label        {t.get('label','?')}")
+    print(f"  segment      {seg} / {spd}")
+    print(f"  hour         {hour:.2f}  (dawn {t.get('startOfDay',0)/spd*24:.1f}, dusk {t.get('startOfNight',0)/spd*24:.1f})")
+    print(f"  isDay        {t.get('isDay')}")
+
+
 def cmd_raw(snap, _args):
     json.dump(snap, sys.stdout, indent=1)
 
@@ -307,7 +321,7 @@ def cmd_raw(snap, _args):
 COMMANDS = {
     "summary": cmd_summary, "cell": cmd_cell, "families": cmd_families,
     "water": cmd_water, "find": cmd_find, "classify": cmd_classify,
-    "ident": cmd_ident, "raw": cmd_raw,
+    "ident": cmd_ident, "time": cmd_time, "raw": cmd_raw,
 }
 
 if __name__ == "__main__":

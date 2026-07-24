@@ -33,6 +33,13 @@ var _grade: ColorRect
 var _tint := Color.WHITE          # current, smoothed
 var _tint_target := Color.WHITE
 var _time_label := ""
+var _day_frac := 0.5
+var _dawn_h := 6.5
+var _dusk_h := 20.0
+var _sun: Sprite3D
+var _moon: Sprite3D
+var _sun_light: DirectionalLight3D   # follows the sun; drives future shadows
+const SKY_DIST := 180.0
 const NIGHT_TINT := Color(0.34, 0.40, 0.62)   # cool moonlit blue (Qud has no moon phase)
 const DAY_TINT := Color(1.0, 0.99, 0.96)       # near-neutral, a hair warm
 const DUSK_TINT := Color(1.0, 0.72, 0.50)      # warm dawn/dusk
@@ -112,6 +119,22 @@ func _ready() -> void:
 	_grade.material = gmat
 	_grade.color = DAY_TINT
 	glayer.add_child(_grade)
+
+	# sky bodies: sun and moon, big bright discs far out on an arc set by the hour.
+	# In a steep top-down view they sit high; tilt the camera down to see them rise
+	# and set on the horizon.
+	_sun = _make_sky_body(Color(1.0, 0.93, 0.6), 26.0)
+	_moon = _make_sky_body(Color(0.82, 0.86, 1.0), 16.0)
+	add_child(_sun)
+	add_child(_moon)
+
+	# a real sun light, aimed by the hour. It does little to the current UNSHADED
+	# materials, but it is the hook directional shadows will hang on once walls
+	# move to a shaded material.
+	_sun_light = DirectionalLight3D.new()
+	_sun_light.light_energy = 0.6
+	_sun_light.shadow_enabled = false
+	add_child(_sun_light)
 
 	_pivot = Node3D.new()
 	add_child(_pivot)
@@ -285,13 +308,74 @@ func _inspect_and_capture() -> void:
 func _update_time(t: Dictionary) -> void:
 	if t.is_empty():
 		return
-	var hpd: float = float(t.get("hoursPerDay", 24))
-	var hour: float = float(t.get("hour", 12000)) / 1000.0
-	var dawn: float = float(t.get("startOfDay", 6))
-	var dusk: float = float(t.get("startOfNight", 18))
+	# everything arrives in day-SEGMENTS; normalise to a 0..24 hour here
+	var spd: float = maxf(1.0, float(t.get("segmentsPerDay", 12000)))
+	var hour: float = float(t.get("segment", spd * 0.5)) / spd * 24.0
+	var dawn: float = float(t.get("startOfDay", 3250)) / spd * 24.0
+	var dusk: float = float(t.get("startOfNight", 10000)) / spd * 24.0
 	_time_label = String(t.get("label", ""))
-	_tint_target = _tint_for_hour(hour, dawn, dusk, hpd)
+	_day_frac = hour / 24.0
+	_dawn_h = dawn
+	_dusk_h = dusk
+	_tint_target = _tint_for_hour(hour, dawn, dusk, 24.0)
+	_update_sky(hour, dawn, dusk)
 	_update_mode_label()
+
+## A bright disc billboard for a celestial body.
+func _make_sky_body(col: Color, size_units: float) -> Sprite3D:
+	var n := 48
+	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
+	var c := (n - 1) * 0.5
+	for y in n:
+		for x in n:
+			var d: float = Vector2(x - c, y - c).length() / c
+			# solid disc with a soft glowing rim
+			var a := 1.0 if d < 0.72 else clampf(1.0 - (d - 0.72) / 0.28, 0.0, 1.0)
+			img.set_pixel(x, y, Color(col.r, col.g, col.b, a))
+	var spr := Sprite3D.new()
+	spr.texture = ImageTexture.create_from_image(img)
+	spr.pixel_size = size_units / n
+	spr.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	spr.shaded = false
+	spr.transparent = true
+	spr.no_depth_test = true            # always draw in the sky, behind nothing
+	spr.render_priority = -1
+	spr.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
+	return spr
+
+## Position sun and moon on a tilted arc: rise east, peak overhead, set west. The
+## sun tracks day (dawn..dusk); the moon tracks the night span, opposite the sun.
+## Fades each in/out across dawn and dusk so neither pops.
+func _update_sky(hour: float, dawn: float, dusk: float) -> void:
+	if _sun == null:
+		return
+	var sun_up := hour >= dawn and hour <= dusk
+	var sun_p: float = clampf((hour - dawn) / maxf(0.01, dusk - dawn), 0.0, 1.0)
+	# night runs dusk -> 24 -> dawn; fold it into 0..1 for the moon
+	var nlen: float = (24.0 - dusk) + dawn
+	var np: float = ((hour - dusk) if hour >= dusk else (hour + 24.0 - dusk)) / maxf(0.01, nlen)
+
+	_sun.position = _body_pos(sun_p)
+	_moon.position = _body_pos(np)
+
+	# cross-fade over ~1h at each boundary
+	var sun_a: float = clampf(minf(hour - dawn, dusk - hour) + 0.5, 0.0, 1.0) if sun_up else 0.0
+	_sun.modulate = Color(1, 1, 1, sun_a)
+	_moon.modulate = Color(1, 1, 1, 1.0 - sun_a)
+	_sun.visible = sun_a > 0.01
+	_moon.visible = sun_a < 0.99
+
+	# aim the sun light down its arc (for future shadows)
+	if _sun_light != null:
+		var d := (_zone_center - _sun.position).normalized()
+		_sun_light.rotation = Vector3(asin(clampf(d.y, -1.0, 1.0)), atan2(d.x, d.z), 0.0)
+
+## A body's world position for arc progress 0(rise)..1(set), tilted so it clears
+## the horizon in a tilted view rather than sitting straight overhead.
+func _body_pos(p: float) -> Vector3:
+	var theta: float = p * PI                         # 0..PI, east->zenith->west
+	var dir := Vector3(cos(theta), sin(theta) * 0.85 + 0.12, -0.45).normalized()
+	return _zone_center + dir * SKY_DIST
 
 func _tint_for_hour(hour: float, dawn: float, dusk: float, hpd: float) -> Color:
 	# widths of the dawn/dusk transitions, in hours

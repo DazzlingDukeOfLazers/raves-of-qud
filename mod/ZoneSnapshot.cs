@@ -316,14 +316,17 @@ namespace RavesOfQud
         {
             try
             {
-                long turns = The.Game != null ? The.Game.Turns : 0L;
-                int tpd = Calendar.TurnsPerDay > 0 ? Calendar.TurnsPerDay : 1200;
-                int tph = Calendar.TurnsPerHour > 0 ? Calendar.TurnsPerHour : 50;
-                long into = ((turns % tpd) + tpd) % tpd;
-                double hour = tph > 0 ? (double)into / tph : 12.0;   // 0..hoursPerDay
+                // CurrentDaySegment is the position in the day, in SEGMENTS — the
+                // same unit as StartOfDay(3250)/StartOfNight(10000), which are NOT
+                // hours. A day is TurnsPerDay*10 = 12000 segments (dawn 3250 = 6:30,
+                // dusk 10000 = 20:00). Send everything in segments and let the client
+                // normalise; sending StartOfDay as an "hour" is what pinned the grade
+                // to permanent night.
+                int seg = Calendar.CurrentDaySegment;
+                int segPerDay = Calendar.TurnsPerDay > 0 ? Calendar.TurnsPerDay * 10 : 12000;
                 j.Name("time").BeginObject()
-                    .Member("hour", (int)System.Math.Round(hour * 1000))   // hour*1000, int on the wire
-                    .Member("hoursPerDay", tph > 0 ? tpd / tph : 24)
+                    .Member("segment", seg)
+                    .Member("segmentsPerDay", segPerDay)
                     .Member("startOfDay", Calendar.StartOfDay)
                     .Member("startOfNight", Calendar.StartOfNight)
                     .Member("isDay", CalendarIsDay())
