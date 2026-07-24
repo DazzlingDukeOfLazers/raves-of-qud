@@ -63,18 +63,33 @@ from the isolated **`-00000000`** variant — the `-11111111` interior tile has 
 Walls are **voxel relief geometry**, not flat boxes. Each pixel of the wall art becomes a column
 whose height is a colour rank, so the sun rakes across real relief and casts pixel-level shadows.
 
-### The height algorithm — `_rank_levels(img)`
-1. Count pixels per colour in the (recoloured) image.
-2. **The transparent/background fill colour is forced to level 0 (deepest).** Background is
-   scenery you look past — it recesses, it does not stand proud just because it is common.
-3. The remaining colours rank **by count descending** above it: commonest → level 1, rarest →
-   highest. So the thin border/detail stands proudest.
-4. Each pixel's level × step = its height.
+### The height algorithm — `_rank_levels(img)` — LUMINANCE, not count
 
-> **Verify this in Python before changing it:** `python3 tools/capture/voxel.py <tile>` prints the
-> colour→count→level table, an ASCII height map, and an oblique preview PNG. The bg-deepest rule
-> was found there: the cap uses the isolated tile, where `main` is more common than the bg, so
-> pure count-ranking wrongly raised the background. See [tools.md](tools.md#voxelpy).
+**First, the constraint that decides everything:** Qud wall tiles are **2-bit masks** (measured —
+60/60 sampled tiles are black + white + transparent, *no* anti-aliasing). After recolour a cell
+holds **at most 3 colours** (bg, main, detail), so there are **at most 3 voxel heights**. No height
+*rule* can add relief the art doesn't contain — the only real choices are *which* 3 heights and in
+*what order*. (Don't reach for smoothing/continuous rules to de-noise the interior "egg-crate": that
+pattern is the **grating the art literally draws** — real bg holes between body pixels — not noise.)
+
+Given that, height is driven by **luminance** (the art's own light/dark), not pixel count:
+1. Transparent/background → **level 0 (deepest)**. Scenery you look past; it recesses.
+2. Each non-bg pixel → `LUMA_FLOOR + (LUMA_GAIN − LUMA_FLOOR) · luma^LUMA_GAMMA`, where
+   `luma` is Rec.601 (0..1). Brighter pixel ⇒ prouder, so the bright **detail** lines (mortar,
+   rivets, plant spines) ridge up and the darker body sits below them. `LUMA_FLOOR` keeps even the
+   darkest wall pixel standing above the recessed bg gaps.
+3. `LUMA_GAMMA < 1` spikes the detail ridges harder — **the one visible depth dial 2-bit art
+   allows.** Ships at `1.0` (straight luminance); tuned against a screenshot with the shading.
+4. Level (a **float** now) × step = height.
+
+This replaced count-rank, which ordered by frequency and needed a special-case to stop a merely
+*common* mid colour from floating above the body. Luminance orders correctly **by construction** —
+the bg is the darkest colour, so it recesses without a hack.
+
+> **Verify in Python before changing it:** `python3 tools/capture/voxel.py <tile> --rule luma`
+> (`--gamma 0.45` to see detail spike, `--smooth N` to experiment) prints the colour→luma→level
+> table, an ASCII height map, and an oblique preview PNG. The 2-bit fact above was *measured* here
+> before the rule was ported. See [tools.md](tools.md#voxelpy).
 
 ### The three pieces per wall cell
 - **Cap** (`_voxel_cap_mesh`) — the top-down art, columns rising **up** from `WALL_H` by
@@ -93,15 +108,19 @@ base at a grid edge), so protrusions show their sides. Normals are set explicitl
 outward for steps); material is `CULL_DISABLED` so nothing depends on winding.
 
 ### Constants to tune
-`VOXEL_STEP` (cap height/level) · `SIDE_STEP` (side protrusion/level) · the core inset (0.96) ·
-`SHADED_WORLD` (flip to the flat unshaded look).
+`LUMA_GAMMA` (detail-ridge sharpness — the main depth dial) · `LUMA_FLOOR`/`LUMA_GAIN` (body
+lift / overall relief) · `VOXEL_STEP` (cap height/level) · `SIDE_STEP` (side protrusion/level) ·
+the core inset (0.96) · `SHADED_WORLD` (flip to the flat unshaded look).
 
 ### Ideas / next steps for voxels
+- **Detail-proudness + shading** (the active work): tune `LUMA_GAMMA` and the sun/ambient/roughness
+  so the 3-level relief actually catches light and casts shadow. Needs a screenshot to judge —
+  the *rule* is settled (luminance), the *look* is not.
 - Match cap and side height scales so the transition at the top edge is seamless.
 - Cell-seam grooves: sides drop to base at every cell edge; could match the neighbour instead.
 - `MultiMesh` per (variant, mesh, rotation) if draw calls (≈5/cell) ever hitch.
-- A height rule other than colour-rank (luminance; or force detail highest) — prototype in
-  `voxel.py` first.
+- Note: a *smarter height rule* is a dead end — 2-bit art gives ≤3 heights (see above). Spend
+  effort on the profile + shading, not the ranking.
 
 ---
 

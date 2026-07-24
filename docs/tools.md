@@ -68,20 +68,24 @@ ASCII, with filled-pixel counts. This is how the chest/dromad/basket fill rule w
 how to check any change to `Fill.SPAN`/`INTERIOR` before touching `_interior`/`_fill_holes`.
 
 ### `voxel.py`
-Mirrors `ZoneRenderer._rank_levels`: recolour a tile, force the transparent/background colour to
-the deepest level, rank the rest by count, and that rank is each pixel's voxel height. Prints:
-- the **colour → count → level** table (with `<- filled bg / main / detail` tags),
+Mirrors `ZoneRenderer._rank_levels`. Recolours a tile and maps each pixel to a voxel height.
+Two rules: `--rule luma` (**the shipping rule** — height ∝ Rec.601 luminance, bg pinned deepest,
+`--gamma <1` spikes the bright detail) and `--rule count` (the retired frequency-rank, kept for
+comparison). `--smooth N` box-blurs the height field. Prints:
+- the **colour → luma/count → level** table (with `<- filled bg / main / detail` tags),
 - an **ASCII height map** (0 = base/deepest),
 - an **oblique preview PNG** (`/tmp/voxel_preview.png`) so the relief is visible.
 
 ```
-python3 tools/capture/voxel.py wall_brinestalk-00000000
+python3 tools/capture/voxel.py wall_metal-00000000 --rule luma
+python3 tools/capture/voxel.py wall_metal-00000000 --rule luma --gamma 0.45   # detail ridges
 python3 tools/capture/voxel.py sw_chest --main '#98875f' --detail '#b1c9c3'
 ```
 
-**Any change to the voxel height rule goes here first**, then into
-`ZoneRenderer._rank_levels` — keep the two identical. See
-[rendering.md §4](rendering.md#4-voxel-walls--the-active-area).
+This tool **measured the fact that decides the whole subsystem**: every sampled tile is a 2-bit
+mask (≤3 colours ⇒ ≤3 heights), so a smarter height *rule* can't add relief — see
+[rendering.md §4](rendering.md#4-voxel-walls--the-active-area). **Any change to the height rule
+goes here first**, then into `ZoneRenderer._rank_levels` — keep the two identical.
 
 ---
 

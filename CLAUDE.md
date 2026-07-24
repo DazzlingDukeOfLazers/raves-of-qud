@@ -144,10 +144,12 @@ itself is procedural (particles + `AnimatedMaterialFire`), so there's no tile to
 I cannot see the Godot viewport, so voxel/relief algorithms were being written straight into
 GDScript and verified only by the user's screenshots — slow, and it hid an off depth order. Do the
 algorithm in Python where its output is inspectable, THEN port. `tools/capture/voxel.py` mirrors
-`ZoneRenderer._rank_levels`: it recolours a tile, ranks colours by count into height levels, and
-prints the colour→count→level table + an ASCII height map + an oblique preview PNG. Use it to check
-depth ordering before touching the renderer. (Lighting/shadow *appearance* still needs a screenshot;
-the height *algorithm* does not.)
+`ZoneRenderer._rank_levels`: it recolours a tile, maps colours to height by **luminance** (`--rule
+luma`, bg deepest, `--gamma` spikes detail), and prints the colour→luma→level table + an ASCII
+height map + an oblique preview PNG. It also *measured* the fact that governs the subsystem — Qud
+tiles are 2-bit masks, ≤3 colours ⇒ ≤3 heights, so no height *rule* can add relief; tune the profile
+and shading instead. Use it to check depth before touching the renderer. (Lighting/shadow
+*appearance* still needs a screenshot; the height *algorithm* does not.)
 
 ## Debugging rules, learned expensively
 
