@@ -53,9 +53,20 @@ namespace RavesOfQud
         ///   1) drain queued commands from Godot and apply them,
         ///   2) publish the current zone snapshot back to Godot.
         /// </summary>
+        private static bool _ranInBackground;
+
         public static void Tick(GameObject player)
         {
             BridgeServer server = Server;
+
+            // Keep Qud's game loop ticking when its window is unfocused, so an external
+            // driver (control.py) can move the player without the app being foremost.
+            // Safe to set here: the first Tick runs at startup while Qud is focused.
+            if (!_ranInBackground)
+            {
+                try { UnityEngine.Application.runInBackground = true; } catch { }
+                _ranInBackground = true;
+            }
 
             // (1) apply input — MAIN THREAD ONLY.
             while (server.Incoming.TryDequeue(out string json))
