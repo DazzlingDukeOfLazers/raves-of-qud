@@ -1000,6 +1000,7 @@ func _voxel_cap_mesh(variant_tile: String) -> ArrayMesh:
 	var h := img.get_height()
 	var bg := _wall_bg_color().to_html(false)
 	var recess := _wall_recess_color()
+	var mainc := _qud_color(_wall_main)     # material colour for boundary-closing walls
 	# top height per pixel: flush at WALL_H (material) or carved down (background gap)
 	var top := []
 	for y in h:
@@ -1024,8 +1025,8 @@ func _voxel_cap_mesh(variant_tile: String) -> ArrayMesh:
 				_vc_top(st, x0, x1, z0, z1, yt, col)
 			else:
 				_vc_top(st, x0, x1, z0, z1, yt, recess)
-			# walls of the carved gaps (only toward a lower neighbour), in the material
-			_vc_step(st, x, y, yt, top, w, h, x0, x1, z0, z1, col)
+			# walls of the carved gaps (+ close boundary gaps up to the neighbour cap)
+			_vc_step(st, x, y, yt, top, w, h, x0, x1, z0, z1, col, mainc)
 	var mesh := ArrayMesh.new()
 	st.commit(mesh)
 	_voxel_cache[key] = mesh
@@ -1049,6 +1050,7 @@ func _side_voxel_mesh(variant_tile: String) -> ArrayMesh:
 	var w := img.get_width()
 	var h := img.get_height()
 	var bg := _wall_bg_color().to_html(false)
+	var mainc := _qud_color(_wall_main)     # material colour for boundary-closing walls
 	# Depth per pixel: every NON-background pixel (red main AND blue detail) shares
 	# ONE flush depth at the cell boundary (z=0.5), so the highlight sits at the same
 	# depth as the red body, and the flush skins of adjacent faces meet cleanly at the
@@ -1079,36 +1081,45 @@ func _side_voxel_mesh(variant_tile: String) -> ArrayMesh:
 				for p in [Vector3(xa, yb, d), Vector3(xb, yb, d), Vector3(xb, yt, d),
 						  Vector3(xa, yb, d), Vector3(xb, yt, d), Vector3(xa, yt, d)]:
 					st.set_normal(Vector3(0, 0, 1)); st.set_color(col); st.add_vertex(p)
-			# walls of the carved gaps (only toward a deeper neighbour)
-			_side_step(st, x, y, d, dep, w, h, xa, xb, yt, yb, col)
+			# walls of the carved gaps (+ close boundary gaps out to the neighbour face)
+			_side_step(st, x, y, d, dep, w, h, xa, xb, yt, yb, col, mainc)
 	var mesh := ArrayMesh.new()
 	st.commit(mesh)
 	_side_cache[key] = mesh
 	return mesh
 
-## Walls of a carved-in background gap: for each neighbour that sits DEEPER than
-## this pixel, draw the connecting face from the neighbour's depth out to this
-## pixel's depth. Off-cell neighbours are the flush surface (0.5), so the outer
-## boundary stays closed and the corners meet.
+## Walls of a carved-in background gap. In-cell: for each neighbour DEEPER than this
+## pixel, draw the face from the neighbour's depth out to this pixel's (the more
+## forward pixel owns it). At a CELL BOUNDARY along a straight run the checker runs
+## to the edge, so a gap edge pixel's flush neighbour lives in the next cell's mesh
+## and won't close the pit — leaving it open sideways. So when we ARE the gap at a
+## boundary, close our own wall out to the neighbour's flush face, in the material
+## colour (`mainc`) to match the in-cell trench walls.
 func _side_step(st: SurfaceTool, x: int, y: int, d: float, dep: Array, w: int, h: int,
-		xa: float, xb: float, yt: float, yb: float, col: Color) -> void:
+		xa: float, xb: float, yt: float, yb: float, col: Color, mainc: Color) -> void:
 	for dir in [[1, 0], [-1, 0], [0, 1], [0, -1]]:
 		var nx: int = x + dir[0]
 		var ny: int = y + dir[1]
-		var nd := 0.5                                  # off-cell -> flush surface
-		if nx >= 0 and nx < w and ny >= 0 and ny < h:
-			nd = float(dep[ny][nx])
-		if nd >= d:
-			continue                                   # neighbour not deeper -> no wall
+		var inb := nx >= 0 and nx < w and ny >= 0 and ny < h
+		var otherz: float; var wcol: Color
+		if inb:
+			var nd := float(dep[ny][nx])
+			if nd >= d:
+				continue                               # neighbour not deeper -> no wall
+			otherz = nd; wcol = col                    # this pixel forward, wall back to it
+		else:
+			if d >= 0.5:
+				continue                               # flush edge: next cell's face abuts
+			otherz = 0.5; wcol = mainc                 # gap at boundary: close out to flush
 		var a: Vector3; var b: Vector3; var nrm: Vector3
 		if dir == [1, 0]:      a = Vector3(xb, yb, 0); b = Vector3(xb, yt, 0); nrm = Vector3(1, 0, 0)
 		elif dir == [-1, 0]:   a = Vector3(xa, yt, 0); b = Vector3(xa, yb, 0); nrm = Vector3(-1, 0, 0)
 		elif dir == [0, 1]:    a = Vector3(xb, yb, 0); b = Vector3(xa, yb, 0); nrm = Vector3(0, -1, 0)
 		else:                  a = Vector3(xa, yt, 0); b = Vector3(xb, yt, 0); nrm = Vector3(0, 1, 0)
 		var af := Vector3(a.x, a.y, d); var bf := Vector3(b.x, b.y, d)
-		var an := Vector3(a.x, a.y, nd); var bn := Vector3(b.x, b.y, nd)
+		var an := Vector3(a.x, a.y, otherz); var bn := Vector3(b.x, b.y, otherz)
 		for p in [an, bf, af, an, bn, bf]:
-			st.set_normal(nrm); st.set_color(col); st.add_vertex(p)
+			st.set_normal(nrm); st.set_color(wcol); st.add_vertex(p)
 
 ## Shared material for voxel caps:
 
@@ -1157,30 +1168,40 @@ func _vc_top(st: SurfaceTool, x0: float, x1: float, z0: float, z1: float, y: flo
 			  Vector3(x0, y, z0), Vector3(x0, y, z1), Vector3(x1, y, z1)]:
 		st.set_normal(Vector3.UP); st.set_color(c); st.add_vertex(p)
 
-## Walls of a carved-down background gap on the cap: for each neighbour that sits
-## LOWER than this pixel, draw the connecting face from the neighbour's height up
-## to this pixel's height. Off-cell neighbours are the flush surface (WALL_H), so
-## the cap perimeter stays flush and meets the side tops.
+## Walls of a carved-down background gap on the cap. In-cell: for each neighbour
+## that sits LOWER, draw the face from the neighbour's height up to this pixel's
+## (the higher pixel owns the wall, so it's drawn once). At a CELL BOUNDARY the
+## art's checker runs to the edge, so an edge pixel can be a gap whose flush
+## neighbour lives in the next cell's mesh — that cell can't see us and won't close
+## it, leaving the pit open sideways (a dark groove along the seam). So when we ARE
+## the gap at a boundary, close our own wall up to the neighbour's flush cap, in the
+## material colour (`mainc`) so it matches the in-cell trench walls.
 func _vc_step(st: SurfaceTool, x: int, y: int, yt: float, top: Array, w: int, h: int,
-		x0: float, x1: float, z0: float, z1: float, c: Color) -> void:
+		x0: float, x1: float, z0: float, z1: float, c: Color, mainc: Color) -> void:
 	for d in [[1, 0], [-1, 0], [0, 1], [0, -1]]:
 		var nx: int = x + d[0]
 		var ny: int = y + d[1]
-		var nyt := WALL_H                              # off-cell -> flush surface
-		if nx >= 0 and nx < w and ny >= 0 and ny < h:
-			nyt = float(top[ny][nx])
-		if nyt >= yt:
-			continue                                   # neighbour not lower -> no wall
+		var inb := nx >= 0 and nx < w and ny >= 0 and ny < h
+		var ylo: float; var yhi: float; var wcol: Color
+		if inb:
+			var nyt := float(top[ny][nx])
+			if nyt >= yt:
+				continue                               # neighbour not lower -> no wall
+			ylo = nyt; yhi = yt; wcol = c              # this pixel higher, wall down to it
+		else:
+			if yt >= WALL_H:
+				continue                               # flush edge: next cell's cap abuts
+			ylo = yt; yhi = WALL_H; wcol = mainc       # gap at boundary: close it up to flush
 		var a: Vector3; var b: Vector3
 		if d == [1, 0]:    a = Vector3(x1, 0, z0); b = Vector3(x1, 0, z1)
 		elif d == [-1, 0]: a = Vector3(x0, 0, z1); b = Vector3(x0, 0, z0)
 		elif d == [0, 1]:  a = Vector3(x1, 0, z1); b = Vector3(x0, 0, z1)
 		else:              a = Vector3(x0, 0, z0); b = Vector3(x1, 0, z0)
-		var at := Vector3(a.x, yt, a.z); var bt := Vector3(b.x, yt, b.z)
-		var ab := Vector3(a.x, nyt, a.z); var bb := Vector3(b.x, nyt, b.z)
+		var at := Vector3(a.x, yhi, a.z); var bt := Vector3(b.x, yhi, b.z)
+		var ab := Vector3(a.x, ylo, a.z); var bb := Vector3(b.x, ylo, b.z)
 		var nrm := Vector3(d[0], 0, d[1])
 		for p in [ab, bt, at, ab, bb, bt]:
-			st.set_normal(nrm); st.set_color(c); st.add_vertex(p)
+			st.set_normal(nrm); st.set_color(wcol); st.add_vertex(p)
 
 ## The top-down cap of ONE autotile variant, recoloured. Borders appear only on
 ## the edges that variant says are exposed, so adjacent cells join seamlessly.
