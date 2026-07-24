@@ -112,9 +112,14 @@ func _submit() -> void:
 	DirAccess.make_dir_recursive_absolute(dir)
 
 	var verdict := _verdict.get_item_text(_verdict.selected) if _verdict.selected > 0 else "(none)"
+	var standing := _is_standing_rule(verdict)
 	var body := PackedStringArray()
 	body.append("# Tile report — (%d, %d)" % [_cx, _cy])
 	body.append("")
+	if standing:
+		body.append("> STANDING RULE — this file IS the override. It applies while it exists.")
+		body.append("> Do not delete it to \"resolve\" the tile; deleting reverts the render.")
+		body.append("")
 	body.append("- **zone**: %s" % _zone)
 	body.append("- **tile**: `%s`" % _tile)
 	body.append("- **verdict**: %s" % verdict)
@@ -138,6 +143,16 @@ func _submit() -> void:
 	_status.text = "filed -> reports/%s" % _filename()
 	_notes.text = ""
 	_verdict.selected = 0
+
+## Shape and fill verdicts are STANDING RULES: the renderer reads them live, so
+## the file must persist. Everything else (colour/height/position notes) is a
+## one-off complaint. The distinction is written into the file so it is not lost.
+func _is_standing_rule(verdict: String) -> bool:
+	var v := verdict.to_lower()
+	for k in ["wall", "panel", "n–s", "e–w", "billboard", "flat", "not be drawn", "fill"]:
+		if v.contains(k):
+			return true
+	return false
 
 ## One file per tile per verdict, so re-filing the same complaint overwrites
 ## rather than piling up, but two different complaints about one tile coexist.

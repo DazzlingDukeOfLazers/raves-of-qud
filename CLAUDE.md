@@ -102,8 +102,13 @@ add notes, submit. It writes one markdown file per tile+verdict to:
 ```
 
 Each file carries the verdict, the notes, and **the full inspector report at time of filing** —
-so the evidence travels with the complaint. Read the whole directory to see everything
-outstanding; delete a file once it's fixed.
+so the evidence travels with the complaint. Read the whole directory to see what's outstanding.
+
+⚠️ **Shape and fill reports are STANDING RULES, not tickets.** `ZoneRenderer._load_overrides()`
+re-reads this directory every frame, so a `panel E–W` or `fill the holes` verdict applies *only
+while its file exists*. **Never delete one to mark it "resolved"** — deleting reverts the render.
+Files that say `> STANDING RULE` at the top are config; leave them. Only informational notes
+(colour, position, "looks wrong") are one-off tickets safe to remove once addressed.
 
 ## Debugging rules, learned expensively
 
