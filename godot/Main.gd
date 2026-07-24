@@ -39,6 +39,12 @@ var _dusk_h := 20.0
 var _sun: Sprite3D
 var _moon: Sprite3D
 var _sun_light: DirectionalLight3D   # follows the sun; drives future shadows
+var _env: Environment
+var _sky := Color(0.05, 0.05, 0.07)
+var _sky_target := Color(0.05, 0.05, 0.07)
+const SKY_NIGHT := Color(0.03, 0.05, 0.12)   # deep blue night void
+const SKY_DAY := Color(0.32, 0.55, 0.85)     # daytime blue
+const SKY_DUSK := Color(0.75, 0.45, 0.35)    # warm dawn/dusk horizon
 const SKY_DIST := 180.0
 const NIGHT_TINT := Color(0.34, 0.40, 0.62)   # cool moonlit blue (Qud has no moon phase)
 const DAY_TINT := Color(1.0, 0.99, 0.96)       # near-neutral, a hair warm
@@ -103,6 +109,7 @@ func _ready() -> void:
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color(0.55, 0.55, 0.62)
 	env.ambient_light_energy = 0.65
+	_env = env
 	we.environment = env
 	add_child(we)
 
@@ -195,6 +202,9 @@ func _process(dt: float) -> void:
 	_tint = _tint.lerp(_tint_target, clampf(dt * 2.0, 0.0, 1.0))
 	if _grade != null:
 		_grade.color = _tint
+	_sky = _sky.lerp(_sky_target, clampf(dt * 2.0, 0.0, 1.0))
+	if _env != null:
+		_env.background_color = _sky
 
 	if _mode == CamMode.KEYBOARD:
 		_fly(dt)
@@ -318,6 +328,7 @@ func _update_time(t: Dictionary) -> void:
 	_dawn_h = dawn
 	_dusk_h = dusk
 	_tint_target = _tint_for_hour(hour, dawn, dusk, 24.0)
+	_sky_target = _sky_for_hour(hour, dawn, dusk)
 	_update_sky(hour, dawn, dusk)
 	_update_mode_label()
 
@@ -376,6 +387,21 @@ func _body_pos(p: float) -> Vector3:
 	var theta: float = p * PI                         # 0..PI, east->zenith->west
 	var dir := Vector3(cos(theta), sin(theta) * 0.85 + 0.12, -0.45).normalized()
 	return _zone_center + dir * SKY_DIST
+
+## Background sky colour by hour: night deep-blue, dawn/dusk warm, midday blue.
+func _sky_for_hour(hour: float, dawn: float, dusk: float) -> Color:
+	var w := 1.5
+	if hour < dawn - w or hour > dusk + w:
+		return SKY_NIGHT
+	if hour < dawn:
+		return SKY_NIGHT.lerp(SKY_DUSK, (hour - (dawn - w)) / w)
+	if hour < dawn + w:
+		return SKY_DUSK.lerp(SKY_DAY, (hour - dawn) / w)
+	if hour < dusk - w:
+		return SKY_DAY
+	if hour < dusk:
+		return SKY_DAY.lerp(SKY_DUSK, (hour - (dusk - w)) / w)
+	return SKY_DUSK.lerp(SKY_NIGHT, (hour - dusk) / w)
 
 func _tint_for_hour(hour: float, dawn: float, dusk: float, hpd: float) -> Color:
 	# widths of the dawn/dusk transitions, in hours
