@@ -1,5 +1,11 @@
 # Working notes for Claude (and future humans)
 
+**Docs map:** `README.md` is the hub (architecture, platform constraints, Qud data model, API).
+Subsystems: [`docs/rendering.md`](docs/rendering.md) (the 3D pipeline + **voxel walls**),
+[`docs/tools.md`](docs/tools.md) (Python tools + in-viewer inspector/report + the **Python-first
+workflow**), [`docs/protocol.md`](docs/protocol.md) (wire format). Read the relevant page before
+changing a subsystem.
+
 `README.md` explains the project and the data model. **This file is the local
 environment**: the exact paths and commands, so no session has to rediscover
 them after a compaction. If a path here is wrong, fix it here.

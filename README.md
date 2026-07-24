@@ -23,19 +23,34 @@ Godot input → Qud command, and Qud zone state → 3D scene.
 
 ---
 
+## Documentation map
+
+This README is the **hub**: architecture, platform constraints, the Qud data model, and the
+verified API. Detailed subsystems live in `docs/`:
+
+| page | what |
+|---|---|
+| **[docs/rendering.md](docs/rendering.md)** | the 3D render pipeline — classification, **voxel walls**, shading, day/night, lights, fill, overrides. *Start here for anything visual.* |
+| **[docs/tools.md](docs/tools.md)** | the Python inspection tools, the in-viewer inspector/report/screenshots, and the **Python-first workflow**. |
+| **[docs/protocol.md](docs/protocol.md)** | the wire format (snapshot & command frames). |
+
+> **Python-first, for anyone (human or AI) picking this up:** Claude can't see the Godot viewport,
+> so geometry/pixel algorithms (voxel heights, fill rules) are **prototyped and verified in Python
+> first** (`tools/capture/voxel.py`, `fill.py` — they mirror the GDScript exactly), then ported.
+> Lighting/appearance still needs a screenshot; the algorithm does not. The product is
+> well-documented GDScript; Python is validation. See [docs/tools.md](docs/tools.md).
+
 ## Table of contents
 1. [Repo layout](#repo-layout)
 2. [Running it](#running-it)
 3. [Architecture & the threading model](#architecture--the-threading-model)
 4. [Hard-won platform constraints](#hard-won-platform-constraints) ← read this first
 5. [The tile system](#the-tile-system-engine-assisted-extraction)
-6. [Wire protocol (the snapshot)](#wire-protocol-the-snapshot)
+6. [Wire protocol (the snapshot)](#wire-protocol-the-snapshot) → detail in [docs/protocol.md](docs/protocol.md)
 7. [Qud data model & mappings](#qud-data-model--mappings) ← the "datatypes" reference
-8. [Godot rendering model](#godot-rendering-model)
-8b. [The feedback loop (cell inspector)](#the-feedback-loop-cell-inspector)
-9. [The investigation toolkit](#the-investigation-toolkit)
-10. [Verified Qud API reference](#verified-qud-api-reference)
-11. [Open problems / next steps](#open-problems--next-steps)
+8. [Rendering & tools](#rendering--tools) → [docs/rendering.md](docs/rendering.md), [docs/tools.md](docs/tools.md)
+9. [Verified Qud API reference](#verified-qud-api-reference)
+10. [Open problems / next steps](#open-problems--next-steps)
 
 ---
 
@@ -54,13 +69,22 @@ mod/                 Caves of Qud C# scripting mod (the bridge / server)
   manifest.json
 godot/               Godot 4.x client (GDScript)
   BridgeClient.gd    TCP framing, reconnect, snapshot signal, command send
-  ZoneRenderer.gd    the renderer — walls/floors/sprites/fences, colour model  ← the meat
-  Main.gd            scene wiring, orbit/pan/zoom camera, input -> CmdMove*
-docs/protocol.md     wire format
-tools/tiletool/      AssetsTools.NET inspector used to reverse the tile storage (diagnostic only)
+  ZoneRenderer.gd    the renderer — voxel walls / floors / sprites / fences, colour  ← the meat
+  Main.gd            scene wiring, camera modes, day/night + sun/moon, input -> CmdMove*
+  CellInspector.gd   Ctrl+click inspector: WIRE vs RENDERED report + sprite preview
+  TileReport.gd      lower-right report form -> overrides.json / reports/*.md
+  fonts/             Atkinson Hyperlegible (+ Mono), OFL — the UI font
+docs/                rendering.md · tools.md · protocol.md  (the subsystem references)
+tools/capture/       Python inspection & verification (pure stdlib)
+  snap.py            read a snapshot: summary/cell/ident/classify/water/time/find
+  tile.py            decode an exported tile: pixels, opaque band, transparency
+  fill.py            A/B the interior-fill rules (verify before touching Fill.*)
+  voxel.py           voxel height algorithm: colour->level table, ASCII map, oblique PNG
+tools/tiletool/      AssetsTools.NET inspector, reversed the atlas storage (diagnostic only)
 ```
 
-Exported tiles live **outside** the repo: `~/Library/Application Support/RavesOfQud/tiles/`.
+Exported tiles + `overrides.json` + `reports/` live **outside** the repo, under
+`~/Library/Application Support/RavesOfQud/`.
 
 ---
 
@@ -466,112 +490,24 @@ inside the frame. A bridge sets `sink = 0`: you cross at full height over an opa
 
 ---
 
-## Godot rendering model
+## Rendering & tools
 
-`ZoneRenderer.gd` rebuilds per snapshot. Pools nodes (sprites, floors, labels, fences); walls
-are rebuilt meshes.
+The 3D render pipeline is documented in full in **[docs/rendering.md](docs/rendering.md)** — object
+classification, the painted ground layer, colour/fill, the **voxel walls** (the active area), the
+faked lighting (unshaded world), day/night + sun/moon, water/bridges, and user overrides. The
+inspection tooling and the in-viewer feedback loop are in **[docs/tools.md](docs/tools.md)**.
 
-- **Walls → greedy-meshed prisms, one mesh per wall TYPE** (family + fg + detail + bg). Top faces
-  greedy-merged into maximal rectangles; side faces emitted only where **exposed**; per-face
-  **baked vertex-colour shading** (unshaded material) so the carved form reads without depending
-  on scene lighting (which was unreliable — the win was `ambient_light_source = COLOR`, but the
-  vertex-colour bake is what made it robust).
-  - Wall **top** = framed checker (real border from the isolated `-00000000` tile if exported,
-    else a synthetic frame) — tiled per cell so borders form a stone grid.
-  - Wall **side** = the front-face strip (bottom 16×8) of a south-open variant.
-- **Floors** = flat `PlaneMesh` quads, textured (or a small coloured dot for glyph-only floors).
-- **Ground** = one big `WORLD_BG` (dark-green) plane under everything, so the world isn't a
-  black void between dots.
-- **Fences/pipes** = **per-connection half-panels**: each connected direction gets an upright
-  `QuadMesh` half (centre→edge), so neighbours meet at the shared edge (continuous runs) and
-  corners form a clean L. Every segment uses the family's **E-W elevation art** (rotated per
-  axis), UV-cropped to the opaque rows so it sits flush on the ground.
-- **Camera** (`Main.gd`): left-drag orbit, right/middle-drag pan (persistent offset), wheel zoom.
+The essentials, so this hub stands alone:
 
----
+- `ZoneRenderer.gd` rebuilds per snapshot, pooling nodes. **Walls are voxel geometry** (cap + sides
+  extruded per colour-rank height, + a solid dark core), lit by a day/night sun that casts shadows.
+- **Everything is `UNSHADED` by default** (exact tile colours); `SHADED_WORLD` flips walls+ground to
+  shaded so lighting/shadows apply. All "lighting" (torches, day/night) is therefore additive/tint
+  geometry, not real lights on unshaded surfaces.
+- **Prototype geometry algorithms in Python first** (`voxel.py`, `fill.py`), then port to GDScript.
+  Claude can't see the viewport; the human's channel is the **cell inspector** (Ctrl+click → a
+  report file pairing WIRE vs RENDERED) and **F12 screenshots** (both apps self-capture).
 
-## Shading: unshaded by default, shaded for shadows
-
-`ZoneRenderer.SHADED_WORLD` flips the model. **false** = every material `UNSHADED` (exact tile
-colours, no lighting — the original look). **true** (current) = walls and the ground use
-`SHADING_MODE_PER_PIXEL`, lit by a day/night `DirectionalLight3D` (in `Main`) that casts
-orthogonal shadows and fades its energy with daylight. Ambient is raised (~0.72) so tiles keep
-their colour where the sun doesn't reach; the baked per-face vertex shade is dropped when shaded
-so it doesn't double with the real light. Billboards/floors stay unshaded. This is the one place
-the exact-colour guarantee is traded for atmosphere — flip the flag to compare.
-
-Wall **caps are voxel geometry** (`_voxel_cap_mesh`): each pixel of the cap art becomes a column
-whose height is the RANK of its colour by pixel count — the commonest colour (the filled
-background) is the base, rarer colours (border/detail) stand proud. Real relief that catches the
-sun and casts pixel-level shadows. Built once per autotile variant+colour (`_voxel_cache`) and
-INSTANCED per cell, so the per-turn cost is a MeshInstance, not a rebuild. Wall SIDES are voxelised the same way (`_side_voxel_mesh`): the south-face art
-extruded outward per colour rank. Qud uses that one face on all four sides, so a single cached
-side mesh is instanced and rotated onto each exposed edge. Caps + sides = one voxel look: a Sobel of the tile's
-luminance encoded as a tangent-space normal, so bright detail reads as raised and the filled
-background as deep. It costs no extra triangles and, because it feeds the real sun, the relief
-rakes and shifts as the sun moves. True geometry (voxels / displacement) would cast pixel-level
-shadows too, but at a large triangle cost — the normal map is the cheap first pass.
-Walls use `CULL_DISABLED`: the greedy side quads don't all wind consistently, so back-culling
-made faces vanish from some angles.
-
-## The feedback loop (cell inspector)
-
-Claude cannot see the Godot viewport, and describing a render in prose is the slowest and
-least reliable channel in this project. So the client reports on itself.
-
-**Ctrl/Cmd+click a tile, or hover and press `I`.** The report goes to an on-screen panel, the
-clipboard, and `~/Library/Application Support/RavesOfQud/selection.txt` (plus an append-only
-`selections.log`). Nothing needs transcribing — read the file.
-
-It pairs the two things that can disagree:
-
-```
-mod build: 2026-07-23h painted-ground        <- WHICH BUILD produced this
- [1] 'brinestalk' Brinestalk
-     layer=3  glyph=''
-     tile     'assets_content_textures_tiles_tile-brinestalk.png'
-     png      ...png  16x24  opaque rows 2..21     <- art on disk, or MISSING
-     colour   color='&w' tilecolor='' detail='g'
-     flags    wall=0 occluding=1 solid=0 bridge=0 sinks=0
-     RENDERED billboard, 24 px enclosed gap -> bg  y=0.31   <- what the renderer DID
-```
-
-- **`mod build:`** — mod `.cs` only compiles at Qud startup, so a deploy does nothing until a
-  restart. Without this line you cannot tell whether the running code contains your fix.
-  Several rounds of this project's debugging were spent reasoning over the wrong build.
-- **`RENDERED`** — recorded by `ZoneRenderer` itself (`_note`/`placements_at`), not re-derived,
-  so it cannot drift from what actually drew. It names its failure modes out loud:
-  `skipped(no tile — not drawn by Qud)`, `skipped(under wall)`, `RENDERED (nothing — dropped)`.
-- **An empty pick lists the nearest occupied tiles**, because bare ground is common and
-  correct in Qud, so "EMPTY" alone cannot distinguish a mis-click from nothing-being-there.
-- **Sprite preview** (upper right): the *real* billboard texture turning over a checkerboard.
-  Transparency is invisible against dark ground — a filled gap and a see-through one look
-  identical — so this is the only way to actually see the fill rules working.
-
----
-
-## The investigation toolkit
-
-The workflow that made blind, untestable-by-the-agent changes tractable:
-
-- **Compile harness** — `mod/RavesOfQudBridge.csproj` references the game's own
-  `Managed/*.dll`, so `dotnet build mod/RavesOfQudBridge.csproj` type-checks the mod against the
-  **real API**. Dev-time only; Qud compiles the shipped `.cs` at runtime. Target **netstandard2.1**
-  (Unity 6). This is how you catch API mismatches before a game restart.
-- **Reflection probe** — a throwaway `dotnet` console using `System.Reflection.MetadataLoadContext`
-  to read exact type/member signatures out of `Assembly-CSharp.dll` **without running it**. This
-  is the *authoritative* API source (string-grepping the DLL misled on field casing). Load all of
-  `Managed/*.dll` + the runtime dir into a `PathAssemblyResolver`; core assembly `mscorlib`.
-- **Capture scripts** — small Python sockets to `127.0.0.1:48710` that read framed snapshots and
-  aggregate (layer histograms, wall families, colour strings, occluding/solid). Remember: a frame
-  only arrives on a **turn**, so you must take a step in-game. Beware `python … &` inside a
-  backgrounded shell call — the `&` detaches it from the task wrapper.
-- **Decode tiles** — a minimal pure-Python PNG decoder (no Pillow) to inspect a tile's pixels /
-  opaque-row band / colours; recolour + upscale to preview how a tile will render.
-- **Player.log** — the mod's `[raves] …` lines and any native crash stack land here:
-  `~/Library/Logs/Freehold Games/CavesOfQud/Player.log`.
-
----
 
 ## Verified Qud API reference
 
