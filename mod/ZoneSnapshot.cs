@@ -187,6 +187,16 @@ namespace RavesOfQud
             catch { /* colours are an optimisation; never fail a snapshot over them */ }
         }
 
+        private static int CountSafe(Cell c)
+        {
+            try { return c.GetObjectCount(); } catch { return -1; }
+        }
+
+        private static int RenderedSafe(Cell c)
+        {
+            try { return c.RenderedObjectsCount; } catch { return -1; }
+        }
+
         public static string BuildJson(GameObject player)
         {
             var j = new JsonWriter();
@@ -227,8 +237,14 @@ namespace RavesOfQud
                     Cell c = z.GetCell(x, y);
                     if (c == null) continue;
 
+                    // Cell.Objects is an ObjectRack, not a list. GetObjects() is
+                    // the canonical accessor — don't assume raw enumeration of the
+                    // rack yields the same set.
+                    var objects = c.GetObjects();
+                    int emitted = 0;
+
                     bool opened = false;
-                    foreach (GameObject go in c.Objects)
+                    foreach (GameObject go in objects)
                     {
                         Render r = go.GetPart<Render>();
                         if (r == null) continue;
@@ -283,9 +299,31 @@ namespace RavesOfQud
                             .Member("sinks", go.IsCreature && !go.IsFlying);
                         if (painted) WritePaintedColors(j);
                         j.EndObject();
+                        emitted++;
                     }
 
-                    if (opened) { j.EndArray().EndObject(); }
+                    if (opened)
+                    {
+                        // What the CELL says it holds vs what we actually sent.
+                        // A gap here means we are dropping objects, and says so
+                        // out loud instead of looking like an empty tile.
+                        j.EndArray()
+                            .Member("nHeld", CountSafe(c))
+                            .Member("nRendered", RenderedSafe(c))
+                            .Member("nSent", emitted)
+                        .EndObject();
+                    }
+                    else if (CountSafe(c) > 0)
+                    {
+                        // Objects present but NONE emitted — exactly the case that
+                        // made grass tiles look like bare ground.
+                        j.BeginObject().Member("x", x).Member("y", y)
+                            .Member("nHeld", CountSafe(c))
+                            .Member("nRendered", RenderedSafe(c))
+                            .Member("nSent", 0)
+                            .Name("objs").BeginArray().EndArray()
+                        .EndObject();
+                    }
                 }
             }
             j.EndArray();
