@@ -69,7 +69,7 @@ var _wall_bg := ""       # background colour code (the ^X in the ColorString)
 # What Qud paints behind the world. WORLD_BG_FALLBACK is a hand-estimate; the mod
 # sends the real ColorUtility.CAMERA_BACKGROUND and _world_bg takes over. Ours read
 # black next to Qud's dark teal, which flattened the whole scene.
-const WORLD_BG_FALLBACK := Color(0.05, 0.13, 0.10)
+const WORLD_BG_FALLBACK := Color(0.07, 0.20, 0.18)  # sampled from Qud's own field
 var _world_bg := WORLD_BG_FALLBACK
 var _ground_mat: StandardMaterial3D
 
@@ -113,16 +113,11 @@ func render_snapshot(data: Dictionary) -> void:
 	# Qud's real palette, sent by the mod. Base/Colors.xml names the colours but
 	# has no RGB, so COLORS below is a hand-estimate kept only as a fallback for
 	# an older mod build. Changing the palette invalidates every recoloured tile.
-	var bg_hex := String(data.get("bg", ""))
-	if bg_hex != "":
-		var bg := Color(bg_hex)
-		if bg != _world_bg:
-			_world_bg = bg
-			if _ground_mat != null:
-				_ground_mat.albedo_color = _world_bg
-			_tex_cache.clear()      # gap fills bake this colour in
-			_wallmat_cache.clear()
-			_fencemat_cache.clear()
+	# NOTE: `bg` (ColorUtility.CAMERA_BACKGROUND) is NOT the colour Qud paints the
+	# field with — using it directly turned the whole world saturated cyan. It's a
+	# key/tint used elsewhere in Qud's renderer. Until we know how Qud derives the
+	# dark teal you actually see, WORLD_BG_FALLBACK stays authoritative; `bg` and
+	# `bgRaw` still arrive on the wire for diagnosis.
 
 	var pal: Dictionary = data.get("palette", {})
 	if not pal.is_empty() and pal != _palette:
