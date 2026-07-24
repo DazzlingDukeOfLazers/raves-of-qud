@@ -108,9 +108,9 @@ var _placed := {}   # Vector2i -> Array[{idx, kind, y}]
 # small flickering flame — brightening the flat tiles the way an additive decal
 # would, and reading correctly in the top-down 2.5D view.
 var _light_root: Node3D
-var _remembered_root: Node3D    # frozen neighbour geometry (see _rebuild_remembered)
+var _remembered_root: Node3D    # parent of the frozen per-zone neighbour subtrees
+var _static_zones := {}         # zoneId -> Node3D (that zone's frozen geometry)
 var _bank: Node3D = null        # non-null while building a remembered zone INTO it
-var _remembered_sig := ""       # signature of the last-built neighbour set
 
 ## Parent for freshly-spawned nodes: the frozen bank when building a remembered
 ## zone, else the renderer itself (live zone, pooled).
@@ -232,19 +232,13 @@ func render_snapshot(data: Dictionary, neighbors: Array = []) -> void:
 	_rebuild_walls(wall_types)
 	Profiler.done("render.live")
 
-	# Remembered neighbours are FROZEN: built once into _remembered_root and left
-	# alone. Rebuild only when the set changes (a new zone, or a different live zone
-	# shifting every offset) — signature = live id + each neighbour's offset. This is
-	# what keeps per-step cost to the live zone instead of every stored zone.
-	var sig := String(data.get("zone", {}).get("id", ""))
-	for nb in neighbors:
-		var o: Vector2i = nb.get("offset", Vector2i.ZERO)
-		sig += "|%d,%d" % [o.x, o.y]
-	if sig != _remembered_sig:
-		_remembered_sig = sig
-		Profiler.begin("render.remembered")
-		_rebuild_remembered(neighbors)
-		Profiler.done("render.remembered")
+	# Remembered neighbours are FROZEN per-zone subtrees: each built ONCE, then only
+	# repositioned by a cheap transform when the live zone shifts. A crossing no longer
+	# rebuilds every neighbour (that was the ~1.1s hitch) — it just moves them and
+	# builds the one newly-remembered zone.
+	Profiler.begin("render.remembered")
+	_sync_neighbors(neighbors)
+	Profiler.done("render.remembered")
 
 ## Build one zone's geometry into the scene, its cells shifted by `offset` (in cells
 ## = world units) so a remembered neighbour lands in its true position relative to
@@ -295,20 +289,34 @@ func _build_zone(cells: Array, offset: Vector2i, remembered: bool, wall_types: D
 				_place_light(cx, cy, float(obj["lightRadius"]))
 			idx += 1
 
-## Rebuild all remembered neighbour zones into the frozen bank. Called only when the
-## neighbour set changes, not per step. Everything spawned while `_bank` is set goes
-## into _remembered_root and is left untouched by the per-turn live rebuild.
-func _rebuild_remembered(neighbors: Array) -> void:
-	for c in _remembered_root.get_children():
-		c.queue_free()
-	if neighbors.is_empty():
-		return
-	_bank = _remembered_root
-	var nb_wall_types := {}
+## Sync the remembered-neighbour subtrees to the wanted set. Each neighbour is its
+## own frozen Node3D under _remembered_root, built ONCE (at local cell coords) and
+## thereafter only repositioned by a transform. So a step touches nothing here, and
+## a crossing just moves the existing subtrees + builds the one new zone — instead
+## of rebuilding all of them. Each `nb` is {id, cells, offset}.
+func _sync_neighbors(neighbors: Array) -> void:
+	var want := {}
 	for nb in neighbors:
-		_build_zone(nb.get("cells", []), nb.get("offset", Vector2i.ZERO), true, nb_wall_types)
-	_rebuild_walls(nb_wall_types)   # _bank set -> builds into the bank, skips the clear
-	_bank = null
+		want[String(nb.get("id", ""))] = nb
+	# drop subtrees for zones that are no longer neighbours (e.g. the one now live)
+	for id in _static_zones.keys():
+		if not want.has(id):
+			_static_zones[id].queue_free()
+			_static_zones.erase(id)
+	# ensure each wanted neighbour is built once, then position it by its offset
+	for id in want:
+		var nb: Dictionary = want[id]
+		if not _static_zones.has(id):
+			var sub := Node3D.new()
+			_remembered_root.add_child(sub)
+			_static_zones[id] = sub
+			_bank = sub
+			var wt := {}
+			_build_zone(nb.get("cells", []), Vector2i.ZERO, true, wt)   # local coords
+			_rebuild_walls(wt)     # _bank set -> into the subtree, no clear
+			_bank = null
+		var o: Vector2i = nb.get("offset", Vector2i.ZERO)
+		_static_zones[id].position = Vector3(o.x, 0, o.y)
 
 # --- introspection (for CellInspector) --------------------------------------
 
@@ -988,8 +996,8 @@ func _wall_bg_color() -> Color:
 	return _world_bg
 
 func _rebuild_walls(wall_types: Dictionary) -> void:
-	# Live rebuild clears _wall_root; when banking, _rebuild_remembered already
-	# cleared _remembered_root, so don't wipe it again mid-build.
+	# Live rebuild clears _wall_root; when banking into a fresh neighbour subtree
+	# (_sync_neighbors), there is nothing to clear, so don't wipe it mid-build.
 	if _bank == null:
 		for c in _wall_root.get_children():
 			c.queue_free()

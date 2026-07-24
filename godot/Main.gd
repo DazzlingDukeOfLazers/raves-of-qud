@@ -241,6 +241,7 @@ func _neighbor_zones() -> Array:
 			continue
 		var o: Vector3i = rec.get("origin", Vector3i.ZERO)
 		out.append({
+			"id": id,
 			"cells": rec.get("snapshot", {}).get("cells", []),
 			"offset": Vector2i(o.x - live_origin.x, o.y - live_origin.y),
 		})
