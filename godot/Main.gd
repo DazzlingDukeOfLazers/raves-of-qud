@@ -312,7 +312,45 @@ func _neighbor_zones() -> Array:
 		})
 	return out
 
+# --- remote control (for automated dev loops) -------------------------------
+# Claude can't send keys to Godot, only commands to Qud's bridge. So Godot polls a
+# small command file: control.py writes lines, we execute + delete. Lets an external
+# driver trigger Godot-side actions (screenshot, switch camera) to close the loop.
+var _cmd_accum := 0.0
+func _poll_godot_cmd(dt: float) -> void:
+	_cmd_accum += dt
+	if _cmd_accum < 0.1:
+		return
+	_cmd_accum = 0.0
+	if renderer == null:
+		return
+	var base := renderer.tiles_dir().get_base_dir()
+	if base == "":
+		return
+	var path := base.path_join("godot_cmd")
+	if not FileAccess.file_exists(path):
+		return
+	var txt := FileAccess.get_file_as_string(path)
+	DirAccess.remove_absolute(path)   # consume it
+	for line in txt.split("\n", false):
+		_exec_godot_cmd(line.strip_edges())
+
+func _exec_godot_cmd(cmd: String) -> void:
+	if cmd == "":
+		return
+	var parts := cmd.split(" ", false)
+	match parts[0]:
+		"shot":
+			_screenshot()
+		"cam":
+			if parts.size() > 1:
+				_set_mode(clampi(int(parts[1]) - 1, 0, 5))   # 1-6 -> COMPASS..KEYBOARD
+		"fph":
+			if parts.size() > 1:
+				_fp_height = clampf(float(parts[1]), 0.15, 3.0)
+
 func _process(dt: float) -> void:
+	_poll_godot_cmd(dt)
 	# ease the grade so time-of-day shifts smoothly between turns
 	_tint = _tint.lerp(_tint_target, clampf(dt * 2.0, 0.0, 1.0))
 	if _grade != null:
