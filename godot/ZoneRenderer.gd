@@ -920,16 +920,18 @@ func _rebuild_walls(wall_types: Dictionary) -> void:
 		# gaps between protruding columns into the empty cell. Coloured a darker
 		# shade of the wall's darkest colour, so recesses read as deep shadow.
 		var core_mat := _wall_core_material()
-		# The core's outer face sits exactly at the carved gap floor (0.5 - SIDE_CARVE),
-		# so a gap bottoms out ON the core — the core colour IS the deepest colour seen.
+		# Side gaps bottom out on the core's outer faces (0.5 - SIDE_CARVE). Its TOP
+		# sits just below the cap's carved gap floor (WALL_H - CAP_CARVE) so it never
+		# pokes up through a roof gap; the cap draws its own recess-coloured floors.
 		var core_half := 0.5 - SIDE_CARVE
+		var core_top := WALL_H - CAP_CARVE - 0.01
 		for k in cells:
 			var core := MeshInstance3D.new()
 			var bm := BoxMesh.new()
-			bm.size = Vector3(core_half * 2.0, WALL_H - 0.02, core_half * 2.0)
+			bm.size = Vector3(core_half * 2.0, core_top, core_half * 2.0)
 			core.mesh = bm
 			core.material_override = core_mat
-			core.position = Vector3(k.x, (WALL_H - 0.02) * 0.5, k.y)
+			core.position = Vector3(k.x, core_top * 0.5, k.y)
 			_wall_root.add_child(core)
 
 		# ROOFS are per-cell, grouped by autotile variant. Merging them under one
@@ -971,56 +973,17 @@ func _place_side(mesh: ArrayMesh, k: Vector2i, deg: float) -> void:
 
 # --- voxel wall caps --------------------------------------------------------
 
-const VOXEL_STEP := 0.075   # world height per luminance level (caps)
+const CAP_CARVE := 0.10     # how deep a background gap recesses DOWN into the roof
 const SIDE_CARVE := 0.10    # how deep a background gap recesses INTO the wall face
-# Luminance -> height mapping (see _rank_levels). Non-bg pixels span
-# [LUMA_FLOOR .. LUMA_GAIN]; bg is pinned to 0. LUMA_GAMMA<1 pushes the bright
-# detail pixels up into proud ridges (the one depth dial 2-bit art allows).
-const LUMA_FLOOR := 0.30
-const LUMA_GAIN := 2.5
-const LUMA_GAMMA := 1.0
 var _voxel_cache := {}      # cap key -> ArrayMesh
 var _voxel_mat: StandardMaterial3D
 
-## Voxel relief mesh for a wall variant's cap, centred on its cell (x,z in
-## -0.5..0.5, rising from WALL_H). Each pixel is a column; its height is the RANK
-## of its colour by pixel count — the commonest colour (usually the filled
-## background) is the base, rarer colours (the border/detail) stand proud, which
-## is the "transparent is deepest, each colour extrudes" idea as real geometry.
-## Per-pixel FLOAT height LEVEL grid, driven by LUMINANCE, not pixel count.
-## Qud tiles are 2-bit masks (black->main, white->detail, transparent->bg), so a
-## cell only ever holds ≤3 colours — verified in tools/capture/voxel.py. Height
-## therefore can't come from a gradient the art doesn't have; it comes from the
-## art's own light/dark: brighter pixel -> stands prouder, so the bright DETAIL
-## lines (mortar, rivets, plant spines) ridge up and the body sits below them.
-##   - The transparent/background is the DEEPEST (level 0) — scenery you look past.
-##   - Non-bg pixels get a FLOOR so even the darkest wall pixel stands above the
-##     recessed bg gaps (the "wall body over deep gaps" read).
-## This replaces the old count-rank, which needed a special-case to stop a merely
-## COMMON mid colour from floating above the body; luminance orders it correctly
-## by construction. Mirrors voxel.py `luma_levels`. LUMA_GAMMA<1 spikes detail.
-func _rank_levels(img: Image) -> Array:
-	var w := img.get_width()
-	var h := img.get_height()
-	var bg := _wall_bg_color().to_html(false)   # the transparent-fill colour
-	var span := LUMA_GAIN - LUMA_FLOOR
-	var lev := []
-	for y in h:
-		var row := []
-		for x in w:
-			var c := img.get_pixel(x, y)
-			if c.to_html(false) == bg:
-				row.append(0.0)
-			else:
-				var lm := 0.299 * c.r + 0.587 * c.g + 0.114 * c.b   # Rec.601, 0..1
-				if LUMA_GAMMA != 1.0:
-					lm = pow(lm, LUMA_GAMMA)
-				row.append(LUMA_FLOOR + span * lm)
-		lev.append(row)
-	return lev
-
-## Voxel relief mesh for a wall variant's cap, centred on its cell, rising from
-## WALL_H. Cached per variant+colour, built once and instanced per cell.
+## Cap relief for a wall variant, centred on its cell. Same flush-and-carve model
+## as the wall sides, vertical: every NON-background pixel (red main AND detail)
+## sits flush at the roof surface (WALL_H); only the background gaps carve DOWN by
+## CAP_CARVE, their floors filled with the dark recess colour. No protruding detail
+## — the cap reads as a solid top with recessed pits, matching the faces. Cached
+## per variant+colour, built once and instanced per cell.
 func _voxel_cap_mesh(variant_tile: String) -> ArrayMesh:
 	# reuse the recoloured, fully-framed cap the flat path already produced
 	var tex := _cap_tex(variant_tile)
@@ -1035,24 +998,34 @@ func _voxel_cap_mesh(variant_tile: String) -> ArrayMesh:
 
 	var w := img.get_width()
 	var h := img.get_height()
-	var lev := _rank_levels(img)
+	var bg := _wall_bg_color().to_html(false)
+	var recess := _wall_recess_color()
+	# top height per pixel: flush at WALL_H (material) or carved down (background gap)
+	var top := []
+	for y in h:
+		var row := []
+		for x in w:
+			row.append(WALL_H - CAP_CARVE if img.get_pixel(x, y).to_html(false) == bg else WALL_H)
+		top.append(row)
 
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var ps := 1.0 / w
 	for y in h:
 		for x in w:
-			var l: float = lev[y][x]
 			var col := img.get_pixel(x, y)
-			var y_top: float = WALL_H + l * VOXEL_STEP
+			var yt: float = top[y][x]
 			var x0 := -0.5 + x * ps
 			var x1 := x0 + ps
 			var z0 := -0.5 + y * ps
 			var z1 := z0 + ps
-			_vc_top(st, x0, x1, z0, z1, y_top, col)
-			# vertical steps down to the lower of each neighbour (or the base at a
-			# cell edge), so raised pixels show their sides and cast shadows
-			_vc_step(st, x, y, l, lev, w, h, x0, x1, z0, z1, y_top, col)
+			# flush pixels show their own colour; a carved gap floor shows the recess
+			if yt >= WALL_H:
+				_vc_top(st, x0, x1, z0, z1, yt, col)
+			else:
+				_vc_top(st, x0, x1, z0, z1, yt, recess)
+			# walls of the carved gaps (only toward a lower neighbour), in the material
+			_vc_step(st, x, y, yt, top, w, h, x0, x1, z0, z1, col)
 	var mesh := ArrayMesh.new()
 	st.commit(mesh)
 	_voxel_cache[key] = mesh
@@ -1144,12 +1117,15 @@ func _side_step(st: SurfaceTool, x: int, y: int, d: float, dep: Array, w: int, h
 ## take the wall's MAIN (the "red"), darken it, and nudge it toward the scene
 ## background (the teal ambient) — a colour between the red and the world bg, as
 ## requested — so gaps read as deep shadow in the material rather than a teal hole.
+## Colour of a recess (carved gap floor, solid core): the wall's own red, darkened,
+## with only a faint ambient nudge — reads as the material in shadow, not a foreign
+## hole. Shared by the core box and the cap's carved gap floors so they match.
+func _wall_recess_color() -> Color:
+	return _qud_color(_wall_main).darkened(0.5).lerp(_world_bg, 0.12)
+
 func _wall_core_material() -> StandardMaterial3D:
-	# Mostly the wall's own red, darkened, with only a faint ambient nudge — the
-	# earlier 25%-toward-teal read as "the same background", so keep it clearly red.
-	var recess: Color = _qud_color(_wall_main).darkened(0.5).lerp(_world_bg, 0.12)
 	var m := StandardMaterial3D.new()
-	m.albedo_color = recess
+	m.albedo_color = _wall_recess_color()
 	m.roughness = 0.95
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL if SHADED_WORLD else BaseMaterial3D.SHADING_MODE_UNSHADED
 	return m
@@ -1181,27 +1157,27 @@ func _vc_top(st: SurfaceTool, x0: float, x1: float, z0: float, z1: float, y: flo
 			  Vector3(x0, y, z0), Vector3(x0, y, z1), Vector3(x1, y, z1)]:
 		st.set_normal(Vector3.UP); st.set_color(c); st.add_vertex(p)
 
-## Vertical faces on the four sides of a pixel column, only where the neighbour
-## (or the cell edge -> base) is lower, from that neighbour's height up to y_top.
-func _vc_step(st: SurfaceTool, x: int, y: int, l: float, lev: Array, w: int, h: int,
-		x0: float, x1: float, z0: float, z1: float, y_top: float, c: Color) -> void:
-	var dirs := [[1, 0], [-1, 0], [0, 1], [0, -1]]
-	for d in dirs:
+## Walls of a carved-down background gap on the cap: for each neighbour that sits
+## LOWER than this pixel, draw the connecting face from the neighbour's height up
+## to this pixel's height. Off-cell neighbours are the flush surface (WALL_H), so
+## the cap perimeter stays flush and meets the side tops.
+func _vc_step(st: SurfaceTool, x: int, y: int, yt: float, top: Array, w: int, h: int,
+		x0: float, x1: float, z0: float, z1: float, c: Color) -> void:
+	for d in [[1, 0], [-1, 0], [0, 1], [0, -1]]:
 		var nx: int = x + d[0]
 		var ny: int = y + d[1]
-		var nl := -1.0                                 # off-cell -> base (WALL_H)
+		var nyt := WALL_H                              # off-cell -> flush surface
 		if nx >= 0 and nx < w and ny >= 0 and ny < h:
-			nl = float(lev[ny][nx])
-		if nl >= l:
-			continue
-		var y_bot: float = WALL_H + maxf(nl, 0.0) * VOXEL_STEP
+			nyt = float(top[ny][nx])
+		if nyt >= yt:
+			continue                                   # neighbour not lower -> no wall
 		var a: Vector3; var b: Vector3
 		if d == [1, 0]:    a = Vector3(x1, 0, z0); b = Vector3(x1, 0, z1)
 		elif d == [-1, 0]: a = Vector3(x0, 0, z1); b = Vector3(x0, 0, z0)
 		elif d == [0, 1]:  a = Vector3(x1, 0, z1); b = Vector3(x0, 0, z1)
 		else:              a = Vector3(x0, 0, z0); b = Vector3(x1, 0, z0)
-		var at := Vector3(a.x, y_top, a.z); var bt := Vector3(b.x, y_top, b.z)
-		var ab := Vector3(a.x, y_bot, a.z); var bb := Vector3(b.x, y_bot, b.z)
+		var at := Vector3(a.x, yt, a.z); var bt := Vector3(b.x, yt, b.z)
+		var ab := Vector3(a.x, nyt, a.z); var bb := Vector3(b.x, nyt, b.z)
 		var nrm := Vector3(d[0], 0, d[1])
 		for p in [ab, bt, at, ab, bb, bt]:
 			st.set_normal(nrm); st.set_color(c); st.add_vertex(p)
