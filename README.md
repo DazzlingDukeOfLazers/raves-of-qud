@@ -500,6 +500,14 @@ their colour where the sun doesn't reach; the baked per-face vertex shade is dro
 so it doesn't double with the real light. Billboards/floors stay unshaded. This is the one place
 the exact-colour guarantee is traded for atmosphere — flip the flag to compare.
 
+Wall **depth** is a normal map (`_normal_from_tex`), not geometry: a Sobel of the tile's
+luminance encoded as a tangent-space normal, so bright detail reads as raised and the filled
+background as deep. It costs no extra triangles and, because it feeds the real sun, the relief
+rakes and shifts as the sun moves. True geometry (voxels / displacement) would cast pixel-level
+shadows too, but at a large triangle cost — the normal map is the cheap first pass.
+Walls use `CULL_DISABLED`: the greedy side quads don't all wind consistently, so back-culling
+made faces vanish from some angles.
+
 ## The feedback loop (cell inspector)
 
 Claude cannot see the Godot viewport, and describing a render in prose is the slowest and

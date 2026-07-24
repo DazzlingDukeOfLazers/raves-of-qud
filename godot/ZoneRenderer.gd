@@ -17,6 +17,7 @@ const WALL_H := 1.2
 # cast/receive directional shadows. When false, everything is UNSHADED (exact tile
 # colours, no shadows) -- the original look. Flip this to compare.
 const SHADED_WORLD := true
+const WALL_NORMAL_SCALE := 1.4   # strength of the tile-derived wall relief
 const FENCE_H := 0.6  # standing height of fence/pipe panels (content, sat on ground)
 const FLOAT_Y := WALL_H * 0.5  # cell mid-height, where a "float" verdict centres a tile
 const PIXEL_SIZE := 0.042
@@ -1154,12 +1155,23 @@ func _framed_top(src: Image) -> ImageTexture:
 func _wall_mat_from_tex(tex: ImageTexture) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	if SHADED_WORLD:
-		# real lighting shades the faces by their normals and lets them receive the
-		# sun\'s shadow. Drop the baked per-face vertex shade so it does not double up.
+		# real lighting shades faces by their normals and lets them receive the sun's
+		# shadow. Drop the baked per-face vertex shade so it doesn't double up.
 		m.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
 		m.vertex_color_use_as_albedo = false
-		# back faces would self-shadow oddly once lit; cull them now that form is real.
-		m.cull_mode = BaseMaterial3D.CULL_BACK
+		# CULL_DISABLED, not CULL_BACK: the greedy side quads don't all wind the same
+		# way, so back-culling made walls vanish from some angles. Showing both faces
+		# is cheap here and every face we can see should draw.
+		m.cull_mode = BaseMaterial3D.CULL_DISABLED
+		# per-pixel RELIEF without geometry: a normal map derived from the tile's own
+		# brightness (bright detail = raised, filled background = deep) makes the sun
+		# rake across the wall's surface pattern, and it shifts as the sun moves.
+		if tex != null:
+			var nm := _normal_from_tex(tex)
+			if nm != null:
+				m.normal_enabled = true
+				m.normal_texture = nm
+				m.normal_scale = WALL_NORMAL_SCALE
 	else:
 		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 		m.vertex_color_use_as_albedo = true   # baked per-face shade multiplies the rock
@@ -1170,6 +1182,41 @@ func _wall_mat_from_tex(tex: ImageTexture) -> StandardMaterial3D:
 	else:
 		m.albedo_color = _qud_color(_wall_main)
 	return m
+
+## A tangent-space normal map from a texture's luminance: bright pixels read as
+## raised, dark as recessed (the recolour makes the filled background dark, so it
+## sits deepest — matching "transparent is the most deep"). Sobel gradient of the
+## height, encoded as a normal. This is the cheap depth: no extra geometry, and
+## because it feeds real lighting the relief tracks the day/night sun.
+var _normal_cache := {}
+func _normal_from_tex(tex: ImageTexture) -> ImageTexture:
+	var img := tex.get_image()
+	if img == null:
+		return null
+	var w := img.get_width()
+	var h := img.get_height()
+	var key := "%dx%d:%d" % [w, h, hash(img.get_data())]
+	if _normal_cache.has(key):
+		return _normal_cache[key]
+	var lum := []
+	for y in h:
+		var row := []
+		for x in w:
+			var p := img.get_pixel(x, y)
+			row.append((p.r + p.g + p.b) / 3.0)
+		lum.append(row)
+	var out := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	for y in h:
+		for x in w:
+			var xl: float = lum[y][maxi(x - 1, 0)]
+			var xr: float = lum[y][mini(x + 1, w - 1)]
+			var yu: float = lum[maxi(y - 1, 0)][x]
+			var yd: float = lum[mini(y + 1, h - 1)][x]
+			var n := Vector3(-(xr - xl), -(yd - yu), 1.0).normalized()
+			out.set_pixel(x, y, Color(n.x * 0.5 + 0.5, n.y * 0.5 + 0.5, n.z * 0.5 + 0.5))
+	var t := ImageTexture.create_from_image(out)
+	_normal_cache[key] = t
+	return t
 
 # --- textures & materials (floors/sprites) ----------------------------------
 
