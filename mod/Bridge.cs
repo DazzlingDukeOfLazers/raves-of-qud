@@ -83,10 +83,40 @@ namespace RavesOfQud
                     f.TryGetValue("dir", out string dir);
                     Step(player, dir);
                     break;
+                case "shot":
+                    QueueScreenshot();
+                    break;
                 // Extend: "activate", "wait", "getUp", ... route each through Qud.
                 default:
                     break;
             }
+        }
+
+        /// <summary>
+        /// Have Qud screenshot ITSELF, next to the exported tiles.
+        ///
+        /// The OS screencapture needs Screen Recording permission the agent doesn't
+        /// have, so this is how a collaborator gets to see the game. Same rule as
+        /// tile export: ScreenCapture is a graphics call, so it must be marshalled
+        /// to the main thread via uiQueue — calling it here would crash the game.
+        /// The file appears at end-of-frame, not immediately.
+        /// </summary>
+        private static void QueueScreenshot()
+        {
+            GameManager gm = GameManager.Instance;
+            if (gm == null || gm.uiQueue == null) return;
+            string path;
+            try
+            {
+                path = System.IO.Path.GetFullPath(
+                    System.IO.Path.Combine(TileExporter.Dir, "..", "qud_shot.png"));
+            }
+            catch { return; }
+            gm.uiQueue.queueTask(() =>
+            {
+                try { UnityEngine.ScreenCapture.CaptureScreenshot(path); }
+                catch (Exception e) { Server.Log("screenshot: " + e.Message); }
+            }, 0);
         }
 
         // Godot sends the 8 compass strings; Qud's command IDs are "CmdMove" + that.

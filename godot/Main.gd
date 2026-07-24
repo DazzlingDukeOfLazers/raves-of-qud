@@ -14,6 +14,7 @@ extends Node3D
 ##   Shift+F returns to FOLLOW (Esc does too, and dismisses the report).
 ##   Wheel zooms in every mode.
 ##   Ctrl/Cmd+click or I inspects a tile;  - / =  resize the report.
+##   F12                    -> save the viewport to <tilesDir>/../shot.png
 ##
 ## Terminology: "tile" here means a map square (Qud's Cell). Note the collision —
 ## the `tile` field on the wire is the sprite-art path. Code touching Qud's API
@@ -232,6 +233,25 @@ func _set_mode(m: int) -> void:
 	_mode = m
 	_update_mode_label()
 
+## Save the viewport to a known path so a collaborator can just read it.
+##
+## The OS-level `screencapture` is blocked without Screen Recording permission,
+## and this is better anyway: it captures the rendered viewport exactly, with no
+## window chrome and nothing overlapping it.
+func _screenshot() -> void:
+	var dir := renderer.tiles_dir().get_base_dir()
+	if dir == "":
+		return
+	await RenderingServer.frame_post_draw      # let the frame finish first
+	var img := get_viewport().get_texture().get_image()
+	if img == null:
+		return
+	var path := dir.path_join("shot.png")
+	if img.save_png(path) == OK:
+		# ask Qud to capture itself too, so the pair can be compared side by side
+		client.send_command("shot", {})
+		_mode_label.text = "saved shot.png + asked Qud for qud_shot.png"
+
 func _build_mode_label() -> void:
 	var layer := CanvasLayer.new()
 	add_child(layer)
@@ -267,6 +287,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			_set_mode(CamMode.FOLLOW); return
 		if event.keycode == KEY_I:
 			inspector.inspect_at_mouse(); return
+		if event.keycode == KEY_F12:
+			_screenshot(); return
 		if event.keycode == KEY_MINUS:
 			inspector.nudge_font(-2); return
 		if event.keycode == KEY_EQUAL:

@@ -56,6 +56,25 @@ The report pairs **WIRE** (what Qud sent) with **RENDERED** (what `ZoneRenderer`
 actually did, and at what Y). Every rendering bug so far has lived in the gap
 between those two, so always read both halves.
 
+## Screenshots — F12 in the Godot window
+
+Claude **cannot** capture the screen: macOS `screencapture` fails without Screen Recording
+permission (`could not create image from display`). So both apps capture themselves.
+
+**F12 in the Raves window** writes both, next to the exported tiles:
+
+| file | what |
+|---|---|
+| `~/Library/Application Support/RavesOfQud/shot.png` | the Godot viewport |
+| `~/Library/Application Support/RavesOfQud/qud_shot.png` | Qud's own window |
+
+Godot saves its viewport directly; it also sends a `shot` command so the mod calls
+`UnityEngine.ScreenCapture.CaptureScreenshot` — marshalled to the main thread via `uiQueue`,
+same rule as tile export. Qud's file appears at end-of-frame, so allow a moment.
+
+Claude reads both with the Read tool. This replaces the user manually screenshotting and
+pasting, which is how most of this project's visual debugging has worked so far.
+
 ## Debugging rules, learned expensively
 
 - **A cell is not just its objects.** Qud paints a ground layer (dirt, grass) onto cells with
