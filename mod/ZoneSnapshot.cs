@@ -113,17 +113,45 @@ namespace RavesOfQud
         ///
         /// Falls back to the field, so anything that doesn't paint is unaffected.
         /// </summary>
-        private static string ResolvedTile(GameObject go, Render r)
+        private static string ResolvedTile(GameObject go, Render r, out bool painted)
         {
+            painted = false;
             try
             {
                 _scratch.Clear();
                 go.RenderTile(_scratch);
-                string painted = _scratch.Tile;
-                if (!string.IsNullOrEmpty(painted)) return painted;
+                string tile = _scratch.Tile;
+                if (!string.IsNullOrEmpty(tile))
+                {
+                    painted = true;
+                    return tile;
+                }
             }
             catch { /* fall through to the blueprint value */ }
             return r.Tile ?? "";
+        }
+
+        /// <summary>
+        /// Colours straight off the painted ConsoleChar: already RESOLVED to RGB,
+        /// so the client needs no palette lookup and no &amp;X^Y parsing for these.
+        /// Also carries Qud's own sprite flipping.
+        ///
+        /// Only emitted when RenderTile actually painted a tile. If it didn't, the
+        /// ConsoleChar still holds whatever Clear() left, and shipping that would
+        /// paint half the zone in default colours — the client keeps using the
+        /// ColorString path in that case.
+        /// </summary>
+        private static void WritePaintedColors(JsonWriter j)
+        {
+            try
+            {
+                j.Member("fgHex", Hex(_scratch.TileForeground));
+                j.Member("bgHex", Hex(_scratch.TileBackground));
+                j.Member("detailHex", Hex(_scratch.Detail));
+                if (_scratch.HFlip) j.Member("hflip", true);
+                if (_scratch.VFlip) j.Member("vflip", true);
+            }
+            catch { /* colours are an optimisation; never fail a snapshot over them */ }
         }
 
         public static string BuildJson(GameObject player)
@@ -184,7 +212,8 @@ namespace RavesOfQud
                             opened = true;
                         }
 
-                        string tile = ResolvedTile(go, r);
+                        bool painted;
+                        string tile = ResolvedTile(go, r, out painted);
                         if (tile.Length > 0) TileExporter.Ensure(tile); // export-on-sight, cached
 
                         Physics phys = go.GetPart<Physics>();
@@ -209,8 +238,9 @@ namespace RavesOfQud
                             .Member("bridge", go.HasIntProperty("Bridge"))
                             // only creatures sink; scenery/plants rooted in the water
                             // (watervines) must keep their full height. Flyers skim over.
-                            .Member("sinks", go.IsCreature && !go.IsFlying)
-                        .EndObject();
+                            .Member("sinks", go.IsCreature && !go.IsFlying);
+                        if (painted) WritePaintedColors(j);
+                        j.EndObject();
                     }
 
                     if (opened) { j.EndArray().EndObject(); }

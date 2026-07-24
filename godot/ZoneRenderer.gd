@@ -395,7 +395,7 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			_note(cx, cy, idx, "deck(over water)" if wet else "deck(on ground)", y)
 			return
 
-	var tex := _colored_tex(tile, main_c, detail_c)
+	var tex := _colored_tex_rgb(tile, _obj_main(obj), _obj_detail(obj), _color_key(obj))
 
 	if layer <= FLOOR_LAYER_MAX:
 		if in_wall:
@@ -430,11 +430,14 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 		else:
 			# Gaps *enclosed* by the art read as the cell background, the way Qud
 			# draws them; everything outside the silhouette stays see-through.
-			var btex := _colored_tex(tile, main_c, detail_c, Fill.INTERIOR)
+			var btex := _colored_tex_rgb(tile, _obj_main(obj), _obj_detail(obj),
+				_color_key(obj), Fill.INTERIOR)
 			if btex == null:
 				btex = tex
 			var s := _take_sprite()
 			s.texture = btex
+			s.flip_h = bool(obj.get("hflip", false))
+			s.flip_v = bool(obj.get("vflip", false))
 			var submerged: bool = sink > 0.0 and bool(obj.get("sinks", false))
 			_seat(s, btex, tile, cx, cy, sink if submerged else 0.0)
 			s.visible = true
@@ -706,16 +709,21 @@ func _wall_mat_from_tex(tex: ImageTexture) -> StandardMaterial3D:
 # --- textures & materials (floors/sprites) ----------------------------------
 
 func _colored_tex(tile: String, main_c: String, detail_c: String, fill := Fill.NONE) -> ImageTexture:
+	return _colored_tex_rgb(tile, _qud_color(main_c), _qud_color(detail_c),
+		"%s|%s" % [main_c, detail_c], fill)
+
+## Same, but with colours already resolved (the painted-ConsoleChar path).
+func _colored_tex_rgb(tile: String, main: Color, detail: Color, ckey: String, fill := Fill.NONE) -> ImageTexture:
 	if tile.is_empty() or _tiles_dir.is_empty():
 		return null
-	var key := "%s|%s|%s|%d" % [tile, main_c, detail_c, fill]
+	var key := "%s|%s|%d" % [tile, ckey, fill]
 	if _tex_cache.has(key):
 		return _tex_cache[key]
 	var mask := _mask(tile)
 	if mask == null:
 		return null
 	var inner = _interior(tile) if fill == Fill.INTERIOR else null
-	var tex := _recolor_image(mask, main_c, detail_c, fill, inner)
+	var tex := _recolor_rgb(mask, main, detail, fill, inner)
 	_tex_cache[key] = tex
 	return tex
 
@@ -849,8 +857,9 @@ func _filled(w: int, h: int, solid: Array, inner: Array, x: int, y: int) -> bool
 # Recolour a 2-colour mask Image: black -> main, white -> detail. Transparent
 # pixels become the cell background per `fill` (see the Fill enum).
 func _recolor_image(mask: Image, main_c: String, detail_c: String, fill: int, inner = null) -> ImageTexture:
-	var main := _qud_color(main_c)
-	var detail := _qud_color(detail_c)
+	return _recolor_rgb(mask, _qud_color(main_c), _qud_color(detail_c), fill, inner)
+
+func _recolor_rgb(mask: Image, main: Color, detail: Color, fill: int, inner = null) -> ImageTexture:
 	var w := mask.get_width()
 	var h := mask.get_height()
 	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
@@ -959,6 +968,8 @@ func _take_sprite() -> Sprite3D:
 	s.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
 	s.rotation = Vector3.ZERO
 	s.region_enabled = false
+	s.flip_h = false
+	s.flip_v = false
 	return s
 
 func _take_floor() -> MeshInstance3D:
@@ -994,6 +1005,33 @@ const COLORS := {
 	"y": Color(0.70, 0.70, 0.70), "Y": Color(1.00, 1.00, 1.00),
 	"k": Color(0.10, 0.10, 0.10), "K": Color(0.10, 0.10, 0.10),
 }
+
+## Foreground/detail for an object. When Qud painted the tile it hands us the
+## RESOLVED rgb, which needs no palette lookup and no &X^Y parsing — prefer it.
+func _obj_main(obj: Dictionary) -> Color:
+	var hex := String(obj.get("fgHex", ""))
+	if hex != "":
+		return Color(hex)
+	var c := String(obj.get("tilecolor", ""))
+	if c == "": c = String(obj.get("color", ""))
+	return _qud_color(c)
+
+func _obj_detail(obj: Dictionary) -> Color:
+	var hex := String(obj.get("detailHex", ""))
+	if hex != "":
+		return Color(hex)
+	return _qud_color(String(obj.get("detail", "")))
+
+## Cache key for an object's colours — the painted rgb when present, else the
+## colour codes. Must distinguish the two, or a painted and an unpainted object
+## sharing a tile would collide in the texture cache.
+func _color_key(obj: Dictionary) -> String:
+	var hex := String(obj.get("fgHex", ""))
+	if hex != "":
+		return "%s~%s" % [hex, String(obj.get("detailHex", ""))]
+	var c := String(obj.get("tilecolor", ""))
+	if c == "": c = String(obj.get("color", ""))
+	return "%s|%s" % [c, String(obj.get("detail", ""))]
 
 func _qud_color(code: String) -> Color:
 	var c := code.strip_edges()
