@@ -975,16 +975,27 @@ var _voxel_mat: StandardMaterial3D
 func _rank_levels(img: Image) -> Array:
 	var w := img.get_width()
 	var h := img.get_height()
+	var bg := _wall_bg_color().to_html(false)   # the transparent-fill colour
 	var counts := {}
 	for y in h:
 		for x in w:
 			var c := img.get_pixel(x, y).to_html(false)
 			counts[c] = int(counts.get(c, 0)) + 1
-	var order := counts.keys()
-	order.sort_custom(func(a, b): return int(counts[a]) > int(counts[b]))
+	# background (was transparent) is DEEPEST -> level 0; the rest rank above it by
+	# count. Background is scenery you look past, so it recesses rather than standing
+	# proud just because it is common. Verified in tools/capture/voxel.py.
+	var rest := []
+	for c in counts:
+		if c != bg:
+			rest.append(c)
+	rest.sort_custom(func(a, b): return int(counts[a]) > int(counts[b]))
 	var level := {}
-	for i in order.size():
-		level[order[i]] = i
+	var nxt := 0
+	if counts.has(bg):
+		level[bg] = 0
+		nxt = 1
+	for i in rest.size():
+		level[rest[i]] = nxt + i
 	var lev := []
 	for y in h:
 		var row := []

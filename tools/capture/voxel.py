@@ -5,7 +5,8 @@ geometry can be checked WITHOUT a Godot screenshot round-trip.
 This mirrors ZoneRenderer's `_rank_levels`: recolour a tile (mask black -> main,
 white -> detail, transparent -> filled background), rank the resulting colours by
 pixel count (commonest = level 0 = base, rarest = tallest), and that rank is each
-pixel's voxel height. It then prints the colour->count->level table and an ASCII
+pixel's voxel height, EXCEPT the transparent/background is forced deepest (level 0).
+It then prints the colour->count->level table and an ASCII
 height map, and renders a cheap oblique preview PNG so the relief is visible.
 
     python3 tools/capture/voxel.py wall_brinestalk-10000010
@@ -52,13 +53,23 @@ def recolour(rows, w, h, ch, main, detail, bg):
     return out
 
 
-def rank_levels(grid, w, h):
+def rank_levels(grid, w, h, bg=None):
+    """Transparent/background is forced DEEPEST (level 0); the rest rank above it
+    by pixel count. Background is scenery you look past, so it should recess, not
+    stand proud just because it's common."""
     counts = {}
     for y in range(h):
         for x in range(w):
             counts[grid[y][x]] = counts.get(grid[y][x], 0) + 1
-    order = sorted(counts, key=lambda c: -counts[c])
-    level = {c: i for i, c in enumerate(order)}
+    rest = sorted((c for c in counts if c != bg), key=lambda c: -counts[c])
+    level = {}
+    nxt = 0
+    if bg in counts:
+        level[bg] = 0
+        nxt = 1
+    for i, c in enumerate(rest):
+        level[c] = nxt + i
+    order = ([bg] if bg in counts else []) + rest
     lev = [[level[grid[y][x]] for x in range(w)] for y in range(h)]
     return lev, counts, order, level
 
@@ -121,7 +132,7 @@ if __name__ == "__main__":
 
     w, h, ch, rows = decode(resolve(args[0]))
     grid = recolour(rows, w, h, ch, main, detail, bg)
-    lev, counts, order, level = rank_levels(grid, w, h)
+    lev, counts, order, level = rank_levels(grid, w, h, bg)
 
     print(f"{args[0]}  {w}x{h}   main={main} detail={detail} bg={bg}")
     print("\ncolour        count   level (0=base)")
