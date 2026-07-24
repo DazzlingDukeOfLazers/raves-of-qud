@@ -60,6 +60,7 @@ const MAX_SLOT_PX := 2
 # and it applies live: file a report, take a turn, see it.
 var _overrides := {}        # tile family -> shape verdict
 var _fill_overrides := {}   # tile family -> Fill mode
+var _overrides_raw := "?"   # last overrides.json text, to skip re-parsing
 
 var _palette := {}          # colour char -> "#rrggbb", from the mod (authoritative)
 var _tiles_dir := ""
@@ -313,54 +314,63 @@ const FILL_KEYS := [
 	["solid block", Fill.ALL],
 ]
 
-## Re-read the reports directory. A handful of small files, read once per snapshot,
-## so a filed verdict takes effect on the next turn with no restart.
+## Read the standing overrides — one JSON file the report form maintains, keyed by
+## tile family. Replaces scanning reports/*.md: those files were doing double duty
+## as both complaint tickets and live config, and deleting a "resolved" ticket
+## silently reverted the render. reports/ now holds one-off notes only.
+##
+## Verdicts are stored as the raw phrase and interpreted here through the same
+## matchers the form used to write them, so wording can change without a migration.
 func _load_overrides() -> void:
 	if _tiles_dir == "":
 		return
-	var dir := _tiles_dir.get_base_dir().path_join("reports")
-	var da := DirAccess.open(dir)
-	if da == null:
-		_overrides.clear()
-		_fill_overrides.clear()
+	var path := _tiles_dir.get_base_dir().path_join("overrides.json")
+	var text := FileAccess.get_file_as_string(path) if FileAccess.file_exists(path) else ""
+	if text == _overrides_raw:
+		return                      # unchanged since last frame — skip the re-parse
+	_overrides_raw = text
+	_overrides.clear()
+	_fill_overrides.clear()
+	if text == "":
 		return
-	var found := {}
-	var fills := {}
-	for f in da.get_files():
-		if not f.ends_with(".md"):
+	var data = JSON.parse_string(text)
+	if typeof(data) != TYPE_DICTIONARY:
+		return
+	var tiles = data.get("tiles", {})
+	if typeof(tiles) != TYPE_DICTIONARY:
+		return
+	for fam in tiles:
+		var entry = tiles[fam]
+		if typeof(entry) != TYPE_DICTIONARY:
 			continue
-		var text := FileAccess.get_file_as_string(dir.path_join(f))
-		if text == "":
-			continue
-		var tile := ""
-		var verdict := ""
-		for line in text.split("\n"):
-			if line.begins_with("- **tile**:") and line.contains("`"):
-				tile = line.get_slice("`", 1)
-			elif line.begins_with("- **verdict**:"):
-				verdict = line.substr(line.find(":") + 1).strip_edges()
-		if tile == "" or verdict == "":
-			continue
-		var fam := _tile_family(tile)
-		var vlow := verdict.to_lower()
-		for pair in VERDICT_KEYS:
-			if vlow.contains(pair[0]):
-				found[fam] = pair[1]
-				break
-		for pair in FILL_KEYS:
-			if vlow.contains(pair[0]):
-				fills[fam] = pair[1]
-				break
-	_overrides = found
-	_fill_overrides = fills
+		var shape := _match_shape(String(entry.get("shape", "")))
+		if shape != "":
+			_overrides[fam] = shape
+		var fill := _match_fill(String(entry.get("fill", "")))
+		if fill >= 0:
+			_fill_overrides[fam] = fill
 
-## The fill mode for a tile: a filed FILL verdict if there is one, else the
-## caller's default. Whether a wheel's paddle gaps read as background or as
-## see-through is a judgement about the art, not something derivable from it.
+## Verdict phrase -> shape key, or "" if none matches.
+func _match_shape(verdict: String) -> String:
+	var v := verdict.to_lower()
+	for pair in VERDICT_KEYS:
+		if v.contains(pair[0]):
+			return pair[1]
+	return ""
+
+## Verdict phrase -> Fill mode, or -1 if none matches.
+func _match_fill(verdict: String) -> int:
+	var v := verdict.to_lower()
+	for pair in FILL_KEYS:
+		if v.contains(pair[0]):
+			return pair[1]
+	return -1
+
 ## The fill mode a billboard of this tile would use — the inspector previews with it.
 func fill_mode_for(tile: String) -> int:
 	return _fill_for(tile, Fill.INTERIOR)
 
+## A filed FILL verdict for this tile if there is one, else the caller's default.
 func _fill_for(tile: String, fallback: int) -> int:
 	if _fill_overrides.is_empty() or tile == "":
 		return fallback

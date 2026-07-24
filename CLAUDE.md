@@ -87,28 +87,26 @@ same rule as tile export. Qud's file appears at end-of-frame, so allow a moment.
 Claude reads both with the Read tool. This replaces the user manually screenshotting and
 pasting, which is how most of this project's visual debugging has worked so far.
 
-## Tile reports — the user tells us what can't be derived
+## Tile reports — two kinds, two places
 
-Some things are simply not in Qud's data. A water wheel faces north–south, but its tile is
-`sw_waterwheel_1` — no `_ns` suffix, no blueprint flag, nothing to infer from. Guessing at these
-is how this project has burned the most time.
+Some things aren't in Qud's data: a water wheel runs east–west, but `sw_waterwheel_1` doesn't
+say so. Inspect a tile and use the form (lower right). Submissions split by type:
 
-**Inspect a tile, then use the form in the lower right.** Pick a verdict (wall / oriented panel
-N–S / billboard / flat / deck / not drawn / wrong colour / wrong height / duplicated / other),
-add notes, submit. It writes one markdown file per tile+verdict to:
+**Standing rules** (shape, fill) → `~/Library/Application Support/RavesOfQud/overrides.json`,
+keyed by tile family, one entry per tile:
 
-```
-~/Library/Application Support/RavesOfQud/reports/
+```json
+{ "tiles": { "sw_waterwheel": { "shape": "…E–W…", "fill": "…fill the holes…" } } }
 ```
 
-Each file carries the verdict, the notes, and **the full inspector report at time of filing** —
-so the evidence travels with the complaint. Read the whole directory to see what's outstanding.
+`ZoneRenderer._load_overrides()` reads this **live** every frame. It is **config** — it persists
+until changed. The form's **Clear rules** button removes a tile's entry; that is the undo. Never
+hand-delete an entry to "resolve" a tile unless you mean to revert its render. Hand-editing the
+JSON is fine (read-modify-write preserves it).
 
-⚠️ **Shape and fill reports are STANDING RULES, not tickets.** `ZoneRenderer._load_overrides()`
-re-reads this directory every frame, so a `panel E–W` or `fill the holes` verdict applies *only
-while its file exists*. **Never delete one to mark it "resolved"** — deleting reverts the render.
-Files that say `> STANDING RULE` at the top are config; leave them. Only informational notes
-(colour, position, "looks wrong") are one-off tickets safe to remove once addressed.
+**One-off notes** (colour, position, free text) → dated `.md` files under `reports/`, each with
+the full inspector capture attached. These are **tickets**: read the directory for what's
+outstanding, delete a file once addressed. Deleting a note never changes the render.
 
 ## Debugging rules, learned expensively
 

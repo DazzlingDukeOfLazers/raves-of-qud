@@ -7,11 +7,19 @@ class_name TileReport
 ## and south, but its tile is `sw_waterwheel_1` — no `_ns` suffix, no blueprint
 ## flag, nothing to infer from. Someone has to say so. This is where they say it.
 ##
-## Submitting writes one file per tile under
-##   ~/Library/Application Support/RavesOfQud/reports/
-## containing the full inspector report plus the verdict, so a collaborator can
-## read the directory and see every outstanding complaint with its evidence
-## already attached.
+## Submitting routes by verdict type, because the two kinds have opposite lifecycles:
+##
+##   STANDING RULES (shape, fill) are CONFIG. They upsert into ONE file,
+##     ~/Library/Application Support/RavesOfQud/overrides.json, keyed by tile family.
+##     The renderer reads it live. Entries persist until changed or cleared.
+##
+##   ONE-OFF NOTES (colour, position, free text) are TICKETS. Each writes a dated
+##     .md under reports/ with the full inspector capture attached. Delete when done.
+##
+## Splitting them fixes the trap where deleting a "resolved" ticket silently
+## reverted the render — because the ticket WAS the override. Config and tickets
+## now live in different places and can be cleaned up independently. "Clear rules"
+## removes this tile's config; deleting a note leaves the render untouched.
 
 ## Verdicts phrased as renderer outcomes, so a report maps onto something concrete.
 const VERDICTS := [
@@ -50,6 +58,7 @@ const PANEL_H := 430
 var _font := FONT
 var _title: Label
 var _send: Button
+var _clear: Button
 
 var _objects: Array = []
 
@@ -98,11 +107,113 @@ func _sync_subject() -> void:
 		_tile = String(_objects[_subject.selected].get("tile", ""))
 	_status.text = "" if _tile == "" else _tile.replace("\\", "/").get_file()
 
+## Route by verdict type. A shape or fill verdict is a STANDING RULE and gets
+## merged into overrides.json; anything else is a one-off note under reports/.
 func _submit() -> void:
 	if _cx < 0:
 		_status.text = "inspect a tile first"
 		return
-	if _verdict.selected <= 0 and _notes.text.strip_edges() == "":
+	var verdict := _verdict.get_item_text(_verdict.selected) if _verdict.selected > 0 else ""
+	var slot := _rule_slot(verdict)
+	if slot != "":
+		_upsert_override(slot, verdict)
+	else:
+		_write_note(verdict)
+
+## Which overrides slot a verdict belongs in: "shape", "fill", or "" for a note.
+func _rule_slot(verdict: String) -> String:
+	var v := verdict.to_lower()
+	if v.contains("fill"):
+		return "fill"
+	for k in ["wall", "panel", "n–s", "e–w", "billboard", "flat", "not be drawn"]:
+		if v.contains(k):
+			return "shape"
+	return ""
+
+# --- standing rules: overrides.json -----------------------------------------
+
+## Merge one rule into overrides.json under this tile's family, preserving the
+## other slot, every other tile, and any hand edits (read-modify-write).
+func _upsert_override(slot: String, verdict: String) -> void:
+	if _tile == "":
+		_status.text = "no tile to attach the rule to"
+		return
+	var path := _overrides_path()
+	if path == "":
+		_status.text = "no tiles dir yet — take a turn in Qud"
+		return
+	var data := _read_overrides(path)
+	var fam := _family(_tile)
+	var tiles: Dictionary = data.get("tiles", {})
+	var entry: Dictionary = tiles.get(fam, {})
+	entry[slot] = verdict
+	tiles[fam] = entry
+	data["tiles"] = tiles
+	_write_overrides(path, data)
+	_status.text = "rule set: %s.%s (live next turn)" % [fam, slot]
+	_verdict.selected = 0
+
+## Drop THIS tile's standing rules — the undo for a bad verdict.
+func _clear_override() -> void:
+	if _tile == "":
+		return
+	var path := _overrides_path()
+	if path == "":
+		return
+	var data := _read_overrides(path)
+	var tiles: Dictionary = data.get("tiles", {})
+	var fam := _family(_tile)
+	if tiles.has(fam):
+		tiles.erase(fam)
+		data["tiles"] = tiles
+		_write_overrides(path, data)
+		_status.text = "cleared rules for %s" % fam
+	else:
+		_status.text = "no rules on %s" % fam
+
+func _overrides_path() -> String:
+	if _renderer == null:
+		return ""
+	var base := _renderer.tiles_dir().get_base_dir()
+	return "" if base == "" else base.path_join("overrides.json")
+
+func _read_overrides(path: String) -> Dictionary:
+	if not FileAccess.file_exists(path):
+		return {"version": 1, "tiles": {}}
+	var data = JSON.parse_string(FileAccess.get_file_as_string(path))
+	return data if typeof(data) == TYPE_DICTIONARY else {"version": 1, "tiles": {}}
+
+func _write_overrides(path: String, data: Dictionary) -> void:
+	var f := FileAccess.open(path, FileAccess.WRITE)
+	if f != null:
+		f.store_string(JSON.stringify(data, "  "))
+		f.close()
+
+## Tile path -> family, matching ZoneRenderer._tile_family so keys line up.
+func _family(tile: String) -> String:
+	var t := tile.replace("\\", "/").get_file().get_basename().to_lower()
+	var dash := t.rfind("-")
+	if dash > 0 and _is_binary(t.substr(dash + 1)):
+		t = t.substr(0, dash)
+	var end := t.length()
+	while end > 0 and t[end - 1] >= "0" and t[end - 1] <= "9":
+		end -= 1
+	if end > 0 and end < t.length() and t[end - 1] == "_":
+		end -= 1
+	return t.substr(0, end) if end > 0 else t
+
+func _is_binary(s: String) -> bool:
+	if s.length() == 0:
+		return false
+	for c in s:
+		if c != "0" and c != "1":
+			return false
+	return true
+
+# --- one-off notes: reports/*.md --------------------------------------------
+
+func _write_note(verdict: String) -> void:
+	if verdict == "" and _notes.text.strip_edges() == "":
 		_status.text = "pick a verdict or write a note"
 		return
 	var dir := _reports_dir()
@@ -110,19 +221,12 @@ func _submit() -> void:
 		_status.text = "no tiles dir yet — take a turn in Qud"
 		return
 	DirAccess.make_dir_recursive_absolute(dir)
-
-	var verdict := _verdict.get_item_text(_verdict.selected) if _verdict.selected > 0 else "(none)"
-	var standing := _is_standing_rule(verdict)
 	var body := PackedStringArray()
-	body.append("# Tile report — (%d, %d)" % [_cx, _cy])
+	body.append("# Tile note — (%d, %d)" % [_cx, _cy])
 	body.append("")
-	if standing:
-		body.append("> STANDING RULE — this file IS the override. It applies while it exists.")
-		body.append("> Do not delete it to \"resolve\" the tile; deleting reverts the render.")
-		body.append("")
 	body.append("- **zone**: %s" % _zone)
 	body.append("- **tile**: `%s`" % _tile)
-	body.append("- **verdict**: %s" % verdict)
+	body.append("- **verdict**: %s" % (verdict if verdict != "" else "(note only)"))
 	body.append("- **filed**: %s" % Time.get_datetime_string_from_system())
 	body.append("")
 	body.append("## Notes")
@@ -132,35 +236,21 @@ func _submit() -> void:
 	body.append("```")
 	body.append(_report)
 	body.append("```")
-
-	var path := dir.path_join(_filename())
+	var path := dir.path_join(_note_filename())
 	var f := FileAccess.open(path, FileAccess.WRITE)
 	if f == null:
 		_status.text = "could not write %s" % path
 		return
 	f.store_string("\n".join(body) + "\n")
 	f.close()
-	_status.text = "filed -> reports/%s" % _filename()
+	_status.text = "note filed -> reports/%s" % _note_filename()
 	_notes.text = ""
 	_verdict.selected = 0
 
-## Shape and fill verdicts are STANDING RULES: the renderer reads them live, so
-## the file must persist. Everything else (colour/height/position notes) is a
-## one-off complaint. The distinction is written into the file so it is not lost.
-func _is_standing_rule(verdict: String) -> bool:
-	var v := verdict.to_lower()
-	for k in ["wall", "panel", "n–s", "e–w", "billboard", "flat", "not be drawn", "fill"]:
-		if v.contains(k):
-			return true
-	return false
-
-## One file per tile per verdict, so re-filing the same complaint overwrites
-## rather than piling up, but two different complaints about one tile coexist.
-func _filename() -> String:
+func _note_filename() -> String:
 	var zone := _zone.replace(".", "-")
 	var slug := "none" if _tile == "" else _tile.replace("\\", "/").get_file().get_basename()
-	var v := "note" if _verdict.selected <= 0 else str(_verdict.selected)
-	return "%s_%02d-%02d_%s_v%s.md" % [zone, _cx, _cy, slug, v]
+	return "%s_%02d-%02d_%s.md" % [zone, _cx, _cy, slug]
 
 func _reports_dir() -> String:
 	if _renderer == null:
@@ -215,10 +305,20 @@ func _build() -> void:
 	_notes.custom_minimum_size = Vector2(0, 120)
 	box.add_child(_notes)
 
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	box.add_child(row)
+
 	_send = Button.new()
-	_send.text = "Submit report"
+	_send.text = "Submit"
+	_send.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_send.pressed.connect(_submit)
-	box.add_child(_send)
+	row.add_child(_send)
+
+	_clear = Button.new()
+	_clear.text = "Clear rules"
+	_clear.pressed.connect(_clear_override)
+	row.add_child(_clear)
 
 	_status = Label.new()
 	_status.add_theme_color_override("font_color", Color(0.95, 0.85, 0.5))
@@ -243,6 +343,7 @@ func _apply_font() -> void:
 			pop.add_theme_font_size_override("font_size", _font)
 	_notes.add_theme_font_size_override("font_size", _font)
 	_send.add_theme_font_size_override("font_size", _font)
+	_clear.add_theme_font_size_override("font_size", _font)
 	_notes.custom_minimum_size = Vector2(0, _font * 6)
 
 func hide_panel() -> void:

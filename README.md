@@ -358,7 +358,8 @@ shared edges join seamlessly. Sides stay greedy-merged; only the cap needs per-c
   fences, pipes, tent walls, **and axles**. See the gate note below.
 - **upright billboard**: everything else.
 
-**User verdicts override everything.** Some facts are not in Qud's data at all: a water wheel
+**User verdicts are stored in `overrides.json`, one entry per tile family, and applied before
+the renderer's own classification.** Some facts are not in Qud's data at all: a water wheel
 runs east–west, but nothing in `sw_waterwheel_1` says so — no suffix, no blueprint flag. Inspect
 a tile, use the form in the lower right, and the verdict is written to
 `RavesOfQud/reports/<zone>_<x>-<y>_<tile>_v<n>.md`. `ZoneRenderer._load_overrides()` re-reads
