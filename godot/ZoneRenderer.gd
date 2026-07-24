@@ -34,6 +34,11 @@ const SINK_SWIM := 0.72    # ... and swimming depth
 #            lock reads as background but the world still shows past its outline
 enum Fill { NONE, ALL, INTERIOR }
 
+# Widest horizontal transparent run still treated as a seam in the art rather
+# than a genuine opening. Tuned against sw_chest (1px channels beside its bands,
+# must fill) vs sw_dromad (10px gap between its legs, must not).
+const MAX_SLOT_PX := 2
+
 var _tiles_dir := ""
 var _mask_cache := {}       # fname -> Image
 var _interior_cache := {}   # fname -> Array[Array[bool]]
@@ -159,6 +164,12 @@ func placements_at(cx: int, cy: int) -> Array:
 ## The decoded tile mask for a tile path, or null if it hasn't been exported yet.
 func tile_image(tile: String) -> Image:
 	return _mask(tile)
+
+## The exact texture a billboard would use — recoloured, with enclosed gaps
+## filled. What CellInspector previews, so you inspect what actually renders
+## rather than a separate rendering of the same idea.
+func billboard_texture(tile: String, main_c: String, detail_c: String) -> ImageTexture:
+	return _colored_tex(tile, main_c, detail_c, Fill.INTERIOR)
 
 ## (offset, height) of the tile's opaque rows, as fractions of its height.
 func tile_opaque_band(tile: String) -> Vector2:
@@ -725,6 +736,26 @@ func _interior(tile: String) -> Array:
 		for x in w:
 			row.append(not solid[y][x] and lo >= 0 and x > lo and x < hi
 				and col_lo[x] >= 0 and y > col_lo[x] and y < col_hi[x])
+		# ...plus any NARROW horizontal slot inside the row's span. The chest's
+		# side bands are separated from its body by 1px channels running the
+		# sprite's full height; nothing is opaque below them, so the column test
+		# rejects them and daylight shows through the chest. Relaxing to "row
+		# alone" over-fills instead — it webs the gaps between a dromad's legs.
+		# Width separates the two: a 1-2px slot is a seam in the art, a 10px
+		# opening is the world showing through.
+		if lo >= 0:
+			var x := lo + 1
+			while x < hi:
+				if solid[y][x]:
+					x += 1
+					continue
+				var run := x
+				while run < hi and not solid[y][run]:
+					run += 1
+				if run - x <= MAX_SLOT_PX:
+					for k in range(x, run):
+						row[k] = true
+				x = run
 		out.append(row)
 	_interior_cache[fname] = out
 	return out

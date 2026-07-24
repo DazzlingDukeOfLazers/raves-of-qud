@@ -30,6 +30,10 @@ var _cam: Camera3D
 var _snap := {}
 var _by_cell := {}          # Vector2i -> cell dictionary from the snapshot
 
+const PREVIEW_PX := 260          # on-screen size of the sprite preview
+const PREVIEW_SPIN := 0.9        # radians/sec
+const CHECKER_PX := 10           # checkerboard square size
+
 var _panel: PanelContainer
 var _label: RichTextLabel
 var _mark_pad: MeshInstance3D
@@ -37,11 +41,22 @@ var _mark_pin: MeshInstance3D
 var _font_size := FONT_SIZE_DEFAULT
 var _last_report := ""
 
+# sprite preview (upper right): the real billboard texture turning over a
+# checkerboard, so filled-vs-transparent is visible rather than inferred
+var _preview: Control
+var _preview_sprite: Sprite3D
+var _preview_caption: Label
+
 func setup(renderer: ZoneRenderer, cam: Camera3D) -> void:
 	_renderer = renderer
 	_cam = cam
 	_build_ui()
 	_build_marker()
+	_build_preview()
+
+func _process(dt: float) -> void:
+	if _preview_sprite != null and _preview.visible:
+		_preview_sprite.rotate_y(PREVIEW_SPIN * dt)
 
 func on_snapshot(data: Dictionary) -> void:
 	_snap = data
@@ -93,9 +108,11 @@ func build_report(cx: int, cy: int, hit: Vector3) -> String:
 	if not _by_cell.has(Vector2i(cx, cy)):
 		L.append("")
 		L.append("EMPTY — no objects here (Qud only sends non-empty cells).")
+		_preview.visible = false
 		return "\n".join(L)
 
 	var cell: Dictionary = _by_cell[Vector2i(cx, cy)]
+	_update_preview(cell)
 	var sink := _renderer.cell_sink(cell) if _renderer != null else 0.0
 	L.append("cell flags: bridge=%s wade=%s swim=%s   -> sink %.2f" % [
 		cell.get("bridge", false), cell.get("wade", false), cell.get("swim", false), sink])
@@ -204,6 +221,7 @@ func nudge_font(delta: int) -> void:
 
 func hide_panel() -> void:
 	_panel.visible = false
+	_preview.visible = false
 	_mark_pad.visible = false
 	_mark_pin.visible = false
 
@@ -237,6 +255,98 @@ func _build_ui() -> void:
 	mono.font_names = PackedStringArray(["Menlo", "SF Mono", "Monaco", "Courier New", "monospace"])
 	_label.add_theme_font_override("normal_font", mono)
 	_panel.add_child(_label)
+
+# Upper-right preview: the actual billboard texture, turning, over a
+# checkerboard. Transparency is otherwise invisible against the dark ground —
+# a filled gap and a see-through one both just look dark.
+func _build_preview() -> void:
+	var layer := CanvasLayer.new()
+	add_child(layer)
+
+	_preview = Control.new()
+	_preview.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_preview.offset_left = -(PREVIEW_PX + 16)
+	_preview.offset_top = 16
+	_preview.offset_right = -16
+	_preview.offset_bottom = 16 + PREVIEW_PX + 22
+	_preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_preview.visible = false
+	layer.add_child(_preview)
+
+	var checker := TextureRect.new()
+	checker.texture = _checker_texture()
+	checker.stretch_mode = TextureRect.STRETCH_TILE
+	checker.size = Vector2(PREVIEW_PX, PREVIEW_PX)
+	checker.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_preview.add_child(checker)
+
+	var holder := SubViewportContainer.new()
+	holder.size = Vector2(PREVIEW_PX, PREVIEW_PX)
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_preview.add_child(holder)
+
+	var vp := SubViewport.new()
+	vp.size = Vector2i(PREVIEW_PX, PREVIEW_PX)
+	vp.transparent_bg = true          # so the checkerboard shows through
+	vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	holder.add_child(vp)
+
+	var cam := Camera3D.new()
+	cam.projection = Camera3D.PROJECTION_ORTHOGONAL
+	cam.size = 1.5
+	cam.position = Vector3(0, 0.15, 2.2)
+	vp.add_child(cam)
+
+	_preview_sprite = Sprite3D.new()
+	_preview_sprite.pixel_size = 0.045
+	_preview_sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	_preview_sprite.shaded = false
+	_preview_sprite.double_sided = true   # stays visible through the back half
+	_preview_sprite.transparent = true
+	_preview_sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+	vp.add_child(_preview_sprite)
+
+	_preview_caption = Label.new()
+	_preview_caption.position = Vector2(0, PREVIEW_PX + 2)
+	_preview_caption.add_theme_font_size_override("font_size", 13)
+	_preview_caption.add_theme_color_override("font_color", Color(0.8, 0.92, 0.8))
+	_preview.add_child(_preview_caption)
+
+func _checker_texture() -> ImageTexture:
+	var n := CHECKER_PX * 2
+	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
+	var a := Color(0.32, 0.32, 0.34)
+	var b := Color(0.20, 0.20, 0.22)
+	for y in n:
+		for x in n:
+			var odd := (x < CHECKER_PX) != (y < CHECKER_PX)
+			img.set_pixel(x, y, a if odd else b)
+	return ImageTexture.create_from_image(img)
+
+## Preview the topmost object in the cell that has a tile.
+func _update_preview(cell: Dictionary) -> void:
+	if _renderer == null:
+		return
+	var objs: Array = cell.get("objs", [])
+	for i in range(objs.size() - 1, -1, -1):
+		var o: Dictionary = objs[i]
+		var tile := String(o.get("tile", ""))
+		if tile == "":
+			continue
+		var main_c := String(o.get("tilecolor", ""))
+		if main_c == "": main_c = String(o.get("color", ""))
+		var tex := _renderer.billboard_texture(tile, main_c, String(o.get("detail", "")))
+		if tex == null:
+			continue
+		_preview_sprite.texture = tex
+		_preview_sprite.rotation = Vector3.ZERO
+		var gaps := _renderer.tile_interior_px(tile)
+		_preview_caption.text = "%s  ·  %s" % [
+			tile.replace("\\", "/").get_file(),
+			("%d px gap filled" % gaps) if gaps > 0 else "no enclosed gaps"]
+		_preview.visible = true
+		return
+	_preview.visible = false
 
 func _build_marker() -> void:
 	var pad := BoxMesh.new()

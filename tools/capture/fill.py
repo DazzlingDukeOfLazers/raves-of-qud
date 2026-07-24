@@ -80,9 +80,81 @@ def rule_column_and_row(w, h, solid):
     return [[col[y][x] and row[y][x] for x in range(w)] for y in range(h)]
 
 
-RULES = [("flood fill", rule_floodfill),
-         ("column span", rule_column),
-         ("column AND row", rule_column_and_row)]
+def rule_column_or_row(w, h, solid):
+    """Interior = spanned in its column OR its row.
+
+    AND is too strict for art with a channel open at one end — the chest's side
+    bands span only the top two rows, so the gap beside them has nothing opaque
+    below and stays see-through for the sprite's full height. OR still protects
+    the silhouette, because a pixel outside the shape fails both tests.
+    """
+    col = rule_column(w, h, solid)
+    row = [[False] * w for _ in range(h)]
+    for y in range(h):
+        line = [x for x in range(w) if solid[y][x]]
+        if not line:
+            continue
+        for x in range(line[0] + 1, line[-1]):
+            if not solid[y][x]:
+                row[y][x] = True
+    return [[col[y][x] or row[y][x] for x in range(w)] for y in range(h)]
+
+
+def rule_row(w, h, solid):
+    """Interior = has an opaque pixel to the LEFT and RIGHT in its own row.
+
+    Horizontal enclosure implies "inside the object"; vertical enclosure does
+    not, because a sprite legitimately has open sky between its head and its
+    feet (the space around a dromad's legs and neck is spanned vertically but
+    is plainly outside). Asymmetric, but it matches how these tiles are drawn.
+    """
+    inner = [[False] * w for _ in range(h)]
+    for y in range(h):
+        line = [x for x in range(w) if solid[y][x]]
+        if not line:
+            continue
+        for x in range(line[0] + 1, line[-1]):
+            if not solid[y][x]:
+                inner[y][x] = True
+    return inner
+
+
+MAX_SLOT = 2
+
+
+def rule_and_plus_slots(w, h, solid):
+    """column AND row, PLUS any narrow horizontal slot inside the row span.
+
+    The chest's side bands are separated from its body by 1px channels that run
+    the sprite's full height. They have nothing opaque below, so the column test
+    rejects them and you see daylight through the chest. Widening the rule by
+    row alone over-fills — it webs the gaps between a dromad's legs. Width is
+    what separates the two: a 1px slot is a seam in the art, a 10px opening is
+    the world showing through.
+    """
+    inner = rule_column_and_row(w, h, solid)
+    for y in range(h):
+        line = [x for x in range(w) if solid[y][x]]
+        if not line:
+            continue
+        x = line[0] + 1
+        while x < line[-1]:
+            if solid[y][x]:
+                x += 1
+                continue
+            run = x
+            while run < line[-1] and not solid[y][run]:
+                run += 1
+            if run - x <= MAX_SLOT:
+                for k in range(x, run):
+                    inner[y][k] = True
+            x = run
+    return inner
+
+
+RULES = [("column AND row", rule_column_and_row),
+         ("row only", rule_row),
+         ("AND + narrow slots", rule_and_plus_slots)]
 
 
 def render(w, h, solid, interior):
