@@ -500,7 +500,12 @@ their colour where the sun doesn't reach; the baked per-face vertex shade is dro
 so it doesn't double with the real light. Billboards/floors stay unshaded. This is the one place
 the exact-colour guarantee is traded for atmosphere — flip the flag to compare.
 
-Wall **depth** is a normal map (`_normal_from_tex`), not geometry: a Sobel of the tile's
+Wall **caps are voxel geometry** (`_voxel_cap_mesh`): each pixel of the cap art becomes a column
+whose height is the RANK of its colour by pixel count — the commonest colour (the filled
+background) is the base, rarer colours (border/detail) stand proud. Real relief that catches the
+sun and casts pixel-level shadows. Built once per autotile variant+colour (`_voxel_cache`) and
+INSTANCED per cell, so the per-turn cost is a MeshInstance, not a rebuild. Wall SIDES still use a
+normal map (`_normal_from_tex`) for cheaper relief: a Sobel of the tile's
 luminance encoded as a tangent-space normal, so bright detail reads as raised and the filled
 background as deep. It costs no extra triangles and, because it feeds the real sun, the relief
 rakes and shifts as the sun moves. True geometry (voxels / displacement) would cast pixel-level

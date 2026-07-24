@@ -927,19 +927,128 @@ func _rebuild_walls(wall_types: Dictionary) -> void:
 				by_variant[v] = []
 			by_variant[v].append(k)
 		for v in by_variant:
-			var st := SurfaceTool.new()
-			st.begin(Mesh.PRIMITIVE_TRIANGLES)
-			for k in by_variant[v]:
-				_quad_top(st, k.x, k.x, k.y, k.y)
-			st.generate_tangents()      # normal mapping needs a tangent frame
-			var roof := ArrayMesh.new()
-			st.commit(roof)
-			if roof.get_surface_count() == 0:
+			var vmesh: ArrayMesh = _voxel_cap_mesh(v)
+			if vmesh == null:
 				continue
-			roof.surface_set_material(0, _wall_mat_from_tex(_cap_tex(v)))
-			var rmi := MeshInstance3D.new()
-			rmi.mesh = roof
-			_wall_root.add_child(rmi)
+			for k in by_variant[v]:
+				var rmi := MeshInstance3D.new()
+				rmi.mesh = vmesh
+				rmi.material_override = _voxel_material()
+				rmi.position = Vector3(k.x, 0.0, k.y)
+				_wall_root.add_child(rmi)
+
+# --- voxel wall caps --------------------------------------------------------
+
+const VOXEL_STEP := 0.075   # world height per colour-rank level
+var _voxel_cache := {}      # cap key -> ArrayMesh
+var _voxel_mat: StandardMaterial3D
+
+## Voxel relief mesh for a wall variant's cap, centred on its cell (x,z in
+## -0.5..0.5, rising from WALL_H). Each pixel is a column; its height is the RANK
+## of its colour by pixel count — the commonest colour (usually the filled
+## background) is the base, rarer colours (the border/detail) stand proud, which
+## is the "transparent is deepest, each colour extrudes" idea as real geometry.
+## Cached per variant+colour, so it is built once and instanced per cell.
+func _voxel_cap_mesh(variant_tile: String) -> ArrayMesh:
+	# reuse the recoloured, fully-framed cap the flat path already produced
+	var tex := _cap_tex(variant_tile)
+	if tex == null:
+		return null
+	var img := tex.get_image()
+	if img == null:
+		return null
+	var key := "%s|%s|%s|%s" % [variant_tile, _wall_main, _wall_detail, _wall_bg]
+	if _voxel_cache.has(key):
+		return _voxel_cache[key]
+
+	var w := img.get_width()
+	var h := img.get_height()
+	# rank colours by pixel count: commonest -> level 0, rarest -> highest
+	var counts := {}
+	for y in h:
+		for x in w:
+			var c := img.get_pixel(x, y).to_html(false)
+			counts[c] = int(counts.get(c, 0)) + 1
+	var order := counts.keys()
+	order.sort_custom(func(a, b): return int(counts[a]) > int(counts[b]))
+	var level := {}
+	for i in order.size():
+		level[order[i]] = i
+
+	# per-pixel level grid, so steps can be culled against neighbours
+	var lev := []
+	for y in h:
+		var row := []
+		for x in w:
+			row.append(int(level[img.get_pixel(x, y).to_html(false)]))
+		lev.append(row)
+
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var ps := 1.0 / w
+	for y in h:
+		for x in w:
+			var l: int = lev[y][x]
+			var col := img.get_pixel(x, y)
+			var y_top: float = WALL_H + l * VOXEL_STEP
+			var x0 := -0.5 + x * ps
+			var x1 := x0 + ps
+			var z0 := -0.5 + y * ps
+			var z1 := z0 + ps
+			_vc_top(st, x0, x1, z0, z1, y_top, col)
+			# vertical steps down to the lower of each neighbour (or the base at a
+			# cell edge), so raised pixels show their sides and cast shadows
+			_vc_step(st, x, y, l, lev, w, h, x0, x1, z0, z1, y_top, col)
+	var mesh := ArrayMesh.new()
+	st.commit(mesh)
+	_voxel_cache[key] = mesh
+	return mesh
+
+## Shared material for voxel caps: shaded, colour comes from the per-pixel vertex
+## colour, so one material covers every wall type and the sun shades the relief.
+func _voxel_material() -> StandardMaterial3D:
+	if _voxel_mat != null:
+		return _voxel_mat
+	var m := StandardMaterial3D.new()
+	m.vertex_color_use_as_albedo = true
+	m.roughness = 0.85
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	if SHADED_WORLD:
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
+	else:
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_voxel_mat = m
+	return m
+
+func _vc_top(st: SurfaceTool, x0: float, x1: float, z0: float, z1: float, y: float, c: Color) -> void:
+	for p in [Vector3(x0, y, z0), Vector3(x1, y, z1), Vector3(x1, y, z0),
+			  Vector3(x0, y, z0), Vector3(x0, y, z1), Vector3(x1, y, z1)]:
+		st.set_normal(Vector3.UP); st.set_color(c); st.add_vertex(p)
+
+## Vertical faces on the four sides of a pixel column, only where the neighbour
+## (or the cell edge -> base) is lower, from that neighbour's height up to y_top.
+func _vc_step(st: SurfaceTool, x: int, y: int, l: int, lev: Array, w: int, h: int,
+		x0: float, x1: float, z0: float, z1: float, y_top: float, c: Color) -> void:
+	var dirs := [[1, 0], [-1, 0], [0, 1], [0, -1]]
+	for d in dirs:
+		var nx: int = x + d[0]
+		var ny: int = y + d[1]
+		var nl := -1                                   # off-cell -> base (WALL_H)
+		if nx >= 0 and nx < w and ny >= 0 and ny < h:
+			nl = int(lev[ny][nx])
+		if nl >= l:
+			continue
+		var y_bot: float = WALL_H + maxi(nl, 0) * VOXEL_STEP
+		var a: Vector3; var b: Vector3
+		if d == [1, 0]:    a = Vector3(x1, 0, z0); b = Vector3(x1, 0, z1)
+		elif d == [-1, 0]: a = Vector3(x0, 0, z1); b = Vector3(x0, 0, z0)
+		elif d == [0, 1]:  a = Vector3(x1, 0, z1); b = Vector3(x0, 0, z1)
+		else:              a = Vector3(x0, 0, z0); b = Vector3(x1, 0, z0)
+		var at := Vector3(a.x, y_top, a.z); var bt := Vector3(b.x, y_top, b.z)
+		var ab := Vector3(a.x, y_bot, a.z); var bb := Vector3(b.x, y_bot, b.z)
+		var nrm := Vector3(d[0], 0, d[1])
+		for p in [ab, bt, at, ab, bb, bt]:
+			st.set_normal(nrm); st.set_color(c); st.add_vertex(p)
 
 ## The top-down cap of ONE autotile variant, recoloured. Borders appear only on
 ## the edges that variant says are exposed, so adjacent cells join seamlessly.
