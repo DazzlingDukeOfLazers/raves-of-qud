@@ -170,11 +170,10 @@ func _ready() -> void:
 	reporter.dismissed.connect(_dismiss_selection)
 
 func _on_snapshot(data: Dictionary) -> void:
-	# Route the render through the store. Today live_snapshot() hands back the exact
-	# dict just ingested, so this is a no-op; Phase 1 grows the store into remembered
-	# neighbours + fog without touching this path again. See docs/roadmap.md.
+	# Route the render through the store: draw the live zone plus any remembered
+	# neighbours (same stratum) the player has visited, placed by global offset.
 	store.ingest(data)
-	renderer.render_snapshot(store.live_snapshot())
+	renderer.render_snapshot(store.live_snapshot(), _neighbor_zones())
 	inspector.on_snapshot(data)
 
 	_update_time(data.get("time", {}))
@@ -201,6 +200,31 @@ func _on_snapshot(data: Dictionary) -> void:
 		_free_eye = _follow_eye()
 		_eye = _free_eye
 		_look = _follow_look()
+
+## Remembered zones to draw around the live one: every OTHER stored zone on the
+## same stratum, offset by the difference of its global origin from the live zone's
+## (in cells = world units). Cross-stratum stacking is Phase 2; a distance/eviction
+## radius is Phase 1's freeze-unfreeze step — for now the store holds few zones.
+func _neighbor_zones() -> Array:
+	var out: Array = []
+	var live_id := store.live_id()
+	if live_id == "":
+		return out
+	var live_rec := store.live_record()
+	var live_origin: Vector3i = live_rec.get("origin", Vector3i.ZERO)
+	var live_z: int = int(live_rec.get("stratum", 0))
+	for id in store.ids():
+		if id == live_id:
+			continue
+		var rec: Dictionary = store.record(id)
+		if int(rec.get("stratum", -9999)) != live_z:
+			continue
+		var o: Vector3i = rec.get("origin", Vector3i.ZERO)
+		out.append({
+			"cells": rec.get("snapshot", {}).get("cells", []),
+			"offset": Vector2i(o.x - live_origin.x, o.y - live_origin.y),
+		})
+	return out
 
 func _process(dt: float) -> void:
 	# ease the grade so time-of-day shifts smoothly between turns

@@ -53,6 +53,9 @@ func live_id() -> String:
 func live_record() -> Dictionary:
 	return _zones.get(_live_id, {})
 
+func ids() -> Array:
+	return _zones.keys()
+
 func has_zone(id: String) -> bool:
 	return _zones.has(id)
 

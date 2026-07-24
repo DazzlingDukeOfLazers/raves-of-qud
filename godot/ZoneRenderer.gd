@@ -157,7 +157,10 @@ func _make_radial(n: int, tint: Color, power: float) -> Texture2D:
 			img.set_pixel(x, y, Color(tint.r, tint.g, tint.b, a2))
 	return ImageTexture.create_from_image(img)
 
-func render_snapshot(data: Dictionary) -> void:
+## Render the live zone (`data`) plus any remembered neighbours. Each neighbour is
+## {cells: Array, offset: Vector2i} — its cells shifted into place relative to the
+## live zone. Neighbours render full-fidelity but static-only (no creatures).
+func render_snapshot(data: Dictionary, neighbors: Array = []) -> void:
 	_tiles_dir = String(data.get("tilesDir", ""))
 	_placed.clear()
 
@@ -197,14 +200,26 @@ func render_snapshot(data: Dictionary) -> void:
 
 	_load_overrides()
 
-	var cells = data.get("cells", [])
+	# Build the live zone, then any remembered neighbours from the store. Wall types
+	# accumulate across every zone so a single _rebuild_walls covers them all (and
+	# walls join across zone seams for free — same type + adjacent offset = one run).
+	var wall_types := {}
+	_build_zone(data.get("cells", []), Vector2i.ZERO, false, wall_types)
+	for nb in neighbors:
+		_build_zone(nb.get("cells", []), nb.get("offset", Vector2i.ZERO), true, wall_types)
+	_rebuild_walls(wall_types)
 
+## Build one zone's geometry into the scene, its cells shifted by `offset` (in cells
+## = world units) so a remembered neighbour lands in its true position relative to
+## the live zone. Wall types are accumulated into the shared `wall_types` (one
+## _rebuild_walls covers every zone). A `remembered` zone drops its creatures — they
+## have moved since it was last live (see _place_nonwall).
+func _build_zone(cells: Array, offset: Vector2i, remembered: bool, wall_types: Dictionary) -> void:
 	# pass 1: group wall cells by TYPE (family + colours + background)
-	var wall_types := {}   # key -> {cells, tile, main, detail, bg}
 	var wall_cells := {}
 	for cell in cells:
-		var cx := int(cell.get("x", 0))
-		var cy := int(cell.get("y", 0))
+		var cx := int(cell.get("x", 0)) + offset.x
+		var cy := int(cell.get("y", 0)) + offset.y
 		var widx := -1
 		for obj in cell.get("objs", []):
 			widx += 1
@@ -229,20 +244,18 @@ func render_snapshot(data: Dictionary) -> void:
 
 	# pass 2: floors + verticals (skip walls)
 	for cell in cells:
-		var cx := int(cell.get("x", 0))
-		var cy := int(cell.get("y", 0))
+		var cx := int(cell.get("x", 0)) + offset.x
+		var cy := int(cell.get("y", 0)) + offset.y
 		var in_wall: bool = wall_cells.has(Vector2i(cx, cy))
 		var sink := _cell_sink(cell)
 		var wet: bool = bool(cell.get("wade", false)) or bool(cell.get("swim", false))
 		var idx := 0
 		for obj in cell.get("objs", []):
 			if not _is_prism(obj):
-				_place_nonwall(obj, cx, cy, idx, in_wall, sink, wet)
+				_place_nonwall(obj, cx, cy, idx, in_wall, sink, wet, remembered)
 			if obj.has("lightRadius"):
 				_place_light(cx, cy, float(obj["lightRadius"]))
 			idx += 1
-
-	_rebuild_walls(wall_types)
 
 # --- introspection (for CellInspector) --------------------------------------
 
@@ -734,7 +747,17 @@ func _is_vegetation(tile: String) -> bool:
 			return true
 	return false
 
-func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, sink := 0.0, wet := false) -> void:
+## True if this object is a mobile creature. Prefers the mod's `creature` flag,
+## falls back to `sinks` (IsCreature && !IsFlying) for a snapshot from a mod build
+## that predates the flag.
+func _is_creature(obj: Dictionary) -> bool:
+	return bool(obj.get("creature", obj.get("sinks", false)))
+
+func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, sink := 0.0, wet := false, remembered := false) -> void:
+	# Remembered neighbour zones show their static terrain but not their creatures —
+	# those have wandered off since the zone was last live.
+	if remembered and _is_creature(obj):
+		return
 	var tile := String(obj.get("tile", ""))
 
 	# No tile even after asking the object what it would DRAW means Qud draws

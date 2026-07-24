@@ -479,7 +479,10 @@ namespace RavesOfQud
                             .Member("bridge", go.HasIntProperty("Bridge"))
                             // only creatures sink; scenery/plants rooted in the water
                             // (watervines) must keep their full height. Flyers skim over.
-                            .Member("sinks", go.IsCreature && !go.IsFlying);
+                            .Member("sinks", go.IsCreature && !go.IsFlying)
+                            // mobile actor: the client drops these from a REMEMBERED
+                            // neighbour zone (they've wandered off since it was live).
+                            .Member("creature", go.IsCreature);
                         // A lit LightSource -> Godot places a point light of this
                         // radius. The flame itself is procedural in Qud (particles +
                         // AnimatedMaterialFire), so there is no tile to send — only
