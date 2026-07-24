@@ -129,6 +129,56 @@ Claude reads both PNGs from disk. This replaces manual screenshot-and-paste.
 
 ---
 
+## Remote control — driving Qud + the viewer headlessly (`control.py`)
+
+`tools/capture/control.py` drives the game from OUTSIDE, so a loop can run without a human at the
+keyboard. Two channels:
+
+- **Qud** — framed commands to the mod bridge (same protocol as the Godot client):
+  `move <dir> [n]` (dirs N/S/E/W/NE/NW/SE/SW), then reads the resulting snapshot (player cell/zone).
+  The mod's `BridgeServer` broadcasts to every client and shares one command queue, so this coexists
+  with the running viewer.
+- **Godot** — Claude can't send keys to Godot, only to Qud. So `Main` polls a command file
+  (`<RavesOfQud>/godot_cmd`, ~10 Hz) and executes: `cam <1-6>` (camera mode), `shot` (save
+  shot.png), `fph <h>` (first-person height).
+
+```
+python3 tools/capture/control.py pos          # player cell + zone
+python3 tools/capture/control.py move N 5      # five steps north
+python3 tools/capture/control.py cam 1         # compass camera
+python3 tools/capture/control.py shot          # Godot screenshot -> shot.png (read it)
+```
+
+**CRITICAL — Qud must be FOCUSED to drive it.** Unfocused, Qud stops rendering *and* stops
+processing injected input: `runInBackground` keeps the loop alive, but the command hook
+(`BeforeRenderEvent`, see below) is render-tied and won't fire, so moves queue but never apply
+(control.py times out). **Working config: Qud focused, Godot in the background** — Godot screenshots
+fine unfocused (`_screenshot(forced=true)` → `RenderingServer.force_draw()`; the interactive F12 path
+`await`s `frame_post_draw`, which hangs unfocused). Not fully unattended: reading a Claude message
+re-focuses it, so drive in BURSTS while holding Qud focused.
+
+**How the mod applies commands (hard-won — don't rediscover):**
+- `Bridge.TickRender` (hooked on `BeforeRenderEvent`, every rendered frame) drains the queue + applies
+  + publishes. `Bridge.Tick` (EndTurnEvent) also drains + publishes per turn. EndTurn ALONE deadlocks
+  from a cold idle (an idle player ends no turn → nothing drains). BeforeRender fixes idle drive —
+  but only fires when Qud renders (= focused).
+- `Application.runInBackground = true` (set on the first `Bridge.Tick`, which runs at startup while
+  focused) keeps the game loop alive unfocused but does NOT make Qud render or read input unfocused.
+- Godot polls `godot_cmd` in `_process` (runs unfocused); a blocked player (marsh/water) applies the
+  move but doesn't move — check the position, not just that the command returned.
+
+## Camera modes (viewer)
+
+Pick with the `` ` `` debug menu or number keys **1–6** (current mode + controls show on screen):
+**1 COMPASS** (default, cardinal-LOCKED low-angle — never spins on movement; Q/E rotate 90°, R/F zoom),
+**2 FOLLOW** (trails heading), **3 FIRST-PERSON** (hides the player; menu height slider),
+**4 CINEMATIC** (frames player + selected tile; orbits only with nothing selected),
+**5 ORBIT** (mouse), **6 FLY** (WASD). Esc → COMPASS. Zone crossings shift the live camera transform
+in sync with the world re-anchor (Main._process runs before the client's, so the eye is also nudged
+that frame to avoid a 1-frame flip). See the header comment in `godot/Main.gd`.
+
+---
+
 ## Diagnostic (not part of the loop)
 
 `tools/tiletool/` — an AssetsTools.NET C# inspector used once to reverse how tiles are packed in

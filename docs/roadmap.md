@@ -293,7 +293,15 @@ Deliberately deferred until the MVP is together — hardcoded sensible defaults 
 ## Progress (as of 2026-07-24)
 
 Phase 0 done (global coords + store). Phase 1 landed: remembered-neighbour rendering (full
-fidelity, frozen — built once, rebuilt only on zone crossing), **depth-fog dimming**, and **on-disk
-persistence** keyed by `gameId`. Remaining Phase 1: a render radius + LRU eviction, and growing the
-ground plane (far zones currently sit over a 400×400 void). Then Phase 2 (Z-strata) and Phase 3
-(fork).
+fidelity, frozen), **depth-fog dimming**, **on-disk persistence** keyed by `gameId`, the **profiler**,
+and the **static/dynamic freeze** (per-step render ~85ms → a few ms). Also this session:
+- **Camera**: modes + `` ` `` debug menu (compass default = the disorientation fix; first-person,
+  cinematic-v1, orbit, fly); seamless zone crossings. See docs/tools.md "Camera modes".
+- **Remote control loop**: `control.py` drives Qud (move) + Godot (cam/shot via godot_cmd);
+  works while **Qud is focused** (not fully unattended — Qud pauses input/render unfocused). See
+  docs/tools.md "Remote control".
+
+Remaining Phase 1: render radius + LRU eviction, grow the 400×400 ground plane. Deferred camera
+work: Follow smoothing, Godot→Qud control-translation (up = forward at any heading; FP
+rotate-vs-strafe). Then Phase 2 (Z-strata / caves) and Phase 3 (editing fork). Cinematic v2 (combat
+event buffer) waits on the mod sending combat events.
