@@ -198,41 +198,67 @@ namespace RavesOfQud
         }
 
         /// <summary>
-        /// Ask Qud's own compositor what it would draw on a cell holding NO
-        /// objects. The counts proved we send every object a cell reports, so
-        /// whatever is drawn on apparently-bare ground is not in the object model
-        /// — this is where to look for it.
+        /// Qud's PAINTED GROUND LAYER.
+        ///
+        /// 1103 of this zone's 2000 cells hold no GameObject at all, yet Qud's
+        /// compositor still draws dirt and grass on them (Terrain/sw_grass1.bmp,
+        /// tile-dirt1.png...). That layer is not in the object model, which is why
+        /// it never appeared in any object query and why every fix aimed at the
+        /// object path was inert.
+        ///
+        /// Cell.Render() composites it. We emit it as a RenderLayer 0 floor so the
+        /// client draws it like any other ground.
         /// </summary>
-        private static void WriteBareTiles(JsonWriter j, Zone z, int w, int h)
+        private sealed class Ground
         {
-            int found = 0;
-            var samples = new System.Collections.Generic.List<string>();
+            public string Tile, Color, Detail, Glyph;
+            public bool HFlip, VFlip;
+        }
+
+        private static Ground ResolveGround(Cell c)
+        {
             try
             {
-                for (int y = 0; y < h; y++)
+                var ev = c.Render();
+                if (ev == null) return null;
+                string tile = ev.Tile;
+                if (string.IsNullOrEmpty(tile)) return null;
+                return new Ground
                 {
-                    for (int x = 0; x < w; x++)
-                    {
-                        Cell c = z.GetCell(x, y);
-                        if (c == null || CountSafe(c) != 0) continue;
-                        string tile = null;
-                        try
-                        {
-                            var ev = c.Render();
-                            if (ev != null) tile = ev._Tile;
-                        }
-                        catch { continue; }
-                        if (string.IsNullOrEmpty(tile)) continue;
-                        found++;
-                        if (samples.Count < 8) samples.Add(x + "," + y + "=" + tile);
-                    }
-                }
+                    Tile = tile,
+                    Color = ev.ColorString ?? "",
+                    Detail = ev.DetailColor ?? "",
+                    Glyph = ev.RenderString ?? "",
+                    HFlip = ev.HFlip,
+                    VFlip = ev.VFlip,
+                };
             }
-            catch { }
-            j.Name("bare").BeginObject().Member("n", found);
-            j.Name("samples").BeginArray();
-            foreach (string sm in samples) j.Value(sm);
-            j.EndArray().EndObject();
+            catch { return null; }
+        }
+
+        private static void WriteGroundTile(JsonWriter j, Ground g)
+        {
+            string tile = g.Tile, color = g.Color, detail = g.Detail, glyph = g.Glyph;
+            bool hflip = g.HFlip, vflip = g.VFlip;
+            TileExporter.Ensure(tile);
+            j.BeginObject()
+                .Member("name", "[painted ground]")
+                .Member("display", "ground")
+                .Member("glyph", glyph)
+                .Member("tile", tile)
+                .Member("color", color)
+                .Member("tilecolor", "")
+                .Member("detail", detail)
+                .Member("layer", 0)
+                .Member("wall", false)
+                .Member("solid", false)
+                .Member("occluding", false)
+                .Member("bridge", false)
+                .Member("sinks", false)
+                .Member("ground", true);
+            if (hflip) j.Member("hflip", true);
+            if (vflip) j.Member("vflip", true);
+            j.EndObject();
         }
 
         public static string BuildJson(GameObject player)
@@ -281,7 +307,20 @@ namespace RavesOfQud
                     var objects = c.GetObjects();
                     int emitted = 0;
 
-                    bool opened = false;
+                    Ground ground = ResolveGround(c);
+                    if (ground == null && objects.Count == 0) continue;
+
+                    bool opened = true;
+                    j.BeginObject().Member("x", x).Member("y", y)
+                        .Member("bridge", c.HasBridge())
+                        .Member("wade", c.HasWadingDepthLiquid())
+                        .Member("swim", c.HasSwimmingDepthLiquid())
+                    .Name("objs").BeginArray();
+
+                    // Qud's painted ground goes first: it is the bottom of the
+                    // stack, and on most cells here it is the ONLY thing drawn.
+                    if (ground != null) { WriteGroundTile(j, ground); emitted++; }
+
                     foreach (GameObject go in objects)
                     {
                         Render r = go.GetPart<Render>();
@@ -296,19 +335,6 @@ namespace RavesOfQud
                         string tile = ResolvedTile(go, r, out painted);
                         string glyph = ResolvedGlyph(r);
                         if (glyph.Length == 0 && tile.Length == 0) continue;
-
-                        if (!opened)
-                        {
-                            // Cell-level water/bridge facts. Godot turns these into a
-                            // "sink" depth for the actors standing here; a bridge
-                            // cancels it (you walk over the water, not through it).
-                            j.BeginObject().Member("x", x).Member("y", y)
-                                .Member("bridge", c.HasBridge())
-                                .Member("wade", c.HasWadingDepthLiquid())
-                                .Member("swim", c.HasSwimmingDepthLiquid())
-                            .Name("objs").BeginArray();
-                            opened = true;
-                        }
 
                         if (tile.Length > 0) TileExporter.Ensure(tile); // export-on-sight, cached
 
@@ -351,22 +377,10 @@ namespace RavesOfQud
                             .Member("nSent", emitted)
                         .EndObject();
                     }
-                    else if (CountSafe(c) > 0)
-                    {
-                        // Objects present but NONE emitted — exactly the case that
-                        // made grass tiles look like bare ground.
-                        j.BeginObject().Member("x", x).Member("y", y)
-                            .Member("nHeld", CountSafe(c))
-                            .Member("nRendered", RenderedSafe(c))
-                            .Member("nSent", 0)
-                            .Name("objs").BeginArray().EndArray()
-                        .EndObject();
-                    }
+
                 }
             }
             j.EndArray();
-
-            WriteBareTiles(j, z, w, h);
 
             j.EndObject();
             return j.ToString();
