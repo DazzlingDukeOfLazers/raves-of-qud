@@ -372,6 +372,16 @@ func _opaque_v(img: Image) -> Vector2:
 
 func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, sink := 0.0, wet := false) -> void:
 	var tile := String(obj.get("tile", ""))
+
+	# No tile even after asking the object what it would DRAW means Qud draws
+	# nothing: DaylightWidget, ZoneMusic, CheckpointWidget, Landmark* — zone
+	# bookkeeping parked in real cells. We were painting them as colour dots.
+	# (A tile path whose PNG is merely missing still falls through to the glyph
+	# label below; that case is transient, since tiles export on sight.)
+	if tile == "":
+		_note(cx, cy, idx, "skipped(no tile — not drawn by Qud)", 0.0)
+		return
+
 	var main_c := String(obj.get("tilecolor", ""))
 	if main_c == "": main_c = String(obj.get("color", ""))
 	var detail_c := String(obj.get("detail", ""))
