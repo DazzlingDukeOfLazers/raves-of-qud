@@ -74,10 +74,69 @@ def rank_levels(grid, w, h, bg=None):
     return lev, counts, order, level
 
 
-def ascii_map(lev, w, h):
-    print("\nheight map (0 = base/deepest, higher = taller):")
+# Rec.601 relative luminance of an 8-bit RGB tuple, 0..1.
+def luma(c):
+    return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255.0
+
+
+LUMA_FLOOR = 0.30   # non-bg pixels stand at least this proud of the recessed bg
+LUMA_GAIN = 2.5     # luminance 1.0 -> this many levels (keeps ~current relief height)
+
+
+def luma_levels(grid, w, h, bg=None, gamma=1.0):
+    """Height follows the art's own light/dark: level = luminance, so highlights
+    stand proud and shadows recess — the way the tile artist modelled form. The
+    transparent/background is still forced DEEPEST (0). No count-order hack needed:
+    bg is the darkest colour, so it recesses by construction, and a mid colour that
+    happens to be the commonest no longer floats above the wall body.
+
+    Non-bg pixels get a floor (LUMA_FLOOR) so even the darkest wall pixel stands
+    above the recessed bg gaps, preserving the 'wall body over deep gaps' read.
+
+    `gamma` shapes the profile: <1 pushes the bright DETAIL pixels (mortar lines,
+    rivets, plant spines) up into sharp proud ridges that catch the sun — the only
+    real depth dial 2-bit art allows. gamma=1 is straight luminance."""
+    lev = [[0.0] * w for _ in range(h)]
+    span = LUMA_GAIN - LUMA_FLOOR
     for y in range(h):
-        print("  " + "".join(str(min(lev[y][x], 9)) for x in range(w)))
+        for x in range(w):
+            c = grid[y][x]
+            if c == bg:
+                lev[y][x] = 0.0
+            else:
+                lev[y][x] = LUMA_FLOOR + span * (luma(c) ** gamma)
+    return lev
+
+
+def smooth_levels(grid, lev, w, h, passes, bg=None):
+    """Box-blur the height field to tame the 1px crosshatch (the dithered art read
+    as an egg-crate of alternating pits). Background pixels stay PINNED to 0 — the
+    gaps are real recesses, not noise to average away — so the blur only softens the
+    relief of the solid wall body."""
+    for _ in range(passes):
+        nxt = [row[:] for row in lev]
+        for y in range(h):
+            for x in range(w):
+                if grid[y][x] == bg:
+                    continue                     # keep gaps at their floor
+                s = 0.0
+                n = 0
+                for dy in (-1, 0, 1):
+                    for dx in (-1, 0, 1):
+                        ny, nx = y + dy, x + dx
+                        if 0 <= ny < h and 0 <= nx < w and grid[ny][nx] != bg:
+                            s += lev[ny][nx]
+                            n += 1
+                if n:
+                    nxt[y][x] = s / n
+        lev = nxt
+    return lev
+
+
+def ascii_map(lev, w, h):
+    print("\nheight map (0 = base/deepest, digit = round(level)):")
+    for y in range(h):
+        print("  " + "".join(str(min(int(round(lev[y][x])), 9)) for x in range(w)))
 
 
 def oblique_png(grid, lev, w, h, path, step=6, cell=14):
@@ -85,7 +144,7 @@ def oblique_png(grid, lev, w, h, path, step=6, cell=14):
     as a top face + a shaded front face, back-to-front so occlusion is right."""
     pad = 40
     W = w * cell + h * (cell // 2) + pad * 2
-    H = h * cell + max(l for r in lev for l in r) * step + cell + pad * 2
+    H = h * cell + int(round(max(l for r in lev for l in r) * step)) + cell + pad * 2
     img = [[(30, 32, 40) for _ in range(W)] for _ in range(H)]
 
     def put(px, py, c):
@@ -98,7 +157,7 @@ def oblique_png(grid, lev, w, h, path, step=6, cell=14):
     for y in range(h):                       # back (small y) to front
         for x in range(w):
             c = grid[y][x]
-            hgt = lev[y][x] * step
+            hgt = int(round(lev[y][x] * step))
             ox = pad + x * cell + (h - 1 - y) * (cell // 2)
             oy = pad + y * cell - hgt
             for dy in range(cell):           # top face
@@ -130,15 +189,37 @@ if __name__ == "__main__":
     detail = hexrgb(opts["detail"]) if "detail" in opts else PALETTE["y"]
     bg = hexrgb(opts["bg"]) if "bg" in opts else PALETTE["k"]
 
+    rule = opts.get("rule", "count")        # count (current) | luma
+    passes = int(opts.get("smooth", 0))     # box-blur passes over the height field
+    gamma = float(opts.get("gamma", 1.0))   # <1 spikes bright detail (luma rule)
+
     w, h, ch, rows = decode(resolve(args[0]))
     grid = recolour(rows, w, h, ch, main, detail, bg)
-    lev, counts, order, level = rank_levels(grid, w, h, bg)
 
-    print(f"{args[0]}  {w}x{h}   main={main} detail={detail} bg={bg}")
-    print("\ncolour        count   level (0=base)")
-    for c in order:
-        tag = "  <- filled bg" if c == bg else ("  <- detail" if c == detail else
-              ("  <- main" if c == main else ""))
-        print(f"  {('#%02x%02x%02x' % c)}   {counts[c]:<6} {level[c]}{tag}")
+    print(f"{args[0]}  {w}x{h}   main={main} detail={detail} bg={bg}"
+          f"   rule={rule} smooth={passes}")
+    if rule == "luma":
+        lev = luma_levels(grid, w, h, bg, gamma)
+        # colour -> level table straight from the (unsmoothed) luminance map
+        seen = {}
+        for y in range(h):
+            for x in range(w):
+                seen[grid[y][x]] = lev[y][x]
+        order = sorted(seen, key=lambda c: seen[c])
+        print("\ncolour        luma    level (0=base)")
+        for c in order:
+            tag = "  <- filled bg" if c == bg else ("  <- detail" if c == detail else
+                  ("  <- main" if c == main else ""))
+            print(f"  {('#%02x%02x%02x' % c)}   {luma(c):.3f}   {seen[c]:.3f}{tag}")
+    else:
+        lev, counts, order, level = rank_levels(grid, w, h, bg)
+        print("\ncolour        count   level (0=base)")
+        for c in order:
+            tag = "  <- filled bg" if c == bg else ("  <- detail" if c == detail else
+                  ("  <- main" if c == main else ""))
+            print(f"  {('#%02x%02x%02x' % c)}   {counts[c]:<6} {level[c]}{tag}")
+
+    if passes:
+        lev = smooth_levels(grid, lev, w, h, passes, bg)
     ascii_map(lev, w, h)
     oblique_png(grid, lev, w, h, "/tmp/voxel_preview.png")

@@ -968,8 +968,14 @@ func _place_side(mesh: ArrayMesh, k: Vector2i, deg: float) -> void:
 
 # --- voxel wall caps --------------------------------------------------------
 
-const VOXEL_STEP := 0.075   # world height per colour-rank level (caps)
-const SIDE_STEP := 0.06     # outward protrusion per colour-rank level (sides)
+const VOXEL_STEP := 0.075   # world height per luminance level (caps)
+const SIDE_STEP := 0.06     # outward protrusion per luminance level (sides)
+# Luminance -> height mapping (see _rank_levels). Non-bg pixels span
+# [LUMA_FLOOR .. LUMA_GAIN]; bg is pinned to 0. LUMA_GAMMA<1 pushes the bright
+# detail pixels up into proud ridges (the one depth dial 2-bit art allows).
+const LUMA_FLOOR := 0.30
+const LUMA_GAIN := 2.5
+const LUMA_GAMMA := 1.0
 var _voxel_cache := {}      # cap key -> ArrayMesh
 var _voxel_mat: StandardMaterial3D
 
@@ -978,38 +984,35 @@ var _voxel_mat: StandardMaterial3D
 ## of its colour by pixel count — the commonest colour (usually the filled
 ## background) is the base, rarer colours (the border/detail) stand proud, which
 ## is the "transparent is deepest, each colour extrudes" idea as real geometry.
-## Per-pixel height LEVEL grid: rank each colour by pixel count (commonest -> 0,
-## rarest -> highest), so the border/detail stands proudest and the filled
-## background is the base. Shared by cap and side voxels.
+## Per-pixel FLOAT height LEVEL grid, driven by LUMINANCE, not pixel count.
+## Qud tiles are 2-bit masks (black->main, white->detail, transparent->bg), so a
+## cell only ever holds ≤3 colours — verified in tools/capture/voxel.py. Height
+## therefore can't come from a gradient the art doesn't have; it comes from the
+## art's own light/dark: brighter pixel -> stands prouder, so the bright DETAIL
+## lines (mortar, rivets, plant spines) ridge up and the body sits below them.
+##   - The transparent/background is the DEEPEST (level 0) — scenery you look past.
+##   - Non-bg pixels get a FLOOR so even the darkest wall pixel stands above the
+##     recessed bg gaps (the "wall body over deep gaps" read).
+## This replaces the old count-rank, which needed a special-case to stop a merely
+## COMMON mid colour from floating above the body; luminance orders it correctly
+## by construction. Mirrors voxel.py `luma_levels`. LUMA_GAMMA<1 spikes detail.
 func _rank_levels(img: Image) -> Array:
 	var w := img.get_width()
 	var h := img.get_height()
 	var bg := _wall_bg_color().to_html(false)   # the transparent-fill colour
-	var counts := {}
-	for y in h:
-		for x in w:
-			var c := img.get_pixel(x, y).to_html(false)
-			counts[c] = int(counts.get(c, 0)) + 1
-	# background (was transparent) is DEEPEST -> level 0; the rest rank above it by
-	# count. Background is scenery you look past, so it recesses rather than standing
-	# proud just because it is common. Verified in tools/capture/voxel.py.
-	var rest := []
-	for c in counts:
-		if c != bg:
-			rest.append(c)
-	rest.sort_custom(func(a, b): return int(counts[a]) > int(counts[b]))
-	var level := {}
-	var nxt := 0
-	if counts.has(bg):
-		level[bg] = 0
-		nxt = 1
-	for i in rest.size():
-		level[rest[i]] = nxt + i
+	var span := LUMA_GAIN - LUMA_FLOOR
 	var lev := []
 	for y in h:
 		var row := []
 		for x in w:
-			row.append(int(level[img.get_pixel(x, y).to_html(false)]))
+			var c := img.get_pixel(x, y)
+			if c.to_html(false) == bg:
+				row.append(0.0)
+			else:
+				var lm := 0.299 * c.r + 0.587 * c.g + 0.114 * c.b   # Rec.601, 0..1
+				if LUMA_GAMMA != 1.0:
+					lm = pow(lm, LUMA_GAMMA)
+				row.append(LUMA_FLOOR + span * lm)
 		lev.append(row)
 	return lev
 
@@ -1036,7 +1039,7 @@ func _voxel_cap_mesh(variant_tile: String) -> ArrayMesh:
 	var ps := 1.0 / w
 	for y in h:
 		for x in w:
-			var l: int = lev[y][x]
+			var l: float = lev[y][x]
 			var col := img.get_pixel(x, y)
 			var y_top: float = WALL_H + l * VOXEL_STEP
 			var x0 := -0.5 + x * ps
@@ -1076,7 +1079,7 @@ func _side_voxel_mesh(variant_tile: String) -> ArrayMesh:
 	var ph := WALL_H / h
 	for y in h:
 		for x in w:
-			var l: int = lev[y][x]
+			var l: float = lev[y][x]
 			var col := img.get_pixel(x, y)
 			var d: float = 0.5 + l * SIDE_STEP           # outward from the cell edge
 			var xa := -0.5 + x * pw                       # along the edge
@@ -1096,17 +1099,17 @@ func _side_voxel_mesh(variant_tile: String) -> ArrayMesh:
 
 ## Vertical/horizontal step faces around a protruding side pixel, only toward a
 ## shallower neighbour, from that neighbour's depth out to this pixel's depth.
-func _side_step(st: SurfaceTool, x: int, y: int, l: int, lev: Array, w: int, h: int,
+func _side_step(st: SurfaceTool, x: int, y: int, l: float, lev: Array, w: int, h: int,
 		xa: float, xb: float, yt: float, yb: float, d: float, col: Color) -> void:
 	for dir in [[1, 0], [-1, 0], [0, 1], [0, -1]]:
 		var nx: int = x + dir[0]
 		var ny: int = y + dir[1]
-		var nl := -1
+		var nl := -1.0                                 # off-cell -> base (below any level)
 		if nx >= 0 and nx < w and ny >= 0 and ny < h:
-			nl = int(lev[ny][nx])
+			nl = float(lev[ny][nx])
 		if nl >= l:
 			continue
-		var d0: float = 0.5 + maxi(nl, 0) * SIDE_STEP
+		var d0: float = 0.5 + maxf(nl, 0.0) * SIDE_STEP
 		var a: Vector3; var b: Vector3; var nrm: Vector3
 		if dir == [1, 0]:      a = Vector3(xb, yb, 0); b = Vector3(xb, yt, 0); nrm = Vector3(1, 0, 0)
 		elif dir == [-1, 0]:   a = Vector3(xa, yt, 0); b = Vector3(xa, yb, 0); nrm = Vector3(-1, 0, 0)
@@ -1159,18 +1162,18 @@ func _vc_top(st: SurfaceTool, x0: float, x1: float, z0: float, z1: float, y: flo
 
 ## Vertical faces on the four sides of a pixel column, only where the neighbour
 ## (or the cell edge -> base) is lower, from that neighbour's height up to y_top.
-func _vc_step(st: SurfaceTool, x: int, y: int, l: int, lev: Array, w: int, h: int,
+func _vc_step(st: SurfaceTool, x: int, y: int, l: float, lev: Array, w: int, h: int,
 		x0: float, x1: float, z0: float, z1: float, y_top: float, c: Color) -> void:
 	var dirs := [[1, 0], [-1, 0], [0, 1], [0, -1]]
 	for d in dirs:
 		var nx: int = x + d[0]
 		var ny: int = y + d[1]
-		var nl := -1                                   # off-cell -> base (WALL_H)
+		var nl := -1.0                                 # off-cell -> base (WALL_H)
 		if nx >= 0 and nx < w and ny >= 0 and ny < h:
-			nl = int(lev[ny][nx])
+			nl = float(lev[ny][nx])
 		if nl >= l:
 			continue
-		var y_bot: float = WALL_H + maxi(nl, 0) * VOXEL_STEP
+		var y_bot: float = WALL_H + maxf(nl, 0.0) * VOXEL_STEP
 		var a: Vector3; var b: Vector3
 		if d == [1, 0]:    a = Vector3(x1, 0, z0); b = Vector3(x1, 0, z1)
 		elif d == [-1, 0]: a = Vector3(x0, 0, z1); b = Vector3(x0, 0, z0)
