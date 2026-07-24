@@ -341,7 +341,7 @@ func _exec_godot_cmd(cmd: String) -> void:
 	var parts := cmd.split(" ", false)
 	match parts[0]:
 		"shot":
-			_screenshot()
+			_screenshot(false, true)   # forced: window is unfocused, no auto-draw
 		"cam":
 			if parts.size() > 1:
 				_set_mode(clampi(int(parts[1]) - 1, 0, 5))   # 1-6 -> COMPASS..KEYBOARD
@@ -651,7 +651,7 @@ func _dump_profile(reset := true) -> void:
 ## The OS-level `screencapture` is blocked without Screen Recording permission,
 ## and this is better anyway: it captures the rendered viewport exactly, with no
 ## window chrome and nothing overlapping it.
-func _screenshot(clean := false) -> void:
+func _screenshot(clean := false, forced := false) -> void:
 	var dir := renderer.tiles_dir().get_base_dir()
 	if dir == "":
 		return
@@ -661,7 +661,12 @@ func _screenshot(clean := false) -> void:
 	if clean and inspector.panel_visible():
 		inspector.set_panel_visible(false)
 		restore = true
-	await RenderingServer.frame_post_draw      # let the frame finish first
+	if forced:
+		# a remote (control.py) shot: the window is unfocused so no frame is being
+		# drawn and `await frame_post_draw` would hang forever. Force one now.
+		RenderingServer.force_draw()
+	else:
+		await RenderingServer.frame_post_draw      # let the frame finish first
 	var img := get_viewport().get_texture().get_image()
 	if restore:
 		inspector.set_panel_visible(true)

@@ -89,8 +89,10 @@ def player_line(snap):
 
 def godot(cmd):
     """Queue a command for the Godot viewer to execute (it polls + deletes)."""
-    with open(GODOT_CMD, "w") as f:
+    tmp = GODOT_CMD + ".tmp"
+    with open(tmp, "w") as f:
         f.write(cmd + "\n")
+    os.replace(tmp, GODOT_CMD)   # atomic; no truncate race with Godot's poll
 
 
 def godot_shot(wait=6.0):
