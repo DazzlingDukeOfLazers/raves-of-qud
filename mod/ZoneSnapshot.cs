@@ -116,6 +116,21 @@ namespace RavesOfQud
         private static string ResolvedTile(GameObject go, Render r, out bool painted)
         {
             painted = false;
+
+            // getTile() is the ACCESSOR: it resolves what the object actually
+            // draws — PickRandomTile, RandomTileOnMove, harvestable states. The
+            // Tile FIELD is only the blueprint's static value, and is empty for
+            // anything that picks its art at runtime.
+            try
+            {
+                string got = r.getTile();
+                if (!string.IsNullOrEmpty(got)) return got;
+            }
+            catch { }
+
+            // RenderTile is the OVERRIDE hook for parts that paint themselves.
+            // It fires for almost nothing — kept because when it does fire it
+            // also gives us resolved colours.
             try
             {
                 _scratch.Clear();
@@ -127,8 +142,26 @@ namespace RavesOfQud
                     return tile;
                 }
             }
-            catch { /* fall through to the blueprint value */ }
+            catch { }
+
             return r.Tile ?? "";
+        }
+
+        /// <summary>
+        /// The glyph the object actually draws. Same story as the tile: the
+        /// RenderString FIELD can be empty while the accessor resolves one.
+        /// An object with both fields empty was dropped entirely, which made its
+        /// whole cell report as EMPTY.
+        /// </summary>
+        private static string ResolvedGlyph(Render r)
+        {
+            try
+            {
+                string got = r.getRenderString();
+                if (!string.IsNullOrEmpty(got)) return got;
+            }
+            catch { }
+            return r.RenderString ?? "";
         }
 
         /// <summary>
@@ -207,7 +240,7 @@ namespace RavesOfQud
                         // no amount of querying the snapshot could find them.
                         bool painted;
                         string tile = ResolvedTile(go, r, out painted);
-                        string glyph = r.RenderString ?? "";
+                        string glyph = ResolvedGlyph(r);
                         if (glyph.Length == 0 && tile.Length == 0) continue;
 
                         if (!opened)
