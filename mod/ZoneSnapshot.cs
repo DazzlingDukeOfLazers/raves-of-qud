@@ -98,6 +98,34 @@ namespace RavesOfQud
             return n.ToString("x2");
         }
 
+        // Reused across the whole snapshot; the turn thread is the only writer.
+        private static readonly ConsoleLib.Console.ConsoleChar _scratch =
+            new ConsoleLib.Console.ConsoleChar();
+
+        /// <summary>
+        /// The tile Qud would actually DRAW for this object.
+        ///
+        /// Render.Tile is only the static blueprint value. Objects whose art is
+        /// chosen at render time — grass and other ground cover — leave it empty
+        /// and paint themselves through RenderTile instead, so reading the field
+        /// gave "no tile", exported nothing, and the client drew a flat dot where
+        /// the game shows a sprite.
+        ///
+        /// Falls back to the field, so anything that doesn't paint is unaffected.
+        /// </summary>
+        private static string ResolvedTile(GameObject go, Render r)
+        {
+            try
+            {
+                _scratch.Clear();
+                go.RenderTile(_scratch);
+                string painted = _scratch.Tile;
+                if (!string.IsNullOrEmpty(painted)) return painted;
+            }
+            catch { /* fall through to the blueprint value */ }
+            return r.Tile ?? "";
+        }
+
         public static string BuildJson(GameObject player)
         {
             var j = new JsonWriter();
@@ -156,7 +184,7 @@ namespace RavesOfQud
                             opened = true;
                         }
 
-                        string tile = r.Tile ?? "";
+                        string tile = ResolvedTile(go, r);
                         if (tile.Length > 0) TileExporter.Ensure(tile); // export-on-sight, cached
 
                         Physics phys = go.GetPart<Physics>();
