@@ -98,6 +98,15 @@ var _ground_mat: StandardMaterial3D
 # Read by CellInspector; rebuilt each snapshot.
 var _placed := {}   # Vector2i -> Array[{idx, kind, y}]
 
+# Torch/fire light. The world uses UNSHADED materials, so a real Godot light
+# does nothing. Instead each lit object gets an ADDITIVE warm ground-glow plus a
+# small flickering flame — brightening the flat tiles the way an additive decal
+# would, and reading correctly in the top-down 2.5D view.
+var _light_root: Node3D
+var _glow_tex: Texture2D
+var _flame_tex: Texture2D
+var _lights: Array = []           # [{glow, flame, x, z, base_energy}]
+
 var _active: Array = []
 var _sprite_pool: Array[Sprite3D] = []
 var _floor_pool: Array[MeshInstance3D] = []
@@ -124,6 +133,24 @@ func _ready() -> void:
 	_ground_mat = gm
 	ground.material_override = gm
 	add_child(ground)
+
+	_light_root = Node3D.new()
+	add_child(_light_root)
+	_glow_tex = _make_radial(64, Color(1.0, 0.62, 0.25), 1.0)   # warm pool of light
+	_flame_tex = _make_radial(32, Color(1.0, 0.80, 0.35), 1.6)  # tighter, brighter core
+
+# A radial gradient: opaque tint at the centre fading to transparent, `power`
+# shapes the falloff. Used additively for both the glow and the flame core.
+func _make_radial(n: int, tint: Color, power: float) -> Texture2D:
+	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
+	var c := (n - 1) * 0.5
+	for y in n:
+		for x in n:
+			var d: float = Vector2(x - c, y - c).length() / c
+			var a2: float = clampf(1.0 - d, 0.0, 1.0)
+			a2 = pow(a2, power)
+			img.set_pixel(x, y, Color(tint.r, tint.g, tint.b, a2))
+	return ImageTexture.create_from_image(img)
 
 func render_snapshot(data: Dictionary) -> void:
 	_tiles_dir = String(data.get("tilesDir", ""))
@@ -158,6 +185,10 @@ func render_snapshot(data: Dictionary) -> void:
 			if n.mesh == _fence_quad: _fence_pool.append(n)
 			else: _floor_pool.append(n)
 	_active.clear()
+
+	for c in _light_root.get_children():
+		c.queue_free()
+	_lights.clear()
 
 	_load_overrides()
 
@@ -202,6 +233,8 @@ func render_snapshot(data: Dictionary) -> void:
 		for obj in cell.get("objs", []):
 			if not _is_prism(obj):
 				_place_nonwall(obj, cx, cy, idx, in_wall, sink, wet)
+			if obj.has("lightRadius"):
+				_place_light(cx, cy, float(obj["lightRadius"]))
 			idx += 1
 
 	_rebuild_walls(wall_types)
@@ -436,6 +469,57 @@ func _override_for(tile: String) -> String:
 	if _overrides.is_empty() or tile == "":
 		return ""
 	return String(_overrides.get(tile_family(tile), ""))
+
+# --- torch / fire light ------------------------------------------------------
+
+## An additive warm glow on the ground (the "light") plus a small flickering flame
+## above the sconce. Qud's radius is in cells; 1 cell == 1 world unit.
+func _place_light(cx: int, cy: int, radius: float) -> void:
+	var glow := MeshInstance3D.new()
+	var gm := PlaneMesh.new()
+	var d: float = maxf(2.0, radius * 1.6)   # pool a bit wider than the sconce
+	gm.size = Vector2(d, d)
+	glow.mesh = gm
+	glow.position = Vector3(cx, FLOOR_Y + 0.01, cy)
+	glow.material_override = _fx_material(_glow_tex)
+	_light_root.add_child(glow)
+
+	var flame := Sprite3D.new()
+	flame.texture = _flame_tex
+	flame.pixel_size = 0.03
+	flame.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	flame.shaded = false
+	flame.transparent = true
+	flame.material_override = _fx_material(_flame_tex)   # additive
+	flame.position = Vector3(cx, 0.7, cy)                # above the sconce
+	_light_root.add_child(flame)
+
+	_lights.append({"glow": glow, "flame": flame, "energy": 1.0})
+
+## Unshaded + additive: brightens whatever is behind it, no scene lighting needed.
+func _fx_material(tex: Texture2D) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
+	if tex != null:
+		m.albedo_texture = tex
+	return m
+
+## Flicker: jitter each light's brightness a little every frame, so torches read
+## as fire rather than steady lamps. Cheap — modulate the additive quads' alpha.
+func _process(_dt: float) -> void:
+	for L in _lights:
+		var e: float = 0.75 + randf() * 0.4        # 0.75..1.15
+		L["energy"] = lerpf(L["energy"], e, 0.35)   # smoothed, so it shimmers not strobes
+		var a: float = L["energy"]
+		(L["glow"] as MeshInstance3D).transparency = clampf(1.0 - a * 0.6, 0.0, 1.0)
+		var fs: float = 0.9 + a * 0.25
+		var flame := L["flame"] as Sprite3D
+		flame.scale = Vector3(fs, fs * (0.95 + randf() * 0.2), fs)
+		flame.modulate = Color(1, 1, 1, clampf(a, 0.0, 1.0))
 
 func _is_prism(obj: Dictionary) -> bool:
 	# a user verdict wins outright — that's the point of filing one

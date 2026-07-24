@@ -401,6 +401,7 @@ namespace RavesOfQud
                         if (tile.Length > 0) TileExporter.Ensure(tile); // export-on-sight, cached
 
                         Physics phys = go.GetPart<Physics>();
+                        LightSource light = go.GetPart<LightSource>();
                         j.BeginObject()
                             // Identity. Without this an object with no Tile is
                             // unidentifiable on the client — you see a glyph and a
@@ -423,6 +424,12 @@ namespace RavesOfQud
                             // only creatures sink; scenery/plants rooted in the water
                             // (watervines) must keep their full height. Flyers skim over.
                             .Member("sinks", go.IsCreature && !go.IsFlying);
+                        // A lit LightSource -> Godot places a point light of this
+                        // radius. The flame itself is procedural in Qud (particles +
+                        // AnimatedMaterialFire), so there is no tile to send — only
+                        // the light, which the blueprint specifies exactly.
+                        if (light != null && light.Lit)
+                            j.Member("lightRadius", light.Radius);
                         if (painted) WritePaintedColors(j);
                         j.EndObject();
                         emitted++;

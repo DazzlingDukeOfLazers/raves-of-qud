@@ -115,6 +115,15 @@ snapshot, and never touches override keying.
 the full inspector capture attached. These are **tickets**: read the directory for what's
 outstanding, delete a file once addressed. Deleting a note never changes the render.
 
+## Lighting is FAKED (the world is unshaded)
+
+Every material in `ZoneRenderer` is `SHADING_MODE_UNSHADED` so tiles show their exact colours.
+A real `OmniLight3D`/`DirectionalLight3D` therefore does **nothing** to the scene. Any "light"
+must be **additive geometry**: `_place_light()` draws a warm radial ground-glow quad plus a
+flickering flame billboard, both `BLEND_MODE_ADD`, which brighten whatever's behind them without
+scene lighting. The mod sends `lightRadius` (from `LightSource.Radius` where `Lit`); Qud's flame
+itself is procedural (particles + `AnimatedMaterialFire`), so there's no tile to extract.
+
 ## Debugging rules, learned expensively
 
 - **A cell is not just its objects.** Qud paints a ground layer (dirt, grass) onto cells with
