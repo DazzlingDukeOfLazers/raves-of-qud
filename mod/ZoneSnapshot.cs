@@ -372,10 +372,19 @@ namespace RavesOfQud
             int w = z.Width;
             int h = z.Height;
 
+            // Structured zone coordinates, straight off the Zone (confirmed real int
+            // fields by reflection: wX/wY = parasang, X/Y = zone within the 3x3
+            // parasang, Z = stratum). The client derives global cell coordinates from
+            // these — no fragile parsing of the ZoneID string. See docs/roadmap.md.
             j.Name("zone").BeginObject()
                 .Member("id", z.ZoneID ?? "")
                 .Member("width", w)
                 .Member("height", h)
+                .Member("wx", z.wX)
+                .Member("wy", z.wY)
+                .Member("zx", z.X)
+                .Member("zy", z.Y)
+                .Member("z", z.Z)
             .EndObject();
 
             Cell pc = player?.CurrentCell;
