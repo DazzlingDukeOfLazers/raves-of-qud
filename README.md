@@ -341,6 +341,13 @@ frame — crop to the opaque rows to seat things on the ground.
 | 10 | creatures | upright billboard |
 | 100 | special NPCs | upright billboard |
 
+**Roofs use each cell's own autotile variant.** A wall's `-XXXXXXXX` suffix says which of its
+8 neighbours are also walls, and Qud's art omits the border on those edges. Canonicalising every
+wall to `-11111111` and capping it with the isolated `-00000000` tile draws all four borders on
+every cell, so a run of wall reads as a **grid of separate framed squares** instead of one
+continuous roof. `_rebuild_walls` groups roof cells **by variant** — one mesh per variant — so
+shared edges join seamlessly. Sides stay greedy-merged; only the cap needs per-cell art.
+
 **Classification rules (in `ZoneRenderer.gd`):**
 - **prism** (3D box): `wall && occluding` **and the tile is not a `family_<dirs>` set** →
   rock/metal/brinestalk.

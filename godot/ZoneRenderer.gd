@@ -164,7 +164,10 @@ func render_snapshot(data: Dictionary) -> void:
 			var key := "%s|%s|%s|%s" % [tile, main_c, detail_c, bg]
 			if not wall_types.has(key):
 				wall_types[key] = {"cells": {}, "tile": tile, "main": main_c, "detail": detail_c, "bg": bg}
-			wall_types[key]["cells"][Vector2i(cx, cy)] = true
+			# store the cell's REAL autotile variant, not just "occupied". The
+			# variant encodes which neighbours are walls, which is exactly what
+			# decides whether the roof draws a border on each edge.
+			wall_types[key]["cells"][Vector2i(cx, cy)] = String(obj.get("tile", ""))
 			wall_cells[Vector2i(cx, cy)] = true
 
 	# pass 2: floors + verticals (skip walls)
@@ -532,21 +535,65 @@ func _wall_bg_color() -> Color:
 func _rebuild_walls(wall_types: Dictionary) -> void:
 	for c in _wall_root.get_children():
 		c.queue_free()
-	# one greedy-meshed MeshInstance per wall type, each with its own tile + colours
 	for key in wall_types:
 		var t = wall_types[key]
 		_wall_tile = t["tile"]; _wall_main = t["main"]; _wall_detail = t["detail"]; _wall_bg = t["bg"]
-		var mesh := _build_wall_mesh(t["cells"])
+		var cells: Dictionary = t["cells"]
+
+		# SIDES stay greedy-merged: exposed faces run together and the art tiles
+		# cleanly along a wall.
+		var mesh := _build_wall_mesh(cells)
 		if mesh.get_surface_count() >= 1:
-			mesh.surface_set_material(0, _wall_top_material())
-		if mesh.get_surface_count() >= 2:
-			mesh.surface_set_material(1, _wall_side_material())
+			mesh.surface_set_material(0, _wall_side_material())
 		var mi := MeshInstance3D.new()
 		mi.mesh = mesh
 		_wall_root.add_child(mi)
 
+		# ROOFS are per-cell, grouped by autotile variant. Merging them under one
+		# texture drew the fully-bordered isolated tile on every cell, so a run of
+		# wall read as a grid of separate framed squares instead of one continuous
+		# surface. Qud already solved this: the -XXXXXXXX suffix says which edges
+		# have a neighbour, and its art omits the border there. Use each cell's own.
+		var by_variant := {}
+		for k in cells:
+			var v := String(cells[k])
+			if not by_variant.has(v):
+				by_variant[v] = []
+			by_variant[v].append(k)
+		for v in by_variant:
+			var st := SurfaceTool.new()
+			st.begin(Mesh.PRIMITIVE_TRIANGLES)
+			for k in by_variant[v]:
+				_quad_top(st, k.x, k.x, k.y, k.y)
+			var roof := ArrayMesh.new()
+			st.commit(roof)
+			if roof.get_surface_count() == 0:
+				continue
+			roof.surface_set_material(0, _wall_mat_from_tex(_cap_tex(v)))
+			var rmi := MeshInstance3D.new()
+			rmi.mesh = roof
+			_wall_root.add_child(rmi)
+
+## The top-down cap of ONE autotile variant, recoloured. Borders appear only on
+## the edges that variant says are exposed, so adjacent cells join seamlessly.
+func _cap_tex(tile: String) -> ImageTexture:
+	var key := "cap|%s|%s|%s|%s" % [tile, _wall_main, _wall_detail, _wall_bg]
+	if _wallmat_cache.has(key):
+		return _wallmat_cache[key]
+	var mask := _mask(tile)
+	if mask == null:
+		return _wall_top_material_tex()      # fall back to the isolated tile
+	var region := mask.get_region(Rect2i(0, 0, mask.get_width(), _wall_split(mask).x))
+	var tex := _recolor_image(region, _wall_main, _wall_detail, Fill.ALL)
+	_wallmat_cache[key] = tex
+	return tex
+
+func _wall_top_material_tex() -> ImageTexture:
+	return _wall_region_tex("top")
+
+## Sides only — roofs are built per-cell in _rebuild_walls so each keeps its own
+## autotile variant.
 func _build_wall_mesh(wall_set: Dictionary) -> ArrayMesh:
-	var st_top := SurfaceTool.new(); st_top.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var st_side := SurfaceTool.new(); st_side.begin(Mesh.PRIMITIVE_TRIANGLES)
 
 	var minx := 1 << 30; var maxx := -(1 << 30)
@@ -555,30 +602,6 @@ func _build_wall_mesh(wall_set: Dictionary) -> ArrayMesh:
 		minx = min(minx, k.x); maxx = max(maxx, k.x)
 		minz = min(minz, k.y); maxz = max(maxz, k.y)
 
-	# top faces: greedy 2D rectangles at y = WALL_H
-	var visited := {}
-	for z in range(minz, maxz + 1):
-		for x in range(minx, maxx + 1):
-			var key := Vector2i(x, z)
-			if not wall_set.has(key) or visited.has(key):
-				continue
-			var x1 := x
-			while wall_set.has(Vector2i(x1 + 1, z)) and not visited.has(Vector2i(x1 + 1, z)):
-				x1 += 1
-			var z1 := z
-			var grow := true
-			while grow:
-				var nz := z1 + 1
-				for xx in range(x, x1 + 1):
-					if not wall_set.has(Vector2i(xx, nz)) or visited.has(Vector2i(xx, nz)):
-						grow = false
-						break
-				if grow: z1 = nz
-			for xx in range(x, x1 + 1):
-				for zz in range(z, z1 + 1):
-					visited[Vector2i(xx, zz)] = true
-			_quad_top(st_top, x, x1, z, z1)
-
 	# side faces: exposed edges merged into runs
 	_sides_x(st_side, wall_set, minx, maxx, minz, maxz, 1)
 	_sides_x(st_side, wall_set, minx, maxx, minz, maxz, -1)
@@ -586,7 +609,6 @@ func _build_wall_mesh(wall_set: Dictionary) -> ArrayMesh:
 	_sides_z(st_side, wall_set, minx, maxx, minz, maxz, -1)
 
 	var mesh := ArrayMesh.new()
-	st_top.commit(mesh)
 	st_side.commit(mesh)
 	return mesh
 
