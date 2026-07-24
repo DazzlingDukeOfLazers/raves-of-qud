@@ -29,6 +29,12 @@ namespace RavesOfQud
     /// </summary>
     public static class ZoneSnapshot
     {
+        // Serialize time of the PREVIOUS snapshot, in microseconds. Sent as serverUs
+        // so the client's profiler can Pareto server-serialize vs client-render. We
+        // can't measure this turn's build until it's done and the JSON is written
+        // sequentially, so we report the prior turn's — representative, one turn late.
+        static int _lastBuildUs = 0;
+
         /// <summary>
         /// Plain display name, defended against a throwing getter. DisplayName
         /// runs the full markup/adjective pipeline on some objects, and a
@@ -353,6 +359,7 @@ namespace RavesOfQud
 
         public static string BuildJson(GameObject player)
         {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
             var j = new JsonWriter();
             j.BeginObject();
             j.Member("type", Protocol.TypeSnapshot);
@@ -361,6 +368,7 @@ namespace RavesOfQud
             // Stable per-game id: the client namespaces its on-disk zone store by
             // this so a NEW game never renders a previous game's remembered zones.
             j.Member("gameId", The.Game != null ? (The.Game.GameID ?? "") : "");
+            j.Member("serverUs", _lastBuildUs);     // prior turn's serialize time (profiler)
             WriteTime(j);
             WritePalette(j);
 
@@ -514,7 +522,9 @@ namespace RavesOfQud
             j.EndArray();
 
             j.EndObject();
-            return j.ToString();
+            var s = j.ToString();
+            _lastBuildUs = (int)(sw.Elapsed.TotalMilliseconds * 1000.0);
+            return s;
         }
     }
 }

@@ -226,9 +226,11 @@ func render_snapshot(data: Dictionary, neighbors: Array = []) -> void:
 	_load_overrides()
 
 	# Build (and rebuild every step) only the LIVE zone.
+	Profiler.begin("render.live")
 	var wall_types := {}
 	_build_zone(data.get("cells", []), Vector2i.ZERO, false, wall_types)
 	_rebuild_walls(wall_types)
+	Profiler.done("render.live")
 
 	# Remembered neighbours are FROZEN: built once into _remembered_root and left
 	# alone. Rebuild only when the set changes (a new zone, or a different live zone
@@ -240,7 +242,9 @@ func render_snapshot(data: Dictionary, neighbors: Array = []) -> void:
 		sig += "|%d,%d" % [o.x, o.y]
 	if sig != _remembered_sig:
 		_remembered_sig = sig
+		Profiler.begin("render.remembered")
 		_rebuild_remembered(neighbors)
+		Profiler.done("render.remembered")
 
 ## Build one zone's geometry into the scene, its cells shifted by `offset` (in cells
 ## = world units) so a remembered neighbour lands in its true position relative to

@@ -184,8 +184,16 @@ func _ready() -> void:
 func _on_snapshot(data: Dictionary) -> void:
 	# Route the render through the store: draw the live zone plus any remembered
 	# neighbours (same stratum) the player has visited, placed by global offset.
+	Profiler.add_us("server", int(data.get("serverUs", 0)))
+	Profiler.begin("ingest")
 	store.ingest(data)
-	renderer.render_snapshot(store.live_snapshot(), _neighbor_zones())
+	Profiler.done("ingest")
+	Profiler.begin("neighbors")
+	var nbs := _neighbor_zones()
+	Profiler.done("neighbors")
+	Profiler.begin("render")
+	renderer.render_snapshot(store.live_snapshot(), nbs)
+	Profiler.done("render")
 	inspector.on_snapshot(data)
 
 	_update_time(data.get("time", {}))
@@ -476,6 +484,18 @@ func _inspect() -> void:
 		reporter.set_target(sel.x, sel.y, inspector.zone_id(),
 			inspector.last_objects(), inspector.last_report())
 
+## F9: write the Pareto timing report to profile.txt (Claude reads it), then reset
+## so the next sample is a fresh window. Walk around a bit before pressing it.
+func _write_profile() -> void:
+	var dir := renderer.tiles_dir().get_base_dir()
+	if dir == "":
+		return
+	var f := FileAccess.open(dir.path_join("profile.txt"), FileAccess.WRITE)
+	if f != null:
+		f.store_string(Profiler.report())
+		f.close()
+	Profiler.reset()
+
 ## Save the viewport to a known path so a collaborator can just read it.
 ##
 ## The OS-level `screencapture` is blocked without Screen Recording permission,
@@ -542,6 +562,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			_inspect(); return
 		if event.keycode == KEY_F12:
 			_screenshot(); return
+		if event.keycode == KEY_F9:
+			_write_profile(); return
 		if event.keycode == KEY_MINUS:
 			inspector.nudge_font(-2)
 			reporter.nudge_font(-2); return

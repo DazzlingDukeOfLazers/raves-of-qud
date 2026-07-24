@@ -280,6 +280,16 @@ Deliberately deferred until the MVP is together — hardcoded sensible defaults 
   `Main` constants), and likely ambient/sun energy, `SIDE_CARVE`/`CAP_CARVE`, day-length. An
   in-viewer settings panel so Daniel dials the look live instead of editing constants + reloading.
 
+## MVP definition (Daniel, 2026-07-24)
+
+**MVP = a reviewable tool for feedback.** Concretely:
+- More passes at **sprite → voxel** creation and **categorization** (extend beyond walls).
+- **Walking about to find escapes** — exploration that surfaces rendering edge cases / gaps.
+- **Caves (subterranean)** — Z-strata / vertical (Phase 2).
+- **Navigating the main map** — overworld / parasang travel.
+- **Hardening Phase 1** (radius/eviction, ground plane, robustness).
+- **Timestamps to Pareto the longest delays** — the profiler (F9 → profile.txt).
+
 ## Progress (as of 2026-07-24)
 
 Phase 0 done (global coords + store). Phase 1 landed: remembered-neighbour rendering (full

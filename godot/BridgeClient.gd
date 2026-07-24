@@ -60,7 +60,9 @@ func _drain() -> void:
 		var payload := _buf.slice(4, 4 + frame_len)
 		_buf = _buf.slice(4 + frame_len)
 		var text := payload.get_string_from_utf8()
+		Profiler.begin("parse")
 		var data: Variant = JSON.parse_string(text)
+		Profiler.done("parse")
 		if typeof(data) == TYPE_DICTIONARY:
 			snapshot.emit(data)
 
