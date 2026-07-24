@@ -107,6 +107,18 @@ func _ready() -> void:
 	# sun does not reach; the sun then adds directional highlight + shadow on top.
 	env.ambient_light_color = Color(0.72, 0.72, 0.74)
 	env.ambient_light_energy = 0.72
+	# Depth fog fades distant geometry into the sky, so remembered neighbour zones
+	# read as "over the horizon" while the live zone around the player stays crisp.
+	# Begins past most of the live zone (~80x25 cells), full a couple of zones out.
+	# The fog colour tracks the sky (updated per hour in _process) for a seamless
+	# horizon. Tunable: begin/end distance and the curve.
+	env.fog_enabled = true
+	env.fog_mode = Environment.FOG_MODE_DEPTH
+	env.fog_depth_begin = 60.0
+	env.fog_depth_end = 240.0
+	env.fog_depth_curve = 1.4     # >1: stay clear longer, then ramp up toward the end
+	env.fog_light_color = env.background_color
+	env.fog_sky_affect = 0.0      # the sky IS the fog colour; don't double-fog it
 	_env = env
 	we.environment = env
 	add_child(we)
@@ -234,6 +246,7 @@ func _process(dt: float) -> void:
 	_sky = _sky.lerp(_sky_target, clampf(dt * 2.0, 0.0, 1.0))
 	if _env != null:
 		_env.background_color = _sky
+		_env.fog_light_color = _sky   # fade distant zones into the current sky colour
 
 	if _mode == CamMode.KEYBOARD:
 		_fly(dt)
