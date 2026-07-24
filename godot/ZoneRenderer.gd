@@ -45,6 +45,7 @@ enum Fill { NONE, ALL, INTERIOR }
 # must fill) vs sw_dromad (10px gap between its legs, must not).
 const MAX_SLOT_PX := 2
 
+var _palette := {}          # colour char -> "#rrggbb", from the mod (authoritative)
 var _tiles_dir := ""
 var _mask_cache := {}       # fname -> Image
 var _interior_cache := {}   # fname -> Array[Array[bool]]
@@ -103,6 +104,18 @@ func _ready() -> void:
 func render_snapshot(data: Dictionary) -> void:
 	_tiles_dir = String(data.get("tilesDir", ""))
 	_placed.clear()
+
+	# Qud's real palette, sent by the mod. Base/Colors.xml names the colours but
+	# has no RGB, so COLORS below is a hand-estimate kept only as a fallback for
+	# an older mod build. Changing the palette invalidates every recoloured tile.
+	var pal: Dictionary = data.get("palette", {})
+	if not pal.is_empty() and pal != _palette:
+		_palette = pal
+		_tex_cache.clear()
+		_texmat_cache.clear()
+		_fencemat_cache.clear()
+		_wallmat_cache.clear()
+		_colmat_cache.clear()
 
 	for n in _active:
 		n.visible = false
@@ -951,7 +964,9 @@ func _take_label() -> Label3D:
 	add_child(l)
 	return l
 
-# Qud palette (Base/Colors.xml): Y=white y=gray K=black W=gold w=brown O/o=orange
+# FALLBACK ONLY — hand-estimated. The mod sends the real palette out of
+# ConsoleLib (see _palette); this is what gets used if an older mod build is
+# loaded. Base/Colors.xml names the colours but carries no RGB.
 const COLORS := {
 	"r": Color(0.60, 0.20, 0.15), "R": Color(1.00, 0.30, 0.30),
 	"g": Color(0.00, 0.50, 0.00), "G": Color(0.20, 0.90, 0.20),
@@ -969,4 +984,7 @@ func _qud_color(code: String) -> Color:
 	if c.is_empty():
 		return Color.WHITE
 	var ch := c.substr(c.length() - 1, 1)
+	# prefer the palette Qud actually sent; COLORS is only a fallback
+	if _palette.has(ch):
+		return Color(String(_palette[ch]))
 	return COLORS.get(ch, Color.WHITE)

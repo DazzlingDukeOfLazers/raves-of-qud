@@ -40,12 +40,53 @@ namespace RavesOfQud
             catch { return ""; }
         }
 
+        // Qud's 16-colour palette, by ColorString character.
+        private const string PaletteChars = "rRgGbBcCmMwWoOyYkK";
+
+        /// <summary>
+        /// Qud's REAL palette, straight from ConsoleLib. Base/Colors.xml names the
+        /// colours but carries no RGB — the values live in code — so the client
+        /// was otherwise stuck hand-estimating them, and "&amp;K" being dark grey
+        /// rather than black is exactly the kind of thing a guess gets wrong.
+        ///
+        /// colorFromChar is a static dictionary lookup returning a struct: no
+        /// graphics calls, so it is safe on the turn thread.
+        /// </summary>
+        private static void WritePalette(JsonWriter j)
+        {
+            j.Name("palette").BeginObject();
+            foreach (char ch in PaletteChars)
+            {
+                try
+                {
+                    UnityEngine.Color c = ConsoleLib.Console.ColorUtility.colorFromChar(ch);
+                    j.Member(ch.ToString(), Hex(c));
+                }
+                catch { /* a char the build doesn't map — skip it, keep the rest */ }
+            }
+            j.EndObject();
+        }
+
+        private static string Hex(UnityEngine.Color c)
+        {
+            return "#" + Channel(c.r) + Channel(c.g) + Channel(c.b);
+        }
+
+        private static string Channel(float v)
+        {
+            int n = (int)System.Math.Round(v * 255f);
+            if (n < 0) n = 0;
+            if (n > 255) n = 255;
+            return n.ToString("x2");
+        }
+
         public static string BuildJson(GameObject player)
         {
             var j = new JsonWriter();
             j.BeginObject();
             j.Member("type", Protocol.TypeSnapshot);
             j.Member("tilesDir", TileExporter.Dir); // where Godot loads exported PNGs
+            WritePalette(j);
 
             // Force-export reference tiles the client wants but that don't occur
             // naturally in a zone — e.g. the isolated wall (bordered on all sides),
