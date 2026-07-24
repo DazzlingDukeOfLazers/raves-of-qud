@@ -111,6 +111,7 @@ func _ready() -> void:
 	reporter = TileReport.new()
 	add_child(reporter)
 	reporter.setup(renderer)
+	reporter.dismissed.connect(_dismiss_selection)
 
 func _on_snapshot(data: Dictionary) -> void:
 	renderer.render_snapshot(data)
@@ -246,6 +247,12 @@ func _inspect_and_capture() -> void:
 	_inspect()
 	await _screenshot(true)
 
+## Clear everything a selection put on screen: report form, inspector panel, marker.
+## Bound to Esc and to the form's Cancel button.
+func _dismiss_selection() -> void:
+	inspector.hide_panel()
+	reporter.hide_panel()
+
 ## Inspect, and aim the report form at the same tile.
 func _inspect() -> void:
 	inspector.inspect_at_mouse()
@@ -312,8 +319,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.shift_pressed and event.keycode == KEY_F:
 			_set_mode(CamMode.FOLLOW); return
 		if event.keycode == KEY_ESCAPE:
-			inspector.hide_panel()
-			reporter.hide_panel()
+			_dismiss_selection()
 			_set_mode(CamMode.FOLLOW); return
 		if event.keycode == KEY_I:
 			_inspect(); return

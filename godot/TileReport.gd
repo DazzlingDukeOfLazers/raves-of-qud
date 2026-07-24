@@ -57,7 +57,12 @@ const PANEL_W := 520
 var _font := FONT
 var _title: Label
 var _send: Button
-var _clear: Button
+var _cancel: Button
+var _menu: MenuButton
+
+## Emitted when the form is dismissed (Cancel), so the caller can also drop the
+## inspector panel and the 3D selection marker.
+signal dismissed
 
 var _objects: Array = []
 
@@ -267,10 +272,28 @@ func _build() -> void:
 	box.add_theme_constant_override("separation", 6)
 	_panel.add_child(box)
 
+	# header: title on the left, hamburger menu on the right
+	var header := HBoxContainer.new()
+	header.add_theme_constant_override("separation", 6)
+	box.add_child(header)
+
 	_title = Label.new()
 	_title.text = "Report this tile"
+	_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_title.add_theme_color_override("font_color", Color(0.65, 0.95, 0.7))
-	box.add_child(_title)
+	header.add_child(_title)
+
+	# Destructive/rare actions live in the hamburger, one deliberate click away —
+	# NOT beside Submit, where "Clear rules" was easy to hit and wipes a tile's
+	# standing config with no undo.
+	_menu = MenuButton.new()
+	_menu.text = "☰"
+	_menu.flat = false
+	var pop := _menu.get_popup()
+	pop.add_item("Clear rules for this tile", 0)
+	pop.add_item("Copy report to clipboard", 1)
+	pop.id_pressed.connect(_on_menu)
+	header.add_child(_menu)
 
 	_target = Label.new()
 	_target.add_theme_color_override("font_color", Color(0.8, 0.9, 0.8))
@@ -301,10 +324,10 @@ func _build() -> void:
 	_send.pressed.connect(_submit)
 	row.add_child(_send)
 
-	_clear = Button.new()
-	_clear.text = "Clear rules"
-	_clear.pressed.connect(_clear_override)
-	row.add_child(_clear)
+	_cancel = Button.new()
+	_cancel.text = "Cancel"
+	_cancel.pressed.connect(_on_cancel)
+	row.add_child(_cancel)
 
 	_status = Label.new()
 	_status.add_theme_color_override("font_color", Color(0.95, 0.85, 0.5))
@@ -329,8 +352,28 @@ func _apply_font() -> void:
 			pop.add_theme_font_size_override("font_size", _font)
 	_notes.add_theme_font_size_override("font_size", _font)
 	_send.add_theme_font_size_override("font_size", _font)
-	_clear.add_theme_font_size_override("font_size", _font)
+	_cancel.add_theme_font_size_override("font_size", _font)
+	_menu.add_theme_font_size_override("font_size", _font)
+	var mpop: PopupMenu = _menu.get_popup()
+	if mpop != null:
+		mpop.add_theme_font_size_override("font_size", _font)
 	_notes.custom_minimum_size = Vector2(0, mini(_font * 5, 130))
+
+## Dismiss the form without filing. Also tells the caller to clear the selection
+## (marker + inspector panel), since "cancel" means "never mind this tile".
+func _on_cancel() -> void:
+	_notes.text = ""
+	_verdict.selected = 0
+	hide_panel()
+	dismissed.emit()
+
+func _on_menu(id: int) -> void:
+	match id:
+		0: _clear_override()
+		1:
+			if _report != "":
+				DisplayServer.clipboard_set(_report)
+				_status.text = "report copied to clipboard"
 
 func hide_panel() -> void:
 	_panel.visible = false

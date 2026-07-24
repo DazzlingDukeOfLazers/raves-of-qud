@@ -90,7 +90,7 @@ pasting, which is how most of this project's visual debugging has worked so far.
 ## Tile reports — two kinds, two places
 
 Some things aren't in Qud's data: a water wheel runs east–west, but `sw_waterwheel_1` doesn't
-say so. Inspect a tile and use the form (lower right). Submissions split by type:
+say so. Inspect a tile (Ctrl/Cmd+click, or hover + I) and use the form (lower right). Cancel or Esc clears the selection. Destructive actions (Clear rules) are in the form's ☰ hamburger, not beside Submit. Submissions split by type:
 
 **Standing rules** (shape, fill) → `~/Library/Application Support/RavesOfQud/overrides.json`,
 keyed by tile family, one entry per tile:
