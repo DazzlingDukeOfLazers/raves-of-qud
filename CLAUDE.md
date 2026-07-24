@@ -171,6 +171,12 @@ and shading instead. Use it to check depth before touching the renderer. (Lighti
 - **Verify a value, don't trust a field name.** `ColorUtility.CAMERA_BACKGROUND` sounds like the
   world's background colour. It is the alias `"camera background"` → `#40a4b9`, plain cyan.
   Trusting it turned the entire world turquoise.
+- **Vertex-colour albedo needs `vertex_color_is_srgb = true`.** Godot defaults it to `false` and
+  treats per-vertex colours as *linear*, so sRGB palette values (from `_qud_color`) render pale and
+  desaturated — the wall reds came out muddy tan (#805840, sat 0.50) instead of brick (#993326,
+  sat 0.75). Tiles that use an albedo *texture* are unaffected (textures carry an sRGB flag); only
+  colour baked into vertices needs this. Diagnosed by *sampling the rendered pixel* and comparing
+  saturation to the palette — the measure-don't-guess rule applied to colour.
 - **Python: `0` is falsy.** `(obj.get("layer") or 99)` silently excluded every layer-0 object —
   the most common layer in Qud data — and printed an empty result that read like a real finding.
 - **Don't truncate the output you are searching.** Three separate `head`/`tail`/`[:30]` caps in
