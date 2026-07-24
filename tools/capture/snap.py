@@ -236,7 +236,9 @@ def classify(obj, cell):
         return "prism"
     if obj.get("bridge"):
         return "deck(over water)" if (cell.get("wade") or cell.get("swim")) else "deck(on ground)"
-    if (obj.get("layer") or 0) <= 2:
+    # NOT `or` — layer 0 is falsy in Python, and 0 is the most common layer here
+    layer = obj.get("layer")
+    if (99 if layer is None else layer) <= 2:
         return "floor"
     if not obj.get("tile"):
         return "label(no tile)"
