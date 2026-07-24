@@ -358,6 +358,9 @@ namespace RavesOfQud
             j.Member("type", Protocol.TypeSnapshot);
             j.Member("tilesDir", TileExporter.Dir); // where Godot loads exported PNGs
             j.Member("mod", Protocol.Build);        // which mod build is actually live
+            // Stable per-game id: the client namespaces its on-disk zone store by
+            // this so a NEW game never renders a previous game's remembered zones.
+            j.Member("gameId", The.Game != null ? (The.Game.GameID ?? "") : "");
             WriteTime(j);
             WritePalette(j);
 
