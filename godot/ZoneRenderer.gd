@@ -66,8 +66,12 @@ var _wall_main := ""
 var _wall_detail := ""
 var _wall_bg := ""       # background colour code (the ^X in the ColorString)
 
-# Qud's dark-green cell background — what shows through gaps when a wall has no ^bg
-const WORLD_BG := Color(0.05, 0.13, 0.10)
+# What Qud paints behind the world. WORLD_BG_FALLBACK is a hand-estimate; the mod
+# sends the real ColorUtility.CAMERA_BACKGROUND and _world_bg takes over. Ours read
+# black next to Qud's dark teal, which flattened the whole scene.
+const WORLD_BG_FALLBACK := Color(0.05, 0.13, 0.10)
+var _world_bg := WORLD_BG_FALLBACK
+var _ground_mat: StandardMaterial3D
 
 # What the renderer actually DID with each object, keyed by cell. The wire data
 # says what Qud sent; this says how it was classified and where it landed — the
@@ -97,7 +101,8 @@ func _ready() -> void:
 	ground.position = Vector3(40, -0.02, 12)  # big enough to cover any zone
 	var gm := StandardMaterial3D.new()
 	gm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	gm.albedo_color = WORLD_BG
+	gm.albedo_color = _world_bg
+	_ground_mat = gm
 	ground.material_override = gm
 	add_child(ground)
 
@@ -108,6 +113,17 @@ func render_snapshot(data: Dictionary) -> void:
 	# Qud's real palette, sent by the mod. Base/Colors.xml names the colours but
 	# has no RGB, so COLORS below is a hand-estimate kept only as a fallback for
 	# an older mod build. Changing the palette invalidates every recoloured tile.
+	var bg_hex := String(data.get("bg", ""))
+	if bg_hex != "":
+		var bg := Color(bg_hex)
+		if bg != _world_bg:
+			_world_bg = bg
+			if _ground_mat != null:
+				_ground_mat.albedo_color = _world_bg
+			_tex_cache.clear()      # gap fills bake this colour in
+			_wallmat_cache.clear()
+			_fencemat_cache.clear()
+
 	var pal: Dictionary = data.get("palette", {})
 	if not pal.is_empty() and pal != _palette:
 		_palette = pal
@@ -474,7 +490,7 @@ func _wall_bg_color() -> Color:
 	# Qud fills transparent gaps with the world/cell background (dark green), NOT the
 	# object's ^X. The ^X-derived colour was flooding e.g. metal walls cyan; the cyan
 	# actually belongs to the detail pixels (the border), handled by the recolor.
-	return WORLD_BG
+	return _world_bg
 
 func _rebuild_walls(wall_types: Dictionary) -> void:
 	for c in _wall_root.get_children():

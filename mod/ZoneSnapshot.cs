@@ -65,6 +65,24 @@ namespace RavesOfQud
                 catch { /* a char the build doesn't map — skip it, keep the rest */ }
             }
             j.EndObject();
+
+            // The colour Qud paints the world behind everything. Ours was an
+            // estimate, and side-by-side the 3D view read black where Qud reads
+            // dark teal — which flattens the whole scene. Emit the raw string too:
+            // if it isn't resolvable, we want to see what it actually was.
+            try
+            {
+                string raw = ConsoleLib.Console.ColorUtility.CAMERA_BACKGROUND ?? "";
+                j.Member("bgRaw", raw);
+                if (raw.Length > 0)
+                {
+                    UnityEngine.Color bg = raw.Length == 1
+                        ? ConsoleLib.Console.ColorUtility.colorFromChar(raw[0])
+                        : ConsoleLib.Console.ColorUtility.ColorFromString(raw);
+                    j.Member("bg", Hex(bg));
+                }
+            }
+            catch { /* keep the client's fallback */ }
         }
 
         private static string Hex(UnityEngine.Color c)
