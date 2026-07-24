@@ -501,7 +501,11 @@ func _fence_material(ew_tile: String, main_c: String, detail_c: String, half: St
 	if tex != null:
 		m.albedo_texture = tex
 		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-		if fill == Fill.NONE:
+		# Only Fill.ALL makes every pixel opaque. INTERIOR and SPAN leave everything
+		# OUTSIDE the art transparent, so the material still needs alpha — without
+		# it those pixels are Color(0,0,0,0) drawn opaquely, i.e. BLACK, which put
+		# a black rim around the water wheel.
+		if fill != Fill.ALL:
 			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
 		# crop V to the opaque content band so the panel sits flush on the ground
 		# (the art is vertically centred with empty padding). Measured on the RAW
