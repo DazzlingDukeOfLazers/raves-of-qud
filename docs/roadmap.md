@@ -70,14 +70,28 @@ single zone, changing nothing visible). That de-risks everything after.
 
 ## Global coordinates  (ask 5)
 
-Qud zone ids look like `JoppaWorld.11.22.1.1.10` = `world.parasangX.parasangY.zoneX.zoneY.stratum`,
-zone dims `80×25`, parasang = `3×3` zones. So:
+**Confirmed by reflection (2026-07-24, Assembly-CSharp `XRL.World.Zone`):** the zone id
+`JoppaWorld.11.22.1.1.10` decomposes as `world.wX.wY.X.Y.Z`, where `Zone` exposes these as **direct
+int fields** — `wX, wY` (parasang), `X, Y` (zone within the 3×3 parasang), `Z` (stratum) — plus
+`Width, Height`. Our sample: parasang (11,22), zone (1,1), stratum 10. Zone dims `80×25`.
+
+**So the mod should emit `wX/wY/X/Y/Z` structured off `The.ActiveZone`, NOT parse the string** —
+removes the field-order risk entirely. Then:
 
 ```
-gx = (parasangX * 3 + zoneX) * 80 + cellX
-gy = (parasangY * 3 + zoneY) * 25 + cellY
-gz = stratum                      # 10 = surface; larger = deeper, smaller = higher (CONFIRM sign)
+gx = (wX * 3 + X) * 80 + cellX          # (wX*3+X) is the global zone column
+gy = (wY * 3 + Y) * 25 + cellY          # (wY*3+Y) is the global zone row
+gz = Z                                  # raw stratum; distance uses the DIFFERENCE, so the
+                                        # surface baseline/sign doesn't matter for ask 5.
 ```
+
+Cross-checks Qud provides (use to validate, don't reimplement blindly): `Zone.XYToID(world, xp, yp,
+z)` builds an id from global zone indices `xp=wX*3+X, yp=wY*3+Y`; `Zone.zoneIDTo240x72Location(id)`
+returns the global zone location (240 = 80 parasangs × 3 zones wide; 72 = 24 × 3 tall).
+
+**Bonus found in the same probe (for asks 1–2):** `Zone` carries `ExploredMap`, `VisibilityMap`,
+and `FakeUnexploredMap` — per-cell explored/visible bits Qud already maintains. The mod can send
+these so fog of war and remembered-vs-live use Qud's own bookkeeping instead of our own tracking.
 
 - **Vector** between two cells = `(gx2-gx1, gy2-gy1, gz2-gz1)`.
 - **Distance** — pick per use: Chebyshev/manhattan for gameplay ("3 parasangs NE, 2 strata down"),
@@ -190,11 +204,14 @@ The fork (Minecraft-style place/remove, *after* the viewer is done) is why the s
 Ordered by when they're needed. Each is additive to the snapshot.
 
 1. `gameId` / world seed — namespaces the store (needed the moment we persist).
-2. Parsed zone components confirmed against Qud `ZoneID` (parasang, zone, stratum) — for global coords.
+2. **Zone coords `wX,wY,X,Y,Z`** off `The.ActiveZone` (confirmed real int fields — no string parse)
+   — for global coords. *Done-adjacent: this is the `globalCoord` task.*
 3. Overworld biome + colour per parasang/zone — for Tier-0 fog plates. **Confirmed needed** (Daniel
    wants real biome tint). Locate the world-map/region API by reflection.
 4. Per-object `static` vs `mobile` is mostly derivable (`IsCreature`), but confirm furniture/items.
    *(Optional, for a wider live actor radius:* stream creatures from adjacent resident zones too.)
+   Qud's `Zone.ExploredMap` / `VisibilityMap` / `FakeUnexploredMap` (per-cell bits, confirmed by
+   reflection) can drive fog/remembered state directly instead of us tracking it.
 5. Z-transition objects (stairs/shafts) + target zone id — for level linking.
 6. Per-cell floor offset / liquid depth beyond `wade`/`swim` — for recessed water and column relief.
 7. Material identity per wall/block (blueprint name is already sent) — for the block model.
