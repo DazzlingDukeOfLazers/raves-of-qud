@@ -354,9 +354,21 @@ shared edges join seamlessly. Sides stay greedy-merged; only the cap needs per-c
 - **deck** (flat + opaque): the object carries the `Bridge` int-property (see below).
   Checked *before* layer, because bridges are RenderLayer 3.
 - **flat floor**: `layer <= FLOOR_LAYER_MAX (2)`.
-- **directional connector** (oriented standing panels): wall-flagged tile matching
-  `family_<dirs>` — fences, pipes, **and tent walls**.
+- **directional connector** (oriented standing panels): any tile matching `family_<dirs>` —
+  fences, pipes, tent walls, **and axles**. See the gate note below.
 - **upright billboard**: everything else.
+
+**What counts as a directional connector.** The `family_<dirs>` suffix alone is too weak — an
+item or creature tile ending `_e`/`_ne` would match by accident. This was originally gated on the
+**wall** flag, which was safe but too narrow: axles (`sw_axle_2_ew`) are machinery, not walls, so
+they fell through to a billboard and lay *across* their run instead of along it. The gate now is:
+wall-flagged qualifies outright; anything else must **also have its family's `_ew` sibling on
+disk**, which a real directional family ships and an accidental name collision does not.
+
+**Panel height scales with the art.** `PANEL_REF_ROWS` (10) is a standard fence's opaque band, and
+`FENCE_H` is calibrated to it, so a fence still lands at exactly 0.6 while an axle's 2-row shaft
+gets 0.12 instead of being smeared up to fence height. Sight-blocking connectors (tents) still
+take `WALL_H` outright.
 
 **Painted ground vegetation stands up.** The painted layer is flat by default — dirt, gravel —
 but grass is cover you stand among, not a texture you walk on, so it routes to the billboard

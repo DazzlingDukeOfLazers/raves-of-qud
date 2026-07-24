@@ -255,8 +255,40 @@ func _is_prism(obj: Dictionary) -> bool:
 
 # Panel height: a tent wall is a fence at full height. Sight-blocking connectors
 # stand wall-tall, see-through ones (picket fences, pipes) stay low.
-func _panel_height(obj: Dictionary) -> float:
-	return WALL_H if bool(obj.get("occluding", false)) else FENCE_H
+## Is this object part of a directional family that should be laid along its axis?
+##
+## The `family_<dirs>` suffix alone is too weak a test on its own — a creature or
+## item tile ending in `_e`/`_ne` would match by accident. This used to be gated on
+## the WALL flag, which was safe but too narrow: axles (`sw_axle_2_ew`) are
+## machinery, not walls, so they fell through to a billboard and lay across their
+## own run instead of along it.
+##
+## Wall-flagged objects still qualify outright. Anything else must ALSO have its
+## family's east-west sibling on disk — a real directional family ships one, an
+## incidental name collision does not.
+func _is_connector(obj: Dictionary, tile: String) -> bool:
+	if _connector_dirs(tile) == null:
+		return false
+	if bool(obj.get("wall", false)):
+		return true
+	return _mask(_family_ew(tile)) != null
+
+## Rows of art a standard fence panel occupies; FENCE_H is calibrated to this, so
+## thinner families scale down from it rather than stretching to fill it.
+const PANEL_REF_ROWS := 10.0
+
+func _panel_height(obj: Dictionary, tile: String) -> float:
+	if bool(obj.get("occluding", false)):
+		return WALL_H          # sight-blocking: tent walls stand full height
+	# Scale to the art. An axle is 2 opaque rows; stretching that to a fence's
+	# 0.6 would smear a thin shaft into a tall band.
+	var img := _mask(_family_ew(tile))
+	if img == null:
+		return FENCE_H
+	var rows: float = _opaque_v(img).y * img.get_height()
+	if rows <= 0.0:
+		return FENCE_H
+	return maxf(0.05, FENCE_H * rows / PANEL_REF_ROWS)
 
 # A "family_<dirs>" tile (fence_ns, ironfence_ew, pipe_ne, bare fence_) is a
 # directional connector. Returns the dirs string ("", "ns", "ew", "ne"...) or null.
@@ -448,16 +480,15 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 		_active.append(f)
 		_note(cx, cy, idx, fkind, f.position.y)
 	elif tex != null:
-		# directional connectors (fences/pipes: family_<dirs>) -> orientation-locked
-		# standing panels, not billboards. Gated on wall so creatures don't match.
-		# (painted vegetation has no wall flag, so it falls straight through)
-		var dirs = _connector_dirs(tile) if bool(obj.get("wall", false)) else null
+		# directional connectors (fences, pipes, axles: family_<dirs>) ->
+		# orientation-locked standing panels, not billboards.
+		var dirs = _connector_dirs(tile) if _is_connector(obj, tile) else null
 		if dirs != null:
 			# sight-blocking connectors stand tall AND read as solid (background
 			# filled); see-through ones stay low and open.
 			var solid := bool(obj.get("occluding", false))
 			var pfill: int = Fill.ALL if solid else Fill.NONE
-			var ph := _panel_height(obj)
+			var ph := _panel_height(obj, tile)
 			_place_connector(tile, main_c, detail_c, cx, cy, dirs, ph, pfill)
 			_note(cx, cy, idx, "connector panels [%s] h=%.2f%s" % [
 				"post" if dirs == "" else dirs, ph, " filled-bg" if solid else ""], ph * 0.5)
