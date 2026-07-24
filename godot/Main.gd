@@ -263,9 +263,14 @@ func _on_snapshot(data: Dictionary) -> void:
 		var oo: Vector3i = store.record(old_zid).get("origin", Vector3i.ZERO)
 		var no: Vector3i = store.record(zid).get("origin", Vector3i.ZERO)
 		var shift := Vector3(oo.x - no.x, 0.0, oo.y - no.y)
+		print("[cross] %s -> %s  oo=%s no=%s shift=%s  eye_before=%s player=%s" % [
+			old_zid, zid, oo, no, shift, _eye, _player])
 		_eye += shift
 		_look += shift
 		_free_eye += shift
+	elif crossed:
+		print("[cross] SKIPPED shift: old=%s has=%s  new=%s has=%s" % [
+			old_zid, store.has_zone(old_zid), zid, store.has_zone(zid)])
 
 	var p: Dictionary = data.get("player", {})
 	var px := int(p.get("x", -1))
