@@ -276,8 +276,14 @@ struct — no graphics calls, safe on the turn thread) and ships them in every s
 > the alias `"camera background"` → `#40a4b9`, plain cyan. Trusting it painted the entire world
 > turquoise. Verify a value before believing a field name.
 
-`_qud_color()` in `ZoneRenderer.gd` keys off the **trailing letter** of a colour code, and
+`_qud_color()` in `ZoneRenderer.gd` takes the **foreground** — the half *before* the `^` — and
 prefers the shipped `palette` over the hand-estimated fallback table.
+
+> A ColorString is `&FG^BG`. Keying off the **trailing letter** returns the BACKGROUND whenever
+> one is present. The player is `&y^k`, so it read as `k` — `#0f3b3a`, the world's own dark
+> teal — and a pale grey figure rendered dark-teal-on-dark-teal, with only its red detail
+> pixels visible. Objects carrying a `TileColor` were unaffected (that field has no `^`), which
+> is why walls and water looked correct and the bug stayed hidden.
 
 ### Tile geometry: the 2.5D convention
 Tiles are **16×24**. The vertical split matters:

@@ -516,7 +516,8 @@ func _seat(s: Sprite3D, tex: ImageTexture, tile: String, cx: int, cy: int, sink:
 # --- greedy-meshed walls ----------------------------------------------------
 
 func _parse_bg(color: String) -> String:
-	# "&r^w" -> "w"  (the background colour); "" if no ^ component
+	# "&r^w" -> "w"  (the background colour); "" if no ^ component.
+	# Counterpart to _fg_letter, which takes the half before the caret.
 	var i := color.find("^")
 	if i >= 0 and i + 1 < color.length():
 		return color.substr(i + 1, 1)
@@ -1068,11 +1069,29 @@ func _color_key(obj: Dictionary) -> String:
 	if c == "": c = String(obj.get("color", ""))
 	return "%s|%s" % [c, String(obj.get("detail", ""))]
 
-func _qud_color(code: String) -> Color:
+## The FOREGROUND letter of a Qud colour code.
+##
+## A ColorString is `&FG^BG`. Taking the trailing letter — which this used to do —
+## silently returns the BACKGROUND whenever one is present. The player is `&y^k`:
+## that read as 'k', the world's own dark teal, so a pale grey figure rendered
+## dark-teal-on-dark-teal and only its red detail pixels were visible.
+##
+## Objects with a TileColor were unaffected (that field has no `^`), which is why
+## walls and water looked right and this stayed hidden.
+func _fg_letter(code: String) -> String:
 	var c := code.strip_edges()
+	var caret := c.find("^")
+	if caret >= 0:
+		c = c.substr(0, caret)      # drop the background half
+	c = c.replace("&", "")
 	if c.is_empty():
+		return ""
+	return c.substr(c.length() - 1, 1)
+
+func _qud_color(code: String) -> Color:
+	var ch := _fg_letter(code)
+	if ch == "":
 		return Color.WHITE
-	var ch := c.substr(c.length() - 1, 1)
 	# prefer the palette Qud actually sent; COLORS is only a fallback
 	if _palette.has(ch):
 		return Color(String(_palette[ch]))
