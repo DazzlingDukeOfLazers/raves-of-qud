@@ -43,6 +43,12 @@ const SINK_SWIM := 0.72    # legacy swimming depth; superseded by deep_water_dep
 # as "in the water" without being buried.
 var deep_water_depth := 0.6
 
+# Vertical gap between stacked Z-levels, in world units. A remembered zone `dz` strata
+# below the live one is dropped by dz * level_height (see _sync_neighbors), so deeper
+# levels stack under the current one. Live-tunable via the ` debug-menu slider; 0 lays
+# every level coplanar (the pre-stacking behaviour).
+var level_height := 4.0
+
 # How a tile's TRANSPARENT pixels are treated when recolouring.
 #   NONE     leave see-through (fences, floors)
 #   ALL      paint every one with the cell background (wall faces, decks, tents)
@@ -475,8 +481,12 @@ func _sync_neighbors(neighbors: Array) -> void:
 			_rebuild_walls(wt)     # _bank set -> into the subtree, no clear
 			_noting = true
 			_bank = null
+		# Vertical stacking: a neighbour `dz` strata below the live zone drops by
+		# dz * level_height, so deeper levels sit under the current one with an
+		# arbitrary, user-set gap. Same-stratum neighbours (dz==0) stay coplanar.
 		var o: Vector2i = nb.get("offset", Vector2i.ZERO)
-		_static_zones[id].position = Vector3(o.x, 0, o.y)
+		var dz: int = int(nb.get("dz", 0))
+		_static_zones[id].position = Vector3(o.x, -float(dz) * level_height, o.y)
 
 # --- introspection (for CellInspector) --------------------------------------
 

@@ -141,6 +141,14 @@ Time comes from `The.Game.Turns`/`Calendar` as **day-segments** (a day = `TurnsP
 `StartOfDay`=3250=6:30, `StartOfNight`=10000=20:00). **Qud has no moon phase** (the only "moon" is
 the Moonstair location), so none is sent or invented.
 
+**Underground has no sky.** The day/night grade is a *surface* phenomenon — a cave at noon must
+not be lit like the surface. The mod sends `zone.z` (Qud's stratum; surface is `Z==10`, deeper is
+higher). When `_depth > SURFACE_Z`, `_update_time` skips the clock entirely and calls
+`_apply_cave_lighting`: the grade eases to a fixed dim `CAVE_TINT`, the sky/fog to a near-black
+`CAVE_SKY` rock void, and the sun/moon/sun-light are switched off. The faked torch/glow geometry
+then does all the lighting locally, and the label reads `Cavern -N`. Coming back up restores the
+clock. Only constants — tune `CAVE_TINT` for how dark caves read.
+
 ---
 
 ## 6. Billboards, water, bridges
@@ -242,6 +250,23 @@ meet up-stairs at the same x,y one level below), so there is usually nothing to 
 → a user **override** (`stairDir: north|south|east|west`, §7) → the **guess** (`STAIR_GUESS_DEG`,
 face +Z/south). `deg` rotates the whole group (glyph + frame) by yaw like `_place_side`
 (S→E→N→W clockwise from above), so a facing is one edit or override away.
+
+---
+
+## 9. Vertical level stacking
+
+The `WorldStore` remembers every visited zone with its `stratum` (Qud's `Z`). `_neighbor_zones`
+(Main.gd) feeds the renderer the live zone's **same-stratum** neighbours (`dz==0`, the horizontal
+remembered zones) **plus deeper levels** (`dz>0`) up to `LEVEL_KEEP_DOWN` strata. `_sync_neighbors`
+drops each by `dz * renderer.level_height`, so deeper levels stack **below** the current one with a
+user-set gap (the "level height (Z gap)" slider, 0 = coplanar; persisted).
+
+- **Shallower levels (`dz<0`) are never rendered** — hung above, a level's solid terrain would form
+  a ceiling that occludes the current level from top-down and high cameras. So as you descend, the
+  levels you leave turn off.
+- **Deeper levels beyond `LEVEL_KEEP_DOWN` cull off** — a bound on cost and clutter.
+- Only *visited* levels exist in the store, so a stack appears as you actually explore down; it is
+  not an x-ray of unseen strata.
 
 ---
 

@@ -58,6 +58,22 @@ const NIGHT_TINT := Color(0.34, 0.40, 0.62)   # cool moonlit blue (Qud has no mo
 const DAY_TINT := Color(1.0, 0.99, 0.96)       # near-neutral, a hair warm
 const DUSK_TINT := Color(1.0, 0.72, 0.50)      # warm dawn/dusk
 
+# Underground has NO sun or moon, so the day/night grade is wrong there: a cave at
+# noon must not be lit like the surface. Qud's surface stratum is Z==10; deeper zones
+# (Z>10) are underground. There we swap the time-of-day grade for a fixed dim cave
+# ambient (the faked torch/glow geometry then does the actual lighting) and a dark
+# rock void instead of sky. Tunable constants; the depth itself comes from zone.z.
+const SURFACE_Z := 10
+var _depth := SURFACE_Z            # current stratum (zone.z); >SURFACE_Z is underground
+var _underground := false
+const CAVE_TINT := Color(0.17, 0.18, 0.22)     # dim MULTIPLY ambient: torches pop, rock faintly readable
+const CAVE_SKY := Color(0.015, 0.02, 0.03)     # near-black rock void behind/into the fog
+
+# Vertical level stacking: how many strata BELOW the live zone still render (deeper
+# ones cull off). Shallower levels never render (they'd occlude from above). The gap
+# between levels is renderer.level_height (a ` menu slider).
+const LEVEL_KEEP_DOWN := 2
+
 enum CamMode { COMPASS, FOLLOW, FIRST_PERSON, CINEMATIC, MOUSE, KEYBOARD, TOP_FOLLOW }
 var _mode: int = CamMode.COMPASS   # cardinal-locked: stable, doesn't spin on movement
 
@@ -291,6 +307,8 @@ func _on_snapshot(data: Dictionary) -> void:
 	if _prof_turns % 40 == 0:
 		_dump_profile(false)
 
+	_depth = int(data.get("zone", {}).get("z", SURFACE_Z))
+	_underground = _depth > SURFACE_Z
 	_update_time(data.get("time", {}))
 
 	var z: Dictionary = data.get("zone", {})
@@ -364,13 +382,19 @@ func _neighbor_zones() -> Array:
 		if id == live_id:
 			continue
 		var rec: Dictionary = store.record(id)
-		if int(rec.get("stratum", -9999)) != live_z:
+		# Vertical stacking: keep same-stratum neighbours (dz==0, the horizontal
+		# remembered zones) plus DEEPER levels (dz>0) up to LEVEL_KEEP_DOWN, which
+		# _sync_neighbors offsets downward. Shallower levels (dz<0) are turned off —
+		# they'd hang above as a terrain ceiling and occlude the current level.
+		var dz: int = int(rec.get("stratum", -9999)) - live_z
+		if dz < 0 or dz > LEVEL_KEEP_DOWN:
 			continue
 		var o: Vector3i = rec.get("origin", Vector3i.ZERO)
 		out.append({
 			"id": id,
 			"cells": rec.get("snapshot", {}).get("cells", []),
 			"offset": Vector2i(o.x - live_origin.x, o.y - live_origin.y),
+			"dz": dz,
 		})
 	return out
 
@@ -673,6 +697,9 @@ func _inspect_and_capture() -> void:
 ## Uses the calendar's own dawn/dusk boundaries, so it matches when Qud calls it
 ## day. Night is a cool moonlit blue; dawn and dusk are warm; midday is neutral.
 func _update_time(t: Dictionary) -> void:
+	if _underground:
+		_apply_cave_lighting()
+		return
 	if t.is_empty():
 		return
 	# everything arrives in day-SEGMENTS; normalise to a 0..24 hour here
@@ -687,6 +714,22 @@ func _update_time(t: Dictionary) -> void:
 	_tint_target = _tint_for_hour(hour, dawn, dusk, 24.0)
 	_sky_target = _sky_for_hour(hour, dawn, dusk)
 	_update_sky(hour, dawn, dusk)
+	_update_mode_label()
+
+## Underground: no celestial bodies, so ignore the surface clock and hold a fixed dim
+## cave ambient. The grade/sky still ease toward these targets in _process, so a descent
+## fades smoothly from daylight into the dark. The faked torch/glow geometry lights the
+## scene locally on top of this. Depth is shown in the label (Cavern -N below surface).
+func _apply_cave_lighting() -> void:
+	_tint_target = CAVE_TINT
+	_sky_target = CAVE_SKY
+	if _sun != null:
+		_sun.visible = false
+	if _moon != null:
+		_moon.visible = false
+	if _sun_light != null:
+		_sun_light.light_energy = 0.0
+	_time_label = "Cavern -%d" % (_depth - SURFACE_Z)
 	_update_mode_label()
 
 ## A bright disc billboard for a celestial body.
@@ -1016,6 +1059,19 @@ func _build_debug_menu() -> void:
 	wsld.focus_mode = Control.FOCUS_NONE
 	wsld.value_changed.connect(_on_water_depth_changed)
 	vb.add_child(wsld)
+	# level height: vertical gap between stacked Z-levels (0 = coplanar)
+	var ll := Label.new()
+	ll.text = "level height (Z gap)"
+	vb.add_child(ll)
+	var lsld := HSlider.new()
+	lsld.min_value = 0.0
+	lsld.max_value = 16.0
+	lsld.step = 0.5
+	lsld.value = renderer.level_height
+	lsld.custom_minimum_size = Vector2(160, 0)
+	lsld.focus_mode = Control.FOCUS_NONE
+	lsld.value_changed.connect(_on_level_height_changed)
+	vb.add_child(lsld)
 	# COMPASS Q/E rotation step: 45° (8-way) or 90° (cardinal)
 	_compass_step_btn = Button.new()
 	_compass_step_btn.focus_mode = Control.FOCUS_NONE
@@ -1040,6 +1096,14 @@ func _toggle_compass_step() -> void:
 ## instant feedback instead of waiting for the next turn.
 func _on_water_depth_changed(v: float) -> void:
 	renderer.deep_water_depth = v
+	var live: Dictionary = store.live_snapshot()
+	if not live.is_empty():
+		renderer.render_snapshot(live, _neighbor_zones())
+
+## Live-apply the level gap: only neighbour subtree positions change, so a re-render
+## just repositions the already-built stacks (no rebuild) — instant feedback.
+func _on_level_height_changed(v: float) -> void:
+	renderer.level_height = v
 	var live: Dictionary = store.live_snapshot()
 	if not live.is_empty():
 		renderer.render_snapshot(live, _neighbor_zones())
@@ -1086,6 +1150,7 @@ func _save_settings() -> void:
 		"top_zoom": _top_zoom,
 		"fp_height": _fp_height,
 		"water_depth": (renderer.deep_water_depth if renderer != null else 0.6),
+		"level_height": (renderer.level_height if renderer != null else 4.0),
 		"win": [sz.x, sz.y],
 	}
 	var f := FileAccess.open(SETTINGS_PATH, FileAccess.WRITE)
@@ -1109,6 +1174,7 @@ func _load_settings() -> void:
 	_fp_height = clampf(float(d.get("fp_height", _fp_height)), 0.15, 3.0)
 	if renderer != null:
 		renderer.deep_water_depth = clampf(float(d.get("water_depth", renderer.deep_water_depth)), 0.0, 1.0)
+		renderer.level_height = clampf(float(d.get("level_height", renderer.level_height)), 0.0, 16.0)
 	var win = d.get("win", null)
 	if win is Array and win.size() == 2 and int(win[0]) > 200 and int(win[1]) > 200:
 		DisplayServer.window_set_size(Vector2i(int(win[0]), int(win[1])))
