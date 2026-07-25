@@ -769,6 +769,15 @@ func _inspect() -> void:
 		reporter.set_target(sel.x, sel.y, inspector.zone_id(),
 			inspector.last_objects(), inspector.last_report())
 
+## Inspect from a multi-view pane: raycast with that pane's camera + the pane-local mouse
+## position. The 3D marker is shared, so the pick shows across every pane.
+func _multiview_inspect(cam: Camera3D, pos: Vector2) -> void:
+	inspector.inspect_at(cam, pos)
+	var sel = inspector.selected_tile()
+	if sel != null:
+		reporter.set_target(sel.x, sel.y, inspector.zone_id(),
+			inspector.last_objects(), inspector.last_report())
+
 ## Write the Pareto timing report to profile.txt (Claude reads it). Auto-called every
 ## 40 turns (reset=false, cumulative), and by the P key (reset=true, fresh window).
 func _dump_profile(reset := true) -> void:
@@ -890,10 +899,13 @@ func _build_multiview() -> void:
 		lbl.add_theme_color_override("font_color", Color(0.8, 1.0, 0.8))
 		lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		cell.add_child(lbl)
-		var mv: int = m
+		# Left-click a pane = inspect the tile under the cursor with THAT pane's camera; the
+		# marker lives in the shared world, so it appears in every pane at once. Number keys
+		# (1-7) still switch that mode full-screen.
+		var pane_cam := cam
 		cell.gui_input.connect(func(e: InputEvent):
 			if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
-				_set_mode(mv))   # _set_mode closes multi-view
+				_multiview_inspect(pane_cam, e.position))
 		grid.add_child(cell)
 		_multiview_cams.append({"mode": m, "cam": cam, "sv": sv})
 

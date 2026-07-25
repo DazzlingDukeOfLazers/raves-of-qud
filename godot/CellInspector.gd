@@ -72,11 +72,15 @@ func on_snapshot(data: Dictionary) -> void:
 ## the ray lands on, so clicking the *top* of a tall wall reports the cell behind
 ## it. Aim at the ground, or orbit overhead, when picking near walls.
 func _ground_hit() -> Variant:
-	if _cam == null:
+	return _ground_hit_cam(_cam, get_viewport().get_mouse_position())
+
+## Ground-plane hit for an arbitrary camera + viewport-local mouse position (so a
+## multi-view pane can pick with its own camera).
+func _ground_hit_cam(cam: Camera3D, mp: Vector2) -> Variant:
+	if cam == null:
 		return null
-	var mp := get_viewport().get_mouse_position()
-	var from := _cam.project_ray_origin(mp)
-	var dir := _cam.project_ray_normal(mp)
+	var from := cam.project_ray_origin(mp)
+	var dir := cam.project_ray_normal(mp)
 	if absf(dir.y) < 1e-6:
 		return null
 	var t := -from.y / dir.y
@@ -106,15 +110,19 @@ func selected_tile() -> Variant:
 	return _selected
 
 func inspect_at_mouse() -> void:
-	var hit = _ground_hit()
+	inspect_at(_cam, get_viewport().get_mouse_position())
+
+## Inspect using a specific camera + viewport-local mouse position. The main view passes
+## its camera + the window mouse; a multi-view pane passes its own camera + pane-local pos.
+## The marker is a node in the shared 3D world, so it shows in every pane at once.
+func inspect_at(cam: Camera3D, mp: Vector2) -> void:
+	var hit = _ground_hit_cam(cam, mp)
 	if hit == null:
 		return
-	var cell := _pick_cell(hit)
-	var cx := cell.x
-	var cy := cell.y
+	var cell := _pick_cell(hit, cam, mp)
 	_selected = cell
-	var report := build_report(cx, cy, hit)
-	_show(report, cx, cy)
+	var report := build_report(cell.x, cell.y, hit)
+	_show(report, cell.x, cell.y)
 	DisplayServer.clipboard_set(report)
 	_write(report)
 
@@ -127,11 +135,11 @@ func _occupied(c: Vector2i) -> bool:
 ## the hit cell is empty we march the hit point back TOWARD the camera and snap to the
 ## first occupied cell: the wall the user actually clicked. Accurate picks (overhead,
 ## or clicking bare ground with nothing between) return the hit cell unchanged.
-func _pick_cell(hit: Vector3) -> Vector2i:
+func _pick_cell(hit: Vector3, cam: Camera3D, mp: Vector2) -> Vector2i:
 	var cell := Vector2i(roundi(hit.x), roundi(hit.z))
-	if _occupied(cell) or _cam == null:
+	if _occupied(cell) or cam == null:
 		return cell
-	var dir := _cam.project_ray_normal(get_viewport().get_mouse_position())
+	var dir := cam.project_ray_normal(mp)
 	var back := Vector2(-dir.x, -dir.z)      # toward the camera, on the ground plane
 	if back.length() < 1e-6:
 		return cell
