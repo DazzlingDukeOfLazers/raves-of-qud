@@ -42,8 +42,10 @@ const SINK_SWIM := 0.72    # ... and swimming depth
 # present we swap that cell's water to a translucent variant and draw the creature
 # UNCROPPED, so it reads through the surface. Deep water is opaque otherwise.
 const WATER_REVEAL_ALPHA := 0.5   # opacity of the water over an occupied cell
+const VEIL_HEIGHT := 0.55         # how high the translucent water rises on a submerged creature
 var _water_quads := {}            # live deep-water cells: Vector2i -> {node, opaque, clear}
 var _water_revealed: Array = []   # cells switched to translucent this step (restored next step)
+var _veil_mesh: QuadMesh          # shared translucent "water" billboard over a submerged creature
 
 # How a tile's TRANSPARENT pixels are treated when recolouring.
 #   NONE     leave see-through (fences, floors)
@@ -228,6 +230,7 @@ func _ready() -> void:
 	_flame_tex = _make_radial(32, Color(1.0, 0.80, 0.35), 1.6)  # tighter, brighter core
 	_mote_tex = _make_radial(16, Color(0.65, 1.0, 0.85), 1.5)   # glowfish bioluminescent mote (cyan-green)
 	_build_smoke_resources()
+	_build_veil()
 
 # A radial gradient: opaque tint at the centre fading to transparent, `power`
 # shapes the falloff. Used additively for both the glow and the flame core.
@@ -417,7 +420,10 @@ func _rebuild_dynamics(cells: Array) -> void:
 						var w = _water_quads[cellv]
 						w["node"].material_override = w["clear"]
 						_water_revealed.append(cellv)
-					_place_creature_flat(obj, cx, cy)   # lie it under the translucent surface
+					# upright, uncropped so there's a submerged body; the veil + translucent
+					# surface let that lower part read through the water.
+					_place_nonwall(obj, cx, cy, idx, false, 0.0, wet, false)
+					_place_water_veil(cx, cy)
 				else:
 					_place_nonwall(obj, cx, cy, idx, false, sink, wet, false)
 				# A lit creature (NPC with a torch/glowsphere, a glowfish) carries its light
@@ -1165,25 +1171,29 @@ func _is_glowfish(obj: Dictionary) -> bool:
 func _is_deep_water_tile(tile: String) -> bool:
 	return tile.to_lower().contains("liquids/water/deep")
 
-## Draw a revealed submerged creature FLAT on the water bed — a horizontal decal just
-## under the translucent surface — so it reads as *under* the water, not standing on it.
-## (Deep water is faked as a flat near-ground quad, so an upright billboard looks beached.)
-func _place_creature_flat(obj: Dictionary, cx: int, cy: int) -> void:
-	var tile := String(obj.get("tile", ""))
-	var tex := _colored_tex_rgb(tile, _obj_main(obj), _obj_detail(obj), _color_key(obj))
-	if tex == null:
-		return
-	var main_c := String(obj.get("tilecolor", ""))
-	if main_c == "": main_c = String(obj.get("color", ""))
-	var detail_c := String(obj.get("detail", ""))
-	var f := _take_floor()
-	f.material_override = _mesh_material(tile, main_c, detail_c, tex)
-	var sz := tex.get_size()
-	var aspect: float = (sz.x / sz.y) if sz.y > 0.0 else 1.0   # keep the art's proportions
-	f.scale = Vector3(aspect, 1.0, 1.0)
-	f.position = Vector3(cx, FLOOR_Y + LAYER_LIFT, cy)         # beneath the water surface quad
-	f.visible = true
-	_track(f)
+## A shared, camera-facing translucent water billboard. Hung over the lower part of a
+## submerged creature, it makes that part read as seen through semi-transparent water,
+## while the creature stays a normal upright billboard (top out, bottom "in" the water).
+func _build_veil() -> void:
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.blend_mode = BaseMaterial3D.BLEND_MODE_MIX
+	m.albedo_color = Color(0.16, 0.42, 0.72, WATER_REVEAL_ALPHA)   # salty-water blue
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED           # face the camera, like the creature
+	m.billboard_keep_scale = true
+	m.render_priority = 1                                          # draw over the creature sprite
+	_veil_mesh = QuadMesh.new()
+	_veil_mesh.size = Vector2(0.95, VEIL_HEIGHT)
+	_veil_mesh.material = m
+
+## Hang the water veil over the lower VEIL_HEIGHT of a submerged creature's cell.
+func _place_water_veil(cx: int, cy: int) -> void:
+	var v := MeshInstance3D.new()
+	v.mesh = _veil_mesh
+	v.position = Vector3(cx, VEIL_HEIGHT * 0.5, cy)   # from the waterline down to the floor
+	_bank.add_child(v)   # into _dynamic_root, freed + rebuilt each step
 
 func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, sink := 0.0, wet := false, skip_creatures := false) -> void:
 	# Static builds exclude creatures (they render per step in _rebuild_dynamics);
