@@ -152,6 +152,46 @@ the Moonstair location), so none is sent or invented.
   never lowered — the water is a flat quad, so a sunk sprite would poke out under it.
 - A **bridge** decks over the water (opaque, lifted); anything on it is at full height.
 
+### 6a. Why "just make the water tile transparent" doesn't reveal a submerged actor
+
+This has bitten us, so it's written down. In **Qud (2D)** a cell is a paint stack: the water
+tile is composited *on top of* the creature, so making the water tile semi-transparent would
+let the creature show through. That mental model is correct **for Qud**.
+
+In **Raves (3D) it does not map**, for two coupled reasons:
+
+1. **The water is a flat floor quad near the ground, not an overlay.** It lies roughly in the
+   ground plane (`FLOOR_Y + layer*LAYER_LIFT`), a near-horizontal sheet. It never sits *in front
+   of* the vertical creature billboard the way a 2D tile does, so its opacity has almost nothing
+   to do with whether you can see the actor.
+2. **The submerged part of the actor is never drawn.** "Submerged" is faked by **cropping** the
+   billboard at the waterline (`_seat` with `sink` — see above), not by lowering it. The pixels
+   below the waterline don't exist in the scene. So even a fully transparent water tile reveals
+   *nothing*: there is no geometry behind it to show.
+
+Corollary: **transparency belongs to the water, submersion belongs to the crop, and neither one
+alone gets you "see the fish under the water."** An earlier attempt layered transparency onto the
+*creature* (a veil) and drew it uncropped; that both put the effect on the wrong object and
+destroyed the half-submerged read. Reverted.
+
+### 6b. If we do want "see the submerged part through the water" (future)
+
+It's a real rendering change, not a tile tweak. The honest version:
+
+- **Give deep water genuine vertical depth.** Model a deep-water cell as a *basin*: the floor sits
+  below the surface, and the **surface** is a translucent quad raised to a consistent water height
+  (shared across the pool, or it reads as a floating pane over one cell).
+- **Draw the actor uncropped, standing on the basin floor**, so its lower part is genuinely *below*
+  the raised translucent surface and shows through it; its top stays above, clear.
+- Watch the **occluders**: the world's big opaque ground plane (`y ≈ -0.02`) will hide anything
+  drawn below it, so the basin floor and actor feet have to stay above it (or the ground plane must
+  be cut out under deep water).
+- This touches shorelines (deep water meeting land/bridges/wading), so design it deliberately with
+  screenshots at each step — don't hack it live per-cell.
+
+Until then, deep water stays **opaque flat quad + cropped actor** (§6), which reads correctly as
+"mostly submerged, top poking out."
+
 ---
 
 ## 7. User overrides
