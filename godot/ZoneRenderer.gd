@@ -213,6 +213,10 @@ func _ready() -> void:
 	var gm := StandardMaterial3D.new()
 	gm.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL if SHADED_WORLD else BaseMaterial3D.SHADING_MODE_UNSHADED
 	gm.albedo_color = _world_bg
+	# The ground draws its colour but does NOT write depth, so a creature recessed into a
+	# water pit (below it) isn't culled by it — while walls/floors/foreground still occlude
+	# normally (they write depth). Lets the pit use ordinary depth-testing, no no_depth_test.
+	gm.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
 	_ground_mat = gm
 	ground.material_override = gm
 	add_child(ground)
@@ -1334,8 +1338,6 @@ func _water_top_material(tile: String, main_c: String, detail_c: String, tex: Im
 	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	m.cull_mode = BaseMaterial3D.CULL_DISABLED
-	m.no_depth_test = true      # draw over the recessed creature (which also skips depth test)
-	m.render_priority = 2       # ...and after it, so the surface veils the submerged body
 	_texmat_cache[key] = m
 	return m
 
@@ -1505,11 +1507,6 @@ func _seat(s: Sprite3D, tex: ImageTexture, tile: String, cx: int, cy: int, sink:
 	else:
 		cy_center = (WATER_LINE_Y if sink > 0.0 else 0.0) + PIXEL_SIZE * shown * 0.5
 	s.position = Vector3(cx, cy_center - recess, cy)   # `recess` sinks a creature into a water pit
-	# Recessed creatures sit below the opaque ground plane, so draw them through it (priority 1,
-	# under the surface top at priority 2). Reset in _take_sprite for pooled reuse.
-	if recess > 0.0:
-		s.no_depth_test = true
-		s.render_priority = 1
 
 # --- greedy-meshed walls ----------------------------------------------------
 
@@ -2457,8 +2454,6 @@ func _take_sprite() -> Sprite3D:
 	s.region_enabled = false
 	s.flip_h = false
 	s.flip_v = false
-	s.no_depth_test = false      # a pit creature set these; normal sprites need the defaults back
-	s.render_priority = 0
 	return s
 
 func _take_floor() -> MeshInstance3D:
