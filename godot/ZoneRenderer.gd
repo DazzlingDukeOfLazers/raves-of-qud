@@ -38,14 +38,6 @@ const BRIDGE_Y := 0.08     # deck height — clears every floor quad below it
 const WATER_LINE_Y := 0.05 # where a submerged sprite gets cut off
 const SINK_WADE := 0.45    # fraction of the sprite's art hidden (wading depth)
 const SINK_SWIM := 0.72    # ... and swimming depth
-# A creature submerged in deep water is hidden by the opaque water quad. When one is
-# present we swap that cell's water to a translucent variant and draw the creature
-# UNCROPPED, so it reads through the surface. Deep water is opaque otherwise.
-const WATER_REVEAL_ALPHA := 0.5   # opacity of the water over an occupied cell
-const VEIL_HEIGHT := 0.55         # how high the translucent water rises on a submerged creature
-var _water_quads := {}            # live deep-water cells: Vector2i -> {node, opaque, clear}
-var _water_revealed: Array = []   # cells switched to translucent this step (restored next step)
-var _veil_mesh: QuadMesh          # shared translucent "water" billboard over a submerged creature
 
 # How a tile's TRANSPARENT pixels are treated when recolouring.
 #   NONE     leave see-through (fences, floors)
@@ -181,13 +173,6 @@ func set_daylight(sun_a: float) -> void:
 	for L in _lights:
 		if L.has("smoke"):
 			(L["smoke"] as GPUParticles3D).emitting = on
-	# TEMP telemetry: prove this code is live + expose the actual dimming values.
-	if not _tiles_dir.is_empty():
-		var f := FileAccess.open(_tiles_dir.get_base_dir().path_join("light_debug.txt"), FileAccess.WRITE)
-		if f != null:
-			f.store_string("DAYLIGHT-WIRED daylight=%.3f glow_mul=%.3f flame_mul=%.3f smoke=%s lights=%d" % [
-				_daylight, _glow_mul(), _flame_mul(), str(on), _lights.size()])
-			f.close()
 
 var _active: Array = []
 var _sprite_pool: Array[Sprite3D] = []
@@ -230,7 +215,6 @@ func _ready() -> void:
 	_flame_tex = _make_radial(32, Color(1.0, 0.80, 0.35), 1.6)  # tighter, brighter core
 	_mote_tex = _make_radial(16, Color(0.65, 1.0, 0.85), 1.5)   # glowfish bioluminescent mote (cyan-green)
 	_build_smoke_resources()
-	_build_veil()
 
 # A radial gradient: opaque tint at the centre fading to transparent, `power`
 # shapes the falloff. Used additively for both the glow and the flame core.
@@ -374,10 +358,6 @@ func _build_static(id: String, cells: Array) -> void:
 	var sub := Node3D.new()
 	_remembered_root.add_child(sub)
 	_static_zones[id] = sub
-	# this static subtree replaces the previous live zone's; its water quads are about to
-	# be (re)registered, so drop the stale entries (their nodes are being freed).
-	_water_quads.clear()
-	_water_revealed.clear()
 	_bank = sub
 	_live_build = true          # this zone's torches get the flicker (see _place_light)
 	var wt := {}
@@ -393,12 +373,6 @@ func _rebuild_dynamics(cells: Array) -> void:
 	for c in _dynamic_root.get_children():
 		c.free()
 	_orbiters.clear()           # those orbiter roots were children of _dynamic_root (just freed)
-	# restore any water cells revealed last step back to opaque
-	for cellv in _water_revealed:
-		if _water_quads.has(cellv):
-			var w0 = _water_quads[cellv]
-			w0["node"].material_override = w0["opaque"]
-	_water_revealed.clear()
 	_bank = _dynamic_root
 	_noting = false
 	for cell in cells:
@@ -409,23 +383,9 @@ func _rebuild_dynamics(cells: Array) -> void:
 		var sink := _cell_sink(cell)
 		var wet: bool = bool(cell.get("wade", false)) or bool(cell.get("swim", false))
 		var idx := 0
-		var cellv := Vector2i(cx, cy)
 		for obj in cell.get("objs", []):
 			if not _is_prism(obj) and _is_creature(obj):
-				# If this creature sits in registered deep water, reveal it: make the
-				# water translucent and draw the creature uncropped so it shows through.
-				var reveal: bool = _water_quads.has(cellv)
-				if reveal:
-					if not _water_revealed.has(cellv):
-						var w = _water_quads[cellv]
-						w["node"].material_override = w["clear"]
-						_water_revealed.append(cellv)
-					# upright, uncropped so there's a submerged body; the veil + translucent
-					# surface let that lower part read through the water.
-					_place_nonwall(obj, cx, cy, idx, false, 0.0, wet, false)
-					_place_water_veil(cx, cy)
-				else:
-					_place_nonwall(obj, cx, cy, idx, false, sink, wet, false)
+				_place_nonwall(obj, cx, cy, idx, false, sink, wet, false)
 				# A lit creature (NPC with a torch/glowsphere, a glowfish) carries its light
 				# with it — placed here every step so it tracks the creature. No smoke: a moving
 				# torch shouldn't trail a plume, and glow-critters aren't fire. (_live_build is
@@ -1166,35 +1126,6 @@ func _is_creature(obj: Dictionary) -> bool:
 func _is_glowfish(obj: Dictionary) -> bool:
 	return String(obj.get("tile", "")).to_lower().contains("glowfish")
 
-## Deep-water surface tile (fully-enclosed pool): opaque enough to hide a submerged
-## creature, so these are the cells we make translucent when one is present.
-func _is_deep_water_tile(tile: String) -> bool:
-	return tile.to_lower().contains("liquids/water/deep")
-
-## A shared, camera-facing translucent water billboard. Hung over the lower part of a
-## submerged creature, it makes that part read as seen through semi-transparent water,
-## while the creature stays a normal upright billboard (top out, bottom "in" the water).
-func _build_veil() -> void:
-	var m := StandardMaterial3D.new()
-	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	m.blend_mode = BaseMaterial3D.BLEND_MODE_MIX
-	m.albedo_color = Color(0.16, 0.42, 0.72, WATER_REVEAL_ALPHA)   # salty-water blue
-	m.cull_mode = BaseMaterial3D.CULL_DISABLED
-	m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED           # face the camera, like the creature
-	m.billboard_keep_scale = true
-	m.render_priority = 1                                          # draw over the creature sprite
-	_veil_mesh = QuadMesh.new()
-	_veil_mesh.size = Vector2(0.95, VEIL_HEIGHT)
-	_veil_mesh.material = m
-
-## Hang the water veil over the lower VEIL_HEIGHT of a submerged creature's cell.
-func _place_water_veil(cx: int, cy: int) -> void:
-	var v := MeshInstance3D.new()
-	v.mesh = _veil_mesh
-	v.position = Vector3(cx, VEIL_HEIGHT * 0.5, cy)   # from the waterline down to the floor
-	_bank.add_child(v)   # into _dynamic_root, freed + rebuilt each step
-
 func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, sink := 0.0, wet := false, skip_creatures := false) -> void:
 	# Static builds exclude creatures (they render per step in _rebuild_dynamics);
 	# remembered zones drop them entirely (they've wandered off since last live).
@@ -1270,12 +1201,6 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 		if tex != null:
 			f.material_override = _mesh_material(tile, main_c, detail_c, tex)
 			f.scale = Vector3.ONE
-			# Register the LIVE zone's deep-water surfaces so the dynamic pass can turn a
-			# cell translucent when a creature is submerged in it (see _rebuild_dynamics).
-			if _live_build and _is_deep_water_tile(tile):
-				_water_quads[Vector2i(cx, cy)] = {
-					"node": f, "opaque": f.material_override,
-					"clear": _water_clear_material(tile, main_c, detail_c, tex)}
 		else:
 			f.material_override = _color_material(_qud_color(String(obj.get("color", ""))))
 			f.scale = Vector3(0.5, 1.0, 0.5)
@@ -2259,22 +2184,6 @@ func _mesh_material(tile: String, main_c: String, detail_c: String, tex: ImageTe
 	m.albedo_texture = tex
 	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
-	m.cull_mode = BaseMaterial3D.CULL_DISABLED
-	_texmat_cache[key] = m
-	return m
-
-# Translucent copy of a water surface, so a submerged creature reads through it.
-# Blended alpha (not scissor) so the partial opacity actually shows what's beneath.
-func _water_clear_material(tile: String, main_c: String, detail_c: String, tex: ImageTexture) -> StandardMaterial3D:
-	var key := "clear|%s|%s|%s" % [tile, main_c, detail_c]
-	if _texmat_cache.has(key):
-		return _texmat_cache[key]
-	var m := StandardMaterial3D.new()
-	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	m.albedo_texture = tex
-	m.albedo_color = Color(1.0, 1.0, 1.0, WATER_REVEAL_ALPHA)
-	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	m.cull_mode = BaseMaterial3D.CULL_DISABLED
 	_texmat_cache[key] = m
 	return m
