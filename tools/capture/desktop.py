@@ -184,6 +184,16 @@ _KEYCODES = {
     "KP6": 88, "KP7": 89, "KP8": 91, "KP9": 92,
 }
 
+# Letter/digit virtual keycodes. A single-char `key` must post the KEYCODE (not a
+# unicode string) so keycode-matched shortcuts (Unity `KeyCode.C`, game keybinds)
+# fire. `type` still uses the unicode path for arbitrary text into fields.
+_CHARCODES = {
+    "a": 0, "b": 11, "c": 8, "d": 2, "e": 14, "f": 3, "g": 5, "h": 4, "i": 34, "j": 38,
+    "k": 40, "l": 37, "m": 46, "n": 45, "o": 31, "p": 35, "q": 12, "r": 15, "s": 1, "t": 17,
+    "u": 32, "v": 9, "w": 13, "x": 7, "y": 16, "z": 6,
+    "0": 29, "1": 18, "2": 19, "3": 20, "4": 21, "5": 23, "6": 22, "7": 26, "8": 28, "9": 25,
+}
+
 
 def _post_char(ch):
     buf = (ctypes.c_uint16 * len(ch))(*[ord(c) for c in ch])
@@ -204,8 +214,10 @@ def _post_keycode(kc):
 def key(name):
     if name in _KEYCODES:
         _post_keycode(_KEYCODES[name])
+    elif len(name) == 1 and name.lower() in _CHARCODES:
+        _post_keycode(_CHARCODES[name.lower()])   # keycode, so shortcuts/keybinds fire
     elif len(name) == 1:
-        _post_char(name)
+        _post_char(name)                           # symbols: fall back to unicode
     else:
         raise ValueError("unknown key %r (use a single char or one of %s)" % (name, sorted(_KEYCODES)))
 
