@@ -898,10 +898,10 @@ uniform vec2 uv_min = vec2(0.0);
 uniform vec2 uv_size = vec2(1.0);
 uniform float pad = 1.5;
 uniform vec3 glow_color = vec3(0.4, 1.0, 0.85);
-uniform float body_amt = 0.7;
+uniform float body_amt = 0.4;
 uniform float halo_amt = 1.0;
 uniform float halo_uv = 0.12;
-uniform float strength = 1.6;
+uniform float strength = 1.3;
 uniform float pulse_speed = 2.5;
 void vertex() {
 	// billboard (Godot's documented snippet) with scale preserved
@@ -919,6 +919,8 @@ float fish_a(vec2 f) {
 void fragment() {
 	vec2 f = (UV - vec2(0.5)) * pad + vec2(0.5);   // fish centred, margin for bloom
 	float here = fish_a(f);
+	vec3 fish_rgb = vec3(0.0);
+	if (here > 0.0) fish_rgb = texture(fish_tex, uv_min + f * uv_size).rgb;
 	float around = 0.0;
 	for (int i = 0; i < 8; i++) {
 		float ang = float(i) / 8.0 * 6.2831853;
@@ -929,8 +931,11 @@ void fragment() {
 	around /= 16.0;
 	float halo = clamp(around - here, 0.0, 1.0);
 	float pulse = 0.65 + 0.35 * sin(TIME * pulse_speed);
-	ALBEDO = glow_color;
-	ALPHA = clamp((here * body_amt + halo * halo_amt) * strength * pulse, 0.0, 1.0);
+	// body: gentle glow in the FISH'S OWN colour (never a flat cyan fill, so it can't become
+	// an opaque block); halo: the crisp cyan outline. Additive: contribution = ALBEDO * ALPHA.
+	vec3 col = fish_rgb * here * body_amt + glow_color * halo * halo_amt;
+	ALBEDO = col * strength;
+	ALPHA = pulse;
 }
 """
 
