@@ -1,4 +1,5 @@
 using System;
+using ConsoleLib.Console;  // Keyboard.PushCommand — wakes the main thread while unfocused
 using XRL;        // The, IPlayerMutator, IEventRegistrar
 using XRL.World;  // GameObject, Zone, Cell, CommandEvent, EndTurnEvent
 
@@ -39,6 +40,9 @@ namespace RavesOfQud
                             // TODO(qud-api): route through Qud's logger if you prefer
                             // (e.g. MetricsManager.LogInfo). System.Console is safe.
                             s.Log = m => System.Console.WriteLine("[raves] " + m);
+                            // Route commands the instant they arrive (background thread),
+                            // so movement can wake an unfocused game (see OnPayload).
+                            s.OnPayload = OnPayload;
                             s.Start();
                             _server = s;
                         }
@@ -106,21 +110,52 @@ namespace RavesOfQud
             }
         }
 
+        /// <summary>
+        /// Runs on the BACKGROUND socket read thread, the instant a command arrives.
+        ///
+        /// Movement is injected straight into Qud's input queue via Keyboard.PushCommand.
+        /// That enqueues under a lock and Sets the KeyEvent the game's main thread is
+        /// parked on inside getvk() — so the move is processed EVEN WHILE QUD IS UNFOCUSED.
+        /// (A thread blocked in ManualResetEvent.WaitOne wakes regardless of window focus;
+        /// our render-tied Tick/TickRender do NOT fire while the window is in the
+        /// background, which is why draining Incoming from them can't drive an idle game.)
+        /// PushCommand only touches a locked queue + the event, no game state, so it is
+        /// safe off the main thread. The move then resolves through Qud's own command
+        /// path, ends a turn, and Tick publishes the resulting snapshot as usual.
+        ///
+        /// Anything that genuinely needs the main thread (screenshots) is left on Incoming
+        /// for Tick/TickRender to drain.
+        /// </summary>
+        private static void OnPayload(string json)
+        {
+            try
+            {
+                var f = MiniJson.ParseFlat(json);
+                f.TryGetValue("name", out string name);
+                if (name == "move")
+                {
+                    f.TryGetValue("dir", out string dir);
+                    if (!string.IsNullOrEmpty(dir) && Dirs.Contains(dir))
+                        Keyboard.PushCommand("CmdMove" + dir, null);
+                    return;
+                }
+            }
+            catch (Exception e) { try { Server.Log("onpayload error: " + e.Message); } catch { } }
+            // not consumed inline -> hand to the main-thread drain
+            Server.Incoming.Enqueue(json);
+        }
+
         private static void Apply(GameObject player, string json)
         {
             var f = MiniJson.ParseFlat(json);
             f.TryGetValue("name", out string name);
             switch (name)
             {
-                case "move":
-                    f.TryGetValue("dir", out string dir);
-                    Server.Log("[raves] apply move " + dir);
-                    Step(player, dir);
-                    break;
                 case "shot":
                     QueueScreenshot();
                     break;
-                // Extend: "activate", "wait", "getUp", ... route each through Qud.
+                // Movement is handled on the socket thread (see OnPayload), so it can
+                // drive an unfocused game. Extend here for main-thread-only commands.
                 default:
                     break;
             }
@@ -154,17 +189,9 @@ namespace RavesOfQud
         }
 
         // Godot sends the 8 compass strings; Qud's command IDs are "CmdMove" + that.
+        // Injected via Keyboard.PushCommand (OnPayload), which routes through Qud's own
+        // input/command path — doors/combat/NPC turns resolve exactly as from a keypress.
         private static readonly System.Collections.Generic.HashSet<string> Dirs =
             new System.Collections.Generic.HashSet<string> { "N", "S", "E", "W", "NE", "NW", "SE", "SW" };
-
-        private static void Step(GameObject player, string dir)
-        {
-            if (player == null || string.IsNullOrEmpty(dir) || !Dirs.Contains(dir)) return;
-
-            // Route through the command system so doors/combat/NPC turns resolve
-            // exactly as from a keypress. Verified overload:
-            //   Send(Actor, Command, Target, TargetCell, StandoffDistance, Forced, Silent, Handler)
-            CommandEvent.Send(player, "CmdMove" + dir, null, null, 0, false, false, null);
-        }
     }
 }

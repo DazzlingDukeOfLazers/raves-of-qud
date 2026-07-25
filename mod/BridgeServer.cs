@@ -34,6 +34,16 @@ namespace RavesOfQud
         /// <summary>Command payloads received from clients, oldest first.</summary>
         public readonly ConcurrentQueue<string> Incoming = new ConcurrentQueue<string>();
 
+        /// <summary>
+        /// Optional per-payload hook, invoked on the BACKGROUND read thread the instant
+        /// a frame arrives. The game side sets this to route latency-critical commands
+        /// (movement) straight into Qud's input queue — which wakes the main thread even
+        /// when the window is unfocused — instead of waiting for a main-thread drain of
+        /// <see cref="Incoming"/>. If unset, payloads fall back to Incoming. Whatever the
+        /// hook does NOT consume, it should enqueue to Incoming itself.
+        /// </summary>
+        public Action<string> OnPayload;
+
         /// <summary>Optional log sink; set from the game side to route to Qud's log.</summary>
         public Action<string> Log = _ => { };
 
@@ -89,7 +99,9 @@ namespace RavesOfQud
                     if (len < 0 || len > (16 << 20)) break; // 16 MB sanity cap
                     var payload = new byte[len];
                     if (!ReadFully(stream, payload, len)) break;
-                    Incoming.Enqueue(Encoding.UTF8.GetString(payload));
+                    string s = Encoding.UTF8.GetString(payload);
+                    Action<string> hook = OnPayload;
+                    if (hook != null) hook(s); else Incoming.Enqueue(s);
                 }
             }
             catch { /* client dropped */ }
