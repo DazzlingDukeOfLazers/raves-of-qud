@@ -126,11 +126,20 @@ ground colour) lifted above the water it spans.
 
 ```json
 { "type": "command", "name": "move", "dir": "N" }
+{ "type": "command", "name": "wait" }
+{ "type": "command", "name": "shot" }
 ```
 
-- `dir` is one of the 8 Qud compass strings: `N S E W NE NW SE SW`.
-- Applied on Qud's main thread; the sim resolves the full turn (combat, doors,
-  NPC actions) exactly as a keypress would. New state comes back as the next
+Implemented commands:
+
+| `name` | effect | notes |
+|---|---|---|
+| `move` | one step in `dir` (`N S E W NE NW SE SW`) | injected on the socket thread via `Keyboard.PushCommand("CmdMove"+dir)`, so it wakes an unfocused game |
+| `wait` | wait one turn (`CmdWait`) | **passes a turn.** Godot sends one on (re)connect to prime the first render, and Shift+Space is a manual passthrough. A no-turn "republish snapshot" command will replace the on-connect wait later. |
+| `shot` | Qud screenshots itself → `qud_shot.png` | main-thread only (marshalled via `Bridge.Apply` → `uiQueue`) |
+
+- `move`/`wait` are applied on the socket thread (they can drive an unfocused game); other
+  commands route through `Bridge.Apply` on the main thread. The sim resolves the full turn
+  (combat, doors, NPC actions) exactly as a keypress would; new state returns as the next
   `snapshot`.
-- Extend `name` with `activate`, `wait`, `getUp`, … each routed through Qud in
-  `Bridge.Apply`.
+- Extend `name` with `activate`, `getUp`, … the same way.
