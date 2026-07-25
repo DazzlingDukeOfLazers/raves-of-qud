@@ -148,7 +148,7 @@ var _lights: Array = []           # [{glow, flame, energy}]
 # set_daylight(sun_a), where sun_a is 0 at night .. 1 at midday.
 var _daylight := 0.0
 const GLOW_DAY_MIN := 0.06    # ground light-pool strength at full daylight (nearly gone)
-const FLAME_DAY_MIN := 0.35   # flame billboard stays partly visible so the sconce still reads lit
+const FLAME_DAY_MIN := 0.15   # flame billboard: a faint ember by day, not a bright ball
 
 ## Multiplier for the ground glow / the flame, given the current daylight. Both are 1.0
 ## at night and fall to their *_DAY_MIN floor at midday.
