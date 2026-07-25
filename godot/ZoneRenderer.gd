@@ -390,12 +390,13 @@ func _rebuild_dynamics(cells: Array) -> void:
 		for obj in cell.get("objs", []):
 			if not _is_prism(obj) and _is_creature(obj):
 				_place_nonwall(obj, cx, cy, idx, false, sink, wet, false)
-				# A lit creature (NPC with a torch/glowsphere, a glowfish) carries its light
-				# with it — placed here every step so it tracks the creature. No smoke: a moving
-				# torch shouldn't trail a plume, and glow-critters aren't fire. (_live_build is
-				# false during dynamics, so this doesn't register for the flicker or leak into
-				# _lights, whose entries are freed only on a static rebuild.)
-				if obj.has("lightRadius"):
+				# A lit creature (NPC with a torch/glowsphere) carries its light with it —
+				# placed here every step so it tracks the creature. No smoke: a moving torch
+				# shouldn't trail a plume. (_live_build is false during dynamics, so this doesn't
+				# register for the flicker or leak into _lights, freed only on a static rebuild.)
+				# Glowfish are excluded: their glow will come from a shader on the fish texture,
+				# not the sconce-style pool+flame; they get the orbiting motes instead.
+				if obj.has("lightRadius") and not _is_glowfish(obj):
 					_place_light(cx, cy, float(obj["lightRadius"]), false)
 				if _is_glowfish(obj):
 					_make_orbiters(cx, cy)     # bioluminescent bugs circling the fish
