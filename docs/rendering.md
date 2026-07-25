@@ -214,30 +214,34 @@ visible, not silent. The report form writes these — see [tools.md](tools.md#in
 
 ---
 
-## 8. Stairs down — framed shaft + descending voxel flight
+## 8. Stairs down — framed floor tile
 
 A `StairsDown` (tile `Tiles2/sw_stairsdown`, layer 7) would otherwise render as an upright
-billboard glyph — a "0"-looking mark on the floor. Instead `_place_nonwall` intercepts it
+billboard glyph — a "0"-looking mark floating on the floor. `_place_nonwall` intercepts it
 (`_is_stairs_down`, matched on the blueprint name *or* the tile, so a not-yet-exported tile
-still gets stairs) and builds real geometry, prototyped in `tools/capture/stairs.py`:
+still gets the marker) and builds:
 
+- **The stair art laid FLAT** inside the frame, filled (`Fill.ALL`) so the transparent field
+  becomes an opaque base the light `>` staircase sits on — exactly as Qud shows it, and readable
+  from any camera angle or time of day.
 - **A raised rectangular lip** (`STAIR_FRAME_*`) around the cell perimeter — "the top of the
-  stair", the opening you see from above. Four bars, inner edge flush with the flight.
-- **A descending flight** of `STAIR_STEPS` solid columns inside the lip. Column *i*'s top steps
-  down by `DEPTH/STEPS`, so tops recede from just under the floor to one cell deep. Solid down
-  to a pit floor, so there's no see-through underside. Each tread fades from the (dimmed) tile
-  colour toward `STAIR_SHAFT_DARK` with depth — a fake shaft shadow, since the world is unshaded
-  and no real light can do it.
-- **The cell's own floor quad is suppressed** (`stair_cell` flag through `_place_nonwall`) so it
-  doesn't cap the shaft from a top-down view; the lip is the floor around the hole.
+  stair" — four bars, inner edge flush with the tile.
+- The cell's own floor quad is suppressed (`stair_cell` flag through `_place_nonwall`) so it can't
+  z-fight the stair tile.
+
+**A descending voxel shaft was tried first** (prototyped in `tools/capture/stairs.py`: a flight of
+solid columns stepping one cell deep, framed by the lip) and **rejected after measuring it**: a
+one-cell pit is too small and dark to read from the low game camera, and it vanished completely in
+dim light (the near-black shaft blended into Qud's dark-teal `k` background). The measure-don't-guess
+rule applied to a whole feature — the screenshot killed the fancy version. The Python prototype is
+kept as the record.
 
 **Direction.** Qud's `StairsDown` is a vertical connector with **no lateral facing** (down-stairs
 meet up-stairs at the same x,y one level below), so there is usually nothing to rotate to.
-`_stair_dir_deg` resolves, in order: an explicit `stairDir` data field (if the mod ever sends
-one) → a user **override** (`stairDir: north|south|east|west`, §7) → the **guess**
-(`STAIR_GUESS_DEG`, descend +Z/south). Canonical geometry descends +Z; other directions rotate
-the whole group by yaw exactly like `_place_side` (S→E→N→W clockwise from above). So the guess is
-one edit or one override away from any cardinal.
+`_stair_dir_deg` resolves, in order: an explicit `stairDir` data field (if the mod ever sends one)
+→ a user **override** (`stairDir: north|south|east|west`, §7) → the **guess** (`STAIR_GUESS_DEG`,
+face +Z/south). `deg` rotates the whole group (glyph + frame) by yaw like `_place_side`
+(S→E→N→W clockwise from above), so a facing is one edit or override away.
 
 ---
 

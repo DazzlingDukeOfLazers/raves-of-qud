@@ -1335,8 +1335,8 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 	# filed a verdict that forces the normal floor/billboard path.
 	if _is_stairs_down(obj, tile) and verdict != "billboard" and verdict != "floor" and not in_wall:
 		var deg := _stair_dir_deg(obj, tile)
-		_place_stairs_down(cx, cy, main_c, detail_c, deg)
-		_note(cx, cy, idx, "stairs-down (voxel shaft, descend %s)" % _deg_cardinal(deg), 0.0)
+		_place_stairs_down(cx, cy, obj, tile, main_c, detail_c, deg)
+		_note(cx, cy, idx, "stairs-down (framed floor tile, face %s)" % _deg_cardinal(deg), STAIR_FRAME_H)
 		return
 
 	# Qud's painted ground layer is flat by default — dirt, gravel, cracked earth.
@@ -1532,12 +1532,9 @@ func _place_side(mesh: ArrayMesh, k: Vector2i, deg: float) -> void:
 
 # --- stairs down: framed opening + descending voxel flight ------------------
 
-const STAIR_STEPS     := 6     # treads in the flight
-const STAIR_DEPTH     := 1.0   # bottom step sits one cell below the floor
 const STAIR_FRAME_W   := 0.10  # width of the raised lip framing the opening
 const STAIR_FRAME_H   := 0.05  # how far that lip stands proud of the floor
-const STAIR_GUESS_DEG := 0.0   # default descent when nothing says otherwise: +Z (south)
-const STAIR_SHAFT_DARK := Color(0.04, 0.05, 0.06)  # bottom-of-shaft near-black
+const STAIR_GUESS_DEG := 0.0   # default facing when nothing says otherwise: +Z (south)
 
 ## Is this object a downward staircase? Matched on the blueprint name OR the tile
 ## (Tiles2/sw_stairsdown) — a purely visual marker keys off what's drawn, and either
@@ -1578,48 +1575,42 @@ func _deg_cardinal(deg: float) -> String:
 		270: return "W"
 	return "S"
 
-## Build the staircase into the current static bank, centred on cell (cx,cy) and
-## rotated by `deg`. Geometry prototyped in tools/capture/stairs.py: solid columns
-## whose tops step DOWN toward +Z, framed by a raised rectangular lip. Colours come
-## from the stair tile (treads = main, darkening with depth so the shaft reads as
-## receding into shadow; frame = detail, brightened so the opening pops).
-func _place_stairs_down(cx: int, cy: int, main_c: String, detail_c: String, deg: float) -> void:
+## Build the stairs marker into the current static bank, centred on cell (cx,cy).
+## A descending voxel shaft was tried first (tools/capture/stairs.py) but proved
+## invisible: a one-cell pit is too small and dark to read from the game camera,
+## and it vanished entirely in dim light. So the reliable form is the stair art laid
+## FLAT on the floor (as Qud draws it), ringed by a raised rectangular lip = "the top
+## of the stair". `deg` rotates the whole thing so a facing (data or override) turns
+## the glyph; the guess leaves it unrotated.
+func _place_stairs_down(cx: int, cy: int, obj: Dictionary, tile: String, main_c: String, detail_c: String, deg: float) -> void:
 	var grp := Node3D.new()
 	grp.position = Vector3(cx, 0.0, cy)
 	grp.rotation = Vector3(0, deg_to_rad(deg), 0)
 	_wall_parent().add_child(grp)
 
 	var hi := 0.5 - STAIR_FRAME_W
-	var run := (2.0 * hi) / float(STAIR_STEPS)
-	var rise := STAIR_DEPTH / float(STAIR_STEPS)
-	var pit := -STAIR_DEPTH - 0.02
-	var stone := _qud_color(main_c if main_c != "" else "&y")
 
-	for i in STAIR_STEPS:
-		var top := -(float(i) + 1.0) * rise          # -rise (shallow, back) .. -DEPTH (deep, front)
-		var z0 := -hi + float(i) * run
-		var h := top - pit
-		var mi := MeshInstance3D.new()
-		var bm := BoxMesh.new()
-		bm.size = Vector3(2.0 * hi, h, run)
-		mi.mesh = bm
-		# deeper -> darker: fade the tread from the (dimmed) tile colour at the top toward
-		# near-black at the bottom, so the shaft reads as receding into shadow whatever
-		# the glyph's own brightness. The unshaded world has no real light to do this.
-		var shade := float(i) / float(STAIR_STEPS - 1)   # 0 at top .. 1 at bottom
-		mi.material_override = _color_material(stone.lerp(STAIR_SHAFT_DARK, 0.15 + 0.8 * shade))
-		mi.position = Vector3(0.0, pit + h * 0.5, z0 + run * 0.5)
-		grp.add_child(mi)
+	# The stair glyph laid flat inside the frame. Filled (Fill.ALL) so the tile's
+	# transparent field becomes an opaque base the light staircase sits on, the way
+	# Qud shows a bright '>' on the dark floor — readable from any angle or light.
+	var ftex := _colored_tex_rgb(tile, _obj_main(obj), _obj_detail(obj), _color_key(obj), Fill.ALL)
+	if ftex != null:
+		var f := MeshInstance3D.new()
+		f.mesh = _plane
+		f.material_override = _mesh_material(tile, main_c, detail_c, ftex)
+		f.scale = Vector3(2.0 * hi, 1.0, 2.0 * hi)   # fill the opening inside the lip
+		f.position = Vector3(0, STAIR_FRAME_H * 0.6, 0)
+		grp.add_child(f)
 
 	# Raised rectangular lip = "the top of the stair". Four bars around the perimeter,
-	# inner edge flush with the flight (+/-hi), outer edge at the cell boundary.
+	# inner edge flush with the tile (+/-hi), outer edge at the cell boundary.
 	var o := 0.5
 	var fy := STAIR_FRAME_H
 	var fmat := _color_material(_qud_color(detail_c if detail_c != "" else main_c).lightened(0.15))
-	_stair_bar(grp, fmat, Vector3(2.0 * o, fy, STAIR_FRAME_W), Vector3(0, fy * 0.5, -(o - STAIR_FRAME_W * 0.5)))  # N
-	_stair_bar(grp, fmat, Vector3(2.0 * o, fy, STAIR_FRAME_W), Vector3(0, fy * 0.5,  (o - STAIR_FRAME_W * 0.5)))  # S
-	_stair_bar(grp, fmat, Vector3(STAIR_FRAME_W, fy, 2.0 * hi), Vector3( (o - STAIR_FRAME_W * 0.5), fy * 0.5, 0)) # E
-	_stair_bar(grp, fmat, Vector3(STAIR_FRAME_W, fy, 2.0 * hi), Vector3(-(o - STAIR_FRAME_W * 0.5), fy * 0.5, 0)) # W
+	_stair_bar(grp, fmat, Vector3(2.0 * o, fy, STAIR_FRAME_W), Vector3(0, fy * 0.5, -(o - STAIR_FRAME_W * 0.5)))  # far
+	_stair_bar(grp, fmat, Vector3(2.0 * o, fy, STAIR_FRAME_W), Vector3(0, fy * 0.5,  (o - STAIR_FRAME_W * 0.5)))  # near
+	_stair_bar(grp, fmat, Vector3(STAIR_FRAME_W, fy, 2.0 * hi), Vector3( (o - STAIR_FRAME_W * 0.5), fy * 0.5, 0)) # right
+	_stair_bar(grp, fmat, Vector3(STAIR_FRAME_W, fy, 2.0 * hi), Vector3(-(o - STAIR_FRAME_W * 0.5), fy * 0.5, 0)) # left
 
 func _stair_bar(grp: Node3D, mat: Material, size: Vector3, pos: Vector3) -> void:
 	var mi := MeshInstance3D.new()
