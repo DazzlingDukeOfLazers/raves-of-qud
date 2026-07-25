@@ -184,6 +184,7 @@ var _active: Array = []
 var _sprite_pool: Array[Sprite3D] = []
 var _floor_pool: Array[MeshInstance3D] = []
 var _label_pool: Array[Label3D] = []
+var _top_down := false   # top-down camera modes: tile billboards lie flat to face up
 
 func _ready() -> void:
 	_plane = PlaneMesh.new()
@@ -2317,6 +2318,21 @@ func _color_material(col: Color) -> StandardMaterial3D:
 
 # --- node pools -------------------------------------------------------------
 
+## Lay tile billboards flat so a straight-down (true top-down) camera sees the art
+## instead of its edge, or stand them upright again (FIXED_Y) for the angled views.
+## Applies to sprites already on screen and, via _take_sprite, to any built later.
+## Flames, glyph labels and fence quads are separate nodes and stay as they are —
+## only _take_sprite billboards join the "tile_sprite" group. (Fences render as
+## upright quads, so they read edge-on from directly overhead; a minor v1 limit.)
+func set_top_down(on: bool) -> void:
+	if on == _top_down:
+		return
+	_top_down = on
+	var mode := BaseMaterial3D.BILLBOARD_ENABLED if on else BaseMaterial3D.BILLBOARD_FIXED_Y
+	for n in get_tree().get_nodes_in_group("tile_sprite"):
+		if is_instance_valid(n):
+			(n as Sprite3D).billboard = mode
+
 func _take_sprite() -> Sprite3D:
 	var s: Sprite3D
 	if _bank == null and _sprite_pool.size() > 0:
@@ -2328,10 +2344,11 @@ func _take_sprite() -> Sprite3D:
 		s.shaded = false
 		s.transparent = true
 		s.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+		s.add_to_group("tile_sprite")   # so set_top_down() can find every tile billboard
 		_spawn_parent().add_child(s)
 	# reset per take — fence panels and submerged actors override these, normal
-	# sprites need the defaults back
-	s.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+	# sprites need the defaults back. In top-down the tile faces up (full billboard).
+	s.billboard = BaseMaterial3D.BILLBOARD_ENABLED if _top_down else BaseMaterial3D.BILLBOARD_FIXED_Y
 	s.rotation = Vector3.ZERO
 	s.region_enabled = false
 	s.flip_h = false
