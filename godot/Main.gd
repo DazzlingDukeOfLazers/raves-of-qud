@@ -71,9 +71,14 @@ const TOP_H := 20.0        # ortho eye height above the ground (scale is size, n
 const TOP_FIT_MARGIN := 1.06   # padding so the framed zone isn't flush to the edges
 const NORTH := Vector3(0, 0, -1)   # -z is north (Qud's y grows south); screen-up in top-down
 const TOP_FOLLOW_SPAN := 18.0  # TOP_FOLLOW vertical span (cells) at zoom 1.0
+const TOP_ZONE_MIN_SPAN := 3.0 # TOP_ZONE tightest view: ~3 tiles across
 const TOP_ZOOM_MIN := 0.15
 const TOP_ZOOM_MAX := 3.5
 var _top_zoom := 1.0           # wheel / R-F zoom for BOTH top-down ortho modes
+
+## TOP_ZONE zoom fraction 0 (tightest, 3 tiles) .. 1 (widest, 3x3 zones), from _top_zoom.
+func _top_zone_frac() -> float:
+	return clampf((_top_zoom - TOP_ZOOM_MIN) / (TOP_ZOOM_MAX - TOP_ZOOM_MIN), 0.0, 1.0)
 
 # Remembered view/render settings, saved on exit and restored on launch (so Raves doesn't
 # reset to "looking south" every run). In user:// — available at startup, before the mod
@@ -514,7 +519,7 @@ func _update_camera(dt: float) -> void:
 			var tz_sel = inspector.selected_tile() if inspector != null else null
 			if tz_sel != null:
 				tz_focus = Vector3(tz_sel.x, 0.0, tz_sel.y)
-			var tz_blend := clampf((1.0 - _top_zoom) / (1.0 - TOP_ZOOM_MIN), 0.0, 1.0)
+			var tz_blend := 1.0 - _top_zone_frac()   # on player/target when tight, zone centre when wide
 			var tz_center := _zone_center.lerp(tz_focus, tz_blend)
 			target_eye = tz_center + Vector3(0, TOP_H, 0)
 			target_look = tz_center
@@ -558,14 +563,14 @@ func _apply_top_down_camera(top: bool) -> void:
 		attrs.dof_blur_far_enabled = not top
 
 func _top_ortho_size() -> float:
-	var base: float
 	if _mode == CamMode.TOP_FOLLOW:
-		base = TOP_FOLLOW_SPAN
-	else:  # TOP_ZONE — fit the whole zone, then let the wheel/R-F zoom scale it
-		var vp := get_viewport().get_visible_rect().size
-		var aspect: float = vp.x / maxf(1.0, vp.y)
-		base = maxf(_zone_dims.y, _zone_dims.x / maxf(0.01, aspect)) * TOP_FIT_MARGIN
-	return base * _top_zoom
+		return TOP_FOLLOW_SPAN * _top_zoom
+	# TOP_ZONE: geometric zoom from 3 tiles (tightest) to a 3x3-zone view (widest), so the
+	# range is bounded and sane instead of scaling the whole-zone fit without limit.
+	var vp := get_viewport().get_visible_rect().size
+	var aspect: float = vp.x / maxf(1.0, vp.y)
+	var wide: float = maxf(3.0 * _zone_dims.y, 3.0 * _zone_dims.x / maxf(0.01, aspect))
+	return TOP_ZONE_MIN_SPAN * pow(wide / TOP_ZONE_MIN_SPAN, _top_zone_frac())
 
 func _aim_dir() -> Vector3:
 	return Vector3(cos(_pitch) * sin(_yaw + PI), -sin(_pitch), cos(_pitch) * cos(_yaw + PI))
