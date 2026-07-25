@@ -74,6 +74,15 @@ var _position_overrides := {} # tile family -> "float" (default is ground-seated
 var _glow_overrides := {}   # tile family -> true (user tagged it bioluminescent GLOW)
 var _overrides_raw := "?"   # last overrides.json text, to skip re-parsing
 var _overrides_dirty := false  # overrides.json changed -> frozen static needs a rebuild
+# Export race: the mod exports tiles ON SIGHT (a frame after the snapshot that first
+# references them), but the live static geometry is built ONCE per zone entry and frozen.
+# So a not-yet-exported tile bakes a glyph fallback that never retries. When the live
+# build hits a missing/unreadable tile we flag it and rebuild the static on a later
+# snapshot (once the tile has landed), bounded so a genuinely-absent tile doesn't loop.
+var _static_saw_missing := false   # live build referenced a tile not yet on disk
+var _static_retry_pending := false # rebuild the live static next snapshot
+var _static_retry := 0             # consecutive retries for the current zone
+const STATIC_RETRY_MAX := 4
 
 var _palette := {}          # colour char -> "#rrggbb", from the mod (authoritative)
 var _tiles_dir := ""
@@ -282,13 +291,25 @@ func render_snapshot(data: Dictionary, neighbors: Array = []) -> void:
 	# ENTER a new zone (fresh Qud data), then frozen while you step within it. This
 	# is what took ~69ms EVERY step before; now it is paid once per zone.
 	Profiler.begin("render.static")
-	if live_id != _live_static_id:
+	var zone_changed := live_id != _live_static_id
+	if zone_changed:
+		_static_retry = 0              # fresh zone: reset the export-race retry budget
+	if zone_changed or _static_retry_pending:
+		_static_retry_pending = false
 		_placed.clear()
 		_lights.clear()                # the old live zone's torches stop flickering
 		_drop_static(live_id)          # replace any stale (neighbour-built) copy
 		_noting = true
+		_static_saw_missing = false
 		_build_static(live_id, cells)
 		_live_static_id = live_id
+		# A tile was still missing at build time (the mod exports on sight, usually the
+		# frame after this snapshot referenced it). Rebuild on a later snapshot so the
+		# now-exported tile replaces its glyph — bounded, so a truly-absent tile that
+		# never exports stops retrying and keeps the honest "NO TILE EXPORTED" fallback.
+		if _static_saw_missing and _static_retry < STATIC_RETRY_MAX:
+			_static_retry += 1
+			_static_retry_pending = true
 	if _static_zones.has(live_id):
 		_static_zones[live_id].position = Vector3.ZERO
 	Profiler.done("render.static")
@@ -2267,12 +2288,15 @@ func _mask(tile: String) -> Image:
 		return _mask_cache[fname]
 	var path := _tiles_dir.path_join(fname)
 	if not FileAccess.file_exists(path):
+		if _live_build: _static_saw_missing = true   # export race — retry the static build later
 		return null
 	var bytes := FileAccess.get_file_as_bytes(path)
 	if bytes.is_empty():
+		if _live_build: _static_saw_missing = true   # file mid-write (export in progress)
 		return null
 	var img := Image.new()
 	if img.load_png_from_buffer(bytes) != OK:
+		if _live_build: _static_saw_missing = true   # partial PNG mid-export
 		return null
 	if img.get_format() != Image.FORMAT_RGBA8:
 		img.convert(Image.FORMAT_RGBA8)

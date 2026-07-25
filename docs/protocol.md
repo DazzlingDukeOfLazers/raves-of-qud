@@ -38,6 +38,12 @@ Every message is a frame:
   loads `tilesDir/<tile-with-slashes-as-underscores>` — e.g. tile
   `Creatures/sw_bearman.png` → `tilesDir/Creatures_sw_bearman.png`. Missing files
   fall back to the glyph and are retried on later frames (export is on-demand).
+  The dynamic (creature) layer rebuilds every turn, so it retries for free; the
+  **frozen static layer** is built once per zone entry, so a tile that exports a
+  beat *after* its cell was statically built would bake a permanent glyph. To close
+  that race the live static build flags any missing tile and rebuilds itself on a
+  later snapshot (bounded by `STATIC_RETRY_MAX`), so a first-sight fence/wall
+  self-heals without a zone re-entry. See `ZoneRenderer._static_saw_missing`.
 - A cell is sent if it has objects **or** a painted ground tile; only truly blank cells are
   omitted. Objects are ordered bottom→top, with the painted ground first.
 - Fields come from `XRL.World.Parts.Render`, but via its **accessors**, not its fields:
