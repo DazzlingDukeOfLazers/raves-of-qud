@@ -175,9 +175,20 @@ unfocused). This took two coupled fixes — see below.
   fire but Qud's map freezes until you focus it (the Godot viewer still updates — it just consumes the
   snapshot). Gotcha: `Application.runInBackground` is **main-thread only**; the mod first set it from
   `Bridge.Tick` (turn thread), where it threw and a `catch {}` ate it. Fix: marshal it onto the main
-  thread via `GameManager.uiQueue` (see `Bridge.Tick`) — verified with `runInBackground = True` in
-  Player.log and a fresh `qud_shot.png` captured while unfocused. So: **focus-keeper = commands process,
-  runInBackground = Qud's map repaints** — both needed for full in-sync unfocused operation.
+  thread via `GameManager.uiQueue` (see `Bridge.Tick`). Also set `vSyncCount = 0` (else present is paced
+  by the focused display's vsync and stalls) and `RenderBase` each turn (an injected `PushCommand` move
+  doesn't hit the `CmdMove` RenderBase path — gated on `Options.DrawStepImmediately` — so the screen
+  buffer stayed stale). With those, Qud renders ~4fps unfocused (measured via a since-removed heartbeat)
+  and the buffer stays current.
+- **What DOESN'T work, and why (don't re-chase).** Even with all the above, Qud's own **3D tile-map
+  camera** does not present its updates to a backgrounded window on macOS — the message-log UI repaints
+  live, and `ScreenCapture` forces a correct one-off frame, but there's no clean managed hook to force
+  continuous live presentation of a background window's camera. This is a Unity/macOS compositor limit
+  below mod reach. Practical answer: the **Godot viewer is the live surface** (fully live while Qud is
+  backgrounded); to see Qud's OWN map, focus it (repaints instantly — the buffer is kept current every
+  turn) then focus back to Godot to drive. So: **focus-keeper = commands process; runInBackground +
+  vSync + RenderBase = state/buffer stay live and Qud repaints instantly ON focus; the unfocused live
+  tile-map is a macOS limit.**
 - The focus override is gated on `ClientCount > 0`, so solo play (no viewer attached) keeps Qud's normal
   pause-on-unfocus. While the viewer is connected + idle, Qud sits ~10% CPU (animation frames), not a spin.
 - A blocked player (marsh/water/wall) applies the move but doesn't change cells — check the position,
