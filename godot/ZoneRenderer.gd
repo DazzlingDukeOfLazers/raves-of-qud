@@ -71,6 +71,7 @@ const MAX_SLOT_PX := 2
 var _overrides := {}        # tile family -> shape verdict
 var _fill_overrides := {}   # tile family -> Fill mode
 var _position_overrides := {} # tile family -> "float" (default is ground-seated)
+var _glow_overrides := {}   # tile family -> true (user tagged it bioluminescent GLOW)
 var _overrides_raw := "?"   # last overrides.json text, to skip re-parsing
 var _overrides_dirty := false  # overrides.json changed -> frozen static needs a rebuild
 
@@ -398,8 +399,8 @@ func _rebuild_dynamics(cells: Array) -> void:
 				# register for the flicker or leak into _lights, freed only on a static rebuild.)
 				# Glowfish are excluded: their glow will come from a shader on the fish texture,
 				# not the sconce-style pool+flame; they get the orbiting motes instead.
-				if obj.has("lightRadius") and not _is_glowfish(obj):
-					_place_light(cx, cy, float(obj["lightRadius"]), false)
+				if obj.has("lightRadius") and not _should_glow(obj):
+					_place_light(cx, cy, float(obj["lightRadius"]), false)   # glow-critters use the bloom, not a pool
 				if _is_glowfish(obj):
 					_make_orbiters(cx, cy)     # bioluminescent bugs circling the fish
 			idx += 1
@@ -607,6 +608,7 @@ func _load_overrides() -> void:
 	_overrides.clear()
 	_fill_overrides.clear()
 	_position_overrides.clear()
+	_glow_overrides.clear()
 	if text == "":
 		return
 	var data = JSON.parse_string(text)
@@ -628,6 +630,8 @@ func _load_overrides() -> void:
 		var pos := _match_position(String(entry.get("position", "")))
 		if pos != "":
 			_position_overrides[fam] = pos
+		if String(entry.get("effect", "")).to_lower().contains("glow"):
+			_glow_overrides[fam] = true
 
 ## Verdict phrase -> shape key, or "" if none matches.
 func _match_shape(verdict: String) -> String:
@@ -687,6 +691,8 @@ func override_summary(tile: String) -> String:
 		parts.append("fill=" + (names[m] if m < names.size() else str(m)))
 	if _position_overrides.has(fam):
 		parts.append("pos=" + String(_position_overrides[fam]))
+	if _glow_overrides.has(fam):
+		parts.append("effect=glow")
 	return "" if parts.is_empty() else "  ".join(parts)
 
 func _override_for(tile: String) -> String:
@@ -1207,10 +1213,19 @@ func _is_vegetation(tile: String) -> bool:
 func _is_creature(obj: Dictionary) -> bool:
 	return bool(obj.get("creature", obj.get("sinks", false)))
 
-## Glowfish (and kin): bioluminescent, so we orbit a few glowing "bug" motes around them.
-## Keyed on the tile name — the blueprint isn't always in the per-object payload.
+## Glowfish specifically: the orbiting "bug" motes are theirs alone (that's what the fish
+## do in Qud). Keyed on the tile name — the blueprint isn't always in the per-object payload.
 func _is_glowfish(obj: Dictionary) -> bool:
 	return String(obj.get("tile", "")).to_lower().contains("glowfish")
+
+## Should this object get the bioluminescent GLOW bloom? True for built-in glow-* tiles
+## (glowfish, glowpad, glowmoth, …) and for any tile the user tagged "glow" via the report
+## form (an `effect` override). Purely visual — separate from the motes above.
+func _should_glow(obj: Dictionary) -> bool:
+	var tile := String(obj.get("tile", "")).to_lower()
+	if tile.contains("glow"):
+		return true
+	return _glow_overrides.has(tile_family(tile))
 
 func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, sink := 0.0, wet := false, skip_creatures := false) -> void:
 	# Static builds exclude creatures (they render per step in _rebuild_dynamics);
@@ -1325,8 +1340,8 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			var submerged: bool = sink > 0.0 and bool(obj.get("sinks", false))
 			_seat(s, btex, tile, cx, cy, sink if submerged else 0.0, position_for(tile) == "float")
 			s.visible = true
-			if _is_glowfish(obj):
-				_add_glow(s, btex)              # crisp bioluminescent bloom over the fish
+			if _should_glow(obj):
+				_add_glow(s, btex)              # crisp bioluminescent bloom (glowfish, glowpad, tagged tiles)
 			_track(s)
 			var fmode := _fill_for(tile, Fill.INTERIOR)
 			var gaps := tile_fill_px(tile, fmode)
