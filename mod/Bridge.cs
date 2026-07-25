@@ -86,8 +86,13 @@ namespace RavesOfQud
                             try
                             {
                                 UnityEngine.Application.runInBackground = true;
-                                server.Log("[raves] runInBackground (main thread) = "
-                                    + UnityEngine.Application.runInBackground);
+                                // Candidate fix: with vsync on, the present is paced by the
+                                // focused display's refresh, which can stall for an unfocused
+                                // window. Decouple present from vsync (targetFrameRate still caps).
+                                UnityEngine.QualitySettings.vSyncCount = 0;
+                                server.Log("[raves] runInBackground=" + UnityEngine.Application.runInBackground
+                                    + " vSyncCount=" + UnityEngine.QualitySettings.vSyncCount
+                                    + " targetFrameRate=" + UnityEngine.Application.targetFrameRate);
                             }
                             catch (Exception e) { server.Log("runInBackground set failed: " + e.Message); }
                         }, 0);
@@ -118,9 +123,22 @@ namespace RavesOfQud
         /// arrived from an external driver, and — if one applied while idle — publishes a
         /// snapshot immediately so the driver gets a response without waiting for a turn.
         /// </summary>
+        // Render heartbeat: BeforeRenderEvent fires once per RENDERED frame, so a rising
+        // count here means Qud is actually rendering. Logging the rate lets us see whether
+        // rendering continues while the window is unfocused (the crux of the map-sync issue).
+        private static long _renderFrames;
+        private static DateTime _lastBeat = DateTime.UtcNow;
+
         public static void TickRender(GameObject player)
         {
             BridgeServer server = Server;
+            _renderFrames++;
+            DateTime now = DateTime.UtcNow;
+            if ((now - _lastBeat).TotalSeconds >= 1.0)
+            {
+                server.Log("[raves] render heartbeat: " + _renderFrames + " frames total (rendering now)");
+                _lastBeat = now;
+            }
             bool applied = false;
             while (server.Incoming.TryDequeue(out string json))
             {
