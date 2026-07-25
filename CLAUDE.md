@@ -12,7 +12,21 @@ changing a subsystem.
 environment**: the exact paths and commands, so no session has to rediscover
 them after a compaction. If a path here is wrong, fix it here.
 
-## Local paths (this machine)
+## Branches & platform (parallel dev on Mac + PC)
+
+Two working branches off `main`: **`dd/mac`** (the Mac) and **`dd/pc`** (the second computer,
+Windows). `main` is the shared, cross-platform base. To keep merges clean:
+
+- **All OS-specific tooling is behind a seam** — `tools/capture/plat.py` dispatches by OS to
+  `plat_mac.py` / `plat_win.py`. Cross-platform code (bridge, Godot, mod logic) is shared.
+  **PC work = implement `plat_win.py`** (mirror `plat_mac.py`'s function names; guidance is in its
+  docstring). Do NOT edit the other OS's backend — that's exactly what would cause merge conflicts.
+- The **"Local paths" table below is macOS / this machine**; the PC branch keeps its own values
+  there. Expect that section to differ per branch — that's fine, not a conflict to resolve.
+- Everything else (`godot/`, `mod/`, cross-platform `tools/`) should merge cleanly; coordinate on
+  shared feature files as usual.
+
+## Local paths (this machine — macOS)
 
 | what | where |
 |---|---|
