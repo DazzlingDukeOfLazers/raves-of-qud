@@ -1,4 +1,5 @@
 using System;
+using System.Threading;    // focus-keeper watchdog thread
 using ConsoleLib.Console;  // Keyboard.PushCommand — wakes the main thread while unfocused
 using XRL;        // The, IPlayerMutator, IEventRegistrar
 using XRL.World;  // GameObject, Zone, Cell, CommandEvent, EndTurnEvent
@@ -45,6 +46,7 @@ namespace RavesOfQud
                             s.OnPayload = OnPayload;
                             s.Start();
                             _server = s;
+                            StartFocusKeeper();
                         }
                     }
                 }
@@ -108,6 +110,44 @@ namespace RavesOfQud
                 try { server.Publish(Protocol.Frame(ZoneSnapshot.BuildJson(player))); }
                 catch (Exception e) { server.Log("snapshot error: " + e.Message); }
             }
+        }
+
+        /// <summary>
+        /// Keep Qud's turn thread alive while the OS window is unfocused.
+        ///
+        /// XRLCore's player loop gates on `while (!GameManager.focused) Thread.Sleep(200)`,
+        /// so a backgrounded window freezes the game outright and any injected command sits
+        /// unprocessed until the window is foremost again. `GameManager.focused` is just a
+        /// static flag (set false by OnApplicationFocus); we hold it true so the turn thread
+        /// keeps servicing input — including our PushCommand injections — regardless of which
+        /// window is focused. Gated on a connected client so normal solo play keeps Qud's
+        /// default pause-on-unfocus. The false->true edge clears the input queue, so we
+        /// re-assert focus within 50 ms of a focus loss (when nothing is pending) rather than
+        /// at command time, and drive commands only once focus is already held.
+        /// </summary>
+        private static Thread _focusKeeper;
+
+        private static void StartFocusKeeper()
+        {
+            if (_focusKeeper != null) return;
+            _focusKeeper = new Thread(() =>
+            {
+                while (true)
+                {
+                    try
+                    {
+                        if (_server != null && _server.ClientCount > 0
+                            && The.Game != null && !GameManager.focused)
+                        {
+                            GameManager.focused = true;
+                        }
+                    }
+                    catch { /* transient game-state teardown; retry next tick */ }
+                    Thread.Sleep(50);
+                }
+            })
+            { IsBackground = true, Name = "RavesFocusKeeper" };
+            _focusKeeper.Start();
         }
 
         /// <summary>

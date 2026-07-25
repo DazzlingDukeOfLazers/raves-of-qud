@@ -31,6 +31,10 @@ namespace RavesOfQud
         private readonly object _clientsLock = new object();
         private readonly List<TcpClient> _clients = new List<TcpClient>();
 
+        /// <summary>Live client count. Used to gate the focus-keeper: only override
+        /// Qud's pause-on-unfocus while a viewer / driver is actually attached.</summary>
+        public int ClientCount { get { lock (_clientsLock) return _clients.Count; } }
+
         /// <summary>Command payloads received from clients, oldest first.</summary>
         public readonly ConcurrentQueue<string> Incoming = new ConcurrentQueue<string>();
 
