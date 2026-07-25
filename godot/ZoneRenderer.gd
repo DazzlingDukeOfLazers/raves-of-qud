@@ -72,6 +72,7 @@ var _overrides := {}        # tile family -> shape verdict
 var _fill_overrides := {}   # tile family -> Fill mode
 var _position_overrides := {} # tile family -> "float" (default is ground-seated)
 var _glow_overrides := {}   # tile family -> true (user tagged it bioluminescent GLOW)
+var _stairdir_overrides := {} # tile family -> "n"/"e"/"s"/"w" (descent the user picked)
 var _overrides_raw := "?"   # last overrides.json text, to skip re-parsing
 var _overrides_dirty := false  # overrides.json changed -> frozen static needs a rebuild
 # Export race: the mod exports tiles ON SIGHT (a frame after the snapshot that first
@@ -371,10 +372,13 @@ func _build_zone(cells: Array, offset: Vector2i, skip_creatures: bool, wall_type
 		var in_wall: bool = wall_cells.has(Vector2i(cx, cy))
 		var sink := _cell_sink(cell)
 		var wet: bool = bool(cell.get("wade", false)) or bool(cell.get("swim", false))
+		# A stair-down cell's own floor/ground quad would cap the shaft from above, so
+		# it is suppressed (the frame lip provides the ring of floor around the opening).
+		var stair_cell := _cell_has_stairs_down(cell)
 		var idx := 0
 		for obj in cell.get("objs", []):
 			if not _is_prism(obj):
-				_place_nonwall(obj, cx, cy, idx, in_wall, sink, wet, skip_creatures)
+				_place_nonwall(obj, cx, cy, idx, in_wall, sink, wet, skip_creatures, stair_cell)
 			# Creature lights are placed in the DYNAMIC pass so they follow the creature;
 			# here (static) we only place fixed lights (sconces, braziers, lit terrain).
 			if obj.has("lightRadius") and not (skip_creatures and _is_creature(obj)):
@@ -631,6 +635,7 @@ func _load_overrides() -> void:
 	_fill_overrides.clear()
 	_position_overrides.clear()
 	_glow_overrides.clear()
+	_stairdir_overrides.clear()
 	if text == "":
 		return
 	var data = JSON.parse_string(text)
@@ -654,6 +659,9 @@ func _load_overrides() -> void:
 			_position_overrides[fam] = pos
 		if String(entry.get("effect", "")).to_lower().contains("glow"):
 			_glow_overrides[fam] = true
+		var sd := _match_stairdir(String(entry.get("stairDir", "")))
+		if sd != "":
+			_stairdir_overrides[fam] = sd
 
 ## Verdict phrase -> shape key, or "" if none matches.
 func _match_shape(verdict: String) -> String:
@@ -680,6 +688,19 @@ func _match_position(verdict: String) -> String:
 	for pair in POSITION_KEYS:
 		if v.contains(pair[0]):
 			return pair[1]
+	return ""
+
+## Stair-descent verdict -> cardinal letter, or "" if none. Accepts a bare cardinal
+## ("south"), or the phrase the report form emits ("descend south"/"down toward south").
+func _match_stairdir(verdict: String) -> String:
+	var v := verdict.to_lower()
+	if v == "":
+		return ""
+	for pair in [["north", "n"], ["south", "s"], ["east", "e"], ["west", "w"]]:
+		if v.contains(pair[0]):
+			return pair[1]
+	if v in ["n", "s", "e", "w"]:
+		return v
 	return ""
 
 ## "float" if this tile is verdict-floated, else "" (ground-seated default).
@@ -1249,7 +1270,7 @@ func _should_glow(obj: Dictionary) -> bool:
 		return true
 	return _glow_overrides.has(tile_family(tile))
 
-func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, sink := 0.0, wet := false, skip_creatures := false) -> void:
+func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, sink := 0.0, wet := false, skip_creatures := false, stair_cell := false) -> void:
 	# Static builds exclude creatures (they render per step in _rebuild_dynamics);
 	# remembered zones drop them entirely (they've wandered off since last live).
 	if skip_creatures and _is_creature(obj):
@@ -1307,6 +1328,17 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			_note(cx, cy, idx, "connector panels [%s] h=%.2f (user verdict)" % [axis, vh], vh * 0.5)
 			return
 
+	# Stairs down: a shaft into the level below, not a flat tile. Qud's StairsDown is
+	# a vertical connector with no lateral facing, so unless a direction is supplied
+	# (data field or a user override) we GUESS the descent axis. Build a framed
+	# opening + a descending voxel flight in place of the sprite. Skipped if the user
+	# filed a verdict that forces the normal floor/billboard path.
+	if _is_stairs_down(obj, tile) and verdict != "billboard" and verdict != "floor" and not in_wall:
+		var deg := _stair_dir_deg(obj, tile)
+		_place_stairs_down(cx, cy, main_c, detail_c, deg)
+		_note(cx, cy, idx, "stairs-down (voxel shaft, descend %s)" % _deg_cardinal(deg), 0.0)
+		return
+
 	# Qud's painted ground layer is flat by default — dirt, gravel, cracked earth.
 	# But vegetation in that layer is cover you stand among, not a texture you walk
 	# on, so it reads far better standing up. Route it to the billboard path.
@@ -1319,6 +1351,9 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 		if in_wall:
 			_note(cx, cy, idx, "skipped(under wall)", 0.0)
 			return  # hidden under a wall; don't bother
+		if stair_cell:
+			_note(cx, cy, idx, "skipped(floor over stair opening)", 0.0)
+			return  # would cap the shaft; the frame lip is the floor here
 		var f := _take_floor()
 		var fkind := "floor"
 		if tex != null:
@@ -1494,6 +1529,106 @@ func _place_side(mesh: ArrayMesh, k: Vector2i, deg: float) -> void:
 	mi.position = Vector3(k.x, 0.0, k.y)
 	mi.rotation = Vector3(0, deg_to_rad(deg), 0)
 	_wall_parent().add_child(mi)
+
+# --- stairs down: framed opening + descending voxel flight ------------------
+
+const STAIR_STEPS     := 6     # treads in the flight
+const STAIR_DEPTH     := 1.0   # bottom step sits one cell below the floor
+const STAIR_FRAME_W   := 0.10  # width of the raised lip framing the opening
+const STAIR_FRAME_H   := 0.05  # how far that lip stands proud of the floor
+const STAIR_GUESS_DEG := 0.0   # default descent when nothing says otherwise: +Z (south)
+const STAIR_SHAFT_DARK := Color(0.04, 0.05, 0.06)  # bottom-of-shaft near-black
+
+## Is this object a downward staircase? Matched on the blueprint name OR the tile
+## (Tiles2/sw_stairsdown) — a purely visual marker keys off what's drawn, and either
+## signal alone is enough, so a missing tile PNG (export race) still gets stairs.
+func _is_stairs_down(obj: Dictionary, tile: String) -> bool:
+	var n := String(obj.get("name", "")).to_lower()
+	if n.contains("stair") and n.contains("down"):
+		return true
+	var t := tile.to_lower()
+	return t.contains("stairsdown") or t.contains("stairs_down") or t.contains("stairdown")
+
+## Does any object in this cell make it a stairs-down cell? Used to suppress the
+## cell's floor quad so the shaft isn't capped from above.
+func _cell_has_stairs_down(cell: Dictionary) -> bool:
+	for obj in cell.get("objs", []):
+		if _is_stairs_down(obj, String(obj.get("tile", ""))):
+			return true
+	return false
+
+## Yaw (degrees) for the descent. Priority: an explicit data field, then a user
+## override, then the guess. Cardinal -> yaw like _place_side: canonical descent is
+## +Z (south) at 0deg, rotation running S->E->N->W (clockwise viewed from above).
+func _stair_dir_deg(obj: Dictionary, tile: String) -> float:
+	var d := _match_stairdir(String(obj.get("stairDir", "")))    # data, if the mod ever sends it
+	if d == "" and not _stairdir_overrides.is_empty():
+		d = String(_stairdir_overrides.get(tile_family(tile), ""))
+	match d:
+		"s": return 0.0
+		"e": return 90.0
+		"n": return 180.0
+		"w": return 270.0
+	return STAIR_GUESS_DEG
+
+func _deg_cardinal(deg: float) -> String:
+	match int(round(deg)) % 360:
+		90: return "E"
+		180: return "N"
+		270: return "W"
+	return "S"
+
+## Build the staircase into the current static bank, centred on cell (cx,cy) and
+## rotated by `deg`. Geometry prototyped in tools/capture/stairs.py: solid columns
+## whose tops step DOWN toward +Z, framed by a raised rectangular lip. Colours come
+## from the stair tile (treads = main, darkening with depth so the shaft reads as
+## receding into shadow; frame = detail, brightened so the opening pops).
+func _place_stairs_down(cx: int, cy: int, main_c: String, detail_c: String, deg: float) -> void:
+	var grp := Node3D.new()
+	grp.position = Vector3(cx, 0.0, cy)
+	grp.rotation = Vector3(0, deg_to_rad(deg), 0)
+	_wall_parent().add_child(grp)
+
+	var hi := 0.5 - STAIR_FRAME_W
+	var run := (2.0 * hi) / float(STAIR_STEPS)
+	var rise := STAIR_DEPTH / float(STAIR_STEPS)
+	var pit := -STAIR_DEPTH - 0.02
+	var stone := _qud_color(main_c if main_c != "" else "&y")
+
+	for i in STAIR_STEPS:
+		var top := -(float(i) + 1.0) * rise          # -rise (shallow, back) .. -DEPTH (deep, front)
+		var z0 := -hi + float(i) * run
+		var h := top - pit
+		var mi := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		bm.size = Vector3(2.0 * hi, h, run)
+		mi.mesh = bm
+		# deeper -> darker: fade the tread from the (dimmed) tile colour at the top toward
+		# near-black at the bottom, so the shaft reads as receding into shadow whatever
+		# the glyph's own brightness. The unshaded world has no real light to do this.
+		var shade := float(i) / float(STAIR_STEPS - 1)   # 0 at top .. 1 at bottom
+		mi.material_override = _color_material(stone.lerp(STAIR_SHAFT_DARK, 0.15 + 0.8 * shade))
+		mi.position = Vector3(0.0, pit + h * 0.5, z0 + run * 0.5)
+		grp.add_child(mi)
+
+	# Raised rectangular lip = "the top of the stair". Four bars around the perimeter,
+	# inner edge flush with the flight (+/-hi), outer edge at the cell boundary.
+	var o := 0.5
+	var fy := STAIR_FRAME_H
+	var fmat := _color_material(_qud_color(detail_c if detail_c != "" else main_c).lightened(0.15))
+	_stair_bar(grp, fmat, Vector3(2.0 * o, fy, STAIR_FRAME_W), Vector3(0, fy * 0.5, -(o - STAIR_FRAME_W * 0.5)))  # N
+	_stair_bar(grp, fmat, Vector3(2.0 * o, fy, STAIR_FRAME_W), Vector3(0, fy * 0.5,  (o - STAIR_FRAME_W * 0.5)))  # S
+	_stair_bar(grp, fmat, Vector3(STAIR_FRAME_W, fy, 2.0 * hi), Vector3( (o - STAIR_FRAME_W * 0.5), fy * 0.5, 0)) # E
+	_stair_bar(grp, fmat, Vector3(STAIR_FRAME_W, fy, 2.0 * hi), Vector3(-(o - STAIR_FRAME_W * 0.5), fy * 0.5, 0)) # W
+
+func _stair_bar(grp: Node3D, mat: Material, size: Vector3, pos: Vector3) -> void:
+	var mi := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = size
+	mi.mesh = bm
+	mi.material_override = mat
+	mi.position = pos
+	grp.add_child(mi)
 
 # --- voxel wall caps --------------------------------------------------------
 

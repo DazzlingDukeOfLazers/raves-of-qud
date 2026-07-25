@@ -206,10 +206,38 @@ so `sw_axle_2_ew` and `sw_axle_3_ew` share `sw_axle`). Three independent axes:
 | **shape** | wall / panel N–S / panel E–W / billboard / flat / not-drawn | `_is_prism`, `_place_nonwall` |
 | **fill** | fill-holes / enclosed / transparent / opaque | `_fill_for` |
 | **position** | float / ground | `_seat`, panel y-centre |
+| **stairDir** | north / south / east / west | `_stair_dir_deg` (see §8) |
 
 `_load_overrides` re-reads the file every frame (diffed to skip re-parse). The **cell inspector**
 prints `OVERRIDE shape=… fill=… pos=…` for any tile with an entry, so a rule that didn't take is
 visible, not silent. The report form writes these — see [tools.md](tools.md#in-viewer-the-report-form).
+
+---
+
+## 8. Stairs down — framed shaft + descending voxel flight
+
+A `StairsDown` (tile `Tiles2/sw_stairsdown`, layer 7) would otherwise render as an upright
+billboard glyph — a "0"-looking mark on the floor. Instead `_place_nonwall` intercepts it
+(`_is_stairs_down`, matched on the blueprint name *or* the tile, so a not-yet-exported tile
+still gets stairs) and builds real geometry, prototyped in `tools/capture/stairs.py`:
+
+- **A raised rectangular lip** (`STAIR_FRAME_*`) around the cell perimeter — "the top of the
+  stair", the opening you see from above. Four bars, inner edge flush with the flight.
+- **A descending flight** of `STAIR_STEPS` solid columns inside the lip. Column *i*'s top steps
+  down by `DEPTH/STEPS`, so tops recede from just under the floor to one cell deep. Solid down
+  to a pit floor, so there's no see-through underside. Each tread fades from the (dimmed) tile
+  colour toward `STAIR_SHAFT_DARK` with depth — a fake shaft shadow, since the world is unshaded
+  and no real light can do it.
+- **The cell's own floor quad is suppressed** (`stair_cell` flag through `_place_nonwall`) so it
+  doesn't cap the shaft from a top-down view; the lip is the floor around the hole.
+
+**Direction.** Qud's `StairsDown` is a vertical connector with **no lateral facing** (down-stairs
+meet up-stairs at the same x,y one level below), so there is usually nothing to rotate to.
+`_stair_dir_deg` resolves, in order: an explicit `stairDir` data field (if the mod ever sends
+one) → a user **override** (`stairDir: north|south|east|west`, §7) → the **guess**
+(`STAIR_GUESS_DEG`, descend +Z/south). Canonical geometry descends +Z; other directions rotate
+the whole group by yaw exactly like `_place_side` (S→E→N→W clockwise from above). So the guess is
+one edit or one override away from any cardinal.
 
 ---
 
