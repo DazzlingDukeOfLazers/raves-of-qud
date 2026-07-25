@@ -304,7 +304,10 @@ func _on_snapshot(data: Dictionary) -> void:
 		if _cam != null:
 			_cam.position += shift
 			if _cam.position.distance_to(_look) > 0.001:
-				_cam.look_at(_look, Vector3.UP)
+				# top-down looks straight down, so its up-ref is NORTH, not world-up (which is
+				# parallel to the view = a degenerate look_at → the zone-crossing flicker)
+				var xtop := _mode == CamMode.TOP_ZONE or _mode == CamMode.TOP_FOLLOW
+				_cam.look_at(_look, NORTH if xtop else Vector3.UP)
 	elif crossed:
 		print("[cross] SKIPPED shift: old=%s has=%s  new=%s has=%s" % [
 			old_zid, store.has_zone(old_zid), zid, store.has_zone(zid)])
@@ -513,16 +516,14 @@ func _update_camera(dt: float) -> void:
 				r * sin(COMPASS_PITCH) + 2.0,
 				r * cos(COMPASS_PITCH) * cos(_cine_t))
 			target_look = cc
-		CamMode.TOP_ZONE:   # classic overhead, north up: frames the whole zone at fit, and
-			# recentres ON THE PLAYER (or the selected target) as you zoom in.
+		CamMode.TOP_ZONE:   # classic overhead, north up, centred on the player (or the selected
+			# target) so you stay in view; the wheel just widens the span (up to ~3x3 zones).
 			var tz_focus := _player
 			var tz_sel = inspector.selected_tile() if inspector != null else null
 			if tz_sel != null:
 				tz_focus = Vector3(tz_sel.x, 0.0, tz_sel.y)
-			var tz_blend := 1.0 - _top_zone_frac()   # on player/target when tight, zone centre when wide
-			var tz_center := _zone_center.lerp(tz_focus, tz_blend)
-			target_eye = tz_center + Vector3(0, TOP_H, 0)
-			target_look = tz_center
+			target_eye = tz_focus + Vector3(0, TOP_H, 0)
+			target_look = tz_focus
 		CamMode.TOP_FOLLOW:  # classic overhead, north up, tracking the player
 			target_eye = _player + Vector3(0, TOP_H, 0)
 			target_look = _player
