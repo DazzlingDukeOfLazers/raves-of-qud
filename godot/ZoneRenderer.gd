@@ -68,6 +68,7 @@ var _overrides := {}        # tile family -> shape verdict
 var _fill_overrides := {}   # tile family -> Fill mode
 var _position_overrides := {} # tile family -> "float" (default is ground-seated)
 var _overrides_raw := "?"   # last overrides.json text, to skip re-parsing
+var _overrides_dirty := false  # overrides.json changed -> frozen static needs a rebuild
 
 var _palette := {}          # colour char -> "#rrggbb", from the mod (authoritative)
 var _tiles_dir := ""
@@ -222,6 +223,14 @@ func render_snapshot(data: Dictionary, neighbors: Array = []) -> void:
 		_drop_all_static()   # frozen geometry holds recoloured textures; rebuild it
 
 	_load_overrides()
+	if _overrides_dirty:
+		# A standing rule was just edited. Frozen static geometry (walls + floors +
+		# static sprites) was built under the OLD rules and isn't rebuilt within a
+		# zone, so drop it all — the live zone rebuilds below and neighbours rebuild
+		# in _sync_neighbors, both under the new verdict. This is what makes the report
+		# form's "live next turn" true again after the static/dynamic freeze split.
+		_overrides_dirty = false
+		_drop_all_static()   # also resets _live_static_id, forcing the rebuild below
 
 	var live_id := String(data.get("zone", {}).get("id", ""))
 	var cells: Array = data.get("cells", [])
@@ -540,6 +549,7 @@ func _load_overrides() -> void:
 	if text == _overrides_raw:
 		return                      # unchanged since last frame — skip the re-parse
 	_overrides_raw = text
+	_overrides_dirty = true         # rules changed -> force a static rebuild (see render_snapshot)
 	_overrides.clear()
 	_fill_overrides.clear()
 	_position_overrides.clear()
