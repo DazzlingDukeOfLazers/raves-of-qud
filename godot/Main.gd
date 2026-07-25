@@ -19,7 +19,7 @@ extends Node3D
 ##   Esc returns to COMPASS (and dismisses the report). Shift+C/K/F still jump to
 ##   mouse/keyboard/follow. Wheel zooms. Ctrl/Cmd+click or I inspects a tile.
 ##   F12                   -> save the viewport to <tilesDir>/../shot.png
-##   Ctrl/Cmd + right-click -> inspect the tile AND photograph both apps
+##   Ctrl/Cmd + right-click -> photograph the CLEAN scene, then inspect (+ Qud shot)
 ##
 ## Terminology: "tile" here means a map square (Qud's Cell). Note the collision —
 ## the `tile` field on the wire is the sprite-art path. Code touching Qud's API
@@ -564,12 +564,12 @@ func _set_mode(m: int) -> void:
 	_mode = m
 	_update_mode_label()
 
-## One gesture -> everything a collaborator needs about a tile: the report
-## (selection.txt), this viewer's view (shot.png) and Qud's own view
-## (qud_shot.png), all pointing at the same tile.
+## One gesture -> everything a collaborator needs about a tile. Photograph the BARE
+## scene FIRST (no selection overlay), then inspect — so shot.png is a clean plate
+## of the tile, paired with the report (selection.txt) and Qud's view (qud_shot.png).
 func _inspect_and_capture() -> void:
-	_inspect()
 	await _screenshot(true)
+	_inspect()
 
 ## Turn Qud's hour into a day/night tint. hour arrives as hour*1000 (int wire).
 ## Uses the calendar's own dawn/dusk boundaries, so it matches when Qud calls it
@@ -715,11 +715,11 @@ func _screenshot(clean := false, forced := false) -> void:
 	var dir := renderer.tiles_dir().get_base_dir()
 	if dir == "":
 		return
-	# `clean` drops the text report out of frame so the shot shows the scene; the
-	# 3D marker stays, so the picture still says which tile was picked.
+	# `clean` drops the WHOLE selection overlay — report panel and 3D marker — out of
+	# frame, so the shot is a bare plate of the scene; restored right after.
 	var restore := false
-	if clean and inspector.panel_visible():
-		inspector.set_panel_visible(false)
+	if clean and inspector.overlay_visible():
+		inspector.set_overlay_visible(false)
 		restore = true
 	if forced:
 		# a remote (control.py) shot: the window is unfocused so no frame is being
@@ -729,7 +729,7 @@ func _screenshot(clean := false, forced := false) -> void:
 		await RenderingServer.frame_post_draw      # let the frame finish first
 	var img := get_viewport().get_texture().get_image()
 	if restore:
-		inspector.set_panel_visible(true)
+		inspector.set_overlay_visible(true)
 	if img == null:
 		return
 	var path := dir.path_join("shot.png")

@@ -36,11 +36,12 @@ const CHECKER_PX := 10           # checkerboard square size
 
 var _panel: PanelContainer
 var _label: RichTextLabel
-var _mark_pad: MeshInstance3D
-var _mark_pin: MeshInstance3D
+var _mark_box: MeshInstance3D   # dashed wireframe outlining the whole 3D tile
+var _mark_pin: MeshInstance3D   # dashed finder line rising from the tile top
 var _font_size := FONT_SIZE_DEFAULT
 var _last_report := ""
 var _selected = null      # Vector2i of the last inspected tile
+var _saved_overlay := {}  # visibility snapshot while a clean screenshot is taken
 
 # sprite preview (upper right): the real billboard texture turning over a
 # checkerboard, so filled-vs-transparent is visible rather than inferred
@@ -281,9 +282,9 @@ func _show(report: String, cx: int, cy: int) -> void:
 	_last_report = report
 	_repaint()
 	_panel.visible = true
-	_mark_pad.position = Vector3(cx, 0.30, cy)
-	_mark_pin.position = Vector3(cx, 1.60, cy)
-	_mark_pad.visible = true
+	_mark_box.position = Vector3(cx, 0.0, cy)
+	_mark_pin.position = Vector3(cx, 0.0, cy)
+	_mark_box.visible = true
 	_mark_pin.visible = true
 
 ## Re-flow the current report for the current font size. How many lines fit
@@ -322,8 +323,31 @@ func set_panel_visible(v: bool) -> void:
 func hide_panel() -> void:
 	_panel.visible = false
 	_preview.visible = false
-	_mark_pad.visible = false
+	_mark_box.visible = false
 	_mark_pin.visible = false
+
+## Hide the ENTIRE selection overlay — report panel, preview, AND the 3D marker —
+## then restore exactly what was showing. The capture gesture uses this to shoot a
+## bare plate of the scene before the selection is drawn.
+func overlay_visible() -> bool:
+	return panel_visible() or (_mark_box != null and _mark_box.visible)
+
+func set_overlay_visible(v: bool) -> void:
+	if not v:
+		_saved_overlay = {
+			"panel": _panel.visible, "preview": _preview.visible,
+			"box": _mark_box.visible, "pin": _mark_pin.visible,
+		}
+		set_panel_visible(false)
+		_preview.visible = false
+		_mark_box.visible = false
+		_mark_pin.visible = false
+	elif not _saved_overlay.is_empty():
+		set_panel_visible(_saved_overlay["panel"])
+		_preview.visible = _saved_overlay["preview"]
+		_mark_box.visible = _saved_overlay["box"]
+		_mark_pin.visible = _saved_overlay["pin"]
+		_saved_overlay = {}
 
 # --- scaffolding ------------------------------------------------------------
 
@@ -456,23 +480,80 @@ func _update_preview(cell: Dictionary) -> void:
 		return
 	_preview.visible = false
 
-func _build_marker() -> void:
-	var pad := BoxMesh.new()
-	pad.size = Vector3(1.0, 0.05, 1.0)
-	_mark_pad = MeshInstance3D.new()
-	_mark_pad.mesh = pad
-	_mark_pad.material_override = _marker_material(Color(1.0, 0.95, 0.3, 0.45))
-	_mark_pad.visible = false
-	add_child(_mark_pad)
+# Selection marker geometry. No fill: the marker is the tile's 3D volume drawn as
+# dashed edges (footprint just above the floor, up to a cell-tall top) plus a dashed
+# finder line rising from the top so the pick stays locatable behind walls.
+const MARK_FLOOR_LIFT := 0.01   # sit the footprint ring just clear of the floor quads
+const MARK_PIN_RISE := 1.6      # finder-line height above the tile top
+const MARK_DASH := 0.12         # dash length, world units
+const MARK_GAP := 0.09          # gap between dashes
+const MARK_COLOR := Color(1.0, 0.95, 0.3, 0.9)
 
-	# a pin so the selection stays findable behind walls / at a shallow pitch
-	var pin := BoxMesh.new()
-	pin.size = Vector3(0.07, 2.6, 0.07)
+func _build_marker() -> void:
+	_mark_box = MeshInstance3D.new()
+	_mark_box.mesh = _prism_outline_mesh()
+	_mark_box.material_override = _marker_material(MARK_COLOR)
+	_mark_box.visible = false
+	add_child(_mark_box)
+
+	# a finder line so the selection stays findable behind walls / at a shallow pitch
 	_mark_pin = MeshInstance3D.new()
-	_mark_pin.mesh = pin
-	_mark_pin.material_override = _marker_material(Color(1.0, 0.95, 0.3, 0.9))
+	_mark_pin.mesh = _pin_mesh()
+	_mark_pin.material_override = _marker_material(MARK_COLOR)
 	_mark_pin.visible = false
 	add_child(_mark_pin)
+
+## Dashed wireframe of the tile's 3D volume: a footprint ring just above the floor,
+## a matching ring at cell height, and the four vertical edges — the whole prism in
+## dashes, no fill. Built in cell-local space; _show sets the instance to the cell.
+func _prism_outline_mesh() -> ArrayMesh:
+	var y0 := ZoneRenderer.FLOOR_Y + MARK_FLOOR_LIFT
+	var y1 := ZoneRenderer.WALL_H
+	var h := 0.5
+	var c := [
+		Vector3(-h, y0, -h), Vector3(h, y0, -h), Vector3(h, y0, h), Vector3(-h, y0, h),
+		Vector3(-h, y1, -h), Vector3(h, y1, -h), Vector3(h, y1, h), Vector3(-h, y1, h),
+	]
+	var edges := [
+		[0, 1], [1, 2], [2, 3], [3, 0],   # footprint, just above the floor
+		[4, 5], [5, 6], [6, 7], [7, 4],   # top ring at cell height
+		[0, 4], [1, 5], [2, 6], [3, 7],   # vertical edges of the prism
+	]
+	var pts := PackedVector3Array()
+	for e in edges:
+		_dash_into(c[e[0]], c[e[1]], pts)
+	return _lines_mesh(pts)
+
+## A vertical dashed line from the tile top upward — the behind-walls finder.
+func _pin_mesh() -> ArrayMesh:
+	var top := ZoneRenderer.WALL_H
+	var pts := PackedVector3Array()
+	_dash_into(Vector3(0, top, 0), Vector3(0, top + MARK_PIN_RISE, 0), pts)
+	return _lines_mesh(pts)
+
+## Split a->b into dashes, appending each dash's two endpoints to `out`.
+func _dash_into(a: Vector3, b: Vector3, out: PackedVector3Array) -> void:
+	var seg := b - a
+	var total := seg.length()
+	if total < 1e-5:
+		return
+	var dir := seg / total
+	var step := MARK_DASH + MARK_GAP
+	var t := 0.0
+	while t < total:
+		out.append(a + dir * t)
+		out.append(a + dir * minf(t + MARK_DASH, total))
+		t += step
+
+func _lines_mesh(pts: PackedVector3Array) -> ArrayMesh:
+	var mesh := ArrayMesh.new()
+	if pts.is_empty():
+		return mesh
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = pts
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_LINES, arrays)
+	return mesh
 
 func _marker_material(col: Color) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
