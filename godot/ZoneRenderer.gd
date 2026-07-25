@@ -43,6 +43,14 @@ const SINK_SWIM := 0.72    # legacy swimming depth; superseded by deep_water_dep
 # as "in the water" without being buried.
 var deep_water_depth := 0.6
 
+# Deep-water "prism" reveal (see docs/water-depth-plan.md): near the player, a deep-water cell
+# holding a submerged creature (and its deep neighbours) gets a raised translucent water TOP so
+# the uncropped creature reads through it. Far water stays a flat opaque quad.
+const WATER_REVEAL_RADIUS := 6   # only within this square radius of the player
+const WATER_PATCH := 1           # also raise deep neighbours within this radius of the creature
+const WATER_TOP_ALPHA := 0.5     # opacity of the raised surface
+var _player_cell := Vector2i(-9999, -9999)
+
 # How a tile's TRANSPARENT pixels are treated when recolouring.
 #   NONE     leave see-through (fences, floors)
 #   ALL      paint every one with the cell background (wall faces, decks, tents)
@@ -241,6 +249,8 @@ func _make_radial(n: int, tint: Color, power: float) -> Texture2D:
 ## live zone. Neighbours render full-fidelity but static-only (no creatures).
 func render_snapshot(data: Dictionary, neighbors: Array = []) -> void:
 	_tiles_dir = String(data.get("tilesDir", ""))
+	var pc: Dictionary = data.get("player", {})
+	_player_cell = Vector2i(int(pc.get("x", -9999)), int(pc.get("y", -9999)))
 
 	# Qud's real palette, sent by the mod. Base/Colors.xml names the colours but
 	# has no RGB, so COLORS below is a hand-estimate kept only as a fallback for
@@ -382,6 +392,9 @@ func _rebuild_dynamics(cells: Array) -> void:
 	_orbiters.clear()           # those orbiter roots were children of _dynamic_root (just freed)
 	_bank = _dynamic_root
 	_noting = false
+	# Which deep-water cells near the player get the raised translucent "prism" top (so a
+	# submerged creature reads through it). Cellv -> the cell's water object (for its texture).
+	var prism := _compute_prism_cells(cells)
 	for cell in cells:
 		var cx := int(cell.get("x", 0))
 		var cy := int(cell.get("y", 0))
@@ -392,7 +405,10 @@ func _rebuild_dynamics(cells: Array) -> void:
 		var idx := 0
 		for obj in cell.get("objs", []):
 			if not _is_prism(obj) and _is_creature(obj):
-				_place_nonwall(obj, cx, cy, idx, false, sink, wet, false)
+				# In a prism cell the creature stands uncropped on the basin floor, so its
+				# lower body is genuinely under the raised surface; elsewhere it's cropped.
+				var esink: float = 0.0 if prism.has(Vector2i(cx, cy)) else sink
+				_place_nonwall(obj, cx, cy, idx, false, esink, wet, false)
 				# A lit creature (NPC with a torch/glowsphere) carries its light with it —
 				# placed here every step so it tracks the creature. No smoke: a moving torch
 				# shouldn't trail a plume. (_live_build is false during dynamics, so this doesn't
@@ -404,8 +420,64 @@ func _rebuild_dynamics(cells: Array) -> void:
 				if _is_glowfish(obj):
 					_make_orbiters(cx, cy)     # bioluminescent bugs circling the fish
 			idx += 1
+	# Raise a translucent water top over each prism cell (the flat static quad stays as the
+	# water bed; open sides between them let the tilted view see the submerged creature).
+	for cellv in prism:
+		_add_water_top(cellv.x, cellv.y, prism[cellv])
 	_noting = true
 	_bank = null
+
+## Deep-water cells near the player that should get the raised prism top: any deep cell
+## holding a submerged creature (within WATER_REVEAL_RADIUS of the player), plus its deep
+## neighbours within WATER_PATCH, so the water around the creature has consistent depth.
+func _compute_prism_cells(cells: Array) -> Dictionary:
+	if _player_cell.x < -9000:
+		return {}
+	var deep := {}          # Vector2i -> water object (for its texture)
+	var subjects: Array = []
+	for cell in cells:
+		if not bool(cell.get("swim", false)):
+			continue
+		var cx := int(cell.get("x", 0))
+		var cy := int(cell.get("y", 0))
+		if absi(cx - _player_cell.x) > WATER_REVEAL_RADIUS or absi(cy - _player_cell.y) > WATER_REVEAL_RADIUS:
+			continue
+		var wobj = null
+		var has_creature := false
+		for obj in cell.get("objs", []):
+			if _is_deep_water_tile(String(obj.get("tile", ""))):
+				wobj = obj
+			elif _is_creature(obj):
+				has_creature = true
+		if wobj == null:
+			continue
+		var cellv := Vector2i(cx, cy)
+		deep[cellv] = wobj
+		if has_creature:
+			subjects.append(cellv)
+	var prism := {}
+	for sc in subjects:
+		for dx in range(-WATER_PATCH, WATER_PATCH + 1):
+			for dy in range(-WATER_PATCH, WATER_PATCH + 1):
+				var c: Vector2i = sc + Vector2i(dx, dy)
+				if deep.has(c):
+					prism[c] = deep[c]
+	return prism
+
+## One raised translucent water surface over a prism cell, at FLOOR_Y + depth.
+func _add_water_top(cx: int, cy: int, wobj: Dictionary) -> void:
+	var tile := String(wobj.get("tile", ""))
+	var tex := _colored_tex_rgb(tile, _obj_main(wobj), _obj_detail(wobj), _color_key(wobj))
+	if tex == null:
+		return
+	var main_c := String(wobj.get("tilecolor", ""))
+	if main_c == "": main_c = String(wobj.get("color", ""))
+	var detail_c := String(wobj.get("detail", ""))
+	var f := _take_floor()
+	f.material_override = _water_top_material(tile, main_c, detail_c, tex)
+	f.scale = Vector3.ONE
+	f.position = Vector3(cx, FLOOR_Y + deep_water_depth, cy)   # raised surface over the basin
+	f.visible = true
 
 func _drop_static(id: String) -> void:
 	if _static_zones.has(id):
@@ -1226,6 +1298,27 @@ func _should_glow(obj: Dictionary) -> bool:
 	if tile.contains("glow"):
 		return true
 	return _glow_overrides.has(tile_family(tile))
+
+## Deep-water surface tile (a fully/partly enclosed pool) — the cells eligible for the
+## raised-prism reveal. Shallow shore/edge water is not deep enough to submerge into.
+func _is_deep_water_tile(tile: String) -> bool:
+	return tile.to_lower().contains("liquids/water/deep")
+
+## Translucent copy of a water surface, for the raised prism top (blended alpha so the
+## submerged creature reads through it). Cached per tile+colours.
+func _water_top_material(tile: String, main_c: String, detail_c: String, tex: ImageTexture) -> StandardMaterial3D:
+	var key := "wtop|%s|%s|%s" % [tile, main_c, detail_c]
+	if _texmat_cache.has(key):
+		return _texmat_cache[key]
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.albedo_texture = tex
+	m.albedo_color = Color(1.0, 1.0, 1.0, WATER_TOP_ALPHA)
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_texmat_cache[key] = m
+	return m
 
 func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, sink := 0.0, wet := false, skip_creatures := false) -> void:
 	# Static builds exclude creatures (they render per step in _rebuild_dynamics);
