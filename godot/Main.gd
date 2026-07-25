@@ -808,8 +808,30 @@ func _build_debug_menu() -> void:
 	sld.focus_mode = Control.FOCUS_NONE   # drag-only; keep arrows for the player
 	sld.value_changed.connect(func(v): _fp_height = v)
 	vb.add_child(sld)
+	# deep-water depth slider (0 = swimmers ride the surface, 1 = a full tile under)
+	var wl := Label.new()
+	wl.text = "deep water depth"
+	vb.add_child(wl)
+	var wsld := HSlider.new()
+	wsld.min_value = 0.0
+	wsld.max_value = 1.0
+	wsld.step = 0.05
+	wsld.value = renderer.deep_water_depth
+	wsld.custom_minimum_size = Vector2(160, 0)
+	wsld.focus_mode = Control.FOCUS_NONE
+	wsld.value_changed.connect(_on_water_depth_changed)
+	vb.add_child(wsld)
 	_debug_menu = panel
 	_update_debug_menu()
+
+## Live-apply the deep-water depth: creatures are re-cropped in the dynamic pass, so
+## re-render the current snapshot (same zone -> only the cheap dynamics rebuild) for
+## instant feedback instead of waiting for the next turn.
+func _on_water_depth_changed(v: float) -> void:
+	renderer.deep_water_depth = v
+	var live: Dictionary = store.live_snapshot()
+	if not live.is_empty():
+		renderer.render_snapshot(live, _neighbor_zones())
 
 func _toggle_debug_menu() -> void:
 	if _debug_menu != null:

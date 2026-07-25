@@ -37,7 +37,11 @@ const TIEBREAK := 0.0005   # separates equal-layer floors without reordering the
 const BRIDGE_Y := 0.08     # deck height — clears every floor quad below it
 const WATER_LINE_Y := 0.05 # where a submerged sprite gets cut off
 const SINK_WADE := 0.45    # fraction of the sprite's art hidden (wading depth)
-const SINK_SWIM := 0.72    # ... and swimming depth
+const SINK_SWIM := 0.72    # legacy swimming depth; superseded by deep_water_depth (live-tunable)
+# Deep-water submersion, 0 (rides on the surface) .. 1 (a full tile under). Live-tunable via
+# the ` debug-menu slider. Default rides swimmers ~12% higher than the old 0.72 so they read
+# as "in the water" without being buried.
+var deep_water_depth := 0.6
 
 # How a tile's TRANSPARENT pixels are treated when recolouring.
 #   NONE     leave see-through (fences, floors)
@@ -505,7 +509,7 @@ func _cell_sink(cell: Dictionary) -> float:
 	if bool(cell.get("bridge", false)):
 		return 0.0
 	if bool(cell.get("swim", false)):
-		return SINK_SWIM
+		return clampf(deep_water_depth, 0.0, 1.0)
 	if bool(cell.get("wade", false)):
 		return SINK_WADE
 	return 0.0
