@@ -703,7 +703,9 @@ func _place_light(cx: int, cy: int, radius: float) -> void:
 		# Neighbour/static lights don't flicker in _process, so bake the current daylight
 		# dimming into them now (otherwise they'd sit at full additive brightness by day).
 		glow.transparency = clampf(1.0 - _glow_mul() * 0.6, 0.0, 1.0)
-		flame.modulate = Color(1, 1, 1, clampf(_flame_mul(), 0.0, 1.0))
+		# NB: a Sprite3D's `modulate` is IGNORED once material_override is set, so dim the
+		# flame via GeometryInstance3D.transparency (same lever as the glow), not modulate.
+		flame.transparency = clampf(1.0 - _flame_mul(), 0.0, 1.0)
 
 ## Unshaded + additive: brightens whatever is behind it, no scene lighting needed.
 func _fx_material(tex: Texture2D) -> StandardMaterial3D:
@@ -730,7 +732,9 @@ func _process(_dt: float) -> void:
 		var fs: float = 0.9 + a * 0.25
 		var flame := L["flame"] as Sprite3D
 		flame.scale = Vector3(fs, fs * (0.95 + randf() * 0.2), fs)
-		flame.modulate = Color(1, 1, 1, clampf(a * fmul, 0.0, 1.0))
+		# transparency, NOT modulate: modulate is ignored under material_override (which the
+		# flame has, for additive blend), so the flicker/daylight fade never reached the ball.
+		flame.transparency = clampf(1.0 - a * fmul, 0.0, 1.0)
 
 func _is_prism(obj: Dictionary) -> bool:
 	# a user verdict wins outright — that's the point of filing one
