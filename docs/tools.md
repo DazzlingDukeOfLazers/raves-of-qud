@@ -205,6 +205,37 @@ unfocused). This took two coupled fixes — see below.
 - A blocked player (marsh/water/wall) applies the move but doesn't change cells — check the position,
   not just that the command returned. A blocked move may also not end a turn, so no snapshot comes back.
 
+## OS-input harness — `desktop.py` (reach Qud UI the bridge can't)
+
+The bridge only moves the player + a few commands. `tools/capture/desktop.py` drives Qud (or Godot) with
+REAL synthetic input at the OS level — so it reaches menus, inventory, dialogs, the ability bar, anything.
+Clicking Qud also focuses it, refreshing its render (the map-sync fallback). All in-process via ctypes
+(CoreGraphics CGEvent for mouse/keys, CGWindowList for bounds); `activate` uses an osascript Apple Event.
+
+```
+python3 tools/capture/desktop.py check              # Accessibility granted for the host?
+python3 tools/capture/desktop.py bounds Qud         # window rect {x,y,w,h} (no permission needed)
+python3 tools/capture/desktop.py activate Qud       # focus it (also refreshes its render)
+python3 tools/capture/desktop.py key Down           # OS keystroke (Return/Escape/arrows/F1../char)
+python3 tools/capture/desktop.py clickin Qud 0.21 0.974   # click a FRACTION of the window
+```
+
+**The full loop (verified):** `control.py qudshot` (capture Qud's render) → find a UI element's fractional
+position in the PNG → `desktop.py clickin Qud fx fy` → `qudshot` again → confirm the effect. Proven by
+clicking the Sprint button: "You begin sprinting!", MS 100→200.
+
+**Gotchas (hard-won):**
+- **Accessibility** is required for synthetic input (not for `bounds`/`activate`). The host process is the
+  app running the commands — for Claude that's the **lowercase `claude`** helper in Privacy & Security >
+  Accessibility (the claude-code bundle), NOT the main `Claude` and NOT the top-level "Accessibility" pane.
+  Check with `AXIsProcessTrusted()` (`desktop.py check`). Took effect live, no restart.
+- **App names differ per API:** Qud's window OWNER is `CavesOfQud`, its osascript app name is `CoQ` — the
+  alias "Qud" resolves both. Qud + Godot may be on different monitors (global coords, negative y ok).
+- **Mouse clicks need a `CGEventMouseMoved` first + `kCGMouseEventClickState` set**, or the app drops them
+  (keyboard needs neither). Fixed in `_post_mouse`.
+- Coordinates are FRACTIONS of the window (robust to position). qud_shot is 2× Retina but fractions map
+  1:1 to the logical window.
+
 ## Camera modes (viewer)
 
 Pick with the `` ` `` debug menu or number keys **1–6** (current mode + controls show on screen):
