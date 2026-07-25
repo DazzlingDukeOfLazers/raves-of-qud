@@ -164,12 +164,19 @@ func _flame_mul() -> float:
 ## in at build time (they don't flicker), which is fine since they're distant and fogged.
 func set_daylight(sun_a: float) -> void:
 	_daylight = clampf(sun_a, 0.0, 1.0)
+	# Smoke is night-only: toggle every live sconce's emitter with the time of day. Setting
+	# emitting=false lets the puffs already aloft finish rising and fade (~lifetime), so the
+	# plume tapers off at dawn rather than vanishing.
+	var on := _smoke_on()
+	for L in _lights:
+		if L.has("smoke"):
+			(L["smoke"] as GPUParticles3D).emitting = on
 	# TEMP telemetry: prove this code is live + expose the actual dimming values.
 	if not _tiles_dir.is_empty():
 		var f := FileAccess.open(_tiles_dir.get_base_dir().path_join("light_debug.txt"), FileAccess.WRITE)
 		if f != null:
-			f.store_string("DAYLIGHT-WIRED daylight=%.3f glow_mul=%.3f flame_mul=%.3f lights=%d" % [
-				_daylight, _glow_mul(), _flame_mul(), _lights.size()])
+			f.store_string("DAYLIGHT-WIRED daylight=%.3f glow_mul=%.3f flame_mul=%.3f smoke=%s lights=%d" % [
+				_daylight, _glow_mul(), _flame_mul(), str(on), _lights.size()])
 			f.close()
 
 var _active: Array = []
@@ -701,15 +708,15 @@ func _place_light(cx: int, cy: int, radius: float) -> void:
 	lp.add_child(flame)
 
 	# Rising smoke plume. Only the LIVE zone gets emitters (keeps the particle count
-	# bounded; distant neighbour plumes would be fogged anyway). Smoke isn't light, so
-	# it's NOT tied to daylight — it reads over the buildings day and night.
+	# bounded; distant neighbour plumes would be fogged anyway). Smoke is a NIGHT effect:
+	# the flame fully fades by day, so smoke over an unlit sconce would look wrong — it
+	# emits only at night and switches off at dawn (see _smoke_on / set_daylight).
 	if _live_build:
 		var smoke := _make_smoke()
 		smoke.position = Vector3(cx, 0.85, cy)   # just above the flame
+		smoke.emitting = _smoke_on()             # honour the current time-of-day at build
 		lp.add_child(smoke)
-
-	if _live_build:
-		_lights.append({"glow": glow, "flame": flame, "energy": 1.0})
+		_lights.append({"glow": glow, "flame": flame, "smoke": smoke, "energy": 1.0})
 	else:
 		# Neighbour/static lights don't flicker in _process, so bake the current daylight
 		# dimming into them now (otherwise they'd sit at full additive brightness by day).
@@ -738,6 +745,13 @@ const SMOKE_LIFETIME := 3.4     # seconds; rise-height ≈ velocity * lifetime
 const SMOKE_RISE := 0.95        # upward velocity (world units/s); ~3 tiles over the lifetime
 const SMOKE_SQUARE := 0.16      # edge of a smoke square (world units), before per-particle scale
 const SMOKE_SWAY := 0.28        # turbulence strength -> the oscillating horizontal drift
+const SMOKE_OFF_SUN := 0.5      # emit only when sun_a is below this; 0.5 == the dawn boundary,
+                                # so smoke switches off at Harvest Dawn and back on at nightfall
+
+## Should the sconce smoke be emitting right now? It's a night-only effect (the flame
+## fully fades by day), so it runs only in full night and stops once day breaks.
+func _smoke_on() -> bool:
+	return _daylight < SMOKE_OFF_SUN
 
 ## Build the shared draw-mesh + process material once; every sconce's emitter reuses them
 ## (each GPUParticles3D still has its own seed, so plumes aren't in lockstep).
