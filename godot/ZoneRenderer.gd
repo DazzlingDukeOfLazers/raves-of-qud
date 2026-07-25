@@ -47,9 +47,11 @@ var deep_water_depth := 0.6
 # holding a submerged creature (and its deep neighbours) gets a raised translucent water TOP so
 # the uncropped creature reads through it. Far water stays a flat opaque quad.
 const WATER_REVEAL_RADIUS := 6   # only within this square radius of the player
-const WATER_PATCH := 1           # also raise deep neighbours within this radius of the creature
-const WATER_TOP_ALPHA := 0.5     # opacity of the raised surface
+const WATER_PATCH := 1           # also open deep neighbours within this radius of the creature
+const WATER_TOP_ALPHA := 0.5     # opacity of the surface you look through
 var _player_cell := Vector2i(-9999, -9999)
+var _water_quads := {}           # live deep-water cell -> its flat static quad (hidden over a pit)
+var _water_hidden: Array = []    # cells hidden this step (restored next step)
 
 # How a tile's TRANSPARENT pixels are treated when recolouring.
 #   NONE     leave see-through (fences, floors)
@@ -375,6 +377,10 @@ func _build_static(id: String, cells: Array) -> void:
 	var sub := Node3D.new()
 	_remembered_root.add_child(sub)
 	_static_zones[id] = sub
+	# this static subtree replaces the previous live zone's — its water quads are about to be
+	# re-registered, so drop the stale entries (their nodes are being freed).
+	_water_quads.clear()
+	_water_hidden.clear()
 	_bank = sub
 	_live_build = true          # this zone's torches get the flicker (see _place_light)
 	var wt := {}
@@ -390,10 +396,16 @@ func _rebuild_dynamics(cells: Array) -> void:
 	for c in _dynamic_root.get_children():
 		c.free()
 	_orbiters.clear()           # those orbiter roots were children of _dynamic_root (just freed)
+	# restore last step's hidden water quads before recomputing this step's pits
+	for hc in _water_hidden:
+		if _water_quads.has(hc):
+			(_water_quads[hc] as MeshInstance3D).visible = true
+	_water_hidden.clear()
 	_bank = _dynamic_root
 	_noting = false
-	# Which deep-water cells near the player get the raised translucent "prism" top (so a
-	# submerged creature reads through it). Cellv -> the cell's water object (for its texture).
+	# Deep-water cells near the player that hold a submerged creature (+ deep neighbours) become
+	# a "pit": the flat opaque surface is hidden, a translucent look-through top takes its place,
+	# and the creature is recessed below it. Cellv -> the cell's water object (for its texture).
 	var prism := _compute_prism_cells(cells)
 	for cell in cells:
 		var cx := int(cell.get("x", 0))
@@ -405,10 +417,12 @@ func _rebuild_dynamics(cells: Array) -> void:
 		var idx := 0
 		for obj in cell.get("objs", []):
 			if not _is_prism(obj) and _is_creature(obj):
-				# In a prism cell the creature stands uncropped on the basin floor, so its
-				# lower body is genuinely under the raised surface; elsewhere it's cropped.
-				var esink: float = 0.0 if prism.has(Vector2i(cx, cy)) else sink
-				_place_nonwall(obj, cx, cy, idx, false, esink, wet, false)
+				# In a pit cell the creature is drawn UNCROPPED and RECESSED below the surface
+				# (see-through top veils its lower body); elsewhere it's cropped as usual.
+				var in_pit: bool = prism.has(Vector2i(cx, cy))
+				var esink: float = 0.0 if in_pit else sink
+				var recess: float = deep_water_depth if in_pit else 0.0
+				_place_nonwall(obj, cx, cy, idx, false, esink, wet, false, recess)
 				# A lit creature (NPC with a torch/glowsphere) carries its light with it —
 				# placed here every step so it tracks the creature. No smoke: a moving torch
 				# shouldn't trail a plume. (_live_build is false during dynamics, so this doesn't
@@ -420,9 +434,12 @@ func _rebuild_dynamics(cells: Array) -> void:
 				if _is_glowfish(obj):
 					_make_orbiters(cx, cy)     # bioluminescent bugs circling the fish
 			idx += 1
-	# Raise a translucent water top over each prism cell (the flat static quad stays as the
-	# water bed; open sides between them let the tilted view see the submerged creature).
+	# For each pit cell: hide the flat opaque surface and drop a translucent look-through top
+	# at floor level over the recessed creature.
 	for cellv in prism:
+		if _water_quads.has(cellv):
+			(_water_quads[cellv] as MeshInstance3D).visible = false
+			_water_hidden.append(cellv)
 		_add_water_top(cellv.x, cellv.y, prism[cellv])
 	_noting = true
 	_bank = null
@@ -476,7 +493,7 @@ func _add_water_top(cx: int, cy: int, wobj: Dictionary) -> void:
 	var f := _take_floor()
 	f.material_override = _water_top_material(tile, main_c, detail_c, tex)
 	f.scale = Vector3.ONE
-	f.position = Vector3(cx, FLOOR_Y + deep_water_depth, cy)   # raised surface over the basin
+	f.position = Vector3(cx, FLOOR_Y, cy)   # surface at floor level; the creature is recessed below
 	f.visible = true
 
 func _drop_static(id: String) -> void:
@@ -1317,10 +1334,12 @@ func _water_top_material(tile: String, main_c: String, detail_c: String, tex: Im
 	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.no_depth_test = true      # draw over the recessed creature (which also skips depth test)
+	m.render_priority = 2       # ...and after it, so the surface veils the submerged body
 	_texmat_cache[key] = m
 	return m
 
-func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, sink := 0.0, wet := false, skip_creatures := false) -> void:
+func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, sink := 0.0, wet := false, skip_creatures := false, recess := 0.0) -> void:
 	# Static builds exclude creatures (they render per step in _rebuild_dynamics);
 	# remembered zones drop them entirely (they've wandered off since last live).
 	if skip_creatures and _is_creature(obj):
@@ -1395,6 +1414,10 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 		if tex != null:
 			f.material_override = _mesh_material(tile, main_c, detail_c, tex)
 			f.scale = Vector3.ONE
+			# Record the LIVE zone's deep-water surfaces so the pit pass can hide the one over
+			# an occupied cell (leaving the translucent look-through top in its place).
+			if _live_build and _is_deep_water_tile(tile):
+				_water_quads[Vector2i(cx, cy)] = f
 		else:
 			f.material_override = _color_material(_qud_color(String(obj.get("color", ""))))
 			f.scale = Vector3(0.5, 1.0, 0.5)
@@ -1431,7 +1454,7 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			s.flip_h = bool(obj.get("hflip", false))
 			s.flip_v = bool(obj.get("vflip", false))
 			var submerged: bool = sink > 0.0 and bool(obj.get("sinks", false))
-			_seat(s, btex, tile, cx, cy, sink if submerged else 0.0, position_for(tile) == "float")
+			_seat(s, btex, tile, cx, cy, sink if submerged else 0.0, position_for(tile) == "float", recess)
 			s.visible = true
 			if _should_glow(obj):
 				_add_glow(s, btex)              # crisp bioluminescent bloom (glowfish, glowpad, tagged tiles)
@@ -1467,7 +1490,7 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 # cut edge at the waterline. Cropping beats lowering the sprite: the water is a
 # flat quad with no volume, so a sunk sprite would just poke out underneath it
 # as soon as the camera tilts.
-func _seat(s: Sprite3D, tex: ImageTexture, tile: String, cx: int, cy: int, sink: float, float_center := false) -> void:
+func _seat(s: Sprite3D, tex: ImageTexture, tile: String, cx: int, cy: int, sink: float, float_center := false, recess := 0.0) -> void:
 	var h := tex.get_height()
 	var vr := _opaque_v(_mask(tile))
 	var top := vr.x * h
@@ -1481,7 +1504,12 @@ func _seat(s: Sprite3D, tex: ImageTexture, tile: String, cx: int, cy: int, sink:
 		cy_center = FLOAT_Y
 	else:
 		cy_center = (WATER_LINE_Y if sink > 0.0 else 0.0) + PIXEL_SIZE * shown * 0.5
-	s.position = Vector3(cx, cy_center, cy)
+	s.position = Vector3(cx, cy_center - recess, cy)   # `recess` sinks a creature into a water pit
+	# Recessed creatures sit below the opaque ground plane, so draw them through it (priority 1,
+	# under the surface top at priority 2). Reset in _take_sprite for pooled reuse.
+	if recess > 0.0:
+		s.no_depth_test = true
+		s.render_priority = 1
 
 # --- greedy-meshed walls ----------------------------------------------------
 
@@ -2429,6 +2457,8 @@ func _take_sprite() -> Sprite3D:
 	s.region_enabled = false
 	s.flip_h = false
 	s.flip_v = false
+	s.no_depth_test = false      # a pit creature set these; normal sprites need the defaults back
+	s.render_priority = 0
 	return s
 
 func _take_floor() -> MeshInstance3D:
