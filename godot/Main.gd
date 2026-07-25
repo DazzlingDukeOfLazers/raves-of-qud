@@ -773,6 +773,9 @@ func _build_debug_menu() -> void:
 			CamMode.MOUSE, CamMode.KEYBOARD]:
 		var b := Button.new()
 		b.text = "%d  %s" % [m + 1, String(_MODE_NAMES[m]).split(" —")[0].split(" ·")[0]]
+		# click-only: don't take keyboard focus, or a focused button would swallow the
+		# movement arrows (Godot uses them for UI focus navigation) after any click.
+		b.focus_mode = Control.FOCUS_NONE
 		var mv: int = m
 		b.pressed.connect(func(): _set_mode(mv))
 		vb.add_child(b)
@@ -787,6 +790,7 @@ func _build_debug_menu() -> void:
 	sld.step = 0.05
 	sld.value = _fp_height
 	sld.custom_minimum_size = Vector2(160, 0)
+	sld.focus_mode = Control.FOCUS_NONE   # drag-only; keep arrows for the player
 	sld.value_changed.connect(func(v): _fp_height = v)
 	vb.add_child(sld)
 	_debug_menu = panel
@@ -843,31 +847,31 @@ func _unhandled_input(event: InputEvent) -> void:
 		# in KEYBOARD mode the arrows drive the camera, not the player
 		if _mode == CamMode.KEYBOARD:
 			return
-			# Arrows move the PLAYER relative to the camera heading — "up" is always
-			# forward on screen, whichever way the camera faces (the Godot->Qud
-			# translation). Numpad stays ABSOLUTE 8-way compass as a precise fallback.
-			# FIRST-PERSON turns in place on L/R (Shift+L/R strafes) instead of moving.
-			match event.keycode:
-				KEY_UP:    _move_relative(Vector2(0, 1))    # forward
-				KEY_DOWN:  _move_relative(Vector2(0, -1))   # back
-				KEY_LEFT:
-					if _mode == CamMode.FIRST_PERSON and not event.shift_pressed:
-						_compass_yaw += PI * 0.25            # turn left 45°
-					else:
-						_move_relative(Vector2(-1, 0))       # strafe left
-				KEY_RIGHT:
-					if _mode == CamMode.FIRST_PERSON and not event.shift_pressed:
-						_compass_yaw -= PI * 0.25            # turn right 45°
-					else:
-						_move_relative(Vector2(1, 0))        # strafe right
-				KEY_KP_8: client.send_command("move", {"dir": "N"})
-				KEY_KP_2: client.send_command("move", {"dir": "S"})
-				KEY_KP_4: client.send_command("move", {"dir": "W"})
-				KEY_KP_6: client.send_command("move", {"dir": "E"})
-				KEY_KP_7: client.send_command("move", {"dir": "NW"})
-				KEY_KP_9: client.send_command("move", {"dir": "NE"})
-				KEY_KP_1: client.send_command("move", {"dir": "SW"})
-				KEY_KP_3: client.send_command("move", {"dir": "SE"})
+		# Arrows move the PLAYER relative to the camera heading — "up" is always
+		# forward on screen, whichever way the camera faces (the Godot->Qud
+		# translation). Numpad stays ABSOLUTE 8-way compass as a precise fallback.
+		# FIRST-PERSON turns in place on L/R (Shift+L/R strafes) instead of moving.
+		match event.keycode:
+			KEY_UP:    _move_relative(Vector2(0, 1))    # forward
+			KEY_DOWN:  _move_relative(Vector2(0, -1))   # back
+			KEY_LEFT:
+				if _mode == CamMode.FIRST_PERSON and not event.shift_pressed:
+					_compass_yaw += PI * 0.25            # turn left 45°
+				else:
+					_move_relative(Vector2(-1, 0))       # strafe left
+			KEY_RIGHT:
+				if _mode == CamMode.FIRST_PERSON and not event.shift_pressed:
+					_compass_yaw -= PI * 0.25            # turn right 45°
+				else:
+					_move_relative(Vector2(1, 0))        # strafe right
+			KEY_KP_8: client.send_command("move", {"dir": "N"})
+			KEY_KP_2: client.send_command("move", {"dir": "S"})
+			KEY_KP_4: client.send_command("move", {"dir": "W"})
+			KEY_KP_6: client.send_command("move", {"dir": "E"})
+			KEY_KP_7: client.send_command("move", {"dir": "NW"})
+			KEY_KP_9: client.send_command("move", {"dir": "NE"})
+			KEY_KP_1: client.send_command("move", {"dir": "SW"})
+			KEY_KP_3: client.send_command("move", {"dir": "SE"})
 	elif event is InputEventMouseButton:
 		match event.button_index:
 			MOUSE_BUTTON_LEFT:
