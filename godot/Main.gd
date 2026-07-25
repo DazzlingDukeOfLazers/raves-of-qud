@@ -388,8 +388,8 @@ func _process(dt: float) -> void:
 		_fly(dt)
 	elif _mode == CamMode.MOUSE and not Input.is_key_pressed(KEY_SHIFT):
 		# orbit params: Q/E yaw, R/F pitch
-		if Input.is_key_pressed(KEY_Q): _yaw -= 1.5 * dt
-		if Input.is_key_pressed(KEY_E): _yaw += 1.5 * dt
+		if Input.is_key_pressed(KEY_Q): _yaw += 1.5 * dt
+		if Input.is_key_pressed(KEY_E): _yaw -= 1.5 * dt
 		if Input.is_key_pressed(KEY_R): _pitch = clampf(_pitch + 1.0 * dt, PITCH_MIN, PITCH_MAX)
 		if Input.is_key_pressed(KEY_F): _pitch = clampf(_pitch - 1.0 * dt, PITCH_MIN, PITCH_MAX)
 	elif _mode == CamMode.CINEMATIC and (inspector == null or inspector.selected_tile() == null):
@@ -839,9 +839,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			_toggle_debug_menu(); return
 		# Q/E rotate the locked compass heading 90° (COMPASS mode only)
 		if _mode == CamMode.COMPASS and event.keycode == KEY_Q:
-			_compass_yaw -= PI * 0.5; return
-		if _mode == CamMode.COMPASS and event.keycode == KEY_E:
 			_compass_yaw += PI * 0.5; return
+		if _mode == CamMode.COMPASS and event.keycode == KEY_E:
+			_compass_yaw -= PI * 0.5; return
 		if event.keycode == KEY_ESCAPE:
 			_dismiss_selection()
 			_set_mode(CamMode.COMPASS); return
