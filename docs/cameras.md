@@ -11,7 +11,7 @@ drive one camera per mode off the same code.
 
 | # | mode | what |
 |---|---|---|
-| 1 | **COMPASS** (default) | cardinal-**locked** low-angle view; follows the player but never rotates on movement (the disorientation fix). Q/E rotate the heading 90°, R/F zoom. |
+| 1 | **COMPASS** (default) | cardinal-**locked** low-angle view; follows the player but never rotates on movement (the disorientation fix). Q/E rotate the heading (45° or 90°, toggle in the menu), R/F zoom. |
 | 2 | **FOLLOW** | trails behind your heading, looking ahead. |
 | 3 | **FIRST_PERSON** | at the player, eye-level, along the locked heading. ←→ turn, Shift+←→ strafe; height slider in the ` menu. |
 | 4 | **CINEMATIC** | frames you + the selected tile, slow auto-orbit (combat-aware framing is future work). |

@@ -7,8 +7,8 @@ extends Node3D
 ## and its controls show on screen.
 ##   1 COMPASS  (default)  cardinal-LOCKED low-angle view. Follows the player's
 ##                         position but NEVER rotates on movement, so the world
-##                         doesn't spin under you. Q/E rotate the heading 90°,
-##                         R/F zoom. This is the stable, non-disorienting default.
+##                         doesn't spin under you. Q/E rotate the heading (45° default,
+##                         90° toggle in the ` menu), R/F zoom. The stable, default view.
 ##   2 FOLLOW              rides behind your heading, looking ahead (trails movement).
 ##   3 FIRST_PERSON        at the player, eye-level, looking along the locked heading.
 ##   4 CINEMATIC           frames you + the selected tile, slowly orbiting (v1;
@@ -98,7 +98,10 @@ var _dist := 14.0
 
 # --- compass cam (cardinal-locked, the disorientation fix) -------------------
 const COMPASS_PITCH := 0.61     # ~35° above the ground: a low, dramatic angle
-var _compass_yaw := 0.0         # locked heading in radians; Q/E rotate in 90° steps
+var _compass_yaw := 0.0         # locked heading in radians; Q/E rotate in _compass_step steps
+var _compass_45 := true         # Q/E step: 45° (true, default — the 8-way, least restrictive) or 90°
+func _compass_step() -> float:
+	return (PI * 0.25) if _compass_45 else (PI * 0.5)
 var _cine_t := 0.0              # cinematic auto-orbit phase
 const FP_EYE_H := 0.55          # first-person default eye height above the ground
 var _fp_height := FP_EYE_H      # live first-person eye height (debug-menu slider)
@@ -1013,8 +1016,24 @@ func _build_debug_menu() -> void:
 	wsld.focus_mode = Control.FOCUS_NONE
 	wsld.value_changed.connect(_on_water_depth_changed)
 	vb.add_child(wsld)
+	# COMPASS Q/E rotation step: 45° (8-way) or 90° (cardinal)
+	_compass_step_btn = Button.new()
+	_compass_step_btn.focus_mode = Control.FOCUS_NONE
+	_compass_step_btn.pressed.connect(_toggle_compass_step)
+	vb.add_child(_compass_step_btn)
+	_refresh_compass_step_btn()
 	_debug_menu = panel
 	_update_debug_menu()
+
+var _compass_step_btn: Button
+
+func _refresh_compass_step_btn() -> void:
+	if _compass_step_btn != null:
+		_compass_step_btn.text = "Q/E rotate: %s" % ("45°" if _compass_45 else "90°")
+
+func _toggle_compass_step() -> void:
+	_compass_45 = not _compass_45
+	_refresh_compass_step_btn()
 
 ## Live-apply the deep-water depth: creatures are re-cropped in the dynamic pass, so
 ## re-render the current snapshot (same zone -> only the cheap dynamics rebuild) for
@@ -1062,6 +1081,7 @@ func _save_settings() -> void:
 	var d := {
 		"mode": _mode,
 		"compass_yaw": _compass_yaw,
+		"compass_45": _compass_45,
 		"dist": _dist,
 		"top_zoom": _top_zoom,
 		"fp_height": _fp_height,
@@ -1083,6 +1103,7 @@ func _load_settings() -> void:
 	if typeof(d) != TYPE_DICTIONARY:
 		return
 	_compass_yaw = float(d.get("compass_yaw", _compass_yaw))
+	_compass_45 = bool(d.get("compass_45", _compass_45))
 	_dist = clampf(float(d.get("dist", _dist)), DIST_MIN, DIST_MAX)
 	_top_zoom = clampf(float(d.get("top_zoom", _top_zoom)), TOP_ZOOM_MIN, TOP_ZOOM_MAX)
 	_fp_height = clampf(float(d.get("fp_height", _fp_height)), 0.15, 3.0)
@@ -1130,11 +1151,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.keycode == KEY_0: _toggle_multiview(); return   # 0 = all-views grid
 		if event.keycode == KEY_QUOTELEFT:      # ` toggles the debug menu
 			_toggle_debug_menu(); return
-		# Q/E rotate the locked compass heading 90° (COMPASS mode only)
+		# Q/E rotate the locked compass heading (COMPASS mode only), 45° or 90° per _compass_45
 		if _mode == CamMode.COMPASS and event.keycode == KEY_Q:
-			_compass_yaw += PI * 0.5; return
+			_compass_yaw += _compass_step(); return
 		if _mode == CamMode.COMPASS and event.keycode == KEY_E:
-			_compass_yaw -= PI * 0.5; return
+			_compass_yaw -= _compass_step(); return
 		if event.keycode == KEY_ESCAPE:
 			# close the camera/debug menu and any selection, but KEEP the current camera
 			_dismiss_selection()
