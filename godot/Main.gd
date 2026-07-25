@@ -75,6 +75,11 @@ const TOP_ZOOM_MIN := 0.15
 const TOP_ZOOM_MAX := 3.5
 var _top_zoom := 1.0           # wheel / R-F zoom for BOTH top-down ortho modes
 
+# Remembered view/render settings, saved on exit and restored on launch (so Raves doesn't
+# reset to "looking south" every run). In user:// — available at startup, before the mod
+# sends the support-dir path.
+const SETTINGS_PATH := "user://raves_settings.json"
+
 var _pivot: Node3D
 var _cam: Camera3D
 var _yaw := 0.7
@@ -222,6 +227,7 @@ func _ready() -> void:
 	attrs.dof_blur_amount = 0.10
 	_cam.attributes = attrs
 
+	_load_settings()   # restore camera heading/mode/zoom/depth/window before the UI reads them
 	_build_mode_label()
 	_build_debug_menu()
 	_build_reset_button()
@@ -927,9 +933,56 @@ func _build_reset_button() -> void:
 ## Relaunch the process, preserving the current window size via --resolution (a plain
 ## reload_current_scene would keep the old cached scripts; a restart re-reads them).
 func _reset_program() -> void:
+	_save_settings()   # persist before the restart (quit() doesn't fire WM_CLOSE_REQUEST)
 	var sz := DisplayServer.window_get_size()
 	OS.set_restart_on_exit(true, PackedStringArray(["--resolution", "%dx%d" % [sz.x, sz.y]]))
 	get_tree().quit()
+
+## Save on window close (the X); the Reset button saves explicitly in _reset_program.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		_save_settings()
+
+## Persist the view/render settings a run should remember.
+func _save_settings() -> void:
+	var sz := DisplayServer.window_get_size()
+	var d := {
+		"mode": _mode,
+		"compass_yaw": _compass_yaw,
+		"dist": _dist,
+		"top_zoom": _top_zoom,
+		"fp_height": _fp_height,
+		"water_depth": (renderer.deep_water_depth if renderer != null else 0.6),
+		"win": [sz.x, sz.y],
+	}
+	var f := FileAccess.open(SETTINGS_PATH, FileAccess.WRITE)
+	if f != null:
+		f.store_string(JSON.stringify(d))
+		f.close()
+
+## Restore what _save_settings wrote. Sets values only (no _set_mode — the label isn't
+## built yet); the mode's camera/renderer setup follows from _mode in _update_camera and
+## the set_top_down call here. Missing/invalid keys keep the code defaults.
+func _load_settings() -> void:
+	if not FileAccess.file_exists(SETTINGS_PATH):
+		return
+	var d = JSON.parse_string(FileAccess.get_file_as_string(SETTINGS_PATH))
+	if typeof(d) != TYPE_DICTIONARY:
+		return
+	_compass_yaw = float(d.get("compass_yaw", _compass_yaw))
+	_dist = clampf(float(d.get("dist", _dist)), DIST_MIN, DIST_MAX)
+	_top_zoom = clampf(float(d.get("top_zoom", _top_zoom)), TOP_ZOOM_MIN, TOP_ZOOM_MAX)
+	_fp_height = clampf(float(d.get("fp_height", _fp_height)), 0.15, 3.0)
+	if renderer != null:
+		renderer.deep_water_depth = clampf(float(d.get("water_depth", renderer.deep_water_depth)), 0.0, 1.0)
+	var win = d.get("win", null)
+	if win is Array and win.size() == 2 and int(win[0]) > 200 and int(win[1]) > 200:
+		DisplayServer.window_set_size(Vector2i(int(win[0]), int(win[1])))
+	var m := int(d.get("mode", _mode))
+	if m >= 0 and m <= CamMode.TOP_FOLLOW:
+		_mode = m
+		if renderer != null:
+			renderer.set_top_down(m == CamMode.TOP_ZONE or m == CamMode.TOP_FOLLOW)
 
 func _toggle_debug_menu() -> void:
 	if _debug_menu != null:
