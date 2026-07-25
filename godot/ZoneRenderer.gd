@@ -162,6 +162,13 @@ func _flame_mul() -> float:
 ## in at build time (they don't flicker), which is fine since they're distant and fogged.
 func set_daylight(sun_a: float) -> void:
 	_daylight = clampf(sun_a, 0.0, 1.0)
+	# TEMP telemetry: prove this code is live + expose the actual dimming values.
+	if not _tiles_dir.is_empty():
+		var f := FileAccess.open(_tiles_dir.get_base_dir().path_join("light_debug.txt"), FileAccess.WRITE)
+		if f != null:
+			f.store_string("DAYLIGHT-WIRED daylight=%.3f glow_mul=%.3f flame_mul=%.3f lights=%d" % [
+				_daylight, _glow_mul(), _flame_mul(), _lights.size()])
+			f.close()
 
 var _active: Array = []
 var _sprite_pool: Array[Sprite3D] = []
