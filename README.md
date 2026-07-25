@@ -31,8 +31,9 @@ verified API. Detailed subsystems live in `docs/`:
 | page | what |
 |---|---|
 | **[docs/rendering.md](docs/rendering.md)** | the 3D render pipeline — classification, **voxel walls**, shading, day/night, lights, fill, overrides. *Start here for anything visual.* |
-| **[docs/tools.md](docs/tools.md)** | the Python inspection tools, the in-viewer inspector/report/screenshots, and the **Python-first workflow**. |
+| **[docs/tools.md](docs/tools.md)** | the Python inspection tools, the in-viewer inspector/report/screenshots, the remote-control + **OS-input harness** (`control.py`, `desktop.py`), and the **Python-first workflow**. |
 | **[docs/protocol.md](docs/protocol.md)** | the wire format (snapshot & command frames). |
+| **[docs/legacy-integration-playbook.md](docs/legacy-integration-playbook.md)** | **portable playbook** — how to apply the bridge / two-window-focus / OS-input-harness / reverse-engineering lessons to ANY new "Godot on top of a legacy game" target. Read before starting a new integration. |
 
 > **Python-first, for anyone (human or AI) picking this up:** Claude can't see the Godot viewport,
 > so geometry/pixel algorithms (voxel heights, fill rules) are **prototyped and verified in Python
