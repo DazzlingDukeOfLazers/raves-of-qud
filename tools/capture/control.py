@@ -29,9 +29,12 @@ import struct
 import sys
 import time
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import plat
+
 PORT = 48710
 DIRS = {"N", "S", "E", "W", "NE", "NW", "SE", "SW"}
-BASE = os.path.expanduser("~/Library/Application Support/RavesOfQud")
+BASE = plat.support_dir()   # per-OS data dir the mod writes to (see plat.py)
 GODOT_CMD = os.path.join(BASE, "godot_cmd")
 SHOT = os.path.join(BASE, "shot.png")          # Godot viewer's own screenshot
 QUD_SHOT = os.path.join(BASE, "qud_shot.png")  # Qud's own rendered screen (ScreenCapture)

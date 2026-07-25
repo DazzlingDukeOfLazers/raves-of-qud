@@ -5,44 +5,33 @@ The mod only compiles at app startup, so iterating on it means: quit Qud, (redep
 start Qud, load the save, keep testing. This automates that. Also handy for humans.
 
   qud.py status                 # running? window up? bridge (in-game)?
-  qud.py quit                   # graceful Apple-Event quit -> SIGTERM -> SIGKILL
+  qud.py quit                   # graceful quit -> terminate -> force
   qud.py start                  # launch via Steam, wait for the window
   qud.py load                   # from the main menu, resume the latest save (presses C, then Return)
   qud.py restart                # quit + start + load — the full loop
 
-`quit`/`start`/`status` need no permissions. `load` clicks the menu, so it needs
-Accessibility (see desktop.py). Detection: the mod's bridge server (port 48710) only
-listens once a game is loaded, so bridge-up == in-game.
+Platform specifics (launch/quit/process/input/paths) come from plat.py (per-OS backend).
+`load` needs input permission (macOS Accessibility; see desktop.py check). Detection: the
+mod's bridge server (port 48710) only listens once a game is loaded, so bridge-up == in-game.
 """
 import os
 import socket
-import subprocess
 import sys
 import time
 
-APPID = "333640"          # Caves of Qud, Steam
-APP = "CoQ"               # osascript application name
-PROC = "Caves of Qud"     # pgrep -f match (path contains this)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import plat
+
 PORT = 48710              # bridge; open only when in-game
-
-# Main-menu load: press "C" (the Continue shortcut, from Qud.UI.MainMenu — position
-# independent), which opens the save picker with the most-recent save PRE-SELECTED
-# (SelectFirst=true), then "Return" to load it. Keyboard, so no menu-layout calibration.
-
-
-def _pids():
-    r = subprocess.run(["pgrep", "-f", PROC], capture_output=True, text=True)
-    return [int(p) for p in r.stdout.split()]
 
 
 def running():
-    return bool(_pids())
+    return bool(plat.list_pids())
 
 
 def window_up():
     try:
-        import desktop
-        desktop.bounds("Qud")
+        plat.bounds("Qud")
         return True
     except Exception:
         return False
@@ -72,25 +61,21 @@ def status():
 def quit_qud(grace=15):
     if not running():
         return "not running"
-    subprocess.run(["osascript", "-e", 'tell application "%s" to quit' % APP], capture_output=True)
+    plat.quit_graceful("Qud")                       # lets Qud autosave
     if _wait(lambda: not running(), grace):
         return "quit (graceful)"
-    for pid in _pids():
-        try: os.kill(pid, 15)   # SIGTERM
-        except OSError: pass
+    plat.kill_pids(plat.list_pids(), force=False)   # terminate
     if _wait(lambda: not running(), 6):
-        return "quit (SIGTERM)"
-    for pid in _pids():
-        try: os.kill(pid, 9)    # SIGKILL
-        except OSError: pass
+        return "quit (terminate)"
+    plat.kill_pids(plat.list_pids(), force=True)    # force
     _wait(lambda: not running(), 4)
-    return "quit (SIGKILL)" if not running() else "FAILED to quit"
+    return "quit (force)" if not running() else "FAILED to quit"
 
 
 def start(wait_window=120):
     if running():
         return "already running"
-    subprocess.run(["open", "steam://rungameid/%s" % APPID], capture_output=True)
+    plat.launch_game()
     if _wait(window_up, wait_window):
         time.sleep(6)   # let the main menu finish rendering
         return "started (window up, at menu)"
@@ -98,15 +83,15 @@ def start(wait_window=120):
 
 
 def load(wait_ingame=150):
-    import desktop
-    if not desktop.check():
-        return "FAILED: load needs Accessibility (desktop.py check)"
+    # Main-menu load: press "C" (the Continue shortcut, position independent) which opens
+    # the save picker with the most-recent save PRE-SELECTED, then "Return" to load it.
+    if not plat.check():
+        return "FAILED: load needs input permission (%s)" % plat.PERM_HINT
     if bridge_up():
         return "already in-game"
-    desktop.activate("Qud"); time.sleep(1.5)
-    desktop.key("c")            # main menu -> Continue (opens save picker, most-recent pre-selected)
-    time.sleep(1.8)
-    desktop.key("Return")       # load the pre-selected (most-recent) save
+    plat.activate("Qud"); time.sleep(1.5)
+    plat.key("c"); time.sleep(1.8)
+    plat.key("Return")
     if _wait(bridge_up, wait_ingame):
         time.sleep(2)
         return "loaded (in-game)"
@@ -138,5 +123,4 @@ def main(argv):
 
 
 if __name__ == "__main__":
-    sys.path.insert(0, __file__.rsplit("/", 1)[0])
     main(sys.argv[1:])
