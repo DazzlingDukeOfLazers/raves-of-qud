@@ -146,8 +146,10 @@ var _flame_tex: Texture2D
 var _smoke_pm: ParticleProcessMaterial   # shared across every sconce's smoke emitter
 var _smoke_mesh: QuadMesh                 # shared grey square, billboarded
 var _mote_tex: Texture2D                  # small glowing dot for glowfish orbiters
+var _glow_shader: Shader                  # bioluminescent halo bloomed from the fish silhouette
 var _lights: Array = []           # [{glow, flame, smoke, energy}]
 var _orbiters: Array = []         # glowfish "bugs": [{root, motes:[{s, ...orbit params}]}]
+var _glowers: Array = []          # live glowfish sprites, pulsed brighter each frame in _process
 
 # Torches are ADDITIVE — they brighten whatever is behind them by a fixed amount
 # regardless of time of day. That reads great at night but blows out the already-bright
@@ -219,6 +221,7 @@ func _ready() -> void:
 	_flame_tex = _make_radial(32, Color(1.0, 0.80, 0.35), 1.6)  # tighter, brighter core
 	_mote_tex = _make_radial(16, Color(0.65, 1.0, 0.85), 1.5)   # glowfish bioluminescent mote (cyan-green)
 	_build_smoke_resources()
+	_build_glow_shader()
 
 # A radial gradient: opaque tint at the centre fading to transparent, `power`
 # shapes the falloff. Used additively for both the glow and the flame core.
@@ -377,6 +380,7 @@ func _rebuild_dynamics(cells: Array) -> void:
 	for c in _dynamic_root.get_children():
 		c.free()
 	_orbiters.clear()           # those orbiter roots were children of _dynamic_root (just freed)
+	_glowers.clear()            # glowfish sprites (also just freed); repopulated below
 	_bank = _dynamic_root
 	_noting = false
 	for cell in cells:
@@ -879,6 +883,67 @@ func _make_orbiters(cx: int, cy: int) -> void:
 	_bank.add_child(root)   # into _dynamic_root (freed + rebuilt each step)
 	_orbiters.append({"root": root, "motes": motes})
 
+# --- glowfish bioluminescent glow -------------------------------------------
+
+const GLOW_COLOR := Color(0.45, 1.0, 0.9)   # cyan-green bioluminescence (matches the motes)
+
+## A camera-facing quad behind the fish whose shader blooms an additive halo out of the
+## fish silhouette (sampled from the fish texture's alpha), pulsing on TIME. The fish's
+## own body is brightened separately via a modulate pulse in _process (kept aligned that
+## way, since a Sprite3D's modulate is honoured when it has no material_override).
+func _build_glow_shader() -> void:
+	_glow_shader = Shader.new()
+	_glow_shader.code = """
+shader_type spatial;
+render_mode blend_add, unshaded, cull_disabled, depth_draw_never, shadows_disabled;
+uniform sampler2D fish_tex : source_color, filter_nearest;
+uniform vec3 glow_color = vec3(0.45, 1.0, 0.9);
+uniform float halo_uv = 0.09;   // silhouette dilation, in UV
+uniform float strength = 1.1;
+uniform float pulse_speed = 2.5;
+void vertex() {
+	// billboard: face the camera, preserving the quad's scale
+	mat4 mv = VIEW_MATRIX * mat4(INV_VIEW_MATRIX[0], INV_VIEW_MATRIX[1], INV_VIEW_MATRIX[2], MODEL_MATRIX[3]);
+	MODELVIEW_MATRIX = mv * mat4(
+		vec4(length(MODEL_MATRIX[0].xyz), 0.0, 0.0, 0.0),
+		vec4(0.0, length(MODEL_MATRIX[1].xyz), 0.0, 0.0),
+		vec4(0.0, 0.0, length(MODEL_MATRIX[2].xyz), 0.0),
+		vec4(0.0, 0.0, 0.0, 1.0));
+}
+void fragment() {
+	float here = texture(fish_tex, UV).a;
+	float around = 0.0;
+	for (int i = 0; i < 8; i++) {
+		float ang = float(i) / 8.0 * 6.2831853;
+		vec2 d = vec2(cos(ang), sin(ang));
+		around += texture(fish_tex, UV + d * halo_uv).a;
+		around += texture(fish_tex, UV + d * halo_uv * 0.5).a;
+	}
+	around /= 16.0;
+	float halo = clamp(around - here, 0.0, 1.0);   // bloom OUTSIDE the silhouette
+	float pulse = 0.7 + 0.3 * sin(TIME * pulse_speed);
+	ALBEDO = glow_color;
+	ALPHA = clamp(halo * strength * pulse, 0.0, 1.0);
+}
+"""
+
+## Hang the glow halo behind a glowfish sprite `s`, matched to its footprint. `s` gets
+## registered for the body-brightness pulse.
+func _add_glow(s: Sprite3D, tex: Texture2D) -> void:
+	_glowers.append(s)
+	var ab := s.get_aabb()
+	var mat := ShaderMaterial.new()
+	mat.shader = _glow_shader
+	mat.set_shader_parameter("fish_tex", tex)
+	mat.set_shader_parameter("glow_color", Vector3(GLOW_COLOR.r, GLOW_COLOR.g, GLOW_COLOR.b))
+	var q := MeshInstance3D.new()
+	var qm := QuadMesh.new()
+	qm.size = Vector2(ab.size.x, ab.size.y) * 1.5   # bigger than the fish so the halo has room
+	q.mesh = qm
+	q.material_override = mat
+	q.position = s.position                          # centred on the visible fish
+	_bank.add_child(q)   # into _dynamic_root, freed + rebuilt each step
+
 ## Flicker: jitter each light's brightness a little every frame, so torches read
 ## as fire rather than steady lamps. Cheap — modulate the additive quads' alpha.
 func _process(_dt: float) -> void:
@@ -908,6 +973,14 @@ func _process(_dt: float) -> void:
 				var y: float = m["yamp"] * sin(ang * 2.0 + m["phase"])   # figure-8 bob -> "weird"
 				var ct: float = cos(m["tilt"]); var st: float = sin(m["tilt"])
 				(m["s"] as Sprite3D).position = Vector3(x * ct - z * st, y, x * st + z * ct)
+
+	# Glowfish body: pulse the sprite brighter/cyan (modulate works — the fish sprite has
+	# no material_override). The halo quad pulses on its own via TIME; close enough in sync.
+	if not _glowers.is_empty():
+		var gp: float = 0.7 + 0.3 * sin(Time.get_ticks_msec() / 1000.0 * 2.5)
+		var body := Color(1, 1, 1).lerp(Color(1.35, 1.7, 1.6), gp)   # >1 = over-bright
+		for s in _glowers:
+			(s as Sprite3D).modulate = body
 
 func _is_prism(obj: Dictionary) -> bool:
 	# a user verdict wins outright — that's the point of filing one
@@ -1244,6 +1317,10 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			var submerged: bool = sink > 0.0 and bool(obj.get("sinks", false))
 			_seat(s, btex, tile, cx, cy, sink if submerged else 0.0, position_for(tile) == "float")
 			s.visible = true
+			if _is_glowfish(obj):
+				_add_glow(s, btex)              # bioluminescent halo + register for the body pulse
+			else:
+				s.modulate = Color(1, 1, 1)     # reset a pooled sprite that glowed last frame
 			_track(s)
 			var fmode := _fill_for(tile, Fill.INTERIOR)
 			var gaps := tile_fill_px(tile, fmode)
