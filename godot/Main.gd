@@ -206,6 +206,7 @@ func _ready() -> void:
 
 	_build_mode_label()
 	_build_debug_menu()
+	_build_reset_button()
 	_apply_ui_fonts()
 	get_viewport().size_changed.connect(_apply_ui_fonts)
 	_update_camera(0.0)
@@ -832,6 +833,31 @@ func _on_water_depth_changed(v: float) -> void:
 	var live: Dictionary = store.live_snapshot()
 	if not live.is_empty():
 		renderer.render_snapshot(live, _neighbor_zones())
+
+## A small reset button in the top-right corner: restarts the whole program (so code
+## changes are picked up, not just a state reset) at the CURRENT window size.
+func _build_reset_button() -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 3
+	add_child(layer)
+	var btn := Button.new()
+	btn.text = "⟳ Reset"
+	btn.focus_mode = Control.FOCUS_NONE   # click-only; keep arrows for the player
+	btn.anchor_left = 1.0
+	btn.anchor_right = 1.0
+	btn.offset_left = -96.0
+	btn.offset_right = -10.0
+	btn.offset_top = 10.0
+	btn.offset_bottom = 38.0
+	btn.pressed.connect(_reset_program)
+	layer.add_child(btn)
+
+## Relaunch the process, preserving the current window size via --resolution (a plain
+## reload_current_scene would keep the old cached scripts; a restart re-reads them).
+func _reset_program() -> void:
+	var sz := DisplayServer.window_get_size()
+	OS.set_restart_on_exit(true, PackedStringArray(["--resolution", "%dx%d" % [sz.x, sz.y]]))
+	get_tree().quit()
 
 func _toggle_debug_menu() -> void:
 	if _debug_menu != null:
