@@ -69,6 +69,7 @@ _cg.CGEventCreate.restype = ctypes.c_void_p
 _cg.CGEventCreate.argtypes = [ctypes.c_void_p]
 _cg.CGEventGetLocation.restype = CGPoint
 _cg.CGEventGetLocation.argtypes = [ctypes.c_void_p]
+_cg.CGEventSetIntegerValueField.argtypes = [ctypes.c_void_p, ctypes.c_uint32, ctypes.c_int64]
 # keyboard
 _cg.CGEventCreateKeyboardEvent.restype = ctypes.c_void_p
 _cg.CGEventCreateKeyboardEvent.argtypes = [ctypes.c_void_p, ctypes.c_uint16, ctypes.c_bool]
@@ -91,9 +92,10 @@ _cf.CFNumberGetValue.restype = ctypes.c_bool
 _cf.CFNumberGetValue.argtypes = [ctypes.c_void_p, ctypes.c_long, ctypes.c_void_p]
 _cf.CFRelease.argtypes = [ctypes.c_void_p]
 
-_LDOWN, _LUP, _RDOWN, _RUP = 1, 2, 3, 4
+_LDOWN, _LUP, _RDOWN, _RUP, _MOVED = 1, 2, 3, 4, 5
 _HID_TAP = 0
 _BTN_LEFT, _BTN_RIGHT = 0, 1
+_CLICK_STATE = 1  # kCGMouseEventClickState field — apps ignore clicks without it set
 _ON_SCREEN, _NULL_WIN = 1, 0
 _UTF8 = 0x08000100
 _INT_TYPE = 9  # kCFNumberIntType
@@ -131,11 +133,17 @@ def _require():
 
 # --- mouse ----------------------------------------------------------------------
 def _post_mouse(x, y, down, up, button, clicks=1):
-    for _ in range(clicks):
+    # Move event first so the app registers the cursor over the target, then
+    # down/up carrying the click-state field (many apps drop clicks without it).
+    mv = _cg.CGEventCreateMouseEvent(None, _MOVED, CGPoint(x, y), button)
+    _cg.CGEventPost(_HID_TAP, mv)
+    time.sleep(0.04)
+    for i in range(clicks):
         for t in (down, up):
             ev = _cg.CGEventCreateMouseEvent(None, t, CGPoint(x, y), button)
+            _cg.CGEventSetIntegerValueField(ev, _CLICK_STATE, i + 1)
             _cg.CGEventPost(_HID_TAP, ev)
-            time.sleep(0.02)
+            time.sleep(0.04)
         time.sleep(0.03)
 
 
