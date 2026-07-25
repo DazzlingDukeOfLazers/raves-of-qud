@@ -149,23 +149,31 @@ python3 tools/capture/control.py cam 1         # compass camera
 python3 tools/capture/control.py shot          # Godot screenshot -> shot.png (read it)
 ```
 
-**CRITICAL — Qud must be FOCUSED to drive it.** Unfocused, Qud stops rendering *and* stops
-processing injected input: `runInBackground` keeps the loop alive, but the command hook
-(`BeforeRenderEvent`, see below) is render-tied and won't fire, so moves queue but never apply
-(control.py times out). **Working config: Qud focused, Godot in the background** — Godot screenshots
-fine unfocused (`_screenshot(forced=true)` → `RenderingServer.force_draw()`; the interactive F12 path
-`await`s `frame_post_draw`, which hangs unfocused). Not fully unattended: reading a Claude message
-re-focuses it, so drive in BURSTS while holding Qud focused.
+**Driving an UNFOCUSED Qud works** (build `2026-07-24k+`). Movement can be issued whether or not
+Qud is the foremost window, so you can press arrows in the Godot window (or run control.py) with Qud
+in the background. Godot screenshots also work unfocused (`_screenshot(forced=true)` →
+`RenderingServer.force_draw()`; the interactive F12 path `await`s `frame_post_draw`, which hangs
+unfocused). This took two coupled fixes — see below.
 
-**How the mod applies commands (hard-won — don't rediscover):**
-- `Bridge.TickRender` (hooked on `BeforeRenderEvent`, every rendered frame) drains the queue + applies
-  + publishes. `Bridge.Tick` (EndTurnEvent) also drains + publishes per turn. EndTurn ALONE deadlocks
-  from a cold idle (an idle player ends no turn → nothing drains). BeforeRender fixes idle drive —
-  but only fires when Qud renders (= focused).
-- `Application.runInBackground = true` (set on the first `Bridge.Tick`, which runs at startup while
-  focused) keeps the game loop alive unfocused but does NOT make Qud render or read input unfocused.
-- Godot polls `godot_cmd` in `_process` (runs unfocused); a blocked player (marsh/water) applies the
-  move but doesn't move — check the position, not just that the command returned.
+**How the mod applies commands (hard-won by decompiling Qud — don't rediscover):**
+- **Injection.** A move arrives on the background socket thread and is pushed straight into Qud's own
+  input queue via `ConsoleLib.Console.Keyboard.PushCommand("CmdMove"+dir)` (see `Bridge.OnPayload`).
+  That enqueues a `"Command:CmdMoveN"` mouse event under `lock(MouseEventQueue)` and calls
+  `KeyEvent.Set()`. XRLCore's player loop pops it and dispatches the command exactly like a keypress.
+  Doing this off the socket thread is safe (locked queue, no game-state access) and *doesn't* need a
+  rendered frame — unlike the old `CommandEvent.Send` path, which was drained from render/turn hooks
+  (`BeforeRenderEvent`/`EndTurnEvent`) that don't fire while unfocused.
+- **The freeze.** XRLCore's turn thread gates on `while (!GameManager.focused) Thread.Sleep(200)`;
+  `OnApplicationFocus(false)` flips that flag, so a backgrounded window parks the whole turn thread and
+  injected commands sit unprocessed until it regains focus (symptom: moves flush in a burst the instant
+  you click Qud). Fix: a watchdog thread (`Bridge.StartFocusKeeper`) holds `GameManager.focused = true`
+  while a bridge client is connected. `runInBackground` is unrelated — that governs Unity's *render*
+  loop; the turn logic is a separate thread gated only by `focused`. Harmony (the clean way to patch
+  `OnApplicationFocus`) is blocked on macOS, hence the watchdog.
+- The focus override is gated on `ClientCount > 0`, so solo play (no viewer attached) keeps Qud's normal
+  pause-on-unfocus. While the viewer is connected + idle, Qud sits ~10% CPU (animation frames), not a spin.
+- A blocked player (marsh/water/wall) applies the move but doesn't change cells — check the position,
+  not just that the command returned. A blocked move may also not end a turn, so no snapshot comes back.
 
 ## Camera modes (viewer)
 

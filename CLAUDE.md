@@ -51,8 +51,8 @@ python3 tools/capture/snap.py find glowfish
 python3 tools/capture/tile.py Tiles_sw_floor_brickb3.bmp
 python3 tools/capture/tile.py --list water
 
-# DRIVE the game headlessly (Qud must be FOCUSED; see docs/tools.md). move -> Qud,
-# cam/shot/fph -> Godot via the godot_cmd file. Godot screenshots work unfocused.
+# DRIVE the game headlessly — works with Qud UNFOCUSED (build 2026-07-24k+; see docs/tools.md).
+# move -> Qud, cam/shot/fph -> Godot via the godot_cmd file. Godot screenshots work unfocused.
 python3 tools/capture/control.py move N 5
 python3 tools/capture/control.py cam 1
 python3 tools/capture/control.py shot     # -> shot.png (read it)
@@ -192,11 +192,15 @@ inspect in Python before porting. (Lighting/shadow *appearance* still needs a sc
   this project cut off exactly the rows being looked for.
 - **Ask the user to click, don't infer from screenshots.** The inspector exists for this. Five
   hypotheses were formed from pixels; one selection would have beaten all of them.
-- **Unfocused apps pause — Qud AND Godot.** Godot's `_process` runs unfocused (file polling works)
-  but it doesn't DRAW, so a screenshot that `await`s `frame_post_draw` hangs — use
-  `RenderingServer.force_draw()`. Qud, unfocused, stops rendering AND processing injected input, so
-  `control.py move` only applies while Qud is FOCUSED (`runInBackground` keeps the loop alive but not
-  rendering/input). Cost several restarts to learn; see docs/tools.md "Remote control".
+- **Unfocused Godot doesn't DRAW.** Godot's `_process` runs unfocused (file polling works) but it
+  doesn't render, so a screenshot that `await`s `frame_post_draw` hangs — use `RenderingServer.force_draw()`.
+- **Driving an unfocused Qud is SOLVED** (build 2026-07-24k+), but the how matters. Qud parks its turn
+  thread on `while (!GameManager.focused) Thread.Sleep(200)` when the window backgrounds, and applies
+  injected commands only through render/turn-tied hooks. Fix = two coupled pieces: inject moves via
+  `Keyboard.PushCommand` (wakes the turn thread from any thread, no render needed) + a watchdog that
+  holds `GameManager.focused = true` while a client is connected. `runInBackground` is a red herring
+  (it's the render loop, not the turn thread). Decompile the game to confirm engine behaviour before
+  theorising; see docs/tools.md "Remote control".
 
 ## Ground rules learned the hard way
 
