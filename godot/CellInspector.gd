@@ -545,20 +545,71 @@ func _dash_into(a: Vector3, b: Vector3, out: PackedVector3Array) -> void:
 		out.append(a + dir * minf(t + MARK_DASH, total))
 		t += step
 
+## Each consecutive pair in `pts` is one dash. Emit it as a 4-vertex RIBBON quad (not a
+## line primitive, which is stuck at 1px and gives no depth cue): the tangent rides in
+## NORMAL, the ±side in UV.x, and the thick-line shader expands it to a camera-facing strip
+## whose width scales with nearness — thicker up close, thinner far, for depth perception.
 func _lines_mesh(pts: PackedVector3Array) -> ArrayMesh:
 	var mesh := ArrayMesh.new()
 	if pts.is_empty():
 		return mesh
+	var verts := PackedVector3Array()
+	var norms := PackedVector3Array()
+	var uvs := PackedVector2Array()
+	var idx := PackedInt32Array()
+	var i := 0
+	while i + 1 < pts.size():
+		var a := pts[i]
+		var b := pts[i + 1]
+		var t := b - a
+		if t.length() > 1e-6:
+			t = t.normalized()
+			var base := verts.size()
+			for v in [a, a, b, b]:
+				verts.append(v)
+				norms.append(t)
+			uvs.append(Vector2(-1, 0)); uvs.append(Vector2(1, 0))
+			uvs.append(Vector2(1, 0));  uvs.append(Vector2(-1, 0))
+			idx.append_array([base, base + 1, base + 2, base, base + 2, base + 3])
+		i += 2
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = pts
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_LINES, arrays)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	arrays[Mesh.ARRAY_NORMAL] = norms
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_INDEX] = idx
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	return mesh
 
-func _marker_material(col: Color) -> StandardMaterial3D:
-	var m := StandardMaterial3D.new()
-	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	m.albedo_color = col
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+var _line_shader: Shader
+
+## Thick-line material: expands each ribbon vertex sideways in VIEW space by a world-unit
+## half-width, so perspective already makes near dashes thicker; `close_boost` amplifies it.
+func _marker_material(col: Color) -> ShaderMaterial:
+	if _line_shader == null:
+		_line_shader = Shader.new()
+		_line_shader.code = """
+shader_type spatial;
+render_mode unshaded, cull_disabled;
+uniform vec4 col : source_color = vec4(1.0, 0.95, 0.3, 0.9);
+uniform float half_width = 0.018;   // world-unit half-thickness before the distance boost
+uniform float close_boost = 2.5;    // extra thickening when near the camera
+void vertex() {
+	vec4 pv = MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
+	vec3 tan_v = (MODELVIEW_MATRIX * vec4(NORMAL, 0.0)).xyz;   // the line's view-space direction
+	vec3 perp = cross(normalize(tan_v), vec3(0.0, 0.0, 1.0));  // ⟂ to line, in the view plane
+	float pl = length(perp);
+	perp = (pl > 1e-4) ? perp / pl : vec3(0.0);
+	float dist = max(-pv.z, 0.4);
+	pv.xyz += perp * (half_width * (1.0 + close_boost / dist)) * UV.x;
+	POSITION = PROJECTION_MATRIX * pv;
+}
+void fragment() {
+	ALBEDO = col.rgb;
+	ALPHA = col.a;
+}
+"""
+	var m := ShaderMaterial.new()
+	m.shader = _line_shader
+	m.set_shader_parameter("col", col)
 	return m
