@@ -229,6 +229,7 @@ func _ready() -> void:
 	_build_mode_label()
 	_build_debug_menu()
 	_build_reset_button()
+	_build_multiview()
 	_apply_ui_fonts()
 	get_viewport().size_changed.connect(_apply_ui_fonts)
 	_update_camera(0.0)
@@ -438,6 +439,8 @@ func _process(dt: float) -> void:
 		if Input.is_key_pressed(KEY_R): _dist = clampf(_dist * (1.0 - dt), DIST_MIN, DIST_MAX)
 		if Input.is_key_pressed(KEY_F): _dist = clampf(_dist * (1.0 + dt), DIST_MIN, DIST_MAX)
 	_update_camera(dt)
+	if _multiview_on:
+		_update_multiview_cameras()
 
 # --- camera placement -------------------------------------------------------
 
@@ -487,40 +490,35 @@ func _frame_radius() -> float:
 		return clampf(_player.distance_to(Vector3(sel.x, 0.0, sel.y)) * 0.9 + 7.0, 9.0, 40.0)
 	return 13.0
 
-func _update_camera(dt: float) -> void:
-	var target_eye: Vector3
-	var target_look: Vector3
-	match _mode:
+## Eye + look-at for any camera mode, from the current shared state. Extracted so the
+## multi-view picker can drive one camera per mode off the same math. Returns [eye, look].
+func _mode_eye_look(mode: int) -> Array:
+	match mode:
 		CamMode.KEYBOARD:
-			target_eye = _free_eye
-			target_look = _free_eye + _aim_dir()
+			return [_free_eye, _free_eye + _aim_dir()]
 		CamMode.MOUSE:
 			var c := _orbit_center()
-			target_eye = c + Vector3(
-				_dist * cos(_pitch) * sin(_yaw),
-				_dist * sin(_pitch),
-				_dist * cos(_pitch) * cos(_yaw))
-			target_look = c
+			return [c + Vector3(_dist * cos(_pitch) * sin(_yaw), _dist * sin(_pitch),
+				_dist * cos(_pitch) * cos(_yaw)), c]
 		CamMode.FOLLOW:
-			target_eye = _follow_eye()
-			target_look = _follow_look()
+			return [_follow_eye(), _follow_look()]
 		CamMode.FIRST_PERSON:
-			target_eye = _player + Vector3(0, _fp_height, 0)
-			target_look = target_eye + _compass_dir() + Vector3(0, -0.15, 0)
+			var e := _player + Vector3(0, _fp_height, 0)
+			return [e, e + _compass_dir() + Vector3(0, -0.15, 0)]
 		CamMode.CINEMATIC:
 			var cc := _frame_center()
 			var r := _frame_radius()
-			target_eye = cc + Vector3(
-				r * cos(COMPASS_PITCH) * sin(_cine_t),
-				r * sin(COMPASS_PITCH) + 2.0,
-				r * cos(COMPASS_PITCH) * cos(_cine_t))
-			target_look = cc
-		CamMode.TOP_FOLLOW:  # classic overhead, north up, tracking the player
-			target_eye = _player + Vector3(0, TOP_H, 0)
-			target_look = _player
+			return [cc + Vector3(r * cos(COMPASS_PITCH) * sin(_cine_t),
+				r * sin(COMPASS_PITCH) + 2.0, r * cos(COMPASS_PITCH) * cos(_cine_t)), cc]
+		CamMode.TOP_FOLLOW:
+			return [_player + Vector3(0, TOP_H, 0), _player]
 		_:  # COMPASS — the default, stable, cardinal-locked view
-			target_eye = _compass_eye()
-			target_look = _player
+			return [_compass_eye(), _player]
+
+func _update_camera(dt: float) -> void:
+	var el := _mode_eye_look(_mode)
+	var target_eye: Vector3 = el[0]
+	var target_look: Vector3 = el[1]
 
 	if dt <= 0.0 or not _seeded or _snap_cam:
 		_eye = target_eye
@@ -619,6 +617,8 @@ func _move_relative(intent: Vector2) -> void:
 	client.send_command("move", {"dir": _dir_to_compass(v.normalized())})
 
 func _set_mode(m: int) -> void:
+	if _multiview_on:
+		_toggle_multiview()   # picking a mode leaves the multi-view grid
 	if m == _mode:
 		return
 	# entering free flight, start from where the camera already is
@@ -835,7 +835,7 @@ const _MODE_NAMES := {
 }
 
 func _update_mode_label() -> void:
-	_mode_label.text = "camera: %s     ·  ` menu · 1-6 modes" % _MODE_NAMES.get(_mode, "?")
+	_mode_label.text = "camera: %s     ·  ` menu · 1-7 · 0 all-views" % _MODE_NAMES.get(_mode, "?")
 	if _time_label != "":
 		_mode_label.text += "     ⏱ " + _time_label
 	_update_debug_menu()
@@ -844,6 +844,83 @@ func _update_mode_label() -> void:
 
 var _debug_menu: PanelContainer
 var _mode_buttons := {}
+
+# --- multi-view camera picker -----------------------------------------------
+# A grid of live SubViewports, one per camera mode, all sharing the main 3D world so you
+# can compare every view at once (differential testing). Click a pane or press its number
+# to switch to that mode full-screen; toggle with `0` or the debug-menu button.
+const MULTIVIEW_MODES := [CamMode.COMPASS, CamMode.FOLLOW, CamMode.FIRST_PERSON,
+	CamMode.CINEMATIC, CamMode.MOUSE, CamMode.KEYBOARD, CamMode.TOP_FOLLOW]
+var _multiview_layer: CanvasLayer
+var _multiview_on := false
+var _multiview_cams: Array = []   # [{mode, cam, sv}]
+
+func _build_multiview() -> void:
+	_multiview_layer = CanvasLayer.new()
+	_multiview_layer.layer = 4
+	_multiview_layer.visible = false
+	add_child(_multiview_layer)
+	var grid := GridContainer.new()
+	grid.columns = 3
+	grid.set_anchors_preset(Control.PRESET_FULL_RECT)
+	grid.add_theme_constant_override("h_separation", 2)
+	grid.add_theme_constant_override("v_separation", 2)
+	_multiview_layer.add_child(grid)
+	var shared := get_viewport().find_world_3d()
+	for m in MULTIVIEW_MODES:
+		var cell := Control.new()
+		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		cell.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		cell.custom_minimum_size = Vector2(320, 200)
+		var svc := SubViewportContainer.new()
+		svc.stretch = true
+		svc.set_anchors_preset(Control.PRESET_FULL_RECT)
+		svc.mouse_filter = Control.MOUSE_FILTER_IGNORE   # let clicks reach the cell
+		var sv := SubViewport.new()
+		sv.world_3d = shared
+		sv.render_target_update_mode = SubViewport.UPDATE_DISABLED
+		svc.add_child(sv)
+		var cam := Camera3D.new()
+		cam.fov = _cam.fov
+		sv.add_child(cam)
+		cam.current = true   # the active camera for this sub-viewport
+		cell.add_child(svc)
+		var lbl := Label.new()
+		lbl.text = "%d  %s" % [m + 1, String(_MODE_NAMES.get(m, "?")).split(" —")[0]]
+		lbl.add_theme_color_override("font_color", Color(0.8, 1.0, 0.8))
+		lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		cell.add_child(lbl)
+		var mv: int = m
+		cell.gui_input.connect(func(e: InputEvent):
+			if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+				_set_mode(mv))   # _set_mode closes multi-view
+		grid.add_child(cell)
+		_multiview_cams.append({"mode": m, "cam": cam, "sv": sv})
+
+func _toggle_multiview() -> void:
+	if _multiview_layer == null:
+		return
+	_multiview_on = not _multiview_on
+	_multiview_layer.visible = _multiview_on
+	for v in _multiview_cams:
+		(v["sv"] as SubViewport).render_target_update_mode = \
+			SubViewport.UPDATE_ALWAYS if _multiview_on else SubViewport.UPDATE_DISABLED
+
+## Per-frame: point each preview camera at its mode's view, off the shared camera math.
+func _update_multiview_cameras() -> void:
+	for v in _multiview_cams:
+		var m: int = v["mode"]
+		var cam: Camera3D = v["cam"]
+		var el := _mode_eye_look(m)
+		var eye: Vector3 = el[0]
+		var look: Vector3 = el[1]
+		var top := m == CamMode.TOP_FOLLOW
+		cam.projection = Camera3D.PROJECTION_ORTHOGONAL if top else Camera3D.PROJECTION_PERSPECTIVE
+		if top:
+			cam.size = _top_ortho_size()
+		cam.position = eye
+		if eye.distance_to(look) > 0.001:
+			cam.look_at(look, NORTH if top else Vector3.UP)
 
 func _build_debug_menu() -> void:
 	var layer := CanvasLayer.new()
@@ -870,6 +947,12 @@ func _build_debug_menu() -> void:
 		b.pressed.connect(func(): _set_mode(mv))
 		vb.add_child(b)
 		_mode_buttons[m] = b
+	# all-views grid (differential testing)
+	var mvb := Button.new()
+	mvb.text = "0  MULTI-VIEW (all)"
+	mvb.focus_mode = Control.FOCUS_NONE
+	mvb.pressed.connect(_toggle_multiview)
+	vb.add_child(mvb)
 	# first-person eye-height slider
 	var hl := Label.new()
 	hl.text = "first-person height"
@@ -1010,6 +1093,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.keycode == KEY_5: _set_mode(CamMode.MOUSE); return
 		if event.keycode == KEY_6: _set_mode(CamMode.KEYBOARD); return
 		if event.keycode == KEY_7: _set_mode(CamMode.TOP_FOLLOW); return
+		if event.keycode == KEY_0: _toggle_multiview(); return   # 0 = all-views grid
 		if event.keycode == KEY_QUOTELEFT:      # ` toggles the debug menu
 			_toggle_debug_menu(); return
 		# Q/E rotate the locked compass heading 90° (COMPASS mode only)
@@ -1018,8 +1102,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		if _mode == CamMode.COMPASS and event.keycode == KEY_E:
 			_compass_yaw -= PI * 0.5; return
 		if event.keycode == KEY_ESCAPE:
+			# close the camera/debug menu and any selection, but KEEP the current camera
 			_dismiss_selection()
-			_set_mode(CamMode.COMPASS); return
+			if _debug_menu != null:
+				_debug_menu.visible = false
+			return
 		if event.keycode == KEY_I:
 			_inspect(); return
 		if event.keycode == KEY_F12:
