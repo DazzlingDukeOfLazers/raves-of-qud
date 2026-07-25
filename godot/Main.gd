@@ -3,7 +3,7 @@ extends Node3D
 ## Wires the bridge client to the renderer, drives the camera, and maps input to
 ## Qud movement commands. Built in code so the scene file stays a single node.
 ##
-## CAMERA MODES — pick with the ` debug menu or number keys 1-8; the current mode
+## CAMERA MODES — pick with the ` debug menu or number keys 1-7; the current mode
 ## and its controls show on screen.
 ##   1 COMPASS  (default)  cardinal-LOCKED low-angle view. Follows the player's
 ##                         position but NEVER rotates on movement, so the world
@@ -15,10 +15,8 @@ extends Node3D
 ##                         combat-aware framing via an event buffer is future work).
 ##   5 MOUSE               orbit/pan with the mouse around the SELECTED tile.
 ##   6 KEYBOARD            free flight. WASD moves the camera, arrows AIM it.
-##   7 TOP_ZONE            Qud-classic overhead: orthographic, straight down, NORTH
-##                         up, framing the whole zone and holding still.
-##   8 TOP_FOLLOW          same classic overhead, north up, but tracking the player;
-##                         R/F or the wheel zoom in and out.
+##   7 TOP_FOLLOW          Qud-classic overhead: orthographic, straight down, NORTH up,
+##                         tracking the player; R/F or the wheel zoom in and out.
 ##
 ##   Esc returns to COMPASS (and dismisses the report). Shift+C/K/F still jump to
 ##   mouse/keyboard/follow. Wheel zooms. Ctrl/Cmd+click or I inspects a tile.
@@ -60,25 +58,19 @@ const NIGHT_TINT := Color(0.34, 0.40, 0.62)   # cool moonlit blue (Qud has no mo
 const DAY_TINT := Color(1.0, 0.99, 0.96)       # near-neutral, a hair warm
 const DUSK_TINT := Color(1.0, 0.72, 0.50)      # warm dawn/dusk
 
-enum CamMode { COMPASS, FOLLOW, FIRST_PERSON, CINEMATIC, MOUSE, KEYBOARD, TOP_ZONE, TOP_FOLLOW }
+enum CamMode { COMPASS, FOLLOW, FIRST_PERSON, CINEMATIC, MOUSE, KEYBOARD, TOP_FOLLOW }
 var _mode: int = CamMode.COMPASS   # cardinal-locked: stable, doesn't spin on movement
 
 # Top-down (Qud-classic) modes: orthographic, straight down, NORTH locked to the top
-# of the screen. TOP_ZONE frames the whole zone/parasang and holds still; TOP_FOLLOW
-# tracks the player at a fixed zoom (wheel / R-F). Height sits below the fog-begin
+# of the screen, tracking the player at a fixed zoom (wheel / R-F). Height sits below the fog-begin
 # distance so the flat map stays crisp; DOF is disabled while overhead.
 const TOP_H := 20.0        # ortho eye height above the ground (scale is size, not H)
 const TOP_FIT_MARGIN := 1.06   # padding so the framed zone isn't flush to the edges
 const NORTH := Vector3(0, 0, -1)   # -z is north (Qud's y grows south); screen-up in top-down
 const TOP_FOLLOW_SPAN := 18.0  # TOP_FOLLOW vertical span (cells) at zoom 1.0
-const TOP_ZONE_MIN_SPAN := 3.0 # TOP_ZONE tightest view: ~3 tiles across
 const TOP_ZOOM_MIN := 0.15
 const TOP_ZOOM_MAX := 3.5
-var _top_zoom := 1.0           # wheel / R-F zoom for BOTH top-down ortho modes
-
-## TOP_ZONE zoom fraction 0 (tightest, 3 tiles) .. 1 (widest, 3x3 zones), from _top_zoom.
-func _top_zone_frac() -> float:
-	return clampf((_top_zoom - TOP_ZOOM_MIN) / (TOP_ZOOM_MAX - TOP_ZOOM_MIN), 0.0, 1.0)
+var _top_zoom := 1.0           # wheel / R-F zoom for the top-down follow mode
 
 # Remembered view/render settings, saved on exit and restored on launch (so Raves doesn't
 # reset to "looking south" every run). In user:// — available at startup, before the mod
@@ -98,7 +90,7 @@ var _cine_t := 0.0              # cinematic auto-orbit phase
 const FP_EYE_H := 0.55          # first-person default eye height above the ground
 var _fp_height := FP_EYE_H      # live first-person eye height (debug-menu slider)
 var _zone_center := Vector3(40, 0, 12)
-var _zone_dims := Vector2(80, 25)   # live zone width x height in cells (TOP_ZONE fit)
+var _zone_dims := Vector2(80, 25)   # live zone width x height in cells
 var _pan := Vector3.ZERO     # user pan offset (MOUSE mode); persists across turns
 
 # --- follow-cam -------------------------------------------------------------
@@ -158,6 +150,7 @@ func _ready() -> void:
 	client = BridgeClient.new()
 	add_child(client)
 	client.snapshot.connect(_on_snapshot)
+	client.connected.connect(_on_bridge_connected)
 
 	var we := WorldEnvironment.new()
 	var env := Environment.new()
@@ -249,6 +242,12 @@ func _ready() -> void:
 	reporter.setup(renderer)
 	reporter.dismissed.connect(_dismiss_selection)
 
+## On (re)connect, wait one turn so Qud publishes a snapshot immediately and Raves has a
+## zone to render — instead of a blank view until the player first moves. Passes a turn for
+## now; a no-turn refresh will replace this later.
+func _on_bridge_connected() -> void:
+	client.send_command("wait", {})
+
 func _on_snapshot(data: Dictionary) -> void:
 	# Route the render through the store: draw the live zone plus any remembered
 	# neighbours (same stratum) the player has visited, placed by global offset.
@@ -306,7 +305,7 @@ func _on_snapshot(data: Dictionary) -> void:
 			if _cam.position.distance_to(_look) > 0.001:
 				# top-down looks straight down, so its up-ref is NORTH, not world-up (which is
 				# parallel to the view = a degenerate look_at → the zone-crossing flicker)
-				var xtop := _mode == CamMode.TOP_ZONE or _mode == CamMode.TOP_FOLLOW
+				var xtop := _mode == CamMode.TOP_FOLLOW
 				_cam.look_at(_look, NORTH if xtop else Vector3.UP)
 	elif crossed:
 		print("[cross] SKIPPED shift: old=%s has=%s  new=%s has=%s" % [
@@ -430,7 +429,7 @@ func _process(dt: float) -> void:
 		_cine_t += dt * 0.35   # slow auto-orbit ONLY with no target; a selected tile holds the framing still
 	# R/F zoom (Shift-guarded so Shift+F still switches). Top-down modes zoom the ortho
 	# span via _top_zoom; the perspective modes zoom the eye distance via _dist.
-	var _td_zoom := _mode == CamMode.TOP_ZONE or _mode == CamMode.TOP_FOLLOW
+	var _td_zoom := _mode == CamMode.TOP_FOLLOW
 	if _td_zoom and not Input.is_key_pressed(KEY_SHIFT):
 		if Input.is_key_pressed(KEY_R): _top_zoom = clampf(_top_zoom * (1.0 - dt), TOP_ZOOM_MIN, TOP_ZOOM_MAX)
 		if Input.is_key_pressed(KEY_F): _top_zoom = clampf(_top_zoom * (1.0 + dt), TOP_ZOOM_MIN, TOP_ZOOM_MAX)
@@ -516,14 +515,6 @@ func _update_camera(dt: float) -> void:
 				r * sin(COMPASS_PITCH) + 2.0,
 				r * cos(COMPASS_PITCH) * cos(_cine_t))
 			target_look = cc
-		CamMode.TOP_ZONE:   # classic overhead, north up, centred on the player (or the selected
-			# target) so you stay in view; the wheel just widens the span (up to ~3x3 zones).
-			var tz_focus := _player
-			var tz_sel = inspector.selected_tile() if inspector != null else null
-			if tz_sel != null:
-				tz_focus = Vector3(tz_sel.x, 0.0, tz_sel.y)
-			target_eye = tz_focus + Vector3(0, TOP_H, 0)
-			target_look = tz_focus
 		CamMode.TOP_FOLLOW:  # classic overhead, north up, tracking the player
 			target_eye = _player + Vector3(0, TOP_H, 0)
 			target_look = _player
@@ -540,7 +531,7 @@ func _update_camera(dt: float) -> void:
 		_eye = _eye.lerp(target_eye, k)
 		_look = _look.lerp(target_look, k)
 
-	var top := _mode == CamMode.TOP_ZONE or _mode == CamMode.TOP_FOLLOW
+	var top := _mode == CamMode.TOP_FOLLOW
 	_apply_top_down_camera(top)
 	_pivot.position = Vector3.ZERO
 	_cam.position = _eye
@@ -551,7 +542,7 @@ func _update_camera(dt: float) -> void:
 
 ## Orthographic + DOF-off while overhead (a flat classic map, no perspective skew and
 ## no distance blur), perspective otherwise. Ortho `size` is the view's vertical span
-## in cells: TOP_FOLLOW uses the zoom distance; TOP_ZONE fits the whole zone.
+## in cells: the TOP_FOLLOW span scaled by the wheel/R-F zoom.
 func _apply_top_down_camera(top: bool) -> void:
 	if top:
 		if _cam.projection != Camera3D.PROJECTION_ORTHOGONAL:
@@ -564,14 +555,7 @@ func _apply_top_down_camera(top: bool) -> void:
 		attrs.dof_blur_far_enabled = not top
 
 func _top_ortho_size() -> float:
-	if _mode == CamMode.TOP_FOLLOW:
-		return TOP_FOLLOW_SPAN * _top_zoom
-	# TOP_ZONE: geometric zoom from 3 tiles (tightest) to a 3x3-zone view (widest), so the
-	# range is bounded and sane instead of scaling the whole-zone fit without limit.
-	var vp := get_viewport().get_visible_rect().size
-	var aspect: float = vp.x / maxf(1.0, vp.y)
-	var wide: float = maxf(3.0 * _zone_dims.y, 3.0 * _zone_dims.x / maxf(0.01, aspect))
-	return TOP_ZONE_MIN_SPAN * pow(wide / TOP_ZONE_MIN_SPAN, _top_zone_frac())
+	return TOP_FOLLOW_SPAN * _top_zoom
 
 func _aim_dir() -> Vector3:
 	return Vector3(cos(_pitch) * sin(_yaw + PI), -sin(_pitch), cos(_pitch) * cos(_yaw + PI))
@@ -606,7 +590,7 @@ func _fly(dt: float) -> void:
 ## The direction the camera looks ALONG on the ground plane, per mode. FOLLOW
 ## trails your last step; COMPASS / FIRST_PERSON use the locked compass heading.
 func _camera_heading() -> Vector3:
-	if _mode == CamMode.TOP_ZONE or _mode == CamMode.TOP_FOLLOW:
+	if _mode == CamMode.TOP_FOLLOW:
 		return NORTH   # north-up map: screen-forward is always north, whatever the yaw
 	var h: Vector3 = _facing3() if _mode == CamMode.FOLLOW else _compass_dir()
 	h.y = 0.0
@@ -644,14 +628,14 @@ func _set_mode(m: int) -> void:
 		_pan = Vector3.ZERO
 	# snap (don't lerp) across a top-down boundary: the NORTH up-vector can be
 	# parallel to a north/south view direction mid-lerp, a degenerate look_at
-	var leaving_top := _mode == CamMode.TOP_ZONE or _mode == CamMode.TOP_FOLLOW
-	var entering_top := m == CamMode.TOP_ZONE or m == CamMode.TOP_FOLLOW
+	var leaving_top := _mode == CamMode.TOP_FOLLOW
+	var entering_top := m == CamMode.TOP_FOLLOW
 	if leaving_top or entering_top:
 		_snap_cam = true
 	_mode = m
 	if renderer != null:
 		# lay tile billboards flat for the straight-down modes, stand them up otherwise
-		renderer.set_top_down(m == CamMode.TOP_ZONE or m == CamMode.TOP_FOLLOW)
+		renderer.set_top_down(m == CamMode.TOP_FOLLOW)
 	_update_mode_label()
 
 ## One gesture -> everything a collaborator needs about a tile. Photograph the BARE
@@ -847,7 +831,6 @@ const _MODE_NAMES := {
 	CamMode.CINEMATIC: "CINEMATIC — frames you + selected tile",
 	CamMode.MOUSE: "ORBIT — drag around the selected tile",
 	CamMode.KEYBOARD: "FLY — WASD move, arrows aim",
-	CamMode.TOP_ZONE: "TOP-DOWN ZONE — classic overhead · north up · wheel/R-F zoom",
 	CamMode.TOP_FOLLOW: "TOP-DOWN FOLLOW — classic overhead · north up · tracks you · R/F zoom",
 }
 
@@ -877,7 +860,7 @@ func _build_debug_menu() -> void:
 	_debug_menu_title = title
 	vb.add_child(title)
 	for m in [CamMode.COMPASS, CamMode.FOLLOW, CamMode.FIRST_PERSON, CamMode.CINEMATIC,
-			CamMode.MOUSE, CamMode.KEYBOARD, CamMode.TOP_ZONE, CamMode.TOP_FOLLOW]:
+			CamMode.MOUSE, CamMode.KEYBOARD, CamMode.TOP_FOLLOW]:
 		var b := Button.new()
 		b.text = "%d  %s" % [m + 1, String(_MODE_NAMES[m]).split(" —")[0].split(" ·")[0]]
 		# click-only: don't take keyboard focus, or a focused button would swallow the
@@ -995,7 +978,7 @@ func _load_settings() -> void:
 	if m >= 0 and m <= CamMode.TOP_FOLLOW:
 		_mode = m
 		if renderer != null:
-			renderer.set_top_down(m == CamMode.TOP_ZONE or m == CamMode.TOP_FOLLOW)
+			renderer.set_top_down(m == CamMode.TOP_FOLLOW)
 
 func _toggle_debug_menu() -> void:
 	if _debug_menu != null:
@@ -1009,6 +992,9 @@ func _update_debug_menu() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
+		# Shift+Space: wait a turn in Qud (a Godot->Qud passthrough). Takes a turn for now.
+		if event.shift_pressed and event.keycode == KEY_SPACE:
+			client.send_command("wait", {}); return
 		# mode switches first — they reassign what the arrows mean
 		if event.shift_pressed and event.keycode == KEY_C:
 			_set_mode(CamMode.MOUSE); return
@@ -1023,8 +1009,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.keycode == KEY_4: _set_mode(CamMode.CINEMATIC); return
 		if event.keycode == KEY_5: _set_mode(CamMode.MOUSE); return
 		if event.keycode == KEY_6: _set_mode(CamMode.KEYBOARD); return
-		if event.keycode == KEY_7: _set_mode(CamMode.TOP_ZONE); return
-		if event.keycode == KEY_8: _set_mode(CamMode.TOP_FOLLOW); return
+		if event.keycode == KEY_7: _set_mode(CamMode.TOP_FOLLOW); return
 		if event.keycode == KEY_QUOTELEFT:      # ` toggles the debug menu
 			_toggle_debug_menu(); return
 		# Q/E rotate the locked compass heading 90° (COMPASS mode only)
@@ -1093,13 +1078,13 @@ func _unhandled_input(event: InputEvent) -> void:
 					_panning = event.pressed and _mode == CamMode.MOUSE
 			MOUSE_BUTTON_WHEEL_UP:
 				if event.pressed:
-					if _mode == CamMode.TOP_ZONE or _mode == CamMode.TOP_FOLLOW:
+					if _mode == CamMode.TOP_FOLLOW:
 						_top_zoom = clampf(_top_zoom * 0.9, TOP_ZOOM_MIN, TOP_ZOOM_MAX)
 					else:
 						_dist = clampf(_dist * 0.9, DIST_MIN, DIST_MAX)
 			MOUSE_BUTTON_WHEEL_DOWN:
 				if event.pressed:
-					if _mode == CamMode.TOP_ZONE or _mode == CamMode.TOP_FOLLOW:
+					if _mode == CamMode.TOP_FOLLOW:
 						_top_zoom = clampf(_top_zoom * 1.1, TOP_ZOOM_MIN, TOP_ZOOM_MAX)
 					else:
 						_dist = clampf(_dist * 1.1, DIST_MIN, DIST_MAX)

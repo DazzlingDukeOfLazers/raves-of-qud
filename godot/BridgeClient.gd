@@ -6,6 +6,7 @@ class_name BridgeClient
 ## Frame format matches mod/Protocol.cs: [4-byte big-endian length][UTF-8 JSON].
 
 signal snapshot(data: Dictionary)
+signal connected   # fires each time the bridge (re)connects
 
 const HOST := "127.0.0.1"
 const PORT := 48710  # keep in sync with mod/Protocol.cs DefaultPort
@@ -30,6 +31,7 @@ func _process(dt: float) -> void:
 			if not _connected:
 				_connected = true
 				print("Raves bridge: connected")
+				connected.emit()
 			_drain()
 		StreamPeerTCP.STATUS_ERROR, StreamPeerTCP.STATUS_NONE:
 			if _connected:

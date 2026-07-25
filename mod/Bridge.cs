@@ -220,6 +220,14 @@ namespace RavesOfQud
                         Keyboard.PushCommand("CmdMove" + dir, null);
                     return;
                 }
+                if (name == "wait")
+                {
+                    // Wait one turn (Qud's CmdWait). Wakes the turn thread like a move, so it
+                    // publishes a fresh snapshot even when the player is idle (used to prime the
+                    // first render on load). NB: this DOES pass a turn.
+                    Keyboard.PushCommand("CmdWait", null);
+                    return;
+                }
             }
             catch (Exception e) { try { Server.Log("onpayload error: " + e.Message); } catch { } }
             // not consumed inline -> hand to the main-thread drain
