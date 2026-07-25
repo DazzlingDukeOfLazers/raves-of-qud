@@ -146,7 +146,7 @@ var _flame_tex: Texture2D
 var _smoke_pm: ParticleProcessMaterial   # shared across every sconce's smoke emitter
 var _smoke_mesh: QuadMesh                 # shared grey square, billboarded
 var _mote_tex: Texture2D                  # small glowing dot for glowfish orbiters
-var _glow_shader: Shader                  # bioluminescent halo bloomed from the fish silhouette
+var _aura_tex: Texture2D                  # soft cyan bioluminescent aura around glowfish
 var _lights: Array = []           # [{glow, flame, smoke, energy}]
 var _orbiters: Array = []         # glowfish "bugs": [{root, motes:[{s, ...orbit params}]}]
 var _glowers: Array = []          # live glowfish sprites, pulsed brighter each frame in _process
@@ -221,7 +221,7 @@ func _ready() -> void:
 	_flame_tex = _make_radial(32, Color(1.0, 0.80, 0.35), 1.6)  # tighter, brighter core
 	_mote_tex = _make_radial(16, Color(0.65, 1.0, 0.85), 1.5)   # glowfish bioluminescent mote (cyan-green)
 	_build_smoke_resources()
-	_build_glow_shader()
+	_aura_tex = _make_radial(64, Color(0.4, 1.0, 0.85), 1.0)   # soft cyan glowfish aura
 
 # A radial gradient: opaque tint at the centre fading to transparent, `power`
 # shapes the falloff. Used additively for both the glow and the flame core.
@@ -885,64 +885,22 @@ func _make_orbiters(cx: int, cy: int) -> void:
 
 # --- glowfish bioluminescent glow -------------------------------------------
 
-const GLOW_COLOR := Color(0.45, 1.0, 0.9)   # cyan-green bioluminescence (matches the motes)
+const AURA_SIZE := 1.2          # world-unit diameter of the cyan glow around a glowfish
 
-## A camera-facing quad behind the fish whose shader blooms an additive halo out of the
-## fish silhouette (sampled from the fish texture's alpha), pulsing on TIME. The fish's
-## own body is brightened separately via a modulate pulse in _process (kept aligned that
-## way, since a Sprite3D's modulate is honoured when it has no material_override).
-func _build_glow_shader() -> void:
-	_glow_shader = Shader.new()
-	_glow_shader.code = """
-shader_type spatial;
-render_mode blend_add, unshaded, cull_disabled, depth_draw_never, shadows_disabled;
-uniform sampler2D fish_tex : source_color, filter_nearest;
-uniform vec3 glow_color = vec3(0.45, 1.0, 0.9);
-uniform float halo_uv = 0.09;   // silhouette dilation, in UV
-uniform float strength = 1.1;
-uniform float pulse_speed = 2.5;
-void vertex() {
-	// billboard: face the camera, preserving the quad's scale
-	mat4 mv = VIEW_MATRIX * mat4(INV_VIEW_MATRIX[0], INV_VIEW_MATRIX[1], INV_VIEW_MATRIX[2], MODEL_MATRIX[3]);
-	MODELVIEW_MATRIX = mv * mat4(
-		vec4(length(MODEL_MATRIX[0].xyz), 0.0, 0.0, 0.0),
-		vec4(0.0, length(MODEL_MATRIX[1].xyz), 0.0, 0.0),
-		vec4(0.0, 0.0, length(MODEL_MATRIX[2].xyz), 0.0),
-		vec4(0.0, 0.0, 0.0, 1.0));
-}
-void fragment() {
-	float here = texture(fish_tex, UV).a;
-	float around = 0.0;
-	for (int i = 0; i < 8; i++) {
-		float ang = float(i) / 8.0 * 6.2831853;
-		vec2 d = vec2(cos(ang), sin(ang));
-		around += texture(fish_tex, UV + d * halo_uv).a;
-		around += texture(fish_tex, UV + d * halo_uv * 0.5).a;
-	}
-	around /= 16.0;
-	float halo = clamp(around - here, 0.0, 1.0);   // bloom OUTSIDE the silhouette
-	float pulse = 0.7 + 0.3 * sin(TIME * pulse_speed);
-	ALBEDO = glow_color;
-	ALPHA = clamp(halo * strength * pulse, 0.0, 1.0);
-}
-"""
-
-## Hang the glow halo behind a glowfish sprite `s`, matched to its footprint. `s` gets
-## registered for the body-brightness pulse.
-func _add_glow(s: Sprite3D, tex: Texture2D) -> void:
-	_glowers.append(s)
-	var ab := s.get_aabb()
-	var mat := ShaderMaterial.new()
-	mat.shader = _glow_shader
-	mat.set_shader_parameter("fish_tex", tex)
-	mat.set_shader_parameter("glow_color", Vector3(GLOW_COLOR.r, GLOW_COLOR.g, GLOW_COLOR.b))
-	var q := MeshInstance3D.new()
-	var qm := QuadMesh.new()
-	qm.size = Vector2(ab.size.x, ab.size.y) * 1.5   # bigger than the fish so the halo has room
-	q.mesh = qm
-	q.material_override = mat
-	q.position = s.position                          # centred on the visible fish
-	_bank.add_child(q)   # into _dynamic_root, freed + rebuilt each step
+## Add a soft additive cyan aura at a glowfish sprite `s` (the proven flame-ball technique,
+## recoloured) + register both aura and fish for the _process pulse. The aura carries the
+## visible glow; the fish body gets a lighter modulate brighten alongside it.
+func _add_glow(s: Sprite3D, _tex: Texture2D) -> void:
+	var aura := Sprite3D.new()
+	aura.texture = _aura_tex
+	aura.pixel_size = AURA_SIZE / 64.0        # _aura_tex is 64px
+	aura.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	aura.shaded = false
+	aura.transparent = true
+	aura.material_override = _fx_material(_aura_tex)   # additive cyan
+	aura.position = s.position
+	_bank.add_child(aura)                     # into _dynamic_root, freed + rebuilt each step
+	_glowers.append({"aura": aura, "fish": s})
 
 ## Flicker: jitter each light's brightness a little every frame, so torches read
 ## as fire rather than steady lamps. Cheap — modulate the additive quads' alpha.
@@ -974,13 +932,14 @@ func _process(_dt: float) -> void:
 				var ct: float = cos(m["tilt"]); var st: float = sin(m["tilt"])
 				(m["s"] as Sprite3D).position = Vector3(x * ct - z * st, y, x * st + z * ct)
 
-	# Glowfish body: pulse the sprite brighter/cyan (modulate works — the fish sprite has
-	# no material_override). The halo quad pulses on its own via TIME; close enough in sync.
+	# Glowfish glow: pulse the additive cyan aura (via transparency — modulate is ignored
+	# under the additive material_override) and give the fish body a lighter modulate lift.
 	if not _glowers.is_empty():
-		var gp: float = 0.7 + 0.3 * sin(Time.get_ticks_msec() / 1000.0 * 2.5)
-		var body := Color(1, 1, 1).lerp(Color(1.35, 1.7, 1.6), gp)   # >1 = over-bright
-		for s in _glowers:
-			(s as Sprite3D).modulate = body
+		var gp: float = 0.55 + 0.45 * sin(Time.get_ticks_msec() / 1000.0 * 2.5)   # 0.1..1.0
+		var body := Color(1, 1, 1).lerp(Color(1.3, 1.6, 1.55), gp)               # >1 = over-bright
+		for g in _glowers:
+			(g["aura"] as Sprite3D).transparency = clampf(1.0 - gp, 0.0, 1.0)
+			(g["fish"] as Sprite3D).modulate = body
 
 func _is_prism(obj: Dictionary) -> bool:
 	# a user verdict wins outright — that's the point of filing one
