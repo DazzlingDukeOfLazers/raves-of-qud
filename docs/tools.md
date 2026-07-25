@@ -235,6 +235,20 @@ python3 tools/capture/harness.py drive NE 4 --keys       # via real OS keystroke
 python3 tools/capture/harness.py drive N 3 --pace 0.6    # slower, for an audience
 ```
 
+**`qud.py` — app lifecycle (the recompile-and-resume loop in one command).** The mod only compiles at
+app startup, so iterating on it means quit → (redeploy) → start → load. `qud.py` automates that:
+```
+python3 tools/capture/qud.py status     # running? window up? in-game(bridge)?
+python3 tools/capture/qud.py quit        # graceful Apple-Event quit -> SIGTERM -> SIGKILL
+python3 tools/capture/qud.py start        # launch via Steam (rungameid/333640), wait for the window
+python3 tools/capture/qud.py load         # main menu: press C (Continue) -> Return (most-recent save)
+python3 tools/capture/qud.py restart      # quit + start + load, all three
+```
+`load` is keyboard-based (the `C` Continue shortcut + `Return` on the pre-selected latest save, from
+decompiling `Qud.UI.MainMenu`), so it needs no menu-position calibration — just Accessibility for the
+keystrokes. `quit`/`start`/`status` need no permissions. Verified full cycle: quit → start → load → back
+in-game on the current build.
+
 **Gotchas (hard-won):**
 - **Accessibility** is required for synthetic input (not for `bounds`/`activate`). The host process is the
   app running the commands — for Claude that's the **lowercase `claude`** helper in Privacy & Security >
