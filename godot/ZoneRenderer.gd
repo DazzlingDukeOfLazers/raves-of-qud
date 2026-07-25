@@ -42,7 +42,6 @@ const SINK_SWIM := 0.72    # ... and swimming depth
 # present we swap that cell's water to a translucent variant and draw the creature
 # UNCROPPED, so it reads through the surface. Deep water is opaque otherwise.
 const WATER_REVEAL_ALPHA := 0.5   # opacity of the water over an occupied cell
-const REVEAL_SINK := 0.0          # how much of the revealed creature to still crop (0 = show all)
 var _water_quads := {}            # live deep-water cells: Vector2i -> {node, opaque, clear}
 var _water_revealed: Array = []   # cells switched to translucent this step (restored next step)
 
@@ -413,11 +412,14 @@ func _rebuild_dynamics(cells: Array) -> void:
 				# If this creature sits in registered deep water, reveal it: make the
 				# water translucent and draw the creature uncropped so it shows through.
 				var reveal: bool = _water_quads.has(cellv)
-				if reveal and not _water_revealed.has(cellv):
-					var w = _water_quads[cellv]
-					w["node"].material_override = w["clear"]
-					_water_revealed.append(cellv)
-				_place_nonwall(obj, cx, cy, idx, false, (REVEAL_SINK if reveal else sink), wet, false)
+				if reveal:
+					if not _water_revealed.has(cellv):
+						var w = _water_quads[cellv]
+						w["node"].material_override = w["clear"]
+						_water_revealed.append(cellv)
+					_place_creature_flat(obj, cx, cy)   # lie it under the translucent surface
+				else:
+					_place_nonwall(obj, cx, cy, idx, false, sink, wet, false)
 				# A lit creature (NPC with a torch/glowsphere, a glowfish) carries its light
 				# with it — placed here every step so it tracks the creature. No smoke: a moving
 				# torch shouldn't trail a plume, and glow-critters aren't fire. (_live_build is
@@ -1162,6 +1164,23 @@ func _is_glowfish(obj: Dictionary) -> bool:
 ## creature, so these are the cells we make translucent when one is present.
 func _is_deep_water_tile(tile: String) -> bool:
 	return tile.to_lower().contains("liquids/water/deep")
+
+## Draw a revealed submerged creature FLAT on the water bed — a horizontal decal just
+## under the translucent surface — so it reads as *under* the water, not standing on it.
+## (Deep water is faked as a flat near-ground quad, so an upright billboard looks beached.)
+func _place_creature_flat(obj: Dictionary, cx: int, cy: int) -> void:
+	var tile := String(obj.get("tile", ""))
+	var tex := _colored_tex_rgb(tile, _obj_main(obj), _obj_detail(obj), _color_key(obj))
+	if tex == null:
+		return
+	var f := _take_floor()
+	f.material_override = _mesh_material(tile, _obj_main(obj), _obj_detail(obj), tex)
+	var sz := tex.get_size()
+	var aspect: float = (sz.x / sz.y) if sz.y > 0.0 else 1.0   # keep the art's proportions
+	f.scale = Vector3(aspect, 1.0, 1.0)
+	f.position = Vector3(cx, FLOOR_Y + LAYER_LIFT, cy)         # beneath the water surface quad
+	f.visible = true
+	_track(f)
 
 func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, sink := 0.0, wet := false, skip_creatures := false) -> void:
 	# Static builds exclude creatures (they render per step in _rebuild_dynamics);
