@@ -17,7 +17,8 @@ Examples:
     python3 tools/capture/control.py move N 5            # five steps
     python3 tools/capture/control.py cam 1               # compass camera
     python3 tools/capture/control.py shot                # Godot screenshot -> shot.png
-    python3 tools/capture/control.py go N 3 shot         # 3 steps N, then screenshot
+    python3 tools/capture/control.py qudshot             # QUD's own screen -> qud_shot.png (no Godot needed)
+    python3 tools/capture/control.py go N 3 qudshot      # 3 steps N, then read Qud's map (the dev loop)
 
 Requires Qud running with the bridge mod, and (for `shot`/`cam`) the Raves viewer open.
 """
@@ -32,7 +33,8 @@ PORT = 48710
 DIRS = {"N", "S", "E", "W", "NE", "NW", "SE", "SW"}
 BASE = os.path.expanduser("~/Library/Application Support/RavesOfQud")
 GODOT_CMD = os.path.join(BASE, "godot_cmd")
-SHOT = os.path.join(BASE, "shot.png")
+SHOT = os.path.join(BASE, "shot.png")          # Godot viewer's own screenshot
+QUD_SHOT = os.path.join(BASE, "qud_shot.png")  # Qud's own rendered screen (ScreenCapture)
 
 
 class Bridge:
@@ -107,6 +109,24 @@ def godot_shot(wait=6.0):
     return False
 
 
+def qud_shot(wait=8.0):
+    """Ask QUD to screenshot ITSELF (qud_shot.png) straight over the bridge — no Godot
+    needed. Blocks until the file updates. Works while Qud is UNFOCUSED: ScreenCapture
+    forces a render of the current buffer, so the image reflects true current state even
+    though the live window doesn't repaint in the background (a macOS compositor limit).
+    This is the map read-back for automated dev/debug/test loops."""
+    before = os.path.getmtime(QUD_SHOT) if os.path.exists(QUD_SHOT) else 0
+    b = Bridge()
+    b.send("shot")
+    b.close()
+    deadline = time.time() + wait
+    while time.time() < deadline:
+        if os.path.exists(QUD_SHOT) and os.path.getmtime(QUD_SHOT) > before:
+            return True
+        time.sleep(0.15)
+    return False
+
+
 def main(argv):
     if not argv:
         sys.exit(__doc__)
@@ -130,6 +150,8 @@ def main(argv):
         print("godot: fp height", argv[1])
     elif cmd == "shot":
         print("shot.png updated" if godot_shot() else "shot: TIMED OUT (is the viewer open?)")
+    elif cmd == "qudshot":
+        print("qud_shot.png updated" if qud_shot() else "qudshot: TIMED OUT (is Qud running?)")
     elif cmd == "go":
         # a mini script: `go N 3 shot`  -> move N 3, then screenshot
         b = Bridge()
@@ -143,6 +165,11 @@ def main(argv):
             elif tok == "shot":
                 b.close()
                 print("shot.png updated" if godot_shot() else "shot: TIMED OUT")
+                b = Bridge()
+                i += 1
+            elif tok == "qudshot":
+                b.close()
+                print("qud_shot.png updated" if qud_shot() else "qudshot: TIMED OUT")
                 b = Bridge()
                 i += 1
             else:

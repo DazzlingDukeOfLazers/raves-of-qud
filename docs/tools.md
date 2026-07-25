@@ -146,8 +146,19 @@ keyboard. Two channels:
 python3 tools/capture/control.py pos          # player cell + zone
 python3 tools/capture/control.py move N 5      # five steps north
 python3 tools/capture/control.py cam 1         # compass camera
-python3 tools/capture/control.py shot          # Godot screenshot -> shot.png (read it)
+python3 tools/capture/control.py shot          # Godot viewer screenshot -> shot.png (read it)
+python3 tools/capture/control.py qudshot       # QUD's own rendered map -> qud_shot.png (read it)
+python3 tools/capture/control.py go N 3 qudshot  # drive + read Qud's map in one call (the dev loop)
 ```
+
+**The automated dev/debug/test loop.** Claude drives blind and reads back the result — no live
+window or focus needed. `qudshot` sends `shot` straight over the bridge; the mod's `ScreenCapture`
+forces a render of the current buffer (which `RenderBase` keeps current every turn), so `qud_shot.png`
+shows Qud's TRUE current map even while the window is unfocused/backgrounded — verified: driving through
+a marsh, the capture's message log read back "You pass by a watervine". So a loop is:
+`go <dirs> qudshot` → read `qud_shot.png` (Qud's render) + `shot.png` (the Godot viewer) + the snapshot
+JSON (position/cells) → decide the next move. The live-window macOS present limit (above) does NOT affect
+this — captures are on-demand.
 
 **Driving an UNFOCUSED Qud works** (build `2026-07-24k+`). Movement can be issued whether or not
 Qud is the foremost window, so you can press arrows in the Godot window (or run control.py) with Qud
