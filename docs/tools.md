@@ -167,9 +167,17 @@ unfocused). This took two coupled fixes — see below.
   `OnApplicationFocus(false)` flips that flag, so a backgrounded window parks the whole turn thread and
   injected commands sit unprocessed until it regains focus (symptom: moves flush in a burst the instant
   you click Qud). Fix: a watchdog thread (`Bridge.StartFocusKeeper`) holds `GameManager.focused = true`
-  while a bridge client is connected. `runInBackground` is unrelated — that governs Unity's *render*
-  loop; the turn logic is a separate thread gated only by `focused`. Harmony (the clean way to patch
-  `OnApplicationFocus`) is blocked on macOS, hence the watchdog.
+  while a bridge client is connected. Harmony (the clean way to patch `OnApplicationFocus`) is blocked
+  on macOS, hence the watchdog.
+- **The render gate (second, independent).** The turn thread processing a move is only *half* — Qud's
+  own map won't repaint unless Unity keeps its MAIN-THREAD render loop running, which it pauses for a
+  backgrounded window unless `Application.runInBackground` is set. Symptom of missing this: messages
+  fire but Qud's map freezes until you focus it (the Godot viewer still updates — it just consumes the
+  snapshot). Gotcha: `Application.runInBackground` is **main-thread only**; the mod first set it from
+  `Bridge.Tick` (turn thread), where it threw and a `catch {}` ate it. Fix: marshal it onto the main
+  thread via `GameManager.uiQueue` (see `Bridge.Tick`) — verified with `runInBackground = True` in
+  Player.log and a fresh `qud_shot.png` captured while unfocused. So: **focus-keeper = commands process,
+  runInBackground = Qud's map repaints** — both needed for full in-sync unfocused operation.
 - The focus override is gated on `ClientCount > 0`, so solo play (no viewer attached) keeps Qud's normal
   pause-on-unfocus. While the viewer is connected + idle, Qud sits ~10% CPU (animation frames), not a spin.
 - A blocked player (marsh/water/wall) applies the move but doesn't change cells — check the position,
