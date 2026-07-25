@@ -179,6 +179,9 @@ _KEYCODES = {
     "Delete": 51, "Backspace": 51, "Up": 126, "Down": 125, "Left": 123, "Right": 124,
     "F1": 122, "F2": 120, "F3": 99, "F4": 118, "F5": 96, "F6": 97, "F7": 98, "F8": 100,
     "F9": 101, "F10": 109, "F11": 103, "F12": 111,
+    # numpad — Qud's default 8-way movement (works without a physical numpad)
+    "KP0": 82, "KP1": 83, "KP2": 84, "KP3": 85, "KP4": 86, "KP5": 87,
+    "KP6": 88, "KP7": 89, "KP8": 91, "KP9": 92,
 }
 
 

@@ -224,6 +224,17 @@ python3 tools/capture/desktop.py clickin Qud 0.21 0.974   # click a FRACTION of 
 position in the PNG → `desktop.py clickin Qud fx fy` → `qudshot` again → confirm the effect. Proven by
 clicking the Sprint button: "You begin sprinting!", MS 100→200.
 
+**`harness.py` — drive with BOTH windows live (side-by-side human demos).** On macOS only the focused
+window renders live; Godot renders unfocused now (force_draw) but Qud can't — so `harness.py` keeps QUD
+focused (Godot mirrors in the background) and drives from there. Both stay in sync. (Driving from Godot's
+own keys is the one config that can't work — it leaves Qud unfocused/frozen.)
+```
+python3 tools/capture/harness.py drive N 3 E 2 S 3 W 2   # walk a square, both windows live
+python3 tools/capture/harness.py drive N 5 --shot        # then capture both renders
+python3 tools/capture/harness.py drive NE 4 --keys       # via real OS keystrokes (numpad) vs the bridge
+python3 tools/capture/harness.py drive N 3 --pace 0.6    # slower, for an audience
+```
+
 **Gotchas (hard-won):**
 - **Accessibility** is required for synthetic input (not for `bounds`/`activate`). The host process is the
   app running the commands — for Claude that's the **lowercase `claude`** helper in Privacy & Security >
