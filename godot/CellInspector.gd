@@ -108,13 +108,40 @@ func inspect_at_mouse() -> void:
 	var hit = _ground_hit()
 	if hit == null:
 		return
-	var cx := roundi(hit.x)
-	var cy := roundi(hit.z)
-	_selected = Vector2i(cx, cy)
+	var cell := _pick_cell(hit)
+	var cx := cell.x
+	var cy := cell.y
+	_selected = cell
 	var report := build_report(cx, cy, hit)
 	_show(report, cx, cy)
 	DisplayServer.clipboard_set(report)
 	_write(report)
+
+func _occupied(c: Vector2i) -> bool:
+	return _by_cell.has(c) and (_by_cell[c].get("objs", []) as Array).size() > 0
+
+## Ground-plane picking lands the ray on the cell the ray reaches at y=0. For a
+## raised wall that is the empty cell BEHIND it (away from the camera) — the parallax
+## noted on _ground_hit. Because that overshoot is always away from the camera, when
+## the hit cell is empty we march the hit point back TOWARD the camera and snap to the
+## first occupied cell: the wall the user actually clicked. Accurate picks (overhead,
+## or clicking bare ground with nothing between) return the hit cell unchanged.
+func _pick_cell(hit: Vector3) -> Vector2i:
+	var cell := Vector2i(roundi(hit.x), roundi(hit.z))
+	if _occupied(cell) or _cam == null:
+		return cell
+	var dir := _cam.project_ray_normal(get_viewport().get_mouse_position())
+	var back := Vector2(-dir.x, -dir.z)      # toward the camera, on the ground plane
+	if back.length() < 1e-6:
+		return cell
+	back = back.normalized()
+	var p := Vector2(hit.x, hit.z)
+	const STEP := 0.34
+	for i in range(1, 13):                    # up to ~4 cells toward the camera
+		var c := Vector2i(roundi(p.x + back.x * STEP * i), roundi(p.y + back.y * STEP * i))
+		if c != cell and _occupied(c):
+			return c
+	return cell
 
 # --- the report -------------------------------------------------------------
 
