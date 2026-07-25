@@ -65,13 +65,35 @@ namespace RavesOfQud
         {
             BridgeServer server = Server;
 
-            // Keep Qud's game loop ticking when its window is unfocused, so an external
-            // driver (control.py) can move the player without the app being foremost.
-            // Safe to set here: the first Tick runs at startup while Qud is focused.
+            // Keep Unity RENDERING the window while it's unfocused, so Qud's own map
+            // repaints in sync with commands we drive from Godot. Unity pauses the
+            // main-thread render loop for a backgrounded window unless runInBackground
+            // is set — and Application.runInBackground is MAIN-THREAD ONLY. This Tick
+            // runs on Qud's TURN thread (EndTurnEvent), so setting it here throws and
+            // the old `catch {}` silently ate it, leaving the map frozen. Marshal it
+            // onto the UI/main thread via uiQueue, which drains now (startup, focused).
+            // (The focus-keeper thread handles the separate TURN-thread focus gate.)
             if (!_ranInBackground)
             {
-                try { UnityEngine.Application.runInBackground = true; } catch { }
                 _ranInBackground = true;
+                try
+                {
+                    GameManager gm = GameManager.Instance;
+                    if (gm != null && gm.uiQueue != null)
+                    {
+                        gm.uiQueue.queueTask(() =>
+                        {
+                            try
+                            {
+                                UnityEngine.Application.runInBackground = true;
+                                server.Log("[raves] runInBackground (main thread) = "
+                                    + UnityEngine.Application.runInBackground);
+                            }
+                            catch (Exception e) { server.Log("runInBackground set failed: " + e.Message); }
+                        }, 0);
+                    }
+                }
+                catch (Exception e) { server.Log("runInBackground marshal failed: " + e.Message); }
             }
 
             // (1) apply input — MAIN THREAD ONLY.
