@@ -141,7 +141,9 @@ var _glow_tex: Texture2D
 var _flame_tex: Texture2D
 var _smoke_pm: ParticleProcessMaterial   # shared across every sconce's smoke emitter
 var _smoke_mesh: QuadMesh                 # shared grey square, billboarded
-var _lights: Array = []           # [{glow, flame, energy}]
+var _mote_tex: Texture2D                  # small glowing dot for glowfish orbiters
+var _lights: Array = []           # [{glow, flame, smoke, energy}]
+var _orbiters: Array = []         # glowfish "bugs": [{root, motes:[{s, ...orbit params}]}]
 
 # Torches are ADDITIVE — they brighten whatever is behind them by a fixed amount
 # regardless of time of day. That reads great at night but blows out the already-bright
@@ -218,6 +220,7 @@ func _ready() -> void:
 	add_child(_dynamic_root)
 	_glow_tex = _make_radial(64, Color(1.0, 0.62, 0.25), 1.0)   # warm pool of light
 	_flame_tex = _make_radial(32, Color(1.0, 0.80, 0.35), 1.6)  # tighter, brighter core
+	_mote_tex = _make_radial(16, Color(0.65, 1.0, 0.85), 1.5)   # glowfish bioluminescent mote (cyan-green)
 	_build_smoke_resources()
 
 # A radial gradient: opaque tint at the centre fading to transparent, `power`
@@ -374,6 +377,7 @@ func _build_static(id: String, cells: Array) -> void:
 func _rebuild_dynamics(cells: Array) -> void:
 	for c in _dynamic_root.get_children():
 		c.free()
+	_orbiters.clear()           # those orbiter roots were children of _dynamic_root (just freed)
 	_bank = _dynamic_root
 	_noting = false
 	for cell in cells:
@@ -387,6 +391,8 @@ func _rebuild_dynamics(cells: Array) -> void:
 		for obj in cell.get("objs", []):
 			if not _is_prism(obj) and _is_creature(obj):
 				_place_nonwall(obj, cx, cy, idx, false, sink, wet, false)
+				if _is_glowfish(obj):
+					_make_orbiters(cx, cy)     # bioluminescent bugs circling the fish
 			idx += 1
 	_noting = true
 	_bank = null
@@ -817,6 +823,45 @@ func _make_smoke() -> GPUParticles3D:
 	p.visibility_aabb = AABB(Vector3(-1.0, -0.5, -1.0), Vector3(2.0, SMOKE_RISE * SMOKE_LIFETIME + 1.5, 2.0))
 	return p
 
+# --- glowfish orbiters ("bugs") ---------------------------------------------
+
+const ORBIT_COUNT := 4          # motes per glowfish
+const ORBIT_CENTER_Y := 0.5     # orbit centre height above the cell floor
+
+## Deterministic 0..1 from a glowfish cell + slot, so a fish's orbit params are stable
+## across the per-step rebuilds (only changing when it actually swims to a new cell).
+## Paired with a global-time angle in _process, this makes the rebuild invisible.
+func _fish_rand(cx: int, cy: int, i: int, salt: int) -> float:
+	return float(hash("%d,%d,%d,%d" % [cx, cy, i, salt]) % 100000) / 100000.0
+
+## A cluster of glowing motes on tilted, elliptical, varied-speed orbits — "bugs circling
+## in weird orbits". Positions are animated in _process; here we just spawn + seed them.
+func _make_orbiters(cx: int, cy: int) -> void:
+	var root := Node3D.new()
+	root.position = Vector3(cx, ORBIT_CENTER_Y, cy)
+	var motes: Array = []
+	for i in ORBIT_COUNT:
+		var s := Sprite3D.new()
+		s.texture = _mote_tex
+		s.pixel_size = 0.006
+		s.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		s.shaded = false
+		s.transparent = true
+		s.material_override = _fx_material(_mote_tex)   # additive glow
+		root.add_child(s)
+		motes.append({
+			"s": s,
+			"phase":  _fish_rand(cx, cy, i, 1) * TAU,
+			"speed":  1.1 + _fish_rand(cx, cy, i, 2) * 2.0,           # rad/s, varied per mote
+			"radius": 0.26 + _fish_rand(cx, cy, i, 3) * 0.22,
+			"ellip":  0.35 + _fish_rand(cx, cy, i, 4) * 0.55,         # squash -> ellipse
+			"tilt":   _fish_rand(cx, cy, i, 5) * TAU,                 # orbit-plane spin about Y
+			"yamp":   0.10 + _fish_rand(cx, cy, i, 6) * 0.20,         # vertical bob amplitude
+			"dir":    (1.0 if _fish_rand(cx, cy, i, 7) < 0.5 else -1.0),
+		})
+	_bank.add_child(root)   # into _dynamic_root (freed + rebuilt each step)
+	_orbiters.append({"root": root, "motes": motes})
+
 ## Flicker: jitter each light's brightness a little every frame, so torches read
 ## as fire rather than steady lamps. Cheap — modulate the additive quads' alpha.
 func _process(_dt: float) -> void:
@@ -833,6 +878,19 @@ func _process(_dt: float) -> void:
 		# transparency, NOT modulate: modulate is ignored under material_override (which the
 		# flame has, for additive blend), so the flicker/daylight fade never reached the ball.
 		flame.transparency = clampf(1.0 - a * fmul, 0.0, 1.0)
+
+	# Glowfish "bugs": drive each mote's local position from GLOBAL time, so a per-step
+	# dynamic rebuild resumes the orbit exactly where it should be (no reset flicker).
+	if not _orbiters.is_empty():
+		var t := Time.get_ticks_msec() / 1000.0
+		for O in _orbiters:
+			for m in O["motes"]:
+				var ang: float = t * m["speed"] * m["dir"] + m["phase"]
+				var x: float = m["radius"] * cos(ang)
+				var z: float = m["radius"] * m["ellip"] * sin(ang)
+				var y: float = m["yamp"] * sin(ang * 2.0 + m["phase"])   # figure-8 bob -> "weird"
+				var ct: float = cos(m["tilt"]); var st: float = sin(m["tilt"])
+				(m["s"] as Sprite3D).position = Vector3(x * ct - z * st, y, x * st + z * ct)
 
 func _is_prism(obj: Dictionary) -> bool:
 	# a user verdict wins outright — that's the point of filing one
@@ -1050,6 +1108,11 @@ func _is_vegetation(tile: String) -> bool:
 ## that predates the flag.
 func _is_creature(obj: Dictionary) -> bool:
 	return bool(obj.get("creature", obj.get("sinks", false)))
+
+## Glowfish (and kin): bioluminescent, so we orbit a few glowing "bug" motes around them.
+## Keyed on the tile name — the blueprint isn't always in the per-object payload.
+func _is_glowfish(obj: Dictionary) -> bool:
+	return String(obj.get("tile", "")).to_lower().contains("glowfish")
 
 func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, sink := 0.0, wet := false, skip_creatures := false) -> void:
 	# Static builds exclude creatures (they render per step in _rebuild_dynamics);
