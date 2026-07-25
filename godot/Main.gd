@@ -70,6 +70,10 @@ var _mode: int = CamMode.COMPASS   # cardinal-locked: stable, doesn't spin on mo
 const TOP_H := 20.0        # ortho eye height above the ground (scale is size, not H)
 const TOP_FIT_MARGIN := 1.06   # padding so the framed zone isn't flush to the edges
 const NORTH := Vector3(0, 0, -1)   # -z is north (Qud's y grows south); screen-up in top-down
+const TOP_FOLLOW_SPAN := 18.0  # TOP_FOLLOW vertical span (cells) at zoom 1.0
+const TOP_ZOOM_MIN := 0.15
+const TOP_ZOOM_MAX := 3.5
+var _top_zoom := 1.0           # wheel / R-F zoom for BOTH top-down ortho modes
 
 var _pivot: Node3D
 var _cam: Camera3D
@@ -410,9 +414,13 @@ func _process(dt: float) -> void:
 		if Input.is_key_pressed(KEY_F): _pitch = clampf(_pitch - 1.0 * dt, PITCH_MIN, PITCH_MAX)
 	elif _mode == CamMode.CINEMATIC and (inspector == null or inspector.selected_tile() == null):
 		_cine_t += dt * 0.35   # slow auto-orbit ONLY with no target; a selected tile holds the framing still
-	# R/F zoom in the player-relative modes (Shift-guarded so Shift+F still switches)
-	if (_mode == CamMode.COMPASS or _mode == CamMode.FOLLOW or _mode == CamMode.FIRST_PERSON \
-			or _mode == CamMode.TOP_FOLLOW) \
+	# R/F zoom (Shift-guarded so Shift+F still switches). Top-down modes zoom the ortho
+	# span via _top_zoom; the perspective modes zoom the eye distance via _dist.
+	var _td_zoom := _mode == CamMode.TOP_ZONE or _mode == CamMode.TOP_FOLLOW
+	if _td_zoom and not Input.is_key_pressed(KEY_SHIFT):
+		if Input.is_key_pressed(KEY_R): _top_zoom = clampf(_top_zoom * (1.0 - dt), TOP_ZOOM_MIN, TOP_ZOOM_MAX)
+		if Input.is_key_pressed(KEY_F): _top_zoom = clampf(_top_zoom * (1.0 + dt), TOP_ZOOM_MIN, TOP_ZOOM_MAX)
+	elif (_mode == CamMode.COMPASS or _mode == CamMode.FOLLOW or _mode == CamMode.FIRST_PERSON) \
 			and not Input.is_key_pressed(KEY_SHIFT):
 		if Input.is_key_pressed(KEY_R): _dist = clampf(_dist * (1.0 - dt), DIST_MIN, DIST_MAX)
 		if Input.is_key_pressed(KEY_F): _dist = clampf(_dist * (1.0 + dt), DIST_MIN, DIST_MAX)
@@ -537,11 +545,14 @@ func _apply_top_down_camera(top: bool) -> void:
 		attrs.dof_blur_far_enabled = not top
 
 func _top_ortho_size() -> float:
+	var base: float
 	if _mode == CamMode.TOP_FOLLOW:
-		return clampf(_dist, DIST_MIN, DIST_MAX)
-	var vp := get_viewport().get_visible_rect().size
-	var aspect: float = vp.x / maxf(1.0, vp.y)
-	return maxf(_zone_dims.y, _zone_dims.x / maxf(0.01, aspect)) * TOP_FIT_MARGIN
+		base = TOP_FOLLOW_SPAN
+	else:  # TOP_ZONE — fit the whole zone, then let the wheel/R-F zoom scale it
+		var vp := get_viewport().get_visible_rect().size
+		var aspect: float = vp.x / maxf(1.0, vp.y)
+		base = maxf(_zone_dims.y, _zone_dims.x / maxf(0.01, aspect)) * TOP_FIT_MARGIN
+	return base * _top_zoom
 
 func _aim_dir() -> Vector3:
 	return Vector3(cos(_pitch) * sin(_yaw + PI), -sin(_pitch), cos(_pitch) * cos(_yaw + PI))
@@ -817,7 +828,7 @@ const _MODE_NAMES := {
 	CamMode.CINEMATIC: "CINEMATIC — frames you + selected tile",
 	CamMode.MOUSE: "ORBIT — drag around the selected tile",
 	CamMode.KEYBOARD: "FLY — WASD move, arrows aim",
-	CamMode.TOP_ZONE: "TOP-DOWN ZONE — classic overhead · north up · locked to the zone",
+	CamMode.TOP_ZONE: "TOP-DOWN ZONE — classic overhead · north up · wheel/R-F zoom",
 	CamMode.TOP_FOLLOW: "TOP-DOWN FOLLOW — classic overhead · north up · tracks you · R/F zoom",
 }
 
@@ -1014,8 +1025,18 @@ func _unhandled_input(event: InputEvent) -> void:
 					_inspect_and_capture()
 				else:
 					_panning = event.pressed and _mode == CamMode.MOUSE
-			MOUSE_BUTTON_WHEEL_UP:   if event.pressed: _dist = clampf(_dist * 0.9, DIST_MIN, DIST_MAX)
-			MOUSE_BUTTON_WHEEL_DOWN: if event.pressed: _dist = clampf(_dist * 1.1, DIST_MIN, DIST_MAX)
+			MOUSE_BUTTON_WHEEL_UP:
+				if event.pressed:
+					if _mode == CamMode.TOP_ZONE or _mode == CamMode.TOP_FOLLOW:
+						_top_zoom = clampf(_top_zoom * 0.9, TOP_ZOOM_MIN, TOP_ZOOM_MAX)
+					else:
+						_dist = clampf(_dist * 0.9, DIST_MIN, DIST_MAX)
+			MOUSE_BUTTON_WHEEL_DOWN:
+				if event.pressed:
+					if _mode == CamMode.TOP_ZONE or _mode == CamMode.TOP_FOLLOW:
+						_top_zoom = clampf(_top_zoom * 1.1, TOP_ZOOM_MIN, TOP_ZOOM_MAX)
+					else:
+						_dist = clampf(_dist * 1.1, DIST_MIN, DIST_MAX)
 	elif event is InputEventMouseMotion:
 		if _orbiting:
 			_yaw += event.relative.x * ORBIT_SENS
