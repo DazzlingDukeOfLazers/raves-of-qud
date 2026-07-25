@@ -476,7 +476,7 @@ func _add_water_top(cx: int, cy: int, wobj: Dictionary) -> void:
 	var f := _take_floor()
 	f.material_override = _water_top_material(tile, main_c, detail_c, tex)
 	f.scale = Vector3.ONE
-	f.position = Vector3(cx, FLOOR_Y + deep_water_depth - 1.0, cy)   # recessed a tile below the floor
+	f.position = Vector3(cx, FLOOR_Y + deep_water_depth, cy)   # raised surface over the basin
 	f.visible = true
 
 func _drop_static(id: String) -> void:
@@ -1317,7 +1317,6 @@ func _water_top_material(tile: String, main_c: String, detail_c: String, tex: Im
 	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	m.cull_mode = BaseMaterial3D.CULL_DISABLED
-	m.no_depth_test = true      # recessed below the opaque ground plane — draw through it
 	_texmat_cache[key] = m
 	return m
 
