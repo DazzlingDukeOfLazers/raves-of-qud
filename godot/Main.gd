@@ -71,6 +71,19 @@ const TOP_FOLLOW_SPAN := 18.0  # TOP_FOLLOW vertical span (cells) at zoom 1.0
 const TOP_ZOOM_MIN := 0.15
 const TOP_ZOOM_MAX := 3.5
 var _top_zoom := 1.0           # wheel / R-F zoom for the top-down follow mode
+# Qud tiles are 16x24, so the top-down view stretches the world's north-south (Z) axis by
+# 24/16 = 1.5 to make cells read 16:24 like Qud. Only in full-screen top-down (not the
+# perspective modes, not multi-view, where the shared world must stay square).
+const TILE_ASPECT := 1.5
+
+func _current_zstretch() -> float:
+	return TILE_ASPECT if (_mode == CamMode.TOP_FOLLOW and not _multiview_on) else 1.0
+
+## Push the current Z-stretch onto the rendered world (the renderer node + the marker under
+## it). Called whenever the mode or multi-view state changes.
+func _apply_zstretch() -> void:
+	if renderer != null:
+		renderer.scale = Vector3(1, 1, _current_zstretch())
 
 # Remembered view/render settings, saved on exit and restored on launch (so Raves doesn't
 # reset to "looking south" every run). In user:// — available at startup, before the mod
@@ -232,6 +245,7 @@ func _ready() -> void:
 	_build_multiview()
 	_apply_ui_fonts()
 	get_viewport().size_changed.connect(_apply_ui_fonts)
+	_apply_zstretch()   # a restored top-down mode needs the stretch applied at startup
 	_update_camera(0.0)
 
 	inspector = CellInspector.new()
@@ -519,6 +533,12 @@ func _update_camera(dt: float) -> void:
 	var el := _mode_eye_look(_mode)
 	var target_eye: Vector3 = el[0]
 	var target_look: Vector3 = el[1]
+	# When the world is Z-stretched for top-down, the camera must aim at the stretched
+	# north-south position so the player stays centred.
+	var zs := _current_zstretch()
+	if zs != 1.0:
+		target_eye.z *= zs
+		target_look.z *= zs
 
 	if dt <= 0.0 or not _seeded or _snap_cam:
 		_eye = target_eye
@@ -636,6 +656,7 @@ func _set_mode(m: int) -> void:
 	if renderer != null:
 		# lay tile billboards flat for the straight-down modes, stand them up otherwise
 		renderer.set_top_down(m == CamMode.TOP_FOLLOW)
+	_apply_zstretch()
 	_update_mode_label()
 
 ## One gesture -> everything a collaborator needs about a tile. Photograph the BARE
@@ -763,7 +784,7 @@ func _dismiss_selection() -> void:
 
 ## Inspect, and aim the report form at the same tile.
 func _inspect() -> void:
-	inspector.inspect_at_mouse()
+	inspector.inspect_at(_cam, get_viewport().get_mouse_position(), _current_zstretch())
 	var sel = inspector.selected_tile()
 	if sel != null:
 		reporter.set_target(sel.x, sel.y, inspector.zone_id(),
@@ -917,6 +938,7 @@ func _toggle_multiview() -> void:
 	for v in _multiview_cams:
 		(v["sv"] as SubViewport).render_target_update_mode = \
 			SubViewport.UPDATE_ALWAYS if _multiview_on else SubViewport.UPDATE_DISABLED
+	_apply_zstretch()   # multi-view shares the world -> must be square; single top-down stretches
 
 ## Per-frame: point each preview camera at its mode's view, off the shared camera math.
 func _update_multiview_cameras() -> void:

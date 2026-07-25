@@ -115,13 +115,16 @@ func inspect_at_mouse() -> void:
 ## Inspect using a specific camera + viewport-local mouse position. The main view passes
 ## its camera + the window mouse; a multi-view pane passes its own camera + pane-local pos.
 ## The marker is a node in the shared 3D world, so it shows in every pane at once.
-func inspect_at(cam: Camera3D, mp: Vector2) -> void:
+func inspect_at(cam: Camera3D, mp: Vector2, zscale := 1.0) -> void:
 	var hit = _ground_hit_cam(cam, mp)
 	if hit == null:
 		return
-	var cell := _pick_cell(hit, cam, mp)
+	# `zscale` > 1 means the world is Z-stretched for the top-down view; divide the
+	# north-south hit back to unstretched cell coords.
+	var h := Vector3(hit.x, hit.y, hit.z / zscale)
+	var cell := _pick_cell(h, cam, mp)
 	_selected = cell
-	var report := build_report(cell.x, cell.y, hit)
+	var report := build_report(cell.x, cell.y, h)
 	_show(report, cell.x, cell.y)
 	DisplayServer.clipboard_set(report)
 	_write(report)
@@ -498,18 +501,21 @@ const MARK_GAP := 0.09          # gap between dashes
 const MARK_COLOR := Color(1.0, 0.95, 0.3, 0.9)
 
 func _build_marker() -> void:
+	# Parent the marker under the RENDERER (not the inspector) so it inherits the renderer's
+	# Z-stretch in top-down and stays aligned with the cells. Falls back to self if needed.
+	var parent: Node = _renderer if _renderer != null else self
 	_mark_box = MeshInstance3D.new()
 	_mark_box.mesh = _prism_outline_mesh()
 	_mark_box.material_override = _marker_material(MARK_COLOR)
 	_mark_box.visible = false
-	add_child(_mark_box)
+	parent.add_child(_mark_box)
 
 	# a finder line so the selection stays findable behind walls / at a shallow pitch
 	_mark_pin = MeshInstance3D.new()
 	_mark_pin.mesh = _pin_mesh()
 	_mark_pin.material_override = _marker_material(MARK_COLOR)
 	_mark_pin.visible = false
-	add_child(_mark_pin)
+	parent.add_child(_mark_pin)
 
 ## Dashed wireframe of the tile's 3D volume: a footprint ring just above the floor,
 ## a matching ring at cell height, and the four vertical edges — the whole prism in
