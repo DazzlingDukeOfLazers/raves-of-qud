@@ -4,27 +4,30 @@ saves stay LOCAL per machine (Cloud off) while you keep Cloud for everything els
 you can flip it back on to test.
 
 HOW IT WORKS. The per-app toggle is `"cloudenabled" "0"` inside the app's block in Steam's
-localconfig.vdf. Steam keeps config in memory and OVERWRITES that file on exit, so an edit
-only takes effect after Steam RESTARTS. This tool therefore:
-  * requires Steam to be QUIT before editing (or `--restart` to quit + relaunch it), and
-  * backs up localconfig.vdf first.
+localconfig.vdf. Steam keeps config in memory and OVERWRITES that file on exit, so the edit
+must be made while Steam is DOWN, then Steam reads it on next launch. Steam resists a
+programmatic quit (it traps the Apple Event and does a slow cloud-sync on exit; force-killing
+it mid-sync risks corrupting cloud state), so the reliable flow is:
+
+  1. YOU quit Steam:  Steam menu > Quit Steam   (this also closes Qud)
+  2. run `steam_cloud.py off`   (edits while Steam is down — backs up localconfig.vdf first,
+     then relaunches Steam for you)
+  3. confirm in Qud > Properties > General that "Keep game saves in the Steam Cloud" is unchecked
+
 A syntactically-valid edit is harmless even if ineffective (Steam ignores unknown keys), so
-the worst case is "no change", never a corrupted config. Verify with `status` after Steam
-comes back (and by re-checking the game's Properties > General cloud checkbox).
+the worst case is "no change", never a corrupted config.
 
   steam_cloud.py status                 # current cloud state for Qud (reads localconfig.vdf)
-  steam_cloud.py off  [--restart]       # disable cloud for Qud   (needs Steam quit to apply)
-  steam_cloud.py on   [--restart]       # enable cloud for Qud
+  steam_cloud.py off  [--no-launch]     # disable cloud for Qud   (Steam must be quit first)
+  steam_cloud.py on   [--no-launch]     # enable cloud for Qud
 
-Quitting Steam also closes any Steam game (Qud). macOS only for now; the Windows path
-(dd/pc) mirrors this against %LOCALAPPDATA%\\..\\Steam\\userdata\\...\\localconfig.vdf.
+macOS only for now; the Windows path (dd/pc) mirrors this against the Windows Steam userdata.
 """
 import glob
 import os
 import shutil
 import subprocess
 import sys
-import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import plat
@@ -99,33 +102,17 @@ def _steam_running():
     return bool(subprocess.run(["pgrep", "-x", STEAM_PROC], capture_output=True, text=True).stdout.strip())
 
 
-def _quit_steam(wait=20):
-    subprocess.run(["osascript", "-e", 'tell application "Steam" to quit'], capture_output=True)
-    end = time.time() + wait
-    while time.time() < end:
-        if not _steam_running():
-            return True
-        time.sleep(1)
-    # escalate
-    for p in subprocess.run(["pgrep", "-x", STEAM_PROC], capture_output=True, text=True).stdout.split():
-        try: os.kill(int(p), 15)
-        except OSError: pass
-    time.sleep(3)
-    return not _steam_running()
-
-
 def _launch_steam():
     subprocess.run(["open", "-a", "Steam"], capture_output=True)
 
 
-def set_cloud(enable, restart=False):
+def set_cloud(enable, launch=True):
     path = _localconfig()
     if _steam_running():
-        if not restart:
-            return ("Steam is running — the edit won't apply until Steam restarts.\n"
-                    "  Quit Steam (this also closes Qud) and re-run, or pass --restart to do it for you.")
-        if not _quit_steam():
-            return "FAILED to quit Steam"
+        return ("Steam is still running — the edit only sticks if made while Steam is DOWN\n"
+                "  (Steam overwrites its config on exit). Please quit Steam yourself:\n"
+                "  Steam menu > Quit Steam  (this also closes Qud), then re-run this.\n"
+                "  (Steam resists a scripted quit, so it's more reliable by hand.)")
 
     raw = open(path, encoding="utf-8", errors="replace").read()
     lines = raw.split("\n")
@@ -147,11 +134,11 @@ def set_cloud(enable, restart=False):
         f.write("\n".join(new))
     msg = "cloud %s for Qud (backup: %s)" % ("ENABLED" if enable else "DISABLED", backup)
 
-    if restart:
+    if launch:
         _launch_steam()
-        msg += " — relaunched Steam (give it ~15s, then `status` to confirm)"
+        msg += " — relaunched Steam (~15s to come up; then confirm the Properties checkbox)"
     else:
-        msg += " — restart Steam to apply, then `status` to confirm"
+        msg += " — launch Steam to apply, then confirm the Properties checkbox"
     return msg
 
 
@@ -159,13 +146,13 @@ def main(argv):
     if not argv:
         sys.exit(__doc__)
     cmd = argv[0]
-    restart = "--restart" in argv
+    launch = "--no-launch" not in argv
     if cmd == "status":
         import json; print(json.dumps(status(), indent=0))
     elif cmd == "off":
-        print(set_cloud(False, restart))
+        print(set_cloud(False, launch))
     elif cmd == "on":
-        print(set_cloud(True, restart))
+        print(set_cloud(True, launch))
     else:
         sys.exit(__doc__)
 
