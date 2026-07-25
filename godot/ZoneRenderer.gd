@@ -1173,8 +1173,11 @@ func _place_creature_flat(obj: Dictionary, cx: int, cy: int) -> void:
 	var tex := _colored_tex_rgb(tile, _obj_main(obj), _obj_detail(obj), _color_key(obj))
 	if tex == null:
 		return
+	var main_c := String(obj.get("tilecolor", ""))
+	if main_c == "": main_c = String(obj.get("color", ""))
+	var detail_c := String(obj.get("detail", ""))
 	var f := _take_floor()
-	f.material_override = _mesh_material(tile, _obj_main(obj), _obj_detail(obj), tex)
+	f.material_override = _mesh_material(tile, main_c, detail_c, tex)
 	var sz := tex.get_size()
 	var aspect: float = (sz.x / sz.y) if sz.y > 0.0 else 1.0   # keep the art's proportions
 	f.scale = Vector3(aspect, 1.0, 1.0)
