@@ -886,10 +886,22 @@ func _opaque_v(img: Image) -> Vector2:
 ## in favour of Qud's own predicates — but the painted ground layer comes from
 ## Cell.Render() and has no GameObject or blueprint behind it to ask. The tile
 ## path is the only signal available. Extend the list as new cover turns up.
-const UPRIGHT_GROUND := ["grass", "weed", "flower", "shrub", "moss", "fern"]
+const UPRIGHT_GROUND := ["grass", "weed", "flower", "shrub", "moss", "fern",
+	"plant", "vine", "sapling", "reed", "cactus", "bush", "brush", "mushroom", "sprout"]
 
+## Ground cover that reads better standing up than painted flat. Qud composites
+## vegetation into its painted-ground layer (obj.ground == true); we route that to
+## the billboard path so plants you stand *among* aren't a floor texture. Two signals:
+##   - tile under Creatures/ — where Qud keeps plants (scrub brush sw_plant3,
+##     dreadroot, ...); genuine terrain/dirt lives under Terrain/, so this never
+##     catches real ground. Robust for plant tiles not yet exported/word-listed.
+##   - a vegetation word in the name — catches plants pathed elsewhere (e.g. the
+##     aquatic sw_watervine, which sits at the Textures root, not under Creatures/).
 func _is_vegetation(tile: String) -> bool:
-	var name := tile.replace("\\", "/").get_file().to_lower()
+	var path := tile.replace("\\", "/").to_lower()
+	if path.begins_with("creatures/") or path.contains("/creatures/"):
+		return true
+	var name := path.get_file()
 	for word in UPRIGHT_GROUND:
 		if name.contains(word):
 			return true
