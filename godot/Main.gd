@@ -508,9 +508,16 @@ func _update_camera(dt: float) -> void:
 				r * sin(COMPASS_PITCH) + 2.0,
 				r * cos(COMPASS_PITCH) * cos(_cine_t))
 			target_look = cc
-		CamMode.TOP_ZONE:   # classic overhead, north up, framing the whole zone
-			target_eye = _zone_center + Vector3(0, TOP_H, 0)
-			target_look = _zone_center
+		CamMode.TOP_ZONE:   # classic overhead, north up: frames the whole zone at fit, and
+			# recentres ON THE PLAYER (or the selected target) as you zoom in.
+			var tz_focus := _player
+			var tz_sel = inspector.selected_tile() if inspector != null else null
+			if tz_sel != null:
+				tz_focus = Vector3(tz_sel.x, 0.0, tz_sel.y)
+			var tz_blend := clampf((1.0 - _top_zoom) / (1.0 - TOP_ZOOM_MIN), 0.0, 1.0)
+			var tz_center := _zone_center.lerp(tz_focus, tz_blend)
+			target_eye = tz_center + Vector3(0, TOP_H, 0)
+			target_look = tz_center
 		CamMode.TOP_FOLLOW:  # classic overhead, north up, tracking the player
 			target_eye = _player + Vector3(0, TOP_H, 0)
 			target_look = _player
