@@ -25,6 +25,18 @@ The **risk** on the Mac: any stale local copy of these branches still holds the 
 allspice commits. Merging or pushing one of those would drag the unwanted author
 back into history. The steps below neutralize that.
 
+**Side effect of the delete+re-push:** the two open PRs auto-closed (deleting a
+branch closes its PR, and re-pushing the same name does not reopen it):
+
+| PR | branch → base | status |
+|---|---|---|
+| #1 | `dd/pc-camera-top-down-qud-classic` → `dd/mac` | closed (unmerged) |
+| #2 | `dd/pc-selection` → `dd/mac` | closed (unmerged) |
+
+Because the branches now exist again under the same names, GitHub should let you
+**Reopen** #1 and #2 directly (they'll pick up the re-authored commits) rather than
+recreating them. Check that before opening fresh PRs.
+
 ## Steps (run on the Mac)
 
 ### 1. Prune and re-sync remote refs
@@ -64,6 +76,30 @@ Merge only from the re-authored remote branches (never from a stale Mac-local br
   identity, not allspice — clean.
 - **Local merge:** with the personal `user.email` above and a branch based on the new
   commits, the result stays clean.
+
+## Merge-readiness (pre-checked on the PC, 2026-07-25)
+
+Trial merges were run on the PC (`git merge --no-commit --no-ff`, then aborted) so the
+Mac isn't surprised. **No conflicts anywhere** — you can pick target and method freely:
+
+| merge | result |
+|---|---|
+| PC branches → `dd/mac` | clean (all three lines) |
+| PC branches → `main` | clean |
+| `dd/mac` → `main` | clean |
+
+**Branch stacking** (decide how to sequence the merges accordingly):
+```
+main
+├── dd/mac                         steam_cloud work — Mac integration branch
+└── dd/pc                          plat_win + PC harness   ← base for the stack
+    ├── dd/pc-selection            + selection marker      (PR #2)
+    └── dd/pc-camera-top-down-qud-classic  + top-down camera   (PR #1)
+        └── dd/object-configurator + objconf.py            (stacked on camera, no PR)
+```
+Note `dd/object-configurator` sits on top of **camera**, so merging it carries the
+camera commit + objconf, but **not** selection. `dd/pc` is the base for all three and
+has no PR of its own — whichever PC branch lands first drags `dd/pc` in with it.
 
 ## Verify (after step 1) — should print nothing
 ```
