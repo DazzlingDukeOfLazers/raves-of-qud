@@ -630,6 +630,8 @@ func _update_sky(hour: float, dawn: float, dusk: float) -> void:
 
 	# cross-fade over ~1h at each boundary
 	var sun_a: float = clampf(minf(hour - dawn, dusk - hour) + 0.5, 0.0, 1.0) if sun_up else 0.0
+	if renderer != null:
+		renderer.set_daylight(sun_a)   # fade additive torch glow so it doesn't blow out daytime
 	_sun.modulate = Color(1, 1, 1, sun_a)
 	_moon.modulate = Color(1, 1, 1, 1.0 - sun_a)
 	_sun.visible = sun_a > 0.01

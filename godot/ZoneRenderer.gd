@@ -139,7 +139,29 @@ func _wall_parent() -> Node:
 	return _bank if _bank != null else _wall_root
 var _glow_tex: Texture2D
 var _flame_tex: Texture2D
-var _lights: Array = []           # [{glow, flame, x, z, base_energy}]
+var _lights: Array = []           # [{glow, flame, energy}]
+
+# Torches are ADDITIVE — they brighten whatever is behind them by a fixed amount
+# regardless of time of day. That reads great at night but blows out the already-bright
+# daytime scene (the glow ends up brighter than the environment). So fade torch intensity
+# with daylight: full at night, a faint ember at noon. Fed by Main._update_sky via
+# set_daylight(sun_a), where sun_a is 0 at night .. 1 at midday.
+var _daylight := 0.0
+const GLOW_DAY_MIN := 0.06    # ground light-pool strength at full daylight (nearly gone)
+const FLAME_DAY_MIN := 0.35   # flame billboard stays partly visible so the sconce still reads lit
+
+## Multiplier for the ground glow / the flame, given the current daylight. Both are 1.0
+## at night and fall to their *_DAY_MIN floor at midday.
+func _glow_mul() -> float:
+	return lerpf(GLOW_DAY_MIN, 1.0, 1.0 - _daylight)
+func _flame_mul() -> float:
+	return lerpf(FLAME_DAY_MIN, 1.0, 1.0 - _daylight)
+
+## Push the current daylight strength (0 night .. 1 midday) so torches fade in daylight.
+## Cheap: the live zone applies it per-frame in _process; static/neighbour lights bake it
+## in at build time (they don't flicker), which is fine since they're distant and fogged.
+func set_daylight(sun_a: float) -> void:
+	_daylight = clampf(sun_a, 0.0, 1.0)
 
 var _active: Array = []
 var _sprite_pool: Array[Sprite3D] = []
@@ -670,6 +692,11 @@ func _place_light(cx: int, cy: int, radius: float) -> void:
 
 	if _live_build:
 		_lights.append({"glow": glow, "flame": flame, "energy": 1.0})
+	else:
+		# Neighbour/static lights don't flicker in _process, so bake the current daylight
+		# dimming into them now (otherwise they'd sit at full additive brightness by day).
+		glow.transparency = clampf(1.0 - _glow_mul() * 0.6, 0.0, 1.0)
+		flame.modulate = Color(1, 1, 1, clampf(_flame_mul(), 0.0, 1.0))
 
 ## Unshaded + additive: brightens whatever is behind it, no scene lighting needed.
 func _fx_material(tex: Texture2D) -> StandardMaterial3D:
@@ -686,15 +713,17 @@ func _fx_material(tex: Texture2D) -> StandardMaterial3D:
 ## Flicker: jitter each light's brightness a little every frame, so torches read
 ## as fire rather than steady lamps. Cheap — modulate the additive quads' alpha.
 func _process(_dt: float) -> void:
+	var gmul := _glow_mul()      # daylight dimming, recomputed once per frame
+	var fmul := _flame_mul()
 	for L in _lights:
 		var e: float = 0.75 + randf() * 0.4        # 0.75..1.15
 		L["energy"] = lerpf(L["energy"], e, 0.35)   # smoothed, so it shimmers not strobes
 		var a: float = L["energy"]
-		(L["glow"] as MeshInstance3D).transparency = clampf(1.0 - a * 0.6, 0.0, 1.0)
+		(L["glow"] as MeshInstance3D).transparency = clampf(1.0 - a * gmul * 0.6, 0.0, 1.0)
 		var fs: float = 0.9 + a * 0.25
 		var flame := L["flame"] as Sprite3D
 		flame.scale = Vector3(fs, fs * (0.95 + randf() * 0.2), fs)
-		flame.modulate = Color(1, 1, 1, clampf(a, 0.0, 1.0))
+		flame.modulate = Color(1, 1, 1, clampf(a * fmul, 0.0, 1.0))
 
 func _is_prism(obj: Dictionary) -> bool:
 	# a user verdict wins outright — that's the point of filing one
