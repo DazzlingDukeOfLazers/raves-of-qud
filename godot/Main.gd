@@ -360,8 +360,21 @@ func _exec_godot_cmd(cmd: String) -> void:
 			if parts.size() > 1:
 				_fp_height = clampf(float(parts[1]), 0.15, 3.0)
 
+var _bg_draw_accum := 0.0
+const BG_DRAW_INTERVAL := 0.05   # ~20fps forced draws while unfocused
+
 func _process(dt: float) -> void:
 	_poll_godot_cmd(dt)
+	# Keep the viewer rendering while its window is UNFOCUSED, so it stays live beside
+	# Qud for side-by-side human testing (a human drives one window; both must move).
+	# macOS pauses an unfocused window's draw, but _process still runs — so force a draw
+	# at ~20fps (the same primitive the remote screenshot uses). Only when unfocused, to
+	# avoid double-drawing over the normal focused render loop.
+	if not get_window().has_focus():
+		_bg_draw_accum += dt
+		if _bg_draw_accum >= BG_DRAW_INTERVAL:
+			_bg_draw_accum = 0.0
+			RenderingServer.force_draw()
 	# ease the grade so time-of-day shifts smoothly between turns
 	_tint = _tint.lerp(_tint_target, clampf(dt * 2.0, 0.0, 1.0))
 	if _grade != null:
