@@ -15,6 +15,10 @@ tools/tiletool/obj/
 assets/qud/
 *.dll
 
+# Python (the capture tools are stdlib scripts; never commit bytecode)
+__pycache__/
+*.pyc
+
 # OS / editor
 .DS_Store
 *.swp

@@ -26,34 +26,50 @@ Windows). `main` is the shared, cross-platform base. To keep merges clean:
 - Everything else (`godot/`, `mod/`, cross-platform `tools/`) should merge cleanly; coordinate on
   shared feature files as usual.
 
-## Local paths (this machine — macOS)
+## Local paths (this machine — Windows, branch dd/pc)
+
+> Per the branch strategy above, this section is per-branch and intentionally differs
+> from dd/mac. The macOS values live on dd/mac. Windows is a **Mono** Qud build (the mod
+> still compiles in-process via Roslyn — no PC game build needed).
 
 | what | where |
 |---|---|
-| repo | `/Users/homefolder/personal-git/raves-of-qud` |
-| Godot 4.7 binary | `/Users/homefolder/Downloads/Godot.app/Contents/MacOS/Godot` |
-| Qud install | `~/Library/Application Support/Steam/steamapps/common/Caves of Qud/CoQ.app` |
-| Qud managed DLLs | `<Qud>/Contents/Resources/Data/Managed` |
-| Qud game data (XML) | `<Qud>/Contents/Resources/Data/StreamingAssets/Base` |
-| mod deploy target | `~/Library/Application Support/com.FreeholdGames.CavesOfQud/Mods/RavesOfQudBridge/` |
-| exported tiles | `~/Library/Application Support/RavesOfQud/tiles` |
-| standing overrides | `~/Library/Application Support/RavesOfQud/overrides.json` (seed copy committed at repo `overrides.seed.json`) |
-| inspector output | `~/Library/Application Support/RavesOfQud/selection.txt` (latest), `selections.log` (history) |
-| Qud crash log | `~/Library/Logs/Freehold Games/CavesOfQud/Player.log` |
+| repo | `C:\Users\danie\personal-git\raves-of-qud` |
+| Godot 4.7 binary | `%LOCALAPPDATA%\Microsoft\WinGet\Packages\GodotEngine.GodotEngine_Microsoft.Winget.Source_8wekyb3d8bbwe\Godot_v4.7.1-stable_win64_console.exe` |
+| Qud install | `C:\Program Files (x86)\Steam\steamapps\common\Caves of Qud` |
+| Qud managed DLLs | `<Qud>\CoQ_Data\Managed` |
+| Qud game data (XML) | `<Qud>\CoQ_Data\StreamingAssets\Base` |
+| mod deploy target | `%USERPROFILE%\AppData\LocalLow\Freehold Games\CavesOfQud\Mods\RavesOfQudBridge\` |
+| RavesOfQud data dir | `%USERPROFILE%\Library\Application Support\RavesOfQud` (tiles/overrides/reports/shots — the mod's `TileExporter.Dir` builds this from `SpecialFolder.UserProfile`, so it lands under `Library\Application Support` on Windows too; `plat_win.support_dir()` mirrors it) |
+| Qud crash log | `%USERPROFILE%\AppData\LocalLow\Freehold Games\CavesOfQud\Player.log` |
 | bridge socket | `127.0.0.1:48710` |
+
+> **Two Windows gotchas, learned setting this up:**
+> - **Use the `_console.exe` Godot binary for any CLI/headless run.** The plain
+>   `Godot_v4.7.1-stable_win64.exe` is a GUI-subsystem binary — its stdout does not attach
+>   to a pipe/redirect, so `--headless` runs look silent. The `_console.exe` variant prints.
+> - **First run on a fresh clone needs an editor import pass** to build the `class_name`
+>   global cache (`.godot/global_script_class_cache.cfg`). Without it, running the scene
+>   directly fails with `Identifier "BridgeClient"/"CellInspector"/"Profiler" not declared`.
+>   Run the import once (command below), then normal `--quit-after` scene runs resolve.
 
 ## The commands that actually get used
 
-```bash
-# type-check the mod against the REAL Qud API (catches API drift before a restart)
-dotnet build mod/RavesOfQudBridge.csproj
+```powershell
+# type-check the mod against the REAL Qud API (catches API drift before a restart).
+# The csproj's CoQManaged default is the Mac path; override it on Windows (don't edit the
+# shared csproj — keeps mac/pc merges clean).
+dotnet build mod\RavesOfQudBridge.csproj -p:CoQManaged="C:\Program Files (x86)\Steam\steamapps\common\Caves of Qud\CoQ_Data\Managed"
 
 # deploy the mod  — REQUIRES A FULL QUD RESTART (mods compile at startup)
-cp mod/*.cs mod/manifest.json ~/Library/Application\ Support/com.FreeholdGames.CavesOfQud/Mods/RavesOfQudBridge/
+Copy-Item mod\*.cs, mod\manifest.json -Destination "$env:USERPROFILE\AppData\LocalLow\Freehold Games\CavesOfQud\Mods\RavesOfQudBridge\"
+
+# FRESH CLONE ONLY: build the class_name cache once (see gotcha above), else Main.gd won't parse.
+& "$env:LOCALAPPDATA\Microsoft\WinGet\Packages\GodotEngine.GodotEngine_Microsoft.Winget.Source_8wekyb3d8bbwe\Godot_v4.7.1-stable_win64_console.exe" --headless --editor --path godot\ --quit
 
 # validate the Godot scripts parse + _ready runs, without a window.
 # "Raves bridge: connected" and no errors == clean. .gd changes need NO restart.
-/Users/homefolder/Downloads/Godot.app/Contents/MacOS/Godot --headless --path godot/ --quit-after 120
+& "$env:LOCALAPPDATA\Microsoft\WinGet\Packages\GodotEngine.GodotEngine_Microsoft.Winget.Source_8wekyb3d8bbwe\Godot_v4.7.1-stable_win64_console.exe" --headless --path godot\ --quit-after 180
 
 # read live state off the bridge (BLOCKS until the player takes a turn)
 python3 tools/capture/snap.py summary
