@@ -354,7 +354,7 @@ func _build_zone(cells: Array, offset: Vector2i, skip_creatures: bool, wall_type
 			if not _is_prism(obj):
 				_place_nonwall(obj, cx, cy, idx, in_wall, sink, wet, skip_creatures)
 			if obj.has("lightRadius"):
-				_place_light(cx, cy, float(obj["lightRadius"]))
+				_place_light(cx, cy, float(obj["lightRadius"]), not _is_creature(obj))
 			idx += 1
 
 ## Build the live zone's static geometry into its own frozen subtree (once per zone
@@ -689,10 +689,11 @@ func _override_for(tile: String) -> String:
 
 ## An additive warm glow on the ground (the "light") plus a small flickering flame
 ## above the sconce. Qud's radius is in cells; 1 cell == 1 world unit.
-func _place_light(cx: int, cy: int, radius: float) -> void:
-	# All torch nodes live in their zone's frozen subtree (the bank). Only the LIVE
-	# zone's register in _lights for the _process flicker; a remembered neighbour's
-	# glow steadily (no flicker), which reads fine at distance.
+func _place_light(cx: int, cy: int, radius: float, smokes := true) -> void:
+	# `smokes` is false for creature lights (e.g. a bioluminescent glowfish) — they glow
+	# but are not fire, so no plume. All torch nodes live in their zone's frozen subtree
+	# (the bank). Only the LIVE zone's register in _lights for the _process flicker; a
+	# remembered neighbour's glow steadily (no flicker), which reads fine at distance.
 	var lp: Node = _bank if _bank != null else _light_root
 	var glow := MeshInstance3D.new()
 	var gm := PlaneMesh.new()
@@ -718,11 +719,14 @@ func _place_light(cx: int, cy: int, radius: float) -> void:
 	# the flame fully fades by day, so smoke over an unlit sconce would look wrong — it
 	# emits only at night and switches off at dawn (see _smoke_on / set_daylight).
 	if _live_build:
-		var smoke := _make_smoke()
-		smoke.position = Vector3(cx, 0.85, cy)   # just above the flame
-		smoke.emitting = _smoke_on()             # honour the current time-of-day at build
-		lp.add_child(smoke)
-		_lights.append({"glow": glow, "flame": flame, "smoke": smoke, "energy": 1.0})
+		var entry := {"glow": glow, "flame": flame, "energy": 1.0}
+		if smokes:
+			var smoke := _make_smoke()
+			smoke.position = Vector3(cx, 0.85, cy)   # just above the flame
+			smoke.emitting = _smoke_on()             # honour the current time-of-day at build
+			lp.add_child(smoke)
+			entry["smoke"] = smoke
+		_lights.append(entry)
 	else:
 		# Neighbour/static lights don't flicker in _process, so bake the current daylight
 		# dimming into them now (otherwise they'd sit at full additive brightness by day).
@@ -827,6 +831,8 @@ func _make_smoke() -> GPUParticles3D:
 
 const ORBIT_COUNT := 4          # motes per glowfish
 const ORBIT_CENTER_Y := 0.5     # orbit centre height above the cell floor
+const ORBIT_BASE_SPEED := 0.26  # rad/s; each mote's speed is this times a distinct prime
+const ORBIT_PRIMES := [2, 3, 5, 7, 11, 13]   # prime speed ratios -> the cluster is slow to repeat
 
 ## Deterministic 0..1 from a glowfish cell + slot, so a fish's orbit params are stable
 ## across the per-step rebuilds (only changing when it actually swims to a new cell).
@@ -840,6 +846,7 @@ func _make_orbiters(cx: int, cy: int) -> void:
 	var root := Node3D.new()
 	root.position = Vector3(cx, ORBIT_CENTER_Y, cy)
 	var motes: Array = []
+	var fish_rot: float = _fish_rand(cx, cy, 0, 9) * TAU   # whole-cluster rotation, varies per fish
 	for i in ORBIT_COUNT:
 		var s := Sprite3D.new()
 		s.texture = _mote_tex
@@ -849,15 +856,18 @@ func _make_orbiters(cx: int, cy: int) -> void:
 		s.transparent = true
 		s.material_override = _fx_material(_mote_tex)   # additive glow
 		root.add_child(s)
+		var prime: int = ORBIT_PRIMES[i % ORBIT_PRIMES.size()]
 		motes.append({
 			"s": s,
 			"phase":  _fish_rand(cx, cy, i, 1) * TAU,
-			"speed":  1.1 + _fish_rand(cx, cy, i, 2) * 2.0,           # rad/s, varied per mote
-			"radius": 0.26 + _fish_rand(cx, cy, i, 3) * 0.22,
-			"ellip":  0.35 + _fish_rand(cx, cy, i, 4) * 0.55,         # squash -> ellipse
-			"tilt":   _fish_rand(cx, cy, i, 5) * TAU,                 # orbit-plane spin about Y
-			"yamp":   0.10 + _fish_rand(cx, cy, i, 6) * 0.20,         # vertical bob amplitude
-			"dir":    (1.0 if _fish_rand(cx, cy, i, 7) < 0.5 else -1.0),
+			# prime-ratio speeds: no two motes share a period, so the cluster is slow to repeat
+			"speed":  ORBIT_BASE_SPEED * prime,
+			"radius": 0.26 + _fish_rand(cx, cy, i, 3) * 0.20,
+			"ellip":  0.35 + _fish_rand(cx, cy, i, 4) * 0.55,        # squash -> ellipse
+			# each mote's orbit plane is rotated a distinct step apart (+ per-fish offset)
+			"tilt":   fish_rot + float(i) * TAU / float(ORBIT_COUNT),
+			"yamp":   0.10 + _fish_rand(cx, cy, i, 6) * 0.20,        # vertical bob amplitude
+			"dir":    1.0,                                           # same sense; primes do the varying
 		})
 	_bank.add_child(root)   # into _dynamic_root (freed + rebuilt each step)
 	_orbiters.append({"root": root, "motes": motes})
