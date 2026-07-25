@@ -504,6 +504,42 @@ func _fly(dt: float) -> void:
 	if move.length() > 0.001:
 		_free_eye += move.normalized() * FLY_SPEED * dt
 
+# --- camera-relative movement (the Godot -> Qud control translation) ---------
+# The player moves in Qud's absolute 8-way compass, but the arrow keys mean
+# directions relative to the CAMERA — "up" is forward on screen no matter which
+# way the camera faces. We take the camera's ground-plane heading, build the
+# screen-space intent (forward/back/strafe), rotate it into world space, and snap
+# to the nearest compass name before sending it to the bridge.
+
+## The direction the camera looks ALONG on the ground plane, per mode. FOLLOW
+## trails your last step; COMPASS / FIRST_PERSON use the locked compass heading.
+func _camera_heading() -> Vector3:
+	var h: Vector3 = _facing3() if _mode == CamMode.FOLLOW else _compass_dir()
+	h.y = 0.0
+	if h.length() < 0.001:
+		return Vector3(0, 0, 1)   # default: south (matches _facing seed)
+	return h.normalized()
+
+## Snap a world ground vector to the nearest of Qud's 8 compass directions.
+## +x = east, +z = south (Godot z mirrors Qud's south-growing y). Angle 0 = East,
+## increasing toward South; 45° sectors.
+func _dir_to_compass(v: Vector3) -> String:
+	var idx: int = int(round(atan2(v.z, v.x) / (PI / 4.0))) & 7
+	return ["E", "SE", "S", "SW", "W", "NW", "N", "NE"][idx]
+
+## Move the player relative to the camera. `intent` is (strafe, forward) in screen
+## space: (0,1)=forward, (0,-1)=back, (1,0)=right, (-1,0)=left.
+func _move_relative(intent: Vector2) -> void:
+	var h := _camera_heading()
+	var right := h.cross(Vector3.UP)   # camera/body right (world space)
+	if right.length() < 0.001:
+		right = Vector3(1, 0, 0)
+	right = right.normalized()
+	var v := h * intent.y + right * intent.x
+	if v.length() < 0.001:
+		return
+	client.send_command("move", {"dir": _dir_to_compass(v.normalized())})
+
 func _set_mode(m: int) -> void:
 	if m == _mode:
 		return
@@ -700,9 +736,9 @@ func _build_mode_label() -> void:
 	_update_mode_label()
 
 const _MODE_NAMES := {
-	CamMode.COMPASS: "COMPASS — cardinal-locked · Q/E rotate · R/F zoom",
-	CamMode.FOLLOW: "FOLLOW — trails your heading · R/F zoom",
-	CamMode.FIRST_PERSON: "FIRST-PERSON",
+	CamMode.COMPASS: "COMPASS — cardinal-locked · arrows move (↑=fwd) · Q/E rotate · R/F zoom",
+	CamMode.FOLLOW: "FOLLOW — trails your heading · arrows move (↑=fwd) · R/F zoom",
+	CamMode.FIRST_PERSON: "FIRST-PERSON — ↑↓ move · ←→ turn · Shift+←→ strafe",
 	CamMode.CINEMATIC: "CINEMATIC — frames you + selected tile",
 	CamMode.MOUSE: "ORBIT — drag around the selected tile",
 	CamMode.KEYBOARD: "FLY — WASD move, arrows aim",
@@ -807,15 +843,31 @@ func _unhandled_input(event: InputEvent) -> void:
 		# in KEYBOARD mode the arrows drive the camera, not the player
 		if _mode == CamMode.KEYBOARD:
 			return
-		match event.keycode:
-			KEY_UP, KEY_KP_8:    client.send_command("move", {"dir": "N"})
-			KEY_DOWN, KEY_KP_2:  client.send_command("move", {"dir": "S"})
-			KEY_LEFT, KEY_KP_4:  client.send_command("move", {"dir": "W"})
-			KEY_RIGHT, KEY_KP_6: client.send_command("move", {"dir": "E"})
-			KEY_KP_7:            client.send_command("move", {"dir": "NW"})
-			KEY_KP_9:            client.send_command("move", {"dir": "NE"})
-			KEY_KP_1:            client.send_command("move", {"dir": "SW"})
-			KEY_KP_3:            client.send_command("move", {"dir": "SE"})
+			# Arrows move the PLAYER relative to the camera heading — "up" is always
+			# forward on screen, whichever way the camera faces (the Godot->Qud
+			# translation). Numpad stays ABSOLUTE 8-way compass as a precise fallback.
+			# FIRST-PERSON turns in place on L/R (Shift+L/R strafes) instead of moving.
+			match event.keycode:
+				KEY_UP:    _move_relative(Vector2(0, 1))    # forward
+				KEY_DOWN:  _move_relative(Vector2(0, -1))   # back
+				KEY_LEFT:
+					if _mode == CamMode.FIRST_PERSON and not event.shift_pressed:
+						_compass_yaw += PI * 0.25            # turn left 45°
+					else:
+						_move_relative(Vector2(-1, 0))       # strafe left
+				KEY_RIGHT:
+					if _mode == CamMode.FIRST_PERSON and not event.shift_pressed:
+						_compass_yaw -= PI * 0.25            # turn right 45°
+					else:
+						_move_relative(Vector2(1, 0))        # strafe right
+				KEY_KP_8: client.send_command("move", {"dir": "N"})
+				KEY_KP_2: client.send_command("move", {"dir": "S"})
+				KEY_KP_4: client.send_command("move", {"dir": "W"})
+				KEY_KP_6: client.send_command("move", {"dir": "E"})
+				KEY_KP_7: client.send_command("move", {"dir": "NW"})
+				KEY_KP_9: client.send_command("move", {"dir": "NE"})
+				KEY_KP_1: client.send_command("move", {"dir": "SW"})
+				KEY_KP_3: client.send_command("move", {"dir": "SE"})
 	elif event is InputEventMouseButton:
 		match event.button_index:
 			MOUSE_BUTTON_LEFT:
