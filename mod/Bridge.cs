@@ -2,6 +2,7 @@ using System;
 using System.Threading;    // focus-keeper watchdog thread
 using ConsoleLib.Console;  // Keyboard.PushCommand — wakes the main thread while unfocused
 using XRL;        // The, IPlayerMutator, IEventRegistrar
+using XRL.Core;   // XRLCore.IsCoreThread, The.Core.RenderBase
 using XRL.World;  // GameObject, Zone, Cell, CommandEvent, EndTurnEvent
 
 namespace RavesOfQud
@@ -108,6 +109,19 @@ namespace RavesOfQud
                 catch (Exception e) { server.Log("apply error: " + e.Message); }
             }
 
+            // Refresh Qud's OWN on-screen map. A move injected via PushCommand doesn't
+            // reliably hit the CmdMove RenderBase path (gated on Options.DrawStepImmediately)
+            // or the idle animation pump, so the on-screen tile mesh stayed stale even though
+            // the game state advanced and the window kept rendering (~4fps unfocused) — it was
+            // just re-drawing an un-refreshed buffer. RenderBase recomposites the buffer from
+            // current state; it must run on the core thread, which this EndTurnEvent tick is.
+            try
+            {
+                if (XRLCore.IsCoreThread && The.Core != null)
+                    The.Core.RenderBase(UpdateSidebar: false);
+            }
+            catch (Exception e) { server.Log("renderbase error: " + e.Message); }
+
             // (2) snapshot — read state on the main thread, hand bytes to the socket.
             try
             {
@@ -134,7 +148,7 @@ namespace RavesOfQud
             BridgeServer server = Server;
             _renderFrames++;
             DateTime now = DateTime.UtcNow;
-            if ((now - _lastBeat).TotalSeconds >= 1.0)
+            if ((now - _lastBeat).TotalSeconds >= 10.0)
             {
                 server.Log("[raves] render heartbeat: " + _renderFrames + " frames total (rendering now)");
                 _lastBeat = now;
