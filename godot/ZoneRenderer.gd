@@ -147,8 +147,8 @@ var _lights: Array = []           # [{glow, flame, energy}]
 # with daylight: full at night, a faint ember at noon. Fed by Main._update_sky via
 # set_daylight(sun_a), where sun_a is 0 at night .. 1 at midday.
 var _daylight := 0.0
-const GLOW_DAY_MIN := 0.06    # ground light-pool strength at full daylight (nearly gone)
-const FLAME_DAY_MIN := 0.15   # flame billboard: a faint ember by day, not a bright ball
+const GLOW_DAY_MIN := 0.0     # ground light-pool: fully gone at midday (no darkness to fill)
+const FLAME_DAY_MIN := 0.0    # flame ball: fully gone at midday; the sconce post carries the tile
 
 ## Multiplier for the ground glow / the flame, given the current daylight. Both are 1.0
 ## at night and fall to their *_DAY_MIN floor at midday.
