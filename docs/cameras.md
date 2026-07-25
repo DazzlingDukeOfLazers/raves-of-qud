@@ -13,7 +13,7 @@ drive one camera per mode off the same code.
 |---|---|---|
 | 1 | **COMPASS** (default) | cardinal-**locked** low-angle view; follows the player but never rotates on movement (the disorientation fix). Q/E rotate the heading (45° or 90°, toggle in the menu), R/F zoom. |
 | 2 | **FOLLOW** | trails behind your heading, looking ahead. |
-| 3 | **FIRST_PERSON** | at the player, eye-level, along the locked heading. ←→ turn, Shift+←→ strafe; height slider in the ` menu. |
+| 3 | **FIRST_PERSON** | at the player, eye-level, along the locked heading. ←→ turn, **Ctrl/Cmd+Shift+←→ strafe**; height slider in the ` menu. |
 | 4 | **CINEMATIC** | frames you + the selected tile, slow auto-orbit (combat-aware framing is future work). |
 | 5 | **MOUSE** | drag to orbit / pan around the selected tile. |
 | 6 | **KEYBOARD** | free flight — WASD move, arrows aim. |
@@ -64,6 +64,8 @@ returns 1.5 only when `_mode == TOP_FOLLOW and not _multiview_on`.
   "looking south" every run).
 - **⟳ Reset** (top-right) — relaunches the process at the current window size
   (`OS.set_restart_on_exit` + `--resolution`), so it also picks up code changes.
+- **Movement** — arrows move the player relative to the camera ("up" = forward). **Shift+arrow**
+  = the 45°-rotated **diagonal** (Up=NE, Right=SE, Down=SW, Left=NW). Numpad is absolute 8-way.
 - **Shift+Space** — wait a turn in Qud (see [protocol.md](protocol.md); passes a turn).
 - Inspect: **Ctrl/Cmd-click** or **I**. **Ctrl/Cmd + right-click** = clean-plate shot then
   inspect. **F12** = screenshot. **`` ` ``** = debug menu.

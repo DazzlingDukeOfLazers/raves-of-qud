@@ -860,7 +860,7 @@ func _build_mode_label() -> void:
 const _MODE_NAMES := {
 	CamMode.COMPASS: "COMPASS — cardinal-locked · arrows move (↑=fwd) · Q/E rotate · R/F zoom",
 	CamMode.FOLLOW: "FOLLOW — trails your heading · arrows move (↑=fwd) · R/F zoom",
-	CamMode.FIRST_PERSON: "FIRST-PERSON — ↑↓ move · ←→ turn · Shift+←→ strafe",
+	CamMode.FIRST_PERSON: "FIRST-PERSON — ↑↓ move · ←→ turn · Ctrl+Shift+←→ strafe · Shift+arrows diagonal",
 	CamMode.CINEMATIC: "CINEMATIC — frames you + selected tile",
 	CamMode.MOUSE: "ORBIT — drag around the selected tile",
 	CamMode.KEYBOARD: "FLY — WASD move, arrows aim",
@@ -1177,20 +1177,27 @@ func _unhandled_input(event: InputEvent) -> void:
 		# in KEYBOARD mode the arrows drive the camera, not the player
 		if _mode == CamMode.KEYBOARD:
 			return
-		# Arrows move the PLAYER relative to the camera heading — "up" is always
-		# forward on screen, whichever way the camera faces (the Godot->Qud
-		# translation). Numpad stays ABSOLUTE 8-way compass as a precise fallback.
-		# FIRST-PERSON turns in place on L/R (Shift+L/R strafes) instead of moving.
+		# Arrows move the PLAYER relative to the camera heading — "up" is always forward on
+		# screen (the Godot->Qud translation). SHIFT+arrow = that direction rotated 45° to the
+		# DIAGONAL (Up=NE, Right=SE, Down=SW, Left=NW). FIRST-PERSON turns in place on plain
+		# L/R; Ctrl/Cmd+Shift+L/R strafes there. Numpad is the ABSOLUTE 8-way fallback.
+		var mod: bool = event.ctrl_pressed or event.meta_pressed
+		var diag: bool = event.shift_pressed and not mod    # Shift alone -> diagonal move
+		var strafe_mod: bool = event.shift_pressed and mod  # Ctrl/Cmd+Shift -> strafe (first-person)
 		match event.keycode:
-			KEY_UP:    _move_relative(Vector2(0, 1))    # forward
-			KEY_DOWN:  _move_relative(Vector2(0, -1))   # back
+			KEY_UP:    _move_relative(Vector2(1, 1) if diag else Vector2(0, 1))      # NE / forward
+			KEY_DOWN:  _move_relative(Vector2(-1, -1) if diag else Vector2(0, -1))   # SW / back
 			KEY_LEFT:
-				if _mode == CamMode.FIRST_PERSON and not event.shift_pressed:
+				if diag:
+					_move_relative(Vector2(-1, 1))       # NW diagonal
+				elif _mode == CamMode.FIRST_PERSON and not strafe_mod:
 					_compass_yaw += PI * 0.25            # turn left 45°
 				else:
-					_move_relative(Vector2(-1, 0))       # strafe left
+					_move_relative(Vector2(-1, 0))       # strafe left (non-FP, or FP Ctrl+Shift)
 			KEY_RIGHT:
-				if _mode == CamMode.FIRST_PERSON and not event.shift_pressed:
+				if diag:
+					_move_relative(Vector2(1, -1))       # SE diagonal
+				elif _mode == CamMode.FIRST_PERSON and not strafe_mod:
 					_compass_yaw -= PI * 0.25            # turn right 45°
 				else:
 					_move_relative(Vector2(1, 0))        # strafe right
