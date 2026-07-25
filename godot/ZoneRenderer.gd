@@ -139,6 +139,8 @@ func _wall_parent() -> Node:
 	return _bank if _bank != null else _wall_root
 var _glow_tex: Texture2D
 var _flame_tex: Texture2D
+var _smoke_pm: ParticleProcessMaterial   # shared across every sconce's smoke emitter
+var _smoke_mesh: QuadMesh                 # shared grey square, billboarded
 var _lights: Array = []           # [{glow, flame, energy}]
 
 # Torches are ADDITIVE — they brighten whatever is behind them by a fixed amount
@@ -209,6 +211,7 @@ func _ready() -> void:
 	add_child(_dynamic_root)
 	_glow_tex = _make_radial(64, Color(1.0, 0.62, 0.25), 1.0)   # warm pool of light
 	_flame_tex = _make_radial(32, Color(1.0, 0.80, 0.35), 1.6)  # tighter, brighter core
+	_build_smoke_resources()
 
 # A radial gradient: opaque tint at the centre fading to transparent, `power`
 # shapes the falloff. Used additively for both the glow and the flame core.
@@ -697,6 +700,14 @@ func _place_light(cx: int, cy: int, radius: float) -> void:
 	flame.position = Vector3(cx, 0.7, cy)                # above the sconce
 	lp.add_child(flame)
 
+	# Rising smoke plume. Only the LIVE zone gets emitters (keeps the particle count
+	# bounded; distant neighbour plumes would be fogged anyway). Smoke isn't light, so
+	# it's NOT tied to daylight — it reads over the buildings day and night.
+	if _live_build:
+		var smoke := _make_smoke()
+		smoke.position = Vector3(cx, 0.85, cy)   # just above the flame
+		lp.add_child(smoke)
+
 	if _live_build:
 		_lights.append({"glow": glow, "flame": flame, "energy": 1.0})
 	else:
@@ -718,6 +729,79 @@ func _fx_material(tex: Texture2D) -> StandardMaterial3D:
 	if tex != null:
 		m.albedo_texture = tex
 	return m
+
+# --- smoke ------------------------------------------------------------------
+
+# Tunables for the sconce smoke plume (Qud: grey squares, oscillating x, ~3 tiles high).
+const SMOKE_AMOUNT := 14        # particles alive per sconce
+const SMOKE_LIFETIME := 3.4     # seconds; rise-height ≈ velocity * lifetime
+const SMOKE_RISE := 0.95        # upward velocity (world units/s); ~3 tiles over the lifetime
+const SMOKE_SQUARE := 0.16      # edge of a smoke square (world units), before per-particle scale
+const SMOKE_SWAY := 0.28        # turbulence strength -> the oscillating horizontal drift
+
+## Build the shared draw-mesh + process material once; every sconce's emitter reuses them
+## (each GPUParticles3D still has its own seed, so plumes aren't in lockstep).
+func _build_smoke_resources() -> void:
+	# A flat grey square, billboarded — matches Qud's pixel smoke rather than a soft puff.
+	var sm := StandardMaterial3D.new()
+	sm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	sm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	sm.blend_mode = BaseMaterial3D.BLEND_MODE_MIX        # smoke tints, does NOT brighten (unlike the flame)
+	sm.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	sm.billboard_keep_scale = true
+	sm.vertex_color_use_as_albedo = true                # let the color-ramp (below) drive colour+alpha
+	sm.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_smoke_mesh = QuadMesh.new()
+	_smoke_mesh.size = Vector2(SMOKE_SQUARE, SMOKE_SQUARE)
+	_smoke_mesh.material = sm
+
+	var pm := ParticleProcessMaterial.new()
+	pm.direction = Vector3(0, 1, 0)
+	pm.spread = 6.0
+	pm.initial_velocity_min = SMOKE_RISE * 0.8
+	pm.initial_velocity_max = SMOKE_RISE * 1.15
+	pm.gravity = Vector3.ZERO                            # no fall; the initial velocity carries it up
+	pm.damping_min = 0.05
+	pm.damping_max = 0.15                                # eases off near the top, like real smoke
+	pm.scale_min = 0.7
+	pm.scale_max = 1.3
+	# grow a little as it rises and thins
+	var sc := Curve.new()
+	sc.add_point(Vector2(0.0, 0.7))
+	sc.add_point(Vector2(1.0, 1.6))
+	var sct := CurveTexture.new(); sct.curve = sc
+	pm.scale_curve = sct
+	# oscillating x: noise-based turbulence gives an organic side-to-side sway
+	pm.turbulence_enabled = true
+	pm.turbulence_noise_strength = SMOKE_SWAY
+	pm.turbulence_noise_scale = 1.2
+	pm.turbulence_influence_min = 0.1
+	pm.turbulence_influence_max = 0.25
+	# grey, fading in from nothing and back out to nothing over the life
+	var grad := Gradient.new()
+	grad.offsets = PackedFloat32Array([0.0, 0.15, 0.7, 1.0])
+	grad.colors = PackedColorArray([
+		Color(0.72, 0.72, 0.75, 0.0),
+		Color(0.68, 0.68, 0.72, 0.40),
+		Color(0.55, 0.55, 0.60, 0.22),
+		Color(0.45, 0.45, 0.50, 0.0)])
+	var gt := GradientTexture1D.new(); gt.gradient = grad
+	pm.color_ramp = gt
+	_smoke_pm = pm
+
+## One sconce's smoke emitter (shares the resources built above).
+func _make_smoke() -> GPUParticles3D:
+	var p := GPUParticles3D.new()
+	p.amount = SMOKE_AMOUNT
+	p.lifetime = SMOKE_LIFETIME
+	p.preprocess = SMOKE_LIFETIME    # start mid-plume, not from an empty column
+	p.randomness = 0.5
+	p.process_material = _smoke_pm
+	p.draw_pass_1 = _smoke_mesh
+	p.local_coords = false           # particles keep rising in world space, not dragged by the node
+	# a tall AABB so the plume isn't culled when the sconce base leaves the frustum
+	p.visibility_aabb = AABB(Vector3(-1.0, -0.5, -1.0), Vector3(2.0, SMOKE_RISE * SMOKE_LIFETIME + 1.5, 2.0))
+	return p
 
 ## Flicker: jitter each light's brightness a little every frame, so torches read
 ## as fire rather than steady lamps. Cheap — modulate the additive quads' alpha.
