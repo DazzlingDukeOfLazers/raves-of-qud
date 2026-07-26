@@ -597,12 +597,18 @@ func _sync_neighbors(neighbors: Array) -> void:
 			var wt := {}
 			_build_zone(nb.get("cells", []), Vector2i.ZERO, true, wt)   # local coords
 			_rebuild_walls(wt)     # _bank set -> into the subtree, no clear
-			# Bake this remembered zone's darkness from its stored light, so a dark cavern
-			# or night surface stays dark in memory instead of rendering fully lit. Frozen
-			# with the subtree (built once) — remembered light is stale by design anyway.
-			_build_darkness(nb.get("cells", []), sub)
 			_noting = true
 			_bank = null
+		# Bake this remembered zone's darkness from its stored light, so a dark cavern or
+		# night surface stays dark in memory instead of rendering fully lit. Meta-guarded
+		# to bake exactly ONCE — and done OUTSIDE the build block above so a zone that just
+		# stopped being LIVE gets it too: its subtree already exists (built as the live
+		# static, no darkness), and its per-turn darkness vanished with _dynamic_root. On
+		# re-entry _drop_static frees the subtree + meta, so it re-bakes as a neighbour.
+		var znode: Node3D = _static_zones[id]
+		if not znode.has_meta("dark_baked"):
+			znode.set_meta("dark_baked", true)
+			_build_darkness(nb.get("cells", []), znode)
 		# Vertical stacking: a neighbour `dz` strata below the live zone drops by
 		# dz * level_height, so deeper levels sit under the current one with an
 		# arbitrary, user-set gap. Same-stratum neighbours (dz==0) stay coplanar.
