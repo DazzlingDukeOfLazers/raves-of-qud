@@ -181,6 +181,10 @@ contributes quads with alpha `(1 - lightFrac) * DARK_MAX`:
   by `_relight_static_sprites` (a modulate write, no rebuild), so a forest goes dark at night with
   the ground under it. Frozen neighbours bake it once from stored light. Glowing sprites (glowpad,
   bioluminescence) are left bright — they emit light.
+- **connector panels** (fences, pipes, axles) are `MeshInstance3D`, which has no `modulate`, so each
+  gets a per-instance material (a shallow dup of the cached one — texture shared) and dims via
+  `albedo_color`. Tracked in `_lit_meshes` and re-lit by the same `_relight_static_sprites`; frozen
+  neighbours bake it in. Without this a fence stays "globally illuminated" while the scene darkens.
 
 The additive torch/glow geometry draws bright *on top* of the darkened tiles, so lit pools read
 against the black.

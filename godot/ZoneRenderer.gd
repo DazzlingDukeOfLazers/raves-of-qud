@@ -184,6 +184,9 @@ var _lights: Array = []           # [{glow, flame, smoke, energy}]
 # they can be dimmed by the cell's light EACH TURN like creatures — they'd otherwise stay
 # lit at night while the ground around them goes dark. [{s: Sprite3D, cell: Vector2i}]
 var _lit_sprites: Array = []
+# Same idea for connector panels (fences, pipes, axles): they are MeshInstance3D, not
+# Sprite3D, so they dim via a per-instance material's albedo_color, not modulate.
+var _lit_meshes: Array = []       # [{mi: MeshInstance3D, cell: Vector2i}]
 var _orbiters: Array = []         # glowfish "bugs": [{root, motes:[{s, ...orbit params}]}]
 
 # Torches are ADDITIVE — they brighten whatever is behind them by a fixed amount
@@ -326,6 +329,7 @@ func render_snapshot(data: Dictionary, neighbors: Array = []) -> void:
 		_placed.clear()
 		_lights.clear()                # the old live zone's torches stop flickering
 		_lit_sprites.clear()           # the old zone's plant/scenery sprites, re-lit each turn
+		_lit_meshes.clear()            # and its connector panels (fences/pipes)
 		_drop_static(live_id)          # replace any stale (neighbour-built) copy
 		_noting = true
 		_static_saw_missing = false
@@ -479,7 +483,7 @@ func _rebuild_dynamics(cells: Array) -> void:
 ## lit. Cheap — a modulate write per tracked sprite, no geometry rebuild. Mirrors the
 ## creature modulate; the flat darkness overlay can't cover a standing sprite.
 func _relight_static_sprites(cells: Array) -> void:
-	if _lit_sprites.is_empty():
+	if _lit_sprites.is_empty() and _lit_meshes.is_empty():
 		return
 	var frac := {}
 	for cell in cells:
@@ -489,6 +493,11 @@ func _relight_static_sprites(cells: Array) -> void:
 		if is_instance_valid(s):
 			var lf: float = frac.get(e["cell"], 1.0)
 			s.modulate = Color(lf, lf, lf) if lf < 0.999 else Color.WHITE
+	for e in _lit_meshes:
+		var mi = e["mi"]
+		if is_instance_valid(mi) and mi.material_override != null:
+			var lf: float = frac.get(e["cell"], 1.0)
+			mi.material_override.albedo_color = Color(lf, lf, lf)
 
 ## Qud LightLevel byte (per cell) -> 0..1 brightness. None(1)/Blackout(0) -> 0 (dark);
 ## Light(200)+ -> 1 (full). The low senses (darkvision 10 .. safelight 30) map to a dim
@@ -1320,21 +1329,29 @@ func _family_ew(tile: String) -> String:
 		return tile
 	return tile.substr(0, us + 1) + "ew" + tile.substr(dot)
 
-func _place_connector(tile: String, main_c: String, detail_c: String, cx: int, cy: int, dirs: String, h := FENCE_H, fill := Fill.NONE, y_center := -1.0) -> void:
+func _place_connector(tile: String, main_c: String, detail_c: String, cx: int, cy: int, dirs: String, h := FENCE_H, fill := Fill.NONE, y_center := -1.0, light_frac := 1.0) -> void:
 	if dirs == "":
-		_fence_half(cx, cy, "post", tile, main_c, detail_c, h, fill, y_center)
+		_fence_half(cx, cy, "post", tile, main_c, detail_c, h, fill, y_center, light_frac)
 		return
 	for d in dirs:
-		_fence_half(cx, cy, d, tile, main_c, detail_c, h, fill, y_center)
+		_fence_half(cx, cy, d, tile, main_c, detail_c, h, fill, y_center, light_frac)
 
 # One upright half-panel from the cell centre out to the edge in direction d, using
 # the family's E-W elevation art. Adjacent cells' halves meet at the shared edge,
 # so runs are continuous and corners form a clean L. Used for every directional
 # family: picket fences, pipes, and tent walls (which differ only in height).
-func _fence_half(cx: int, cy: int, d: String, tile: String, main_c: String, detail_c: String, h := FENCE_H, fill := Fill.NONE, y_center := -1.0) -> void:
+func _fence_half(cx: int, cy: int, d: String, tile: String, main_c: String, detail_c: String, h := FENCE_H, fill := Fill.NONE, y_center := -1.0, light_frac := 1.0) -> void:
 	var mi := _take_fence()
 	var half := "r" if (d == "e" or d == "s") else "l"
-	mi.material_override = _fence_material(_panel_art(tile), main_c, detail_c, half, fill)
+	# Per-INSTANCE material (a shallow dup — texture is shared) so this panel can be dimmed
+	# by its cell's light without touching the cached one every fence shares. albedo_color
+	# multiplies the texture, so Color(lf,lf,lf) darkens it. Re-lit each turn for the live
+	# zone (tracked below); baked once for frozen neighbours.
+	var fm: StandardMaterial3D = _fence_material(_panel_art(tile), main_c, detail_c, half, fill).duplicate()
+	fm.albedo_color = Color(light_frac, light_frac, light_frac)
+	mi.material_override = fm
+	if _live_build:
+		_lit_meshes.append({"mi": mi, "cell": Vector2i(cx, cy)})
 	mi.scale = Vector3(0.5, h, 1.0)
 	var pos := Vector3(cx, (y_center if y_center >= 0.0 else h * 0.5), cy)
 	var rot := 0.0
@@ -1513,7 +1530,7 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			var axis := "ew" if verdict == "panel_ew" else "ns"
 			var vh := _panel_height(obj, tile)
 			_place_connector(tile, main_c, detail_c, cx, cy, axis, vh,
-				_fill_for(tile, Fill.ALL if bool(obj.get("occluding", false)) else Fill.NONE))
+				_fill_for(tile, Fill.ALL if bool(obj.get("occluding", false)) else Fill.NONE), -1.0, light_frac)
 			_note(cx, cy, idx, "connector panels [%s] h=%.2f (user verdict)" % [axis, vh], vh * 0.5)
 			return
 
@@ -1584,7 +1601,7 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			var ph := _panel_height(obj, tile)
 			var floated: bool = position_for(tile) == "float"
 			var yc: float = FLOAT_Y if floated else ph * 0.5
-			_place_connector(tile, main_c, detail_c, cx, cy, dirs, ph, pfill, yc)
+			_place_connector(tile, main_c, detail_c, cx, cy, dirs, ph, pfill, yc, light_frac)
 			_note(cx, cy, idx, "connector panels [%s] h=%.2f%s%s" % [
 				"post" if dirs == "" else dirs, ph,
 				" filled-bg" if solid else "", "  floated" if floated else ""], yc)
