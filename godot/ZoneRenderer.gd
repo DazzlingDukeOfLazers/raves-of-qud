@@ -1678,6 +1678,8 @@ func _spindle_seg(tile: String, main_c: String, detail_c: String, cx: int, cy: i
 var _landmarks_root: Node3D
 const LANDMARK_PIXEL := 15.0           # sprite pixel_size: a 16px tile -> 240 units ≈ one parasang wide
 const LANDMARK_SPINDLE_SEGMENTS := 8   # shaft tiles between base and needle at parasang scale
+const LANDMARK_GLOW_PAD := 1.15        # additive glow quad size vs the sprite (a soft halo past the edge)
+const LANDMARK_GLOW_COLOR := Color(0.55, 0.85, 1.0, 0.9)  # additive tint — cool spire-metal luminance
 const LANDMARKS := [
 	{"kind": "spindle", "wx": 53, "wy": 3,  "tile": "terrain/sw_spindle_bottom.bmp", "main": "&C^k", "detail": "Y"},
 	{"kind": "single",  "wx": 11, "wy": 20, "tile": "terrain/tile_location7.bmp",     "main": "&r^k", "detail": "R"},
@@ -1696,17 +1698,25 @@ func _rebuild_landmarks(zone: Dictionary) -> void:
 		var gx: int = (int(lm["wx"]) * World.PARASANG + 1) * World.ZONE_W + int(World.ZONE_W / 2.0)
 		var gy: int = (int(lm["wy"]) * World.PARASANG + 1) * World.ZONE_H + int(World.ZONE_H / 2.0)
 		var base := Vector3(gx - origin.x, 0.0, gy - origin.y)
+		var seg_h := 24.0 * LANDMARK_PIXEL
 		if lm["kind"] == "spindle":
-			var seg_h := 24.0 * LANDMARK_PIXEL
 			var bottom := String(lm["tile"])
+			# bottom tile is full-height, so centring at seg_h/2 seats its art on the ground; mids/top
+			# stack by a full tile each so the shaft columns line up.
 			_landmark_sprite(bottom, lm["main"], lm["detail"], base + Vector3(0, 0.5 * seg_h, 0))
 			for i in range(1, LANDMARK_SPINDLE_SEGMENTS + 1):
 				_landmark_sprite(bottom.replace("bottom", "mid"), lm["main"], lm["detail"], base + Vector3(0, (i + 0.5) * seg_h, 0))
 			_landmark_sprite(bottom.replace("bottom", "top"), lm["main"], lm["detail"], base + Vector3(0, (LANDMARK_SPINDLE_SEGMENTS + 1.5) * seg_h, 0))
 		else:
-			_landmark_sprite(String(lm["tile"]), lm["main"], lm["detail"], base + Vector3(0, 12.0 * LANDMARK_PIXEL, 0))
+			# Seat the tile's OPAQUE BAND on the ground — the tile pads its art with transparent rows,
+			# so centring the full sprite left the rock floating by that padding. vr = (top, height)
+			# fractions; band bottom (top+height) at ground -> centre = (top+height - 0.5)*full_h.
+			var vr := _opaque_v(_mask(String(lm["tile"])))
+			var y_center: float = (vr.x + vr.y - 0.5) * seg_h
+			_landmark_sprite(String(lm["tile"]), lm["main"], lm["detail"], base + Vector3(0, y_center, 0))
 
-## One giant landmark sprite — its own (unpooled) node under _landmarks_root, billboarded upright.
+## One giant landmark sprite — its own (unpooled) node under _landmarks_root, billboarded upright,
+## with an ADDITIVE glow copy so it reads as a luminous beacon (brightest thing on a night horizon).
 func _landmark_sprite(tile: String, main_c: String, detail_c: String, pos: Vector3) -> void:
 	var t := _colored_tex(tile, main_c, detail_c, Fill.NONE)
 	if t == null:
@@ -1721,6 +1731,25 @@ func _landmark_sprite(tile: String, main_c: String, detail_c: String, pos: Vecto
 	s.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y    # upright, turns to face the camera
 	s.position = pos
 	_landmarks_root.add_child(s)
+	# additive glow: the same art blended ADD and slightly larger, so the landmark self-illuminates
+	# and glows against the night sky instead of reading as a thin dim thread.
+	var g := MeshInstance3D.new()
+	var qm := QuadMesh.new()
+	qm.size = Vector2(t.get_width() * LANDMARK_PIXEL, t.get_height() * LANDMARK_PIXEL) * LANDMARK_GLOW_PAD
+	g.mesh = qm
+	var gm := StandardMaterial3D.new()
+	gm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	gm.albedo_texture = t
+	gm.albedo_color = LANDMARK_GLOW_COLOR
+	gm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	gm.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	gm.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	gm.billboard_mode = BaseMaterial3D.BILLBOARD_FIXED_Y
+	gm.billboard_keep_scale = true
+	gm.cull_mode = BaseMaterial3D.CULL_DISABLED
+	g.material_override = gm
+	g.position = pos
+	_landmarks_root.add_child(g)
 
 ## True if this object is a mobile creature. Prefers the mod's `creature` flag,
 ## falls back to `sinks` (IsCreature && !IsFlying) for a snapshot from a mod build
