@@ -195,6 +195,9 @@ var _wall_cutaway := {}
 const CUTAWAY_MAX := 0.88         # deepest fade for a wall right on the line of sight
 const CUTAWAY_LERP := 9.0         # per-second ease, so walls fade in/out smoothly
 const CUTAWAY_LIT_MIN := 0.25     # only LIT walls fade; dark ones (already near-invisible) stay
+const CUTAWAY_RADIUS := 11.0      # only fade walls within this many tiles of the player (perf +
+                                  # sanity: the overworld is all lit, so an unbounded rule would
+                                  # try to fade the whole zone)
 const NEIGHBORS8 := [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1),
 	Vector2i(1,1), Vector2i(1,-1), Vector2i(-1,1), Vector2i(-1,-1)]
 var _cell_light := {}             # Vector2i -> light frac this turn, for the cutaway's lit test
@@ -1807,19 +1810,23 @@ func _wall_lit(cell: Vector2i) -> bool:
 ## of sight AND how clearly it sits BETWEEN the two; eased so it melts in/out. `enabled=false`
 ## eases everything back solid (top-down / first-person, where nothing is in the way). Called
 ## every frame by Main. Cheap: settled cells (the vast majority) skip the write.
-func apply_cutaway(eye: Vector3, _focus: Vector3, dt: float, enabled := true) -> void:
+func apply_cutaway(eye: Vector3, focus: Vector3, dt: float, enabled := true) -> void:
 	if _wall_cutaway.is_empty():
 		return
 	# A lit wall fades when it HIDES A LIT OPEN SPACE behind it (from the camera) — so you
 	# see the lit contents (loot, a lit room, the player) instead of the rock fronting them.
 	# Occlusion is judged on the ground plane (XZ): a lit, open neighbour that's FURTHER from
-	# the camera than the wall means the wall is between the camera and that space. Cheap: only
-	# lit walls run the neighbour scan, and lit cells only exist near the player's own light.
+	# the camera than the wall means the wall is between the camera and that space.
+	# BOUNDED to a disc around the player: without it the OVERWORLD (all lit by day) fades
+	# nearly every wall at once — a flood of transparent overdraw that tanks the framerate.
+	# Only rock near you needs to get out of the way, so far walls are skipped cheaply.
 	var e2 := Vector2(eye.x, eye.z)
+	var p2 := Vector2(focus.x, focus.z)
 	var ease := clampf(dt * CUTAWAY_LERP, 0.0, 1.0)
 	for cell in _wall_cutaway:
 		var target := 0.0
-		if enabled and _wall_lit(cell):
+		if enabled and (Vector2(cell.x, cell.y) - p2).length_squared() <= CUTAWAY_RADIUS * CUTAWAY_RADIUS \
+				and _wall_lit(cell):
 			var wd := (Vector2(cell.x, cell.y) - e2).length()
 			for off in NEIGHBORS8:
 				var b: Vector2i = cell + off

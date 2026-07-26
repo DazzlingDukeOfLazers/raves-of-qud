@@ -65,7 +65,9 @@ a low angle. `ZoneRenderer.apply_cutaway(eye, _focus, dt, enabled)` runs every f
 the wall (ground-plane XZ distance) means the wall is between the camera and that lit space. Eased
 in/out (`CUTAWAY_LERP`) up to `CUTAWAY_MAX`. This targets the lit *area* (loot, a lit room, the
 player standing in light), not a single point, so the thing you want to see isn't blocked by its own
-front wall. It needs only the camera position — the `focus`/player arg is unused (`_focus`).
+front wall. **Bounded to `CUTAWAY_RADIUS` tiles around the player** — without that the all-lit
+overworld would try to fade nearly every wall at once (a flood of transparent overdraw that tanks
+the framerate), and only rock near you needs to move anyway.
 
 The fade is **`GeometryInstance3D.transparency`** with the wall material in
 **`ALPHA_DEPTH_PRE_PASS`**: at `transparency 0` (alpha 1) the depth pre-pass makes the wall render
