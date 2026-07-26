@@ -109,6 +109,7 @@ func set_target(cx: int, cy: int, zone: String, objects: Array, report: String) 
 
 	_target.text = "tile (%d, %d)" % [cx, cy]
 	_status.text = ""
+	_apply_font()          # size from the CURRENT window (build-time was still small)
 	_panel.visible = true
 
 func _sync_subject() -> void:

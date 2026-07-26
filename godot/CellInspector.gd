@@ -318,6 +318,9 @@ func _show(report: String, cx: int, cy: int) -> void:
 func _repaint() -> void:
 	if _last_report == "":
 		return
+	# Re-apply the size from the CURRENT window every repaint — it was only set once at build time
+	# (when the window was still small), so it never grew to the source-of-truth size.
+	_label.add_theme_font_size_override("normal_font_size", _cur_font())
 	var lines := _last_report.split("\n")
 	var avail := get_viewport().get_visible_rect().size.y - 48.0
 	var fits := maxi(6, floori(avail / (_cur_font() * LINE_HEIGHT_RATIO)))
