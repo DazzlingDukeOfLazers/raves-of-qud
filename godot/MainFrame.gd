@@ -189,9 +189,10 @@ func _row_vitals_menu() -> Control:
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 6)
 
-	# col 1 — two stacked vitals rows, each a label + a coloured percent bar
+	# col 1 — two stacked vitals rows, each a label + a coloured percent bar. Expands wide (like
+	# Qud, where the HP/EXP bars span most of the width) while the menu shrinks to the right.
 	var vitals := _strip()
-	vitals.custom_minimum_size = Vector2(420, 0)
+	vitals.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var vb := VBoxContainer.new()
 	vb.add_theme_constant_override("separation", 4)
 	vitals.add_child(vb)
@@ -213,9 +214,9 @@ func _row_vitals_menu() -> Control:
 	vb.add_child(xp)
 	h.add_child(vitals)
 
-	# col 2 — top menu (fills the rest)
+	# col 2 — top menu, a compact cluster hugging the right (Qud's top-right icon menu)
 	var menu := _strip()
-	menu.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	menu.size_flags_horizontal = Control.SIZE_SHRINK_END
 	var mh := HBoxContainer.new()
 	mh.add_theme_constant_override("separation", 4)
 	menu.add_child(mh)
@@ -276,12 +277,14 @@ func _row_command() -> Control:
 
 	h.add_child(_menu_btn("⮂ Tabs"))   # toggle ability tabs
 	h.add_child(_sep())
-	# Abilities [0:N] — icon + name + (status) + hotkey. Placeholders for now.
+	# Abilities [0:N] — icon + name + [status] + <hotkey>, inline like Qud. Placeholders for now.
 	var demo := [
-		{"name": "Sprint", "key": "1", "status": ""},
-		{"name": "Bull Rush", "key": "2", "status": ""},
-		{"name": "Regeneration", "key": "3", "status": "cooldown"},
-		{"name": "Sunder Armor", "key": "4", "status": ""},
+		{"name": "Sprint", "key": "1", "status": "off"},
+		{"name": "Make Camp", "key": "2", "status": ""},
+		{"name": "Intimidate", "key": "3", "status": ""},
+		{"name": "Regeneration", "key": "4", "status": "cooldown"},
+		{"name": "Lase", "key": "5", "status": "4 charges"},
+		{"name": "Ambient Light", "key": "6", "status": "on"},
 	]
 	for i in demo.size():
 		h.add_child(_ability_slot(demo[i]))
@@ -297,14 +300,11 @@ func _ability_slot(a: Dictionary) -> Control:
 	h.add_theme_constant_override("separation", 6)
 	p.add_child(h)
 	h.add_child(_icon(UiFont.px(get_viewport(), "body")))
-	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 0)
-	v.add_child(_text(String(a.get("name", "")), Color.WHITE, "caption"))
+	h.add_child(_text(String(a.get("name", ""))))
 	var st := String(a.get("status", ""))
 	if st != "":
-		v.add_child(_text(st, COL_DIM, "caption"))
-	h.add_child(v)
-	h.add_child(_text("[%s]" % String(a.get("key", "")), COL_DIM, "caption"))
+		h.add_child(_text("[%s]" % st, COL_DIM, "caption"))   # inline status, e.g. [off] / [cooldown]
+	h.add_child(_text("<%s>" % String(a.get("key", "")), COL_DIM, "caption"))   # <hotkey>, Qud style
 	return p
 
 # ── screenshot (F12) ─────────────────────────────────────────────────────────
