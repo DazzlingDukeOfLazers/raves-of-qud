@@ -25,8 +25,11 @@ const COL_BORDER := Color(1, 1, 1, 0.12)
 const COL_PANEL := Color(0.10, 0.11, 0.14)
 const COL_BG := Color(0.055, 0.065, 0.085)
 
-var _holo_vp: SubViewport   # the embedded Holodeck (Main.tscn) renders into this — null until enabled
-var _holo_host: Control     # the row-3 left cell; holds the Enable button until the Holodeck is on
+var _holo: Node             # the embedded Main.tscn instance (null until Connect)
+var _holo_vp: SubViewport   # the SubViewport it renders into
+var _holo_host: Control     # the row-3 left cell (control bar + viewport area)
+var _connect_btn: Button    # stage 1: bridge + data, no 3D
+var _render_btn: Button     # stage 2: turn the 3D viewport on
 var _forwarding := false    # reentry guard so key-forwarding into the SubViewport can't recurse
 
 # Live status-bar labels, updated from each snapshot's `stats` block.
@@ -287,65 +290,71 @@ func _row_main() -> Control:
 ## fill the cell. Main creates its own camera / World3D / bridge in _ready, so it just works in here.
 ## Mouse over the cell is forwarded by SubViewportContainer; keyboard is forwarded in
 ## _unhandled_key_input below. Camera/movement (polled Input.is_key_pressed) works regardless.
-## OFF at startup — an "Enable Holodeck" button. On click we instance Main into a SubViewport that
-## starts with its render DISABLED, and only turn the 3D present ON after Main has produced its FIRST
-## snapshot (its first zone is built) PLUS a settle margin. Turning the SubViewport render on WHILE
-## Main is still building the zone raced the Metal init and crashed (a fixed 0.3s delay fired mid-build
-## and still crashed; the manual two-stage worked because the render was clicked on seconds later,
-## after the build settled). Fallback timer covers "no snapshot" (Qud not running). One button.
-const RENDER_DELAY := 2.0   # settle time AFTER the first snapshot before presenting the 3D
-
+## Two explicit stages so the 3D crash can't take the data with it:
+##   1. Connect (data) — instance Main with render_3d = FALSE and the SubViewport render off. The
+##      bridge starts and the status bar + message log fill with ZERO 3D/Metal work (Main skips the
+##      whole build/render path). If this is stable, the data layer is proven independent of the 3D.
+##   2. Turn on viewport — set Main.render_3d = true (renders the current zone) and flip the
+##      SubViewport to present. Any 3D crash is now isolated here, and the data view survives it.
 func _holodeck_cell() -> Control:
-	_holo_host = PanelContainer.new()
-	_holo_host.add_theme_stylebox_override("panel", _panel_style(Color(0.09, 0.10, 0.13)))
+	_holo_host = VBoxContainer.new()
 	_holo_host.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_holo_host.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	var v := VBoxContainer.new()
-	v.alignment = BoxContainer.ALIGNMENT_CENTER
-	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	v.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	v.add_theme_constant_override("separation", 8)
-	_holo_host.add_child(v)
-	var t := _text("HOLODECK")
-	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	v.add_child(t)
-	var btn := _menu_btn("▶  Enable Holodeck")
-	btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	btn.pressed.connect(_enable_holodeck)
-	v.add_child(btn)
+	_holo_host.add_theme_constant_override("separation", 2)
+
+	var bar := _strip()
+	var bh := HBoxContainer.new()
+	bh.add_theme_constant_override("separation", 6)
+	bar.add_child(bh)
+	_connect_btn = _menu_btn("▶ Connect (data)")
+	_connect_btn.pressed.connect(_connect_holodeck)
+	bh.add_child(_connect_btn)
+	_render_btn = _menu_btn("▶ Turn on viewport")
+	_render_btn.disabled = true
+	_render_btn.pressed.connect(_enable_viewport)
+	bh.add_child(_render_btn)
+	var tail := Control.new()
+	tail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bh.add_child(tail)
+	_holo_host.add_child(bar)
+
+	var area := _cell("HOLODECK")
+	area.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_holo_host.add_child(area)
 	return _holo_host
 
-## Bring the Holodeck online: instance Main into a SubViewport (render off), then start presenting a
-## beat later so the first 3D frame doesn't race Main's init. Idempotent.
-func _enable_holodeck() -> void:
-	if _holo_vp != null or _holo_host == null:
+## Stage 1 — data only. Main runs the bridge and emits snapshots (status bar + log) but does NO 3D
+## work (render_3d = false), and the SubViewport isn't presenting.
+func _connect_holodeck() -> void:
+	if _holo != null:
 		return
-	for c in _holo_host.get_children():
-		c.queue_free()
+	_connect_btn.disabled = true
+	if _holo_host.get_child_count() > 1:
+		_holo_host.get_child(1).queue_free()
 	var svc := SubViewportContainer.new()
 	svc.stretch = true
 	svc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	svc.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	var sv := SubViewport.new()
 	sv.own_world_3d = true
-	sv.render_target_update_mode = SubViewport.UPDATE_DISABLED   # start OFF; go live after RENDER_DELAY
+	sv.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	svc.add_child(sv)
-	var holo: Node = load("res://Main.tscn").instantiate()
-	holo.embedded = true
-	holo.connect("snapshot", _apply_stats)     # feeds status bar + message log
-	sv.add_child(holo)                          # _ready() → bridge connects
+	_holo = load("res://Main.tscn").instantiate()
+	_holo.embedded = true
+	_holo.render_3d = false                     # DATA ONLY — no 3D build/render at all
+	_holo.connect("snapshot", _apply_stats)     # feeds status bar + message log
+	sv.add_child(_holo)                          # _ready() → bridge connects
 	_holo_vp = sv
 	_holo_host.add_child(svc)
-	# present only after Main has built its first zone (first snapshot) + a settle margin
-	holo.connect("snapshot", _arm_render, CONNECT_ONE_SHOT)
-	get_tree().create_timer(8.0).timeout.connect(_start_render)   # fallback if no snapshot ever arrives
+	_render_btn.disabled = false
 
-func _arm_render(_data: Dictionary) -> void:
-	get_tree().create_timer(RENDER_DELAY).timeout.connect(_start_render)
-
-func _start_render() -> void:
-	if _holo_vp != null and _holo_vp.render_target_update_mode != SubViewport.UPDATE_ALWAYS:
-		_holo_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+## Stage 2 — bring the 3D up: render the current zone and start presenting.
+func _enable_viewport() -> void:
+	if _holo == null or _holo_vp == null:
+		return
+	_render_btn.disabled = true
+	_holo.set_render_3d(true)                    # build the current zone now
+	_holo_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 
 ## Update the status bar from one snapshot's `stats` block (and `time` for day/night). Missing
 ## fields fall back to "—" so a partial/older mod never shows stale numbers.

@@ -191,6 +191,11 @@ var _wm_cards_btn: Button   # persistent top-right world-map card toggle (mirror
 ## Set true by MainFrame before this scene enters its SubViewport: the Holodeck is hosted inside the
 ## main UI frame, so hide its OWN chrome (mode label + Reset/2D buttons). The frame supplies its menu.
 var embedded := false
+
+## When false, skip ALL 3D build/render work in _on_snapshot — bridge + data (the snapshot signal)
+## keep flowing with zero GPU/Metal work. The frame connects data-first with this off, then calls
+## set_render_3d(true) to bring the viewport up separately. Default true = standalone renders normally.
+var render_3d := true
 var _ui_theme: Theme   # project-wide default theme (UiFont) on the root viewport — see _ready
 
 # Responsive HUD text: a fraction of viewport height, but never below a floor —
@@ -401,6 +406,15 @@ func _ready() -> void:
 ## Hide the Holodeck's own on-screen chrome (mode label, ⟳ Reset, tiles-2D button) when it's hosted
 ## inside the main UI frame — the frame will provide these controls itself. The world, the debug menu
 ## (`), and the inspector still work; only the always-on HUD buttons go away.
+## Turn the 3D build/render on or off at runtime. Turning it ON renders the current zone immediately
+## (from the store the data-only path kept current) instead of waiting for the next turn.
+func set_render_3d(on: bool) -> void:
+	render_3d = on
+	if on:
+		var live: Dictionary = store.live_snapshot()
+		if not live.is_empty():
+			renderer.render_snapshot(live, _neighbor_zones())
+
 func _hide_holodeck_chrome() -> void:
 	if _mode_label != null:
 		_mode_label.visible = false
@@ -420,20 +434,23 @@ func _on_snapshot(data: Dictionary) -> void:
 	# neighbours (same stratum) the player has visited, placed by global offset.
 	Profiler.add_us("server", int(data.get("serverUs", 0)))
 	Profiler.begin("ingest")
-	store.ingest(data)
+	store.ingest(data)   # keep the store current even when not rendering, so 3D can start instantly
 	Profiler.done("ingest")
-	Profiler.begin("neighbors")
-	var nbs := _neighbor_zones()
-	Profiler.done("neighbors")
-	# first-person: hide the player creature (the camera sits on its cell)
-	var pc: Dictionary = data.get("player", {})
-	renderer.set_hidden_cell(Vector2i(int(pc.get("x", -1)), int(pc.get("y", -1)))
-			if _mode == CamMode.FIRST_PERSON else Vector2i(-9999, -9999))
-	Profiler.begin("render")
-	renderer.render_snapshot(store.live_snapshot(), nbs)
-	Profiler.done("render")
+	# The 3D build/render (meshes, SubViewport) is the heavy GPU work. When render_3d is off (the frame
+	# hosts us data-first, viewport later) we skip ALL of it and just feed data — no Metal work at all.
+	if render_3d:
+		Profiler.begin("neighbors")
+		var nbs := _neighbor_zones()
+		Profiler.done("neighbors")
+		# first-person: hide the player creature (the camera sits on its cell)
+		var pc: Dictionary = data.get("player", {})
+		renderer.set_hidden_cell(Vector2i(int(pc.get("x", -1)), int(pc.get("y", -1)))
+				if _mode == CamMode.FIRST_PERSON else Vector2i(-9999, -9999))
+		Profiler.begin("render")
+		renderer.render_snapshot(store.live_snapshot(), nbs)
+		Profiler.done("render")
 	inspector.on_snapshot(data)
-	snapshot.emit(data)   # let a host frame update its status bar / panels off the same data
+	snapshot.emit(data)   # let a host frame update its status bar / panels off the same data (always)
 
 	# Auto-dump the profile every N turns (cumulative, no reset) so it's always fresh
 	# without needing a keypress — the manual P key can be flaky (window focus / UI).
