@@ -364,6 +364,22 @@ namespace RavesOfQud
                     }
                     catch (Exception e) { Server.Log("zoo error: " + e.Message); }
                     break;
+                case "become":
+                    // Turn the player INTO an arbitrary blueprint. MAIN-THREAD ONLY:
+                    // creates a GameObject, re-homes player control, retires the old
+                    // body — all game-state mutation, so it must run here.
+                    try
+                    {
+                        f.TryGetValue("bp", out string bp);
+                        Server.Log("[become] " + PlayerBecome.Become(player, bp));
+                    }
+                    catch (Exception e) { Server.Log("become error: " + e.Message); }
+                    break;
+                case "catalog":
+                    // Dump the pickable-blueprint catalog to disk for the Godot menu.
+                    try { Server.Log("[catalog] wrote " + PlayerBecome.WriteCatalog()); }
+                    catch (Exception e) { Server.Log("catalog error: " + e.Message); }
+                    break;
                 // Movement is handled on the socket thread (see OnPayload), so it can
                 // drive an unfocused game. Extend here for main-thread-only commands.
                 default:

@@ -22,6 +22,8 @@ Examples:
     python3 tools/capture/control.py go N 3 qudshot      # 3 steps N, then read Qud's map (the dev loop)
     python3 tools/capture/control.py zoo creatures 0     # build a debug zoo (pens+signs) in the current zone
     python3 tools/capture/control.py zoo weapons         # dense labeled weapon cache
+    python3 tools/capture/control.py catalog             # dump become_catalog.json (what `become` accepts)
+    python3 tools/capture/control.py become Dresser      # turn the player INTO a dresser (any blueprint works)
 
 Requires Qud running with the bridge mod, and (for `shot`/`cam`) the Raves viewer open.
 """
@@ -172,6 +174,24 @@ def main(argv):
         b.send("zoo", cat=cat, page=page)
         b.close()
         print("zoo: built %s page %s (move/wait once to refresh the snapshot)" % (cat, page))
+    elif cmd == "become":
+        # Turn the player INTO an arbitrary blueprint (creature/item/furniture).
+        # `become <Blueprint>`  e.g. `become Dresser` — yes, you can be an immobile
+        # dresser. Sent to QUD over the bridge (main-thread swap in the mod).
+        if len(argv) < 2:
+            sys.exit("usage: become <Blueprint>   (try `catalog` first for the list)")
+        bp = " ".join(argv[1:])   # blueprint names can contain spaces (e.g. "Iron Gate")
+        b = Bridge()
+        b.send("become", bp=bp)
+        b.close()
+        print("become: swapped to '%s' (move/wait once to refresh the snapshot)" % bp)
+    elif cmd == "catalog":
+        # Dump the pickable-blueprint catalog to <support>/become_catalog.json so the
+        # character-creator menu (and you) can see what `become` accepts.
+        b = Bridge()
+        b.send("catalog")
+        b.close()
+        print("catalog: wrote %s" % os.path.join(BASE, "become_catalog.json"))
     elif cmd == "qudshot":
         print("qud_shot.png updated" if qud_shot() else "qudshot: TIMED OUT (is Qud running?)")
     elif cmd == "go":

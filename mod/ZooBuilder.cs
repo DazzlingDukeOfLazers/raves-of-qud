@@ -163,7 +163,8 @@ namespace RavesOfQud
         }
 
         // Enumerate every non-base blueprint matching a category, sorted for stable paging.
-        private static List<string> Select(string category)
+        // Public so the character-creator ("become") catalog shares one source of truth.
+        public static List<string> Select(string category)
         {
             GameObjectFactory factory = GameObjectFactory.Factory;
             var outp = new List<string>();
@@ -190,10 +191,14 @@ namespace RavesOfQud
                     return bp.HasPart("Food");
                 case "implants":
                     return bp.HasPart("CyberneticsBaseItem");
+                case "furniture":
+                    return bp.InheritsFrom("Furniture");
                 case "items":
                     return bp.InheritsFrom("Item")
                         && !bp.HasPart("MeleeWeapon") && !bp.HasPart("MissileWeapon")
                         && !bp.HasPart("Food") && !bp.HasPart("CyberneticsBaseItem");
+                case "all":
+                    return true;
                 default:
                     return false;
             }

@@ -105,8 +105,8 @@ cutaway behaves as before; in a dark cavern only illuminated rock between you an
   stacked Z-levels). Both are offsets added to eye+look (`_cam_lift` vertical, held; `_cam_pan`
   horizontal, 1 tile per press), so the view slides while keeping its angle. Not in FLY (WASD
   drives the free camera there). Transient: not saved, and reset on any camera-mode switch.
-- **World-map cards (`B`)** — on the parasang map, terrain tiles stand up as billboards rather
-  than lying flat (the compass camera reads the art face-on). `B` (or the ` menu) toggles all of
+- **World-map cards (`O`)** — on the parasang map, terrain tiles stand up as billboards rather
+  than lying flat (the compass camera reads the art face-on). `O` (or the ` menu) toggles all of
   them between **following the camera** (default) and a fixed **EW orientation facing N/S**.
   Instant — the renderer flips the shared card materials in place, no rebuild. See
   [rendering.md §10](rendering.md).

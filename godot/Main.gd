@@ -28,6 +28,7 @@ extends Node3D
 ## keeps the name Cell.
 
 var client: BridgeClient
+var _char_creator: CharacterCreator
 var renderer: ZoneRenderer
 var store := WorldStore.new()   # Phase-0 world store; renderer reads the live zone from it
 var _prof_turns := 0            # for the periodic profile auto-dump
@@ -323,6 +324,10 @@ func _ready() -> void:
 	onboarding = OnboardingControl.new()
 	add_child(onboarding)
 	onboarding.setup()
+
+	_char_creator = CharacterCreator.new()
+	_char_creator.client = client
+	add_child(_char_creator)
 
 ## On (re)connect, wait one turn so Qud publishes a snapshot immediately and Raves has a
 ## zone to render — instead of a blank view until the player first moves. Passes a turn for
@@ -1229,7 +1234,7 @@ func _refresh_look_btn() -> void:
 
 func _refresh_wm_face_btn() -> void:
 	if _wm_face_btn != null:
-		_wm_face_btn.text = "world-map cards (B): %s" % ("EW → N/S" if _wm_face_ns else "follow cam")
+		_wm_face_btn.text = "world-map cards (O): %s" % ("EW → N/S" if _wm_face_ns else "follow cam")
 
 ## Flip world-map terrain cards between follow-the-camera billboards and fixed EW panels
 ## facing N/S. Instant — the renderer flips the shared materials in place, no rebuild.
@@ -1378,7 +1383,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.keycode == KEY_0: _toggle_multiview(); return   # 0 = all-views grid
 		if event.keycode == KEY_QUOTELEFT:      # ` toggles the debug menu
 			_toggle_debug_menu(); return
-		if event.keycode == KEY_B:              # B: world-map cards follow camera <-> lock EW (facing N/S)
+		# B: "become anything" character-creator menu (pick a blueprint to embody)
+		if event.keycode == KEY_B and not event.shift_pressed \
+				and not (event.ctrl_pressed or event.meta_pressed):
+			_char_creator.toggle(renderer.tiles_dir().get_base_dir()); return
+		# O: world-map cards follow camera <-> lock EW (facing N/S). (Was B; moved off B when the
+		# character-creator merge took B for "become".)
+		if event.keycode == KEY_O:
 			_toggle_wm_face_ns(); return
 		# Q/E rotate the locked compass heading (COMPASS mode only), 45° or 90° per _compass_45
 		if _mode == CamMode.COMPASS and event.keycode == KEY_Q:
@@ -1405,6 +1416,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			_dismiss_selection()
 			if _debug_menu != null:
 				_debug_menu.visible = false
+			if _char_creator != null:
+				_char_creator.visible = false
 			return
 		if event.keycode == KEY_I:
 			_inspect(); return
