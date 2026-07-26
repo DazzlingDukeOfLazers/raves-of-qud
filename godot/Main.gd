@@ -1,5 +1,9 @@
 extends Node3D
 
+## Emitted every snapshot with the raw Qud data, so a host (MainFrame) can drive its status bar /
+## panels off the same stream the Holodeck renders — no second bridge connection needed.
+signal snapshot(data: Dictionary)
+
 ## Wires the bridge client to the renderer, drives the camera, and maps input to
 ## Qud movement commands. Built in code so the scene file stays a single node.
 ##
@@ -429,6 +433,7 @@ func _on_snapshot(data: Dictionary) -> void:
 	renderer.render_snapshot(store.live_snapshot(), nbs)
 	Profiler.done("render")
 	inspector.on_snapshot(data)
+	snapshot.emit(data)   # let a host frame update its status bar / panels off the same data
 
 	# Auto-dump the profile every N turns (cumulative, no reset) so it's always fresh
 	# without needing a keypress — the manual P key can be flaky (window focus / UI).

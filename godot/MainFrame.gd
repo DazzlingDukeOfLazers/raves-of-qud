@@ -27,6 +27,19 @@ const COL_BG := Color(0.055, 0.065, 0.085)
 
 var _holo_vp: SubViewport   # the embedded Holodeck (Main.tscn) renders into this
 
+# Live status-bar labels, updated from each snapshot's `stats` block.
+var _l_name: Label
+var _l_temp: Label
+var _l_weight: Label
+var _l_water: Label
+var _l_qn: Label
+var _l_ms: Label
+var _l_av: Label
+var _l_dv: Label
+var _l_ma: Label
+var _l_biome: Label
+var _daynight: Panel
+
 func _ready() -> void:
 	name = "MainFrame"
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -152,34 +165,38 @@ func _row_status() -> Control:
 	strip.add_child(h)
 
 	h.add_child(_icon(UiFont.px(get_viewport(), "body")))   # player portrait (same tile as the Holodeck marker, later)
-	var name_l := _text("Warden Indrix")
-	name_l.custom_minimum_size = Vector2(220, 0)             # reserve width so long names don't shove the strip
-	name_l.clip_text = true
-	h.add_child(name_l)
+	_l_name = _text("—")
+	_l_name.custom_minimum_size = Vector2(220, 0)           # reserve width so long names don't shove the strip
+	_l_name.clip_text = true
+	h.add_child(_l_name)
 
-	h.add_child(_text("22 °C"))
+	_l_temp = _text("—")
+	h.add_child(_l_temp)
 	h.add_child(_sep())
-	h.add_child(_text("Famished", COL_HUNGER))              # hunger
-	h.add_child(_text("Tumescent", COL_THIRST))             # thirst
+	h.add_child(_text("Famished", COL_HUNGER))             # hunger — PLACEHOLDER (Stomach status string TODO)
+	h.add_child(_text("Tumescent", COL_THIRST))            # thirst — PLACEHOLDER
 	h.add_child(_sep())
-	h.add_child(_text("45/120 #"))                          # carry weight cur/max
-	h.add_child(_text("12 $", COL_THIRST))                  # fresh water in drams (= currency)
+	_l_weight = _text("—")                                 # carry weight cur/max
+	h.add_child(_l_weight)
+	_l_water = _text("—", COL_THIRST)                      # fresh water in drams (= currency)
+	h.add_child(_l_water)
 	h.add_child(_sep())
-	h.add_child(_text("QN: 100"))                           # quickness (100 nominal)
+	_l_qn = _text("QN: —"); h.add_child(_l_qn)             # quickness (100 nominal)
 	h.add_child(_sep())
-	h.add_child(_text("MS: 100"))                           # move speed (100 nominal)
+	_l_ms = _text("MS: —"); h.add_child(_l_ms)             # move speed (100 nominal)
 	h.add_child(_sep())
-	h.add_child(_text("AV: 8"))                             # attack value
+	_l_av = _text("AV: —"); h.add_child(_l_av)             # attack value
 	h.add_child(_sep())
-	h.add_child(_text("DV: 6"))                             # defense value
-	h.add_child(_text("MA: 4"))                             # (unsure — mental armor?)
+	_l_dv = _text("DV: —"); h.add_child(_l_dv)             # defense value
+	_l_ma = _text("MA: —"); h.add_child(_l_ma)             # mental armor
 	h.add_child(_sep())
 
-	var day := _icon(UiFont.px(get_viewport(), "body") * 1.6, Color(0.20, 0.28, 0.42))   # day/night clock image
-	h.add_child(day)
+	_daynight = _icon(UiFont.px(get_viewport(), "body") * 1.6, Color(0.20, 0.28, 0.42))   # day/night clock image
+	h.add_child(_daynight)
 	h.add_child(_sep())
 
-	h.add_child(_text("Salt Marsh · surface"))             # biome, floor
+	_l_biome = _text("—")                                  # biome · floor
+	h.add_child(_l_biome)
 	var tail := Control.new()                              # push nothing; keep items left-packed
 	tail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h.add_child(tail)
@@ -268,9 +285,48 @@ func _holodeck_cell() -> Control:
 	svc.add_child(sv)
 	var holo: Node = load("res://Main.tscn").instantiate()
 	holo.embedded = true                      # hide the Holodeck's own chrome; the frame owns the menu
+	holo.connect("snapshot", _apply_stats)    # drive the status bar off the Holodeck's snapshot stream
 	sv.add_child(holo)                         # _ready() runs here, sees embedded=true
 	_holo_vp = sv
 	return svc
+
+## Update the status bar from one snapshot's `stats` block (and `time` for day/night). Missing
+## fields fall back to "—" so a partial/older mod never shows stale numbers.
+func _apply_stats(data: Dictionary) -> void:
+	var s: Dictionary = data.get("stats", {})
+	if _l_name != null:
+		_l_name.text = String(s.get("name", "—"))
+	if _l_temp != null:
+		_l_temp.text = ("%d °C" % int(s["temp"])) if s.has("temp") else "—"
+	if _l_weight != null:
+		_l_weight.text = "%d/%d #" % [int(s.get("weight", 0)), int(s.get("weightMax", 0))]
+	if _l_water != null:
+		_l_water.text = "%d $" % int(s.get("water", 0))
+	if _l_qn != null:
+		_l_qn.text = "QN: %d" % int(s.get("qn", 0))
+	if _l_ms != null:
+		_l_ms.text = "MS: %d" % int(s.get("ms", 0))
+	if _l_av != null:
+		_l_av.text = "AV: %d" % int(s.get("av", 0))
+	if _l_dv != null:
+		_l_dv.text = "DV: %d" % int(s.get("dv", 0))
+	if _l_ma != null:
+		_l_ma.text = "MA: %d" % int(s.get("ma", 0))
+	if _l_biome != null:
+		var terrain := String(s.get("terrain", ""))
+		_l_biome.text = "%s · %s" % [terrain if terrain != "" else "—", _floor_name(data)]
+	if _daynight != null:
+		var is_day: bool = bool(data.get("time", {}).get("isDay", true))
+		_daynight.modulate = Color(1.0, 0.92, 0.55) if is_day else Color(0.35, 0.42, 0.7)
+
+## Stratum label from zone.z (surface = 10, deeper = cavern -N, negative = the overworld map).
+func _floor_name(data: Dictionary) -> String:
+	var z: int = int(data.get("zone", {}).get("z", 10))
+	if z < 0:
+		return "world map"
+	if z > 10:
+		return "cavern -%d" % (z - 10)
+	return "surface"
 
 ## Forward discrete key events into the embedded Holodeck (mode 1-7, O 2D-toggle, F1, etc.). Held-key
 ## camera/movement already works through Main's per-frame Input polling, independent of focus.

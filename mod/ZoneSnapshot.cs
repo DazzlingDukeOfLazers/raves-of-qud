@@ -357,6 +357,49 @@ namespace RavesOfQud
             catch { return ""; }
         }
 
+        private static int SafeStat(GameObject go, string stat)
+        {
+            try { return go.GetStatValue(stat); } catch { return 0; }
+        }
+
+        /// Zone terrain/biome name ("salt marsh") via reflection, so a signature change or a
+        /// method that lives on a different type never breaks the build. "" if unavailable.
+        private static string TerrainName(Zone z)
+        {
+            if (z == null) return "";
+            try
+            {
+                var m = z.GetType().GetMethod("GetTerrainDisplayName", System.Type.EmptyTypes);
+                if (m != null) return (m.Invoke(z, null) as string) ?? "";
+            }
+            catch { }
+            return "";
+        }
+
+        /// Player vitals + stats for the frame's status bar (top row). Every read is guarded so a
+        /// missing part or wrong stat name never fails the snapshot — a bad name just reads 0.
+        /// TODO: hunger/thirst status strings (Famished/Tumescent) — the Stomach part has no simple
+        /// getter, needs a dedicated pass.
+        private static void WriteStats(JsonWriter j, GameObject player, Zone z)
+        {
+            if (player == null) return;
+            j.Name("stats").BeginObject();
+            j.Member("name", DisplayNameOf(player));
+            try { j.Member("hp", player.hitpoints).Member("hpMax", player.baseHitpoints); } catch { }
+            j.Member("level", SafeStat(player, "Level"));
+            j.Member("xp", SafeStat(player, "XP"));
+            try { if (player.pPhysics != null) j.Member("temp", player.pPhysics.Temperature); } catch { }
+            j.Member("qn", SafeStat(player, "Speed"));       // Quickness (100 nominal)
+            j.Member("ms", SafeStat(player, "MoveSpeed"));   // Move speed (100 nominal)
+            j.Member("av", SafeStat(player, "AV"));
+            j.Member("dv", SafeStat(player, "DV"));
+            j.Member("ma", SafeStat(player, "MA"));
+            try { j.Member("weight", player.GetCarriedWeight()).Member("weightMax", player.GetMaxCarriedWeight()); } catch { }
+            try { j.Member("water", player.GetFreeDrams("Water")); } catch { }   // fresh water = currency
+            j.Member("terrain", TerrainName(z));
+            j.EndObject();
+        }
+
         public static string BuildJson(GameObject player)
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
@@ -404,6 +447,8 @@ namespace RavesOfQud
                 .Member("x", pc != null ? pc.X : -1)
                 .Member("y", pc != null ? pc.Y : -1)
             .EndObject();
+
+            WriteStats(j, player, z);   // player vitals/stats for the frame status bar
 
             j.Name("cells").BeginArray();
             for (int y = 0; y < h; y++)
