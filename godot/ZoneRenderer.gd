@@ -1727,6 +1727,7 @@ var _landmark_nodes: Array = []        # [{node, wx, wy}] built once, reposition
 var _rock_mat: StandardMaterial3D      # shared solid-red-rock material for the Red Rock voxels
 const LANDMARK_SPINDLE_SEGMENTS := 8   # shaft tiles between base and needle
 const LANDMARK_BRIGHT := Color(1.6, 2.3, 2.7)  # HDR modulate for the Spindle: > glow_hdr_threshold, so it blooms
+const RENDER_ROCK_LANDMARK := false  # Red Rock landmark temporarily OFF — flip to true to restore
 const ROCK_WALL_TILE := "Assets/Content/Textures/Tiles/wall_rock-11111111.bmp"  # solid rock face, no borders
 const LANDMARKS := [
 	{"kind": "spindle", "wx": 53, "wy": 3,  "tile": "terrain/sw_spindle_bottom.bmp", "main": "&C^k", "detail": "Y", "pixel": 15.0},
@@ -1764,6 +1765,8 @@ func _build_landmarks() -> bool:
 	_landmark_nodes.clear()
 	_landmark_ok = true
 	for lm in LANDMARKS:
+		if lm["kind"] == "rock" and not RENDER_ROCK_LANDMARK:
+			continue                       # Red Rock temporarily disabled (RENDER_ROCK_LANDMARK)
 		var node := Node3D.new()
 		_landmarks_root.add_child(node)
 		_landmark_nodes.append({"node": node, "wx": int(lm["wx"]), "wy": int(lm["wy"])})
