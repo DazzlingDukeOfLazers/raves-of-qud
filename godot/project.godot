@@ -22,3 +22,7 @@ config/features=PackedStringArray("4.7", "Forward Plus")
 
 window/size/viewport_width=1600
 window/size/viewport_height=900
+
+[rendering]
+
+textures/vram_compression/import_etc2_astc=true
