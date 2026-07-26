@@ -143,12 +143,29 @@ namespace RavesOfQud
             }
             catch (Exception e) { server.Log("renderbase error: " + e.Message); }
 
-            // (2) snapshot — read state on the main thread, hand bytes to the socket.
-            try
-            {
-                string snap = ZoneSnapshot.BuildJson(player);
-                server.Publish(Protocol.Frame(snap));
-            }
+            // (2) snapshot — THROTTLED. World-map travel fires a BURST of EndTurns per step, and
+            // building a full 2000-cell snapshot for every one saturated Qud's turn thread AND
+            // flooded Godot so hard its frame loop starved (the "lighting eases slowly" symptom).
+            // Cap the publish rate; TickRender flushes the last pending state right after the burst
+            // so the final position is never stale. Normal play (turns seconds apart) always passes
+            // the gate and publishes immediately.
+            _dirty = true;
+            if (System.Environment.TickCount - _lastPublishMs >= PublishThrottleMs)
+                PublishNow(player);
+        }
+
+        private static int _lastPublishMs;
+        private static bool _dirty;
+        private const int PublishThrottleMs = 66;   // ~15 snapshots/sec ceiling during a burst
+
+        /// Build + send the current snapshot now (unless nobody's listening), and reset the throttle.
+        private static void PublishNow(GameObject player)
+        {
+            BridgeServer server = Server;
+            if (server == null || server.ClientCount == 0) { _dirty = false; return; }
+            _lastPublishMs = System.Environment.TickCount;
+            _dirty = false;
+            try { server.Publish(Protocol.Frame(ZoneSnapshot.BuildJson(player))); }
             catch (Exception e) { server.Log("snapshot error: " + e.Message); }
         }
 
@@ -168,10 +185,9 @@ namespace RavesOfQud
                 catch (Exception e) { server.Log("apply error: " + e.Message); }
             }
             if (applied)
-            {
-                try { server.Publish(Protocol.Frame(ZoneSnapshot.BuildJson(player))); }
-                catch (Exception e) { server.Log("snapshot error: " + e.Message); }
-            }
+                PublishNow(player);                 // a driven command gets an immediate response
+            else if (_dirty && System.Environment.TickCount - _lastPublishMs >= PublishThrottleMs)
+                PublishNow(player);                 // flush the last state coalesced during a burst
         }
 
         /// <summary>
