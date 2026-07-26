@@ -187,6 +187,10 @@ var _lit_sprites: Array = []
 # Same idea for connector panels (fences, pipes, axles): they are MeshInstance3D, not
 # Sprite3D, so they dim via a per-instance material's albedo_color, not modulate.
 var _lit_meshes: Array = []       # [{mi: MeshInstance3D, cell: Vector2i}]
+# Floor batching: accumulate this build's floor quads by MATERIAL, then flush one MultiMesh
+# per material (one draw call per tile type, instead of one MeshInstance3D per cell — 2000 of
+# them tanked the world map). Material -> Array[Transform3D]. Flushed per static/neighbour build.
+var _floor_batch := {}
 # Camera cutaway: the LIVE zone's wall nodes keyed by cell, so a wall between the camera
 # and the player can fade out of the way. Faded via GeometryInstance3D.transparency with
 # the wall material in ALPHA_HASH mode (screen-door dither), so it stays in the opaque pass
@@ -447,6 +451,7 @@ func _build_static(id: String, cells: Array) -> void:
 	var wt := {}
 	_build_zone(cells, Vector2i.ZERO, true, wt)
 	_rebuild_walls(wt)
+	_flush_floor_batch()        # emit this zone's floors as batched MultiMeshes
 	_live_build = false
 	_bank = null
 
@@ -690,6 +695,7 @@ func _sync_neighbors(neighbors: Array) -> void:
 			var wt := {}
 			_build_zone(nb.get("cells", []), Vector2i.ZERO, true, wt)   # local coords
 			_rebuild_walls(wt)     # _bank set -> into the subtree, no clear
+			_flush_floor_batch()   # batched floor MultiMeshes into the neighbour subtree
 			_noting = true
 			_bank = null
 		# Bake this remembered zone's darkness from its stored light, so a dark cavern or
@@ -1618,19 +1624,21 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 		if stair_cell:
 			_note(cx, cy, idx, "skipped(floor over stair opening)", 0.0)
 			return  # would cap the shaft; the frame lip is the floor here
-		var f := _take_floor()
+		# Floors were one MeshInstance3D per cell — 2000 draw calls on the world map, which
+		# tanked the framerate. Batch them by material into a MultiMesh instead (flushed at the
+		# end of the build): one draw call per tile type. Floors are static, so this is free.
+		var y := FLOOR_Y + layer * LAYER_LIFT + idx * TIEBREAK
+		var fmat: Material
+		var fscale := Vector3.ONE
 		var fkind := "floor"
 		if tex != null:
-			f.material_override = _mesh_material(tile, main_c, detail_c, tex)
-			f.scale = Vector3.ONE
+			fmat = _mesh_material(tile, main_c, detail_c, tex)
 		else:
-			f.material_override = _color_material(_qud_color(String(obj.get("color", ""))))
-			f.scale = Vector3(0.5, 1.0, 0.5)
+			fmat = _color_material(_qud_color(String(obj.get("color", ""))))
+			fscale = Vector3(0.5, 1.0, 0.5)
 			fkind = "floor(no tile: flat colour dot)"
-		f.position = Vector3(cx, FLOOR_Y + layer * LAYER_LIFT + idx * TIEBREAK, cy)
-		f.visible = true
-		_track(f)
-		_note(cx, cy, idx, fkind, f.position.y)
+		_floor_batch_add(fmat, Transform3D(Basis().scaled(fscale), Vector3(cx, y, cy)))
+		_note(cx, cy, idx, fkind, y)
 	elif tex != null:
 		# directional connectors (fences, pipes, axles: family_<dirs>) ->
 		# orientation-locked standing panels, not billboards.
@@ -2874,6 +2882,29 @@ func _take_floor() -> MeshInstance3D:
 	mi.mesh = _plane
 	_spawn_parent().add_child(mi)
 	return mi
+
+## Queue a floor quad (its full transform) under its material for this build's batch.
+func _floor_batch_add(mat: Material, xform: Transform3D) -> void:
+	if not _floor_batch.has(mat):
+		_floor_batch[mat] = []
+	_floor_batch[mat].append(xform)
+
+## Emit the queued floors as one MultiMesh per material into the current bank, then clear.
+## Called at the end of each static/neighbour build (while _bank is still set).
+func _flush_floor_batch() -> void:
+	for mat in _floor_batch:
+		var xforms: Array = _floor_batch[mat]
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.mesh = _plane
+		mm.instance_count = xforms.size()
+		for i in xforms.size():
+			mm.set_instance_transform(i, xforms[i])
+		var mmi := MultiMeshInstance3D.new()
+		mmi.multimesh = mm
+		mmi.material_override = mat
+		_spawn_parent().add_child(mmi)
+	_floor_batch.clear()
 
 func _take_label() -> Label3D:
 	if _bank == null and _label_pool.size() > 0: return _label_pool.pop_back()
