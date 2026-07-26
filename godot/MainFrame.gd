@@ -42,6 +42,10 @@ var _l_biome: Label
 var _l_hunger: Label
 var _l_thirst: Label
 var _daynight: Label
+var _l_hp: Label
+var _bar_hp: ProgressBar
+var _l_exp: Label
+var _bar_exp: ProgressBar
 
 func _ready() -> void:
 	name = "MainFrame"
@@ -222,18 +226,20 @@ func _row_vitals_menu() -> Control:
 
 	var hp := HBoxContainer.new()
 	hp.add_theme_constant_override("separation", 8)
-	var hp_l := _text("HP: 30/30", COL_HP)
-	hp_l.custom_minimum_size = Vector2(160, 0)
-	hp.add_child(hp_l)
-	hp.add_child(_bar(30, 30, COL_HP))
+	_l_hp = _text("HP: —", COL_HP)
+	_l_hp.custom_minimum_size = Vector2(160, 0)
+	hp.add_child(_l_hp)
+	_bar_hp = _bar(0, 1, COL_HP)
+	hp.add_child(_bar_hp)
 	vb.add_child(hp)
 
 	var xp := HBoxContainer.new()
 	xp.add_theme_constant_override("separation", 8)
-	var xp_l := _text("LVL: 3   EXP: 1200/2500", COL_EXP)
-	xp_l.custom_minimum_size = Vector2(160, 0)
-	xp.add_child(xp_l)
-	xp.add_child(_bar(1200, 2500, COL_EXP))
+	_l_exp = _text("LVL: —   EXP: —", COL_EXP)
+	_l_exp.custom_minimum_size = Vector2(220, 0)
+	xp.add_child(_l_exp)
+	_bar_exp = _bar(0, 1, COL_EXP)
+	xp.add_child(_bar_exp)
 	vb.add_child(xp)
 	h.add_child(vitals)
 
@@ -316,6 +322,25 @@ func _apply_stats(data: Dictionary) -> void:
 		_l_dv.text = "DV: %d" % int(s.get("dv", 0))
 	if _l_ma != null:
 		_l_ma.text = "MA: %d" % int(s.get("ma", 0))
+	# row 2 — HP + LVL/EXP bars
+	var hp := int(s.get("hp", 0))
+	var hpmax := maxi(1, int(s.get("hpMax", 1)))
+	if _l_hp != null:
+		_l_hp.text = "HP: %d/%d" % [hp, hpmax]
+	if _bar_hp != null:
+		_bar_hp.max_value = hpmax
+		_bar_hp.value = hp
+	if s.has("level"):
+		var lvl := int(s.get("level", 0))
+		var xp := int(s.get("xp", 0))
+		var xp_floor := int(s.get("xpFloor", 0))
+		var xp_next := maxi(xp_floor + 1, int(s.get("xpNext", xp_floor + 1)))
+		if _l_exp != null:
+			_l_exp.text = "LVL: %d   EXP: %d/%d" % [lvl, xp, xp_next]
+		if _bar_exp != null:
+			_bar_exp.min_value = xp_floor
+			_bar_exp.max_value = xp_next
+			_bar_exp.value = clampi(xp, xp_floor, xp_next)
 	if _l_hunger != null:
 		_l_hunger.text = String(s.get("hunger", "—"))
 	if _l_thirst != null:

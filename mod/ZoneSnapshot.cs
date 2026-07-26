@@ -394,8 +394,12 @@ namespace RavesOfQud
             j.Name("stats").BeginObject();
             j.Member("name", DisplayNameOf(player));
             try { j.Member("hp", player.hitpoints).Member("hpMax", player.baseHitpoints); } catch { }
-            j.Member("level", SafeStat(player, "Level"));
+            int lvl = SafeStat(player, "Level");
+            j.Member("level", lvl);
             j.Member("xp", SafeStat(player, "XP"));
+            // XP thresholds so the EXP bar fills within the level: floor = XP to reach this level,
+            // next = XP to reach the next. (Qud sets the "XP" stat's base to GetXPForLevel(Level).)
+            try { j.Member("xpFloor", Leveler.GetXPForLevel(lvl)).Member("xpNext", Leveler.GetXPForLevel(lvl + 1)); } catch { }
             try { if (player.pPhysics != null) j.Member("temp", player.pPhysics.Temperature); } catch { }
             j.Member("qn", SafeStat(player, "Speed"));       // Quickness (100 nominal)
             j.Member("ms", SafeStat(player, "MoveSpeed"));   // Move speed (100 nominal)
