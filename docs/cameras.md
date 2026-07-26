@@ -11,7 +11,7 @@ drive one camera per mode off the same code.
 
 | # | mode | what |
 |---|---|---|
-| 1 | **COMPASS** (default) | cardinal-**locked** low-angle view; follows the player but never rotates on movement (the disorientation fix). Q/E rotate the heading (45° or 90°, toggle in the menu), R/F zoom. |
+| 1 | **COMPASS** (default) | cardinal-**locked** low-angle view; follows the player but never rotates on movement (the disorientation fix). Q/E rotate the heading (45° or 90°, toggle in the menu), R/F zoom. **The zoom arcs:** from `COMPASS_CLOSE_DIST` out it holds the low ~35° dramatic angle; zoom inside that and the camera lifts up-and-over (smoothstepped) to ~2 tiles straight above at closest, looking **down at the head**. So close ≠ flat-and-low; close = overhead. |
 | 2 | **FOLLOW** | trails behind your heading, looking ahead. |
 | 3 | **FIRST_PERSON** | at the player, eye-level, along the locked heading. ←→ turn, **Ctrl/Cmd+Shift+←→ strafe**; height slider in the ` menu. |
 | 4 | **CINEMATIC** | frames you + the selected tile, slow auto-orbit (combat-aware framing is future work). |
@@ -59,9 +59,12 @@ returns 1.5 only when `_mode == TOP_FOLLOW and not _multiview_on`.
 ## Persistence & misc controls
 
 - **Settings** (`user://raves_settings.json`) — camera mode, compass heading, zoom
-  (`_dist` / `_top_zoom`), first-person height, deep-water depth, and window size are
-  saved on window-close and by Reset, restored in `_ready` (so Raves doesn't reset to
-  "looking south" every run).
+  (`_dist` / `_top_zoom`), first-person height, deep-water depth, **level height (Z gap)**,
+  **look target (head/waist)**, and window size are saved on window-close and by Reset,
+  restored in `_ready` (so Raves doesn't reset to "looking south" every run).
+- **Look target** — COMPASS/FOLLOW aim at the player's **head** or **waist**, toggled in the
+  ` menu (`camera follows: head/waist`). Head frames a close overhead shot; waist centres the
+  whole body. Feet-aim (the old default) buried the sprite low in frame.
 - **⟳ Reset** (top-right) — relaunches the process at the current window size
   (`OS.set_restart_on_exit` + `--resolution`), so it also picks up code changes.
 - **Movement** — arrows move the player relative to the camera ("up" = forward). **Shift+arrow**

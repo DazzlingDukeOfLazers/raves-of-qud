@@ -113,7 +113,10 @@ var _pitch := 0.9            # radians above the ground plane (MOUSE orbit)
 var _dist := 14.0
 
 # --- compass cam (cardinal-locked, the disorientation fix) -------------------
-const COMPASS_PITCH := 0.61     # ~35° above the ground: a low, dramatic angle
+const COMPASS_PITCH := 0.61     # ~35° above the ground: the low, dramatic FAR/default angle
+const COMPASS_PITCH_NEAR := 1.30 # ~74° at closest zoom: overhead, looking down at the head
+const COMPASS_CLOSE_DIST := 8.0  # only BELOW this does the arc lift toward overhead; above it
+                                 # stays at COMPASS_PITCH, so the normal/far view is unchanged
 var _compass_yaw := 0.0         # locked heading in radians; Q/E rotate in _compass_step steps
 var _compass_45 := true         # Q/E step: 45° (true, default — the 8-way, least restrictive) or 90°
 func _compass_step() -> float:
@@ -126,12 +129,16 @@ var _zone_dims := Vector2(80, 25)   # live zone width x height in cells
 var _pan := Vector3.ZERO     # user pan offset (MOUSE mode); persists across turns
 
 # --- follow-cam -------------------------------------------------------------
-const TILES_BEHIND := 1.0    # fixed camera standoff behind the player. This is the FLOOR on
-                             # how close COMPASS/FOLLOW can get (back = TILES_BEHIND + dist*cos
-                             # pitch), so it stays small — at range dist dominates and it's moot.
+const TILES_BEHIND := 0.5    # fixed camera standoff behind the player. Kept small so the
+							 # how close COMPASS/FOLLOW can get (back = TILES_BEHIND + dist*cos
+							 # pitch), so it stays small — at range dist dominates and it's moot.
 const FOCUS_AHEAD := 2.0     # look at a point this far in FRONT of the player
-const PLAYER_LOOK_H := 0.55  # aim at the player's torso, not its feet, so the sprite frames up
-                             # (matters most when zoomed in close, where feet-aim buries the head)
+# Look target height: FOLLOW the head or the waist (a ` menu toggle). Aiming at the feet
+# buried the sprite; head frames a close overhead shot, waist centres the whole body.
+const HEAD_LOOK_H := 0.9
+const WAIST_LOOK_H := 0.45
+var _look_head := true       # default: track the head — what "pointed down at the head" wants
+							 # (matters most when zoomed in close, where feet-aim buries the head)
 const FOLLOW_LERP := 6.0     # per-second approach; keeps steps from snapping
 var _player := Vector3(40, 0, 12)
 var _prev_tile := Vector2i(-9999, -9999)
@@ -176,7 +183,8 @@ func _apply_ui_fonts() -> void:
 const ORBIT_SENS := 0.006
 const PITCH_MIN := 0.12
 const PITCH_MAX := 1.45
-const DIST_MIN := 1.0
+const DIST_MIN := 2.1        # closest zoom: with COMPASS_PITCH_NEAR this puts the eye ~2 tiles
+                             # straight up and just behind, looking DOWN at the head.
 const DIST_MAX := 140.0
 
 func _ready() -> void:
@@ -499,7 +507,7 @@ func _follow_eye() -> Vector3:
 	return _player - f * back + Vector3(0, _dist * sin(_pitch), 0)
 
 func _follow_look() -> Vector3:
-	return _player + _facing3() * FOCUS_AHEAD + Vector3(0, PLAYER_LOOK_H, 0)
+	return _player + _facing3() * FOCUS_AHEAD + Vector3(0, _look_h(), 0)
 
 ## MOUSE mode orbits whatever tile is selected, so inspecting and then looking
 ## around don't fight each other. Falls back to the player.
@@ -517,8 +525,25 @@ func _compass_dir() -> Vector3:
 # COMPASS: behind the player along the LOCKED heading at a low angle. Follows the
 # player's position but never rotates on movement — this is the disorientation fix.
 func _compass_eye() -> Vector3:
-	var back := TILES_BEHIND + _dist * cos(COMPASS_PITCH)
-	return _player - _compass_dir() * back + Vector3(0, _dist * sin(COMPASS_PITCH), 0)
+	var p := _compass_pitch()
+	var back := TILES_BEHIND + _dist * cos(p)
+	return _player - _compass_dir() * back + Vector3(0, _dist * sin(p), 0)
+
+## COMPASS pitch varies with zoom: shallow (COMPASS_PITCH — low & dramatic) from
+## COMPASS_CLOSE_DIST outward, steepening to COMPASS_PITCH_NEAR (overhead, looking down
+## at the head) as you zoom inside it. Smoothstepped, so the camera arcs up-and-over
+## (concave down) at the close end instead of sliding to waist height and looking flat.
+## Prototyped in scratchpad cam_arc.py (targets: ~2 tiles up / ~1 back at closest).
+func _compass_pitch() -> float:
+	if _dist >= COMPASS_CLOSE_DIST:
+		return COMPASS_PITCH
+	var t: float = (_dist - DIST_MIN) / (COMPASS_CLOSE_DIST - DIST_MIN)   # 0 at min .. 1 at close
+	t = t * t * (3.0 - 2.0 * t)                                          # smoothstep
+	return lerpf(COMPASS_PITCH_NEAR, COMPASS_PITCH, t)
+
+## Look-target height above the player's feet: the head or the waist (` menu toggle).
+func _look_h() -> float:
+	return HEAD_LOOK_H if _look_head else WAIST_LOOK_H
 
 # CINEMATIC v1: frame the player and the selected target tile (their midpoint), at a
 # distance that fits both, slowly orbiting. Combat-aware framing (an event buffer of
@@ -558,7 +583,7 @@ func _mode_eye_look(mode: int) -> Array:
 		CamMode.TOP_FOLLOW:
 			return [_player + Vector3(0, TOP_H, 0), _player]
 		_:  # COMPASS — the default, stable, cardinal-locked view
-			return [_compass_eye(), _player + Vector3(0, PLAYER_LOOK_H, 0)]
+			return [_compass_eye(), _player + Vector3(0, _look_h(), 0)]
 
 func _update_camera(dt: float) -> void:
 	var el := _mode_eye_look(_mode)
@@ -1082,14 +1107,29 @@ func _build_debug_menu() -> void:
 	_compass_step_btn.pressed.connect(_toggle_compass_step)
 	vb.add_child(_compass_step_btn)
 	_refresh_compass_step_btn()
+	# camera look target: the head or the waist
+	_look_btn = Button.new()
+	_look_btn.focus_mode = Control.FOCUS_NONE
+	_look_btn.pressed.connect(_toggle_look_target)
+	vb.add_child(_look_btn)
+	_refresh_look_btn()
 	_debug_menu = panel
 	_update_debug_menu()
 
 var _compass_step_btn: Button
+var _look_btn: Button
 
 func _refresh_compass_step_btn() -> void:
 	if _compass_step_btn != null:
 		_compass_step_btn.text = "Q/E rotate: %s" % ("45°" if _compass_45 else "90°")
+
+func _refresh_look_btn() -> void:
+	if _look_btn != null:
+		_look_btn.text = "camera follows: %s" % ("head" if _look_head else "waist")
+
+func _toggle_look_target() -> void:
+	_look_head = not _look_head
+	_refresh_look_btn()
 
 func _toggle_compass_step() -> void:
 	_compass_45 = not _compass_45
@@ -1150,6 +1190,7 @@ func _save_settings() -> void:
 		"mode": _mode,
 		"compass_yaw": _compass_yaw,
 		"compass_45": _compass_45,
+		"look_head": _look_head,
 		"dist": _dist,
 		"top_zoom": _top_zoom,
 		"fp_height": _fp_height,
@@ -1173,6 +1214,7 @@ func _load_settings() -> void:
 		return
 	_compass_yaw = float(d.get("compass_yaw", _compass_yaw))
 	_compass_45 = bool(d.get("compass_45", _compass_45))
+	_look_head = bool(d.get("look_head", _look_head))
 	_dist = clampf(float(d.get("dist", _dist)), DIST_MIN, DIST_MAX)
 	_top_zoom = clampf(float(d.get("top_zoom", _top_zoom)), TOP_ZOOM_MIN, TOP_ZOOM_MAX)
 	_fp_height = clampf(float(d.get("fp_height", _fp_height)), 0.15, 3.0)
