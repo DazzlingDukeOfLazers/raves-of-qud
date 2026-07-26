@@ -1669,73 +1669,155 @@ func _spindle_seg(tile: String, main_c: String, detail_c: String, cx: int, cy: i
 	_track(s)
 
 # --- parasang-scale surface landmarks (the Spindle, Red Rock) ---------------
-# On the SURFACE, the world-map landmarks are drawn ENORMOUS — ~a parasang wide — at the world
-# offset of their parasang, so a colossal Spindle / Red Rock looms on the horizon and grows as you
-# walk toward it. Positioned via World.global_coord: a landmark at parasang (wx,wy) sits at its
-# global-cell centre minus this zone's cell (0,0) global, in scene units (1 cell = 1 unit). The fog
-# (depth 60→240) makes the top fade into the sky; the camera far-plane was lifted to 8000 for them.
-# Rebuilt every surface snapshot (cheap — a handful of sprites) so it tracks the player's movement.
+# On the SURFACE, world-map landmarks are drawn ENORMOUS at the world offset of their parasang, so a
+# colossal Spindle / Red Rock looms on the horizon and grows as you walk toward it. Positioned via
+# World.global_coord: a landmark at parasang (wx,wy) sits at its global-cell centre minus this zone's
+# cell (0,0) global, 1 cell = 1 unit. Geometry is built ONCE at local origin, then each snapshot just
+# repositions the node — so ~130 nodes never hit the per-snapshot churn. Fog fades the top into the
+# sky; the camera far-plane was lifted to 8000 for them. `pixel` sets scale: a 16px tile -> 16*pixel
+# units wide (15 ≈ a parasang / 240, 5 ≈ a zone / 80).
 var _landmarks_root: Node3D
-const LANDMARK_PIXEL := 15.0           # sprite pixel_size: a 16px tile -> 240 units ≈ one parasang wide
-const LANDMARK_SPINDLE_SEGMENTS := 8   # shaft tiles between base and needle at parasang scale
+var _landmark_built := false
+var _landmark_ok := true               # cleared during a build if a needed tile isn't exported yet -> retry
+var _landmark_nodes: Array = []        # [{node, wx, wy}] built once, repositioned each snapshot
+var _rock_mat: StandardMaterial3D      # shared solid-red-rock material for the Red Rock voxels
+const LANDMARK_SPINDLE_SEGMENTS := 8   # shaft tiles between base and needle
 const LANDMARK_GLOW_PAD := 1.15        # additive glow quad size vs the sprite (a soft halo past the edge)
 const LANDMARK_GLOW_COLOR := Color(0.55, 0.85, 1.0, 0.9)  # additive tint — cool spire-metal luminance
+const ROCK_WALL_TILE := "Assets/Content/Textures/Tiles/wall_rock-11111111.bmp"  # solid rock face, no borders
 const LANDMARKS := [
-	{"kind": "spindle", "wx": 53, "wy": 3,  "tile": "terrain/sw_spindle_bottom.bmp", "main": "&C^k", "detail": "Y"},
-	{"kind": "single",  "wx": 11, "wy": 20, "tile": "terrain/tile_location7.bmp",     "main": "&r^k", "detail": "R"},
+	{"kind": "spindle", "wx": 53, "wy": 3,  "tile": "terrain/sw_spindle_bottom.bmp", "main": "&C^k", "detail": "Y", "pixel": 15.0},
+	{"kind": "rock",    "wx": 11, "wy": 20, "tile": "terrain/tile_location7.bmp",     "main": "&r^k", "detail": "R", "pixel": 5.0},
 ]
 
-## Place the giant surface landmarks for the player's current zone. Surface only (world map draws its
-## own miniature versions; underground has no sky). Cleared and rebuilt each snapshot.
+## Reposition the (build-once) landmarks for the player's current zone. Surface only — the world map
+## draws its own miniature tiles; underground has no sky.
 func _rebuild_landmarks(zone: Dictionary) -> void:
+	if _world_map or _underground:
+		_landmarks_root.visible = false
+		return
+	_landmarks_root.visible = true
+	if not _landmark_built:
+		# Tiles export on sight, so a needed one (esp. the rock wall) may be absent on first build.
+		# Retry each snapshot until every tile resolves, THEN freeze (build-once). Cheap + bounded.
+		_landmark_built = _build_landmarks()
+	var origin := World.global_coord(zone, 0, 0)   # this zone's cell (0,0) in global cells
+	for e in _landmark_nodes:
+		# centre of the landmark's parasang, in global cells (middle zone zx=zy=1, cell centre)
+		var gx: int = (int(e["wx"]) * World.PARASANG + 1) * World.ZONE_W + int(World.ZONE_W / 2.0)
+		var gy: int = (int(e["wy"]) * World.PARASANG + 1) * World.ZONE_H + int(World.ZONE_H / 2.0)
+		(e["node"] as Node3D).position = Vector3(gx - origin.x, 0.0, gy - origin.y)
+
+## Build each landmark's geometry into its own node at local origin. Returns true when every tile
+## resolved; a missing (not-yet-exported) tile clears _landmark_ok so the caller retries next time.
+func _build_landmarks() -> bool:
 	for c in _landmarks_root.get_children():
 		c.queue_free()
-	if _world_map or _underground:
-		return
-	var origin := World.global_coord(zone, 0, 0)   # this zone's cell (0,0) in global cells
+	_landmark_nodes.clear()
+	_landmark_ok = true
 	for lm in LANDMARKS:
-		# centre of the landmark's parasang, in global cells (middle zone zx=zy=1, cell centre)
-		var gx: int = (int(lm["wx"]) * World.PARASANG + 1) * World.ZONE_W + int(World.ZONE_W / 2.0)
-		var gy: int = (int(lm["wy"]) * World.PARASANG + 1) * World.ZONE_H + int(World.ZONE_H / 2.0)
-		var base := Vector3(gx - origin.x, 0.0, gy - origin.y)
-		var seg_h := 24.0 * LANDMARK_PIXEL
+		var node := Node3D.new()
+		_landmarks_root.add_child(node)
+		_landmark_nodes.append({"node": node, "wx": int(lm["wx"]), "wy": int(lm["wy"])})
+		var px: float = float(lm.get("pixel", 15.0))
 		if lm["kind"] == "spindle":
+			var seg_h := 24.0 * px
 			var bottom := String(lm["tile"])
 			# bottom tile is full-height, so centring at seg_h/2 seats its art on the ground; mids/top
 			# stack by a full tile each so the shaft columns line up.
-			_landmark_sprite(bottom, lm["main"], lm["detail"], base + Vector3(0, 0.5 * seg_h, 0))
+			_landmark_sprite(bottom, lm["main"], lm["detail"], Vector3(0, 0.5 * seg_h, 0), px, node, true)
 			for i in range(1, LANDMARK_SPINDLE_SEGMENTS + 1):
-				_landmark_sprite(bottom.replace("bottom", "mid"), lm["main"], lm["detail"], base + Vector3(0, (i + 0.5) * seg_h, 0))
-			_landmark_sprite(bottom.replace("bottom", "top"), lm["main"], lm["detail"], base + Vector3(0, (LANDMARK_SPINDLE_SEGMENTS + 1.5) * seg_h, 0))
-		else:
-			# Seat the tile's OPAQUE BAND on the ground — the tile pads its art with transparent rows,
-			# so centring the full sprite left the rock floating by that padding. vr = (top, height)
-			# fractions; band bottom (top+height) at ground -> centre = (top+height - 0.5)*full_h.
-			var vr := _opaque_v(_mask(String(lm["tile"])))
-			var y_center: float = (vr.x + vr.y - 0.5) * seg_h
-			_landmark_sprite(String(lm["tile"]), lm["main"], lm["detail"], base + Vector3(0, y_center, 0))
+				_landmark_sprite(bottom.replace("bottom", "mid"), lm["main"], lm["detail"], Vector3(0, (i + 0.5) * seg_h, 0), px, node, true)
+			_landmark_sprite(bottom.replace("bottom", "top"), lm["main"], lm["detail"], Vector3(0, (LANDMARK_SPINDLE_SEGMENTS + 1.5) * seg_h, 0), px, node, true)
+		elif lm["kind"] == "rock":
+			_build_rock_outline(lm, node, px)
+	return _landmark_ok
 
-## One giant landmark sprite — its own (unpooled) node under _landmarks_root, billboarded upright,
-## with an ADDITIVE glow copy so it reads as a luminous beacon (brightest thing on a night horizon).
-func _landmark_sprite(tile: String, main_c: String, detail_c: String, pos: Vector3) -> void:
+## Red Rock as an EXTRUDED OUTLINE: read the world-map tile's silhouette mask and, for each column,
+## stack red rock-wall voxels from the ground up to that column's TOP opaque row — so the mound's top
+## profile matches the Red Rock outline. Voxels are square QuadMeshes sharing one solid-red-rock
+## material (wall_rock recoloured, filled). No glow — a rock is a mass, not a beacon.
+func _build_rock_outline(lm: Dictionary, parent: Node, px: float) -> void:
+	var mask := _mask(String(lm["tile"]))
+	if mask == null:
+		_landmark_ok = false          # silhouette tile not exported yet — retry
+		return
+	var mat := _rock_voxel_material(lm["main"], lm["detail"])
+	if mat == null:
+		# rock-wall tile not exported yet: show a flat card for now, and retry to upgrade to voxels.
+		_landmark_sprite(String(lm["tile"]), lm["main"], lm["detail"], Vector3(0, 12.0 * px, 0), px, parent, false)
+		_landmark_ok = false
+		return
+	var w := mask.get_width()
+	var h := mask.get_height()
+	# ground line = the lowest opaque row anywhere (the base of the silhouette)
+	var base_row := 0
+	for x in w:
+		for y in range(h - 1, -1, -1):
+			if mask.get_pixel(x, y).a > 0.0:
+				base_row = maxi(base_row, y)
+				break
+	var vox := px                                  # one tile-column wide/tall in world units
+	for x in w:
+		var top := -1
+		for y in h:
+			if mask.get_pixel(x, y).a > 0.0:
+				top = y
+				break
+		if top < 0:
+			continue                               # empty column
+		var vx := (float(x) - (w - 1) * 0.5) * vox # centre the columns on the node origin
+		for row in range(top, base_row + 1):       # fill from the outline top down to the ground
+			var vy := float(base_row - row) * vox + vox * 0.5
+			var m := MeshInstance3D.new()
+			var q := QuadMesh.new()
+			q.size = Vector2(vox, vox)
+			m.mesh = q
+			m.material_override = mat
+			m.position = Vector3(vx, vy, 0)
+			parent.add_child(m)
+
+func _rock_voxel_material(main_c: String, detail_c: String) -> StandardMaterial3D:
+	if _rock_mat != null:
+		return _rock_mat
+	var tex := _colored_tex(ROCK_WALL_TILE, main_c, detail_c, Fill.ALL)   # solid red rock face
+	if tex == null:
+		return null
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.albedo_texture = tex
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.billboard_mode = BaseMaterial3D.BILLBOARD_FIXED_Y   # the mound turns to face the camera
+	m.billboard_keep_scale = true
+	_rock_mat = m
+	return m
+
+## One giant landmark sprite at local `pos` under `parent`, billboarded upright. `glow` adds an
+## ADDITIVE copy so it reads as a luminous beacon (the Spindle) rather than a thin dim thread.
+func _landmark_sprite(tile: String, main_c: String, detail_c: String, pos: Vector3, px: float, parent: Node, glow: bool) -> void:
 	var t := _colored_tex(tile, main_c, detail_c, Fill.NONE)
 	if t == null:
+		_landmark_ok = false          # tile not exported yet — caller retries
 		return
 	var s := Sprite3D.new()
 	s.texture = t
-	s.pixel_size = LANDMARK_PIXEL
+	s.pixel_size = px
 	s.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	s.shaded = false
 	s.transparent = true
 	s.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
 	s.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y    # upright, turns to face the camera
 	s.position = pos
-	_landmarks_root.add_child(s)
-	# additive glow: the same art blended ADD and slightly larger, so the landmark self-illuminates
-	# and glows against the night sky instead of reading as a thin dim thread.
+	parent.add_child(s)
+	if not glow:
+		return
+	# additive glow: the same art blended ADD and slightly larger, so it self-illuminates and glows
+	# against the night sky instead of reading as a thin dim thread.
 	var g := MeshInstance3D.new()
 	var qm := QuadMesh.new()
-	qm.size = Vector2(t.get_width() * LANDMARK_PIXEL, t.get_height() * LANDMARK_PIXEL) * LANDMARK_GLOW_PAD
+	qm.size = Vector2(t.get_width() * px, t.get_height() * px) * LANDMARK_GLOW_PAD
 	g.mesh = qm
 	var gm := StandardMaterial3D.new()
 	gm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -1749,7 +1831,7 @@ func _landmark_sprite(tile: String, main_c: String, detail_c: String, pos: Vecto
 	gm.cull_mode = BaseMaterial3D.CULL_DISABLED
 	g.material_override = gm
 	g.position = pos
-	_landmarks_root.add_child(g)
+	parent.add_child(g)
 
 ## True if this object is a mobile creature. Prefers the mod's `creature` flag,
 ## falls back to `sinks` (IsCreature && !IsFlying) for a snapshot from a mod build
