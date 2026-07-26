@@ -350,6 +350,20 @@ namespace RavesOfQud
                 case "shot":
                     QueueScreenshot();
                     break;
+                case "zoo":
+                    // Build a debug showcase into the current zone. MAIN-THREAD ONLY:
+                    // creates GameObjects and mutates cells, so it must run here (drained
+                    // by Tick/TickRender), never on the socket thread.
+                    try
+                    {
+                        f.TryGetValue("cat", out string cat);
+                        f.TryGetValue("page", out string pageStr);
+                        int pg = 0;
+                        int.TryParse(pageStr, out pg);
+                        Server.Log("[zoo] " + ZooBuilder.Build(player, cat, pg));
+                    }
+                    catch (Exception e) { Server.Log("zoo error: " + e.Message); }
+                    break;
                 // Movement is handled on the socket thread (see OnPayload), so it can
                 // drive an unfocused game. Extend here for main-thread-only commands.
                 default:

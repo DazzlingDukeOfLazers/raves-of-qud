@@ -20,6 +20,8 @@ Examples:
     python3 tools/capture/control.py shot                # Godot screenshot -> shot.png
     python3 tools/capture/control.py qudshot             # QUD's own screen -> qud_shot.png (no Godot needed)
     python3 tools/capture/control.py go N 3 qudshot      # 3 steps N, then read Qud's map (the dev loop)
+    python3 tools/capture/control.py zoo creatures 0     # build a debug zoo (pens+signs) in the current zone
+    python3 tools/capture/control.py zoo weapons         # dense labeled weapon cache
 
 Requires Qud running with the bridge mod, and (for `shot`/`cam`) the Raves viewer open.
 """
@@ -160,6 +162,16 @@ def main(argv):
         print("godot: onboard" + arg)
     elif cmd == "shot":
         print("shot.png updated" if godot_shot() else "shot: TIMED OUT (is the viewer open?)")
+    elif cmd == "zoo":
+        # Build a debug showcase zone in-game. Sent to QUD over the bridge (not the
+        # godot_cmd file): `zoo [category] [page]`. category = creatures (default) /
+        # weapons / food / items / implants. Creatures paginate ~100 pens/zone.
+        cat = argv[1] if len(argv) > 1 else "creatures"
+        page = argv[2] if len(argv) > 2 else "0"
+        b = Bridge()
+        b.send("zoo", cat=cat, page=page)
+        b.close()
+        print("zoo: built %s page %s (move/wait once to refresh the snapshot)" % (cat, page))
     elif cmd == "qudshot":
         print("qud_shot.png updated" if qud_shot() else "qudshot: TIMED OUT (is Qud running?)")
     elif cmd == "go":
