@@ -288,10 +288,12 @@ func _row_main() -> Control:
 ## Mouse over the cell is forwarded by SubViewportContainer; keyboard is forwarded in
 ## _unhandled_key_input below. Camera/movement (polled Input.is_key_pressed) works regardless.
 ## OFF at startup — an "Enable Holodeck" button. On click we instance Main into a SubViewport that
-## starts with its render DISABLED, then flip it to live a beat later (RENDER_DELAY). Rendering the 3D
-## in the SAME frame as instancing Main raced the Metal init and crashed on enable; the delay dodges
-## it (found by splitting enable into data/render stages — the delay was what mattered). One button.
-const RENDER_DELAY := 0.3
+## starts with its render DISABLED, and only turn the 3D present ON after Main has produced its FIRST
+## snapshot (its first zone is built) PLUS a settle margin. Turning the SubViewport render on WHILE
+## Main is still building the zone raced the Metal init and crashed (a fixed 0.3s delay fired mid-build
+## and still crashed; the manual two-stage worked because the render was clicked on seconds later,
+## after the build settled). Fallback timer covers "no snapshot" (Qud not running). One button.
+const RENDER_DELAY := 2.0   # settle time AFTER the first snapshot before presenting the 3D
 
 func _holodeck_cell() -> Control:
 	_holo_host = PanelContainer.new()
@@ -334,10 +336,15 @@ func _enable_holodeck() -> void:
 	sv.add_child(holo)                          # _ready() → bridge connects
 	_holo_vp = sv
 	_holo_host.add_child(svc)
+	# present only after Main has built its first zone (first snapshot) + a settle margin
+	holo.connect("snapshot", _arm_render, CONNECT_ONE_SHOT)
+	get_tree().create_timer(8.0).timeout.connect(_start_render)   # fallback if no snapshot ever arrives
+
+func _arm_render(_data: Dictionary) -> void:
 	get_tree().create_timer(RENDER_DELAY).timeout.connect(_start_render)
 
 func _start_render() -> void:
-	if _holo_vp != null:
+	if _holo_vp != null and _holo_vp.render_target_update_mode != SubViewport.UPDATE_ALWAYS:
 		_holo_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 
 ## Update the status bar from one snapshot's `stats` block (and `time` for day/night). Missing
