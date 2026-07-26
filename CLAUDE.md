@@ -12,6 +12,14 @@ changing a subsystem.
 environment**: the exact paths and commands, so no session has to rediscover
 them after a compaction. If a path here is wrong, fix it here.
 
+## Terminology: the "Holodeck"
+
+The **Holodeck** is the player-facing Raves view — the Godot 3D/2.5D window that renders the world
+the player is in (camera modes, the 3D⇄2D toggle, landmarks, the selection inspector). It's one
+component; other user interfaces (menus, character/inventory, etc.) are separate. Use "the Holodeck"
+in prose for the player viewport. NOTE: this is the product name, not the Godot API — `get_viewport()`,
+`SubViewport`, and "the Godot viewport" stay as-is in code and technical notes.
+
 ## Branches & platform (parallel dev on Mac + PC)
 
 Two working branches off `main`: **`dd/mac`** (the Mac) and **`dd/pc`** (the second computer,
@@ -127,7 +135,7 @@ photograph and verify each one. `shot` no longer depends on `renderer.tiles_dir(
 
 ## The feedback loop
 
-Claude **cannot see the Godot viewport**. Don't ask the user to describe what
+Claude **cannot see the Holodeck** (the Godot viewport). Don't ask the user to describe what
 they see in words — that round-trip has been the main source of wasted effort.
 
 1. User points at a cell in Godot: **Ctrl/Cmd+click**, or hover and press **I**.
@@ -143,13 +151,13 @@ between those two, so always read both halves.
 Claude **cannot** capture the screen: macOS `screencapture` fails without Screen Recording
 permission (`could not create image from display`). So both apps capture themselves.
 
-**Ctrl/Cmd + right-click a tile in the Raves window** is the one to use: it inspects that tile
+**Ctrl/Cmd + right-click a tile in the Holodeck** is the one to use: it inspects that tile
 *and* photographs both apps. One gesture produces everything needed to discuss it —
 
 | file | what |
 |---|---|
 | `RavesOfQud/selection.txt` | the report: blueprint, tile, colours, flags, and what the renderer DID |
-| `RavesOfQud/shot.png` | the Raves viewport, with the 3D marker on the picked tile |
+| `RavesOfQud/shot.png` | the Holodeck (Raves viewport), with the 3D marker on the picked tile |
 | `RavesOfQud/qud_shot.png` | Qud's own window, for side-by-side comparison |
 
 The text report is hidden from the shot (the marker stays), so the picture shows the scene

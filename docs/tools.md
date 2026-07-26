@@ -8,7 +8,7 @@ to check it.
 
 ## The Python-first rule (read this)
 
-Claude cannot see the Godot viewport. Historically that meant render/geometry code was written
+Claude cannot see the Holodeck (the Godot viewport). Historically that meant render/geometry code was written
 straight into GDScript and verified only by the human's screenshots — slow, and it hid bugs (an
 off voxel depth order survived a full round-trip). So:
 
@@ -129,7 +129,7 @@ Claude reads both PNGs from disk. This replaces manual screenshot-and-paste.
 
 ---
 
-## Remote control — driving Qud + the viewer headlessly (`control.py`)
+## Remote control — driving Qud + the Holodeck headlessly (`control.py`)
 
 `tools/capture/control.py` drives the game from OUTSIDE, so a loop can run without a human at the
 keyboard. Two channels:

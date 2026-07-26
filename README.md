@@ -7,6 +7,10 @@ socket, and a Godot 4 client renders it as a lit 3D scene (greedy-meshed walls, 
 sprites, oriented fences) with an orbit/pan/zoom camera. Input round-trips back to Qud, which
 resolves every turn.
 
+The player-facing 3D/2.5D view is **the Holodeck** — one component; other user interfaces
+(menus, character/inventory, and so on) are separate. ("Holodeck" is the product name; Godot's
+API terms — `get_viewport()`, `SubViewport`, "the Godot viewport" — stay as-is in code.)
+
 > Requires your own paid copy of Caves of Qud. Ships **no** game assets — tiles are extracted
 > at runtime from your own install into a local, git-ignored folder.
 
@@ -14,7 +18,7 @@ resolves every turn.
 ┌─────────────┐   command frames (TCP 48710)   ┌────────────────────────┐
 │   Godot 4   │ ─────────────────────────────▶ │  Caves of Qud (real)   │
 │ 2.5D client │                                │  + Raves bridge mod    │
-│  (view)     │ ◀───────────────────────────── │  = authoritative sim   │
+│ = Holodeck  │ ◀───────────────────────────── │  = authoritative sim   │
 └─────────────┘   snapshot frames (per turn)    └────────────────────────┘
 ```
 
@@ -36,7 +40,7 @@ verified API. Detailed subsystems live in `docs/`:
 | **[docs/protocol.md](docs/protocol.md)** | the wire format (snapshot & command frames). |
 | **[docs/legacy-integration-playbook.md](docs/legacy-integration-playbook.md)** | **portable playbook** — how to apply the bridge / two-window-focus / OS-input-harness / reverse-engineering lessons to ANY new "Godot on top of a legacy game" target. Read before starting a new integration. |
 
-> **Python-first, for anyone (human or AI) picking this up:** Claude can't see the Godot viewport,
+> **Python-first, for anyone (human or AI) picking this up:** Claude can't see the Holodeck (the Godot viewport),
 > so geometry/pixel algorithms (voxel heights, fill rules) are **prototyped and verified in Python
 > first** (`tools/capture/voxel.py`, `fill.py` — they mirror the GDScript exactly), then ported.
 > Lighting/appearance still needs a screenshot; the algorithm does not. The product is

@@ -403,5 +403,5 @@ The mod side of the same saga (idle-gate, publish throttle, `RenderBase`/`Cell.R
 Claude can't see the viewport, so geometry algorithms (voxel heights, fill rules) are **prototyped
 and verified in Python first**, then ported to GDScript. `tools/capture/voxel.py` and `fill.py`
 mirror the GDScript algorithms exactly and render inspectable output. Lighting/shadow *appearance*
-still needs a screenshot (F12 in the viewer); the *algorithm* does not. This is not optional — it
+still needs a screenshot (F12 in the Holodeck); the *algorithm* does not. This is not optional — it
 is how the depth-order bug was caught without a round-trip.
