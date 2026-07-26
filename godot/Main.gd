@@ -211,6 +211,13 @@ const DIST_MIN := 2.1        # closest zoom: with COMPASS_PITCH_NEAR this puts t
 const DIST_MAX := 140.0
 
 func _ready() -> void:
+	# CRISPNESS on Retina without touching the window mode (macOS wouldn't let us maximize/fullscreen).
+	# content_scale_factor renders the 2D at (window x factor) pixels — matching the display's native
+	# backing — so text is sharp instead of a 2x-upscaled blur. It also shrinks the logical space by
+	# the factor, so UI reads bigger; the viewport-relative font sizing (FONT_FRAC, onboarding _scale)
+	# partly re-compensates. This is a first pass — expect to tune sizes after seeing it.
+	_dpi_scale = maxf(1.0, DisplayServer.screen_get_scale())
+	get_window().content_scale_factor = _dpi_scale
 	renderer = ZoneRenderer.new()
 	add_child(renderer)
 
@@ -1301,6 +1308,7 @@ func _build_reset_button() -> void:
 	_refresh_fs_btn()
 
 var _fs_btn: Button
+var _dpi_scale := 1.0
 
 func _refresh_fs_btn() -> void:
 	if _fs_btn != null:
