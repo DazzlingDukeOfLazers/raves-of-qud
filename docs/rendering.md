@@ -143,11 +143,21 @@ the Moonstair location), so none is sent or invented.
 
 **Underground has no sky.** The day/night grade is a *surface* phenomenon — a cave at noon must
 not be lit like the surface. The mod sends `zone.z` (Qud's stratum; surface is `Z==10`, deeper is
-higher). When `_depth > SURFACE_Z`, `_update_time` skips the clock entirely and calls
-`_apply_cave_lighting`: the grade eases to a fixed dim `CAVE_TINT`, the sky/fog to a near-black
-`CAVE_SKY` rock void, and the sun/moon/sun-light are switched off. The faked torch/glow geometry
-then does all the lighting locally, and the label reads `Cavern -N`. Coming back up restores the
-clock. Only constants — tune `CAVE_TINT` for how dark caves read.
+higher). When `_depth > SURFACE_Z`, `_update_time` skips the clock, calls `_apply_cave_lighting`
+(sky/fog → near-black `CAVE_SKY`, sun/moon/sun-light off, label `Cavern -N`), and holds the global
+grade at a **near-neutral** `CAVE_TINT` — deliberately NOT dark, because the darkness is done
+per-cell instead (see below). Coming back up restores the clock.
+
+**Cavern light is per-cell, from Qud's own map.** A single global multiply can't do "black cave +
+bright light pools" (in LDR it dims the additive torch-glows too). So underground the mod sends each
+cell's `light` (`(int)Cell.GetLight()`, a `LightLevel` byte), and `ZoneRenderer._build_darkness`
+lays a **per-cell darkness overlay** — one vertex-coloured MIX-black mesh, a quad over each cell's
+floor (and roof, for wall cells) whose alpha is `(1 - lightFrac) * DARK_MAX`. Built into
+`_dynamic_root` every turn, so it tracks Qud's live light as sources/the player move. `_light_frac`
+maps the byte (None=1 → 0 dark, Light=200 → 1 full). Creatures dim via `Sprite3D.modulate` by their
+cell's light (the flat overlay can't cover a standing sprite); the additive torch/glow geometry
+draws bright on top, so lit pools read against the black. Wall *sides* aren't dimmed yet (v1 covers
+floor + roof + creatures). Fully-lit cells add nothing to the mesh, so on the surface it's free.
 
 ---
 

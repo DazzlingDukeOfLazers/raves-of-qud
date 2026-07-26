@@ -49,6 +49,18 @@ var deep_water_depth := 0.6
 # every level coplanar (the pre-stacking behaviour).
 var level_height := 4.0
 
+# Cavern lighting. Underground (zone.z > SURFACE_Z) there is no sky, so instead of the
+# global day/night dimmer we darken PER CELL from Qud's own light map (each cell sends
+# `light`, a LightLevel byte: Blackout=0, None=1 .. Light=200). Away from any source the
+# cell falls toward black; the additive torch/glow geometry is then the only light. Built
+# fresh each turn in the dynamic pass, so it follows moving light. See _build_darkness.
+var _underground := false
+const SURFACE_Z := 10
+const DARK_MAX := 0.94          # deepest per-cell darkening (never pure black — faint memory)
+const DARK_FLOOR_Y := 0.07      # darkness quad sits just above the floor tiles
+const DARK_ROOF_Y := WALL_H + 0.02   # and just above wall roofs, to dun unlit rock tops
+var _dark_mat: StandardMaterial3D
+
 # How a tile's TRANSPARENT pixels are treated when recolouring.
 #   NONE     leave see-through (fences, floors)
 #   ALL      paint every one with the cell background (wall faces, decks, tents)
@@ -293,6 +305,7 @@ func render_snapshot(data: Dictionary, neighbors: Array = []) -> void:
 
 	var live_id := String(data.get("zone", {}).get("id", ""))
 	var cells: Array = data.get("cells", [])
+	_underground = int(data.get("zone", {}).get("z", SURFACE_Z)) > SURFACE_Z
 
 	# LIVE STATIC — walls + floors + static sprites + lights. Rebuilt only when you
 	# ENTER a new zone (fresh Qud data), then frozen while you step within it. This
@@ -421,10 +434,11 @@ func _rebuild_dynamics(cells: Array) -> void:
 			continue     # first-person hides the player (the camera sits on this cell)
 		var sink := _cell_sink(cell)
 		var wet: bool = bool(cell.get("wade", false)) or bool(cell.get("swim", false))
+		var lf: float = _light_frac(cell) if _underground else 1.0   # dim creatures in the dark
 		var idx := 0
 		for obj in cell.get("objs", []):
 			if not _is_prism(obj) and _is_creature(obj):
-				_place_nonwall(obj, cx, cy, idx, false, sink, wet, false)
+				_place_nonwall(obj, cx, cy, idx, false, sink, wet, false, false, lf)
 				# A lit creature (NPC with a torch/glowsphere) carries its light with it —
 				# placed here every step so it tracks the creature. No smoke: a moving torch
 				# shouldn't trail a plume. (_live_build is false during dynamics, so this doesn't
@@ -438,6 +452,64 @@ func _rebuild_dynamics(cells: Array) -> void:
 			idx += 1
 	_noting = true
 	_bank = null
+	if _underground:
+		_build_darkness(cells)
+
+## Qud LightLevel byte (per cell) -> 0..1 brightness. None(1)/Blackout(0) -> 0 (dark);
+## Light(200)+ -> 1 (full). The low senses (darkvision 10 .. safelight 30) map to a dim
+## sliver, so an unlit cavern falls toward black — sources are the only real light.
+func _light_frac(cell: Dictionary) -> float:
+	var lv := int(cell.get("light", 200))   # default full: surface, or an older mod w/o the field
+	return clampf(float(lv - 1) / 199.0, 0.0, 1.0)
+
+## Per-cell darkness overlay (cavern lighting). ONE vertex-coloured MIX-black mesh: a quad
+## over each cell's floor (and its roof, for wall cells) whose ALPHA is how DARK the cell is
+## (1 - light). Built into _dynamic_root each turn, so it tracks Qud's live light map as
+## sources/player move. Cheap — one mesh, and fully-lit cells contribute nothing. The
+## additive torch/glow geometry draws bright on top, so lit pools read against the black.
+func _build_darkness(cells: Array) -> void:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var any := false
+	for cell in cells:
+		var a := (1.0 - _light_frac(cell)) * DARK_MAX
+		if a < 0.02:
+			continue                        # lit enough: leave it be
+		any = true
+		var cx := float(cell.get("x", 0))
+		var cy := float(cell.get("y", 0))
+		_dark_quad(st, cx, cy, DARK_FLOOR_Y, a)
+		for obj in cell.get("objs", []):
+			if _is_prism(obj):
+				_dark_quad(st, cx, cy, DARK_ROOF_Y, a)   # dun the unlit rock top too
+				break
+	if not any:
+		return
+	var mi := MeshInstance3D.new()
+	mi.mesh = st.commit()
+	mi.material_override = _dark_material()
+	_dynamic_root.add_child(mi)
+
+## One black quad (two tris) over cell (cx,cy) at height y, vertex alpha = a.
+func _dark_quad(st: SurfaceTool, cx: float, cy: float, y: float, a: float) -> void:
+	var c := Color(0, 0, 0, a)
+	for p in [Vector3(cx - 0.5, y, cy - 0.5), Vector3(cx + 0.5, y, cy - 0.5), Vector3(cx + 0.5, y, cy + 0.5),
+			Vector3(cx - 0.5, y, cy - 0.5), Vector3(cx + 0.5, y, cy + 0.5), Vector3(cx - 0.5, y, cy + 0.5)]:
+		st.set_color(c)
+		st.add_vertex(p)
+
+func _dark_material() -> StandardMaterial3D:
+	if _dark_mat != null:
+		return _dark_mat
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.blend_mode = BaseMaterial3D.BLEND_MODE_MIX        # alpha-black OVER the scene = darken
+	m.vertex_color_use_as_albedo = true                # per-cell vertex alpha drives darkness
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED   # overlay: test depth but don't write
+	_dark_mat = m
+	return m
 
 func _drop_static(id: String) -> void:
 	if _static_zones.has(id):
@@ -1280,7 +1352,7 @@ func _should_glow(obj: Dictionary) -> bool:
 		return true
 	return _glow_overrides.has(tile_family(tile))
 
-func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, sink := 0.0, wet := false, skip_creatures := false, stair_cell := false) -> void:
+func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, sink := 0.0, wet := false, skip_creatures := false, stair_cell := false, light_frac := 1.0) -> void:
 	# Static builds exclude creatures (they render per step in _rebuild_dynamics);
 	# remembered zones drop them entirely (they've wandered off since last live).
 	if skip_creatures and _is_creature(obj):
@@ -1420,6 +1492,11 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			s.texture = btex
 			s.flip_h = bool(obj.get("hflip", false))
 			s.flip_v = bool(obj.get("vflip", false))
+			# Underground, a creature in an unlit cell dims toward black with the cell's
+			# light (the floor overlay can't cover a standing sprite). Sprite3D.modulate
+			# works here since there's no material_override — unless it glows, and a
+			# bioluminescent thing should stay bright anyway.
+			s.modulate = Color(light_frac, light_frac, light_frac) if light_frac < 0.999 else Color.WHITE
 			var submerged: bool = sink > 0.0 and bool(obj.get("sinks", false))
 			_seat(s, btex, tile, cx, cy, sink if submerged else 0.0, position_for(tile) == "float")
 			s.visible = true

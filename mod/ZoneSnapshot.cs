@@ -444,6 +444,10 @@ namespace RavesOfQud
                         .Member("bridge", c.HasBridge())
                         .Member("wade", c.HasWadingDepthLiquid())
                         .Member("swim", c.HasSwimmingDepthLiquid())
+                        // Qud's own per-cell light level (LightLevel byte: Blackout=0,
+                        // None=1 .. Light=200 ..). The client uses this underground to fall
+                        // off to black away from sources, matching what Qud shows.
+                        .Member("light", (int)c.GetLight())
                     .Name("objs").BeginArray();
 
                     // Qud's painted ground goes first: it is the bottom of the

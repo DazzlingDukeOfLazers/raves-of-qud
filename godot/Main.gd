@@ -66,7 +66,11 @@ const DUSK_TINT := Color(1.0, 0.72, 0.50)      # warm dawn/dusk
 const SURFACE_Z := 10
 var _depth := SURFACE_Z            # current stratum (zone.z); >SURFACE_Z is underground
 var _underground := false
-const CAVE_TINT := Color(0.17, 0.18, 0.22)     # dim MULTIPLY ambient: torches pop, rock faintly readable
+const CAVE_TINT := Color(0.82, 0.85, 0.95)     # near-neutral, faintly cool: the per-cell darkness
+                                               # overlay (ZoneRenderer._build_darkness, from Qud's
+                                               # light map) does the real dimming, NOT this global
+                                               # multiply — a dark global grade would kill the very
+                                               # light pools we want. Only a slight underground cool.
 const CAVE_SKY := Color(0.015, 0.02, 0.03)     # near-black rock void behind/into the fog
 
 # Vertical level stacking: how many strata BELOW the live zone still render (deeper

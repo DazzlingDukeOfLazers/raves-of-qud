@@ -105,6 +105,7 @@ Per **cell** (all from first-class Qud predicates, no heuristics):
 | `bridge` | `Cell.HasBridge()`              | something decks over this cell              |
 | `wade`   | `Cell.HasWadingDepthLiquid()`   | liquid deep enough to wade through          |
 | `swim`   | `Cell.HasSwimmingDepthLiquid()` | liquid deep enough to swim in               |
+| `light`  | `(int)Cell.GetLight()`          | Qud's `LightLevel` byte (Blackout=0, None=1 … Light=200 …); the client falls off to black away from sources **underground** |
 
 Per **object**:
 
