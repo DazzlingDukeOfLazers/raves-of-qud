@@ -389,14 +389,12 @@ func render_snapshot(data: Dictionary, neighbors: Array = []) -> void:
 	Profiler.done("render.live")
 
 	# NEIGHBOURS — frozen per-zone subtrees, repositioned by transform (Step A).
-	Profiler.begin("render.remembered")
-	_sync_neighbors(neighbors)
-	Profiler.done("render.remembered")
-
 	# Remembered neighbours are FROZEN per-zone subtrees: each built ONCE, then only
 	# repositioned by a cheap transform when the live zone shifts. A crossing no longer
 	# rebuilds every neighbour (that was the ~1.1s hitch) — it just moves them and
-	# builds the one newly-remembered zone.
+	# builds the one newly-remembered zone. (This was accidentally called TWICE, doubling the
+	# neighbour build/free churn every snapshot — a prime suspect for the Metal buffer crash on
+	# rapid transitions. One call.)
 	Profiler.begin("render.remembered")
 	_sync_neighbors(neighbors)
 	Profiler.done("render.remembered")
@@ -1721,10 +1719,12 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			var submerged: bool = sink > 0.0 and bool(obj.get("sinks", false))
 			_seat(s, btex, tile, cx, cy, sink if submerged else 0.0, position_for(tile) == "float")
 			s.visible = true
-			if _placing_player:
+			if _placing_player and WM_STANDING_CARDS:
 				# "You are here": the player card ignores depth and sorts last, so it's always the
 				# topmost thing on the map — closest to the overhead camera in top-down, and never
 				# hidden behind a taller terrain card in the angled views. (Reset in _take_sprite.)
+				# Gated with the card feature while we isolate the Metal crash — a render-state
+				# change on the per-turn player sprite is a (long-shot) suspect; off = plain sprite.
 				s.no_depth_test = true
 				s.render_priority = 20
 			var glowing: bool = _should_glow(obj)
