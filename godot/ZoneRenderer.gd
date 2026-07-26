@@ -155,6 +155,8 @@ var _noting := true             # whether _note records (off during dynamic-only
 var _live_build := false        # true only while building the LIVE zone's static (its
                                 # torches register for the _process flicker; neighbours don't)
 var _hidden_cell := Vector2i(-9999, -9999)   # a live cell whose creature is not drawn (first-person: the player)
+var _player_cell := Vector2i(-9999, -9999)   # the player's cell this snapshot (from data.player), for the world-map "on top" rule
+var _placing_player := false                 # true while placing the player's own sprite in the dynamic pass
 
 func set_hidden_cell(c: Vector2i) -> void:
 	_hidden_cell = c
@@ -354,6 +356,8 @@ func render_snapshot(data: Dictionary, neighbors: Array = []) -> void:
 	var _zz := int(data.get("zone", {}).get("z", SURFACE_Z))
 	_underground = _zz > SURFACE_Z
 	_world_map = _zz < 0
+	var pc: Dictionary = data.get("player", {})
+	_player_cell = Vector2i(int(pc.get("x", -9999)), int(pc.get("y", -9999))) if not pc.is_empty() else Vector2i(-9999, -9999)
 
 	# LIVE STATIC — walls + floors + static sprites + lights. Rebuilt only when you
 	# ENTER a new zone (fresh Qud data), then frozen while you step within it. This
@@ -494,6 +498,9 @@ func _rebuild_dynamics(cells: Array) -> void:
 		var sink := _cell_sink(cell)
 		var wet: bool = bool(cell.get("wade", false)) or bool(cell.get("swim", false))
 		var lf: float = _light_frac(cell)   # dim creatures in the dark (night or cavern)
+		# On the world map the player's card must always read as "you are here" — drawn over
+		# the terrain tiles, never buried behind a hill card. _place_nonwall picks that up.
+		_placing_player = _world_map and Vector2i(cx, cy) == _player_cell
 		var idx := 0
 		for obj in cell.get("objs", []):
 			if not _is_prism(obj) and _is_creature(obj):
@@ -509,6 +516,7 @@ func _rebuild_dynamics(cells: Array) -> void:
 				if _is_glowfish(obj):
 					_make_orbiters(cx, cy)     # bioluminescent bugs circling the fish
 			idx += 1
+	_placing_player = false
 	_dyn_noting = false
 	_noting = true
 	_bank = null
@@ -1709,6 +1717,12 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			var submerged: bool = sink > 0.0 and bool(obj.get("sinks", false))
 			_seat(s, btex, tile, cx, cy, sink if submerged else 0.0, position_for(tile) == "float")
 			s.visible = true
+			if _placing_player:
+				# "You are here": the player card ignores depth and sorts last, so it's always the
+				# topmost thing on the map — closest to the overhead camera in top-down, and never
+				# hidden behind a taller terrain card in the angled views. (Reset in _take_sprite.)
+				s.no_depth_test = true
+				s.render_priority = 20
 			var glowing: bool = _should_glow(obj)
 			if glowing:
 				_add_glow(s, btex)              # crisp bioluminescent bloom (glowfish, glowpad, tagged tiles)
@@ -2910,6 +2924,8 @@ func _take_sprite() -> Sprite3D:
 	s.region_enabled = false
 	s.flip_h = false
 	s.flip_v = false
+	s.no_depth_test = false   # only the world-map player overrides these (draw-on-top)
+	s.render_priority = 0
 	return s
 
 func _take_floor() -> MeshInstance3D:

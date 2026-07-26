@@ -99,6 +99,13 @@ rules (the "overworld was unplayable" saga):
   now marks state dirty and publishes at most once per `PublishThrottleMs` (~15/sec); `TickRender`
   flushes the last coalesced state right after the burst, so the final position is never stale. A
   *driven* command still publishes immediately. Normal play (turns seconds apart) is unchanged.
+- **A zone change always publishes NOW, bypassing the throttle.** The throttle's trailing-edge flush
+  lives in `TickRender` (`BeforeRenderEvent`), which does **not** fire while Qud is backgrounded — the
+  normal "watching Raves" case — so a coalesced final frame could strand until the next input. That
+  showed as *"Raves needs a couple of extra inputs to start"* and *"the world-map↔surface transition
+  needs a few more inputs to load."* `Tick` compares the player's `Zone.ZoneID` to the last published
+  one (`_lastPublishedZone`, set in `PublishNow`) and force-publishes on any change: startup (null →
+  first zone) and every z-transition appear immediately. Same-zone bursts still throttle.
 - **`RenderBase` is skipped on the world map** (`z < 0`) — recompositing Qud's own console every turn
   is wasted while you watch Raves, and the map barely changes step to step. Normal zones keep it.
 - **`ResolveGround` (Qud's `Cell.Render()`) only on EMPTY cells.** On an occupied cell it returns the

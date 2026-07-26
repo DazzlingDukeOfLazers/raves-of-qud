@@ -364,10 +364,15 @@ an occupied terrain tile, fully lit, no walls. It exposed costs that also bite b
   texture (`_flush_wm_billboards`, shared `_wm_quad` at 16:24 aspect, bottom on the ground), so 2000
   cards are again a handful of draw calls. The GPU billboard mode is the toggle: `set_wm_face_ns`
   flips the shared card materials between `BILLBOARD_FIXED_Y` (follow the camera) and
-  `BILLBOARD_DISABLED` (fixed EW panels facing N/S) in place — instant, no rebuild (key `B`). The
-  player `@` keeps its normal dynamic-pass sprite. Missing tiles self-heal via the same
-  `_static_saw_missing` retry as floors (the `tex == null` cell falls back to the flat colour dot
-  until the PNG exports, then rebuilds as a card).
+  `BILLBOARD_DISABLED` (fixed EW panels facing N/S) in place — instant, no rebuild (key `B`). Top-down
+  wins over the toggle: a straight-down camera sees a vertical card edge-on (invisible), so
+  `_wm_billboard_mode` returns `BILLBOARD_ENABLED` (flat, facing up) whenever `set_top_down` is on.
+  Missing tiles self-heal via the same `_static_saw_missing` retry as floors (the `tex == null` cell
+  falls back to the flat colour dot until the PNG exports, then rebuilds as a card).
+- **The world-map player draws on top.** The `@` keeps its normal dynamic-pass sprite, but on the map
+  (`_placing_player`, its cell = `_player_cell`) it gets `no_depth_test` + a high `render_priority`, so
+  it's always the topmost "you are here" — closest to the overhead camera in top-down, never buried
+  behind a taller terrain card in the angled views. Reset for every other sprite in `_take_sprite`.
 
 The mod side of the same saga (idle-gate, publish throttle, `RenderBase`/`Cell.Render()` skips, the
 `serverUs`/`renderBaseUs` timers) is in [protocol.md](protocol.md#server-cost--publish-cadence).

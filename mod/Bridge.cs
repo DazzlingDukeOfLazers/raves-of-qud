@@ -129,10 +129,19 @@ namespace RavesOfQud
             // (z<0), where it was a chunk of the per-turn cost and the map barely changes step to
             // step; normal zones keep it so Qud's window / the F12 shot stay live. Timed into
             // LastRenderBaseUs so the client can see the cost.
+            // The player's current zone, reused below: RenderBase skips on the world map (z<0),
+            // and a change in it forces an immediate publish past the throttle (see (2)).
+            string zid = null;
+            bool worldMap = false;
             try
             {
                 var pz = player != null && player.CurrentCell != null ? player.CurrentCell.ParentZone : null;
-                bool worldMap = pz != null && pz.Z < 0;
+                if (pz != null) { zid = pz.ZoneID; worldMap = pz.Z < 0; }
+            }
+            catch (Exception e) { server.Log("zone read error: " + e.Message); }
+
+            try
+            {
                 if (!worldMap && XRLCore.IsCoreThread && The.Core != null)
                 {
                     var rw = System.Diagnostics.Stopwatch.StartNew();
@@ -143,20 +152,36 @@ namespace RavesOfQud
             }
             catch (Exception e) { server.Log("renderbase error: " + e.Message); }
 
-            // (2) snapshot — THROTTLED. World-map travel fires a BURST of EndTurns per step, and
-            // building a full 2000-cell snapshot for every one saturated Qud's turn thread AND
-            // flooded Godot so hard its frame loop starved (the "lighting eases slowly" symptom).
-            // Cap the publish rate; TickRender flushes the last pending state right after the burst
-            // so the final position is never stale. Normal play (turns seconds apart) always passes
-            // the gate and publishes immediately.
+            // (2) snapshot — THROTTLED for same-zone bursts, but a ZONE CHANGE always publishes NOW.
+            // World-map travel fires a BURST of EndTurns per step; building a 2000-cell snapshot for
+            // each saturated the turn thread and flooded Godot, so we cap the rate. BUT the trailing
+            // flush lives in TickRender (BeforeRenderEvent), which does NOT fire while Qud is
+            // backgrounded — the normal "watching Raves" case — so a coalesced frame could strand
+            // until the next input. Zone entries (startup, world-map<->surface) are exactly the
+            // transitions that needed "extra inputs" to appear; force those through immediately.
+            // Same-zone turns still throttle, and TickRender flushes their tail when Qud is focused.
             _dirty = true;
-            if (System.Environment.TickCount - _lastPublishMs >= PublishThrottleMs)
+            bool zoneChanged = zid != null && zid != _lastPublishedZone;
+            if (zoneChanged || System.Environment.TickCount - _lastPublishMs >= PublishThrottleMs)
                 PublishNow(player);
         }
 
         private static int _lastPublishMs;
         private static bool _dirty;
+        private static string _lastPublishedZone;   // zone id of the last snapshot sent; a change bypasses the throttle
         private const int PublishThrottleMs = 66;   // ~15 snapshots/sec ceiling during a burst
+
+        /// The player's current zone id, or null if it can't be read (teardown, no cell).
+        private static string ZoneIdOf(GameObject player)
+        {
+            try
+            {
+                var c = player != null ? player.CurrentCell : null;
+                var z = c != null ? c.ParentZone : null;
+                return z != null ? z.ZoneID : null;
+            }
+            catch { return null; }
+        }
 
         /// Build + send the current snapshot now (unless nobody's listening), and reset the throttle.
         private static void PublishNow(GameObject player)
@@ -165,7 +190,11 @@ namespace RavesOfQud
             if (server == null || server.ClientCount == 0) { _dirty = false; return; }
             _lastPublishMs = System.Environment.TickCount;
             _dirty = false;
-            try { server.Publish(Protocol.Frame(ZoneSnapshot.BuildJson(player))); }
+            try
+            {
+                server.Publish(Protocol.Frame(ZoneSnapshot.BuildJson(player)));
+                _lastPublishedZone = ZoneIdOf(player);   // remember what we just showed, for the zone-change gate
+            }
             catch (Exception e) { server.Log("snapshot error: " + e.Message); }
         }
 
