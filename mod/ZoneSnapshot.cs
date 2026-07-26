@@ -432,6 +432,7 @@ namespace RavesOfQud
                 var lines = mq.Messages;
                 int n = lines.Count;
                 int start = n > 80 ? n - 80 : 0;   // last ~80 lines is plenty for the panel
+                j.Member("msgCount", n);           // total ever, so the client can diff for NEW lines (filter mode)
                 j.Name("messages").BeginArray();
                 for (int i = start; i < n; i++)
                     j.Value(StripMarkup(lines[i]));

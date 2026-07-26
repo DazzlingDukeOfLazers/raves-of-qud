@@ -1,18 +1,23 @@
 extends PanelContainer
 
-## The Message log view — its own scene, hosted in MainFrame's row-3 side column. Fed the snapshot's
-## `messages` (Qud's recent log lines) via set_messages().
+## The Message log view — its own scene, hosted in MainFrame's row-3 side column. Fed each snapshot
+## via set_messages(lines, total).
 ##
-## VERBATIM (default): shows the lines as-is, newest at the bottom, auto-scrolled.
-## TERSE (header toggle — WORK IN PROGRESS): the full design is one line per UNIQUE message on screen;
-## a repeat drops to the bottom and increments a "(xN)" counter; after X quiet rounds the counts decay
-## and the line drops off. For now terse only collapses consecutive duplicates, and says so — we'll
-## finish the real behaviour next.
+## VERBATIM (default): Qud's recent log lines as-is, newest at the bottom, auto-scrolled.
+##
+## FILTER: one line per UNIQUE message on screen. A repeat increments its "(xN)" count and drops the
+## line to the bottom (most-recent). A line that stops appearing survives FILTER_GRACE quiet rounds,
+## then its count is subtracted by 1 each round until it hits 0 and drops off — so repeated/important
+## lines linger, one-offs fade. A "round" is a snapshot that carried NEW messages (≈ a turn); idle
+## render ticks don't decay anything.
 
 const MAX_LINES := 200
+const FILTER_GRACE := 4   # quiet rounds a line survives before its count starts decaying
 
-var _terse := false
-var _last_msgs: Array = []
+var _filter := false
+var _last_msgs: Array = []       # last verbatim tail (for verbatim render + delta)
+var _entries: Array = []         # filter state: [{text, count, quiet, seen}]
+var _seen_total := -1            # total message count last processed (-1 = not yet initialised)
 var _rt: RichTextLabel
 var _toggle: Button
 
@@ -32,7 +37,6 @@ func _ready() -> void:
 	v.add_theme_constant_override("separation", 4)
 	add_child(v)
 
-	# header: title + verbatim/terse toggle
 	var head := HBoxContainer.new()
 	v.add_child(head)
 	var title := Label.new()
@@ -55,14 +59,58 @@ func _ready() -> void:
 	_rt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	v.add_child(_rt)
 
-## Called by MainFrame each snapshot with the `messages` array (verbatim Qud lines).
-func set_messages(msgs: Array) -> void:
-	_last_msgs = msgs
+## MainFrame calls this each snapshot: `lines` = the verbatim tail, `total` = Qud's total message
+## count (so we can tell which tail lines are NEW since last snapshot).
+func set_messages(lines: Array, total: int) -> void:
+	_last_msgs = lines
+	_ingest(lines, total)   # keep filter state warm even in verbatim mode
 	_rerender()
 
+## Fold this snapshot's NEW messages into the filter state and age the rest.
+func _ingest(lines: Array, total: int) -> void:
+	if _seen_total < 0:
+		_seen_total = total   # first snapshot: start fresh; don't replay the whole backlog
+		return
+	var new_n: int = clampi(total - _seen_total, 0, lines.size())
+	_seen_total = total
+	if new_n <= 0:
+		return                # nothing new -> not a round -> no decay
+	var fresh: Array = lines.slice(lines.size() - new_n)
+
+	for e in _entries:
+		e["seen"] = false
+	for m in fresh:
+		var s := String(m)
+		var hit: Dictionary = {}
+		for e in _entries:
+			if e["text"] == s:
+				hit = e
+				break
+		if hit.is_empty():
+			_entries.append({"text": s, "count": 1, "quiet": 0, "seen": true})
+		else:
+			hit["count"] += 1
+			hit["quiet"] = 0
+			hit["seen"] = true
+			_entries.erase(hit)     # drop to the bottom (most-recent)
+			_entries.append(hit)
+
+	# age lines that didn't appear this round; decay + drop after the grace period
+	var survivors: Array = []
+	for e in _entries:
+		if e["seen"]:
+			survivors.append(e)
+			continue
+		e["quiet"] += 1
+		if e["quiet"] > FILTER_GRACE:
+			e["count"] -= 1
+		if e["count"] > 0:
+			survivors.append(e)
+	_entries = survivors
+
 func _rerender() -> void:
-	if _terse:
-		_render_terse()
+	if _filter:
+		_render_filter()
 	else:
 		_render_verbatim()
 
@@ -70,36 +118,24 @@ func _render_verbatim() -> void:
 	var src: Array = _last_msgs
 	if src.size() > MAX_LINES:
 		src = src.slice(src.size() - MAX_LINES)
-	var lines: Array[String] = []
-	for m in src:
-		lines.append(String(m))
-	_rt.text = "\n".join(lines)
-
-## WIP stub: collapse only CONSECUTIVE duplicates with a "(xN)" count, so terse reads differently from
-## verbatim. The full spec (unique-per-screen, repeat-drops-to-bottom, decay-off) comes next.
-func _render_terse() -> void:
 	var out: Array[String] = []
-	var prev := ""
-	var count := 0
-	for m in _last_msgs:
-		var s := String(m)
-		if s == prev:
-			count += 1
-		else:
-			if prev != "":
-				out.append(prev + ("  (x%d)" % count if count > 1 else ""))
-			prev = s
-			count = 1
-	if prev != "":
-		out.append(prev + ("  (x%d)" % count if count > 1 else ""))
-	_rt.text = "\n".join(out) + "\n\n— terse mode is a work in progress —"
+	for m in src:
+		out.append(String(m))
+	_rt.text = "\n".join(out)
+
+func _render_filter() -> void:
+	var out: Array[String] = []
+	for e in _entries:
+		var c: int = e["count"]
+		out.append(String(e["text"]) + ("  (x%d)" % c if c > 1 else ""))
+	_rt.text = "\n".join(out)
 
 func _toggle_mode() -> void:
-	_terse = not _terse
+	_filter = not _filter
 	_refresh_toggle()
 	_rerender()
 
 func _refresh_toggle() -> void:
 	if _toggle != null:
-		_toggle.text = "terse" if _terse else "verbatim"
-		_toggle.tooltip_text = "Switch to %s mode" % ("verbatim" if _terse else "terse")
+		_toggle.text = "filter" if _filter else "verbatim"
+		_toggle.tooltip_text = "Switch to %s mode" % ("verbatim" if _filter else "filter")
