@@ -119,6 +119,11 @@ var _cam_lift := 0.0
 const CAM_LIFT_SPEED := 6.0     # units/sec while a key is held
 const CAM_LIFT_MIN := -30.0
 const CAM_LIFT_MAX := 40.0
+# Horizontal camera dolly: W/X step the view one tile forward/back along the camera's
+# heading — "move the camera like the player". Discrete (1 tile per press), added to
+# eye+look like _cam_lift. Also transient (not saved, reset on a camera-mode switch).
+var _cam_pan := Vector3.ZERO
+const CAM_STEP := 1.0           # one tile per W/X press
 
 # --- compass cam (cardinal-locked, the disorientation fix) -------------------
 const COMPASS_PITCH := 0.61     # ~35° above the ground: the low, dramatic FAR/default angle
@@ -536,6 +541,20 @@ func _orbit_center() -> Vector3:
 func _compass_dir() -> Vector3:
 	return Vector3(sin(_compass_yaw), 0, cos(_compass_yaw))
 
+## The camera's forward on the ground plane, for the W/X dolly. COMPASS/FIRST_PERSON use
+## the locked heading (clean cardinal); FOLLOW the player's facing; anything else the
+## current view direction flattened to horizontal.
+func _cam_forward() -> Vector3:
+	match _mode:
+		CamMode.COMPASS, CamMode.FIRST_PERSON:
+			return _compass_dir()
+		CamMode.FOLLOW:
+			return _facing3()
+		_:
+			var d := _look - _eye
+			d.y = 0.0
+			return d.normalized() if d.length() > 0.001 else _compass_dir()
+
 # COMPASS: behind the player along the LOCKED heading at a low angle. Follows the
 # player's position but never rotates on movement — this is the disorientation fix.
 func _compass_eye() -> Vector3:
@@ -610,10 +629,14 @@ func _update_camera(dt: float) -> void:
 		target_eye.z *= zs
 		target_look.z *= zs
 
-	# S/D vertical pan: slide the whole view up/down to see other heights at this spot.
+	# S/D vertical pan + W/X horizontal dolly: slide the whole view to see other heights
+	# / positions at this spot (added to both eye and look, so the angle is preserved).
 	if _cam_lift != 0.0:
 		target_eye.y += _cam_lift
 		target_look.y += _cam_lift
+	if _cam_pan != Vector3.ZERO:
+		target_eye += _cam_pan
+		target_look += _cam_pan
 
 	if dt <= 0.0 or not _seeded or _snap_cam:
 		_eye = target_eye
@@ -716,7 +739,8 @@ func _set_mode(m: int) -> void:
 		_toggle_multiview()   # picking a mode leaves the multi-view grid
 	if m == _mode:
 		return
-	_cam_lift = 0.0   # a fresh view on every camera switch (S/D pan is per-look-around)
+	_cam_lift = 0.0   # a fresh view on every camera switch (S/D + W/X pan is per-look-around)
+	_cam_pan = Vector3.ZERO
 	# entering free flight, start from where the camera already is
 	if m == CamMode.KEYBOARD:
 		_free_eye = _eye
@@ -950,8 +974,8 @@ func _build_mode_label() -> void:
 	_update_mode_label()
 
 const _MODE_NAMES := {
-	CamMode.COMPASS: "COMPASS — cardinal-locked · arrows move (↑=fwd) · Q/E rotate · R/F zoom · S/D height",
-	CamMode.FOLLOW: "FOLLOW — trails your heading · arrows move (↑=fwd) · R/F zoom · S/D height",
+	CamMode.COMPASS: "COMPASS — cardinal-locked · arrows move (↑=fwd) · Q/E rotate · R/F zoom · S/D height · W/X dolly",
+	CamMode.FOLLOW: "FOLLOW — trails your heading · arrows move (↑=fwd) · R/F zoom · S/D height · W/X dolly",
 	CamMode.FIRST_PERSON: "FIRST-PERSON — ↑↓ move · ←→ turn · Ctrl+Shift+←→ strafe · Shift+arrows diagonal",
 	CamMode.CINEMATIC: "CINEMATIC — frames you + selected tile",
 	CamMode.MOUSE: "ORBIT — drag around the selected tile",
@@ -1288,6 +1312,13 @@ func _unhandled_input(event: InputEvent) -> void:
 			_compass_yaw += _compass_step(); return
 		if _mode == CamMode.COMPASS and event.keycode == KEY_E:
 			_compass_yaw -= _compass_step(); return
+		# W / X dolly the camera one tile forward / back along its heading — move the
+		# camera like the player. Discrete per press; pairs with S/D vertical pan. Not
+		# in FLY (WASD drives the free camera there).
+		if _mode != CamMode.KEYBOARD and event.keycode == KEY_W:
+			_cam_pan += _cam_forward() * CAM_STEP; return
+		if _mode != CamMode.KEYBOARD and event.keycode == KEY_X:
+			_cam_pan -= _cam_forward() * CAM_STEP; return
 		if event.keycode == KEY_ESCAPE:
 			# close the camera/debug menu and any selection, but KEEP the current camera
 			_dismiss_selection()

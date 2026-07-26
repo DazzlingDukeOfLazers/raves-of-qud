@@ -69,10 +69,11 @@ returns 1.5 only when `_mode == TOP_FOLLOW and not _multiview_on`.
   (`OS.set_restart_on_exit` + `--resolution`), so it also picks up code changes.
 - **Movement** — arrows move the player relative to the camera ("up" = forward). **Shift+arrow**
   = the 45°-rotated **diagonal** (Up=NE, Right=SE, Down=SW, Left=NW). Numpad is absolute 8-way.
-- **S/D vertical pan** — raise (**S**) / lower (**D**) the camera at the current spot to see other
-  heights at a tile — e.g. scan up and down the stacked Z-levels (`_cam_lift`, added to both eye
-  and look so the view slides straight up/down keeping its angle). Not in FLY (WASD drives it
-  there). Transient: not saved, and reset to 0 on any camera-mode switch.
+- **Camera dolly (move it like the player)** — **S/D** raise/lower and **W/X** step forward/back
+  one tile along the camera's heading, so you can reposition the view over a tile (e.g. scan the
+  stacked Z-levels). Both are offsets added to eye+look (`_cam_lift` vertical, held; `_cam_pan`
+  horizontal, 1 tile per press), so the view slides while keeping its angle. Not in FLY (WASD
+  drives the free camera there). Transient: not saved, and reset on any camera-mode switch.
 - **Shift+Space** — wait a turn in Qud (see [protocol.md](protocol.md); passes a turn).
 - Inspect: **Ctrl/Cmd-click** or **I**. **Ctrl/Cmd + right-click** = clean-plate shot then
   inspect. **F12** = screenshot. **`` ` ``** = debug menu.
