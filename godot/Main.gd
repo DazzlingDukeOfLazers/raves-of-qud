@@ -35,6 +35,7 @@ var _prof_turns := 0            # for the periodic profile auto-dump
 var inspector: CellInspector
 var reporter: TileReport
 var onboarding: OnboardingControl
+var _font_preview: FontPreview
 
 # Day/night grade. The world is UNSHADED, so a real light does nothing; instead a
 # full-screen MULTIPLY rect tints the whole viewport by time of day. It sits below
@@ -203,6 +204,16 @@ func _apply_ui_fonts() -> void:
 		var lh: float = maxf(_mode_label.get_minimum_size().y, float(fs))
 		_debug_menu.position = Vector2(14, _mode_label.position.y + lh + 8.0)
 
+## Show/hide the font-size ruler (Lorem Ipsum at each px) with the current UI-font math in the header,
+## so you can pick the MINIMUM and NORMAL sizes. Toggle: L, or the ` menu button.
+func _toggle_font_preview() -> void:
+	if _font_preview == null:
+		return
+	var vp := get_viewport().get_visible_rect().size
+	var hdr := "Font-size ruler — window %dx%d · current UI font %dpx  (MIN_FONT=%d, FONT_FRAC=%.3f)" % [
+		int(vp.x), int(vp.y), _ui_font_size(), MIN_FONT, FONT_FRAC]
+	_font_preview.toggle(hdr)
+
 const ORBIT_SENS := 0.006
 const PITCH_MIN := 0.12
 const PITCH_MAX := 1.45
@@ -324,6 +335,9 @@ func _ready() -> void:
 	onboarding = OnboardingControl.new()
 	add_child(onboarding)
 	onboarding.setup()
+
+	_font_preview = FontPreview.new()
+	add_child(_font_preview)
 
 	_char_creator = CharacterCreator.new()
 	_char_creator.client = client
@@ -1210,6 +1224,12 @@ func _build_debug_menu() -> void:
 	_look_btn.pressed.connect(_toggle_look_target)
 	vb.add_child(_look_btn)
 	_refresh_look_btn()
+	# font-size ruler (Lorem Ipsum at each px) — for tuning MIN_FONT / FONT_FRAC. Key: L.
+	var fp_btn := Button.new()
+	fp_btn.text = "Font-size ruler (L)"
+	fp_btn.focus_mode = Control.FOCUS_NONE
+	fp_btn.pressed.connect(_toggle_font_preview)
+	vb.add_child(fp_btn)
 	# world-map card orientation: follow the camera, or lock EW (facing N/S). Key: B.
 	_wm_face_btn = Button.new()
 	_wm_face_btn.focus_mode = Control.FOCUS_NONE
@@ -1421,6 +1441,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			return
 		if event.keycode == KEY_I:
 			_inspect(); return
+		if event.keycode == KEY_L:
+			_toggle_font_preview(); return   # L: font-size ruler (Lorem Ipsum at each px)
 		if event.keycode == KEY_F12:
 			_screenshot(); return
 		if event.keycode == KEY_P:
