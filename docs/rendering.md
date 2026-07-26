@@ -358,6 +358,16 @@ an occupied terrain tile, fully lit, no walls. It exposed costs that also bite b
   emits light (a glowfish parasang) otherwise got a flame that `_process` re-randomizes every frame —
   a light **oscillating** on an idle overview. Flicker is per-frame and client-side, so it shows even
   with no snapshots arriving.
+- **World-map tiles stand UP as billboards, also batched.** Laid flat they read edge-on under the
+  tilted compass camera. `_place_nonwall` intercepts every static world-map tile (`_world_map`, has a
+  texture, not a creature) and queues it into `_wm_billboard_batch` — one upright `MultiMesh` per tile
+  texture (`_flush_wm_billboards`, shared `_wm_quad` at 16:24 aspect, bottom on the ground), so 2000
+  cards are again a handful of draw calls. The GPU billboard mode is the toggle: `set_wm_face_ns`
+  flips the shared card materials between `BILLBOARD_FIXED_Y` (follow the camera) and
+  `BILLBOARD_DISABLED` (fixed EW panels facing N/S) in place — instant, no rebuild (key `B`). The
+  player `@` keeps its normal dynamic-pass sprite. Missing tiles self-heal via the same
+  `_static_saw_missing` retry as floors (the `tex == null` cell falls back to the flat colour dot
+  until the PNG exports, then rebuilds as a card).
 
 The mod side of the same saga (idle-gate, publish throttle, `RenderBase`/`Cell.Render()` skips, the
 `serverUs`/`renderBaseUs` timers) is in [protocol.md](protocol.md#server-cost--publish-cadence).

@@ -1177,11 +1177,19 @@ func _build_debug_menu() -> void:
 	_look_btn.pressed.connect(_toggle_look_target)
 	vb.add_child(_look_btn)
 	_refresh_look_btn()
+	# world-map card orientation: follow the camera, or lock EW (facing N/S). Key: B.
+	_wm_face_btn = Button.new()
+	_wm_face_btn.focus_mode = Control.FOCUS_NONE
+	_wm_face_btn.pressed.connect(_toggle_wm_face_ns)
+	vb.add_child(_wm_face_btn)
+	_refresh_wm_face_btn()
 	_debug_menu = panel
 	_update_debug_menu()
 
 var _compass_step_btn: Button
 var _look_btn: Button
+var _wm_face_btn: Button
+var _wm_face_ns := false   # world-map cards: false = follow camera, true = locked EW facing N/S
 
 func _refresh_compass_step_btn() -> void:
 	if _compass_step_btn != null:
@@ -1190,6 +1198,17 @@ func _refresh_compass_step_btn() -> void:
 func _refresh_look_btn() -> void:
 	if _look_btn != null:
 		_look_btn.text = "camera follows: %s" % ("head" if _look_head else "waist")
+
+func _refresh_wm_face_btn() -> void:
+	if _wm_face_btn != null:
+		_wm_face_btn.text = "world-map cards (B): %s" % ("EW → N/S" if _wm_face_ns else "follow cam")
+
+## Flip world-map terrain cards between follow-the-camera billboards and fixed EW panels
+## facing N/S. Instant — the renderer flips the shared materials in place, no rebuild.
+func _toggle_wm_face_ns() -> void:
+	_wm_face_ns = not _wm_face_ns
+	renderer.set_wm_face_ns(_wm_face_ns)
+	_refresh_wm_face_btn()
 
 func _toggle_look_target() -> void:
 	_look_head = not _look_head
@@ -1327,6 +1346,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.keycode == KEY_0: _toggle_multiview(); return   # 0 = all-views grid
 		if event.keycode == KEY_QUOTELEFT:      # ` toggles the debug menu
 			_toggle_debug_menu(); return
+		if event.keycode == KEY_B:              # B: world-map cards follow camera <-> lock EW (facing N/S)
+			_toggle_wm_face_ns(); return
 		# Q/E rotate the locked compass heading (COMPASS mode only), 45° or 90° per _compass_45
 		if _mode == CamMode.COMPASS and event.keycode == KEY_Q:
 			_compass_yaw += _compass_step(); return

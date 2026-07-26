@@ -192,6 +192,16 @@ var _lit_meshes: Array = []       # [{mi: MeshInstance3D, cell: Vector2i}]
 # per material (one draw call per tile type, instead of one MeshInstance3D per cell — 2000 of
 # them tanked the world map). Material -> Array[Transform3D]. Flushed per static/neighbour build.
 var _floor_batch := {}
+# World-map billboards: on the parasang map (z < 0) each terrain tile stands UP as a card
+# instead of lying flat, so the tilted compass camera reads the art face-on. Batched like
+# floors (one MultiMesh per tile texture — 2000 tiles stay a handful of draw calls) using an
+# upright quad. Follow-camera (FIXED_Y) by default; `set_wm_face_ns(true)` locks them all as
+# EW panels facing N/S. Material -> Array[Transform3D]; flushed per static/neighbour build.
+var _wm_billboard_batch := {}
+var _wm_quad: QuadMesh                 # shared upright card, 16:24 aspect, bottom on the ground
+var _wm_materials: Array = []          # every world-map billboard material, so the toggle can flip them live
+var _wm_face_ns := false               # false = billboards follow the camera; true = locked EW (facing N/S)
+const WM_BILLBOARD_H := 1.5            # card height (16x24 tile aspect at CELL width)
 # Camera cutaway: the LIVE zone's wall nodes keyed by cell, so a wall between the camera
 # and the player can fade out of the way. Faded via GeometryInstance3D.transparency with
 # the wall material in ALPHA_HASH mode (screen-door dither), so it stays in the opaque pass
@@ -249,6 +259,11 @@ func _ready() -> void:
 	_plane.size = Vector2(CELL, CELL)
 	_fence_quad = QuadMesh.new()
 	_fence_quad.size = Vector2(1, 1)  # scaled per instance
+	_wm_quad = QuadMesh.new()
+	_wm_quad.size = Vector2(CELL, WM_BILLBOARD_H)
+	# Shift the quad up so its bottom edge sits on the ground (origin at the base, not centre) —
+	# the instance transforms then place cards at (cx, 0, cy) and they stand ON the floor.
+	_wm_quad.center_offset = Vector3(0, WM_BILLBOARD_H * 0.5, 0)
 	_wall_root = Node3D.new()
 	add_child(_wall_root)
 
@@ -455,6 +470,7 @@ func _build_static(id: String, cells: Array) -> void:
 	_build_zone(cells, Vector2i.ZERO, true, wt)
 	_rebuild_walls(wt)
 	_flush_floor_batch()        # emit this zone's floors as batched MultiMeshes
+	_flush_wm_billboards()      # ...and its world-map cards, if any
 	_live_build = false
 	_bank = null
 
@@ -699,6 +715,7 @@ func _sync_neighbors(neighbors: Array) -> void:
 			_build_zone(nb.get("cells", []), Vector2i.ZERO, true, wt)   # local coords
 			_rebuild_walls(wt)     # _bank set -> into the subtree, no clear
 			_flush_floor_batch()   # batched floor MultiMeshes into the neighbour subtree
+			_flush_wm_billboards() # ...and world-map cards (relevant if a map neighbour is ever banked)
 			_noting = true
 			_bank = null
 		# Bake this remembered zone's darkness from its stored light, so a dark cavern or
@@ -1614,6 +1631,17 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			_track(uf)
 			_note(cx, cy, idx, "stairs-up (flat floor tile)", uf.position.y)
 			return
+
+	# The parasang world map is a top-down mosaic of terrain tiles. Laid flat, the compass
+	# camera sees them edge-on and foreshortened. Stand each one UP as a billboard card instead
+	# — batched by texture (like floors) so 2000 tiles stay a handful of draw calls. Creatures
+	# (the @) keep their normal upright-sprite path in the dynamic pass; everything static on the
+	# map routes here. See set_wm_face_ns for the follow-camera / locked-EW toggle.
+	if _world_map and not in_wall and tex != null and not _is_creature(obj):
+		var mat := _wm_billboard_material(tile, main_c, detail_c, tex)
+		_wm_billboard_add(mat, Transform3D(Basis(), Vector3(cx, 0.0, cy)))
+		_note(cx, cy, idx, "world-map billboard (%s)" % ("EW facing N/S" if _wm_face_ns else "follows camera"), 0.0)
+		return
 
 	# Qud's painted ground layer is flat by default — dirt, gravel, cracked earth.
 	# But vegetation in that layer is cover you stand among, not a texture you walk
@@ -2911,6 +2939,59 @@ func _flush_floor_batch() -> void:
 		mmi.material_override = mat
 		_spawn_parent().add_child(mmi)
 	_floor_batch.clear()
+
+## World-map billboard material: the tile texture on an UNSHADED, alpha-scissored card whose
+## GPU billboard mode is the shared toggle — FIXED_Y (upright, face the camera) or DISABLED
+## (locked EW, facing N/S). Kept in _wm_materials so set_wm_face_ns can flip them all live.
+func _wm_billboard_material(tile: String, main_c: String, detail_c: String, tex: ImageTexture) -> StandardMaterial3D:
+	var key := "wmbb|%s|%s|%s" % [tile, main_c, detail_c]
+	if _texmat_cache.has(key):
+		return _texmat_cache[key]
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.albedo_texture = tex
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.billboard_mode = BaseMaterial3D.BILLBOARD_DISABLED if _wm_face_ns else BaseMaterial3D.BILLBOARD_FIXED_Y
+	m.billboard_keep_scale = true   # MultiMesh instance scale must survive the billboard transform
+	_texmat_cache[key] = m
+	_wm_materials.append(m)
+	return m
+
+## Queue an upright world-map card (its instance transform) under its material for this build.
+func _wm_billboard_add(mat: Material, xform: Transform3D) -> void:
+	if not _wm_billboard_batch.has(mat):
+		_wm_billboard_batch[mat] = []
+	_wm_billboard_batch[mat].append(xform)
+
+## Emit the queued world-map cards as one MultiMesh per material into the current bank, then
+## clear. Called right after _flush_floor_batch in each static/neighbour build.
+func _flush_wm_billboards() -> void:
+	for mat in _wm_billboard_batch:
+		var xforms: Array = _wm_billboard_batch[mat]
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.mesh = _wm_quad
+		mm.instance_count = xforms.size()
+		for i in xforms.size():
+			mm.set_instance_transform(i, xforms[i])
+		var mmi := MultiMeshInstance3D.new()
+		mmi.multimesh = mm
+		mmi.material_override = mat
+		_spawn_parent().add_child(mmi)
+	_wm_billboard_batch.clear()
+
+## Toggle every world-map card between following the camera (FIXED_Y) and standing as a fixed
+## EW panel facing N/S. Flips the shared materials in place, so it's instant with no rebuild.
+func set_wm_face_ns(on: bool) -> void:
+	if on == _wm_face_ns:
+		return
+	_wm_face_ns = on
+	var mode := BaseMaterial3D.BILLBOARD_DISABLED if on else BaseMaterial3D.BILLBOARD_FIXED_Y
+	for m in _wm_materials:
+		if is_instance_valid(m):
+			(m as StandardMaterial3D).billboard_mode = mode
 
 func _take_label() -> Label3D:
 	if _bank == null and _label_pool.size() > 0: return _label_pool.pop_back()
