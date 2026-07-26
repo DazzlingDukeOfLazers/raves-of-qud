@@ -422,6 +422,24 @@ namespace RavesOfQud
             j.EndObject();
         }
 
+        /// The player's recent message-log lines (tail), markup-stripped, for the frame's Message log.
+        private static void WriteMessages(JsonWriter j)
+        {
+            try
+            {
+                var mq = (The.Game != null && The.Game.Player != null) ? The.Game.Player.Messages : null;
+                if (mq == null || mq.Messages == null) return;
+                var lines = mq.Messages;
+                int n = lines.Count;
+                int start = n > 80 ? n - 80 : 0;   // last ~80 lines is plenty for the panel
+                j.Name("messages").BeginArray();
+                for (int i = start; i < n; i++)
+                    j.Value(StripMarkup(lines[i]));
+                j.EndArray();
+            }
+            catch { }
+        }
+
         public static string BuildJson(GameObject player)
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
@@ -471,6 +489,7 @@ namespace RavesOfQud
             .EndObject();
 
             WriteStats(j, player, z);   // player vitals/stats for the frame status bar
+            WriteMessages(j);           // recent message-log lines for the frame Message log
 
             j.Name("cells").BeginArray();
             for (int y = 0; y < h; y++)

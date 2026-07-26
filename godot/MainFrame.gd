@@ -47,6 +47,7 @@ var _l_hp: Label
 var _bar_hp: ProgressBar
 var _l_exp: Label
 var _bar_exp: ProgressBar
+var _msglog: Control        # the Message log view (MessageLog.gd)
 
 func _ready() -> void:
 	name = "MainFrame"
@@ -273,11 +274,12 @@ func _row_main() -> Control:
 	var mini := _cell("Minimap", Vector2(0, 220))
 	var near := _cell("Nearby objects")
 	near.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	var log := _cell("Message log")
-	log.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_msglog = load("res://MessageLog.gd").new()   # the real Message log view (its own file)
+	_msglog.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_msglog.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	side.add_child(mini)
 	side.add_child(near)
-	side.add_child(log)
+	side.add_child(_msglog)
 	split.add_child(side)
 	return split
 
@@ -395,6 +397,8 @@ func _apply_stats(data: Dictionary) -> void:
 		var is_day: bool = bool(data.get("time", {}).get("isDay", true))
 		_daynight.text = "☀" if is_day else "☾"
 		_daynight.add_theme_color_override("font_color", Color(1.0, 0.85, 0.35) if is_day else Color(0.6, 0.7, 1.0))
+	if _msglog != null:
+		_msglog.set_messages(data.get("messages", []))
 
 ## Stratum label from zone.z (surface = 10, deeper = cavern -N, negative = the overworld map).
 func _floor_name(data: Dictionary) -> String:
