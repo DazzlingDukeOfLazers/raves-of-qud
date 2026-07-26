@@ -175,8 +175,12 @@ contributes quads with alpha `(1 - lightFrac) * DARK_MAX`:
   dimmed by the light of the *open* cell it faces (what would light it) — so rock beside a torch
   keeps a lit face while rock in the dark goes black. Interior (wall-to-wall) faces are skipped, the
   same edge test as `_place_side`.
-- **creatures** can't be covered by a flat overlay, so they dim via `Sprite3D.modulate` by their
-  cell's light in the dynamic pass.
+- **standing sprites** — creatures **and** static plants/scenery (trees, brinestalks) — can't be
+  covered by a flat overlay, so they dim via `Sprite3D.modulate` by their cell's light. Creatures
+  get it in the dynamic pass; static billboards are tracked (`_lit_sprites`) and re-lit every turn
+  by `_relight_static_sprites` (a modulate write, no rebuild), so a forest goes dark at night with
+  the ground under it. Frozen neighbours bake it once from stored light. Glowing sprites (glowpad,
+  bioluminescence) are left bright — they emit light.
 
 The additive torch/glow geometry draws bright *on top* of the darkened tiles, so lit pools read
 against the black.

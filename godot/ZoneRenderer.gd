@@ -180,6 +180,10 @@ var _smoke_mesh: QuadMesh                 # shared grey square, billboarded
 var _mote_tex: Texture2D                  # small glowing dot for glowfish orbiters
 var _glow_shader: Shader                  # crisp bioluminescent bloom over the fish silhouette
 var _lights: Array = []           # [{glow, flame, smoke, energy}]
+# Live zone's STATIC upright billboards (trees, brinestalks, scenery) with their cell, so
+# they can be dimmed by the cell's light EACH TURN like creatures — they'd otherwise stay
+# lit at night while the ground around them goes dark. [{s: Sprite3D, cell: Vector2i}]
+var _lit_sprites: Array = []
 var _orbiters: Array = []         # glowfish "bugs": [{root, motes:[{s, ...orbit params}]}]
 
 # Torches are ADDITIVE — they brighten whatever is behind them by a fixed amount
@@ -321,6 +325,7 @@ func render_snapshot(data: Dictionary, neighbors: Array = []) -> void:
 		_static_retry_pending = false
 		_placed.clear()
 		_lights.clear()                # the old live zone's torches stop flickering
+		_lit_sprites.clear()           # the old zone's plant/scenery sprites, re-lit each turn
 		_drop_static(live_id)          # replace any stale (neighbour-built) copy
 		_noting = true
 		_static_saw_missing = false
@@ -397,10 +402,14 @@ func _build_zone(cells: Array, offset: Vector2i, skip_creatures: bool, wall_type
 		# A stair-down cell's own floor/ground quad would cap the shaft from above, so
 		# it is suppressed (the frame lip provides the ring of floor around the opening).
 		var stair_cell := _cell_has_stairs_down(cell)
+		# Bake the cell's light into upright billboards. For the LIVE zone this is just an
+		# initial value (the per-turn _relight_static_sprites keeps it fresh); for a FROZEN
+		# neighbour it's the final value — that zone's plants stay dark in memory.
+		var lf := _light_frac(cell)
 		var idx := 0
 		for obj in cell.get("objs", []):
 			if not _is_prism(obj):
-				_place_nonwall(obj, cx, cy, idx, in_wall, sink, wet, skip_creatures, stair_cell)
+				_place_nonwall(obj, cx, cy, idx, in_wall, sink, wet, skip_creatures, stair_cell, lf)
 			# Creature lights are placed in the DYNAMIC pass so they follow the creature;
 			# here (static) we only place fixed lights (sconces, braziers, lit terrain).
 			if obj.has("lightRadius") and not (skip_creatures and _is_creature(obj)):
@@ -463,6 +472,23 @@ func _rebuild_dynamics(cells: Array) -> void:
 	# adds a daylight radius of 0 after dusk). Fully-lit cells emit nothing, so daytime
 	# and lit caves pay nothing; night and caverns fall off to black around light sources.
 	_build_darkness(cells, _dynamic_root)
+	_relight_static_sprites(cells)   # dim trees/brinestalks by their cell light this turn
+
+## Dim the live zone's STATIC upright billboards (trees, brinestalks, scenery) by their
+## cell's light this turn, so they fall dark at night with the ground instead of staying
+## lit. Cheap — a modulate write per tracked sprite, no geometry rebuild. Mirrors the
+## creature modulate; the flat darkness overlay can't cover a standing sprite.
+func _relight_static_sprites(cells: Array) -> void:
+	if _lit_sprites.is_empty():
+		return
+	var frac := {}
+	for cell in cells:
+		frac[Vector2i(int(cell.get("x", 0)), int(cell.get("y", 0)))] = _light_frac(cell)
+	for e in _lit_sprites:
+		var s = e["s"]
+		if is_instance_valid(s):
+			var lf: float = frac.get(e["cell"], 1.0)
+			s.modulate = Color(lf, lf, lf) if lf < 0.999 else Color.WHITE
 
 ## Qud LightLevel byte (per cell) -> 0..1 brightness. None(1)/Blackout(0) -> 0 (dark);
 ## Light(200)+ -> 1 (full). The low senses (darkvision 10 .. safelight 30) map to a dim
@@ -1581,9 +1607,15 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			var submerged: bool = sink > 0.0 and bool(obj.get("sinks", false))
 			_seat(s, btex, tile, cx, cy, sink if submerged else 0.0, position_for(tile) == "float")
 			s.visible = true
-			if _should_glow(obj):
+			var glowing: bool = _should_glow(obj)
+			if glowing:
 				_add_glow(s, btex)              # crisp bioluminescent bloom (glowfish, glowpad, tagged tiles)
 			_track(s)
+			# STATIC plant/scenery billboard (tree, brinestalk): register it to be dimmed by
+			# its cell's light EACH TURN (creatures get modulate directly; static sprites don't,
+			# so they'd stay lit at night). Glowing things emit light — leave them bright.
+			if _live_build and not glowing:
+				_lit_sprites.append({"s": s, "cell": Vector2i(cx, cy)})
 			var fmode := _fill_for(tile, Fill.INTERIOR)
 			var gaps := tile_fill_px(tile, fmode)
 			var kind := "billboard"
