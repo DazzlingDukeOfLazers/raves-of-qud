@@ -1358,6 +1358,15 @@ func _update_debug_menu() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
+		# F11: toggle fullscreen. A small floating window on a Retina display renders its framebuffer
+		# at LOGICAL size (Godot dev-run gives it no 2x backing), so macOS upscales it 2x and all text
+		# looks pixelated. Fullscreen (and maximize) render at the display's NATIVE resolution — crisp
+		# — and the viewport-relative fonts auto-scale to the right size. So this is the "read it
+		# sharp" view; the side-by-side floating window stays soft (a Godot-on-macOS dev limitation).
+		if event.keycode == KEY_F11:
+			var fs := DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN
+			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED if fs else DisplayServer.WINDOW_MODE_FULLSCREEN)
+			return
 		# Shift+Space: wait a turn in Qud (a Godot->Qud passthrough). Takes a turn for now.
 		if event.shift_pressed and event.keycode == KEY_SPACE:
 			client.send_command("wait", {}); return
