@@ -56,6 +56,20 @@ Perspective modes stay at scale 1, and **multi-view forces scale 1** (the shared
 can't be stretched for one pane without distorting the others). `_current_zstretch()`
 returns 1.5 only when `_mode == TOP_FOLLOW and not _multiview_on`.
 
+## Wall cutaway (see through rock in the way)
+
+Walls between the camera and the player fade so the rock doesn't block the view — vital in
+caverns at a low angle. `ZoneRenderer.apply_cutaway(eye, focus, dt, enabled)` runs every frame
+(from `Main._process`): for each **live-zone** wall cell (tracked in `_wall_cutaway` as it's built),
+it fades by how close the cell centre is to the camera→player line *and* whether it sits between the
+two, eased in/out (`CUTAWAY_LERP`, up to `CUTAWAY_MAX`).
+
+The fade is **`GeometryInstance3D.transparency`** with the wall material in **`ALPHA_HASH`** mode:
+screen-door dithering, so a fading wall stays in the **opaque** pass (no transparent-sort artifacts)
+and at `transparency 0` (alpha 1) nothing is discarded — normal walls are fully solid. Off in
+top-down (nothing's in the way looking straight down), first-person, free-fly, and the multi-view
+grid. Only live-zone walls are tracked — neighbours are never between you and the camera.
+
 ## Persistence & misc controls
 
 - **Settings** (`user://raves_settings.json`) — camera mode, compass heading, zoom

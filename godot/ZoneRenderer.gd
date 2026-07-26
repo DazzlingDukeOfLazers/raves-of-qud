@@ -187,6 +187,13 @@ var _lit_sprites: Array = []
 # Same idea for connector panels (fences, pipes, axles): they are MeshInstance3D, not
 # Sprite3D, so they dim via a per-instance material's albedo_color, not modulate.
 var _lit_meshes: Array = []       # [{mi: MeshInstance3D, cell: Vector2i}]
+# Camera cutaway: the LIVE zone's wall nodes keyed by cell, so a wall between the camera
+# and the player can fade out of the way. Faded via GeometryInstance3D.transparency with
+# the wall material in ALPHA_HASH mode (screen-door dither), so it stays in the opaque pass
+# — no transparent-sort artifacts. [Vector2i -> Array[MeshInstance3D]]
+var _wall_cutaway := {}
+const CUTAWAY_MAX := 0.78         # deepest fade for a wall right on the line of sight
+const CUTAWAY_LERP := 9.0         # per-second ease, so walls fade in/out smoothly
 var _orbiters: Array = []         # glowfish "bugs": [{root, motes:[{s, ...orbit params}]}]
 
 # Torches are ADDITIVE — they brighten whatever is behind them by a fixed amount
@@ -330,6 +337,7 @@ func render_snapshot(data: Dictionary, neighbors: Array = []) -> void:
 		_lights.clear()                # the old live zone's torches stop flickering
 		_lit_sprites.clear()           # the old zone's plant/scenery sprites, re-lit each turn
 		_lit_meshes.clear()            # and its connector panels (fences/pipes)
+		_wall_cutaway.clear()          # and its wall nodes tracked for camera cutaway
 		_drop_static(live_id)          # replace any stale (neighbour-built) copy
 		_noting = true
 		_static_saw_missing = false
@@ -1725,6 +1733,7 @@ func _rebuild_walls(wall_types: Dictionary) -> void:
 			core.material_override = core_mat
 			core.position = Vector3(k.x, core_top * 0.5, k.y)
 			_wall_parent().add_child(core)
+			_track_wall(k, core)
 
 		# ROOFS are per-cell, grouped by autotile variant. Merging them under one
 		# texture drew the fully-bordered isolated tile on every cell, so a run of
@@ -1747,6 +1756,7 @@ func _rebuild_walls(wall_types: Dictionary) -> void:
 					rmi.material_override = _voxel_material()
 					rmi.position = Vector3(k.x, 0.0, k.y)
 					_wall_parent().add_child(rmi)
+					_track_wall(k, rmi)
 				# a voxel side on each edge whose orthogonal neighbour isn't this wall.
 				# the side mesh faces +Z (south); rotate it onto each exposed edge.
 				if smesh != null:
@@ -1762,6 +1772,43 @@ func _place_side(mesh: ArrayMesh, k: Vector2i, deg: float) -> void:
 	mi.position = Vector3(k.x, 0.0, k.y)
 	mi.rotation = Vector3(0, deg_to_rad(deg), 0)
 	_wall_parent().add_child(mi)
+	_track_wall(k, mi)
+
+## Register a live-zone wall node under its cell so the camera cutaway can fade it. Only
+## the LIVE zone (_live_build) — neighbours are far/dim and never between you and the camera.
+func _track_wall(k: Vector2i, mi: MeshInstance3D) -> void:
+	if not _live_build:
+		return
+	if not _wall_cutaway.has(k):
+		_wall_cutaway[k] = []
+	_wall_cutaway[k].append(mi)
+
+## Fade walls between the camera (`eye`) and the player (`focus`) so rock doesn't block the
+## view — screen-door dither via each node's `transparency` (the wall material is ALPHA_HASH,
+## so it stays in the opaque pass). A wall cell fades by how close its centre is to the line
+## of sight AND how clearly it sits BETWEEN the two; eased so it melts in/out. `enabled=false`
+## eases everything back solid (top-down / first-person, where nothing is in the way). Called
+## every frame by Main. Cheap: settled cells (the vast majority) skip the write.
+func apply_cutaway(eye: Vector3, focus: Vector3, dt: float, enabled := true) -> void:
+	if _wall_cutaway.is_empty():
+		return
+	var seg := focus - eye
+	var seg_len := seg.length()
+	var dir := (seg / seg_len) if seg_len > 0.001 else Vector3.FORWARD
+	var ease := clampf(dt * CUTAWAY_LERP, 0.0, 1.0)
+	for cell in _wall_cutaway:
+		var target := 0.0
+		if enabled and seg_len > 1.0:
+			var c := Vector3(cell.x, WALL_H * 0.5, cell.y)
+			var t := (c - eye).dot(dir)                # distance along the line of sight
+			if t > 0.6 and t < seg_len - 0.8:          # between the camera and just shy of the player
+				var perp := (c - (eye + dir * t)).length()
+				target = (1.0 - smoothstep(0.5, 1.0, perp)) * CUTAWAY_MAX
+		for mi in _wall_cutaway[cell]:
+			if is_instance_valid(mi):
+				var cur: float = mi.transparency
+				if absf(cur - target) > 0.003:
+					mi.transparency = lerpf(cur, target, ease)
 
 # --- stairs down: framed opening + descending voxel flight ------------------
 
@@ -2029,6 +2076,7 @@ func _wall_core_material() -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_color = _wall_recess_color()
 	m.roughness = 0.95
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_HASH   # fade with the skin in the cutaway
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL if SHADED_WORLD else BaseMaterial3D.SHADING_MODE_UNSHADED
 	return m
 
@@ -2047,6 +2095,10 @@ func _voxel_material() -> StandardMaterial3D:
 	m.vertex_color_is_srgb = true
 	m.roughness = 0.85
 	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	# ALPHA_HASH (screen-door dither) so the camera cutaway can fade a wall via
+	# GeometryInstance3D.transparency while it STAYS in the opaque pass — no transparent
+	# sorting. At transparency 0 (alpha 1) nothing is discarded, so normal walls are solid.
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_HASH
 	if SHADED_WORLD:
 		m.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
 	else:

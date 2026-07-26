@@ -526,6 +526,13 @@ func _process(dt: float) -> void:
 	_update_camera(dt)
 	if _multiview_on:
 		_update_multiview_cameras()
+	# Fade walls that sit between the camera and the player so the rock doesn't block the
+	# view. Off in top-down (looking straight down — nothing's in the way), first-person
+	# (you're inside it), free-fly, and the multi-view grid.
+	if renderer != null:
+		var cut := not _multiview_on and _mode != CamMode.TOP_FOLLOW \
+			and _mode != CamMode.FIRST_PERSON and _mode != CamMode.KEYBOARD
+		renderer.apply_cutaway(_cam.global_position, _player + Vector3(0, _look_h(), 0), dt, cut)
 
 # --- camera placement -------------------------------------------------------
 
