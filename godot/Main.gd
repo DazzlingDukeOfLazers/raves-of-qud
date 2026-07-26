@@ -496,6 +496,13 @@ func _on_snapshot(data: Dictionary) -> void:
 ## radius is Phase 1's freeze-unfreeze step — for now the store holds few zones.
 func _neighbor_zones() -> Array:
 	var out: Array = []
+	# 2D mode floors EVERY object in EVERY cell, so a full surface zone plus its remembered
+	# neighbours is far more geometry than the 3D path (walls are greedy-meshed there, most cells
+	# hold nothing to floor). Rebuilding all of them flat in one re-render blew past the GPU timeout
+	# and hung on the surface (the overworld is a single zone, so it never hit this). Render just the
+	# live zone flat; neighbour context returns in 3D. (Incremental flat neighbours are a follow-up.)
+	if _flat_2d:
+		return out
 	var live_id := store.live_id()
 	if live_id == "":
 		return out
