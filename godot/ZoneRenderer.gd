@@ -1969,6 +1969,24 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 		_note(cx, cy, idx, "world-map card (%s)" % _wm_orient_name(), ws.position.y)
 		return
 
+	# A directional connector (fence / pipe / tent / axle: a `family_<dirs>` tile) must STAND as an
+	# oriented panel — never lie flat. It arrives here as a non-prism "wall", but its inherited
+	# RenderLayer can be low enough to trip the floor path below, which buries it in the ground and
+	# makes it invisible from a low angle (the "fences don't show up in Raves" bug — an IronFence
+	# reported RENDERED floor). Decide it HERE, ahead of the floor test, so a fence always stands.
+	# An explicit user verdict still wins: with a verdict filed we fall through to its own handling
+	# (the panel_ns/ew verdict path above already returned; floor/billboard/skip are honoured below).
+	if tex != null and not in_wall and verdict == "" and _is_connector(obj, tile):
+		var cd = _connector_dirs(tile)
+		var csolid := bool(obj.get("occluding", false))
+		var cph := _panel_height(obj, tile)
+		var cyc: float = FLOAT_Y if position_for(tile) == "float" else cph * 0.5
+		_place_connector(tile, main_c, detail_c, cx, cy, cd, cph,
+			Fill.ALL if csolid else Fill.NONE, cyc, light_frac)
+		_note(cx, cy, idx, "connector panels [%s] h=%.2f (stood up)" % [
+			"post" if cd == "" else cd, cph], cyc)
+		return
+
 	# Qud's painted ground layer is flat by default — dirt, gravel, cracked earth.
 	# But vegetation in that layer is cover you stand among, not a texture you walk
 	# on, so it reads far better standing up. Route it to the billboard path.
