@@ -369,6 +369,7 @@ namespace RavesOfQud
             // this so a NEW game never renders a previous game's remembered zones.
             j.Member("gameId", The.Game != null ? (The.Game.GameID ?? "") : "");
             j.Member("serverUs", _lastBuildUs);     // prior turn's serialize time (profiler)
+            j.Member("renderBaseUs", (int)Bridge.LastRenderBaseUs);  // this turn's RenderBase cost (0 if skipped)
             WriteTime(j);
             WritePalette(j);
 

@@ -61,6 +61,9 @@ namespace RavesOfQud
         ///   2) publish the current zone snapshot back to Godot.
         /// </summary>
         private static bool _ranInBackground;
+        /// Microseconds the last RenderBase (Qud's own map recomposite) took; 0 if skipped.
+        /// Sent in the snapshot so the client can see the mod's per-turn cost split.
+        public static long LastRenderBaseUs;
 
         public static void Tick(GameObject player)
         {
@@ -122,10 +125,21 @@ namespace RavesOfQud
             // the game state advanced and the window kept rendering (~4fps unfocused) — it was
             // just re-drawing an un-refreshed buffer. RenderBase recomposites the buffer from
             // current state; it must run on the core thread, which this EndTurnEvent tick is.
+            // This recomposites Qud's WHOLE console and is not free. Skip it on the WORLD MAP
+            // (z<0), where it was a chunk of the per-turn cost and the map barely changes step to
+            // step; normal zones keep it so Qud's window / the F12 shot stay live. Timed into
+            // LastRenderBaseUs so the client can see the cost.
             try
             {
-                if (XRLCore.IsCoreThread && The.Core != null)
+                var pz = player != null && player.CurrentCell != null ? player.CurrentCell.ParentZone : null;
+                bool worldMap = pz != null && pz.Z < 0;
+                if (!worldMap && XRLCore.IsCoreThread && The.Core != null)
+                {
+                    var rw = System.Diagnostics.Stopwatch.StartNew();
                     The.Core.RenderBase(UpdateSidebar: false);
+                    LastRenderBaseUs = (long)(rw.Elapsed.TotalMilliseconds * 1000.0);
+                }
+                else LastRenderBaseUs = 0;
             }
             catch (Exception e) { server.Log("renderbase error: " + e.Message); }
 
