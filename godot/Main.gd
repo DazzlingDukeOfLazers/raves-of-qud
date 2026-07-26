@@ -1304,12 +1304,15 @@ var _fs_btn: Button
 
 func _refresh_fs_btn() -> void:
 	if _fs_btn != null:
-		var fs := DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN
-		_fs_btn.text = "⛶ Window" if fs else "⛶ Full"
+		var big := DisplayServer.window_get_mode() != DisplayServer.WINDOW_MODE_WINDOWED
+		_fs_btn.text = "⛶ Restore" if big else "⛶ Maximize"
 
 func _toggle_fullscreen() -> void:
-	var fs := DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN
-	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED if fs else DisplayServer.WINDOW_MODE_FULLSCREEN)
+	# Maximize (not exclusive fullscreen — that can silently no-op on macOS). Maximized renders at the
+	# display's NATIVE resolution = crisp, unlike a small floating window. Label flips so you can tell
+	# the click fired even if the OS ignores the resize.
+	var big := DisplayServer.window_get_mode() != DisplayServer.WINDOW_MODE_WINDOWED
+	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED if big else DisplayServer.WINDOW_MODE_MAXIMIZED)
 	_refresh_fs_btn()
 
 ## Relaunch the process, preserving the current window size via --resolution (a plain
