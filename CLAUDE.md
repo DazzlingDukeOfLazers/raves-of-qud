@@ -53,7 +53,14 @@ cp mod/*.cs mod/manifest.json ~/Library/Application\ Support/com.FreeholdGames.C
 
 # validate the Godot scripts parse + _ready runs, without a window.
 # "Raves bridge: connected" and no errors == clean. .gd changes need NO restart.
+# NB: after ADDING a `class_name`, the headless parse fails ("Could not find type X") until an
+# editor rescan (the class cache lives in the gitignored .godot/): run `--editor --quit` once first.
 /Users/homefolder/Downloads/Godot.app/Contents/MacOS/Godot --headless --path godot/ --quit-after 120
+
+# build a CRISP (HiDPI) macOS .app — dev-run windows are soft on Retina (see "Display" below).
+# Exports + re-signs ad-hoc; output is build/RavesOfQud.app (gitignored). Needs the 4.7 export
+# templates installed (one-time, ~1.3GB, Editor > Manage Export Templates).
+tools/build_macos.sh   &&   open build/RavesOfQud.app
 
 # read live state off the bridge (BLOCKS until the player takes a turn)
 python3 tools/capture/snap.py summary
@@ -75,6 +82,26 @@ python3 tools/capture/control.py shot     # -> shot.png (read it)
 python3 tools/capture/control.py onboard devices   # devices/ktype/layout/function/numpad/mouse/close
 python3 tools/capture/control.py shot              # -> shot.png; read it to verify the screen
 ```
+
+## Display & fonts
+
+- **Dev-run windows are PIXELATED on Retina — a Godot limitation, not our bug. Don't chase it
+  in-code.** Measured at the render target: a floating `--path`/editor window gets a NON-HiDPI
+  backing (framebuffer = logical size, e.g. 1600x900), which macOS upscales 2x on a 2x display, so
+  ALL text is soft. `allow_hidpi`, `content_scale_factor`, fullscreen and maximize were all ignored
+  or rejected from dev-run (only exclusive fullscreen/maximize even reach native res, and macOS
+  refused to switch modes). The fix is to EXPORT (`tools/build_macos.sh`): an exported .app sets
+  `NSHighResolutionCapable` and renders native = crisp. So: dev-run for fast iteration (soft),
+  exported .app when you need it crisp (reading UI, demos, tuning fonts). ~1 session was burned
+  re-discovering this — check the render-target size before theorizing.
+- **All UI font sizes come from ONE source of truth: `godot/UiFont.gd`** (`FRAC` = body px ÷ window
+  height, `MIN` = absolute floor, role multipliers). Everything routes through `UiFont.px(vp, role)`:
+  Main's mode label + whole debug menu + Reset button, `CellInspector` (selection log), `TileReport`
+  (form), `OnboardingControl`, `FontPreview`. Change `FRAC`/`MIN` → the whole app re-sizes. Press **L**
+  in-app for the font ruler (Lorem Ipsum at each px).
+- **A panel that sizes its font only at build time stays TINY** — the window is still small at
+  `_ready`, and the panel never grows. Re-apply `UiFont.px(...)` on every SHOW/repaint (that was the
+  bug on the selection log and report form), or hook `get_viewport().size_changed` like the mode label.
 
 The `onboard` command jumps the wizard straight to a named screen so Claude can
 photograph and verify each one. `shot` no longer depends on `renderer.tiles_dir()`
