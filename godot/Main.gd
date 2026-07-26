@@ -280,6 +280,7 @@ func _ready() -> void:
 	_pivot = Node3D.new()
 	add_child(_pivot)
 	_cam = Camera3D.new()
+	_cam.far = 8000.0   # parasang-scale surface landmarks (the Spindle) tower thousands of units up
 	_pivot.add_child(_cam)
 	# Depth of field: a field of vinewafer reads as one flat colour blob without
 	# it. Far blur only — near blur would smear the player.

@@ -264,6 +264,8 @@ func _ready() -> void:
 	_fence_quad.size = Vector2(1, 1)  # scaled per instance
 	_wall_root = Node3D.new()
 	add_child(_wall_root)
+	_landmarks_root = Node3D.new()   # parasang-scale surface landmarks (Spindle, Red Rock)
+	add_child(_landmarks_root)
 
 	# Qud-green ground surface under everything, so the world reads as ground
 	# (the dark-green cell background) instead of a black void between the dots.
@@ -406,6 +408,9 @@ func render_snapshot(data: Dictionary, neighbors: Array = []) -> void:
 	Profiler.begin("render.remembered")
 	_sync_neighbors(neighbors)
 	Profiler.done("render.remembered")
+
+	# Parasang-scale surface landmarks (giant Spindle / Red Rock) at their world offset.
+	_rebuild_landmarks(data.get("zone", {}))
 
 ## Build one zone's STATIC geometry (walls + non-creature nonwalls + lights) into the
 ## current bank, cells shifted by `offset`. `skip_creatures` drops mobile actors —
@@ -1662,6 +1667,60 @@ func _spindle_seg(tile: String, main_c: String, detail_c: String, cx: int, cy: i
 	s.add_to_group("wm_tile")
 	_apply_wm_orient_to(s)
 	_track(s)
+
+# --- parasang-scale surface landmarks (the Spindle, Red Rock) ---------------
+# On the SURFACE, the world-map landmarks are drawn ENORMOUS — ~a parasang wide — at the world
+# offset of their parasang, so a colossal Spindle / Red Rock looms on the horizon and grows as you
+# walk toward it. Positioned via World.global_coord: a landmark at parasang (wx,wy) sits at its
+# global-cell centre minus this zone's cell (0,0) global, in scene units (1 cell = 1 unit). The fog
+# (depth 60→240) makes the top fade into the sky; the camera far-plane was lifted to 8000 for them.
+# Rebuilt every surface snapshot (cheap — a handful of sprites) so it tracks the player's movement.
+var _landmarks_root: Node3D
+const LANDMARK_PIXEL := 15.0           # sprite pixel_size: a 16px tile -> 240 units ≈ one parasang wide
+const LANDMARK_SPINDLE_SEGMENTS := 8   # shaft tiles between base and needle at parasang scale
+const LANDMARKS := [
+	{"kind": "spindle", "wx": 53, "wy": 3,  "tile": "terrain/sw_spindle_bottom.bmp", "main": "&C^k", "detail": "Y"},
+	{"kind": "single",  "wx": 11, "wy": 20, "tile": "terrain/tile_location7.bmp",     "main": "&r^k", "detail": "R"},
+]
+
+## Place the giant surface landmarks for the player's current zone. Surface only (world map draws its
+## own miniature versions; underground has no sky). Cleared and rebuilt each snapshot.
+func _rebuild_landmarks(zone: Dictionary) -> void:
+	for c in _landmarks_root.get_children():
+		c.queue_free()
+	if _world_map or _underground:
+		return
+	var origin := World.global_coord(zone, 0, 0)   # this zone's cell (0,0) in global cells
+	for lm in LANDMARKS:
+		# centre of the landmark's parasang, in global cells (middle zone zx=zy=1, cell centre)
+		var gx: int = (int(lm["wx"]) * World.PARASANG + 1) * World.ZONE_W + int(World.ZONE_W / 2.0)
+		var gy: int = (int(lm["wy"]) * World.PARASANG + 1) * World.ZONE_H + int(World.ZONE_H / 2.0)
+		var base := Vector3(gx - origin.x, 0.0, gy - origin.y)
+		if lm["kind"] == "spindle":
+			var seg_h := 24.0 * LANDMARK_PIXEL
+			var bottom := String(lm["tile"])
+			_landmark_sprite(bottom, lm["main"], lm["detail"], base + Vector3(0, 0.5 * seg_h, 0))
+			for i in range(1, LANDMARK_SPINDLE_SEGMENTS + 1):
+				_landmark_sprite(bottom.replace("bottom", "mid"), lm["main"], lm["detail"], base + Vector3(0, (i + 0.5) * seg_h, 0))
+			_landmark_sprite(bottom.replace("bottom", "top"), lm["main"], lm["detail"], base + Vector3(0, (LANDMARK_SPINDLE_SEGMENTS + 1.5) * seg_h, 0))
+		else:
+			_landmark_sprite(String(lm["tile"]), lm["main"], lm["detail"], base + Vector3(0, 12.0 * LANDMARK_PIXEL, 0))
+
+## One giant landmark sprite — its own (unpooled) node under _landmarks_root, billboarded upright.
+func _landmark_sprite(tile: String, main_c: String, detail_c: String, pos: Vector3) -> void:
+	var t := _colored_tex(tile, main_c, detail_c, Fill.NONE)
+	if t == null:
+		return
+	var s := Sprite3D.new()
+	s.texture = t
+	s.pixel_size = LANDMARK_PIXEL
+	s.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	s.shaded = false
+	s.transparent = true
+	s.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+	s.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y    # upright, turns to face the camera
+	s.position = pos
+	_landmarks_root.add_child(s)
 
 ## True if this object is a mobile creature. Prefers the mod's `creature` flag,
 ## falls back to `sinks` (IsCreature && !IsFlying) for a snapshot from a mod build
