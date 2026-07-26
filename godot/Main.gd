@@ -197,6 +197,7 @@ func _ui_font_size() -> int:
 ## window resize so it tracks the viewport.
 func _apply_ui_fonts() -> void:
 	UiFont.refresh_theme(_ui_theme, get_viewport())   # keep the project-wide default in sync with the window
+	_stamp_theme_roots(get_tree().root)               # make the default theme cross CanvasLayer boundaries
 	var fs := _ui_font_size()
 	if _mode_label != null:
 		_mode_label.add_theme_font_size_override("font_size", fs)
@@ -209,6 +210,22 @@ func _apply_ui_fonts() -> void:
 	if _debug_menu != null and _mode_label != null:
 		var lh: float = maxf(_mode_label.get_minimum_size().y, float(fs))
 		_debug_menu.position = Vector2(14, _mode_label.position.y + lh + 8.0)
+
+## Make the project-wide default theme (UiFont) reach EVERY Control, even ones nested under a
+## CanvasLayer or plain Node. In Godot 4 a Control whose direct parent is neither a Control nor a
+## Window becomes its own "theme root" and does NOT inherit the root viewport's theme — so a single
+## CanvasLayer in the chain (CharacterCreator, and any future pop-up UI) severs propagation and the
+## controls fall back to the tiny built-in default. Assigning `_ui_theme` to each such theme-root
+## Control reconnects the whole tree to the one source of truth. Idempotent; safe to re-run on resize
+## or after new UI is built. Controls that set their OWN theme on purpose (OnboardingControl) are left
+## alone so their explicit choice still wins.
+func _stamp_theme_roots(node: Node) -> void:
+	if node is Control:
+		var p := node.get_parent()
+		if not (p is Control) and (node as Control).theme == null:
+			(node as Control).theme = _ui_theme
+	for c in node.get_children():
+		_stamp_theme_roots(c)
 
 ## Apply a font size to every Label/Button under `node` (recursively) — how the debug menu and any
 ## nested popups get sized uniformly from one call.
@@ -362,6 +379,11 @@ func _ready() -> void:
 	_char_creator = CharacterCreator.new()
 	_char_creator.client = client
 	add_child(_char_creator)
+
+	# Every UI subtree above is now in the tree; re-run so the theme stamp reaches the ones built
+	# after the first _apply_ui_fonts() call (inspector, reporter, onboarding, font ruler, character
+	# creator). Deferred so each node's own _ready()/_build has finished.
+	_apply_ui_fonts.call_deferred()
 
 ## On (re)connect, wait one turn so Qud publishes a snapshot immediately and Raves has a
 ## zone to render — instead of a blank view until the player first moves. Passes a turn for
