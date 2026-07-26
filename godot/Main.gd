@@ -184,6 +184,9 @@ var _mode_label: Label
 var _debug_menu_title: Label
 var _reset_btn: Button
 var _wm_cards_btn: Button   # persistent top-right world-map card toggle (mirrors O / the ` menu)
+## Set true by MainFrame before this scene enters its SubViewport: the Holodeck is hosted inside the
+## main UI frame, so hide its OWN chrome (mode label + Reset/2D buttons). The frame supplies its menu.
+var embedded := false
 var _ui_theme: Theme   # project-wide default theme (UiFont) on the root viewport — see _ready
 
 # Responsive HUD text: a fraction of viewport height, but never below a floor —
@@ -387,6 +390,20 @@ func _ready() -> void:
 	# after the first _apply_ui_fonts() call (inspector, reporter, onboarding, font ruler, character
 	# creator). Deferred so each node's own _ready()/_build has finished.
 	_apply_ui_fonts.call_deferred()
+
+	if embedded:
+		_hide_holodeck_chrome()
+
+## Hide the Holodeck's own on-screen chrome (mode label, ⟳ Reset, tiles-2D button) when it's hosted
+## inside the main UI frame — the frame will provide these controls itself. The world, the debug menu
+## (`), and the inspector still work; only the always-on HUD buttons go away.
+func _hide_holodeck_chrome() -> void:
+	if _mode_label != null:
+		_mode_label.visible = false
+	if _reset_btn != null:
+		_reset_btn.visible = false
+	if _wm_cards_btn != null:
+		_wm_cards_btn.visible = false
 
 ## On (re)connect, wait one turn so Qud publishes a snapshot immediately and Raves has a
 ## zone to render — instead of a blank view until the player first moves. Passes a turn for

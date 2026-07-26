@@ -267,7 +267,8 @@ func _holodeck_cell() -> Control:
 	sv.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	svc.add_child(sv)
 	var holo: Node = load("res://Main.tscn").instantiate()
-	sv.add_child(holo)
+	holo.embedded = true                      # hide the Holodeck's own chrome; the frame owns the menu
+	sv.add_child(holo)                         # _ready() runs here, sees embedded=true
 	_holo_vp = sv
 	return svc
 
