@@ -54,7 +54,15 @@ func _drain() -> void:
 		if res[0] == OK:
 			_buf.append_array(res[1])
 
-	# pull every complete frame out of the buffer
+	# Pull every complete frame out of the buffer, but RENDER ONLY THE LATEST. Snapshots are full
+	# state, not deltas, so any earlier one is stale the moment a newer one exists. This is a
+	# coalescing command buffer: a single zone rebuild can take 1–3s, during which several
+	# snapshots pile up in the socket (a burst of transition turns, or two quick Shift+Space
+	# waits). Emitting each of them ran that many heavy full-zone rebuilds back-to-back in one
+	# frame, which overflowed Godot's Metal buffer allocator and HARD-CRASHED. One rebuild per
+	# frame, always to the newest state — fixes the crash and skips straight to current.
+	var latest: Variant = null
+	var dropped := 0
 	while _buf.size() >= 4:
 		var frame_len := (_buf[0] << 24) | (_buf[1] << 16) | (_buf[2] << 8) | _buf[3]
 		if _buf.size() < 4 + frame_len:
@@ -66,7 +74,13 @@ func _drain() -> void:
 		var data: Variant = JSON.parse_string(text)
 		Profiler.done("parse")
 		if typeof(data) == TYPE_DICTIONARY:
-			snapshot.emit(data)
+			if latest != null:
+				dropped += 1
+			latest = data
+	if latest != null:
+		if dropped > 0:
+			print("Raves: coalesced %d stale snapshot(s) this frame" % dropped)
+		snapshot.emit(latest)
 
 ## Send a command to Qud, e.g. send_command("move", {"dir": "N"}).
 func send_command(name: String, extra: Dictionary = {}) -> void:
