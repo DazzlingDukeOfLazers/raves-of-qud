@@ -192,7 +192,7 @@ var _lit_meshes: Array = []       # [{mi: MeshInstance3D, cell: Vector2i}]
 # the wall material in ALPHA_HASH mode (screen-door dither), so it stays in the opaque pass
 # — no transparent-sort artifacts. [Vector2i -> Array[MeshInstance3D]]
 var _wall_cutaway := {}
-const CUTAWAY_MAX := 0.78         # deepest fade for a wall right on the line of sight
+const CUTAWAY_MAX := 0.88         # deepest fade for a wall right on the line of sight
 const CUTAWAY_LERP := 9.0         # per-second ease, so walls fade in/out smoothly
 var _orbiters: Array = []         # glowfish "bugs": [{root, motes:[{s, ...orbit params}]}]
 
@@ -1792,18 +1792,23 @@ func _track_wall(k: Vector2i, mi: MeshInstance3D) -> void:
 func apply_cutaway(eye: Vector3, focus: Vector3, dt: float, enabled := true) -> void:
 	if _wall_cutaway.is_empty():
 		return
-	var seg := focus - eye
+	# Occlusion is measured HORIZONTALLY (XZ): walls are full-height vertical columns, so
+	# what matters is whether the cell sits near the camera->player line on the ground plane,
+	# not the 3D distance to its centre (an elevated camera's ray passes over wall tops).
+	var e2 := Vector2(eye.x, eye.z)
+	var f2 := Vector2(focus.x, focus.z)
+	var seg := f2 - e2
 	var seg_len := seg.length()
-	var dir := (seg / seg_len) if seg_len > 0.001 else Vector3.FORWARD
+	var dir := (seg / seg_len) if seg_len > 0.001 else Vector2.DOWN
 	var ease := clampf(dt * CUTAWAY_LERP, 0.0, 1.0)
 	for cell in _wall_cutaway:
 		var target := 0.0
-		if enabled and seg_len > 1.0:
-			var c := Vector3(cell.x, WALL_H * 0.5, cell.y)
-			var t := (c - eye).dot(dir)                # distance along the line of sight
-			if t > 0.6 and t < seg_len - 0.8:          # between the camera and just shy of the player
-				var perp := (c - (eye + dir * t)).length()
-				target = (1.0 - smoothstep(0.5, 1.0, perp)) * CUTAWAY_MAX
+		if enabled and seg_len > 0.8:
+			var c := Vector2(cell.x, cell.y)
+			var t := (c - e2).dot(dir)                 # distance along the line of sight (ground)
+			if t > 0.3 and t < seg_len - 0.5:          # between the camera and just shy of the player
+				var perp := (c - (e2 + dir * t)).length()
+				target = (1.0 - smoothstep(0.6, 1.2, perp)) * CUTAWAY_MAX
 		for mi in _wall_cutaway[cell]:
 			if is_instance_valid(mi):
 				var cur: float = mi.transparency
