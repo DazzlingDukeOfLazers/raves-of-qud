@@ -111,12 +111,20 @@ var _cam: Camera3D
 var _yaw := 0.7
 var _pitch := 0.9            # radians above the ground plane (MOUSE orbit)
 var _dist := 14.0
+# Vertical camera pan: S/D lower/raise the whole view at the current spot, so you can
+# "see other heights at this tile" — scan up and down the stacked Z-levels. Added to
+# BOTH eye and look so the view slides straight up/down keeping its angle. Not saved
+# (a transient look-around, reset to 0 each run and on a camera-mode change).
+var _cam_lift := 0.0
+const CAM_LIFT_SPEED := 6.0     # units/sec while a key is held
+const CAM_LIFT_MIN := -30.0
+const CAM_LIFT_MAX := 40.0
 
 # --- compass cam (cardinal-locked, the disorientation fix) -------------------
 const COMPASS_PITCH := 0.61     # ~35° above the ground: the low, dramatic FAR/default angle
 const COMPASS_PITCH_NEAR := 1.30 # ~74° at closest zoom: overhead, looking down at the head
 const COMPASS_CLOSE_DIST := 8.0  # only BELOW this does the arc lift toward overhead; above it
-                                 # stays at COMPASS_PITCH, so the normal/far view is unchanged
+								 # stays at COMPASS_PITCH, so the normal/far view is unchanged
 var _compass_yaw := 0.0         # locked heading in radians; Q/E rotate in _compass_step steps
 var _compass_45 := true         # Q/E step: 45° (true, default — the 8-way, least restrictive) or 90°
 func _compass_step() -> float:
@@ -184,7 +192,7 @@ const ORBIT_SENS := 0.006
 const PITCH_MIN := 0.12
 const PITCH_MAX := 1.45
 const DIST_MIN := 2.1        # closest zoom: with COMPASS_PITCH_NEAR this puts the eye ~2 tiles
-                             # straight up and just behind, looking DOWN at the head.
+							 # straight up and just behind, looking DOWN at the head.
 const DIST_MAX := 140.0
 
 func _ready() -> void:
@@ -491,6 +499,12 @@ func _process(dt: float) -> void:
 			and not Input.is_key_pressed(KEY_SHIFT):
 		if Input.is_key_pressed(KEY_R): _dist = clampf(_dist * (1.0 - dt), DIST_MIN, DIST_MAX)
 		if Input.is_key_pressed(KEY_F): _dist = clampf(_dist * (1.0 + dt), DIST_MIN, DIST_MAX)
+	# S/D pan the camera vertically at the current spot (see other heights / stacked
+	# levels at this tile). FLY owns WASD, so skip it there; Shift-guarded like zoom.
+	if _mode != CamMode.KEYBOARD and not Input.is_key_pressed(KEY_SHIFT):
+		if Input.is_key_pressed(KEY_S): _cam_lift += CAM_LIFT_SPEED * dt   # S = up
+		if Input.is_key_pressed(KEY_D): _cam_lift -= CAM_LIFT_SPEED * dt   # D = down
+		_cam_lift = clampf(_cam_lift, CAM_LIFT_MIN, CAM_LIFT_MAX)
 	_update_camera(dt)
 	if _multiview_on:
 		_update_multiview_cameras()
@@ -596,6 +610,11 @@ func _update_camera(dt: float) -> void:
 		target_eye.z *= zs
 		target_look.z *= zs
 
+	# S/D vertical pan: slide the whole view up/down to see other heights at this spot.
+	if _cam_lift != 0.0:
+		target_eye.y += _cam_lift
+		target_look.y += _cam_lift
+
 	if dt <= 0.0 or not _seeded or _snap_cam:
 		_eye = target_eye
 		_look = target_look
@@ -697,6 +716,7 @@ func _set_mode(m: int) -> void:
 		_toggle_multiview()   # picking a mode leaves the multi-view grid
 	if m == _mode:
 		return
+	_cam_lift = 0.0   # a fresh view on every camera switch (S/D pan is per-look-around)
 	# entering free flight, start from where the camera already is
 	if m == CamMode.KEYBOARD:
 		_free_eye = _eye
@@ -930,8 +950,8 @@ func _build_mode_label() -> void:
 	_update_mode_label()
 
 const _MODE_NAMES := {
-	CamMode.COMPASS: "COMPASS — cardinal-locked · arrows move (↑=fwd) · Q/E rotate · R/F zoom",
-	CamMode.FOLLOW: "FOLLOW — trails your heading · arrows move (↑=fwd) · R/F zoom",
+	CamMode.COMPASS: "COMPASS — cardinal-locked · arrows move (↑=fwd) · Q/E rotate · R/F zoom · S/D height",
+	CamMode.FOLLOW: "FOLLOW — trails your heading · arrows move (↑=fwd) · R/F zoom · S/D height",
 	CamMode.FIRST_PERSON: "FIRST-PERSON — ↑↓ move · ←→ turn · Ctrl+Shift+←→ strafe · Shift+arrows diagonal",
 	CamMode.CINEMATIC: "CINEMATIC — frames you + selected tile",
 	CamMode.MOUSE: "ORBIT — drag around the selected tile",
