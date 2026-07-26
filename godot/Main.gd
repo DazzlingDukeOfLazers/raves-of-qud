@@ -211,13 +211,6 @@ const DIST_MIN := 2.1        # closest zoom: with COMPASS_PITCH_NEAR this puts t
 const DIST_MAX := 140.0
 
 func _ready() -> void:
-	# CRISPNESS on Retina without touching the window mode (macOS wouldn't let us maximize/fullscreen).
-	# content_scale_factor renders the 2D at (window x factor) pixels — matching the display's native
-	# backing — so text is sharp instead of a 2x-upscaled blur. It also shrinks the logical space by
-	# the factor, so UI reads bigger; the viewport-relative font sizing (FONT_FRAC, onboarding _scale)
-	# partly re-compensates. This is a first pass — expect to tune sizes after seeing it.
-	_dpi_scale = maxf(1.0, DisplayServer.screen_get_scale())
-	get_window().content_scale_factor = _dpi_scale
 	renderer = ZoneRenderer.new()
 	add_child(renderer)
 
@@ -1293,36 +1286,6 @@ func _build_reset_button() -> void:
 	btn.pressed.connect(_reset_program)
 	layer.add_child(btn)
 
-	# Fullscreen toggle button (left of Reset). A floating window on a Retina display renders at
-	# LOGICAL resolution and macOS upscales it 2x -> pixelated text; fullscreen renders NATIVE = crisp.
-	_fs_btn = Button.new()
-	_fs_btn.focus_mode = Control.FOCUS_NONE
-	_fs_btn.anchor_left = 1.0
-	_fs_btn.anchor_right = 1.0
-	_fs_btn.offset_left = -190.0
-	_fs_btn.offset_right = -100.0
-	_fs_btn.offset_top = 10.0
-	_fs_btn.offset_bottom = 38.0
-	_fs_btn.pressed.connect(_toggle_fullscreen)
-	layer.add_child(_fs_btn)
-	_refresh_fs_btn()
-
-var _fs_btn: Button
-var _dpi_scale := 1.0
-
-func _refresh_fs_btn() -> void:
-	if _fs_btn != null:
-		var big := DisplayServer.window_get_mode() != DisplayServer.WINDOW_MODE_WINDOWED
-		_fs_btn.text = "⛶ Restore" if big else "⛶ Maximize"
-
-func _toggle_fullscreen() -> void:
-	# Maximize (not exclusive fullscreen — that can silently no-op on macOS). Maximized renders at the
-	# display's NATIVE resolution = crisp, unlike a small floating window. Label flips so you can tell
-	# the click fired even if the OS ignores the resize.
-	var big := DisplayServer.window_get_mode() != DisplayServer.WINDOW_MODE_WINDOWED
-	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED if big else DisplayServer.WINDOW_MODE_MAXIMIZED)
-	_refresh_fs_btn()
-
 ## Relaunch the process, preserving the current window size via --resolution (a plain
 ## reload_current_scene would keep the old cached scripts; a restart re-reads them).
 func _reset_program() -> void:
@@ -1395,14 +1358,6 @@ func _update_debug_menu() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
-		# P: toggle fullscreen (F11 = Mission Control, Option+Enter didn't take — plain P does). A small
-		# floating window on a Retina display renders its framebuffer at LOGICAL size (Godot dev-run
-		# gives it no 2x backing), so macOS upscales it 2x and all text looks pixelated. Fullscreen
-		# (and maximize) render at the display's NATIVE resolution — crisp — and the viewport-relative
-		# fonts auto-scale to the right size. This is the "read it sharp" view; the side-by-side
-		# floating window stays soft (a Godot-on-macOS dev limitation). (Profiler dump moved to Shift+P.)
-		if event.keycode == KEY_P and not event.shift_pressed:
-			_toggle_fullscreen(); return
 		# Shift+Space: wait a turn in Qud (a Godot->Qud passthrough). Takes a turn for now.
 		if event.shift_pressed and event.keycode == KEY_SPACE:
 			client.send_command("wait", {}); return
@@ -1468,8 +1423,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			_inspect(); return
 		if event.keycode == KEY_F12:
 			_screenshot(); return
-		if event.keycode == KEY_P and event.shift_pressed:
-			_dump_profile(); return   # Shift+P: profiler dump (plain P now toggles fullscreen)
+		if event.keycode == KEY_P:
+			_dump_profile(); return   # P: macOS grabs F9 (Mission Control)
 		if event.keycode == KEY_MINUS:
 			inspector.nudge_font(-2)
 			reporter.nudge_font(-2); return
