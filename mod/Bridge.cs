@@ -66,6 +66,13 @@ namespace RavesOfQud
         {
             BridgeServer server = Server;
 
+            // Raves not connected? Do NOTHING. This turn hook otherwise runs on EVERY Qud
+            // turn even when the viewer is closed — recompositing the map (RenderBase) and
+            // building the full zone snapshot (~16ms) for bytes nobody reads, and flipping
+            // Qud's global runInBackground/vsync. That made plain solo Qud sluggish on every
+            // move. Gate the whole thing on a live client so the mod is inert without Raves.
+            if (server == null || server.ClientCount == 0) return;
+
             // Keep Unity RENDERING the window while it's unfocused, so Qud's own map
             // repaints in sync with commands we drive from Godot. Unity pauses the
             // main-thread render loop for a backgrounded window unless runInBackground
