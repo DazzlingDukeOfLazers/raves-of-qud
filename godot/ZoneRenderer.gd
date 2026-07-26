@@ -1617,6 +1617,20 @@ func _is_vegetation(tile: String) -> bool:
 			return true
 	return false
 
+## World-map water families (svylake, river/lake, duskwaters, marsh). On the parasang map these
+## have no real liquid flags — the cells are abstractions — so we key off the tile family. Water
+## stays FLAT (see the world-map card branch): a standing blue card reads as a wall. Mangrove is
+## excluded: it's trees standing IN water, so it keeps the upright card.
+const WM_WATER_KEYS := ["river", "lake", "water", "ocean", "marsh", "duskwater"]
+func _is_world_water(tile: String) -> bool:
+	var name := tile.replace("\\", "/").to_lower().get_file()
+	if name.contains("mangrove"):
+		return false
+	for k in WM_WATER_KEYS:
+		if name.contains(k):
+			return true
+	return false
+
 ## True if this object is a mobile creature. Prefers the mod's `creature` flag,
 ## falls back to `sinks` (IsCreature && !IsFlying) for a snapshot from a mod build
 ## that predates the flag.
@@ -1728,7 +1742,10 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 	# repeated world-map<->surface transitions — with the flag off the map falls through to the
 	# known-good flat batched-floor path (the baseline that never crashed), a clean bisection. The
 	# card is a plain Sprite3D tagged "wm_tile" (set_wm_face_ns / set_top_down retarget it live).
-	if WM_STANDING_CARDS and _world_map and not in_wall and tex != null and not _is_creature(obj):
+	# Water reads as a wall when stood up, so world-map water stays FLAT: skip the card here and
+	# fall through to the ordinary floor path (terrain is layer 1 <= FLOOR_LAYER_MAX). It ends up
+	# a flat floor quad — an ocean/lake surface, not a blue billboard.
+	if WM_STANDING_CARDS and _world_map and not in_wall and tex != null and not _is_creature(obj) and not _is_world_water(tile):
 		var wtex := _colored_tex_rgb(tile, _obj_main(obj), _obj_detail(obj),
 			_color_key(obj), _fill_for(tile, Fill.INTERIOR))
 		if wtex == null:
