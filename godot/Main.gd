@@ -240,6 +240,15 @@ func _ready() -> void:
 	env.fog_depth_curve = 1.4     # >1: stay clear longer, then ramp up toward the end
 	env.fog_light_color = env.background_color
 	env.fog_sky_affect = 0.0      # the sky IS the fog colour; don't double-fog it
+	# Bloom: a cheap post-process glow so landmarks (the Spindle, boosted HDR-bright) read as
+	# luminous beacons WITHOUT per-object additive quads (those were a screen-filling fillrate bomb
+	# that hung the GPU). The high HDR threshold means only pixels brighter than white bloom, so
+	# ordinary tiles (max 1.0) are untouched — only the deliberately over-bright landmark does.
+	env.glow_enabled = true
+	env.glow_intensity = 0.9
+	env.glow_bloom = 0.05
+	env.glow_hdr_threshold = 1.05
+	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
 	_env = env
 	we.environment = env
 	add_child(we)

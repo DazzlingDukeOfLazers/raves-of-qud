@@ -1682,8 +1682,7 @@ var _landmark_ok := true               # cleared during a build if a needed tile
 var _landmark_nodes: Array = []        # [{node, wx, wy}] built once, repositioned each snapshot
 var _rock_mat: StandardMaterial3D      # shared solid-red-rock material for the Red Rock voxels
 const LANDMARK_SPINDLE_SEGMENTS := 8   # shaft tiles between base and needle
-const LANDMARK_GLOW_PAD := 1.15        # additive glow quad size vs the sprite (a soft halo past the edge)
-const LANDMARK_GLOW_COLOR := Color(0.55, 0.85, 1.0, 0.9)  # additive tint — cool spire-metal luminance
+const LANDMARK_BRIGHT := Color(1.6, 2.3, 2.7)  # HDR modulate for the Spindle: > glow_hdr_threshold, so it blooms
 const ROCK_WALL_TILE := "Assets/Content/Textures/Tiles/wall_rock-11111111.bmp"  # solid rock face, no borders
 const LANDMARKS := [
 	{"kind": "spindle", "wx": 53, "wy": 3,  "tile": "terrain/sw_spindle_bottom.bmp", "main": "&C^k", "detail": "Y", "pixel": 15.0},
@@ -1692,12 +1691,11 @@ const LANDMARKS := [
 
 ## Reposition the (build-once) landmarks for the player's current zone. Surface only — the world map
 ## draws its own miniature tiles; underground has no sky.
-# Landmarks confirmed as the crash source by bisection (off = stable). The crash writes NO report,
-# so it's a GPU hang/timeout, not a memory fault — pointing at fillrate, i.e. the huge additive glow
-# quads. LANDMARK_GLOW gates them off while we confirm; the sprites/voxels themselves are cheap
-# alpha-scissor geometry. Re-enabled with glow OFF to test.
+# Landmarks were a GPU-hang source (bisected: off = stable; no crash report -> fillrate, not memory).
+# The cause was screen-filling ADDITIVE glow quads. The glow is now done via HDR-bright sprites +
+# environment bloom (see Main env.glow_* and LANDMARK_BRIGHT) — a cheap post-process, no per-object
+# additive overdraw. LANDMARKS_ENABLED stays as a kill-switch.
 const LANDMARKS_ENABLED := true
-const LANDMARK_GLOW := false
 func _rebuild_landmarks(zone: Dictionary) -> void:
 	if not LANDMARKS_ENABLED or _world_map or _underground:
 		_landmarks_root.visible = false
@@ -1818,28 +1816,12 @@ func _landmark_sprite(tile: String, main_c: String, detail_c: String, pos: Vecto
 	s.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
 	s.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y    # upright, turns to face the camera
 	s.position = pos
+	if glow:
+		# HDR-bright, so the environment bloom haloes it into a luminous beacon. The sprite is
+		# alpha-scissored to the thin shaft, so this costs almost no fill — unlike the old additive
+		# quad (full 240x360, 10 of them, overlapping) that hung the GPU.
+		s.modulate = LANDMARK_BRIGHT
 	parent.add_child(s)
-	if not glow or not LANDMARK_GLOW:
-		return
-	# additive glow: the same art blended ADD and slightly larger, so it self-illuminates and glows
-	# against the night sky instead of reading as a thin dim thread.
-	var g := MeshInstance3D.new()
-	var qm := QuadMesh.new()
-	qm.size = Vector2(t.get_width() * px, t.get_height() * px) * LANDMARK_GLOW_PAD
-	g.mesh = qm
-	var gm := StandardMaterial3D.new()
-	gm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	gm.albedo_texture = t
-	gm.albedo_color = LANDMARK_GLOW_COLOR
-	gm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	gm.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	gm.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	gm.billboard_mode = BaseMaterial3D.BILLBOARD_FIXED_Y
-	gm.billboard_keep_scale = true
-	gm.cull_mode = BaseMaterial3D.CULL_DISABLED
-	g.material_override = gm
-	g.position = pos
-	parent.add_child(g)
 
 ## True if this object is a mobile creature. Prefers the mod's `creature` flag,
 ## falls back to `sinks` (IsCreature && !IsFlying) for a snapshot from a mod build
