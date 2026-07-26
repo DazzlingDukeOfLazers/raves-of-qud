@@ -1631,6 +1631,38 @@ func _is_world_water(tile: String) -> bool:
 			return true
 	return false
 
+func _is_spindle(tile: String) -> bool:
+	return tile.to_lower().contains("spindle")
+
+## Build the Spindle as a tall vertical tower at its base cell: the flared bottom tile seated on the
+## ground, SPINDLE_MID_SEGMENTS repeatable shaft tiles stacked one tile-height apart, then the needle
+## top. Each is a FULL (uncropped) sprite so the thin shaft columns line up into one continuous pipe.
+## The mid/top tile paths are derived from the bottom's so the directory/case matches exactly. All
+## join the "wm_tile" group, so the B toggle and top-down flip reach them like any world-map card.
+const SPINDLE_MID_SEGMENTS := 18
+func _place_spindle_tower(bottom_tile: String, main_c: String, detail_c: String, cx: int, cy: int) -> void:
+	var mid_tile := bottom_tile.replace("bottom", "mid")
+	var top_tile := bottom_tile.replace("bottom", "top")
+	var seg_h := 24.0 * PIXEL_SIZE     # one 24px tile tall (~1 unit); segments stack at this pitch
+	_spindle_seg(bottom_tile, main_c, detail_c, cx, cy, 0.5 * seg_h)          # base on the ground
+	for i in range(1, SPINDLE_MID_SEGMENTS + 1):
+		_spindle_seg(mid_tile, main_c, detail_c, cx, cy, (i + 0.5) * seg_h)   # climbing shaft
+	_spindle_seg(top_tile, main_c, detail_c, cx, cy, (SPINDLE_MID_SEGMENTS + 1.5) * seg_h)  # needle
+
+## One full-tile sprite of the tower, centred at y_center (so its 24px art spans y_center ± seg_h/2).
+func _spindle_seg(tile: String, main_c: String, detail_c: String, cx: int, cy: int, y_center: float) -> void:
+	var t := _colored_tex(tile, main_c, detail_c, Fill.NONE)
+	if t == null:
+		return
+	var s := _take_sprite()
+	s.texture = t
+	s.region_enabled = false           # full tile, NOT cropped to its opaque band (columns must align)
+	s.position = Vector3(cx, y_center, cy)
+	s.visible = true
+	s.add_to_group("wm_tile")
+	_apply_wm_orient_to(s)
+	_track(s)
+
 ## True if this object is a mobile creature. Prefers the mod's `creature` flag,
 ## falls back to `sinks` (IsCreature && !IsFlying) for a snapshot from a mod build
 ## that predates the flag.
@@ -1742,6 +1774,18 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 	# repeated world-map<->surface transitions — with the flag off the map falls through to the
 	# known-good flat batched-floor path (the baseline that never crashed), a clean bisection. The
 	# card is a plain Sprite3D tagged "wm_tile" (set_wm_face_ns / set_top_down retarget it live).
+	# The Spindle — the great spire, a main-quest landmark — is 3 stacked map tiles (bottom / mid /
+	# shaft / top). Flat cards make it a smear; instead build ONE tall vertical tower at the base
+	# cell: the flared bottom on the ground, a run of repeatable mid segments climbing up, capped by
+	# the needle top. The mid/top map cells are absorbed into that tower (rendered as nothing).
+	if WM_STANDING_CARDS and _world_map and not in_wall and _is_spindle(tile):
+		if tile.to_lower().contains("bottom"):
+			_place_spindle_tower(tile, main_c, detail_c, cx, cy)
+			_note(cx, cy, idx, "Spindle tower (%d segments up)" % (SPINDLE_MID_SEGMENTS + 2), 0.0)
+		else:
+			_note(cx, cy, idx, "Spindle (absorbed into the base tower)", 0.0)
+		return
+
 	# Water reads as a wall when stood up, so world-map water stays FLAT: skip the card here and
 	# fall through to the ordinary floor path (terrain is layer 1 <= FLOOR_LAYER_MAX). It ends up
 	# a flat floor quad — an ocean/lake surface, not a blue billboard.
