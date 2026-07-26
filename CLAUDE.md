@@ -95,10 +95,15 @@ python3 tools/capture/control.py shot              # -> shot.png; read it to ver
   exported .app when you need it crisp (reading UI, demos, tuning fonts). ~1 session was burned
   re-discovering this — check the render-target size before theorizing.
 - **All UI font sizes come from ONE source of truth: `godot/UiFont.gd`** (`FRAC` = body px ÷ window
-  height, `MIN` = absolute floor, role multipliers). Everything routes through `UiFont.px(vp, role)`:
-  Main's mode label + whole debug menu + Reset button, `CellInspector` (selection log), `TileReport`
-  (form), `OnboardingControl`, `FontPreview`. Change `FRAC`/`MIN` → the whole app re-sizes. Press **L**
-  in-app for the font ruler (Lorem Ipsum at each px).
+  height, `MIN` = absolute floor, role multipliers). Change `FRAC`/`MIN` → the whole app re-sizes.
+  Press **L** in-app for the font ruler (Lorem Ipsum at each px).
+- **It's AUTOMATIC via a project-wide default theme** — `UiFont.make_theme()` builds a Theme (body
+  size + Atkinson font); Main assigns it to `get_tree().root.theme` and refreshes it on resize. So
+  **any Control that doesn't override inherits the right size/font for free — including future UI.**
+  That's how a whole imported file (CharacterCreator, zero overrides) was fixed without touching it.
+  For a non-body size, prefer `theme_type_variation = "Title"/"Big"/"Caption"` (registered on the
+  theme) over hardcoding; `UiFont.px(vp, role)` explicit overrides also work and win over the theme.
+  **Do NOT hardcode a font_size number in new UI** — it escapes the source of truth.
 - **A panel that sizes its font only at build time stays TINY** — the window is still small at
   `_ready`, and the panel never grows. Re-apply `UiFont.px(...)` on every SHOW/repaint (that was the
   bug on the selection log and report form), or hook `get_viewport().size_changed` like the mode label.
