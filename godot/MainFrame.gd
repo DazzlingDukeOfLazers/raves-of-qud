@@ -25,7 +25,8 @@ const COL_BORDER := Color(1, 1, 1, 0.12)
 const COL_PANEL := Color(0.10, 0.11, 0.14)
 const COL_BG := Color(0.055, 0.065, 0.085)
 
-var _holo_vp: SubViewport   # the embedded Holodeck (Main.tscn) renders into this
+var _holo_vp: SubViewport   # the embedded Holodeck (Main.tscn) renders into this — null until enabled
+var _holo_host: Control     # the row-3 left cell; holds a placeholder until the Holodeck is enabled
 var _forwarding := false    # reentry guard so key-forwarding into the SubViewport can't recurse
 
 # Live status-bar labels, updated from each snapshot's `stats` block.
@@ -285,6 +286,46 @@ func _row_main() -> Control:
 ## Mouse over the cell is forwarded by SubViewportContainer; keyboard is forwarded in
 ## _unhandled_key_input below. Camera/movement (polled Input.is_key_pressed) works regardless.
 func _holodeck_cell() -> Control:
+	# OFF at startup — a placeholder with an Enable button. Instancing Main (which starts the bridge
+	# and renders 3D into the SubViewport) during the app's own launch could race the Metal init and
+	# crash/grey the first launch. Deferring it to a click, once the app is idle, sidesteps that. The
+	# status bar is fed by Main's snapshot signal, so it also stays "—" until the Holodeck is enabled.
+	_holo_host = PanelContainer.new()
+	_holo_host.add_theme_stylebox_override("panel", _panel_style(Color(0.09, 0.10, 0.13)))
+	_holo_host.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_holo_host.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_fill_holodeck_placeholder()
+	return _holo_host
+
+func _fill_holodeck_placeholder() -> void:
+	for c in _holo_host.get_children():
+		c.queue_free()
+	var v := VBoxContainer.new()
+	v.alignment = BoxContainer.ALIGNMENT_CENTER
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	v.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	v.add_theme_constant_override("separation", 8)
+	_holo_host.add_child(v)
+	var t := _text("HOLODECK")
+	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(t)
+	var btn := Button.new()
+	btn.text = "▶  Enable Holodeck"
+	btn.focus_mode = Control.FOCUS_NONE
+	btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	btn.pressed.connect(_enable_holodeck)
+	v.add_child(btn)
+	var hint := _text("(off at startup — click to connect & render)", COL_DIM, "caption")
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(hint)
+
+## Bring the Holodeck online: instance Main.tscn into a SubViewport inside the cell, wire its snapshot
+## stream to the status bar, and start rendering. Idempotent — a second call is a no-op.
+func _enable_holodeck() -> void:
+	if _holo_vp != null or _holo_host == null:
+		return
+	for c in _holo_host.get_children():
+		c.queue_free()
 	var svc := SubViewportContainer.new()
 	svc.stretch = true                       # the SubViewport tracks the cell size
 	svc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -296,9 +337,9 @@ func _holodeck_cell() -> Control:
 	var holo: Node = load("res://Main.tscn").instantiate()
 	holo.embedded = true                      # hide the Holodeck's own chrome; the frame owns the menu
 	holo.connect("snapshot", _apply_stats)    # drive the status bar off the Holodeck's snapshot stream
-	sv.add_child(holo)                         # _ready() runs here, sees embedded=true
+	sv.add_child(holo)                         # _ready() runs here, sees embedded=true; bridge connects
 	_holo_vp = sv
-	return svc
+	_holo_host.add_child(svc)
 
 ## Update the status bar from one snapshot's `stats` block (and `time` for day/night). Missing
 ## fields fall back to "—" so a partial/older mod never shows stale numbers.

@@ -20,6 +20,32 @@ component; other user interfaces (menus, character/inventory, etc.) are separate
 in prose for the player viewport. NOTE: this is the product name, not the Godot API — `get_viewport()`,
 `SubViewport`, and "the Godot viewport" stay as-is in code and technical notes.
 
+## Main gameplay frame (`MainFrame`) — the Holodeck's home
+
+`project.godot` main scene is now **`MainFrame.tscn`** (was `Main.tscn`). `MainFrame.gd` (a `Control`,
+built in code like the rest) is the 5-row gameplay chrome: status strip; HP/EXP + top menu; the
+**Holodeck | side panels** row; effects/target/context; command bar. The Holodeck is `Main.tscn`
+instanced inside a `SubViewportContainer` → `SubViewport` (`own_world_3d`) — see `_holodeck_cell()`.
+- **`Main.embedded`** (set by MainFrame before add_child) hides the Holodeck's own chrome (mode label,
+  Reset/2D buttons) so the frame owns them. Standalone `Main` is unchanged.
+- **Data flow, ONE bridge:** `Main` emits a `snapshot(data)` signal each frame; `MainFrame._apply_stats`
+  fills the status bar/vitals from it — no second bridge connection. Missing fields fall back to `—`.
+- **Player stats come from the mod's `stats` block** (`ZoneSnapshot.WriteStats`). Verified Qud APIs:
+  name=`DisplayNameOnly`; hp=`hitpoints`/`baseHitpoints`; level/xp=`GetStatValue("Level"/"XP")`;
+  xp thresholds=`Leveler.GetXPForLevel(lvl)`/`(lvl+1)`; temp=`pPhysics.Temperature`;
+  QN/MS=`GetStatValue("Speed"/"MoveSpeed")`; **AV/DV/MA=`Stats.GetCombatAV/DV/MA`** (displayed values
+  with attribute mods — plain `GetStatValue` matches AV only by luck); weight=`GetCarriedWeight`/
+  `GetMaxCarriedWeight`; water=`GetFreeDrams("water")` (liquid ids are **lowercase**);
+  hunger/thirst=`Stomach.FoodStatus()`/`WaterStatus()` (strip `{{color|text}}` markup);
+  biome=`Zone.DisplayName`. Adding a field is: emit it in WriteStats → read it in `_apply_stats`.
+- Key input reaches the embedded Holodeck via `MainFrame._unhandled_key_input` → `SubViewport.push_input`,
+  behind a **reentry guard** (forwarding without it recursed and crashed — don't remove the guard).
+- **Holodeck is OFF at startup** (an "Enable Holodeck" button in the cell). Instancing Main during the
+  app's own launch raced the Metal init and intermittently crashed/greyed the FIRST launch; deferring
+  it to a click sidesteps that. `_enable_holodeck()` instances Main then — so the status bar is also
+  blank (`—`) until you enable it (its data rides Main's snapshot signal). Everything comes online on
+  the click. The exported app writes NO crash report (ad-hoc signed), so this was traced by elimination.
+
 ## Branches & platform (parallel dev on Mac + PC)
 
 Two working branches off `main`: **`dd/mac`** (the Mac) and **`dd/pc`** (the second computer,
@@ -245,6 +271,19 @@ inspect in Python before porting. (Lighting/shadow *appearance* still needs a sc
 
 ## Debugging rules, learned expensively
 
+- **The EXPORTED app writes NO crash reports** (ad-hoc signed → macOS suppresses `~/Library/Logs/
+  DiagnosticReports/*.ips`), and its stdout is block-buffered when redirected to a file, so a crash
+  loses the tail. To get a real GDScript backtrace or native stack, run the project under the **dev
+  editor** instead: `Godot --path godot` (writes `Godot-*.ips`, flushes errors). `godot.log` under
+  `app_userdata/Raves of Qud/logs/` flushes script errors too. Don't trust an empty redirected log
+  as "no error" — it's probably just unflushed.
+- **Look up Qud APIs against the real assembly, don't guess.** `dotnet build mod/…csproj` compiles
+  against the game's `Assembly-CSharp.dll`, so a wrong method/stat name is a compile error you catch
+  *before* the user runs. For exact signatures, decompile: `DOTNET_ROOT=/opt/homebrew/Cellar/dotnet/
+  <ver>/libexec ~/.dotnet/tools/ilspycmd "<Managed>/Assembly-CSharp.dll" -t <FullTypeName>`. This is
+  how the status-bar stat APIs were nailed (AV via GetStatValue matched by luck; DV/MA needed
+  `Stats.GetCombatDV/MA`). `GetStatValue(name)` compiles for ANY string and returns 0 for a bad name,
+  so a field reading 0 at runtime = wrong key, not a crash.
 - **A cell is not just its objects.** Qud paints a ground layer (dirt, grass) onto cells with
   no `GameObject` at all — 1103 of 2000 in a Joppa zone. `Cell.Render()` composites it. Missing
   this cost six wrong hypotheses and four shipped-but-inert fixes.
