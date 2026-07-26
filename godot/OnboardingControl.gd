@@ -32,6 +32,7 @@ enum Screen { DEVICES, KEYBOARD_TYPE, LAYOUT_KBD, LAYOUT_MOUSE }
 const REF_H := 900.0
 var _scale := 1.0
 var _ui_theme: Theme
+var _built := false
 
 var _model: InputModel
 var _layer: CanvasLayer
@@ -44,7 +45,15 @@ var _screen: int = Screen.DEVICES
 
 func setup() -> void:
 	_model = InputModel.new()
-	# Window height is settled by now (Main restores it before onboarding.setup), so scale to it.
+	# NB: the UI is built LAZILY on first open() — at setup() (startup) the viewport still reports
+	# project.godot's 1600x900, so scaling here computed 1.0 and nothing grew. By the time the user
+	# opens the wizard the window is maximized, so _ensure_built() reads the real height.
+
+## Build the wizard once, on first open, scaled to the (now-maximized) window.
+func _ensure_built() -> void:
+	if _built:
+		return
+	_built = true
 	var vp := get_viewport()
 	var h: float = vp.get_visible_rect().size.y if vp else REF_H
 	_scale = maxf(1.0, h / REF_H)
@@ -124,6 +133,7 @@ func _build() -> void:
 # --- open / close -----------------------------------------------------------
 
 func open() -> void:
+	_ensure_built()
 	_model.load_config()
 	_screen = Screen.DEVICES
 	_goto(Screen.DEVICES)
@@ -139,6 +149,7 @@ func close() -> void:
 ## Does NOT save — a screenshot of the numpad layout shouldn't rewrite the user's
 ## chosen keyboard type.
 func show_screen(name: String) -> void:
+	_ensure_built()
 	_model.load_config()
 	match name:
 		"ktype", "keyboard_type":
