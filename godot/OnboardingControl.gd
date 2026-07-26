@@ -25,6 +25,14 @@ const CAP_BG_SEL := Color(0.12, 0.22, 0.15, 1.0)
 
 enum Screen { DEVICES, KEYBOARD_TYPE, LAYOUT_KBD, LAYOUT_MOUSE }
 
+# These sizes were tuned on a ~900px-tall window; on a big/4K display they read tiny. Scale every
+# font size and fixed dimension by the window height so the wizard matches the rest of the UI. And
+# route text through the bundled Atkinson font (a Theme default_font) — the bare default font was
+# rendering pixelated next to the inspector's crisp Atkinson text.
+const REF_H := 900.0
+var _scale := 1.0
+var _ui_theme: Theme
+
 var _model: InputModel
 var _layer: CanvasLayer
 var _panel: PanelContainer
@@ -36,7 +44,22 @@ var _screen: int = Screen.DEVICES
 
 func setup() -> void:
 	_model = InputModel.new()
+	# Window height is settled by now (Main restores it before onboarding.setup), so scale to it.
+	var vp := get_viewport()
+	var h: float = vp.get_visible_rect().size.y if vp else REF_H
+	_scale = maxf(1.0, h / REF_H)
+	_ui_theme = Theme.new()
+	var font := load("res://fonts/AtkinsonHyperlegible-Regular.ttf")
+	if font != null:
+		_ui_theme.default_font = font   # crisp, matches the inspector; propagates to every child
 	_build()
+
+## Scaled font size / pixel dimension for the current window.
+func _fs(base: int) -> int:
+	return int(round(base * _scale))
+
+func _px(base: float) -> float:
+	return base * _scale
 
 func _build() -> void:
 	_layer = CanvasLayer.new()
@@ -53,10 +76,11 @@ func _build() -> void:
 	_layer.add_child(dim)
 
 	_panel = PanelContainer.new()
+	_panel.theme = _ui_theme   # Atkinson default_font + inherits to every label/button below
 	_panel.set_anchors_preset(Control.PRESET_CENTER)
 	_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
-	_panel.custom_minimum_size = Vector2(760, 0)
+	_panel.custom_minimum_size = Vector2(_px(760), 0)
 	var style := StyleBoxFlat.new()
 	style.bg_color = BG
 	style.border_color = BORDER
@@ -71,17 +95,17 @@ func _build() -> void:
 
 	_title = Label.new()
 	_title.add_theme_color_override("font_color", TITLE)
-	_title.add_theme_font_size_override("font_size", 24)
+	_title.add_theme_font_size_override("font_size", _fs(24))
 	box.add_child(_title)
 
 	_subtitle = Label.new()
 	_subtitle.add_theme_color_override("font_color", DIM)
-	_subtitle.add_theme_font_size_override("font_size", 16)
+	_subtitle.add_theme_font_size_override("font_size", _fs(16))
 	_subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(_subtitle)
 
 	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(720, 420)
+	scroll.custom_minimum_size = Vector2(_px(720), _px(420))
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	box.add_child(scroll)
 
@@ -224,7 +248,7 @@ func _build_devices() -> void:
 		b.focus_mode = Control.FOCUS_NONE
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		b.custom_minimum_size = Vector2(0, 48)
-		b.add_theme_font_size_override("font_size", 18)
+		b.add_theme_font_size_override("font_size", _fs(18))
 		_style_device_button(b, row[1], row[2], b.button_pressed)
 		b.toggled.connect(func(on: bool):
 			_set_device(dev, on)
@@ -258,7 +282,7 @@ func _build_keyboard_type() -> void:
 		b.focus_mode = Control.FOCUS_NONE
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		b.custom_minimum_size = Vector2(0, 64)
-		b.add_theme_font_size_override("font_size", 18)
+		b.add_theme_font_size_override("font_size", _fs(18))
 		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_style_type_button(b, row[1], row[2], _model.keyboard_type == type)
 		b.pressed.connect(func():
@@ -348,7 +372,7 @@ func _section_label(text: String) -> Label:
 	var l := Label.new()
 	l.text = text
 	l.add_theme_color_override("font_color", ACCENT)
-	l.add_theme_font_size_override("font_size", 15)
+	l.add_theme_font_size_override("font_size", _fs(15))
 	return l
 
 ## One key cap: the legend printed big, the action's short label under it, the full
@@ -373,14 +397,14 @@ func _cap(id: String) -> Control:
 	var legend := Label.new()
 	legend.text = String(a.get("legend", "?"))
 	legend.add_theme_color_override("font_color", TITLE)
-	legend.add_theme_font_size_override("font_size", 20)
+	legend.add_theme_font_size_override("font_size", _fs(20))
 	legend.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vb.add_child(legend)
 
 	var fn := Label.new()
 	fn.text = String(a.get("label", id))
 	fn.add_theme_color_override("font_color", BODY)
-	fn.add_theme_font_size_override("font_size", 12)
+	fn.add_theme_font_size_override("font_size", _fs(12))
 	fn.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	fn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	fn.custom_minimum_size = Vector2(84, 0)
@@ -400,14 +424,14 @@ func _gesture_row(id: String) -> Control:
 	var chip := Label.new()
 	chip.text = String(a.get("legend", "?"))
 	chip.add_theme_color_override("font_color", TITLE)
-	chip.add_theme_font_size_override("font_size", 16)
+	chip.add_theme_font_size_override("font_size", _fs(16))
 	chip.custom_minimum_size = Vector2(120, 0)
 	row.add_child(chip)
 
 	var desc := Label.new()
 	desc.text = String(a.get("desc", ""))
 	desc.add_theme_color_override("font_color", BODY)
-	desc.add_theme_font_size_override("font_size", 16)
+	desc.add_theme_font_size_override("font_size", _fs(16))
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	desc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(desc)
