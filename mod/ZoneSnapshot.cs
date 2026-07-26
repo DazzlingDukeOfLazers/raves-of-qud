@@ -418,26 +418,15 @@ namespace RavesOfQud
                     var objects = c.GetObjects();
                     int emitted = 0;
 
-                    // Cell.Render() composites the WHOLE cell, so on any occupied
-                    // cell it hands back the TOP OBJECT's tile — not the terrain.
-                    // Emitting that as a floor drew every sprite twice: once
-                    // standing, once flattened underneath itself (brinestalk over
-                    // brinestalk, tree over tree). Only keep the composite when it
-                    // is something no object in the cell already draws, i.e. when
-                    // it really is the painted terrain.
-                    var drawn = new System.Collections.Generic.HashSet<string>();
-                    foreach (GameObject go in objects)
-                    {
-                        Render rr = go.GetPart<Render>();
-                        if (rr == null) continue;
-                        bool ignored;
-                        string t = ResolvedTile(go, rr, out ignored);
-                        if (!string.IsNullOrEmpty(t)) drawn.Add(TileFamily(t));
-                    }
-
-                    Ground ground = ResolveGround(c);
-                    if (ground != null && drawn.Contains(TileFamily(ground.Tile))) ground = null;
-                    if (ground == null && objects.Count == 0) continue;
+                    // Qud's painted ground (Cell.Render()) matters ONLY on a cell with no object.
+                    // On an occupied cell Cell.Render() composites the WHOLE cell and hands back the
+                    // TOP object's tile — which the objects already draw, so it was always deduped
+                    // away there (else every sprite drew twice). Resolving it per occupied cell was
+                    // pure waste: Cell.Render() is expensive, and on the WORLD MAP every one of the
+                    // 2000 cells is occupied — 2000 Cell.Render() calls + 2000 HashSet allocs every
+                    // turn were the overworld movement lag. So only resolve it on empty cells.
+                    Ground ground = (objects.Count == 0) ? ResolveGround(c) : null;
+                    if (ground == null && objects.Count == 0) continue;   // truly blank cell
 
                     bool opened = true;
                     j.BeginObject().Member("x", x).Member("y", y)
