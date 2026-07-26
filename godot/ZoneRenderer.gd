@@ -361,6 +361,10 @@ func render_snapshot(data: Dictionary, neighbors: Array = []) -> void:
 	if zone_changed:
 		_static_retry = 0              # fresh zone: reset the export-race retry budget
 	if zone_changed or _static_retry_pending:
+		# A transition arrived while a big zone was still building incrementally: finish it now so
+		# the departing zone's subtree is complete (a valid remembered neighbour) before we move on.
+		if _ib_active:
+			_ib_finish()
 		_static_retry_pending = false
 		_placed.clear()
 		_lights.clear()                # the old live zone's torches stop flickering
@@ -376,7 +380,10 @@ func render_snapshot(data: Dictionary, neighbors: Array = []) -> void:
 		# frame after this snapshot referenced it). Rebuild on a later snapshot so the
 		# now-exported tile replaces its glyph — bounded, so a truly-absent tile that
 		# never exports stops retrying and keeps the honest "NO TILE EXPORTED" fallback.
-		if _static_saw_missing and _static_retry < STATIC_RETRY_MAX:
+		# (Skip the export-race retry while an incremental build is still in flight — "saw missing"
+		# is premature until it finishes, and a re-entry would just restart it. Big zones' tiles are
+		# normally already exported; a first-sight glyph self-heals on the next real zone entry.)
+		if not _ib_active and _static_saw_missing and _static_retry < STATIC_RETRY_MAX:
 			_static_retry += 1
 			_static_retry_pending = true
 	if _static_zones.has(live_id):
@@ -404,8 +411,14 @@ func render_snapshot(data: Dictionary, neighbors: Array = []) -> void:
 ## always true here; creatures render separately in _rebuild_dynamics. Inspector
 ## notes are gated by the `_noting` flag (true only for the live static build).
 func _build_zone(cells: Array, offset: Vector2i, skip_creatures: bool, wall_types: Dictionary) -> void:
-	# pass 1: group wall cells by TYPE (family + colours + background)
 	var wall_cells := {}
+	_group_wall_cells(cells, offset, wall_types, wall_cells)   # pass 1
+	for cell in cells:                                         # pass 2
+		_place_cell(cell, offset, wall_cells, skip_creatures)
+
+## Pass 1 — group wall cells by TYPE (family + colours + background). Cheap: dict-building only,
+## no geometry/GPU, so the incremental live build runs this whole pass up front.
+func _group_wall_cells(cells: Array, offset: Vector2i, wall_types: Dictionary, wall_cells: Dictionary) -> void:
 	for cell in cells:
 		var cx := int(cell.get("x", 0)) + offset.x
 		var cy := int(cell.get("y", 0)) + offset.y
@@ -431,36 +444,58 @@ func _build_zone(cells: Array, offset: Vector2i, skip_creatures: bool, wall_type
 			wall_types[key]["cells"][Vector2i(cx, cy)] = String(obj.get("tile", ""))
 			wall_cells[Vector2i(cx, cy)] = true
 
-	# pass 2: floors + verticals (skip walls)
-	for cell in cells:
-		var cx := int(cell.get("x", 0)) + offset.x
-		var cy := int(cell.get("y", 0)) + offset.y
-		var in_wall: bool = wall_cells.has(Vector2i(cx, cy))
-		var sink := _cell_sink(cell)
-		var wet: bool = bool(cell.get("wade", false)) or bool(cell.get("swim", false))
-		# A stair-down cell's own floor/ground quad would cap the shaft from above, so
-		# it is suppressed (the frame lip provides the ring of floor around the opening).
-		var stair_cell := _cell_has_stairs_down(cell)
-		# Bake the cell's light into upright billboards. For the LIVE zone this is just an
-		# initial value (the per-turn _relight_static_sprites keeps it fresh); for a FROZEN
-		# neighbour it's the final value — that zone's plants stay dark in memory.
-		var lf := _light_frac(cell)
-		var idx := 0
-		for obj in cell.get("objs", []):
-			if not _is_prism(obj):
-				_place_nonwall(obj, cx, cy, idx, in_wall, sink, wet, skip_creatures, stair_cell, lf)
-			# Creature lights are placed in the DYNAMIC pass so they follow the creature;
-			# here (static) we only place fixed lights (sconces, braziers, lit terrain).
-			if obj.has("lightRadius") and not (skip_creatures and _is_creature(obj)):
-				_place_light(cx, cy, float(obj["lightRadius"]), not _is_creature(obj))
-			idx += 1
+## Pass 2 for ONE cell — floors + verticals (skip walls). This is the heavy, GPU-touching part
+## (texture recolour, sprites, floor-batch entries); the incremental build calls it in chunks.
+func _place_cell(cell: Dictionary, offset: Vector2i, wall_cells: Dictionary, skip_creatures: bool) -> void:
+	var cx := int(cell.get("x", 0)) + offset.x
+	var cy := int(cell.get("y", 0)) + offset.y
+	var in_wall: bool = wall_cells.has(Vector2i(cx, cy))
+	var sink := _cell_sink(cell)
+	var wet: bool = bool(cell.get("wade", false)) or bool(cell.get("swim", false))
+	# A stair-down cell's own floor/ground quad would cap the shaft from above, so
+	# it is suppressed (the frame lip provides the ring of floor around the opening).
+	var stair_cell := _cell_has_stairs_down(cell)
+	# Bake the cell's light into upright billboards. For the LIVE zone this is just an
+	# initial value (the per-turn _relight_static_sprites keeps it fresh); for a FROZEN
+	# neighbour it's the final value — that zone's plants stay dark in memory.
+	var lf := _light_frac(cell)
+	var idx := 0
+	for obj in cell.get("objs", []):
+		if not _is_prism(obj):
+			_place_nonwall(obj, cx, cy, idx, in_wall, sink, wet, skip_creatures, stair_cell, lf)
+		# Creature lights are placed in the DYNAMIC pass so they follow the creature;
+		# here (static) we only place fixed lights (sconces, braziers, lit terrain).
+		if obj.has("lightRadius") and not (skip_creatures and _is_creature(obj)):
+			_place_light(cx, cy, float(obj["lightRadius"]), not _is_creature(obj))
+		idx += 1
 
 ## Build the live zone's static geometry into its own frozen subtree (once per zone
 ## entry). Creatures are excluded — they render per step in _rebuild_dynamics.
+##
+## A big zone (the ~2000-cell world map, a full surface) creates a large batch of GPU resources
+## — recoloured textures, sprites, floor MultiMeshes — and doing it all in ONE frame overran the
+## Metal buffer allocator and hard-crashed (SIGBUS in memmove). So above IB_THRESHOLD cells we
+## build INCREMENTALLY: pass 1 (cheap wall grouping) up front, then a chunk of cells per frame in
+## _ib_step, flushing each chunk's floors as we go. Also removes the 1–3s transition freeze.
 func _build_static(id: String, cells: Array) -> void:
 	var sub := Node3D.new()
 	_remembered_root.add_child(sub)
 	_static_zones[id] = sub
+	if INCREMENTAL_BUILD and cells.size() > IB_THRESHOLD:
+		_ib_id = id
+		_ib_sub = sub
+		_ib_cells = cells
+		_ib_idx = 0
+		_ib_wall_types = {}
+		_ib_wall_cells = {}
+		_bank = sub
+		_live_build = true
+		_group_wall_cells(cells, Vector2i.ZERO, _ib_wall_types, _ib_wall_cells)  # pass 1 (no GPU)
+		_bank = null
+		_live_build = false
+		_ib_active = true
+		_ib_step()              # build the first chunk now, so the zone starts appearing at once
+		return
 	_bank = sub
 	_live_build = true          # this zone's torches get the flicker (see _place_light)
 	var wt := {}
@@ -469,6 +504,55 @@ func _build_static(id: String, cells: Array) -> void:
 	_flush_floor_batch()        # emit this zone's floors as batched MultiMeshes
 	_live_build = false
 	_bank = null
+
+# --- incremental live static build (spread a big zone across frames) --------
+const INCREMENTAL_BUILD := true
+const IB_THRESHOLD := 400   # cells; zones bigger than this build across frames, smaller in one
+const IB_CHUNK := 100       # cells built per frame (kept small — the crash was a per-frame GPU
+                            # resource spike and we don't know its exact threshold; ~20 frames for
+                            # a 2000-cell zone is still well under a quarter-second)
+var _ib_active := false
+var _ib_id := ""
+var _ib_sub: Node3D = null
+var _ib_cells: Array = []
+var _ib_idx := 0
+var _ib_wall_types := {}
+var _ib_wall_cells := {}
+
+## Build the next chunk of the in-progress live static zone. Driven once per frame from _process.
+## Each chunk places its cells and flushes its own floors, so the GPU work is spread out; walls
+## (grouped in pass 1) are meshed once the last chunk lands.
+func _ib_step() -> void:
+	if not _ib_active:
+		return
+	_bank = _ib_sub
+	_live_build = true
+	_noting = true
+	var end: int = min(_ib_idx + IB_CHUNK, _ib_cells.size())
+	for i in range(_ib_idx, end):
+		_place_cell(_ib_cells[i], Vector2i.ZERO, _ib_wall_cells, true)
+	_ib_idx = end
+	_flush_floor_batch()        # this chunk's floors -> their own MultiMeshes (spreads the spike)
+	if _ib_idx >= _ib_cells.size():
+		_rebuild_walls(_ib_wall_types)   # walls last; empty/cheap on the world map
+		_ib_active = false
+		_ib_cells = []                   # release the snapshot cells
+	_bank = null
+	_live_build = false
+	_noting = false
+
+## Finish the in-progress build synchronously (all remaining chunks now). Called before a genuine
+## zone change so the departing zone's subtree is complete when it becomes a remembered neighbour.
+func _ib_finish() -> void:
+	while _ib_active:
+		_ib_step()
+
+## Abandon the in-progress build WITHOUT completing it — for when its subtree is about to be freed
+## (_drop_static / _drop_all_static). Leaves no dangling _ib_sub for _process to build into.
+func _ib_abort() -> void:
+	_ib_active = false
+	_ib_cells = []
+	_ib_sub = null
 
 ## Re-place ONLY the live zone's creatures, every step, into _dynamic_root (cleared
 ## first). Few objects, so this is the cheap per-step cost that replaced the ~69ms
@@ -675,11 +759,15 @@ func _dark_material() -> StandardMaterial3D:
 	return m
 
 func _drop_static(id: String) -> void:
+	if _ib_active and id == _ib_id:
+		_ib_abort()             # its subtree is about to be freed; don't build into a dangling node
 	if _static_zones.has(id):
 		_static_zones[id].free()
 		_static_zones.erase(id)
 
 func _drop_all_static() -> void:
+	if _ib_active:
+		_ib_abort()             # every subtree is about to be freed
 	for id in _static_zones:
 		_static_zones[id].free()
 	_static_zones.clear()
@@ -1279,6 +1367,8 @@ func _add_glow(s: Sprite3D, tex: Texture2D) -> void:
 ## Flicker: jitter each light's brightness a little every frame, so torches read
 ## as fire rather than steady lamps. Cheap — modulate the additive quads' alpha.
 func _process(_dt: float) -> void:
+	if _ib_active:
+		_ib_step()               # advance the incremental live-static build one chunk per frame
 	var gmul := _glow_mul()      # daylight dimming, recomputed once per frame
 	var fmul := _flame_mul()
 	for L in _lights:
