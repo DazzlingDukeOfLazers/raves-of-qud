@@ -1745,7 +1745,10 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 	# Water reads as a wall when stood up, so world-map water stays FLAT: skip the card here and
 	# fall through to the ordinary floor path (terrain is layer 1 <= FLOOR_LAYER_MAX). It ends up
 	# a flat floor quad — an ocean/lake surface, not a blue billboard.
-	if WM_STANDING_CARDS and _world_map and not in_wall and tex != null and not _is_creature(obj) and not _is_world_water(tile):
+	# User verdicts (report form) override the automatic choice per tile: "floor" forces flat even
+	# for land, "billboard" forces a standing card even over water. Otherwise water auto-flattens.
+	var wm_card: bool = verdict != "floor" and (verdict == "billboard" or not _is_world_water(tile))
+	if WM_STANDING_CARDS and _world_map and not in_wall and tex != null and not _is_creature(obj) and wm_card:
 		var wtex := _colored_tex_rgb(tile, _obj_main(obj), _obj_detail(obj),
 			_color_key(obj), _fill_for(tile, Fill.INTERIOR))
 		if wtex == null:
