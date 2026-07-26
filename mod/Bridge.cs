@@ -214,8 +214,21 @@ namespace RavesOfQud
                 catch (Exception e) { server.Log("apply error: " + e.Message); }
             }
             if (applied)
+            {
                 PublishNow(player);                 // a driven command gets an immediate response
-            else if (_dirty && System.Environment.TickCount - _lastPublishMs >= PublishThrottleMs)
+                return;
+            }
+            // Publish the moment the player's ZONE changes, even without a turn. A soar/descend
+            // switches zones OUTSIDE an EndTurn, so Tick's zone-change publish fires on the stale
+            // pre-switch zone and Raves lagged one input behind. TickRender runs every rendered
+            // frame, so it catches the switch as soon as it lands — no extra wait needed.
+            string zid = ZoneIdOf(player);
+            if (zid != null && zid != _lastPublishedZone)
+            {
+                PublishNow(player);
+                return;
+            }
+            if (_dirty && System.Environment.TickCount - _lastPublishMs >= PublishThrottleMs)
                 PublishNow(player);                 // flush the last state coalesced during a burst
         }
 
