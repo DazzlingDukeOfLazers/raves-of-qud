@@ -33,6 +33,7 @@ var store := WorldStore.new()   # Phase-0 world store; renderer reads the live z
 var _prof_turns := 0            # for the periodic profile auto-dump
 var inspector: CellInspector
 var reporter: TileReport
+var onboarding: OnboardingControl
 
 # Day/night grade. The world is UNSHADED, so a real light does nothing; instead a
 # full-screen MULTIPLY rect tints the whole viewport by time of day. It sits below
@@ -319,6 +320,10 @@ func _ready() -> void:
 	reporter.setup(renderer)
 	reporter.dismissed.connect(_dismiss_selection)
 
+	onboarding = OnboardingControl.new()
+	add_child(onboarding)
+	onboarding.setup()
+
 ## On (re)connect, wait one turn so Qud publishes a snapshot immediately and Raves has a
 ## zone to render — instead of a blank view until the player first moves. Passes a turn for
 ## now; a no-turn refresh will replace this later.
@@ -450,15 +455,23 @@ func _neighbor_zones() -> Array:
 # Claude can't send keys to Godot, only commands to Qud's bridge. So Godot polls a
 # small command file: control.py writes lines, we execute + delete. Lets an external
 # driver trigger Godot-side actions (screenshot, switch camera) to close the loop.
+## The RavesOfQud data dir. Prefer the renderer's tiles dir (proven correct once a
+## turn has been taken), but fall back to the OS support dir so the command channel +
+## screenshots work BEFORE Qud connects — e.g. to photograph the onboarding UI cold.
+func _support_dir() -> String:
+	if renderer != null:
+		var b := renderer.tiles_dir().get_base_dir()
+		if b != "":
+			return b
+	return InputModel.support_dir()
+
 var _cmd_accum := 0.0
 func _poll_godot_cmd(dt: float) -> void:
 	_cmd_accum += dt
 	if _cmd_accum < 0.1:
 		return
 	_cmd_accum = 0.0
-	if renderer == null:
-		return
-	var base := renderer.tiles_dir().get_base_dir()
+	var base := _support_dir()
 	if base == "":
 		return
 	var path := base.path_join("godot_cmd")
@@ -482,6 +495,15 @@ func _exec_godot_cmd(cmd: String) -> void:
 		"fph":
 			if parts.size() > 1:
 				_fp_height = clampf(float(parts[1]), 0.15, 3.0)
+		"onboard":
+			# `onboard` opens the chooser; `onboard <screen>` jumps to a screen
+			# (devices/ktype/layout/numpad/mouse); `onboard close` dismisses it.
+			if parts.size() > 1 and parts[1] == "close":
+				onboarding.close()
+			elif parts.size() > 1:
+				onboarding.show_screen(parts[1])
+			else:
+				onboarding.open()
 
 var _bg_draw_accum := 0.0
 const BG_DRAW_INTERVAL := 0.05   # ~20fps forced draws while unfocused
@@ -963,7 +985,7 @@ func _dump_profile(reset := true) -> void:
 ## and this is better anyway: it captures the rendered viewport exactly, with no
 ## window chrome and nothing overlapping it.
 func _screenshot(clean := false, forced := false) -> void:
-	var dir := renderer.tiles_dir().get_base_dir()
+	var dir := _support_dir()
 	if dir == "":
 		return
 	# `clean` drops the WHOLE selection overlay — report panel and 3D marker — out of
@@ -1010,7 +1032,7 @@ const _MODE_NAMES := {
 }
 
 func _update_mode_label() -> void:
-	_mode_label.text = "camera: %s     ·  ` menu · 1-7 · 0 all-views" % _MODE_NAMES.get(_mode, "?")
+	_mode_label.text = "camera: %s     ·  ` menu · 1-7 · 0 all-views · F1 controls" % _MODE_NAMES.get(_mode, "?")
 	if _time_label != "":
 		_mode_label.text += "     ⏱ " + _time_label
 	_update_debug_menu()
@@ -1334,6 +1356,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		# Shift+Space: wait a turn in Qud (a Godot->Qud passthrough). Takes a turn for now.
 		if event.shift_pressed and event.keycode == KEY_SPACE:
 			client.send_command("wait", {}); return
+		# F1 opens the controls chooser. (While it's open it swallows input via its
+		# own _input, so this handler won't see keys until it closes.)
+		if event.keycode == KEY_F1:
+			onboarding.open(); return
 		# mode switches first — they reassign what the arrows mean
 		if event.shift_pressed and event.keycode == KEY_C:
 			_set_mode(CamMode.MOUSE); return

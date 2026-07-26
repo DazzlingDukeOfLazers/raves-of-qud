@@ -70,7 +70,15 @@ python3 tools/capture/tile.py --list water
 python3 tools/capture/control.py move N 5
 python3 tools/capture/control.py cam 1
 python3 tools/capture/control.py shot     # -> shot.png (read it)
+
+# Drive the onboarding UI with NO Qud needed (only the Godot window running):
+python3 tools/capture/control.py onboard devices   # devices/ktype/layout/function/numpad/mouse/close
+python3 tools/capture/control.py shot              # -> shot.png; read it to verify the screen
 ```
+
+The `onboard` command jumps the wizard straight to a named screen so Claude can
+photograph and verify each one. `shot` no longer depends on `renderer.tiles_dir()`
+(it falls back to `InputModel.support_dir()`), so screenshots work before Qud connects.
 
 ## The feedback loop
 
