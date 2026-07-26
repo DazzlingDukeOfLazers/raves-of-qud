@@ -64,6 +64,9 @@ func _ensure_built() -> void:
 		_ui_theme.default_font = font
 		for t in ["Label", "Button", "CheckBox", "RichTextLabel", "PanelContainer"]:
 			_ui_theme.set_font("font", t, font)
+	# ...and a default SIZE, so any control without an explicit _fs() override (the nav buttons were
+	# the bug) lands on the source-of-truth body size instead of Godot's tiny built-in 16px.
+	_ui_theme.default_font_size = UiFont.px(get_viewport(), "body")
 	_build()
 
 ## Scaled font size / pixel dimension for the current window. Floored at the shared UiFont minimum,
@@ -230,6 +233,7 @@ func _add_nav(back_label: String, next_label: String) -> void:
 	var back := Button.new()
 	back.text = back_label
 	back.focus_mode = Control.FOCUS_NONE
+	back.add_theme_font_size_override("font_size", _fs(16))   # like every other element — else it falls to Godot's tiny 16px default
 	back.pressed.connect(_back_or_close)
 	_nav.add_child(back)
 
@@ -240,6 +244,7 @@ func _add_nav(back_label: String, next_label: String) -> void:
 	var next := Button.new()
 	next.text = next_label
 	next.focus_mode = Control.FOCUS_NONE
+	next.add_theme_font_size_override("font_size", _fs(16))
 	next.pressed.connect(_advance)
 	_nav.add_child(next)
 
