@@ -55,10 +55,10 @@ const SKY_DAY := Color(0.32, 0.55, 0.85)     # daytime blue
 const SKY_DUSK := Color(0.75, 0.45, 0.35)    # warm dawn/dusk horizon
 const SKY_DIST := 180.0
 const NIGHT_TINT := Color(0.62, 0.68, 0.88)   # cool moonlit cast — NOT a big dim. Night darkness is
-                                              # now done PER CELL by the renderer's darkness overlay
-                                              # (Qud's light map goes dark on the surface at night),
-                                              # so this global tint must stay bright or it double-darks
-                                              # and kills the very light pools we want. Only the mood.
+											  # now done PER CELL by the renderer's darkness overlay
+											  # (Qud's light map goes dark on the surface at night),
+											  # so this global tint must stay bright or it double-darks
+											  # and kills the very light pools we want. Only the mood.
 const DAY_TINT := Color(1.0, 0.99, 0.96)       # near-neutral, a hair warm
 const DUSK_TINT := Color(1.0, 0.72, 0.50)      # warm dawn/dusk
 
@@ -71,10 +71,10 @@ const SURFACE_Z := 10
 var _depth := SURFACE_Z            # current stratum (zone.z); >SURFACE_Z is underground
 var _underground := false
 const CAVE_TINT := Color(0.82, 0.85, 0.95)     # near-neutral, faintly cool: the per-cell darkness
-                                               # overlay (ZoneRenderer._build_darkness, from Qud's
-                                               # light map) does the real dimming, NOT this global
-                                               # multiply — a dark global grade would kill the very
-                                               # light pools we want. Only a slight underground cool.
+											   # overlay (ZoneRenderer._build_darkness, from Qud's
+											   # light map) does the real dimming, NOT this global
+											   # multiply — a dark global grade would kill the very
+											   # light pools we want. Only a slight underground cool.
 const CAVE_SKY := Color(0.015, 0.02, 0.03)     # near-black rock void behind/into the fog
 
 # Vertical level stacking: how many strata BELOW the live zone still render (deeper

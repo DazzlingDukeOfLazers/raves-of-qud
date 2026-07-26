@@ -456,7 +456,7 @@ func _rebuild_dynamics(cells: Array) -> void:
 	# Qud's light map, which also falls dark on the surface at night (the Daylight part
 	# adds a daylight radius of 0 after dusk). Fully-lit cells emit nothing, so daytime
 	# and lit caves pay nothing; night and caverns fall off to black around light sources.
-	_build_darkness(cells)
+	_build_darkness(cells, _dynamic_root)
 
 ## Qud LightLevel byte (per cell) -> 0..1 brightness. None(1)/Blackout(0) -> 0 (dark);
 ## Light(200)+ -> 1 (full). The low senses (darkvision 10 .. safelight 30) map to a dim
@@ -470,7 +470,10 @@ func _light_frac(cell: Dictionary) -> float:
 ## (1 - light). Built into _dynamic_root each turn, so it tracks Qud's live light map as
 ## sources/player move. Cheap — one mesh, and fully-lit cells contribute nothing. The
 ## additive torch/glow geometry draws bright on top, so lit pools read against the black.
-func _build_darkness(cells: Array) -> void:
+## `parent` is where the one darkness mesh lands: _dynamic_root for the live zone (rebuilt
+## each turn, tracks moving light) or a neighbour's frozen subtree (baked once from that
+## zone's remembered light, so remembered zones darken to match instead of staying lit).
+func _build_darkness(cells: Array, parent: Node) -> void:
 	# pass 1: per-cell light fraction + which cells are walls (to find exposed faces).
 	var frac := {}
 	var walls := {}
@@ -513,7 +516,7 @@ func _build_darkness(cells: Array) -> void:
 	var mi := MeshInstance3D.new()
 	mi.mesh = st.commit()
 	mi.material_override = _dark_material()
-	_dynamic_root.add_child(mi)
+	parent.add_child(mi)
 
 ## One black quad (two tris) over cell (cx,cy) at height y, vertex alpha = a.
 func _dark_quad(st: SurfaceTool, cx: float, cy: float, y: float, a: float) -> void:
@@ -594,6 +597,10 @@ func _sync_neighbors(neighbors: Array) -> void:
 			var wt := {}
 			_build_zone(nb.get("cells", []), Vector2i.ZERO, true, wt)   # local coords
 			_rebuild_walls(wt)     # _bank set -> into the subtree, no clear
+			# Bake this remembered zone's darkness from its stored light, so a dark cavern
+			# or night surface stays dark in memory instead of rendering fully lit. Frozen
+			# with the subtree (built once) — remembered light is stale by design anyway.
+			_build_darkness(nb.get("cells", []), sub)
 			_noting = true
 			_bank = null
 		# Vertical stacking: a neighbour `dz` strata below the live zone drops by

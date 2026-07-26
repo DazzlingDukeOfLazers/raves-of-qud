@@ -172,6 +172,12 @@ Coverage: an **open** cell darkens its floor by its own light; a **wall** cell d
 (what would light it), so rock beside a torch stays lit while rock in the dark goes black. Interior
 (wall-to-wall) faces are skipped, like `_place_side`. Standing sprites use `modulate`.
 
+`_build_darkness(cells, parent)` serves both passes: the live zone bakes into `_dynamic_root`
+(rebuilt each turn, tracks moving light); each **remembered neighbour** (and stacked deeper level)
+bakes one into its own frozen subtree in `_sync_neighbors`, from that zone's *stored* light — so a
+dark cavern or night surface stays dark in memory instead of rendering fully lit. Frozen is fine:
+remembered light is stale by design.
+
 ---
 
 ## 6. Billboards, water, bridges
