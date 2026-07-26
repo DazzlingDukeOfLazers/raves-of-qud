@@ -178,6 +178,13 @@ bakes one into its own frozen subtree in `_sync_neighbors`, from that zone's *st
 dark cavern or night surface stays dark in memory instead of rendering fully lit. Frozen is fine:
 remembered light is stale by design.
 
+**The departed player's sight-disc.** Qud lights a ~5-tile disc around the player so they can see
+(`GetLight` returns `Light` there, even with no carried light source). That disc *follows* the
+player, so a zone they've left keeps a cropped light where they crossed out. When baking a **frozen**
+zone `_build_darkness` takes the stored player cell (`clear_player`) and blanks the light in a
+`FROZEN_LIGHT_CLEAR_R` disc around it. It's at the zone edge (a crossing), so it almost never
+overlaps a real fixed light. The live zone passes no `clear_player` — its disc is real.
+
 ---
 
 ## 6. Billboards, water, bridges

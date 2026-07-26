@@ -473,13 +473,23 @@ func _light_frac(cell: Dictionary) -> float:
 ## `parent` is where the one darkness mesh lands: _dynamic_root for the live zone (rebuilt
 ## each turn, tracks moving light) or a neighbour's frozen subtree (baked once from that
 ## zone's remembered light, so remembered zones darken to match instead of staying lit).
-func _build_darkness(cells: Array, parent: Node) -> void:
+## `clear_player`: for a FROZEN zone, the cell the player stood on when it was last live.
+## Qud lights a disc around the player so they can see; that disc follows the player, so in
+## a zone they've LEFT it must be erased or it hangs there as a cropped light. Left invalid
+## (default) for the live zone, whose player disc is real and should stay.
+const FROZEN_LIGHT_CLEAR_R := 7.0    # radius of player sight-disc to blank out in frozen zones
+func _build_darkness(cells: Array, parent: Node, clear_player := Vector2i(-9999, -9999)) -> void:
+	var clearing: bool = clear_player.x > -9000
+	var cpf := Vector2(clear_player)
 	# pass 1: per-cell light fraction + which cells are walls (to find exposed faces).
 	var frac := {}
 	var walls := {}
 	for cell in cells:
 		var k := Vector2i(int(cell.get("x", 0)), int(cell.get("y", 0)))
-		frac[k] = _light_frac(cell)
+		var f := _light_frac(cell)
+		if clearing and (Vector2(k) - cpf).length() <= FROZEN_LIGHT_CLEAR_R:
+			f = 0.0                      # erase the departed player's sight-disc
+		frac[k] = f
 		for obj in cell.get("objs", []):
 			if _is_prism(obj):
 				walls[k] = true
@@ -608,7 +618,10 @@ func _sync_neighbors(neighbors: Array) -> void:
 		var znode: Node3D = _static_zones[id]
 		if not znode.has_meta("dark_baked"):
 			znode.set_meta("dark_baked", true)
-			_build_darkness(nb.get("cells", []), znode)
+			# erase the player's sight-disc: they've left this zone (its stored player
+			# position is where they crossed out, at the edge)
+			var pp := Vector2i(int(nb.get("px", -9999)), int(nb.get("py", -9999)))
+			_build_darkness(nb.get("cells", []), znode, pp)
 		# Vertical stacking: a neighbour `dz` strata below the live zone drops by
 		# dz * level_height, so deeper levels sit under the current one with an
 		# arbitrary, user-set gap. Same-stratum neighbours (dz==0) stay coplanar.

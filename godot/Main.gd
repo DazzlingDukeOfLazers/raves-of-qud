@@ -423,11 +423,16 @@ func _neighbor_zones() -> Array:
 		if dz < 0 or dz > LEVEL_KEEP_DOWN:
 			continue
 		var o: Vector3i = rec.get("origin", Vector3i.ZERO)
+		# the player's position when this zone was last live (its final snapshot), so the
+		# renderer can erase the sight-disc they carried out of it (see _build_darkness).
+		var pl: Dictionary = rec.get("snapshot", {}).get("player", {})
 		out.append({
 			"id": id,
 			"cells": rec.get("snapshot", {}).get("cells", []),
 			"offset": Vector2i(o.x - live_origin.x, o.y - live_origin.y),
 			"dz": dz,
+			"px": int(pl.get("x", -9999)),
+			"py": int(pl.get("y", -9999)),
 		})
 	return out
 
