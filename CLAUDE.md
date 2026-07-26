@@ -153,6 +153,14 @@ boundaries, `isDay`, label) from `The.Game.Turns` + the static `Calendar` fields
 moonlit blue, dawn/dusk warm, midday neutral. **Qud has no moon phase** — the only "moon" is the
 Moonstair location — so none is sent or faked.
 
+**Darkness is PER CELL, not from the grade** (caverns + the surface at night). A single MULTIPLY
+can't do "black + bright light pools" — in LDR it dims the additive glows too — so the mod sends
+each cell's `light` (`(int)Cell.GetLight()`) and `ZoneRenderer._build_darkness` lays a MIX-black
+overlay that falls off to black around sources, matching Qud's own map. Consequence: underground and
+at night the grade stays **bright** (`CAVE_TINT`/`NIGHT_TINT` are near-neutral, NOT dim) or it would
+double-dark and kill the pools; the overlay does all the dimming. Full writeup + the frozen-zone /
+sight-disc subtleties: **[`docs/rendering.md`](docs/rendering.md) §5a** — read it before touching lighting.
+
 
 Every material in `ZoneRenderer` is `SHADING_MODE_UNSHADED` so tiles show their exact colours.
 A real `OmniLight3D`/`DirectionalLight3D` therefore does **nothing** to the scene. Any "light"
