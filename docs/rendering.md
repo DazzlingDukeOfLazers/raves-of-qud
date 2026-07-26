@@ -156,8 +156,13 @@ floor (and roof, for wall cells) whose alpha is `(1 - lightFrac) * DARK_MAX`. Bu
 `_dynamic_root` every turn, so it tracks Qud's live light as sources/the player move. `_light_frac`
 maps the byte (None=1 → 0 dark, Light=200 → 1 full). Creatures dim via `Sprite3D.modulate` by their
 cell's light (the flat overlay can't cover a standing sprite); the additive torch/glow geometry
-draws bright on top, so lit pools read against the black. Wall *sides* aren't dimmed yet (v1 covers
-floor + roof + creatures). Fully-lit cells add nothing to the mesh, so on the surface it's free.
+draws bright on top, so lit pools read against the black. Fully-lit cells add nothing to the mesh,
+so on the surface it's free.
+
+Coverage: an **open** cell darkens its floor by its own light; a **wall** cell darkens its roof
+(own light) and each **exposed vertical face** — a face by the light of the *open* cell it faces
+(what would light it), so rock beside a torch stays lit while rock in the dark goes black. Interior
+(wall-to-wall) faces are skipped, like `_place_side`. Standing sprites use `modulate`.
 
 ---
 

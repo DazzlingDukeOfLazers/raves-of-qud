@@ -468,21 +468,43 @@ func _light_frac(cell: Dictionary) -> float:
 ## sources/player move. Cheap — one mesh, and fully-lit cells contribute nothing. The
 ## additive torch/glow geometry draws bright on top, so lit pools read against the black.
 func _build_darkness(cells: Array) -> void:
+	# pass 1: per-cell light fraction + which cells are walls (to find exposed faces).
+	var frac := {}
+	var walls := {}
+	for cell in cells:
+		var k := Vector2i(int(cell.get("x", 0)), int(cell.get("y", 0)))
+		frac[k] = _light_frac(cell)
+		for obj in cell.get("objs", []):
+			if _is_prism(obj):
+				walls[k] = true
+				break
+	# pass 2: emit dark quads. An OPEN cell darkens its floor by its own light. A WALL
+	# cell darkens its roof (own light) and each EXPOSED vertical face — a face by the
+	# light of the OPEN cell it faces, since that's what would light it. So rock beside a
+	# torch stays lit while rock in the dark goes black. Interior faces (wall-to-wall) and
+	# fully-lit cells emit nothing.
+	var sides := [Vector2i(0, 1), Vector2i(1, 0), Vector2i(0, -1), Vector2i(-1, 0)]
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var any := false
 	for cell in cells:
-		var a := (1.0 - _light_frac(cell)) * DARK_MAX
-		if a < 0.02:
-			continue                        # lit enough: leave it be
-		any = true
-		var cx := float(cell.get("x", 0))
-		var cy := float(cell.get("y", 0))
-		_dark_quad(st, cx, cy, DARK_FLOOR_Y, a)
-		for obj in cell.get("objs", []):
-			if _is_prism(obj):
-				_dark_quad(st, cx, cy, DARK_ROOF_Y, a)   # dun the unlit rock top too
-				break
+		var k := Vector2i(int(cell.get("x", 0)), int(cell.get("y", 0)))
+		var cx := float(k.x)
+		var cy := float(k.y)
+		if walls.has(k):
+			var a := (1.0 - float(frac[k])) * DARK_MAX
+			if a >= 0.02:
+				_dark_quad(st, cx, cy, DARK_ROOF_Y, a); any = true
+			for d in sides:
+				if walls.has(k + d):
+					continue                       # interior face: not visible
+				var sa := (1.0 - float(frac.get(k + d, frac[k]))) * DARK_MAX
+				if sa >= 0.02:
+					_dark_side(st, cx, cy, d, sa); any = true
+		else:
+			var a := (1.0 - float(frac[k])) * DARK_MAX
+			if a >= 0.02:
+				_dark_quad(st, cx, cy, DARK_FLOOR_Y, a); any = true
 	if not any:
 		return
 	var mi := MeshInstance3D.new()
@@ -497,6 +519,24 @@ func _dark_quad(st: SurfaceTool, cx: float, cy: float, y: float, a: float) -> vo
 			Vector3(cx - 0.5, y, cy - 0.5), Vector3(cx + 0.5, y, cy + 0.5), Vector3(cx - 0.5, y, cy + 0.5)]:
 		st.set_color(c)
 		st.add_vertex(p)
+
+## A vertical dark quad on cell (cx,cy)'s face toward d (full cell width, 0..WALL_H),
+## nudged just OUTSIDE the wall face so it darkens it from the open side without z-fight.
+func _dark_side(st: SurfaceTool, cx: float, cy: float, d: Vector2i, a: float) -> void:
+	var c := Color(0, 0, 0, a)
+	var e := 0.01
+	var v: Array
+	if d.x != 0:
+		var x := cx + (0.5 + e) * float(d.x)
+		v = [Vector3(x, 0.0, cy - 0.5), Vector3(x, 0.0, cy + 0.5),
+			Vector3(x, WALL_H, cy + 0.5), Vector3(x, WALL_H, cy - 0.5)]
+	else:
+		var z := cy + (0.5 + e) * float(d.y)
+		v = [Vector3(cx - 0.5, 0.0, z), Vector3(cx + 0.5, 0.0, z),
+			Vector3(cx + 0.5, WALL_H, z), Vector3(cx - 0.5, WALL_H, z)]
+	for i in [0, 1, 2, 0, 2, 3]:
+		st.set_color(c)
+		st.add_vertex(v[i])
 
 func _dark_material() -> StandardMaterial3D:
 	if _dark_mat != null:
