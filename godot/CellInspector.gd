@@ -38,8 +38,13 @@ var _panel: PanelContainer
 var _label: RichTextLabel
 var _mark_box: MeshInstance3D   # dashed wireframe outlining the whole 3D tile
 var _mark_pin: MeshInstance3D   # dashed finder line rising from the tile top
-var _font_size := FONT_SIZE_DEFAULT
+var _font_bump := 0   # live +/- nudge (px) on top of the UiFont source-of-truth size
 var _last_report := ""
+
+## The selection-log font size: the project's source-of-truth body size plus the user's nudge,
+## capped so a big nudge can't overflow. The mono FACE is set separately (columns must line up).
+func _cur_font() -> int:
+	return mini(FONT_SIZE_MAX, UiFont.px(get_viewport(), "body", _font_bump))
 var _selected = null      # Vector2i of the last inspected tile
 var _saved_overlay := {}  # visibility snapshot while a clean screenshot is taken
 
@@ -315,7 +320,7 @@ func _repaint() -> void:
 		return
 	var lines := _last_report.split("\n")
 	var avail := get_viewport().get_visible_rect().size.y - 48.0
-	var fits := maxi(6, floori(avail / (_font_size * LINE_HEIGHT_RATIO)))
+	var fits := maxi(6, floori(avail / (_cur_font() * LINE_HEIGHT_RATIO)))
 	if lines.size() <= fits:
 		_label.text = _last_report
 	else:
@@ -328,8 +333,8 @@ func _repaint() -> void:
 func nudge_font(delta: int) -> void:
 	if not _panel.visible:
 		return
-	_font_size = clampi(_font_size + delta, FONT_SIZE_MIN, FONT_SIZE_MAX)
-	_label.add_theme_font_size_override("normal_font_size", _font_size)
+	_font_bump = clampi(_font_bump + delta, -14, 40)
+	_label.add_theme_font_size_override("normal_font_size", _cur_font())
 	_repaint()
 
 ## Temporarily hide the report so a screenshot shows the scene, not the text.
@@ -394,7 +399,7 @@ func _build_ui() -> void:
 	# no wrapping: the report is column-aligned, and a wrap destroys the alignment
 	_label.autowrap_mode = TextServer.AUTOWRAP_OFF
 	_label.add_theme_color_override("default_color", Color(0.85, 0.95, 0.85))
-	_label.add_theme_font_size_override("normal_font_size", _font_size)
+	_label.add_theme_font_size_override("normal_font_size", _cur_font())
 	# monospace, so tile names and flag columns line up
 	# Atkinson Hyperlegible Mono (bundled). The report is column-aligned — tile
 	# names, flag columns — so the label needs a MONOSPACE cut, not the project's
@@ -461,7 +466,7 @@ func _build_preview() -> void:
 
 	_preview_caption = Label.new()
 	_preview_caption.position = Vector2(0, PREVIEW_PX + 2)
-	_preview_caption.add_theme_font_size_override("font_size", 13)
+	_preview_caption.add_theme_font_size_override("font_size", UiFont.px(get_viewport(), "caption"))
 	_preview_caption.add_theme_color_override("font_color", Color(0.8, 0.92, 0.8))
 	_preview.add_child(_preview_caption)
 

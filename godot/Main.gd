@@ -182,27 +182,39 @@ var _orbiting := false
 var _panning := false
 var _mode_label: Label
 var _debug_menu_title: Label
+var _reset_btn: Button
 
 # Responsive HUD text: a fraction of viewport height, but never below a floor —
 # "min(px, %vh)" web sensibility, re-applied on window resize.
-const FONT_FRAC := 0.0197
-const MIN_FONT := 28
+# Font sizes come from UiFont (the single source of truth). These stay as thin aliases so the rest
+# of the file / the ruler read the same numbers.
 func _ui_font_size() -> int:
-	return maxi(MIN_FONT, int(get_viewport().get_visible_rect().size.y * FONT_FRAC))
+	return UiFont.px(get_viewport(), "body")
 
+## Size EVERY label/button in the top UI from the source of truth: the mode label, the whole debug
+## menu (title, mode buttons, toggle buttons, slider labels), and the corner Reset button. Re-run on
+## window resize so it tracks the viewport.
 func _apply_ui_fonts() -> void:
 	var fs := _ui_font_size()
 	if _mode_label != null:
 		_mode_label.add_theme_font_size_override("font_size", fs)
-	if _debug_menu_title != null:
-		_debug_menu_title.add_theme_font_size_override("font_size", fs)
-	for m in _mode_buttons:
-		(_mode_buttons[m] as Button).add_theme_font_size_override("font_size", fs)
+	if _debug_menu != null:
+		_apply_font_recursive(_debug_menu, fs)
+	if _reset_btn != null:
+		_reset_btn.add_theme_font_size_override("font_size", fs)
 	# keep the debug menu just BELOW the help label so they never overlap, even as
 	# the responsive font grows the label's height
 	if _debug_menu != null and _mode_label != null:
 		var lh: float = maxf(_mode_label.get_minimum_size().y, float(fs))
 		_debug_menu.position = Vector2(14, _mode_label.position.y + lh + 8.0)
+
+## Apply a font size to every Label/Button under `node` (recursively) — how the debug menu and any
+## nested popups get sized uniformly from one call.
+func _apply_font_recursive(node: Node, size: int) -> void:
+	if node is Label or node is Button:
+		node.add_theme_font_size_override("font_size", size)
+	for c in node.get_children():
+		_apply_font_recursive(c, size)
 
 ## Show/hide the font-size ruler (Lorem Ipsum at each px) with the current UI-font math in the header,
 ## so you can pick the MINIMUM and NORMAL sizes. Toggle: L, or the ` menu button.
@@ -210,8 +222,8 @@ func _toggle_font_preview() -> void:
 	if _font_preview == null:
 		return
 	var vp := get_viewport().get_visible_rect().size
-	var hdr := "Font-size ruler — window %dx%d · current UI font %dpx  (MIN_FONT=%d, FONT_FRAC=%.3f)" % [
-		int(vp.x), int(vp.y), _ui_font_size(), MIN_FONT, FONT_FRAC]
+	var hdr := "Font-size ruler — window %dx%d · current UI font %dpx  (UiFont.MIN=%d, FRAC=%.4f)" % [
+		int(vp.x), int(vp.y), _ui_font_size(), UiFont.MIN, UiFont.FRAC]
 	_font_preview.toggle(hdr)
 
 const ORBIT_SENS := 0.006
@@ -1035,7 +1047,7 @@ func _build_mode_label() -> void:
 	add_child(layer)
 	_mode_label = Label.new()
 	_mode_label.position = Vector2(14, 8)
-	_mode_label.add_theme_font_size_override("font_size", 15)
+	_mode_label.add_theme_font_size_override("font_size", UiFont.px(get_viewport()))  # _apply_ui_fonts keeps it live
 	_mode_label.add_theme_color_override("font_color", Color(0.75, 0.9, 0.75))
 	layer.add_child(_mode_label)
 	_update_mode_label()
@@ -1224,7 +1236,7 @@ func _build_debug_menu() -> void:
 	_look_btn.pressed.connect(_toggle_look_target)
 	vb.add_child(_look_btn)
 	_refresh_look_btn()
-	# font-size ruler (Lorem Ipsum at each px) — for tuning MIN_FONT / FONT_FRAC. Key: L.
+	# font-size ruler (Lorem Ipsum at each px) — for tuning UiFont.FRAC / UiFont.MIN. Key: L.
 	var fp_btn := Button.new()
 	fp_btn.text = "Font-size ruler (L)"
 	fp_btn.focus_mode = Control.FOCUS_NONE
@@ -1294,17 +1306,22 @@ func _build_reset_button() -> void:
 	var layer := CanvasLayer.new()
 	layer.layer = 3
 	add_child(layer)
-	var btn := Button.new()
-	btn.text = "⟳ Reset"
-	btn.focus_mode = Control.FOCUS_NONE   # click-only; keep arrows for the player
-	btn.anchor_left = 1.0
-	btn.anchor_right = 1.0
-	btn.offset_left = -96.0
-	btn.offset_right = -10.0
-	btn.offset_top = 10.0
-	btn.offset_bottom = 38.0
-	btn.pressed.connect(_reset_program)
-	layer.add_child(btn)
+	_reset_btn = Button.new()
+	_reset_btn.text = "⟳ Reset"
+	_reset_btn.focus_mode = Control.FOCUS_NONE   # click-only; keep arrows for the player
+	# Anchor to the top-right corner and grow LEFT/DOWN to fit the text at any font size (the box
+	# was fixed at 86x28, which clipped the source-of-truth 36px font).
+	_reset_btn.anchor_left = 1.0
+	_reset_btn.anchor_right = 1.0
+	_reset_btn.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_reset_btn.grow_vertical = Control.GROW_DIRECTION_END
+	_reset_btn.offset_left = -10.0
+	_reset_btn.offset_right = -10.0
+	_reset_btn.offset_top = 10.0
+	_reset_btn.offset_bottom = 10.0
+	_reset_btn.pressed.connect(_reset_program)
+	layer.add_child(_reset_btn)
+	_reset_btn.add_theme_font_size_override("font_size", UiFont.px(get_viewport()))
 
 ## Relaunch the process, preserving the current window size via --resolution (a plain
 ## reload_current_scene would keep the old cached scripts; a restart re-reads them).

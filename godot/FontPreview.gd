@@ -45,7 +45,7 @@ func _build() -> void:
 	panel.add_child(vb)
 
 	_header = Label.new()
-	_header.add_theme_font_size_override("font_size", 30)   # chrome, kept readable (sample lines below are literal px)
+	_header.add_theme_font_size_override("font_size", UiFont.px(get_viewport(), "title"))  # chrome (sample lines below are literal px)
 	_header.modulate = Color(0.65, 0.95, 0.7)
 	vb.add_child(_header)
 
@@ -61,7 +61,7 @@ func _build() -> void:
 
 	var hint := Label.new()
 	hint.text = "→ Tell me which px reads as the MINIMUM and which as the NORMAL size; I'll set MIN_FONT + FONT_FRAC. (toggle again to close)"
-	hint.add_theme_font_size_override("font_size", 28)   # was 15 — unreadable at native res
+	hint.add_theme_font_size_override("font_size", UiFont.px(get_viewport(), "body"))   # chrome; sample lines stay literal
 	hint.modulate = Color(0.95, 0.85, 0.5)
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	hint.custom_minimum_size = Vector2(900, 0)

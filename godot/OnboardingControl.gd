@@ -25,11 +25,11 @@ const CAP_BG_SEL := Color(0.12, 0.22, 0.15, 1.0)
 
 enum Screen { DEVICES, KEYBOARD_TYPE, LAYOUT_KBD, LAYOUT_MOUSE }
 
-# These sizes were tuned on a ~900px-tall window; on a big/4K display they read tiny. Scale every
-# font size and fixed dimension by the window height so the wizard matches the rest of the UI. And
-# route text through the bundled Atkinson font (a Theme default_font) — the bare default font was
-# rendering pixelated next to the inspector's crisp Atkinson text.
-const REF_H := 900.0
+# The per-element sizes below were tuned with a body of ~ONBOARD_BODY px; we scale them so that
+# `body` lands on UiFont's source-of-truth body size (so the wizard tracks the rest of the UI and
+# follows any change to UiFont.FRAC/MIN). Text also routes through the bundled Atkinson font (a Theme
+# default_font) — the bare default font rendered pixelated next to the inspector's crisp Atkinson.
+const ONBOARD_BODY := 18.0
 var _scale := 1.0
 var _ui_theme: Theme
 var _built := false
@@ -54,9 +54,8 @@ func _ensure_built() -> void:
 	if _built:
 		return
 	_built = true
-	var vp := get_viewport()
-	var h: float = vp.get_visible_rect().size.y if vp else REF_H
-	_scale = maxf(1.0, h / REF_H)
+	# Scale so ONBOARD_BODY maps to UiFont's body size — the whole wizard then follows the source of truth.
+	_scale = UiFont.px(get_viewport(), "body") / ONBOARD_BODY
 	_ui_theme = Theme.new()
 	var font := load("res://fonts/AtkinsonHyperlegible-Regular.ttf")
 	if font != null:
@@ -67,9 +66,10 @@ func _ensure_built() -> void:
 			_ui_theme.set_font("font", t, font)
 	_build()
 
-## Scaled font size / pixel dimension for the current window.
+## Scaled font size / pixel dimension for the current window. Floored at the shared UiFont minimum,
+## so even the smallest wizard label never drops below the project-wide readable floor.
 func _fs(base: int) -> int:
-	return int(round(base * _scale))
+	return maxi(UiFont.MIN, int(round(base * _scale)))
 
 func _px(base: float) -> float:
 	return base * _scale
