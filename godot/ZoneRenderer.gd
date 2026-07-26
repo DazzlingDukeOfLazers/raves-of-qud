@@ -201,6 +201,7 @@ const CUTAWAY_RADIUS := 11.0      # only fade walls within this many tiles of th
 const NEIGHBORS8 := [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1),
 	Vector2i(1,1), Vector2i(1,-1), Vector2i(-1,1), Vector2i(-1,-1)]
 var _cell_light := {}             # Vector2i -> light frac this turn, for the cutaway's lit test
+var _was_dark := false            # last turn had dark cells (so a lit turn knows to un-dim once)
 var _orbiters: Array = []         # glowfish "bugs": [{root, motes:[{s, ...orbit params}]}]
 
 # Torches are ADDITIVE — they brighten whatever is behind them by a fixed amount
@@ -486,15 +487,28 @@ func _rebuild_dynamics(cells: Array) -> void:
 	_dyn_noting = false
 	_noting = true
 	_bank = null
-	# Per-cell darkness runs EVERYWHERE, not just underground: it is driven purely by
-	# Qud's light map, which also falls dark on the surface at night (the Daylight part
-	# adds a daylight radius of 0 after dusk). Fully-lit cells emit nothing, so daytime
-	# and lit caves pay nothing; night and caverns fall off to black around light sources.
-	_build_darkness(cells, _dynamic_root)
-	_relight_static_sprites(cells)   # dim trees/brinestalks by their cell light this turn
-	_cell_light.clear()              # remember this turn's light for the cutaway's lit test
+	# Per-cell darkness is driven by Qud's light map (also dark on the surface at night). But
+	# a fully-lit zone — the world MAP (2000 tiles, all Light), or the daytime surface — has
+	# nothing to darken or dim, and running the overlay/relight/light-map loops over 2000
+	# cells EVERY step was the overworld's sluggishness. So first a cheap scan: is anything
+	# dark? If not, skip it all (and un-dim once, in case we just came out of the dark).
+	var any_dark := false
 	for cell in cells:
-		_cell_light[Vector2i(int(cell.get("x", 0)), int(cell.get("y", 0)))] = _light_frac(cell)
+		if int(cell.get("light", 200)) < 199:   # anything below full Light(200) dims -> full path
+			any_dark = true
+			break
+	if any_dark:
+		_build_darkness(cells, _dynamic_root)          # fall off to black around light sources
+		_relight_static_sprites(cells)                 # dim trees/brinestalks/fences by cell light
+	elif _was_dark:
+		_reset_static_light()                          # dark -> lit: restore full brightness, once
+	_was_dark = any_dark
+	# The cutaway's lit test needs this map — but only if there are walls to fade (the world
+	# map has none, so it's skipped there entirely).
+	if not _wall_cutaway.is_empty():
+		_cell_light.clear()
+		for cell in cells:
+			_cell_light[Vector2i(int(cell.get("x", 0)), int(cell.get("y", 0)))] = _light_frac(cell)
 
 ## Dim the live zone's STATIC upright billboards (trees, brinestalks, scenery) by their
 ## cell's light this turn, so they fall dark at night with the ground instead of staying
@@ -516,6 +530,16 @@ func _relight_static_sprites(cells: Array) -> void:
 		if is_instance_valid(mi) and mi.material_override != null:
 			var lf: float = frac.get(e["cell"], 1.0)
 			mi.material_override.albedo_color = Color(lf, lf, lf)
+
+## Restore full brightness to the tracked static sprites/meshes — called once when a zone
+## goes from having dark cells to fully lit (e.g. dawn), since _relight is then skipped.
+func _reset_static_light() -> void:
+	for e in _lit_sprites:
+		if is_instance_valid(e["s"]):
+			e["s"].modulate = Color.WHITE
+	for e in _lit_meshes:
+		if is_instance_valid(e["mi"]) and e["mi"].material_override != null:
+			e["mi"].material_override.albedo_color = Color.WHITE
 
 ## Qud LightLevel byte (per cell) -> 0..1 brightness. None(1)/Blackout(0) -> 0 (dark);
 ## Light(200)+ -> 1 (full). The low senses (darkvision 10 .. safelight 30) map to a dim
