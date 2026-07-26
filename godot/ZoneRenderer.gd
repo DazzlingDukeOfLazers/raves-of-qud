@@ -2081,7 +2081,7 @@ func _wall_core_material() -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_color = _wall_recess_color()
 	m.roughness = 0.95
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_HASH   # fade with the skin in the cutaway
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS   # smooth-fade with the skin
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL if SHADED_WORLD else BaseMaterial3D.SHADING_MODE_UNSHADED
 	return m
 
@@ -2100,10 +2100,12 @@ func _voxel_material() -> StandardMaterial3D:
 	m.vertex_color_is_srgb = true
 	m.roughness = 0.85
 	m.cull_mode = BaseMaterial3D.CULL_DISABLED
-	# ALPHA_HASH (screen-door dither) so the camera cutaway can fade a wall via
-	# GeometryInstance3D.transparency while it STAYS in the opaque pass — no transparent
-	# sorting. At transparency 0 (alpha 1) nothing is discarded, so normal walls are solid.
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_HASH
+	# ALPHA_DEPTH_PRE_PASS so the camera cutaway can SMOOTHLY blend a wall via
+	# GeometryInstance3D.transparency: at alpha 1 (transparency 0) the depth pre-pass makes
+	# it render like a solid opaque wall (correct sorting, no see-through flicker); as the
+	# instance transparency rises it alpha-blends out. (ALPHA_HASH did this too but with an
+	# ugly screen-door dither.)
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS
 	if SHADED_WORLD:
 		m.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
 	else:

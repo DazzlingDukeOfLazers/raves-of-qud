@@ -64,11 +64,14 @@ caverns at a low angle. `ZoneRenderer.apply_cutaway(eye, focus, dt, enabled)` ru
 it fades by how close the cell centre is to the camera→player line *and* whether it sits between the
 two, eased in/out (`CUTAWAY_LERP`, up to `CUTAWAY_MAX`).
 
-The fade is **`GeometryInstance3D.transparency`** with the wall material in **`ALPHA_HASH`** mode:
-screen-door dithering, so a fading wall stays in the **opaque** pass (no transparent-sort artifacts)
-and at `transparency 0` (alpha 1) nothing is discarded — normal walls are fully solid. Off in
-top-down (nothing's in the way looking straight down), first-person, free-fly, and the multi-view
-grid. Only live-zone walls are tracked — neighbours are never between you and the camera.
+The fade is **`GeometryInstance3D.transparency`** with the wall material in
+**`ALPHA_DEPTH_PRE_PASS`**: at `transparency 0` (alpha 1) the depth pre-pass makes the wall render
+like solid opaque geometry (correct sorting, no see-through flicker); as `transparency` rises it
+alpha-**blends** out smoothly. (An earlier `ALPHA_HASH` version faded too but screen-door dithered,
+which read as grain.) Occlusion is tested on the **ground plane (XZ)** — walls are full-height
+columns, so an elevated camera's 3D ray would pass over their tops and miss. Off in top-down,
+first-person, free-fly, and the multi-view grid. Only live-zone walls are tracked — neighbours are
+never between you and the camera.
 
 ## Persistence & misc controls
 
