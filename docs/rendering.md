@@ -339,6 +339,31 @@ user-set gap (the "level height (Z gap)" slider, 0 = coplanar; persisted).
 
 ---
 
+## 10. Performance — the world map, and keeping per-turn cheap
+
+The **world map** (the parasang overview, `zone.z < 0`) is the stress case: ~2000 cells, every one
+an occupied terrain tile, fully lit, no walls. It exposed costs that also bite big lit zones:
+
+- **Floors are batched.** Each floor was one `MeshInstance3D` → ~2000 draw calls a frame, a
+  continuously low framerate. `_place_nonwall` now queues floor quads by material and
+  `_flush_floor_batch` emits **one `MultiMesh` per tile type** at the end of each static/neighbour
+  build — a handful of draw calls instead of thousands. Floors are static, so it's free per frame.
+- **Fully-lit zones skip the lighting loops.** A cheap `any_dark` scan (early-breaks on the first
+  dim cell) gates `_build_darkness` + `_relight_static_sprites`; a fully-lit zone (world map, daytime
+  surface) does none of it. A dark→lit transition un-dims tracked sprites once (`_reset_static_light`).
+- **The cutaway is bounded** to `CUTAWAY_RADIUS` tiles of the player and only the LIVE zone's walls
+  carry the fade-capable (`ALPHA_DEPTH_PRE_PASS`) material — neighbours (many, on a far surface view)
+  are plain opaque. See [cameras.md](cameras.md).
+- **No torch glows on the world map** (`_world_map`, `_place_light` early-returns). A world tile that
+  emits light (a glowfish parasang) otherwise got a flame that `_process` re-randomizes every frame —
+  a light **oscillating** on an idle overview. Flicker is per-frame and client-side, so it shows even
+  with no snapshots arriving.
+
+The mod side of the same saga (idle-gate, publish throttle, `RenderBase`/`Cell.Render()` skips, the
+`serverUs`/`renderBaseUs` timers) is in [protocol.md](protocol.md#server-cost--publish-cadence).
+
+---
+
 ## Python-first for geometry
 
 Claude can't see the viewport, so geometry algorithms (voxel heights, fill rules) are **prototyped

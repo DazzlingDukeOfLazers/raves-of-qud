@@ -9,7 +9,7 @@ Every message is a frame:
 [ 4 bytes: payload length, big-endian ][ payload: UTF-8 JSON ]
 ```
 
-## Server → client: `snapshot` (once per turn)
+## Server → client: `snapshot` (per turn, throttled — see "publish cadence" below)
 
 ```json
 {
@@ -84,6 +84,30 @@ debugging.
 | `mod` (top level) | `Protocol.Build` | **which mod build produced this frame.** Mod `.cs` only compiles at Qud startup, so a deploy is inert until a restart. Bump the constant when changing the mod. |
 | `name` | `GameObject.Blueprint` | an object with no tile is otherwise unidentifiable |
 | `display` | `GameObject.DisplayNameOnly` | read defensively — the getter runs Qud's markup pipeline |
+
+### Server cost & publish cadence — read before touching `Bridge.Tick`
+
+The mod runs inside Qud, so wasted work here slows **the game itself**, not just Raves. Hard-won
+rules (the "overworld was unplayable" saga):
+
+- **Do nothing without a client.** `Bridge.Tick` (EndTurnEvent) returns immediately when
+  `server.ClientCount == 0`. It otherwise built a full snapshot + recomposited Qud's map on *every*
+  turn even with Raves closed — so plain solo Qud lagged on every move.
+- **Throttle publishing.** A single world-map step **auto-advances a burst of turns**, and building a
+  2000-cell snapshot per intermediate turn published ~60–100/sec (each ~10ms) — pinning Qud's turn
+  thread *and* flooding Godot so its frame loop starved (day/night lighting visibly crawled). `Tick`
+  now marks state dirty and publishes at most once per `PublishThrottleMs` (~15/sec); `TickRender`
+  flushes the last coalesced state right after the burst, so the final position is never stale. A
+  *driven* command still publishes immediately. Normal play (turns seconds apart) is unchanged.
+- **`RenderBase` is skipped on the world map** (`z < 0`) — recompositing Qud's own console every turn
+  is wasted while you watch Raves, and the map barely changes step to step. Normal zones keep it.
+- **`ResolveGround` (Qud's `Cell.Render()`) only on EMPTY cells.** On an occupied cell it returns the
+  top object's tile, which is always deduped away — so it was pure waste (plus a per-cell `HashSet`).
+  The world map is 2000 occupied cells, so that alone was most of the build time.
+
+Two timing fields ride in every snapshot so this is measurable, not guessed: `serverUs`
+(`ZoneSnapshot.BuildJson` time, previous turn) and `renderBaseUs` (this turn's `RenderBase`, 0 if
+skipped). Watch the **publish rate** too — snapshots arriving 10ms apart mean a burst is flooding.
 
 ### Colours
 

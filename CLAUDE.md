@@ -196,6 +196,15 @@ inspect in Python before porting. (Lighting/shadow *appearance* still needs a sc
   over a build that did not contain the fix being tested.
 - **Verify a fix did something.** `RenderTile` was deployed and reasoned about for several
   rounds before `fg=` being empty on every object revealed it had never once fired.
+- **The mod runs INSIDE Qud, so it can slow the GAME, not just Raves.** "Overworld sluggish" cost
+  many rounds guessing at Godot before measuring the bridge: the mod built a full snapshot on every
+  turn even with Raves closed (gate on `ClientCount`), and world-map travel auto-advances a BURST of
+  turns — publishing ~60–100 snapshots/sec, pinning Qud AND starving Godot's frame loop (the
+  "lighting eases slowly" tell). Measure `serverUs`, `renderBaseUs`, and the **publish RATE** (10ms
+  gaps = a flood) before touching the client. See protocol.md "publish cadence".
+- **A continuous visual glitch with NO new data is a client-side per-frame animation.** The world
+  map's "oscillating light" persisted while idle (throttle → zero snapshots), which pinned it to
+  `_process` (the torch flicker), not the data.
 - **Prefer accessors to fields.** `Render.getTile()` / `getRenderString()` resolve what is
   actually drawn; the `Tile`/`RenderString` fields are static blueprint values, empty for
   anything runtime-chosen.
