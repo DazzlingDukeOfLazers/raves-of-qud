@@ -517,12 +517,8 @@ func _process(dt: float) -> void:
 			and not Input.is_key_pressed(KEY_SHIFT):
 		if Input.is_key_pressed(KEY_R): _dist = clampf(_dist * (1.0 - dt), DIST_MIN, DIST_MAX)
 		if Input.is_key_pressed(KEY_F): _dist = clampf(_dist * (1.0 + dt), DIST_MIN, DIST_MAX)
-	# S/D pan the camera vertically at the current spot (see other heights / stacked
-	# levels at this tile). FLY owns WASD, so skip it there; Shift-guarded like zoom.
-	if _mode != CamMode.KEYBOARD and not Input.is_key_pressed(KEY_SHIFT):
-		if Input.is_key_pressed(KEY_S): _cam_lift += CAM_LIFT_SPEED * dt   # S = up
-		if Input.is_key_pressed(KEY_D): _cam_lift -= CAM_LIFT_SPEED * dt   # D = down
-		_cam_lift = clampf(_cam_lift, CAM_LIFT_MIN, CAM_LIFT_MAX)
+	# (S/D no longer pan the camera — they're forwarded to Qud as key presses so you can drive
+	# your soar/descend binds from Raves. See the KEY_S/KEY_D handlers in _unhandled_input.)
 	_update_camera(dt)
 	if _multiview_on:
 		_update_multiview_cameras()
@@ -1360,6 +1356,14 @@ func _unhandled_input(event: InputEvent) -> void:
 			_cam_pan += _cam_forward() * CAM_STEP; return
 		if _mode != CamMode.KEYBOARD and event.keycode == KEY_X:
 			_cam_pan -= _cam_forward() * CAM_STEP; return
+		# S / D are forwarded to Qud as key presses (was: camera vertical pan). The mod injects
+		# them through Qud's keymap, so they trigger whatever YOU'VE bound s/d to (soar/descend) —
+		# drive the surface<->world-map transition from Raves without switching focus. One per
+		# press. Skipped in FLY (KEYBOARD) mode, where WASD still flies the free camera.
+		if _mode != CamMode.KEYBOARD and event.keycode == KEY_S:
+			client.send_command("key", {"key": "s"}); return
+		if _mode != CamMode.KEYBOARD and event.keycode == KEY_D:
+			client.send_command("key", {"key": "d"}); return
 		if event.keycode == KEY_ESCAPE:
 			# close the camera/debug menu and any selection, but KEEP the current camera
 			_dismiss_selection()

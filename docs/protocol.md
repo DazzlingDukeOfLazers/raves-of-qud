@@ -174,6 +174,7 @@ Implemented commands:
 |---|---|---|
 | `move` | one step in `dir` (`N S E W NE NW SE SW`) | injected on the socket thread via `Keyboard.PushCommand("CmdMove"+dir)`, so it wakes an unfocused game |
 | `wait` | wait one turn (`CmdWait`) | **passes a turn.** Godot sends one on (re)connect to prime the first render, and Shift+Space is a manual passthrough. A no-turn "republish snapshot" command will replace the on-connect wait later. |
+| `key` | inject a raw key press (`{"key":"s"}`) | Routed through Qud's **keymap** via `Keyboard.PushKey(new XRLKeyEvent(code), bAllowMap:true)`, so it fires whatever the player has that key **bound** to (e.g. soar/descend) rather than a fixed command id. Letters/digits only; the char casts straight to `UnityEngine.KeyCode` (`'a'`==`KeyCode.A`==97). Wakes an unfocused game like `move`. Raves forwards **S/D** this way (they no longer pan the camera). |
 | `shot` | Qud screenshots itself → `qud_shot.png` | main-thread only (marshalled via `Bridge.Apply` → `uiQueue`) |
 
 - `move`/`wait` are applied on the socket thread (they can drive an unfocused game); other

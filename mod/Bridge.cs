@@ -294,10 +294,38 @@ namespace RavesOfQud
                     Keyboard.PushCommand("CmdWait", null);
                     return;
                 }
+                if (name == "key")
+                {
+                    // Forward a raw key press (e.g. Raves' S/D) INTO Qud's keymap, so it fires
+                    // whatever the player has that key bound to — soar/descend, etc. — instead of
+                    // us guessing command ids. allowmap:true routes through the bindings; PushKey
+                    // Sets KeyEvent, so it wakes an unfocused game exactly like the move injection.
+                    f.TryGetValue("key", out string k);
+                    if (!string.IsNullOrEmpty(k))
+                        PushKeyChar(k[0]);
+                    return;
+                }
             }
             catch (Exception e) { try { Server.Log("onpayload error: " + e.Message); } catch { } }
             // not consumed inline -> hand to the main-thread drain
             Server.Incoming.Enqueue(json);
+        }
+
+        /// Inject a single character as a key press routed through Qud's keybindings. Unity's
+        /// KeyCode values for 'a'..'z' and '0'..'9' equal their lowercase-ASCII codepoints, so the
+        /// char casts straight to the KeyCode. allowmap:true makes Qud resolve it to the bound
+        /// command; the enqueue+Set wakes the turn thread even while the window is unfocused.
+        private static void PushKeyChar(char ch)
+        {
+            try
+            {
+                char c = char.ToLowerInvariant(ch);
+                bool ok = (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9');
+                if (!ok) return;                       // letters/digits only for now
+                var code = (UnityEngine.KeyCode)c;     // KeyCode.A==97=='a', Alpha0==48=='0'
+                Keyboard.PushKey(new Keyboard.XRLKeyEvent(code, c), bAllowMap: true);
+            }
+            catch (Exception e) { try { Server.Log("pushkey error: " + e.Message); } catch { } }
         }
 
         private static void Apply(GameObject player, string json)
