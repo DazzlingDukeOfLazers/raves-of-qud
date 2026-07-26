@@ -220,6 +220,14 @@ inspect in Python before porting. (Lighting/shadow *appearance* still needs a sc
   reasoning, STOP guessing and bisect *with the user* on a real machine: a couple of cheap toggles
   (does it crash on the surface? with the feature off?) localized it in two rounds after several
   wrong hypotheses. Trust the bisection over the theory.
+- **No crash report means a HANG, not a crash — and a hang is usually fillrate/overdraw.** A `SIGBUS`
+  always writes `~/Library/Logs/DiagnosticReports/Godot-*.ips`; when several "crashes" wrote none, the
+  app was being GPU-timeout-killed, a different failure entirely. The cause was giant **additive**
+  glow quads (10 × parasang-scale, 240×360, overlapping) — a fillrate bomb. Two lessons: (1) FIRST
+  check for a fresh `.ips` to tell crash from hang before theorizing; (2) never use big per-object
+  additive/transparent quads for a glow — use environment **bloom** (one post-process, high HDR
+  threshold) + HDR-bright *alpha-scissored* sprites, which cost almost no fill. Also: an intermediate
+  "still crashes" during a bisect can be a stale build — confirm a `⟳ Reset`/relaunch actually took.
 - **Prefer accessors to fields.** `Render.getTile()` / `getRenderString()` resolve what is
   actually drawn; the `Tile`/`RenderString` fields are static blueprint values, empty for
   anything runtime-chosen.
