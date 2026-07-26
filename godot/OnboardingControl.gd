@@ -60,7 +60,11 @@ func _ensure_built() -> void:
 	_ui_theme = Theme.new()
 	var font := load("res://fonts/AtkinsonHyperlegible-Regular.ttf")
 	if font != null:
-		_ui_theme.default_font = font   # crisp, matches the inspector; propagates to every child
+		# Belt-and-suspenders: default_font SHOULD reach every control, but set the per-type font
+		# too so a Label/Button can't fall back to Godot's (pixely) built-in font.
+		_ui_theme.default_font = font
+		for t in ["Label", "Button", "CheckBox", "RichTextLabel", "PanelContainer"]:
+			_ui_theme.set_font("font", t, font)
 	_build()
 
 ## Scaled font size / pixel dimension for the current window.
