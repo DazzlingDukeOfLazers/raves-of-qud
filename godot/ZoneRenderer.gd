@@ -434,7 +434,7 @@ func _rebuild_dynamics(cells: Array) -> void:
 			continue     # first-person hides the player (the camera sits on this cell)
 		var sink := _cell_sink(cell)
 		var wet: bool = bool(cell.get("wade", false)) or bool(cell.get("swim", false))
-		var lf: float = _light_frac(cell) if _underground else 1.0   # dim creatures in the dark
+		var lf: float = _light_frac(cell)   # dim creatures in the dark (night or cavern)
 		var idx := 0
 		for obj in cell.get("objs", []):
 			if not _is_prism(obj) and _is_creature(obj):
@@ -452,8 +452,11 @@ func _rebuild_dynamics(cells: Array) -> void:
 			idx += 1
 	_noting = true
 	_bank = null
-	if _underground:
-		_build_darkness(cells)
+	# Per-cell darkness runs EVERYWHERE, not just underground: it is driven purely by
+	# Qud's light map, which also falls dark on the surface at night (the Daylight part
+	# adds a daylight radius of 0 after dusk). Fully-lit cells emit nothing, so daytime
+	# and lit caves pay nothing; night and caverns fall off to black around light sources.
+	_build_darkness(cells)
 
 ## Qud LightLevel byte (per cell) -> 0..1 brightness. None(1)/Blackout(0) -> 0 (dark);
 ## Light(200)+ -> 1 (full). The low senses (darkvision 10 .. safelight 30) map to a dim

@@ -54,7 +54,11 @@ const SKY_NIGHT := Color(0.03, 0.05, 0.12)   # deep blue night void
 const SKY_DAY := Color(0.32, 0.55, 0.85)     # daytime blue
 const SKY_DUSK := Color(0.75, 0.45, 0.35)    # warm dawn/dusk horizon
 const SKY_DIST := 180.0
-const NIGHT_TINT := Color(0.34, 0.40, 0.62)   # cool moonlit blue (Qud has no moon phase)
+const NIGHT_TINT := Color(0.62, 0.68, 0.88)   # cool moonlit cast — NOT a big dim. Night darkness is
+                                              # now done PER CELL by the renderer's darkness overlay
+                                              # (Qud's light map goes dark on the surface at night),
+                                              # so this global tint must stay bright or it double-darks
+                                              # and kills the very light pools we want. Only the mood.
 const DAY_TINT := Color(1.0, 0.99, 0.96)       # near-neutral, a hair warm
 const DUSK_TINT := Color(1.0, 0.72, 0.50)      # warm dawn/dusk
 

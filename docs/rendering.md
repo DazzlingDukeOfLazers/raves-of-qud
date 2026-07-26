@@ -148,9 +148,17 @@ higher). When `_depth > SURFACE_Z`, `_update_time` skips the clock, calls `_appl
 grade at a **near-neutral** `CAVE_TINT` — deliberately NOT dark, because the darkness is done
 per-cell instead (see below). Coming back up restores the clock.
 
-**Cavern light is per-cell, from Qud's own map.** A single global multiply can't do "black cave +
-bright light pools" (in LDR it dims the additive torch-glows too). So underground the mod sends each
-cell's `light` (`(int)Cell.GetLight()`, a `LightLevel` byte), and `ZoneRenderer._build_darkness`
+**Per-cell light — caverns AND the surface at night.** A single global multiply can't do "black +
+bright light pools" (in LDR it dims the additive torch-glows too). So the mod sends each cell's
+`light` (`(int)Cell.GetLight()`, a `LightLevel` byte) for *every* zone, and `_build_darkness` runs
+everywhere, self-gating on the data: fully-lit cells emit nothing, so **midday and lit caves pay
+zero**, while **caverns and the night surface fall off to black** around light sources. It works on
+the surface at night because Qud's `Daylight` part adds a daylight radius of **0** after dusk (and
+floods the whole zone at noon), so `GetLight` genuinely goes dark at night. The one coupling: the
+day/night grade must **not** also darken at night (`NIGHT_TINT` is a bright moonlit cast, not a dim)
+or it would double-dark and kill the pools — same reason `CAVE_TINT` is near-neutral.
+
+Mechanically, the mod sends each cell's `light` and `ZoneRenderer._build_darkness`
 lays a **per-cell darkness overlay** — one vertex-coloured MIX-black mesh, a quad over each cell's
 floor (and roof, for wall cells) whose alpha is `(1 - lightFrac) * DARK_MAX`. Built into
 `_dynamic_root` every turn, so it tracks Qud's live light as sources/the player move. `_light_frac`
