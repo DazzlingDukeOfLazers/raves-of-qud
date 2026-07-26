@@ -25,6 +25,8 @@ const COL_BORDER := Color(1, 1, 1, 0.12)
 const COL_PANEL := Color(0.10, 0.11, 0.14)
 const COL_BG := Color(0.055, 0.065, 0.085)
 
+var _holo_vp: SubViewport   # the embedded Holodeck (Main.tscn) renders into this
+
 func _ready() -> void:
 	name = "MainFrame"
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -233,7 +235,7 @@ func _row_main() -> Control:
 	split.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	split.split_offset = 900   # give the Holodeck the lion's share; user can drag the separator
 
-	var holo := _cell("HOLODECK")
+	var holo := _holodeck_cell()
 	holo.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	split.add_child(holo)
 
@@ -250,6 +252,30 @@ func _row_main() -> Control:
 	side.add_child(log)
 	split.add_child(side)
 	return split
+
+## The Holodeck cell: the existing 3D scene (Main.tscn) instanced inside a SubViewport, stretched to
+## fill the cell. Main creates its own camera / World3D / bridge in _ready, so it just works in here.
+## Mouse over the cell is forwarded by SubViewportContainer; keyboard is forwarded in
+## _unhandled_key_input below. Camera/movement (polled Input.is_key_pressed) works regardless.
+func _holodeck_cell() -> Control:
+	var svc := SubViewportContainer.new()
+	svc.stretch = true                       # the SubViewport tracks the cell size
+	svc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	svc.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	var sv := SubViewport.new()
+	sv.own_world_3d = true                    # the Holodeck's camera + 3D scene live in their own world
+	sv.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	svc.add_child(sv)
+	var holo: Node = load("res://Main.tscn").instantiate()
+	sv.add_child(holo)
+	_holo_vp = sv
+	return svc
+
+## Forward discrete key events into the embedded Holodeck (mode 1-7, O 2D-toggle, F1, etc.). Held-key
+## camera/movement already works through Main's per-frame Input polling, independent of focus.
+func _unhandled_key_input(e: InputEvent) -> void:
+	if _holo_vp != null:
+		_holo_vp.push_input(e)
 
 # ── row 4: active effects | target | context menu ────────────────────────────
 
