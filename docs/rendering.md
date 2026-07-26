@@ -358,17 +358,21 @@ an occupied terrain tile, fully lit, no walls. It exposed costs that also bite b
   emits light (a glowfish parasang) otherwise got a flame that `_process` re-randomizes every frame —
   a light **oscillating** on an idle overview. Flicker is per-frame and client-side, so it shows even
   with no snapshots arriving.
-- **World-map tiles stand UP as billboards, also batched.** Laid flat they read edge-on under the
-  tilted compass camera. `_place_nonwall` intercepts every static world-map tile (`_world_map`, has a
-  texture, not a creature) and queues it into `_wm_billboard_batch` — one upright `MultiMesh` per tile
-  texture (`_flush_wm_billboards`, shared `_wm_quad` at 16:24 aspect, bottom on the ground), so 2000
-  cards are again a handful of draw calls. The GPU billboard mode is the toggle: `set_wm_face_ns`
-  flips the shared card materials between `BILLBOARD_FIXED_Y` (follow the camera) and
-  `BILLBOARD_DISABLED` (fixed EW panels facing N/S) in place — instant, no rebuild (key `B`). Top-down
-  wins over the toggle: a straight-down camera sees a vertical card edge-on (invisible), so
-  `_wm_billboard_mode` returns `BILLBOARD_ENABLED` (flat, facing up) whenever `set_top_down` is on.
-  Missing tiles self-heal via the same `_static_saw_missing` retry as floors (the `tex == null` cell
-  falls back to the flat colour dot until the PNG exports, then rebuilds as a card).
+- **World-map tiles stand UP as cards.** Laid flat they read edge-on under the tilted compass camera.
+  `_place_nonwall` intercepts every static world-map tile (`_world_map`, has a texture, not a creature)
+  and stands it up as a **plain `Sprite3D`** — the same proven billboard path as every creature/plant,
+  seated by `_seat`, tagged `wm_tile`. `_wm_sprite_billboard` is the orientation: `BILLBOARD_FIXED_Y`
+  (follow the camera, default), `BILLBOARD_DISABLED` (fixed EW panel facing N/S, key `B`), or
+  `BILLBOARD_ENABLED` (flat — top-down wins, since an upright card is edge-on/invisible from straight
+  overhead). `set_wm_face_ns` / `set_top_down` re-orient the `wm_tile` group in place — instant, no
+  rebuild. Missing tiles self-heal via the same `_static_saw_missing` retry as floors.
+  - **Why plain sprites, not a batched `MultiMesh`** (2000 tiles → 2000 draw calls, so batching is
+    tempting): a `MultiMesh` whose material set `billboard_mode` **hard-crashed the Metal driver**
+    (`SIGBUS` in `memmove` on the instance-buffer upload — per-instance billboard in a `MultiMesh` is
+    a fragile GPU path). `--headless` renders with a dummy driver and never touches Metal, so it
+    can't catch this class of bug — only a real windowed run does. The sprites are alpha-scissored
+    (opaque pass, no transparency sort), so the draw-call cost is tolerable; batch later only via a
+    path verified on-GPU.
 - **The world-map player draws on top.** The `@` keeps its normal dynamic-pass sprite, but on the map
   (`_placing_player`, its cell = `_player_cell`) it gets `no_depth_test` + a high `render_priority`, so
   it's always the topmost "you are here" — closest to the overhead camera in top-down, never buried

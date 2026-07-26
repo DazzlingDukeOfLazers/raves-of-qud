@@ -205,6 +205,13 @@ inspect in Python before porting. (Lighting/shadow *appearance* still needs a sc
 - **A continuous visual glitch with NO new data is a client-side per-frame animation.** The world
   map's "oscillating light" persisted while idle (throttle → zero snapshots), which pinned it to
   `_process` (the torch flicker), not the data.
+- **`--headless` cannot catch GPU/driver bugs — it renders with a dummy driver.** A `MultiMesh`
+  with a `billboard_mode` material `SIGBUS`-crashed the Metal driver (`memmove` on the instance
+  buffer); the headless parse-check rendered it "fine" because it never touches Metal. A crash in
+  `AGXMetal*` / `IOGPUMetalResource` / a `memmove` under the RenderingServer flush is a GPU
+  resource fault, NOT a GDScript error — suspect the newest instanced/material path, and prefer the
+  proven `Sprite3D` billboard over per-instance `MultiMesh` billboards. Only a real windowed run
+  proves a render path; headless only proves it parses and `_ready` runs.
 - **Prefer accessors to fields.** `Render.getTile()` / `getRenderString()` resolve what is
   actually drawn; the `Tile`/`RenderString` fields are static blueprint values, empty for
   anything runtime-chosen.
