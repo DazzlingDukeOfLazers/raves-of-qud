@@ -212,6 +212,14 @@ inspect in Python before porting. (Lighting/shadow *appearance* still needs a sc
   resource fault, NOT a GDScript error — suspect the newest instanced/material path, and prefer the
   proven `Sprite3D` billboard over per-instance `MultiMesh` billboards. Only a real windowed run
   proves a render path; headless only proves it parses and `_ready` runs.
+- **A single-frame GPU-resource spike can overflow the Metal allocator — spread big builds across
+  frames.** The world-map crash was NOT raw volume (the surface is the same cell count and never
+  crashed); it was the number of *distinct* resources created in ONE frame (the world map has a
+  different terrain texture/material per cell). The fix was the incremental build (`_ib_step`, a
+  chunk per frame), not any single "bad node". When a deterministic same-stack GPU crash resists
+  reasoning, STOP guessing and bisect *with the user* on a real machine: a couple of cheap toggles
+  (does it crash on the surface? with the feature off?) localized it in two rounds after several
+  wrong hypotheses. Trust the bisection over the theory.
 - **Prefer accessors to fields.** `Render.getTile()` / `getRenderString()` resolve what is
   actually drawn; the `Tile`/`RenderString` fields are static blueprint values, empty for
   anything runtime-chosen.

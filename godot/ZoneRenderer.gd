@@ -200,10 +200,11 @@ var _floor_batch := {}
 # tagged "wm_tile" so the orientation toggle can retarget them live. Follow-camera by default;
 # set_wm_face_ns(true) locks them all as EW panels facing N/S; top-down lays them flat.
 var _wm_face_ns := false               # false = cards follow the camera; true = locked EW (facing N/S)
-# BISECTION SWITCH: false = flat batched-floor world map (known-good, never crashed); true = standing
-# cards. Flipped off while isolating a Metal crash on repeated world-map<->surface transitions. When
-# false the world-map branch in _place_nonwall is skipped and tiles render as ordinary floors.
-const WM_STANDING_CARDS := false
+# World-map tiles stand up as cards (true) vs flat batched floors (false). This was flipped off
+# to isolate a Metal crash on world-map<->surface transitions; the real cause was the single-frame
+# GPU-resource spike, now fixed by the incremental build (see _build_static / _ib_step), so the
+# cards are safe again — their ~2000 sprites are created a chunk per frame, not all at once.
+const WM_STANDING_CARDS := true
 # Camera cutaway: the LIVE zone's wall nodes keyed by cell, so a wall between the camera
 # and the player can fade out of the way. Faded via GeometryInstance3D.transparency with
 # the wall material in ALPHA_HASH mode (screen-door dither), so it stays in the opaque pass

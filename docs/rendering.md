@@ -344,6 +344,21 @@ user-set gap (the "level height (Z gap)" slider, 0 = coplanar; persisted).
 The **world map** (the parasang overview, `zone.z < 0`) is the stress case: ~2000 cells, every one
 an occupied terrain tile, fully lit, no walls. It exposed costs that also bite big lit zones:
 
+- **Big zones build INCREMENTALLY — read this before touching `_build_static`.** Building a whole
+  ~2000-cell zone in one frame creates a large batch of *distinct* GPU resources at once (recoloured
+  terrain textures, materials, floor batches — the world map has a different terrain type per cell),
+  and that single-frame spike **overran the Metal buffer allocator and hard-crashed** (`SIGBUS` in
+  `memmove`). Note the surface is the same *cell* count but has few distinct floor types, so it never
+  crashed — the trigger is distinct-resources-per-frame, not raw volume. So any zone over
+  `IB_THRESHOLD` cells builds across frames: `_group_wall_cells` (cheap, no GPU) up front, then
+  `IB_CHUNK` cells per frame in `_ib_step` (driven from `_process`), flushing each chunk's floors as
+  it goes. `_build_zone` is split into `_group_wall_cells` + `_place_cell` so the sync (neighbour) and
+  chunked (live) paths share the per-cell logic. Lifecycle: `_ib_finish()` completes the departing
+  zone before a transition rebuild (so it's a valid remembered neighbour); `_ib_abort()` bails if the
+  subtree is being freed; the export-race retry is suppressed mid-build. This also removed the 1–3s
+  transition freeze — the zone now fills in progressively. Diagnosed from the user's own bisection
+  (surface-start fine, world-map-start crashes), after two wrong guesses (MultiMesh billboards, then
+  the card feature) that a real windowed run disproved and `--headless` could not (dummy renderer).
 - **Floors are batched.** Each floor was one `MeshInstance3D` → ~2000 draw calls a frame, a
   continuously low framerate. `_place_nonwall` now queues floor quads by material and
   `_flush_floor_batch` emits **one `MultiMesh` per tile type** at the end of each static/neighbour
