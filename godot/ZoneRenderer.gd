@@ -200,6 +200,10 @@ var _floor_batch := {}
 # tagged "wm_tile" so the orientation toggle can retarget them live. Follow-camera by default;
 # set_wm_face_ns(true) locks them all as EW panels facing N/S; top-down lays them flat.
 var _wm_face_ns := false               # false = cards follow the camera; true = locked EW (facing N/S)
+# BISECTION SWITCH: false = flat batched-floor world map (known-good, never crashed); true = standing
+# cards. Flipped off while isolating a Metal crash on repeated world-map<->surface transitions. When
+# false the world-map branch in _place_nonwall is skipped and tiles render as ordinary floors.
+const WM_STANDING_CARDS := false
 # Camera cutaway: the LIVE zone's wall nodes keyed by cell, so a wall between the camera
 # and the player can fade out of the way. Faded via GeometryInstance3D.transparency with
 # the wall material in ALPHA_HASH mode (screen-door dither), so it stays in the opaque pass
@@ -1629,13 +1633,13 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			_note(cx, cy, idx, "stairs-up (flat floor tile)", uf.position.y)
 			return
 
-	# The parasang world map is a top-down mosaic of terrain tiles. Laid flat, the compass
-	# camera sees them edge-on and foreshortened. Stand each one UP as a card instead. Placed as a
-	# plain Sprite3D (the same proven billboard path as every creature/plant) — NOT a MultiMesh with
-	# a billboard material, which faulted the Metal driver on the instance-buffer upload. Creatures
-	# (the @) keep their own dynamic-pass sprite; every static tile on the map routes here. Joins the
-	# "wm_tile" group so set_wm_face_ns / set_top_down can retarget all of them without a rebuild.
-	if _world_map and not in_wall and tex != null and not _is_creature(obj):
+	# The parasang world map is a top-down mosaic of terrain tiles. Laid flat, the compass camera
+	# sees them edge-on and foreshortened; standing each one UP as a card reads far better. BUT this
+	# is currently DISABLED (WM_STANDING_CARDS = false) while we isolate a Metal driver crash on
+	# repeated world-map<->surface transitions — with the flag off the map falls through to the
+	# known-good flat batched-floor path (the baseline that never crashed), a clean bisection. The
+	# card is a plain Sprite3D tagged "wm_tile" (set_wm_face_ns / set_top_down retarget it live).
+	if WM_STANDING_CARDS and _world_map and not in_wall and tex != null and not _is_creature(obj):
 		var wtex := _colored_tex_rgb(tile, _obj_main(obj), _obj_detail(obj),
 			_color_key(obj), _fill_for(tile, Fill.INTERIOR))
 		if wtex == null:
