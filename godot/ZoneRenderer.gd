@@ -1349,6 +1349,22 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 		_note(cx, cy, idx, "stairs-down (framed floor tile, face %s)" % _deg_cardinal(deg), STAIR_FRAME_H)
 		return
 
+	# Stairs up: just the tile laid FLAT on the floor (Qud's '<' on the ground). No frame
+	# or shaft — you ascend, there's nothing to see below. Its layer (7) would otherwise
+	# make it an upright billboard, so intercept and route to the floor. Filled so the
+	# glyph sits on an opaque base like the down-stairs.
+	if _is_stairs_up(obj, tile) and verdict != "billboard" and not in_wall:
+		var utex := _colored_tex_rgb(tile, _obj_main(obj), _obj_detail(obj), _color_key(obj), Fill.ALL)
+		if utex != null:
+			var uf := _take_floor()
+			uf.material_override = _mesh_material(tile, main_c, detail_c, utex)
+			uf.scale = Vector3.ONE
+			uf.position = Vector3(cx, FLOOR_Y + layer * LAYER_LIFT + idx * TIEBREAK, cy)
+			uf.visible = true
+			_track(uf)
+			_note(cx, cy, idx, "stairs-up (flat floor tile)", uf.position.y)
+			return
+
 	# Qud's painted ground layer is flat by default — dirt, gravel, cracked earth.
 	# But vegetation in that layer is cover you stand among, not a texture you walk
 	# on, so it reads far better standing up. Route it to the billboard path.
@@ -1555,6 +1571,14 @@ func _is_stairs_down(obj: Dictionary, tile: String) -> bool:
 		return true
 	var t := tile.to_lower()
 	return t.contains("stairsdown") or t.contains("stairs_down") or t.contains("stairdown")
+
+## A downward staircase's twin: matched the same way (name or tile).
+func _is_stairs_up(obj: Dictionary, tile: String) -> bool:
+	var n := String(obj.get("name", "")).to_lower()
+	if n.contains("stair") and n.contains("up"):
+		return true
+	var t := tile.to_lower()
+	return t.contains("stairsup") or t.contains("stairs_up") or t.contains("stairup")
 
 ## Does any object in this cell make it a stairs-down cell? Used to suppress the
 ## cell's floor quad so the shaft isn't capped from above.
