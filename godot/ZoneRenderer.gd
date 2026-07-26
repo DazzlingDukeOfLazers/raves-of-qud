@@ -1692,8 +1692,12 @@ const LANDMARKS := [
 
 ## Reposition the (build-once) landmarks for the player's current zone. Surface only — the world map
 ## draws its own miniature tiles; underground has no sky.
+# BISECTION SWITCH: false disables ALL surface landmarks. Flipped off to isolate a Metal crash that
+# appeared with the giant-landmark work (build-once + the Red Rock voxel mound). With it off the
+# surface renders as it did before landmarks existed — a known-good base to bisect from.
+const LANDMARKS_ENABLED := false
 func _rebuild_landmarks(zone: Dictionary) -> void:
-	if _world_map or _underground:
+	if not LANDMARKS_ENABLED or _world_map or _underground:
 		_landmarks_root.visible = false
 		return
 	_landmarks_root.visible = true
