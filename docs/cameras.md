@@ -73,6 +73,12 @@ columns, so an elevated camera's 3D ray would pass over their tops and miss. Off
 first-person, free-fly, and the multi-view grid. Only live-zone walls are tracked — neighbours are
 never between you and the camera.
 
+**Only LIT occluders fade** (`_wall_lit`, `CUTAWAY_LIT_MIN`). A dark wall in the way is already
+near-invisible under the darkness overlay, so it stays solid; only rock you can actually *see* gets
+cut away. "Lit" = the max of the cell's own and its four neighbours' light (a wall is visible when
+its face onto an adjacent open lit cell is lit). On the lit surface everything qualifies, so the
+cutaway behaves as before; in a dark cavern only illuminated rock between you and the camera fades.
+
 ## Persistence & misc controls
 
 - **Settings** (`user://raves_settings.json`) — camera mode, compass heading, zoom

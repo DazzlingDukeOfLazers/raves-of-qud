@@ -194,6 +194,8 @@ var _lit_meshes: Array = []       # [{mi: MeshInstance3D, cell: Vector2i}]
 var _wall_cutaway := {}
 const CUTAWAY_MAX := 0.88         # deepest fade for a wall right on the line of sight
 const CUTAWAY_LERP := 9.0         # per-second ease, so walls fade in/out smoothly
+const CUTAWAY_LIT_MIN := 0.25     # only LIT walls fade; dark ones (already near-invisible) stay
+var _cell_light := {}             # Vector2i -> light frac this turn, for the cutaway's lit test
 var _orbiters: Array = []         # glowfish "bugs": [{root, motes:[{s, ...orbit params}]}]
 
 # Torches are ADDITIVE — they brighten whatever is behind them by a fixed amount
@@ -485,6 +487,9 @@ func _rebuild_dynamics(cells: Array) -> void:
 	# and lit caves pay nothing; night and caverns fall off to black around light sources.
 	_build_darkness(cells, _dynamic_root)
 	_relight_static_sprites(cells)   # dim trees/brinestalks by their cell light this turn
+	_cell_light.clear()              # remember this turn's light for the cutaway's lit test
+	for cell in cells:
+		_cell_light[Vector2i(int(cell.get("x", 0)), int(cell.get("y", 0)))] = _light_frac(cell)
 
 ## Dim the live zone's STATIC upright billboards (trees, brinestalks, scenery) by their
 ## cell's light this turn, so they fall dark at night with the ground instead of staying
@@ -1783,6 +1788,17 @@ func _track_wall(k: Vector2i, mi: MeshInstance3D) -> void:
 		_wall_cutaway[k] = []
 	_wall_cutaway[k].append(mi)
 
+## Is this wall lit enough to be worth fading? A wall is "visible" when its face onto an
+## adjacent OPEN cell is lit, so take the max of its own and its 4 neighbours' light. Dark
+## rock (already near-invisible under the darkness overlay) stays solid and isn't cut away.
+func _wall_lit(cell: Vector2i) -> bool:
+	var f: float = _cell_light.get(cell, 0.0)
+	f = maxf(f, _cell_light.get(cell + Vector2i(1, 0), 0.0))
+	f = maxf(f, _cell_light.get(cell + Vector2i(-1, 0), 0.0))
+	f = maxf(f, _cell_light.get(cell + Vector2i(0, 1), 0.0))
+	f = maxf(f, _cell_light.get(cell + Vector2i(0, -1), 0.0))
+	return f > CUTAWAY_LIT_MIN
+
 ## Fade walls between the camera (`eye`) and the player (`focus`) so rock doesn't block the
 ## view — screen-door dither via each node's `transparency` (the wall material is ALPHA_HASH,
 ## so it stays in the opaque pass). A wall cell fades by how close its centre is to the line
@@ -1806,7 +1822,7 @@ func apply_cutaway(eye: Vector3, focus: Vector3, dt: float, enabled := true) -> 
 		if enabled and seg_len > 0.8:
 			var c := Vector2(cell.x, cell.y)
 			var t := (c - e2).dot(dir)                 # distance along the line of sight (ground)
-			if t > 0.3 and t < seg_len - 0.5:          # between the camera and just shy of the player
+			if t > 0.3 and t < seg_len - 0.5 and _wall_lit(cell):  # between camera & player, and VISIBLE
 				var perp := (c - (e2 + dir * t)).length()
 				target = (1.0 - smoothstep(0.6, 1.2, perp)) * CUTAWAY_MAX
 		for mi in _wall_cutaway[cell]:
