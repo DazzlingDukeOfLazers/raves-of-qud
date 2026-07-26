@@ -183,6 +183,7 @@ var _panning := false
 var _mode_label: Label
 var _debug_menu_title: Label
 var _reset_btn: Button
+var _wm_cards_btn: Button   # persistent top-right world-map card toggle (mirrors O / the ` menu)
 var _ui_theme: Theme   # project-wide default theme (UiFont) on the root viewport — see _ready
 
 # Responsive HUD text: a fraction of viewport height, but never below a floor —
@@ -205,6 +206,8 @@ func _apply_ui_fonts() -> void:
 		_apply_font_recursive(_debug_menu, fs)
 	if _reset_btn != null:
 		_reset_btn.add_theme_font_size_override("font_size", fs)
+	if _wm_cards_btn != null:
+		_wm_cards_btn.add_theme_font_size_override("font_size", fs)
 	# keep the debug menu just BELOW the help label so they never overlap, even as
 	# the responsive font grows the label's height
 	if _debug_menu != null and _mode_label != null:
@@ -879,6 +882,7 @@ func _set_mode(m: int) -> void:
 		renderer.set_top_down(m == CamMode.TOP_FOLLOW)
 	_apply_zstretch()
 	_update_mode_label()
+	_refresh_wm_cards_btn()   # top-down changes the EFFECTIVE card orientation ("flat · top-down")
 
 ## One gesture -> everything a collaborator needs about a tile. Photograph the BARE
 ## scene FIRST (no selection overlay), then inspect — so shot.png is a clean plate
@@ -1316,6 +1320,22 @@ func _toggle_wm_face_ns() -> void:
 	_wm_face_ns = not _wm_face_ns
 	renderer.set_wm_face_ns(_wm_face_ns)
 	_refresh_wm_face_btn()
+	_refresh_wm_cards_btn()
+
+## Label for the persistent top-right button: the EFFECTIVE world-map card orientation. Top-down
+## overrides the EW toggle (cards lie flat to face the overhead camera), so say so — otherwise the
+## button looks broken when a click "does nothing" in that mode.
+func _refresh_wm_cards_btn() -> void:
+	if _wm_cards_btn == null:
+		return
+	var state: String
+	if _mode == CamMode.TOP_FOLLOW:
+		state = "flat · top-down"
+	elif _wm_face_ns:
+		state = "EW → N/S"
+	else:
+		state = "follow cam"
+	_wm_cards_btn.text = "WM cards (O): %s" % state
 
 func _toggle_look_target() -> void:
 	_look_head = not _look_head
@@ -1342,28 +1362,43 @@ func _on_level_height_changed(v: float) -> void:
 	if not live.is_empty():
 		renderer.render_snapshot(live, _neighbor_zones())
 
-## A small reset button in the top-right corner: restarts the whole program (so code
-## changes are picked up, not just a state reset) at the CURRENT window size.
+## Top-right corner buttons, stacked in a VBox so they never overlap at any font size:
+##   ⟳ Reset            — restarts the whole program (picks up code changes) at the current size
+##   WM cards (O)       — the world-map card orientation toggle, with its live state on the label
 func _build_reset_button() -> void:
 	var layer := CanvasLayer.new()
 	layer.layer = 3
 	add_child(layer)
+	# A VBox pinned to the top-right corner (grow LEFT to fit the widest label, DOWN to stack).
+	var box := VBoxContainer.new()
+	box.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	box.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	box.grow_vertical = Control.GROW_DIRECTION_END
+	box.offset_left = -10.0
+	box.offset_right = -10.0
+	box.offset_top = 10.0
+	box.add_theme_constant_override("separation", 6)
+	layer.add_child(box)
+
 	_reset_btn = Button.new()
 	_reset_btn.text = "⟳ Reset"
 	_reset_btn.focus_mode = Control.FOCUS_NONE   # click-only; keep arrows for the player
-	# Anchor to the top-right corner and grow LEFT/DOWN to fit the text at any font size (the box
-	# was fixed at 86x28, which clipped the source-of-truth 36px font).
-	_reset_btn.anchor_left = 1.0
-	_reset_btn.anchor_right = 1.0
-	_reset_btn.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	_reset_btn.grow_vertical = Control.GROW_DIRECTION_END
-	_reset_btn.offset_left = -10.0
-	_reset_btn.offset_right = -10.0
-	_reset_btn.offset_top = 10.0
-	_reset_btn.offset_bottom = 10.0
+	_reset_btn.size_flags_horizontal = Control.SIZE_SHRINK_END   # hug the right edge under the anchor
 	_reset_btn.pressed.connect(_reset_program)
-	layer.add_child(_reset_btn)
+	box.add_child(_reset_btn)
+
+	# The world-map card toggle, surfaced as a persistent button (not just the ` debug menu and the
+	# O key) so its effect is discoverable — the label always shows the EFFECTIVE state, including
+	# "flat (top-down)" when the overhead view forces cards flat regardless of the EW toggle.
+	_wm_cards_btn = Button.new()
+	_wm_cards_btn.focus_mode = Control.FOCUS_NONE
+	_wm_cards_btn.size_flags_horizontal = Control.SIZE_SHRINK_END
+	_wm_cards_btn.pressed.connect(_toggle_wm_face_ns)
+	box.add_child(_wm_cards_btn)
+	_refresh_wm_cards_btn()
+
 	_reset_btn.add_theme_font_size_override("font_size", UiFont.px(get_viewport()))
+	_wm_cards_btn.add_theme_font_size_override("font_size", UiFont.px(get_viewport()))
 
 ## Relaunch the process, preserving the current window size via --resolution (a plain
 ## reload_current_scene would keep the old cached scripts; a restart re-reads them).
