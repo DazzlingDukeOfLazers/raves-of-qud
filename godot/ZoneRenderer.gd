@@ -262,6 +262,19 @@ var _top_down := false   # top-down camera modes: tile billboards lie flat to fa
 # Toggled from Main (O key / the corner button); forces a static rebuild via set_flat_2d().
 var _flat_2d := false
 
+# Live zone dimensions (cells), read off each snapshot — neighbours on a stratum share them, so they
+# size the distance cull below. Defaults are the standard surface/cavern zone (80x25).
+var _live_w := 80.0
+var _live_h := 25.0
+
+# Distance cull for remembered neighbours: a zone whose NEAREST point is past this (world units) is
+# fully swallowed by the distance fog (Main's env.fog_depth_end ~= 240) yet Godot still draws it —
+# pure cost when you rotate to look across many explored zones. Hide those; it's beyond the fog, so
+# there's no visible change. Margin (~one zone diagonal) keeps a zone that the player could be near
+# the far edge of from popping. Frustum culling already skips OFF-screen zones; this skips the
+# in-frustum-but-fully-fogged ones it can't.
+const NEIGHBOR_CULL_DIST := 330.0
+
 ## Flip the whole world between 3D (upright billboards + wall prisms) and 2D (everything flat on the
 ## floor). Frozen static geometry was built for the old mode, so drop it; Main re-renders the current
 ## snapshot right after, which rebuilds the live zone (and neighbours) in the new mode.
@@ -332,6 +345,9 @@ func _make_radial(n: int, tint: Color, power: float) -> Texture2D:
 ## live zone. Neighbours render full-fidelity but static-only (no creatures).
 func render_snapshot(data: Dictionary, neighbors: Array = []) -> void:
 	_tiles_dir = String(data.get("tilesDir", ""))
+	var zdim: Dictionary = data.get("zone", {})
+	if zdim.has("width"): _live_w = float(zdim["width"])
+	if zdim.has("height"): _live_h = float(zdim["height"])
 
 	# Qud's real palette, sent by the mod. Base/Colors.xml names the colours but
 	# has no RGB, so COLORS below is a hand-estimate kept only as a fallback for
@@ -849,6 +865,13 @@ func _sync_neighbors(neighbors: Array) -> void:
 		var o: Vector2i = nb.get("offset", Vector2i.ZERO)
 		var dz: int = int(nb.get("dz", 0))
 		_static_zones[id].position = Vector3(o.x, -float(dz) * level_height, o.y)
+		# Hide neighbours the fog fully hides anyway. Nearest planar distance from the live zone's
+		# origin corner to this neighbour's cell box [o .. o+dims], plus the vertical level gap.
+		var nx: float = clampf(0.0, float(o.x), float(o.x) + _live_w)
+		var nz: float = clampf(0.0, float(o.y), float(o.y) + _live_h)
+		var vgap: float = absf(float(dz) * level_height)
+		var near: float = sqrt(nx * nx + nz * nz + vgap * vgap)
+		_static_zones[id].visible = near <= NEIGHBOR_CULL_DIST
 
 # --- introspection (for CellInspector) --------------------------------------
 
