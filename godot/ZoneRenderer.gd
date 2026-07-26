@@ -1758,6 +1758,10 @@ func _build_rock_outline(lm: Dictionary, parent: Node, px: float) -> void:
 				base_row = maxi(base_row, y)
 				break
 	var vox := px                                  # one tile-column wide/tall in world units
+	# ONE shared QuadMesh for every voxel — creating a separate mesh per voxel meant ~100+ GPU
+	# mesh-buffer allocations in a single frame, which overran the Metal allocator and crashed.
+	var quad := QuadMesh.new()
+	quad.size = Vector2(vox, vox)
 	for x in w:
 		var top := -1
 		for y in h:
@@ -1770,9 +1774,7 @@ func _build_rock_outline(lm: Dictionary, parent: Node, px: float) -> void:
 		for row in range(top, base_row + 1):       # fill from the outline top down to the ground
 			var vy := float(base_row - row) * vox + vox * 0.5
 			var m := MeshInstance3D.new()
-			var q := QuadMesh.new()
-			q.size = Vector2(vox, vox)
-			m.mesh = q
+			m.mesh = quad                          # shared — one buffer, not one per voxel
 			m.material_override = mat
 			m.position = Vector3(vx, vy, 0)
 			parent.add_child(m)
