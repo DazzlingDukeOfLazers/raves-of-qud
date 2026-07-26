@@ -224,10 +224,13 @@ inspect in Python before porting. (Lighting/shadow *appearance* still needs a sc
   always writes `~/Library/Logs/DiagnosticReports/Godot-*.ips`; when several "crashes" wrote none, the
   app was being GPU-timeout-killed, a different failure entirely. The cause was giant **additive**
   glow quads (10 × parasang-scale, 240×360, overlapping) — a fillrate bomb. Two lessons: (1) FIRST
-  check for a fresh `.ips` to tell crash from hang before theorizing; (2) never use big per-object
-  additive/transparent quads for a glow — use environment **bloom** (one post-process, high HDR
-  threshold) + HDR-bright *alpha-scissored* sprites, which cost almost no fill. Also: an intermediate
-  "still crashes" during a bisect can be a stale build — confirm a `⟳ Reset`/relaunch actually took.
+  check for a fresh `.ips` to tell crash from hang before theorizing; (2) big per-object additive
+  quads hang the GPU — but so does environment **bloom** on this setup (a full-screen multi-pass
+  post-process, on top of DOF + fog, at the ~4K external-display window size, tips the M1 Pro past
+  the GPU timeout). The only fill-free "brighter" is an **HDR modulate on an alpha-scissored sprite**
+  (clamps toward white, no halo, no extra pass); a real glow *halo* needs a smaller window or fewer
+  post-passes. Budget GPU fill/post-process for the WORST display (4K), not the laptop panel. Also:
+  a mid-bisect "still crashes" can be a stale build — confirm a `⟳ Reset`/relaunch actually took.
 - **Prefer accessors to fields.** `Render.getTile()` / `getRenderString()` resolve what is
   actually drawn; the `Tile`/`RenderString` fields are static blueprint values, empty for
   anything runtime-chosen.
