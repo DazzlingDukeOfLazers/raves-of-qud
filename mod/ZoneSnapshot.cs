@@ -362,24 +362,32 @@ namespace RavesOfQud
             try { return go.GetStatValue(stat); } catch { return 0; }
         }
 
-        /// Zone terrain/biome name ("salt marsh") via reflection, so a signature change or a
-        /// method that lives on a different type never breaks the build. "" if unavailable.
-        private static string TerrainName(Zone z)
+        /// Strip Qud's {{color|text}} markup (and a trailing "!") to plain text, e.g.
+        /// "{{R|Famished!}}" -> "Famished". Never throws.
+        private static string StripMarkup(string s)
         {
-            if (z == null) return "";
-            try
+            if (string.IsNullOrEmpty(s)) return "";
+            var sb = new System.Text.StringBuilder(s.Length);
+            int i = 0;
+            while (i < s.Length)
             {
-                var m = z.GetType().GetMethod("GetTerrainDisplayName", System.Type.EmptyTypes);
-                if (m != null) return (m.Invoke(z, null) as string) ?? "";
+                if (i + 1 < s.Length && s[i] == '{' && s[i + 1] == '{')
+                {
+                    i += 2;
+                    int bar = s.IndexOf('|', i);
+                    int close = s.IndexOf("}}", i);
+                    if (bar >= 0 && (close < 0 || bar < close)) i = bar + 1;   // drop the colour code
+                    continue;
+                }
+                if (i + 1 < s.Length && s[i] == '}' && s[i + 1] == '}') { i += 2; continue; }
+                sb.Append(s[i]); i++;
             }
-            catch { }
-            return "";
+            return sb.ToString().Trim().TrimEnd('!');
         }
 
         /// Player vitals + stats for the frame's status bar (top row). Every read is guarded so a
-        /// missing part or wrong stat name never fails the snapshot — a bad name just reads 0.
-        /// TODO: hunger/thirst status strings (Famished/Tumescent) — the Stomach part has no simple
-        /// getter, needs a dedicated pass.
+        /// missing part never fails the snapshot. AV/DV/MA use Stats.GetCombat* (Qud's displayed
+        /// values, which fold in attribute modifiers) so they match the game's own status bar.
         private static void WriteStats(JsonWriter j, GameObject player, Zone z)
         {
             if (player == null) return;
@@ -391,12 +399,22 @@ namespace RavesOfQud
             try { if (player.pPhysics != null) j.Member("temp", player.pPhysics.Temperature); } catch { }
             j.Member("qn", SafeStat(player, "Speed"));       // Quickness (100 nominal)
             j.Member("ms", SafeStat(player, "MoveSpeed"));   // Move speed (100 nominal)
-            j.Member("av", SafeStat(player, "AV"));
-            j.Member("dv", SafeStat(player, "DV"));
-            j.Member("ma", SafeStat(player, "MA"));
+            try { j.Member("av", XRL.Rules.Stats.GetCombatAV(player)); } catch { }
+            try { j.Member("dv", XRL.Rules.Stats.GetCombatDV(player)); } catch { }
+            try { j.Member("ma", XRL.Rules.Stats.GetCombatMA(player)); } catch { }
             try { j.Member("weight", player.GetCarriedWeight()).Member("weightMax", player.GetMaxCarriedWeight()); } catch { }
-            try { j.Member("water", player.GetFreeDrams("Water")); } catch { }   // fresh water = currency
-            j.Member("terrain", TerrainName(z));
+            try { j.Member("water", player.GetFreeDrams("water")); } catch { }   // fresh water = currency (lowercase liquid id)
+            try
+            {
+                var st = player.GetPart<Stomach>();
+                if (st != null)
+                {
+                    j.Member("hunger", StripMarkup(st.FoodStatus()));    // Sated / Hungry / Famished
+                    j.Member("thirst", StripMarkup(st.WaterStatus()));   // Parched / Thirsty / Quenched / Tumescent
+                }
+            }
+            catch { }
+            try { if (z != null) j.Member("terrain", z.DisplayName ?? ""); } catch { }   // "salt marsh, surface"
             j.EndObject();
         }
 

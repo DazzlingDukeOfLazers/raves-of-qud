@@ -26,6 +26,7 @@ const COL_PANEL := Color(0.10, 0.11, 0.14)
 const COL_BG := Color(0.055, 0.065, 0.085)
 
 var _holo_vp: SubViewport   # the embedded Holodeck (Main.tscn) renders into this
+var _forwarding := false    # reentry guard so key-forwarding into the SubViewport can't recurse
 
 # Live status-bar labels, updated from each snapshot's `stats` block.
 var _l_name: Label
@@ -38,7 +39,9 @@ var _l_av: Label
 var _l_dv: Label
 var _l_ma: Label
 var _l_biome: Label
-var _daynight: Panel
+var _l_hunger: Label
+var _l_thirst: Label
+var _daynight: Label
 
 func _ready() -> void:
 	name = "MainFrame"
@@ -173,8 +176,8 @@ func _row_status() -> Control:
 	_l_temp = _text("—")
 	h.add_child(_l_temp)
 	h.add_child(_sep())
-	h.add_child(_text("Famished", COL_HUNGER))             # hunger — PLACEHOLDER (Stomach status string TODO)
-	h.add_child(_text("Tumescent", COL_THIRST))            # thirst — PLACEHOLDER
+	_l_hunger = _text("—", COL_HUNGER); h.add_child(_l_hunger)   # hunger (Stomach FoodStatus)
+	_l_thirst = _text("—", COL_THIRST); h.add_child(_l_thirst)   # thirst (Stomach WaterStatus)
 	h.add_child(_sep())
 	_l_weight = _text("—")                                 # carry weight cur/max
 	h.add_child(_l_weight)
@@ -191,7 +194,8 @@ func _row_status() -> Control:
 	_l_ma = _text("MA: —"); h.add_child(_l_ma)             # mental armor
 	h.add_child(_sep())
 
-	_daynight = _icon(UiFont.px(get_viewport(), "body") * 1.6, Color(0.20, 0.28, 0.42))   # day/night clock image
+	_daynight = _text("☾")                                 # day/night — sun/moon glyph (placeholder for a real clock)
+	_daynight.add_theme_font_size_override("font_size", UiFont.px(get_viewport(), "title"))
 	h.add_child(_daynight)
 	h.add_child(_sep())
 
@@ -312,12 +316,19 @@ func _apply_stats(data: Dictionary) -> void:
 		_l_dv.text = "DV: %d" % int(s.get("dv", 0))
 	if _l_ma != null:
 		_l_ma.text = "MA: %d" % int(s.get("ma", 0))
+	if _l_hunger != null:
+		_l_hunger.text = String(s.get("hunger", "—"))
+	if _l_thirst != null:
+		_l_thirst.text = String(s.get("thirst", "—"))
 	if _l_biome != null:
 		var terrain := String(s.get("terrain", ""))
-		_l_biome.text = "%s · %s" % [terrain if terrain != "" else "—", _floor_name(data)]
+		# Qud's DisplayName usually already includes the stratum ("salt marsh, surface"); fall back to
+		# our own "— · surface/cavern" from zone.z if it's empty.
+		_l_biome.text = terrain if terrain != "" else ("— · %s" % _floor_name(data))
 	if _daynight != null:
 		var is_day: bool = bool(data.get("time", {}).get("isDay", true))
-		_daynight.modulate = Color(1.0, 0.92, 0.55) if is_day else Color(0.35, 0.42, 0.7)
+		_daynight.text = "☀" if is_day else "☾"
+		_daynight.add_theme_color_override("font_color", Color(1.0, 0.85, 0.35) if is_day else Color(0.6, 0.7, 1.0))
 
 ## Stratum label from zone.z (surface = 10, deeper = cavern -N, negative = the overworld map).
 func _floor_name(data: Dictionary) -> String:
@@ -331,8 +342,13 @@ func _floor_name(data: Dictionary) -> String:
 ## Forward discrete key events into the embedded Holodeck (mode 1-7, O 2D-toggle, F1, etc.). Held-key
 ## camera/movement already works through Main's per-frame Input polling, independent of focus.
 func _unhandled_key_input(e: InputEvent) -> void:
-	if _holo_vp != null:
-		_holo_vp.push_input(e)
+	if _holo_vp == null or _forwarding:
+		return
+	if e is InputEventKey and e.echo:
+		return   # don't flood the Holodeck with key-repeat echoes
+	_forwarding = true
+	_holo_vp.push_input(e)
+	_forwarding = false
 
 # ── row 4: active effects | target | context menu ────────────────────────────
 
