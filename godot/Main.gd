@@ -1286,6 +1286,32 @@ func _build_reset_button() -> void:
 	btn.pressed.connect(_reset_program)
 	layer.add_child(btn)
 
+	# Fullscreen toggle button (left of Reset). A floating window on a Retina display renders at
+	# LOGICAL resolution and macOS upscales it 2x -> pixelated text; fullscreen renders NATIVE = crisp.
+	_fs_btn = Button.new()
+	_fs_btn.focus_mode = Control.FOCUS_NONE
+	_fs_btn.anchor_left = 1.0
+	_fs_btn.anchor_right = 1.0
+	_fs_btn.offset_left = -190.0
+	_fs_btn.offset_right = -100.0
+	_fs_btn.offset_top = 10.0
+	_fs_btn.offset_bottom = 38.0
+	_fs_btn.pressed.connect(_toggle_fullscreen)
+	layer.add_child(_fs_btn)
+	_refresh_fs_btn()
+
+var _fs_btn: Button
+
+func _refresh_fs_btn() -> void:
+	if _fs_btn != null:
+		var fs := DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN
+		_fs_btn.text = "⛶ Window" if fs else "⛶ Full"
+
+func _toggle_fullscreen() -> void:
+	var fs := DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN
+	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED if fs else DisplayServer.WINDOW_MODE_FULLSCREEN)
+	_refresh_fs_btn()
+
 ## Relaunch the process, preserving the current window size via --resolution (a plain
 ## reload_current_scene would keep the old cached scripts; a restart re-reads them).
 func _reset_program() -> void:
@@ -1365,9 +1391,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		# fonts auto-scale to the right size. This is the "read it sharp" view; the side-by-side
 		# floating window stays soft (a Godot-on-macOS dev limitation). (Profiler dump moved to Shift+P.)
 		if event.keycode == KEY_P and not event.shift_pressed:
-			var fs := DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN
-			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED if fs else DisplayServer.WINDOW_MODE_FULLSCREEN)
-			return
+			_toggle_fullscreen(); return
 		# Shift+Space: wait a turn in Qud (a Godot->Qud passthrough). Takes a turn for now.
 		if event.shift_pressed and event.keycode == KEY_SPACE:
 			client.send_command("wait", {}); return
