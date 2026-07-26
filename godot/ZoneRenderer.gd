@@ -195,6 +195,8 @@ var _wall_cutaway := {}
 const CUTAWAY_MAX := 0.88         # deepest fade for a wall right on the line of sight
 const CUTAWAY_LERP := 9.0         # per-second ease, so walls fade in/out smoothly
 const CUTAWAY_LIT_MIN := 0.25     # only LIT walls fade; dark ones (already near-invisible) stay
+const NEIGHBORS8 := [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1),
+	Vector2i(1,1), Vector2i(1,-1), Vector2i(-1,1), Vector2i(-1,-1)]
 var _cell_light := {}             # Vector2i -> light frac this turn, for the cutaway's lit test
 var _orbiters: Array = []         # glowfish "bugs": [{root, motes:[{s, ...orbit params}]}]
 
@@ -1805,26 +1807,28 @@ func _wall_lit(cell: Vector2i) -> bool:
 ## of sight AND how clearly it sits BETWEEN the two; eased so it melts in/out. `enabled=false`
 ## eases everything back solid (top-down / first-person, where nothing is in the way). Called
 ## every frame by Main. Cheap: settled cells (the vast majority) skip the write.
-func apply_cutaway(eye: Vector3, focus: Vector3, dt: float, enabled := true) -> void:
+func apply_cutaway(eye: Vector3, _focus: Vector3, dt: float, enabled := true) -> void:
 	if _wall_cutaway.is_empty():
 		return
-	# Occlusion is measured HORIZONTALLY (XZ): walls are full-height vertical columns, so
-	# what matters is whether the cell sits near the camera->player line on the ground plane,
-	# not the 3D distance to its centre (an elevated camera's ray passes over wall tops).
+	# A lit wall fades when it HIDES A LIT OPEN SPACE behind it (from the camera) — so you
+	# see the lit contents (loot, a lit room, the player) instead of the rock fronting them.
+	# Occlusion is judged on the ground plane (XZ): a lit, open neighbour that's FURTHER from
+	# the camera than the wall means the wall is between the camera and that space. Cheap: only
+	# lit walls run the neighbour scan, and lit cells only exist near the player's own light.
 	var e2 := Vector2(eye.x, eye.z)
-	var f2 := Vector2(focus.x, focus.z)
-	var seg := f2 - e2
-	var seg_len := seg.length()
-	var dir := (seg / seg_len) if seg_len > 0.001 else Vector2.DOWN
 	var ease := clampf(dt * CUTAWAY_LERP, 0.0, 1.0)
 	for cell in _wall_cutaway:
 		var target := 0.0
-		if enabled and seg_len > 0.8:
-			var c := Vector2(cell.x, cell.y)
-			var t := (c - e2).dot(dir)                 # distance along the line of sight (ground)
-			if t > 0.3 and t < seg_len - 0.5 and _wall_lit(cell):  # between camera & player, and VISIBLE
-				var perp := (c - (e2 + dir * t)).length()
-				target = (1.0 - smoothstep(0.6, 1.2, perp)) * CUTAWAY_MAX
+		if enabled and _wall_lit(cell):
+			var wd := (Vector2(cell.x, cell.y) - e2).length()
+			for off in NEIGHBORS8:
+				var b: Vector2i = cell + off
+				if _wall_cutaway.has(b):
+					continue                          # neighbour is also wall — not an open space
+				if _cell_light.get(b, 0.0) > CUTAWAY_LIT_MIN \
+						and (Vector2(b.x, b.y) - e2).length() > wd + 0.3:  # lit & open & behind
+					target = CUTAWAY_MAX
+					break
 		for mi in _wall_cutaway[cell]:
 			if is_instance_valid(mi):
 				var cur: float = mi.transparency

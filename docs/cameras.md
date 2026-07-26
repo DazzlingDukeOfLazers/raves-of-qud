@@ -58,11 +58,14 @@ returns 1.5 only when `_mode == TOP_FOLLOW and not _multiview_on`.
 
 ## Wall cutaway (see through rock in the way)
 
-Walls between the camera and the player fade so the rock doesn't block the view — vital in
-caverns at a low angle. `ZoneRenderer.apply_cutaway(eye, focus, dt, enabled)` runs every frame
-(from `Main._process`): for each **live-zone** wall cell (tracked in `_wall_cutaway` as it's built),
-it fades by how close the cell centre is to the camera→player line *and* whether it sits between the
-two, eased in/out (`CUTAWAY_LERP`, up to `CUTAWAY_MAX`).
+Rock that hides a lit space from the camera fades so you can see the contents — vital in caverns at
+a low angle. `ZoneRenderer.apply_cutaway(eye, _focus, dt, enabled)` runs every frame (from
+`Main._process`): a **live-zone** wall cell (tracked in `_wall_cutaway` as it's built) fades when it
+**hides a lit, open cell behind it** — a lit neighbour (8-way) that's *further from the camera* than
+the wall (ground-plane XZ distance) means the wall is between the camera and that lit space. Eased
+in/out (`CUTAWAY_LERP`) up to `CUTAWAY_MAX`. This targets the lit *area* (loot, a lit room, the
+player standing in light), not a single point, so the thing you want to see isn't blocked by its own
+front wall. It needs only the camera position — the `focus`/player arg is unused (`_focus`).
 
 The fade is **`GeometryInstance3D.transparency`** with the wall material in
 **`ALPHA_DEPTH_PRE_PASS`**: at `transparency 0` (alpha 1) the depth pre-pass makes the wall render
