@@ -425,14 +425,32 @@ func _on_snapshot(data: Dictionary) -> void:
 		_zone_center = Vector3(float(z["width"]) / 2.0, 0.0, float(z["height"]) / 2.0)
 		_zone_dims = Vector2(float(z["width"]), float(z["height"]))
 
+	# Read the player cell FIRST. An absent/invalid cell (a mid-teardown frame, or the
+	# player briefly having no cell) reports (-1,-1) — hold the last good camera state and
+	# ignore this frame entirely rather than re-anchoring the world off garbage coords.
+	var p: Dictionary = data.get("player", {})
+	var px := int(p.get("x", -1))
+	var py := int(p.get("y", -1))
+	if px < 0 or py < 0:
+		return
+	var tile := Vector2i(px, py)
+	var moved := _prev_tile.x > -9999 and tile != _prev_tile
+
 	# Crossing a zone edge re-anchors the live zone to local coords, so the player's
 	# (px,py) jumps discontinuously (e.g. 0 -> 79) and everything on screen shifts.
 	# Shift the camera by the SAME amount (the two zones' global-origin difference) so
 	# it stays locked on the same world content — a seamless continuous crossing, no
 	# cut or sweep. Also don't read the coord jump as a step (it flipped `_facing`).
+	#
+	# GUARD — the shift only makes sense for a player who actually STEPPED over the edge:
+	# a real crossing always jumps the local tile. If the zone id changes while the player
+	# sits still (e.g. "become" swaps the body onto a stationary corpse and the reported
+	# zone id flaps), applying the shift would yank the eye off a motionless player every
+	# frame while the lerp scrolls it back — the reset-away / scroll-toward loop. So gate
+	# the whole crossing on `moved`.
 	var zid := String(z.get("id", ""))
 	var old_zid := _prev_zone_id
-	var crossed := old_zid != "" and zid != old_zid
+	var crossed := moved and old_zid != "" and zid != old_zid
 	_prev_zone_id = zid
 	if crossed and store.has_zone(old_zid) and store.has_zone(zid):
 		var oo: Vector3i = store.record(old_zid).get("origin", Vector3i.ZERO)
@@ -456,13 +474,7 @@ func _on_snapshot(data: Dictionary) -> void:
 		print("[cross] SKIPPED shift: old=%s has=%s  new=%s has=%s" % [
 			old_zid, store.has_zone(old_zid), zid, store.has_zone(zid)])
 
-	var p: Dictionary = data.get("player", {})
-	var px := int(p.get("x", -1))
-	var py := int(p.get("y", -1))
-	if px < 0 or py < 0:
-		return
-	var tile := Vector2i(px, py)
-	if not crossed and _prev_tile.x > -9999 and tile != _prev_tile:
+	if not crossed and moved:
 		# facing = the direction of the last actual step, so the camera trails behind
 		var d := Vector2(tile.x - _prev_tile.x, tile.y - _prev_tile.y)
 		if d.length() > 0.0:

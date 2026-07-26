@@ -98,12 +98,25 @@ python3 tools/capture/control.py shot              # -> shot.png; read it to ver
   height, `MIN` = absolute floor, role multipliers). Change `FRAC`/`MIN` → the whole app re-sizes.
   Press **L** in-app for the font ruler (Lorem Ipsum at each px).
 - **It's AUTOMATIC via a project-wide default theme** — `UiFont.make_theme()` builds a Theme (body
-  size + Atkinson font); Main assigns it to `get_tree().root.theme` and refreshes it on resize. So
-  **any Control that doesn't override inherits the right size/font for free — including future UI.**
-  That's how a whole imported file (CharacterCreator, zero overrides) was fixed without touching it.
-  For a non-body size, prefer `theme_type_variation = "Title"/"Big"/"Caption"` (registered on the
-  theme) over hardcoding; `UiFont.px(vp, role)` explicit overrides also work and win over the theme.
+  size + Atkinson font); Main assigns it to `get_tree().root.theme`, and `Main._stamp_theme_roots()`
+  re-broadcasts it (see the CanvasLayer trap below). Refreshed on resize. So **any Control that
+  doesn't override inherits the right size/font for free — including future UI.** That's how a whole
+  imported file (CharacterCreator, zero overrides) was fixed without touching it. For a non-body size,
+  prefer `theme_type_variation = "Title"/"Big"/"Caption"` (registered on the theme) over hardcoding;
+  `UiFont.px(vp, role)` explicit overrides also work and win over the theme.
   **Do NOT hardcode a font_size number in new UI** — it escapes the source of truth.
+- **The CanvasLayer / plain-Node theme trap (this is why "B become" was tiny).** In Godot 4 a Control
+  whose *direct parent is neither a Control nor a Window* becomes its own **theme root** and does NOT
+  inherit `get_tree().root.theme`. One `CanvasLayer` (or bare `Node`) anywhere in the chain severs
+  propagation, and the subtree silently falls back to the tiny built-in default. **Any new pop-up/HUD
+  you root under a CanvasLayer must be reconnected to the source of truth.** Two ways, pick one:
+  1. **Preferred, zero-maintenance:** add the UI subtree to the tree, then it's covered automatically
+     — `Main._stamp_theme_roots()` walks the whole tree and assigns `_ui_theme` to every theme-root
+     Control that has none (only nulls, so an intentional custom theme still wins). It runs deferred at
+     startup (after all UI is built) and on every resize. If you build UI *lazily* (only when first
+     shown) rather than in `_ready`, call `_apply_ui_fonts()` after building so the stamp re-runs.
+  2. **Self-contained:** set `my_root_control.theme = UiFont.make_theme(get_viewport())` on the top
+     Control of your subtree yourself (what OnboardingControl does).
 - **A panel that sizes its font only at build time stays TINY** — the window is still small at
   `_ready`, and the panel never grows. Re-apply `UiFont.px(...)` on every SHOW/repaint (that was the
   bug on the selection log and report form), or hook `get_viewport().size_changed` like the mode label.
