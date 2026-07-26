@@ -9,7 +9,8 @@ WITHOUT a human at the keyboard. Two channels:
               with the running Godot viewer.
   2. Godot  — Claude can't send keys to Godot, only to Qud. So Godot polls a small
               command file (<RavesOfQud>/godot_cmd); we write lines it executes:
-              `shot` (save shot.png), `cam <1-6>` (camera mode), `fph <h>` (fp height).
+              `shot` (save shot.png), `cam <1-6>` (camera mode), `fph <h>` (fp height),
+              `onboard [screen]` (open/jump the onboarding UI: devices/ktype/layout/numpad/mouse/close).
 
 Examples:
     python3 tools/capture/control.py pos                 # print player cell + zone
@@ -151,6 +152,12 @@ def main(argv):
     elif cmd == "fph":
         godot("fph " + argv[1])
         print("godot: fp height", argv[1])
+    elif cmd == "onboard":
+        # `onboard` opens the chooser; `onboard <screen>` jumps to a screen
+        # (devices/ktype/layout/numpad/mouse); `onboard close` dismisses it.
+        arg = (" " + argv[1]) if len(argv) > 1 else ""
+        godot("onboard" + arg)
+        print("godot: onboard" + arg)
     elif cmd == "shot":
         print("shot.png updated" if godot_shot() else "shot: TIMED OUT (is the viewer open?)")
     elif cmd == "qudshot":

@@ -110,6 +110,27 @@ func close() -> void:
 	_layer.visible = false
 	closed.emit()
 
+## Open directly to a named screen. Used by the remote command channel (control.py
+## `onboard <screen>`) so each screen can be screenshotted without a human at F1.
+## Does NOT save — a screenshot of the numpad layout shouldn't rewrite the user's
+## chosen keyboard type.
+func show_screen(name: String) -> void:
+	_model.load_config()
+	match name:
+		"ktype", "keyboard_type":
+			_goto(Screen.KEYBOARD_TYPE)
+		"layout", "function", "kbd":
+			_model.keyboard_type = InputModel.KeyboardType.FUNCTION_KEYS
+			_goto(Screen.LAYOUT_KBD)
+		"numpad":
+			_model.keyboard_type = InputModel.KeyboardType.NUMPAD
+			_goto(Screen.LAYOUT_KBD)
+		"mouse":
+			_goto(Screen.LAYOUT_MOUSE)
+		_:
+			_goto(Screen.DEVICES)
+	_layer.visible = true
+
 func is_open() -> bool:
 	return _layer != null and _layer.visible
 

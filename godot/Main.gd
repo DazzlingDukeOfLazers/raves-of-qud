@@ -332,15 +332,23 @@ func _neighbor_zones() -> Array:
 # Claude can't send keys to Godot, only commands to Qud's bridge. So Godot polls a
 # small command file: control.py writes lines, we execute + delete. Lets an external
 # driver trigger Godot-side actions (screenshot, switch camera) to close the loop.
+## The RavesOfQud data dir. Prefer the renderer's tiles dir (proven correct once a
+## turn has been taken), but fall back to the OS support dir so the command channel +
+## screenshots work BEFORE Qud connects — e.g. to photograph the onboarding UI cold.
+func _support_dir() -> String:
+	if renderer != null:
+		var b := renderer.tiles_dir().get_base_dir()
+		if b != "":
+			return b
+	return InputModel.support_dir()
+
 var _cmd_accum := 0.0
 func _poll_godot_cmd(dt: float) -> void:
 	_cmd_accum += dt
 	if _cmd_accum < 0.1:
 		return
 	_cmd_accum = 0.0
-	if renderer == null:
-		return
-	var base := renderer.tiles_dir().get_base_dir()
+	var base := _support_dir()
 	if base == "":
 		return
 	var path := base.path_join("godot_cmd")
@@ -364,6 +372,15 @@ func _exec_godot_cmd(cmd: String) -> void:
 		"fph":
 			if parts.size() > 1:
 				_fp_height = clampf(float(parts[1]), 0.15, 3.0)
+		"onboard":
+			# `onboard` opens the chooser; `onboard <screen>` jumps to a screen
+			# (devices/ktype/layout/numpad/mouse); `onboard close` dismisses it.
+			if parts.size() > 1 and parts[1] == "close":
+				onboarding.close()
+			elif parts.size() > 1:
+				onboarding.show_screen(parts[1])
+			else:
+				onboarding.open()
 
 var _bg_draw_accum := 0.0
 const BG_DRAW_INTERVAL := 0.05   # ~20fps forced draws while unfocused
@@ -717,7 +734,7 @@ func _dump_profile(reset := true) -> void:
 ## and this is better anyway: it captures the rendered viewport exactly, with no
 ## window chrome and nothing overlapping it.
 func _screenshot(clean := false, forced := false) -> void:
-	var dir := renderer.tiles_dir().get_base_dir()
+	var dir := _support_dir()
 	if dir == "":
 		return
 	# `clean` drops the text report out of frame so the shot shows the scene; the
