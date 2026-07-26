@@ -15,7 +15,7 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 [application]
 
 config/name="Raves of Qud"
-run/main_scene="res://Main.tscn"
+run/main_scene="res://MainFrame.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
 
 [display]

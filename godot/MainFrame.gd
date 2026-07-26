@@ -1,0 +1,316 @@
+extends Control
+
+## MAIN GAMEPLAY FRAMING — the chrome around the whole gameplay view.
+##
+## This is ROUGH framing only: real Control chrome (status bar, vitals, menus, command bar) with
+## PLACEHOLDER data, plus labelled placeholder CELLS for the sub-views that each get their own Godot
+## scene later (the Holodeck, minimap, nearby-objects, message log, …). The layout is five stacked
+## rows; row 3 (the Holodeck + side panels) expands to take the free space, split by a draggable
+## "grabby" separator.
+##
+## Built in GDScript (like Main.gd / OnboardingControl) so the .tscn stays a single node. Fonts come
+## from the one source of truth, UiFont — the root theme propagates to every child Control here (no
+## CanvasLayer in between, so it just inherits). Press F12 to drop a screenshot next to the others.
+##
+## NOT wired to Qud yet — it runs standalone so the layout can be iterated fast. Placeholder values
+## are illustrative; the real bindings arrive with each view.
+
+# Placeholder status colours — tuned later against Qud's real palette.
+const COL_HUNGER := Color(0.90, 0.55, 0.20)   # Famished — warm/hungry
+const COL_THIRST := Color(0.35, 0.65, 1.00)   # Tumescent — water-blue (water is also currency)
+const COL_HP := Color(0.25, 0.80, 0.32)       # HP bar — green
+const COL_EXP := Color(0.46, 0.52, 0.64)      # LVL/EXP bar — bluish grey
+const COL_DIM := Color(1, 1, 1, 0.45)
+const COL_BORDER := Color(1, 1, 1, 0.12)
+const COL_PANEL := Color(0.10, 0.11, 0.14)
+const COL_BG := Color(0.055, 0.065, 0.085)
+
+func _ready() -> void:
+	name = "MainFrame"
+	set_anchors_preset(Control.PRESET_FULL_RECT)
+	theme = UiFont.make_theme(get_viewport())   # one source of truth; children inherit
+	get_viewport().size_changed.connect(_on_resize)
+
+	var bg := ColorRect.new()
+	bg.color = COL_BG
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(bg)
+
+	var rows := VBoxContainer.new()
+	rows.set_anchors_preset(Control.PRESET_FULL_RECT)
+	rows.add_theme_constant_override("separation", 4)
+	add_child(rows)
+
+	rows.add_child(_row_status())        # 1: top status strip
+	rows.add_child(_row_vitals_menu())   # 2: HP/EXP  |  top menu
+	rows.add_child(_row_main())          # 3: Holodeck | side panels  (expands)
+	rows.add_child(_row_context())       # 4: effects | target | context menu
+	rows.add_child(_row_command())       # 5: command bar (abilities)
+
+func _on_resize() -> void:
+	UiFont.refresh_theme(theme, get_viewport())
+
+func _input(e: InputEvent) -> void:
+	if e is InputEventKey and e.pressed and not e.echo and e.keycode == KEY_F12:
+		_shot()
+
+# ── helpers ────────────────────────────────────────────────────────────────
+
+func _text(s: String, col := Color.WHITE, role := "body") -> Label:
+	var l := Label.new()
+	l.text = s
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	if col != Color.WHITE:
+		l.add_theme_color_override("font_color", col)
+	if role != "body":
+		l.add_theme_font_size_override("font_size", UiFont.px(get_viewport(), role))
+	return l
+
+func _sep() -> VSeparator:
+	return VSeparator.new()
+
+## A bordered panel — used for the chrome strips and as the frame around placeholder cells.
+func _panel_style(bg := COL_PANEL) -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = bg
+	sb.set_border_width_all(1)
+	sb.border_color = COL_BORDER
+	sb.set_corner_radius_all(3)
+	sb.content_margin_left = 8
+	sb.content_margin_right = 8
+	sb.content_margin_top = 5
+	sb.content_margin_bottom = 5
+	return sb
+
+func _strip() -> PanelContainer:
+	var p := PanelContainer.new()
+	p.add_theme_stylebox_override("panel", _panel_style())
+	return p
+
+## A labelled placeholder for a sub-view that gets its own Godot scene later.
+func _cell(title: String, min_size := Vector2.ZERO) -> PanelContainer:
+	var p := PanelContainer.new()
+	p.add_theme_stylebox_override("panel", _panel_style(Color(0.09, 0.10, 0.13)))
+	if min_size != Vector2.ZERO:
+		p.custom_minimum_size = min_size
+	var v := VBoxContainer.new()
+	v.alignment = BoxContainer.ALIGNMENT_CENTER
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	v.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	p.add_child(v)
+	var t := _text(title)
+	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(t)
+	var hint := _text("(view)", COL_DIM, "caption")
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(hint)
+	return p
+
+## A little square placeholder for an icon (player portrait, ability icon, …).
+func _icon(px_size: float, col := Color(0.30, 0.34, 0.42)) -> Panel:
+	var p := Panel.new()
+	p.custom_minimum_size = Vector2(px_size, px_size)
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = col
+	sb.set_corner_radius_all(3)
+	p.add_theme_stylebox_override("panel", sb)
+	return p
+
+func _menu_btn(txt: String) -> Button:
+	var b := Button.new()
+	b.text = txt
+	b.focus_mode = Control.FOCUS_NONE
+	return b
+
+func _bar(value: float, maxv: float, col: Color) -> ProgressBar:
+	var pb := ProgressBar.new()
+	pb.min_value = 0.0
+	pb.max_value = maxv
+	pb.value = value
+	pb.show_percentage = false
+	pb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	pb.custom_minimum_size = Vector2(0, 14)
+	var bgs := StyleBoxFlat.new()
+	bgs.bg_color = Color(0, 0, 0, 0.35)
+	bgs.set_corner_radius_all(3)
+	var fills := StyleBoxFlat.new()
+	fills.bg_color = col
+	fills.set_corner_radius_all(3)
+	pb.add_theme_stylebox_override("background", bgs)
+	pb.add_theme_stylebox_override("fill", fills)
+	return pb
+
+# ── row 1: status strip ──────────────────────────────────────────────────────
+
+func _row_status() -> Control:
+	var strip := _strip()
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 8)
+	strip.add_child(h)
+
+	h.add_child(_icon(UiFont.px(get_viewport(), "body")))   # player portrait (same tile as the Holodeck marker, later)
+	var name_l := _text("Warden Indrix")
+	name_l.custom_minimum_size = Vector2(220, 0)             # reserve width so long names don't shove the strip
+	name_l.clip_text = true
+	h.add_child(name_l)
+
+	h.add_child(_text("22 °C"))
+	h.add_child(_sep())
+	h.add_child(_text("Famished", COL_HUNGER))              # hunger
+	h.add_child(_text("Tumescent", COL_THIRST))             # thirst
+	h.add_child(_sep())
+	h.add_child(_text("45/120 #"))                          # carry weight cur/max
+	h.add_child(_text("12 $", COL_THIRST))                  # fresh water in drams (= currency)
+	h.add_child(_sep())
+	h.add_child(_text("QN: 100"))                           # quickness (100 nominal)
+	h.add_child(_sep())
+	h.add_child(_text("MS: 100"))                           # move speed (100 nominal)
+	h.add_child(_sep())
+	h.add_child(_text("AV: 8"))                             # attack value
+	h.add_child(_sep())
+	h.add_child(_text("DV: 6"))                             # defense value
+	h.add_child(_text("MA: 4"))                             # (unsure — mental armor?)
+	h.add_child(_sep())
+
+	var day := _icon(UiFont.px(get_viewport(), "body") * 1.6, Color(0.20, 0.28, 0.42))   # day/night clock image
+	h.add_child(day)
+	h.add_child(_sep())
+
+	h.add_child(_text("Salt Marsh · surface"))             # biome, floor
+	var tail := Control.new()                              # push nothing; keep items left-packed
+	tail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	h.add_child(tail)
+	return strip
+
+# ── row 2: vitals (HP / LVL-EXP)  |  top menu ────────────────────────────────
+
+func _row_vitals_menu() -> Control:
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 6)
+
+	# col 1 — two stacked vitals rows, each a label + a coloured percent bar
+	var vitals := _strip()
+	vitals.custom_minimum_size = Vector2(420, 0)
+	var vb := VBoxContainer.new()
+	vb.add_theme_constant_override("separation", 4)
+	vitals.add_child(vb)
+
+	var hp := HBoxContainer.new()
+	hp.add_theme_constant_override("separation", 8)
+	var hp_l := _text("HP: 30/30", COL_HP)
+	hp_l.custom_minimum_size = Vector2(160, 0)
+	hp.add_child(hp_l)
+	hp.add_child(_bar(30, 30, COL_HP))
+	vb.add_child(hp)
+
+	var xp := HBoxContainer.new()
+	xp.add_theme_constant_override("separation", 8)
+	var xp_l := _text("LVL: 3   EXP: 1200/2500", COL_EXP)
+	xp_l.custom_minimum_size = Vector2(160, 0)
+	xp.add_child(xp_l)
+	xp.add_child(_bar(1200, 2500, COL_EXP))
+	vb.add_child(xp)
+	h.add_child(vitals)
+
+	# col 2 — top menu (fills the rest)
+	var menu := _strip()
+	menu.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var mh := HBoxContainer.new()
+	mh.add_theme_constant_override("separation", 4)
+	menu.add_child(mh)
+	for label in ["≡", "🔒 Lock", "🗺 Minimap", "Look", "Wait", "Character",
+			"POI", "Auto-explore", "▼ Down", "▲ Up"]:
+		mh.add_child(_menu_btn(label))
+	h.add_child(menu)
+	return h
+
+# ── row 3: Holodeck  |grabby|  side panels  (expands to fill) ─────────────────
+
+func _row_main() -> Control:
+	var split := HSplitContainer.new()
+	split.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	split.split_offset = 900   # give the Holodeck the lion's share; user can drag the separator
+
+	var holo := _cell("HOLODECK")
+	holo.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	split.add_child(holo)
+
+	var side := VBoxContainer.new()
+	side.custom_minimum_size = Vector2(320, 0)
+	side.add_theme_constant_override("separation", 4)
+	var mini := _cell("Minimap", Vector2(0, 220))
+	var near := _cell("Nearby objects")
+	near.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	var log := _cell("Message log")
+	log.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	side.add_child(mini)
+	side.add_child(near)
+	side.add_child(log)
+	split.add_child(side)
+	return split
+
+# ── row 4: active effects | target | context menu ────────────────────────────
+
+func _row_context() -> Control:
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 6)
+	var eff := _cell("Active effects", Vector2(0, 90))
+	eff.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var tgt := _cell("Target", Vector2(0, 90))
+	tgt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var ctx := _cell("Context menu", Vector2(0, 90))   # multipurpose text menu (fire / no weapon / …)
+	ctx.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	h.add_child(eff)
+	h.add_child(tgt)
+	h.add_child(ctx)
+	return h
+
+# ── row 5: command bar — ability tabs + ability slots ────────────────────────
+
+func _row_command() -> Control:
+	var strip := _strip()
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 6)
+	strip.add_child(h)
+
+	h.add_child(_menu_btn("⮂ Tabs"))   # toggle ability tabs
+	h.add_child(_sep())
+	# Abilities [0:N] — icon + name + (status) + hotkey. Placeholders for now.
+	var demo := [
+		{"name": "Sprint", "key": "1", "status": ""},
+		{"name": "Bull Rush", "key": "2", "status": ""},
+		{"name": "Regeneration", "key": "3", "status": "cooldown"},
+		{"name": "Sunder Armor", "key": "4", "status": ""},
+	]
+	for i in demo.size():
+		h.add_child(_ability_slot(demo[i]))
+	var tail := Control.new()
+	tail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	h.add_child(tail)
+	return strip
+
+func _ability_slot(a: Dictionary) -> Control:
+	var p := PanelContainer.new()
+	p.add_theme_stylebox_override("panel", _panel_style(Color(0.12, 0.13, 0.17)))
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 6)
+	p.add_child(h)
+	h.add_child(_icon(UiFont.px(get_viewport(), "body")))
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 0)
+	v.add_child(_text(String(a.get("name", "")), Color.WHITE, "caption"))
+	var st := String(a.get("status", ""))
+	if st != "":
+		v.add_child(_text(st, COL_DIM, "caption"))
+	h.add_child(v)
+	h.add_child(_text("[%s]" % String(a.get("key", "")), COL_DIM, "caption"))
+	return p
+
+# ── screenshot (F12) ─────────────────────────────────────────────────────────
+
+func _shot() -> void:
+	var img := get_viewport().get_texture().get_image()
+	var path := InputModel.support_dir().path_join("frame_shot.png")
+	img.save_png(path)
+	print("[frame] shot -> ", path)
