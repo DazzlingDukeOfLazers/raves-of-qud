@@ -30,3 +30,29 @@ static func px(vp: Viewport, role := "body", bump := 0) -> int:
 		h = vp.get_visible_rect().size.y
 	var mult := float(ROLE.get(role, 1.0))
 	return maxi(MIN, int(h * FRAC * mult) + bump)
+
+## THE automatic hook: a project-wide default Theme carrying the body size + the bundled Atkinson
+## font. Assign it to the ROOT viewport (Main does this) and EVERY Control that doesn't explicitly
+## override — CharacterCreator, and any UI written in the future — inherits the source-of-truth size
+## and font for free. Explicit `add_theme_font_size_override` calls still win where a specific role
+## is wanted. Also registers Label/Button type variations ("Title","Big","Caption") so new code can
+## pick a role with `theme_type_variation = "Title"` instead of hardcoding a number.
+static func make_theme(vp: Viewport) -> Theme:
+	var t := Theme.new()
+	var f := load("res://fonts/AtkinsonHyperlegible-Regular.ttf")
+	if f != null:
+		t.default_font = f
+	refresh_theme(t, vp)
+	return t
+
+## Re-stamp a theme's sizes for the current window (call on resize). Keeps the default + every role
+## variation in sync with px().
+static func refresh_theme(t: Theme, vp: Viewport) -> void:
+	if t == null:
+		return
+	t.default_font_size = px(vp, "body")
+	for role in ROLE.keys():
+		var vtype: String = String(role).capitalize()   # "Caption" / "Body" / "Title" / "Big"
+		for base in ["Label", "Button", "CheckBox", "LineEdit", "TextEdit", "OptionButton"]:
+			t.set_type_variation(vtype, base)
+			t.set_font_size("font_size", vtype, px(vp, role))

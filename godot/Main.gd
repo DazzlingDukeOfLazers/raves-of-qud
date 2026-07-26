@@ -183,6 +183,7 @@ var _panning := false
 var _mode_label: Label
 var _debug_menu_title: Label
 var _reset_btn: Button
+var _ui_theme: Theme   # project-wide default theme (UiFont) on the root viewport — see _ready
 
 # Responsive HUD text: a fraction of viewport height, but never below a floor —
 # "min(px, %vh)" web sensibility, re-applied on window resize.
@@ -195,6 +196,7 @@ func _ui_font_size() -> int:
 ## menu (title, mode buttons, toggle buttons, slider labels), and the corner Reset button. Re-run on
 ## window resize so it tracks the viewport.
 func _apply_ui_fonts() -> void:
+	UiFont.refresh_theme(_ui_theme, get_viewport())   # keep the project-wide default in sync with the window
 	var fs := _ui_font_size()
 	if _mode_label != null:
 		_mode_label.add_theme_font_size_override("font_size", fs)
@@ -234,6 +236,12 @@ const DIST_MIN := 2.1        # closest zoom: with COMPASS_PITCH_NEAR this puts t
 const DIST_MAX := 140.0
 
 func _ready() -> void:
+	# Source-of-truth fonts, made AUTOMATIC: a project-wide default theme on the root viewport, so
+	# every Control that doesn't override — CharacterCreator, and any future UI — inherits the UiFont
+	# body size + the Atkinson font for free. Refreshed on resize in _apply_ui_fonts.
+	_ui_theme = UiFont.make_theme(get_viewport())
+	get_tree().root.theme = _ui_theme
+
 	renderer = ZoneRenderer.new()
 	add_child(renderer)
 
