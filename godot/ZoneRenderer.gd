@@ -1692,10 +1692,12 @@ const LANDMARKS := [
 
 ## Reposition the (build-once) landmarks for the player's current zone. Surface only — the world map
 ## draws its own miniature tiles; underground has no sky.
-# BISECTION SWITCH: false disables ALL surface landmarks. Flipped off to isolate a Metal crash that
-# appeared with the giant-landmark work (build-once + the Red Rock voxel mound). With it off the
-# surface renders as it did before landmarks existed — a known-good base to bisect from.
-const LANDMARKS_ENABLED := false
+# Landmarks confirmed as the crash source by bisection (off = stable). The crash writes NO report,
+# so it's a GPU hang/timeout, not a memory fault — pointing at fillrate, i.e. the huge additive glow
+# quads. LANDMARK_GLOW gates them off while we confirm; the sprites/voxels themselves are cheap
+# alpha-scissor geometry. Re-enabled with glow OFF to test.
+const LANDMARKS_ENABLED := true
+const LANDMARK_GLOW := false
 func _rebuild_landmarks(zone: Dictionary) -> void:
 	if not LANDMARKS_ENABLED or _world_map or _underground:
 		_landmarks_root.visible = false
@@ -1817,7 +1819,7 @@ func _landmark_sprite(tile: String, main_c: String, detail_c: String, pos: Vecto
 	s.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y    # upright, turns to face the camera
 	s.position = pos
 	parent.add_child(s)
-	if not glow:
+	if not glow or not LANDMARK_GLOW:
 		return
 	# additive glow: the same art blended ADD and slightly larger, so it self-illuminates and glows
 	# against the night sky instead of reading as a thin dim thread.
