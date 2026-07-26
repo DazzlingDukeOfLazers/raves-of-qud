@@ -135,7 +135,10 @@ var _ground_mat: StandardMaterial3D
 # says what Qud sent; this says how it was classified and where it landed — the
 # gap between those two is where every rendering bug so far has lived.
 # Read by CellInspector; rebuilt each snapshot.
-var _placed := {}   # Vector2i -> Array[{idx, kind, y}]
+var _placed := {}   # Vector2i -> Array[{idx, kind, y}]  (static build: walls, floors, sprites)
+var _dyn_placed := {}   # same, for the live DYNAMIC pass (creatures) — cleared every turn, so
+                        # the inspector reports a creature's real render instead of "dropped"
+var _dyn_noting := false
 
 # Torch/fire light. The world uses UNSHADED materials, so a real Godot light
 # does nothing. Instead each lit object gets an ADDITIVE warm ground-glow plus a
@@ -427,6 +430,8 @@ func _rebuild_dynamics(cells: Array) -> void:
 	_orbiters.clear()           # those orbiter roots were children of _dynamic_root (just freed)
 	_bank = _dynamic_root
 	_noting = false
+	_dyn_placed.clear()         # record this turn's creatures for the inspector
+	_dyn_noting = true
 	for cell in cells:
 		var cx := int(cell.get("x", 0))
 		var cy := int(cell.get("y", 0))
@@ -450,6 +455,7 @@ func _rebuild_dynamics(cells: Array) -> void:
 				if _is_glowfish(obj):
 					_make_orbiters(cx, cy)     # bioluminescent bugs circling the fish
 			idx += 1
+	_dyn_noting = false
 	_noting = true
 	_bank = null
 	# Per-cell darkness runs EVERYWHERE, not just underground: it is driven purely by
@@ -632,16 +638,22 @@ func _sync_neighbors(neighbors: Array) -> void:
 # --- introspection (for CellInspector) --------------------------------------
 
 func _note(cx: int, cy: int, idx: int, kind: String, y: float) -> void:
-	if not _noting:
-		return   # dynamic-only (creature) rebuilds don't record; _placed holds the static zone
+	var target: Dictionary
+	if _noting:
+		target = _placed          # static build (walls, floors, static sprites)
+	elif _dyn_noting:
+		target = _dyn_placed      # live dynamic pass (creatures), cleared each turn
+	else:
+		return                    # neighbour builds etc.: not inspected
 	var k := Vector2i(cx, cy)
-	if not _placed.has(k):
-		_placed[k] = []
-	_placed[k].append({"idx": idx, "kind": kind, "y": y})
+	if not target.has(k):
+		target[k] = []
+	target[k].append({"idx": idx, "kind": kind, "y": y})
 
 ## What the renderer did with cell (cx, cy): [{idx, kind, y}, ...]
 func placements_at(cx: int, cy: int) -> Array:
-	return _placed.get(Vector2i(cx, cy), [])
+	var k := Vector2i(cx, cy)
+	return _placed.get(k, []) + _dyn_placed.get(k, [])
 
 ## The decoded tile mask for a tile path, or null if it hasn't been exported yet.
 func tile_image(tile: String) -> Image:

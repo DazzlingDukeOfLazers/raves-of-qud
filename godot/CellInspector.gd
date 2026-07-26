@@ -157,6 +157,14 @@ func _pick_cell(hit: Vector3, cam: Camera3D, mp: Vector2) -> Vector2i:
 
 # --- the report -------------------------------------------------------------
 
+## Qud LightLevel byte -> a short human label (matches ZoneRenderer's darkness mapping).
+func _light_name(lv: int) -> String:
+	if lv <= 0: return "(Blackout)"
+	if lv == 1: return "(None — dark)"
+	if lv < 30: return "(darkvision — reads dark)"
+	if lv < 200: return "(Safelight — dim)"
+	return "(Lit)"
+
 func build_report(cx: int, cy: int, hit: Vector3) -> String:
 	var L: Array[String] = []
 	var zone: Dictionary = _snap.get("zone", {})
@@ -182,8 +190,10 @@ func build_report(cx: int, cy: int, hit: Vector3) -> String:
 	var cell: Dictionary = _by_cell[Vector2i(cx, cy)]
 	_update_preview(cell)
 	var sink := _renderer.cell_sink(cell) if _renderer != null else 0.0
-	L.append("cell flags: bridge=%s wade=%s swim=%s   -> sink %.2f" % [
-		cell.get("bridge", false), cell.get("wade", false), cell.get("swim", false), sink])
+	var lv := int(cell.get("light", -1))
+	var lstr := "n/a (pre-cell-light mod)" if lv < 0 else "%d %s" % [lv, _light_name(lv)]
+	L.append("cell flags: bridge=%s wade=%s swim=%s  light=%s   -> sink %.2f" % [
+		cell.get("bridge", false), cell.get("wade", false), cell.get("swim", false), lstr, sink])
 
 	# what the renderer did, keyed by object index so it lines up below
 	var acts := {}
