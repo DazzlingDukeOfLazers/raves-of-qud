@@ -40,11 +40,14 @@ instanced inside a `SubViewportContainer` → `SubViewport` (`own_world_3d`) —
   biome=`Zone.DisplayName`. Adding a field is: emit it in WriteStats → read it in `_apply_stats`.
 - Key input reaches the embedded Holodeck via `MainFrame._unhandled_key_input` → `SubViewport.push_input`,
   behind a **reentry guard** (forwarding without it recursed and crashed — don't remove the guard).
-- **Holodeck is OFF at startup** (an "Enable Holodeck" button in the cell). Instancing Main during the
-  app's own launch raced the Metal init and intermittently crashed/greyed the FIRST launch; deferring
-  it to a click sidesteps that. `_enable_holodeck()` instances Main then — so the status bar is also
-  blank (`—`) until you enable it (its data rides Main's snapshot signal). Everything comes online on
-  the click. The exported app writes NO crash report (ad-hoc signed), so this was traced by elimination.
+- **Holodeck is OFF at startup** (an "Enable Holodeck" button in the cell); status bar/log are blank
+  (`—`) until you enable it (their data rides Main's snapshot signal). `_enable_holodeck()` instances
+  Main into a SubViewport whose render starts **DISABLED**, then flips it to `UPDATE_ALWAYS` after
+  `RENDER_DELAY` (~0.3s). This dodges an intermittent Metal-init crash: presenting the first 3D frame
+  in the SAME frame as instancing Main raced the driver. Two fixes stacked — deferring off startup AND
+  the render-delay on enable (isolated by splitting enable into data/render stages; the delay was the
+  part that mattered). The exported app writes NO crash report (ad-hoc), so this was traced by
+  elimination — see the export-debugging note under "Debugging rules".
 
 ## Branches & platform (parallel dev on Mac + PC)
 
