@@ -141,49 +141,74 @@ Time comes from `The.Game.Turns`/`Calendar` as **day-segments** (a day = `TurnsP
 `StartOfDay`=3250=6:30, `StartOfNight`=10000=20:00). **Qud has no moon phase** (the only "moon" is
 the Moonstair location), so none is sent or invented.
 
-**Underground has no sky.** The day/night grade is a *surface* phenomenon — a cave at noon must
-not be lit like the surface. The mod sends `zone.z` (Qud's stratum; surface is `Z==10`, deeper is
-higher). When `_depth > SURFACE_Z`, `_update_time` skips the clock, calls `_apply_cave_lighting`
-(sky/fog → near-black `CAVE_SKY`, sun/moon/sun-light off, label `Cavern -N`), and holds the global
-grade at a **near-neutral** `CAVE_TINT` — deliberately NOT dark, because the darkness is done
-per-cell instead (see below). Coming back up restores the clock.
+---
 
-**Per-cell light — caverns AND the surface at night.** A single global multiply can't do "black +
-bright light pools" (in LDR it dims the additive torch-glows too). So the mod sends each cell's
-`light` (`(int)Cell.GetLight()`, a `LightLevel` byte) for *every* zone, and `_build_darkness` runs
-everywhere, self-gating on the data: fully-lit cells emit nothing, so **midday and lit caves pay
-zero**, while **caverns and the night surface fall off to black** around light sources. It works on
-the surface at night because Qud's `Daylight` part adds a daylight radius of **0** after dusk (and
-floods the whole zone at noon), so `GetLight` genuinely goes dark at night. The one coupling: the
-day/night grade must **not** also darken at night (`NIGHT_TINT` is a bright moonlit cast, not a dim)
-or it would double-dark and kill the pools — same reason `CAVE_TINT` is near-neutral.
+## 5a. Dark zones — per-cell light from Qud's own map
 
-Mechanically, the mod sends each cell's `light` and `ZoneRenderer._build_darkness`
-lays a **per-cell darkness overlay** — one vertex-coloured MIX-black mesh, a quad over each cell's
-floor (and roof, for wall cells) whose alpha is `(1 - lightFrac) * DARK_MAX`. Built into
-`_dynamic_root` every turn, so it tracks Qud's live light as sources/the player move. `_light_frac`
-maps the byte (None=1 → 0 dark, Light=200 → 1 full). Creatures dim via `Sprite3D.modulate` by their
-cell's light (the flat overlay can't cover a standing sprite); the additive torch/glow geometry
-draws bright on top, so lit pools read against the black. Fully-lit cells add nothing to the mesh,
-so on the surface it's free.
+Caverns and the night surface should be black except around light sources, falling off to nothing —
+the way Qud shows them. This is a separate system from the day/night grade above, and the two must
+not fight.
 
-Coverage: an **open** cell darkens its floor by its own light; a **wall** cell darkens its roof
-(own light) and each **exposed vertical face** — a face by the light of the *open* cell it faces
-(what would light it), so rock beside a torch stays lit while rock in the dark goes black. Interior
-(wall-to-wall) faces are skipped, like `_place_side`. Standing sprites use `modulate`.
+**Why not just dim the grade.** The grade is a single full-screen MULTIPLY. In the LDR pipeline it
+darkens the *whole* composite — including the additive torch-glows — and LDR clamps those glows to
+1.0 *before* the multiply, so "black cave + bright pools" is impossible that way: crank the grade
+dark and the pools die with everything else. Darkness has to be applied **per cell, before** the
+additive lights, not as a global post-multiply.
 
-`_build_darkness(cells, parent)` serves both passes: the live zone bakes into `_dynamic_root`
-(rebuilt each turn, tracks moving light); each **remembered neighbour** (and stacked deeper level)
-bakes one into its own frozen subtree in `_sync_neighbors`, from that zone's *stored* light — so a
-dark cavern or night surface stays dark in memory instead of rendering fully lit. Frozen is fine:
-remembered light is stale by design.
+**The data.** The mod sends each cell's `light` = `(int)Cell.GetLight()` (a `LightLevel` byte:
+`Blackout`=0, `None`=1 … `Light`=200 …) for *every* zone. `_light_frac` maps it to 0..1 (None → 0
+dark, Light → 1 full). This is Qud's real, occlusion-aware light map, so we render exactly what the
+game computes — no re-simulating light client-side.
 
-**The departed player's sight-disc.** Qud lights a ~5-tile disc around the player so they can see
-(`GetLight` returns `Light` there, even with no carried light source). That disc *follows* the
-player, so a zone they've left keeps a cropped light where they crossed out. When baking a **frozen**
-zone `_build_darkness` takes the stored player cell (`clear_player`) and blanks the light in a
-`FROZEN_LIGHT_CLEAR_R` disc around it. It's at the zone edge (a crossing), so it almost never
-overlaps a real fixed light. The live zone passes no `clear_player` — its disc is real.
+**When it's dark.** Driven purely by the data, so it needs no mode flag:
+- **Underground** (`zone.z > SURFACE_Z`, surface is `Z==10`): `Main._apply_cave_lighting` drops the
+  clock — near-black `CAVE_SKY` void, sun/moon/sun-light off, label `Cavern -N`.
+- **Surface at night**: Qud's `Daylight` part (confirmed by decompile) adds a daylight radius from
+  `Calendar.CurrentDaySegment` that is **0 after dusk** and floods the whole zone at noon, so
+  `GetLight` genuinely goes dark at night — the same overlay just works.
+- **Daytime / lit cells** emit nothing (frac ≈ 1), so midday and lit caves cost zero.
+
+**The overlay** (`ZoneRenderer._build_darkness`). One vertex-coloured **MIX-black** mesh; each cell
+contributes quads with alpha `(1 - lightFrac) * DARK_MAX`:
+- **open cell** → a floor quad (its own light);
+- **wall cell** → a roof quad (own light) + a dark quad on each **exposed vertical face**, that face
+  dimmed by the light of the *open* cell it faces (what would light it) — so rock beside a torch
+  keeps a lit face while rock in the dark goes black. Interior (wall-to-wall) faces are skipped, the
+  same edge test as `_place_side`.
+- **creatures** can't be covered by a flat overlay, so they dim via `Sprite3D.modulate` by their
+  cell's light in the dynamic pass.
+
+The additive torch/glow geometry draws bright *on top* of the darkened tiles, so lit pools read
+against the black.
+
+**Two passes, one function.** `_build_darkness(cells, parent, clear_player)`:
+- the **live** zone bakes into `_dynamic_root`, rebuilt every turn, so it tracks Qud's light as
+  sources and the player move;
+- each **remembered neighbour** (and stacked deeper level) bakes one into its own frozen subtree in
+  `_sync_neighbors`, from that zone's *stored* light — so a zone you've left stays dark in memory
+  instead of snapping back to full brightness. Meta-guarded (`dark_baked`) to bake exactly once,
+  including the zone you *just* left (already in `_static_zones` from being live, its per-turn
+  darkness gone with `_dynamic_root`). Frozen is fine — remembered light is stale by design.
+
+**The departed player's sight-disc.** Qud lights a ~5-tile disc of `Light` around the player so they
+can see, even with no carried light source, and it *follows* them — so a zone they've left keeps a
+cropped lit disc where they crossed out. When baking a frozen zone, `_sync_neighbors` passes the
+zone's stored player cell (`clear_player`, carried through `_neighbor_zones` as `px`/`py`, and kept
+in the `WorldStore` record — which otherwise trims `player` away) and `_build_darkness` blanks the
+light in a `FROZEN_LIGHT_CLEAR_R` disc around it. It sits at the zone edge (a crossing), so it
+essentially never overlaps a real fixed light. The live zone passes no `clear_player` — its disc is
+you, and real.
+
+**The grade coupling.** Because darkness is per-cell now, the global grade must stay **bright** where
+the overlay is active or it double-darkens and kills the pools: `CAVE_TINT` is near-neutral (a faint
+cool cast) and `NIGHT_TINT` is a bright moonlit cast, *not* a dim. The overlay does the dimming; the
+grade only sets mood.
+
+**Tuning knobs:** `DARK_MAX` (deepest darkening, <1 so unlit keeps a faint memory), `CAVE_TINT` /
+`NIGHT_TINT` (mood, must stay bright), `FROZEN_LIGHT_CLEAR_R` (sight-disc erase radius). Not yet
+dimmed: **wall side faces of the live player's own cell region** are fine, but a character with a
+sight radius > `FROZEN_LIGHT_CLEAR_R` could leave a faint ring in a frozen zone (raise the constant,
+or have the mod send the real sight radius).
 
 ---
 
