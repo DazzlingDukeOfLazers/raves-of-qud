@@ -55,6 +55,7 @@ var level_height := 4.0
 # cell falls toward black; the additive torch/glow geometry is then the only light. Built
 # fresh each turn in the dynamic pass, so it follows moving light. See _build_darkness.
 var _underground := false
+var _world_map := false           # zone.z < 0: the parasang overview — flat & lit, no torch glows
 const SURFACE_Z := 10
 const DARK_MAX := 0.94          # deepest per-cell darkening (never pure black — faint memory)
 const DARK_FLOOR_Y := 0.07      # darkness quad sits just above the floor tiles
@@ -334,7 +335,9 @@ func render_snapshot(data: Dictionary, neighbors: Array = []) -> void:
 
 	var live_id := String(data.get("zone", {}).get("id", ""))
 	var cells: Array = data.get("cells", [])
-	_underground = int(data.get("zone", {}).get("z", SURFACE_Z)) > SURFACE_Z
+	var _zz := int(data.get("zone", {}).get("z", SURFACE_Z))
+	_underground = _zz > SURFACE_Z
+	_world_map = _zz < 0
 
 	# LIVE STATIC — walls + floors + static sprites + lights. Rebuilt only when you
 	# ENTER a new zone (fresh Qud data), then frozen while you step within it. This
@@ -994,6 +997,9 @@ func _override_for(tile: String) -> String:
 ## An additive warm glow on the ground (the "light") plus a small flickering flame
 ## above the sconce. Qud's radius is in cells; 1 cell == 1 world unit.
 func _place_light(cx: int, cy: int, radius: float, smokes := true) -> void:
+	if _world_map:
+		return   # the parasang overview is flat and fully lit; a flickering torch glow on a
+		         # world tile (e.g. a glowfish parasang) just oscillates distractingly — skip it.
 	# `smokes` is false for creature lights (e.g. a bioluminescent glowfish) — they glow
 	# but are not fire, so no plume. All torch nodes live in their zone's frozen subtree
 	# (the bank). Only the LIVE zone's register in _lights for the _process flicker; a
