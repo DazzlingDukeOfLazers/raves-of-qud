@@ -185,7 +185,7 @@ var _debug_menu_title: Label
 
 # Responsive HUD text: a fraction of viewport height, but never below a floor —
 # "min(px, %vh)" web sensibility, re-applied on window resize.
-const FONT_FRAC := 0.024
+const FONT_FRAC := 0.0197
 const MIN_FONT := 28
 func _ui_font_size() -> int:
 	return maxi(MIN_FONT, int(get_viewport().get_visible_rect().size.y * FONT_FRAC))
