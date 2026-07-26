@@ -69,10 +69,13 @@ front wall. **Bounded to `CUTAWAY_RADIUS` tiles around the player** — without 
 overworld would try to fade nearly every wall at once (a flood of transparent overdraw that tanks
 the framerate), and only rock near you needs to move anyway.
 
-The fade is **`GeometryInstance3D.transparency`** with the wall material in
-**`ALPHA_DEPTH_PRE_PASS`**: at `transparency 0` (alpha 1) the depth pre-pass makes the wall render
-like solid opaque geometry (correct sorting, no see-through flicker); as `transparency` rises it
-alpha-**blends** out smoothly. (An earlier `ALPHA_HASH` version faded too but screen-door dithered,
+The fade is **`GeometryInstance3D.transparency`** with the **live zone's** wall material in
+**`ALPHA_DEPTH_PRE_PASS`** (`_voxel_material_live` / `_wall_core_material(fade)` via
+`_wall_skin_material`): at `transparency 0` it renders like solid opaque geometry (the depth pre-pass
+keeps sorting correct), and blends out smoothly as `transparency` rises. **Neighbour zones use the
+plain opaque `_voxel_material`** — they never fade, and the overworld renders *many* of them, so
+routing all those walls through the transparent pipeline is what made the surface crawl; only the one
+live zone pays the fade-capable material. (An earlier `ALPHA_HASH` version faded too but screen-door dithered,
 which read as grain.) Occlusion is tested on the **ground plane (XZ)** — walls are full-height
 columns, so an elevated camera's 3D ray would pass over their tops and miss. Off in top-down,
 first-person, free-fly, and the multi-view grid. Only live-zone walls are tracked — neighbours are

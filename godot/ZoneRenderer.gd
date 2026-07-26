@@ -1729,7 +1729,7 @@ func _rebuild_walls(wall_types: Dictionary) -> void:
 		# the relief has something behind it. Without it you see straight through the
 		# gaps between protruding columns into the empty cell. Coloured a darker
 		# shade of the wall's darkest colour, so recesses read as deep shadow.
-		var core_mat := _wall_core_material()
+		var core_mat := _wall_core_material(_live_build)
 		# Side gaps bottom out on the core's outer faces (0.5 - SIDE_CARVE). Its TOP
 		# sits just below the cap's carved gap floor (WALL_H - CAP_CARVE) so it never
 		# pokes up through a roof gap; the cap draws its own recess-coloured floors.
@@ -1763,7 +1763,7 @@ func _rebuild_walls(wall_types: Dictionary) -> void:
 				if vmesh != null:
 					var rmi := MeshInstance3D.new()
 					rmi.mesh = vmesh
-					rmi.material_override = _voxel_material()
+					rmi.material_override = _wall_skin_material()
 					rmi.position = Vector3(k.x, 0.0, k.y)
 					_wall_parent().add_child(rmi)
 					_track_wall(k, rmi)
@@ -1778,7 +1778,7 @@ func _rebuild_walls(wall_types: Dictionary) -> void:
 func _place_side(mesh: ArrayMesh, k: Vector2i, deg: float) -> void:
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh
-	mi.material_override = _voxel_material()
+	mi.material_override = _wall_skin_material()
 	mi.position = Vector3(k.x, 0.0, k.y)
 	mi.rotation = Vector3(0, deg_to_rad(deg), 0)
 	_wall_parent().add_child(mi)
@@ -2104,11 +2104,12 @@ func _side_step(st: SurfaceTool, x: int, y: int, d: float, dep: Array, w: int, h
 func _wall_recess_color() -> Color:
 	return _qud_color(_wall_main).darkened(0.5).lerp(_world_bg, 0.12)
 
-func _wall_core_material() -> StandardMaterial3D:
+func _wall_core_material(fade := false) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_color = _wall_recess_color()
 	m.roughness = 0.95
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS   # smooth-fade with the skin
+	if fade:   # live zone only — fade-capable so the core dissolves with the skin in the cutaway
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL if SHADED_WORLD else BaseMaterial3D.SHADING_MODE_UNSHADED
 	return m
 
@@ -2127,18 +2128,29 @@ func _voxel_material() -> StandardMaterial3D:
 	m.vertex_color_is_srgb = true
 	m.roughness = 0.85
 	m.cull_mode = BaseMaterial3D.CULL_DISABLED
-	# ALPHA_DEPTH_PRE_PASS so the camera cutaway can SMOOTHLY blend a wall via
-	# GeometryInstance3D.transparency: at alpha 1 (transparency 0) the depth pre-pass makes
-	# it render like a solid opaque wall (correct sorting, no see-through flicker); as the
-	# instance transparency rises it alpha-blends out. (ALPHA_HASH did this too but with an
-	# ugly screen-door dither.)
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS
 	if SHADED_WORLD:
 		m.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
 	else:
 		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_voxel_mat = m
 	return m
+
+## Voxel skin material for the LIVE zone only — same as _voxel_material but ALPHA_DEPTH_PRE_PASS
+## so those walls can smoothly blend for the camera cutaway (GeometryInstance3D.transparency). At
+## transparency 0 the depth pre-pass keeps it sorting like solid opaque; as it rises it blends out.
+## Neighbour zones use the plain OPAQUE _voxel_material — they never fade, and there are MANY of them
+## on the surface, so routing them through the transparent pipeline was what made the overworld crawl.
+var _voxel_mat_live: StandardMaterial3D
+func _voxel_material_live() -> StandardMaterial3D:
+	if _voxel_mat_live == null:
+		_voxel_mat_live = _voxel_material().duplicate()
+		_voxel_mat_live.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS
+	return _voxel_mat_live
+
+## The skin material for the wall currently being built: the fade-capable one for the live zone,
+## plain opaque for neighbours (keyed off _live_build, set only during the live static build).
+func _wall_skin_material() -> StandardMaterial3D:
+	return _voxel_material_live() if _live_build else _voxel_material()
 
 func _vc_top(st: SurfaceTool, x0: float, x1: float, z0: float, z1: float, y: float, c: Color) -> void:
 	for p in [Vector3(x0, y, z0), Vector3(x1, y, z1), Vector3(x1, y, z0),
