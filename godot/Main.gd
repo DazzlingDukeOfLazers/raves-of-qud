@@ -126,8 +126,12 @@ var _zone_dims := Vector2(80, 25)   # live zone width x height in cells
 var _pan := Vector3.ZERO     # user pan offset (MOUSE mode); persists across turns
 
 # --- follow-cam -------------------------------------------------------------
-const TILES_BEHIND := 2.0    # how far back down the facing the camera sits
+const TILES_BEHIND := 1.0    # fixed camera standoff behind the player. This is the FLOOR on
+                             # how close COMPASS/FOLLOW can get (back = TILES_BEHIND + dist*cos
+                             # pitch), so it stays small — at range dist dominates and it's moot.
 const FOCUS_AHEAD := 2.0     # look at a point this far in FRONT of the player
+const PLAYER_LOOK_H := 0.55  # aim at the player's torso, not its feet, so the sprite frames up
+                             # (matters most when zoomed in close, where feet-aim buries the head)
 const FOLLOW_LERP := 6.0     # per-second approach; keeps steps from snapping
 var _player := Vector3(40, 0, 12)
 var _prev_tile := Vector2i(-9999, -9999)
@@ -172,7 +176,7 @@ func _apply_ui_fonts() -> void:
 const ORBIT_SENS := 0.006
 const PITCH_MIN := 0.12
 const PITCH_MAX := 1.45
-const DIST_MIN := 3.0
+const DIST_MIN := 1.0
 const DIST_MAX := 140.0
 
 func _ready() -> void:
@@ -495,7 +499,7 @@ func _follow_eye() -> Vector3:
 	return _player - f * back + Vector3(0, _dist * sin(_pitch), 0)
 
 func _follow_look() -> Vector3:
-	return _player + _facing3() * FOCUS_AHEAD
+	return _player + _facing3() * FOCUS_AHEAD + Vector3(0, PLAYER_LOOK_H, 0)
 
 ## MOUSE mode orbits whatever tile is selected, so inspecting and then looking
 ## around don't fight each other. Falls back to the player.
@@ -554,7 +558,7 @@ func _mode_eye_look(mode: int) -> Array:
 		CamMode.TOP_FOLLOW:
 			return [_player + Vector3(0, TOP_H, 0), _player]
 		_:  # COMPASS — the default, stable, cardinal-locked view
-			return [_compass_eye(), _player]
+			return [_compass_eye(), _player + Vector3(0, PLAYER_LOOK_H, 0)]
 
 func _update_camera(dt: float) -> void:
 	var el := _mode_eye_look(_mode)
