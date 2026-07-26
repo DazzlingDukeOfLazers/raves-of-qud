@@ -261,9 +261,10 @@ func _ready() -> void:
 	_fence_quad.size = Vector2(1, 1)  # scaled per instance
 	_wm_quad = QuadMesh.new()
 	_wm_quad.size = Vector2(CELL, WM_BILLBOARD_H)
-	# Shift the quad up so its bottom edge sits on the ground (origin at the base, not centre) —
-	# the instance transforms then place cards at (cx, 0, cy) and they stand ON the floor.
-	_wm_quad.center_offset = Vector3(0, WM_BILLBOARD_H * 0.5, 0)
+	# Centred on its origin (no offset): instances sit at half-height (cx, H/2, cy) so the card's
+	# bottom rests on the ground, and the billboard pivot is the card's own centre. That keeps it
+	# aligned on its cell in every mode — including top-down, where a full billboard lays it flat
+	# and an origin-offset would shove the flat card off its tile.
 	_wall_root = Node3D.new()
 	add_child(_wall_root)
 
@@ -1639,7 +1640,7 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 	# map routes here. See set_wm_face_ns for the follow-camera / locked-EW toggle.
 	if _world_map and not in_wall and tex != null and not _is_creature(obj):
 		var mat := _wm_billboard_material(tile, main_c, detail_c, tex)
-		_wm_billboard_add(mat, Transform3D(Basis(), Vector3(cx, 0.0, cy)))
+		_wm_billboard_add(mat, Transform3D(Basis(), Vector3(cx, WM_BILLBOARD_H * 0.5, cy)))
 		_note(cx, cy, idx, "world-map billboard (%s)" % ("EW facing N/S" if _wm_face_ns else "follows camera"), 0.0)
 		return
 
@@ -2887,6 +2888,7 @@ func set_top_down(on: bool) -> void:
 	for n in get_tree().get_nodes_in_group("tile_sprite"):
 		if is_instance_valid(n):
 			(n as Sprite3D).billboard = mode
+	_apply_wm_billboard_mode()   # world-map cards lie flat in top-down, stand up again otherwise
 
 func _take_sprite() -> Sprite3D:
 	var s: Sprite3D
@@ -2953,11 +2955,27 @@ func _wm_billboard_material(tile: String, main_c: String, detail_c: String, tex:
 	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
 	m.cull_mode = BaseMaterial3D.CULL_DISABLED
-	m.billboard_mode = BaseMaterial3D.BILLBOARD_DISABLED if _wm_face_ns else BaseMaterial3D.BILLBOARD_FIXED_Y
+	m.billboard_mode = _wm_billboard_mode()
 	m.billboard_keep_scale = true   # MultiMesh instance scale must survive the billboard transform
 	_texmat_cache[key] = m
 	_wm_materials.append(m)
 	return m
+
+## The GPU billboard mode world-map cards should use right now. Top-down wins: a straight-down
+## camera sees a vertical card edge-on (invisible), so lay them flat to face up (full billboard).
+## Otherwise it's the EW toggle: fixed panels facing N/S, or upright cards following the camera.
+func _wm_billboard_mode() -> int:
+	if _top_down:
+		return BaseMaterial3D.BILLBOARD_ENABLED
+	return BaseMaterial3D.BILLBOARD_DISABLED if _wm_face_ns else BaseMaterial3D.BILLBOARD_FIXED_Y
+
+## Re-apply the current billboard mode to every world-map card material (called when either the
+## top-down state or the EW toggle changes). Instant — no rebuild.
+func _apply_wm_billboard_mode() -> void:
+	var mode := _wm_billboard_mode()
+	for m in _wm_materials:
+		if is_instance_valid(m):
+			(m as StandardMaterial3D).billboard_mode = mode
 
 ## Queue an upright world-map card (its instance transform) under its material for this build.
 func _wm_billboard_add(mat: Material, xform: Transform3D) -> void:
@@ -2988,10 +3006,7 @@ func set_wm_face_ns(on: bool) -> void:
 	if on == _wm_face_ns:
 		return
 	_wm_face_ns = on
-	var mode := BaseMaterial3D.BILLBOARD_DISABLED if on else BaseMaterial3D.BILLBOARD_FIXED_Y
-	for m in _wm_materials:
-		if is_instance_valid(m):
-			(m as StandardMaterial3D).billboard_mode = mode
+	_apply_wm_billboard_mode()   # no-op visually while top-down (that mode wins), applied on exit
 
 func _take_label() -> Label3D:
 	if _bank == null and _label_pool.size() > 0: return _label_pool.pop_back()
