@@ -256,6 +256,23 @@ var _sprite_pool: Array[Sprite3D] = []
 var _floor_pool: Array[MeshInstance3D] = []
 var _label_pool: Array[Label3D] = []
 var _top_down := false   # top-down camera modes: tile billboards lie flat to face up
+# 2D mode: lay the WHOLE world flat. Every tile — terrain, scenery, fences, walls, world-map cards,
+# creatures — routes through the flat floor-quad path instead of standing up as a billboard/prism.
+# A true "classic 2D map" on any stratum, at any camera angle (the compass view then reads as 2.5D).
+# Toggled from Main (O key / the corner button); forces a static rebuild via set_flat_2d().
+var _flat_2d := false
+
+## Flip the whole world between 3D (upright billboards + wall prisms) and 2D (everything flat on the
+## floor). Frozen static geometry was built for the old mode, so drop it; Main re-renders the current
+## snapshot right after, which rebuilds the live zone (and neighbours) in the new mode.
+func set_flat_2d(on: bool) -> void:
+	if on == _flat_2d:
+		return
+	_flat_2d = on
+	_drop_all_static()
+
+func flat_2d() -> bool:
+	return _flat_2d
 
 func _ready() -> void:
 	_plane = PlaneMesh.new()
@@ -598,6 +615,8 @@ func _rebuild_dynamics(cells: Array) -> void:
 					_make_orbiters(cx, cy)     # bioluminescent bugs circling the fish
 			idx += 1
 	_placing_player = false
+	if _flat_2d:
+		_flush_floor_batch()   # 2D: creatures went to floor quads this turn — emit them into _dynamic_root
 	_dyn_noting = false
 	_noting = true
 	_bank = null
@@ -1404,6 +1423,8 @@ func _process(_dt: float) -> void:
 
 
 func _is_prism(obj: Dictionary) -> bool:
+	if _flat_2d:
+		return false          # 2D: no 3D wall blocks — walls fall through to flat floor tiles
 	# a user verdict wins outright — that's the point of filing one
 	var ov := _override_for(String(obj.get("tile", "")))
 	if ov == "wall":
@@ -1906,7 +1927,7 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 	# (data field or a user override) we GUESS the descent axis. Build a framed
 	# opening + a descending voxel flight in place of the sprite. Skipped if the user
 	# filed a verdict that forces the normal floor/billboard path.
-	if _is_stairs_down(obj, tile) and verdict != "billboard" and verdict != "floor" and not in_wall:
+	if _is_stairs_down(obj, tile) and verdict != "billboard" and verdict != "floor" and not in_wall and not _flat_2d:
 		var deg := _stair_dir_deg(obj, tile)
 		_place_stairs_down(cx, cy, obj, tile, main_c, detail_c, deg)
 		_note(cx, cy, idx, "stairs-down (framed floor tile, face %s)" % _deg_cardinal(deg), STAIR_FRAME_H)
@@ -1938,7 +1959,7 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 	# shaft / top). Flat cards make it a smear; instead build ONE tall vertical tower at the base
 	# cell: the flared bottom on the ground, a run of repeatable mid segments climbing up, capped by
 	# the needle top. The mid/top map cells are absorbed into that tower (rendered as nothing).
-	if WM_STANDING_CARDS and _world_map and not in_wall and _is_spindle(tile):
+	if WM_STANDING_CARDS and _world_map and not in_wall and not _flat_2d and _is_spindle(tile):
 		if tile.to_lower().contains("bottom"):
 			_place_spindle_tower(tile, main_c, detail_c, cx, cy)
 			_note(cx, cy, idx, "Spindle tower (%d segments up)" % (SPINDLE_MID_SEGMENTS + 2), 0.0)
@@ -1952,7 +1973,7 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 	# User verdicts (report form) override the automatic choice per tile: "floor" forces flat even
 	# for land, "billboard" forces a standing card even over water. Otherwise water auto-flattens.
 	var wm_card: bool = verdict != "floor" and (verdict == "billboard" or not _is_world_water(tile))
-	if WM_STANDING_CARDS and _world_map and not in_wall and tex != null and not _is_creature(obj) and wm_card:
+	if WM_STANDING_CARDS and _world_map and not in_wall and not _flat_2d and tex != null and not _is_creature(obj) and wm_card:
 		var wtex := _colored_tex_rgb(tile, _obj_main(obj), _obj_detail(obj),
 			_color_key(obj), _fill_for(tile, Fill.INTERIOR))
 		if wtex == null:
@@ -1976,7 +1997,7 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 	# reported RENDERED floor). Decide it HERE, ahead of the floor test, so a fence always stands.
 	# An explicit user verdict still wins: with a verdict filed we fall through to its own handling
 	# (the panel_ns/ew verdict path above already returned; floor/billboard/skip are honoured below).
-	if tex != null and not in_wall and verdict == "" and _is_connector(obj, tile):
+	if tex != null and not in_wall and verdict == "" and not _flat_2d and _is_connector(obj, tile):
 		var cd = _connector_dirs(tile)
 		var csolid := bool(obj.get("occluding", false))
 		var cph := _panel_height(obj, tile)
@@ -1993,7 +2014,7 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 	var upright_ground: bool = bool(obj.get("ground", false)) and _is_vegetation(tile)
 	if verdict == "billboard":
 		upright_ground = true        # force it off the floor path
-	var as_floor: bool = (layer <= FLOOR_LAYER_MAX and not upright_ground) or verdict == "floor"
+	var as_floor: bool = _flat_2d or (layer <= FLOOR_LAYER_MAX and not upright_ground) or verdict == "floor"
 
 	if as_floor:
 		if in_wall:

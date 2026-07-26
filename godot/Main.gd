@@ -882,7 +882,7 @@ func _set_mode(m: int) -> void:
 		renderer.set_top_down(m == CamMode.TOP_FOLLOW)
 	_apply_zstretch()
 	_update_mode_label()
-	_refresh_wm_cards_btn()   # top-down changes the EFFECTIVE card orientation ("flat · top-down")
+	_refresh_wm_cards_btn()   # keep the 2D/3D button label in sync
 
 ## One gesture -> everything a collaborator needs about a tile. Photograph the BARE
 ## scene FIRST (no selection overlay), then inspect — so shot.png is a clean plate
@@ -1288,10 +1288,10 @@ func _build_debug_menu() -> void:
 	fp_btn.focus_mode = Control.FOCUS_NONE
 	fp_btn.pressed.connect(_toggle_font_preview)
 	vb.add_child(fp_btn)
-	# world-map card orientation: follow the camera, or lock EW (facing N/S). Key: B.
+	# 2D/3D: lay the whole world flat (classic 2D map) or stand it up as billboards. Key: O.
 	_wm_face_btn = Button.new()
 	_wm_face_btn.focus_mode = Control.FOCUS_NONE
-	_wm_face_btn.pressed.connect(_toggle_wm_face_ns)
+	_wm_face_btn.pressed.connect(_toggle_flat_2d)
 	vb.add_child(_wm_face_btn)
 	_refresh_wm_face_btn()
 	_debug_menu = panel
@@ -1300,7 +1300,7 @@ func _build_debug_menu() -> void:
 var _compass_step_btn: Button
 var _look_btn: Button
 var _wm_face_btn: Button
-var _wm_face_ns := false   # world-map cards: false = follow camera, true = locked EW facing N/S
+var _flat_2d := false   # false = 3D upright billboards, true = everything flat on the floor (2D map)
 
 func _refresh_compass_step_btn() -> void:
 	if _compass_step_btn != null:
@@ -1312,30 +1312,26 @@ func _refresh_look_btn() -> void:
 
 func _refresh_wm_face_btn() -> void:
 	if _wm_face_btn != null:
-		_wm_face_btn.text = "world-map cards (O): %s" % ("EW → N/S" if _wm_face_ns else "follow cam")
+		_wm_face_btn.text = "tiles (O): %s" % ("2D flat" if _flat_2d else "3D billboards")
 
-## Flip world-map terrain cards between follow-the-camera billboards and fixed EW panels
-## facing N/S. Instant — the renderer flips the shared materials in place, no rebuild.
-func _toggle_wm_face_ns() -> void:
-	_wm_face_ns = not _wm_face_ns
-	renderer.set_wm_face_ns(_wm_face_ns)
+## Flip the WHOLE world — every stratum — between 3D (upright billboards + wall blocks) and 2D
+## (everything laid flat on the floor, a classic top-down map). The renderer drops its frozen
+## geometry, so re-render the current snapshot to rebuild the live zone (and neighbours) in the new
+## mode — instant feedback instead of waiting for the next turn.
+func _toggle_flat_2d() -> void:
+	_flat_2d = not _flat_2d
+	renderer.set_flat_2d(_flat_2d)
+	var live: Dictionary = store.live_snapshot()
+	if not live.is_empty():
+		renderer.render_snapshot(live, _neighbor_zones())
 	_refresh_wm_face_btn()
 	_refresh_wm_cards_btn()
 
-## Label for the persistent top-right button: the EFFECTIVE world-map card orientation. Top-down
-## overrides the EW toggle (cards lie flat to face the overhead camera), so say so — otherwise the
-## button looks broken when a click "does nothing" in that mode.
+## Label for the persistent top-right button — the current tile mode (3D up vs 2D flat).
 func _refresh_wm_cards_btn() -> void:
 	if _wm_cards_btn == null:
 		return
-	var state: String
-	if _mode == CamMode.TOP_FOLLOW:
-		state = "flat · top-down"
-	elif _wm_face_ns:
-		state = "EW → N/S"
-	else:
-		state = "follow cam"
-	_wm_cards_btn.text = "WM cards (O): %s" % state
+	_wm_cards_btn.text = "tiles (O): %s" % ("2D flat" if _flat_2d else "3D up")
 
 func _toggle_look_target() -> void:
 	_look_head = not _look_head
@@ -1387,13 +1383,12 @@ func _build_reset_button() -> void:
 	_reset_btn.pressed.connect(_reset_program)
 	box.add_child(_reset_btn)
 
-	# The world-map card toggle, surfaced as a persistent button (not just the ` debug menu and the
-	# O key) so its effect is discoverable — the label always shows the EFFECTIVE state, including
-	# "flat (top-down)" when the overhead view forces cards flat regardless of the EW toggle.
+	# The 2D/3D toggle, surfaced as a persistent button (not just the ` debug menu and the O key) so
+	# its effect is discoverable — the label shows the current tile mode (3D up vs 2D flat).
 	_wm_cards_btn = Button.new()
 	_wm_cards_btn.focus_mode = Control.FOCUS_NONE
 	_wm_cards_btn.size_flags_horizontal = Control.SIZE_SHRINK_END
-	_wm_cards_btn.pressed.connect(_toggle_wm_face_ns)
+	_wm_cards_btn.pressed.connect(_toggle_flat_2d)
 	box.add_child(_wm_cards_btn)
 	_refresh_wm_cards_btn()
 
@@ -1501,10 +1496,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.keycode == KEY_B and not event.shift_pressed \
 				and not (event.ctrl_pressed or event.meta_pressed):
 			_char_creator.toggle(renderer.tiles_dir().get_base_dir()); return
-		# O: world-map cards follow camera <-> lock EW (facing N/S). (Was B; moved off B when the
-		# character-creator merge took B for "become".)
+		# O: flip the whole world 3D (billboards) <-> 2D (flat on the floor). (Was B; moved off B
+		# when the character-creator merge took B for "become".)
 		if event.keycode == KEY_O:
-			_toggle_wm_face_ns(); return
+			_toggle_flat_2d(); return
 		# Q/E rotate the locked compass heading (COMPASS mode only), 45° or 90° per _compass_45
 		if _mode == CamMode.COMPASS and event.keycode == KEY_Q:
 			_compass_yaw += _compass_step(); return
