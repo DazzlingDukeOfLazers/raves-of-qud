@@ -40,8 +40,12 @@ func ingest(data: Dictionary) -> String:
 	if id == "":
 		return ""
 	var is_new := not _zones.has(id)
-	# a remembered zone only needs its coords + cells; drop palette/time/player/etc.
-	var trimmed := {"zone": zone, "cells": data.get("cells", [])}
+	# a remembered zone needs its coords + cells; drop palette/time/etc. KEEP the player
+	# CELL (just x,y): the renderer erases the sight-disc the player carried out of a zone
+	# they've left, so a frozen zone needs to know where they were standing (its edge).
+	var pl: Dictionary = data.get("player", {})
+	var trimmed := {"zone": zone, "cells": data.get("cells", []),
+		"player": {"x": int(pl.get("x", -1)), "y": int(pl.get("y", -1))}}
 	_zones[id] = _make_record(trimmed, _tick)
 	if is_new:
 		_persist(id)   # save on first sight, so a reload brings it back even if never left
