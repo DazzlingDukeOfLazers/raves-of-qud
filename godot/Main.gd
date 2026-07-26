@@ -31,6 +31,7 @@ var store := WorldStore.new()   # Phase-0 world store; renderer reads the live z
 var _prof_turns := 0            # for the periodic profile auto-dump
 var inspector: CellInspector
 var reporter: TileReport
+var onboarding: OnboardingControl
 
 # Day/night grade. The world is UNSHADED, so a real light does nothing; instead a
 # full-screen MULTIPLY rect tints the whole viewport by time of day. It sits below
@@ -218,6 +219,10 @@ func _ready() -> void:
 	add_child(reporter)
 	reporter.setup(renderer)
 	reporter.dismissed.connect(_dismiss_selection)
+
+	onboarding = OnboardingControl.new()
+	add_child(onboarding)
+	onboarding.setup()
 
 func _on_snapshot(data: Dictionary) -> void:
 	# Route the render through the store: draw the live zone plus any remembered
@@ -758,7 +763,7 @@ const _MODE_NAMES := {
 }
 
 func _update_mode_label() -> void:
-	_mode_label.text = "camera: %s     ·  ` menu · 1-6 modes" % _MODE_NAMES.get(_mode, "?")
+	_mode_label.text = "camera: %s     ·  ` menu · 1-6 modes · F1 controls" % _MODE_NAMES.get(_mode, "?")
 	if _time_label != "":
 		_mode_label.text += "     ⏱ " + _time_label
 	_update_debug_menu()
@@ -821,6 +826,10 @@ func _update_debug_menu() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
+		# F1 opens the controls chooser. (While it's open it swallows input via its
+		# own _input, so this handler won't see keys until it closes.)
+		if event.keycode == KEY_F1:
+			onboarding.open(); return
 		# mode switches first — they reassign what the arrows mean
 		if event.shift_pressed and event.keycode == KEY_C:
 			_set_mode(CamMode.MOUSE); return
