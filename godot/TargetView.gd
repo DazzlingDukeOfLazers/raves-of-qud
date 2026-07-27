@@ -13,7 +13,10 @@ extends PanelContainer
 const DIM := "#8a8f9a"
 const HP_COL := Color(0.25, 0.80, 0.32)     # green, matching the player HP bar
 
+var _tiles: RefCounted                          # shared tile recolouring for the sprite column (set in _ready)
+
 var _toggle: Button
+var _sprite: TextureRect
 var _rt_name: RichTextLabel
 var _rt_desc: RichTextLabel
 var _hp_row: HBoxContainer
@@ -25,6 +28,7 @@ var _full := false            # debug: false = perceived (what the player sees),
 var _last_data := {}          # so the toggle re-renders without waiting for a new snapshot
 
 func _ready() -> void:
+	_tiles = load("res://QudTiles.gd").new()
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(0.09, 0.10, 0.13)
 	sb.set_border_width_all(1)
@@ -53,13 +57,31 @@ func _ready() -> void:
 	head.add_child(_toggle)
 	_refresh_toggle()
 
-	_rt_name = RichTextLabel.new()
-	_rt_name.bbcode_enabled = true          # name carries Qud {{colour|...}} markup
+	# Two columns: the target SPRITE (left) and its info (right).
+	var body := HBoxContainer.new()
+	body.add_theme_constant_override("separation", 8)
+	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	v.add_child(body)
+
+	_sprite = TextureRect.new()             # recoloured target tile; Qud tiles are 16x24
+	_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_sprite.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_sprite.custom_minimum_size = Vector2(44, 66)
+	_sprite.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	body.add_child(_sprite)
+
+	var right := VBoxContainer.new()
+	right.add_theme_constant_override("separation", 4)
+	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	body.add_child(right)
+
+	_rt_name = RichTextLabel.new()          # name carries Qud {{colour|...}} markup
+	_rt_name.bbcode_enabled = true
 	_rt_name.fit_content = true
 	_rt_name.scroll_active = false
 	_rt_name.selection_enabled = true
 	_rt_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	v.add_child(_rt_name)
+	right.add_child(_rt_name)
 
 	_rt_desc = RichTextLabel.new()          # "<wound>, <feeling>, <toughness>", each in its Qud colour
 	_rt_desc.bbcode_enabled = true
@@ -67,7 +89,7 @@ func _ready() -> void:
 	_rt_desc.scroll_active = false
 	_rt_desc.selection_enabled = true
 	_rt_desc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	v.add_child(_rt_desc)
+	right.add_child(_rt_desc)
 
 	_hp_row = HBoxContainer.new()           # exact HP — shown only in FULL (debug) mode
 	_hp_row.add_theme_constant_override("separation", 8)
@@ -88,11 +110,11 @@ func _ready() -> void:
 	_bar_hp.add_theme_stylebox_override("background", bgs)
 	_bar_hp.add_theme_stylebox_override("fill", fills)
 	_hp_row.add_child(_bar_hp)
-	v.add_child(_hp_row)
+	right.add_child(_hp_row)
 
 	_l_dir = Label.new()
 	_l_dir.add_theme_color_override("font_color", Color(1, 1, 1, 0.7))
-	v.add_child(_l_dir)
+	right.add_child(_l_dir)
 
 ## MainFrame calls this each snapshot with the full data (needs target + player + palette).
 func set_snapshot(data: Dictionary) -> void:
@@ -110,6 +132,13 @@ func _render() -> void:
 		return
 
 	_rt_name.text = QudText.to_bbcode(String(t.get("display", "")), _palette)
+
+	# Left column: the recoloured target sprite (client-side, from the tile/colours the mod sends).
+	_tiles.tiles_dir = String(data.get("tilesDir", _tiles.tiles_dir))
+	_tiles.palette = _palette
+	var tex: Texture2D = _tiles.texture(String(t.get("tile", "")), _tiles.main_color(t), _tiles.detail_color(t))
+	_sprite.texture = tex
+	_sprite.visible = tex != null
 
 	# Qud's descriptor line: wound (health word), feeling (disposition), difficulty (toughness) — each
 	# already colour-marked up by the game; join the non-empty ones with a dim comma.
@@ -138,6 +167,7 @@ func _render() -> void:
 
 func _show_none() -> void:
 	_rt_name.text = "[color=%s][none][/color]" % DIM
+	_sprite.visible = false
 	_rt_desc.visible = false
 	_hp_row.visible = false
 	_l_dir.visible = false
