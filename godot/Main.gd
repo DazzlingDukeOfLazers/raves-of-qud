@@ -633,6 +633,8 @@ const BG_DRAW_INTERVAL := 0.05   # ~20fps forced draws while unfocused
 
 func _process(dt: float) -> void:
 	_poll_godot_cmd(dt)
+	if _picking:
+		_update_pick_cursor()
 	# Keep the viewer rendering while its window is UNFOCUSED, so it stays live beside
 	# Qud for side-by-side human testing (a human drives one window; both must move).
 	# macOS pauses an unfocused window's draw, but _process still runs — so force a draw
@@ -915,6 +917,115 @@ func request_command(cmd: String) -> void:
 func request_item_action(item_id: String, action: String) -> void:
 	if client != null:
 		client.send_command("itemaction", {"item": item_id, "command": action})
+
+# --- direction picker (for abilities like Make Camp that prompt for a direction) ----------------
+# Qud's PickDirection blocks the turn thread waiting for a LeftClick at a CELL (it derives the
+# direction). We show the ability's icon as a cursor over the Holodeck; clicking an adjacent tile
+# sends that cell (mod injects the click), a non-adjacent click / right-click / Esc cancels (mod
+# injects a RightClick so Qud UNBLOCKS). Only started for abilities that actually prompt, else Qud
+# would freeze waiting.
+var _picking := false
+var _pick_layer: CanvasLayer
+var _pick_icon: TextureRect
+var _pick_x: Label
+var _pick_hint: Label
+
+func start_direction_picker(icon: Texture2D) -> void:
+	if _pick_layer == null:
+		_pick_layer = CanvasLayer.new()
+		_pick_layer.layer = 50   # above the frame chrome
+		add_child(_pick_layer)
+		_pick_icon = TextureRect.new()
+		_pick_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		_pick_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		_pick_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_pick_icon.size = Vector2(48, 72)
+		_pick_layer.add_child(_pick_icon)
+		_pick_x = Label.new()
+		_pick_x.text = "✗"
+		_pick_x.add_theme_color_override("font_color", Color(1, 0.3, 0.3))
+		_pick_x.add_theme_font_size_override("font_size", 44)
+		_pick_x.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_pick_layer.add_child(_pick_x)
+		_pick_hint = Label.new()
+		_pick_hint.add_theme_font_size_override("font_size", UiFont.px(get_viewport(), "title"))
+		_pick_hint.add_theme_color_override("font_color", Color(1, 1, 1, 0.9))
+		_pick_hint.position = Vector2(16, 8)
+		_pick_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_pick_layer.add_child(_pick_hint)
+	_pick_icon.texture = icon
+	_pick_hint.text = "Pick a direction — click an adjacent tile   (right-click / Esc to cancel)"
+	_picking = true
+	_pick_layer.visible = true
+
+## The zone cell under a screen point, via a ray to the ground plane (accounts for the top-down
+## Z-stretch). Returns a sentinel when it can't resolve.
+func _pick_cell(mp: Vector2) -> Vector2i:
+	if _cam == null:
+		return Vector2i(-9999, -9999)
+	var o := _cam.project_ray_origin(mp)
+	var d := _cam.project_ray_normal(mp)
+	if absf(d.y) < 0.0001:
+		return Vector2i(-9999, -9999)
+	var t := -o.y / d.y
+	if t <= 0.0:
+		return Vector2i(-9999, -9999)
+	var hit := o + d * t
+	var zs := _current_zstretch()
+	return Vector2i(int(round(hit.x)), int(round(hit.z / maxf(zs, 0.001))))
+
+func _player_cell() -> Vector2i:
+	return Vector2i(int(round(_player.x)), int(round(_player.z)))
+
+func _pick_is_adjacent(c: Vector2i) -> bool:
+	if c.x < -9000:
+		return false
+	var p := _player_cell()
+	return maxi(absi(c.x - p.x), absi(c.y - p.y)) <= 1
+
+func _update_pick_cursor() -> void:
+	if not _picking or _pick_icon == null:
+		return
+	var mp := get_viewport().get_mouse_position()
+	var ok := _pick_is_adjacent(_pick_cell(mp))
+	_pick_icon.position = mp - _pick_icon.size / 2.0
+	_pick_icon.visible = ok
+	_pick_x.position = mp - Vector2(12, 26)
+	_pick_x.visible = not ok
+
+func _end_pick() -> void:
+	_picking = false
+	if _pick_layer != null:
+		_pick_layer.visible = false
+
+func _cancel_pick() -> void:
+	if client != null:
+		client.send_command("dircancel", {})   # unblock Qud's prompt
+	_end_pick()
+
+## Handle input while the direction picker is up. Returns true if the event was consumed.
+func _handle_pick_input(event: InputEvent) -> bool:
+	if not _picking:
+		return false
+	if event is InputEventMouseButton and event.pressed:
+		if event.button_index == MOUSE_BUTTON_LEFT:
+			var c := _pick_cell(event.position)
+			if _pick_is_adjacent(c) and client != null:
+				client.send_command("dir", {"x": str(c.x), "y": str(c.y)})
+				_end_pick()
+			else:
+				_cancel_pick()   # clicked out of range -> cancel so Qud doesn't stay blocked
+			return true
+		if event.button_index == MOUSE_BUTTON_RIGHT:
+			_cancel_pick()
+			return true
+	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+		_cancel_pick()
+		return true
+	# swallow other input while picking, so a stray key can't move/act mid-prompt
+	if event is InputEventKey and event.pressed and not event.echo:
+		return true
+	return false
 
 func _set_mode(m: int) -> void:
 	if _multiview_on:
@@ -1524,6 +1635,9 @@ func _update_debug_menu() -> void:
 # --- input ------------------------------------------------------------------
 
 func _unhandled_input(event: InputEvent) -> void:
+	if _handle_pick_input(event):
+		get_viewport().set_input_as_handled()
+		return
 	if event is InputEventKey and event.pressed and not event.echo:
 		# Shift+Space: wait a turn in Qud (a Godot->Qud passthrough). Takes a turn for now.
 		if event.shift_pressed and event.keycode == KEY_SPACE:

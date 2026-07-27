@@ -475,6 +475,20 @@ func _on_context_command(payload: Dictionary) -> void:
 		"itemaction":
 			_holo.request_item_action(String(payload.get("item", "")), String(payload.get("command", "")))
 
+## A command-bar ability was clicked: activate it, and for a known direction ability, start the
+## Holodeck's direction picker (the ability's icon becomes the cursor).
+func _on_ability_command(payload: Dictionary) -> void:
+	if _holo == null:
+		return
+	var cmd := String(payload.get("command", ""))
+	if cmd == "":
+		return
+	_holo.request_command(cmd)
+	if bool(payload.get("pick_dir", false)):
+		var icon = payload.get("icon")
+		if icon != null:
+			_holo.start_direction_picker(icon)
+
 ## Stratum label from zone.z (surface = 10, deeper = cavern -N, negative = the overworld map).
 func _floor_name(data: Dictionary) -> String:
 	var z: int = int(data.get("zone", {}).get("z", 10))
@@ -516,7 +530,7 @@ func _row_context() -> Control:
 
 func _row_command() -> Control:
 	_command = load("res://CommandBar.gd").new()   # the real command bar (its own file)
-	_command.command_requested.connect(_on_context_command)   # ability click → the Holodeck's bridge
+	_command.command_requested.connect(_on_ability_command)   # ability click → activate (+ direction picker)
 	return _command
 
 # ── screenshot (F12) ─────────────────────────────────────────────────────────

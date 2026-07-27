@@ -377,6 +377,22 @@ namespace RavesOfQud
                         Keyboard.PushCommand(cmd, null);
                     return;
                 }
+                if (name == "dir")
+                {
+                    // Answer a Qud direction prompt (PickDirection) with a LeftClick at a CELL — Qud
+                    // derives the direction itself (adjacent -> that way, own cell -> self, else ignored).
+                    // Used by Raves' direction picker (e.g. Make Camp).
+                    f.TryGetValue("x", out string sx);
+                    f.TryGetValue("y", out string sy);
+                    if (int.TryParse(sx, out int cx) && int.TryParse(sy, out int cy))
+                        Keyboard.PushMouseEvent("LeftClick", cx, cy);
+                    return;
+                }
+                if (name == "dircancel")
+                {
+                    Keyboard.PushMouseEvent("RightClick", 0, 0);   // PickDirection: RightClick -> cancel (unblocks Qud)
+                    return;
+                }
                 if (name == "key")
                 {
                     // Forward a raw key press (e.g. Raves' S/D) INTO Qud's keymap, so it fires

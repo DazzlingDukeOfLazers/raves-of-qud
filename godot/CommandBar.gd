@@ -6,6 +6,11 @@ extends PanelContainer
 
 signal command_requested(payload: Dictionary)   # {type:"command", command:"..."} — MainFrame forwards it
 
+# Abilities whose command opens a Qud direction prompt (PickDirection). Clicking these shows Raves'
+# direction picker. Only gate KNOWN ones — activating a direction ability BLOCKS Qud until answered,
+# so we must not show/cancel the picker for abilities that don't actually prompt. Extend as found.
+const DIR_ABILITIES := ["CommandSurvivalCamp"]   # Make Camp
+
 const DIM := "#8a8f9a"
 const KEY := "#ffd200"       # hotkey — UI yellow
 const ON := "#59d38a"        # toggled-on green
@@ -16,6 +21,7 @@ var _tiles: RefCounted       # shared tile recolouring for ability icons (set in
 var _rt: RichTextLabel
 var _abilities_btn: Button   # far-left: opens Qud's Abilities menu (the 'a' command)
 var _palette := {}
+var _ability_tex := {}       # command -> recoloured icon texture, for the direction picker cursor
 
 func _ready() -> void:
 	_tiles = load("res://QudTiles.gd").new()
@@ -63,6 +69,7 @@ func set_snapshot(data: Dictionary) -> void:
 	var abilities: Array = data.get("abilities", [])
 
 	_rt.clear()
+	_ability_tex.clear()
 	if abilities.is_empty():
 		_rt.append_text("[color=%s]No abilities[/color]" % DIM)
 		return
@@ -71,11 +78,13 @@ func set_snapshot(data: Dictionary) -> void:
 	var img_w := int(round(img_h * 16.0 / 24.0))   # Qud tiles are 16x24
 	for a in abilities:
 		var tex: Texture2D = _tiles.texture_for(a, true)   # abilities have no perceived variant
+		var cmd := String(a.get("command", ""))
+		if cmd != "":
+			_ability_tex[cmd] = tex        # remember the icon for the direction-picker cursor
 		if tex != null:
 			_rt.add_image(tex, img_w, img_h)
 		else:
 			_rt.append_text(String(a.get("glyph", "")).replace("[", "[lb]"))
-		var cmd := String(a.get("command", ""))
 		var name_bb := QudText.to_bbcode(String(a.get("name", "")), _palette)
 		_rt.append_text(" [url=cmd:%s]%s[/url]%s%s     " % [cmd, name_bb, _state_tag(a), _hotkey_tag(a)])
 
@@ -99,4 +108,8 @@ func _on_meta(meta: Variant) -> void:
 	if s.begins_with("cmd:"):
 		var c := s.substr(4)
 		if c != "":
-			command_requested.emit({"type": "command", "command": c})
+			command_requested.emit({
+				"type": "command", "command": c,
+				"icon": _ability_tex.get(c),           # cursor for the direction picker
+				"pick_dir": DIR_ABILITIES.has(c),      # only known direction abilities open the picker
+			})
