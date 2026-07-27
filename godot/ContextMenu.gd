@@ -18,8 +18,6 @@ const LABEL := "#8fd3ff"    # action label — light blue
 var _tiles: RefCounted     # shared tile recolouring for the weapon sprites (set in _ready)
 var _rt: RichTextLabel
 var _palette := {}
-var _last_shape := ""      # last (actions,weapons) counts — logged only on change, to catch a dropped row
-var _last_debug := ""      # last context summary written to the debug file (only on change)
 var _tex_by_id := {}       # weapon id -> last good sprite texture, so a transient tile drop keeps the sprite
 
 func _ready() -> void:
@@ -45,7 +43,7 @@ func _ready() -> void:
 
 	_rt = RichTextLabel.new()
 	_rt.bbcode_enabled = true                # names carry Qud {{colour|...}} markup; sprites are inline images
-	_rt.scroll_active = true
+	_rt.scroll_active = false                # everything fits on one row; never scroll the weapon out of view
 	_rt.selection_enabled = true
 	_rt.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_rt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -70,19 +68,6 @@ func set_snapshot(data: Dictionary) -> void:
 	var weapons: Array = ctx.get("weapons", [])
 	# Diagnostic, logged only when the shape changes (no per-frame spam): the actions row should persist
 	# whenever a weapon is present. actions=0 with weapons>0 would mean the mod dropped them.
-	var shape := "%d,%d" % [acts.size(), weapons.size()]
-	if shape != _last_shape:
-		_last_shape = shape
-		print("[context] missile: actions=%d weapons=%d" % [acts.size(), weapons.size()])
-	# Richer diagnostic to a known-writable file (only when it changes), so a vanishing weapon leaves a
-	# trace even though the exported app writes no godot.log.
-	var dbg := "actions=%d weapons=%d" % [acts.size(), weapons.size()]
-	for wd in weapons:
-		dbg += " | name='%s' tile='%s'" % [QudText.strip(String(wd.get("name", ""))), String(wd.get("tile", ""))]
-	if dbg != _last_debug:
-		_last_debug = dbg
-		_write_debug(dbg)
-
 	# Actions FIRST — matches Qud's horizontal "[F] fire  [R] reload …" and keeps them from being
 	# dropped by any per-weapon render issue. Clickable; key = UI yellow, label = light blue.
 	for a in acts:
@@ -94,11 +79,11 @@ func set_snapshot(data: Dictionary) -> void:
 			keytag = "[color=%s][lb]%s][/color]" % [KEY, key]
 		_rt.append_text("[url=cmd:%s]%s [color=%s]%s[/color][/url]    " % [cmd, keytag, LABEL, aname])
 
-	# Then each weapon on its own line: recoloured tile (Qud draws it fairly large) + name + ammo + "[?]".
+	# Then the weapon(s) INLINE on the same row (Qud-style: "… fire  reload  <sprite> name [?]"). One
+	# row, so it can't be scrolled/clipped out of the panel. Recoloured tile drawn fairly large.
 	var img_h := int(UiFont.px(get_viewport(), "body") * 2.2)
 	var img_w := int(round(img_h * 16.0 / 24.0))   # Qud tiles are 16x24
 	for w in weapons:
-		_rt.append_text("\n")
 		var wid := String(w.get("id", ""))
 		var tex: Texture2D = _tiles.texture(String(w.get("tile", "")), _tiles.main_color(w), _tiles.detail_color(w))
 		if tex != null:
@@ -116,24 +101,7 @@ func set_snapshot(data: Dictionary) -> void:
 		if bool(w.get("canReplaceCell", false)):
 			# "[?]" — click to change this weapon's energy cell (ReplaceSocketCell).
 			_rt.append_text("   [url=cell:%s][color=%s][lb]?][/color][/url]" % [String(w.get("id", "")), KEY])
-
-## Append a context summary to RavesOfQud/context_debug.txt (a dir we know exists + is writable). Used
-## to diagnose the weapon-vanishes-after-fire case without a godot.log. Keeps the last ~30 lines.
-func _write_debug(line: String) -> void:
-	var dir := InputModel.support_dir()
-	if dir == "":
-		return
-	var path := dir.path_join("context_debug.txt")
-	var prior := ""
-	if FileAccess.file_exists(path):
-		prior = FileAccess.get_file_as_string(path)
-	var lines := (prior + "[%d] %s\n" % [Time.get_ticks_msec(), line]).split("\n", false)
-	if lines.size() > 30:
-		lines = lines.slice(lines.size() - 30)
-	var f := FileAccess.open(path, FileAccess.WRITE)
-	if f != null:
-		f.store_string("\n".join(lines) + "\n")
-		f.close()
+		_rt.append_text("    ")   # gap before the next weapon (rare) / trailing padding
 
 ## A fire/reload/[?] link was clicked — decode its meta and ask MainFrame to send it to Qud.
 func _on_meta(meta: Variant) -> void:

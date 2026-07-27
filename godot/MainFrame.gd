@@ -475,7 +475,7 @@ func _row_context() -> Control:
 	var tgt: Control = _target
 	tgt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_context = load("res://ContextMenu.gd").new()     # the real Context menu view (its own file)
-	_context.custom_minimum_size = Vector2(0, 90)
+	_context.custom_minimum_size = Vector2(0, 104)    # room for the larger, Qud-sized weapon sprite on one row
 	_context.command_requested.connect(_on_context_command)   # fire/reload/[?] → the Holodeck's bridge
 	var ctx: Control = _context
 	ctx.size_flags_horizontal = Control.SIZE_EXPAND_FILL
