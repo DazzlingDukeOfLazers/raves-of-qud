@@ -38,16 +38,27 @@ instanced inside a `SubViewportContainer` → `SubViewport` (`own_world_3d`) —
   `GetMaxCarriedWeight`; water=`GetFreeDrams("water")` (liquid ids are **lowercase**);
   hunger/thirst=`Stomach.FoodStatus()`/`WaterStatus()` (strip `{{color|text}}` markup);
   biome=`Zone.DisplayName`. Adding a field is: emit it in WriteStats → read it in `_apply_stats`.
-- Key input reaches the embedded Holodeck via `MainFrame._unhandled_key_input` → `SubViewport.push_input`,
-  behind a **reentry guard** (forwarding without it recursed and crashed — don't remove the guard).
-- **Holodeck is OFF at startup** (an "Enable Holodeck" button in the cell); status bar/log are blank
-  (`—`) until you enable it (their data rides Main's snapshot signal). `_enable_holodeck()` instances
-  Main into a SubViewport whose render starts **DISABLED**, then flips it to `UPDATE_ALWAYS` after
-  `RENDER_DELAY` (~0.3s). This dodges an intermittent Metal-init crash: presenting the first 3D frame
-  in the SAME frame as instancing Main raced the driver. Two fixes stacked — deferring off startup AND
-  the render-delay on enable (isolated by splitting enable into data/render stages; the delay was the
-  part that mattered). The exported app writes NO crash report (ad-hoc), so this was traced by
-  elimination — see the export-debugging note under "Debugging rules".
+- **The side-column views are their own scenes** (`MessageLog.gd`, `NearbyObjects.gd`), fed by
+  `_apply_stats`. Message log: verbatim/filter toggle (filter = one line per unique message, `(xN)`
+  on repeat, decays off after a grace of quiet rounds; a "round" = a snapshot with NEW messages,
+  diffed via `msgCount`). Nearby objects: client-side from the snapshot's `cells` + player (no mod
+  data), 3x3, tile recoloured like the renderer (`main.lerp(detail, luminance)`), name coloured.
+- **Qud markup** (`{{code|text}}` spans AND running `&X` foreground / `^X` background) is handled by the
+  shared **`QudText`** util (`to_bbcode(s, palette)`, `strip(s)`). Messages/nearby names render coloured;
+  status-bar name/biome are stripped. The palette (code→hex) rides each snapshot.
+- **Input:** do NOT manually forward keys — `SubViewportContainer` already delivers input to its
+  SubViewport. A manual `push_input` was a SECOND delivery → every keypress double-stepped. Removed.
+- **Enabling the Holodeck — TWO stages, and the Metal-crash fixes matter (don't undo them):**
+  `Connect (data)` instances `Main` with **`Main.render_3d = false`** — `_on_snapshot` skips ALL 3D
+  build/render, so the bridge + status bar + panels run with ZERO GPU work (this is how the crash was
+  isolated to the 3D). `Turn on viewport` calls `set_render_3d(true)` to BUILD the zone, then presents
+  ~1s LATER (`_present_viewport`) — building the meshes and presenting in one frame raced the driver.
+  The SubViewport renders at **quarter native res (`stretch_shrink=4`) with MSAA off**: at full HiDPI
+  its Metal render target overran and crashed ONLY in the exported app (the dev editor, lower-res,
+  never did). The exported app writes NO crash report (ad-hoc) and the dev editor doesn't reproduce it,
+  so this whole saga was elimination — see the export-debugging note under "Debugging rules". If it
+  ever recurs, the real cure is full-window 3D (like standalone Main, which never crashed) with the 2D
+  chrome overlaid, instead of a SubViewport.
 
 ## Branches & platform (parallel dev on Mac + PC)
 
