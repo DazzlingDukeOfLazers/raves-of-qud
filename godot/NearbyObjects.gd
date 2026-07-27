@@ -1,18 +1,32 @@
 extends PanelContainer
 
 ## Nearby objects view — its own scene in MainFrame's row-3 side column. Computed CLIENT-SIDE from the
-## snapshot's cells + player position: the objects within RADIUS, deduped by display name, showing the
-## NEAREST one's arrow direction, its TILE image (tinted by its colour), and a count. Sorted nearest.
+## snapshot's cells + player position: objects within RADIUS, deduped by (stripped) display name,
+## showing the NEAREST one's arrow direction, its recoloured TILE image, and a count. Sorted nearest.
 ##
 ## NOTE: the whole-zone scan (RADIUS = zone size) is the basis for the future Points of Interest menu.
 
 const MAX_ROWS := 25
 const RADIUS := 1   # king-move radius; 1 = the 3x3 (9 tiles) around the player
 
+# Fallback colour table (mirrors ZoneRenderer.COLORS) for when the mod's palette lacks a code.
+const COLORS := {
+	"r": Color(0.60, 0.20, 0.15), "R": Color(1.00, 0.30, 0.30),
+	"g": Color(0.00, 0.50, 0.00), "G": Color(0.20, 0.90, 0.20),
+	"b": Color(0.00, 0.00, 0.60), "B": Color(0.25, 0.45, 1.00),
+	"c": Color(0.00, 0.55, 0.55), "C": Color(0.40, 1.00, 1.00),
+	"m": Color(0.55, 0.00, 0.55), "M": Color(1.00, 0.40, 1.00),
+	"w": Color(0.60, 0.40, 0.10), "W": Color(1.00, 0.82, 0.00),
+	"o": Color(0.70, 0.35, 0.00), "O": Color(1.00, 0.55, 0.00),
+	"y": Color(0.70, 0.70, 0.70), "Y": Color(1.00, 1.00, 1.00),
+	"k": Color(0.10, 0.10, 0.10), "K": Color(0.10, 0.10, 0.10),
+}
+
 var _rt: RichTextLabel
 var _tiles_dir := ""
 var _palette := {}
-var _tex_cache := {}   # tile filename -> Texture2D
+var _mask_cache := {}   # tile filename -> Image (the raw grayscale mask)
+var _tex_cache := {}    # "fname|main|detail" -> ImageTexture (recoloured)
 
 func _ready() -> void:
 	var sb := StyleBoxFlat.new()
@@ -53,7 +67,7 @@ func set_snapshot(data: Dictionary) -> void:
 	if px < 0 or py < 0:
 		return
 
-	var found := {}   # display name -> {arrow, glyph, tile, color, dist, count}
+	var found := {}   # display name -> {arrow, glyph, tile, main, detail, dist, count}
 	for cell in data.get("cells", []):
 		var dx := int(cell.get("x", 0)) - px
 		var dy := int(cell.get("y", 0)) - py
@@ -78,7 +92,8 @@ func set_snapshot(data: Dictionary) -> void:
 			else:
 				found[nm] = {
 					"arrow": _arrow(dx, dy), "glyph": String(obj.get("glyph", "")),
-					"tile": String(obj.get("tile", "")), "color": _obj_color(obj),
+					"tile": String(obj.get("tile", "")),
+					"main": _obj_main(obj), "detail": _obj_detail(obj),
 					"dist": dist, "count": 1,
 				}
 
@@ -91,22 +106,47 @@ func set_snapshot(data: Dictionary) -> void:
 	for i in mini(names.size(), MAX_ROWS):
 		var e: Dictionary = found[names[i]]
 		_rt.add_text(String(e["arrow"]) + " ")
-		var tex: Texture2D = _load_tile(String(e["tile"]))
+		var tex: Texture2D = _tile_tex(String(e["tile"]), e["main"], e["detail"])
 		if tex != null:
-			_rt.add_image(tex, img_w, img_h, e["color"])
+			_rt.add_image(tex, img_w, img_h)
 		else:
 			_rt.add_text(String(e["glyph"]))   # fallback when the tile isn't exported
 		var suffix: String = ("  ×%d" % e["count"]) if e["count"] > 1 else ""
 		_rt.add_text(" " + String(names[i]) + suffix + "\n")
 
-## Load a tile mask PNG (they're PNG despite the .bmp name) from tilesDir, tinted at draw time by the
-## caller. Cached; only successful loads are cached so an export-race miss can appear next snapshot.
-func _load_tile(tile: String) -> Texture2D:
-	if tile == "" or _tiles_dir == "":
+# --- tile recolouring (mirrors ZoneRenderer: grayscale mask -> main.lerp(detail, luminance)) --------
+
+func _tile_tex(tile: String, main: Color, detail: Color) -> Texture2D:
+	if tile == "":
 		return null
 	var fname := tile.replace("/", "_").replace("\\", "_").replace(":", "_")
-	if _tex_cache.has(fname):
-		return _tex_cache[fname]
+	var key := "%s|%s|%s" % [fname, main.to_html(), detail.to_html()]
+	if _tex_cache.has(key):
+		return _tex_cache[key]
+	var mask := _mask(fname)
+	if mask == null:
+		return null
+	var w := mask.get_width()
+	var h := mask.get_height()
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	for y in h:
+		for x in w:
+			var pix := mask.get_pixel(x, y)
+			if pix.a < 0.5:
+				img.set_pixel(x, y, Color(0, 0, 0, 0))
+			else:
+				var lum := (pix.r + pix.g + pix.b) / 3.0
+				var c := main.lerp(detail, lum)
+				img.set_pixel(x, y, Color(c.r, c.g, c.b, pix.a))
+	var tex := ImageTexture.create_from_image(img)
+	_tex_cache[key] = tex
+	return tex
+
+func _mask(fname: String) -> Image:
+	if _mask_cache.has(fname):
+		return _mask_cache[fname]
+	if _tiles_dir == "":
+		return null
 	var path := _tiles_dir.path_join(fname)
 	if not FileAccess.file_exists(path):
 		return null
@@ -116,32 +156,46 @@ func _load_tile(tile: String) -> Texture2D:
 	var img := Image.new()
 	if img.load_png_from_buffer(bytes) != OK:
 		return null
-	var tex := ImageTexture.create_from_image(img)
-	_tex_cache[fname] = tex
-	return tex
+	if img.get_format() != Image.FORMAT_RGBA8:
+		img.convert(Image.FORMAT_RGBA8)
+	_mask_cache[fname] = img
+	return img
 
-## The object's foreground colour: the resolved fgHex if painted, else the &X code via the palette.
-func _obj_color(obj: Dictionary) -> Color:
+# --- colour resolution (mirrors ZoneRenderer._obj_main/_obj_detail/_qud_color) ----------------------
+
+func _obj_main(obj: Dictionary) -> Color:
 	var hex := String(obj.get("fgHex", ""))
 	if hex != "":
 		return Color(hex)
-	var code := String(obj.get("tilecolor", ""))
-	if code == "":
-		code = String(obj.get("color", ""))
-	return _qud_color(code)
+	var c := String(obj.get("tilecolor", ""))
+	if c == "":
+		c = String(obj.get("color", ""))
+	return _qud_color(c)
+
+func _obj_detail(obj: Dictionary) -> Color:
+	var hex := String(obj.get("detailHex", ""))
+	if hex != "":
+		return Color(hex)
+	return _qud_color(String(obj.get("detail", "")))
 
 func _qud_color(code: String) -> Color:
-	if code == "":
+	var ch := _fg_letter(code)
+	if ch == "":
 		return Color.WHITE
-	var fg := ""
-	var amp := code.find("&")
-	if amp >= 0 and amp + 1 < code.length():
-		fg = code[amp + 1]
-	else:
-		fg = code[0]
-	if _palette.has(fg):
-		return Color(String(_palette[fg]))
-	return Color.WHITE
+	if _palette.has(ch):
+		return Color(String(_palette[ch]))
+	return COLORS.get(ch, Color.WHITE)
+
+## Foreground letter of a Qud colour code: drop the ^background half and the &, take the last char.
+func _fg_letter(code: String) -> String:
+	var c := code.strip_edges()
+	var caret := c.find("^")
+	if caret >= 0:
+		c = c.substr(0, caret)
+	c = c.replace("&", "")
+	if c.is_empty():
+		return ""
+	return c.substr(c.length() - 1, 1)
 
 ## Compass ARROW from a cell offset (y increases SOUTH). Within RADIUS 1 this is exactly the 8
 ## neighbours plus the centre.
