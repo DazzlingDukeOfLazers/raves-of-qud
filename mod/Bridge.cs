@@ -384,12 +384,19 @@ namespace RavesOfQud
                     // Used by Raves' direction picker (e.g. Make Camp).
                     f.TryGetValue("x", out string sx);
                     f.TryGetValue("y", out string sy);
+                    try
+                    {
+                        var pcell = The.Player != null ? The.Player.CurrentCell : null;
+                        Server.Log("[dir] recv " + sx + "," + sy + (pcell != null ? (" player " + pcell.X + "," + pcell.Y) : " player ?"));
+                    }
+                    catch { }
                     if (int.TryParse(sx, out int cx) && int.TryParse(sy, out int cy))
                         Keyboard.PushMouseEvent("LeftClick", cx, cy);
                     return;
                 }
                 if (name == "dircancel")
                 {
+                    try { Server.Log("[dir] cancel"); } catch { }
                     Keyboard.PushMouseEvent("RightClick", 0, 0);   // PickDirection: RightClick -> cancel (unblocks Qud)
                     return;
                 }
