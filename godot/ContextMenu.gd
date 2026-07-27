@@ -19,6 +19,8 @@ var _tiles: RefCounted     # shared tile recolouring for the weapon sprites (set
 var _rt: RichTextLabel
 var _palette := {}
 var _last_shape := ""      # last (actions,weapons) counts — logged only on change, to catch a dropped row
+var _last_debug := ""      # last context summary written to the debug file (only on change)
+var _tex_by_id := {}       # weapon id -> last good sprite texture, so a transient tile drop keeps the sprite
 
 func _ready() -> void:
 	_tiles = load("res://QudTiles.gd").new()
@@ -72,6 +74,14 @@ func set_snapshot(data: Dictionary) -> void:
 	if shape != _last_shape:
 		_last_shape = shape
 		print("[context] missile: actions=%d weapons=%d" % [acts.size(), weapons.size()])
+	# Richer diagnostic to a known-writable file (only when it changes), so a vanishing weapon leaves a
+	# trace even though the exported app writes no godot.log.
+	var dbg := "actions=%d weapons=%d" % [acts.size(), weapons.size()]
+	for wd in weapons:
+		dbg += " | name='%s' tile='%s'" % [QudText.strip(String(wd.get("name", ""))), String(wd.get("tile", ""))]
+	if dbg != _last_debug:
+		_last_debug = dbg
+		_write_debug(dbg)
 
 	# Actions FIRST — matches Qud's horizontal "[F] fire  [R] reload …" and keeps them from being
 	# dropped by any per-weapon render issue. Clickable; key = UI yellow, label = light blue.
@@ -89,7 +99,12 @@ func set_snapshot(data: Dictionary) -> void:
 	var img_w := int(round(img_h * 16.0 / 24.0))   # Qud tiles are 16x24
 	for w in weapons:
 		_rt.append_text("\n")
+		var wid := String(w.get("id", ""))
 		var tex: Texture2D = _tiles.texture(String(w.get("tile", "")), _tiles.main_color(w), _tiles.detail_color(w))
+		if tex != null:
+			_tex_by_id[wid] = tex          # remember the last good sprite for this weapon
+		elif wid != "" and _tex_by_id.has(wid):
+			tex = _tex_by_id[wid]          # a post-fire snapshot can transiently drop the tile — keep showing it
 		if tex != null:
 			_rt.add_image(tex, img_w, img_h)
 		else:
@@ -101,6 +116,24 @@ func set_snapshot(data: Dictionary) -> void:
 		if bool(w.get("canReplaceCell", false)):
 			# "[?]" — click to change this weapon's energy cell (ReplaceSocketCell).
 			_rt.append_text("   [url=cell:%s][color=%s][lb]?][/color][/url]" % [String(w.get("id", "")), KEY])
+
+## Append a context summary to RavesOfQud/context_debug.txt (a dir we know exists + is writable). Used
+## to diagnose the weapon-vanishes-after-fire case without a godot.log. Keeps the last ~30 lines.
+func _write_debug(line: String) -> void:
+	var dir := InputModel.support_dir()
+	if dir == "":
+		return
+	var path := dir.path_join("context_debug.txt")
+	var prior := ""
+	if FileAccess.file_exists(path):
+		prior = FileAccess.get_file_as_string(path)
+	var lines := (prior + "[%d] %s\n" % [Time.get_ticks_msec(), line]).split("\n", false)
+	if lines.size() > 30:
+		lines = lines.slice(lines.size() - 30)
+	var f := FileAccess.open(path, FileAccess.WRITE)
+	if f != null:
+		f.store_string("\n".join(lines) + "\n")
+		f.close()
 
 ## A fire/reload/[?] link was clicked — decode its meta and ask MainFrame to send it to Qud.
 func _on_meta(meta: Variant) -> void:
