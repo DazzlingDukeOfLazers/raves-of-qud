@@ -530,6 +530,61 @@ namespace RavesOfQud
             j.EndObject();
         }
 
+        /// The contextual command menu (row 4, right) — Qud's bottom missile-weapon area. For each
+        /// equipped missile weapon: its coloured name + ammo (remaining/total, via the game's own
+        /// MissileWeapon.Status fill), plus the Fire/Reload actions. "No missile weapons equipped." when
+        /// none. Mirrors Qud.UI.MissileWeaponArea. (Future: other contexts beyond missile weapons.)
+        private static void WriteContext(JsonWriter j, GameObject player)
+        {
+            j.Name("context").BeginObject();
+            var mws = (player != null) ? SafeMissileWeapons(player) : null;
+            if (mws == null || mws.Count == 0)
+            {
+                j.Member("kind", "none").Member("text", "No missile weapons equipped.").EndObject();
+                return;
+            }
+            j.Member("kind", "missile");
+            j.Name("actions").BeginArray().Value("Fire").Value("Reload").EndArray();
+            j.Name("weapons").BeginArray();
+            foreach (var w in mws)
+            {
+                try
+                {
+                    if (w == null) continue;
+                    var part = w.GetPart<MissileWeapon>();
+                    if (part == null) continue;
+                    int total = 0, remaining = 0;
+                    string statusText = "";
+                    try
+                    {
+                        // The game's own per-weapon fill (name-agnostic ammo readout). The status object
+                        // is a plain data holder — constructing it directly (not via the pooled .next())
+                        // avoids touching the live UI's pool.
+                        var st = new Qud.UI.MissileWeaponArea.MissileWeaponAreaWeaponStatus();
+                        part.Status(st);
+                        total = st.ammoTotal;
+                        remaining = st.ammoRemaining;
+                        statusText = st.text ?? "";
+                    }
+                    catch { }
+                    j.BeginObject()
+                        .Member("name", DisplayNameOf(w))       // DisplayNameOnly keeps colour markup
+                        .Member("ammoRemaining", remaining)
+                        .Member("ammoTotal", total)
+                        .Member("status", statusText)
+                    .EndObject();
+                }
+                catch { }
+            }
+            j.EndArray();
+            j.EndObject();
+        }
+
+        private static System.Collections.Generic.List<GameObject> SafeMissileWeapons(GameObject player)
+        {
+            try { return player.GetMissileWeapons(); } catch { return null; }
+        }
+
         /// The player's recent message-log lines (tail), markup-stripped, for the frame's Message log.
         private static void WriteMessages(JsonWriter j)
         {
@@ -600,6 +655,7 @@ namespace RavesOfQud
             WriteStats(j, player, z);   // player vitals/stats for the frame status bar
             WriteEffects(j, player);    // active effects (buffs/debuffs) for the frame Active effects panel
             WriteTarget(j, player);     // current combat target for the frame Target panel
+            WriteContext(j, player);    // contextual command menu (missile Fire/Reload) for the frame
             WriteMessages(j);           // recent message-log lines for the frame Message log
 
             j.Name("cells").BeginArray();

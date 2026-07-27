@@ -55,6 +55,7 @@ var _nearby: Control        # the Nearby objects view (NearbyObjects.gd)
 var _minimap: Control       # the Minimap view (MinimapView.gd)
 var _effects: Control       # the Active effects view (ActiveEffects.gd)
 var _target: Control        # the Target view (TargetView.gd)
+var _context: Control       # the Context menu view (ContextMenu.gd)
 
 func _ready() -> void:
 	name = "MainFrame"
@@ -432,6 +433,8 @@ func _apply_stats(data: Dictionary) -> void:
 		_effects.set_effects(data.get("effects", []), data.get("palette", {}))
 	if _target != null:
 		_target.set_snapshot(data)
+	if _context != null:
+		_context.set_context(data.get("context", {}), data.get("palette", {}))
 
 ## Stratum label from zone.z (surface = 10, deeper = cavern -N, negative = the overworld map).
 func _floor_name(data: Dictionary) -> String:
@@ -460,7 +463,9 @@ func _row_context() -> Control:
 	_target.custom_minimum_size = Vector2(0, 90)
 	var tgt: Control = _target
 	tgt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var ctx := _cell("Context menu", Vector2(0, 90))   # multipurpose text menu (fire / no weapon / …)
+	_context = load("res://ContextMenu.gd").new()     # the real Context menu view (its own file)
+	_context.custom_minimum_size = Vector2(0, 90)
+	var ctx: Control = _context
 	ctx.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h.add_child(eff)
 	h.add_child(tgt)
