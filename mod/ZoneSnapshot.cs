@@ -511,20 +511,7 @@ namespace RavesOfQud
                     }
                 }
                 catch { }
-                var r = t.GetPart<Render>();
-                if (r != null)
-                {
-                    bool painted;
-                    string tile = ResolvedTile(t, r, out painted);
-                    string glyph = ResolvedGlyph(r);
-                    if (tile.Length > 0) TileExporter.Ensure(tile);
-                    j.Member("glyph", glyph)
-                     .Member("tile", tile)
-                     .Member("color", r.ColorString ?? "")
-                     .Member("tilecolor", r.TileColor ?? "")
-                     .Member("detail", r.DetailColor ?? "");
-                    if (painted) WritePaintedColors(j);
-                }
+                WritePerceivedRender(j, t);   // perceived icon (unidentified -> Qud's "unknown" icon)
             }
             catch { }
             j.EndObject();
@@ -583,27 +570,36 @@ namespace RavesOfQud
                         .Member("ammoRemaining", remaining)
                         .Member("ammoTotal", total)
                         .Member("status", statusText);
-                    // Render info so the client can show the weapon's recoloured tile (like Target/Nearby).
-                    var rr = w.GetPart<Render>();
-                    if (rr != null)
-                    {
-                        bool wpainted;
-                        string wtile = ResolvedTile(w, rr, out wpainted);
-                        string wglyph = ResolvedGlyph(rr);
-                        if (wtile.Length > 0) TileExporter.Ensure(wtile);
-                        j.Member("glyph", wglyph)
-                         .Member("tile", wtile)
-                         .Member("color", rr.ColorString ?? "")
-                         .Member("tilecolor", rr.TileColor ?? "")
-                         .Member("detail", rr.DetailColor ?? "");
-                        if (wpainted) WritePaintedColors(j);
-                    }
+                    // PERCEIVED render — an UNIDENTIFIED artifact shows Qud's generic "unknown" icon, not
+                    // its real tile, until the player understands it (RenderForUI honours identification).
+                    WritePerceivedRender(j, w);
                     j.EndObject();
                 }
                 catch { }
             }
             j.EndArray();
             j.EndObject();
+        }
+
+        /// Write an object's PERCEIVED render fields (tile/glyph/colours) as Qud's own UI draws them.
+        /// RenderForUI() runs the full render pipeline and honours identification, so an unidentified
+        /// artifact yields Qud's generic "unknown" icon rather than its real tile — exactly what the
+        /// player sees. Use for panel icons (target, context weapon); the client recolours as usual.
+        private static void WritePerceivedRender(JsonWriter j, GameObject go)
+        {
+            try
+            {
+                var re = go.RenderForUI();
+                if (re == null) return;
+                string tile = re.Tile ?? "";
+                if (tile.Length > 0) TileExporter.Ensure(tile);
+                j.Member("glyph", re.RenderString ?? "")
+                 .Member("tile", tile)
+                 .Member("color", re.ColorString ?? "")       // ColorString is already the tile colour
+                 .Member("tilecolor", re.ColorString ?? "")
+                 .Member("detail", re.DetailColor ?? "");
+            }
+            catch { }
         }
 
         /// One context action: its label, Qud's current hotkey (e.g. fire -> "F"), and the command the
