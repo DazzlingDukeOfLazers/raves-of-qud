@@ -354,13 +354,19 @@ func _connect_holodeck() -> void:
 	_holo_host.add_child(svc)
 	_render_btn.disabled = false
 
-## Stage 2 — bring the 3D up: render the current zone and start presenting.
+## Stage 2 — bring the 3D up. BUILD the zone meshes now (SubViewport still not presenting), then start
+## PRESENTING a beat later. Building the meshes (a burst of Metal allocations) and presenting in the
+## SAME frame raced the driver and crashed on enable; the gap between them fixes it.
 func _enable_viewport() -> void:
 	if _holo == null or _holo_vp == null:
 		return
 	_render_btn.disabled = true
-	_holo.set_render_3d(true)                    # build the current zone now
-	_holo_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	_holo.set_render_3d(true)                    # build the current zone now — render still DISABLED
+	get_tree().create_timer(1.0).timeout.connect(_present_viewport)
+
+func _present_viewport() -> void:
+	if _holo_vp != null:
+		_holo_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 
 ## Update the status bar from one snapshot's `stats` block (and `time` for day/night). Missing
 ## fields fall back to "—" so a partial/older mod never shows stale numbers.
