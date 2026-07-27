@@ -168,6 +168,9 @@ namespace RavesOfQud
 
         private static int _lastPublishMs;
         private static bool _dirty;
+        // Set when Raves answers/cancels a prompt off-turn (a direction click); TickRender then forces one
+        // publish after the game unblocks, so state changed during the prompt (e.g. a new campfire) shows.
+        public static bool ForcePublishSoon;
         private static string _lastPublishedZone;   // zone id of the last snapshot sent; a change bypasses the throttle
         private const int PublishThrottleMs = 66;   // ~15 snapshots/sec ceiling during a burst
 
@@ -266,6 +269,15 @@ namespace RavesOfQud
             if (applied)
             {
                 PublishNow(player);                 // a driven command gets an immediate response
+                return;
+            }
+            // A direction prompt was just answered/cancelled off-turn (e.g. Make Camp). The game was
+            // BLOCKED in PickDirection so no snapshot could fire; now that it's unblocked, force one so
+            // the result (the new campfire, etc.) shows without waiting for a move.
+            if (ForcePublishSoon)
+            {
+                ForcePublishSoon = false;
+                PublishNow(player);
                 return;
             }
             // Publish the moment the player's ZONE changes, even without a turn. A soar/descend
@@ -384,20 +396,15 @@ namespace RavesOfQud
                     // Used by Raves' direction picker (e.g. Make Camp).
                     f.TryGetValue("x", out string sx);
                     f.TryGetValue("y", out string sy);
-                    try
-                    {
-                        var pcell = The.Player != null ? The.Player.CurrentCell : null;
-                        Server.Log("[dir] recv " + sx + "," + sy + (pcell != null ? (" player " + pcell.X + "," + pcell.Y) : " player ?"));
-                    }
-                    catch { }
                     if (int.TryParse(sx, out int cx) && int.TryParse(sy, out int cy))
                         Keyboard.PushMouseEvent("LeftClick", cx, cy);
+                    ForcePublishSoon = true;   // refresh Raves once the prompt resolves (e.g. the new campfire)
                     return;
                 }
                 if (name == "dircancel")
                 {
-                    try { Server.Log("[dir] cancel"); } catch { }
                     Keyboard.PushMouseEvent("RightClick", 0, 0);   // PickDirection: RightClick -> cancel (unblocks Qud)
+                    ForcePublishSoon = true;
                     return;
                 }
                 if (name == "key")

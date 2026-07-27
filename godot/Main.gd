@@ -1634,10 +1634,14 @@ func _update_debug_menu() -> void:
 
 # --- input ------------------------------------------------------------------
 
-func _unhandled_input(event: InputEvent) -> void:
-	if _handle_pick_input(event):
+## Direction-picker input is handled in _input (BEFORE the GUI), because the frame's container Controls
+## consume mouse clicks over the Holodeck before they'd reach _unhandled_input. Only consumes while
+## picking; otherwise events flow to the GUI / _unhandled_input as normal.
+func _input(event: InputEvent) -> void:
+	if _picking and _handle_pick_input(event):
 		get_viewport().set_input_as_handled()
-		return
+
+func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		# Shift+Space: wait a turn in Qud (a Godot->Qud passthrough). Takes a turn for now.
 		if event.shift_pressed and event.keycode == KEY_SPACE:
