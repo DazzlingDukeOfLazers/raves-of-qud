@@ -65,6 +65,21 @@ namespace RavesOfQud
         /// Sent in the snapshot so the client can see the mod's per-turn cost split.
         public static long LastRenderBaseUs;
 
+        /// Runs on the TURN THREAD at the start of each player action (BeginTakeActionEvent). Unlike the
+        /// render-tied TickRender, this fires even while Qud is unfocused — so it can flush a publish
+        /// queued off-turn (a direction prompt answered from Raves, e.g. Make Camp) as soon as the game
+        /// unblocks, without waiting for a real turn.
+        public static void TickAction(GameObject player)
+        {
+            BridgeServer server = Server;
+            if (server == null || server.ClientCount == 0) return;
+            if (ForcePublishSoon)
+            {
+                ForcePublishSoon = false;
+                PublishNow(player);
+            }
+        }
+
         public static void Tick(GameObject player)
         {
             BridgeServer server = Server;
