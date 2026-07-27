@@ -167,10 +167,16 @@ dotnet build mod/RavesOfQudBridge.csproj
 cp mod/*.cs mod/manifest.json ~/Library/Application\ Support/com.FreeholdGames.CavesOfQud/Mods/RavesOfQudBridge/
 
 # validate the Godot scripts parse + _ready runs, without a window.
-# "Raves bridge: connected" and no errors == clean. .gd changes need NO restart.
+# "Raves bridge: connected" and no errors == clean. .gd changes need NO restart for a dev-run — but the
+# EXPORTED app freezes scripts at build time, so re-run tools/build_macos.sh for a change to reach it.
 # NB: after ADDING a `class_name`, the headless parse fails ("Could not find type X") until an
 # editor rescan (the class cache lives in the gitignored .godot/): run `--editor --quit` once first.
 /Users/homefolder/Downloads/Godot.app/Contents/MacOS/Godot --headless --path godot/ --quit-after 120
+
+# ^ CAVEAT: that run only DEEP-ANALYSES scripts it actually loads. Main.gd is instanced by MainFrame only
+# on "Connect", so its parse/type errors are NOT caught above (this hid a bad ref + `:=` inference breaks
+# during the CameraRig extraction). To truly validate one script, force it:
+/Users/homefolder/Downloads/Godot.app/Contents/MacOS/Godot --headless --path godot/ --check-only --script res://Main.gd
 
 # build a CRISP (HiDPI) macOS .app — dev-run windows are soft on Retina (see "Display" below).
 # Exports + re-signs ad-hoc; output is build/RavesOfQud.app (gitignored). Needs the 4.7 export
