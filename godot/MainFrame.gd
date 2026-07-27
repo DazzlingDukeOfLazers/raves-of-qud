@@ -59,6 +59,7 @@ var _context: Control       # the Context menu view (ContextMenu.gd)
 var _command: Control       # the Command bar view (CommandBar.gd, row 5)
 var _info_btn: Button       # top-menu Perceived/Full toggle
 var _full_info := false     # global debug toggle: false = perceived (what the player sees), true = full
+var _panels: Array = []     # every sub-view; each has set_snapshot(data) (some also set_full_info)
 
 func _ready() -> void:
 	name = "MainFrame"
@@ -83,6 +84,9 @@ func _ready() -> void:
 	rows.add_child(_row_context())       # 4: effects | target | context menu
 	rows.add_child(_row_command())       # 5: command bar (abilities)
 
+	# The registry of sub-views (created inside the row builders above). _apply_stats feeds them all.
+	_panels = [_minimap, _nearby, _msglog, _effects, _target, _context, _command].filter(
+		func(p): return p != null)
 	_apply_full_info()                   # init the toggle label + push the default (perceived) to views
 
 func _on_resize() -> void:
@@ -287,9 +291,9 @@ func _apply_full_info() -> void:
 		_info_btn.text = "👁 Full" if _full_info else "👁 Perceived"
 		_info_btn.tooltip_text = "Info: %s — click for %s" % [
 			"FULL (debug)" if _full_info else "perceived", "perceived" if _full_info else "full"]
-	for v in [_target, _context, _nearby, _msglog]:
-		if v != null and v.has_method("set_full_info"):
-			v.set_full_info(_full_info)
+	for p in _panels:
+		if p.has_method("set_full_info"):
+			p.set_full_info(_full_info)
 
 # ── row 3: Holodeck  |grabby|  side panels  (expands to fill) ─────────────────
 
@@ -449,20 +453,10 @@ func _apply_stats(data: Dictionary) -> void:
 		var is_day: bool = bool(data.get("time", {}).get("isDay", true))
 		_daynight.text = "☀" if is_day else "☾"
 		_daynight.add_theme_color_override("font_color", Color(1.0, 0.85, 0.35) if is_day else Color(0.6, 0.7, 1.0))
-	if _msglog != null:
-		_msglog.set_messages(data.get("messages", []), int(data.get("msgCount", 0)), data.get("palette", {}), data)
-	if _nearby != null:
-		_nearby.set_snapshot(data)
-	if _minimap != null:
-		_minimap.set_snapshot(data)
-	if _effects != null:
-		_effects.set_effects(data.get("effects", []), data.get("palette", {}))
-	if _target != null:
-		_target.set_snapshot(data)
-	if _context != null:
-		_context.set_snapshot(data)
-	if _command != null:
-		_command.set_snapshot(data)
+	# Every sub-view shares one entry point, so feeding them is a loop (adding a panel = build the scene
+	# + append it to _panels in _ready; no wiring change here).
+	for p in _panels:
+		p.set_snapshot(data)
 
 ## Forward a Context-menu click to the Holodeck's bridge (Main owns the BridgeClient). No-op until the
 ## Holodeck is connected.

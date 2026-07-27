@@ -38,7 +38,10 @@ func _ready() -> void:
 	_rt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	v.add_child(_rt)
 
-## MainFrame calls this each snapshot with the effects array + palette.
+## Uniform panel entry (MainFrame feeds every panel via set_snapshot).
+func set_snapshot(data: Dictionary) -> void:
+	set_effects(data.get("effects", []), data.get("palette", {}))
+
 func set_effects(effects: Array, palette: Dictionary) -> void:
 	if not palette.is_empty():
 		_palette = palette

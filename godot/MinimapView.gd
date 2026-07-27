@@ -19,18 +19,7 @@ const MODE_MINIMAL := 1
 const WALL_LIFT := 0.45     # how far a wall's colour is lerped toward white
 const NONWALL_DIM := 0.30   # how much of a non-wall object's colour survives (rest -> BG)
 
-const COLORS := {
-	"r": Color(0.60, 0.20, 0.15), "R": Color(1.00, 0.30, 0.30),
-	"g": Color(0.00, 0.50, 0.00), "G": Color(0.20, 0.90, 0.20),
-	"b": Color(0.00, 0.00, 0.60), "B": Color(0.25, 0.45, 1.00),
-	"c": Color(0.00, 0.55, 0.55), "C": Color(0.40, 1.00, 1.00),
-	"m": Color(0.55, 0.00, 0.55), "M": Color(1.00, 0.40, 1.00),
-	"w": Color(0.60, 0.40, 0.10), "W": Color(1.00, 0.82, 0.00),
-	"o": Color(0.70, 0.35, 0.00), "O": Color(1.00, 0.55, 0.00),
-	"y": Color(0.70, 0.70, 0.70), "Y": Color(1.00, 1.00, 1.00),
-	"k": Color(0.10, 0.10, 0.10), "K": Color(0.10, 0.10, 0.10),
-}
-
+var _tiles: RefCounted   # shared colour resolution (QudTiles), set in _ready
 var _palette := {}
 var _rect: TextureRect
 var _tex: ImageTexture   # reused across snapshots; only reallocated when the zone size changes
@@ -39,6 +28,7 @@ var _mode := MODE_FULL
 var _last_data := {}   # last snapshot, so a mode toggle re-renders without waiting for a new one
 
 func _ready() -> void:
+	_tiles = load("res://QudTiles.gd").new()
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(0.09, 0.10, 0.13)
 	sb.set_border_width_all(1)
@@ -77,6 +67,7 @@ func set_snapshot(data: Dictionary) -> void:
 	var pal: Dictionary = data.get("palette", {})
 	if not pal.is_empty():
 		_palette = pal
+	_tiles.palette = _palette
 	_rerender()
 
 func _rerender() -> void:
@@ -117,42 +108,15 @@ func _cell_color(cell: Dictionary) -> Color:
 		return BG
 	if _mode == MODE_MINIMAL:
 		return _cell_color_minimal(objs)
-	return _obj_main(objs[objs.size() - 1])   # FULL: top of the stack
+	return _tiles.main_color(objs[objs.size() - 1], BG)   # FULL: top of the stack
 
 ## MINIMAL: a wall in the cell wins and is lifted toward white (pronounced, Qud-style); otherwise the
-## topmost object is dimmed to a faint structural hint.
+## topmost object is dimmed to a faint structural hint. (BG is the fallback so colourless cells recede.)
 func _cell_color_minimal(objs: Array) -> Color:
 	for i in range(objs.size() - 1, -1, -1):
 		if bool(objs[i].get("wall", false)):
-			return _obj_main(objs[i]).lerp(Color.WHITE, WALL_LIFT)
-	return BG.lerp(_obj_main(objs[objs.size() - 1]), NONWALL_DIM)
-
-func _obj_main(obj: Dictionary) -> Color:
-	var hex := String(obj.get("fgHex", ""))
-	if hex != "":
-		return Color(hex)
-	var c := String(obj.get("tilecolor", ""))
-	if c == "":
-		c = String(obj.get("color", ""))
-	return _qud_color(c)
-
-func _qud_color(code: String) -> Color:
-	var ch := _fg_letter(code)
-	if ch == "":
-		return BG
-	if _palette.has(ch):
-		return Color(String(_palette[ch]))
-	return COLORS.get(ch, BG)
-
-func _fg_letter(code: String) -> String:
-	var c := code.strip_edges()
-	var caret := c.find("^")
-	if caret >= 0:
-		c = c.substr(0, caret)
-	c = c.replace("&", "")
-	if c.is_empty():
-		return ""
-	return c.substr(c.length() - 1, 1)
+			return _tiles.main_color(objs[i], BG).lerp(Color.WHITE, WALL_LIFT)
+	return BG.lerp(_tiles.main_color(objs[objs.size() - 1], BG), NONWALL_DIM)
 
 func _toggle_mode() -> void:
 	_mode = MODE_FULL if _mode == MODE_MINIMAL else MODE_MINIMAL

@@ -66,8 +66,12 @@ func _ready() -> void:
 	_rt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	v.add_child(_rt)
 
-## MainFrame calls this each snapshot: `lines` = the verbatim tail (with {{colour|text}} markup),
-## `total` = Qud's total message count (to diff for NEW lines), `palette` = colour code -> hex.
+## Uniform panel entry (MainFrame feeds every panel via set_snapshot).
+func set_snapshot(data: Dictionary) -> void:
+	set_messages(data.get("messages", []), int(data.get("msgCount", 0)), data.get("palette", {}), data)
+
+## `lines` = the verbatim tail (with {{colour|text}} markup), `total` = Qud's total message count (to
+## diff for NEW lines), `palette` = colour code -> hex.
 func set_messages(lines: Array, total: int, palette: Dictionary, data := {}) -> void:
 	_last_msgs = lines
 	if not palette.is_empty():

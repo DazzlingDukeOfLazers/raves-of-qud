@@ -88,30 +88,31 @@ func _mask(fname: String) -> Image:
 	_mask_cache[fname] = img
 	return img
 
-## Main (foreground) colour of a serialized object/tile dict.
-func main_color(obj: Dictionary) -> Color:
+## Main (foreground) colour of a serialized object/tile dict. `fallback` is used when the object carries
+## no resolvable colour (the minimap passes its background so colourless cells recede; tiles use white).
+func main_color(obj: Dictionary, fallback := Color.WHITE) -> Color:
 	var hex := String(obj.get("fgHex", ""))
 	if hex != "":
 		return Color(hex)
 	var c := String(obj.get("tilecolor", ""))
 	if c == "":
 		c = String(obj.get("color", ""))
-	return color_of(c)
+	return color_of(c, fallback)
 
 ## Detail (secondary) colour of a serialized object/tile dict.
-func detail_color(obj: Dictionary) -> Color:
+func detail_color(obj: Dictionary, fallback := Color.WHITE) -> Color:
 	var hex := String(obj.get("detailHex", ""))
 	if hex != "":
 		return Color(hex)
-	return color_of(String(obj.get("detail", "")))
+	return color_of(String(obj.get("detail", "")), fallback)
 
-func color_of(code: String) -> Color:
+func color_of(code: String, fallback := Color.WHITE) -> Color:
 	var ch := _fg_letter(code)
 	if ch == "":
-		return Color.WHITE
+		return fallback
 	if palette.has(ch):
 		return Color(String(palette[ch]))
-	return COLORS.get(ch, Color.WHITE)
+	return COLORS.get(ch, fallback)
 
 ## Foreground letter of a Qud colour code: drop the ^background half and the &, take the last char.
 func _fg_letter(code: String) -> String:

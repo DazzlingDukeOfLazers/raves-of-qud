@@ -9,28 +9,14 @@ extends PanelContainer
 const MAX_ROWS := 25
 const RADIUS := 1   # king-move radius; 1 = the 3x3 (9 tiles) around the player
 
-# Fallback colour table (mirrors ZoneRenderer.COLORS) for when the mod's palette lacks a code.
-const COLORS := {
-	"r": Color(0.60, 0.20, 0.15), "R": Color(1.00, 0.30, 0.30),
-	"g": Color(0.00, 0.50, 0.00), "G": Color(0.20, 0.90, 0.20),
-	"b": Color(0.00, 0.00, 0.60), "B": Color(0.25, 0.45, 1.00),
-	"c": Color(0.00, 0.55, 0.55), "C": Color(0.40, 1.00, 1.00),
-	"m": Color(0.55, 0.00, 0.55), "M": Color(1.00, 0.40, 1.00),
-	"w": Color(0.60, 0.40, 0.10), "W": Color(1.00, 0.82, 0.00),
-	"o": Color(0.70, 0.35, 0.00), "O": Color(1.00, 0.55, 0.00),
-	"y": Color(0.70, 0.70, 0.70), "Y": Color(1.00, 1.00, 1.00),
-	"k": Color(0.10, 0.10, 0.10), "K": Color(0.10, 0.10, 0.10),
-}
-
 var _rt: RichTextLabel
-var _tiles_dir := ""
-var _palette := {}
-var _mask_cache := {}   # tile filename -> Image (the raw grayscale mask)
-var _tex_cache := {}    # "fname|main|detail" -> ImageTexture (recoloured)
-var _full := false      # perceived icon (default) vs real — driven by MainFrame's top-menu toggle
-var _last_data := {}    # last snapshot, so a mode toggle re-renders without waiting for a new one
+var _tiles: RefCounted   # shared tile recolouring + colour resolution (QudTiles), set in _ready
+var _palette := {}       # for rendering coloured names via QudText
+var _full := false       # perceived icon (default) vs real — driven by MainFrame's top-menu toggle
+var _last_data := {}     # last snapshot, so a mode toggle re-renders without waiting for a new one
 
 func _ready() -> void:
+	_tiles = load("res://QudTiles.gd").new()
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(0.09, 0.10, 0.13)
 	sb.set_border_width_all(1)
@@ -60,10 +46,11 @@ func _ready() -> void:
 ## MainFrame calls this each snapshot with the full data (needs cells + player + tilesDir + palette).
 func set_snapshot(data: Dictionary) -> void:
 	_last_data = data
-	_tiles_dir = String(data.get("tilesDir", _tiles_dir))
 	var pal: Dictionary = data.get("palette", {})
 	if not pal.is_empty():
 		_palette = pal
+	_tiles.tiles_dir = String(data.get("tilesDir", _tiles.tiles_dir))
+	_tiles.palette = _palette
 	var p: Dictionary = data.get("player", {})
 	var px := int(p.get("x", -1))
 	var py := int(p.get("y", -1))
@@ -110,22 +97,12 @@ func set_snapshot(data: Dictionary) -> void:
 		var e: Dictionary = found[names[i]]
 		var o: Dictionary = e["obj"]
 		_rt.append_text(String(e["arrow"]) + " ")
-		# Perceived icon by default (an unidentified item's "unknown" tile via the tileP override); the
-		# real tile only under the global full-info toggle.
-		var tile := String(o.get("tile", ""))
-		var main: Color = _obj_main(o)
-		var detail: Color = _obj_detail(o)
-		var glyph := String(o.get("glyph", ""))
-		if not _full and o.has("tileP"):
-			tile = String(o.get("tileP", ""))
-			main = _qud_color(String(o.get("colorP", "")))
-			detail = _qud_color(String(o.get("detailP", "")))
-			glyph = String(o.get("glyphP", ""))
-		var tex: Texture2D = _tile_tex(tile, main, detail)
+		# Perceived icon by default (unidentified -> "unknown" tile via tileP); real tile in full mode.
+		var tex: Texture2D = _tiles.texture_for(o, _full)
 		if tex != null:
 			_rt.add_image(tex, img_w, img_h)
 		else:
-			_rt.append_text(glyph.replace("[", "[lb]"))   # fallback glyph
+			_rt.append_text(_tiles.glyph_for(o, _full).replace("[", "[lb]"))   # fallback glyph
 		var suffix: String = ("  ×%d" % e["count"]) if e["count"] > 1 else ""
 		_rt.append_text(" " + QudText.to_bbcode(String(e["raw"]), _palette) + suffix + "\n")
 
@@ -134,91 +111,6 @@ func set_full_info(full: bool) -> void:
 	_full = full
 	if not _last_data.is_empty():
 		set_snapshot(_last_data)
-
-# --- tile recolouring (mirrors ZoneRenderer: grayscale mask -> main.lerp(detail, luminance)) --------
-
-func _tile_tex(tile: String, main: Color, detail: Color) -> Texture2D:
-	if tile == "":
-		return null
-	var fname := tile.replace("/", "_").replace("\\", "_").replace(":", "_")
-	var key := "%s|%s|%s" % [fname, main.to_html(), detail.to_html()]
-	if _tex_cache.has(key):
-		return _tex_cache[key]
-	var mask := _mask(fname)
-	if mask == null:
-		return null
-	var w := mask.get_width()
-	var h := mask.get_height()
-	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
-	for y in h:
-		for x in w:
-			var pix := mask.get_pixel(x, y)
-			if pix.a < 0.5:
-				img.set_pixel(x, y, Color(0, 0, 0, 0))
-			else:
-				var lum := (pix.r + pix.g + pix.b) / 3.0
-				var c := main.lerp(detail, lum)
-				img.set_pixel(x, y, Color(c.r, c.g, c.b, pix.a))
-	var tex := ImageTexture.create_from_image(img)
-	if _tex_cache.size() > 96:
-		_tex_cache.clear()   # bound GPU memory: painted colours shift with lighting, so keys accumulate
-	_tex_cache[key] = tex
-	return tex
-
-func _mask(fname: String) -> Image:
-	if _mask_cache.has(fname):
-		return _mask_cache[fname]
-	if _tiles_dir == "":
-		return null
-	var path := _tiles_dir.path_join(fname)
-	if not FileAccess.file_exists(path):
-		return null
-	var bytes := FileAccess.get_file_as_bytes(path)
-	if bytes.is_empty():
-		return null
-	var img := Image.new()
-	if img.load_png_from_buffer(bytes) != OK:
-		return null
-	if img.get_format() != Image.FORMAT_RGBA8:
-		img.convert(Image.FORMAT_RGBA8)
-	_mask_cache[fname] = img
-	return img
-
-# --- colour resolution (mirrors ZoneRenderer._obj_main/_obj_detail/_qud_color) ----------------------
-
-func _obj_main(obj: Dictionary) -> Color:
-	var hex := String(obj.get("fgHex", ""))
-	if hex != "":
-		return Color(hex)
-	var c := String(obj.get("tilecolor", ""))
-	if c == "":
-		c = String(obj.get("color", ""))
-	return _qud_color(c)
-
-func _obj_detail(obj: Dictionary) -> Color:
-	var hex := String(obj.get("detailHex", ""))
-	if hex != "":
-		return Color(hex)
-	return _qud_color(String(obj.get("detail", "")))
-
-func _qud_color(code: String) -> Color:
-	var ch := _fg_letter(code)
-	if ch == "":
-		return Color.WHITE
-	if _palette.has(ch):
-		return Color(String(_palette[ch]))
-	return COLORS.get(ch, Color.WHITE)
-
-## Foreground letter of a Qud colour code: drop the ^background half and the &, take the last char.
-func _fg_letter(code: String) -> String:
-	var c := code.strip_edges()
-	var caret := c.find("^")
-	if caret >= 0:
-		c = c.substr(0, caret)
-	c = c.replace("&", "")
-	if c.is_empty():
-		return ""
-	return c.substr(c.length() - 1, 1)
 
 ## Compass ARROW from a cell offset (y increases SOUTH). Within RADIUS 1 this is exactly the 8
 ## neighbours plus the centre.
