@@ -110,7 +110,11 @@ func _build_name_index(data: Dictionary) -> void:
 ## Fold this snapshot's NEW messages into the filter state and age the rest.
 func _ingest(lines: Array, total: int) -> void:
 	if _seen_total < 0:
-		_seen_total = total   # first snapshot: start fresh; don't replay the whole backlog
+		# First snapshot: SEED the filter from the visible backlog (deduped) so filter mode is useful
+		# immediately, then track new messages from here. (Was starting empty, which read as "broken"
+		# until enough new messages had trickled in.)
+		_seed_from(lines)
+		_seen_total = total
 		return
 	var new_n: int = clampi(total - _seen_total, 0, lines.size())
 	_seen_total = total
@@ -148,6 +152,24 @@ func _ingest(lines: Array, total: int) -> void:
 		if e["count"] > 0:
 			survivors.append(e)
 	_entries = survivors
+
+## Build the initial filter state from a backlog of lines: one entry per unique message, count = repeats,
+## newest-last. Used to seed on connect so filter isn't empty.
+func _seed_from(lines: Array) -> void:
+	_entries.clear()
+	for m in lines:
+		var s := String(m)
+		var hit: Dictionary = {}
+		for e in _entries:
+			if e["text"] == s:
+				hit = e
+				break
+		if hit.is_empty():
+			_entries.append({"text": s, "count": 1, "quiet": 0, "seen": true})
+		else:
+			hit["count"] += 1
+			_entries.erase(hit)
+			_entries.append(hit)   # keep most-recent at the bottom
 
 func _rerender() -> void:
 	if _filter:
