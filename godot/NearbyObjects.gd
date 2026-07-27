@@ -65,7 +65,7 @@ func set_snapshot(data: Dictionary) -> void:
 				continue
 			if dist == 0 and bool(obj.get("creature", false)):
 				continue                   # the player, on their own cell
-			var nm := String(obj.get("display", ""))
+			var nm := QudText.strip(String(obj.get("display", "")))
 			if nm == "":
 				nm = String(obj.get("name", ""))
 			if nm == "" or nm == "[painted ground]":

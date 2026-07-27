@@ -123,45 +123,15 @@ func _render_verbatim() -> void:
 		src = src.slice(src.size() - MAX_LINES)
 	var out: Array[String] = []
 	for m in src:
-		out.append(_to_bbcode(String(m)))
+		out.append(QudText.to_bbcode(String(m), _palette))
 	_rt.text = "\n".join(out)
 
 func _render_filter() -> void:
 	var out: Array[String] = []
 	for e in _entries:
 		var c: int = e["count"]
-		out.append(_to_bbcode(String(e["text"]) + ("  (x%d)" % c if c > 1 else "")))
+		out.append(QudText.to_bbcode(String(e["text"]) + ("  (x%d)" % c if c > 1 else ""), _palette))
 	_rt.text = "\n".join(out)
-
-## Convert Qud's {{code|text}} colour markup to BBCode [color=#hex]…[/color], escaping stray '[' so
-## message text can't be read as BBCode. Non-nested; unknown codes fall back to white.
-func _to_bbcode(s: String) -> String:
-	var out := ""
-	var i := 0
-	var n := s.length()
-	while i < n:
-		if i + 1 < n and s[i] == "{" and s[i + 1] == "{":
-			var bar := s.find("|", i + 2)
-			var close := s.find("}}", i + 2)
-			if bar >= 0 and close >= 0 and bar < close:
-				var code := s.substr(i + 2, bar - (i + 2))
-				var text := s.substr(bar + 1, close - (bar + 1))
-				out += "[color=#%s]%s[/color]" % [_hex_for(code), _escape(text)]
-				i = close + 2
-				continue
-		out += _escape(s[i])
-		i += 1
-	return out
-
-func _escape(s: String) -> String:
-	return s.replace("[", "[lb]")   # BBCode literal '['
-
-func _hex_for(code: String) -> String:
-	var c := code.substr(0, 1) if code.length() > 0 else ""   # colour codes are a single char
-	var hex := String(_palette.get(c, ""))
-	if hex == "":
-		return "ffffff"
-	return hex.trim_prefix("#")
 
 func _toggle_mode() -> void:
 	_filter = not _filter

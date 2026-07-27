@@ -367,7 +367,7 @@ func _enable_viewport() -> void:
 func _apply_stats(data: Dictionary) -> void:
 	var s: Dictionary = data.get("stats", {})
 	if _l_name != null:
-		_l_name.text = String(s.get("name", "—"))
+		_l_name.text = QudText.strip(String(s.get("name", "—")))
 	if _l_temp != null:
 		_l_temp.text = ("%d °C" % int(s["temp"])) if s.has("temp") else "—"
 	if _l_weight != null:
@@ -408,7 +408,7 @@ func _apply_stats(data: Dictionary) -> void:
 	if _l_thirst != null:
 		_l_thirst.text = String(s.get("thirst", "—"))
 	if _l_biome != null:
-		var terrain := String(s.get("terrain", ""))
+		var terrain := QudText.strip(String(s.get("terrain", "")))
 		# Qud's DisplayName usually already includes the stratum ("salt marsh, surface"); fall back to
 		# our own "— · surface/cavern" from zone.z if it's empty.
 		_l_biome.text = terrain if terrain != "" else ("— · %s" % _floor_name(data))
