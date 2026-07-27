@@ -56,6 +56,7 @@ var _minimap: Control       # the Minimap view (MinimapView.gd)
 var _effects: Control       # the Active effects view (ActiveEffects.gd)
 var _target: Control        # the Target view (TargetView.gd)
 var _context: Control       # the Context menu view (ContextMenu.gd)
+var _command: Control       # the Command bar view (CommandBar.gd, row 5)
 var _info_btn: Button       # top-menu Perceived/Full toggle
 var _full_info := false     # global debug toggle: false = perceived (what the player sees), true = full
 
@@ -460,6 +461,8 @@ func _apply_stats(data: Dictionary) -> void:
 		_target.set_snapshot(data)
 	if _context != null:
 		_context.set_snapshot(data)
+	if _command != null:
+		_command.set_snapshot(data)
 
 ## Forward a Context-menu click to the Holodeck's bridge (Main owns the BridgeClient). No-op until the
 ## Holodeck is connected.
@@ -509,45 +512,12 @@ func _row_context() -> Control:
 	h.add_child(ctx)
 	return h
 
-# ── row 5: command bar — ability tabs + ability slots ────────────────────────
+# ── row 5: command bar — the player's activated abilities (CommandBar.gd) ─────
 
 func _row_command() -> Control:
-	var strip := _strip()
-	var h := HBoxContainer.new()
-	h.add_theme_constant_override("separation", 6)
-	strip.add_child(h)
-
-	h.add_child(_menu_btn("⮂ Tabs"))   # toggle ability tabs
-	h.add_child(_sep())
-	# Abilities [0:N] — icon + name + [status] + <hotkey>, inline like Qud. Placeholders for now.
-	var demo := [
-		{"name": "Sprint", "key": "1", "status": "off"},
-		{"name": "Make Camp", "key": "2", "status": ""},
-		{"name": "Intimidate", "key": "3", "status": ""},
-		{"name": "Regeneration", "key": "4", "status": "cooldown"},
-		{"name": "Lase", "key": "5", "status": "4 charges"},
-		{"name": "Ambient Light", "key": "6", "status": "on"},
-	]
-	for i in demo.size():
-		h.add_child(_ability_slot(demo[i]))
-	var tail := Control.new()
-	tail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	h.add_child(tail)
-	return strip
-
-func _ability_slot(a: Dictionary) -> Control:
-	var p := PanelContainer.new()
-	p.add_theme_stylebox_override("panel", _panel_style(Color(0.12, 0.13, 0.17)))
-	var h := HBoxContainer.new()
-	h.add_theme_constant_override("separation", 6)
-	p.add_child(h)
-	h.add_child(_icon(UiFont.px(get_viewport(), "body")))
-	h.add_child(_text(String(a.get("name", ""))))
-	var st := String(a.get("status", ""))
-	if st != "":
-		h.add_child(_text("[%s]" % st, COL_DIM, "caption"))   # inline status, e.g. [off] / [cooldown]
-	h.add_child(_text("<%s>" % String(a.get("key", "")), COL_DIM, "caption"))   # <hotkey>, Qud style
-	return p
+	_command = load("res://CommandBar.gd").new()   # the real command bar (its own file)
+	_command.command_requested.connect(_on_context_command)   # ability click → the Holodeck's bridge
+	return _command
 
 # ── screenshot (F12) ─────────────────────────────────────────────────────────
 

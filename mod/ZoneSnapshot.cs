@@ -642,6 +642,63 @@ namespace RavesOfQud
             try { return player.GetMissileWeapons(); } catch { return null; }
         }
 
+        /// The player's activated abilities for the row-5 command bar, in Qud's own bar order
+        /// (GetAbilityListOrderedByPreference). Each: name, the command to activate it, hotkey, toggle/
+        /// cooldown/enabled state, and a state-appropriate icon (tile + colours, else glyph).
+        private static void WriteCommandBar(JsonWriter j, GameObject player)
+        {
+            j.Name("abilities").BeginArray();
+            var aa = (player != null) ? player.GetPart<ActivatedAbilities>() : null;
+            if (aa != null)
+            {
+                try
+                {
+                    foreach (var e in aa.GetAbilityListOrderedByPreference())
+                    {
+                        if (e == null || !e.Visible) continue;
+                        try
+                        {
+                            string hk = e.DisplayForHotkey ?? "";       // the ability-bar hotkey, if assigned
+                            if (hk.Length == 0)
+                            {
+                                try { hk = ControlManager.getCommandInputDescription(e.Command, false) ?? ""; } catch { }
+                            }
+                            j.BeginObject()
+                                .Member("name", e.DisplayName ?? "")
+                                .Member("command", e.Command ?? "")
+                                .Member("hotkey", hk)
+                                .Member("toggleable", e.Toggleable)
+                                .Member("toggle", e.ToggleState)
+                                .Member("enabled", e.Enabled)
+                                .Member("cooldown", e.Cooldown);
+                            WriteAbilityIcon(j, e);
+                            j.EndObject();
+                        }
+                        catch { }
+                    }
+                }
+                catch { }
+            }
+            j.EndArray();
+        }
+
+        /// The ability's icon: the state-appropriate UI tile Renderable (toggle-on / cooling-down /
+        /// disabled / default) as tile + colours, with the glyph as fallback.
+        private static void WriteAbilityIcon(JsonWriter j, ActivatedAbilityEntry e)
+        {
+            var r = e.UITileDefault;
+            if (!e.Enabled && e.UITileDisabled != null) r = e.UITileDisabled;
+            else if (e.ToggleState && e.UITileToggleOn != null) r = e.UITileToggleOn;
+            else if (e.Cooldown > 0 && e.UITileCoolingDown != null) r = e.UITileCoolingDown;
+            string tile = (r != null) ? (r.Tile ?? "") : "";
+            if (tile.Length > 0) TileExporter.Ensure(tile);
+            j.Member("glyph", (r != null && !string.IsNullOrEmpty(r.RenderString)) ? r.RenderString : (e.Icon ?? ""))
+             .Member("tile", tile)
+             .Member("color", (r != null) ? (r.ColorString ?? "") : "")
+             .Member("tilecolor", (r != null) ? (r.TileColor ?? "") : "")
+             .Member("detail", (r != null) ? r.DetailColor.ToString() : "");
+        }
+
         /// The player's recent message-log lines (tail), markup-stripped, for the frame's Message log.
         private static void WriteMessages(JsonWriter j)
         {
@@ -729,6 +786,7 @@ namespace RavesOfQud
             WriteEffects(j, player);    // active effects (buffs/debuffs) for the frame Active effects panel
             WriteTarget(j, player);     // current combat target for the frame Target panel
             WriteContext(j, player);    // contextual command menu (missile Fire/Reload) for the frame
+            WriteCommandBar(j, player);  // activated abilities for the row-5 command bar
             WriteMessages(j);           // recent message-log lines for the frame Message log
 
             j.Name("cells").BeginArray();
