@@ -30,7 +30,6 @@ var _holo_vp: SubViewport   # the SubViewport it renders into
 var _holo_host: Control     # the row-3 left cell (control bar + viewport area)
 var _connect_btn: Button    # stage 1: bridge + data, no 3D
 var _render_btn: Button     # stage 2: turn the 3D viewport on
-var _forwarding := false    # reentry guard so key-forwarding into the SubViewport can't recurse
 
 # Live status-bar labels, updated from each snapshot's `stats` block.
 var _l_name: Label
@@ -427,16 +426,9 @@ func _floor_name(data: Dictionary) -> String:
 		return "cavern -%d" % (z - 10)
 	return "surface"
 
-## Forward discrete key events into the embedded Holodeck (mode 1-7, O 2D-toggle, F1, etc.). Held-key
-## camera/movement already works through Main's per-frame Input polling, independent of focus.
-func _unhandled_key_input(e: InputEvent) -> void:
-	if _holo_vp == null or _forwarding:
-		return
-	if e is InputEventKey and e.echo:
-		return   # don't flood the Holodeck with key-repeat echoes
-	_forwarding = true
-	_holo_vp.push_input(e)
-	_forwarding = false
+# NOTE: no manual key forwarding here. SubViewportContainer already delivers input to its SubViewport,
+# so pushing events in ALSO would double them (one keypress -> two moves = the "double stepping" bug).
+# Let the container handle it.
 
 # ── row 4: active effects | target | context menu ────────────────────────────
 
