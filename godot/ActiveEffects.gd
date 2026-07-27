@@ -50,11 +50,6 @@ func set_effects(effects: Array, palette: Dictionary) -> void:
 		var nm := String(e.get("name", ""))
 		if nm == "":
 			continue
-		var chip := QudText.to_bbcode(nm, _palette)          # coloured name, as Qud draws it
-		if not bool(e.get("indefinite", false)):
-			var dur := int(e.get("duration", 0))
-			if dur > 0:
-				chip += "[color=%s] %d[/color]" % [DIM, dur]  # dim turn count trailing the name
-		chips.append(chip)
+		chips.append(QudText.to_bbcode(nm, _palette))         # coloured name only, as Qud draws it (no turn count)
 	var sep := "[color=%s]   ·   [/color]" % DIM
 	_rt.text = sep.join(chips)

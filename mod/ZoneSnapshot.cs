@@ -1,5 +1,6 @@
 using XRL;
 using XRL.World;
+using XRL.World.Effects;
 using XRL.World.Parts;
 
 namespace RavesOfQud
@@ -439,6 +440,20 @@ namespace RavesOfQud
                         try
                         {
                             string nm = e.DisplayName ?? "";
+                            // LiquidCovered's DisplayName is the generic "covered in liquid"; Qud instead
+                            // shows the liquid's SMEARED name (the adjective it stamps on the creature) —
+                            // water -> "{{B|wet}}", blood -> "{{r|bloody}}", etc. Use that so the panel
+                            // matches the game (and stays coloured), falling back to the plain DisplayName.
+                            if (e is LiquidCovered lc && lc.Liquid != null)
+                            {
+                                try
+                                {
+                                    var primary = lc.Liquid.GetPrimaryLiquid();
+                                    string smeared = primary != null ? primary.GetSmearedName(lc.Liquid) : null;
+                                    if (!string.IsNullOrEmpty(smeared)) nm = smeared;
+                                }
+                                catch { }
+                            }
                             if (nm.Length == 0) continue;
                             bool bad = false;
                             try { bad = e.IsOfType(Effect.TYPE_NEGATIVE); } catch { }
