@@ -65,6 +65,26 @@ sets `RenderingServer.set_default_clear_color(COL_BG)` for the gaps/pre-connect 
   which the mod injects via `Keyboard.PushCommand` (binding-independent), or
   `send_command("itemaction", {item, command})` → main-thread `InventoryActionEvent.Check` (e.g.
   `ReplaceSocketCell`). `F` in Raves = fire (a Raves keybind being retired for Qud's own controls).
+- **Command bar (row 5, `CommandBar.gd`).** The player's activated abilities in Qud's bar order
+  (`ActivatedAbilities.GetAbilityListOrderedByPreference`; do NOT filter on `Visible` — it defaults
+  false and `AddAbility` never sets it). Each: name + state-appropriate UI-tile icon + `[on/off/cd]` +
+  `<hotkey>`, name clickable to activate (the ability's `Command`). Far-left **Ⓐ Abilities** button =
+  `CmdAbilities` (Qud's `a` menu).
+- **Direction picker (for abilities that prompt, e.g. Make Camp = `CommandSurvivalCamp`).** Qud's
+  `PickDirection` **blocks the turn thread** waiting for a LeftClick at a CELL. Clicking the ability
+  starts `Main.start_direction_picker(icon)`: the ability icon becomes the cursor over the Holodeck,
+  the mouse→cell ray (reusing the inspector's mapping) finds the tile, clicking an adjacent one sends
+  `send_command("dir", {x,y})` → `PushMouseEvent("LeftClick", x, y)` (Qud derives the direction), a
+  non-adjacent/right-click/Esc sends `dircancel` → RightClick (Qud must be UNBLOCKED or it freezes).
+  **Gated to known direction commands** (`CommandBar.DIR_ABILITIES`) so we never orphan a blocked prompt.
+  Picker input is handled in `Main._input` (the frame's containers eat clicks before `_unhandled_input`).
+- **Off-turn refresh after a prompt.** `PickDirection` blocks and Make Camp costs no turn, and render-tied
+  `TickRender` (BeforeRender) does NOT fire while Qud is unfocused — so a `dir`/`dircancel` sets
+  `Bridge.ForcePublishSoon`, flushed on **`BeginTakeActionEvent`** (a TURN-thread event that fires each
+  player action even unfocused). Then the renderer must notice the new object: **live STATIC geometry is
+  frozen per zone** (only creatures rebuild per step), so `ZoneRenderer` rebuilds static when a cheap
+  **static signature** (`_static_signature`, static objects only) changes — that's what draws a placed
+  campfire without leaving the zone.
 - **Qud markup** (`{{code|text}}` spans AND running `&X` foreground / `^X` background) is handled by the
   shared **`QudText`** util (`to_bbcode(s, palette)`, `strip(s)`). Messages/nearby names render coloured;
   status-bar name/biome are stripped. The palette (code→hex) rides each snapshot.
