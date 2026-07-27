@@ -90,7 +90,7 @@ func set_snapshot(data: Dictionary) -> void:
 	var names: Array = found.keys()
 	names.sort_custom(func(a, b): return found[a]["dist"] < found[b]["dist"])
 
-	var img_h := UiFont.px(get_viewport(), "body")
+	var img_h := UiFont.px(get_viewport(), "body") * 2   # match the message log's inline icon size
 	var img_w := int(round(img_h * 16.0 / 24.0))   # Qud tiles are 16x24
 	_rt.clear()
 	for i in mini(names.size(), MAX_ROWS):
