@@ -35,6 +35,7 @@ namespace RavesOfQud
         // can't measure this turn's build until it's done and the JSON is written
         // sequentially, so we report the prior turn's — representative, one turn late.
         static int _lastBuildUs = 0;
+        static string _lastCmdbarLog = "";   // de-dupes the command-bar diagnostic in Player.log
 
         /// <summary>
         /// Plain display name, defended against a throwing getter. DisplayName
@@ -649,13 +650,17 @@ namespace RavesOfQud
         {
             j.Name("abilities").BeginArray();
             var aa = (player != null) ? player.GetPart<ActivatedAbilities>() : null;
+            // One-shot diagnostic (logs to Player.log only when it changes): is the part present, and how
+            // many abilities does Qud count? Tells us empty-because-none vs empty-because-we-dropped-them.
+            string diag = "part=" + (aa != null) + " count=" + (aa != null ? aa.GetAbilityCount() : -1);
+            if (diag != _lastCmdbarLog) { _lastCmdbarLog = diag; try { System.Console.WriteLine("[raves] cmdbar " + diag); } catch { } }
             if (aa != null)
             {
                 try
                 {
                     foreach (var e in aa.GetAbilityListOrderedByPreference())
                     {
-                        if (e == null || !e.Visible) continue;
+                        if (e == null) continue;   // NOTE: no Visible filter — the ability bar shows what Qud's bar shows
                         try
                         {
                             string hk = e.DisplayForHotkey ?? "";       // the ability-bar hotkey, if assigned
@@ -667,6 +672,7 @@ namespace RavesOfQud
                                 .Member("name", e.DisplayName ?? "")
                                 .Member("command", e.Command ?? "")
                                 .Member("hotkey", hk)
+                                .Member("visible", e.Visible)
                                 .Member("toggleable", e.Toggleable)
                                 .Member("toggle", e.ToggleState)
                                 .Member("enabled", e.Enabled)
