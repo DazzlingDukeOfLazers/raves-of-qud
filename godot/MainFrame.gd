@@ -334,15 +334,16 @@ func _connect_holodeck() -> void:
 		_holo_host.get_child(1).queue_free()
 	var svc := SubViewportContainer.new()
 	svc.stretch = true
-	# Render the 3D at HALF the native-retina resolution (upscaled to fill). At full HiDPI the
-	# SubViewport's Metal render target overran and crashed ONLY in the exported app — the dev editor,
-	# at ~half res, renders it fine. This caps the 3D render to that safe resolution; the frame's 2D
-	# chrome stays crisp. Bump stretch_shrink higher if it ever recurs.
-	svc.stretch_shrink = 2
+	# Render the 3D at a FRACTION of native-retina resolution (upscaled to fill). At full HiDPI the
+	# SubViewport's Metal render target overran and crashed only in the exported app; half-res still
+	# crashed intermittently on enable, so cut to quarter-res. The frame's 2D chrome stays crisp; only
+	# the 3D view softens. Bump higher if it still recurs.
+	svc.stretch_shrink = 4
 	svc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	svc.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	var sv := SubViewport.new()
 	sv.own_world_3d = true
+	sv.msaa_3d = Viewport.MSAA_DISABLED          # no MSAA buffers — less Metal pressure
 	sv.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	svc.add_child(sv)
 	_holo = load("res://Main.tscn").instantiate()
