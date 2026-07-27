@@ -939,7 +939,7 @@ func start_direction_picker(icon: Texture2D) -> void:
 		_pick_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		_pick_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		_pick_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_pick_icon.size = Vector2(48, 72)
+		_pick_icon.size = Vector2(64, 96)   # full-size, to sit on the tile
 		_pick_layer.add_child(_pick_icon)
 		_pick_x = Label.new()
 		_pick_x.text = "✗"
@@ -977,21 +977,38 @@ func _pick_cell(mp: Vector2) -> Vector2i:
 func _player_cell() -> Vector2i:
 	return Vector2i(int(round(_player.x)), int(round(_player.z)))
 
+## Valid = one of the 8 tiles AROUND the player (not the player's own tile, not further). Those are the
+## tiles the picker snaps to; everything else is the freeform "✗".
 func _pick_is_adjacent(c: Vector2i) -> bool:
 	if c.x < -9000:
 		return false
 	var p := _player_cell()
-	return maxi(absi(c.x - p.x), absi(c.y - p.y)) <= 1
+	var dx := c.x - p.x
+	var dy := c.y - p.y
+	return (dx != 0 or dy != 0) and maxi(absi(dx), absi(dy)) == 1
+
+## Screen position of a cell's ground point (accounts for the top-down Z-stretch).
+func _cell_screen_pos(c: Vector2i) -> Vector2:
+	if _cam == null:
+		return get_viewport().get_mouse_position()
+	return _cam.unproject_position(Vector3(c.x, 0.0, c.y * _current_zstretch()))
 
 func _update_pick_cursor() -> void:
 	if not _picking or _pick_icon == null:
 		return
 	var mp := get_viewport().get_mouse_position()
-	var ok := _pick_is_adjacent(_pick_cell(mp))
-	_pick_icon.position = mp - _pick_icon.size / 2.0
-	_pick_icon.visible = ok
-	_pick_x.position = mp - Vector2(12, 26)
-	_pick_x.visible = not ok
+	var c := _pick_cell(mp)
+	if _pick_is_adjacent(c):
+		# SNAP the full-size icon onto the adjacent tile, standing on it (bottom-centre at the cell).
+		var sp := _cell_screen_pos(c)
+		_pick_icon.position = Vector2(sp.x - _pick_icon.size.x / 2.0, sp.y - _pick_icon.size.y)
+		_pick_icon.visible = true
+		_pick_x.visible = false
+	else:
+		# Outside the valid ring: the ✗ follows the mouse freeform.
+		_pick_x.position = mp - Vector2(14, 28)
+		_pick_x.visible = true
+		_pick_icon.visible = false
 
 func _end_pick() -> void:
 	_picking = false
