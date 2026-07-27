@@ -175,7 +175,7 @@ func build_report(cx: int, cy: int, hit: Vector3) -> String:
 	var zone: Dictionary = _snap.get("zone", {})
 	var player: Dictionary = _snap.get("player", {})
 
-	L.append("=== Raves of Qud — cell %d,%d ===" % [cx, cy])
+	L.append("=== %s — cell %d,%d ===" % [Brand.GAME_NAME, cx, cy])
 	L.append("mod build: %s" % String(_snap.get("mod", "?? (pre-marker build — restart Qud)")))
 	L.append("zone %s  %sx%s   player (%s,%s)   picked at world (%.2f, %.2f)" % [
 		zone.get("id", "?"), zone.get("width", "?"), zone.get("height", "?"),
