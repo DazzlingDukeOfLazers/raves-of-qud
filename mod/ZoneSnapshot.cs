@@ -422,6 +422,41 @@ namespace RavesOfQud
             j.EndObject();
         }
 
+        /// The player's active effects (buffs/debuffs) for the frame's Active effects panel. DisplayName
+        /// keeps its {{colour|...}} markup so the client renders each in its Qud colour (wet is blue, a
+        /// debuff its own red/etc). Duration is in turns; DURATION_INDEFINITE (9999) marks a permanent
+        /// effect. `bad` = the effect carries Qud's TYPE_NEGATIVE flag, so the client can group/emphasise.
+        private static void WriteEffects(JsonWriter j, GameObject player)
+        {
+            j.Name("effects").BeginArray();
+            if (player != null)
+            {
+                try
+                {
+                    foreach (var e in player.Effects)
+                    {
+                        if (e == null) continue;
+                        try
+                        {
+                            string nm = e.DisplayName ?? "";
+                            if (nm.Length == 0) continue;
+                            bool bad = false;
+                            try { bad = e.IsOfType(Effect.TYPE_NEGATIVE); } catch { }
+                            j.BeginObject()
+                                .Member("name", nm)                                   // keep markup — client colours it
+                                .Member("duration", e.Duration)
+                                .Member("indefinite", e.Duration >= Effect.DURATION_INDEFINITE)
+                                .Member("bad", bad)
+                            .EndObject();
+                        }
+                        catch { }
+                    }
+                }
+                catch { }
+            }
+            j.EndArray();
+        }
+
         /// The player's recent message-log lines (tail), markup-stripped, for the frame's Message log.
         private static void WriteMessages(JsonWriter j)
         {
@@ -490,6 +525,7 @@ namespace RavesOfQud
             .EndObject();
 
             WriteStats(j, player, z);   // player vitals/stats for the frame status bar
+            WriteEffects(j, player);    // active effects (buffs/debuffs) for the frame Active effects panel
             WriteMessages(j);           // recent message-log lines for the frame Message log
 
             j.Name("cells").BeginArray();

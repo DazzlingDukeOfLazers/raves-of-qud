@@ -53,6 +53,7 @@ var _bar_exp: ProgressBar
 var _msglog: Control        # the Message log view (MessageLog.gd)
 var _nearby: Control        # the Nearby objects view (NearbyObjects.gd)
 var _minimap: Control       # the Minimap view (MinimapView.gd)
+var _effects: Control       # the Active effects view (ActiveEffects.gd)
 
 func _ready() -> void:
 	name = "MainFrame"
@@ -426,6 +427,8 @@ func _apply_stats(data: Dictionary) -> void:
 		_nearby.set_snapshot(data)
 	if _minimap != null:
 		_minimap.set_snapshot(data)
+	if _effects != null:
+		_effects.set_effects(data.get("effects", []), data.get("palette", {}))
 
 ## Stratum label from zone.z (surface = 10, deeper = cavern -N, negative = the overworld map).
 func _floor_name(data: Dictionary) -> String:
@@ -446,7 +449,9 @@ func _floor_name(data: Dictionary) -> String:
 func _row_context() -> Control:
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 6)
-	var eff := _cell("Active effects", Vector2(0, 90))
+	_effects = load("res://ActiveEffects.gd").new()   # the real Active effects view (its own file)
+	_effects.custom_minimum_size = Vector2(0, 90)
+	var eff: Control = _effects
 	eff.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var tgt := _cell("Target", Vector2(0, 90))
 	tgt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
