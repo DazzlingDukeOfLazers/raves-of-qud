@@ -18,7 +18,7 @@ namespace RavesOfQud
         /// no way to tell from the outside whether the running code included a
         /// given fix. Every snapshot now says. Bump this when changing the mod.
         /// </summary>
-        public const string Build = "2026-07-27a liquid-sig-fix";
+        public const string Build = "2026-07-27b onfire-flag";
 
         /// <summary>
         /// Monotonic WIRE version — bump whenever a change to the snapshot format makes a newer client
@@ -28,8 +28,9 @@ namespace RavesOfQud
         /// (which is exactly what hid the liquid fix until a restart). History:
         ///   1  baseline (pre-handshake)
         ///   2  adds per-object `liquid` flag (static-signature fix) + this `protocol` field
+        ///   3  adds per-object `onFire` flag (daytime campfire flame + smoke)
         /// </summary>
-        public const int Version = 2;
+        public const int Version = 3;
 
         // Arbitrary high port; keep in sync with godot/BridgeClient.gd (PORT).
         public const int DefaultPort = 48710;

@@ -180,6 +180,7 @@ func _wall_parent() -> Node:
 	return _bank if _bank != null else _wall_root
 var _glow_tex: Texture2D
 var _flame_tex: Texture2D
+var _fire_tex: Texture2D          # a drawn flame SHAPE (alpha-blended) for on-fire objects (campfires) — reads by day
 var _smoke_pm: ParticleProcessMaterial   # shared across every sconce's smoke emitter
 var _smoke_mesh: QuadMesh                 # shared grey square, billboarded
 var _mote_tex: Texture2D                  # small glowing dot for glowfish orbiters
@@ -251,7 +252,8 @@ func set_daylight(sun_a: float) -> void:
 	var on := _smoke_on()
 	for L in _lights:
 		if L.has("smoke"):
-			(L["smoke"] as GPUParticles3D).emitting = on
+			# a real fire burns day + night, so its smoke keeps emitting; a torch's smoke is night-only
+			(L["smoke"] as GPUParticles3D).emitting = true if L.get("fire_smoke", false) else on
 
 var _active: Array = []
 var _sprite_pool: Array[Sprite3D] = []
@@ -324,7 +326,8 @@ func _ready() -> void:
 	_dynamic_root = Node3D.new()
 	add_child(_dynamic_root)
 	_glow_tex = _make_radial(64, Color(1.0, 0.62, 0.25), 1.0)   # warm pool of light
-	_flame_tex = _make_radial(32, Color(1.0, 0.80, 0.35), 1.6)  # tighter, brighter core
+	_flame_tex = _make_radial(32, Color(1.0, 0.80, 0.35), 1.6)  # tighter, brighter core (additive torch flame)
+	_fire_tex = _make_flame_tex(48)                             # a drawn flame SHAPE for daytime campfires (alpha)
 	_mote_tex = _make_radial(16, Color(0.65, 1.0, 0.85), 1.5)   # glowfish bioluminescent mote (cyan-green)
 	_build_smoke_resources()
 	_build_glow_shader()
@@ -340,6 +343,30 @@ func _make_radial(n: int, tint: Color, power: float) -> Texture2D:
 			var a2: float = clampf(1.0 - d, 0.0, 1.0)
 			a2 = pow(a2, power)
 			img.set_pixel(x, y, Color(tint.r, tint.g, tint.b, a2))
+	return ImageTexture.create_from_image(img)
+
+## A drawn flame SHAPE: a teardrop, pointed at the top, bulbous at the base — white-yellow core to orange
+## edge, softer at the tip. Alpha-blended (NOT additive) so it reads as an actual flame on a bright
+## daytime background, where the additive torch flame washes out. `y=0` is the top of the sprite.
+func _make_flame_tex(n: int) -> Texture2D:
+	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
+	var cx := (n - 1) * 0.5
+	var core := Color(1.0, 0.95, 0.6)    # hot yellow-white centre
+	var edge := Color(1.0, 0.45, 0.12)   # orange rim
+	for y in n:
+		var v: float = float(y) / float(n - 1)          # 0 top .. 1 base
+		# half-width: 0 at the very top, widest ~75% down, tapering back in toward the base
+		var hw: float = (n * 0.46) * clampf(sin(pow(v, 0.75) * PI), 0.0, 1.0)
+		for x in n:
+			var dx: float = absf(x - cx)
+			if hw <= 0.5 or dx > hw:
+				img.set_pixel(x, y, Color(0, 0, 0, 0))
+				continue
+			var t: float = dx / hw                       # 0 centre .. 1 rim
+			var col := core.lerp(edge, pow(t, 0.7))
+			# solid through the body, feathered at the rim and dimmer toward the pointed tip
+			var a: float = clampf((1.0 - t) / 0.35, 0.0, 1.0) * clampf(v * 2.2, 0.25, 1.0)
+			img.set_pixel(x, y, Color(col.r, col.g, col.b, a))
 	return ImageTexture.create_from_image(img)
 
 ## Render the live zone (`data`) plus any remembered neighbours. Each neighbour is
@@ -536,7 +563,7 @@ func _place_cell(cell: Dictionary, offset: Vector2i, wall_cells: Dictionary, ski
 		# Creature lights are placed in the DYNAMIC pass so they follow the creature;
 		# here (static) we only place fixed lights (sconces, braziers, lit terrain).
 		if obj.has("lightRadius") and not (skip_creatures and _is_creature(obj)):
-			_place_light(cx, cy, float(obj["lightRadius"]), not _is_creature(obj))
+			_place_light(cx, cy, float(obj["lightRadius"]), not _is_creature(obj), bool(obj.get("onFire", false)))
 		idx += 1
 
 ## Build the live zone's static geometry into its own frozen subtree (once per zone
@@ -1179,18 +1206,21 @@ func _override_for(tile: String) -> String:
 
 ## An additive warm glow on the ground (the "light") plus a small flickering flame
 ## above the sconce. Qud's radius is in cells; 1 cell == 1 world unit.
-func _place_light(cx: int, cy: int, radius: float, smokes := true) -> void:
+func _place_light(cx: int, cy: int, radius: float, smokes := true, on_fire := false) -> void:
 	if _world_map:
 		return   # the parasang overview is flat and fully lit; a flickering torch glow on a
 		         # world tile (e.g. a glowfish parasang) just oscillates distractingly — skip it.
 	# `smokes` is false for creature lights (e.g. a bioluminescent glowfish) — they glow
-	# but are not fire, so no plume. All torch nodes live in their zone's frozen subtree
-	# (the bank). Only the LIVE zone's register in _lights for the _process flicker; a
-	# remembered neighbour's glow steadily (no flicker), which reads fine at distance.
+	# but are not fire, so no plume. `on_fire` (campfires) draws a real flame SHAPE, alpha-blended so
+	# it reads in daylight (the additive torch flame fades out by day, which is fine for a torch whose
+	# TILE shows flame, but a campfire's tile is flameless). All torch nodes live in their zone's frozen
+	# subtree (the bank). Only the LIVE zone's register in _lights for the _process flicker.
 	var lp: Node = _bank if _bank != null else _light_root
 	var glow := MeshInstance3D.new()
 	var gm := PlaneMesh.new()
-	var d: float = maxf(2.0, radius * 1.6)   # pool a bit wider than the sconce
+	# A fire's ground-pool is kept TIGHT (a halo at the flame's foot) so it reads as one campfire, not a
+	# separate flat disc under a standing flame; a torch/sconce pools wider. Both fade out by day anyway.
+	var d: float = maxf(1.6, radius * 0.7) if on_fire else maxf(2.0, radius * 1.6)
 	gm.size = Vector2(d, d)
 	glow.mesh = gm
 	glow.position = Vector3(cx, FLOOR_Y + 0.01, cy)
@@ -1198,35 +1228,35 @@ func _place_light(cx: int, cy: int, radius: float, smokes := true) -> void:
 	lp.add_child(glow)
 
 	var flame := Sprite3D.new()
-	flame.texture = _flame_tex
-	flame.pixel_size = 0.03
+	flame.texture = _fire_tex if on_fire else _flame_tex
+	flame.pixel_size = 0.032 if on_fire else 0.03         # ~1 tile tall; sits ON the campfire
 	flame.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	flame.shaded = false
 	flame.transparent = true
-	flame.material_override = _fx_material(_flame_tex)   # additive
-	flame.position = Vector3(cx, 0.7, cy)                # above the sconce
+	# on-fire: ALPHA (a solid flame that reads on any background); else ADDITIVE (a glowing torch core).
+	flame.material_override = _fx_material_alpha(flame.texture) if on_fire else _fx_material(_flame_tex)
+	flame.position = Vector3(cx, 0.5 if on_fire else 0.7, cy)
 	lp.add_child(flame)
 
-	# Rising smoke plume. Only the LIVE zone gets emitters (keeps the particle count
-	# bounded; distant neighbour plumes would be fogged anyway). Smoke is a NIGHT effect:
-	# the flame fully fades by day, so smoke over an unlit sconce would look wrong — it
-	# emits only at night and switches off at dawn (see _smoke_on / set_daylight).
+	# Rising smoke plume. Only the LIVE zone gets emitters (keeps the particle count bounded). A torch's
+	# smoke is a NIGHT effect (its flame fades by day). A FIRE (campfire) burns day + night, so its smoke
+	# emits always — `fire_smoke` tells set_daylight not to switch it off at dawn.
 	if _live_build:
-		var entry := {"glow": glow, "flame": flame, "energy": 1.0}
+		var entry := {"glow": glow, "flame": flame, "energy": 1.0, "on_fire": on_fire}
 		if smokes:
 			var smoke := _make_smoke()
 			smoke.position = Vector3(cx, 0.85, cy)   # just above the flame
-			smoke.emitting = _smoke_on()             # honour the current time-of-day at build
+			smoke.emitting = true if on_fire else _smoke_on()
 			lp.add_child(smoke)
 			entry["smoke"] = smoke
+			entry["fire_smoke"] = on_fire
 		_lights.append(entry)
 	else:
-		# Neighbour/static lights don't flicker in _process, so bake the current daylight
-		# dimming into them now (otherwise they'd sit at full additive brightness by day).
+		# Neighbour/static lights don't flicker in _process, so bake the current daylight dimming now.
 		glow.transparency = clampf(1.0 - _glow_mul() * 0.6, 0.0, 1.0)
-		# NB: a Sprite3D's `modulate` is IGNORED once material_override is set, so dim the
-		# flame via GeometryInstance3D.transparency (same lever as the glow), not modulate.
-		flame.transparency = clampf(1.0 - _flame_mul(), 0.0, 1.0)
+		# NB: a Sprite3D's `modulate` is IGNORED once material_override is set, so dim via transparency.
+		# A drawn fire flame stays fully visible (it's the only fire cue by day); a torch flame fades.
+		flame.transparency = 0.0 if on_fire else clampf(1.0 - _flame_mul(), 0.0, 1.0)
 
 ## Unshaded + additive: brightens whatever is behind it, no scene lighting needed.
 func _fx_material(tex: Texture2D) -> StandardMaterial3D:
@@ -1234,6 +1264,19 @@ func _fx_material(tex: Texture2D) -> StandardMaterial3D:
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
+	if tex != null:
+		m.albedo_texture = tex
+	return m
+
+## Unshaded + ALPHA (normal) blend: draws the texture as a solid sprite over the scene, so a warm flame
+## reads on a bright daytime background where the additive variant would wash out. For on-fire flames.
+func _fx_material_alpha(tex: Texture2D) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.blend_mode = BaseMaterial3D.BLEND_MODE_MIX
 	m.cull_mode = BaseMaterial3D.CULL_DISABLED
 	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
 	if tex != null:
@@ -1460,7 +1503,9 @@ func _process(_dt: float) -> void:
 		flame.scale = Vector3(fs, fs * (0.95 + randf() * 0.2), fs)
 		# transparency, NOT modulate: modulate is ignored under material_override (which the
 		# flame has, for additive blend), so the flicker/daylight fade never reached the ball.
-		flame.transparency = clampf(1.0 - a * fmul, 0.0, 1.0)
+		# A drawn fire flame (alpha) stays fully visible day + night — it's the only daytime fire cue;
+		# a torch flame (additive) still fades out by day.
+		flame.transparency = 0.0 if L.get("on_fire", false) else clampf(1.0 - a * fmul, 0.0, 1.0)
 
 	# Glowfish "bugs": drive each mote's local position from GLOBAL time, so a per-step
 	# dynamic rebuild resumes the orbit exactly where it should be (no reset flicker).

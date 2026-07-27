@@ -890,6 +890,13 @@ namespace RavesOfQud
                         // the light, which the blueprint specifies exactly.
                         if (light != null && light.Lit)
                             j.Member("lightRadius", light.Radius);
+                        // On fire: Qud draws the flame procedurally (AnimatedMaterialFire), so the TILE is
+                        // flameless (a campfire's sw_campfire_noflame.png). The client fakes an additive
+                        // flame that fades out by day — fine for a torch whose tile shows flame, but a
+                        // campfire then vanishes in daylight. Flag it so the client draws a daytime flame +
+                        // smoke for these. (Only sent when true; client defaults false.)
+                        if (go.HasPart("AnimatedMaterialFire"))
+                            j.Member("onFire", true);
                         if (painted) WritePaintedColors(j);
                         WritePerceivedOverride(j, go);   // "unknown" icon override for unidentified items (Nearby)
                         j.EndObject();

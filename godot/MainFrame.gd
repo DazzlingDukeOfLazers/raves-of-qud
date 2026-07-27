@@ -64,8 +64,8 @@ var _panels: Array = []     # every sub-view; each has set_snapshot(data) (some 
 # Mod-version handshake. The mod sends `protocol` (mod/Protocol.cs Version) each snapshot; the client
 # requires at least MIN and understands up to CLIENT. Mismatch -> a message-log status line, so a stale
 # mod (deployed but Qud not restarted) is visible instead of silently shipping old behaviour.
-const MIN_MOD_PROTOCOL := 2   # oldest mod wire version this client can rely on (needs the `liquid` flag)
-const CLIENT_PROTOCOL := 2    # newest wire version this client was built to understand
+const MIN_MOD_PROTOCOL := 3   # oldest mod wire version this client can rely on (needs `liquid` + `onFire`)
+const CLIENT_PROTOCOL := 3    # newest wire version this client was built to understand
 var _mod_status := 0          # 0 unknown, 1 current, 2 mod-too-old, 3 client-too-old — update log only on change
 
 func _ready() -> void:
