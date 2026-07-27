@@ -491,9 +491,26 @@ namespace RavesOfQud
             {
                 j.Member("present", true);
                 j.Member("display", DisplayNameOf(t));   // DisplayNameOnly keeps colour markup; client renders it
+                // Exact HP is HIDDEN info in Qud — sent only for the client's debug "full info" toggle.
                 try { j.Member("hp", t.hitpoints).Member("hpMax", t.baseHitpoints); } catch { }
                 try { var pc = t.CurrentCell; if (pc != null) j.Member("x", pc.X).Member("y", pc.Y); } catch { }
                 try { j.Member("hostile", t.IsHostileTowards(player)); } catch { }
+                // PERCEIVED descriptors — exactly what Qud's look/target line shows, colour markup kept:
+                //   wound      = Strings.WoundLevel (the health WORD, e.g. Perfect/Injured; becomes exact
+                //                hp AV/DV only if the player has scanning for the target — Qud's own rule)
+                //   feeling    = disposition (Friendly/Neutral/Hostile; null if the target hides con)
+                //   difficulty = toughness (Trivial..Impossible; null/"" if hidden)
+                try { j.Member("wound", XRL.Rules.Strings.WoundLevel(t) ?? ""); } catch { }
+                try
+                {
+                    var desc = t.GetPart<Description>();
+                    if (desc != null)
+                    {
+                        j.Member("feeling", desc.GetFeelingDescription(player) ?? "");
+                        j.Member("difficulty", desc.GetDifficultyDescription(player) ?? "");
+                    }
+                }
+                catch { }
                 var r = t.GetPart<Render>();
                 if (r != null)
                 {

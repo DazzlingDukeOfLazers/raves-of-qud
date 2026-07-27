@@ -1,20 +1,28 @@
 extends PanelContainer
 
 ## Target view — its own scene in MainFrame's row-4 middle cell. Shows Qud's current combat target
-## (the mod's `target` block, from XRL.UI.Sidebar.CurrentTarget): the coloured name, an HP bar, and the
-## direction + distance from the player. "[none]" when nothing is targeted. Client-side distance/arrow
-## from the player + target cell (same idea as NearbyObjects), so it updates as either one moves.
+## (the mod's `target` block, from XRL.UI.Sidebar.CurrentTarget).
+##
+## PERCEIVED (default): exactly what a player sees — the coloured name, then Qud's descriptor line
+## "<wound>, <feeling>, <toughness>" (e.g. "Perfect, Neutral, Average"). Exact HP is HIDDEN in Qud
+## unless you have scanning gear/skills, so the wound WORD stands in for it (the mod already applies
+## Qud's own rule). Plus the direction + distance from the player (spatial, not hidden).
+##
+## FULL (debug toggle): adds the exact HP bar + numbers on top, for development.
 
 const DIM := "#8a8f9a"
 const HP_COL := Color(0.25, 0.80, 0.32)     # green, matching the player HP bar
-const HOSTILE_COL := Color(1.00, 0.30, 0.30)
 
+var _toggle: Button
 var _rt_name: RichTextLabel
+var _rt_desc: RichTextLabel
 var _hp_row: HBoxContainer
 var _l_hp: Label
 var _bar_hp: ProgressBar
 var _l_dir: Label
 var _palette := {}
+var _full := false            # debug: false = perceived (what the player sees), true = full info
+var _last_data := {}          # so the toggle re-renders without waiting for a new snapshot
 
 func _ready() -> void:
 	var sb := StyleBoxFlat.new()
@@ -31,10 +39,19 @@ func _ready() -> void:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 4)
 	add_child(v)
+
+	var head := HBoxContainer.new()
+	v.add_child(head)
 	var title := Label.new()
 	title.text = "Target"
 	title.add_theme_font_size_override("font_size", UiFont.px(get_viewport(), "title"))
-	v.add_child(title)
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(title)
+	_toggle = Button.new()
+	_toggle.focus_mode = Control.FOCUS_NONE
+	_toggle.pressed.connect(_toggle_mode)
+	head.add_child(_toggle)
+	_refresh_toggle()
 
 	_rt_name = RichTextLabel.new()
 	_rt_name.bbcode_enabled = true          # name carries Qud {{colour|...}} markup
@@ -44,7 +61,15 @@ func _ready() -> void:
 	_rt_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	v.add_child(_rt_name)
 
-	_hp_row = HBoxContainer.new()
+	_rt_desc = RichTextLabel.new()          # "<wound>, <feeling>, <toughness>", each in its Qud colour
+	_rt_desc.bbcode_enabled = true
+	_rt_desc.fit_content = true
+	_rt_desc.scroll_active = false
+	_rt_desc.selection_enabled = true
+	_rt_desc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	v.add_child(_rt_desc)
+
+	_hp_row = HBoxContainer.new()           # exact HP — shown only in FULL (debug) mode
 	_hp_row.add_theme_constant_override("separation", 8)
 	_l_hp = Label.new()
 	_l_hp.add_theme_color_override("font_color", HP_COL)
@@ -71,21 +96,34 @@ func _ready() -> void:
 
 ## MainFrame calls this each snapshot with the full data (needs target + player + palette).
 func set_snapshot(data: Dictionary) -> void:
+	_last_data = data
 	var pal: Dictionary = data.get("palette", {})
 	if not pal.is_empty():
 		_palette = pal
+	_render()
+
+func _render() -> void:
+	var data := _last_data
 	var t: Dictionary = data.get("target", {})
 	if t.is_empty() or not bool(t.get("present", false)):
 		_show_none()
 		return
 
-	var raw := String(t.get("display", ""))
-	var name_bb := QudText.to_bbcode(raw, _palette)
-	if bool(t.get("hostile", false)):
-		name_bb += "   [color=#%s]HOSTILE[/color]" % HOSTILE_COL.to_html(false)
-	_rt_name.text = name_bb
+	_rt_name.text = QudText.to_bbcode(String(t.get("display", "")), _palette)
 
-	if t.has("hp") and t.has("hpMax"):
+	# Qud's descriptor line: wound (health word), feeling (disposition), difficulty (toughness) — each
+	# already colour-marked up by the game; join the non-empty ones with a dim comma.
+	var parts: Array[String] = []
+	for key in ["wound", "feeling", "difficulty"]:
+		var s := String(t.get(key, "")).strip_edges()
+		if s != "":
+			parts.append(QudText.to_bbcode(s, _palette))
+	var sep := "[color=%s], [/color]" % DIM
+	_rt_desc.text = sep.join(parts)
+	_rt_desc.visible = not parts.is_empty()
+
+	# Exact HP only in FULL (debug) mode — it's hidden info in Qud.
+	if _full and t.has("hp") and t.has("hpMax"):
 		var hp := int(t.get("hp", 0))
 		var hpmax := maxi(1, int(t.get("hpMax", 1)))
 		_l_hp.text = "HP: %d/%d" % [hp, hpmax]
@@ -100,6 +138,7 @@ func set_snapshot(data: Dictionary) -> void:
 
 func _show_none() -> void:
 	_rt_name.text = "[color=%s][none][/color]" % DIM
+	_rt_desc.visible = false
 	_hp_row.visible = false
 	_l_dir.visible = false
 
@@ -124,3 +163,15 @@ func _arrow(dx: int, dy: int) -> String:
 	if dx > 0:
 		return "↗" if dy < 0 else "↘"
 	return "↖" if dy < 0 else "↙"
+
+func _toggle_mode() -> void:
+	_full = not _full
+	_refresh_toggle()
+	_render()
+
+func _refresh_toggle() -> void:
+	if _toggle == null:
+		return
+	_toggle.text = "full" if _full else "perceived"
+	_toggle.tooltip_text = "Debug: showing %s info — click for %s" % [
+		"FULL" if _full else "perceived", "perceived" if _full else "full"]
