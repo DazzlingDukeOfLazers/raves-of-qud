@@ -150,6 +150,8 @@ var _remembered_root: Node3D    # parent of the frozen per-zone neighbour subtre
 var _static_zones := {}         # zoneId -> Node3D (that zone's frozen static geometry)
 var _dynamic_root: Node3D       # the live zone's creatures, rebuilt every step
 var _live_static_id := ""       # which zone's static is currently built as "live"
+var _live_static_sig := 0       # signature of the live zone's static objects; a change (e.g. a placed
+								# campfire, a dug wall) forces a static rebuild within the same zone
 var _bank: Node3D = null        # non-null while building a zone's geometry INTO it
 var _noting := true             # whether _note records (off during dynamic-only rebuilds)
 var _live_build := false        # true only while building the LIVE zone's static (its
@@ -343,6 +345,20 @@ func _make_radial(n: int, tint: Color, power: float) -> Texture2D:
 ## Render the live zone (`data`) plus any remembered neighbours. Each neighbour is
 ## {cells: Array, offset: Vector2i} — its cells shifted into place relative to the
 ## live zone. Neighbours render full-fidelity but static-only (no creatures).
+## A cheap order-independent signature of the LIVE zone's STATIC objects (everything that isn't ground
+## or a creature — walls, furniture, sprites, placed items). Stable between steps (creatures excluded),
+## so it only changes when static content is added/removed — the cue to rebuild the frozen static.
+func _static_signature(cells: Array) -> int:
+	var h := 0
+	for cell in cells:
+		var cx := int(cell.get("x", 0))
+		var cy := int(cell.get("y", 0))
+		for obj in cell.get("objs", []):
+			if bool(obj.get("ground", false)) or bool(obj.get("creature", false)):
+				continue
+			h ^= hash("%d,%d,%s" % [cx, cy, String(obj.get("name", ""))])
+	return h
+
 func render_snapshot(data: Dictionary, neighbors: Array = []) -> void:
 	_tiles_dir = String(data.get("tilesDir", ""))
 	var zdim: Dictionary = data.get("zone", {})
@@ -394,9 +410,14 @@ func render_snapshot(data: Dictionary, neighbors: Array = []) -> void:
 	# is what took ~69ms EVERY step before; now it is paid once per zone.
 	Profiler.begin("render.static")
 	var zone_changed := live_id != _live_static_id
+	# Static geometry is frozen within a zone, but a STATIC object can appear mid-zone (place a campfire,
+	# dig a wall). Detect it with a cheap signature of the static objects and rebuild when it changes.
+	# Skipped on the world map (thousands of cells, and its static doesn't change under the player).
+	var static_sig := 0 if _world_map else _static_signature(cells)
+	var static_changed := (not zone_changed) and (not _world_map) and static_sig != _live_static_sig
 	if zone_changed:
 		_static_retry = 0              # fresh zone: reset the export-race retry budget
-	if zone_changed or _static_retry_pending:
+	if zone_changed or _static_retry_pending or static_changed:
 		# A transition arrived while a big zone was still building incrementally: finish it now so
 		# the departing zone's subtree is complete (a valid remembered neighbour) before we move on.
 		if _ib_active:
@@ -412,6 +433,7 @@ func render_snapshot(data: Dictionary, neighbors: Array = []) -> void:
 		_static_saw_missing = false
 		_build_static(live_id, cells)
 		_live_static_id = live_id
+		_live_static_sig = static_sig
 		# A tile was still missing at build time (the mod exports on sight, usually the
 		# frame after this snapshot referenced it). Rebuild on a later snapshot so the
 		# now-exported tile replaces its glyph — bounded, so a truly-absent tile that
