@@ -18,6 +18,7 @@ const LABEL := "#8fd3ff"    # action label — light blue
 var _tiles: RefCounted     # shared tile recolouring for the weapon sprites (set in _ready)
 var _rt: RichTextLabel
 var _palette := {}
+var _last_shape := ""      # last (actions,weapons) counts — logged only on change, to catch a dropped row
 
 func _ready() -> void:
 	_tiles = load("res://QudTiles.gd").new()
@@ -63,9 +64,31 @@ func set_snapshot(data: Dictionary) -> void:
 		_rt.append_text("[color=%s]%s[/color]" % [DIM, String(ctx.get("text", "—"))])
 		return
 
-	var img_h := UiFont.px(get_viewport(), "body")
+	var acts: Array = ctx.get("actions", [])
+	var weapons: Array = ctx.get("weapons", [])
+	# Diagnostic, logged only when the shape changes (no per-frame spam): the actions row should persist
+	# whenever a weapon is present. actions=0 with weapons>0 would mean the mod dropped them.
+	var shape := "%d,%d" % [acts.size(), weapons.size()]
+	if shape != _last_shape:
+		_last_shape = shape
+		print("[context] missile: actions=%d weapons=%d" % [acts.size(), weapons.size()])
+
+	# Actions FIRST — matches Qud's horizontal "[F] fire  [R] reload …" and keeps them from being
+	# dropped by any per-weapon render issue. Clickable; key = UI yellow, label = light blue.
+	for a in acts:
+		var key := String(a.get("key", ""))
+		var aname := String(a.get("name", ""))
+		var cmd := String(a.get("command", ""))
+		var keytag := ""
+		if key != "":
+			keytag = "[color=%s][lb]%s][/color]" % [KEY, key]
+		_rt.append_text("[url=cmd:%s]%s [color=%s]%s[/color][/url]    " % [cmd, keytag, LABEL, aname])
+
+	# Then each weapon on its own line: recoloured tile (Qud draws it fairly large) + name + ammo + "[?]".
+	var img_h := int(UiFont.px(get_viewport(), "body") * 2.2)
 	var img_w := int(round(img_h * 16.0 / 24.0))   # Qud tiles are 16x24
-	for w in ctx.get("weapons", []):
+	for w in weapons:
+		_rt.append_text("\n")
 		var tex: Texture2D = _tiles.texture(String(w.get("tile", "")), _tiles.main_color(w), _tiles.detail_color(w))
 		if tex != null:
 			_rt.add_image(tex, img_w, img_h)
@@ -78,20 +101,6 @@ func set_snapshot(data: Dictionary) -> void:
 		if bool(w.get("canReplaceCell", false)):
 			# "[?]" — click to change this weapon's energy cell (ReplaceSocketCell).
 			_rt.append_text("   [url=cell:%s][color=%s][lb]?][/color][/url]" % [String(w.get("id", "")), KEY])
-		_rt.append_text("\n")
-
-	# Actions with Qud's hotkeys, clickable, e.g. "[F] fire   [R] reload" (key yellow, label light blue).
-	var acts: Array = ctx.get("actions", [])
-	if not acts.is_empty():
-		_rt.append_text("\n")
-		for a in acts:
-			var key := String(a.get("key", ""))
-			var aname := String(a.get("name", ""))
-			var cmd := String(a.get("command", ""))
-			var keytag := ""
-			if key != "":
-				keytag = "[color=%s][lb]%s][/color]" % [KEY, key]
-			_rt.append_text("[url=cmd:%s]%s [color=%s]%s[/color][/url]    " % [cmd, keytag, LABEL, aname])
 
 ## A fire/reload/[?] link was clicked — decode its meta and ask MainFrame to send it to Qud.
 func _on_meta(meta: Variant) -> void:
