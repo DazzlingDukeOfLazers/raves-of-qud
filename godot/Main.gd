@@ -59,6 +59,7 @@ enum CamMode { COMPASS, FOLLOW, FIRST_PERSON, CINEMATIC, MOUSE, KEYBOARD, TOP_FO
 var _cam_rig                    # CameraRig (Node3D, loaded); created in _ready. Untyped so the headless
                                 # --check-only stays deterministic (a class_name's cache is flaky there);
                                 # locals off _cam_rig.* therefore need explicit types, not `:=`.
+var _multiview                  # Multiview (Node, loaded); the all-views grid. Created in _ready.
 
 # Remembered view/render settings, saved on exit and restored on launch (so Raves doesn't
 # reset to "looking south" every run). In user:// — available at startup, before the mod
@@ -168,11 +169,16 @@ func _ready() -> void:
 	add_child(_cam_rig)
 	_cam_rig.setup(self, renderer, null)          # inspector wired in once it's built (below)
 
+	# Multi-view grid (its own file). Built BEFORE the debug menu, whose button connects to its toggle.
+	# Pane clicks call back into Main._multiview_inspect (Main owns the inspector + report form).
+	_multiview = load("res://Multiview.gd").new()
+	add_child(_multiview)
+	_multiview.setup(_cam_rig, _MODE_NAMES, _multiview_inspect)
+
 	_load_settings()   # restore camera heading/mode/zoom/depth/window before the UI reads them
 	_build_mode_label()
 	_build_debug_menu()
 	_build_reset_button()
-	_build_multiview()
 	_apply_ui_fonts()
 	get_viewport().size_changed.connect(_apply_ui_fonts)
 	_cam_rig.apply_zstretch()   # a restored top-down mode needs the stretch applied at startup
@@ -400,6 +406,8 @@ func _exec_godot_cmd(cmd: String) -> void:
 		"cam":
 			if parts.size() > 1:
 				_set_mode(clampi(int(parts[1]) - 1, 0, 7))   # 1-8 -> COMPASS..TOP_FOLLOW
+		"mv":
+			_multiview.toggle()   # all-views grid (same as the 0 key / the ` menu button)
 		"fph":
 			if parts.size() > 1:
 				_cam_rig._fp_height = clampf(float(parts[1]), 0.15, 3.0)
@@ -432,9 +440,9 @@ func _process(dt: float) -> void:
 			RenderingServer.force_draw()
 
 	# Camera modes, held-key zoom/fly, placement, and wall cutaway all live in the rig now.
-	_cam_rig.process(dt, _multiview_on)
-	if _multiview_on:
-		_update_multiview_cameras()
+	_cam_rig.process(dt, _multiview.is_on())
+	if _multiview.is_on():
+		_multiview.update()
 
 ## Move the player relative to the camera. `intent` is (strafe, forward) in screen
 ## space: (0,1)=forward, (0,-1)=back, (1,0)=right, (-1,0)=left.
@@ -595,8 +603,8 @@ func _handle_pick_input(event: InputEvent) -> bool:
 	return false
 
 func _set_mode(m: int) -> void:
-	if _multiview_on:
-		_toggle_multiview()   # picking a mode leaves the multi-view grid
+	if _multiview.is_on():
+		_multiview.toggle()   # picking a mode leaves the multi-view grid
 	# The rig does the camera part (state reset, billboard lay-down, zstretch) and reports if it changed.
 	if _cam_rig.set_mode(m):
 		_update_mode_label()
@@ -708,88 +716,6 @@ func _update_mode_label() -> void:
 var _debug_menu: PanelContainer
 var _mode_buttons := {}
 
-# --- multi-view camera picker -----------------------------------------------
-# A grid of live SubViewports, one per camera mode, all sharing the main 3D world so you
-# can compare every view at once (differential testing). Click a pane or press its number
-# to switch to that mode full-screen; toggle with `0` or the debug-menu button.
-const MULTIVIEW_MODES := [CamMode.COMPASS, CamMode.FOLLOW, CamMode.FIRST_PERSON,
-	CamMode.CINEMATIC, CamMode.MOUSE, CamMode.KEYBOARD, CamMode.TOP_FOLLOW]
-var _multiview_layer: CanvasLayer
-var _multiview_on := false
-var _multiview_cams: Array = []   # [{mode, cam, sv}]
-
-func _build_multiview() -> void:
-	_multiview_layer = CanvasLayer.new()
-	_multiview_layer.layer = 4
-	_multiview_layer.visible = false
-	add_child(_multiview_layer)
-	var grid := GridContainer.new()
-	grid.columns = 3
-	grid.set_anchors_preset(Control.PRESET_FULL_RECT)
-	grid.add_theme_constant_override("h_separation", 2)
-	grid.add_theme_constant_override("v_separation", 2)
-	_multiview_layer.add_child(grid)
-	var shared := get_viewport().find_world_3d()
-	for m in MULTIVIEW_MODES:
-		var cell := Control.new()
-		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		cell.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		cell.custom_minimum_size = Vector2(320, 200)
-		var svc := SubViewportContainer.new()
-		svc.stretch = true
-		svc.set_anchors_preset(Control.PRESET_FULL_RECT)
-		svc.mouse_filter = Control.MOUSE_FILTER_IGNORE   # let clicks reach the cell
-		var sv := SubViewport.new()
-		sv.world_3d = shared
-		sv.render_target_update_mode = SubViewport.UPDATE_DISABLED
-		svc.add_child(sv)
-		var cam := Camera3D.new()
-		cam.fov = _cam_rig._cam.fov
-		sv.add_child(cam)
-		cam.current = true   # the active camera for this sub-viewport
-		cell.add_child(svc)
-		var lbl := Label.new()
-		lbl.text = "%d  %s" % [m + 1, String(_MODE_NAMES.get(m, "?")).split(" —")[0]]
-		lbl.add_theme_color_override("font_color", Color(0.8, 1.0, 0.8))
-		lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		cell.add_child(lbl)
-		# Left-click a pane = inspect the tile under the cursor with THAT pane's camera; the
-		# marker lives in the shared world, so it appears in every pane at once. Number keys
-		# (1-7) still switch that mode full-screen.
-		var pane_cam := cam
-		cell.gui_input.connect(func(e: InputEvent):
-			if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
-				_multiview_inspect(pane_cam, e.position))
-		grid.add_child(cell)
-		_multiview_cams.append({"mode": m, "cam": cam, "sv": sv})
-
-func _toggle_multiview() -> void:
-	if _multiview_layer == null:
-		return
-	_multiview_on = not _multiview_on
-	_cam_rig.set_multiview(_multiview_on)   # keep the rig's copy in sync BEFORE it recomputes the zstretch
-	_multiview_layer.visible = _multiview_on
-	for v in _multiview_cams:
-		(v["sv"] as SubViewport).render_target_update_mode = \
-			SubViewport.UPDATE_ALWAYS if _multiview_on else SubViewport.UPDATE_DISABLED
-	_cam_rig.apply_zstretch()   # multi-view shares the world -> must be square; single top-down stretches
-
-## Per-frame: point each preview camera at its mode's view, off the shared camera math.
-func _update_multiview_cameras() -> void:
-	for v in _multiview_cams:
-		var m: int = v["mode"]
-		var cam: Camera3D = v["cam"]
-		var el: Array = _cam_rig.eye_look_for(m)
-		var eye: Vector3 = el[0]
-		var look: Vector3 = el[1]
-		var top := m == CamMode.TOP_FOLLOW
-		cam.projection = Camera3D.PROJECTION_ORTHOGONAL if top else Camera3D.PROJECTION_PERSPECTIVE
-		if top:
-			cam.size = _cam_rig._top_ortho_size()
-		cam.position = eye
-		if eye.distance_to(look) > 0.001:
-			cam.look_at(look, _cam_rig.NORTH if top else Vector3.UP)
-
 func _build_debug_menu() -> void:
 	var layer := CanvasLayer.new()
 	layer.layer = 2
@@ -819,7 +745,7 @@ func _build_debug_menu() -> void:
 	var mvb := Button.new()
 	mvb.text = "0  MULTI-VIEW (all)"
 	mvb.focus_mode = Control.FOCUS_NONE
-	mvb.pressed.connect(_toggle_multiview)
+	mvb.pressed.connect(_multiview.toggle)
 	vb.add_child(mvb)
 	# first-person eye-height slider
 	var hl := Label.new()
@@ -1091,7 +1017,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.keycode == KEY_5: _set_mode(CamMode.MOUSE); return
 		if event.keycode == KEY_6: _set_mode(CamMode.KEYBOARD); return
 		if event.keycode == KEY_7: _set_mode(CamMode.TOP_FOLLOW); return
-		if event.keycode == KEY_0: _toggle_multiview(); return   # 0 = all-views grid
+		if event.keycode == KEY_0: _multiview.toggle(); return   # 0 = all-views grid
 		if event.keycode == KEY_QUOTELEFT:      # ` toggles the debug menu
 			_toggle_debug_menu(); return
 		# B: "become anything" character-creator menu (pick a blueprint to embody)
