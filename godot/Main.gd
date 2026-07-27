@@ -41,48 +41,11 @@ var reporter: TileReport
 var onboarding: OnboardingControl
 var _font_preview: FontPreview
 
-# Day/night grade. The world is UNSHADED, so a real light does nothing; instead a
-# full-screen MULTIPLY rect tints the whole viewport by time of day. It sits below
-# the UI layer, so panels and text stay at full brightness.
-var _grade: ColorRect
-var _tint := Color.WHITE          # current, smoothed
-var _tint_target := Color.WHITE
-var _time_label := ""
-var _day_frac := 0.5
-var _dawn_h := 6.5
-var _dusk_h := 20.0
-var _sun: Sprite3D
-var _moon: Sprite3D
-var _sun_light: DirectionalLight3D   # follows the sun; drives future shadows
-var _env: Environment
-var _sky := Color(0.05, 0.05, 0.07)
-var _sky_target := Color(0.05, 0.05, 0.07)
-const SKY_NIGHT := Color(0.03, 0.05, 0.12)   # deep blue night void
-const SKY_DAY := Color(0.32, 0.55, 0.85)     # daytime blue
-const SKY_DUSK := Color(0.75, 0.45, 0.35)    # warm dawn/dusk horizon
-const SKY_DIST := 180.0
-const NIGHT_TINT := Color(0.62, 0.68, 0.88)   # cool moonlit cast — NOT a big dim. Night darkness is
-											  # now done PER CELL by the renderer's darkness overlay
-											  # (Qud's light map goes dark on the surface at night),
-											  # so this global tint must stay bright or it double-darks
-											  # and kills the very light pools we want. Only the mood.
-const DAY_TINT := Color(1.0, 0.99, 0.96)       # near-neutral, a hair warm
-const DUSK_TINT := Color(1.0, 0.72, 0.50)      # warm dawn/dusk
+# Day/night atmosphere (sky bodies + MULTIPLY grade + time->tint) lives in SkyGrade.gd, fed each snapshot.
+var _sky_grade                     # SkyGrade (Node3D); created in _ready
 
-# Underground has NO sun or moon, so the day/night grade is wrong there: a cave at
-# noon must not be lit like the surface. Qud's surface stratum is Z==10; deeper zones
-# (Z>10) are underground. There we swap the time-of-day grade for a fixed dim cave
-# ambient (the faked torch/glow geometry then does the actual lighting) and a dark
-# rock void instead of sky. Tunable constants; the depth itself comes from zone.z.
 const SURFACE_Z := 10
 var _depth := SURFACE_Z            # current stratum (zone.z); >SURFACE_Z is underground
-var _underground := false
-const CAVE_TINT := Color(0.82, 0.85, 0.95)     # near-neutral, faintly cool: the per-cell darkness
-											   # overlay (ZoneRenderer._build_darkness, from Qud's
-											   # light map) does the real dimming, NOT this global
-											   # multiply — a dark global grade would kill the very
-											   # light pools we want. Only a slight underground cool.
-const CAVE_SKY := Color(0.015, 0.02, 0.03)     # near-black rock void behind/into the fog
 
 # Vertical level stacking: how many strata BELOW the live zone still render (deeper
 # ones cull off). Shallower levels never render (they'd occlude from above). The gap
@@ -282,75 +245,9 @@ func _ready() -> void:
 	client.snapshot.connect(_on_snapshot)
 	client.connected.connect(_on_bridge_connected)
 
-	var we := WorldEnvironment.new()
-	var env := Environment.new()
-	env.background_mode = Environment.BG_COLOR
-	env.background_color = Color(0.05, 0.05, 0.07)
-	# Use the explicit ambient colour as fill (default source is the dark BG, which
-	# left lit surfaces almost black). This is what makes the rock read as lit.
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	# high, near-neutral ambient so shaded surfaces keep their tile colour where the
-	# sun does not reach; the sun then adds directional highlight + shadow on top.
-	env.ambient_light_color = Color(0.72, 0.72, 0.74)
-	env.ambient_light_energy = 0.72
-	# Depth fog fades distant geometry into the sky, so remembered neighbour zones
-	# read as "over the horizon" while the live zone around the player stays crisp.
-	# Begins past most of the live zone (~80x25 cells), full a couple of zones out.
-	# The fog colour tracks the sky (updated per hour in _process) for a seamless
-	# horizon. Tunable: begin/end distance and the curve.
-	env.fog_enabled = true
-	env.fog_mode = Environment.FOG_MODE_DEPTH
-	env.fog_depth_begin = 60.0
-	env.fog_depth_end = 240.0
-	env.fog_depth_curve = 1.4     # >1: stay clear longer, then ramp up toward the end
-	env.fog_light_color = env.background_color
-	env.fog_sky_affect = 0.0      # the sky IS the fog colour; don't double-fog it
-	# Bloom would give the Spindle a real glow halo, but it's a full-screen multi-pass post-process
-	# and this runs at a huge window size (external 4K) ON TOP of the DOF + fog passes — enabling it
-	# tipped the M1 Pro past the GPU-timeout and HUNG (no crash report, classic fillrate). So it's
-	# OFF; the Spindle instead reads BRIGHT via an HDR modulate (LANDMARK_BRIGHT, free — no extra
-	# pass, no fill). Flip glow_enabled true only if the window is small or DOF is dropped.
-	env.glow_enabled = false
-	env.glow_intensity = 0.9
-	env.glow_hdr_threshold = 1.05
-	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
-	_env = env
-	we.environment = env
-	add_child(we)
-
-	# MULTIPLY grade over the 3D, under the UI, so the world dims at night but text does not.
-	# Full-window inside MainFrame: the grade must sit BELOW the frame's chrome (the root default canvas,
-	# layer 0), so a NEGATIVE layer keeps its MULTIPLY on the 3D only. Standalone keeps it at 0 as before.
-	var glayer := CanvasLayer.new()
-	glayer.layer = -1 if embedded else 0
-	add_child(glayer)
-	_grade = ColorRect.new()
-	_grade.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_grade.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var gmat := CanvasItemMaterial.new()
-	gmat.blend_mode = CanvasItemMaterial.BLEND_MODE_MUL
-	_grade.material = gmat
-	_grade.color = DAY_TINT
-	glayer.add_child(_grade)
-
-	# sky bodies: sun and moon, big bright discs far out on an arc set by the hour.
-	# In a steep top-down view they sit high; tilt the camera down to see them rise
-	# and set on the horizon.
-	_sun = _make_sky_body(Color(1.0, 0.93, 0.6), 26.0)
-	_moon = _make_sky_body(Color(0.82, 0.86, 1.0), 16.0)
-	add_child(_sun)
-	add_child(_moon)
-
-	# a real sun light, aimed by the hour. It does little to the current UNSHADED
-	# materials, but it is the hook directional shadows will hang on once walls
-	# move to a shaded material.
-	_sun_light = DirectionalLight3D.new()
-	_sun_light.light_energy = 0.0            # set per hour in _update_sky
-	_sun_light.shadow_enabled = true
-	_sun_light.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
-	_sun_light.shadow_bias = 0.04
-	_sun_light.shadow_normal_bias = 1.5
-	add_child(_sun_light)
+	_sky_grade = load("res://SkyGrade.gd").new()   # day/night atmosphere: WorldEnvironment + grade + sun/moon
+	add_child(_sky_grade)
+	_sky_grade.setup(embedded, renderer)
 
 	_pivot = Node3D.new()
 	add_child(_pivot)
@@ -460,8 +357,8 @@ func _on_snapshot(data: Dictionary) -> void:
 		_dump_profile(false)
 
 	_depth = int(data.get("zone", {}).get("z", SURFACE_Z))
-	_underground = _depth > SURFACE_Z
-	_update_time(data.get("time", {}))
+	_sky_grade.update(data.get("time", {}), _depth, _zone_center)   # day/night; uses last frame's zone centre
+	_update_mode_label()   # refresh the ⏱ time label with the new time
 
 	var z: Dictionary = data.get("zone", {})
 	if z.has("width") and z.has("height"):
@@ -645,14 +542,6 @@ func _process(dt: float) -> void:
 		if _bg_draw_accum >= BG_DRAW_INTERVAL:
 			_bg_draw_accum = 0.0
 			RenderingServer.force_draw()
-	# ease the grade so time-of-day shifts smoothly between turns
-	_tint = _tint.lerp(_tint_target, clampf(dt * 2.0, 0.0, 1.0))
-	if _grade != null:
-		_grade.color = _tint
-	_sky = _sky.lerp(_sky_target, clampf(dt * 2.0, 0.0, 1.0))
-	if _env != null:
-		_env.background_color = _sky
-		_env.fog_light_color = _sky   # fade distant zones into the current sky colour
 
 	if _mode == CamMode.KEYBOARD:
 		_fly(dt)
@@ -1083,135 +972,6 @@ func _inspect_and_capture() -> void:
 	await _screenshot(true)
 	_inspect()
 
-## Turn Qud's hour into a day/night tint. hour arrives as hour*1000 (int wire).
-## Uses the calendar's own dawn/dusk boundaries, so it matches when Qud calls it
-## day. Night is a cool moonlit blue; dawn and dusk are warm; midday is neutral.
-func _update_time(t: Dictionary) -> void:
-	if _underground:
-		_apply_cave_lighting()
-		return
-	if t.is_empty():
-		return
-	# everything arrives in day-SEGMENTS; normalise to a 0..24 hour here
-	var spd: float = maxf(1.0, float(t.get("segmentsPerDay", 12000)))
-	var hour: float = float(t.get("segment", spd * 0.5)) / spd * 24.0
-	var dawn: float = float(t.get("startOfDay", 3250)) / spd * 24.0
-	var dusk: float = float(t.get("startOfNight", 10000)) / spd * 24.0
-	_time_label = String(t.get("label", ""))
-	_day_frac = hour / 24.0
-	_dawn_h = dawn
-	_dusk_h = dusk
-	_tint_target = _tint_for_hour(hour, dawn, dusk, 24.0)
-	_sky_target = _sky_for_hour(hour, dawn, dusk)
-	_update_sky(hour, dawn, dusk)
-	_update_mode_label()
-
-## Underground: no celestial bodies, so ignore the surface clock and hold a fixed dim
-## cave ambient. The grade/sky still ease toward these targets in _process, so a descent
-## fades smoothly from daylight into the dark. The faked torch/glow geometry lights the
-## scene locally on top of this. Depth is shown in the label (Cavern -N below surface).
-func _apply_cave_lighting() -> void:
-	_tint_target = CAVE_TINT
-	_sky_target = CAVE_SKY
-	if _sun != null:
-		_sun.visible = false
-	if _moon != null:
-		_moon.visible = false
-	if _sun_light != null:
-		_sun_light.light_energy = 0.0
-	_time_label = "Cavern -%d" % (_depth - SURFACE_Z)
-	_update_mode_label()
-
-## A bright disc billboard for a celestial body.
-func _make_sky_body(col: Color, size_units: float) -> Sprite3D:
-	var n := 48
-	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
-	var c := (n - 1) * 0.5
-	for y in n:
-		for x in n:
-			var d: float = Vector2(x - c, y - c).length() / c
-			# solid disc with a soft glowing rim
-			var a := 1.0 if d < 0.72 else clampf(1.0 - (d - 0.72) / 0.28, 0.0, 1.0)
-			img.set_pixel(x, y, Color(col.r, col.g, col.b, a))
-	var spr := Sprite3D.new()
-	spr.texture = ImageTexture.create_from_image(img)
-	spr.pixel_size = size_units / n
-	spr.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	spr.shaded = false
-	spr.transparent = true
-	spr.no_depth_test = true            # always draw in the sky, behind nothing
-	spr.render_priority = -1
-	spr.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
-	return spr
-
-## Position sun and moon on a tilted arc: rise east, peak overhead, set west. The
-## sun tracks day (dawn..dusk); the moon tracks the night span, opposite the sun.
-## Fades each in/out across dawn and dusk so neither pops.
-func _update_sky(hour: float, dawn: float, dusk: float) -> void:
-	if _sun == null:
-		return
-	var sun_up := hour >= dawn and hour <= dusk
-	var sun_p: float = clampf((hour - dawn) / maxf(0.01, dusk - dawn), 0.0, 1.0)
-	# night runs dusk -> 24 -> dawn; fold it into 0..1 for the moon
-	var nlen: float = (24.0 - dusk) + dawn
-	var np: float = ((hour - dusk) if hour >= dusk else (hour + 24.0 - dusk)) / maxf(0.01, nlen)
-
-	_sun.position = _body_pos(sun_p)
-	_moon.position = _body_pos(np)
-
-	# cross-fade over ~1h at each boundary
-	var sun_a: float = clampf(minf(hour - dawn, dusk - hour) + 0.5, 0.0, 1.0) if sun_up else 0.0
-	if renderer != null:
-		renderer.set_daylight(sun_a)   # fade additive torch glow so it doesn't blow out daytime
-	_sun.modulate = Color(1, 1, 1, sun_a)
-	_moon.modulate = Color(1, 1, 1, 1.0 - sun_a)
-	_sun.visible = sun_a > 0.01
-	_moon.visible = sun_a < 0.99
-
-	# aim the sun light down its arc and fade its energy with daylight, so shadows
-	# appear during the day and vanish at night (ambient + grade carry the night).
-	if _sun_light != null:
-		var d := (_zone_center - _sun.position).normalized()
-		_sun_light.rotation = Vector3(asin(clampf(d.y, -1.0, 1.0)), atan2(d.x, d.z), 0.0)
-		_sun_light.light_energy = sun_a * 0.6
-
-## A body's world position for arc progress 0(rise)..1(set), tilted so it clears
-## the horizon in a tilted view rather than sitting straight overhead.
-func _body_pos(p: float) -> Vector3:
-	var theta: float = p * PI                         # 0..PI, east->zenith->west
-	var dir := Vector3(cos(theta), sin(theta) * 0.85 + 0.12, -0.45).normalized()
-	return _zone_center + dir * SKY_DIST
-
-## Background sky colour by hour: night deep-blue, dawn/dusk warm, midday blue.
-func _sky_for_hour(hour: float, dawn: float, dusk: float) -> Color:
-	var w := 1.5
-	if hour < dawn - w or hour > dusk + w:
-		return SKY_NIGHT
-	if hour < dawn:
-		return SKY_NIGHT.lerp(SKY_DUSK, (hour - (dawn - w)) / w)
-	if hour < dawn + w:
-		return SKY_DUSK.lerp(SKY_DAY, (hour - dawn) / w)
-	if hour < dusk - w:
-		return SKY_DAY
-	if hour < dusk:
-		return SKY_DAY.lerp(SKY_DUSK, (hour - (dusk - w)) / w)
-	return SKY_DUSK.lerp(SKY_NIGHT, (hour - dusk) / w)
-
-func _tint_for_hour(hour: float, dawn: float, dusk: float, hpd: float) -> Color:
-	# widths of the dawn/dusk transitions, in hours
-	var w := 2.0
-	if hour < dawn - w or hour > dusk + w:
-		return NIGHT_TINT
-	if hour < dawn:                                   # pre-dawn -> dawn glow
-		return NIGHT_TINT.lerp(DUSK_TINT, (hour - (dawn - w)) / w)
-	if hour < dawn + w:                               # dawn glow -> full day
-		return DUSK_TINT.lerp(DAY_TINT, (hour - dawn) / w)
-	if hour < dusk - w:                               # full day
-		return DAY_TINT
-	if hour < dusk:                                   # day -> dusk glow
-		return DAY_TINT.lerp(DUSK_TINT, (hour - (dusk - w)) / w)
-	return DUSK_TINT.lerp(NIGHT_TINT, (hour - dusk) / w)  # dusk glow -> night
-
 ## Clear everything a selection put on screen: report form, inspector panel, marker.
 ## Bound to Esc and to the form's Cancel button.
 func _dismiss_selection() -> void:
@@ -1302,8 +1062,8 @@ const _MODE_NAMES := {
 
 func _update_mode_label() -> void:
 	_mode_label.text = "camera: %s     ·  ` menu · 1-7 · 0 all-views · F1 controls" % _MODE_NAMES.get(_mode, "?")
-	if _time_label != "":
-		_mode_label.text += "     ⏱ " + _time_label
+	if _sky_grade != null and _sky_grade.time_label != "":
+		_mode_label.text += "     ⏱ " + _sky_grade.time_label
 	_update_debug_menu()
 
 # --- debug menu -------------------------------------------------------------
