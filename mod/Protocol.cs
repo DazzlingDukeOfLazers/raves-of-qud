@@ -18,7 +18,18 @@ namespace RavesOfQud
         /// no way to tell from the outside whether the running code included a
         /// given fix. Every snapshot now says. Bump this when changing the mod.
         /// </summary>
-        public const string Build = "2026-07-26a pc-integration (zoo+become)";
+        public const string Build = "2026-07-27a liquid-sig-fix";
+
+        /// <summary>
+        /// Monotonic WIRE version — bump whenever a change to the snapshot format makes a newer client
+        /// DEPEND on a newer mod (a field the client now needs). The client knows the minimum it requires
+        /// (godot/MainFrame.gd MIN_MOD_PROTOCOL) and warns in the message log when the running mod is older
+        /// — so a forgotten "restart Caves of Qud after a mod change" can't silently ship stale behaviour
+        /// (which is exactly what hid the liquid fix until a restart). History:
+        ///   1  baseline (pre-handshake)
+        ///   2  adds per-object `liquid` flag (static-signature fix) + this `protocol` field
+        /// </summary>
+        public const int Version = 2;
 
         // Arbitrary high port; keep in sync with godot/BridgeClient.gd (PORT).
         public const int DefaultPort = 48710;

@@ -26,6 +26,7 @@ var _name_index := {}            # lowercased object name -> object dict (curren
 var _landmark_index := {}        # lowercased landmark/biome name -> world-terrain dict, ACCUMULATED across travel
 var _player_obj := {}            # the player's render, for the "you" pictograph
 var _full := false               # perceived icons (default) vs real — driven by MainFrame's top-menu toggle
+var _notice := ""                # sticky status line (BBCode) pinned at the BOTTOM — e.g. the mod-version check
 
 func _ready() -> void:
 	_tiles = load("res://QudTiles.gd").new()
@@ -175,11 +176,22 @@ func _seed_from(lines: Array) -> void:
 			_entries.erase(hit)
 			_entries.append(hit)   # keep most-recent at the bottom
 
+## A sticky status line pinned at the BOTTOM of the log (always visible under scroll_following) — used
+## for the mod-version check. Pass "" to clear it. Idempotent, so callers can set it every snapshot.
+func set_notice(markup: String) -> void:
+	if markup == _notice:
+		return
+	_notice = markup
+	_rerender()
+
 func _rerender() -> void:
 	if _filter:
 		_render_filter()
 	else:
 		_render_verbatim()
+	if _notice != "":
+		# separated from the message flow and pinned last, so it doesn't scroll away like a game message
+		_rt.append_text("\n" + _notice)
 
 func _render_verbatim() -> void:
 	var src: Array = _last_msgs

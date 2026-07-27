@@ -61,6 +61,13 @@ var _info_btn: Button       # top-menu Perceived/Full toggle
 var _full_info := false     # global debug toggle: false = perceived (what the player sees), true = full
 var _panels: Array = []     # every sub-view; each has set_snapshot(data) (some also set_full_info)
 
+# Mod-version handshake. The mod sends `protocol` (mod/Protocol.cs Version) each snapshot; the client
+# requires at least MIN and understands up to CLIENT. Mismatch -> a message-log status line, so a stale
+# mod (deployed but Qud not restarted) is visible instead of silently shipping old behaviour.
+const MIN_MOD_PROTOCOL := 2   # oldest mod wire version this client can rely on (needs the `liquid` flag)
+const CLIENT_PROTOCOL := 2    # newest wire version this client was built to understand
+var _mod_status := 0          # 0 unknown, 1 current, 2 mod-too-old, 3 client-too-old — update log only on change
+
 func _ready() -> void:
 	name = "MainFrame"
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -453,10 +460,37 @@ func _apply_stats(data: Dictionary) -> void:
 		var is_day: bool = bool(data.get("time", {}).get("isDay", true))
 		_daynight.text = "☀" if is_day else "☾"
 		_daynight.add_theme_color_override("font_color", Color(1.0, 0.85, 0.35) if is_day else Color(0.6, 0.7, 1.0))
+	_check_mod_version(data)
 	# Every sub-view shares one entry point, so feeding them is a loop (adding a panel = build the scene
 	# + append it to _panels in _ready; no wiring change here).
 	for p in _panels:
 		p.set_snapshot(data)
+
+## Compare the running mod's wire version to what this client needs, and pin a status line in the message
+## log. A mod .cs change only takes effect after a Qud restart, so "deployed but not restarted" left the
+## client running old behaviour with no signal — this makes it loud. Only touches the log when the verdict
+## changes (a reconnect to a newer mod flips it to current). Absent `protocol` = a pre-handshake mod (v1).
+func _check_mod_version(data: Dictionary) -> void:
+	if _msglog == null:
+		return
+	var proto := int(data.get("protocol", 1))
+	var status: int
+	if proto < MIN_MOD_PROTOCOL:
+		status = 2
+	elif proto > CLIENT_PROTOCOL:
+		status = 3
+	else:
+		status = 1
+	if status == _mod_status:
+		return
+	_mod_status = status
+	match status:
+		1:
+			_msglog.set_notice("[color=#6fcf6f]✓ Raves mod v%d — up to date[/color]" % proto)
+		2:
+			_msglog.set_notice("[color=#ff6a6a]⚠ Raves mod is out of date (v%d, need v%d) — restart Caves of Qud to load the latest mod[/color]" % [proto, MIN_MOD_PROTOCOL])
+		3:
+			_msglog.set_notice("[color=#ffd24a]⚠ Raves client is out of date (mod v%d, client v%d) — rebuild/re-export Raves[/color]" % [proto, CLIENT_PROTOCOL])
 
 ## Forward a Context-menu click to the Holodeck's bridge (Main owns the BridgeClient). No-op until the
 ## Holodeck is connected.
