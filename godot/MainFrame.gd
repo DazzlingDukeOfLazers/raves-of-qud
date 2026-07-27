@@ -25,11 +25,12 @@ const COL_BORDER := Color(1, 1, 1, 0.12)
 const COL_PANEL := Color(0.10, 0.11, 0.14)
 const COL_BG := Color(0.055, 0.065, 0.085)
 
-var _holo: Node             # the embedded Main.tscn instance (null until Connect)
-var _holo_vp: SubViewport   # the SubViewport it renders into
-var _holo_host: Control     # the row-3 left cell (control bar + viewport area)
+var _holo: Node             # the Main.tscn instance rendering full-window into the ROOT viewport (null until Connect)
+var _holo_host: Control     # the row-3 left column (control bar + the transparent hole)
+var _holo_hole: Control     # the transparent row-3 area the full-window 3D shows through
+var _holo_hint: Label       # centred hint in the hole (hidden once the viewport is on)
 var _connect_btn: Button    # stage 1: bridge + data, no 3D
-var _render_btn: Button     # stage 2: turn the 3D viewport on
+var _render_btn: Button     # stage 2: turn the 3D on
 
 # Live status-bar labels, updated from each snapshot's `stats` block.
 var _l_name: Label
@@ -59,11 +60,11 @@ func _ready() -> void:
 	theme = UiFont.make_theme(get_viewport())   # one source of truth; children inherit
 	get_viewport().size_changed.connect(_on_resize)
 
-	var bg := ColorRect.new()
-	bg.color = COL_BG
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(bg)
+	# No full-window background rect: the Holodeck now renders 3D into THIS (root) viewport, full-window,
+	# with the chrome floating on top. A hole in row 3 lets that 3D show through — a covering ColorRect
+	# would hide it. The clear colour stands in for the panel bg in the thin gaps between strips and
+	# before the Holodeck connects.
+	RenderingServer.set_default_clear_color(COL_BG)
 
 	var rows := VBoxContainer.new()
 	rows.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -289,16 +290,17 @@ func _row_main() -> Control:
 	split.add_child(side)
 	return split
 
-## The Holodeck cell: the existing 3D scene (Main.tscn) instanced inside a SubViewport, stretched to
-## fill the cell. Main creates its own camera / World3D / bridge in _ready, so it just works in here.
-## Mouse over the cell is forwarded by SubViewportContainer; keyboard is forwarded in
-## _unhandled_key_input below. Camera/movement (polled Input.is_key_pressed) works regardless.
-## Two explicit stages so the 3D crash can't take the data with it:
-##   1. Connect (data) — instance Main with render_3d = FALSE and the SubViewport render off. The
-##      bridge starts and the status bar + message log fill with ZERO 3D/Metal work (Main skips the
-##      whole build/render path). If this is stable, the data layer is proven independent of the 3D.
-##   2. Turn on viewport — set Main.render_3d = true (renders the current zone) and flip the
-##      SubViewport to present. Any 3D crash is now isolated here, and the data view survives it.
+## The Holodeck cell: the existing 3D scene (Main.tscn), rendered FULL-WINDOW into the root viewport
+## (its original, crash-free home — the SubViewport that was added only for embedding is gone). The
+## chrome floats on top; this row-3 cell is a transparent HOLE the 3D shows through. Main creates its
+## own camera / environment / bridge in _ready, so it just works. Mouse over the hole passes through to
+## Main (inspector); keyboard reaches Main via _unhandled_input. Camera/movement (polled input) works
+## regardless. Two explicit stages so the (now-unlikely) 3D crash can't take the data with it:
+##   1. Connect (data) — instance Main with render_3d = FALSE. The bridge starts and the status bar +
+##      panels fill with ZERO 3D build work (Main skips the whole build/render path). The empty 3D
+##      world (just sky) shows in the hole. Proves the data layer independent of the 3D.
+##   2. Turn on viewport — set Main.render_3d = true, which builds + renders the current zone into the
+##      root viewport. No SubViewport, so no separate Metal render target to overrun.
 func _holodeck_cell() -> Control:
 	_holo_host = VBoxContainer.new()
 	_holo_host.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -321,55 +323,48 @@ func _holodeck_cell() -> Control:
 	bh.add_child(tail)
 	_holo_host.add_child(bar)
 
-	var area := _cell("HOLODECK")
-	area.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_holo_host.add_child(area)
+	# The HOLE — a transparent Control the full-window 3D shows through. No stylebox (so nothing is
+	# drawn over the 3D), mouse IGNORE (so clicks fall through to Main's inspector).
+	_holo_hole = Control.new()
+	_holo_hole.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_holo_hole.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_holo_hole.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_holo_hint = _text("HOLODECK — press  ▶ Connect (data),  then  ▶ Turn on viewport", COL_DIM)
+	_holo_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	center.add_child(_holo_hint)
+	_holo_hole.add_child(center)
+	_holo_host.add_child(_holo_hole)
 	return _holo_host
 
-## Stage 1 — data only. Main runs the bridge and emits snapshots (status bar + log) but does NO 3D
-## work (render_3d = false), and the SubViewport isn't presenting.
+## Stage 1 — data only. Instance Main into the ROOT viewport (full-window) with render_3d = false: the
+## bridge runs and snapshots flow (status bar + panels) with no 3D build work. The chrome is already
+## on top; the empty 3D world (sky) shows in the hole.
 func _connect_holodeck() -> void:
 	if _holo != null:
 		return
 	_connect_btn.disabled = true
-	if _holo_host.get_child_count() > 1:
-		_holo_host.get_child(1).queue_free()
-	var svc := SubViewportContainer.new()
-	svc.stretch = true
-	# Render the 3D at a FRACTION of native-retina resolution (upscaled to fill). At full HiDPI the
-	# SubViewport's Metal render target overran and crashed only in the exported app; half-res still
-	# crashed intermittently on enable, so cut to quarter-res. The frame's 2D chrome stays crisp; only
-	# the 3D view softens. Bump higher if it still recurs.
-	svc.stretch_shrink = 4
-	svc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	svc.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	var sv := SubViewport.new()
-	sv.own_world_3d = true
-	sv.msaa_3d = Viewport.MSAA_DISABLED          # no MSAA buffers — less Metal pressure
-	sv.render_target_update_mode = SubViewport.UPDATE_DISABLED
-	svc.add_child(sv)
+	if _holo_hint != null:
+		_holo_hint.text = "Data connected — press  ▶ Turn on viewport"
 	_holo = load("res://Main.tscn").instantiate()
-	_holo.embedded = true
+	_holo.embedded = true                       # hide Main's own HUD chrome; move its grade below the frame
 	_holo.render_3d = false                     # DATA ONLY — no 3D build/render at all
-	_holo.connect("snapshot", _apply_stats)     # feeds status bar + message log
-	sv.add_child(_holo)                          # _ready() → bridge connects
-	_holo_vp = sv
-	_holo_host.add_child(svc)
+	_holo.connect("snapshot", _apply_stats)     # feeds status bar + panels off the same stream
+	add_child(_holo)                            # ROOT viewport → 3D renders full-window BEHIND the chrome
 	_render_btn.disabled = false
 
-## Stage 2 — bring the 3D up. BUILD the zone meshes now (SubViewport still not presenting), then start
-## PRESENTING a beat later. Building the meshes (a burst of Metal allocations) and presenting in the
-## SAME frame raced the driver and crashed on enable; the gap between them fixes it.
+## Stage 2 — bring the 3D up: build + render the current zone into the root viewport. No SubViewport
+## present-flip to race the Metal driver (that was the crash); this is the path standalone Main always
+## used. The hole's hint is dropped so it doesn't float over the live view.
 func _enable_viewport() -> void:
-	if _holo == null or _holo_vp == null:
+	if _holo == null:
 		return
 	_render_btn.disabled = true
-	_holo.set_render_3d(true)                    # build the current zone now — render still DISABLED
-	get_tree().create_timer(1.0).timeout.connect(_present_viewport)
-
-func _present_viewport() -> void:
-	if _holo_vp != null:
-		_holo_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	if _holo_hint != null:
+		_holo_hint.visible = false
+	_holo.set_render_3d(true)
 
 ## Update the status bar from one snapshot's `stats` block (and `time` for day/night). Missing
 ## fields fall back to "—" so a partial/older mod never shows stale numbers.
@@ -441,9 +436,10 @@ func _floor_name(data: Dictionary) -> String:
 		return "cavern -%d" % (z - 10)
 	return "surface"
 
-# NOTE: no manual key forwarding here. SubViewportContainer already delivers input to its SubViewport,
-# so pushing events in ALSO would double them (one keypress -> two moves = the "double stepping" bug).
-# Let the container handle it.
+# NOTE: no key forwarding here. Main renders into the ROOT viewport, so it receives keyboard via its
+# own _unhandled_input directly (the chrome's menu buttons are focus-less, so they never swallow keys).
+# One keypress -> one delivery -> one step. (The old SubViewport path needed care here to avoid the
+# "double stepping" bug; full-window has no such duplication.)
 
 # ── row 4: active effects | target | context menu ────────────────────────────
 

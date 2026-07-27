@@ -24,10 +24,15 @@ in prose for the player viewport. NOTE: this is the product name, not the Godot 
 
 `project.godot` main scene is now **`MainFrame.tscn`** (was `Main.tscn`). `MainFrame.gd` (a `Control`,
 built in code like the rest) is the 5-row gameplay chrome: status strip; HP/EXP + top menu; the
-**Holodeck | side panels** row; effects/target/context; command bar. The Holodeck is `Main.tscn`
-instanced inside a `SubViewportContainer` → `SubViewport` (`own_world_3d`) — see `_holodeck_cell()`.
+**Holodeck | side panels** row; effects/target/context; command bar. The Holodeck (`Main.tscn`) renders
+**FULL-WINDOW into the root viewport** — its original, crash-free home. The chrome floats on top and
+row 3's left cell is a transparent **hole** the 3D shows through (`_holo_hole`, mouse-ignore, no
+stylebox). There is **no `SubViewportContainer`/`SubViewport`** — that was the Metal crash source and is
+gone. See `_holodeck_cell()`. MainFrame drops its full-window bg ColorRect (it would cover the 3D) and
+sets `RenderingServer.set_default_clear_color(COL_BG)` for the gaps/pre-connect look.
 - **`Main.embedded`** (set by MainFrame before add_child) hides the Holodeck's own chrome (mode label,
-  Reset/2D buttons) so the frame owns them. Standalone `Main` is unchanged.
+  Reset/2D buttons) so the frame owns them, AND moves Main's day/night MULTIPLY grade to a **negative
+  CanvasLayer** so it tints only the 3D, never the frame's chrome. Standalone `Main` is unchanged.
 - **Data flow, ONE bridge:** `Main` emits a `snapshot(data)` signal each frame; `MainFrame._apply_stats`
   fills the status bar/vitals from it — no second bridge connection. Missing fields fall back to `—`.
 - **Player stats come from the mod's `stats` block** (`ZoneSnapshot.WriteStats`). Verified Qud APIs:
@@ -46,19 +51,19 @@ instanced inside a `SubViewportContainer` → `SubViewport` (`own_world_3d`) —
 - **Qud markup** (`{{code|text}}` spans AND running `&X` foreground / `^X` background) is handled by the
   shared **`QudText`** util (`to_bbcode(s, palette)`, `strip(s)`). Messages/nearby names render coloured;
   status-bar name/biome are stripped. The palette (code→hex) rides each snapshot.
-- **Input:** do NOT manually forward keys — `SubViewportContainer` already delivers input to its
-  SubViewport. A manual `push_input` was a SECOND delivery → every keypress double-stepped. Removed.
-- **Enabling the Holodeck — TWO stages, and the Metal-crash fixes matter (don't undo them):**
-  `Connect (data)` instances `Main` with **`Main.render_3d = false`** — `_on_snapshot` skips ALL 3D
-  build/render, so the bridge + status bar + panels run with ZERO GPU work (this is how the crash was
-  isolated to the 3D). `Turn on viewport` calls `set_render_3d(true)` to BUILD the zone, then presents
-  ~1s LATER (`_present_viewport`) — building the meshes and presenting in one frame raced the driver.
-  The SubViewport renders at **quarter native res (`stretch_shrink=4`) with MSAA off**: at full HiDPI
-  its Metal render target overran and crashed ONLY in the exported app (the dev editor, lower-res,
-  never did). The exported app writes NO crash report (ad-hoc) and the dev editor doesn't reproduce it,
-  so this whole saga was elimination — see the export-debugging note under "Debugging rules". If it
-  ever recurs, the real cure is full-window 3D (like standalone Main, which never crashed) with the 2D
-  chrome overlaid, instead of a SubViewport.
+- **Input:** Main renders into the ROOT viewport, so it receives keyboard directly via its own
+  `_unhandled_input` (the chrome's menu buttons are focus-less, so they never swallow keys). One
+  keypress → one delivery → one step. Do NOT re-add key forwarding. (The old SubViewport path needed a
+  no-forward rule to avoid double-stepping; full-window has no such duplication.)
+- **Enabling the Holodeck — still TWO stages (data-first), but no SubViewport dance:** `Connect (data)`
+  instances `Main` into the root viewport with **`Main.render_3d = false`** — `_on_snapshot` skips ALL
+  3D build/render, so the bridge + status bar + panels run with ZERO GPU work, and only the empty 3D
+  world (sky) shows in the hole. `Turn on viewport` calls `set_render_3d(true)`, which builds + renders
+  the current zone into the root viewport — the exact path standalone `Main` always used, so there is
+  **no separate Metal render target to overrun** (that was the crash). The two stages remain because
+  data-first is cheap insurance: it keeps the data view provably independent of the 3D. The old
+  SubViewport mitigations (quarter-res `stretch_shrink`, `_present_viewport` timer) are gone with the
+  SubViewport itself. If a crash somehow recurs, capture it via the dev editor (see "Debugging rules").
 
 ## Branches & platform (parallel dev on Mac + PC)
 

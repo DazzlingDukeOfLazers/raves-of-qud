@@ -318,10 +318,11 @@ func _ready() -> void:
 	we.environment = env
 	add_child(we)
 
-	# MULTIPLY grade over the 3D, under the UI. layer 0 keeps it below the panels
-	# (default layer 1), so the world dims at night but text does not.
+	# MULTIPLY grade over the 3D, under the UI, so the world dims at night but text does not.
+	# Full-window inside MainFrame: the grade must sit BELOW the frame's chrome (the root default canvas,
+	# layer 0), so a NEGATIVE layer keeps its MULTIPLY on the 3D only. Standalone keeps it at 0 as before.
 	var glayer := CanvasLayer.new()
-	glayer.layer = 0
+	glayer.layer = -1 if embedded else 0
 	add_child(glayer)
 	_grade = ColorRect.new()
 	_grade.set_anchors_preset(Control.PRESET_FULL_RECT)
