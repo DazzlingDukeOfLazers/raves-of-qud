@@ -6,6 +6,8 @@ extends PanelContainer
 ## count, sorted nearest-first. Refine the filter (what counts as "notable") from here as we tune it.
 
 const MAX_ROWS := 25
+const RADIUS := 1   # king-move radius; 1 = the 3x3 (9 tiles) around the player. NOTE: the whole-zone
+                    # scan (RADIUS = zone size) is the basis for the future Points of Interest menu.
 
 var _rt: RichTextLabel
 
@@ -43,16 +45,18 @@ func set_snapshot(data: Dictionary) -> void:
 	var py := int(p.get("y", -1))
 	if px < 0 or py < 0:
 		return
-	var found := {}   # display name -> {dir, dist, count}
+	var found := {}   # display name -> {arrow, glyph, dist, count}
 	for cell in data.get("cells", []):
 		var dx := int(cell.get("x", 0)) - px
 		var dy := int(cell.get("y", 0)) - py
-		if dx == 0 and dy == 0:
-			continue                       # the player's own cell
 		var dist: int = maxi(absi(dx), absi(dy))   # Chebyshev (king-move) distance
+		if dist > RADIUS:
+			continue
 		for obj in cell.get("objs", []):
 			if bool(obj.get("ground", false)):
 				continue                   # skip painted ground
+			if dist == 0 and bool(obj.get("creature", false)):
+				continue                   # that's the player, on their own cell
 			var nm := String(obj.get("display", ""))
 			if nm == "":
 				nm = String(obj.get("name", ""))
@@ -62,9 +66,9 @@ func set_snapshot(data: Dictionary) -> void:
 				found[nm]["count"] += 1
 				if dist < found[nm]["dist"]:
 					found[nm]["dist"] = dist
-					found[nm]["dir"] = _dir(dx, dy)
+					found[nm]["arrow"] = _arrow(dx, dy)
 			else:
-				found[nm] = {"dir": _dir(dx, dy), "dist": dist, "count": 1}
+				found[nm] = {"arrow": _arrow(dx, dy), "glyph": String(obj.get("glyph", "")), "dist": dist, "count": 1}
 
 	var names: Array = found.keys()
 	names.sort_custom(func(a, b): return found[a]["dist"] < found[b]["dist"])
@@ -73,17 +77,18 @@ func set_snapshot(data: Dictionary) -> void:
 		var nm: String = names[i]
 		var e: Dictionary = found[nm]
 		var suffix: String = ("  ×%d" % e["count"]) if e["count"] > 1 else ""
-		lines.append("%-2s  %s%s" % [e["dir"], nm, suffix])
+		lines.append("%s %s %s%s" % [e["arrow"], e["glyph"], nm, suffix])
 	_rt.text = "\n".join(lines)
 
-## 8-way compass direction from a cell offset (y increases SOUTH, as in Qud/the snapshot).
-func _dir(dx: int, dy: int) -> String:
-	var ax := absi(dx)
-	var ay := absi(dy)
-	var h := "E" if dx > 0 else ("W" if dx < 0 else "")
-	var vv := "S" if dy > 0 else ("N" if dy < 0 else "")
-	if ax > ay * 2:
-		return h
-	if ay > ax * 2:
-		return vv
-	return vv + h   # diagonal, e.g. "NE"
+## Compass ARROW from a cell offset (y increases SOUTH). Within RADIUS 1 this is exactly the 8
+## neighbours plus the centre.
+func _arrow(dx: int, dy: int) -> String:
+	if dx == 0 and dy == 0:
+		return "·"                      # on your own tile
+	if dx == 0:
+		return "↑" if dy < 0 else "↓"
+	if dy == 0:
+		return "→" if dx > 0 else "←"
+	if dx > 0:
+		return "↗" if dy < 0 else "↘"
+	return "↖" if dy < 0 else "↙"
