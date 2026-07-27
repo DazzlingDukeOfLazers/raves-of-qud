@@ -43,11 +43,28 @@ sets `RenderingServer.set_default_clear_color(COL_BG)` for the gaps/pre-connect 
   `GetMaxCarriedWeight`; water=`GetFreeDrams("water")` (liquid ids are **lowercase**);
   hunger/thirst=`Stomach.FoodStatus()`/`WaterStatus()` (strip `{{color|text}}` markup);
   biome=`Zone.DisplayName`. Adding a field is: emit it in WriteStats → read it in `_apply_stats`.
-- **The side-column views are their own scenes** (`MessageLog.gd`, `NearbyObjects.gd`), fed by
-  `_apply_stats`. Message log: verbatim/filter toggle (filter = one line per unique message, `(xN)`
-  on repeat, decays off after a grace of quiet rounds; a "round" = a snapshot with NEW messages,
-  diffed via `msgCount`). Nearby objects: client-side from the snapshot's `cells` + player (no mod
-  data), 3x3, tile recoloured like the renderer (`main.lerp(detail, luminance)`), name coloured.
+- **Each panel is its own scene**, fed by `_apply_stats`: `MinimapView` (full/minimal toggle),
+  `NearbyObjects` (3x3, client-side from `cells`), `MessageLog`, `ActiveEffects` (row 4 L), `TargetView`
+  (row 4 M), `ContextMenu` (row 4 R). Message log: verbatim/filter toggle (filter = one line per unique
+  message, `(xN)` on repeat, decays off after a grace of quiet rounds; a "round" = a snapshot with NEW
+  messages, diffed via `msgCount`; **seeded from the backlog on connect** so it's never empty). It also
+  inlines **object icons** matched from each line's text against a zone name→object index, a **"you"**
+  pictograph (the player's own render) on player-subject lines, and **landmark** world-map tiles
+  accumulated from `worldTerrain` as you travel.
+- **Active effects / Target / Context menu (row 4).** Effects = `player.Effects` DisplayName (coloured;
+  LiquidCovered → the liquid's `GetSmearedName`, e.g. "wet"). Target = `Sidebar.CurrentTarget`: name +
+  Qud's perceived descriptor line (`Strings.WoundLevel` / `Description.GetFeelingDescription` /
+  `GetDifficultyDescription`) + direction. Context = the missile-weapon area (`GetMissileWeapons` +
+  `MissileWeapon.Status`) with clickable **`[F] fire` / `[R] reload` / `[?]`** (change cell).
+- **Perceived vs full (global toggle in the top menu, 👁).** Panels default to what the player PERCEIVES;
+  the toggle reveals full/debug info. Icons: the mod sends the full tile + a perceived override
+  (`tileP/colorP/detailP/glyphP` via `GameObject.RenderForUI()`) **only when `!Understood()`**, so an
+  unidentified artifact shows Qud's "unknown" icon; `QudTiles.texture_for(obj, full)` picks. Text: Target
+  shows the wound WORD by default, exact HP only in full. See the perceived-vs-full memory.
+- **Buttons drive Qud over the bridge.** Client → `send_command("command", {command})` (e.g. `CmdFire`)
+  which the mod injects via `Keyboard.PushCommand` (binding-independent), or
+  `send_command("itemaction", {item, command})` → main-thread `InventoryActionEvent.Check` (e.g.
+  `ReplaceSocketCell`). `F` in Raves = fire (a Raves keybind being retired for Qud's own controls).
 - **Qud markup** (`{{code|text}}` spans AND running `&X` foreground / `^X` background) is handled by the
   shared **`QudText`** util (`to_bbcode(s, palette)`, `strip(s)`). Messages/nearby names render coloured;
   status-bar name/biome are stripped. The palette (code→hex) rides each snapshot.
