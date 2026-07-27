@@ -55,7 +55,10 @@ add a one-liner (symptom → rule).
 ### Godot / the frame
 - **Mouse clicks over the Holodeck are eaten by the frame's container Controls** before `_unhandled_input`.
   Handle Holodeck mouse in **`Main._input`** (fires before GUI). Keyboard is fine in `_unhandled_input`
-  (focus-less menu buttons don't swallow it).
+  (focus-less menu buttons don't swallow it). This bit the **inspector**: Ctrl/Cmd+click → `_inspect`
+  sat in `_unhandled_input` and silently stopped working once the Holodeck was embedded (hover+**I**, a
+  keyboard path, still worked — the tell). Any NEW Holodeck mouse gesture (inspect, pick, a future
+  click-to-target) goes in `_input`; only the camera's own MOUSE-mode orbit/pan/wheel stays in `_unhandled_input`.
 - **`var x := load("res://Y.gd").new()` won't parse** (`load()` is typed `Resource`, has no `.new()`) — declare
   the member typed, assign in `_ready`. **`var x := dict.get(k)` won't parse** either (can't infer from
   `Variant`) — annotate the type (`var x: Array = ...`).

@@ -746,6 +746,18 @@ func _load_settings() -> void:
 func _input(event: InputEvent) -> void:
 	if _picker.is_picking() and _picker.handle_input(event):
 		get_viewport().set_input_as_handled()
+		return
+	# Inspect clicks must be caught HERE (before the GUI): when the Holodeck is embedded in MainFrame, the
+	# frame's container Controls eat mouse clicks over it before _unhandled_input — the same reason the
+	# picker lives here. Ctrl/Cmd+click inspects; Ctrl/Cmd+right-click inspects AND photographs both apps.
+	# (Non-inspect mouse — MOUSE-mode orbit/pan, wheel zoom — stays in _unhandled_input.)
+	if event is InputEventMouseButton and event.pressed and (event.ctrl_pressed or event.meta_pressed):
+		if event.button_index == MOUSE_BUTTON_LEFT:
+			_inspect()
+			get_viewport().set_input_as_handled()
+		elif event.button_index == MOUSE_BUTTON_RIGHT:
+			_inspect_and_capture()
+			get_viewport().set_input_as_handled()
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
@@ -867,19 +879,12 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventMouseButton:
 		match event.button_index:
 			MOUSE_BUTTON_LEFT:
-				# Ctrl/Cmd+click inspects; a plain click orbits (MOUSE mode)
-				if event.pressed and (event.ctrl_pressed or event.meta_pressed):
-					_inspect()
-				else:
-					_cam_rig._orbiting = event.pressed and _cam_rig._mode == CamMode.MOUSE
+				# Ctrl/Cmd+click inspect is handled in _input (containers eat it here when embedded);
+				# a plain click orbits (MOUSE mode).
+				_cam_rig._orbiting = event.pressed and _cam_rig._mode == CamMode.MOUSE
 			MOUSE_BUTTON_RIGHT, MOUSE_BUTTON_MIDDLE:
-				# Ctrl/Cmd + right-click = inspect AND photograph both apps, so a
-				# single gesture hands over coordinates, wire data and the picture.
-				if (event.pressed and event.button_index == MOUSE_BUTTON_RIGHT
-						and (event.ctrl_pressed or event.meta_pressed)):
-					_inspect_and_capture()
-				else:
-					_cam_rig._panning = event.pressed and _cam_rig._mode == CamMode.MOUSE
+				# Ctrl/Cmd+right-click inspect+capture is handled in _input; a plain right/middle pans.
+				_cam_rig._panning = event.pressed and _cam_rig._mode == CamMode.MOUSE
 			MOUSE_BUTTON_WHEEL_UP:
 				if event.pressed:
 					if _cam_rig._mode == CamMode.TOP_FOLLOW:
