@@ -172,20 +172,23 @@ func _render_filter() -> void:
 ## Append one log line: if its text names a zone object, inline that object's icon first (perceived
 ## or real per the global toggle), then the coloured text.
 func _append_line(markup: String) -> void:
-	var obj := _icon_obj_for(markup)
-	if not obj.is_empty():
+	var img_h := UiFont.px(get_viewport(), "body") * 2   # doubled — chunky inline pictographs
+	var img_w := int(round(img_h * 16.0 / 24.0))
+	for obj in _icons_for(markup):
 		var tex: Texture2D = _tiles.texture_for(obj, _full)
 		if tex != null:
-			var img_h := UiFont.px(get_viewport(), "body") * 2   # doubled — a chunky inline pictograph
-			_rt.add_image(tex, int(round(img_h * 16.0 / 24.0)), img_h)
+			_rt.add_image(tex, img_w, img_h)
 			_rt.append_text(" ")
 	_rt.append_text(QudText.to_bbcode(markup, _palette) + "\n")
 
-## The icon for a log line: the LONGEST object/landmark name contained in the line's plain text (so
-## "brinestalk wall" beats bare "wall", "Red Rock" beats nothing), else — if the line is about "you" —
-## the player's own icon, else {}.
-func _icon_obj_for(markup: String) -> Dictionary:
+## The icons for a log line, in order: the player's own icon FIRST if the line says "you" (the subject),
+## then the object/landmark whose (lowercased) name is the LONGEST one in the line ("brinestalk wall"
+## beats bare "wall", "Red Rock" beats a stray "rock"). Either may be absent.
+func _icons_for(markup: String) -> Array:
+	var out: Array = []
 	var plain := QudText.strip(markup).to_lower()
+	if not _player_obj.is_empty() and plain.contains("you"):
+		out.append(_player_obj)
 	var best := ""
 	var best_obj := {}
 	for src in [_name_index, _landmark_index]:
@@ -194,10 +197,8 @@ func _icon_obj_for(markup: String) -> Dictionary:
 				best = nm
 				best_obj = src[nm]
 	if not best_obj.is_empty():
-		return best_obj
-	if not _player_obj.is_empty() and plain.contains("you"):
-		return _player_obj    # self-referential line with no named object -> the "you" pictograph
-	return {}
+		out.append(best_obj)
+	return out
 
 func _toggle_mode() -> void:
 	_filter = not _filter
