@@ -655,23 +655,21 @@ func _process(dt: float) -> void:
 	if _mode == CamMode.KEYBOARD:
 		_fly(dt)
 	elif _mode == CamMode.MOUSE and not Input.is_key_pressed(KEY_SHIFT):
-		# orbit params: Q/E yaw, R/F pitch
+		# orbit params: Q/E yaw, R pitch-up. (F is Fire now, not pitch-down — see _unhandled_input.)
 		if Input.is_key_pressed(KEY_Q): _yaw += 1.5 * dt
 		if Input.is_key_pressed(KEY_E): _yaw -= 1.5 * dt
 		if Input.is_key_pressed(KEY_R): _pitch = clampf(_pitch + 1.0 * dt, PITCH_MIN, PITCH_MAX)
-		if Input.is_key_pressed(KEY_F): _pitch = clampf(_pitch - 1.0 * dt, PITCH_MIN, PITCH_MAX)
 	elif _mode == CamMode.CINEMATIC and (inspector == null or inspector.selected_tile() == null):
 		_cine_t += dt * 0.35   # slow auto-orbit ONLY with no target; a selected tile holds the framing still
-	# R/F zoom (Shift-guarded so Shift+F still switches). Top-down modes zoom the ortho
-	# span via _top_zoom; the perspective modes zoom the eye distance via _dist.
+	# R zooms IN (Shift-guarded so Shift+ chords still switch). F is Fire now (was zoom-out); the mouse
+	# wheel still zooms both ways. Top-down modes zoom the ortho span via _top_zoom; the perspective
+	# modes zoom the eye distance via _dist. (Temporary Raves keybinds are being retired for Qud's own.)
 	var _td_zoom := _mode == CamMode.TOP_FOLLOW
 	if _td_zoom and not Input.is_key_pressed(KEY_SHIFT):
 		if Input.is_key_pressed(KEY_R): _top_zoom = clampf(_top_zoom * (1.0 - dt), TOP_ZOOM_MIN, TOP_ZOOM_MAX)
-		if Input.is_key_pressed(KEY_F): _top_zoom = clampf(_top_zoom * (1.0 + dt), TOP_ZOOM_MIN, TOP_ZOOM_MAX)
 	elif (_mode == CamMode.COMPASS or _mode == CamMode.FOLLOW or _mode == CamMode.FIRST_PERSON) \
 			and not Input.is_key_pressed(KEY_SHIFT):
 		if Input.is_key_pressed(KEY_R): _dist = clampf(_dist * (1.0 - dt), DIST_MIN, DIST_MAX)
-		if Input.is_key_pressed(KEY_F): _dist = clampf(_dist * (1.0 + dt), DIST_MIN, DIST_MAX)
 	# (S/D no longer pan the camera — they're forwarded to Qud as key presses so you can drive
 	# your soar/descend binds from Raves. See the KEY_S/KEY_D handlers in _unhandled_input.)
 	_update_camera(dt)
@@ -904,6 +902,19 @@ func _move_relative(intent: Vector2) -> void:
 	if v.length() < 0.001:
 		return
 	client.send_command("move", {"dir": _dir_to_compass(v.normalized())})
+
+## Send a named Qud command (CmdFire, CmdReload, …) over the bridge — from a Raves hotkey or a UI
+## button. The mod injects it into Qud's input like a keypress, so any targeting UI opens in the Qud
+## window. No-op until the bridge is up.
+func request_command(cmd: String) -> void:
+	if client != null:
+		client.send_command("command", {"command": cmd})
+
+## Invoke an inventory action (e.g. ReplaceSocketCell — "change the battery") on a specific equipped
+## weapon, identified by its Qud GameObject id. Runs on Qud's main thread mod-side.
+func request_item_action(item_id: String, action: String) -> void:
+	if client != null:
+		client.send_command("itemaction", {"item": item_id, "command": action})
 
 func _set_mode(m: int) -> void:
 	if _multiview_on:
@@ -1528,6 +1539,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			_set_mode(CamMode.KEYBOARD); return
 		if event.shift_pressed and event.keycode == KEY_F:
 			_set_mode(CamMode.FOLLOW); return
+		# Plain F = FIRE (forwarded to Qud), NOT a camera key. Qud runs its own fire/targeting flow.
+		# (Temporary Raves keybinds are being retired; Qud's own controls arrive next.)
+		if event.keycode == KEY_F and not event.shift_pressed \
+				and not (event.ctrl_pressed or event.meta_pressed or event.alt_pressed):
+			request_command("CmdFire"); return
 		# camera modes by number (mirrored in the ` debug menu)
 		if event.keycode == KEY_1: _set_mode(CamMode.COMPASS); return
 		if event.keycode == KEY_2: _set_mode(CamMode.FOLLOW); return

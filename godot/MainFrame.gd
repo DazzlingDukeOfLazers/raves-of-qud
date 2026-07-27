@@ -436,6 +436,17 @@ func _apply_stats(data: Dictionary) -> void:
 	if _context != null:
 		_context.set_snapshot(data)
 
+## Forward a Context-menu click to the Holodeck's bridge (Main owns the BridgeClient). No-op until the
+## Holodeck is connected.
+func _on_context_command(payload: Dictionary) -> void:
+	if _holo == null:
+		return
+	match String(payload.get("type", "")):
+		"command":
+			_holo.request_command(String(payload.get("command", "")))
+		"itemaction":
+			_holo.request_item_action(String(payload.get("item", "")), String(payload.get("command", "")))
+
 ## Stratum label from zone.z (surface = 10, deeper = cavern -N, negative = the overworld map).
 func _floor_name(data: Dictionary) -> String:
 	var z: int = int(data.get("zone", {}).get("z", 10))
@@ -465,6 +476,7 @@ func _row_context() -> Control:
 	tgt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_context = load("res://ContextMenu.gd").new()     # the real Context menu view (its own file)
 	_context.custom_minimum_size = Vector2(0, 90)
+	_context.command_requested.connect(_on_context_command)   # fire/reload/[?] → the Holodeck's bridge
 	var ctx: Control = _context
 	ctx.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h.add_child(eff)

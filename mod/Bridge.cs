@@ -367,6 +367,16 @@ namespace RavesOfQud
                     Keyboard.PushCommand("CmdWait", null);
                     return;
                 }
+                if (name == "command")
+                {
+                    // A named Qud command (CmdFire, CmdReload, …) from a Raves button/hotkey. Injected
+                    // like a move so it wakes an unfocused game and runs through Qud's own command path
+                    // (any targeting UI opens in the Qud window). Binding-independent (no key guessing).
+                    f.TryGetValue("command", out string cmd);
+                    if (!string.IsNullOrEmpty(cmd))
+                        Keyboard.PushCommand(cmd, null);
+                    return;
+                }
                 if (name == "key")
                 {
                     // Forward a raw key press (e.g. Raves' S/D) INTO Qud's keymap, so it fires
@@ -440,6 +450,26 @@ namespace RavesOfQud
                     try { Server.Log("[catalog] wrote " + PlayerBecome.WriteCatalog()); }
                     catch (Exception e) { Server.Log("catalog error: " + e.Message); }
                     break;
+                case "itemaction":
+                    // Invoke an inventory action on one of the player's equipped weapons — e.g. the
+                    // context menu's "[?]" -> ReplaceSocketCell (change the battery). MAIN-THREAD ONLY:
+                    // InventoryActionEvent.Check mutates state and can open a picker UI, so it must run
+                    // here (drained by Tick/TickRender), never on the socket thread.
+                    try
+                    {
+                        f.TryGetValue("item", out string itemId);
+                        f.TryGetValue("command", out string icmd);
+                        if (!string.IsNullOrEmpty(itemId) && !string.IsNullOrEmpty(icmd))
+                        {
+                            GameObject item = FindEquippedById(player, itemId);
+                            if (item != null)
+                                InventoryActionEvent.Check(item, player, item, icmd);
+                            else
+                                Server.Log("itemaction: no equipped weapon id=" + itemId);
+                        }
+                    }
+                    catch (Exception e) { Server.Log("itemaction error: " + e.Message); }
+                    break;
                 // Movement is handled on the socket thread (see OnPayload), so it can
                 // drive an unfocused game. Extend here for main-thread-only commands.
                 default:
@@ -479,5 +509,20 @@ namespace RavesOfQud
         // input/command path — doors/combat/NPC turns resolve exactly as from a keypress.
         private static readonly System.Collections.Generic.HashSet<string> Dirs =
             new System.Collections.Generic.HashSet<string> { "N", "S", "E", "W", "NE", "NW", "SE", "SW" };
+
+        /// Find one of the player's equipped missile weapons by its GameObject.ID (the client targets a
+        /// specific weapon for an item action). Returns null if not found.
+        private static GameObject FindEquippedById(GameObject player, string id)
+        {
+            try
+            {
+                var mws = player.GetMissileWeapons();
+                if (mws != null)
+                    foreach (var w in mws)
+                        if (w != null && w.ID == id) return w;
+            }
+            catch { }
+            return null;
+        }
     }
 }

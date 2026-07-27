@@ -572,8 +572,14 @@ namespace RavesOfQud
                         statusText = st.text ?? "";
                     }
                     catch { }
+                    string wid = "";
+                    bool canCell = false;
+                    try { wid = w.ID ?? ""; } catch { }
+                    try { canCell = w.HasPart("EnergyCellSocket"); } catch { }   // "[?]" change-battery affordance
                     j.BeginObject()
                         .Member("name", DisplayNameOf(w))       // DisplayNameOnly keeps colour markup
+                        .Member("id", wid)                      // so the client can target this weapon for a cell swap
+                        .Member("canReplaceCell", canCell)
                         .Member("ammoRemaining", remaining)
                         .Member("ammoTotal", total)
                         .Member("status", statusText);
@@ -600,12 +606,13 @@ namespace RavesOfQud
             j.EndObject();
         }
 
-        /// One context action: its label + Qud's current hotkey for the command (e.g. fire -> "F").
+        /// One context action: its label, Qud's current hotkey (e.g. fire -> "F"), and the command the
+        /// client sends back to trigger it.
         private static void WriteAction(JsonWriter j, string name, string cmd)
         {
             string key = "";
             try { key = ControlManager.getCommandInputDescription(cmd, false) ?? ""; } catch { }
-            j.BeginObject().Member("name", name).Member("key", key).EndObject();
+            j.BeginObject().Member("name", name).Member("key", key).Member("command", cmd).EndObject();
         }
 
         private static System.Collections.Generic.List<GameObject> SafeMissileWeapons(GameObject player)
