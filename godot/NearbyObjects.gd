@@ -141,6 +141,8 @@ func _tile_tex(tile: String, main: Color, detail: Color) -> Texture2D:
 				var c := main.lerp(detail, lum)
 				img.set_pixel(x, y, Color(c.r, c.g, c.b, pix.a))
 	var tex := ImageTexture.create_from_image(img)
+	if _tex_cache.size() > 96:
+		_tex_cache.clear()   # bound GPU memory: painted colours shift with lighting, so keys accumulate
 	_tex_cache[key] = tex
 	return tex
 
