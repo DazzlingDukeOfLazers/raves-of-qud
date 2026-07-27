@@ -65,6 +65,24 @@ sets `RenderingServer.set_default_clear_color(COL_BG)` for the gaps/pre-connect 
   SubViewport mitigations (quarter-res `stretch_shrink`, `_present_viewport` timer) are gone with the
   SubViewport itself. If a crash somehow recurs, capture it via the dev editor (see "Debugging rules").
 
+## When a snapshot is sent (the bridge cadence)
+
+`BridgePart` hooks two Qud events: `EndTurnEvent` → `Bridge.Tick` (per turn) and `BeforeRenderEvent` →
+`Bridge.TickRender` (every rendered frame while Qud is focused). A snapshot (`ZoneSnapshot.BuildJson`,
+a full zone scan) publishes via `PublishNow`, rate-limited to `PublishThrottleMs` (~15/sec). Triggers:
+
+- **Turn-based** (`Tick`) — any action that ends a turn. Always publishes (throttled).
+- **A command Raves drove** (`TickRender`) — move / wait / key / become / zoo / shot → immediate reply.
+- **Zone change** (`Tick` + `TickRender`) — walk over an edge, soar/descend, travel → forced past the throttle.
+- **No-turn reactive refresh** (`TickRender`) — `BuildSignature` fingerprints the observed state ~10×/sec
+  (`SigCheckMs`); any change marks it dirty and the throttle republishes. This is what makes targeting
+  (and other no-turn changes) show without a move. The signature covers: **combat target**, **player HP**,
+  **position**, **level/XP**, **active effects**, **message count**, **body temperature**, **zone**.
+  **To make more things reactive, add the signal to `BuildSignature` — nothing else changes.** Keep each
+  read cheap + guarded (it runs 10×/sec); never do a zone scan there.
+
+The mod is INERT with no client connected (gated on `server.ClientCount`), so solo Qud is unaffected.
+
 ## Branches & platform (parallel dev on Mac + PC)
 
 Two working branches off `main`: **`dd/mac`** (the Mac) and **`dd/pc`** (the second computer,

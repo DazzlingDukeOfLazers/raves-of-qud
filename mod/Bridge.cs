@@ -171,6 +171,55 @@ namespace RavesOfQud
         private static string _lastPublishedZone;   // zone id of the last snapshot sent; a change bypasses the throttle
         private const int PublishThrottleMs = 66;   // ~15 snapshots/sec ceiling during a burst
 
+        // No-turn reactive refresh. TickRender diffs a cheap fingerprint of the observed state ~10x/sec;
+        // any change marks the snapshot dirty so it republishes WITHOUT waiting for a turn.
+        private static string _lastSignature;
+        private static int _lastSigCheckMs;
+        private const int SigCheckMs = 100;          // ~10 signature checks/sec (cheap; the publish still throttles)
+        private static readonly System.Text.StringBuilder _sigSb = new System.Text.StringBuilder(128);
+
+        // ── THINGS THAT GENERATE A SNAPSHOT ──────────────────────────────────────────────────────────
+        //  Turn-based (always, throttled)          — any action that ends a turn            → Tick (EndTurnEvent)
+        //  A command Raves drove (immediate)       — move / wait / key / become / zoo / shot → TickRender
+        //  Player changed zone (immediate)         — walk over an edge, soar/descend, travel → Tick + TickRender
+        //  --- no-turn signals, diffed in BuildSignature below (this is the extensible list) ---
+        //    • combat target changed or cleared    (XRL.UI.Sidebar.CurrentTarget)
+        //    • player HP changed                   (hitpoints / baseHitpoints)
+        //    • player moved / was teleported        (CurrentCell X,Y)
+        //    • level or XP changed                 (GetStatValue Level / XP)
+        //    • active effects gained or lost        (player.Effects class set)
+        //    • new message(s) in the log            (Messages.Messages.Count)
+        //    • body temperature changed             (pPhysics.Temperature)
+        //    • zone id                              (also forced immediately above; here for completeness)
+        //  To make more things reactive, add the signal to BuildSignature — nothing else needs to change.
+        // ─────────────────────────────────────────────────────────────────────────────────────────────
+
+        /// A CHEAP fingerprint of the observed state the panels show — deliberately NOT a zone scan.
+        /// TickRender diffs this to catch no-turn changes; see the trigger list above.
+        private static string BuildSignature(GameObject player)
+        {
+            var sb = _sigSb;
+            sb.Clear();
+            try { var t = XRL.UI.Sidebar.CurrentTarget; sb.Append("t:").Append(t != null ? t.ID : "-").Append('|'); } catch { }
+            if (player != null)
+            {
+                try { sb.Append("hp:").Append(player.hitpoints).Append('/').Append(player.baseHitpoints).Append('|'); } catch { }
+                try { var c = player.CurrentCell; if (c != null) sb.Append("xy:").Append(c.X).Append(',').Append(c.Y).Append('|'); } catch { }
+                try { sb.Append("lv:").Append(player.GetStatValue("Level")).Append(',').Append(player.GetStatValue("XP")).Append('|'); } catch { }
+                try { if (player.pPhysics != null) sb.Append("tp:").Append(player.pPhysics.Temperature).Append('|'); } catch { }
+                try
+                {
+                    sb.Append("fx:");
+                    foreach (var e in player.Effects) if (e != null) sb.Append(e.ClassName).Append(',');
+                    sb.Append('|');
+                }
+                catch { }
+            }
+            try { var mq = The.Game != null ? The.Game.Player?.Messages : null; sb.Append("m:").Append(mq != null && mq.Messages != null ? mq.Messages.Count : 0).Append('|'); } catch { }
+            try { sb.Append("z:").Append(ZoneIdOf(player)); } catch { }
+            return sb.ToString();
+        }
+
         /// The player's current zone id, or null if it can't be read (teardown, no cell).
         private static string ZoneIdOf(GameObject player)
         {
@@ -194,6 +243,7 @@ namespace RavesOfQud
             {
                 server.Publish(Protocol.Frame(ZoneSnapshot.BuildJson(player)));
                 _lastPublishedZone = ZoneIdOf(player);   // remember what we just showed, for the zone-change gate
+                _lastSignature = BuildSignature(player);  // reset the no-turn baseline: this is the state Raves now has
             }
             catch (Exception e) { server.Log("snapshot error: " + e.Message); }
         }
@@ -227,6 +277,16 @@ namespace RavesOfQud
             {
                 PublishNow(player);
                 return;
+            }
+            // No-turn reactive refresh: mark dirty when any observed signal changed (target, HP, position,
+            // level, effects, messages, temperature, zone — see BuildSignature). Checked ~10x/sec so it's
+            // cheap; the throttle below coalesces the actual publish. This is what makes targeting (and
+            // other no-turn changes) appear in Raves without waiting for a move.
+            if (System.Environment.TickCount - _lastSigCheckMs >= SigCheckMs)
+            {
+                _lastSigCheckMs = System.Environment.TickCount;
+                if (BuildSignature(player) != _lastSignature)
+                    _dirty = true;
             }
             if (_dirty && System.Environment.TickCount - _lastPublishMs >= PublishThrottleMs)
                 PublishNow(player);                 // flush the last state coalesced during a burst
