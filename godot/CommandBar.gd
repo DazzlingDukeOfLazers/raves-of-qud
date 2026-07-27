@@ -14,6 +14,7 @@ const CD := "#e08a4a"        # cooling-down amber
 
 var _tiles: RefCounted       # shared tile recolouring for ability icons (set in _ready)
 var _rt: RichTextLabel
+var _abilities_btn: Button   # far-left: opens Qud's Abilities menu (the 'a' command)
 var _palette := {}
 
 func _ready() -> void:
@@ -29,14 +30,28 @@ func _ready() -> void:
 	sb.content_margin_bottom = 5
 	add_theme_stylebox_override("panel", sb)
 
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 10)
+	add_child(h)
+
+	# Far-left: the Abilities menu (Qud's 'a' = CmdAbilities), sent over the bridge like any command.
+	_abilities_btn = Button.new()
+	_abilities_btn.text = "Ⓐ Abilities"
+	_abilities_btn.focus_mode = Control.FOCUS_NONE
+	_abilities_btn.tooltip_text = "Open the Abilities menu (a)"
+	_abilities_btn.pressed.connect(func() -> void:
+		command_requested.emit({"type": "command", "command": "CmdAbilities"}))
+	h.add_child(_abilities_btn)
+
 	_rt = RichTextLabel.new()
 	_rt.bbcode_enabled = true
 	_rt.fit_content = true
 	_rt.scroll_active = false
 	_rt.selection_enabled = true
 	_rt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_rt.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_rt.meta_clicked.connect(_on_meta)      # ability names are clickable [url] links
-	add_child(_rt)
+	h.add_child(_rt)
 
 ## MainFrame calls this each snapshot with the full data (needs abilities + palette + tilesDir).
 func set_snapshot(data: Dictionary) -> void:
@@ -52,7 +67,7 @@ func set_snapshot(data: Dictionary) -> void:
 		_rt.append_text("[color=%s]No abilities[/color]" % DIM)
 		return
 
-	var img_h := int(UiFont.px(get_viewport(), "body") * 1.5)
+	var img_h := int(UiFont.px(get_viewport(), "body") * 3.0)   # 2x the previous size, per request
 	var img_w := int(round(img_h * 16.0 / 24.0))   # Qud tiles are 16x24
 	for a in abilities:
 		var tex: Texture2D = _tiles.texture_for(a, true)   # abilities have no perceived variant
