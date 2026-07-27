@@ -60,6 +60,7 @@ var _cam_rig                    # CameraRig (Node3D, loaded); created in _ready.
                                 # --check-only stays deterministic (a class_name's cache is flaky there);
                                 # locals off _cam_rig.* therefore need explicit types, not `:=`.
 var _multiview                  # Multiview (Node, loaded); the all-views grid. Created in _ready.
+var _remote                     # RemoteControl (RefCounted); the godot_cmd file channel. Created in _ready.
 
 # Remembered view/render settings, saved on exit and restored on launch (so Raves doesn't
 # reset to "looking south" every run). In user:// — available at startup, before the mod
@@ -174,6 +175,11 @@ func _ready() -> void:
 	_multiview = load("res://Multiview.gd").new()
 	add_child(_multiview)
 	_multiview.setup(_cam_rig, _MODE_NAMES, _multiview_inspect)
+
+	# Remote-command channel (the godot_cmd file poller for control.py). Driven from _process; the dispatch
+	# (_exec_godot_cmd) stays here since each command drives a Main subsystem.
+	_remote = load("res://RemoteControl.gd").new()
+	_remote.setup(_support_dir, _exec_godot_cmd)
 
 	_load_settings()   # restore camera heading/mode/zoom/depth/window before the UI reads them
 	_build_mode_label()
@@ -379,23 +385,6 @@ func _support_dir() -> String:
 			return b
 	return InputModel.support_dir()
 
-var _cmd_accum := 0.0
-func _poll_godot_cmd(dt: float) -> void:
-	_cmd_accum += dt
-	if _cmd_accum < 0.1:
-		return
-	_cmd_accum = 0.0
-	var base := _support_dir()
-	if base == "":
-		return
-	var path := base.path_join("godot_cmd")
-	if not FileAccess.file_exists(path):
-		return
-	var txt := FileAccess.get_file_as_string(path)
-	DirAccess.remove_absolute(path)   # consume it
-	for line in txt.split("\n", false):
-		_exec_godot_cmd(line.strip_edges())
-
 func _exec_godot_cmd(cmd: String) -> void:
 	if cmd == "":
 		return
@@ -425,7 +414,7 @@ var _bg_draw_accum := 0.0
 const BG_DRAW_INTERVAL := 0.05   # ~20fps forced draws while unfocused
 
 func _process(dt: float) -> void:
-	_poll_godot_cmd(dt)
+	_remote.poll(dt)
 	if _picking:
 		_update_pick_cursor()
 	# Keep the viewer rendering while its window is UNFOCUSED, so it stays live beside
