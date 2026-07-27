@@ -182,6 +182,11 @@ func _ready() -> void:
 	_remote = load("res://RemoteControl.gd").new()
 	_remote.setup(_support_dir, _exec_godot_cmd)
 
+	# Direction picker (ability-prompt cursor, its own file). Driven from _process/_input.
+	_picker = load("res://DirectionPicker.gd").new()
+	add_child(_picker)
+	_picker.setup(_cam_rig, client)
+
 	_load_settings()   # restore camera heading/mode/zoom/depth/window before the UI reads them
 	_build_mode_label()
 	# The ` debug menu (its own file). It reaches Main actions through these callbacks; _toggle_flat_2d
@@ -428,8 +433,8 @@ const BG_DRAW_INTERVAL := 0.05   # ~20fps forced draws while unfocused
 
 func _process(dt: float) -> void:
 	_remote.poll(dt)
-	if _picking:
-		_update_pick_cursor()
+	if _picker.is_picking():
+		_picker.update_cursor()
 	# Keep the viewer rendering while its window is UNFOCUSED, so it stays live beside
 	# Qud for side-by-side human testing (a human drives one window; both must move).
 	# macOS pauses an unfocused window's draw, but _process still runs — so force a draw
@@ -477,132 +482,12 @@ func request_item_action(item_id: String, action: String) -> void:
 # direction). We show the ability's icon as a cursor over the Holodeck; clicking an adjacent tile
 # sends that cell (mod injects the click), a non-adjacent click / right-click / Esc cancels (mod
 # injects a RightClick so Qud UNBLOCKS). Only started for abilities that actually prompt, else Qud
-# would freeze waiting.
-var _picking := false
-var _pick_layer: CanvasLayer
-var _pick_icon: TextureRect
-var _pick_x: Label
-var _pick_hint: Label
+# would freeze waiting. The picker itself lives in DirectionPicker.gd; Main drives it from _process/_input.
+var _picker                     # DirectionPicker (Node, loaded); created in _ready
 
+## Public entry point — MainFrame calls this on the Holodeck when an ability prompts for a direction.
 func start_direction_picker(icon: Texture2D) -> void:
-	if _pick_layer == null:
-		_pick_layer = CanvasLayer.new()
-		_pick_layer.layer = 50   # above the frame chrome
-		add_child(_pick_layer)
-		_pick_icon = TextureRect.new()
-		_pick_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		_pick_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		_pick_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_pick_icon.size = Vector2(64, 96)   # full-size, to sit on the tile
-		_pick_layer.add_child(_pick_icon)
-		_pick_x = Label.new()
-		_pick_x.text = "✗"
-		_pick_x.add_theme_color_override("font_color", Color(1, 0.3, 0.3))
-		_pick_x.add_theme_font_size_override("font_size", 44)
-		_pick_x.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_pick_layer.add_child(_pick_x)
-		_pick_hint = Label.new()
-		_pick_hint.add_theme_font_size_override("font_size", UiFont.px(get_viewport(), "title"))
-		_pick_hint.add_theme_color_override("font_color", Color(1, 1, 1, 0.9))
-		_pick_hint.position = Vector2(16, 8)
-		_pick_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_pick_layer.add_child(_pick_hint)
-	_pick_icon.texture = icon
-	_pick_hint.text = "Pick a direction — click an adjacent tile   (right-click / Esc to cancel)"
-	_picking = true
-	_pick_layer.visible = true
-
-## The zone cell under a screen point, via a ray to the ground plane (accounts for the top-down
-## Z-stretch). Returns a sentinel when it can't resolve.
-func _pick_cell(mp: Vector2) -> Vector2i:
-	if _cam_rig._cam == null:
-		return Vector2i(-9999, -9999)
-	var o: Vector3 = _cam_rig._cam.project_ray_origin(mp)
-	var d: Vector3 = _cam_rig._cam.project_ray_normal(mp)
-	if absf(d.y) < 0.0001:
-		return Vector2i(-9999, -9999)
-	var t := -o.y / d.y
-	if t <= 0.0:
-		return Vector2i(-9999, -9999)
-	var hit := o + d * t
-	var zs: float = _cam_rig.zstretch()
-	return Vector2i(int(round(hit.x)), int(round(hit.z / maxf(zs, 0.001))))
-
-func _player_cell() -> Vector2i:
-	return Vector2i(int(round(_cam_rig._player.x)), int(round(_cam_rig._player.z)))
-
-## Valid = one of the 8 tiles AROUND the player (not the player's own tile, not further). Those are the
-## tiles the picker snaps to; everything else is the freeform "✗".
-func _pick_is_adjacent(c: Vector2i) -> bool:
-	if c.x < -9000:
-		return false
-	var p := _player_cell()
-	var dx := c.x - p.x
-	var dy := c.y - p.y
-	return (dx != 0 or dy != 0) and maxi(absi(dx), absi(dy)) == 1
-
-## Screen position of a cell's ground point (accounts for the top-down Z-stretch).
-func _cell_screen_pos(c: Vector2i) -> Vector2:
-	if _cam_rig._cam == null:
-		return get_viewport().get_mouse_position()
-	return _cam_rig._cam.unproject_position(Vector3(c.x, 0.0, c.y * _cam_rig.zstretch()))
-
-func _update_pick_cursor() -> void:
-	if not _picking or _pick_icon == null:
-		return
-	var mp := get_viewport().get_mouse_position()
-	var c := _pick_cell(mp)
-	if _pick_is_adjacent(c):
-		# SNAP the icon onto the adjacent tile at FULL (tile) size: project the cell's ground point and a
-		# point one tile-sprite tall (16x24 -> 1.5 world units) above it; the pixel gap is the on-screen
-		# tile height, so the icon matches the rendered tiles at any zoom. Stands on the tile.
-		var zs: float = _cam_rig.zstretch()
-		var base: Vector2 = _cam_rig._cam.unproject_position(Vector3(c.x, 0.0, c.y * zs))
-		var top: Vector2 = _cam_rig._cam.unproject_position(Vector3(c.x, 1.5, c.y * zs))
-		var ph := maxf(28.0, absf(base.y - top.y))
-		_pick_icon.size = Vector2(round(ph * 16.0 / 24.0), round(ph))
-		_pick_icon.position = Vector2(base.x - _pick_icon.size.x / 2.0, base.y - _pick_icon.size.y)
-		_pick_icon.visible = true
-		_pick_x.visible = false
-	else:
-		# Outside the valid ring: the ✗ follows the mouse freeform.
-		_pick_x.position = mp - Vector2(14, 28)
-		_pick_x.visible = true
-		_pick_icon.visible = false
-
-func _end_pick() -> void:
-	_picking = false
-	if _pick_layer != null:
-		_pick_layer.visible = false
-
-func _cancel_pick() -> void:
-	if client != null:
-		client.send_command("dircancel", {})   # unblock Qud's prompt
-	_end_pick()
-
-## Handle input while the direction picker is up. Returns true if the event was consumed.
-func _handle_pick_input(event: InputEvent) -> bool:
-	if not _picking:
-		return false
-	if event is InputEventMouseButton and event.pressed:
-		if event.button_index == MOUSE_BUTTON_LEFT:
-			var c := _pick_cell(event.position)
-			if _pick_is_adjacent(c) and client != null:
-				client.send_command("dir", {"x": str(c.x), "y": str(c.y)})
-				_end_pick()
-			else:
-				_cancel_pick()   # clicked out of range -> cancel so Qud doesn't stay blocked
-			return true
-		if event.button_index == MOUSE_BUTTON_RIGHT:
-			_cancel_pick()
-			return true
-	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
-		_cancel_pick()
-		return true
-	# swallow other input while picking, so a stray key can't move/act mid-prompt
-	if event is InputEventKey and event.pressed and not event.echo:
-		return true
-	return false
+	_picker.start(icon)
 
 func _set_mode(m: int) -> void:
 	if _multiview.is_on():
@@ -859,7 +744,7 @@ func _load_settings() -> void:
 ## consume mouse clicks over the Holodeck before they'd reach _unhandled_input. Only consumes while
 ## picking; otherwise events flow to the GUI / _unhandled_input as normal.
 func _input(event: InputEvent) -> void:
-	if _picking and _handle_pick_input(event):
+	if _picker.is_picking() and _picker.handle_input(event):
 		get_viewport().set_input_as_handled()
 
 func _unhandled_input(event: InputEvent) -> void:
