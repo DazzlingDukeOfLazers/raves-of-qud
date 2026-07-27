@@ -435,7 +435,7 @@ namespace RavesOfQud
                 j.Member("msgCount", n);           // total ever, so the client can diff for NEW lines (filter mode)
                 j.Name("messages").BeginArray();
                 for (int i = start; i < n; i++)
-                    j.Value(StripMarkup(lines[i]));
+                    j.Value(lines[i]);             // keep {{colour|...}} markup; the client renders it coloured
                 j.EndArray();
             }
             catch { }
