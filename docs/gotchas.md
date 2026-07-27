@@ -33,6 +33,12 @@ add a one-liner (symptom → rule).
 - **LIVE STATIC geometry is built ONCE per zone and frozen** — walls, furniture, sprites, lights. Only
   creatures rebuild per step. A new/changed static object won't render mid-zone unless `_static_signature`
   changes, and that signature must include every state that matters (name AND `lightRadius`, since light lags).
+- **`_static_signature` must EXCLUDE volatile objects, or a rebuild fires every step.** It excludes ground,
+  creatures, and **liquids** (`obj.liquid`, set from `GameObject.LiquidVolume`). A wet player's wading sloshes
+  water pools onto every cell they cross; if liquids counted, the signature changed each step → the frozen
+  zone dropped+rebuilt (far→near incremental) mid-walk → "foreground tiles vanish until you stop." Only
+  genuinely PLACED structures (campfire, dug wall) should trigger a rebuild. Adding a new object CLASS that
+  moves/spreads/decays each turn? exclude it here too, or verify it can't appear on a cell the player traverses.
 - **"Light" in Raves is the per-cell DARKNESS OVERLAY** from Qud's light map (`cell.light`), not real 3D
   lights (the world is UNSHADED). A campfire/torch glow is additive geometry placed in the static build.
 - **Billboard parallax:** a flat `y=0` ground ray overshoots standing sprites at the low camera angle. The

@@ -877,7 +877,12 @@ namespace RavesOfQud
                             .Member("sinks", go.IsCreature && !go.IsFlying)
                             // mobile actor: the client drops these from a REMEMBERED
                             // neighbour zone (they've wandered off since it was live).
-                            .Member("creature", go.IsCreature);
+                            .Member("creature", go.IsCreature)
+                            // liquid pool (has a LiquidVolume). Volatile: it spreads/evaporates and,
+                            // crucially, SLOSHES onto every cell a wet player wades through — so the
+                            // client must exclude it from the STATIC signature or a wet walk rebuilds
+                            // the frozen zone every step (the "tiles vanish while walking" bug).
+                            .Member("liquid", go.LiquidVolume != null);
                         // A lit LightSource -> Godot places a point light of this
                         // radius. The flame itself is procedural in Qud (particles +
                         // AnimatedMaterialFire), so there is no tile to send — only

@@ -356,6 +356,12 @@ func _static_signature(cells: Array) -> int:
 		for obj in cell.get("objs", []):
 			if bool(obj.get("ground", false)) or bool(obj.get("creature", false)):
 				continue
+			# Liquids are volatile: a wet player's wading SLOSHES water pools onto every cell they cross,
+			# so including them churns the signature every step and rebuilds the frozen zone mid-walk
+			# (the "foreground tiles vanish while walking" bug). Structures (campfire, dug wall) are not
+			# liquids, so excluding liquids keeps the placed-object detection this signature exists for.
+			if bool(obj.get("liquid", false)):
+				continue
 			# Include lightRadius: a static object can gain its light a snapshot AFTER it appears (a
 			# just-placed campfire lights up next tick), and the glow is placed only on a static rebuild —
 			# so the light state must be part of the signature or the campfire renders unlit.
