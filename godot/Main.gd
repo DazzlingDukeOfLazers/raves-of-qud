@@ -72,7 +72,7 @@ var _zone_dims := Vector2(80, 25)   # live zone width x height in cells
 var _prev_tile := Vector2i(-9999, -9999)
 var _prev_zone_id := ""          # to detect zone crossings (shift the camera to stay continuous)
 var _mode_label: Label
-var _debug_menu_title: Label
+var _dbg_menu                   # DebugMenu (Node, loaded); the ` panel. Created in _ready.
 var _reset_btn: Button
 var _wm_cards_btn: Button   # persistent top-right world-map card toggle (mirrors O / the ` menu)
 ## Set true by MainFrame before this scene enters its SubViewport: the Holodeck is hosted inside the
@@ -101,17 +101,18 @@ func _apply_ui_fonts() -> void:
 	var fs := _ui_font_size()
 	if _mode_label != null:
 		_mode_label.add_theme_font_size_override("font_size", fs)
-	if _debug_menu != null:
-		_apply_font_recursive(_debug_menu, fs)
+	var dbg_panel: Control = _dbg_menu.panel() if _dbg_menu != null else null
+	if dbg_panel != null:
+		_apply_font_recursive(dbg_panel, fs)
 	if _reset_btn != null:
 		_reset_btn.add_theme_font_size_override("font_size", fs)
 	if _wm_cards_btn != null:
 		_wm_cards_btn.add_theme_font_size_override("font_size", fs)
 	# keep the debug menu just BELOW the help label so they never overlap, even as
 	# the responsive font grows the label's height
-	if _debug_menu != null and _mode_label != null:
+	if dbg_panel != null and _mode_label != null:
 		var lh: float = maxf(_mode_label.get_minimum_size().y, float(fs))
-		_debug_menu.position = Vector2(14, _mode_label.position.y + lh + 8.0)
+		dbg_panel.position = Vector2(14, _mode_label.position.y + lh + 8.0)
 
 ## Make the project-wide default theme (UiFont) reach EVERY Control, even ones nested under a
 ## CanvasLayer or plain Node. In Godot 4 a Control whose direct parent is neither a Control nor a
@@ -183,7 +184,17 @@ func _ready() -> void:
 
 	_load_settings()   # restore camera heading/mode/zoom/depth/window before the UI reads them
 	_build_mode_label()
-	_build_debug_menu()
+	# The ` debug menu (its own file). It reaches Main actions through these callbacks; _toggle_flat_2d
+	# stays here (the O key + persistent button share it), and it mirrors the flat state back via refresh_flat_2d.
+	_dbg_menu = load("res://DebugMenu.gd").new()
+	add_child(_dbg_menu)
+	_dbg_menu.build(_cam_rig, renderer, _multiview, _MODE_NAMES, {
+		"set_mode": _set_mode,
+		"toggle_flat_2d": _toggle_flat_2d,
+		"font_ruler": _toggle_font_preview,
+		"water_changed": _on_water_depth_changed,
+		"level_changed": _on_level_height_changed,
+	})
 	_build_reset_button()
 	_apply_ui_fonts()
 	get_viewport().size_changed.connect(_apply_ui_fonts)
@@ -397,6 +408,8 @@ func _exec_godot_cmd(cmd: String) -> void:
 				_set_mode(clampi(int(parts[1]) - 1, 0, 7))   # 1-8 -> COMPASS..TOP_FOLLOW
 		"mv":
 			_multiview.toggle()   # all-views grid (same as the 0 key / the ` menu button)
+		"dbg":
+			_dbg_menu.toggle()    # the ` debug menu (for headless UI checks)
 		"fph":
 			if parts.size() > 1:
 				_cam_rig._fp_height = clampf(float(parts[1]), 0.15, 3.0)
@@ -698,126 +711,13 @@ func _update_mode_label() -> void:
 	_mode_label.text = "camera: %s     ·  ` menu · 1-7 · 0 all-views · F1 controls" % _MODE_NAMES.get(_cam_rig._mode, "?")
 	if _sky_grade != null and _sky_grade.time_label != "":
 		_mode_label.text += "     ⏱ " + _sky_grade.time_label
-	_update_debug_menu()
+	if _dbg_menu != null:
+		_dbg_menu.set_active_mode(_cam_rig._mode)   # highlight the active mode button
 
 # --- debug menu -------------------------------------------------------------
 
-var _debug_menu: PanelContainer
-var _mode_buttons := {}
-
-func _build_debug_menu() -> void:
-	var layer := CanvasLayer.new()
-	layer.layer = 2
-	add_child(layer)
-	var panel := PanelContainer.new()
-	panel.position = Vector2(14, 34)
-	panel.visible = false
-	layer.add_child(panel)
-	var vb := VBoxContainer.new()
-	panel.add_child(vb)
-	var title := Label.new()
-	title.text = "Debug · camera  (`)"
-	_debug_menu_title = title
-	vb.add_child(title)
-	for m in [CamMode.COMPASS, CamMode.FOLLOW, CamMode.FIRST_PERSON, CamMode.CINEMATIC,
-			CamMode.MOUSE, CamMode.KEYBOARD, CamMode.TOP_FOLLOW]:
-		var b := Button.new()
-		b.text = "%d  %s" % [m + 1, String(_MODE_NAMES[m]).split(" —")[0].split(" ·")[0]]
-		# click-only: don't take keyboard focus, or a focused button would swallow the
-		# movement arrows (Godot uses them for UI focus navigation) after any click.
-		b.focus_mode = Control.FOCUS_NONE
-		var mv: int = m
-		b.pressed.connect(func(): _set_mode(mv))
-		vb.add_child(b)
-		_mode_buttons[m] = b
-	# all-views grid (differential testing)
-	var mvb := Button.new()
-	mvb.text = "0  MULTI-VIEW (all)"
-	mvb.focus_mode = Control.FOCUS_NONE
-	mvb.pressed.connect(_multiview.toggle)
-	vb.add_child(mvb)
-	# first-person eye-height slider
-	var hl := Label.new()
-	hl.text = "first-person height"
-	vb.add_child(hl)
-	var sld := HSlider.new()
-	sld.min_value = 0.15
-	sld.max_value = 3.0
-	sld.step = 0.05
-	sld.value = _cam_rig._fp_height
-	sld.custom_minimum_size = Vector2(160, 0)
-	sld.focus_mode = Control.FOCUS_NONE   # drag-only; keep arrows for the player
-	sld.value_changed.connect(func(v): _cam_rig._fp_height = v)
-	vb.add_child(sld)
-	# deep-water depth slider (0 = swimmers ride the surface, 1 = a full tile under)
-	var wl := Label.new()
-	wl.text = "deep water depth"
-	vb.add_child(wl)
-	var wsld := HSlider.new()
-	wsld.min_value = 0.0
-	wsld.max_value = 1.0
-	wsld.step = 0.05
-	wsld.value = renderer.deep_water_depth
-	wsld.custom_minimum_size = Vector2(160, 0)
-	wsld.focus_mode = Control.FOCUS_NONE
-	wsld.value_changed.connect(_on_water_depth_changed)
-	vb.add_child(wsld)
-	# level height: vertical gap between stacked Z-levels (0 = coplanar)
-	var ll := Label.new()
-	ll.text = "level height (Z gap)"
-	vb.add_child(ll)
-	var lsld := HSlider.new()
-	lsld.min_value = 0.0
-	lsld.max_value = 16.0
-	lsld.step = 0.5
-	lsld.value = renderer.level_height
-	lsld.custom_minimum_size = Vector2(160, 0)
-	lsld.focus_mode = Control.FOCUS_NONE
-	lsld.value_changed.connect(_on_level_height_changed)
-	vb.add_child(lsld)
-	# COMPASS Q/E rotation step: 45° (8-way) or 90° (cardinal)
-	_compass_step_btn = Button.new()
-	_compass_step_btn.focus_mode = Control.FOCUS_NONE
-	_compass_step_btn.pressed.connect(_toggle_compass_step)
-	vb.add_child(_compass_step_btn)
-	_refresh_compass_step_btn()
-	# camera look target: the head or the waist
-	_look_btn = Button.new()
-	_look_btn.focus_mode = Control.FOCUS_NONE
-	_look_btn.pressed.connect(_toggle_look_target)
-	vb.add_child(_look_btn)
-	_refresh_look_btn()
-	# font-size ruler (Lorem Ipsum at each px) — for tuning UiFont.FRAC / UiFont.MIN. Key: L.
-	var fp_btn := Button.new()
-	fp_btn.text = "Font-size ruler (L)"
-	fp_btn.focus_mode = Control.FOCUS_NONE
-	fp_btn.pressed.connect(_toggle_font_preview)
-	vb.add_child(fp_btn)
-	# 2D/3D: lay the whole world flat (classic 2D map) or stand it up as billboards. Key: O.
-	_wm_face_btn = Button.new()
-	_wm_face_btn.focus_mode = Control.FOCUS_NONE
-	_wm_face_btn.pressed.connect(_toggle_flat_2d)
-	vb.add_child(_wm_face_btn)
-	_refresh_wm_face_btn()
-	_debug_menu = panel
-	_update_debug_menu()
-
-var _compass_step_btn: Button
-var _look_btn: Button
-var _wm_face_btn: Button
+# --- world 2D/3D toggle (shared: the ` menu's face button, the O key, and the persistent top-right btn) ---
 var _flat_2d := false   # false = 3D upright billboards, true = everything flat on the floor (2D map)
-
-func _refresh_compass_step_btn() -> void:
-	if _compass_step_btn != null:
-		_compass_step_btn.text = "Q/E rotate: %s" % ("45°" if _cam_rig._compass_45 else "90°")
-
-func _refresh_look_btn() -> void:
-	if _look_btn != null:
-		_look_btn.text = "camera follows: %s" % ("head" if _cam_rig._look_head else "waist")
-
-func _refresh_wm_face_btn() -> void:
-	if _wm_face_btn != null:
-		_wm_face_btn.text = "tiles (O): %s" % ("2D flat" if _flat_2d else "3D billboards")
 
 ## Flip the WHOLE world — every stratum — between 3D (upright billboards + wall blocks) and 2D
 ## (everything laid flat on the floor, a classic top-down map). The renderer drops its frozen
@@ -829,7 +729,8 @@ func _toggle_flat_2d() -> void:
 	var live: Dictionary = store.live_snapshot()
 	if not live.is_empty():
 		renderer.render_snapshot(live, _neighbor_zones())
-	_refresh_wm_face_btn()
+	if _dbg_menu != null:
+		_dbg_menu.refresh_flat_2d(_flat_2d)   # the ` menu's mirror of this state
 	_refresh_wm_cards_btn()
 
 ## Label for the persistent top-right button — the current tile mode (3D up vs 2D flat).
@@ -837,14 +738,6 @@ func _refresh_wm_cards_btn() -> void:
 	if _wm_cards_btn == null:
 		return
 	_wm_cards_btn.text = "tiles (O): %s" % ("2D flat" if _flat_2d else "3D up")
-
-func _toggle_look_target() -> void:
-	_cam_rig._look_head = not _cam_rig._look_head
-	_refresh_look_btn()
-
-func _toggle_compass_step() -> void:
-	_cam_rig._compass_45 = not _cam_rig._compass_45
-	_refresh_compass_step_btn()
 
 ## Live-apply the deep-water depth: creatures are re-cropped in the dynamic pass, so
 ## re-render the current snapshot (same zone -> only the cheap dynamics rebuild) for
@@ -960,14 +853,6 @@ func _load_settings() -> void:
 		if renderer != null:
 			renderer.set_top_down(m == CamMode.TOP_FOLLOW)
 
-func _toggle_debug_menu() -> void:
-	if _debug_menu != null:
-		_debug_menu.visible = not _debug_menu.visible
-
-func _update_debug_menu() -> void:
-	for m in _mode_buttons:
-		(_mode_buttons[m] as Button).modulate = Color(0.55, 1.0, 0.55) if m == _cam_rig._mode else Color(1, 1, 1)
-
 # --- input ------------------------------------------------------------------
 
 ## Direction-picker input is handled in _input (BEFORE the GUI), because the frame's container Controls
@@ -1008,7 +893,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.keycode == KEY_7: _set_mode(CamMode.TOP_FOLLOW); return
 		if event.keycode == KEY_0: _multiview.toggle(); return   # 0 = all-views grid
 		if event.keycode == KEY_QUOTELEFT:      # ` toggles the debug menu
-			_toggle_debug_menu(); return
+			_dbg_menu.toggle(); return
 		# B: "become anything" character-creator menu (pick a blueprint to embody)
 		if event.keycode == KEY_B and not event.shift_pressed \
 				and not (event.ctrl_pressed or event.meta_pressed):
@@ -1040,8 +925,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.keycode == KEY_ESCAPE:
 			# close the camera/debug menu and any selection, but KEEP the current camera
 			_dismiss_selection()
-			if _debug_menu != null:
-				_debug_menu.visible = false
+			if _dbg_menu != null:
+				_dbg_menu.close()
 			if _char_creator != null:
 				_char_creator.visible = false
 			return
