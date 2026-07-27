@@ -12,6 +12,13 @@ changing a subsystem.
 environment**: the exact paths and commands, so no session has to rediscover
 them after a compaction. If a path here is wrong, fix it here.
 
+## Before adding a feature: read `docs/gotchas.md`
+
+`docs/gotchas.md` is the registry of non-obvious invariants (Qud internals, the renderer's static/dynamic
+split, unfocused-publish timing, Godot input routing) plus "when adding X, verify Y" checklists. Most of
+them cost a debugging round-trip to learn — skim the relevant checklist before adding a panel, snapshot
+field, interaction, or ability, and add a one-liner when a new quirk bites.
+
 ## Terminology: the "Holodeck"
 
 The **Holodeck** is the player-facing Raves view — the Godot 3D/2.5D window that renders the world
