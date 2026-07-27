@@ -21,8 +21,12 @@ var _seen_total := -1            # total message count last processed (-1 = not 
 var _palette := {}   # Qud colour code -> hex, for rendering {{code|text}} markup
 var _rt: RichTextLabel
 var _toggle: Button
+var _tiles: RefCounted           # shared tile recolouring for inline message icons (set in _ready)
+var _name_index := {}            # lowercased object name -> object dict (from the zone), for icon matching
+var _full := false               # perceived icons (default) vs real — driven by MainFrame's top-menu toggle
 
 func _ready() -> void:
+	_tiles = load("res://QudTiles.gd").new()
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(0.09, 0.10, 0.13)
 	sb.set_border_width_all(1)
@@ -62,12 +66,36 @@ func _ready() -> void:
 
 ## MainFrame calls this each snapshot: `lines` = the verbatim tail (with {{colour|text}} markup),
 ## `total` = Qud's total message count (to diff for NEW lines), `palette` = colour code -> hex.
-func set_messages(lines: Array, total: int, palette: Dictionary) -> void:
+func set_messages(lines: Array, total: int, palette: Dictionary, data := {}) -> void:
 	_last_msgs = lines
 	if not palette.is_empty():
 		_palette = palette
+	_tiles.palette = _palette
+	_tiles.tiles_dir = String(data.get("tilesDir", _tiles.tiles_dir))
+	_build_name_index(data)
 	_ingest(lines, total)   # keep filter state warm even in verbatim mode
 	_rerender()
+
+## Driven by MainFrame's global top-menu toggle: perceived icons (default) vs the real ones.
+func set_full_info(full: bool) -> void:
+	_full = full
+	_rerender()
+
+## Index the zone's objects by lowercased display name -> object dict, so a log line's text can be
+## matched to a tile. First occurrence wins; ground is skipped.
+func _build_name_index(data: Dictionary) -> void:
+	if not data.has("cells"):
+		return                          # this call carried no cells — keep the previous index
+	_name_index.clear()
+	for cell in data.get("cells", []):
+		for obj in cell.get("objs", []):
+			if bool(obj.get("ground", false)):
+				continue
+			var nm := QudText.strip(String(obj.get("display", ""))).to_lower().strip_edges()
+			if nm == "" or nm == "[painted ground]":
+				continue
+			if not _name_index.has(nm):
+				_name_index[nm] = obj
 
 ## Fold this snapshot's NEW messages into the filter state and age the rest.
 func _ingest(lines: Array, total: int) -> void:
@@ -121,17 +149,39 @@ func _render_verbatim() -> void:
 	var src: Array = _last_msgs
 	if src.size() > MAX_LINES:
 		src = src.slice(src.size() - MAX_LINES)
-	var out: Array[String] = []
+	_rt.clear()
 	for m in src:
-		out.append(QudText.to_bbcode(String(m), _palette))
-	_rt.text = "\n".join(out)
+		_append_line(String(m))
 
 func _render_filter() -> void:
-	var out: Array[String] = []
+	_rt.clear()
 	for e in _entries:
 		var c: int = e["count"]
-		out.append(QudText.to_bbcode(String(e["text"]) + ("  (x%d)" % c if c > 1 else ""), _palette))
-	_rt.text = "\n".join(out)
+		_append_line(String(e["text"]) + ("  (x%d)" % c if c > 1 else ""))
+
+## Append one log line: if its text names a zone object, inline that object's icon first (perceived
+## or real per the global toggle), then the coloured text.
+func _append_line(markup: String) -> void:
+	var obj := _icon_obj_for(markup)
+	if not obj.is_empty():
+		var tex: Texture2D = _tiles.texture_for(obj, _full)
+		if tex != null:
+			var img_h := UiFont.px(get_viewport(), "body")
+			_rt.add_image(tex, int(round(img_h * 16.0 / 24.0)), img_h)
+			_rt.append_text(" ")
+	_rt.append_text(QudText.to_bbcode(markup, _palette) + "\n")
+
+## The zone object whose (lowercased) name is the LONGEST one contained in this line's plain text, or {}
+## if none match. Longest wins so "brinestalk wall" beats a bare "wall".
+func _icon_obj_for(markup: String) -> Dictionary:
+	if _name_index.is_empty():
+		return {}
+	var plain := QudText.strip(markup).to_lower()
+	var best := ""
+	for nm in _name_index:
+		if nm.length() > best.length() and plain.contains(nm):
+			best = nm
+	return _name_index[best] if best != "" else {}
 
 func _toggle_mode() -> void:
 	_filter = not _filter

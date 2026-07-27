@@ -449,7 +449,7 @@ func _apply_stats(data: Dictionary) -> void:
 		_daynight.text = "☀" if is_day else "☾"
 		_daynight.add_theme_color_override("font_color", Color(1.0, 0.85, 0.35) if is_day else Color(0.6, 0.7, 1.0))
 	if _msglog != null:
-		_msglog.set_messages(data.get("messages", []), int(data.get("msgCount", 0)), data.get("palette", {}))
+		_msglog.set_messages(data.get("messages", []), int(data.get("msgCount", 0)), data.get("palette", {}), data)
 	if _nearby != null:
 		_nearby.set_snapshot(data)
 	if _minimap != null:
