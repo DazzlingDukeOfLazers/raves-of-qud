@@ -52,101 +52,23 @@ var _depth := SURFACE_Z            # current stratum (zone.z); >SURFACE_Z is und
 # between levels is renderer.level_height (a ` menu slider).
 const LEVEL_KEEP_DOWN := 2
 
+# The camera rig (nodes + modes + placement math) lives in CameraRig.gd, created in _ready. Main keeps
+# this enum as a MIRROR so its mode checks (input, snapshot, multiview) read `CamMode.X`; the values match
+# CameraRig.CamMode exactly. `_cam_rig._mode` is the live mode. (Stage 1 of the Main.gd decomposition.)
 enum CamMode { COMPASS, FOLLOW, FIRST_PERSON, CINEMATIC, MOUSE, KEYBOARD, TOP_FOLLOW }
-var _mode: int = CamMode.COMPASS   # cardinal-locked: stable, doesn't spin on movement
-
-# Top-down (Qud-classic) modes: orthographic, straight down, NORTH locked to the top
-# of the screen, tracking the player at a fixed zoom (wheel / R-F). Height sits below the fog-begin
-# distance so the flat map stays crisp; DOF is disabled while overhead.
-const TOP_H := 20.0        # ortho eye height above the ground (scale is size, not H)
-const TOP_FIT_MARGIN := 1.06   # padding so the framed zone isn't flush to the edges
-const NORTH := Vector3(0, 0, -1)   # -z is north (Qud's y grows south); screen-up in top-down
-const TOP_FOLLOW_SPAN := 18.0  # TOP_FOLLOW vertical span (cells) at zoom 1.0
-const TOP_ZOOM_MIN := 0.15
-const TOP_ZOOM_MAX := 3.5
-var _top_zoom := 1.0           # wheel / R-F zoom for the top-down follow mode
-# Qud tiles are 16x24, so the top-down view stretches the world's north-south (Z) axis by
-# 24/16 = 1.5 to make cells read 16:24 like Qud. Only in full-screen top-down (not the
-# perspective modes, not multi-view, where the shared world must stay square).
-const TILE_ASPECT := 1.5
-
-func _current_zstretch() -> float:
-	return TILE_ASPECT if (_mode == CamMode.TOP_FOLLOW and not _multiview_on) else 1.0
-
-## Push the current Z-stretch onto the rendered world (the renderer node + the marker under
-## it). Called whenever the mode or multi-view state changes.
-func _apply_zstretch() -> void:
-	if renderer != null:
-		renderer.scale = Vector3(1, 1, _current_zstretch())
+var _cam_rig                    # CameraRig (Node3D, loaded); created in _ready. Untyped so the headless
+                                # --check-only stays deterministic (a class_name's cache is flaky there);
+                                # locals off _cam_rig.* therefore need explicit types, not `:=`.
 
 # Remembered view/render settings, saved on exit and restored on launch (so Raves doesn't
 # reset to "looking south" every run). In user:// — available at startup, before the mod
 # sends the support-dir path.
 const SETTINGS_PATH := "user://raves_settings.json"
 
-var _pivot: Node3D
-var _cam: Camera3D
-var _yaw := 0.7
-var _pitch := 0.9            # radians above the ground plane (MOUSE orbit)
-var _dist := 14.0
-# Vertical camera pan: S/D lower/raise the whole view at the current spot, so you can
-# "see other heights at this tile" — scan up and down the stacked Z-levels. Added to
-# BOTH eye and look so the view slides straight up/down keeping its angle. Not saved
-# (a transient look-around, reset to 0 each run and on a camera-mode change).
-var _cam_lift := 0.0
-const CAM_LIFT_SPEED := 6.0     # units/sec while a key is held
-const CAM_LIFT_MIN := -30.0
-const CAM_LIFT_MAX := 40.0
-# Horizontal camera dolly: W/X step the view one tile forward/back along the camera's
-# heading — "move the camera like the player". Discrete (1 tile per press), added to
-# eye+look like _cam_lift. Also transient (not saved, reset on a camera-mode switch).
-var _cam_pan := Vector3.ZERO
-const CAM_STEP := 1.0           # one tile per W/X press
-
-# --- compass cam (cardinal-locked, the disorientation fix) -------------------
-const COMPASS_PITCH := 0.61     # ~35° above the ground: the low, dramatic FAR/default angle
-const COMPASS_PITCH_NEAR := 1.30 # ~74° at closest zoom: overhead, looking down at the head
-const COMPASS_CLOSE_DIST := 8.0  # only BELOW this does the arc lift toward overhead; above it
-								 # stays at COMPASS_PITCH, so the normal/far view is unchanged
-var _compass_yaw := 0.0         # locked heading in radians; Q/E rotate in _compass_step steps
-var _compass_45 := true         # Q/E step: 45° (true, default — the 8-way, least restrictive) or 90°
-func _compass_step() -> float:
-	return (PI * 0.25) if _compass_45 else (PI * 0.5)
-var _cine_t := 0.0              # cinematic auto-orbit phase
-const FP_EYE_H := 0.55          # first-person default eye height above the ground
-var _fp_height := FP_EYE_H      # live first-person eye height (debug-menu slider)
 var _zone_center := Vector3(40, 0, 12)
 var _zone_dims := Vector2(80, 25)   # live zone width x height in cells
-var _pan := Vector3.ZERO     # user pan offset (MOUSE mode); persists across turns
-
-# --- follow-cam -------------------------------------------------------------
-const TILES_BEHIND := 0.5    # fixed camera standoff behind the player. Kept small so the
-							 # how close COMPASS/FOLLOW can get (back = TILES_BEHIND + dist*cos
-							 # pitch), so it stays small — at range dist dominates and it's moot.
-const FOCUS_AHEAD := 2.0     # look at a point this far in FRONT of the player
-# Look target height: FOLLOW the head or the waist (a ` menu toggle). Aiming at the feet
-# buried the sprite; head frames a close overhead shot, waist centres the whole body.
-const HEAD_LOOK_H := 0.9
-const WAIST_LOOK_H := 0.45
-var _look_head := true       # default: track the head — what "pointed down at the head" wants
-							 # (matters most when zoomed in close, where feet-aim buries the head)
-const FOLLOW_LERP := 6.0     # per-second approach; keeps steps from snapping
-var _player := Vector3(40, 0, 12)
 var _prev_tile := Vector2i(-9999, -9999)
 var _prev_zone_id := ""          # to detect zone crossings (shift the camera to stay continuous)
-var _facing := Vector2(0, 1)     # +z is south; Qud y grows southward
-var _eye := Vector3.ZERO         # smoothed camera position
-var _look := Vector3.ZERO        # smoothed look-at target
-var _seeded := false
-var _snap_cam := false           # skip the lerp for one frame (top-down transitions)
-
-# --- free camera ------------------------------------------------------------
-const FLY_SPEED := 9.0
-const AIM_SPEED := 1.6
-var _free_eye := Vector3.ZERO
-
-var _orbiting := false
-var _panning := false
 var _mode_label: Label
 var _debug_menu_title: Label
 var _reset_btn: Button
@@ -223,13 +145,6 @@ func _toggle_font_preview() -> void:
 		int(vp.x), int(vp.y), _ui_font_size(), UiFont.MIN, UiFont.FRAC]
 	_font_preview.toggle(hdr)
 
-const ORBIT_SENS := 0.006
-const PITCH_MIN := 0.12
-const PITCH_MAX := 1.45
-const DIST_MIN := 2.1        # closest zoom: with COMPASS_PITCH_NEAR this puts the eye ~2 tiles
-							 # straight up and just behind, looking DOWN at the head.
-const DIST_MAX := 140.0
-
 func _ready() -> void:
 	# Source-of-truth fonts, made AUTOMATIC: a project-wide default theme on the root viewport, so
 	# every Control that doesn't override — CharacterCreator, and any future UI — inherits the UiFont
@@ -249,19 +164,9 @@ func _ready() -> void:
 	add_child(_sky_grade)
 	_sky_grade.setup(embedded, renderer)
 
-	_pivot = Node3D.new()
-	add_child(_pivot)
-	_cam = Camera3D.new()
-	_cam.far = 8000.0   # parasang-scale surface landmarks (the Spindle) tower thousands of units up
-	_pivot.add_child(_cam)
-	# Depth of field: a field of vinewafer reads as one flat colour blob without
-	# it. Far blur only — near blur would smear the player.
-	var attrs := CameraAttributesPractical.new()
-	attrs.dof_blur_far_enabled = true
-	attrs.dof_blur_far_distance = 18.0
-	attrs.dof_blur_far_transition = 12.0
-	attrs.dof_blur_amount = 0.10
-	_cam.attributes = attrs
+	_cam_rig = load("res://CameraRig.gd").new()   # pivot + camera + modes + placement math
+	add_child(_cam_rig)
+	_cam_rig.setup(self, renderer, null)          # inspector wired in once it's built (below)
 
 	_load_settings()   # restore camera heading/mode/zoom/depth/window before the UI reads them
 	_build_mode_label()
@@ -270,12 +175,13 @@ func _ready() -> void:
 	_build_multiview()
 	_apply_ui_fonts()
 	get_viewport().size_changed.connect(_apply_ui_fonts)
-	_apply_zstretch()   # a restored top-down mode needs the stretch applied at startup
-	_update_camera(0.0)
+	_cam_rig.apply_zstretch()   # a restored top-down mode needs the stretch applied at startup
+	_cam_rig.snap()             # place the camera from the restored state (was _update_camera(0.0))
 
 	inspector = CellInspector.new()
 	add_child(inspector)
-	inspector.setup(renderer, _cam)
+	inspector.setup(renderer, _cam_rig._cam)
+	_cam_rig.set_inspector(inspector)
 
 	reporter = TileReport.new()
 	add_child(reporter)
@@ -343,7 +249,7 @@ func _on_snapshot(data: Dictionary) -> void:
 		# first-person: hide the player creature (the camera sits on its cell)
 		var pc: Dictionary = data.get("player", {})
 		renderer.set_hidden_cell(Vector2i(int(pc.get("x", -1)), int(pc.get("y", -1)))
-				if _mode == CamMode.FIRST_PERSON else Vector2i(-9999, -9999))
+				if _cam_rig._mode == CamMode.FIRST_PERSON else Vector2i(-9999, -9999))
 		Profiler.begin("render")
 		renderer.render_snapshot(store.live_snapshot(), nbs)
 		Profiler.done("render")
@@ -395,37 +301,19 @@ func _on_snapshot(data: Dictionary) -> void:
 	if crossed and store.has_zone(old_zid) and store.has_zone(zid):
 		var oo: Vector3i = store.record(old_zid).get("origin", Vector3i.ZERO)
 		var no: Vector3i = store.record(zid).get("origin", Vector3i.ZERO)
-		var shift := Vector3(oo.x - no.x, 0.0, oo.y - no.y)
-		_eye += shift
-		_look += shift
-		_free_eye += shift
-		# _update_camera already ran THIS frame (Main._process precedes the client's),
-		# positioning the camera from the pre-shift eye — but the world just re-anchored.
-		# Shift the live camera transform too so this frame renders in sync (no 1-frame
-		# flip); next frame's lerp continues seamlessly from the shifted eye.
-		if _cam != null:
-			_cam.position += shift
-			if _cam.position.distance_to(_look) > 0.001:
-				# top-down looks straight down, so its up-ref is NORTH, not world-up (which is
-				# parallel to the view = a degenerate look_at → the zone-crossing flicker)
-				var xtop := _mode == CamMode.TOP_FOLLOW
-				_cam.look_at(_look, NORTH if xtop else Vector3.UP)
+		# Shift the camera by the two zones' global-origin difference so it stays locked on the
+		# same world content across the re-anchor — a seamless continuous crossing.
+		_cam_rig.apply_cross_shift(Vector3(oo.x - no.x, 0.0, oo.y - no.y))
 	elif crossed:
 		print("[cross] SKIPPED shift: old=%s has=%s  new=%s has=%s" % [
 			old_zid, store.has_zone(old_zid), zid, store.has_zone(zid)])
 
-	if not crossed and moved:
-		# facing = the direction of the last actual step, so the camera trails behind
-		var d := Vector2(tile.x - _prev_tile.x, tile.y - _prev_tile.y)
-		if d.length() > 0.0:
-			_facing = d.normalized()
+	# facing = the direction of the last actual step (a crossing's coord jump doesn't count), so the
+	# camera trails behind. The rig applies it, tracks the player, and self-seeds on the first frame.
+	var stepped := moved and not crossed
+	var step_dir := Vector2(tile.x - _prev_tile.x, tile.y - _prev_tile.y) if stepped else Vector2.ZERO
 	_prev_tile = tile
-	_player = Vector3(px, 0, py)
-	if not _seeded:
-		_seeded = true
-		_free_eye = _follow_eye()
-		_eye = _free_eye
-		_look = _follow_look()
+	_cam_rig.set_player(Vector3(px, 0, py), step_dir, stepped)
 
 ## Remembered zones to draw around the live one: every OTHER stored zone on the
 ## same stratum, offset by the difference of its global origin from the live zone's
@@ -514,7 +402,7 @@ func _exec_godot_cmd(cmd: String) -> void:
 				_set_mode(clampi(int(parts[1]) - 1, 0, 7))   # 1-8 -> COMPASS..TOP_FOLLOW
 		"fph":
 			if parts.size() > 1:
-				_fp_height = clampf(float(parts[1]), 0.15, 3.0)
+				_cam_rig._fp_height = clampf(float(parts[1]), 0.15, 3.0)
 		"onboard":
 			# `onboard` opens the chooser; `onboard <screen>` jumps to a screen
 			# (devices/ktype/layout/numpad/mouse); `onboard close` dismisses it.
@@ -543,248 +431,15 @@ func _process(dt: float) -> void:
 			_bg_draw_accum = 0.0
 			RenderingServer.force_draw()
 
-	if _mode == CamMode.KEYBOARD:
-		_fly(dt)
-	elif _mode == CamMode.MOUSE and not Input.is_key_pressed(KEY_SHIFT):
-		# orbit params: Q/E yaw, R pitch-up. (F is Fire now, not pitch-down — see _unhandled_input.)
-		if Input.is_key_pressed(KEY_Q): _yaw += 1.5 * dt
-		if Input.is_key_pressed(KEY_E): _yaw -= 1.5 * dt
-		if Input.is_key_pressed(KEY_R): _pitch = clampf(_pitch + 1.0 * dt, PITCH_MIN, PITCH_MAX)
-	elif _mode == CamMode.CINEMATIC and (inspector == null or inspector.selected_tile() == null):
-		_cine_t += dt * 0.35   # slow auto-orbit ONLY with no target; a selected tile holds the framing still
-	# R zooms IN (Shift-guarded so Shift+ chords still switch). F is Fire now (was zoom-out); the mouse
-	# wheel still zooms both ways. Top-down modes zoom the ortho span via _top_zoom; the perspective
-	# modes zoom the eye distance via _dist. (Temporary Raves keybinds are being retired for Qud's own.)
-	var _td_zoom := _mode == CamMode.TOP_FOLLOW
-	if _td_zoom and not Input.is_key_pressed(KEY_SHIFT):
-		if Input.is_key_pressed(KEY_R): _top_zoom = clampf(_top_zoom * (1.0 - dt), TOP_ZOOM_MIN, TOP_ZOOM_MAX)
-	elif (_mode == CamMode.COMPASS or _mode == CamMode.FOLLOW or _mode == CamMode.FIRST_PERSON) \
-			and not Input.is_key_pressed(KEY_SHIFT):
-		if Input.is_key_pressed(KEY_R): _dist = clampf(_dist * (1.0 - dt), DIST_MIN, DIST_MAX)
-	# (S/D no longer pan the camera — they're forwarded to Qud as key presses so you can drive
-	# your soar/descend binds from Raves. See the KEY_S/KEY_D handlers in _unhandled_input.)
-	_update_camera(dt)
+	# Camera modes, held-key zoom/fly, placement, and wall cutaway all live in the rig now.
+	_cam_rig.process(dt, _multiview_on)
 	if _multiview_on:
 		_update_multiview_cameras()
-	# Fade walls that sit between the camera and the player so the rock doesn't block the
-	# view. Off in top-down (looking straight down — nothing's in the way), first-person
-	# (you're inside it), free-fly, and the multi-view grid.
-	if renderer != null:
-		var cut := not _multiview_on and _mode != CamMode.TOP_FOLLOW \
-			and _mode != CamMode.FIRST_PERSON and _mode != CamMode.KEYBOARD
-		renderer.apply_cutaway(_cam.global_position, _player + Vector3(0, _look_h(), 0), dt, cut)
-
-# --- camera placement -------------------------------------------------------
-
-func _facing3() -> Vector3:
-	return Vector3(_facing.x, 0, _facing.y).normalized()
-
-## Behind the player along the facing, raised by the current zoom/pitch.
-func _follow_eye() -> Vector3:
-	var f := _facing3()
-	var back := TILES_BEHIND + _dist * cos(_pitch)
-	return _player - f * back + Vector3(0, _dist * sin(_pitch), 0)
-
-func _follow_look() -> Vector3:
-	return _player + _facing3() * FOCUS_AHEAD + Vector3(0, _look_h(), 0)
-
-## MOUSE mode orbits whatever tile is selected, so inspecting and then looking
-## around don't fight each other. Falls back to the player.
-func _orbit_center() -> Vector3:
-	var sel = inspector.selected_tile() if inspector != null else null
-	var c: Vector3 = _player
-	if sel != null:
-		c = Vector3(sel.x, 0, sel.y)
-	return c + _pan
-
-# The fixed compass heading as a unit direction (what the camera looks ALONG).
-func _compass_dir() -> Vector3:
-	return Vector3(sin(_compass_yaw), 0, cos(_compass_yaw))
-
-## The camera's forward on the ground plane, for the W/X dolly. COMPASS/FIRST_PERSON use
-## the locked heading (clean cardinal); FOLLOW the player's facing; anything else the
-## current view direction flattened to horizontal.
-func _cam_forward() -> Vector3:
-	match _mode:
-		CamMode.COMPASS, CamMode.FIRST_PERSON:
-			return _compass_dir()
-		CamMode.FOLLOW:
-			return _facing3()
-		_:
-			var d := _look - _eye
-			d.y = 0.0
-			return d.normalized() if d.length() > 0.001 else _compass_dir()
-
-# COMPASS: behind the player along the LOCKED heading at a low angle. Follows the
-# player's position but never rotates on movement — this is the disorientation fix.
-func _compass_eye() -> Vector3:
-	var p := _compass_pitch()
-	var back := TILES_BEHIND + _dist * cos(p)
-	return _player - _compass_dir() * back + Vector3(0, _dist * sin(p), 0)
-
-## COMPASS pitch varies with zoom: shallow (COMPASS_PITCH — low & dramatic) from
-## COMPASS_CLOSE_DIST outward, steepening to COMPASS_PITCH_NEAR (overhead, looking down
-## at the head) as you zoom inside it. Smoothstepped, so the camera arcs up-and-over
-## (concave down) at the close end instead of sliding to waist height and looking flat.
-## Prototyped in scratchpad cam_arc.py (targets: ~2 tiles up / ~1 back at closest).
-func _compass_pitch() -> float:
-	if _dist >= COMPASS_CLOSE_DIST:
-		return COMPASS_PITCH
-	var t: float = (_dist - DIST_MIN) / (COMPASS_CLOSE_DIST - DIST_MIN)   # 0 at min .. 1 at close
-	t = t * t * (3.0 - 2.0 * t)                                          # smoothstep
-	return lerpf(COMPASS_PITCH_NEAR, COMPASS_PITCH, t)
-
-## Look-target height above the player's feet: the head or the waist (` menu toggle).
-func _look_h() -> float:
-	return HEAD_LOOK_H if _look_head else WAIST_LOOK_H
-
-# CINEMATIC v1: frame the player and the selected target tile (their midpoint), at a
-# distance that fits both, slowly orbiting. Combat-aware framing (an event buffer of
-# attackers) is future work once Qud sends combat events.
-func _frame_center() -> Vector3:
-	var sel = inspector.selected_tile() if inspector != null else null
-	if sel != null:
-		return (_player + Vector3(sel.x, 0.0, sel.y)) * 0.5
-	return _player
-
-func _frame_radius() -> float:
-	var sel = inspector.selected_tile() if inspector != null else null
-	if sel != null:
-		return clampf(_player.distance_to(Vector3(sel.x, 0.0, sel.y)) * 0.9 + 7.0, 9.0, 40.0)
-	return 13.0
-
-## Eye + look-at for any camera mode, from the current shared state. Extracted so the
-## multi-view picker can drive one camera per mode off the same math. Returns [eye, look].
-func _mode_eye_look(mode: int) -> Array:
-	match mode:
-		CamMode.KEYBOARD:
-			return [_free_eye, _free_eye + _aim_dir()]
-		CamMode.MOUSE:
-			var c := _orbit_center()
-			return [c + Vector3(_dist * cos(_pitch) * sin(_yaw), _dist * sin(_pitch),
-				_dist * cos(_pitch) * cos(_yaw)), c]
-		CamMode.FOLLOW:
-			return [_follow_eye(), _follow_look()]
-		CamMode.FIRST_PERSON:
-			var e := _player + Vector3(0, _fp_height, 0)
-			return [e, e + _compass_dir() + Vector3(0, -0.15, 0)]
-		CamMode.CINEMATIC:
-			var cc := _frame_center()
-			var r := _frame_radius()
-			return [cc + Vector3(r * cos(COMPASS_PITCH) * sin(_cine_t),
-				r * sin(COMPASS_PITCH) + 2.0, r * cos(COMPASS_PITCH) * cos(_cine_t)), cc]
-		CamMode.TOP_FOLLOW:
-			return [_player + Vector3(0, TOP_H, 0), _player]
-		_:  # COMPASS — the default, stable, cardinal-locked view
-			return [_compass_eye(), _player + Vector3(0, _look_h(), 0)]
-
-func _update_camera(dt: float) -> void:
-	var el := _mode_eye_look(_mode)
-	var target_eye: Vector3 = el[0]
-	var target_look: Vector3 = el[1]
-	# When the world is Z-stretched for top-down, the camera must aim at the stretched
-	# north-south position so the player stays centred.
-	var zs := _current_zstretch()
-	if zs != 1.0:
-		target_eye.z *= zs
-		target_look.z *= zs
-
-	# S/D vertical pan + W/X horizontal dolly: slide the whole view to see other heights
-	# / positions at this spot (added to both eye and look, so the angle is preserved).
-	if _cam_lift != 0.0:
-		target_eye.y += _cam_lift
-		target_look.y += _cam_lift
-	if _cam_pan != Vector3.ZERO:
-		target_eye += _cam_pan
-		target_look += _cam_pan
-
-	if dt <= 0.0 or not _seeded or _snap_cam:
-		_eye = target_eye
-		_look = target_look
-		_snap_cam = false
-	else:
-		var k: float = clampf(FOLLOW_LERP * dt, 0.0, 1.0)
-		_eye = _eye.lerp(target_eye, k)
-		_look = _look.lerp(target_look, k)
-
-	var top := _mode == CamMode.TOP_FOLLOW
-	_apply_top_down_camera(top)
-	_pivot.position = Vector3.ZERO
-	_cam.position = _eye
-	if _eye.distance_to(_look) > 0.001:
-		# top-down looks straight down, so the up reference is NORTH (screen-up), not
-		# world-up (which is parallel to the view and would be degenerate).
-		_cam.look_at(_look, NORTH if top else Vector3.UP)
-
-## Orthographic + DOF-off while overhead (a flat classic map, no perspective skew and
-## no distance blur), perspective otherwise. Ortho `size` is the view's vertical span
-## in cells: the TOP_FOLLOW span scaled by the wheel/R-F zoom.
-func _apply_top_down_camera(top: bool) -> void:
-	if top:
-		if _cam.projection != Camera3D.PROJECTION_ORTHOGONAL:
-			_cam.projection = Camera3D.PROJECTION_ORTHOGONAL
-		_cam.size = _top_ortho_size()
-	elif _cam.projection != Camera3D.PROJECTION_PERSPECTIVE:
-		_cam.projection = Camera3D.PROJECTION_PERSPECTIVE
-	var attrs := _cam.attributes as CameraAttributesPractical
-	if attrs != null:
-		attrs.dof_blur_far_enabled = not top
-
-func _top_ortho_size() -> float:
-	return TOP_FOLLOW_SPAN * _top_zoom
-
-func _aim_dir() -> Vector3:
-	return Vector3(cos(_pitch) * sin(_yaw + PI), -sin(_pitch), cos(_pitch) * cos(_yaw + PI))
-
-func _fly(dt: float) -> void:
-	# arrows AIM in this mode; they do not reach the player
-	if Input.is_key_pressed(KEY_LEFT):  _yaw -= AIM_SPEED * dt
-	if Input.is_key_pressed(KEY_RIGHT): _yaw += AIM_SPEED * dt
-	if Input.is_key_pressed(KEY_UP):    _pitch = clampf(_pitch + AIM_SPEED * dt, -PITCH_MAX, PITCH_MAX)
-	if Input.is_key_pressed(KEY_DOWN):  _pitch = clampf(_pitch - AIM_SPEED * dt, -PITCH_MAX, PITCH_MAX)
-	var fwd := _aim_dir()
-	fwd.y = 0.0
-	if fwd.length() > 0.001: fwd = fwd.normalized()
-	var right := fwd.cross(Vector3.UP).normalized()
-	var move := Vector3.ZERO
-	if Input.is_key_pressed(KEY_W): move += fwd
-	if Input.is_key_pressed(KEY_S): move -= fwd
-	if Input.is_key_pressed(KEY_D): move -= right
-	if Input.is_key_pressed(KEY_A): move += right
-	if Input.is_key_pressed(KEY_SPACE): move += Vector3.UP
-	if Input.is_key_pressed(KEY_Z): move -= Vector3.UP
-	if move.length() > 0.001:
-		_free_eye += move.normalized() * FLY_SPEED * dt
-
-# --- camera-relative movement (the Godot -> Qud control translation) ---------
-# The player moves in Qud's absolute 8-way compass, but the arrow keys mean
-# directions relative to the CAMERA — "up" is forward on screen no matter which
-# way the camera faces. We take the camera's ground-plane heading, build the
-# screen-space intent (forward/back/strafe), rotate it into world space, and snap
-# to the nearest compass name before sending it to the bridge.
-
-## The direction the camera looks ALONG on the ground plane, per mode. FOLLOW
-## trails your last step; COMPASS / FIRST_PERSON use the locked compass heading.
-func _camera_heading() -> Vector3:
-	if _mode == CamMode.TOP_FOLLOW:
-		return NORTH   # north-up map: screen-forward is always north, whatever the yaw
-	var h: Vector3 = _facing3() if _mode == CamMode.FOLLOW else _compass_dir()
-	h.y = 0.0
-	if h.length() < 0.001:
-		return Vector3(0, 0, 1)   # default: south (matches _facing seed)
-	return h.normalized()
-
-## Snap a world ground vector to the nearest of Qud's 8 compass directions.
-## +x = east, +z = south (Godot z mirrors Qud's south-growing y). Angle 0 = East,
-## increasing toward South; 45° sectors.
-func _dir_to_compass(v: Vector3) -> String:
-	var idx: int = int(round(atan2(v.z, v.x) / (PI / 4.0))) & 7
-	return ["E", "SE", "S", "SW", "W", "NW", "N", "NE"][idx]
 
 ## Move the player relative to the camera. `intent` is (strafe, forward) in screen
 ## space: (0,1)=forward, (0,-1)=back, (1,0)=right, (-1,0)=left.
 func _move_relative(intent: Vector2) -> void:
-	var h := _camera_heading()
+	var h: Vector3 = _cam_rig.camera_heading()
 	var right := h.cross(Vector3.UP)   # camera/body right (world space)
 	if right.length() < 0.001:
 		right = Vector3(1, 0, 0)
@@ -792,7 +447,7 @@ func _move_relative(intent: Vector2) -> void:
 	var v := h * intent.y + right * intent.x
 	if v.length() < 0.001:
 		return
-	client.send_command("move", {"dir": _dir_to_compass(v.normalized())})
+	client.send_command("move", {"dir": _cam_rig.dir_to_compass(v.normalized())})
 
 ## Send a named Qud command (CmdFire, CmdReload, …) over the bridge — from a Raves hotkey or a UI
 ## button. The mod injects it into Qud's input like a keypress, so any targeting UI opens in the Qud
@@ -850,21 +505,21 @@ func start_direction_picker(icon: Texture2D) -> void:
 ## The zone cell under a screen point, via a ray to the ground plane (accounts for the top-down
 ## Z-stretch). Returns a sentinel when it can't resolve.
 func _pick_cell(mp: Vector2) -> Vector2i:
-	if _cam == null:
+	if _cam_rig._cam == null:
 		return Vector2i(-9999, -9999)
-	var o := _cam.project_ray_origin(mp)
-	var d := _cam.project_ray_normal(mp)
+	var o: Vector3 = _cam_rig._cam.project_ray_origin(mp)
+	var d: Vector3 = _cam_rig._cam.project_ray_normal(mp)
 	if absf(d.y) < 0.0001:
 		return Vector2i(-9999, -9999)
 	var t := -o.y / d.y
 	if t <= 0.0:
 		return Vector2i(-9999, -9999)
 	var hit := o + d * t
-	var zs := _current_zstretch()
+	var zs: float = _cam_rig.zstretch()
 	return Vector2i(int(round(hit.x)), int(round(hit.z / maxf(zs, 0.001))))
 
 func _player_cell() -> Vector2i:
-	return Vector2i(int(round(_player.x)), int(round(_player.z)))
+	return Vector2i(int(round(_cam_rig._player.x)), int(round(_cam_rig._player.z)))
 
 ## Valid = one of the 8 tiles AROUND the player (not the player's own tile, not further). Those are the
 ## tiles the picker snaps to; everything else is the freeform "✗".
@@ -878,9 +533,9 @@ func _pick_is_adjacent(c: Vector2i) -> bool:
 
 ## Screen position of a cell's ground point (accounts for the top-down Z-stretch).
 func _cell_screen_pos(c: Vector2i) -> Vector2:
-	if _cam == null:
+	if _cam_rig._cam == null:
 		return get_viewport().get_mouse_position()
-	return _cam.unproject_position(Vector3(c.x, 0.0, c.y * _current_zstretch()))
+	return _cam_rig._cam.unproject_position(Vector3(c.x, 0.0, c.y * _cam_rig.zstretch()))
 
 func _update_pick_cursor() -> void:
 	if not _picking or _pick_icon == null:
@@ -891,9 +546,9 @@ func _update_pick_cursor() -> void:
 		# SNAP the icon onto the adjacent tile at FULL (tile) size: project the cell's ground point and a
 		# point one tile-sprite tall (16x24 -> 1.5 world units) above it; the pixel gap is the on-screen
 		# tile height, so the icon matches the rendered tiles at any zoom. Stands on the tile.
-		var zs := _current_zstretch()
-		var base := _cam.unproject_position(Vector3(c.x, 0.0, c.y * zs))
-		var top := _cam.unproject_position(Vector3(c.x, 1.5, c.y * zs))
+		var zs: float = _cam_rig.zstretch()
+		var base: Vector2 = _cam_rig._cam.unproject_position(Vector3(c.x, 0.0, c.y * zs))
+		var top: Vector2 = _cam_rig._cam.unproject_position(Vector3(c.x, 1.5, c.y * zs))
 		var ph := maxf(28.0, absf(base.y - top.y))
 		_pick_icon.size = Vector2(round(ph * 16.0 / 24.0), round(ph))
 		_pick_icon.position = Vector2(base.x - _pick_icon.size.x / 2.0, base.y - _pick_icon.size.y)
@@ -942,28 +597,10 @@ func _handle_pick_input(event: InputEvent) -> bool:
 func _set_mode(m: int) -> void:
 	if _multiview_on:
 		_toggle_multiview()   # picking a mode leaves the multi-view grid
-	if m == _mode:
-		return
-	_cam_lift = 0.0   # a fresh view on every camera switch (S/D + W/X pan is per-look-around)
-	_cam_pan = Vector3.ZERO
-	# entering free flight, start from where the camera already is
-	if m == CamMode.KEYBOARD:
-		_free_eye = _eye
-	if m == CamMode.MOUSE:
-		_pan = Vector3.ZERO
-	# snap (don't lerp) across a top-down boundary: the NORTH up-vector can be
-	# parallel to a north/south view direction mid-lerp, a degenerate look_at
-	var leaving_top := _mode == CamMode.TOP_FOLLOW
-	var entering_top := m == CamMode.TOP_FOLLOW
-	if leaving_top or entering_top:
-		_snap_cam = true
-	_mode = m
-	if renderer != null:
-		# lay tile billboards flat for the straight-down modes, stand them up otherwise
-		renderer.set_top_down(m == CamMode.TOP_FOLLOW)
-	_apply_zstretch()
-	_update_mode_label()
-	_refresh_wm_cards_btn()   # keep the 2D/3D button label in sync
+	# The rig does the camera part (state reset, billboard lay-down, zstretch) and reports if it changed.
+	if _cam_rig.set_mode(m):
+		_update_mode_label()
+		_refresh_wm_cards_btn()   # keep the 2D/3D button label in sync
 
 ## One gesture -> everything a collaborator needs about a tile. Photograph the BARE
 ## scene FIRST (no selection overlay), then inspect — so shot.png is a clean plate
@@ -980,7 +617,7 @@ func _dismiss_selection() -> void:
 
 ## Inspect, and aim the report form at the same tile.
 func _inspect() -> void:
-	inspector.inspect_at(_cam, get_viewport().get_mouse_position(), _current_zstretch())
+	inspector.inspect_at(_cam_rig._cam, get_viewport().get_mouse_position(), _cam_rig.zstretch())
 	var sel = inspector.selected_tile()
 	if sel != null:
 		reporter.set_target(sel.x, sel.y, inspector.zone_id(),
@@ -1061,7 +698,7 @@ const _MODE_NAMES := {
 }
 
 func _update_mode_label() -> void:
-	_mode_label.text = "camera: %s     ·  ` menu · 1-7 · 0 all-views · F1 controls" % _MODE_NAMES.get(_mode, "?")
+	_mode_label.text = "camera: %s     ·  ` menu · 1-7 · 0 all-views · F1 controls" % _MODE_NAMES.get(_cam_rig._mode, "?")
 	if _sky_grade != null and _sky_grade.time_label != "":
 		_mode_label.text += "     ⏱ " + _sky_grade.time_label
 	_update_debug_menu()
@@ -1107,7 +744,7 @@ func _build_multiview() -> void:
 		sv.render_target_update_mode = SubViewport.UPDATE_DISABLED
 		svc.add_child(sv)
 		var cam := Camera3D.new()
-		cam.fov = _cam.fov
+		cam.fov = _cam_rig._cam.fov
 		sv.add_child(cam)
 		cam.current = true   # the active camera for this sub-viewport
 		cell.add_child(svc)
@@ -1130,27 +767,28 @@ func _toggle_multiview() -> void:
 	if _multiview_layer == null:
 		return
 	_multiview_on = not _multiview_on
+	_cam_rig.set_multiview(_multiview_on)   # keep the rig's copy in sync BEFORE it recomputes the zstretch
 	_multiview_layer.visible = _multiview_on
 	for v in _multiview_cams:
 		(v["sv"] as SubViewport).render_target_update_mode = \
 			SubViewport.UPDATE_ALWAYS if _multiview_on else SubViewport.UPDATE_DISABLED
-	_apply_zstretch()   # multi-view shares the world -> must be square; single top-down stretches
+	_cam_rig.apply_zstretch()   # multi-view shares the world -> must be square; single top-down stretches
 
 ## Per-frame: point each preview camera at its mode's view, off the shared camera math.
 func _update_multiview_cameras() -> void:
 	for v in _multiview_cams:
 		var m: int = v["mode"]
 		var cam: Camera3D = v["cam"]
-		var el := _mode_eye_look(m)
+		var el: Array = _cam_rig.eye_look_for(m)
 		var eye: Vector3 = el[0]
 		var look: Vector3 = el[1]
 		var top := m == CamMode.TOP_FOLLOW
 		cam.projection = Camera3D.PROJECTION_ORTHOGONAL if top else Camera3D.PROJECTION_PERSPECTIVE
 		if top:
-			cam.size = _top_ortho_size()
+			cam.size = _cam_rig._top_ortho_size()
 		cam.position = eye
 		if eye.distance_to(look) > 0.001:
-			cam.look_at(look, NORTH if top else Vector3.UP)
+			cam.look_at(look, _cam_rig.NORTH if top else Vector3.UP)
 
 func _build_debug_menu() -> void:
 	var layer := CanvasLayer.new()
@@ -1191,10 +829,10 @@ func _build_debug_menu() -> void:
 	sld.min_value = 0.15
 	sld.max_value = 3.0
 	sld.step = 0.05
-	sld.value = _fp_height
+	sld.value = _cam_rig._fp_height
 	sld.custom_minimum_size = Vector2(160, 0)
 	sld.focus_mode = Control.FOCUS_NONE   # drag-only; keep arrows for the player
-	sld.value_changed.connect(func(v): _fp_height = v)
+	sld.value_changed.connect(func(v): _cam_rig._fp_height = v)
 	vb.add_child(sld)
 	# deep-water depth slider (0 = swimmers ride the surface, 1 = a full tile under)
 	var wl := Label.new()
@@ -1256,11 +894,11 @@ var _flat_2d := false   # false = 3D upright billboards, true = everything flat 
 
 func _refresh_compass_step_btn() -> void:
 	if _compass_step_btn != null:
-		_compass_step_btn.text = "Q/E rotate: %s" % ("45°" if _compass_45 else "90°")
+		_compass_step_btn.text = "Q/E rotate: %s" % ("45°" if _cam_rig._compass_45 else "90°")
 
 func _refresh_look_btn() -> void:
 	if _look_btn != null:
-		_look_btn.text = "camera follows: %s" % ("head" if _look_head else "waist")
+		_look_btn.text = "camera follows: %s" % ("head" if _cam_rig._look_head else "waist")
 
 func _refresh_wm_face_btn() -> void:
 	if _wm_face_btn != null:
@@ -1286,11 +924,11 @@ func _refresh_wm_cards_btn() -> void:
 	_wm_cards_btn.text = "tiles (O): %s" % ("2D flat" if _flat_2d else "3D up")
 
 func _toggle_look_target() -> void:
-	_look_head = not _look_head
+	_cam_rig._look_head = not _cam_rig._look_head
 	_refresh_look_btn()
 
 func _toggle_compass_step() -> void:
-	_compass_45 = not _compass_45
+	_cam_rig._compass_45 = not _cam_rig._compass_45
 	_refresh_compass_step_btn()
 
 ## Live-apply the deep-water depth: creatures are re-cropped in the dynamic pass, so
@@ -1364,13 +1002,13 @@ func _notification(what: int) -> void:
 func _save_settings() -> void:
 	var sz := DisplayServer.window_get_size()
 	var d := {
-		"mode": _mode,
-		"compass_yaw": _compass_yaw,
-		"compass_45": _compass_45,
-		"look_head": _look_head,
-		"dist": _dist,
-		"top_zoom": _top_zoom,
-		"fp_height": _fp_height,
+		"mode": _cam_rig._mode,
+		"compass_yaw": _cam_rig._compass_yaw,
+		"compass_45": _cam_rig._compass_45,
+		"look_head": _cam_rig._look_head,
+		"dist": _cam_rig._dist,
+		"top_zoom": _cam_rig._top_zoom,
+		"fp_height": _cam_rig._fp_height,
 		"water_depth": (renderer.deep_water_depth if renderer != null else 0.6),
 		"level_height": (renderer.level_height if renderer != null else 4.0),
 		"win": [sz.x, sz.y],
@@ -1381,7 +1019,7 @@ func _save_settings() -> void:
 		f.close()
 
 ## Restore what _save_settings wrote. Sets values only (no _set_mode — the label isn't
-## built yet); the mode's camera/renderer setup follows from _mode in _update_camera and
+## built yet); the mode's camera/renderer setup follows from the rig's _mode in its _update_camera and
 ## the set_top_down call here. Missing/invalid keys keep the code defaults.
 func _load_settings() -> void:
 	if not FileAccess.file_exists(SETTINGS_PATH):
@@ -1389,21 +1027,21 @@ func _load_settings() -> void:
 	var d = JSON.parse_string(FileAccess.get_file_as_string(SETTINGS_PATH))
 	if typeof(d) != TYPE_DICTIONARY:
 		return
-	_compass_yaw = float(d.get("compass_yaw", _compass_yaw))
-	_compass_45 = bool(d.get("compass_45", _compass_45))
-	_look_head = bool(d.get("look_head", _look_head))
-	_dist = clampf(float(d.get("dist", _dist)), DIST_MIN, DIST_MAX)
-	_top_zoom = clampf(float(d.get("top_zoom", _top_zoom)), TOP_ZOOM_MIN, TOP_ZOOM_MAX)
-	_fp_height = clampf(float(d.get("fp_height", _fp_height)), 0.15, 3.0)
+	_cam_rig._compass_yaw = float(d.get("compass_yaw", _cam_rig._compass_yaw))
+	_cam_rig._compass_45 = bool(d.get("compass_45", _cam_rig._compass_45))
+	_cam_rig._look_head = bool(d.get("look_head", _cam_rig._look_head))
+	_cam_rig._dist = clampf(float(d.get("dist", _cam_rig._dist)), _cam_rig.DIST_MIN, _cam_rig.DIST_MAX)
+	_cam_rig._top_zoom = clampf(float(d.get("top_zoom", _cam_rig._top_zoom)), _cam_rig.TOP_ZOOM_MIN, _cam_rig.TOP_ZOOM_MAX)
+	_cam_rig._fp_height = clampf(float(d.get("fp_height", _cam_rig._fp_height)), 0.15, 3.0)
 	if renderer != null:
 		renderer.deep_water_depth = clampf(float(d.get("water_depth", renderer.deep_water_depth)), 0.0, 1.0)
 		renderer.level_height = clampf(float(d.get("level_height", renderer.level_height)), 0.0, 16.0)
 	var win = d.get("win", null)
 	if win is Array and win.size() == 2 and int(win[0]) > 200 and int(win[1]) > 200:
 		DisplayServer.window_set_size(Vector2i(int(win[0]), int(win[1])))
-	var m := int(d.get("mode", _mode))
+	var m := int(d.get("mode", _cam_rig._mode))
 	if m >= 0 and m <= CamMode.TOP_FOLLOW:
-		_mode = m
+		_cam_rig._mode = m
 		if renderer != null:
 			renderer.set_top_down(m == CamMode.TOP_FOLLOW)
 
@@ -1413,7 +1051,7 @@ func _toggle_debug_menu() -> void:
 
 func _update_debug_menu() -> void:
 	for m in _mode_buttons:
-		(_mode_buttons[m] as Button).modulate = Color(0.55, 1.0, 0.55) if m == _mode else Color(1, 1, 1)
+		(_mode_buttons[m] as Button).modulate = Color(0.55, 1.0, 0.55) if m == _cam_rig._mode else Color(1, 1, 1)
 
 # --- input ------------------------------------------------------------------
 
@@ -1465,24 +1103,24 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.keycode == KEY_O:
 			_toggle_flat_2d(); return
 		# Q/E rotate the locked compass heading (COMPASS mode only), 45° or 90° per _compass_45
-		if _mode == CamMode.COMPASS and event.keycode == KEY_Q:
-			_compass_yaw += _compass_step(); return
-		if _mode == CamMode.COMPASS and event.keycode == KEY_E:
-			_compass_yaw -= _compass_step(); return
+		if _cam_rig._mode == CamMode.COMPASS and event.keycode == KEY_Q:
+			_cam_rig._compass_yaw += _cam_rig.compass_step(); return
+		if _cam_rig._mode == CamMode.COMPASS and event.keycode == KEY_E:
+			_cam_rig._compass_yaw -= _cam_rig.compass_step(); return
 		# W / X dolly the camera one tile forward / back along its heading — move the
 		# camera like the player. Discrete per press; pairs with S/D vertical pan. Not
 		# in FLY (WASD drives the free camera there).
-		if _mode != CamMode.KEYBOARD and event.keycode == KEY_W:
-			_cam_pan += _cam_forward() * CAM_STEP; return
-		if _mode != CamMode.KEYBOARD and event.keycode == KEY_X:
-			_cam_pan -= _cam_forward() * CAM_STEP; return
+		if _cam_rig._mode != CamMode.KEYBOARD and event.keycode == KEY_W:
+			_cam_rig._cam_pan += _cam_rig.cam_forward() * _cam_rig.CAM_STEP; return
+		if _cam_rig._mode != CamMode.KEYBOARD and event.keycode == KEY_X:
+			_cam_rig._cam_pan -= _cam_rig.cam_forward() * _cam_rig.CAM_STEP; return
 		# S / D are forwarded to Qud as key presses (was: camera vertical pan). The mod injects
 		# them through Qud's keymap, so they trigger whatever YOU'VE bound s/d to (soar/descend) —
 		# drive the surface<->world-map transition from Raves without switching focus. One per
 		# press. Skipped in FLY (KEYBOARD) mode, where WASD still flies the free camera.
-		if _mode != CamMode.KEYBOARD and event.keycode == KEY_S:
+		if _cam_rig._mode != CamMode.KEYBOARD and event.keycode == KEY_S:
 			client.send_command("key", {"key": "s"}); return
-		if _mode != CamMode.KEYBOARD and event.keycode == KEY_D:
+		if _cam_rig._mode != CamMode.KEYBOARD and event.keycode == KEY_D:
 			client.send_command("key", {"key": "d"}); return
 		if event.keycode == KEY_ESCAPE:
 			# close the camera/debug menu and any selection, but KEEP the current camera
@@ -1507,7 +1145,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			inspector.nudge_font(2)
 			reporter.nudge_font(2); return
 		# in KEYBOARD mode the arrows drive the camera, not the player
-		if _mode == CamMode.KEYBOARD:
+		if _cam_rig._mode == CamMode.KEYBOARD:
 			return
 		# Arrows move the PLAYER relative to the camera heading — "up" is always forward on
 		# screen (the Godot->Qud translation). SHIFT+arrow = that direction rotated 45° to the
@@ -1522,15 +1160,15 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_LEFT:
 				if diag:
 					_move_relative(Vector2(-1, 1))       # NW diagonal
-				elif _mode == CamMode.FIRST_PERSON and not strafe_mod:
-					_compass_yaw += PI * 0.25            # turn left 45°
+				elif _cam_rig._mode == CamMode.FIRST_PERSON and not strafe_mod:
+					_cam_rig._compass_yaw += PI * 0.25            # turn left 45°
 				else:
 					_move_relative(Vector2(-1, 0))       # strafe left (non-FP, or FP Ctrl+Shift)
 			KEY_RIGHT:
 				if diag:
 					_move_relative(Vector2(1, -1))       # SE diagonal
-				elif _mode == CamMode.FIRST_PERSON and not strafe_mod:
-					_compass_yaw -= PI * 0.25            # turn right 45°
+				elif _cam_rig._mode == CamMode.FIRST_PERSON and not strafe_mod:
+					_cam_rig._compass_yaw -= PI * 0.25            # turn right 45°
 				else:
 					_move_relative(Vector2(1, 0))        # strafe right
 			KEY_KP_8: client.send_command("move", {"dir": "N"})
@@ -1548,7 +1186,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				if event.pressed and (event.ctrl_pressed or event.meta_pressed):
 					_inspect()
 				else:
-					_orbiting = event.pressed and _mode == CamMode.MOUSE
+					_cam_rig._orbiting = event.pressed and _cam_rig._mode == CamMode.MOUSE
 			MOUSE_BUTTON_RIGHT, MOUSE_BUTTON_MIDDLE:
 				# Ctrl/Cmd + right-click = inspect AND photograph both apps, so a
 				# single gesture hands over coordinates, wire data and the picture.
@@ -1556,29 +1194,29 @@ func _unhandled_input(event: InputEvent) -> void:
 						and (event.ctrl_pressed or event.meta_pressed)):
 					_inspect_and_capture()
 				else:
-					_panning = event.pressed and _mode == CamMode.MOUSE
+					_cam_rig._panning = event.pressed and _cam_rig._mode == CamMode.MOUSE
 			MOUSE_BUTTON_WHEEL_UP:
 				if event.pressed:
-					if _mode == CamMode.TOP_FOLLOW:
-						_top_zoom = clampf(_top_zoom * 0.9, TOP_ZOOM_MIN, TOP_ZOOM_MAX)
+					if _cam_rig._mode == CamMode.TOP_FOLLOW:
+						_cam_rig._top_zoom = clampf(_cam_rig._top_zoom * 0.9, _cam_rig.TOP_ZOOM_MIN, _cam_rig.TOP_ZOOM_MAX)
 					else:
-						_dist = clampf(_dist * 0.9, DIST_MIN, DIST_MAX)
+						_cam_rig._dist = clampf(_cam_rig._dist * 0.9, _cam_rig.DIST_MIN, _cam_rig.DIST_MAX)
 			MOUSE_BUTTON_WHEEL_DOWN:
 				if event.pressed:
-					if _mode == CamMode.TOP_FOLLOW:
-						_top_zoom = clampf(_top_zoom * 1.1, TOP_ZOOM_MIN, TOP_ZOOM_MAX)
+					if _cam_rig._mode == CamMode.TOP_FOLLOW:
+						_cam_rig._top_zoom = clampf(_cam_rig._top_zoom * 1.1, _cam_rig.TOP_ZOOM_MIN, _cam_rig.TOP_ZOOM_MAX)
 					else:
-						_dist = clampf(_dist * 1.1, DIST_MIN, DIST_MAX)
+						_cam_rig._dist = clampf(_cam_rig._dist * 1.1, _cam_rig.DIST_MIN, _cam_rig.DIST_MAX)
 	elif event is InputEventMouseMotion:
-		if _orbiting:
-			_yaw += event.relative.x * ORBIT_SENS
-			_pitch = clampf(_pitch + event.relative.y * ORBIT_SENS, PITCH_MIN, PITCH_MAX)
-		elif _panning:
+		if _cam_rig._orbiting:
+			_cam_rig._yaw += event.relative.x * _cam_rig.ORBIT_SENS
+			_cam_rig._pitch = clampf(_cam_rig._pitch + event.relative.y * _cam_rig.ORBIT_SENS, _cam_rig.PITCH_MIN, _cam_rig.PITCH_MAX)
+		elif _cam_rig._panning:
 			# pan along the ground plane, scaled by zoom so it feels constant
-			var right := _cam.global_transform.basis.x
-			var fwd := -_cam.global_transform.basis.z
+			var right: Vector3 = _cam_rig._cam.global_transform.basis.x
+			var fwd: Vector3 = -_cam_rig._cam.global_transform.basis.z
 			right.y = 0.0; fwd.y = 0.0
 			right = right.normalized(); fwd = fwd.normalized()
-			var speed := _dist * 0.0016
+			var speed: float = _cam_rig._dist * 0.0016
 			# grab-the-world: drag right moves the world right (camera goes left)
-			_pan += (-right * event.relative.x - fwd * event.relative.y) * speed
+			_cam_rig._pan += (-right * event.relative.x - fwd * event.relative.y) * speed
