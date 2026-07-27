@@ -33,6 +33,7 @@ const COLORS := {
 
 var _palette := {}
 var _rect: TextureRect
+var _tex: ImageTexture   # reused across snapshots; only reallocated when the zone size changes
 var _toggle: Button
 var _mode := MODE_FULL
 var _last_data := {}   # last snapshot, so a mode toggle re-renders without waiting for a new one
@@ -100,7 +101,14 @@ func _rerender() -> void:
 	var py := int(p.get("y", -1))
 	if px >= 0 and py >= 0 and px < w and py < h:
 		img.set_pixel(px, py, PLAYER)
-	_rect.texture = ImageTexture.create_from_image(img)
+	# Reuse one texture: update its pixels in place, only reallocating if the zone size changed. This
+	# avoids a per-turn GPU texture alloc/free that would otherwise churn during the risky viewport
+	# enable window.
+	if _tex != null and _tex.get_width() == w and _tex.get_height() == h:
+		_tex.update(img)
+	else:
+		_tex = ImageTexture.create_from_image(img)
+		_rect.texture = _tex
 
 ## Colour of one cell, per mode.
 func _cell_color(cell: Dictionary) -> Color:
