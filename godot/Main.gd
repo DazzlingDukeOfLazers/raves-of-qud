@@ -999,9 +999,15 @@ func _update_pick_cursor() -> void:
 	var mp := get_viewport().get_mouse_position()
 	var c := _pick_cell(mp)
 	if _pick_is_adjacent(c):
-		# SNAP the full-size icon onto the adjacent tile, standing on it (bottom-centre at the cell).
-		var sp := _cell_screen_pos(c)
-		_pick_icon.position = Vector2(sp.x - _pick_icon.size.x / 2.0, sp.y - _pick_icon.size.y)
+		# SNAP the icon onto the adjacent tile at FULL (tile) size: project the cell's ground point and a
+		# point one tile-sprite tall (16x24 -> 1.5 world units) above it; the pixel gap is the on-screen
+		# tile height, so the icon matches the rendered tiles at any zoom. Stands on the tile.
+		var zs := _current_zstretch()
+		var base := _cam.unproject_position(Vector3(c.x, 0.0, c.y * zs))
+		var top := _cam.unproject_position(Vector3(c.x, 1.5, c.y * zs))
+		var ph := maxf(28.0, absf(base.y - top.y))
+		_pick_icon.size = Vector2(round(ph * 16.0 / 24.0), round(ph))
+		_pick_icon.position = Vector2(base.x - _pick_icon.size.x / 2.0, base.y - _pick_icon.size.y)
 		_pick_icon.visible = true
 		_pick_x.visible = false
 	else:

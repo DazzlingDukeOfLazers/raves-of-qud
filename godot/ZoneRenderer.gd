@@ -356,7 +356,10 @@ func _static_signature(cells: Array) -> int:
 		for obj in cell.get("objs", []):
 			if bool(obj.get("ground", false)) or bool(obj.get("creature", false)):
 				continue
-			h ^= hash("%d,%d,%s" % [cx, cy, String(obj.get("name", ""))])
+			# Include lightRadius: a static object can gain its light a snapshot AFTER it appears (a
+			# just-placed campfire lights up next tick), and the glow is placed only on a static rebuild —
+			# so the light state must be part of the signature or the campfire renders unlit.
+			h ^= hash("%d,%d,%s,%d" % [cx, cy, String(obj.get("name", "")), int(obj.get("lightRadius", 0))])
 	return h
 
 func render_snapshot(data: Dictionary, neighbors: Array = []) -> void:
