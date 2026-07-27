@@ -434,7 +434,7 @@ func _apply_stats(data: Dictionary) -> void:
 	if _target != null:
 		_target.set_snapshot(data)
 	if _context != null:
-		_context.set_context(data.get("context", {}), data.get("palette", {}))
+		_context.set_snapshot(data)
 
 ## Stratum label from zone.z (surface = 10, deeper = cavern -N, negative = the overworld map).
 func _floor_name(data: Dictionary) -> String:

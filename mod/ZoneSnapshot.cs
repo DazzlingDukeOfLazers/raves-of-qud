@@ -544,7 +544,12 @@ namespace RavesOfQud
                 return;
             }
             j.Member("kind", "missile");
-            j.Name("actions").BeginArray().Value("Fire").Value("Reload").EndArray();
+            // Actions carry Qud's own hotkey (ControlManager binding) so the client can show "[F] fire"
+            // exactly as the game does — matches even if the player rebound the key.
+            j.Name("actions").BeginArray();
+            WriteAction(j, "fire", "CmdFire");
+            WriteAction(j, "reload", "CmdReload");
+            j.EndArray();
             j.Name("weapons").BeginArray();
             foreach (var w in mws)
             {
@@ -571,13 +576,36 @@ namespace RavesOfQud
                         .Member("name", DisplayNameOf(w))       // DisplayNameOnly keeps colour markup
                         .Member("ammoRemaining", remaining)
                         .Member("ammoTotal", total)
-                        .Member("status", statusText)
-                    .EndObject();
+                        .Member("status", statusText);
+                    // Render info so the client can show the weapon's recoloured tile (like Target/Nearby).
+                    var rr = w.GetPart<Render>();
+                    if (rr != null)
+                    {
+                        bool wpainted;
+                        string wtile = ResolvedTile(w, rr, out wpainted);
+                        string wglyph = ResolvedGlyph(rr);
+                        if (wtile.Length > 0) TileExporter.Ensure(wtile);
+                        j.Member("glyph", wglyph)
+                         .Member("tile", wtile)
+                         .Member("color", rr.ColorString ?? "")
+                         .Member("tilecolor", rr.TileColor ?? "")
+                         .Member("detail", rr.DetailColor ?? "");
+                        if (wpainted) WritePaintedColors(j);
+                    }
+                    j.EndObject();
                 }
                 catch { }
             }
             j.EndArray();
             j.EndObject();
+        }
+
+        /// One context action: its label + Qud's current hotkey for the command (e.g. fire -> "F").
+        private static void WriteAction(JsonWriter j, string name, string cmd)
+        {
+            string key = "";
+            try { key = ControlManager.getCommandInputDescription(cmd, false) ?? ""; } catch { }
+            j.BeginObject().Member("name", name).Member("key", key).EndObject();
         }
 
         private static System.Collections.Generic.List<GameObject> SafeMissileWeapons(GameObject player)
