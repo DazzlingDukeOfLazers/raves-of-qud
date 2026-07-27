@@ -18,7 +18,8 @@ const LABEL := "#8fd3ff"    # action label — light blue
 var _tiles: RefCounted     # shared tile recolouring for the weapon sprites (set in _ready)
 var _rt: RichTextLabel
 var _palette := {}
-var _tex_by_id := {}       # weapon id -> last good sprite texture, so a transient tile drop keeps the sprite
+var _full := false         # perceived (default) vs full icon — driven by MainFrame's top-menu toggle
+var _last_data := {}       # last snapshot, so a mode toggle re-renders without waiting for a new one
 
 func _ready() -> void:
 	_tiles = load("res://QudTiles.gd").new()
@@ -52,13 +53,22 @@ func _ready() -> void:
 
 ## MainFrame calls this each snapshot with the full data (needs context + palette + tilesDir).
 func set_snapshot(data: Dictionary) -> void:
+	_last_data = data
 	var pal: Dictionary = data.get("palette", {})
 	if not pal.is_empty():
 		_palette = pal
 	_tiles.tiles_dir = String(data.get("tilesDir", _tiles.tiles_dir))
 	_tiles.palette = _palette
-	var ctx: Dictionary = data.get("context", {})
+	_render()
 
+## Driven by MainFrame's global top-menu toggle: perceived icon (default) vs the real one.
+func set_full_info(full: bool) -> void:
+	_full = full
+	if not _last_data.is_empty():
+		_render()
+
+func _render() -> void:
+	var ctx: Dictionary = _last_data.get("context", {})
 	_rt.clear()
 	if String(ctx.get("kind", "none")) != "missile":
 		_rt.append_text("[color=%s]%s[/color]" % [DIM, String(ctx.get("text", "—"))])
@@ -66,8 +76,6 @@ func set_snapshot(data: Dictionary) -> void:
 
 	var acts: Array = ctx.get("actions", [])
 	var weapons: Array = ctx.get("weapons", [])
-	# Diagnostic, logged only when the shape changes (no per-frame spam): the actions row should persist
-	# whenever a weapon is present. actions=0 with weapons>0 would mean the mod dropped them.
 	# Actions FIRST — matches Qud's horizontal "[F] fire  [R] reload …" and keeps them from being
 	# dropped by any per-weapon render issue. Clickable; key = UI yellow, label = light blue.
 	for a in acts:
@@ -80,20 +88,15 @@ func set_snapshot(data: Dictionary) -> void:
 		_rt.append_text("[url=cmd:%s]%s [color=%s]%s[/color][/url]    " % [cmd, keytag, LABEL, aname])
 
 	# Then the weapon(s) INLINE on the same row (Qud-style: "… fire  reload  <sprite> name [?]"). One
-	# row, so it can't be scrolled/clipped out of the panel. Recoloured tile drawn fairly large.
+	# row, so it can't be scrolled/clipped out of the panel. Perceived icon by default, real in full mode.
 	var img_h := int(UiFont.px(get_viewport(), "body") * 2.2)
 	var img_w := int(round(img_h * 16.0 / 24.0))   # Qud tiles are 16x24
 	for w in weapons:
-		var wid := String(w.get("id", ""))
-		var tex: Texture2D = _tiles.texture(String(w.get("tile", "")), _tiles.main_color(w), _tiles.detail_color(w))
-		if tex != null:
-			_tex_by_id[wid] = tex          # remember the last good sprite for this weapon
-		elif wid != "" and _tex_by_id.has(wid):
-			tex = _tex_by_id[wid]          # a post-fire snapshot can transiently drop the tile — keep showing it
+		var tex: Texture2D = _tiles.texture_for(w, _full)
 		if tex != null:
 			_rt.add_image(tex, img_w, img_h)
 		else:
-			_rt.append_text(String(w.get("glyph", "")).replace("[", "[lb]"))
+			_rt.append_text(_tiles.glyph_for(w, _full).replace("[", "[lb]"))
 		_rt.append_text(" " + QudText.to_bbcode(String(w.get("name", "")), _palette))
 		var total := int(w.get("ammoTotal", 0))
 		if total > 0:

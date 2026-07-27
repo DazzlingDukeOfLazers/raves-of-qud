@@ -511,7 +511,7 @@ namespace RavesOfQud
                     }
                 }
                 catch { }
-                WritePerceivedRender(j, t);   // perceived icon (unidentified -> Qud's "unknown" icon)
+                WriteObjectRender(j, t);   // full tile + perceived override (unidentified -> "unknown" icon)
             }
             catch { }
             j.EndObject();
@@ -572,7 +572,7 @@ namespace RavesOfQud
                         .Member("status", statusText);
                     // PERCEIVED render — an UNIDENTIFIED artifact shows Qud's generic "unknown" icon, not
                     // its real tile, until the player understands it (RenderForUI honours identification).
-                    WritePerceivedRender(j, w);
+                    WriteObjectRender(j, w);
                     j.EndObject();
                 }
                 catch { }
@@ -581,23 +581,49 @@ namespace RavesOfQud
             j.EndObject();
         }
 
-        /// Write an object's PERCEIVED render fields (tile/glyph/colours) as Qud's own UI draws them.
-        /// RenderForUI() runs the full render pipeline and honours identification, so an unidentified
-        /// artifact yields Qud's generic "unknown" icon rather than its real tile — exactly what the
-        /// player sees. Use for panel icons (target, context weapon); the client recolours as usual.
-        private static void WritePerceivedRender(JsonWriter j, GameObject go)
+        /// Write an object's render fields for a panel icon: the FULL (known) tile from the raw Render
+        /// part, PLUS a perceived override (see WritePerceivedOverride). The client shows the perceived
+        /// icon by default and the full one under the global "Full info" toggle.
+        private static void WriteObjectRender(JsonWriter j, GameObject go)
         {
             try
             {
+                var r = go.GetPart<Render>();
+                if (r != null)
+                {
+                    bool painted;
+                    string tile = ResolvedTile(go, r, out painted);
+                    string glyph = ResolvedGlyph(r);
+                    if (tile.Length > 0) TileExporter.Ensure(tile);
+                    j.Member("glyph", glyph)
+                     .Member("tile", tile)
+                     .Member("color", r.ColorString ?? "")
+                     .Member("tilecolor", r.TileColor ?? "")
+                     .Member("detail", r.DetailColor ?? "");
+                    if (painted) WritePaintedColors(j);
+                }
+            }
+            catch { }
+            WritePerceivedOverride(j, go);
+        }
+
+        /// If the object is NOT understood, add a PERCEIVED override (tileP/colorP/detailP/glyphP) from
+        /// GameObject.RenderForUI() — Qud's own UI render, honouring identification — so the client can
+        /// show the generic "unknown" icon in perceived mode. Understood objects (the common case) get no
+        /// override, so RenderForUI (the expensive call) only runs for the rare unidentified item.
+        private static void WritePerceivedOverride(JsonWriter j, GameObject go)
+        {
+            try
+            {
+                if (go.Understood()) return;   // known -> perceived == full, no override needed
                 var re = go.RenderForUI();
                 if (re == null) return;
-                string tile = re.Tile ?? "";
-                if (tile.Length > 0) TileExporter.Ensure(tile);
-                j.Member("glyph", re.RenderString ?? "")
-                 .Member("tile", tile)
-                 .Member("color", re.ColorString ?? "")       // ColorString is already the tile colour
-                 .Member("tilecolor", re.ColorString ?? "")
-                 .Member("detail", re.DetailColor ?? "");
+                string tp = re.Tile ?? "";
+                if (tp.Length > 0) TileExporter.Ensure(tp);
+                j.Member("glyphP", re.RenderString ?? "")
+                 .Member("tileP", tp)
+                 .Member("colorP", re.ColorString ?? "")   // ColorString is already the tile colour
+                 .Member("detailP", re.DetailColor ?? "");
             }
             catch { }
         }
@@ -779,6 +805,7 @@ namespace RavesOfQud
                         if (light != null && light.Lit)
                             j.Member("lightRadius", light.Radius);
                         if (painted) WritePaintedColors(j);
+                        WritePerceivedOverride(j, go);   // "unknown" icon override for unidentified items (Nearby)
                         j.EndObject();
                         emitted++;
                     }

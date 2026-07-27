@@ -8,14 +8,13 @@ extends PanelContainer
 ## unless you have scanning gear/skills, so the wound WORD stands in for it (the mod already applies
 ## Qud's own rule). Plus the direction + distance from the player (spatial, not hidden).
 ##
-## FULL (debug toggle): adds the exact HP bar + numbers on top, for development.
+## FULL (debug, via the top-menu toggle): adds the exact HP bar + numbers, and reveals the real icon.
 
 const DIM := "#8a8f9a"
 const HP_COL := Color(0.25, 0.80, 0.32)     # green, matching the player HP bar
 
 var _tiles: RefCounted                          # shared tile recolouring for the sprite column (set in _ready)
 
-var _toggle: Button
 var _sprite: TextureRect
 var _rt_name: RichTextLabel
 var _rt_desc: RichTextLabel
@@ -44,18 +43,10 @@ func _ready() -> void:
 	v.add_theme_constant_override("separation", 4)
 	add_child(v)
 
-	var head := HBoxContainer.new()
-	v.add_child(head)
 	var title := Label.new()
 	title.text = "Target"
 	title.add_theme_font_size_override("font_size", UiFont.px(get_viewport(), "title"))
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	head.add_child(title)
-	_toggle = Button.new()
-	_toggle.focus_mode = Control.FOCUS_NONE
-	_toggle.pressed.connect(_toggle_mode)
-	head.add_child(_toggle)
-	_refresh_toggle()
+	v.add_child(title)
 
 	# Two columns: the target SPRITE (left) and its info (right).
 	var body := HBoxContainer.new()
@@ -133,10 +124,10 @@ func _render() -> void:
 
 	_rt_name.text = QudText.to_bbcode(String(t.get("display", "")), _palette)
 
-	# Left column: the recoloured target sprite (client-side, from the tile/colours the mod sends).
+	# Left column: the recoloured target sprite — perceived icon by default, real icon in full mode.
 	_tiles.tiles_dir = String(data.get("tilesDir", _tiles.tiles_dir))
 	_tiles.palette = _palette
-	var tex: Texture2D = _tiles.texture(String(t.get("tile", "")), _tiles.main_color(t), _tiles.detail_color(t))
+	var tex: Texture2D = _tiles.texture_for(t, _full)
 	_sprite.texture = tex
 	_sprite.visible = tex != null
 
@@ -194,14 +185,8 @@ func _arrow(dx: int, dy: int) -> String:
 		return "↗" if dy < 0 else "↘"
 	return "↖" if dy < 0 else "↙"
 
-func _toggle_mode() -> void:
-	_full = not _full
-	_refresh_toggle()
-	_render()
-
-func _refresh_toggle() -> void:
-	if _toggle == null:
-		return
-	_toggle.text = "full" if _full else "perceived"
-	_toggle.tooltip_text = "Debug: showing %s info — click for %s" % [
-		"FULL" if _full else "perceived", "perceived" if _full else "full"]
+## Driven by MainFrame's global top-menu toggle.
+func set_full_info(full: bool) -> void:
+	_full = full
+	if not _last_data.is_empty():
+		_render()

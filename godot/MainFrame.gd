@@ -56,6 +56,8 @@ var _minimap: Control       # the Minimap view (MinimapView.gd)
 var _effects: Control       # the Active effects view (ActiveEffects.gd)
 var _target: Control        # the Target view (TargetView.gd)
 var _context: Control       # the Context menu view (ContextMenu.gd)
+var _info_btn: Button       # top-menu Perceived/Full toggle
+var _full_info := false     # global debug toggle: false = perceived (what the player sees), true = full
 
 func _ready() -> void:
 	name = "MainFrame"
@@ -79,6 +81,8 @@ func _ready() -> void:
 	rows.add_child(_row_main())          # 3: Holodeck | side panels  (expands)
 	rows.add_child(_row_context())       # 4: effects | target | context menu
 	rows.add_child(_row_command())       # 5: command bar (abilities)
+
+	_apply_full_info()                   # init the toggle label + push the default (perceived) to views
 
 func _on_resize() -> void:
 	UiFont.refresh_theme(theme, get_viewport())
@@ -259,11 +263,32 @@ func _row_vitals_menu() -> Control:
 	var mh := HBoxContainer.new()
 	mh.add_theme_constant_override("separation", 4)
 	menu.add_child(mh)
-	for label in ["≡", "🔒 Lock", "🗺 Minimap", "Look", "Wait", "Character",
+	mh.add_child(_menu_btn("≡"))
+	# Global Perceived/Full toggle (debug): drives Target, Context menu, Nearby objects (and the log,
+	# once it has icons). Default = perceived — what the player actually sees.
+	_info_btn = Button.new()
+	_info_btn.focus_mode = Control.FOCUS_NONE
+	_info_btn.pressed.connect(_toggle_full_info)
+	mh.add_child(_info_btn)
+	for label in ["🔒 Lock", "🗺 Minimap", "Look", "Wait", "Character",
 			"POI", "Auto-explore", "▼ Down", "▲ Up"]:
 		mh.add_child(_menu_btn(label))
 	h.add_child(menu)
 	return h
+
+func _toggle_full_info() -> void:
+	_full_info = not _full_info
+	_apply_full_info()
+
+## Push the current info mode to every view that honours it, and refresh the button label.
+func _apply_full_info() -> void:
+	if _info_btn != null:
+		_info_btn.text = "👁 Full" if _full_info else "👁 Perceived"
+		_info_btn.tooltip_text = "Info: %s — click for %s" % [
+			"FULL (debug)" if _full_info else "perceived", "perceived" if _full_info else "full"]
+	for v in [_target, _context, _nearby, _msglog]:
+		if v != null and v.has_method("set_full_info"):
+			v.set_full_info(_full_info)
 
 # ── row 3: Holodeck  |grabby|  side panels  (expands to fill) ─────────────────
 

@@ -27,6 +27,8 @@ var _tiles_dir := ""
 var _palette := {}
 var _mask_cache := {}   # tile filename -> Image (the raw grayscale mask)
 var _tex_cache := {}    # "fname|main|detail" -> ImageTexture (recoloured)
+var _full := false      # perceived icon (default) vs real — driven by MainFrame's top-menu toggle
+var _last_data := {}    # last snapshot, so a mode toggle re-renders without waiting for a new one
 
 func _ready() -> void:
 	var sb := StyleBoxFlat.new()
@@ -57,6 +59,7 @@ func _ready() -> void:
 
 ## MainFrame calls this each snapshot with the full data (needs cells + player + tilesDir + palette).
 func set_snapshot(data: Dictionary) -> void:
+	_last_data = data
 	_tiles_dir = String(data.get("tilesDir", _tiles_dir))
 	var pal: Dictionary = data.get("palette", {})
 	if not pal.is_empty():
@@ -93,9 +96,7 @@ func set_snapshot(data: Dictionary) -> void:
 					found[nm]["arrow"] = _arrow(dx, dy)
 			else:
 				found[nm] = {
-					"arrow": _arrow(dx, dy), "glyph": String(obj.get("glyph", "")),
-					"tile": String(obj.get("tile", "")), "raw": raw,
-					"main": _obj_main(obj), "detail": _obj_detail(obj),
+					"arrow": _arrow(dx, dy), "raw": raw, "obj": obj,
 					"dist": dist, "count": 1,
 				}
 
@@ -107,14 +108,32 @@ func set_snapshot(data: Dictionary) -> void:
 	_rt.clear()
 	for i in mini(names.size(), MAX_ROWS):
 		var e: Dictionary = found[names[i]]
+		var o: Dictionary = e["obj"]
 		_rt.append_text(String(e["arrow"]) + " ")
-		var tex: Texture2D = _tile_tex(String(e["tile"]), e["main"], e["detail"])
+		# Perceived icon by default (an unidentified item's "unknown" tile via the tileP override); the
+		# real tile only under the global full-info toggle.
+		var tile := String(o.get("tile", ""))
+		var main: Color = _obj_main(o)
+		var detail: Color = _obj_detail(o)
+		var glyph := String(o.get("glyph", ""))
+		if not _full and o.has("tileP"):
+			tile = String(o.get("tileP", ""))
+			main = _qud_color(String(o.get("colorP", "")))
+			detail = _qud_color(String(o.get("detailP", "")))
+			glyph = String(o.get("glyphP", ""))
+		var tex: Texture2D = _tile_tex(tile, main, detail)
 		if tex != null:
 			_rt.add_image(tex, img_w, img_h)
 		else:
-			_rt.append_text(String(e["glyph"]).replace("[", "[lb]"))   # fallback glyph
+			_rt.append_text(glyph.replace("[", "[lb]"))   # fallback glyph
 		var suffix: String = ("  ×%d" % e["count"]) if e["count"] > 1 else ""
 		_rt.append_text(" " + QudText.to_bbcode(String(e["raw"]), _palette) + suffix + "\n")
+
+## Driven by MainFrame's global top-menu toggle: perceived icons (default) vs the real ones.
+func set_full_info(full: bool) -> void:
+	_full = full
+	if not _last_data.is_empty():
+		set_snapshot(_last_data)
 
 # --- tile recolouring (mirrors ZoneRenderer: grayscale mask -> main.lerp(detail, luminance)) --------
 

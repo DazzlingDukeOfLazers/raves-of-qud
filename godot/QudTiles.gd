@@ -25,6 +25,21 @@ var palette := {}
 var _mask_cache := {}   # fname -> Image (raw grayscale mask)
 var _tex_cache := {}    # "fname|main|detail" -> ImageTexture (recoloured)
 
+## Recoloured icon for a serialized object dict, honouring the global perceived/full toggle. When NOT
+## full and the object carries a perceived override (tileP/colorP/detailP — present only for unidentified
+## items), use that (Qud's "unknown" icon); otherwise the full/known tile.
+func texture_for(obj: Dictionary, full: bool) -> Texture2D:
+	if not full and obj.has("tileP"):
+		return texture(String(obj.get("tileP", "")),
+			color_of(String(obj.get("colorP", ""))), color_of(String(obj.get("detailP", ""))))
+	return texture(String(obj.get("tile", "")), main_color(obj), detail_color(obj))
+
+## Glyph fallback for a serialized object dict, matching texture_for's perceived/full choice.
+func glyph_for(obj: Dictionary, full: bool) -> String:
+	if not full and obj.has("glyphP"):
+		return String(obj.get("glyphP", ""))
+	return String(obj.get("glyph", ""))
+
 ## Recoloured tile texture for a tile path + main/detail colours, or null if there's no tile/mask.
 func texture(tile: String, main: Color, detail: Color) -> Texture2D:
 	if tile == "":
