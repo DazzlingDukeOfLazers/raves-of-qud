@@ -472,6 +472,47 @@ namespace RavesOfQud
             j.EndArray();
         }
 
+        /// The player's current combat target (Qud's status-bar target, XRL.UI.Sidebar.CurrentTarget)
+        /// for the frame's Target panel. Sends `present=false` when nothing is targeted. Emits the full
+        /// render info (glyph/tile/colours — like a cell object) plus hp/position/hostile, so the client
+        /// can show a rich card AND a future tile image with no further mod change (mod edits cost a Qud
+        /// restart; client edits don't). Position lets the client show direction/distance from the player.
+        private static void WriteTarget(JsonWriter j, GameObject player)
+        {
+            j.Name("target").BeginObject();
+            GameObject t = null;
+            try { t = XRL.UI.Sidebar.CurrentTarget; } catch { }
+            if (t == null || t == player)
+            {
+                j.Member("present", false).EndObject();
+                return;
+            }
+            try
+            {
+                j.Member("present", true);
+                j.Member("display", DisplayNameOf(t));   // DisplayNameOnly keeps colour markup; client renders it
+                try { j.Member("hp", t.hitpoints).Member("hpMax", t.baseHitpoints); } catch { }
+                try { var pc = t.CurrentCell; if (pc != null) j.Member("x", pc.X).Member("y", pc.Y); } catch { }
+                try { j.Member("hostile", t.IsHostileTowards(player)); } catch { }
+                var r = t.GetPart<Render>();
+                if (r != null)
+                {
+                    bool painted;
+                    string tile = ResolvedTile(t, r, out painted);
+                    string glyph = ResolvedGlyph(r);
+                    if (tile.Length > 0) TileExporter.Ensure(tile);
+                    j.Member("glyph", glyph)
+                     .Member("tile", tile)
+                     .Member("color", r.ColorString ?? "")
+                     .Member("tilecolor", r.TileColor ?? "")
+                     .Member("detail", r.DetailColor ?? "");
+                    if (painted) WritePaintedColors(j);
+                }
+            }
+            catch { }
+            j.EndObject();
+        }
+
         /// The player's recent message-log lines (tail), markup-stripped, for the frame's Message log.
         private static void WriteMessages(JsonWriter j)
         {
@@ -541,6 +582,7 @@ namespace RavesOfQud
 
             WriteStats(j, player, z);   // player vitals/stats for the frame status bar
             WriteEffects(j, player);    // active effects (buffs/debuffs) for the frame Active effects panel
+            WriteTarget(j, player);     // current combat target for the frame Target panel
             WriteMessages(j);           // recent message-log lines for the frame Message log
 
             j.Name("cells").BeginArray();

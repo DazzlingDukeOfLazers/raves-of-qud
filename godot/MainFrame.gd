@@ -54,6 +54,7 @@ var _msglog: Control        # the Message log view (MessageLog.gd)
 var _nearby: Control        # the Nearby objects view (NearbyObjects.gd)
 var _minimap: Control       # the Minimap view (MinimapView.gd)
 var _effects: Control       # the Active effects view (ActiveEffects.gd)
+var _target: Control        # the Target view (TargetView.gd)
 
 func _ready() -> void:
 	name = "MainFrame"
@@ -429,6 +430,8 @@ func _apply_stats(data: Dictionary) -> void:
 		_minimap.set_snapshot(data)
 	if _effects != null:
 		_effects.set_effects(data.get("effects", []), data.get("palette", {}))
+	if _target != null:
+		_target.set_snapshot(data)
 
 ## Stratum label from zone.z (surface = 10, deeper = cavern -N, negative = the overworld map).
 func _floor_name(data: Dictionary) -> String:
@@ -453,7 +456,9 @@ func _row_context() -> Control:
 	_effects.custom_minimum_size = Vector2(0, 90)
 	var eff: Control = _effects
 	eff.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var tgt := _cell("Target", Vector2(0, 90))
+	_target = load("res://TargetView.gd").new()       # the real Target view (its own file)
+	_target.custom_minimum_size = Vector2(0, 90)
+	var tgt: Control = _target
 	tgt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var ctx := _cell("Context menu", Vector2(0, 90))   # multipurpose text menu (fire / no weapon / …)
 	ctx.size_flags_horizontal = Control.SIZE_EXPAND_FILL
