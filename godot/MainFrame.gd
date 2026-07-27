@@ -51,6 +51,7 @@ var _l_exp: Label
 var _bar_exp: ProgressBar
 var _msglog: Control        # the Message log view (MessageLog.gd)
 var _nearby: Control        # the Nearby objects view (NearbyObjects.gd)
+var _minimap: Control       # the Minimap view (MinimapView.gd)
 
 func _ready() -> void:
 	name = "MainFrame"
@@ -274,14 +275,15 @@ func _row_main() -> Control:
 	var side := VBoxContainer.new()
 	side.custom_minimum_size = Vector2(320, 0)
 	side.add_theme_constant_override("separation", 4)
-	var mini := _cell("Minimap", Vector2(0, 220))
+	_minimap = load("res://MinimapView.gd").new()    # the real Minimap view (its own file)
+	_minimap.custom_minimum_size = Vector2(0, 220)
 	_nearby = load("res://NearbyObjects.gd").new()   # the real Nearby objects view (its own file)
 	_nearby.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_nearby.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_msglog = load("res://MessageLog.gd").new()      # the real Message log view (its own file)
 	_msglog.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_msglog.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	side.add_child(mini)
+	side.add_child(_minimap)
 	side.add_child(_nearby)
 	side.add_child(_msglog)
 	split.add_child(side)
@@ -427,6 +429,8 @@ func _apply_stats(data: Dictionary) -> void:
 		_msglog.set_messages(data.get("messages", []), int(data.get("msgCount", 0)), data.get("palette", {}))
 	if _nearby != null:
 		_nearby.set_snapshot(data)
+	if _minimap != null:
+		_minimap.set_snapshot(data)
 
 ## Stratum label from zone.z (surface = 10, deeper = cavern -N, negative = the overworld map).
 func _floor_name(data: Dictionary) -> String:
