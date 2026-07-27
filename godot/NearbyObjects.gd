@@ -48,7 +48,7 @@ func _ready() -> void:
 	title.add_theme_font_size_override("font_size", UiFont.px(get_viewport(), "title"))
 	v.add_child(title)
 	_rt = RichTextLabel.new()
-	_rt.bbcode_enabled = false
+	_rt.bbcode_enabled = true             # names are rendered in their Qud colours
 	_rt.scroll_active = true
 	_rt.selection_enabled = true
 	_rt.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -79,9 +79,11 @@ func set_snapshot(data: Dictionary) -> void:
 				continue
 			if dist == 0 and bool(obj.get("creature", false)):
 				continue                   # the player, on their own cell
-			var nm := QudText.strip(String(obj.get("display", "")))
+			var raw := String(obj.get("display", ""))
+			var nm := QudText.strip(raw)      # stripped = stable dedup key
 			if nm == "":
 				nm = String(obj.get("name", ""))
+				raw = nm
 			if nm == "" or nm == "[painted ground]":
 				continue
 			if found.has(nm):
@@ -92,7 +94,7 @@ func set_snapshot(data: Dictionary) -> void:
 			else:
 				found[nm] = {
 					"arrow": _arrow(dx, dy), "glyph": String(obj.get("glyph", "")),
-					"tile": String(obj.get("tile", "")),
+					"tile": String(obj.get("tile", "")), "raw": raw,
 					"main": _obj_main(obj), "detail": _obj_detail(obj),
 					"dist": dist, "count": 1,
 				}
@@ -105,14 +107,14 @@ func set_snapshot(data: Dictionary) -> void:
 	_rt.clear()
 	for i in mini(names.size(), MAX_ROWS):
 		var e: Dictionary = found[names[i]]
-		_rt.add_text(String(e["arrow"]) + " ")
+		_rt.append_text(String(e["arrow"]) + " ")
 		var tex: Texture2D = _tile_tex(String(e["tile"]), e["main"], e["detail"])
 		if tex != null:
 			_rt.add_image(tex, img_w, img_h)
 		else:
-			_rt.add_text(String(e["glyph"]))   # fallback when the tile isn't exported
+			_rt.append_text(String(e["glyph"]).replace("[", "[lb]"))   # fallback glyph
 		var suffix: String = ("  ×%d" % e["count"]) if e["count"] > 1 else ""
-		_rt.add_text(" " + String(names[i]) + suffix + "\n")
+		_rt.append_text(" " + QudText.to_bbcode(String(e["raw"]), _palette) + suffix + "\n")
 
 # --- tile recolouring (mirrors ZoneRenderer: grayscale mask -> main.lerp(detail, luminance)) --------
 
