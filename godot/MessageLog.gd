@@ -22,7 +22,9 @@ var _palette := {}   # Qud colour code -> hex, for rendering {{code|text}} marku
 var _rt: RichTextLabel
 var _toggle: Button
 var _tiles: RefCounted           # shared tile recolouring for inline message icons (set in _ready)
-var _name_index := {}            # lowercased object name -> object dict (from the zone), for icon matching
+var _name_index := {}            # lowercased object name -> object dict (current zone), for icon matching
+var _landmark_index := {}        # lowercased landmark/biome name -> world-terrain dict, ACCUMULATED across travel
+var _player_obj := {}            # the player's render, for the "you" pictograph
 var _full := false               # perceived icons (default) vs real — driven by MainFrame's top-menu toggle
 
 func _ready() -> void:
@@ -73,6 +75,14 @@ func set_messages(lines: Array, total: int, palette: Dictionary, data := {}) -> 
 	_tiles.palette = _palette
 	_tiles.tiles_dir = String(data.get("tilesDir", _tiles.tiles_dir))
 	_build_name_index(data)
+	_player_obj = data.get("player", {})
+	# Accumulate the current location's world-terrain (Salt marsh, Red Rock, …) — persists across travel,
+	# so a log line naming a landmark we've visited can show its world tile.
+	var wt: Dictionary = data.get("worldTerrain", {})
+	if not wt.is_empty():
+		var wn := QudText.strip(String(wt.get("name", ""))).to_lower().strip_edges()
+		if wn != "":
+			_landmark_index[wn] = wt
 	_ingest(lines, total)   # keep filter state warm even in verbatim mode
 	_rerender()
 
@@ -166,22 +176,28 @@ func _append_line(markup: String) -> void:
 	if not obj.is_empty():
 		var tex: Texture2D = _tiles.texture_for(obj, _full)
 		if tex != null:
-			var img_h := UiFont.px(get_viewport(), "body")
+			var img_h := UiFont.px(get_viewport(), "body") * 2   # doubled — a chunky inline pictograph
 			_rt.add_image(tex, int(round(img_h * 16.0 / 24.0)), img_h)
 			_rt.append_text(" ")
 	_rt.append_text(QudText.to_bbcode(markup, _palette) + "\n")
 
-## The zone object whose (lowercased) name is the LONGEST one contained in this line's plain text, or {}
-## if none match. Longest wins so "brinestalk wall" beats a bare "wall".
+## The icon for a log line: the LONGEST object/landmark name contained in the line's plain text (so
+## "brinestalk wall" beats bare "wall", "Red Rock" beats nothing), else — if the line is about "you" —
+## the player's own icon, else {}.
 func _icon_obj_for(markup: String) -> Dictionary:
-	if _name_index.is_empty():
-		return {}
 	var plain := QudText.strip(markup).to_lower()
 	var best := ""
-	for nm in _name_index:
-		if nm.length() > best.length() and plain.contains(nm):
-			best = nm
-	return _name_index[best] if best != "" else {}
+	var best_obj := {}
+	for src in [_name_index, _landmark_index]:
+		for nm in src:
+			if nm.length() > best.length() and plain.contains(nm):
+				best = nm
+				best_obj = src[nm]
+	if not best_obj.is_empty():
+		return best_obj
+	if not _player_obj.is_empty() and plain.contains("you"):
+		return _player_obj    # self-referential line with no named object -> the "you" pictograph
+	return {}
 
 func _toggle_mode() -> void:
 	_filter = not _filter

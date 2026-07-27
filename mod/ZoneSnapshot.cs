@@ -706,8 +706,24 @@ namespace RavesOfQud
             Cell pc = player?.CurrentCell;
             j.Name("player").BeginObject()
                 .Member("x", pc != null ? pc.X : -1)
-                .Member("y", pc != null ? pc.Y : -1)
-            .EndObject();
+                .Member("y", pc != null ? pc.Y : -1);
+            if (player != null) WriteObjectRender(j, player);   // player's icon (for the log's "you" pictograph)
+            j.EndObject();
+
+            // The current location's WORLD-MAP terrain (its tile + landmark/biome name, e.g. "Salt marsh",
+            // "Red Rock"). The client accumulates these as the player travels, so a log line naming a
+            // landmark can show its world tile. Null off the world map / mid-teardown — just skip.
+            try
+            {
+                var terrain = z.GetTerrainObject();
+                if (terrain != null)
+                {
+                    j.Name("worldTerrain").BeginObject().Member("name", DisplayNameOf(terrain));
+                    WriteObjectRender(j, terrain);
+                    j.EndObject();
+                }
+            }
+            catch { }
 
             WriteStats(j, player, z);   // player vitals/stats for the frame status bar
             WriteEffects(j, player);    // active effects (buffs/debuffs) for the frame Active effects panel
