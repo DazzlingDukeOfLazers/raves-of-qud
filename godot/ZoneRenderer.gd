@@ -240,6 +240,11 @@ func _glow_mul() -> float:
 	return lerpf(GLOW_DAY_MIN, 1.0, 1.0 - _daylight)
 func _flame_mul() -> float:
 	return lerpf(FLAME_DAY_MIN, 1.0, 1.0 - _daylight)
+## A FIRE's ground light-pool is only visible in real darkness (you can't see fire-light by day — that
+## additive blob was the "second light"). Full at night, gone by early dawn; the flame is the daytime cue.
+const FIRE_GLOW_DARK := 0.25   # daylight level above which a fire's ground-pool is fully off
+func _fire_glow_mul() -> float:
+	return clampf((FIRE_GLOW_DARK - _daylight) / FIRE_GLOW_DARK, 0.0, 1.0)
 
 ## Push the current daylight strength (0 night .. 1 midday) so torches fade in daylight.
 ## Cheap: the live zone applies it per-frame in _process; static/neighbour lights bake it
@@ -327,7 +332,7 @@ func _ready() -> void:
 	add_child(_dynamic_root)
 	_glow_tex = _make_radial(64, Color(1.0, 0.62, 0.25), 1.0)   # warm pool of light
 	_flame_tex = _make_radial(32, Color(1.0, 0.80, 0.35), 1.6)  # tighter, brighter core (additive torch flame)
-	_fire_tex = _make_flame_tex(48)                             # a drawn flame SHAPE for daytime campfires (alpha)
+	_fire_tex = _make_flame_tex(64)                             # a drawn flame SHAPE for daytime campfires (alpha)
 	_mote_tex = _make_radial(16, Color(0.65, 1.0, 0.85), 1.5)   # glowfish bioluminescent mote (cyan-green)
 	_build_smoke_resources()
 	_build_glow_shader()
@@ -348,24 +353,38 @@ func _make_radial(n: int, tint: Color, power: float) -> Texture2D:
 ## A drawn flame SHAPE: a teardrop, pointed at the top, bulbous at the base — white-yellow core to orange
 ## edge, softer at the tip. Alpha-blended (NOT additive) so it reads as an actual flame on a bright
 ## daytime background, where the additive torch flame washes out. `y=0` is the top of the sprite.
+## Prototyped + tuned in Python (an inspectable PNG) before porting — see the project's "pixel algorithms
+## in Python first" rule. SILHOUETTE: rounded base, bulbous CONVEX body widest in the lower third, a
+## tapering tip that licks subtly to one side (the billboard also flicker-scales, so the texture stays
+## clean). COLOUR: a temperature gradient — hot yellow-white core low-centre -> orange body -> deep red
+## rim/tip. Alpha-blended (drawn), so it reads on a bright daytime background.
 func _make_flame_tex(n: int) -> Texture2D:
 	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
-	var cx := (n - 1) * 0.5
-	var core := Color(1.0, 0.95, 0.6)    # hot yellow-white centre
-	var edge := Color(1.0, 0.45, 0.12)   # orange rim
+	var cx: float = (n - 1) * 0.5
+	var W: float = n * 0.40
+	var c_core := Color(1.0, 0.93, 0.62)
+	var c_body := Color(1.0, 0.55, 0.15)
+	var c_edge := Color(0.78, 0.15, 0.04)
 	for y in n:
-		var v: float = float(y) / float(n - 1)          # 0 top .. 1 base
-		# half-width: 0 at the very top, widest ~75% down, tapering back in toward the base
-		var hw: float = (n * 0.46) * clampf(sin(pow(v, 0.75) * PI), 0.0, 1.0)
+		var b: float = 1.0 - float(y) / float(n - 1)     # 0 base .. 1 tip
+		var hw: float
+		if b < 0.28:
+			hw = W * (0.62 + 0.38 * (b / 0.28))          # rounded base -> widest at ~1/3 up
+		else:
+			hw = W * pow(clampf((1.0 - b) / 0.72, 0.0, 1.0), 0.7)   # convex taper to the tip
+		var ctr: float = cx + (n * 0.09) * smoothstep(0.55, 1.0, b)  # only the upper flame licks aside
+		var hw_i: float = hw * 0.5
 		for x in n:
-			var dx: float = absf(x - cx)
-			if hw <= 0.5 or dx > hw:
+			var dx: float = float(x) - ctr
+			if hw <= 0.5 or absf(dx) > hw:
 				img.set_pixel(x, y, Color(0, 0, 0, 0))
 				continue
-			var t: float = dx / hw                       # 0 centre .. 1 rim
-			var col := core.lerp(edge, pow(t, 0.7))
-			# solid through the body, feathered at the rim and dimmer toward the pointed tip
-			var a: float = clampf((1.0 - t) / 0.35, 0.0, 1.0) * clampf(v * 2.2, 0.25, 1.0)
+			var t: float = absf(dx) / hw                 # 0 centre .. 1 rim
+			var col := c_core.lerp(c_body, clampf(0.20 + b * 0.75, 0.0, 1.0))   # cool with height
+			col = col.lerp(c_edge, smoothstep(0.55, 1.0, t))                    # red at the rim
+			var core_amt: float = clampf(1.0 - absf(dx) / maxf(hw_i, 0.5), 0.0, 1.0) * clampf(1.0 - b / 0.65, 0.0, 1.0)
+			col = col.lerp(c_core, 0.72 * core_amt)      # brighter inner lobe, low-centre, no hard seam
+			var a: float = (1.0 - smoothstep(0.72, 1.0, t)) * clampf(1.1 - b * 0.9, 0.15, 1.0)
 			img.set_pixel(x, y, Color(col.r, col.g, col.b, a))
 	return ImageTexture.create_from_image(img)
 
@@ -1229,13 +1248,13 @@ func _place_light(cx: int, cy: int, radius: float, smokes := true, on_fire := fa
 
 	var flame := Sprite3D.new()
 	flame.texture = _fire_tex if on_fire else _flame_tex
-	flame.pixel_size = 0.032 if on_fire else 0.03         # ~1 tile tall; sits ON the campfire
+	flame.pixel_size = 0.006 if on_fire else 0.03         # small drawn flame (~0.4 tile), sits ABOVE the logs
 	flame.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	flame.shaded = false
 	flame.transparent = true
 	# on-fire: ALPHA (a solid flame that reads on any background); else ADDITIVE (a glowing torch core).
 	flame.material_override = _fx_material_alpha(flame.texture) if on_fire else _fx_material(_flame_tex)
-	flame.position = Vector3(cx, 0.5 if on_fire else 0.7, cy)
+	flame.position = Vector3(cx, 0.55 if on_fire else 0.7, cy)   # sits just above the campfire's pixel logs
 	lp.add_child(flame)
 
 	# Rising smoke plume. Only the LIVE zone gets emitters (keeps the particle count bounded). A torch's
@@ -1253,7 +1272,7 @@ func _place_light(cx: int, cy: int, radius: float, smokes := true, on_fire := fa
 		_lights.append(entry)
 	else:
 		# Neighbour/static lights don't flicker in _process, so bake the current daylight dimming now.
-		glow.transparency = clampf(1.0 - _glow_mul() * 0.6, 0.0, 1.0)
+		glow.transparency = clampf(1.0 - (_fire_glow_mul() if on_fire else _glow_mul()) * 0.6, 0.0, 1.0)
 		# NB: a Sprite3D's `modulate` is IGNORED once material_override is set, so dim via transparency.
 		# A drawn fire flame stays fully visible (it's the only fire cue by day); a torch flame fades.
 		flame.transparency = 0.0 if on_fire else clampf(1.0 - _flame_mul(), 0.0, 1.0)
@@ -1497,7 +1516,9 @@ func _process(_dt: float) -> void:
 		var e: float = 0.75 + randf() * 0.4        # 0.75..1.15
 		L["energy"] = lerpf(L["energy"], e, 0.35)   # smoothed, so it shimmers not strobes
 		var a: float = L["energy"]
-		(L["glow"] as MeshInstance3D).transparency = clampf(1.0 - a * gmul * 0.6, 0.0, 1.0)
+		# a fire's pool is darkness-gated (off by day); a torch's follows the general daylight fade
+		var g: float = _fire_glow_mul() if L.get("on_fire", false) else gmul
+		(L["glow"] as MeshInstance3D).transparency = clampf(1.0 - a * g * 0.6, 0.0, 1.0)
 		var fs: float = 0.9 + a * 0.25
 		var flame := L["flame"] as Sprite3D
 		flame.scale = Vector3(fs, fs * (0.95 + randf() * 0.2), fs)
