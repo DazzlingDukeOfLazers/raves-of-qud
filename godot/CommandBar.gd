@@ -53,7 +53,11 @@ func _ready() -> void:
 	_rt.bbcode_enabled = true
 	_rt.fit_content = true
 	_rt.scroll_active = false
-	_rt.selection_enabled = true
+	# NOT focusable and NOT selectable: an ability [url] click must NOT grab keyboard focus, or the
+	# focused label swallows the movement arrows (Godot uses them for UI focus nav) — that was the
+	# "can't move after Make Camp" bug. meta_clicked still fires on FOCUS_NONE. (Same rule as the buttons.)
+	_rt.focus_mode = Control.FOCUS_NONE
+	_rt.selection_enabled = false
 	_rt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_rt.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_rt.meta_clicked.connect(_on_meta)      # ability names are clickable [url] links

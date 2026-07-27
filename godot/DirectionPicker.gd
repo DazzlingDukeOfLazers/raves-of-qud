@@ -110,6 +110,10 @@ func _end() -> void:
 	_picking = false
 	if _pick_layer != null:
 		_pick_layer.visible = false
+	# hand keyboard focus back to nothing, so the movement arrows reach the Holodeck's _unhandled_input
+	# again (a UI control that grabbed focus to start the ability would otherwise keep swallowing them).
+	if is_inside_tree():
+		get_viewport().gui_release_focus()
 
 func _cancel() -> void:
 	if _client != null:
