@@ -39,6 +39,9 @@ verified API. Detailed subsystems live in `docs/`:
 | **[docs/tools.md](docs/tools.md)** | the Python inspection tools, the in-viewer inspector/report/screenshots, the remote-control + **OS-input harness** (`control.py`, `desktop.py`), and the **Python-first workflow**. |
 | **[docs/protocol.md](docs/protocol.md)** | the wire format (snapshot & command frames). |
 | **[docs/legacy-integration-playbook.md](docs/legacy-integration-playbook.md)** | **portable playbook** — how to apply the bridge / two-window-focus / OS-input-harness / reverse-engineering lessons to ANY new "Godot on top of a legacy game" target. Read before starting a new integration. |
+| **[docs/client-in-unity.md](docs/client-in-unity.md)** | **ecosystem port** — build a Raves client in **Unity** against the same engine-agnostic bridge (socket, classification, tiles, colour, input in C#). |
+| **[docs/client-in-unreal.md](docs/client-in-unreal.md)** | **ecosystem port** — the same client in **Unreal Engine 5** (FSocket, USTRUCT parse, ISM walls, image-wrapper tiles). |
+| **[docs/migrating-clients.md](docs/migrating-clients.md)** | **portable-vs-engine-specific** split, a Godot↔Unity↔Unreal concept crosswalk, port order, and the protocol-versioning rules for multiple clients. |
 
 > **Python-first, for anyone (human or AI) picking this up:** Claude can't see the Holodeck (the Godot viewport),
 > so geometry/pixel algorithms (voxel heights, fill rules) are **prototyped and verified in Python
