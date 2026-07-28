@@ -46,6 +46,11 @@ const HEADER_H_FRAC := 0.185   # borderTop height / box height
 const SIDE_W_FRAC := 0.052     # borderSide width / box width
 const BOT_H_FRAC := 0.052      # borderBot height / box height
 
+## The box holds a FIXED aspect and scales with window HEIGHT (centered), like Qud's canvas
+## scaler — so it reads the same shape at any window aspect instead of stretching. Width =
+## height * BOX_ASPECT (Qud's ~330x334 box); position/height come from the "menu" layout rect.
+const BOX_ASPECT := 0.99
+
 ## Qud's real menu items, verbatim from Qud.UI.MainMenu. LeftOptions = the centred box;
 ## RightOptions = the bottom-left list. `act` maps an item to a Raves action for this
 ## mimic phase; "" = cosmetic (no-op for now).
@@ -70,6 +75,7 @@ const DEFAULT_LAYOUT := {
 
 var _layout: Dictionary
 var _hl: Texture2D             # buttonHighlight sprite behind the selected option (if extracted)
+var _box: Control             # the centred option box (re-placed on resize to hold its aspect)
 var _rows: Array = []          # box options only: [{btn,cfg,enabled}]
 var _sel := 0
 var _peer := StreamPeerTCP.new()
@@ -99,6 +105,8 @@ func _ready() -> void:
 
 func _on_resize() -> void:
 	UiFont.refresh_theme(theme, get_viewport())
+	if _box != null:
+		_place_box(_box)   # keep the box's aspect across any window shape
 
 # ── layout cache ──────────────────────────────────────────────────────────────
 
@@ -192,8 +200,27 @@ func _build_menu() -> void:
 		_rows.append({"btn": b, "cfg": cfg, "enabled": true})
 	box.add_child(opts)
 
+	_box = box
 	add_child(box)
-	_place(box, "menu")
+	_place_box(box)
+
+## Place the box centred on the "menu" rect's centre, sized by window HEIGHT at a fixed
+## aspect (Qud's canvas-scaler behaviour) so it never stretches. Re-run on resize.
+func _place_box(c: Control) -> void:
+	var r: Array = _layout.get("menu", DEFAULT_LAYOUT["menu"])
+	var vh := get_viewport().get_visible_rect().size.y
+	var cx: float = r[0] + r[2] * 0.5
+	var cy: float = r[1] + r[3] * 0.5
+	var bh: float = r[3] * vh
+	var bw: float = bh * BOX_ASPECT
+	c.anchor_left = cx
+	c.anchor_right = cx
+	c.anchor_top = cy
+	c.anchor_bottom = cy
+	c.offset_left = -bw * 0.5
+	c.offset_right = bw * 0.5
+	c.offset_top = -bh * 0.5
+	c.offset_bottom = bh * 0.5
 
 ## Reconstruct Qud's box from its OWN extracted frame sprites (title/chrome/), composed
 ## the way Qud composes Frame/Border: tiled dark panel, woven gold side + bottom borders,
@@ -294,6 +321,7 @@ func _highlight_box() -> StyleBox:
 	if _hl != null:
 		var st := StyleBoxTexture.new()
 		st.texture = _hl
+		st.modulate_color = Color(1, 1, 1, 0.62)   # soften — Qud's highlight is subtle
 		st.content_margin_top = 2
 		st.content_margin_bottom = 2
 		return st
