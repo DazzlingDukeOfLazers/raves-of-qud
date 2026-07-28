@@ -101,7 +101,7 @@ func _ready() -> void:
 	_build_hint()
 	_build_version()
 
-	_peer.connect_to_host(BridgeClient.HOST, BridgeClient.PORT)  # start detecting Qud
+	_peer.connect_to_host(BridgeClient.host(), BridgeClient.port())  # start detecting Qud
 	_refresh_enabled()
 
 func _on_resize() -> void:
@@ -486,7 +486,7 @@ func _process(dt: float) -> void:
 			if _retry >= 1.0:   # retry ~1/s until Qud is up
 				_retry = 0.0
 				_peer = StreamPeerTCP.new()
-				_peer.connect_to_host(BridgeClient.HOST, BridgeClient.PORT)
+				_peer.connect_to_host(BridgeClient.host(), BridgeClient.port())
 		_:
 			pass  # STATUS_CONNECTING
 

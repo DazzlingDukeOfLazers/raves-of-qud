@@ -13,7 +13,7 @@ extends Node3D
 ##   COMPASS (default, cardinal-locked), FOLLOW, FIRST_PERSON, CINEMATIC, MOUSE, KEYBOARD, TOP_FOLLOW.
 
 enum CamMode { COMPASS, FOLLOW, FIRST_PERSON, CINEMATIC, MOUSE, KEYBOARD, TOP_FOLLOW }
-var _mode: int = CamMode.COMPASS   # cardinal-locked: stable, doesn't spin on movement
+var _mode: int = int(Settings.get_value("camera", CamMode.COMPASS))   # default from Options; COMPASS = cardinal-locked
 
 # Top-down (Qud-classic): orthographic, straight down, NORTH locked to screen-top, tracking the player.
 const TOP_H := 20.0        # ortho eye height above the ground (scale is size, not H)

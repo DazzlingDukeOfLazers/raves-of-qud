@@ -58,7 +58,7 @@ var _target: Control        # the Target view (TargetView.gd)
 var _context: Control       # the Context menu view (ContextMenu.gd)
 var _command: Control       # the Command bar view (CommandBar.gd, row 5)
 var _info_btn: Button       # top-menu Perceived/Full toggle
-var _full_info := false     # global debug toggle: false = perceived (what the player sees), true = full
+var _full_info := bool(Settings.get_value("full_info", false))  # perceived (false) vs full; Options default
 var _panels: Array = []     # every sub-view; each has set_snapshot(data) (some also set_full_info)
 
 # Mod-version handshake. The mod sends `protocol` (mod/Protocol.cs Version) each snapshot; the client

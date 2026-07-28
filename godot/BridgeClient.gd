@@ -11,6 +11,13 @@ signal connected   # fires each time the bridge (re)connects
 const HOST := "127.0.0.1"
 const PORT := 48710  # keep in sync with mod/Protocol.cs DefaultPort
 
+## Which Qud to render: the Options "Bridge" host/port (Settings), falling back to the
+## localhost defaults. Lets Raves point at Qud on another machine without a rebuild.
+static func host() -> String:
+	return str(Settings.get_value("bridge_host", HOST))
+static func port() -> int:
+	return int(Settings.get_value("bridge_port", PORT))
+
 var _peer := StreamPeerTCP.new()
 var _buf := PackedByteArray()
 var _connected := false
@@ -20,7 +27,7 @@ func _ready() -> void:
 	_start_connect()
 
 func _start_connect() -> void:
-	var err := _peer.connect_to_host(HOST, PORT)
+	var err := _peer.connect_to_host(host(), port())
 	if err != OK:
 		push_warning("Raves bridge: connect_to_host failed (%s)" % err)
 
