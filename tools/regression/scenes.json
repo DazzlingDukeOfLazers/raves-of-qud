@@ -1,0 +1,22 @@
+{
+  "_note": "Golden-image regression suite for Raves' menu screens, run through highvisor. Run from a FRESHLY LAUNCHED Raves (sitting on the menu), in config order:  hv scene --all --config tools/regression/scenes.json  — a layout regression shows up as a match-% drop + a region punch-list under _regress/. After an INTENDED change, re-establish the goldens with --bless. Coordinates are window-relative points at 1793x997.",
+  "menu": {
+    "window": "Raves of Qud",
+    "size": "1793x997",
+    "crop_top": 58,
+    "threshold": 99,
+    "steps": [],
+    "golden": "golden/menu.png"
+  },
+  "mods": {
+    "window": "Raves of Qud",
+    "size": "1793x997",
+    "crop_top": 58,
+    "threshold": 98,
+    "steps": [
+      { "click": [907, 689] },
+      { "wait": 1.4 }
+    ],
+    "golden": "golden/mods.png"
+  }
+}
