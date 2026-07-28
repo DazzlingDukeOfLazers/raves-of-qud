@@ -1,230 +1,235 @@
 extends Control
 
-## THE MAIN MENU — the pre-game launcher shown at startup (the project's main_scene).
+## THE MAIN MENU — a Qud-style title screen.
 ##
-## Left column: the action menu (buy / find / run Caves of Qud, settings, credits,
-## support, quit). Right column: a best-faith legal / attribution panel built from the
-## Brand source of truth. The game name and every fixed fact come from the Brand
-## autoload, so a rename only touches Brand.gd.
+## The layout deliberately MIRRORS Caves of Qud's own title (logo top-centre, a
+## single centred menu box, a bottom-centre hint, a bottom-right version, a
+## bottom-left attribution corner) so the two read as siblings. We copy only the
+## rough SIZE + PLACEMENT of those elements — never any Qud art. The rects are
+## normalized [x, y, w, h] window fractions, loaded from a cache measured off
+## Qud's real menu (`title_layout.json` in the RavesOfQud support dir; the checked-in
+## default is `title_layout.seed.json`, mirrored by DEFAULT_LAYOUT below so the app
+## always works without the file). Re-measure → overwrite the cache to re-tune.
 ##
-## Built in GDScript like MainFrame / OnboardingControl so the .tscn stays a single
-## node and inherits the one-source-of-truth UiFont theme.
-##
-## SCOPE (first pass): the launch/detect actions are PLACEHOLDER stubs that report what
-## they WOULD do in the status line — no process launch, no browser open yet. "Run Qud"
-## is wired to proceed into the gameplay frame so the app isn't a dead end. Swapping a
-## stub for the real action (OS.shell_open for links, Steam launch + readiness detect)
-## is a one-line change per handler, marked TODO(launch).
+## Raves' one affordance Qud's menu lacks: the launch button DETECTS a running Qud
+## (the mod bridge on 127.0.0.1:PORT) and launches the installed copy if it's absent,
+## flipping to "Enter viewer" once the bridge answers. Everything else the old
+## launcher had (purchase/find/settings/credits/support, the legal panel) is tabled;
+## the essential attribution survives as the bottom-left corner.
 
-const COL_BG := Color(0.055, 0.065, 0.085)
-const COL_PANEL := Color(0.10, 0.11, 0.14)
-const COL_SUB := Color(0.08, 0.09, 0.12)
-const COL_BORDER := Color(1, 1, 1, 0.12)
-const COL_DIM := Color(1, 1, 1, 0.55)
-const COL_ACCENT := Color(0.55, 0.78, 0.62)   # sage — headings / title
+const BG := Color(0.03, 0.045, 0.06)
+const PANEL := Color(0.02, 0.03, 0.045, 0.72)
+const BORDER := Color(0.62, 0.80, 0.66, 0.35)   # sage frame, echoing Qud's gilt box
+const ACCENT := Color(0.62, 0.84, 0.68)         # sage — title
+const DIM := Color(1, 1, 1, 0.55)
+const DIMMER := Color(1, 1, 1, 0.34)
+const OK := Color(0.45, 0.85, 0.50)
+const WARN := Color(0.90, 0.72, 0.38)
 
+## Fallback if the cache file is missing — kept in sync with title_layout.seed.json.
+const DEFAULT_LAYOUT := {
+	"logo": [0.22, 0.14, 0.56, 0.15],
+	"menu": [0.40, 0.40, 0.20, 0.34],
+	"links": [0.04, 0.77, 0.16, 0.15],
+	"hint": [0.28, 0.94, 0.44, 0.03],
+	"version": [0.90, 0.95, 0.10, 0.04],
+}
+
+var _layout: Dictionary
+var _launch_btn: Button
 var _status: Label
+var _peer := StreamPeerTCP.new()
+var _retry := 0.0
+var _qud_up := false
+var _launching := false
 
 func _ready() -> void:
 	name = "MainMenu"
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	theme = UiFont.make_theme(get_viewport())
 	get_viewport().size_changed.connect(_on_resize)
-	get_window().title = Brand.title()          # runtime title from the source of truth
-	RenderingServer.set_default_clear_color(COL_BG)
+	get_window().title = Brand.title()
+	RenderingServer.set_default_clear_color(BG)
 
-	var margin := MarginContainer.new()
-	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	for side in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + side, 28)
-	add_child(margin)
+	_layout = _load_layout()
+	_build_logo()
+	_build_menu()
+	_build_footer()
+	_build_hint()
+	_build_version()
 
-	var root := VBoxContainer.new()
-	root.add_theme_constant_override("separation", 14)
-	margin.add_child(root)
-
-	root.add_child(_header())
-
-	var cols := HBoxContainer.new()
-	cols.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	cols.add_theme_constant_override("separation", 22)
-	root.add_child(cols)
-
-	var left := _menu_column()
-	left.custom_minimum_size = Vector2(460, 0)
-	cols.add_child(left)
-
-	var right := _attribution_column()
-	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	cols.add_child(right)
-
-	_status = _label("", COL_DIM, "caption")
-	root.add_child(_status)
+	_peer.connect_to_host(BridgeClient.HOST, BridgeClient.PORT)  # start detecting Qud
+	_refresh_launch_ui()
 
 func _on_resize() -> void:
 	UiFont.refresh_theme(theme, get_viewport())
 
-# ── header ────────────────────────────────────────────────────────────────────
+# ── layout cache ──────────────────────────────────────────────────────────────
 
-func _header() -> Control:
+func _load_layout() -> Dictionary:
+	var out: Dictionary = DEFAULT_LAYOUT.duplicate(true)
+	var path := InputModel.support_dir().path_join("title_layout.json")
+	if FileAccess.file_exists(path):
+		var f := FileAccess.open(path, FileAccess.READ)
+		if f != null:
+			var data: Variant = JSON.parse_string(f.get_as_text())
+			if data is Dictionary and data.has("elements") and data["elements"] is Dictionary:
+				for k in data["elements"]:
+					out[k] = data["elements"][k]
+	return out
+
+func _place(c: Control, key: String) -> void:
+	var r: Array = _layout.get(key, DEFAULT_LAYOUT.get(key, [0, 0, 1, 1]))
+	c.anchor_left = r[0]
+	c.anchor_top = r[1]
+	c.anchor_right = r[0] + r[2]
+	c.anchor_bottom = r[1] + r[3]
+	c.offset_left = 0.0
+	c.offset_top = 0.0
+	c.offset_right = 0.0
+	c.offset_bottom = 0.0
+
+# ── elements ──────────────────────────────────────────────────────────────────
+
+func _build_logo() -> void:
+	var box := VBoxContainer.new()
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_theme_constant_override("separation", 2)
+	var t := _label(Brand.GAME_NAME, ACCENT, "big")
+	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(t)
+	var tag := _label(Brand.GAME_TAGLINE, DIM, "caption")
+	tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(tag)
+	add_child(box)
+	_place(box, "logo")
+
+func _build_menu() -> void:
+	var panel := PanelContainer.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = PANEL
+	sb.set_border_width_all(2)
+	sb.border_color = BORDER
+	sb.set_corner_radius_all(2)
+	for side in ["left", "right", "top", "bottom"]:
+		sb.set("content_margin_" + side, 16)
+	panel.add_theme_stylebox_override("panel", sb)
+
 	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 2)
-	var title := _label(Brand.GAME_NAME, COL_ACCENT, "big")
-	v.add_child(title)
-	v.add_child(_label(Brand.GAME_TAGLINE, COL_DIM, "caption"))
-	return v
-
-# ── left column: the action menu ──────────────────────────────────────────────
-
-func _menu_column() -> Control:
-	var panel := _framed(COL_PANEL)
-	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 6)
-	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	v.alignment = BoxContainer.ALIGNMENT_CENTER
+	v.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	v.add_theme_constant_override("separation", 10)
 	panel.add_child(v)
 
-	# Purchase — expandable to the three storefronts.
-	v.add_child(_expander("Purchase a copy of %s" % Brand.BASE_GAME, [
-		_action("Steam", func(): _open_link("Steam store", Brand.URL_STEAM)),
-		_action("GOG", func(): _open_link("GOG store", Brand.URL_GOG)),
-		_action("Elsewhere", func(): _open_link("official site", Brand.URL_ELSEWHERE)),
-	]))
+	_launch_btn = _menu_button("Checking for %s…" % Brand.BASE_GAME, _on_launch)
+	v.add_child(_launch_btn)
+	_status = _label("", DIM, "caption")
+	_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(_status)
+	v.add_child(_menu_button("Quit", func(): get_tree().quit()))
 
-	v.add_child(_action("Find %s locally" % Brand.BASE_GAME,
-		func(): _stub("Locate the installed copy of %s" % Brand.BASE_GAME)))
-	v.add_child(_action("Run %s" % Brand.BASE_GAME, _run_qud))
-	v.add_child(_action("Open settings", func(): _stub("Open settings")))
-	v.add_child(_action("Credits", func(): _stub("Show credits")))
+	add_child(panel)
+	_place(panel, "menu")
 
-	# Support — expandable.
-	v.add_child(_expander("Support", [
-		_action("Feedback (available in-game)",
-			func(): _stub("In-game feedback")),
-		_action("Support the creators — buy another copy of %s" % Brand.BASE_GAME,
-			func(): _open_link("Steam store", Brand.URL_STEAM)),
-		_action("Donate to %s" % Brand.GAME_NAME,
-			func(): _open_link("donation link", Brand.URL_DONATE)),
-	]))
-
-	v.add_child(_hsep())
-	# The organization behind Raves of Qud — placeholder until the entity is named.
-	var org := _label("Made by  %s" % Brand.ORG_NAME, COL_DIM, "caption")
-	v.add_child(org)
-	v.add_child(_hsep())
-
-	v.add_child(_action("Quit", func(): get_tree().quit()))
-	return panel
-
-# ── right column: legal / attribution ─────────────────────────────────────────
-
-func _attribution_column() -> Control:
-	var panel := _framed(COL_PANEL)
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	panel.add_child(scroll)
-
+func _build_footer() -> void:
 	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 12)
-	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(v)
+	v.add_theme_constant_override("separation", 1)
+	v.add_child(_label("Made by  %s" % Brand.ORG_NAME, DIM, "caption"))
+	var note := _label(
+		"Renders your own installed copy of %s.\n%s © %s.  %s is %s-licensed." % [
+			Brand.BASE_GAME, Brand.BASE_GAME, Brand.BASE_GAME_RIGHTS_HOLDER,
+			Brand.GAME_NAME, Brand.LICENSE],
+		DIMMER, "caption")
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(note)
+	add_child(v)
+	_place(v, "links")
 
-	v.add_child(_label("Rights & licensing", COL_ACCENT, "title"))
-	for section in Brand.attribution_sections():
-		var block := VBoxContainer.new()
-		block.add_theme_constant_override("separation", 2)
-		var head := _label(String(section.get("head", "")), Color.WHITE, "body")
-		head.add_theme_color_override("font_color", COL_ACCENT)
-		block.add_child(head)
-		var body := _label(String(section.get("body", "")), COL_DIM, "caption")
-		body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		block.add_child(body)
-		v.add_child(block)
+func _build_hint() -> void:
+	var l := _label("click to select", DIMMER, "caption")
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	add_child(l)
+	_place(l, "hint")
 
-	var disclaimer := _label(
-		"This summary is provided in good faith and is not legal advice.",
-		COL_DIM, "caption")
-	disclaimer.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	v.add_child(_hsep())
-	v.add_child(disclaimer)
-	return panel
+func _build_version() -> void:
+	var l := _label("%s · %s" % [Brand.GAME_NAME, Brand.LICENSE], DIMMER, "caption")
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	add_child(l)
+	_place(l, "version")
 
-# ── handlers ──────────────────────────────────────────────────────────────────
+# ── launch / detect Qud ─────────────────────────────────────────────────────────
 
-## Placeholder for "Run Qud": proceed into the gameplay frame so the app is navigable.
-## TODO(launch): first launch the installed copy (Brand.URL_STEAM_RUN) and wait until
-## the bridge is reachable, THEN switch to the frame.
-func _run_qud() -> void:
-	_stub("Run %s → entering viewer (placeholder)" % Brand.BASE_GAME)
+## Poll the mod bridge: CONNECTED means a Qud with the Raves mod is running.
+func _process(dt: float) -> void:
+	_peer.poll()
+	match _peer.get_status():
+		StreamPeerTCP.STATUS_CONNECTED:
+			_set_qud_up(true)
+		StreamPeerTCP.STATUS_ERROR, StreamPeerTCP.STATUS_NONE:
+			_set_qud_up(false)
+			_retry += dt
+			if _retry >= 1.0:   # retry ~1/s until Qud is up
+				_retry = 0.0
+				_peer = StreamPeerTCP.new()
+				_peer.connect_to_host(BridgeClient.HOST, BridgeClient.PORT)
+		_:
+			pass  # STATUS_CONNECTING
+
+func _set_qud_up(up: bool) -> void:
+	if up == _qud_up:
+		return
+	_qud_up = up
+	if up:
+		_launching = false
+	_refresh_launch_ui()
+
+func _refresh_launch_ui() -> void:
+	if _launch_btn == null:
+		return
+	if _qud_up:
+		_launch_btn.text = "Enter viewer"
+		_set_status("%s is running" % Brand.BASE_GAME, OK)
+	elif _launching:
+		_launch_btn.text = "Launching %s…" % Brand.BASE_GAME
+		_set_status("waiting for %s to start…" % Brand.BASE_GAME, WARN)
+	else:
+		_launch_btn.text = "Launch %s" % Brand.BASE_GAME
+		_set_status("%s not detected" % Brand.BASE_GAME, DIM)
+
+func _set_status(txt: String, col: Color) -> void:
+	if _status != null:
+		_status.text = txt
+		_status.add_theme_color_override("font_color", col)
+
+func _on_launch() -> void:
+	if _qud_up:
+		_enter_viewer()
+	elif not _launching:
+		_launching = true
+		_refresh_launch_ui()
+		OS.shell_open(Brand.URL_STEAM_RUN)   # launch the installed copy
+
+func _enter_viewer() -> void:
+	if _peer != null:
+		_peer.disconnect_from_host()          # free the probe; MainFrame owns the bridge next
 	get_tree().change_scene_to_file("res://MainFrame.tscn")
 
-## Placeholder for an outbound link. TODO(launch): OS.shell_open(url).
-func _open_link(what: String, url: String) -> void:
-	_stub("Open %s:  %s" % [what, url])
-
-func _stub(what: String) -> void:
-	if _status != null:
-		_status.text = "· %s  (placeholder — not wired yet)" % what
-
-# ── UI helpers ────────────────────────────────────────────────────────────────
+# ── UI helpers ──────────────────────────────────────────────────────────────────
 
 func _label(txt: String, col := Color.WHITE, role := "body") -> Label:
 	var l := Label.new()
 	l.text = txt
 	if role != "body":
-		l.theme_type_variation = role.capitalize()   # "Big"/"Title"/"Caption"
+		l.theme_type_variation = role.capitalize()   # "Big" / "Title" / "Caption"
 	if col != Color.WHITE:
 		l.add_theme_color_override("font_color", col)
 	return l
 
-func _action(txt: String, cb: Callable) -> Button:
+func _menu_button(txt: String, cb: Callable) -> Button:
 	var b := Button.new()
 	b.text = txt
 	b.focus_mode = Control.FOCUS_NONE
-	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	b.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	b.pressed.connect(cb)
 	return b
-
-## A top button that shows/hides an indented block of sub-actions.
-func _expander(txt: String, children: Array) -> Control:
-	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 4)
-	var sub := VBoxContainer.new()
-	sub.add_theme_constant_override("separation", 4)
-	sub.visible = false
-
-	var head := Button.new()
-	head.focus_mode = Control.FOCUS_NONE
-	head.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	head.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	head.text = "▸ " + txt
-	head.pressed.connect(func():
-		sub.visible = not sub.visible
-		head.text = ("▾ " if sub.visible else "▸ ") + txt)
-	v.add_child(head)
-
-	var indent := MarginContainer.new()
-	indent.add_theme_constant_override("margin_left", 22)
-	indent.add_child(sub)
-	for c in children:
-		sub.add_child(c)
-	v.add_child(indent)
-	return v
-
-func _framed(bg: Color) -> PanelContainer:
-	var p := PanelContainer.new()
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = bg
-	sb.set_border_width_all(1)
-	sb.border_color = COL_BORDER
-	sb.set_corner_radius_all(4)
-	for side in ["left", "right", "top", "bottom"]:
-		sb.set("content_margin_" + side, 14)
-	p.add_theme_stylebox_override("panel", sb)
-	return p
-
-func _hsep() -> HSeparator:
-	return HSeparator.new()

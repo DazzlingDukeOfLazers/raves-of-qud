@@ -1,0 +1,12 @@
+{
+  "_comment": "Rough placement of Caves of Qud's main-menu elements, copied to give the Raves title screen a matching layout WITHOUT redistributing any Qud art. Each value is a normalized [x, y, w, h] fraction of the window (0..1), measured from a 1793x997 capture of the 1.0.5 menu (build 2.0.211.59). MainMenu.gd reads the runtime copy at ~/Library/Application Support/RavesOfQud/title_layout.json (seeded from this file on first run, like overrides.seed.json). Re-measure and overwrite to re-tune.",
+  "source": "Caves of Qud 1.0.5 main menu",
+  "measured_from": [1793, 997],
+  "elements": {
+    "logo":    [0.22, 0.14, 0.56, 0.15],
+    "menu":    [0.40, 0.40, 0.20, 0.34],
+    "links":   [0.04, 0.77, 0.16, 0.15],
+    "hint":    [0.28, 0.945, 0.44, 0.03],
+    "version": [0.90, 0.955, 0.10, 0.035]
+  }
+}
