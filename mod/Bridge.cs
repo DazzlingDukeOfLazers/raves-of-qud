@@ -503,6 +503,23 @@ namespace RavesOfQud
                     try { Server.Log("[catalog] wrote " + PlayerBecome.WriteCatalog()); }
                     catch (Exception e) { Server.Log("catalog error: " + e.Message); }
                     break;
+                case "setoption":
+                    // Update Qud from Raves' Options mirror. MAIN-THREAD ONLY: SetOption updates
+                    // flags / audio / UI. Re-export so Raves reflects the applied value + any
+                    // dependent-option visibility change. Some options need a restart (o.Restart).
+                    try
+                    {
+                        f.TryGetValue("id", out string oid);
+                        f.TryGetValue("value", out string oval);
+                        if (!string.IsNullOrEmpty(oid))
+                        {
+                            XRL.UI.Options.SetOption(oid, oval ?? "");
+                            OptionsExporter.ReExport();
+                            Server.Log("[setoption] " + oid + " = " + oval);
+                        }
+                    }
+                    catch (Exception e) { Server.Log("setoption error: " + e.Message); }
+                    break;
                 case "itemaction":
                     // Invoke an inventory action on one of the player's equipped weapons — e.g. the
                     // context menu's "[?]" -> ReplaceSocketCell (change the battery). MAIN-THREAD ONLY:

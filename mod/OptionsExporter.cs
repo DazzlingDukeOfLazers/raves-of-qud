@@ -32,6 +32,14 @@ namespace RavesOfQud
             }
         }
 
+        /// Re-run the export immediately (e.g. right after a SetOption from Raves) so options.json
+        /// reflects the new value + any dependent-option visibility changes. Main-thread safe.
+        public static void ReExport()
+        {
+            try { Export(); }
+            catch (Exception e) { System.Console.WriteLine("[raves] options re-export failed: " + e.Message); }
+        }
+
         private static string Root
         {
             get

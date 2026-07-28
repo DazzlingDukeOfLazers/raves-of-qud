@@ -34,6 +34,9 @@ const RAVES_ITEMS := [
 var _scroll: ScrollContainer
 var _anchors: Dictionary = {}          # category name -> its header Control (sidebar jumps)
 var _qud_cats: Array = []              # Qud's options tree, from options.json
+var _peer := StreamPeerTCP.new()       # bridge link for WRITE-BACK (setoption) while Qud is in-game
+var _bridge := false
+var _status: Label
 
 func _ready() -> void:
 	name = "OptionsScreen"
@@ -61,6 +64,30 @@ func _ready() -> void:
 	_build_body()
 	_build_footer()
 	_add_back()
+	_peer.connect_to_host(BridgeClient.host(), BridgeClient.port())   # for write-back to Qud
+
+## Poll the bridge; Qud-option edits WRITE BACK only while a modded Qud is in-game (connected).
+func _process(_dt: float) -> void:
+	_peer.poll()
+	_bridge = _peer.get_status() == StreamPeerTCP.STATUS_CONNECTED
+	if _status != null:
+		_status.text = "● editing Qud live" if _bridge else "○ Qud not connected — edits apply when it's in-game"
+		_status.add_theme_color_override("font_color", Color8(0x5F, 0xC8, 0x5A) if _bridge else DIM)
+
+## Write a Qud option back over the bridge (mod calls Options.SetOption). No-op if not connected.
+func _set_qud_option(id: String, value) -> void:
+	if id == "" or _peer.get_status() != StreamPeerTCP.STATUS_CONNECTED:
+		return
+	var msg := JSON.stringify({"type": "command", "name": "setoption", "id": id, "value": str(value)})
+	var payload := msg.to_utf8_buffer()
+	var n := payload.size()
+	var frame := PackedByteArray()
+	frame.append((n >> 24) & 0xFF)
+	frame.append((n >> 16) & 0xFF)
+	frame.append((n >> 8) & 0xFF)
+	frame.append(n & 0xFF)
+	frame.append_array(payload)
+	_peer.put_data(frame)
 
 func _fit_to_viewport() -> void:
 	set_anchors_preset(Control.PRESET_TOP_LEFT)
@@ -193,14 +220,23 @@ func _build_footer() -> void:
 	l.scroll_active = false
 	l.theme_type_variation = "Caption"
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	l.text = "[center][color=#%s][lb]Esc[rb][/color][color=#%s] Back      [/color][color=#%s]↑↓[/color][color=#%s] navigate      [/color][color=#%s]mirrors your installed Caves of Qud options[/color][/center]" % [
-		GOLD.to_html(false), DIM.to_html(false), GOLD.to_html(false), DIM.to_html(false), DIM.to_html(false)]
+	l.text = "[center][color=#%s][lb]Esc[rb][/color][color=#%s] Back      [/color][color=#%s]↑↓[/color][color=#%s] navigate[/color][/center]" % [
+		GOLD.to_html(false), DIM.to_html(false), GOLD.to_html(false), DIM.to_html(false)]
 	l.anchor_left = 0.0
 	l.anchor_right = 1.0
 	l.anchor_top = 0.93
 	l.anchor_bottom = 0.985
 	_zero(l)
 	add_child(l)
+	# live write-back status (updated in _process)
+	_status = _label("", DIM, "caption")
+	_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_status.anchor_left = 0.6
+	_status.anchor_right = 0.98
+	_status.anchor_top = 0.93
+	_status.anchor_bottom = 0.985
+	_zero(_status)
+	add_child(_status)
 
 # ── Raves settings (editable, persisted) ───────────────────────────────────────────
 
@@ -301,33 +337,55 @@ func _qud_slider(opt: Dictionary) -> Control:
 	s.min_value = float(opt.get("min", 0)); s.max_value = float(opt.get("max", 100))
 	s.step = maxf(1.0, float(opt.get("increment", 1)))
 	s.value = clampf(float(str(opt.get("value", "0")).to_float()), s.min_value, s.max_value)
-	s.editable = false                         # mirror (display); write-back is a later phase
 	s.custom_minimum_size = Vector2(420, 0)
 	s.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	h.add_child(s)
-	h.add_child(_label(str(opt.get("value", "")), VALUE, "body"))
+	var id := str(opt.get("id", ""))
+	var val := _label(str(int(s.value)), VALUE, "body")
+	s.value_changed.connect(func(v):
+		var iv := int(round(v))
+		val.text = str(iv)
+		_set_qud_option(id, iv))
+	h.add_child(s); h.add_child(val)
 	row.add_child(h)
 	return row
 
 func _qud_checkbox(opt: Dictionary) -> Control:
-	var on := str(opt.get("value", "No")).to_lower() == "yes"
-	return _label(_check(on) + str(opt.get("label", "")), LABEL if on else DIM, "body")
+	var id := str(opt.get("id", ""))
+	var lbl := str(opt.get("label", ""))
+	var state := {"on": str(opt.get("value", "No")).to_lower() == "yes"}
+	var b := _flat_button()
+	b.text = _check(state.on) + lbl
+	b.pressed.connect(func():
+		state.on = not state.on
+		_set_qud_option(id, "Yes" if state.on else "No")
+		b.text = _check(state.on) + lbl)
+	return b
 
 func _qud_combo(opt: Dictionary) -> Control:
 	var row := VBoxContainer.new()
 	row.add_theme_constant_override("separation", 2)
 	row.add_child(_label(str(opt.get("label", "")), LABEL, "body"))
 	var vals: Array = opt.get("values", [])
-	var cur := str(opt.get("value", ""))
+	var id := str(opt.get("id", ""))
 	if vals.is_empty():
-		row.add_child(_label(cur, VALUE, "body"))
+		row.add_child(_label(str(opt.get("value", "")), VALUE, "body"))
 		return row
+	var cur := {"v": str(opt.get("value", ""))}
 	var flow := HFlowContainer.new()
 	flow.add_theme_constant_override("h_separation", 16)
 	flow.add_theme_constant_override("v_separation", 4)
+	var btns: Array = []
 	for v in vals:
 		var sv := str(v)
-		flow.add_child(_label(sv, SEL if sv == cur else DIM, "caption"))
+		var b := _flat_button()
+		b.theme_type_variation = "Caption"
+		b.text = sv
+		b.add_theme_color_override("font_color", SEL if sv == cur.v else DIM)
+		b.pressed.connect(func():
+			cur.v = sv
+			_set_qud_option(id, sv)
+			for bb in btns: bb.add_theme_color_override("font_color", SEL if bb.text == sv else DIM))
+		btns.append(b); flow.add_child(b)
 	row.add_child(flow)
 	return row
 
@@ -352,6 +410,10 @@ func _unhandled_input(e: InputEvent) -> void:
 	if e.is_action_pressed("ui_cancel"):
 		closed.emit()
 		accept_event()
+
+func _exit_tree() -> void:
+	if _peer != null:
+		_peer.disconnect_from_host()
 
 func _check(on: bool) -> String:
 	return "[■]  " if on else "[  ]  "
