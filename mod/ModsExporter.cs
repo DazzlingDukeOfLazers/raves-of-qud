@@ -54,67 +54,51 @@ namespace RavesOfQud
                 XRL.ModInfo m = kv.Value;
                 if (m == null) continue;
 
-                // Gather every field DEFENSIVELY *before* writing, so a broken mod can't throw
-                // mid-object and corrupt the JSON (unbalanced braces) or fail the whole export.
-                // Culprits seen in the wild: DisplayTitleStripped -> StripFormatting on a null
-                // title/ID, and IsEnabled with no ModSettings entry. Worst case: skip that mod.
-                string id, title, author, version, description, size, source, path, preview;
-                bool enabled, scripting;
-                string[] tags;
-                try
-                {
-                    XRL.ModManifest man = m.Manifest;
-                    id = m.ID;
-                    title = SafeStr(() => m.DisplayTitleStripped, string.IsNullOrEmpty(id) ? "(unknown mod)" : id);
-                    author = man != null ? man.Author : null;
-                    version = man != null && man.Version != null ? man.Version.ToString() : null;
-                    description = man != null ? man.Description : null;
-                    tags = man != null ? man.Tags : null;
-                    size = HumanSize(m.Size);
-                    enabled = SafeBool(() => m.IsEnabled, true);
-                    scripting = SafeBool(() => m.IsScripting, false);
-                    source = m.Source.ToString();
-                    path = m.Path ?? (m.Directory != null ? m.Directory.FullName : null);
-                    preview = SafePreview(m, man);
-                }
-                catch (Exception e)
-                {
-                    System.Console.WriteLine("[raves] mods export skipped a mod: " + e.Message);
-                    continue;   // nothing written yet -> JSON stays balanced
-                }
-
+                // EACH field is read through a self-guarding helper, so no single field can throw
+                // (which mid-object would corrupt the JSON) or drop the mod — the worst case is one
+                // field falling back, and the tagged log names the culprit. (Seen: some ModInfo
+                // property NREs before ModSettings is fully populated on a fresh session.)
+                string id = SafeStr("id", () => m.ID, "?");
                 j.BeginObject();
                 j.Member("id", id);
-                j.Member("title", title);
-                j.Member("author", author);
-                j.Member("version", version);
-                j.Member("description", description);
+                j.Member("title", SafeStr("title", () => m.DisplayTitleStripped, id));
+                j.Member("author", SafeStr("author", () => m.Manifest != null ? m.Manifest.Author : null, null));
+                j.Member("version", SafeStr("version",
+                    () => m.Manifest != null && m.Manifest.Version != null ? m.Manifest.Version.ToString() : null, null));
+                j.Member("description", SafeStr("description", () => m.Manifest != null ? m.Manifest.Description : null, null));
                 j.Name("tags").BeginArray();
+                string[] tags = SafeArr("tags", () => m.Manifest != null ? m.Manifest.Tags : null);
                 if (tags != null)
                     foreach (string t in tags) j.Value(t ?? "");
                 j.EndArray();
-                j.Member("size", size);
-                j.Member("enabled", enabled);
-                j.Member("scripting", scripting);
-                j.Member("source", source);
-                j.Member("path", path);
-                j.Member("preview", preview);
+                j.Member("size", SafeStr("size", () => HumanSize(m.Size), "?"));
+                j.Member("enabled", SafeBool("enabled", () => m.IsEnabled, true));
+                j.Member("scripting", SafeBool("scripting", () => m.IsScripting, false));
+                j.Member("source", SafeStr("source", () => m.Source.ToString(), "?"));
+                j.Member("path", SafeStr("path", () => m.Path ?? (m.Directory != null ? m.Directory.FullName : null), null));
+                j.Member("preview", SafePreview(m, m.Manifest));
                 j.EndObject();
             }
             j.EndArray().EndObject();
             File.WriteAllText(Path.Combine(Root, "mods.json"), j.ToString());
         }
 
-        private static string SafeStr(Func<string> f, string fallback)
+        private static string SafeStr(string tag, Func<string> f, string fallback)
         {
             try { string s = f(); return string.IsNullOrEmpty(s) ? fallback : s; }
-            catch { return fallback; }
+            catch (Exception e) { System.Console.WriteLine("[raves] mods field '" + tag + "': " + e.Message); return fallback; }
         }
 
-        private static bool SafeBool(Func<bool> f, bool fallback)
+        private static bool SafeBool(string tag, Func<bool> f, bool fallback)
         {
             try { return f(); }
-            catch { return fallback; }
+            catch (Exception e) { System.Console.WriteLine("[raves] mods field '" + tag + "': " + e.Message); return fallback; }
+        }
+
+        private static string[] SafeArr(string tag, Func<string[]> f)
+        {
+            try { return f(); }
+            catch (Exception e) { System.Console.WriteLine("[raves] mods field '" + tag + "': " + e.Message); return null; }
         }
 
         private static string SafePreview(XRL.ModInfo m, XRL.ModManifest man)
