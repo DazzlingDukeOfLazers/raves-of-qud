@@ -33,6 +33,11 @@ const DIM := Color(0.89, 0.85, 0.72, 0.55)        # hint / version / secondary
 const DIMMER := Color(0.89, 0.85, 0.72, 0.32)     # disabled option
 const SEL_BAR := Color(0.90, 0.86, 0.72, 0.11)    # translucent highlight behind selection
 
+## Qud's menu type is a Goudy-style serif baked into its TMP atlases (not shippable), so we
+## match it with Sorts Mill Goudy — the closest FREELY-REDISTRIBUTABLE (OFL) Goudy. Applied
+## only to the menu chrome here; the rest of the app keeps its Atkinson default.
+const SERIF_PATH := "res://fonts/SortsMillGoudy-Regular.ttf"
+
 ## Qud's real menu items, verbatim from Qud.UI.MainMenu.LeftOptions / RightOptions.
 ## `act` names a Raves action for this mimic phase; "" = cosmetic (no-op for now).
 const LEFT_ITEMS := [
@@ -61,6 +66,7 @@ const DEFAULT_LAYOUT := {
 }
 
 var _layout: Dictionary
+var _serif: Font
 var _rows: Array = []          # [{btn,label,cfg,enabled}]
 var _sel := 0
 var _peer := StreamPeerTCP.new()
@@ -76,6 +82,7 @@ func _ready() -> void:
 	get_window().title = Brand.title()
 	RenderingServer.set_default_clear_color(BG)
 
+	_serif = load(SERIF_PATH)
 	_layout = _load_layout()
 	_build_background()   # Qud's title cave-art from the install (if the mod exported it)
 	_build_logo()         # Qud's "CAVES OF QUD" wordmark (extracted), else a text fallback
@@ -146,6 +153,7 @@ func _build_logo() -> void:
 	var l := _label("CAVES OF QUD", CREAM, "big")
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_apply_serif(l)
 	add_child(l)
 	_place(l, "logo")
 
@@ -191,6 +199,7 @@ func _option_button(cfg: Dictionary) -> Button:
 	b.add_theme_color_override("font_hover_color", CREAM_HI)
 	b.add_theme_color_override("font_pressed_color", CREAM_HI)
 	b.add_theme_color_override("font_disabled_color", DIMMER)
+	_apply_serif(b)
 	# transparent chrome; the highlight is applied per-selection in _apply_selection()
 	for st in ["normal", "hover", "pressed", "focus", "disabled"]:
 		b.add_theme_stylebox_override(st, _flat(Color(0, 0, 0, 0)))
@@ -256,6 +265,7 @@ func _refresh_enabled() -> void:
 func _build_hint() -> void:
 	var l := _label("↑↓  navigate      ↵  select      esc  quit", DIM, "caption")
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_apply_serif(l)
 	add_child(l)
 	_place(l, "hint")
 
@@ -264,6 +274,7 @@ func _build_version() -> void:
 	var l := _label("%s\nbuild %s" % [Brand.GAME_NAME, Brand.LICENSE], DIM, "caption")
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	l.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+	_apply_serif(l)
 	add_child(l)
 	_place(l, "version")
 
@@ -339,3 +350,8 @@ func _label(txt: String, col := Color.WHITE, role := "body") -> Label:
 	if col != Color.WHITE:
 		l.add_theme_color_override("font_color", col)
 	return l
+
+## Apply the menu serif to a control, if it loaded (theme default stays Atkinson elsewhere).
+func _apply_serif(c: Control) -> void:
+	if _serif != null:
+		c.add_theme_font_override("font", _serif)
