@@ -1,17 +1,17 @@
 {
-  "_note": "Golden-image regression suite for Raves' menu screens, run through highvisor. Run from a FRESHLY LAUNCHED Raves (sitting on the menu), in config order:  hv scene --all --config tools/regression/scenes.json  — a layout regression shows up as a match-% drop + a region punch-list under _regress/. After an INTENDED change, re-establish the goldens with --bless. Coordinates are window-relative points at 1793x997.",
+  "_note": "Golden-image regression suite for Raves' menu screens, run through highvisor. Each scene's `reset` clicks the sub-screens' Back spot (140,952) to return to the menu first (a no-op at the menu), so the suite is robust to run order + re-runs from menu OR any sub-screen. Golden regression:  hv scene --all --config tools/regression/scenes.json  (add --bless after an intended change). Live parity vs Qud (--parity) needs each `reference` (Qud) started at its TITLE, so run it PER SCENE (hv scene mods --parity), not --all, since Qud has no shared reset. Coordinates are window-relative points at 1793x997.",
   "menu": {
     "window": "Raves of Qud",
     "size": "1793x997",
     "crop_top": 58,
     "threshold": 99,
     "parity_threshold": 85,
+    "reset": [ { "click": [140, 952] }, { "wait": 0.6 } ],
     "steps": [],
     "golden": "golden/menu.png",
     "reference": {
       "window": "CavesOfQud",
       "size": "1793x997",
-      "crop_top": 58,
       "steps": []
     }
   },
@@ -21,19 +21,28 @@
     "crop_top": 58,
     "threshold": 98,
     "parity_threshold": 82,
-    "steps": [
-      { "click": [907, 689] },
-      { "wait": 1.4 }
-    ],
+    "reset": [ { "click": [140, 952] }, { "wait": 0.6 } ],
+    "steps": [ { "click": [907, 689] }, { "wait": 1.4 } ],
     "golden": "golden/mods.png",
     "reference": {
       "window": "CavesOfQud",
       "size": "1793x997",
-      "crop_top": 58,
-      "steps": [
-        { "click": [905, 679], "hover": true },
-        { "wait": 2.0 }
-      ]
+      "steps": [ { "click": [905, 679], "hover": true }, { "wait": 2.0 } ]
+    }
+  },
+  "options": {
+    "window": "Raves of Qud",
+    "size": "1793x997",
+    "crop_top": 58,
+    "threshold": 98,
+    "parity_threshold": 55,
+    "reset": [ { "click": [140, 952] }, { "wait": 0.6 } ],
+    "steps": [ { "click": [907, 649] }, { "wait": 1.2 } ],
+    "golden": "golden/options.png",
+    "reference": {
+      "window": "CavesOfQud",
+      "size": "1793x997",
+      "steps": [ { "click": [905, 635], "hover": true }, { "wait": 2.0 } ]
     }
   }
 }

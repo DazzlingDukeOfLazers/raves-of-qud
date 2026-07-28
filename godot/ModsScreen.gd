@@ -60,6 +60,25 @@ func _ready() -> void:
 	_build_body(frame)
 	_build_footer(frame)
 	_apply_selection()
+	_add_back()
+
+## A clickable "‹ Back" at a fixed bottom-left spot (Esc also works) — the mouse route back
+## to the menu, and a stable target for the regression suite's reset step.
+func _add_back() -> void:
+	var b := Button.new()
+	b.text = "‹ Back"
+	b.focus_mode = Control.FOCUS_NONE
+	b.flat = true
+	b.add_theme_color_override("font_color", GOLD)
+	b.add_theme_color_override("font_hover_color", TITLE)
+	b.anchor_left = 0.02
+	b.anchor_right = 0.14
+	b.anchor_top = 0.93
+	b.anchor_bottom = 0.985
+	for k in ["left", "top", "right", "bottom"]:
+		b.set("offset_" + k, 0.0)
+	b.pressed.connect(func(): closed.emit())
+	add_child(b)
 
 ## Fill the whole viewport explicitly — as an added-at-runtime overlay we can't rely on the
 ## parent propagating its size, so we anchor top-left and size to the viewport (and on resize).

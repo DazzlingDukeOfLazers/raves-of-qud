@@ -67,6 +67,24 @@ func _ready() -> void:
 	_build_sidebar()
 	_build_body()
 	_build_footer()
+	_add_back()
+
+## A clickable "‹ Back" at a fixed bottom-left spot (Esc also works) — the mouse route back
+## to the menu, and a stable target for the regression suite's reset step.
+func _add_back() -> void:
+	var b := Button.new()
+	b.text = "‹ Back"
+	b.focus_mode = Control.FOCUS_NONE
+	b.flat = true
+	b.add_theme_color_override("font_color", GOLD)
+	b.add_theme_color_override("font_hover_color", SEL)
+	b.anchor_left = 0.02
+	b.anchor_right = 0.14
+	b.anchor_top = 0.93
+	b.anchor_bottom = 0.985
+	_zero(b)
+	b.pressed.connect(func(): closed.emit())
+	add_child(b)
 
 func _fit_to_viewport() -> void:
 	set_anchors_preset(Control.PRESET_TOP_LEFT)
@@ -230,7 +248,8 @@ func _setting_text(item: Dictionary) -> Control:
 	h.add_theme_constant_override("separation", 14)
 	h.add_child(_label(str(item["label"]) + ":", LABEL, "body"))
 	var e := LineEdit.new()
-	e.text = str(Settings.get_value(item["key"], ""))
+	var raw: Variant = Settings.get_value(item["key"], "")
+	e.text = str(int(raw)) if item["key"] == "bridge_port" else str(raw)   # JSON reads ints as floats
 	e.custom_minimum_size = Vector2(320, 0)
 	e.add_theme_color_override("font_color", VALUE)
 	var commit := func(_t = null):
