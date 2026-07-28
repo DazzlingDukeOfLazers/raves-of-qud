@@ -28,6 +28,13 @@ add a one-liner (symptom → rule).
 - **API details, always decompile — don't guess.** `pPhysics` is obsolete (use `Physics`); liquid ids are
   lowercase; AV/DV/MA need `Stats.GetCombat*`, not `GetStatValue`; `PushMouseEvent("LeftClick", x, y)` takes
   CELL coords. `dotnet build mod/…csproj` fails on a wrong name before the user ever runs.
+- **Driving Qud's MENUS / character creation from outside = MOUSE only, never keys.** Qud (Unity) drops
+  synthetic keyboard events (even focus-stealing HID-source ones) and exposes no accessibility tree for its
+  menus, so there is no key/AX path pre-game. It DOES accept a synthetic mouse click — but only a *bare* one:
+  warp the cursor (`CGWarpMouseCursorPosition`) then post a plain down/up pair, **no `kCGMouseEventClickState`
+  field and no pre-move event** (setting either makes Qud hover-highlight but never select). This is what
+  highvisor's `hv click` does; full write-up in highvisor `docs/05-driving-input.md`. *Symptom:* the menu
+  highlight follows your cursor but clicks/keys never activate. In-GAME, keep using the mod's `PushCommand`.
 
 ### Renderer (ZoneRenderer)
 - **LIVE STATIC geometry is built ONCE per zone and frozen** — walls, furniture, sprites, lights. Only
