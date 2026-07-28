@@ -18,7 +18,7 @@ const LICENSE := "MIT"
 
 # ── the base game it renders ─────────────────────────────────────────────────
 const BASE_GAME := "Caves of Qud"
-const BASE_GAME_RIGHTS_HOLDER := "«rights holder — confirm exact legal entity»"  # placeholder
+const BASE_GAME_RIGHTS_HOLDER := "Freehold Games"   # confirm the exact legal suffix (LLC?) for formal use
 const STEAM_APPID := "333640"
 
 # ── links (open in the user's browser) ───────────────────────────────────────
