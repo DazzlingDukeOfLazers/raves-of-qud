@@ -164,6 +164,14 @@ def main(argv):
         print("godot: onboard" + arg)
     elif cmd == "shot":
         print("shot.png updated" if godot_shot() else "shot: TIMED OUT (is the viewer open?)")
+    elif cmd == "export":
+        # Re-run Qud's DATA exporters (mods, options, …) NOW over the bridge — the clean
+        # trigger for refreshing RavesOfQud/*.json without ticking a fake turn. Qud must be
+        # in-game (bridge up); the mod's "export" command calls each exporter's ReExport().
+        b = Bridge()
+        b.send("export")
+        b.close()
+        print("export: requested (Qud re-exports its data files)")
     elif cmd == "zoo":
         # Build a debug showcase zone in-game. Sent to QUD over the bridge (not the
         # godot_cmd file): `zoo [category] [page]`. category = creatures (default) /

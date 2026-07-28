@@ -18,6 +18,14 @@ namespace RavesOfQud
     {
         private static int _tried;
 
+        /// <summary>Re-run the export on demand (e.g. from the bridge "export" command), bypassing
+        /// the one-shot guard, so Raves can refresh the mod list without a fresh in-game turn.</summary>
+        public static void ReExport()
+        {
+            try { Export(); }
+            catch (Exception e) { System.Console.WriteLine("[raves] mods re-export failed: " + e.Message); }
+        }
+
         /// <summary>Turn-thread safe: export the mod list once per session.</summary>
         public static void Ensure()
         {

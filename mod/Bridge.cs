@@ -503,6 +503,18 @@ namespace RavesOfQud
                     try { Server.Log("[catalog] wrote " + PlayerBecome.WriteCatalog()); }
                     catch (Exception e) { Server.Log("catalog error: " + e.Message); }
                     break;
+                case "export":
+                    // Re-run the DATA exporters on demand — the clean replacement for ticking a
+                    // fake turn to fire the one-shot Ensure()s. Data-only + cheap; add each new
+                    // exporter (records, …) here. Title art is one-shot (never changes), so skip it.
+                    try
+                    {
+                        ModsExporter.ReExport();
+                        OptionsExporter.ReExport();
+                        Server.Log("[export] re-exported mods + options");
+                    }
+                    catch (Exception e) { Server.Log("export error: " + e.Message); }
+                    break;
                 case "setoption":
                     // Update Qud from Raves' Options mirror. MAIN-THREAD ONLY: SetOption updates
                     // flags / audio / UI. Re-export so Raves reflects the applied value + any
