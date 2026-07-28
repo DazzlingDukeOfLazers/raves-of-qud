@@ -91,6 +91,10 @@ namespace RavesOfQud
             // move. Gate the whole thing on a live client so the mod is inert without Raves.
             if (server == null || server.ClientCount == 0) return;
 
+            // One-shot: export Qud's title art (its MainMenu textures are still resident,
+            // the GameObject just inactive) so Raves' menu can render the real assets.
+            TitleExporter.Ensure();
+
             // Keep Unity RENDERING the window while it's unfocused, so Qud's own map
             // repaints in sync with commands we drive from Godot. Unity pauses the
             // main-thread render loop for a backgrounded window unless runInBackground

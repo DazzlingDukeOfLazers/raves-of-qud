@@ -52,6 +52,7 @@ func _ready() -> void:
 	RenderingServer.set_default_clear_color(BG)
 
 	_layout = _load_layout()
+	_build_background()   # Qud's title cave-art from the install (if the mod exported it)
 	_build_logo()
 	_build_menu()
 	_build_footer()
@@ -77,6 +78,32 @@ func _load_layout() -> Dictionary:
 				for k in data["elements"]:
 					out[k] = data["elements"][k]
 	return out
+
+## Qud's title BACKGROUND (cave art, no logo) exported by the mod to the RavesOfQud
+## support dir — rendered from the player's own install, never bundled. Behind
+## everything, so Raves' own "Raves of Qud" title sits on Qud's atmosphere. Absent
+## until the mod has run in-game once; the flat BG is the fallback.
+func _build_background() -> void:
+	var tex := _load_title_png("background.png")
+	if tex == null:
+		return
+	var rect := TextureRect.new()
+	rect.texture = tex
+	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rect.modulate = Color(1, 1, 1, 0.92)   # slight dim so the menu text stays legible
+	add_child(rect)
+	move_child(rect, 0)   # first child = behind everything
+
+func _load_title_png(file: String) -> Texture2D:
+	var path := InputModel.support_dir().path_join("title").path_join(file)
+	if not FileAccess.file_exists(path):
+		return null
+	var img := Image.new()
+	if img.load(path) != 0:   # 0 == OK (the OK identifier here is a Color const)
+		return null
+	return ImageTexture.create_from_image(img)
 
 func _place(c: Control, key: String) -> void:
 	var r: Array = _layout.get(key, DEFAULT_LAYOUT.get(key, [0, 0, 1, 1]))
