@@ -1,54 +1,47 @@
 extends Control
 
-## THE OPTIONS SCREEN — Raves' settings, laid out in the style of Caves of Qud's Options.
+## THE OPTIONS SCREEN — a 1:1 mirror of Caves of Qud's Options, in Qud's layout.
 ##
-## A full-screen scrollable panel over the cave-art background: an "OPTIONS" header, a LEFT
-## category sidebar (jump-to-section), and a scrollable main column of collapsible-looking
-## sections (Display / Interface / Bridge), each with sliders / toggles / option-rows / text
-## fields. Qud's Options is game settings that don't apply to a viewer, so the CONTENT is
-## Raves-relevant (font scale, fullscreen, perceived-vs-full default, default camera, which
-## Qud to render), persisted via the [[Settings]] autoload. Opened as an overlay by MainMenu;
-## `closed` fires on Back.
+## A full-screen scrollable panel (OPTIONS header, left category sidebar, sections) over a
+## darkened cave-art backdrop. A "RAVES" section of Raves' OWN settings (editable, persisted
+## via [[Settings]]) sits on top; below it, QUD'S FULL OPTIONS TREE is mirrored from the mod's
+## export (options.json — every category + option: label, type, current value, values), so the
+## same categories/options/wording appear here as in Qud. Qud's options are DISPLAY (a mirror)
+## for now — read from the player's install, never redistributed; write-back (updating Qud from
+## Raves via Options.SetOption) is the next phase. Opened as an overlay by MainMenu; Back closes.
 
 signal closed
 
-const SCRIM := Color(0.02, 0.03, 0.03, 0.60)
-const GOLD := Color8(0xC8, 0xA9, 0x4E)           # OPTIONS title, values, keycaps
-const CYAN := Color8(0x6E, 0xB5, 0xC9)           # section headers, sidebar categories
-const LABEL := Color8(0xE4, 0xD8, 0xB8)          # setting labels
-const VALUE := Color8(0xC8, 0xA9, 0x4E)          # setting values
-const SEL := Color8(0xF6, 0xF6, 0xF6)            # selected option
+const GOLD := Color8(0xC8, 0xA9, 0x4E)
+const CYAN := Color8(0x6E, 0xB5, 0xC9)
+const LABEL := Color8(0xE4, 0xD8, 0xB8)
+const VALUE := Color8(0xC8, 0xA9, 0x4E)
+const SEL := Color8(0xF6, 0xF6, 0xF6)
 const DIM := Color(0.89, 0.85, 0.72, 0.5)
 const FRAME := Color8(0xB6, 0xA1, 0x63)
 
-## The settings model — sections of typed items keyed to Settings.
-const SECTIONS := [
-	{"name": "DISPLAY", "items": [
-		{"key": "font_scale", "label": "Font scale", "type": "slider", "min": 0.7, "max": 1.5, "step": 0.05},
-		{"key": "fullscreen", "label": "Fullscreen", "type": "toggle"},
-	]},
-	{"name": "INTERFACE", "items": [
-		{"key": "full_info", "label": "Show full info by default", "type": "toggle"},
-		{"key": "camera", "label": "Default camera", "type": "options",
-			"options": ["Compass", "Follow", "First person", "Cinematic", "Mouse", "Keyboard", "Top follow"]},
-	]},
-	{"name": "BRIDGE", "items": [
-		{"key": "bridge_host", "label": "Host", "type": "text"},
-		{"key": "bridge_port", "label": "Port", "type": "text"},
-	]},
+## Raves' own editable settings (persisted to settings.json).
+const RAVES_ITEMS := [
+	{"key": "font_scale", "label": "Font scale", "type": "slider", "min": 0.7, "max": 1.5, "step": 0.05},
+	{"key": "fullscreen", "label": "Fullscreen", "type": "toggle"},
+	{"key": "full_info", "label": "Show full info by default", "type": "toggle"},
+	{"key": "camera", "label": "Default camera", "type": "options",
+		"options": ["Compass", "Follow", "First person", "Cinematic", "Mouse", "Keyboard", "Top follow"]},
+	{"key": "bridge_host", "label": "Host", "type": "text"},
+	{"key": "bridge_port", "label": "Port", "type": "text"},
 ]
 
 var _scroll: ScrollContainer
-var _anchors: Dictionary = {}   # section name -> its header Control (for sidebar jumps)
+var _anchors: Dictionary = {}          # category name -> its header Control (sidebar jumps)
+var _qud_cats: Array = []              # Qud's options tree, from options.json
 
 func _ready() -> void:
 	name = "OptionsScreen"
 	_fit_to_viewport()
 	get_viewport().size_changed.connect(_fit_to_viewport)
 	theme = UiFont.make_theme(get_viewport())
+	_qud_cats = _load_qud_options()
 
-	# Opaque background — hides the menu behind (Qud's Options replaces the menu). The cave
-	# art heavily darkened, matching Qud's near-black Options backdrop; solid dark if absent.
 	var bgtex := _load_png("title/background.png")
 	if bgtex != null:
 		var bg := TextureRect.new()
@@ -69,8 +62,11 @@ func _ready() -> void:
 	_build_footer()
 	_add_back()
 
-## A clickable "‹ Back" at a fixed bottom-left spot (Esc also works) — the mouse route back
-## to the menu, and a stable target for the regression suite's reset step.
+func _fit_to_viewport() -> void:
+	set_anchors_preset(Control.PRESET_TOP_LEFT)
+	position = Vector2.ZERO
+	size = get_viewport_rect().size
+
 func _add_back() -> void:
 	var b := Button.new()
 	b.text = "‹ Back"
@@ -86,10 +82,34 @@ func _add_back() -> void:
 	b.pressed.connect(func(): closed.emit())
 	add_child(b)
 
-func _fit_to_viewport() -> void:
-	set_anchors_preset(Control.PRESET_TOP_LEFT)
-	position = Vector2.ZERO
-	size = get_viewport_rect().size
+# ── data ───────────────────────────────────────────────────────────────────────
+
+func _load_qud_options() -> Array:
+	var path := InputModel.support_dir().path_join("options.json")
+	if not FileAccess.file_exists(path):
+		return []
+	var f := FileAccess.open(path, FileAccess.READ)
+	if f == null:
+		return []
+	var d: Variant = JSON.parse_string(f.get_as_text())
+	if d is Dictionary and d.has("categories") and d["categories"] is Array:
+		return d["categories"]
+	return []
+
+func _cat_names() -> Array:
+	var out := ["Raves"]
+	for c in _qud_cats:
+		out.append(str(c.get("name", "?")))
+	return out
+
+func _load_png(rel: String) -> Texture2D:
+	var path := InputModel.support_dir().path_join(rel)
+	if not FileAccess.file_exists(path):
+		return null
+	var img := Image.new()
+	if img.load(path) != 0:
+		return null
+	return ImageTexture.create_from_image(img)
 
 # ── layout ───────────────────────────────────────────────────────────────────────
 
@@ -97,52 +117,74 @@ func _build_header() -> void:
 	var l := _label("OPTIONS", GOLD, "title")
 	l.anchor_left = 0.17
 	l.anchor_right = 0.6
-	l.anchor_top = 0.06
-	l.anchor_bottom = 0.11
+	l.anchor_top = 0.045
+	l.anchor_bottom = 0.095
 	_zero(l)
 	add_child(l)
 
 func _build_sidebar() -> void:
+	var sc := ScrollContainer.new()
+	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	sc.anchor_left = 0.0
+	sc.anchor_right = 0.155
+	sc.anchor_top = 0.11
+	sc.anchor_bottom = 0.9
+	_zero(sc)
+	add_child(sc)
 	var v := VBoxContainer.new()
 	v.alignment = BoxContainer.ALIGNMENT_BEGIN
-	v.add_theme_constant_override("separation", 8)
-	v.anchor_left = 0.02
-	v.anchor_right = 0.15
-	v.anchor_top = 0.13
-	v.anchor_bottom = 0.9
-	_zero(v)
-	add_child(v)
-	for sec in SECTIONS:
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	v.add_theme_constant_override("separation", 4)
+	sc.add_child(v)
+	for cat in _cat_names():
 		var b := Button.new()
-		b.text = String(sec["name"]).capitalize()
+		b.text = cat
 		b.focus_mode = Control.FOCUS_NONE
 		b.alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		b.flat = true
+		b.theme_type_variation = "Caption"
 		b.add_theme_color_override("font_color", CYAN)
 		b.add_theme_color_override("font_hover_color", SEL)
-		b.pressed.connect(func(): _jump_to(sec["name"]))
+		b.pressed.connect(func(): _jump_to(cat))
 		v.add_child(b)
 
 func _build_body() -> void:
 	_scroll = ScrollContainer.new()
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_scroll.anchor_left = 0.17
-	_scroll.anchor_right = 0.95
-	_scroll.anchor_top = 0.13
+	_scroll.anchor_right = 0.96
+	_scroll.anchor_top = 0.11
 	_scroll.anchor_bottom = 0.9
 	_zero(_scroll)
 	add_child(_scroll)
 	var col := VBoxContainer.new()
 	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	col.add_theme_constant_override("separation", 6)
+	col.add_theme_constant_override("separation", 5)
 	_scroll.add_child(col)
-	for sec in SECTIONS:
-		var head := _label("[-]  " + String(sec["name"]), CYAN, "title")
-		col.add_child(head)
-		_anchors[sec["name"]] = head
-		for item in sec["items"]:
-			col.add_child(_build_setting(item))
-		col.add_child(_spacer(14))
+
+	# RAVES section — editable settings
+	_section_header(col, "Raves")
+	for item in RAVES_ITEMS:
+		col.add_child(_build_raves_setting(item))
+	col.add_child(_spacer(12))
+
+	# Qud's mirrored tree — display of the visible options in each category
+	for cat in _qud_cats:
+		_section_header(col, str(cat.get("name", "?")))
+		var opts: Array = cat.get("options", [])
+		var shown := 0
+		for opt in opts:
+			if bool(opt.get("visible", true)):
+				col.add_child(_build_qud_option(opt))
+				shown += 1
+		if shown == 0:
+			col.add_child(_label("(no options shown — enable advanced options in Qud)", DIM, "caption"))
+		col.add_child(_spacer(12))
+
+func _section_header(col: VBoxContainer, name: String) -> void:
+	var h := _label("[-]  " + name.to_upper(), CYAN, "title")
+	col.add_child(h)
+	_anchors[name] = h
 
 func _build_footer() -> void:
 	var l := RichTextLabel.new()
@@ -151,72 +193,56 @@ func _build_footer() -> void:
 	l.scroll_active = false
 	l.theme_type_variation = "Caption"
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	l.text = "[center][color=#%s][lb]Esc[rb][/color][color=#%s] Back      [/color][color=#%s]↑↓[/color][color=#%s] navigate[/color][/center]" % [
-		GOLD.to_html(false), DIM.to_html(false), GOLD.to_html(false), DIM.to_html(false)]
+	l.text = "[center][color=#%s][lb]Esc[rb][/color][color=#%s] Back      [/color][color=#%s]↑↓[/color][color=#%s] navigate      [/color][color=#%s]mirrors your installed Caves of Qud options[/color][/center]" % [
+		GOLD.to_html(false), DIM.to_html(false), GOLD.to_html(false), DIM.to_html(false), DIM.to_html(false)]
 	l.anchor_left = 0.0
 	l.anchor_right = 1.0
 	l.anchor_top = 0.93
-	l.anchor_bottom = 0.98
+	l.anchor_bottom = 0.985
 	_zero(l)
 	add_child(l)
 
-# ── setting widgets ────────────────────────────────────────────────────────────────
+# ── Raves settings (editable, persisted) ───────────────────────────────────────────
 
-func _build_setting(item: Dictionary) -> Control:
+func _build_raves_setting(item: Dictionary) -> Control:
 	match String(item.get("type", "")):
-		"slider":
-			return _setting_slider(item)
-		"toggle":
-			return _setting_toggle(item)
-		"options":
-			return _setting_options(item)
-		"text":
-			return _setting_text(item)
-		_:
-			return _label(str(item.get("label", "?")), LABEL, "body")
+		"slider": return _raves_slider(item)
+		"toggle": return _raves_toggle(item)
+		"options": return _raves_options(item)
+		"text": return _raves_text(item)
+		_: return _label(str(item.get("label", "?")), LABEL, "body")
 
-func _setting_slider(item: Dictionary) -> Control:
+func _raves_slider(item: Dictionary) -> Control:
 	var row := VBoxContainer.new()
 	row.add_theme_constant_override("separation", 2)
 	row.add_child(_label(str(item["label"]), LABEL, "body"))
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 14)
 	var s := HSlider.new()
-	s.min_value = float(item["min"])
-	s.max_value = float(item["max"])
-	s.step = float(item["step"])
+	s.min_value = float(item["min"]); s.max_value = float(item["max"]); s.step = float(item["step"])
 	s.value = float(Settings.get_value(item["key"], 1.0))
 	s.custom_minimum_size = Vector2(420, 0)
 	s.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	var val := _label("%.2f" % s.value, VALUE, "body")
 	s.value_changed.connect(func(v):
 		val.text = "%.2f" % v
-		Settings.set_value(item["key"], v)
-		Settings.save()
-		if item["key"] == "font_scale":
-			_retheme())
-	h.add_child(s)
-	h.add_child(val)
+		Settings.set_value(item["key"], v); Settings.save()
+		if item["key"] == "font_scale": _retheme())
+	h.add_child(s); h.add_child(val)
 	row.add_child(h)
 	return row
 
-func _setting_toggle(item: Dictionary) -> Control:
-	var b := Button.new()
-	b.focus_mode = Control.FOCUS_NONE
-	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	b.flat = true
-	b.add_theme_color_override("font_color", LABEL)
-	b.add_theme_color_override("font_hover_color", SEL)
+func _raves_toggle(item: Dictionary) -> Control:
+	var b := _flat_button()
 	var on := bool(Settings.get_value(item["key"], false))
-	b.text = ("[■]  " if on else "[  ]  ") + str(item["label"])
+	b.text = _check(on) + str(item["label"])
 	b.pressed.connect(func():
 		var now := not bool(Settings.get_value(item["key"], false))
-		Settings.set_value(item["key"], now)
-		Settings.save()
-		b.text = ("[■]  " if now else "[  ]  ") + str(item["label"]))
+		Settings.set_value(item["key"], now); Settings.save()
+		b.text = _check(now) + str(item["label"]))
 	return b
 
-func _setting_options(item: Dictionary) -> Control:
+func _raves_options(item: Dictionary) -> Control:
 	var row := VBoxContainer.new()
 	row.add_theme_constant_override("separation", 2)
 	row.add_child(_label(str(item["label"]), LABEL, "body"))
@@ -226,51 +252,96 @@ func _setting_options(item: Dictionary) -> Control:
 	var cur := int(Settings.get_value(item["key"], 0))
 	var btns: Array = []
 	for i in range(opts.size()):
-		var b := Button.new()
+		var b := _flat_button()
 		b.text = str(opts[i])
-		b.focus_mode = Control.FOCUS_NONE
-		b.flat = true
 		b.add_theme_color_override("font_color", SEL if i == cur else DIM)
-		b.add_theme_color_override("font_hover_color", SEL)
 		var idx := i
 		b.pressed.connect(func():
-			Settings.set_value(item["key"], idx)
-			Settings.save()
+			Settings.set_value(item["key"], idx); Settings.save()
 			for j in range(btns.size()):
 				btns[j].add_theme_color_override("font_color", SEL if j == idx else DIM))
-		btns.append(b)
-		h.add_child(b)
+		btns.append(b); h.add_child(b)
 	row.add_child(h)
 	return row
 
-func _setting_text(item: Dictionary) -> Control:
+func _raves_text(item: Dictionary) -> Control:
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 14)
 	h.add_child(_label(str(item["label"]) + ":", LABEL, "body"))
 	var e := LineEdit.new()
 	var raw: Variant = Settings.get_value(item["key"], "")
-	e.text = str(int(raw)) if item["key"] == "bridge_port" else str(raw)   # JSON reads ints as floats
+	e.text = str(int(raw)) if item["key"] == "bridge_port" else str(raw)
 	e.custom_minimum_size = Vector2(320, 0)
 	e.add_theme_color_override("font_color", VALUE)
 	var commit := func(_t = null):
 		var v: Variant = e.text
-		if item["key"] == "bridge_port":
-			v = int(e.text)
-		Settings.set_value(item["key"], v)
-		Settings.save()
-	e.text_submitted.connect(commit)
-	e.focus_exited.connect(commit)
+		if item["key"] == "bridge_port": v = int(e.text)
+		Settings.set_value(item["key"], v); Settings.save()
+	e.text_submitted.connect(commit); e.focus_exited.connect(commit)
 	h.add_child(e)
 	return h
 
-# ── behaviour ────────────────────────────────────────────────────────────────────
+# ── Qud options (mirror / display) ──────────────────────────────────────────────────
 
-func _jump_to(section: String) -> void:
-	var head: Control = _anchors.get(section)
+func _build_qud_option(opt: Dictionary) -> Control:
+	match str(opt.get("type", "")):
+		"Slider": return _qud_slider(opt)
+		"Checkbox": return _qud_checkbox(opt)
+		"Combo", "BigCombo": return _qud_combo(opt)
+		"Button": return _qud_button(opt)
+		_: return _label("%s  %s" % [str(opt.get("label", "?")), str(opt.get("value", ""))], LABEL, "body")
+
+func _qud_slider(opt: Dictionary) -> Control:
+	var row := VBoxContainer.new()
+	row.add_theme_constant_override("separation", 2)
+	row.add_child(_label(str(opt.get("label", "")), LABEL, "body"))
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 14)
+	var s := HSlider.new()
+	s.min_value = float(opt.get("min", 0)); s.max_value = float(opt.get("max", 100))
+	s.step = maxf(1.0, float(opt.get("increment", 1)))
+	s.value = clampf(float(str(opt.get("value", "0")).to_float()), s.min_value, s.max_value)
+	s.editable = false                         # mirror (display); write-back is a later phase
+	s.custom_minimum_size = Vector2(420, 0)
+	s.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	h.add_child(s)
+	h.add_child(_label(str(opt.get("value", "")), VALUE, "body"))
+	row.add_child(h)
+	return row
+
+func _qud_checkbox(opt: Dictionary) -> Control:
+	var on := str(opt.get("value", "No")).to_lower() == "yes"
+	return _label(_check(on) + str(opt.get("label", "")), LABEL if on else DIM, "body")
+
+func _qud_combo(opt: Dictionary) -> Control:
+	var row := VBoxContainer.new()
+	row.add_theme_constant_override("separation", 2)
+	row.add_child(_label(str(opt.get("label", "")), LABEL, "body"))
+	var vals: Array = opt.get("values", [])
+	var cur := str(opt.get("value", ""))
+	if vals.is_empty():
+		row.add_child(_label(cur, VALUE, "body"))
+		return row
+	var flow := HFlowContainer.new()
+	flow.add_theme_constant_override("h_separation", 16)
+	flow.add_theme_constant_override("v_separation", 4)
+	for v in vals:
+		var sv := str(v)
+		flow.add_child(_label(sv, SEL if sv == cur else DIM, "caption"))
+	row.add_child(flow)
+	return row
+
+func _qud_button(opt: Dictionary) -> Control:
+	var l := _label("› " + str(opt.get("label", "")), CYAN, "body")
+	return l
+
+# ── behaviour + helpers ────────────────────────────────────────────────────────────
+
+func _jump_to(name: String) -> void:
+	var head: Control = _anchors.get(name)
 	if head != null and _scroll != null:
 		_scroll.ensure_control_visible(head)
 
-## Font scale changed — re-stamp this screen's theme and the menu behind it so it updates live.
 func _retheme() -> void:
 	theme = UiFont.make_theme(get_viewport())
 	var parent := get_parent()
@@ -282,7 +353,17 @@ func _unhandled_input(e: InputEvent) -> void:
 		closed.emit()
 		accept_event()
 
-# ── helpers ──────────────────────────────────────────────────────────────────────
+func _check(on: bool) -> String:
+	return "[■]  " if on else "[  ]  "
+
+func _flat_button() -> Button:
+	var b := Button.new()
+	b.focus_mode = Control.FOCUS_NONE
+	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	b.flat = true
+	b.add_theme_color_override("font_color", LABEL)
+	b.add_theme_color_override("font_hover_color", SEL)
+	return b
 
 func _label(txt: String, col: Color, role := "body") -> Label:
 	var l := Label.new()
@@ -291,15 +372,6 @@ func _label(txt: String, col: Color, role := "body") -> Label:
 		l.theme_type_variation = role.capitalize()
 	l.add_theme_color_override("font_color", col)
 	return l
-
-func _load_png(rel: String) -> Texture2D:
-	var path := InputModel.support_dir().path_join(rel)
-	if not FileAccess.file_exists(path):
-		return null
-	var img := Image.new()
-	if img.load(path) != 0:
-		return null
-	return ImageTexture.create_from_image(img)
 
 func _spacer(px: int) -> Control:
 	var c := Control.new()
