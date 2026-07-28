@@ -59,7 +59,7 @@ const BOX_ITEMS := [
 	{"text": "Continue", "act": "continue"},
 	{"text": "Records", "act": ""},
 	{"text": "Options", "act": ""},
-	{"text": "Mods", "act": ""},
+	{"text": "Mods", "act": "mods"},
 ]
 const LINK_ITEMS := ["Redeem Code", "Modding Toolkit", "Credits", "Help"]
 
@@ -76,6 +76,7 @@ const DEFAULT_LAYOUT := {
 var _layout: Dictionary
 var _hl: Texture2D             # buttonHighlight sprite behind the selected option (if extracted)
 var _box: Control             # the centred option box (re-placed on resize to hold its aspect)
+var _overlay: Control         # active sub-screen (Mods, …) over the menu, or null
 var _rows: Array = []          # box options only: [{btn,cfg,enabled}]
 var _sel := 0
 var _peer := StreamPeerTCP.new()
@@ -414,6 +415,8 @@ func _build_version() -> void:
 # ── input ─────────────────────────────────────────────────────────────────────────
 
 func _unhandled_input(e: InputEvent) -> void:
+	if _overlay != null:
+		return   # a sub-screen (Mods, …) owns input while it's open
 	if e.is_action_pressed("ui_down"):
 		_step(1); accept_event()
 	elif e.is_action_pressed("ui_up"):
@@ -438,8 +441,28 @@ func _activate(idx: int) -> void:
 				OS.shell_open(Brand.URL_STEAM_RUN)   # launch the installed copy
 			elif _qud_up:
 				_enter_viewer()
+		"mods":
+			_open_overlay("res://ModsScreen.gd")
 		_:
 			pass  # cosmetic Qud item — no-op during the mimic phase
+
+## Menu sub-screens (Mods, later Options/Records) open as a full-screen overlay over the
+## menu; their `closed` signal tears them down and hands input back to the menu.
+func _open_overlay(script_path: String) -> void:
+	if _overlay != null:
+		return
+	var scr: Variant = load(script_path)
+	if scr == null:
+		return
+	_overlay = scr.new()
+	add_child(_overlay)
+	if _overlay.has_signal("closed"):
+		_overlay.closed.connect(_close_overlay)
+
+func _close_overlay() -> void:
+	if _overlay != null:
+		_overlay.queue_free()
+		_overlay = null
 
 func _enter_viewer() -> void:
 	if not _qud_up:

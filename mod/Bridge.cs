@@ -94,6 +94,8 @@ namespace RavesOfQud
             // One-shot: export Qud's title art (its MainMenu textures are still resident,
             // the GameObject just inactive) so Raves' menu can render the real assets.
             TitleExporter.Ensure();
+            // One-shot: export the installed-mod list (ModManager.ModMap) for Raves' Mods screen.
+            ModsExporter.Ensure();
 
             // Keep Unity RENDERING the window while it's unfocused, so Qud's own map
             // repaints in sync with commands we drive from Godot. Unity pauses the
