@@ -5,18 +5,35 @@
     "size": "1793x997",
     "crop_top": 58,
     "threshold": 99,
+    "parity_threshold": 85,
     "steps": [],
-    "golden": "golden/menu.png"
+    "golden": "golden/menu.png",
+    "reference": {
+      "window": "CavesOfQud",
+      "size": "1793x997",
+      "crop_top": 58,
+      "steps": []
+    }
   },
   "mods": {
     "window": "Raves of Qud",
     "size": "1793x997",
     "crop_top": 58,
     "threshold": 98,
+    "parity_threshold": 82,
     "steps": [
       { "click": [907, 689] },
       { "wait": 1.4 }
     ],
-    "golden": "golden/mods.png"
+    "golden": "golden/mods.png",
+    "reference": {
+      "window": "CavesOfQud",
+      "size": "1793x997",
+      "crop_top": 58,
+      "steps": [
+        { "click": [905, 679], "hover": true },
+        { "wait": 2.0 }
+      ]
+    }
   }
 }
