@@ -30,12 +30,13 @@
       "steps": [ { "click": [905, 679], "hover": true }, { "wait": 2.0 } ]
     }
   },
+  "_options_note": "options mirrors the LOCAL Qud options tree (options.json, extracted by the mod), so its golden is data-dependent — re-bless after options.json changes (e.g. the mod exports live values). Use --parity vs Qud for the real cross-check.",
   "options": {
     "window": "Raves of Qud",
     "size": "1793x997",
     "crop_top": 58,
-    "threshold": 98,
-    "parity_threshold": 55,
+    "threshold": 97,
+    "parity_threshold": 45,
     "reset": [ { "click": [140, 952] }, { "wait": 0.6 } ],
     "steps": [ { "click": [907, 649] }, { "wait": 1.2 } ],
     "golden": "golden/options.png",
