@@ -1,43 +1,68 @@
 extends Control
 
-## THE MAIN MENU — a Qud-style title screen.
+## THE MAIN MENU — a 1:1 MIMIC of Caves of Qud's modern main menu.
 ##
-## The layout deliberately MIRRORS Caves of Qud's own title (logo top-centre, a
-## single centred menu box, a bottom-centre hint, a bottom-right version, a
-## bottom-left attribution corner) so the two read as siblings. We copy only the
-## rough SIZE + PLACEMENT of those elements — never any Qud art. The rects are
-## normalized [x, y, w, h] window fractions, loaded from a cache measured off
-## Qud's real menu (`title_layout.json` in the RavesOfQud support dir; the checked-in
-## default is `title_layout.seed.json`, mirrored by DEFAULT_LAYOUT below so the app
-## always works without the file). Re-measure → overwrite the cache to re-tune.
+## This is a deliberate, faithful RECONSTRUCTION of Qud's own title screen so the two
+## read as the same screen: the extracted cave-art background, Qud's "CAVES OF QUD"
+## logo, and Qud's exact two-column option set over the top. The item text, ordering,
+## and the two-column + hotkey-bar + version-corner structure are taken verbatim from
+## the decompiled `Qud.UI.MainMenu` (LeftOptions / RightOptions / DoIntroTween / Show);
+## the background.png + logo.png are the player's OWN install art, exported by the mod
+## (never redistributed). See TitleExporter.cs.
 ##
-## Raves' one affordance Qud's menu lacks: the launch button DETECTS a running Qud
-## (the mod bridge on 127.0.0.1:PORT) and launches the installed copy if it's absent,
-## flipping to "Enter viewer" once the bridge answers. Everything else the old
-## launcher had (purchase/find/settings/credits/support, the legal panel) is tabled;
-## the essential attribution survives as the bottom-left corner.
+## What we CAN'T extract, and so approximate ("pixel-faithful when possible"): Qud bakes
+## its menu typeface into TextMeshPro SDF atlases (no loose font ships), so the text is
+## rendered in the project's Atkinson face rather than Qud's serif; and the exact option
+## colours are estimated from the logo palette. Positions are DATA — the normalized
+## [x,y,w,h] rects live in `title_layout.json` in the RavesOfQud support dir, so tuning
+## them is a JSON edit + relaunch, NO rebuild.
+##
+## The user's own custom launcher menu (Launch / Enter-viewer detect button, the
+## attribution corner, ORG_NAME) is preserved verbatim in `MainMenu.custom.gd.bak` and
+## is to be RESTORED later. To keep this mimic phase usable rather than a dead screen,
+## two of Qud's items are wired to Raves' real actions — New Game LAUNCHES the installed
+## Qud, Continue ENTERS the viewer (and, like Qud, is disabled until there's a world to
+## continue, i.e. the mod bridge answers) — while the rest are cosmetic for now.
 
-const BG := Color(0.03, 0.045, 0.06)
-const PANEL := Color(0.02, 0.03, 0.045, 0.72)
-const BORDER := Color(0.62, 0.80, 0.66, 0.35)   # sage frame, echoing Qud's gilt box
-const ACCENT := Color(0.62, 0.84, 0.68)         # sage — title
-const DIM := Color(1, 1, 1, 0.55)
-const DIMMER := Color(1, 1, 1, 0.34)
-const OK := Color(0.45, 0.85, 0.50)
-const WARN := Color(0.90, 0.72, 0.38)
+# ── palette (estimated from the extracted logo + Qud's dark-teal UI) ──────────────
+const BG := Color8(0x0C, 0x1A, 0x16)              # dark teal — clear-colour fallback
+const CREAM := Color8(0xE4, 0xD8, 0xB8)           # option text (Qud's warm parchment)
+const CREAM_HI := Color8(0xFB, 0xF3, 0xDD)        # selected / hovered option
+const RED := Color8(0x9E, 0x2B, 0x25)             # accent (the logo's rule bars)
+const DIM := Color(0.89, 0.85, 0.72, 0.55)        # hint / version / secondary
+const DIMMER := Color(0.89, 0.85, 0.72, 0.32)     # disabled option
+const SEL_BAR := Color(0.90, 0.86, 0.72, 0.11)    # translucent highlight behind selection
+
+## Qud's real menu items, verbatim from Qud.UI.MainMenu.LeftOptions / RightOptions.
+## `act` names a Raves action for this mimic phase; "" = cosmetic (no-op for now).
+const LEFT_ITEMS := [
+	{"text": "New Game", "act": "new"},
+	{"text": "Continue", "act": "continue"},
+	{"text": "Records", "act": ""},
+	{"text": "Options", "act": ""},
+	{"text": "Mods", "act": ""},
+]
+const RIGHT_ITEMS := [
+	{"text": "Redeem Code", "act": ""},
+	{"text": "Modding Toolkit", "act": ""},
+	{"text": "Credits", "act": ""},
+	{"text": "Help", "act": ""},
+]
 
 ## Fallback if the cache file is missing — kept in sync with title_layout.seed.json.
+## Two option columns (left = primary, right = secondary) grouped under the logo,
+## a bottom-centre hotkey bar, a bottom-right version corner — Qud's arrangement.
 const DEFAULT_LAYOUT := {
 	"logo": [0.22, 0.14, 0.56, 0.15],
-	"menu": [0.40, 0.40, 0.20, 0.34],
-	"links": [0.04, 0.77, 0.16, 0.15],
-	"hint": [0.28, 0.94, 0.44, 0.03],
-	"version": [0.80, 0.955, 0.185, 0.035],
+	"left_menu": [0.335, 0.42, 0.20, 0.32],
+	"right_menu": [0.545, 0.42, 0.20, 0.26],
+	"hint": [0.20, 0.945, 0.60, 0.03],
+	"version": [0.80, 0.95, 0.185, 0.04],
 }
 
 var _layout: Dictionary
-var _launch_btn: Button
-var _status: Label
+var _rows: Array = []          # [{btn,label,cfg,enabled}]
+var _sel := 0
 var _peer := StreamPeerTCP.new()
 var _retry := 0.0
 var _qud_up := false
@@ -53,14 +78,14 @@ func _ready() -> void:
 
 	_layout = _load_layout()
 	_build_background()   # Qud's title cave-art from the install (if the mod exported it)
-	_build_logo()
+	_build_logo()         # Qud's "CAVES OF QUD" wordmark (extracted), else a text fallback
 	_build_menu()
-	_build_footer()
 	_build_hint()
 	_build_version()
 
 	_peer.connect_to_host(BridgeClient.HOST, BridgeClient.PORT)  # start detecting Qud
-	_refresh_launch_ui()
+	_refresh_enabled()
+	_apply_selection()
 
 func _on_resize() -> void:
 	UiFont.refresh_theme(theme, get_viewport())
@@ -79,32 +104,6 @@ func _load_layout() -> Dictionary:
 					out[k] = data["elements"][k]
 	return out
 
-## Qud's title BACKGROUND (cave art, no logo) exported by the mod to the RavesOfQud
-## support dir — rendered from the player's own install, never bundled. Behind
-## everything, so Raves' own "Raves of Qud" title sits on Qud's atmosphere. Absent
-## until the mod has run in-game once; the flat BG is the fallback.
-func _build_background() -> void:
-	var tex := _load_title_png("background.png")
-	if tex == null:
-		return
-	var rect := TextureRect.new()
-	rect.texture = tex
-	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
-	rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	rect.modulate = Color(1, 1, 1, 0.92)   # slight dim so the menu text stays legible
-	add_child(rect)
-	move_child(rect, 0)   # first child = behind everything
-
-func _load_title_png(file: String) -> Texture2D:
-	var path := InputModel.support_dir().path_join("title").path_join(file)
-	if not FileAccess.file_exists(path):
-		return null
-	var img := Image.new()
-	if img.load(path) != 0:   # 0 == OK (the OK identifier here is a Color const)
-		return null
-	return ImageTexture.create_from_image(img)
-
 func _place(c: Control, key: String) -> void:
 	var r: Array = _layout.get(key, DEFAULT_LAYOUT.get(key, [0, 0, 1, 1]))
 	c.anchor_left = r[0]
@@ -116,77 +115,197 @@ func _place(c: Control, key: String) -> void:
 	c.offset_right = 0.0
 	c.offset_bottom = 0.0
 
-# ── elements ──────────────────────────────────────────────────────────────────
+# ── extracted art ───────────────────────────────────────────────────────────────
+
+## Qud's title BACKGROUND (cave art) exported by the mod to the RavesOfQud support dir —
+## rendered from the player's own install, never bundled. Behind everything. Absent
+## until the mod has run in-game once; the flat BG is the fallback.
+func _build_background() -> void:
+	var tex := _load_title_png("background.png")
+	if tex == null:
+		return
+	var rect := TextureRect.new()
+	rect.texture = tex
+	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(rect)
+	move_child(rect, 0)   # first child = behind everything
 
 func _build_logo() -> void:
-	var box := VBoxContainer.new()
-	box.alignment = BoxContainer.ALIGNMENT_CENTER
-	box.add_theme_constant_override("separation", 2)
-	var t := _label(Brand.GAME_NAME, ACCENT, "big")
-	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box.add_child(t)
-	var tag := _label(Brand.GAME_TAGLINE, DIM, "caption")
-	tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box.add_child(tag)
-	add_child(box)
-	_place(box, "logo")
+	var tex := _load_title_png("logo.png")
+	if tex != null:
+		var r := TextureRect.new()
+		r.texture = tex
+		r.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(r)
+		_place(r, "logo")
+		return
+	# fallback: wordmark as text (mod hasn't exported logo.png yet)
+	var l := _label("CAVES OF QUD", CREAM, "big")
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	add_child(l)
+	_place(l, "logo")
+
+func _load_title_png(file: String) -> Texture2D:
+	var path := InputModel.support_dir().path_join("title").path_join(file)
+	if not FileAccess.file_exists(path):
+		return null
+	var img := Image.new()
+	if img.load(path) != 0:   # 0 == OK
+		return null
+	return ImageTexture.create_from_image(img)
+
+# ── the two option columns ───────────────────────────────────────────────────────
 
 func _build_menu() -> void:
-	var panel := PanelContainer.new()
+	var left := _column(LEFT_ITEMS)
+	add_child(left)
+	_place(left, "left_menu")
+	var right := _column(RIGHT_ITEMS)
+	add_child(right)
+	_place(right, "right_menu")
+
+func _column(items: Array) -> VBoxContainer:
+	var v := VBoxContainer.new()
+	v.alignment = BoxContainer.ALIGNMENT_BEGIN
+	v.add_theme_constant_override("separation", 6)
+	for cfg in items:
+		var b := _option_button(cfg)
+		v.add_child(b)
+		_rows.append({"btn": b, "cfg": cfg, "enabled": true})
+	return v
+
+## One menu option: a left-aligned, focus-less button styled as bare cream text, with a
+## faint highlight bar when selected/hovered — Qud's option look.
+func _option_button(cfg: Dictionary) -> Button:
+	var b := Button.new()
+	b.text = cfg.get("text", "")
+	b.focus_mode = Control.FOCUS_NONE
+	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	b.theme_type_variation = "Big"
+	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	b.add_theme_color_override("font_color", CREAM)
+	b.add_theme_color_override("font_hover_color", CREAM_HI)
+	b.add_theme_color_override("font_pressed_color", CREAM_HI)
+	b.add_theme_color_override("font_disabled_color", DIMMER)
+	# transparent chrome; the highlight is applied per-selection in _apply_selection()
+	for st in ["normal", "hover", "pressed", "focus", "disabled"]:
+		b.add_theme_stylebox_override(st, _flat(Color(0, 0, 0, 0)))
+	var idx := _rows.size()
+	b.mouse_entered.connect(func(): _select(idx))
+	b.pressed.connect(func(): _activate(idx))
+	return b
+
+func _flat(col: Color) -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = PANEL
-	sb.set_border_width_all(2)
-	sb.border_color = BORDER
+	sb.bg_color = col
+	sb.content_margin_left = 14
+	sb.content_margin_right = 14
+	sb.content_margin_top = 4
+	sb.content_margin_bottom = 4
 	sb.set_corner_radius_all(2)
-	for side in ["left", "right", "top", "bottom"]:
-		sb.set("content_margin_" + side, 16)
-	panel.add_theme_stylebox_override("panel", sb)
+	return sb
 
-	var v := VBoxContainer.new()
-	v.alignment = BoxContainer.ALIGNMENT_CENTER
-	v.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	v.add_theme_constant_override("separation", 10)
-	panel.add_child(v)
+# ── selection / enabled state ─────────────────────────────────────────────────────
 
-	_launch_btn = _menu_button("Checking for %s…" % Brand.BASE_GAME, _on_launch)
-	v.add_child(_launch_btn)
-	_status = _label("", DIM, "caption")
-	_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	v.add_child(_status)
-	v.add_child(_menu_button("Quit", func(): get_tree().quit()))
+func _select(idx: int) -> void:
+	if idx == _sel or idx < 0 or idx >= _rows.size():
+		return
+	_sel = idx
+	_apply_selection()
 
-	add_child(panel)
-	_place(panel, "menu")
+## Move selection to the next/previous ENABLED row (keyboard nav), wrapping.
+func _step(dir: int) -> void:
+	var n := _rows.size()
+	if n == 0:
+		return
+	var i := _sel
+	for _k in range(n):
+		i = (i + dir + n) % n
+		if _rows[i]["enabled"]:
+			_select(i)
+			return
 
-func _build_footer() -> void:
-	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 1)
-	v.add_child(_label("Made by  %s" % Brand.ORG_NAME, DIM, "caption"))
-	var note := _label(
-		"Renders your own installed copy of %s.\n%s © %s.  %s is %s-licensed." % [
-			Brand.BASE_GAME, Brand.BASE_GAME, Brand.BASE_GAME_RIGHTS_HOLDER,
-			Brand.GAME_NAME, Brand.LICENSE],
-		DIMMER, "caption")
-	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	v.add_child(note)
-	add_child(v)
-	_place(v, "links")
+func _apply_selection() -> void:
+	for i in range(_rows.size()):
+		var b: Button = _rows[i]["btn"]
+		var on: bool = (i == _sel) and _rows[i]["enabled"]
+		b.add_theme_stylebox_override("normal", _flat(SEL_BAR if on else Color(0, 0, 0, 0)))
+		b.add_theme_color_override("font_color", CREAM_HI if on else CREAM)
+
+## Qud disables Continue until there's a save to continue; we mirror that against the
+## live bridge — Continue lights up only while a modded Qud is running (a world to enter).
+func _refresh_enabled() -> void:
+	for row in _rows:
+		var act: String = row["cfg"].get("act", "")
+		var enabled := true
+		if act == "continue":
+			enabled = _qud_up
+		row["enabled"] = enabled
+		row["btn"].disabled = not enabled
+	# keep the selection on an enabled row
+	if _sel < _rows.size() and not _rows[_sel]["enabled"]:
+		_step(1)
+	_apply_selection()
+
+# ── hint bar + version corner ─────────────────────────────────────────────────────
 
 func _build_hint() -> void:
-	var l := _label("click to select", DIMMER, "caption")
+	var l := _label("↑↓  navigate      ↵  select      esc  quit", DIM, "caption")
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	add_child(l)
 	_place(l, "hint")
 
 func _build_version() -> void:
-	var l := _label("%s · %s" % [Brand.GAME_NAME, Brand.LICENSE], DIMMER, "caption")
+	# Qud's corner is a two-line version block; here it honestly names Raves in that style.
+	var l := _label("%s\nbuild %s" % [Brand.GAME_NAME, Brand.LICENSE], DIM, "caption")
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	l.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
 	add_child(l)
 	_place(l, "version")
 
-# ── launch / detect Qud ─────────────────────────────────────────────────────────
+# ── input ─────────────────────────────────────────────────────────────────────────
 
-## Poll the mod bridge: CONNECTED means a Qud with the Raves mod is running.
+func _unhandled_input(e: InputEvent) -> void:
+	if e.is_action_pressed("ui_down"):
+		_step(1); accept_event()
+	elif e.is_action_pressed("ui_up"):
+		_step(-1); accept_event()
+	elif e.is_action_pressed("ui_accept"):
+		_activate(_sel); accept_event()
+	elif e.is_action_pressed("ui_cancel"):
+		get_tree().quit(); accept_event()
+
+func _activate(idx: int) -> void:
+	if idx < 0 or idx >= _rows.size():
+		return
+	var row: Dictionary = _rows[idx]
+	if not row["enabled"]:
+		return
+	match String(row["cfg"].get("act", "")):
+		"continue":
+			_enter_viewer()
+		"new":
+			if not _qud_up and not _launching:
+				_launching = true
+				OS.shell_open(Brand.URL_STEAM_RUN)   # launch the installed copy
+			elif _qud_up:
+				_enter_viewer()
+		_:
+			pass  # cosmetic Qud item — no-op during the mimic phase
+
+func _enter_viewer() -> void:
+	if not _qud_up:
+		return
+	if _peer != null:
+		_peer.disconnect_from_host()          # free the probe; MainFrame owns the bridge next
+	get_tree().change_scene_to_file("res://MainFrame.tscn")
+
+# ── detect Qud (mod bridge) — drives Continue's enabled state ─────────────────────
+
 func _process(dt: float) -> void:
 	_peer.poll()
 	match _peer.get_status():
@@ -208,38 +327,7 @@ func _set_qud_up(up: bool) -> void:
 	_qud_up = up
 	if up:
 		_launching = false
-	_refresh_launch_ui()
-
-func _refresh_launch_ui() -> void:
-	if _launch_btn == null:
-		return
-	if _qud_up:
-		_launch_btn.text = "Enter viewer"
-		_set_status("%s is running" % Brand.BASE_GAME, OK)
-	elif _launching:
-		_launch_btn.text = "Launching %s…" % Brand.BASE_GAME
-		_set_status("waiting for %s to start…" % Brand.BASE_GAME, WARN)
-	else:
-		_launch_btn.text = "Launch %s" % Brand.BASE_GAME
-		_set_status("%s not detected" % Brand.BASE_GAME, DIM)
-
-func _set_status(txt: String, col: Color) -> void:
-	if _status != null:
-		_status.text = txt
-		_status.add_theme_color_override("font_color", col)
-
-func _on_launch() -> void:
-	if _qud_up:
-		_enter_viewer()
-	elif not _launching:
-		_launching = true
-		_refresh_launch_ui()
-		OS.shell_open(Brand.URL_STEAM_RUN)   # launch the installed copy
-
-func _enter_viewer() -> void:
-	if _peer != null:
-		_peer.disconnect_from_host()          # free the probe; MainFrame owns the bridge next
-	get_tree().change_scene_to_file("res://MainFrame.tscn")
+	_refresh_enabled()
 
 # ── UI helpers ──────────────────────────────────────────────────────────────────
 
@@ -251,12 +339,3 @@ func _label(txt: String, col := Color.WHITE, role := "body") -> Label:
 	if col != Color.WHITE:
 		l.add_theme_color_override("font_color", col)
 	return l
-
-func _menu_button(txt: String, cb: Callable) -> Button:
-	var b := Button.new()
-	b.text = txt
-	b.focus_mode = Control.FOCUS_NONE
-	b.alignment = HORIZONTAL_ALIGNMENT_CENTER
-	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	b.pressed.connect(cb)
-	return b
