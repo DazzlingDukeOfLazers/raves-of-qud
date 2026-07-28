@@ -37,6 +37,15 @@ const MUTED := Color8(0x5C, 0x66, 0x63)          # unselected / disabled / secon
 const HINT := Color8(0x8F, 0xA6, 0x9E)           # hotkey hint text
 const GOLD := Color8(0xC8, 0xA9, 0x4E)           # keycap accents in the hint
 
+## The box is built from Qud's OWN extracted frame sprites (title/chrome/, via the mod)
+## composed as Qud composes them (Frame/Border): a tiled dark panel, gold woven side +
+## bottom borders, and the gilded hieroglyph header on top. These fractions are each
+## piece's thickness relative to the box, from the dump (borderTop 350x69, borderSide
+## 18-wide, borderBot 339x18 on a 339x292 border). Absent sprites -> the styled fallback.
+const HEADER_H_FRAC := 0.185   # borderTop height / box height
+const SIDE_W_FRAC := 0.052     # borderSide width / box width
+const BOT_H_FRAC := 0.052      # borderBot height / box height
+
 ## Qud's real menu items, verbatim from Qud.UI.MainMenu. LeftOptions = the centred box;
 ## RightOptions = the bottom-left list. `act` maps an item to a Raves action for this
 ## mimic phase; "" = cosmetic (no-op for now).
@@ -60,6 +69,7 @@ const DEFAULT_LAYOUT := {
 }
 
 var _layout: Dictionary
+var _hl: Texture2D             # buttonHighlight sprite behind the selected option (if extracted)
 var _rows: Array = []          # box options only: [{btn,cfg,enabled}]
 var _sel := 0
 var _peer := StreamPeerTCP.new()
@@ -76,6 +86,7 @@ func _ready() -> void:
 	RenderingServer.set_default_clear_color(BG)
 
 	_layout = _load_layout()
+	_hl = _chrome("buttonHighlight.png")
 	_build_background()   # Qud's title cave-art from the install (if the mod exported it)
 	_build_logo()         # Qud's "CAVES OF QUD" wordmark (extracted), else a text fallback
 	_build_menu()         # the centred, gilded option box
@@ -159,54 +170,100 @@ func _load_title_png(file: String) -> Texture2D:
 # ── the centred option box ───────────────────────────────────────────────────────
 
 func _build_menu() -> void:
-	var panel := PanelContainer.new()
+	var box := Control.new()
+	box.name = "MenuBox"
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if not _build_chrome_frame(box):
+		_build_approx_frame(box)   # no extracted sprites yet — styled fallback
+
+	# the options, inset within the frame (below the header, between the side borders)
+	var opts := VBoxContainer.new()
+	opts.alignment = BoxContainer.ALIGNMENT_CENTER
+	opts.add_theme_constant_override("separation", 6)
+	opts.anchor_left = 0.09
+	opts.anchor_right = 0.91
+	opts.anchor_top = HEADER_H_FRAC + 0.04
+	opts.anchor_bottom = 1.0 - (BOT_H_FRAC + 0.03)
+	for k in ["left", "top", "right", "bottom"]:
+		opts.set("offset_" + k, 0.0)
+	for cfg in BOX_ITEMS:
+		var b := _option_button(cfg)
+		opts.add_child(b)
+		_rows.append({"btn": b, "cfg": cfg, "enabled": true})
+	box.add_child(opts)
+
+	add_child(box)
+	_place(box, "menu")
+
+## Reconstruct Qud's box from its OWN extracted frame sprites (title/chrome/), composed
+## the way Qud composes Frame/Border: tiled dark panel, woven gold side + bottom borders,
+## and the gilded hieroglyph header on top. Returns false if the sprites aren't present.
+func _build_chrome_frame(box: Control) -> bool:
+	var top := _chrome("borderTop.png")
+	if top == null:
+		return false
+	var bg := _chrome("panelBgTile.png")
+	if bg != null:   # dark weave panel, inset within the borders, native-scale tiled
+		var r := _edge(bg, TextureRect.STRETCH_TILE, SIDE_W_FRAC, HEADER_H_FRAC * 0.6,
+			1.0 - SIDE_W_FRAC, 1.0 - BOT_H_FRAC)
+		box.add_child(r)
+	var side := _chrome("borderSide.png")
+	if side != null:   # left + right woven borders (right mirrored)
+		box.add_child(_edge(side, TextureRect.STRETCH_SCALE, 0.0, HEADER_H_FRAC * 0.6,
+			SIDE_W_FRAC, 1.0 - BOT_H_FRAC * 0.4))
+		var rt := _edge(side, TextureRect.STRETCH_SCALE, 1.0 - SIDE_W_FRAC, HEADER_H_FRAC * 0.6,
+			1.0, 1.0 - BOT_H_FRAC * 0.4)
+		rt.flip_h = true
+		box.add_child(rt)
+	var bot := _chrome("borderBot.png")
+	if bot != null:   # bottom woven border
+		box.add_child(_edge(bot, TextureRect.STRETCH_SCALE, 0.0, 1.0 - BOT_H_FRAC, 1.0, 1.0))
+	# the gilded hieroglyph header last, on top (its ends carry the top corners)
+	box.add_child(_edge(top, TextureRect.STRETCH_SCALE, 0.0, 0.0, 1.0, HEADER_H_FRAC))
+	return true
+
+## A TextureRect anchored to a fractional sub-rect of its parent (the box), mouse-transparent.
+func _edge(tex: Texture2D, mode: int, al: float, at: float, ar: float, ab: float) -> TextureRect:
+	var r := TextureRect.new()
+	r.texture = tex
+	r.stretch_mode = mode
+	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	r.anchor_left = al
+	r.anchor_top = at
+	r.anchor_right = ar
+	r.anchor_bottom = ab
+	for k in ["left", "top", "right", "bottom"]:
+		r.set("offset_" + k, 0.0)
+	return r
+
+## Styled fallback when Qud's frame sprites haven't been extracted yet: a gold-bordered
+## dark panel with a header strip — the previous approximation.
+func _build_approx_frame(box: Control) -> void:
+	var panel := Panel.new()
+	panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = PANEL
 	sb.set_border_width_all(3)
 	sb.border_color = FRAME
 	sb.set_corner_radius_all(1)
-	for side in ["left", "right", "top", "bottom"]:
-		sb.set("content_margin_" + side, 0)
 	panel.add_theme_stylebox_override("panel", sb)
+	box.add_child(panel)
+	var header := Panel.new()
+	header.anchor_left = 0.0; header.anchor_right = 1.0
+	header.anchor_top = 0.0; header.anchor_bottom = HEADER_H_FRAC
+	for k in ["left", "top", "right", "bottom"]:
+		header.set("offset_" + k, 0.0)
+	header.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var hsb := StyleBoxFlat.new()
+	hsb.bg_color = HEADER_BG
+	hsb.border_width_bottom = 2
+	hsb.border_color = FRAME
+	header.add_theme_stylebox_override("panel", hsb)
+	box.add_child(header)
 
-	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 0)
-	panel.add_child(col)
-
-	col.add_child(_build_header())   # hieroglyph strip (approximated until extracted)
-
-	var opts := VBoxContainer.new()
-	opts.alignment = BoxContainer.ALIGNMENT_CENTER
-	opts.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	opts.add_theme_constant_override("separation", 8)
-	for side in ["left", "right"]:
-		opts.add_theme_constant_override("margin_" + side, 22)
-	for cfg in BOX_ITEMS:
-		var b := _option_button(cfg)
-		opts.add_child(b)
-		_rows.append({"btn": b, "cfg": cfg, "enabled": true})
-	# pad the option block with margins via a MarginContainer for breathing room
-	var mc := MarginContainer.new()
-	mc.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	for side in ["left", "right", "top", "bottom"]:
-		mc.add_theme_constant_override("margin_" + side, 18)
-	mc.add_child(opts)
-	col.add_child(mc)
-
-	add_child(panel)
-	_place(panel, "menu")
-
-## The header strip that carries Qud's gilded hieroglyph ornament. Approximated here as a
-## dark band under a gold rule; to be replaced by the extracted glyph sprite (TitleExporter).
-func _build_header() -> Control:
-	var wrap := PanelContainer.new()
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = HEADER_BG
-	sb.border_width_bottom = 2
-	sb.border_color = FRAME
-	wrap.add_theme_stylebox_override("panel", sb)
-	wrap.custom_minimum_size = Vector2(0, 34)
-	return wrap
+func _chrome(file: String) -> Texture2D:
+	return _load_title_png("chrome".path_join(file))
 
 ## One box option: focus-less, centre-aligned, transparent chrome. Selected = white,
 ## everything else = muted grey-green (Qud shows the selection by brightness, no bar).
@@ -227,6 +284,21 @@ func _option_button(cfg: Dictionary) -> Button:
 func _transparent() -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(0, 0, 0, 0)
+	sb.content_margin_top = 2
+	sb.content_margin_bottom = 2
+	return sb
+
+## The selected option's background: Qud's extracted buttonHighlight sprite if we have it,
+## else a faint flat bar. Kept subtle — selection reads mostly through the white text.
+func _highlight_box() -> StyleBox:
+	if _hl != null:
+		var st := StyleBoxTexture.new()
+		st.texture = _hl
+		st.content_margin_top = 2
+		st.content_margin_bottom = 2
+		return st
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.90, 0.86, 0.72, 0.10)
 	sb.content_margin_top = 2
 	sb.content_margin_bottom = 2
 	return sb
@@ -270,6 +342,8 @@ func _apply_selection() -> void:
 		var col: Color = SEL if on else MUTED
 		for role in ["font_color", "font_hover_color", "font_pressed_color", "font_disabled_color"]:
 			b.add_theme_color_override(role, col)
+		# Qud shows selection with its buttonHighlight sprite behind the option (if extracted)
+		b.add_theme_stylebox_override("normal", _highlight_box() if on else _transparent())
 
 ## Qud disables Continue until there's a save; we mirror that against the live bridge —
 ## Continue lights up (becomes selectable) only while a modded Qud is running.
