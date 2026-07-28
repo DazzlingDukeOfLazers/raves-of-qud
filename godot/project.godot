@@ -24,6 +24,7 @@ config/features=PackedStringArray("4.7", "Forward Plus")
 [autoload]
 
 Brand="*res://Brand.gd"
+Settings="*res://Settings.gd"
 
 [display]
 

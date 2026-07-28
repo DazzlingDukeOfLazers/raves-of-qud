@@ -14,6 +14,10 @@ extends RefCounted
 const FRAC := 0.0197        # body px = window_height * FRAC
 const MIN := 28             # absolute floor px — no text anywhere is smaller
 
+## Global multiplier on every UI size, set from the Options "Font scale" setting (Settings
+## autoload applies it at startup). 1.0 = the tuned default. Re-stamp themes after changing it.
+static var scale := 1.0
+
 ## Roles are multipliers of the body size, so the hierarchy scales together.
 const ROLE := {
 	"caption": 0.85,        # sub-labels, hints, captions
@@ -29,7 +33,7 @@ static func px(vp: Viewport, role := "body", bump := 0) -> int:
 	if vp != null:
 		h = vp.get_visible_rect().size.y
 	var mult := float(ROLE.get(role, 1.0))
-	return maxi(MIN, int(h * FRAC * mult) + bump)
+	return maxi(int(MIN * scale), int(h * FRAC * mult * scale) + bump)
 
 ## THE automatic hook: a project-wide default Theme carrying the body size + the bundled Atkinson
 ## font. Assign it to the ROOT viewport (Main does this) and EVERY Control that doesn't explicitly
