@@ -10,10 +10,11 @@ extends Control
 ## the background.png + logo.png are the player's OWN install art, exported by the mod
 ## (never redistributed). See TitleExporter.cs.
 ##
-## What we CAN'T extract, and so approximate ("pixel-faithful when possible"): Qud bakes
-## its menu typeface into TextMeshPro SDF atlases (no loose font ships), so the text is
-## rendered in the project's Atkinson face rather than Qud's serif; and the exact option
-## colours are estimated from the logo palette. Positions are DATA — the normalized
+## What we CAN'T extract, and so approximate ("pixel-faithful when possible"): Qud's menu
+## typeface is baked into TextMeshPro SDF atlases (no loose font ships). It's a SANS face,
+## so we render the options in the project's Atkinson sans — a close, legible match — rather
+## than trying to reproduce the exact glyphs. The option colours are estimated from the logo
+## palette. Positions are DATA — the normalized
 ## [x,y,w,h] rects live in `title_layout.json` in the RavesOfQud support dir, so tuning
 ## them is a JSON edit + relaunch, NO rebuild.
 ##
@@ -33,10 +34,8 @@ const DIM := Color(0.89, 0.85, 0.72, 0.55)        # hint / version / secondary
 const DIMMER := Color(0.89, 0.85, 0.72, 0.32)     # disabled option
 const SEL_BAR := Color(0.90, 0.86, 0.72, 0.11)    # translucent highlight behind selection
 
-## Qud's menu type is a Goudy-style serif baked into its TMP atlases (not shippable), so we
-## match it with Sorts Mill Goudy — the closest FREELY-REDISTRIBUTABLE (OFL) Goudy. Applied
-## only to the menu chrome here; the rest of the app keeps its Atkinson default.
-const SERIF_PATH := "res://fonts/SortsMillGoudy-Regular.ttf"
+## Qud's modern main menu is set in a SANS face, so the menu keeps the app's default
+## Atkinson (a clean, legible sans) rather than any serif — matching Qud's actual type.
 
 ## Qud's real menu items, verbatim from Qud.UI.MainMenu.LeftOptions / RightOptions.
 ## `act` names a Raves action for this mimic phase; "" = cosmetic (no-op for now).
@@ -66,7 +65,6 @@ const DEFAULT_LAYOUT := {
 }
 
 var _layout: Dictionary
-var _serif: Font
 var _rows: Array = []          # [{btn,label,cfg,enabled}]
 var _sel := 0
 var _peer := StreamPeerTCP.new()
@@ -82,7 +80,6 @@ func _ready() -> void:
 	get_window().title = Brand.title()
 	RenderingServer.set_default_clear_color(BG)
 
-	_serif = load(SERIF_PATH)
 	_layout = _load_layout()
 	_build_background()   # Qud's title cave-art from the install (if the mod exported it)
 	_build_logo()         # Qud's "CAVES OF QUD" wordmark (extracted), else a text fallback
@@ -153,7 +150,6 @@ func _build_logo() -> void:
 	var l := _label("CAVES OF QUD", CREAM, "big")
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_apply_serif(l)
 	add_child(l)
 	_place(l, "logo")
 
@@ -199,7 +195,6 @@ func _option_button(cfg: Dictionary) -> Button:
 	b.add_theme_color_override("font_hover_color", CREAM_HI)
 	b.add_theme_color_override("font_pressed_color", CREAM_HI)
 	b.add_theme_color_override("font_disabled_color", DIMMER)
-	_apply_serif(b)
 	# transparent chrome; the highlight is applied per-selection in _apply_selection()
 	for st in ["normal", "hover", "pressed", "focus", "disabled"]:
 		b.add_theme_stylebox_override(st, _flat(Color(0, 0, 0, 0)))
@@ -265,7 +260,6 @@ func _refresh_enabled() -> void:
 func _build_hint() -> void:
 	var l := _label("↑↓  navigate      ↵  select      esc  quit", DIM, "caption")
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_apply_serif(l)
 	add_child(l)
 	_place(l, "hint")
 
@@ -274,7 +268,6 @@ func _build_version() -> void:
 	var l := _label("%s\nbuild %s" % [Brand.GAME_NAME, Brand.LICENSE], DIM, "caption")
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	l.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
-	_apply_serif(l)
 	add_child(l)
 	_place(l, "version")
 
@@ -351,7 +344,3 @@ func _label(txt: String, col := Color.WHITE, role := "body") -> Label:
 		l.add_theme_color_override("font_color", col)
 	return l
 
-## Apply the menu serif to a control, if it loaded (theme default stays Atkinson elsewhere).
-func _apply_serif(c: Control) -> void:
-	if _serif != null:
-		c.add_theme_font_override("font", _serif)
