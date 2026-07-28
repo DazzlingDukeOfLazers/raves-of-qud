@@ -9,6 +9,15 @@ Every message is a frame:
 [ 4 bytes: payload length, big-endian ][ payload: UTF-8 JSON ]
 ```
 
+## Version handshake
+
+A mod `.cs` only compiles at Qud startup, so "deployed but not restarted" silently runs old behaviour.
+Every snapshot carries `mod` (human string, `Protocol.Build`) **and** `protocol` (int, `Protocol.Version`,
+monotonic). The client (`MainFrame.gd` `MIN_MOD_PROTOCOL` / `CLIENT_PROTOCOL`) compares and pins a
+message-log line: green "up to date", red "restart Caves of Qud" (mod too old), or yellow "re-export
+Raves" (client too old). **Bump `Protocol.Version` whenever the client comes to depend on a new field**,
+and raise `MIN_MOD_PROTOCOL` to match. History: `1` baseline · `2` `liquid` flag · `3` `onFire` flag.
+
 ## Server → client: `snapshot` (per turn, throttled — see "publish cadence" below)
 
 ```json
@@ -144,6 +153,9 @@ Per **object**:
 |----------|-------------------------------------|-----------------------------------------------|
 | `bridge` | `GameObject.HasIntProperty("Bridge")` | this object *is* the deck surface           |
 | `sinks`  | `IsCreature && !IsFlying`           | submerge this one; scenery/flyers keep height |
+| `lightRadius` | `LightSource.Radius` (only when `Lit`) | client places an additive glow-pool + flame of this radius |
+| `liquid` | `GameObject.LiquidVolume != null` (only when true) | a liquid pool — VOLATILE. Client **excludes it from the frozen-zone static signature**, else a wet player's wading sloshes water onto every cell and rebuilds the zone each step ("tiles vanish while walking") |
+| `onFire` | `HasPart("AnimatedMaterialFire")` (only when true) | Qud draws the flame procedurally, so the tile is flameless (a campfire's `sw_campfire_noflame.png`). Client draws a daytime-visible flame + smoke for these (the additive torch flame fades out by day) |
 
 The client's rule: **the water stays flat, the actor recesses.** `_cell_sink()`
 turns `wade`/`swim` into a fraction of the sprite's art to hide, and `bridge`

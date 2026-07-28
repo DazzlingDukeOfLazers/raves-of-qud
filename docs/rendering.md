@@ -129,13 +129,17 @@ vertex shade dropped so it doesn't double). Billboards/floors stay unshaded.
 - **Torch/fire light** (`_place_light`): the mod sends `lightRadius` (from `LightSource`); the
   client draws an additive warm **ground-glow** + a flickering **flame** billboard (both
   `BLEND_MODE_ADD`), flickered in `_process`. Qud's flame is procedural — there is no tile.
-- **Day/night** (`Main._grade`): a full-screen **MULTIPLY** ColorRect on CanvasLayer 0 (below the
-  UI) tints the whole viewport by the hour. Night cool blue, dawn/dusk warm, midday neutral.
-- **Sky** (`Main._env.background_color`): follows the hour too — the void behind the world.
-- **Sun & moon** (`Main._sun/_moon`): disc billboards on a tilted arc set by the hour; sun tracks
-  day, moon the night span, cross-fading at the boundaries.
-- **Sun light** (`Main._sun_light`): a `DirectionalLight3D` aimed down the sun's arc, energy fading
-  with daylight — this is what casts the wall shadows when `SHADED_WORLD`.
+- **Fire vs torch by day** (`onFire`): a torch's tile shows its own flame, so the additive flame is
+  faded to zero at midday (`_flame_mul`). But a CAMPFIRE's tile is flameless (`sw_campfire_noflame.png`
+  — the flame is procedural), so for `onFire` objects the client draws an **alpha-blended flame SHAPE**
+  (`_fire_tex`, kept visible day + night — additive washes out on a bright background) and emits
+  **smoke day + night**; the ground light-pool is gated to real darkness (`_fire_glow_mul`, off by day —
+  you can't see fire-light in daylight, and that blown-out pool read as a "second light"). The flame
+  texture was prototyped as a PNG in Python (temperature gradient, convex silhouette) before porting.
+- **Day/night** (`SkyGrade.gd`): a full-screen **MULTIPLY** ColorRect on a CanvasLayer tints the whole
+  viewport by the hour. Night cool blue, dawn/dusk warm, midday neutral. Sky colour, sun/moon disc
+  billboards on a tilted arc, and a sun `DirectionalLight3D` (energy fading with daylight, casts the wall
+  shadows under `SHADED_WORLD`) all live in SkyGrade too, fed each snapshot from `time` + the stratum.
 
 Time comes from `The.Game.Turns`/`Calendar` as **day-segments** (a day = `TurnsPerDay×10` = 12000;
 `StartOfDay`=3250=6:30, `StartOfNight`=10000=20:00). **Qud has no moon phase** (the only "moon" is

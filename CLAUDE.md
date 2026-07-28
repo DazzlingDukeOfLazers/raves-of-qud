@@ -27,9 +27,28 @@ component; other user interfaces (menus, character/inventory, etc.) are separate
 in prose for the player viewport. NOTE: this is the product name, not the Godot API — `get_viewport()`,
 `SubViewport`, and "the Godot viewport" stay as-is in code and technical notes.
 
-## Main gameplay frame (`MainFrame`) — the Holodeck's home
+## Boot chain + Holodeck components (2026-07-27)
 
-`project.godot` main scene is now **`MainFrame.tscn`** (was `Main.tscn`). `MainFrame.gd` (a `Control`,
+`project.godot` main scene is **`MainMenu.tscn`** — a launcher (`MainMenu.gd`) that stamps the window
+title from the **`Brand`** autoload (`Brand.gd`, the runtime source of truth for the game name / tagline /
+attribution / URLs; `config/name` in project.godot is just the export literal) and, on Play,
+`change_scene_to_file("res://MainFrame.tscn")`. So the runtime order is **MainMenu → MainFrame → Main
+(the Holodeck)**.
+
+**`Main.gd` is decomposed** — it was a ~1800-line god-object; the camera and its neighbours now live in
+their own files, each created in `Main._ready` and driven by thin delegates:
+- **`SkyGrade.gd`** — day/night atmosphere (WorldEnvironment/fog, the MULTIPLY grade, sun/moon, time→tint).
+- **`CameraRig.gd`** — the `_pivot`+`_cam` nodes, all 7 camera modes + placement math (`_cam_rig`; untyped
+  on purpose — a `class_name`'s cache is flaky under headless `--check-only`, so locals off `_cam_rig.*`
+  take explicit types, not `:=`).
+- **`Multiview.gd`** — the all-views SubViewport grid (`mv` godot-cmd toggles it headlessly).
+- **`RemoteControl.gd`** — the `godot_cmd` file poller (control.py channel); Main keeps `_exec_godot_cmd`.
+- **`DebugMenu.gd`** — the backtick menu (`dbg` godot-cmd toggles it); Main keeps the shared `_toggle_flat_2d`.
+- **`DirectionPicker.gd`** — the ability-prompt cursor (Make Camp). It `gui_release_focus()` on end so the
+  movement arrows return to the Holodeck; **any clickable UI over the Holodeck must be `FOCUS_NONE`** or the
+  focused control swallows the arrows (bit the command bar: "can't move after Make Camp").
+
+`MainFrame.gd` (a `Control`,
 built in code like the rest) is the 5-row gameplay chrome: status strip; HP/EXP + top menu; the
 **Holodeck | side panels** row; effects/target/context; command bar. The Holodeck (`Main.tscn`) renders
 **FULL-WINDOW into the root viewport** — its original, crash-free home. The chrome floats on top and
