@@ -31,8 +31,14 @@ const BAR_H_FRAC := 0.022
 var _mods: Array = []
 var _sel := 0
 var _rows: Array = []          # [{panel, mod}]
+var _list: VBoxContainer       # the mod-list column (rebuilt on refresh)
 var _preview: TextureRect
 var _preview_name: Label
+# Auto-refresh-on-open: when the bridge connects, ask Qud to re-export the mod list and reload it.
+var _peer := StreamPeerTCP.new()
+var _refreshed := false
+var _mods_mtime := 0
+var _reload_deadline := 0
 
 func _ready() -> void:
 	name = "ModsScreen"
@@ -61,6 +67,54 @@ func _ready() -> void:
 	_build_footer(frame)
 	_apply_selection()
 	_add_back()
+	_peer.connect_to_host(BridgeClient.host(), BridgeClient.port())   # for the live re-export on open
+
+## Auto-refresh on open: once the bridge is up, ask Qud to re-export its mod list, then reload
+## mods.json when it's rewritten so the screen shows the LIVE install (not the last export on disk).
+func _process(_dt: float) -> void:
+	_peer.poll()
+	var connected := _peer.get_status() == StreamPeerTCP.STATUS_CONNECTED
+	if connected and not _refreshed:
+		_refreshed = true
+		_mods_mtime = _mods_json_mtime()
+		_send_bridge({"type": "command", "name": "export"})
+		_reload_deadline = Time.get_ticks_msec() + 1200   # fallback if the mtime second doesn't tick
+	elif _refreshed and _reload_deadline > 0:
+		if _mods_json_mtime() > _mods_mtime or Time.get_ticks_msec() >= _reload_deadline:
+			_reload_deadline = 0
+			_reload_mods()
+
+func _exit_tree() -> void:
+	if _peer != null:
+		_peer.disconnect_from_host()
+
+## mods.json modified time (seconds); 0 if absent. Detects Qud rewriting it after our `export`.
+func _mods_json_mtime() -> int:
+	var path := InputModel.support_dir().path_join("mods.json")
+	return FileAccess.get_modified_time(path) if FileAccess.file_exists(path) else 0
+
+## Frame + send one bridge message ([4-byte BE len][JSON]). No-op unless Qud is connected.
+func _send_bridge(msg: Dictionary) -> void:
+	if _peer.get_status() != StreamPeerTCP.STATUS_CONNECTED:
+		return
+	var payload := JSON.stringify(msg).to_utf8_buffer()
+	var n := payload.size()
+	var frame := PackedByteArray()
+	frame.append((n >> 24) & 0xFF)
+	frame.append((n >> 16) & 0xFF)
+	frame.append((n >> 8) & 0xFF)
+	frame.append(n & 0xFF)
+	frame.append_array(payload)
+	_peer.put_data(frame)
+
+## Reload the mod list from disk and rebuild the left column, preserving the selection if possible.
+func _reload_mods() -> void:
+	_mods = _load_mods()
+	if _list == null:
+		return
+	_populate_list()
+	_sel = clampi(_sel, 0, maxi(0, _mods.size() - 1))
+	_apply_selection()
 
 ## A clickable "‹ Back" at a fixed bottom-left spot (Esc also works) — the mouse route back
 ## to the menu, and a stable target for the regression suite's reset step.
@@ -195,18 +249,11 @@ func _build_body(frame: Control) -> void:
 	for k in ["left", "top", "right", "bottom"]:
 		scroll.set("offset_" + k, 0.0)
 	frame.add_child(scroll)
-	var list := VBoxContainer.new()
-	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	list.add_theme_constant_override("separation", 10)
-	scroll.add_child(list)
-	if _mods.is_empty():
-		var empty := _text("No mods found. Play Caves of Qud once with Raves connected to populate this list.", VALUE, "body")
-		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		list.add_child(empty)
-	for i in range(_mods.size()):
-		var row := _mod_row(_mods[i], i)
-		list.add_child(row)
-		_rows.append({"panel": row, "mod": _mods[i]})
+	_list = VBoxContainer.new()
+	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_list.add_theme_constant_override("separation", 10)
+	scroll.add_child(_list)
+	_populate_list()
 
 	# RIGHT: preview panel for the selected mod
 	var right := VBoxContainer.new()
@@ -236,6 +283,21 @@ func _build_body(frame: Control) -> void:
 	_preview_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_preview_name.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	right.add_child(_preview_name)
+
+## Fill _list with a row per mod (or an empty note). Split out of _build_body so a live refresh
+## after the bridge re-export can clear + rebuild the column without rebuilding the whole window.
+func _populate_list() -> void:
+	_rows.clear()
+	for c in _list.get_children():
+		c.queue_free()
+	if _mods.is_empty():
+		var empty := _text("No mods found. Play Caves of Qud once with Raves connected to populate this list.", VALUE, "body")
+		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_list.add_child(empty)
+	for i in range(_mods.size()):
+		var row := _mod_row(_mods[i], i)
+		_list.add_child(row)
+		_rows.append({"panel": row, "mod": _mods[i]})
 
 func _mod_row(mod: Dictionary, idx: int) -> PanelContainer:
 	var panel := PanelContainer.new()

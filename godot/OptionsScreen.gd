@@ -32,11 +32,16 @@ const RAVES_ITEMS := [
 ]
 
 var _scroll: ScrollContainer
+var _body_col: VBoxContainer            # the reloadable option column (rebuilt on refresh)
 var _anchors: Dictionary = {}          # category name -> its header Control (sidebar jumps)
 var _qud_cats: Array = []              # Qud's options tree, from options.json
 var _peer := StreamPeerTCP.new()       # bridge link for WRITE-BACK (setoption) while Qud is in-game
 var _bridge := false
 var _status: Label
+# Auto-refresh-on-open: when the bridge connects, ask Qud to re-export NOW and reload the live tree.
+var _refreshed := false                # export fired once this open
+var _options_mtime := 0                # options.json mtime when we asked, to detect the rewrite
+var _reload_deadline := 0             # ms fallback: reload even if the mtime second didn't tick
 
 func _ready() -> void:
 	name = "OptionsScreen"
@@ -74,12 +79,44 @@ func _process(_dt: float) -> void:
 		_status.text = "● editing Qud live" if _bridge else "○ Qud not connected — edits apply when it's in-game"
 		_status.add_theme_color_override("font_color", Color8(0x5F, 0xC8, 0x5A) if _bridge else DIM)
 
+	# Auto-refresh on open: the moment the bridge is up, ask Qud to re-export its options tree, then
+	# reload options.json so the screen shows LIVE values (not whatever the last export left on disk).
+	if _bridge and not _refreshed:
+		_refreshed = true
+		_options_mtime = _qud_json_mtime()
+		_send_bridge({"type": "command", "name": "export"})
+		_reload_deadline = Time.get_ticks_msec() + 1200   # fallback if the mtime second doesn't tick
+	elif _refreshed and _reload_deadline > 0:
+		if _qud_json_mtime() > _options_mtime or Time.get_ticks_msec() >= _reload_deadline:
+			_reload_deadline = 0
+			_reload_options()
+
+## options.json modified time (seconds); 0 if absent. Used to detect Qud rewriting it after `export`.
+func _qud_json_mtime() -> int:
+	var path := InputModel.support_dir().path_join("options.json")
+	return FileAccess.get_modified_time(path) if FileAccess.file_exists(path) else 0
+
+## Reload the mirrored tree from disk and rebuild just the option column (sidebar/categories persist).
+func _reload_options() -> void:
+	_qud_cats = _load_qud_options()
+	if _body_col == null:
+		return
+	for c in _body_col.get_children():
+		c.queue_free()
+	_anchors.clear()
+	_populate_body()
+
 ## Write a Qud option back over the bridge (mod calls Options.SetOption). No-op if not connected.
 func _set_qud_option(id: String, value) -> void:
-	if id == "" or _peer.get_status() != StreamPeerTCP.STATUS_CONNECTED:
+	if id == "":
 		return
-	var msg := JSON.stringify({"type": "command", "name": "setoption", "id": id, "value": str(value)})
-	var payload := msg.to_utf8_buffer()
+	_send_bridge({"type": "command", "name": "setoption", "id": id, "value": str(value)})
+
+## Frame + send one bridge message ([4-byte BE len][JSON]). No-op unless Qud is connected.
+func _send_bridge(msg: Dictionary) -> void:
+	if _peer.get_status() != StreamPeerTCP.STATUS_CONNECTED:
+		return
+	var payload := JSON.stringify(msg).to_utf8_buffer()
 	var n := payload.size()
 	var frame := PackedByteArray()
 	frame.append((n >> 24) & 0xFF)
@@ -184,11 +221,16 @@ func _build_body() -> void:
 	_scroll.anchor_bottom = 0.9
 	_zero(_scroll)
 	add_child(_scroll)
-	var col := VBoxContainer.new()
-	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	col.add_theme_constant_override("separation", 5)
-	_scroll.add_child(col)
+	_body_col = VBoxContainer.new()
+	_body_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_body_col.add_theme_constant_override("separation", 5)
+	_scroll.add_child(_body_col)
+	_populate_body()
 
+## Fill _body_col from the current _qud_cats. Split out of _build_body so a live refresh (after the
+## bridge re-export) can clear + rebuild the column without touching the scroll/sidebar/header.
+func _populate_body() -> void:
+	var col := _body_col
 	# RAVES section — editable settings
 	_section_header(col, "Raves")
 	for item in RAVES_ITEMS:
