@@ -305,6 +305,7 @@ func _on_snapshot(data: Dictionary) -> void:
 	if z.has("width") and z.has("height"):
 		_zone_center = Vector3(float(z["width"]) / 2.0, 0.0, float(z["height"]) / 2.0)
 		_zone_dims = Vector2(float(z["width"]), float(z["height"]))
+		_cam_rig.set_zone_cells(_zone_dims)   # 1:1 zone-fit tracks the live zone size
 
 	# Read the player cell FIRST. An absent/invalid cell (a mid-teardown frame, or the
 	# player briefly having no cell) reports (-1,-1) — hold the last good camera state and

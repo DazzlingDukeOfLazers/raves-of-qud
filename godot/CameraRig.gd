@@ -20,15 +20,11 @@ const TOP_H := 20.0        # ortho eye height above the ground (scale is size, n
 const TOP_FIT_MARGIN := 1.06   # padding so the framed zone isn't flush to the edges
 const NORTH := Vector3(0, 0, -1)   # -z is north (Qud's y grows south); screen-up in top-down
 const TOP_FOLLOW_SPAN := 18.0  # TOP_FOLLOW vertical span (cells) at zoom 1.0 (user mode)
-# 1:1 (parity) mode uses its OWN top-down span so a tile renders the same pixel size as Qud at
-# 1600x900, separate from user TOP_FOLLOW (which stays 18). NOTE: this value is an initial estimate
-# and needs LIVE CALIBRATION against Qud — enter 1:1 with the viewport on at 1600x900, R/F-zoom until
-# a tile matches Qud, then set this to the matched span (R/F multiplies _top_zoom on top of it).
-const ONE_TO_ONE_SPAN := 24.0
 const TOP_ZOOM_MIN := 0.15
 const TOP_ZOOM_MAX := 3.5
 var _top_zoom := 1.0           # wheel / R-F zoom for the top-down follow mode
-var _one_to_one := false       # parity mode: use ONE_TO_ONE_SPAN instead of TOP_FOLLOW_SPAN
+var _one_to_one := false       # parity mode: fit the ZONE (biggest zoom-out) instead of TOP_FOLLOW_SPAN
+var _zone_cells := Vector2(80, 25)   # live zone dims in cells (pushed from Main), for the 1:1 zone-fit
 # Qud tiles are 16x24, so top-down stretches the world's north-south (Z) axis by 24/16 = 1.5 so cells
 # read 16:24 like Qud. Only in full-screen top-down (not perspective, not multi-view: shared world stays square).
 const TILE_ASPECT := 1.5
@@ -326,11 +322,34 @@ func _apply_top_down_camera(top: bool) -> void:
 		attrs.dof_blur_far_enabled = not top
 
 func _top_ortho_size() -> float:
-	return (ONE_TO_ONE_SPAN if _one_to_one else TOP_FOLLOW_SPAN) * _top_zoom
+	if _one_to_one:
+		# 1:1 (parity): the whole ZONE is the biggest zoom-out — the zone borders the view. _top_zoom
+		# only zooms IN from there (clamped <= 1), never out past the zone (user TOP_FOLLOW can go to
+		# ~1.5 zones; 1:1 stops at the zone edge).
+		return _zone_fit_size() * minf(_top_zoom, 1.0)
+	return TOP_FOLLOW_SPAN * _top_zoom
 
-## Enter/leave 1:1 (parity) framing. Resets the R/F zoom so the span is deterministic, and
-## re-applies the ortho size immediately if we're already in top-down (the toggle-while-in-
-## TOP_FOLLOW case, where set_mode is a no-op and wouldn't otherwise refresh the size).
+## Ortho vertical size that frames the WHOLE current zone (both axes) within the view, with a small
+## margin — the 1:1 "zone as border" biggest zoom-out. The zone is _zone_cells wide (E-W) and tall
+## (N-S), and the N-S axis is z-stretched by TILE_ASPECT, so it's fit against the viewport aspect.
+func _zone_fit_size() -> float:
+	var aspect := 16.0 / 9.0
+	if _cam != null:
+		var vp: Vector2 = _cam.get_viewport().get_visible_rect().size
+		if vp.y > 0.0:
+			aspect = vp.x / vp.y
+	var zh := _zone_cells.y * TILE_ASPECT   # zone N-S extent in world units (z-stretched)
+	var zw := _zone_cells.x                  # zone E-W extent in world units
+	return maxf(zh, zw / aspect) * TOP_FIT_MARGIN
+
+## The live zone's dimensions in cells (pushed from Main on each snapshot), for the 1:1 zone-fit.
+func set_zone_cells(v: Vector2) -> void:
+	if v.x > 0.0 and v.y > 0.0:
+		_zone_cells = v
+
+## Enter/leave 1:1 (parity) framing. Resets the zoom so the biggest zoom-out (the whole zone) is the
+## default, and re-applies the ortho size immediately if we're already in top-down (the toggle-while-
+## in-TOP_FOLLOW case, where set_mode is a no-op and wouldn't otherwise refresh the size).
 func set_one_to_one(on: bool) -> void:
 	_one_to_one = on
 	_top_zoom = 1.0
