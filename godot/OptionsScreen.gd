@@ -42,6 +42,13 @@ var _status: Label
 var _refreshed := false                # export fired once this open
 var _options_mtime := 0                # options.json mtime when we asked, to detect the rewrite
 var _reload_deadline := 0             # ms fallback: reload even if the mtime second didn't tick
+# Live fuzzy search + Advanced toggle. We filter by flipping each row's `visible` (no rebuild —
+# keeps widget state and stays snappy across ~194 options); a category header/spacer hides when empty.
+var _search := ""                      # current query (raw); matched case-insensitively
+var _show_advanced := false            # reveal options Qud currently hides (visible=false)
+var _sections: Array = []              # [{header, spacer, rows:[{node,label,hay,adv}]}]
+var _search_edit: LineEdit
+var _adv_btn: Button
 
 func _ready() -> void:
 	name = "OptionsScreen"
@@ -180,11 +187,40 @@ func _load_png(rel: String) -> Texture2D:
 func _build_header() -> void:
 	var l := _label("OPTIONS", GOLD, "title")
 	l.anchor_left = 0.17
-	l.anchor_right = 0.6
+	l.anchor_right = 0.45
 	l.anchor_top = 0.045
 	l.anchor_bottom = 0.095
 	_zero(l)
 	add_child(l)
+
+	# Inline fuzzy search — Qud pops a modal "Enter search text" dialog (an extra step); Raves filters
+	# the tree LIVE as you type, no dialog. Fuzzy: substring anywhere, or a subsequence of the label.
+	_search_edit = LineEdit.new()
+	_search_edit.placeholder_text = "Search options…"
+	_search_edit.clear_button_enabled = true
+	_search_edit.add_theme_color_override("font_color", LABEL)
+	_search_edit.anchor_left = 0.47
+	_search_edit.anchor_right = 0.80
+	_search_edit.anchor_top = 0.048
+	_search_edit.anchor_bottom = 0.092
+	_zero(_search_edit)
+	_search_edit.text_changed.connect(_on_search)
+	add_child(_search_edit)
+
+	# Advanced toggle — reveal options Qud currently hides (Requires/capability not met, visible=false).
+	_adv_btn = Button.new()
+	_adv_btn.focus_mode = Control.FOCUS_NONE
+	_adv_btn.flat = true
+	_adv_btn.add_theme_color_override("font_color", CYAN)
+	_adv_btn.add_theme_color_override("font_hover_color", SEL)
+	_adv_btn.anchor_left = 0.82
+	_adv_btn.anchor_right = 0.98
+	_adv_btn.anchor_top = 0.048
+	_adv_btn.anchor_bottom = 0.092
+	_zero(_adv_btn)
+	_adv_btn.text = _adv_label()
+	_adv_btn.pressed.connect(_toggle_advanced)
+	add_child(_adv_btn)
 
 func _build_sidebar() -> void:
 	var sc := ScrollContainer.new()
@@ -230,30 +266,103 @@ func _build_body() -> void:
 ## Fill _body_col from the current _qud_cats. Split out of _build_body so a live refresh (after the
 ## bridge re-export) can clear + rebuild the column without touching the scroll/sidebar/header.
 func _populate_body() -> void:
+	_sections.clear()
 	var col := _body_col
-	# RAVES section — editable settings
-	_section_header(col, "Raves")
+
+	# RAVES section — editable settings (searchable, never "advanced")
+	var rheader := _section_header_node("Raves")
+	col.add_child(rheader)
+	var rrows: Array = []
 	for item in RAVES_ITEMS:
-		col.add_child(_build_raves_setting(item))
-	col.add_child(_spacer(12))
+		var rrow := _build_raves_setting(item)
+		col.add_child(rrow)
+		rrows.append(_row_meta(rrow, str(item.get("label", "")),
+			str(item.get("label", "")) + " " + str(item.get("key", "")), false))
+	var rsp := _spacer(12)
+	col.add_child(rsp)
+	_sections.append({"header": rheader, "spacer": rsp, "rows": rrows})
 
-	# Qud's mirrored tree — display of the visible options in each category
+	# Qud's mirrored tree — every option is built once; the Advanced toggle + search decide what shows.
 	for cat in _qud_cats:
-		_section_header(col, str(cat.get("name", "?")))
-		var opts: Array = cat.get("options", [])
-		var shown := 0
-		for opt in opts:
-			if bool(opt.get("visible", true)):
-				col.add_child(_build_qud_option(opt))
-				shown += 1
-		if shown == 0:
-			col.add_child(_label("(no options shown — enable advanced options in Qud)", DIM, "caption"))
-		col.add_child(_spacer(12))
+		var header := _section_header_node(str(cat.get("name", "?")))
+		col.add_child(header)
+		var rows: Array = []
+		for opt in cat.get("options", []):
+			var row := _build_qud_option(opt)
+			col.add_child(row)
+			rows.append(_row_meta(row, str(opt.get("label", "")), _opt_hay(opt),
+				not bool(opt.get("visible", true))))
+		var sp := _spacer(12)
+		col.add_child(sp)
+		_sections.append({"header": header, "spacer": sp, "rows": rows})
 
-func _section_header(col: VBoxContainer, name: String) -> void:
+	_apply_filter()
+
+func _section_header_node(name: String) -> Label:
 	var h := _label("[-]  " + name.to_upper(), CYAN, "title")
-	col.add_child(h)
 	_anchors[name] = h
+	return h
+
+# ── search + advanced filtering ─────────────────────────────────────────────────────
+
+func _row_meta(node: Control, label: String, hay: String, adv: bool) -> Dictionary:
+	return {"node": node, "label": label.to_lower(), "hay": hay.to_lower(), "adv": adv}
+
+## Everything an option can be matched on. `keywords` arrives once the exporter ships it (older
+## exports omit it — harmless, we just fall back to label/help/id/category).
+func _opt_hay(opt: Dictionary) -> String:
+	return " ".join([str(opt.get("label", "")), str(opt.get("id", "")), str(opt.get("category", "")),
+		str(opt.get("keywords", "")), str(opt.get("help", ""))])
+
+func _on_search(txt: String) -> void:
+	_search = txt
+	_apply_filter()
+
+func _toggle_advanced() -> void:
+	_show_advanced = not _show_advanced
+	if _adv_btn != null:
+		_adv_btn.text = _adv_label()
+	_apply_filter()
+
+func _adv_label() -> String:
+	return ("[■]  " if _show_advanced else "[  ]  ") + "Advanced"
+
+## Show/hide each row for the current query + Advanced state; collapse a category with no matches.
+func _apply_filter() -> void:
+	var q := _search.strip_edges().to_lower()
+	for sec in _sections:
+		var shown := 0
+		for r in sec["rows"]:
+			var vis: bool = (_show_advanced or not r["adv"]) and (q == "" or _match(q, r))
+			r["node"].visible = vis
+			if vis:
+				shown += 1
+		sec["header"].visible = shown > 0
+		sec["spacer"].visible = shown > 0
+
+func _match(q: String, r: Dictionary) -> bool:
+	if String(r["hay"]).contains(q):
+		return true
+	return _subseq(q, String(r["label"]))
+
+## True if q is a COMPACT subsequence of hay (chars appear in order, not scattered across the whole
+## label) — the fuzzy part, e.g. "mvol"→"main volume". The span cap rejects loose hits like
+## "volume" landing on "display verbose level up messages". Exact substrings are handled by the caller.
+func _subseq(q: String, hay: String) -> bool:
+	if q == "":
+		return true
+	if hay.length() < q.length():
+		return false
+	var i := 0
+	var first := -1
+	for ci in hay.length():
+		if hay[ci] == q[i]:
+			if first < 0:
+				first = ci
+			i += 1
+			if i == q.length():
+				return (ci - first + 1) <= q.length() * 3
+	return false
 
 func _build_footer() -> void:
 	var l := RichTextLabel.new()
@@ -450,7 +559,13 @@ func _retheme() -> void:
 
 func _unhandled_input(e: InputEvent) -> void:
 	if e.is_action_pressed("ui_cancel"):
-		closed.emit()
+		if _search != "":                      # first Esc clears the search, second closes
+			_search = ""
+			if _search_edit != null:
+				_search_edit.text = ""
+			_apply_filter()
+		else:
+			closed.emit()
 		accept_event()
 
 func _exit_tree() -> void:

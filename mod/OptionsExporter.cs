@@ -81,6 +81,7 @@ namespace RavesOfQud
                     j.Member("visible", VisibleNow(o));   // Requires + platform capability met = Qud shows it
                     j.Member("restart", o.Restart);
                     j.Member("help", o.HelpText);
+                    j.Member("keywords", o.SearchKeywords);   // Qud's own search terms — enriches Raves' fuzzy search
                     j.EndObject();
                 }
                 j.EndArray();
