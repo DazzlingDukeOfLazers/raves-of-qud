@@ -523,10 +523,11 @@ namespace RavesOfQud
                     {
                         f.TryGetValue("id", out string oid);
                         f.TryGetValue("value", out string oval);
-                        if (!string.IsNullOrEmpty(oid))
-                        {
+                        f.TryGetValue("defer", out string odefer);   // "1" = batch apply: skip the
+                        if (!string.IsNullOrEmpty(oid))               //  per-call re-export; caller sends
+                        {                                            //  one "export" after the last one.
                             XRL.UI.Options.SetOption(oid, oval ?? "");
-                            OptionsExporter.ReExport();
+                            if (odefer != "1") OptionsExporter.ReExport();
                             Server.Log("[setoption] " + oid + " = " + oval);
                         }
                     }

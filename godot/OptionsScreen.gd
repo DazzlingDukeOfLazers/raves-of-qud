@@ -49,6 +49,9 @@ var _show_advanced := false            # reveal options Qud currently hides (vis
 var _sections: Array = []              # [{header, spacer, rows:[{node,label,hay,adv}]}]
 var _search_edit: LineEdit
 var _adv_btn: Button
+# Save/Load option presets — a whole options set (Raves settings + Qud option values) as one named
+# file in <support>/option_presets/, so you can jump deterministically between configs. See presets.py.
+var _preset_overlay: Control
 
 func _ready() -> void:
 	name = "OptionsScreen"
@@ -76,6 +79,7 @@ func _ready() -> void:
 	_build_body()
 	_build_footer()
 	_add_back()
+	_build_preset_bar()
 	_peer.connect_to_host(BridgeClient.host(), BridgeClient.port())   # for write-back to Qud
 
 ## Poll the bridge; Qud-option edits WRITE BACK only while a modded Qud is in-game (connected).
@@ -559,7 +563,9 @@ func _retheme() -> void:
 
 func _unhandled_input(e: InputEvent) -> void:
 	if e.is_action_pressed("ui_cancel"):
-		if _search != "":                      # first Esc clears the search, second closes
+		if _preset_overlay != null:            # a preset dialog is open — close it first
+			_close_preset_overlay()
+		elif _search != "":                    # then the search, second closes
 			_search = ""
 			if _search_edit != null:
 				_search_edit.text = ""
@@ -571,6 +577,229 @@ func _unhandled_input(e: InputEvent) -> void:
 func _exit_tree() -> void:
 	if _peer != null:
 		_peer.disconnect_from_host()
+
+# ── option presets (save/load a whole options set) ──────────────────────────────────
+
+const RAVES_KEYS := ["font_scale", "fullscreen", "full_info", "camera", "bridge_host", "bridge_port"]
+
+func _build_preset_bar() -> void:
+	var save_b := _preset_bar_button("Save preset", 0.155, 0.285)
+	save_b.pressed.connect(_open_save_overlay)
+	add_child(save_b)
+	var load_b := _preset_bar_button("Load preset", 0.295, 0.425)
+	load_b.pressed.connect(_open_load_overlay)
+	add_child(load_b)
+
+func _preset_bar_button(txt: String, al: float, ar: float) -> Button:
+	var b := Button.new()
+	b.text = txt
+	b.focus_mode = Control.FOCUS_NONE
+	b.flat = true
+	b.add_theme_color_override("font_color", GOLD)
+	b.add_theme_color_override("font_hover_color", SEL)
+	b.anchor_left = al
+	b.anchor_right = ar
+	b.anchor_top = 0.93
+	b.anchor_bottom = 0.985
+	_zero(b)
+	return b
+
+func _presets_dir() -> String:
+	var d := InputModel.support_dir().path_join("option_presets")
+	DirAccess.make_dir_recursive_absolute(d)
+	return d
+
+## Read every preset file into [{name, description, raves, qud, path}], sorted by name.
+func _list_presets() -> Array:
+	var out: Array = []
+	var dir := DirAccess.open(_presets_dir())
+	if dir == null:
+		return out
+	for fn in dir.get_files():
+		if not fn.ends_with(".json"):
+			continue
+		var f := FileAccess.open(_presets_dir().path_join(fn), FileAccess.READ)
+		if f == null:
+			continue
+		var d: Variant = JSON.parse_string(f.get_as_text())
+		if d is Dictionary:
+			d["path"] = _presets_dir().path_join(fn)
+			if not d.has("name"):
+				d["name"] = fn.trim_suffix(".json")
+			out.append(d)
+	out.sort_custom(func(a, b): return str(a.get("name", "")) < str(b.get("name", "")))
+	return out
+
+func _current_raves_settings() -> Dictionary:
+	var out := {}
+	for k in RAVES_KEYS:
+		out[k] = Settings.get_value(k, null)
+	return out
+
+func _current_qud_values() -> Dictionary:
+	var out := {}
+	for cat in _qud_cats:
+		for opt in cat.get("options", []):
+			var id := str(opt.get("id", ""))
+			if id != "":
+				out[id] = opt.get("value")
+	return out
+
+## Apply a preset live: Raves settings via Settings, Qud options over the bridge (one deferred batch
+## + a single export), then reload so the screen reflects the new values.
+func _apply_preset(preset: Dictionary) -> void:
+	var raves: Dictionary = preset.get("raves", {})
+	for k in raves:
+		Settings.set_value(k, raves[k])
+	if not raves.is_empty():
+		Settings.save()      # persists + apply_global (font scale / fullscreen take effect live)
+		_retheme()
+	var qud: Dictionary = preset.get("qud", {})
+	var applied_qud := false
+	if not qud.is_empty() and _peer.get_status() == StreamPeerTCP.STATUS_CONNECTED:
+		for id in qud:
+			var v = qud[id]
+			_send_bridge({"type": "command", "name": "setoption", "id": str(id),
+				"value": "" if v == null else str(v), "defer": "1"})
+		_send_bridge({"type": "command", "name": "export"})
+		_rearm_reload()      # _process reloads options.json once Qud rewrites it
+		applied_qud = true
+	_close_preset_overlay()
+	if not applied_qud:
+		_reload_options()    # still rebuild so the RAVES section shows the applied settings
+
+## Re-arm the on-open reload watcher so a fresh export (after applying qud options) gets picked up.
+func _rearm_reload() -> void:
+	_options_mtime = _qud_json_mtime()
+	_reload_deadline = Time.get_ticks_msec() + 1500
+
+func _save_preset(name: String, desc: String) -> void:
+	name = name.strip_edges()
+	if name == "":
+		return
+	var safe := name.to_lower().replace(" ", "-").replace("/", "-")
+	var preset := {
+		"name": name,
+		"description": desc.strip_edges(),
+		"created": Time.get_datetime_string_from_system(),
+		"raves": _current_raves_settings(),
+		"qud": _current_qud_values(),
+	}
+	var f := FileAccess.open(_presets_dir().path_join(safe + ".json"), FileAccess.WRITE)
+	if f != null:
+		f.store_string(JSON.stringify(preset, "  "))
+	_close_preset_overlay()
+
+# ── preset overlays (modal, centered) ────────────────────────────────────────────────
+
+func _close_preset_overlay() -> void:
+	if _preset_overlay != null:
+		_preset_overlay.queue_free()
+		_preset_overlay = null
+
+## A dim scrim + a centered gilded panel holding `body`; returns the panel's inner VBox to fill.
+func _preset_modal(title: String) -> VBoxContainer:
+	_close_preset_overlay()
+	var scrim := ColorRect.new()
+	scrim.color = Color(0, 0, 0, 0.6)
+	scrim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	scrim.mouse_filter = Control.MOUSE_FILTER_STOP
+	scrim.gui_input.connect(func(e):
+		if e is InputEventMouseButton and e.pressed:
+			_close_preset_overlay())
+	add_child(scrim)
+	_preset_overlay = scrim
+	# A fixed-anchored Panel (NOT PanelContainer) so the box keeps a bounded width and long
+	# descriptions wrap inside it instead of stretching the panel across the screen.
+	var panel := Panel.new()
+	panel.anchor_left = 0.30
+	panel.anchor_right = 0.70
+	panel.anchor_top = 0.26
+	panel.anchor_bottom = 0.74
+	_zero(panel)
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	panel.gui_input.connect(func(_e): accept_event())   # clicks inside don't dismiss
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.04, 0.05, 0.055, 0.98)
+	sb.set_border_width_all(1)
+	sb.border_color = FRAME
+	panel.add_theme_stylebox_override("panel", sb)
+	scrim.add_child(panel)
+	var margin := MarginContainer.new()
+	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_zero(margin)
+	for k in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + k, 18)
+	panel.add_child(margin)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 10)
+	margin.add_child(v)
+	v.add_child(_label(title, GOLD, "title"))
+	return v
+
+func _open_load_overlay() -> void:
+	var v := _preset_modal("Load preset")
+	var presets := _list_presets()
+	if presets.is_empty():
+		v.add_child(_label("No presets yet. Save one here, or run  presets.py sync  to pull the committed fixtures.", DIM, "caption"))
+	else:
+		var scroll := ScrollContainer.new()
+		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		var list := VBoxContainer.new()
+		list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		list.add_theme_constant_override("separation", 6)
+		scroll.add_child(list)
+		v.add_child(scroll)
+		for p in presets:
+			var b := _flat_button()
+			b.text = "›  " + str(p.get("name", "?"))
+			b.tooltip_text = str(p.get("description", ""))
+			var desc := str(p.get("description", ""))
+			var row := VBoxContainer.new()
+			row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			row.add_theme_constant_override("separation", 0)
+			row.add_child(b)
+			if desc != "":
+				var dl := _label("      " + desc, DIM, "caption")
+				dl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+				row.add_child(dl)
+			var preset: Dictionary = p
+			b.pressed.connect(func(): _apply_preset(preset))
+			list.add_child(row)
+	v.add_child(_preset_cancel_row())
+
+func _open_save_overlay() -> void:
+	var v := _preset_modal("Save preset")
+	v.add_child(_label("Snapshot the current Raves settings + all Qud option values.", DIM, "caption"))
+	var name_edit := LineEdit.new()
+	name_edit.placeholder_text = "name (e.g. compass-fullinfo)"
+	name_edit.add_theme_color_override("font_color", LABEL)
+	v.add_child(name_edit)
+	var desc_edit := LineEdit.new()
+	desc_edit.placeholder_text = "description — why this preset exists"
+	desc_edit.add_theme_color_override("font_color", LABEL)
+	v.add_child(desc_edit)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 20)
+	var save_b := _flat_button()
+	save_b.text = "Save"
+	save_b.add_theme_color_override("font_color", GOLD)
+	save_b.pressed.connect(func(): _save_preset(name_edit.text, desc_edit.text))
+	name_edit.text_submitted.connect(func(_t): _save_preset(name_edit.text, desc_edit.text))
+	row.add_child(save_b)
+	var cancel_b := _flat_button()
+	cancel_b.text = "Cancel"
+	cancel_b.pressed.connect(_close_preset_overlay)
+	row.add_child(cancel_b)
+	v.add_child(row)
+
+func _preset_cancel_row() -> Control:
+	var b := _flat_button()
+	b.text = "Cancel"
+	b.add_theme_color_override("font_color", DIM)
+	b.pressed.connect(_close_preset_overlay)
+	return b
 
 func _check(on: bool) -> String:
 	return "[■]  " if on else "[  ]  "
