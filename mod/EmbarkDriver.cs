@@ -1,6 +1,8 @@
 using System;
+using System.Threading;          // post-boot popup-suppress window
 using UnityEngine;               // GameObject.GetComponent
 using XRL;                       // The
+using XRL.UI;                    // Popup (Popup.Suppress)
 using XRL.CharacterBuilds;       // EmbarkBuilder, AbstractEmbarkBuilderModule(Data)
 using XRL.CharacterBuilds.Qud;   // the concrete Qud modules + their *Data types
 
@@ -109,6 +111,14 @@ namespace RavesOfQud
                     "[raves] embark: driving builder (genotype=" + spec.Genotype +
                     ", subtype=" + spec.Subtype + ") -> exitWithInfo.");
 
+                // Raves is driving, so the player watches Raves — not Qud's window. Both post-boot
+                // gates ("You embark for the caves of Qud" and the opening-story beat) are
+                // Popup.Show() calls, which no-op (log-only) while Popup.Suppress is set. Suppress
+                // across the boot + first turn so the game reaches a live zone on its own (the gate
+                // text still lands in the message log, which Raves reads); a watchdog clears it.
+                XRL.UI.Popup.Suppress = true;
+                StartSuppressWindow();
+
                 // Builds the EmbarkInfo from the (now-populated) enabled modules, tears down the
                 // chargen windows, and completes Begin()'s finishedEvent -> NewGame boots.
                 eb.exitWithInfo();
@@ -129,6 +139,37 @@ namespace RavesOfQud
             if (m == null)
                 throw new InvalidOperationException("Embark module not found: " + typeof(T).Name);
             m.setData(data);
+        }
+
+        /// <summary>
+        /// Watchdog that clears <see cref="Popup.Suppress"/> once the boot has passed both gates:
+        /// the world build (~30s) finishes BEFORE Game.Running, then the "You embark" popup and the
+        /// first-turn opening beat fire within a few seconds of Running. Wait for Running + a short
+        /// tail, then re-enable popups. A hard timeout guarantees we never leave popups suppressed.
+        /// </summary>
+        private static void StartSuppressWindow()
+        {
+            var t = new Thread(() =>
+            {
+                try
+                {
+                    // Up to ~90s for the world build; then a tail to cover the two post-boot popups.
+                    for (int i = 0; i < 180 && (The.Game == null || !The.Game.Running); i++)
+                        Thread.Sleep(500);
+                    Thread.Sleep(6000);
+                }
+                catch (Exception e)
+                {
+                    System.Console.WriteLine("[raves] suppress-window error: " + e.Message);
+                }
+                finally
+                {
+                    XRL.UI.Popup.Suppress = false;   // ALWAYS restore popups
+                    System.Console.WriteLine("[raves] embark: popup suppression lifted.");
+                }
+            })
+            { IsBackground = true, Name = "RavesEmbarkSuppress" };
+            t.Start();
         }
     }
 }

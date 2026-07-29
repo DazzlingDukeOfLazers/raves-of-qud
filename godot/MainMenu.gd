@@ -527,8 +527,33 @@ func _on_genotype_chosen(genotype_name: String) -> void:
 
 func _on_subtype_chosen(subtype_name: String) -> void:
 	_cg_subtype = subtype_name
-	# TODO(chargen): open the Attributes stage next; then Mutations/Cybernetics, Summary, Embark.
 	_close_overlay()
+	# Vertical slice: genotype + subtype is enough to embark. (Attributes / Mutations /
+	# Cybernetics / Summary stages will slot in BEFORE this step as they're built.)
+	_embark()
+
+## Send the assembled build to the mod, which skips Qud's chargen and boots straight into a
+## running game (see mod/EmbarkDriver.cs), then switch Raves to the Holodeck to watch it.
+func _embark() -> void:
+	if _cg_genotype == "" or _cg_subtype == "":
+		return
+	if not _qud_up or _peer.get_status() != StreamPeerTCP.STATUS_CONNECTED:
+		push_warning("Raves: can't embark — bridge not connected")
+		return
+	_send_embark(_cg_genotype, _cg_subtype)
+	_enter_viewer()   # data-first, same as Continue: MainFrame auto-connects once the game is live
+
+func _send_embark(genotype: String, subtype: String) -> void:
+	var msg := {"type": "command", "name": "embark", "genotype": genotype, "subtype": subtype}
+	var payload := JSON.stringify(msg).to_utf8_buffer()
+	var n := payload.size()
+	var frame := PackedByteArray()
+	frame.append((n >> 24) & 0xFF)
+	frame.append((n >> 16) & 0xFF)
+	frame.append((n >> 8) & 0xFF)
+	frame.append(n & 0xFF)
+	frame.append_array(payload)
+	_peer.put_data(frame)
 
 ## The subtype family a genotype uses ("Castes"/"Callings"), from chargen.json's genotype entry.
 func _genotype_subtype_class(genotype_name: String) -> String:
