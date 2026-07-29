@@ -96,13 +96,22 @@ func set_full_info(full: bool) -> void:
 	_full = full
 	_rerender()
 
-## 1:1 (parity) mode: render the Qud-faithful message log instead of the QoL variant.
-## (Qud-faithful render branch: TODO — the 1:1 panel pass; foundation stores the flag + re-renders.)
+## 1:1 (parity) mode: render the Qud-faithful log — verbatim colored text, NO inline pictographs and no
+## verbatim/filter toggle (Qud has neither). Reverting restores the QoL icons + toggle.
 var _one_to_one := false
+var _saved_filter := false   # user's verbatim/filter choice, restored when leaving 1:1
 func set_one_to_one(on: bool) -> void:
 	if on == _one_to_one:
 		return
 	_one_to_one = on
+	if _toggle != null:
+		_toggle.visible = not on
+	if on:
+		_saved_filter = _filter
+		_filter = false          # Qud shows the raw recent log, newest at the bottom
+	else:
+		_filter = _saved_filter  # restore the user's log mode
+		_refresh_toggle()
 	_rerender()
 
 ## Index the zone's objects by lowercased display name -> object dict, so a log line's text can be
@@ -219,13 +228,14 @@ func _render_filter() -> void:
 ## Append one log line: if its text names a zone object, inline that object's icon first (perceived
 ## or real per the global toggle), then the coloured text.
 func _append_line(markup: String) -> void:
-	var img_h := UiFont.px(get_viewport(), "body") * 2   # doubled — chunky inline pictographs
-	var img_w := int(round(img_h * 16.0 / 24.0))
-	for obj in _icons_for(markup):
-		var tex: Texture2D = _tiles.texture_for(obj, _full)
-		if tex != null:
-			_rt.add_image(tex, img_w, img_h)
-			_rt.append_text(" ")
+	if not _one_to_one:   # QoL only: inline the object/landmark pictograph. Qud's log is plain text.
+		var img_h := UiFont.px(get_viewport(), "body") * 2   # doubled — chunky inline pictographs
+		var img_w := int(round(img_h * 16.0 / 24.0))
+		for obj in _icons_for(markup):
+			var tex: Texture2D = _tiles.texture_for(obj, _full)
+			if tex != null:
+				_rt.add_image(tex, img_w, img_h)
+				_rt.append_text(" ")
 	_rt.append_text(QudText.to_bbcode(markup, _palette) + "\n")
 
 ## The icons for a log line, in order: the player's own icon FIRST if the line says "you" (the subject),

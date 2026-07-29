@@ -61,6 +61,17 @@ var _info_btn: Button       # top-menu Perceived/Full toggle
 var _full_info := bool(Settings.get_value("full_info", false))  # perceived (false) vs full; Options default
 var _panels: Array = []     # every sub-view; each has set_snapshot(data) (some also set_full_info)
 
+# --- 1:1 (parity) layout handles ----------------------------------------------
+# In 1:1 mode the chrome is reshaped to match Qud: a wider side column, the verbose top menu collapses
+# to Qud's compact icon cluster, and the dev (Connect / viewport) strip is hidden. User mode is untouched.
+var _menu_verbose: HBoxContainer   # user-mode top menu (verbose text buttons)
+var _menu_compact: HBoxContainer   # 1:1 top menu (Qud's compact icon cluster)
+var _row_split: HSplitContainer    # row-3 split (holo | side); sidebar width set per mode
+var _side: VBoxContainer           # the row-3 side column (panels)
+var _dev_bar: Control              # holodeck cell's Connect/Turn-on-viewport strip (hidden in 1:1)
+const SIDEBAR_FRAC_1TO1 := 0.28    # Qud's right sidebar ≈ 28% of window width (measured at 1600×900)
+const SIDEBAR_W_USER := 320.0      # user-mode side-column min width (the original value)
+
 # Mod-version handshake. The mod sends `protocol` (mod/Protocol.cs Version) each snapshot; the client
 # requires at least MIN and understands up to CLIENT. Mismatch -> a message-log status line, so a stale
 # mod (deployed but Qud not restarted) is visible instead of silently shipping old behaviour.
@@ -106,6 +117,9 @@ func _ready() -> void:
 
 func _on_resize() -> void:
 	UiFont.refresh_theme(theme, get_viewport())
+	# The 1:1 sidebar is a fraction of the window, and the camera inset derives from it — re-apply both.
+	if Settings.one_to_one():
+		_apply_layout_mode(true)
 
 func _input(e: InputEvent) -> void:
 	if e is InputEventKey and e.pressed and not e.echo and e.keycode == KEY_F12:
@@ -277,22 +291,34 @@ func _row_vitals_menu() -> Control:
 	vb.add_child(xp)
 	h.add_child(vitals)
 
-	# col 2 — top menu, a compact cluster hugging the right (Qud's top-right icon menu)
+	# col 2 — top menu, a compact cluster hugging the right (Qud's top-right icon menu). Two variants
+	# live here; _apply_menu_mode shows one. VERBOSE (user): labelled buttons. COMPACT (1:1): Qud's
+	# six icons only, for parity. Both are cosmetic placeholders except the Perceived/Full toggle.
 	var menu := _strip()
 	menu.size_flags_horizontal = Control.SIZE_SHRINK_END
-	var mh := HBoxContainer.new()
-	mh.add_theme_constant_override("separation", 4)
-	menu.add_child(mh)
-	mh.add_child(_menu_btn("≡"))
+
+	_menu_verbose = HBoxContainer.new()
+	_menu_verbose.add_theme_constant_override("separation", 4)
+	menu.add_child(_menu_verbose)
+	_menu_verbose.add_child(_menu_btn("≡"))
 	# Global Perceived/Full toggle (debug): drives Target, Context menu, Nearby objects (and the log,
 	# once it has icons). Default = perceived — what the player actually sees.
 	_info_btn = Button.new()
 	_info_btn.focus_mode = Control.FOCUS_NONE
 	_info_btn.pressed.connect(_toggle_full_info)
-	mh.add_child(_info_btn)
+	_menu_verbose.add_child(_info_btn)
 	for label in ["🔒 Lock", "🗺 Minimap", "Look", "Wait", "Character",
 			"POI", "Auto-explore", "▼ Down", "▲ Up"]:
-		mh.add_child(_menu_btn(label))
+		_menu_verbose.add_child(_menu_btn(label))
+
+	# Qud's compact top-right cluster: menu · lock · abilities · journal · look · wait. Hidden until 1:1.
+	_menu_compact = HBoxContainer.new()
+	_menu_compact.add_theme_constant_override("separation", 4)
+	_menu_compact.visible = false
+	menu.add_child(_menu_compact)
+	for icon in ["≡", "🔒", "🅰", "📖", "🔍", "⏳"]:
+		_menu_compact.add_child(_menu_btn(icon))
+
 	h.add_child(menu)
 	return h
 
@@ -316,6 +342,7 @@ func _apply_full_info() -> void:
 # persist the choice so the next launch (and presets) stick.
 func _on_one_to_one_changed(on: bool) -> void:
 	_set_panels_one_to_one(on)
+	_apply_layout_mode(on)
 	Settings.set_value("mode", "1to1" if on else "user")
 	Settings.save()
 
@@ -324,20 +351,56 @@ func _set_panels_one_to_one(on: bool) -> void:
 		if p.has_method("set_one_to_one"):
 			p.set_one_to_one(on)
 
+## Reshape the chrome to match Qud (1:1) or restore the QoL layout (user). Three moves: widen the side
+## column, swap the top menu to Qud's compact icons, and drop the dev strip. Idempotent + re-run on
+## resize (the sidebar width is a fraction of the window). Safe before the Holodeck connects.
+func _apply_layout_mode(on: bool) -> void:
+	if _menu_verbose != null:
+		_menu_verbose.visible = not on
+	if _menu_compact != null:
+		_menu_compact.visible = on
+	if _dev_bar != null:
+		# In 1:1 the strip is redundant (connect auto-runs, viewport auto-enables) — hide it once
+		# connected so the play hole starts at the top like Qud. Before connect it stays up as a fallback.
+		_dev_bar.visible = not (on and _holo != null)
+	if _side != null and _row_split != null:
+		if on:
+			var w := float(get_viewport().get_visible_rect().size.x)
+			_side.custom_minimum_size = Vector2(maxf(SIDEBAR_W_USER, round(w * SIDEBAR_FRAC_1TO1)), 0)
+			_row_split.split_offset = 0   # deterministic: side = its min width, holo takes the rest
+		else:
+			_side.custom_minimum_size = Vector2(SIDEBAR_W_USER, 0)
+			_row_split.split_offset = 900
+	_push_play_inset(on)
+
+## Tell the Holodeck camera what fraction of the window the sidebar now covers, so the 1:1 zone-fit
+## recentres the view in the visible play hole (left of the sidebar) instead of the full window.
+func _push_play_inset(one_to_one: bool) -> void:
+	if _holo == null or not _holo.has_method("set_ui_right_inset"):
+		return
+	var frac := 0.0
+	if one_to_one:
+		var w := float(get_viewport().get_visible_rect().size.x)
+		if w > 0.0 and _side != null:
+			frac = clampf(_side.custom_minimum_size.x / w, 0.0, 0.6)
+	_holo.set_ui_right_inset(frac)
+
 # ── row 3: Holodeck  |grabby|  side panels  (expands to fill) ─────────────────
 
 func _row_main() -> Control:
 	var split := HSplitContainer.new()
 	split.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	split.split_offset = 900   # give the Holodeck the lion's share; user can drag the separator
+	_row_split = split
 
 	var holo := _holodeck_cell()
 	holo.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	split.add_child(holo)
 
 	var side := VBoxContainer.new()
-	side.custom_minimum_size = Vector2(320, 0)
+	side.custom_minimum_size = Vector2(SIDEBAR_W_USER, 0)
 	side.add_theme_constant_override("separation", 4)
+	_side = side
 	_minimap = load("res://MinimapView.gd").new()    # the real Minimap view (its own file)
 	_minimap.custom_minimum_size = Vector2(0, 220)
 	_nearby = load("res://NearbyObjects.gd").new()   # the real Nearby objects view (its own file)
@@ -370,6 +433,7 @@ func _holodeck_cell() -> Control:
 	_holo_host.add_theme_constant_override("separation", 2)
 
 	var bar := _strip()
+	_dev_bar = bar            # hidden in 1:1 (Qud has no such strip); the play hole then starts at the top
 	var bh := HBoxContainer.new()
 	bh.add_theme_constant_override("separation", 6)
 	bar.add_child(bh)
@@ -422,6 +486,8 @@ func _connect_holodeck() -> void:
 	_holo.set_one_to_one(Settings.one_to_one())
 	if Settings.one_to_one():
 		_set_panels_one_to_one(true)            # ensure panels match on a 1:1 launch
+		_apply_layout_mode(true)                # widen sidebar, compact menu, drop dev strip, recentre cam
+		_enable_viewport.call_deferred()        # 1:1 is a parity view — bring the 3D up automatically
 
 ## Stage 2 — bring the 3D up: build + render the current zone into the root viewport. No SubViewport
 ## present-flip to race the Metal driver (that was the crash); this is the path standalone Main always

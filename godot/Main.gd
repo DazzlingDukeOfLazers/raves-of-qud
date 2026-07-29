@@ -84,6 +84,7 @@ var embedded := false
 ## set_render_3d(true) to bring the viewport up separately. Default true = standalone renders normally.
 var render_3d := true
 var _ui_theme: Theme   # project-wide default theme (UiFont) on the root viewport — see _ready
+var _ui_right_inset := 0.0   # 1:1: fraction of the window the side panels cover; recentres the cam (MainFrame pushes it)
 
 # Responsive HUD text: a fraction of viewport height, but never below a floor —
 # "min(px, %vh)" web sensibility, re-applied on window resize.
@@ -100,6 +101,7 @@ func _apply_ui_fonts() -> void:
 	# top-down ortho span toward user-mode framing, which breaks the 1:1 match at a fixed size.
 	if _one_to_one and render_3d and _cam_rig != null:
 		_cam_rig.set_one_to_one(true)
+		_cam_rig.set_right_inset(_ui_right_inset)   # the inset is a fraction of the window — track resizes
 	UiFont.refresh_theme(_ui_theme, get_viewport())   # keep the project-wide default in sync with the window
 	_stamp_theme_roots(get_tree().root)               # make the default theme cross CanvasLayer boundaries
 	var fs := _ui_font_size()
@@ -249,6 +251,7 @@ func set_render_3d(on: bool) -> void:
 	if on:
 		if _one_to_one:
 			_cam_rig.set_one_to_one(true)         # robust: 1:1 span even if already TOP_FOLLOW
+			_cam_rig.set_right_inset(_ui_right_inset)   # recentre the view in the play hole
 			_set_mode(CamMode.TOP_FOLLOW, true)   # enter the 1:1 camera as the viewport comes up
 		var live: Dictionary = store.live_snapshot()
 		if not live.is_empty():
@@ -538,6 +541,13 @@ func set_one_to_one(on: bool) -> void:
 
 func toggle_one_to_one() -> void:
 	set_one_to_one(not _one_to_one)
+
+## MainFrame tells us how much of the window the 1:1 side panels cover (0..~0.4). The camera shifts its
+## lens so the zone-fit centres in the visible play hole (left of the sidebar), not the full window.
+func set_ui_right_inset(frac: float) -> void:
+	_ui_right_inset = clampf(frac, 0.0, 0.6)
+	if _cam_rig != null:
+		_cam_rig.set_right_inset(_ui_right_inset)
 
 ## One gesture -> everything a collaborator needs about a tile. Photograph the BARE
 ## scene FIRST (no selection overlay), then inspect — so shot.png is a clean plate

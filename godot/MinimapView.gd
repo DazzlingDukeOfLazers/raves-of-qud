@@ -24,6 +24,7 @@ var _palette := {}
 var _rect: TextureRect
 var _tex: ImageTexture   # reused across snapshots; only reallocated when the zone size changes
 var _toggle: Button
+var _title: Label      # header — "Minimap" (user) or the zone name (1:1, Qud-style)
 var _mode := MODE_FULL
 var _last_data := {}   # last snapshot, so a mode toggle re-renders without waiting for a new one
 
@@ -43,11 +44,11 @@ func _ready() -> void:
 
 	var head := HBoxContainer.new()
 	v.add_child(head)
-	var title := Label.new()
-	title.text = "Minimap"
-	title.add_theme_font_size_override("font_size", UiFont.px(get_viewport(), "title"))
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	head.add_child(title)
+	_title = Label.new()
+	_title.text = "Minimap"
+	_title.add_theme_font_size_override("font_size", UiFont.px(get_viewport(), "title"))
+	_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(_title)
 	_toggle = Button.new()
 	_toggle.focus_mode = Control.FOCUS_NONE
 	_toggle.pressed.connect(_toggle_mode)
@@ -68,16 +69,38 @@ func set_snapshot(data: Dictionary) -> void:
 	if not pal.is_empty():
 		_palette = pal
 	_tiles.palette = _palette
+	if _one_to_one:
+		_update_title_1to1()   # Qud puts the zone name atop the minimap; keep it live as we travel
 	_rerender()
 
-## 1:1 (parity) mode: render a Qud-faithful minimap instead of the QoL variant. Master switch is
-## MainFrame/Holodeck; here we just record it + re-render. (Qud-faithful render branch: TODO — the
-## 1:1 panel pass; foundation only stores the flag so the branch can hang off it.)
+## 1:1 header: the zone/terrain name (Qud's sidebar header), from the snapshot's stats. Falls back to
+## "Minimap" so the header is never blank before the first stats arrive.
+func _update_title_1to1() -> void:
+	if _title == null:
+		return
+	var nm := QudText.strip(String(_last_data.get("stats", {}).get("terrain", "")))
+	_title.text = nm if nm != "" else "Minimap"
+
+## 1:1 (parity) mode: render the Qud-faithful minimap — the MINIMAL (structural) map, no FULL/MINIMAL
+## toggle (Qud has none), and the header shows the zone name instead of "Minimap". Reverting restores
+## the QoL header + toggle.
 var _one_to_one := false
+var _saved_mode := MODE_FULL   # user's FULL/MINIMAL choice, restored when leaving 1:1
 func set_one_to_one(on: bool) -> void:
 	if on == _one_to_one:
 		return
 	_one_to_one = on
+	if _toggle != null:
+		_toggle.visible = not on
+	if on:
+		_saved_mode = _mode
+		_mode = MODE_MINIMAL     # Qud's structural overview, not the painterly per-cell FULL map
+		_update_title_1to1()
+	else:
+		_mode = _saved_mode      # restore the user's map style
+		if _title != null:
+			_title.text = "Minimap"
+		_refresh_toggle()
 	_rerender()
 
 func _rerender() -> void:

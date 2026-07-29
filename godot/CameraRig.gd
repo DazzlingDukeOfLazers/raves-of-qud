@@ -25,6 +25,8 @@ const TOP_ZOOM_MAX := 3.5
 var _top_zoom := 1.0           # wheel / R-F zoom for the top-down follow mode
 var _one_to_one := false       # parity mode: fit the ZONE (biggest zoom-out) instead of TOP_FOLLOW_SPAN
 var _zone_cells := Vector2(80, 25)   # live zone dims in cells (pushed from Main), for the 1:1 zone-fit
+var _right_inset := 0.0        # 1:1: fraction of the viewport the side panels cover; lens-shifts the
+							   # top-down view LEFT so the zone-fit centres in the visible play hole
 # Qud tiles are 16x24, so top-down stretches the world's north-south (Z) axis by 24/16 = 1.5 so cells
 # read 16:24 like Qud. Only in full-screen top-down (not perspective, not multi-view: shared world stays square).
 const TILE_ASPECT := 1.5
@@ -317,6 +319,15 @@ func _apply_top_down_camera(top: bool) -> void:
 		_cam.size = _top_ortho_size()
 	elif _cam.projection != Camera3D.PROJECTION_PERSPECTIVE:
 		_cam.projection = Camera3D.PROJECTION_PERSPECTIVE
+	# 1:1 lens shift: the side panels cover the right _right_inset of the window, so slide the ortho
+	# view right by half that (in world units) — the zone then centres in the visible play hole. Ortho
+	# `size` is the vertical span; horizontal world width = size × viewport aspect. Zero outside 1:1/top.
+	var h_off := 0.0
+	if top and _one_to_one and _right_inset > 0.0 and _cam != null:
+		var vp: Vector2 = _cam.get_viewport().get_visible_rect().size
+		var aspect := (vp.x / vp.y) if vp.y > 0.0 else (16.0 / 9.0)
+		h_off = _right_inset * 0.5 * _cam.size * aspect
+	_cam.h_offset = h_off
 	var attrs := _cam.attributes as CameraAttributesPractical
 	if attrs != null:
 		attrs.dof_blur_far_enabled = not top
@@ -340,12 +351,24 @@ func _zone_fit_size() -> float:
 			aspect = vp.x / vp.y
 	var zh := _zone_cells.y * TILE_ASPECT   # zone N-S extent in world units (z-stretched)
 	var zw := _zone_cells.x                  # zone E-W extent in world units
-	return maxf(zh, zw / aspect) * TOP_FIT_MARGIN
+	# The side panels cover the right _right_inset of the window, so the zone must fit the play HOLE,
+	# not the full width — shrink the usable width fraction. (The lens shift in _apply_top_down_camera
+	# then recentres this hole-fit zone into the hole.) Clamped so a pathological inset can't blow up.
+	var wfrac := maxf(0.25, 1.0 - _right_inset)
+	return maxf(zh, zw / (aspect * wfrac)) * TOP_FIT_MARGIN
 
 ## The live zone's dimensions in cells (pushed from Main on each snapshot), for the 1:1 zone-fit.
 func set_zone_cells(v: Vector2) -> void:
 	if v.x > 0.0 and v.y > 0.0:
 		_zone_cells = v
+
+## Fraction of the viewport width the 1:1 side panels cover (MainFrame → Main → here). Drives the
+## top-down lens shift so the zone-fit centres in the visible play hole. Re-applied immediately if
+## we're already top-down.
+func set_right_inset(frac: float) -> void:
+	_right_inset = clampf(frac, 0.0, 0.6)
+	if _mode == CamMode.TOP_FOLLOW and _cam != null:
+		_apply_top_down_camera(true)
 
 ## Enter/leave 1:1 (parity) framing. Resets the zoom so the biggest zoom-out (the whole zone) is the
 ## default, and re-applies the ortho size immediately if we're already in top-down (the toggle-while-
