@@ -1,4 +1,4 @@
-# Cameras, views & viewer controls
+# Camera controls & viewer modes — Raves of Qud 2.5D/3D
 
 > **Canonical for camera controls.** If another doc (README, `CLAUDE.md`, `docs/tools.md`) disagrees with
 > this page on modes, keys, or Escape behavior, **this page wins** — fix the other doc. There are **7 modes**

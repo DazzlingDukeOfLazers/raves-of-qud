@@ -1,4 +1,4 @@
-# Rendering model
+# Rendering model — Raves of Qud 2.5D tiles, voxel walls, lighting & water
 
 How `godot/ZoneRenderer.gd` (and `Main.gd`) turn a per-turn snapshot into the 3D scene.
 Everything here is in **GDScript** — Python is only for *verifying* the algorithms

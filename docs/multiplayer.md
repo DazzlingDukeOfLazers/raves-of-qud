@@ -1,4 +1,4 @@
-# Multiplayer — architecture & roadmap
+# Multiplayer — Caves of Qud co-op mod architecture (proposal)
 
 > **Status: design proposal — multiplayer is NOT implemented.** This is the plan, not shipped code.
 > Unvalidated assumptions to prove before trusting any of it: zone serialization, deterministic

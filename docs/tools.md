@@ -1,4 +1,4 @@
-# Tools & workflow
+# Tools & workflow — inspecting and driving Raves of Qud
 
 Two kinds of tooling: **Python** (inspection & verification, in `tools/capture/`) and the
 **in-viewer** Godot tools (the human's feedback channel). GDScript is the product; Python exists
