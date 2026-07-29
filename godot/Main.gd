@@ -96,6 +96,10 @@ func _ui_font_size() -> int:
 ## menu (title, mode buttons, toggle buttons, slider labels), and the corner Reset button. Re-run on
 ## window resize so it tracks the viewport.
 func _apply_ui_fonts() -> void:
+	# Re-assert the 1:1 (parity) camera span on any window resize — a resize otherwise reverts the
+	# top-down ortho span toward user-mode framing, which breaks the 1:1 match at a fixed size.
+	if _one_to_one and render_3d and _cam_rig != null:
+		_cam_rig.set_one_to_one(true)
 	UiFont.refresh_theme(_ui_theme, get_viewport())   # keep the project-wide default in sync with the window
 	_stamp_theme_roots(get_tree().root)               # make the default theme cross CanvasLayer boundaries
 	var fs := _ui_font_size()
@@ -244,6 +248,7 @@ func set_render_3d(on: bool) -> void:
 	render_3d = on
 	if on:
 		if _one_to_one:
+			_cam_rig.set_one_to_one(true)         # robust: 1:1 span even if already TOP_FOLLOW
 			_set_mode(CamMode.TOP_FOLLOW, true)   # enter the 1:1 camera as the viewport comes up
 		var live: Dictionary = store.live_snapshot()
 		if not live.is_empty():
@@ -519,12 +524,13 @@ func set_one_to_one(on: bool) -> void:
 	if on == _one_to_one:
 		return
 	_one_to_one = on
+	_cam_rig.set_one_to_one(on)   # 1:1 vs user ortho span (safe in data-only; guards a null camera)
 	# Camera half — only meaningful with the 3D viewport up (data-only mode has no camera to
 	# flip); set_render_3d re-applies TOP_FOLLOW when the viewport comes on.
 	if on:
 		_saved_cam_mode = _cam_rig._mode
 		if render_3d:
-			_set_mode(CamMode.TOP_FOLLOW, true)   # the "close" camera; refined to true 1:1 next
+			_set_mode(CamMode.TOP_FOLLOW, true)   # the Qud-faithful 1:1 top-down (ONE_TO_ONE_SPAN)
 	elif render_3d and _saved_cam_mode >= 0:
 		_set_mode(_saved_cam_mode, true)          # back to the user's camera
 	one_to_one_changed.emit(on)

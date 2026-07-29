@@ -19,10 +19,16 @@ var _mode: int = int(Settings.get_value("camera", CamMode.COMPASS))   # default 
 const TOP_H := 20.0        # ortho eye height above the ground (scale is size, not H)
 const TOP_FIT_MARGIN := 1.06   # padding so the framed zone isn't flush to the edges
 const NORTH := Vector3(0, 0, -1)   # -z is north (Qud's y grows south); screen-up in top-down
-const TOP_FOLLOW_SPAN := 18.0  # TOP_FOLLOW vertical span (cells) at zoom 1.0
+const TOP_FOLLOW_SPAN := 18.0  # TOP_FOLLOW vertical span (cells) at zoom 1.0 (user mode)
+# 1:1 (parity) mode uses its OWN top-down span so a tile renders the same pixel size as Qud at
+# 1600x900, separate from user TOP_FOLLOW (which stays 18). NOTE: this value is an initial estimate
+# and needs LIVE CALIBRATION against Qud — enter 1:1 with the viewport on at 1600x900, R/F-zoom until
+# a tile matches Qud, then set this to the matched span (R/F multiplies _top_zoom on top of it).
+const ONE_TO_ONE_SPAN := 24.0
 const TOP_ZOOM_MIN := 0.15
 const TOP_ZOOM_MAX := 3.5
 var _top_zoom := 1.0           # wheel / R-F zoom for the top-down follow mode
+var _one_to_one := false       # parity mode: use ONE_TO_ONE_SPAN instead of TOP_FOLLOW_SPAN
 # Qud tiles are 16x24, so top-down stretches the world's north-south (Z) axis by 24/16 = 1.5 so cells
 # read 16:24 like Qud. Only in full-screen top-down (not perspective, not multi-view: shared world stays square).
 const TILE_ASPECT := 1.5
@@ -320,7 +326,16 @@ func _apply_top_down_camera(top: bool) -> void:
 		attrs.dof_blur_far_enabled = not top
 
 func _top_ortho_size() -> float:
-	return TOP_FOLLOW_SPAN * _top_zoom
+	return (ONE_TO_ONE_SPAN if _one_to_one else TOP_FOLLOW_SPAN) * _top_zoom
+
+## Enter/leave 1:1 (parity) framing. Resets the R/F zoom so the span is deterministic, and
+## re-applies the ortho size immediately if we're already in top-down (the toggle-while-in-
+## TOP_FOLLOW case, where set_mode is a no-op and wouldn't otherwise refresh the size).
+func set_one_to_one(on: bool) -> void:
+	_one_to_one = on
+	_top_zoom = 1.0
+	if _mode == CamMode.TOP_FOLLOW and _cam != null:
+		_apply_top_down_camera(true)
 
 func _aim_dir() -> Vector3:
 	return Vector3(cos(_pitch) * sin(_yaw + PI), -sin(_pitch), cos(_pitch) * cos(_yaw + PI))
