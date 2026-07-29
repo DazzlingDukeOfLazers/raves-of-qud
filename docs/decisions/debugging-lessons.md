@@ -75,6 +75,11 @@ New lesson? Add it here (full story) and, if it changes how an agent should act,
 - **Measure before hypothesising.** When a search keeps coming up empty, verify the dataset is complete
   instead of refining the search. Emitting `nHeld`/`nRendered`/`nSent` per cell proved in one turn that
   nothing was being dropped, which eliminated the entire object path — after six rounds of guessing had not.
+- **Check the negative case is actually present in the sample.** A correlation that looks perfect may just
+  be absence of evidence. The "wading depth == deep water" claim only became real once a frame contained
+  shallow water that *could* have been flagged wading and wasn't — the first capture had none, so "no
+  shallow tiles in a wade cell" proved nothing. When a correlation here looks perfect, confirm the
+  disproving case is in the sample.
 - **Know which build is running.** Mod `.cs` only compiles at Qud startup. `Protocol.Build` ships in every
   snapshot and the inspector prints it. Several rounds were spent reasoning over a build that did not
   contain the fix being tested.

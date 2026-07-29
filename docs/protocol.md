@@ -140,6 +140,34 @@ When `RenderTile` paints an object, `fgHex`/`bgHex`/`detailHex` carry already-re
 `hflip`/`vflip` carry Qud's sprite flipping; the client prefers those over the palette. In
 practice `RenderTile` fires for almost nothing, so most objects use the `ColorString` path.
 
+The colour chars → measured RGB (shipped live in `palette`, so the client never hardcodes them — this
+table is reference; `WORLD_BG` derives from `k`):
+
+| | | | |
+|---|---|---|---|
+| `k` **#0f3b3a** | `K` #155352 | `y` #b1c9c3 | `Y` #ffffff |
+| `w` #98875f | `W` #cfc041 | `g` #009403 | `G` #00c420 |
+| `b` #0048bd | `B` #0096ff | `c` #40a4b9 | `C` #77bfcf |
+
+`ColorUtility.CAMERA_BACKGROUND` is **not** the field colour despite the name — it's `#40a4b9`, plain
+cyan. Verify a value before believing a field name.
+
+### RenderLayer values (the `layer` field → 3D treatment)
+
+Calibrated from live capture; classification off `layer` + `wall`/`occluding` is in
+[`rendering.md`](rendering.md) §1.
+
+| layer | contents | 3D treatment |
+|---|---|---|
+| 0 | ground clutter (`sw_ground_dots`) | flat floor |
+| 2 | liquids (`deep-*` water) | flat floor |
+| 3 | trees, plants, watervines | upright billboard |
+| 5 | small stones | upright billboard |
+| 6 | furniture, torches | upright billboard |
+| 7 | walls, fences, doors, tents | prism / oriented panel |
+| 10 | creatures | upright billboard |
+| 100 | special NPCs | upright billboard |
+
 ### Water & bridges
 
 Per **cell** (all from first-class Qud predicates, no heuristics):

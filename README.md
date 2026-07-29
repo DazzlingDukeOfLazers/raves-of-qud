@@ -269,278 +269,37 @@ capture scripts get nothing until you take a step.
 
 ## Qud data model & mappings
 
-This is the reference the project was reverse-engineered into. **All verified against the
-live 1.0 build (Unity `6000.0.77f1`) by reflection + live capture, not from memory.**
+The full reverse-engineered data model (verified against the live 1.0 build by reflection + capture) now
+lives in the subsystem docs. The load-bearing facts, and where each is documented in depth:
 
-### ⚠️ The single most important thing: a cell is NOT just its objects
+- **A cell is NOT just its objects.** Qud paints a ground layer (dirt/grass) onto ~1103/2000 cells that hold
+  no GameObject; the mod sends it as a RenderLayer-0 floor at the bottom of each cell's stack.
+  → [protocol.md](docs/protocol.md), [rendering.md §2](docs/rendering.md).
+- **Accessors, not fields.** `Render.getTile()` / `getRenderString()` resolve runtime-chosen art; the
+  `.Tile` / `.RenderString` *fields* are static blueprint values (empty for `PickRandomTile` etc.).
+  → [protocol.md](docs/protocol.md), [decisions](docs/decisions/debugging-lessons.md).
+- **Colour model.** `ColorString` = `&FG^BG`; `_qud_color` takes the **foreground** (the half before the
+  `^`). Tiles are 2-colour masks: black→`TileColor`, white→`DetailColor`, transparent→the world
+  background. The 16-char palette ships live in every snapshot (`k`=#0f3b3a, the world's dark teal — **not**
+  black). → [protocol.md Colours + palette table](docs/protocol.md#colours), [rendering.md §3](docs/rendering.md).
+- **Tile geometry (16×24).** A top-down **cap** over a south **front-face**; the split is not at row 16 and
+  varies by family (`_wall_split`; measure from the isolated `-00000000` variant, never `-11111111`).
+  → [rendering.md §3–4](docs/rendering.md).
+- **Autotiling.** Walls/water carry an 8-bit neighbour bitmask (`-XXXXXXXX`); fences/pipes carry a
+  `{n,s,e,w}` connection set (`_connector_dirs`). → [rendering.md §1, §4](docs/rendering.md).
+- **RenderLayer → classification.** The `layer` field (+ `wall` / `occluding`) decides flat-floor vs prism
+  vs billboard. → [protocol.md RenderLayer values](docs/protocol.md), [rendering.md §1](docs/rendering.md).
+- **Water & bridges are first-class Qud concepts** — `Cell.HasWadingDepthLiquid()` / `HasBridge()`, not
+  tile-name inference. The render rule: keep the water **flat**, recess the actor (`sinks` = `IsCreature &&
+  !IsFlying`, cropped at the waterline; a bridge cancels the sink and decks over the water).
+  → [protocol.md Water & bridges](docs/protocol.md#water--bridges), [rendering.md §6](docs/rendering.md).
 
-**Qud draws a painted ground layer that is not in the object model.** In a Joppa zone,
-**1103 of 2000 cells contain no `GameObject` at all** — and Qud still paints dirt and grass
-on them:
-
-```
-object-free cells whose compositor still yields a tile: 1103
-   1,0 = Tiles/tile-dirt1.png        3,0 = Terrain/sw_grass2.bmp
-   2,0 = Terrain/sw_grass1.bmp       4,0 = assets_content_textures_tiles_tile-grass1.png
-```
-
-`Cell.Render()` composites it and returns a `RenderEvent` carrying `Tile`, `ColorString`,
-`DetailColor`, `BackgroundString`, `RenderString`, `HFlip`/`VFlip`. **Iterating `Cell.Objects`
-alone gives you a world with no ground cover.** `ZoneSnapshot` emits this as a RenderLayer 0
-floor at the bottom of every cell's stack.
-
-> **Cost of not knowing this:** the missing grass survived *six* wrong hypotheses and four
-> shipped fixes (`RenderTile`, the `Render` accessors, a tile-only filter, `GetObjects()`) —
-> every one of which operated on the object path and was therefore **inert by construction**.
-> "There is no grass blueprint in this zone" was true and useless: grass is not a blueprint.
->
-> What broke it was **measuring instead of hypothesising**. The mod started emitting, per cell,
-> `nHeld` (`GetObjectCount`), `nRendered` (`RenderedObjectsCount`) and `nSent`. They came back
-> `1001 == 1001 == 1001`, which proved nothing was being dropped and eliminated the entire
-> object path in one step — leaving only "Qud draws it from somewhere else." **When a search
-> keeps failing, stop refining the search and verify the dataset is complete.**
-
-### Accessors vs fields — `getTile()`, not `.Tile`
-`Render.Tile` / `Render.RenderString` are the **blueprint's static values** and are empty for
-anything that picks its art at runtime (`PickRandomTile`, `RandomTileOnMove`, harvestable
-states). The `Render` part has accessors that resolve what is actually drawn:
-`getTile()`, `getRenderString()`, `getTileColor()`, `getTileOrRenderColor()`, `GetRenderColor()`.
-
-`GameObject.RenderTile(ConsoleChar)` is the **override hook** for parts that paint themselves.
-In a whole Joppa zone it fired for **zero** objects — don't rely on it, but when it does fire
-its `ConsoleChar` carries already-resolved RGB (`TileForeground`/`TileBackground`/`Detail`).
-
-### Per-object fields (from `XRL.World.Parts.Render` + `GameObject`)
-| snapshot field | Qud source | notes |
-|---|---|---|
-| `glyph` | `Render.RenderString` | ASCII char |
-| `tile` | `Render.Tile` | atlas path, e.g. `Assets/Content/Textures/Tiles/wall_rock-11111111.bmp` |
-| `color` | `Render.ColorString` | **full** string, `&fg^bg` |
-| `tilecolor` | `Render.TileColor` | the tile's foreground colour |
-| `detail` | `Render.DetailColor` | the tile's detail/highlight colour |
-| `layer` | `Render.RenderLayer` | draw order → drives flat/vertical classification |
-| `wall` | `GameObject.IsWall()` | true for solid tagged walls (rock/metal/brinestalk) |
-| `solid` | `Physics.Solid` | impassable |
-| `occluding` | `Render.Occluding` | blocks line of sight → the prism-vs-sprite discriminator |
-
-### Colour model (this bit is subtle and non-obvious)
-Qud `ColorString` = `&X^Y`: `&X` = **foreground**, `^Y` = **background**. Tiles are 2-colour
-masks recoloured on the CPU:
-- **black** mask pixels → foreground (`TileColor`)
-- **white** mask pixels → detail (`DetailColor`)
-- **transparent** → the cell **background** (Qud's dark-green world background). Do **not** flood
-  gaps with the object's `^X` — for e.g. metal (`&r^C`) the cyan belongs to the *detail/border*
-  pixels, not the gap fill. Gaps read as the world green.
-
-**Palette — don't hand-estimate it. `Base/Colors.xml` names the 16 colours but contains
-NO RGB**; the values live in code. The mod reads them out of
-`ConsoleLib.Console.ColorUtility.colorFromChar(char)` (a static dictionary lookup returning a
-struct — no graphics calls, safe on the turn thread) and ships them in every snapshot as
-`palette`. Measured values:
-
-| | | | |
-|---|---|---|---|
-| `k` **#0f3b3a** | `K` #155352 | `y` #b1c9c3 | `Y` #ffffff |
-| `w` #98875f | `W` #cfc041 | `g` #009403 | `G` #00c420 |
-| `b` #0048bd | `B` #0096ff | `c` #40a4b9 | `C` #77bfcf |
-
-> **`k` is not black — it is `#0f3b3a`, a dark teal, and it IS the colour of the Qud world.**
-> Guessing it as near-black is what made the 3D view render on a black void instead of Qud's
-> field, and flattened wall-vs-floor contrast. `WORLD_BG` derives from `palette["k"]`.
->
-> Also: `ColorUtility.CAMERA_BACKGROUND` is **not** the field colour despite the name — it's
-> the alias `"camera background"` → `#40a4b9`, plain cyan. Trusting it painted the entire world
-> turquoise. Verify a value before believing a field name.
-
-`_qud_color()` in `ZoneRenderer.gd` takes the **foreground** — the half *before* the `^` — and
-prefers the shipped `palette` over the hand-estimated fallback table.
-
-> A ColorString is `&FG^BG`. Keying off the **trailing letter** returns the BACKGROUND whenever
-> one is present. The player is `&y^k`, so it read as `k` — `#0f3b3a`, the world's own dark
-> teal — and a pale grey figure rendered dark-teal-on-dark-teal, with only its red detail
-> pixels visible. Objects carrying a `TileColor` were unaffected (that field has no `^`), which
-> is why walls and water looked correct and the bug stayed hidden.
-
-### Tile geometry: the 2.5D convention
-Tiles are **16×24**, packing two views into one image:
-- the **top-down cap** (what you see looking down)
-- below it, the **south front-face** (the elevation you see looking north at a wall)
-
-**The boundary is NOT at row 16, and is not the same for every family.** Measured from the
-isolated (`-00000000`) tiles:
-
-All three wall families share the same structure — the face is the **last 10 rows**:
-
-```
-row 13   #o............o#     cap's bottom rim (matches the interior pattern)
-row 14   #oooo##oo##oooo#     the wall's TOP LIP — belongs to the FACE
-row 15+  #o###o####o###o#     face proper
-```
-
-| family | cap | separator | face |
-|---|---|---|---|
-| `wall_rock-00000000` | rows 0–13 | none | rows 14–23 |
-| `wall_brinestalk-00000000` | rows 0–13 | none | rows 14–23 |
-| `wall_metal-00000000` | rows 0–13 | none | rows 14–23 |
-| `wall_metal-10100010` | rows 0–12 | **row 13 blank** | rows 14–23 |
-
-Two guesses were wrong before this: the tile **width** (16), and **9 rows** (face at 15). Both
-leave row 14 — the wall's lip — sitting on the roof, which reads as a stray band of wall texture
-along the roof's front edge. `_wall_split()` honours an explicit transparent separator when the
-art has one, else takes the last `WALL_FACE_ROWS` (10) rows.
-
-> Getting this from the `-11111111` interior tile is impossible — it has no borders. Always
-> measure against the **isolated `-00000000`** variant, where every edge is drawn.
-
-North faces are *never drawn* — Qud only draws south faces in its top-down view. Directional
-tiles (fences) are drawn as a **front elevation** when perpendicular to view (E-W) and
-**top-down** when parallel (N-S). Content can be vertically padded/centred inside the 24px
-frame — crop to the opaque rows to seat things on the ground.
-
-### Autotiling suffixes
-- **Walls & water** (`wall_rock-XXXXXXXX`, `wall_brinestalk-XXXXXXXX`, `deep-XXXXXXXX`): an
-  **8-bit neighbour bitmask** (`-11111111` = fully surrounded interior; `-00000000` = isolated,
-  bordered on all sides). In 3D you mostly *discard* the autotiling for faces (real geometry
-  supplies connectivity) but *reuse* the bitmask idea for face culling.
-- **Fences/pipes** (`fence_ns`, `ironfence_ew`, `pipe_ne`, bare `fence_`): the suffix after the
-  last `_` is the **connection set** ⊆ `{n,s,e,w}`. `_connector_dirs()` parses it.
-
-### RenderLayer → classification (calibrated from live data)
-| layer | contents | 3D treatment |
-|---|---|---|
-| 0 | ground clutter (`sw_ground_dots`, `*`) | flat floor |
-| 2 | liquids (`deep-*` water) | flat floor |
-| 3 | trees, plants, watervines | upright billboard |
-| 5 | small stones | upright billboard |
-| 6 | furniture, torches | upright billboard |
-| 7 | walls, fences, doors, tents | prism / oriented panel |
-| 10 | creatures | upright billboard |
-| 100 | special NPCs | upright billboard |
-
-**Roofs use each cell's own autotile variant.** A wall's `-XXXXXXXX` suffix says which of its
-8 neighbours are also walls, and Qud's art omits the border on those edges. Canonicalising every
-wall to `-11111111` and capping it with the isolated `-00000000` tile draws all four borders on
-every cell, so a run of wall reads as a **grid of separate framed squares** instead of one
-continuous roof. `_rebuild_walls` groups roof cells **by variant** — one mesh per variant — so
-shared edges join seamlessly. Sides stay greedy-merged; only the cap needs per-cell art.
-
-**Classification rules (in `ZoneRenderer.gd`):**
-- **prism** (3D box): `wall && occluding` **and the tile is not a `family_<dirs>` set** →
-  rock/metal/brinestalk.
-- **deck** (flat + opaque): the object carries the `Bridge` int-property (see below).
-  Checked *before* layer, because bridges are RenderLayer 3.
-- **flat floor**: `layer <= FLOOR_LAYER_MAX (2)`.
-- **directional connector** (oriented standing panels): any tile matching `family_<dirs>` —
-  fences, pipes, tent walls, **and axles**. See the gate note below.
-- **upright billboard**: everything else.
-
-**User verdicts are stored in `overrides.json`, one entry per tile family, and applied before
-the renderer's own classification.** Some facts are not in Qud's data at all: a water wheel
-runs east–west, but nothing in `sw_waterwheel_1` says so — no suffix, no blueprint flag. Inspect
-a tile, use the form in the lower right, and the verdict is written to
-`RavesOfQud/reports/<zone>_<x>-<y>_<tile>_v<n>.md`. `ZoneRenderer._load_overrides()` re-reads
-that directory every snapshot and keys verdicts by **tile family**, so one report covers every
-variant (`sw_waterwheel_1` and `_3`; every `wall_rock-XXXXXXXX`). Verdicts apply live — file one,
-take a turn, see it. Verdicts come on **two independent axes**, and a tile can carry one of each:
-
-| axis | verdicts | effect |
-|---|---|---|
-| **shape** | wall · panel N–S · panel E–W · billboard · flat · not-drawn | what geometry gets built |
-| **fill** | fill the holes · enclosed only · transparent · opaque block | how the art's transparent pixels are treated |
-| **position** | `POS: float` · `POS: ground` | vertical placement — seated on the floor (default) or centred at cell mid-height |
-
-`fill the holes with BACKGROUND` (`Fill.SPAN`) is the **union of three** rules — enclosed gaps
-(`INTERIOR`), row-spans and column-spans. Each catches holes the others miss, and none is a
-superset: a water wheel's paddle bottoms fill only by row-span; a millstone's side notches only by
-enclosure; the pinched neck joining a millstone's cap to its body only by column-span. So "fill it
-in" is all three. It always fills ≥ the default and never squares off the silhouette — that's
-`ALL`. Wheel 130→141, millstone 76→96 (the cap now reads as one solid stone with the body).
-
-Colour, height, position and duplicated remain notes for a human. Fill is its own axis because
-the geometric rules genuinely cannot settle it — whether a water wheel's paddle compartments
-should read as background or as see-through is a judgement about the picture, not a property
-of it.
-
-> Mind the axis wording: **running E–W means the faces point N/S.** The form labels say both.
-
-**What counts as a directional connector.** The `family_<dirs>` suffix alone is too weak — an
-item or creature tile ending `_e`/`_ne` would match by accident. This was originally gated on the
-**wall** flag, which was safe but too narrow: axles (`sw_axle_2_ew`) are machinery, not walls, so
-they fell through to a billboard and lay *across* their run instead of along it. The gate now is:
-wall-flagged qualifies outright; anything else must **also have its family's `_ew` sibling on
-disk**, which a real directional family ships and an accidental name collision does not.
-
-**Panel height scales with the art.** `PANEL_REF_ROWS` (10) is a standard fence's opaque band, and
-`FENCE_H` is calibrated to it, so a fence still lands at exactly 0.6 while an axle's 2-row shaft
-gets 0.12 instead of being smeared up to fence height. Sight-blocking connectors (tents) still
-take `WALL_H` outright.
-
-**Painted ground vegetation stands up.** The painted layer is flat by default — dirt, gravel —
-but grass is cover you stand among, not a texture you walk on, so it routes to the billboard
-path and is seated on the ground like any plant. The test is `UPRIGHT_GROUND` in
-`ZoneRenderer.gd`, matched against the tile name. **This is a name heuristic**, which this
-codebase otherwise avoids in favour of Qud's own predicates — but the painted layer comes from
-`Cell.Render()` with no GameObject or blueprint behind it, so the tile path is the only signal
-there is. Extend the list as new cover appears.
-
-**`occluding` sets a panel's HEIGHT, not its shape.** This is the subtle one. A tent wall
-is a fence at full height: its art is `tent_nw`/`tent_ew`/`tent_ns` — the same connection-set
-naming as `fence_`/`pipe_` — but it *occludes*. Testing `wall && occluding` first claimed
-tents as blocks before they could reach the connector path. So the directional-family test
-comes first, and `occluding` only chooses `WALL_H` (tents) vs `FENCE_H` (pickets, pipes).
-Real walls are safe because `wall_rock-11111111` / `wall_brinestalk-*` / `wall_metal-*` are
-**autotile bitmasks**, which don't parse as a connection set.
-
-Verify a rule change with `python3 tools/capture/snap.py classify`, which buckets every
-object in the live zone by outcome. After the tent change: `panel(tall)` = 13, all `tent_*`;
-`prism` = 186, only `wall_brinestalk-*` and `wall_metal-*`; `panel(low)` = 28, all `fence_*`.
-Note it *reimplements* the renderer's rules in Python, so it's a cross-check, not proof —
-the authoritative answer is the `RENDERED` line from `CellInspector`.
-
-### Water depth & bridges
-Both are **first-class Qud concepts** — don't infer them from tile names.
-
-- **Depth** is `LiquidVolume.Volume` (`Base/ObjectBlueprints/PhysicalPhenomena.xml`: puddle 500 →
-  deep pool 4000 → extra-deep 8000), surfaced as `Cell.HasWadingDepthLiquid()` /
-  `HasSwimmingDepthLiquid()`. The `deep-`/`shallow-`/`puddle_N` tile family is *chosen from*
-  volume by the `PaintedLiquidAtlas` system, so it's a symptom, not the source of truth.
-  **Confirmed against a control** (`JoppaWorld.11.22.1.1.10`, `snap.py water`): in a frame that
-  contains *all three* water families, `wade` holds all 52 `deep-*` and the `dry` bucket holds
-  all 13 `shallow-*` and all 4 `puddle_*`. So wading depth **is** deep water, and you don't
-  sink in puddles. Watervines also sit in non-wading cells, so they keep full height.
-
-  > Methodology note worth repeating: the *first* capture of this zone happened to contain no
-  > shallow water at all, and "no shallow tiles in a wade cell" looked like proof. It wasn't —
-  > it was absence of evidence. The claim only became real once a frame contained shallow water
-  > that could have been flagged wading and wasn't. When a correlation here looks perfect, check
-  > that the negative case is actually present in the sample.
-- **Bridges** are `<intproperty Name="Bridge" Value="1" />` on the blueprint —
-  `Walkway`, `Bridge`, `BrineBridge`, `WoodFloor`, `MarbleFloor` in `ZoneTerrain.xml`.
-  `Cell.HasBridge()` for the cell; `GameObject.HasIntProperty("Bridge")` for the object.
-- **Tile shape gotcha**: bridge art (`Tiles/sw_floor_brickb1-4.bmp`) is **line-work on a fully
-  transparent field** — only ~25% of pixels are opaque. Rendered as-is it does *not* hide the
-  water beneath it. Recolour it with `fill = true` so the transparent field becomes ground colour.
-  Water tiles (`Liquids/Water/deep-*`) are the opposite: **100% opaque** noise masks.
-- **A bridge cell's stack**, straight off the wire — the water is a separate object *below* the
-  deck, so the deck has to out-Y it rather than replace it:
-  ```
-  (66,6) wade=true swim=false
-     idx=0  layer=2  bridge=false  Liquids/Water/deep-00100010.png  &b^B
-     idx=1  layer=3  bridge=true   Tiles/sw_floor_brickb3.bmp       &w    <- BrineBridge
-  ```
-- **Tile paths mix separators**: creature tiles arrive with **backslashes**
-  (`creatures\sw_glowfish.bmp`), most others with `/`. `_mask()`/`TileExporter.FileFor` normalise
-  both to `_`. Anything new that parses a tile path must handle both — note `_connector_dirs()`
-  uses `get_file()`, which splits on `/` only.
-
-**The rendering rule: keep the water flat, recess the actor.** Water renders as an ordinary floor
-quad. A creature standing in it (`sinks` = `IsCreature && !IsFlying`) is drawn with its sprite
-**cropped at the waterline** rather than lowered — the water is a flat quad with no volume, so a
-lowered sprite would just poke out beneath it as soon as the camera tilts. The crop is measured
-against the tile's **opaque band** (`_opaque_v`), not the 16×24 frame, because the art is padded
-inside the frame. A bridge sets `sink = 0`: you cross at full height over an opaque deck.
+The hard-won *why* behind each — the grass mystery, the trailing-letter colour bug, the `CAMERA_BACKGROUND`
+turquoise trap, the wading-depth control — is in
+[docs/decisions/debugging-lessons.md](docs/decisions/debugging-lessons.md).
 
 ---
+
 
 ## Rendering & tools
 
