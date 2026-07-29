@@ -13,6 +13,7 @@ rules to work safely here. Subsystem facts live in the linked docs; the deep deb
 | [`docs/rendering.md`](docs/rendering.md) | the 3D pipeline — classification, voxel walls, lighting, water |
 | [`docs/cameras.md`](docs/cameras.md) | camera modes + viewer controls (**canonical** for controls) |
 | [`docs/protocol.md`](docs/protocol.md) | the bridge wire format |
+| [`docs/qud-api.md`](docs/qud-api.md) | verified Qud namespaces + signatures (reflection-confirmed) |
 | [`docs/tools.md`](docs/tools.md) | the Python tools, the in-viewer inspector, the Python-first workflow |
 | [`docs/gotchas.md`](docs/gotchas.md) | non-obvious invariants + "adding X → verify Y" checklists |
 | [`docs/roadmap.md`](docs/roadmap.md) | forward strategy (the world-store pivot) |
@@ -39,8 +40,8 @@ UI over the Holodeck must be `FOCUS_NONE`** or it swallows the movement arrows.
 
 ## Branches & platform (parallel dev on Mac + PC)
 
-Two working branches off `main`: **`dd/mac`** (the Mac) and **`dd/pc`** (Windows). `main` is the shared,
-cross-platform base. To keep merges clean:
+Mac and PC (Windows) develop in parallel off a shared base; feature work happens on its own branch (check
+`git branch` — don't assume a fixed name). To keep merges clean:
 
 - **All OS-specific tooling is behind a seam** — `tools/capture/plat.py` dispatches by OS to `plat_mac.py` /
   `plat_win.py`. Cross-platform code (bridge, Godot, mod logic) is shared. **PC work = implement
@@ -170,4 +171,5 @@ the form (lower right); Esc clears the selection.
   the exported app writes none).
 - **Vertex-colour meshes need `vertex_color_is_srgb = true`** or palette colours desaturate.
 - **Driving an unfocused Qud is solved** (`Keyboard.PushCommand` + a focus watchdog) — see the decisions doc.
-- **Commit + push after each round once it builds.**
+- **Commit + push after each round once it builds** — but first run the **author guard**:
+  `git log HEAD --format='%ae' | grep -i allspice` must be **empty** before every push.
