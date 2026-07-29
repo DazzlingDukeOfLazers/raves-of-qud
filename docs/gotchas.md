@@ -4,6 +4,17 @@ Non-obvious rules that bite, and what to verify when adding a kind of thing. Mos
 round-trip to learn — the point is to never pay for them twice. Keep it current: when a new quirk bites,
 add a one-liner (symptom → rule).
 
+## Fast lookup (symptom → first check)
+
+| Symptom | Likely cause | First check | Section |
+|---|---|---|---|
+| A change never shows until you move the player | unfocused Qud runs only the turn thread — `TickRender` doesn't fire | is Qud's window unfocused? did a turn actually end? | Qud internals |
+| Deployed a fix but nothing changed | mod `.cs` only compiles at Qud **startup** — a stale build is running | `Protocol.Build` in the snapshot / inspector | Qud internals |
+| A placed object (campfire, wall) doesn't draw | static geometry is frozen per zone; the static signature didn't change | did `_static_signature` change? | Renderer |
+| Can't move after an ability prompt (Make Camp) | a focused clickable UI over the Holodeck swallowed the arrows | is that control `FOCUS_NONE`? | Godot / the frame |
+| "Crash" but no crash report written | it's a **hang** (GPU timeout / fillrate), not a crash | is there a fresh `Godot-*.ips`? if not → hang | Renderer |
+| Headless run is "fine" but the windowed app crashes | `--headless` uses a dummy driver — never touches Metal | run a real windowed build to prove a render path | Renderer |
+
 ---
 
 ## Part 1 — Invariants (symptom → rule)

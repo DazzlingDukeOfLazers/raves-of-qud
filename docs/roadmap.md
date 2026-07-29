@@ -5,6 +5,13 @@ freeze/unfreeze, Z-height, cross-zone distance, and a future Minecraft-style edi
 **No code yet — this is the plan.** The point of writing it down: all six are the *same*
 architectural change wearing six hats.
 
+> **Status (2026-07-28): design plan, not started — deliberately sequenced UI-first.**
+> - **Now:** the 1:1 Qud UI + visual-parity track (menu screens — Records is next — then in-world parity),
+>   driven by the highvisor work cycle. *(Not this doc's scope.)*
+> - **Next:** the **persistent chunked block-store** below — the one change that unlocks all six asks.
+> - **Later:** fog of war, remembered zones, Z-height/levels, cross-zone distance, the block-editing fork.
+> - **Blocked by:** nothing external; it waits behind the UI track by choice.
+
 ---
 
 ## The one change that unlocks all six

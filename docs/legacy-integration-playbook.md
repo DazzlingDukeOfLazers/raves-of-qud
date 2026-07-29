@@ -6,7 +6,9 @@ own render loop and input model. Caves of Qud (Unity/.NET) is the worked example
 *problems* below recur for any target: an emulator, a Unity/Unreal/Godot game, a terminal roguelike,
 a Flash/Air port, a native app. The specifics differ every time; the failure modes don't.
 
-Read this before starting a new target. It will save you the multi-day detours we already paid for.
+**In one line:** build a **Godot front end for a legacy game** using three separable systems — a structured
+**data bridge**, a **rendering/capture** loop, and an **OS-level input harness** — and prove each one on its
+own. Read this before starting a new target; it will save you the multi-day detours we already paid for.
 
 ---
 
@@ -24,6 +26,19 @@ comes from conflating them.
 
 You will want all three. The bridge is fastest and cleanest but can't reach everything; the OS harness
 reaches everything but is slower and coarser; rendering is what humans (and your captures) actually see.
+
+### Start here (prove each plane once, in order)
+
+Before building anything fancy, get one end-to-end signal on each plane — they're independent, so verify
+them independently:
+
+1. **One snapshot out.** Get the game to emit one piece of live state over the bridge (a socket line).
+2. **One command in.** Inject one command (a move) through the game's *own* input queue and see it resolve.
+3. **One capture.** Screenshot the game window — including while it's **unfocused** (the render wall).
+4. **One OS fallback action.** Drive one UI element the bridge can't reach with synthetic mouse input.
+
+If all four work, the hard unknowns are retired and the rest is building out. If one fights you, that's
+your real project — and the section for it below tells you why.
 
 ---
 

@@ -4,6 +4,20 @@ How `godot/ZoneRenderer.gd` (and `Main.gd`) turn a per-turn snapshot into the 3D
 Everything here is in **GDScript** — Python is only for *verifying* the algorithms
 (see [tools.md](tools.md) and the Python-first note at the bottom).
 
+## The mental model (read first)
+
+A snapshot becomes the scene through a fixed pipeline, and each section below is one stage of it:
+
+```
+snapshot → classify each object → build geometry → colour + fill → lighting/darkness → freeze (static) / rebuild (dynamic)
+```
+
+Every object lands in one of **five visual layers**: (1) **painted ground** (dirt/grass, drawn even where
+no GameObject exists), (2) **flat/deck surfaces** (floors, bridges), (3) **wall geometry** (the voxel
+walls), (4) **upright sprites/panels** (creatures, items, fences), (5) **lighting/darkness overlays**.
+Classification (§1) picks the layer; the later sections explain each layer's geometry, colour, and
+lifecycle. A quick glossary of the terms used throughout is at the [bottom](#glossary).
+
 ---
 
 ## 1. Object classification
@@ -410,3 +424,22 @@ and verified in Python first**, then ported to GDScript. `tools/capture/voxel.py
 mirror the GDScript algorithms exactly and render inspectable output. Lighting/shadow *appearance*
 still needs a screenshot (F12 in the Holodeck); the *algorithm* does not. This is not optional — it
 is how the depth-order bug was caught without a round-trip.
+
+---
+
+## Glossary
+
+Terms used throughout this page:
+
+- **cap / face / core** — parts of a voxel **wall**: the top **cap** (drawn from the tile's top edge), the
+  vertical **face(s)** the camera sees, and the solid **core** between them.
+- **live zone** — the zone the player is currently in, rebuilt from the snapshot each turn.
+- **frozen neighbor** — an adjacent zone's static geometry kept in memory but not rebuilt each turn (only
+  the live zone's creatures rebuild per step; static geometry is frozen per zone — see §on freezing).
+- **grade** — the full-screen day/night **MULTIPLY** tint (`Main._grade`) over the whole viewport.
+- **darkness overlay** — the per-cell MIX-black layer (`_build_darkness`) that does the actual dimming
+  underground / at night, falling off to black around light sources (the grade stays near-neutral so it
+  doesn't double-dark the light pools).
+- **additive glow** — a `BLEND_MODE_ADD` quad/billboard that brightens whatever's behind it without scene
+  lighting (how "lights" are faked in the unshaded path).
+- **override** — a standing per-tile-family rule (shape/fill) in `overrides.json`, read live each frame.

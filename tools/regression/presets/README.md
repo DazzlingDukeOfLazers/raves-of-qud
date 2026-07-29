@@ -1,5 +1,19 @@
 # Option presets — the documented test fixtures
 
+## Pick a fixture
+
+| preset | scenario | changes Qud live? | Raves relaunch? | for |
+|---|---|---|---|---|
+| `baseline` | Raves defaults (compass, perceived) + full snapshot of every Qud option | yes (194 options) | to apply raves settings | reset Qud's option state before/after a test |
+| `compass-fullinfo` | compass camera + **full-info** panels on | no (`qud` empty) | yes | panel/HUD parity shots with exact stats |
+| `firstperson-perceived` | first-person camera + **perceived** info | no (`qud` empty) | yes | FP Holodeck + perceived-descriptor panels |
+
+**Quickstart:** `presets.py list` → inspect the JSON → `presets.py load <name>` → relaunch Raves if the
+preset changes `raves` settings → run the named scene. **Loading mutates your local game/viewer options** —
+`presets.py save before-my-test` first if you want to restore your working set.
+
+---
+
 A **preset** is a whole options set saved as one file, so tests (and you) can jump
 **deterministically** between known configurations instead of hand-toggling settings. Each captures:
 

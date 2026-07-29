@@ -4,6 +4,21 @@ Two kinds of tooling: **Python** (inspection & verification, in `tools/capture/`
 **in-viewer** Godot tools (the human's feedback channel). GDScript is the product; Python exists
 to check it.
 
+## What are you trying to do?
+
+| Goal | Command / tool | Needs Qud in-game? |
+|---|---|---|
+| Inspect the wire snapshot | `snap.py summary` / `cell X Y` / `find <name>` | yes |
+| Inspect a tile's pixels | `tile.py <name>` | no |
+| Capture both apps | Ctrl/Cmd-click a Holodeck tile, or **F12**; `control.py qudshot` for Qud alone | yes (Qud shot) |
+| Move the player / drive a turn | `control.py move N 5` (or `go N 3 qudshot`) | yes |
+| Re-export Qud's data files | `control.py export` | yes |
+| Jump to a known options config | `presets.py load <name>` ([presets](#option-presets--deterministic-test-fixtures-presetspy)) — Raves settings need a relaunch | yes (for the Qud half) |
+| Reach a Qud menu the bridge can't | `desktop.py`, or drive via **highvisor** | any |
+| Regression / parity vs Qud | **highvisor** `hv scene …` (see its parity kit) | both |
+
+Detailed reference for each follows.
+
 ---
 
 ## The Python-first rule (read this)
