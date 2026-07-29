@@ -14,22 +14,42 @@ namespace RavesOfQud
     /// this half is deterministic and unit-testable outside the game.
     ///
     /// Threading model (this is the part that will bite you if you get it wrong):
-    ///   - Accept + per-client read loops run on BACKGROUND threads. Inbound
-    ///     command payloads land in <see cref="Incoming"/> (a concurrent queue).
+    ///   - Accept runs on a background thread. Each client gets its OWN background
+    ///     read thread AND write thread (see <see cref="ClientConn"/>).
+    ///   - Inbound command payloads land in <see cref="Incoming"/> (a concurrent
+    ///     queue) or the <see cref="OnPayload"/> hook, on the client's read thread.
     ///   - <see cref="Publish"/> is called from the GAME MAIN THREAD once per turn.
+    ///     It NEVER blocks: it hands each client its latest frame and returns. The
+    ///     blocking socket Write happens on that client's writer thread.
     ///   - The game-side glue (Bridge.Tick) must drain Incoming and touch game
     ///     state ONLY on the main thread. Never read a GameObject off these
     ///     background threads.
+    ///
+    /// Why per-client writers: the broadcast used to be a synchronous Write to every
+    /// client on the game thread. A single client that stopped draining its socket
+    /// (e.g. a Raves window parked at a menu whose probe never reads) filled the OS
+    /// send buffer, and the Write BLOCKED — stalling the whole game's turn thread and
+    /// freezing snapshots for everyone (head-of-line blocking). Now each client has a
+    /// one-slot, coalescing outbox: Publish just drops the newest frame in and signals.
+    /// Snapshots are full state (the client already renders only the latest), so a slow
+    /// client simply skips stale intermediates, and a truly stuck one is dropped on a
+    /// write timeout — never touching the game thread.
     /// </summary>
     public sealed class BridgeServer
     {
+        // Drop a client that makes NO send progress for this long. Must exceed the longest a HEALTHY
+        // client can legitimately stop draining — the Godot viewer blocks its socket read while it
+        // rebuilds a zone (1–3s) — so this is generous; it's for truly dead/stuck peers, not busy ones.
+        private const int WriteStallMs = 6000;
+        private const int SendChunk = 16 * 1024;  // write in small chunks (after Poll says writable) so no single Write blocks long
+
         private readonly int _port;
         private TcpListener _listener;
         private Thread _acceptThread;
         private volatile bool _running;
 
         private readonly object _clientsLock = new object();
-        private readonly List<TcpClient> _clients = new List<TcpClient>();
+        private readonly List<ClientConn> _clients = new List<ClientConn>();
 
         /// <summary>Live client count. Used to gate the focus-keeper: only override
         /// Qud's pause-on-unfocus while a viewer / driver is actually attached.</summary>
@@ -68,11 +88,9 @@ namespace RavesOfQud
         {
             _running = false;
             try { _listener?.Stop(); } catch { /* ignore */ }
-            lock (_clientsLock)
-            {
-                foreach (var c in _clients) { try { c.Close(); } catch { /* ignore */ } }
-                _clients.Clear();
-            }
+            ClientConn[] snapshot;
+            lock (_clientsLock) { snapshot = _clients.ToArray(); _clients.Clear(); }
+            foreach (var c in snapshot) c.Kill();
         }
 
         private void AcceptLoop()
@@ -84,37 +102,20 @@ namespace RavesOfQud
                 catch { if (!_running) break; else continue; }
 
                 client.NoDelay = true;
-                lock (_clientsLock) _clients.Add(client);
-                new Thread(() => ReadLoop(client)) { IsBackground = true, Name = "RavesBridgeRead" }.Start();
+                ClientConn conn;
+                try { conn = new ClientConn(this, client); }
+                catch { try { client.Close(); } catch { } continue; }
+                lock (_clientsLock) _clients.Add(conn);
+                conn.Start();
                 Log("client connected");
             }
         }
 
-        private void ReadLoop(TcpClient client)
+        private void Remove(ClientConn conn)
         {
-            try
-            {
-                NetworkStream stream = client.GetStream();
-                var lenBuf = new byte[4];
-                while (_running)
-                {
-                    if (!ReadFully(stream, lenBuf, 4)) break;
-                    int len = (lenBuf[0] << 24) | (lenBuf[1] << 16) | (lenBuf[2] << 8) | lenBuf[3];
-                    if (len < 0 || len > (16 << 20)) break; // 16 MB sanity cap
-                    var payload = new byte[len];
-                    if (!ReadFully(stream, payload, len)) break;
-                    string s = Encoding.UTF8.GetString(payload);
-                    Action<string> hook = OnPayload;
-                    if (hook != null) hook(s); else Incoming.Enqueue(s);
-                }
-            }
-            catch { /* client dropped */ }
-            finally
-            {
-                lock (_clientsLock) _clients.Remove(client);
-                try { client.Close(); } catch { /* ignore */ }
-                Log("client disconnected");
-            }
+            bool had;
+            lock (_clientsLock) had = _clients.Remove(conn);
+            if (had) Log("client disconnected");
         }
 
         private static bool ReadFully(Stream s, byte[] buf, int count)
@@ -130,24 +131,125 @@ namespace RavesOfQud
         }
 
         /// <summary>
-        /// Broadcast a framed message to every connected client. Called on the game
-        /// main thread. Writes are synchronous; payloads are localhost + a few KB so
-        /// this is fine for the MVP. If you ever see turn-stutter, move sends to a
-        /// background writer thread fed by a queue (see README, PERF).
+        /// Broadcast a framed message to every connected client. Called on the game main
+        /// thread — and NON-BLOCKING: it just hands each client its newest frame (dropping
+        /// any stale one still queued) and returns. The actual socket Write happens on each
+        /// client's writer thread, so a slow/stuck client can never stall the game thread.
         /// </summary>
         public void Publish(byte[] frame)
         {
             lock (_clientsLock)
             {
-                for (int i = _clients.Count - 1; i >= 0; i--)
+                for (int i = 0; i < _clients.Count; i++)
+                    _clients[i].Offer(frame);
+            }
+        }
+
+        /// <summary>
+        /// One connected client: a read thread (commands in) and a write thread draining a
+        /// single-slot, coalescing outbox (latest snapshot out). All blocking I/O lives here,
+        /// off the game thread.
+        /// </summary>
+        private sealed class ClientConn
+        {
+            private readonly BridgeServer _srv;
+            private readonly TcpClient _tcp;
+            private readonly NetworkStream _stream;
+            private readonly AutoResetEvent _wake = new AutoResetEvent(false);
+            private byte[] _pending;              // newest frame awaiting send (coalesced); swapped via Interlocked
+            private volatile bool _alive = true;
+            private int _killed;                  // Interlocked one-shot so teardown/removal runs once
+
+            public ClientConn(BridgeServer srv, TcpClient tcp)
+            {
+                _srv = srv;
+                _tcp = tcp;
+                _stream = tcp.GetStream();
+            }
+
+            public void Start()
+            {
+                new Thread(ReadLoop)  { IsBackground = true, Name = "RavesBridgeRead" }.Start();
+                new Thread(WriteLoop) { IsBackground = true, Name = "RavesBridgeWrite" }.Start();
+            }
+
+            /// Non-blocking hand-off from Publish: replace the pending frame with the newest and
+            /// wake the writer. A backed-up client only ever ships the LATEST snapshot; stale
+            /// intermediates are dropped (safe — snapshots are full state, not deltas).
+            public void Offer(byte[] frame)
+            {
+                if (!_alive) return;
+                Interlocked.Exchange(ref _pending, frame);
+                try { _wake.Set(); } catch { /* disposed during teardown */ }
+            }
+
+            // Send the newest frame WITHOUT ever doing a long blocking Write. The socket stays in blocking
+            // mode (so the shared READ side is unaffected — flipping Blocking breaks reads), but we only
+            // Write a small chunk AFTER Poll reports the send buffer has room, so no single Write stalls.
+            // Verified: with a blocking full-frame Write, a non-draining peer's stuck Write still caused a
+            // brief game-thread hiccup (Mono holds an io resource during the blocking syscall); chunked
+            // Poll-gated writes remove it. A peer that never drains for WriteStallMs is dropped; progress
+            // resets the clock, so a viewer that pauses to rebuild a zone (1–3s) is NOT dropped.
+            private void WriteLoop()
+            {
+                Socket sock = _tcp.Client;
+                try
                 {
-                    try { _clients[i].GetStream().Write(frame, 0, frame.Length); }
-                    catch
+                    while (_alive)
                     {
-                        try { _clients[i].Close(); } catch { /* ignore */ }
-                        _clients.RemoveAt(i);
+                        _wake.WaitOne();
+                        byte[] frame = Interlocked.Exchange(ref _pending, null);
+                        if (frame == null) continue;               // spurious wake / already sent
+                        int off = 0;
+                        var stall = System.Diagnostics.Stopwatch.StartNew();
+                        while (off < frame.Length && _alive)
+                        {
+                            if (!sock.Poll(50000, SelectMode.SelectWrite))   // 50ms; false = buffer still full
+                            {
+                                if (stall.ElapsedMilliseconds > WriteStallMs)
+                                    throw new IOException("client stalled " + stall.ElapsedMilliseconds + "ms");
+                                continue;                          // peer not draining yet — wait, up to the stall cap
+                            }
+                            int chunk = Math.Min(frame.Length - off, SendChunk);
+                            _stream.Write(frame, off, chunk);      // buffer had room (Poll) + small chunk → no long block
+                            off += chunk;
+                            stall.Restart();                       // made progress → reset the stall clock
+                        }
                     }
                 }
+                catch (Exception e) { try { _srv.Log("dropped slow/broken client: " + e.Message); } catch { } }
+                finally { Kill(); }
+            }
+
+            private void ReadLoop()
+            {
+                try
+                {
+                    var lenBuf = new byte[4];
+                    while (_alive && _srv._running)
+                    {
+                        if (!ReadFully(_stream, lenBuf, 4)) break;
+                        int len = (lenBuf[0] << 24) | (lenBuf[1] << 16) | (lenBuf[2] << 8) | lenBuf[3];
+                        if (len < 0 || len > (16 << 20)) break;    // 16 MB sanity cap
+                        var payload = new byte[len];
+                        if (!ReadFully(_stream, payload, len)) break;
+                        string s = Encoding.UTF8.GetString(payload);
+                        Action<string> hook = _srv.OnPayload;
+                        if (hook != null) hook(s); else _srv.Incoming.Enqueue(s);
+                    }
+                }
+                catch { /* client dropped */ }
+                finally { Kill(); }
+            }
+
+            /// Idempotent teardown: stop both loops, close the socket, drop from the roster.
+            public void Kill()
+            {
+                if (Interlocked.Exchange(ref _killed, 1) != 0) return;
+                _alive = false;
+                try { _wake.Set(); } catch { /* wake the writer so it exits WaitOne */ }
+                try { _tcp.Close(); } catch { /* also unblocks a Write/Read in progress */ }
+                _srv.Remove(this);
             }
         }
     }
