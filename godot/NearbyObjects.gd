@@ -119,6 +119,12 @@ func set_one_to_one(on: bool) -> void:
 	if on == _one_to_one:
 		return
 	_one_to_one = on
+	# 1:1: let the list size to its rows (Qud's Nearby objects is content-height, with the Message log
+	# below taking the rest). fit_content grows the label to its text; scroll off so it doesn't cap.
+	# User: the QoL panel scrolls inside its expanded share of the column.
+	if _rt != null:
+		_rt.fit_content = on
+		_rt.scroll_active = not on
 	if not _last_data.is_empty():
 		set_snapshot(_last_data)
 

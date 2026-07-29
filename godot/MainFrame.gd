@@ -371,7 +371,22 @@ func _apply_layout_mode(on: bool) -> void:
 		else:
 			_side.custom_minimum_size = Vector2(SIDEBAR_W_USER, 0)
 			_row_split.split_offset = 900
+	_apply_panel_sizing(on)
 	_push_play_inset(on)
+
+## Size the three side-column panels per mode. Qud stacks a SHORT minimap, a content-sized Nearby
+## objects, and a Message log that fills ALL the remaining height. User (QoL) mode keeps the original
+## split (taller minimap; nearby + log share the leftover space).
+func _apply_panel_sizing(on: bool) -> void:
+	if _minimap != null:
+		# Qud's minimap is a short landscape strip; the QoL one reserved a tall box with dead space.
+		_minimap.custom_minimum_size = Vector2(0, 150 if on else 220)
+	if _nearby != null:
+		# 1:1: size to content (no dead gap) — the panel itself fits its rows via set_one_to_one.
+		# User: expand to share the leftover height with the log.
+		_nearby.size_flags_vertical = Control.SIZE_SHRINK_BEGIN if on else Control.SIZE_EXPAND_FILL
+	if _msglog != null:
+		_msglog.size_flags_vertical = Control.SIZE_EXPAND_FILL   # always the space-filler; dominant in 1:1
 
 ## Tell the Holodeck camera what fraction of the window the sidebar now covers, so the 1:1 zone-fit
 ## recentres the view in the visible play hole (left of the sidebar) instead of the full window.
