@@ -450,6 +450,28 @@ namespace RavesOfQud
                         PushKeyChar(k[0]);
                     return;
                 }
+                if (name == "embark")
+                {
+                    // THE DRIVE: create the character Raves assembled and start the run, skipping
+                    // Qud's on-screen chargen. RequestEmbark stashes the spec, wakes the main menu
+                    // ("Pick:New Game" -> XRLCore.NewGame() -> EmbarkBuilder.Begin()), then drives
+                    // the live builder headlessly on the UI queue. Only meaningful at the main menu
+                    // (no-op / times out if a game is already running or the menu isn't active).
+                    f.TryGetValue("genotype", out string g);
+                    f.TryGetValue("subtype", out string sub);
+                    if (string.IsNullOrEmpty(g) || string.IsNullOrEmpty(sub))
+                    {
+                        try { Server.Log("embark ignored: need both genotype and subtype"); } catch { }
+                        return;
+                    }
+                    var spec = new EmbarkDriver.PendingBuildSpec { Genotype = g, Subtype = sub };
+                    f.TryGetValue("gamemode", out string gm);
+                    if (!string.IsNullOrEmpty(gm)) spec.Gamemode = gm;
+                    f.TryGetValue("start", out string sl);
+                    if (!string.IsNullOrEmpty(sl)) spec.StartingLocation = sl;
+                    EmbarkDriver.RequestEmbark(spec);
+                    return;
+                }
             }
             catch (Exception e) { try { Server.Log("onpayload error: " + e.Message); } catch { } }
             // not consumed inline -> hand to the main-thread drain
