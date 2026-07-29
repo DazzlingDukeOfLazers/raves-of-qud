@@ -18,7 +18,7 @@ namespace RavesOfQud
         /// no way to tell from the outside whether the running code included a
         /// given fix. Every snapshot now says. Bump this when changing the mod.
         /// </summary>
-        public const string Build = "2026-07-27b onfire-flag";
+        public const string Build = "2026-07-28 options-writeback";
 
         /// <summary>
         /// Monotonic WIRE version — bump whenever a change to the snapshot format makes a newer client
