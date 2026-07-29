@@ -1,5 +1,9 @@
 # Cameras, views & viewer controls
 
+> **Canonical for camera controls.** If another doc (README, `CLAUDE.md`, `docs/tools.md`) disagrees with
+> this page on modes, keys, or Escape behavior, **this page wins** — fix the other doc. There are **7 modes**
+> and **Escape keeps the current camera** (it does not snap to COMPASS).
+
 How Raves frames the world and what the keys/mouse do. The camera code is all in
 `godot/Main.gd`; the selection marker is in `godot/CellInspector.gd`.
 

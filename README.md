@@ -1,4 +1,4 @@
-# Raves of Qud
+# Raves of Qud — a Godot 3D / 2.5D viewer for Caves of Qud
 
 A **2.5D / 3D augmentation layer for [Caves of Qud](https://www.cavesofqud.com/)**. It does
 *not* reimplement the game. A real, paid, modded copy of Qud runs as the authoritative
@@ -25,12 +25,50 @@ API terms — `get_viewport()`, `SubViewport`, "the Godot viewport" — stay as-
 Qud owns worldgen, AI, combat, items, saves, tiles — everything. This repo owns two mappings:
 Godot input → Qud command, and Qud zone state → 3D scene.
 
+## What you need
+
+- A **paid, installed copy of [Caves of Qud](https://www.cavesofqud.com/)** with local C# scripting mods
+  allowed. Raves ships **no** game assets — tiles are extracted at runtime from your own install into a
+  git-ignored folder.
+- **Godot 4.x** (built and tested on macOS; the mod compiles in-process, so no Windows build is needed).
+- Optional **.NET SDK** to type-check the mod against Qud's assembly before a restart.
+
+## Quickstart
+
+```bash
+# 1. Deploy the bridge mod (it compiles at Qud startup — a mod change needs a full restart).
+cp mod/*.cs mod/manifest.json \
+  ~/Library/Application\ Support/com.FreeholdGames.CavesOfQud/Mods/RavesOfQudBridge/
+# 2. Launch Qud; enable the mod + "allow local C# scripting mods"; load a save.
+# 3. Verify the bridge is live (the mod opens the socket on the first turn):
+nc -z 127.0.0.1 48710 && echo "bridge up"
+# 4. Open godot/ in Godot 4.x and press Play — it auto-connects to 127.0.0.1:48710 and retries until Qud answers.
+```
+
+Environment paths and the dev loop: [Running it](#running-it) and `CLAUDE.md`.
+
+## What you can do today
+
+Render the current zone as a lit 3D/2.5D scene (voxel walls, billboard sprites, oriented fences); orbit/
+pan/zoom with **7 camera modes** + a multi-view grid ([docs/cameras.md](docs/cameras.md)); move and act
+with input round-tripped through Qud; **inspect any tile** (Ctrl/Cmd-click) to compare wire-vs-rendered;
+and use a **1:1 Qud-style menu** with Mods/Options screens (a live options mirror + save/load presets).
+Day/night, per-cell lighting, water/bridges, and the message/target/effects panels track Qud each turn.
+
+## Limitations
+
+Single-player viewer of **your own** local game — multiplayer is a [proposal](docs/multiplayer.md), not
+implemented. macOS is the built/tested platform (a Windows branch exists). The bridge is **localhost-only
+with no authentication** — never expose port 48710. Dev-run Godot windows look soft on Retina; export a
+build for crisp text.
+
 ---
 
 ## Documentation map
 
-This README is the **hub**: architecture, platform constraints, the Qud data model, and the
-verified API. Detailed subsystems live in `docs/`:
+This README is the **front door** (above) plus a deep **engineering reference** (below). Detailed
+subsystems have canonical homes in `docs/` — prefer those; the reference below is the reverse-engineering
+record:
 
 | page | what |
 |---|---|
@@ -59,6 +97,14 @@ verified API. Detailed subsystems live in `docs/`:
 10. [Open problems / next steps](#open-problems--next-steps)
 
 ---
+
+# Engineering reference
+
+> Everything below is the deep reverse-engineering record — repo layout, threading, the Qud data model,
+> the colour/tile/classification rules, and the verified API. New readers can stop at the documentation
+> map above; this section is for working on the internals. Canonical subsystem docs:
+> [rendering](docs/rendering.md) · [protocol](docs/protocol.md) · [cameras](docs/cameras.md) ·
+> [tools](docs/tools.md). (Migrating the Qud-data-model sections into those docs is in progress.)
 
 ## Repo layout
 
