@@ -18,10 +18,13 @@ const OFF := "#8a8f9a"       # toggled-off / dim
 const CD := "#e08a4a"        # cooling-down amber
 
 var _tiles: RefCounted       # shared tile recolouring for ability icons (set in _ready)
-var _rt: RichTextLabel
+var _rt: RichTextLabel       # user (QoL) layout: all abilities inline, left-packed
+var _cells: HBoxContainer    # 1:1 layout: one equal-width cell per ability, spread across the bar (Qud)
 var _abilities_btn: Button   # far-left: opens Qud's Abilities menu (the 'a' command)
 var _palette := {}
 var _ability_tex := {}       # command -> recoloured icon texture, for the direction picker cursor
+var _last_data := {}         # last snapshot, so a mode toggle re-renders without waiting for a new one
+var _one_to_one := false     # 1:1: spread abilities in equal cells (Qud) vs the inline QoL list
 
 func _ready() -> void:
 	_tiles = load("res://QudTiles.gd").new()
@@ -63,21 +66,45 @@ func _ready() -> void:
 	_rt.meta_clicked.connect(_on_meta)      # ability names are clickable [url] links
 	h.add_child(_rt)
 
+	# 1:1 layout: equal-width cells spread across the bar (hidden until 1:1). Populated per snapshot.
+	_cells = HBoxContainer.new()
+	_cells.add_theme_constant_override("separation", 0)   # dividers come from VSeparators between cells
+	_cells.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_cells.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_cells.visible = false
+	h.add_child(_cells)
+
 ## MainFrame calls this each snapshot with the full data (needs abilities + palette + tilesDir).
 func set_snapshot(data: Dictionary) -> void:
+	_last_data = data
 	var pal: Dictionary = data.get("palette", {})
 	if not pal.is_empty():
 		_palette = pal
 	_tiles.palette = _palette
 	_tiles.tiles_dir = String(data.get("tilesDir", _tiles.tiles_dir))
-	var abilities: Array = data.get("abilities", [])
-
-	_rt.clear()
 	_ability_tex.clear()
+	if _one_to_one:
+		_render_cells(data.get("abilities", []))
+	else:
+		_render_inline(data.get("abilities", []))
+
+## 1:1 (parity) mode: spread abilities in equal-width bordered cells across the bar, like Qud (vs the
+## QoL inline list). Master switch is MainFrame/Holodeck; here we swap the layout + re-render.
+func set_one_to_one(on: bool) -> void:
+	if on == _one_to_one:
+		return
+	_one_to_one = on
+	_rt.visible = not on
+	_cells.visible = on
+	if not _last_data.is_empty():
+		set_snapshot(_last_data)
+
+## USER (QoL): all abilities inline in one label, left-packed, names clickable.
+func _render_inline(abilities: Array) -> void:
+	_rt.clear()
 	if abilities.is_empty():
 		_rt.append_text("[color=%s]No abilities[/color]" % DIM)
 		return
-
 	var img_h := int(UiFont.px(get_viewport(), "body") * 3.0)   # 2x the previous size, per request
 	var img_w := int(round(img_h * 16.0 / 24.0))   # Qud tiles are 16x24
 	for a in abilities:
@@ -91,6 +118,83 @@ func set_snapshot(data: Dictionary) -> void:
 			_rt.append_text(String(a.get("glyph", "")).replace("[", "[lb]"))
 		var name_bb := QudText.to_bbcode(String(a.get("name", "")), _palette)
 		_rt.append_text(" [url=cmd:%s]%s[/url]%s%s     " % [cmd, name_bb, _state_tag(a), _hotkey_tag(a)])
+
+## 1:1 (Qud): one equal-width cell per ability, spread across the whole bar with dividers between.
+func _render_cells(abilities: Array) -> void:
+	for c in _cells.get_children():
+		c.queue_free()
+	if abilities.is_empty():
+		var empty := Label.new()
+		empty.text = "No abilities"
+		empty.add_theme_color_override("font_color", Color.html(DIM))
+		empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		empty.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_cells.add_child(empty)
+		return
+	var icon_px := int(UiFont.px(get_viewport(), "body") * 1.8)   # visible tile icon (crisp, nearest)
+	for i in abilities.size():
+		if i > 0:
+			_cells.add_child(VSeparator.new())   # divider between cells, like Qud
+		_cells.add_child(_make_cell(abilities[i], icon_px))
+
+## One ability as a centred, equal-share, clickable cell: a nearest-filtered tile icon + a name/state/
+## hotkey label, both centred. The cell (an HBox) catches the click via gui_input; children IGNORE the
+## mouse so it falls through. Nothing here takes keyboard focus, so the movement arrows are never
+## swallowed (the "can't move after Make Camp" bug).
+func _make_cell(a: Dictionary, icon_px: int) -> Control:
+	var cmd := String(a.get("command", ""))
+	var tex: Texture2D = _tiles.texture_for(a, true)
+	if cmd != "":
+		_ability_tex[cmd] = tex
+	var cell := HBoxContainer.new()
+	cell.alignment = BoxContainer.ALIGNMENT_CENTER
+	cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL   # equal share of the bar width
+	cell.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	cell.add_theme_constant_override("separation", 6)
+	cell.mouse_filter = Control.MOUSE_FILTER_STOP
+	cell.tooltip_text = QudText.strip(String(a.get("name", "")))
+	cell.gui_input.connect(func(e: InputEvent) -> void:
+		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+			_activate(cmd))
+	if tex != null:
+		var ir := TextureRect.new()
+		ir.texture = tex
+		ir.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST   # crisp pixel-art, no blur
+		ir.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		ir.custom_minimum_size = Vector2(round(icon_px * 16.0 / 24.0), icon_px)
+		ir.mouse_filter = Control.MOUSE_FILTER_IGNORE   # click falls through to the cell
+		cell.add_child(ir)
+	var lbl := Label.new()
+	lbl.text = "%s%s%s" % [QudText.strip(String(a.get("name", ""))), _state_plain(a), _hotkey_plain(a)]
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	cell.add_child(lbl)
+	return cell
+
+## Plain-text state/hotkey suffixes for the button label (no bbcode in Button.text).
+func _state_plain(a: Dictionary) -> String:
+	if bool(a.get("toggleable", false)):
+		return " [on]" if bool(a.get("toggle", false)) else " [off]"
+	var cd := int(a.get("cooldown", 0))
+	if cd > 0:
+		return " [cd %d]" % cd
+	if not bool(a.get("enabled", true)):
+		return " [disabled]"
+	return ""
+
+func _hotkey_plain(a: Dictionary) -> String:
+	var hk := String(a.get("hotkey", ""))
+	return " <%s>" % hk if hk != "" else ""
+
+## Shared activate path for a cell click (mirrors _on_meta): send the command + direction-picker hint.
+func _activate(cmd: String) -> void:
+	if cmd == "":
+		return
+	command_requested.emit({
+		"type": "command", "command": cmd,
+		"icon": _ability_tex.get(cmd),
+		"pick_dir": DIR_ABILITIES.has(cmd),
+	})
 
 func _state_tag(a: Dictionary) -> String:
 	if bool(a.get("toggleable", false)):
