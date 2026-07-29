@@ -68,6 +68,12 @@ namespace RavesOfQud
         /// </summary>
         public Action<string> OnPayload;
 
+        /// <summary>Optional hook fired (on the accept thread) each time a client connects. The game side
+        /// uses it to force a snapshot publish — which only actually happens if a game is live — so a
+        /// newly-connected client gets current data immediately (and can tell "game live" from "just a
+        /// socket") without having to send a turn-passing command.</summary>
+        public Action OnConnect;
+
         /// <summary>Optional log sink; set from the game side to route to Qud's log.</summary>
         public Action<string> Log = _ => { };
 
@@ -108,6 +114,7 @@ namespace RavesOfQud
                 lock (_clientsLock) _clients.Add(conn);
                 conn.Start();
                 Log("client connected");
+                try { OnConnect?.Invoke(); } catch { /* game side hook; never let it kill the accept loop */ }
             }
         }
 

@@ -83,6 +83,8 @@ var _peer := StreamPeerTCP.new()
 var _retry := 0.0
 var _qud_up := false
 var _launching := false
+var _game_live := false        # a snapshot has arrived = a game is actually live (not just a socket open)
+var _continue_hint: Label      # "load a game in Qud" note, shown when Qud is up but no game is live
 
 func _ready() -> void:
 	name = "MainMenu"
@@ -97,6 +99,7 @@ func _ready() -> void:
 	_build_background()   # Qud's title cave-art from the install (if the mod exported it)
 	_build_logo()         # Qud's "CAVES OF QUD" wordmark (extracted), else a text fallback
 	_build_menu()         # the centred, gilded option box
+	_build_continue_hint()  # "load a game in Qud" note under the box (hidden until relevant)
 	_build_links()        # the bottom-left secondary list
 	_build_hint()
 	_build_version()
@@ -222,6 +225,23 @@ func _place_box(c: Control) -> void:
 	c.offset_right = bw * 0.5
 	c.offset_top = -bh * 0.5
 	c.offset_bottom = bh * 0.5
+
+## A small note just under the option box, shown only when Qud is up but no game is live (see
+## _update_continue_hint). Pure fractional anchors, so it tracks the box across window resizes.
+func _build_continue_hint() -> void:
+	_continue_hint = _label("Load a game in Caves of Qud to continue", MUTED, "caption")
+	_continue_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_continue_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_continue_hint.visible = false
+	add_child(_continue_hint)
+	var r: Array = _layout.get("menu", DEFAULT_LAYOUT["menu"])
+	var below: float = r[1] + r[3] + 0.012   # just under the box bottom
+	_continue_hint.anchor_left = 0.14
+	_continue_hint.anchor_right = 0.86
+	_continue_hint.anchor_top = below
+	_continue_hint.anchor_bottom = below + 0.06
+	for k in ["left", "top", "right", "bottom"]:
+		_continue_hint.set("offset_" + k, 0.0)
 
 ## Reconstruct Qud's box from its OWN extracted frame sprites (title/chrome/), composed
 ## the way Qud composes Frame/Border: tiled dark panel, woven gold side + bottom borders,
@@ -381,12 +401,19 @@ func _refresh_enabled() -> void:
 		var act: String = row["cfg"].get("act", "")
 		var enabled := true
 		if act == "continue":
-			enabled = _qud_up
+			enabled = _game_live   # a LIVE game, not merely an open bridge socket
 		row["enabled"] = enabled
 		row["btn"].disabled = not enabled
 	if _sel < _rows.size() and not _rows[_sel]["enabled"]:
 		_step(1)
 	_apply_selection()
+	_update_continue_hint()
+
+## Show "load a game in Qud" only when the bridge is up but no game is live — otherwise a greyed
+## Continue looks broken. Hidden when Qud's down (nothing to say) or a game IS live (Continue works).
+func _update_continue_hint() -> void:
+	if _continue_hint != null:
+		_continue_hint.visible = _qud_up and not _game_live
 
 # ── hint bar + version corner ─────────────────────────────────────────────────────
 
@@ -488,15 +515,18 @@ func _process(dt: float) -> void:
 	match _peer.get_status():
 		StreamPeerTCP.STATUS_CONNECTED:
 			_set_qud_up(true)
-			# DRAIN + discard. This is a detection-only probe (it never sends a command, so it
-			# never asks for snapshots), but Qud broadcasts every published snapshot to ALL
-			# connected clients. If we let those pile up unread, our socket's receive buffer fills
-			# and the mod's writer to us stalls/times-out — so read and throw them away.
+			# DRAIN + detect. The mod force-publishes a snapshot the instant we connect, but ONLY if
+			# a game is actually live — so ANY bytes here mean "a game is running" (the mod sends
+			# nothing else to a client). That's how we tell a live game apart from a bare socket open
+			# at Qud's own main menu. We discard the bytes (detection only) but must read them, else
+			# our receive buffer fills and the mod's writer to us stalls.
 			var avail := _peer.get_available_bytes()
 			if avail > 0:
 				_peer.get_data(avail)
+				_set_game_live(true)
 		StreamPeerTCP.STATUS_ERROR, StreamPeerTCP.STATUS_NONE:
 			_set_qud_up(false)
+			_set_game_live(false)   # socket dropped → re-detect on the next connect (mod republishes)
 			_retry += dt
 			if _retry >= 1.0:   # retry ~1/s until Qud is up
 				_retry = 0.0
@@ -511,6 +541,12 @@ func _set_qud_up(up: bool) -> void:
 	_qud_up = up
 	if up:
 		_launching = false
+	_refresh_enabled()
+
+func _set_game_live(live: bool) -> void:
+	if live == _game_live:
+		return
+	_game_live = live
 	_refresh_enabled()
 
 # ── UI helpers ──────────────────────────────────────────────────────────────────

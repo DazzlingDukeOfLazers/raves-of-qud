@@ -45,6 +45,11 @@ namespace RavesOfQud
                             // Route commands the instant they arrive (background thread),
                             // so movement can wake an unfocused game (see OnPayload).
                             s.OnPayload = OnPayload;
+                            // On any client connect, force a snapshot publish. It only fires if a game is
+                            // live (TickRender/TickAction run only then), so a fresh client gets current
+                            // data at once — and a client can distinguish "game live" from "socket open at
+                            // Qud's menu" without sending a turn-passing wait.
+                            s.OnConnect = () => ForcePublishSoon = true;
                             s.Start();
                             _server = s;
                             StartFocusKeeper();
