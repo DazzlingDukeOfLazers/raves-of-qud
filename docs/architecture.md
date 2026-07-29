@@ -138,3 +138,53 @@ full zone scan) publishes via `PublishNow`, rate-limited to `PublishThrottleMs` 
   read cheap + guarded (it runs 10×/sec); never do a zone scan there.
 
 The mod is INERT with no client connected (gated on `server.ClientCount`), so solo Qud is unaffected.
+
+## Threading model
+
+The single most important thing to internalise, because it dictates everything:
+
+**Qud runs its turn logic on a dedicated BACKGROUND thread** (`XRLCore._ThreadStart` → `RunGame` →
+`ProcessSingleTurn`), *not* Unity's main/render thread.
+
+- **Reading game state** (Zone, Cell, Render, GameObject) is safe on that turn thread — that's where the
+  objects live. `EndTurnEvent`, and thus `Bridge.Tick`, fire there. Qud's whole event system runs on the
+  turn thread — even `BeforeRenderEvent` fires there, not the main thread.
+- **Any Unity graphics call** on the turn thread (`Texture2D` ctor, `Graphics.Blit`, `ReadPixels`,
+  `SpriteManager.GetUnitySprite`) → **"Graphics device is null" → an uncatchable native crash.**
+
+So the mod is split by thread:
+- **Turn thread** (`Bridge.Tick` via `EndTurnEvent`): read the zone, serialize JSON, enqueue tile-export
+  requests, publish over the socket. **No Unity graphics, ever.**
+- **Main thread**: tile export runs here via `GameManager.Instance.uiQueue.queueTask(...)` — the only place
+  graphics calls are legal.
+
+The socket server (`BridgeServer.cs`) is pure .NET on its own background threads; inbound commands land in a
+`ConcurrentQueue` and are applied on the turn thread. A cheap crash-proof main-thread guard:
+`SynchronizationContext.Current is UnitySynchronizationContext` is true **only** on the main thread.
+
+## Platform constraints (macOS / Apple Silicon)
+
+| Constraint | Consequence |
+|---|---|
+| Turn logic is off Unity's main thread | Graphics on the turn thread crashes hard — marshal to main thread via `uiQueue`. |
+| **Harmony is blocked on Apple Silicon** (`mprotect EACCES`) | Runtime method-patching doesn't work; use Qud's own events, not patched `LateUpdate` etc. |
+| Tiles are packed in Unity-6 atlases, not loose PNGs | Can't point Godot at files on disk — extract via the running game (below). |
+| Exported tile files are PNG content even when named `.bmp` | Godot's `Image.load_from_file` picks the loader by extension and fails; read bytes + `load_png_from_buffer`. |
+| String-grepping `Assembly-CSharp.dll` lies about casing | It reported `Render` fields lowercase; they're capitalized. Reflect with `MetadataLoadContext` for ground truth. |
+
+## Tile extraction (engine-assisted)
+
+Qud has **~44,525 tiles** packed into a few dozen Unity-6 atlas pages, with a path→rect lookup baked into a
+MonoBehaviour. Decoding atlases offline is fragile — so we don't. **The running game already has the atlas
+loaded; the mod asks it for pixels:**
+
+1. Turn thread (`TileExporter.Ensure`): dedupe + enqueue the tile path. **No Unity calls.**
+2. Main thread (`TileExportPump.Export`, via `uiQueue`): `Kobold.SpriteManager.GetUnitySprite(path)` →
+   `sprite.texture` (atlas) + `sprite.textureRect` → scaled `Graphics.Blit` of just that rect into a small
+   `RenderTexture` → `ReadPixels` → `EncodeToPNG` → write to `<support>/tiles/`.
+3. On-demand (per distinct tile seen), cached, resumable. The snapshot carries `tilesDir`.
+
+**Force-export tiles that never occur naturally** (e.g. the isolated wall variant for a fully-bordered top):
+`TileExporter.Ensure("Assets/Content/Textures/Tiles/wall_rock-00000000.bmp")` — the atlas has all 256
+autotile variants regardless of what's placed in a zone. Tile path → filename: replace `/ \ :` with `_`;
+content is always PNG.

@@ -72,11 +72,14 @@ record:
 
 | page | what |
 |---|---|
+| **[docs/architecture.md](docs/architecture.md)** | Holodeck boot chain, components, panels, the **threading model**, platform constraints, tile extraction, the bridge cadence. |
 | **[docs/rendering.md](docs/rendering.md)** | the 3D render pipeline — classification, **voxel walls**, shading, day/night, lights, fill, overrides. *Start here for anything visual.* |
-| **[docs/cameras.md](docs/cameras.md)** | camera modes, the **multi-view picker**, the top-down **16:24 aspect stretch**, settings persistence, and viewer controls. |
-| **[docs/tools.md](docs/tools.md)** | the Python inspection tools, the in-viewer inspector/report/screenshots, the remote-control + **OS-input harness** (`control.py`, `desktop.py`), and the **Python-first workflow**. |
-| **[docs/protocol.md](docs/protocol.md)** | the wire format (snapshot & command frames). |
-| **[docs/legacy-integration-playbook.md](docs/legacy-integration-playbook.md)** | **portable playbook** — how to apply the bridge / two-window-focus / OS-input-harness / reverse-engineering lessons to ANY new "Godot on top of a legacy game" target. Read before starting a new integration. |
+| **[docs/cameras.md](docs/cameras.md)** | camera modes (**canonical**), the multi-view picker, and viewer controls. |
+| **[docs/protocol.md](docs/protocol.md)** | the wire format — normative summary, snapshot & command frames, fields, colours + palette, water. |
+| **[docs/qud-api.md](docs/qud-api.md)** | verified Qud namespaces + signatures (reflection-confirmed). |
+| **[docs/tools.md](docs/tools.md)** | the Python inspection tools, the in-viewer inspector/report/screenshots, `control.py`/`desktop.py`, option presets, and the **Python-first workflow**. |
+| **[docs/gotchas.md](docs/gotchas.md)** · **[docs/roadmap.md](docs/roadmap.md)** · **[docs/decisions/](docs/decisions/)** | invariants + checklists · the world-store roadmap · the war-story debugging record. |
+| **[docs/legacy-integration-playbook.md](docs/legacy-integration-playbook.md)** | **portable playbook** for any "Godot on top of a legacy game" target. |
 
 > **Python-first, for anyone (human or AI) picking this up:** Claude can't see the Holodeck (the Godot viewport),
 > so geometry/pixel algorithms (voxel heights, fill rules) are **prototyped and verified in Python
@@ -84,27 +87,13 @@ record:
 > Lighting/appearance still needs a screenshot; the algorithm does not. The product is
 > well-documented GDScript; Python is validation. See [docs/tools.md](docs/tools.md).
 
-## Table of contents
-1. [Repo layout](#repo-layout)
-2. [Running it](#running-it)
-3. [Architecture & the threading model](#architecture--the-threading-model)
-4. [Hard-won platform constraints](#hard-won-platform-constraints) ← read this first
-5. [The tile system](#the-tile-system-engine-assisted-extraction)
-6. [Wire protocol (the snapshot)](#wire-protocol-the-snapshot) → detail in [docs/protocol.md](docs/protocol.md)
-7. [Qud data model & mappings](#qud-data-model--mappings) ← the "datatypes" reference
-8. [Rendering & tools](#rendering--tools) → [docs/rendering.md](docs/rendering.md), [docs/tools.md](docs/tools.md)
-9. [Verified Qud API reference](#verified-qud-api-reference)
-10. [Open problems / next steps](#open-problems--next-steps)
-
 ---
 
 # Engineering reference
 
-> Everything below is the deep reverse-engineering record — repo layout, threading, the Qud data model,
-> the colour/tile/classification rules, and the verified API. New readers can stop at the documentation
-> map above; this section is for working on the internals. Canonical subsystem docs:
-> [rendering](docs/rendering.md) · [protocol](docs/protocol.md) · [cameras](docs/cameras.md) ·
-> [tools](docs/tools.md). (Migrating the Qud-data-model sections into those docs is in progress.)
+> New readers can stop at the documentation map above — this section is for working on the internals. It
+> keeps repo-level orientation (layout, running it) and a **one-screen index of the data model** with links
+> to each fact's canonical home; the deep detail lives in the subsystem docs.
 
 ## Repo layout
 
@@ -176,96 +165,14 @@ combat/doors/AI exactly as a keypress would.
 
 ---
 
-## Architecture & the threading model
+## Architecture, threading & the wire
 
-The single most important thing to internalise, because it dictates everything:
-
-**Qud runs its turn logic on a dedicated BACKGROUND thread** (`XRLCore._ThreadStart` →
-`RunGame` → `ProcessSingleTurn`), *not* Unity's main/render thread.
-
-- **Reading game state** (Zone, Cell, Render, GameObject) is safe on that turn thread — that's
-  where the objects live. `EndTurnEvent`, and thus `Bridge.Tick`, fire there.
-- **Any Unity graphics call** on the turn thread (`Texture2D` ctor, `Graphics.Blit`,
-  `ReadPixels`, `SpriteManager.GetUnitySprite`) → **"Graphics device is null" → an uncatchable
-  native crash.** (Learned by crashing.)
-
-So the mod is split by thread:
-- **Turn thread** (`Bridge.Tick` via `EndTurnEvent`): read the zone, serialize JSON, enqueue
-  tile-export requests, publish over the socket. No Unity graphics, ever.
-- **Main thread**: tile export runs here via `GameManager.Instance.uiQueue.queueTask(...)`
-  (see below), the only place graphics calls are legal.
-
-The socket server itself (`BridgeServer.cs`) is pure .NET on its own background threads;
-inbound commands land in a `ConcurrentQueue` and are applied on the turn thread.
-
----
-
-## Hard-won platform constraints
-
-These cost real time to discover. Save yourself:
-
-| Constraint | Consequence |
-|---|---|
-| **Turn logic is off Unity's main thread** | Graphics on the turn thread crashes hard. Marshal to main thread. |
-| **Harmony is blocked on Apple Silicon macOS** (`mprotect EACCES`) | Runtime method-patching doesn't work. Can't patch `GameManager.LateUpdate` etc. Use Qud's own events. |
-| **Qud's whole event system runs on the turn thread** | Even `BeforeRenderEvent` fires there, not the main thread (verified with a `UnitySynchronizationContext` probe). No event hook reaches the main thread. |
-| **`GameManager.Instance.uiQueue`** is the escape hatch | `QupKit.ThreadTaskQueue.queueTask(Action, delay)` — drained on the UI/main thread. This is how graphics work gets onto the main thread. Confirmed working. |
-| **`SynchronizationContext.Current is UnitySynchronizationContext` only on the main thread** | Cheap, crash-proof main-thread guard if you're unsure what thread you're on. |
-| **Tiles are packed in Unity 6 atlases, not loose PNGs** | Can't point Godot at files on disk. Extract via the running game (below). |
-| **Exported tile files are PNG content even when named `.bmp`** | Godot's `Image.load_from_file` picks the loader by extension and fails. Read bytes and `load_png_from_buffer`. |
-| **`string`-grepping `Assembly-CSharp.dll` lies about casing** | It reported Render fields lowercase; they're capitalized. Reflect with `MetadataLoadContext` for ground truth. |
-
----
-
-## The tile system (engine-assisted extraction)
-
-Qud has **~44,525 tiles** packed into a few dozen Unity-6 atlas pages, with a path→rect lookup
-baked into a MonoBehaviour. Decoding atlases + reversing that manifest offline is fragile — so
-we don't. **The running game already has the atlas loaded; the mod asks it for pixels:**
-
-1. Turn thread (`TileExporter.Ensure`): dedupe + enqueue the tile path. **No Unity calls.**
-2. Main thread (`TileExportPump.Export`, via `uiQueue`):
-   `Kobold.SpriteManager.GetUnitySprite(path)` → `sprite.texture` (atlas) + `sprite.textureRect`
-   → scaled `Graphics.Blit` of just that rect into a small `RenderTexture` → `ReadPixels` →
-   `EncodeToPNG` → write to `~/Library/Application Support/RavesOfQud/tiles/`.
-3. On-demand (per distinct tile seen), cached, resumable. The snapshot carries `tilesDir` so
-   Godot knows where to load.
-
-You can **force-export tiles that never occur naturally** (e.g. the isolated wall variant used
-for a fully-bordered top) with `TileExporter.Ensure("Assets/Content/Textures/Tiles/wall_rock-00000000.bmp")`
-— the atlas has all 256 autotile variants regardless of what's placed in a zone.
-
-Tile path → filename: replace `/ \ :` with `_`. Content is always PNG.
-
----
-
-## Wire protocol (the snapshot)
-
-localhost TCP **48710**. Every message: `[4-byte big-endian length][UTF-8 JSON]`.
-
-**Server → client (once per turn):**
-```json
-{
-  "type": "snapshot",
-  "tilesDir": "/Users/you/Library/Application Support/RavesOfQud/tiles",
-  "zone":   { "id": "JoppaWorld.11.22.1.1.10", "width": 80, "height": 25 },
-  "player": { "x": 40, "y": 12 },
-  "cells": [
-    { "x": 41, "y": 12, "objs": [
-        { "glyph":".", "tile":"...deep-00100010.png", "color":"&b^B", "tilecolor":"&b",
-          "detail":"B", "layer":2, "wall":false, "solid":false, "occluding":false },
-        ... bottom→top of the cell stack ...
-    ]}
-  ]
-}
-```
-Only **non-empty** cells are sent. Snapshots only fire on a **turn** (the player must act) —
-capture scripts get nothing until you take a step.
-
-**Client → server:** `{ "type":"command", "name":"move", "dir":"N" }` — `dir` ∈
-`N S E W NE NW SE SW`. Applied on the turn thread; the sim resolves the whole turn.
-
----
+- **Holodeck architecture** — boot chain, `Main.gd` decomposition, the MainFrame chrome, panels, the
+  direction picker, the **threading model** (turn thread vs main thread; graphics only via `uiQueue`), the
+  macOS platform constraints, and the tile-extraction pipeline → **[docs/architecture.md](docs/architecture.md)**.
+- **The wire protocol** — snapshot + command frames, the normative summary, per-cell/per-object fields,
+  colours, water → **[docs/protocol.md](docs/protocol.md)**.
+- **Verified Qud API reference** — namespaces + signatures, reflection-confirmed → **[docs/qud-api.md](docs/qud-api.md)**.
 
 ## Qud data model & mappings
 
@@ -303,58 +210,11 @@ turquoise trap, the wading-depth control — is in
 
 ## Rendering & tools
 
-The 3D render pipeline is documented in full in **[docs/rendering.md](docs/rendering.md)** — object
-classification, the painted ground layer, colour/fill, the **voxel walls** (the active area), the
-faked lighting (unshaded world), day/night + sun/moon, water/bridges, and user overrides. The
-inspection tooling and the in-viewer feedback loop are in **[docs/tools.md](docs/tools.md)**.
-
-The essentials, so this hub stands alone:
-
-- `ZoneRenderer.gd` rebuilds per snapshot, pooling nodes. **Walls are voxel geometry** (cap + sides
-  extruded per colour-rank height, + a solid dark core), lit by a day/night sun that casts shadows.
-- **Everything is `UNSHADED` by default** (exact tile colours); `SHADED_WORLD` flips walls+ground to
-  shaded so lighting/shadows apply. All "lighting" (torches, day/night) is therefore additive/tint
-  geometry, not real lights on unshaded surfaces.
-- **Prototype geometry algorithms in Python first** (`voxel.py`, `fill.py`), then port to GDScript.
-  Claude can't see the viewport; the human's channel is the **cell inspector** (Ctrl+click → a
-  report file pairing WIRE vs RENDERED) and **F12 screenshots** (both apps self-capture).
-
-
-## Verified Qud API reference
-
-Namespaces and signatures confirmed by reflection against `6000.0.77f1`. **Not a stable public
-API — re-verify after a Qud update with the reflection probe.**
-
-```
-XRL.The.ActiveZone : Zone            XRL.The.Player : GameObject
-XRL.IEventRegistrar                  XRL.IPlayerMutator.mutate(GameObject)   [PlayerMutator] attr
-XRL.World.IPart:
-    Register(GameObject, IEventRegistrar) ; FireEvent(Event)
-    WantEvent(int ID, int cascade)  ;  HandleEvent(EndTurnEvent) / HandleEvent(BeforeRenderEvent)
-XRL.World.EndTurnEvent  (pooled; static .ID)      per-turn hook, fires on the TURN thread
-XRL.World.BeforeRenderEvent (static .ID)          also fires on the TURN thread, NOT main
-XRL.World.Zone:      fields Width, Height (int) ; prop ZoneID (string) ; GetCell(int,int) -> Cell
-XRL.World.Cell:      X, Y, Objects, ParentZone
-XRL.World.GameObject:
-    GetPart<T>() ; HasPart<T>() ; AddPart(IPart) ; CurrentCell (prop) ; Physics (field)
-    IsWall() ; IsOpenLiquidVolume() ; IsWadingDepthLiquid()
-XRL.World.Parts.Render (fields CAPITALIZED):
-    RenderString, ColorString, TileColor, DetailColor, Tile (string), RenderLayer (int)
-    Visible (bool prop), Occluding (bool prop)
-XRL.World.Parts.Physics:  Solid (bool prop)
-XRL.World.CommandEvent.Send(GameObject actor, string cmd, GameObject target, Cell cell,
-    int standoff, bool forced, bool silent, GameObject handler)     // no 2-arg overload
-    // movement command IDs: CmdMoveN/S/E/W/NE/NW/SE/SW  (Commands.xml)
-Kobold.SpriteManager (static):
-    GetUnitySprite(string) -> UnityEngine.Sprite
-    GetTextureInfo(string, bool) ; TryGetTextureInfo(string, out exTextureInfo) ; HasTextureInfo(string)
-GameManager (global namespace):
-    static Instance (field) ; uiQueue, gameQueue (QupKit.ThreadTaskQueue) ; MainCamera
-QupKit.ThreadTaskQueue:
-    queueTask(Action, int delay) ; queueSingletonTask(...) ; executeTasks() ; HasTask() ; awaitTask(Action)
-```
-
----
+The 3D render pipeline — object classification, the painted ground layer, colour/fill, the **voxel walls**,
+lighting (the world honours `SHADED_WORLD`, currently on), day/night + sun/moon, water/bridges, and user
+overrides — is documented in full in **[docs/rendering.md](docs/rendering.md)**. The Python inspection tools
+and the in-viewer feedback loop (Ctrl/Cmd-click → `selection.txt`; F12 screenshots) are in
+**[docs/tools.md](docs/tools.md)**.
 
 ## Open problems / next steps
 
