@@ -36,16 +36,20 @@ add a one-liner (symptom → rule).
   the perceived-vs-full memory.
 - **A placed object's LIGHT can attach a snapshot AFTER its sprite appears** (a just-made campfire lights
   up next tick). Anything keyed on "the object appeared" must also react to "the object lit up."
-- **API details, always decompile — don't guess.** `pPhysics` is obsolete (use `Physics`); liquid ids are
-  lowercase; AV/DV/MA need `Stats.GetCombat*`, not `GetStatValue`; `PushMouseEvent("LeftClick", x, y)` takes
-  CELL coords. `dotnet build mod/…csproj` fails on a wrong name before the user ever runs.
-- **Driving Qud's MENUS / character creation from outside = MOUSE only, never keys.** Qud (Unity) drops
-  synthetic keyboard events (even focus-stealing HID-source ones) and exposes no accessibility tree for its
-  menus, so there is no key/AX path pre-game. It DOES accept a synthetic mouse click — but only a *bare* one:
-  warp the cursor (`CGWarpMouseCursorPosition`) then post a plain down/up pair, **no `kCGMouseEventClickState`
-  field and no pre-move event** (setting either makes Qud hover-highlight but never select). This is what
-  highvisor's `hv click` does; full write-up in highvisor `docs/05-driving-input.md`. *Symptom:* the menu
-  highlight follows your cursor but clicks/keys never activate. In-GAME, keep using the mod's `PushCommand`.
+- **API details, always decompile — don't guess.** `GameObject.Physics` is the reflected field to prefer
+  for new code; `pPhysics` is a legacy convenience accessor **still compiling** (the mod uses
+  `player.pPhysics.Temperature`) but marked obsolete by the assembly (`CS0618: Use Physics`) — don't assume
+  one swaps for the other without compiling against the shipped DLL. Liquid ids are lowercase; AV/DV/MA need
+  `Stats.GetCombat*`, not `GetStatValue`; `PushMouseEvent("LeftClick", x, y)` takes CELL coords.
+  `dotnet build mod/…csproj` fails on a wrong name before the user ever runs.
+- **Driving Qud's MENUS / character creation from outside = MOUSE, not keys** — Qud (Unity) drops synthetic
+  keyboard events pre-game and exposes no accessibility tree for its menus. But the **click shape is
+  surface-specific**, not one universal recipe: plain Unity buttons + world cells take a **bare** click (no
+  pre-move, no `kCGMouseEventClickState`); legacy console popups and the **title menu** need a **hover**
+  (a pre-move event) first — try bare, then hover when the highlight doesn't move. Highvisor's `hv click
+  [--hover]` implements this verified matrix; full write-up in highvisor `docs/05-driving-input.md`.
+  *Symptom of the wrong shape:* the menu highlight follows your cursor but clicks never activate. In-GAME,
+  keep using the mod's `PushCommand`.
 
 ### Renderer (ZoneRenderer)
 - **LIVE STATIC geometry is built ONCE per zone and frozen** — walls, furniture, sprites, lights. Only
@@ -57,8 +61,10 @@ add a one-liner (symptom → rule).
   zone dropped+rebuilt (far→near incremental) mid-walk → "foreground tiles vanish until you stop." Only
   genuinely PLACED structures (campfire, dug wall) should trigger a rebuild. Adding a new object CLASS that
   moves/spreads/decays each turn? exclude it here too, or verify it can't appear on a cell the player traverses.
-- **"Light" in Raves is the per-cell DARKNESS OVERLAY** from Qud's light map (`cell.light`), not real 3D
-  lights (the world is UNSHADED). A campfire/torch glow is additive geometry placed in the static build.
+- **`cell.light` is Qud's per-cell DARKNESS/visibility OVERLAY, not Godot lighting** — the two are
+  different things; say which layer you're changing. World walls and ground **are** per-pixel shaded today
+  (`ZoneRenderer.SHADED_WORLD = true`); many sprite/effect materials remain unshaded or additive. A
+  campfire/torch glow is additive geometry placed in the static build.
 - **Billboard parallax:** a flat `y=0` ground ray overshoots standing sprites at the low camera angle. The
   inspector's `_pick_cell` marches back to the occupied cell; the direction picker wants the literal ground cell.
 

@@ -156,9 +156,10 @@ keyboard. Two channels:
   `move <dir> [n]` (dirs N/S/E/W/NE/NW/SE/SW), then reads the resulting snapshot (player cell/zone).
   The mod's `BridgeServer` broadcasts to every client and shares one command queue, so this coexists
   with the running viewer.
-- **Godot** — Claude can't send keys to Godot, only to Qud. So `Main` polls a command file
-  (`<RavesOfQud>/godot_cmd`, ~10 Hz) and executes: `cam <1-6>` (camera mode), `shot` (save
-  shot.png), `fph <h>` (first-person height).
+- **Godot** — `control.py` drives Godot through a **cooperative command file** for deterministic,
+  focus-independent control: `Main` polls `<RavesOfQud>/godot_cmd` (~10 Hz) and executes `cam <1-7>`
+  (camera mode), `shot` (save shot.png), `fph <h>` (first-person height). (Highvisor is the OS-level
+  alternative when a test needs real window input to Godot.)
 
 ```
 python3 tools/capture/control.py pos          # player cell + zone
@@ -249,10 +250,17 @@ python3 tools/capture/presets.py sync                         # committed fixtur
 
 ## OS-input harness — `desktop.py` (reach Qud UI the bridge can't)
 
-The bridge only moves the player + a few commands. `tools/capture/desktop.py` drives Qud (or Godot) with
-REAL synthetic input at the OS level — so it reaches menus, inventory, dialogs, the ability bar, anything.
+The bridge only moves the player + a few commands. `tools/capture/desktop.py` is a legacy/general
+OS-input helper that drives Qud (or Godot) with REAL synthetic input at the OS level (CoreGraphics
+CGEvent). It has been **verified against selected in-game controls** (e.g. the Sprint button, below).
 Clicking Qud also focuses it, refreshing its render (the map-sync fallback). All in-process via ctypes
-(CoreGraphics CGEvent for mouse/keys, CGWindowList for bounds); `activate` uses an osascript Apple Event.
+(CGEvent for mouse/keys, CGWindowList for bounds); `activate` uses an osascript Apple Event.
+
+> **Synthetic input is surface-specific — `desktop.py` posts one fixed event shape.** For Qud title
+> menus, legacy console popups, and world cells, the reliable path is **highvisor's per-surface
+> bare/`--hover` matrix** (highvisor `docs/05-driving-input.md`): plain Unity buttons + world cells take
+> a bare click; legacy popups need `--hover`; the title menu is bare-then-`--hover`. `desktop.py` does
+> not yet expose those per-surface event shapes, so don't treat it as a universal input tool.
 
 ```
 python3 tools/capture/desktop.py check              # Accessibility granted for the host?
@@ -287,9 +295,12 @@ python3 tools/capture/qud.py load         # main menu: press C (Continue) -> Ret
 python3 tools/capture/qud.py restart      # quit + start + load, all three
 ```
 `load` is keyboard-based (the `C` Continue shortcut + `Return` on the pre-selected latest save, from
-decompiling `Qud.UI.MainMenu`), so it needs no menu-position calibration — just Accessibility for the
-keystrokes. `quit`/`start`/`status` need no permissions. Verified full cycle: quit → start → load → back
-in-game on the current build.
+decompiling `Qud.UI.MainMenu`), driven by **focused OS-level CGEvent keystrokes on the pre-game main
+menu** — a different surface from in-game input, which is why it can work where synthetic keyboard to the
+live game does not. `quit`/`start`/`status` need no permissions; `load` needs Accessibility for the
+keystrokes. **Re-verify `load`/`restart` against the current build before relying on them** — the
+menu-key path is brittle across Qud updates; if it regresses, route pre-game navigation through
+highvisor mouse scenes (highvisor `docs/05-driving-input.md`) instead.
 
 **Gotchas (hard-won):**
 - **Accessibility** is required for synthetic input (not for `bounds`/`activate`). The host process is the
@@ -298,8 +309,12 @@ in-game on the current build.
   Check with `AXIsProcessTrusted()` (`desktop.py check`). Took effect live, no restart.
 - **App names differ per API:** Qud's window OWNER is `CavesOfQud`, its osascript app name is `CoQ` — the
   alias "Qud" resolves both. Qud + Godot may be on different monitors (global coords, negative y ok).
-- **Mouse clicks need a `CGEventMouseMoved` first + `kCGMouseEventClickState` set**, or the app drops them
-  (keyboard needs neither). Fixed in `_post_mouse`.
+- **Mouse-event shape is surface-specific — don't assume a universal recipe.** `_post_mouse` posts a
+  `CGEventMouseMoved` + `kCGMouseEventClickState`, which the Sprint control accepts; but Qud **world
+  cells reject a pre-move** and Qud clicks **reject `clickState`**. Start minimal (warp + down/up), add
+  a pre-move or click-state only when readback proves that surface needs it, and prefer highvisor's
+  verified per-surface matrix (highvisor `docs/05-driving-input.md`) for Qud UI. Posting an event is not
+  proof the app reacted — always capture/read back after.
 - Coordinates are FRACTIONS of the window (robust to position). qud_shot is 2× Retina but fractions map
   1:1 to the logical window.
 

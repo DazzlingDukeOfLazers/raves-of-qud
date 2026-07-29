@@ -30,19 +30,23 @@ Godot input → Qud command, and Qud zone state → 3D scene.
 - A **paid, installed copy of [Caves of Qud](https://www.cavesofqud.com/)** with local C# scripting mods
   allowed. Raves ships **no** game assets — tiles are extracted at runtime from your own install into a
   git-ignored folder.
-- **Godot 4.x** (built and tested on macOS; the mod compiles in-process, so no Windows build is needed).
+- **Godot 4.7** — the tested path. Other Godot 4.x versions may work but are not the compatibility
+  contract. (Built and tested on macOS; the mod compiles in-process, so no Windows build is needed.)
 - Optional **.NET SDK** to type-check the mod against Qud's assembly before a restart.
 
 ## Quickstart
 
+**macOS quickstart** (the tested path; adjust the mod path on Windows):
+
 ```bash
 # 1. Deploy the bridge mod (it compiles at Qud startup — a mod change needs a full restart).
+mkdir -p ~/Library/Application\ Support/com.FreeholdGames.CavesOfQud/Mods/RavesOfQudBridge/
 cp mod/*.cs mod/manifest.json \
   ~/Library/Application\ Support/com.FreeholdGames.CavesOfQud/Mods/RavesOfQudBridge/
 # 2. Launch Qud; enable the mod + "allow local C# scripting mods"; load a save.
 # 3. Verify the bridge is live (the mod opens the socket on the first turn):
 nc -z 127.0.0.1 48710 && echo "bridge up"
-# 4. Open godot/ in Godot 4.x and press Play — it auto-connects to 127.0.0.1:48710 and retries until Qud answers.
+# 4. Open godot/ in Godot 4.7 and press Play — it auto-connects to 127.0.0.1:48710 and retries until Qud answers.
 ```
 
 Environment paths and the dev loop: [Running it](#running-it) and `CLAUDE.md`.
@@ -81,10 +85,11 @@ record:
 | **[docs/gotchas.md](docs/gotchas.md)** · **[docs/roadmap.md](docs/roadmap.md)** · **[docs/decisions/](docs/decisions/)** | invariants + checklists · the world-store roadmap · the war-story debugging record. |
 | **[docs/legacy-integration-playbook.md](docs/legacy-integration-playbook.md)** | **portable playbook** for any "Godot on top of a legacy game" target. |
 
-> **Python-first, for anyone (human or AI) picking this up:** Claude can't see the Holodeck (the Godot viewport),
-> so geometry/pixel algorithms (voxel heights, fill rules) are **prototyped and verified in Python
-> first** (`tools/capture/voxel.py`, `fill.py` — they mirror the GDScript exactly), then ported.
-> Lighting/appearance still needs a screenshot; the algorithm does not. The product is
+> **Python-first, for anyone (human or AI) picking this up:** geometry/pixel algorithms (voxel heights,
+> fill rules) are **prototyped and verified in Python first** (`tools/capture/voxel.py`, `fill.py` — they
+> mirror the GDScript exactly), then ported — because that makes them deterministic and testable without
+> a running window. Final lighting/appearance is verified from **captured Holodeck screenshots** (the
+> apps screenshot themselves; highvisor can also capture the window). The product is
 > well-documented GDScript; Python is validation. See [docs/tools.md](docs/tools.md).
 
 ---
@@ -227,13 +232,15 @@ walls**, and the Python-first verification workflow. What's left:
 - Faint cell-seam phase can still differ between autotile variants; chase with `snap.py` if it shows.
 - `MultiMesh` per (variant, mesh, rotation) if per-cell instance counts hitch at render radius.
 
-**World model / streaming** — see [docs/roadmap.md](docs/roadmap.md) for the full plan. The pivot:
-stop rendering the live snapshot; maintain a persistent chunked block-store, snapshot as one writer.
-That single change is the spine for fog of war, remembered zones, memory freeze/unfreeze, Z-height,
-cross-zone distance, and a future block-editing fork. Hierarchy: world of parasangs; parasang = 3×3
-zones; zone = 80×25 cells; plus Z-strata.
-- Full re-render per snapshot; the painted ground doubled the payload (~2000 objects/frame).
-  **Cell-level diffing** is a prerequisite for streaming.
+**World model / streaming** — see [docs/roadmap.md](docs/roadmap.md) for the current status. The
+persistent `WorldStore` pivot has **shipped**: snapshots are ingested into a per-zone store keyed by
+`gameId`, explored zones persist to disk, and remembered neighbours render dimmed. Remaining work is an
+adjustable render radius, eviction/budgets, ground-plane growth, and later stacked strata — the spine
+for fog of war, memory freeze/unfreeze, Z-height, cross-zone distance, and a future block-editing fork.
+Hierarchy: world of parasangs; parasang = 3×3 zones; zone = 80×25 cells; plus Z-strata.
+- Each snapshot is a full zone rebuild, but the client already **freezes static geometry** and rebuilds
+  only the dynamic layer per turn (per-step render ~85ms → a few ms). The remaining cost is the
+  full-zone serialize on the mod side; measure with the profiler (F9) before optimizing further.
 
 **Rendering polish**:
 - Sprites/floors don't cast or receive shadows (only walls + ground do). Shadows on the ground
@@ -246,10 +253,9 @@ zones; zone = 80×25 cells; plus Z-strata.
 
 ### Working style that paid off
 Ground every change in real data (reflect the DLL, capture a live snapshot, decode a tile) rather
-than guessing; the agent can't see the Godot viewport, so the loop is **compile-harness →
+than guessing; appearance is verified from captured screenshots, so the loop is **compile-harness →
 deploy → user re-runs → capture/screenshot → adjust**. Keep the Qud-coupled surface small and
 isolated so a Qud update is a quick re-verify, not a rewrite.
-```
 
 **License:** MIT (see `LICENSE`). Requires a separately-purchased copy of Caves of Qud; Caves of
 Qud and its assets are © Freehold Games.

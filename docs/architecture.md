@@ -1,7 +1,7 @@
-# Holodeck architecture — boot chain, components, and the bridge cadence
+# Raves of Qud architecture: Godot client, C# bridge, and the Qud thread model
 
-The runtime structure of the player-facing view. `CLAUDE.md` keeps a one-paragraph map and points here for
-the detail. For the render *pipeline* specifically see [`rendering.md`](rendering.md); for the wire format
+The runtime structure of the player-facing view (the **Holodeck** — the Godot 2.5D window).
+`CLAUDE.md` keeps a one-paragraph map and points here for the detail. For the render *pipeline* specifically see [`rendering.md`](rendering.md); for the wire format
 see [`protocol.md`](protocol.md).
 
 ## Boot chain
@@ -47,7 +47,8 @@ source and is gone. See `_holodeck_cell()`. MainFrame drops its full-window bg C
 
 Player stats come from the mod's `stats` block (`ZoneSnapshot.WriteStats`). Verified Qud APIs:
 name=`DisplayNameOnly`; hp=`hitpoints`/`baseHitpoints`; level/xp=`GetStatValue("Level"/"XP")`; xp
-thresholds=`Leveler.GetXPForLevel(lvl)`/`(lvl+1)`; temp=`pPhysics.Temperature`;
+thresholds=`Leveler.GetXPForLevel(lvl)`/`(lvl+1)`; temp=`pPhysics.Temperature` (a legacy shortcut still used
+here; `Physics` is the field to prefer for new code — see [`qud-api.md`](qud-api.md));
 QN/MS=`GetStatValue("Speed"/"MoveSpeed")`; **AV/DV/MA=`Stats.GetCombatAV/DV/MA`** (displayed values with
 attribute mods — plain `GetStatValue` matches AV only by luck); weight=`GetCarriedWeight`/
 `GetMaxCarriedWeight`; water=`GetFreeDrams("water")` (liquid ids are **lowercase**);
@@ -128,7 +129,12 @@ Fed by `_apply_stats`: `MinimapView` (full/minimal toggle), `NearbyObjects` (3x3
 full zone scan) publishes via `PublishNow`, rate-limited to `PublishThrottleMs` (~15/sec). Triggers:
 
 - **Turn-based** (`Tick`) — any action that ends a turn. Always publishes (throttled).
-- **A command Raves drove** (`TickRender`) — move / wait / key / become / zoo / shot → immediate reply.
+- **A command Raves drove** — split by kind (see the [command table in `docs/protocol.md`](protocol.md)):
+  input-queue commands (`move`/`wait`/`key`/`command`/`dir`) **wake an unfocused Qud** through its input
+  queue and are observed after Qud processes them (usually a turn snapshot). Queued
+  mutation/export/screenshot (`become`/`zoo`/`shot`/`itemaction`/`export`/`setoption`) run only when a Qud
+  event hook next drains `Incoming`, and a screenshot then completes asynchronously on Unity's UI queue.
+  **Don't promise an immediate response or a per-command ack.**
 - **Zone change** (`Tick` + `TickRender`) — walk over an edge, soar/descend, travel → forced past the throttle.
 - **No-turn reactive refresh** (`TickRender`) — `BuildSignature` fingerprints the observed state ~10×/sec
   (`SigCheckMs`); any change marks it dirty and the throttle republishes. This is what makes targeting (and
@@ -158,8 +164,17 @@ So the mod is split by thread:
 - **Main thread**: tile export runs here via `GameManager.Instance.uiQueue.queueTask(...)` — the only place
   graphics calls are legal.
 
-The socket server (`BridgeServer.cs`) is pure .NET on its own background threads; inbound commands land in a
-`ConcurrentQueue` and are applied on the turn thread. A cheap crash-proof main-thread guard:
+The socket server (`BridgeServer.cs`) is pure .NET on its own background threads. The reader parses **every**
+command, but they take **two different paths** (this is the part that misleads if you skim it):
+
+- **Consumed inline in `OnPayload`** (on the socket-reader thread): `move`, `wait`, `command`, `dir`,
+  `dircancel`, `key`. These only push into Qud's **locked input/event queues** (`Keyboard.Push*`), which is
+  thread-safe and wakes the turn thread even while the window is unfocused.
+- **Placed in `BridgeServer.Incoming`** and drained by `Tick`/`TickRender` on Qud's **turn/event thread**:
+  everything else (`shot`, `become`, `zoo`, `catalog`, `export`, `setoption`, `itemaction`). Unity **graphics**
+  work (screenshot capture) is then a *third* step, marshalled to Unity's main thread via `uiQueue`.
+
+So "queued" ≠ "runs immediately while Qud is idle." A cheap crash-proof main-thread guard:
 `SynchronizationContext.Current is UnitySynchronizationContext` is true **only** on the main thread.
 
 ## Platform constraints (macOS / Apple Silicon)
