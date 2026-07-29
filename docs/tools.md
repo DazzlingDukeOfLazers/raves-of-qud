@@ -205,6 +205,30 @@ unfocused). This took two coupled fixes — see below.
 - A blocked player (marsh/water/wall) applies the move but doesn't change cells — check the position,
   not just that the command returned. A blocked move may also not end a turn, so no snapshot comes back.
 
+## Option presets — deterministic test fixtures (`presets.py`)
+
+`tools/capture/presets.py` saves/loads a whole **options set** as one named file, so tests (and you) can
+jump deterministically between known configurations instead of hand-toggling. A preset captures both
+**raves** (Raves' own `settings.json`: camera, full_info, font_scale, …) and **qud** (every Qud option's
+value, `id -> value`).
+
+```bash
+python3 tools/capture/presets.py list                        # working set + committed fixtures
+python3 tools/capture/presets.py save my-case --desc "why" --repo   # snapshot current state (--repo = commit it)
+python3 tools/capture/presets.py load compass-fullinfo        # apply it (deterministic jump)
+python3 tools/capture/presets.py sync                         # committed fixtures -> support dir
+```
+
+- Files: working copies in `<support>/option_presets/`; **committed, documented fixtures** in
+  `tools/regression/presets/` (that dir's `README.md` is the list + *why* each exists).
+- `load` applies **qud** options over the bridge (Qud in-game) as one deferred batch — N `setoption
+  defer=1` then a single `export`, not N re-exports — and writes **raves** settings into `settings.json`,
+  which take effect on Raves' **next launch** (so a highvisor test does `presets.py load X` → `hv launch
+  raves` → `hv scene …`). The Options screen's in-app **Load** button applies raves settings live instead.
+- In a regression scene, a `{ "shell": ["python3","../capture/presets.py","load","<qud-preset>"] }` step
+  sets live Qud state before capture (Raves-setting presets need the launch pattern above). Bless goldens
+  as preset-driven tests are added. Full guidance: `tools/regression/presets/README.md`.
+
 ## OS-input harness — `desktop.py` (reach Qud UI the bridge can't)
 
 The bridge only moves the player + a few commands. `tools/capture/desktop.py` drives Qud (or Godot) with

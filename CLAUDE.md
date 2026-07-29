@@ -221,6 +221,13 @@ python3 tools/capture/control.py shot     # -> shot.png (read it)
 # Drive the onboarding UI with NO Qud needed (only the Godot window running):
 python3 tools/capture/control.py onboard devices   # devices/ktype/layout/function/numpad/mouse/close
 python3 tools/capture/control.py shot              # -> shot.png; read it to verify the screen
+
+# Re-export Qud's data files (mods/options) on demand — no fake turn needed:
+python3 tools/capture/control.py export
+
+# Option PRESETS — save/load a whole options set for deterministic test state (see docs/tools.md):
+python3 tools/capture/presets.py list
+python3 tools/capture/presets.py load compass-fullinfo   # jump to a known config (raves + qud)
 ```
 
 ## Display & fonts
