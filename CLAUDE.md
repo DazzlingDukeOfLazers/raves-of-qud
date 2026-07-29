@@ -114,9 +114,11 @@ python3 tools/capture/presets.py list        # · load compass-fullinfo
   `Main._stamp_theme_roots()`), or set `theme = UiFont.make_theme(get_viewport())` on your subtree's root.
 - A panel that sizes its font only at build time stays tiny — re-apply on every show/resize.
 
-## The feedback loop (Claude cannot see the Holodeck)
+## The feedback loop (capture and inspect; do not infer)
 
-Don't ask the user to describe what they see — that round-trip is the main source of wasted effort.
+Don't ask the user to describe what they see, and don't guess from the wire — capture and read back.
+The apps screenshot themselves and highvisor can capture the Holodeck window, so verify appearance from
+a real image; that round-trip of asking the user to describe is the main source of wasted effort.
 
 1. User points at a cell in Godot: **Ctrl/Cmd+click**, or hover and press **I**.
 2. `CellInspector` writes `selection.txt` (and copies to the clipboard).
@@ -171,5 +173,7 @@ the form (lower right); Esc clears the selection.
   the exported app writes none).
 - **Vertex-colour meshes need `vertex_color_is_srgb = true`** or palette colours desaturate.
 - **Driving an unfocused Qud is solved** (`Keyboard.PushCommand` + a focus watchdog) — see the decisions doc.
-- **Commit + push after each round once it builds** — but first run the **author guard**:
-  `git log HEAD --format='%ae' | grep -i allspice` must be **empty** before every push.
+- **Commit + push after each round — but only once the relevant checks pass**, not merely "it builds":
+  the mod build (`dotnet build`), the Godot parse/run check, and any targeted regression checks for what
+  you touched. Then run the **author guard**: `git log --all --format='%ae' | grep -i allspice` must print
+  **nothing** before every push (`--all` catches an allspice-authored commit on *any* ref, not just HEAD).
