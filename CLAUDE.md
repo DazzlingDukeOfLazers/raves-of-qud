@@ -71,6 +71,10 @@ cross-platform base. To keep merges clean:
 # type-check the mod against the REAL Qud API (catches API drift before a restart)
 dotnet build mod/RavesOfQudBridge.csproj
 
+# look up an EXACT Qud API signature — decompile the shipped assembly (don't guess; reflect, don't grep)
+DOTNET_ROOT=/opt/homebrew/Cellar/dotnet/<ver>/libexec ~/.dotnet/tools/ilspycmd \
+  "<Managed>/Assembly-CSharp.dll" -t <FullTypeName>
+
 # deploy the mod — REQUIRES A FULL QUD RESTART (mods compile at startup)
 cp mod/*.cs mod/manifest.json ~/Library/Application\ Support/com.FreeholdGames.CavesOfQud/Mods/RavesOfQudBridge/
 
@@ -161,7 +165,9 @@ the form (lower right); Esc clears the selection.
   before reasoning over it — mod `.cs` compiles only at Qud startup.
 - **Measure before hypothesising.** A cell is not just its objects (Qud paints a ground layer).
 - **`--headless` can't catch GPU bugs** (dummy driver) — only a real windowed run proves a render path. No
-  crash report = a **HANG** (fillrate/overdraw), not a crash; check for a fresh `Godot-*.ips` first.
+  crash report = a **HANG** (fillrate/overdraw), not a crash; check for a fresh `Godot-*.ips` first. For a
+  real GDScript backtrace / native stack, run under the dev editor: `Godot --path godot` (it flushes errors;
+  the exported app writes none).
 - **Vertex-colour meshes need `vertex_color_is_srgb = true`** or palette colours desaturate.
 - **Driving an unfocused Qud is solved** (`Keyboard.PushCommand` + a focus watchdog) — see the decisions doc.
 - **Commit + push after each round once it builds.**
