@@ -119,9 +119,10 @@ an albedo *texture* are unaffected. See CLAUDE.md's debugging rules.
 
 ---
 
-## 5. Lighting — everything is FAKED because the world is UNSHADED
+## 5. Lighting — exact-colour art, optional shaded geometry, simulated light effects
 
-Materials are `SHADING_MODE_UNSHADED` by default so tiles show exact colours; a real light does
+World geometry follows the `SHADED_WORLD` constant (**currently `true`** → per-pixel shaded; flip it
+`false` for the flat, fully-unshaded look). Under the unshaded path, tiles show exact colours and a real light does
 nothing to them. `SHADED_WORLD = true` switches **walls and the ground** to `PER_PIXEL` so they
 receive the sun and cast shadows (ambient raised ~0.72 so tiles keep colour in shadow; baked
 vertex shade dropped so it doesn't double). Billboards/floors stay unshaded.

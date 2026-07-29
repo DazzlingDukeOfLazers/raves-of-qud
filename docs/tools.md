@@ -118,7 +118,10 @@ ticket *was* the override. See [rendering.md §7](rendering.md#7-user-overrides)
 
 ## In-viewer: screenshots
 
-`screencapture` is blocked (no Screen Recording permission), so both apps capture themselves:
+macOS `screencapture` needs Screen Recording permission (often unavailable), so both apps also
+capture themselves. (Note: **highvisor can now capture a specific window directly** — `hv shot
+'<window>' out.png` — which is the usual path when driving from outside; the self-capture below is the
+in-app/no-highvisor route.)
 
 - **F12** → `RavesOfQud/shot.png` (Godot viewport) + asks the mod for `qud_shot.png` (Qud's own
   window, via `UnityEngine.ScreenCapture` marshalled to the main thread).
@@ -287,13 +290,15 @@ in-game on the current build.
 
 ## Camera modes (viewer)
 
-Pick with the `` ` `` debug menu or number keys **1–6** (current mode + controls show on screen):
-**1 COMPASS** (default, cardinal-LOCKED low-angle — never spins on movement; Q/E rotate 90°, R/F zoom),
-**2 FOLLOW** (trails heading), **3 FIRST-PERSON** (hides the player; menu height slider),
-**4 CINEMATIC** (frames player + selected tile; orbits only with nothing selected),
-**5 ORBIT** (mouse), **6 FLY** (WASD). Esc → COMPASS. Zone crossings shift the live camera transform
-in sync with the world re-anchor (Main._process runs before the client's, so the eye is also nudged
-that frame to avoid a 1-frame flip). See the header comment in `godot/Main.gd`.
+**Canonical reference: [`docs/cameras.md`](cameras.md)** — if this list disagrees with that page, that
+page wins. Pick with the `` ` `` debug menu or number keys **1–7** (current mode + controls show on
+screen): **1 COMPASS** (default, cardinal-LOCKED low-angle — never spins on movement; Q/E rotate 90°,
+R/F zoom), **2 FOLLOW** (trails heading), **3 FIRST-PERSON** (hides the player; menu height slider),
+**4 CINEMATIC** (frames player + selected tile; orbits only with nothing selected), **5 MOUSE** (orbit),
+**6 KEYBOARD** (WASD fly), **7 TOP-FOLLOW** (top-down follow). **Esc keeps the current camera** (it does
+NOT snap to COMPASS); it closes the ` menu / any selection. Zone crossings shift the live camera transform
+in sync with the world re-anchor (Main._process runs before the client's, so the eye is also nudged that
+frame to avoid a 1-frame flip). See the header comment in `godot/Main.gd`.
 
 ---
 

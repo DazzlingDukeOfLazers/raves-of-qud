@@ -9,7 +9,7 @@ WITHOUT a human at the keyboard. Two channels:
               with the running Godot viewer.
   2. Godot  — Claude can't send keys to Godot, only to Qud. So Godot polls a small
               command file (<RavesOfQud>/godot_cmd); we write lines it executes:
-              `shot` (save shot.png), `cam <1-6>` (camera mode), `fph <h>` (fp height),
+              `shot` (save shot.png), `cam <1-7>` (camera mode), `fph <h>` (fp height),
               `onboard [screen]` (open/jump the onboarding UI: devices/ktype/layout/numpad/mouse/close).
 
 Examples:

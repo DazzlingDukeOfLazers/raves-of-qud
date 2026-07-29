@@ -287,8 +287,10 @@ between those two, so always read both halves.
 
 ## Screenshots — F12 in the Godot window
 
-Claude **cannot** capture the screen: macOS `screencapture` fails without Screen Recording
-permission (`could not create image from display`). So both apps capture themselves.
+macOS `screencapture` fails without Screen Recording permission (`could not create image from
+display`), so the apps also capture themselves. (For outside-driven work, **highvisor now captures a
+specific window** — `hv shot '<window>' out.png` — which is the usual route; F12 self-capture is the
+in-app/no-highvisor path.)
 
 **Ctrl/Cmd + right-click a tile in the Holodeck** is the one to use: it inspects that tile
 *and* photographs both apps. One gesture produces everything needed to discuss it —
@@ -362,8 +364,9 @@ double-dark and kill the pools; the overlay does all the dimming. Full writeup +
 sight-disc subtleties: **[`docs/rendering.md`](docs/rendering.md) §5a** — read it before touching lighting.
 
 
-Every material in `ZoneRenderer` is `SHADING_MODE_UNSHADED` so tiles show their exact colours.
-A real `OmniLight3D`/`DirectionalLight3D` therefore does **nothing** to the scene. Any "light"
+World geometry honors the `ZoneRenderer.SHADED_WORLD` constant (**currently `true`** → `SHADING_MODE_
+PER_PIXEL`; set it `false` for the flat, fully-unshaded look where tiles show exact colours and a real
+light does nothing). The additive light effects below layer on top either way. Any faked "light"
 must be **additive geometry**: `_place_light()` draws a warm radial ground-glow quad plus a
 flickering flame billboard, both `BLEND_MODE_ADD`, which brighten whatever's behind them without
 scene lighting. The mod sends `lightRadius` (from `LightSource.Radius` where `Lit`); Qud's flame

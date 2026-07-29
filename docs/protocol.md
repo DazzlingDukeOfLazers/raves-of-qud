@@ -3,6 +3,10 @@
 localhost TCP, default port **48710** (`mod/Protocol.cs` `DefaultPort` ==
 `godot/BridgeClient.gd` `PORT`).
 
+> **Security:** the bridge binds to **localhost only** and has **no application-layer authentication** —
+> any local process that connects is trusted. Do **not** expose port 48710 to a LAN or the internet. To
+> reach it from another machine, tunnel over SSH (never bind it publicly).
+
 Every message is a frame:
 
 ```
