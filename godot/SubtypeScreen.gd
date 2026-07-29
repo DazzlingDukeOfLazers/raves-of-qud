@@ -1,20 +1,24 @@
 extends Control
 
-## CHARACTER CREATION — stage 1: GENOTYPE (Mutated Human / True Kin).
+## CHARACTER CREATION — stage 2: SUBTYPE (Caste for True Kin / Calling for Mutated Human).
 ##
-## First vertical slice of the interactive chargen mock (see the raves-chargen plan). Reads the
-## genotype data the mod slurps from Qud's own GenotypeFactory to chargen.json (name, tile, stat/
-## mutation/cybernetics point budgets, the 6 attribute ranges, and the perk bullets Qud shows), and
-## presents Qud's genotype choice: a LEFT list of genotypes (icon + name) and a RIGHT detail panel
-## (perks + point budgets + attribute ranges). The pick is captured into `selected` for the next
-## stage / the eventual Embark that drives Qud's builder.
+## Second vertical slice. The subtype family is chosen by the genotype: set `subtype_class` to the
+## genotype's `subtypes` field ("Castes"/"Callings") before adding this screen. Reads the subtype
+## tree the mod slurps to chargen.json — class → category (arcology/region) → subtype — and shows,
+## Qud-style: a LEFT list grouped by category (icon + name) and a RIGHT detail panel with the
+## subtype's stat bonuses + Qud's own chargen bullets (from GetChargenInfo). The pick is captured
+## into `selected` and emitted via `chose` for the next stage.
 ##
-## Same chrome + auto-refresh-on-open pattern as the Records/Mods/Options screens.
+## Same chrome + auto-refresh pattern as the other chargen/menu screens.
 
 signal closed
-signal chose(genotype: String)   # emitted when the player confirms a genotype (Enter) — for the flow
+signal chose(subtype: String)
 
-# palette — shared with the other menu screens
+## Set by the flow before _ready: which class to show ("Castes" / "Callings"), + the genotype name
+## for the header. Defaults to the first class if unset.
+var subtype_class := ""
+var genotype_name := ""
+
 const FRAME := Color8(0xB6, 0xA1, 0x63)
 const PANEL := Color(0.055, 0.078, 0.078, 0.96)
 const SCRIM := Color(0.02, 0.03, 0.03, 0.55)
@@ -22,11 +26,9 @@ const TITLE := Color8(0xF0, 0xEA, 0xD8)
 const LABEL := Color8(0x6E, 0xB5, 0xC9)
 const VALUE := Color8(0xC9, 0xC2, 0xA8)
 const GOLD := Color8(0xC8, 0xA9, 0x4E)
-const GREEN := Color8(0x5F, 0xC8, 0x5A)
+const CATEGORY := Color8(0x9C, 0xC7, 0x7A)
 const DIM := Color(0.89, 0.85, 0.72, 0.5)
 
-# Qud's 16-colour palette for rendering {{code|text}} markup in the perk bullets (baked; no live
-# snapshot at the menu). Same values as ZoneRenderer.COLORS.
 const QUD_COLORS := {
 	"r": Color(0.60, 0.20, 0.15), "R": Color(1.00, 0.30, 0.30),
 	"g": Color(0.00, 0.50, 0.00), "G": Color(0.20, 0.90, 0.20),
@@ -41,14 +43,13 @@ const QUD_COLORS := {
 
 const SIDE_W_FRAC := 0.016
 const BAR_H_FRAC := 0.022
-const ATTR_ORDER := ["Strength", "Agility", "Toughness", "Intelligence", "Willpower", "Ego"]
 
-## The confirmed genotype name (or "" until confirmed), read by the chargen flow.
 var selected := ""
 
-var _genotypes: Array = []
+var _class := {}               # the chosen subtypeClass dict {id, chargenTitle, categories:[...]}
+var _flat: Array = []          # flat list of subtypes in display order (for selection/nav)
 var _sel := 0
-var _rows: Array = []          # [{panel, geno}]
+var _rows: Array = []          # [{panel, subtype}] parallel to _flat
 var _list: VBoxContainer
 var _detail: VBoxContainer
 var _palette := {}
@@ -58,13 +59,13 @@ var _mtime := 0
 var _reload_deadline := 0
 
 func _ready() -> void:
-	name = "GenotypeScreen"
+	name = "SubtypeScreen"
 	_fit_to_viewport()
 	get_viewport().size_changed.connect(_fit_to_viewport)
 	theme = UiFont.make_theme(get_viewport())
 	for code in QUD_COLORS:
 		_palette[code] = "#" + Color(QUD_COLORS[code]).to_html(false)
-	_genotypes = _load()
+	_class = _load_class()
 
 	var scrim := ColorRect.new()
 	scrim.color = SCRIM
@@ -88,8 +89,6 @@ func _ready() -> void:
 	_add_back()
 	_peer.connect_to_host(BridgeClient.host(), BridgeClient.port())
 
-## Auto-refresh on open: ask the mod to re-export, reload chargen.json when it's rewritten. No-op if
-## the bridge is down (pre-game) — the screen still shows the cached export.
 func _process(_dt: float) -> void:
 	_peer.poll()
 	var connected := _peer.get_status() == StreamPeerTCP.STATUS_CONNECTED
@@ -101,7 +100,10 @@ func _process(_dt: float) -> void:
 	elif _refreshed and _reload_deadline > 0:
 		if _json_mtime() > _mtime or Time.get_ticks_msec() >= _reload_deadline:
 			_reload_deadline = 0
-			_reload()
+			_class = _load_class()
+			_populate()
+			_sel = clampi(_sel, 0, maxi(0, _flat.size() - 1))
+			_apply_selection()
 
 func _exit_tree() -> void:
 	if _peer != null:
@@ -123,14 +125,6 @@ func _send_bridge(msg: Dictionary) -> void:
 	frame.append(n & 0xFF)
 	frame.append_array(payload)
 	_peer.put_data(frame)
-
-func _reload() -> void:
-	_genotypes = _load()
-	if _list == null:
-		return
-	_populate()
-	_sel = clampi(_sel, 0, maxi(0, _genotypes.size() - 1))
-	_apply_selection()
 
 func _add_back() -> void:
 	var b := Button.new()
@@ -155,17 +149,22 @@ func _fit_to_viewport() -> void:
 
 # ── data ───────────────────────────────────────────────────────────────────────
 
-func _load() -> Array:
+## Load the subtypeClass matching `subtype_class` (or the first one), from chargen.json.
+func _load_class() -> Dictionary:
 	var path := InputModel.support_dir().path_join("chargen.json")
 	if not FileAccess.file_exists(path):
-		return []
+		return {}
 	var f := FileAccess.open(path, FileAccess.READ)
 	if f == null:
-		return []
+		return {}
 	var data: Variant = JSON.parse_string(f.get_as_text())
-	if data is Dictionary and data.has("genotypes") and data["genotypes"] is Array:
-		return data["genotypes"]
-	return []
+	if not (data is Dictionary and data.has("subtypeClasses") and data["subtypeClasses"] is Array):
+		return {}
+	var classes: Array = data["subtypeClasses"]
+	for c in classes:
+		if c is Dictionary and str(c.get("id", "")) == subtype_class:
+			return c
+	return classes[0] if not classes.is_empty() else {}
 
 func _chrome(file: String) -> Texture2D:
 	var path := InputModel.support_dir().path_join("title").path_join("chrome").path_join(file)
@@ -176,8 +175,6 @@ func _chrome(file: String) -> Texture2D:
 		return null
 	return ImageTexture.create_from_image(img)
 
-## The genotype's icon PNG, exported by the mod into tilesDir (slashes→underscores). Null if not
-## yet exported (falls back to no icon), like the Mods screen's preview.
 func _tile(tile: String) -> Texture2D:
 	if tile == "":
 		return null
@@ -185,8 +182,8 @@ func _tile(tile: String) -> Texture2D:
 	var path := InputModel.support_dir().path_join("tiles").path_join(fname)
 	if not FileAccess.file_exists(path):
 		return null
-	# TileExporter always writes PNG data — even into a ".bmp"-named file (the Qud source ext). Image.load
-	# picks its decoder by EXTENSION, so a .bmp-named PNG fails; decode from the buffer as PNG instead.
+	# TileExporter always writes PNG data even into a ".bmp"-named file; decode from the buffer as PNG
+	# (Image.load picks its decoder by extension, so a .bmp-named PNG would fail).
 	var bytes := FileAccess.get_file_as_bytes(path)
 	if bytes.is_empty():
 		return null
@@ -247,8 +244,9 @@ func _edge(tex: Texture2D, mode: int, al: float, at: float, ar: float, ab: float
 	return r
 
 func _build_header(frame: Control) -> void:
+	var title := str(_class.get("chargenTitle", "choose subtype")).capitalize()
 	var l := Label.new()
-	l.text = "◈  Genotype  ◈"
+	l.text = "◈  %s  ◈" % title
 	l.theme_type_variation = "Title"
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.add_theme_color_override("font_color", GOLD)
@@ -261,11 +259,10 @@ func _build_header(frame: Control) -> void:
 	frame.add_child(l)
 
 func _build_body(frame: Control) -> void:
-	# LEFT: the genotype choices
 	var scroll := ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.anchor_left = 0.03
-	scroll.anchor_right = 0.40
+	scroll.anchor_right = 0.46
 	scroll.anchor_top = 0.11
 	scroll.anchor_bottom = 0.90
 	for k in ["left", "top", "right", "bottom"]:
@@ -273,14 +270,13 @@ func _build_body(frame: Control) -> void:
 	frame.add_child(scroll)
 	_list = VBoxContainer.new()
 	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_list.add_theme_constant_override("separation", 10)
+	_list.add_theme_constant_override("separation", 4)
 	scroll.add_child(_list)
 	_populate()
 
-	# RIGHT: details of the selected genotype
 	var sc := ScrollContainer.new()
 	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	sc.anchor_left = 0.43
+	sc.anchor_left = 0.49
 	sc.anchor_right = 0.97
 	sc.anchor_top = 0.11
 	sc.anchor_bottom = 0.90
@@ -292,55 +288,58 @@ func _build_body(frame: Control) -> void:
 	_detail.add_theme_constant_override("separation", 8)
 	sc.add_child(_detail)
 
+## LEFT list: category header, then a row per subtype under it. _flat/_rows stay index-parallel.
 func _populate() -> void:
 	_rows.clear()
+	_flat.clear()
 	for c in _list.get_children():
 		c.queue_free()
-	if _genotypes.is_empty():
+	var cats: Array = _class.get("categories", [])
+	if cats.is_empty():
 		var empty := _text("No chargen data yet. Run Caves of Qud once with Raves connected to populate it.", VALUE, "body")
 		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_list.add_child(empty)
-	for i in range(_genotypes.size()):
-		var row := _geno_card(_genotypes[i], i)
-		_list.add_child(row)
-		_rows.append({"panel": row, "geno": _genotypes[i]})
+		return
+	var show_cat_headers := cats.size() > 1   # a single category (Callings) needs no header
+	for cat in cats:
+		if show_cat_headers:
+			var h := _rich("[color=#%s]%s[/color]" % [CATEGORY.to_html(false), QudText.to_bbcode(str(cat.get("display", cat.get("name", ""))), _palette)], "caption")
+			h.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			var pad := MarginContainer.new()
+			pad.add_theme_constant_override("margin_top", 6)
+			pad.add_theme_constant_override("margin_left", 2)
+			pad.add_child(h)
+			_list.add_child(pad)
+		for st in cat.get("subtypes", []):
+			var idx := _flat.size()
+			var row := _subtype_row(st, idx)
+			_list.add_child(row)
+			_flat.append(st)
+			_rows.append({"panel": row, "subtype": st})
 
-func _geno_card(g: Dictionary, idx: int) -> PanelContainer:
+func _subtype_row(st: Dictionary, idx: int) -> PanelContainer:
 	var panel := PanelContainer.new()
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	panel.mouse_entered.connect(func(): _select(idx))
 	panel.gui_input.connect(func(e): if e is InputEventMouseButton and e.pressed: _select(idx))
 	var pad := MarginContainer.new()
 	for k in ["left", "right", "top", "bottom"]:
-		pad.add_theme_constant_override("margin_" + k, 10)
+		pad.add_theme_constant_override("margin_" + k, 6)
 	panel.add_child(pad)
 	var hb := HBoxContainer.new()
-	hb.add_theme_constant_override("separation", 12)
+	hb.add_theme_constant_override("separation", 10)
 	pad.add_child(hb)
-
-	# icon (genotype tile)
-	var itex := _tile(str(g.get("tile", "")))
+	var itex := _tile(str(st.get("tile", "")))
 	if itex != null:
 		var icon := TextureRect.new()
 		icon.texture = itex
 		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST   # crisp pixel art, no blur
-		icon.custom_minimum_size = Vector2(64, 64)
+		icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST   # crisp pixel art
+		icon.custom_minimum_size = Vector2(40, 40)
 		icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		hb.add_child(icon)
-
-	var v := VBoxContainer.new()
-	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	v.add_theme_constant_override("separation", 2)
-	hb.add_child(v)
-	v.add_child(_rich("[color=#%s]%s[/color]" % [TITLE.to_html(false), _esc(str(g.get("display", g.get("name", "?"))))], "title"))
-	# a one-line summary of what this genotype is about
-	var kind := "Mutations" if bool(g.get("supportsMutations", false)) else ("Cybernetics" if bool(g.get("supportsCybernetics", false)) else "")
-	v.add_child(_rich("[color=#%s]%d attribute points%s[/color]" % [
-		VALUE.to_html(false), int(g.get("statPoints", 0)),
-		("   ·   " + kind) if kind != "" else ""], "caption"))
-
+	hb.add_child(_rich("[color=#%s]%s[/color]" % [TITLE.to_html(false), _esc(str(st.get("display", st.get("name", "?"))))], "body"))
 	_style_row(panel, false)
 	return panel
 
@@ -374,50 +373,29 @@ func _apply_selection() -> void:
 		_style_row(_rows[i]["panel"], i == _sel)
 	_build_detail()
 
-## Right panel: perk bullets + point budgets + the 6 attribute ranges for the selected genotype.
 func _build_detail() -> void:
 	if _detail == null:
 		return
 	for c in _detail.get_children():
 		c.queue_free()
-	if _sel < 0 or _sel >= _genotypes.size():
+	if _sel < 0 or _sel >= _flat.size():
 		return
-	var g: Dictionary = _genotypes[_sel]
+	var st: Dictionary = _flat[_sel]
+	_detail.add_child(_rich("[color=#%s]%s[/color]" % [GOLD.to_html(false), _esc(str(st.get("display", st.get("name", "?"))))], "big"))
 
-	_detail.add_child(_rich("[color=#%s]%s[/color]" % [GOLD.to_html(false), _esc(str(g.get("display", g.get("name", "?"))))], "big"))
-
-	# point budgets
-	var budgets := PackedStringArray()
-	budgets.append("[color=#%s]Attributes[/color] [color=#%s]%d[/color]" % [LABEL.to_html(false), VALUE.to_html(false), int(g.get("statPoints", 0))])
-	if int(g.get("mutationPoints", 0)) > 0:
-		budgets.append("[color=#%s]Mutations[/color] [color=#%s]%d[/color]" % [LABEL.to_html(false), VALUE.to_html(false), int(g.get("mutationPoints", 0))])
-	if int(g.get("cyberLicensePoints", 0)) > 0:
-		budgets.append("[color=#%s]Cybernetics license[/color] [color=#%s]%d[/color]" % [LABEL.to_html(false), VALUE.to_html(false), int(g.get("cyberLicensePoints", 0))])
-	_detail.add_child(_rich("      ".join(budgets), "caption"))
-
-	# perk bullets (Qud markup)
-	var extra: Array = g.get("extraInfo", [])
-	if extra is Array and not extra.is_empty():
-		_detail.add_child(_gap(6))
-		for x in extra:
-			var bb := "[color=#%s]•[/color] %s" % [GREEN.to_html(false), QudText.to_bbcode(str(x), _palette)]
-			var r := _rich(bb, "body")
+	# Qud's own ready-made chargen bullets (formatted stat/save/skill lines, with markup)
+	var info: Array = st.get("info", [])
+	if info is Array and not info.is_empty():
+		_detail.add_child(_gap(4))
+		for line in info:
+			var r := _rich(QudText.to_bbcode(str(line), _palette), "body")
 			r.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			_detail.add_child(r)
-
-	# the 6 attribute ranges
-	var stats: Array = g.get("stats", [])
-	if stats is Array and not stats.is_empty():
-		_detail.add_child(_gap(8))
-		_detail.add_child(_rich("[color=#%s]Attribute ranges[/color]" % LABEL.to_html(false), "caption"))
-		var by_name := {}
-		for s in stats:
-			by_name[str(s.get("name", ""))] = s
-		for attr in ATTR_ORDER:
-			if by_name.has(attr):
-				var s: Dictionary = by_name[attr]
-				_detail.add_child(_rich("[color=#%s]%s[/color]  [color=#%s]%d–%d[/color]" % [
-					VALUE.to_html(false), attr, GOLD.to_html(false), int(s.get("min", 0)), int(s.get("max", 0))], "caption"))
+	else:
+		# fallback if GetChargenInfo was unavailable: show raw stat bonuses
+		var bonuses: Array = st.get("statBonuses", [])
+		for b in bonuses:
+			_detail.add_child(_rich("[color=#%s]+%d %s[/color]" % [GOLD.to_html(false), int(b.get("bonus", 0)), str(b.get("name", ""))], "body"))
 
 func _style_row(panel: PanelContainer, on: bool) -> void:
 	var sb := StyleBoxFlat.new()
@@ -436,8 +414,8 @@ func _unhandled_input(e: InputEvent) -> void:
 	elif e.is_action_pressed("ui_up"):
 		_select(maxi(_sel - 1, 0)); accept_event()
 	elif e.is_action_pressed("ui_accept"):
-		if _sel >= 0 and _sel < _genotypes.size():
-			selected = str(_genotypes[_sel].get("name", ""))
+		if _sel >= 0 and _sel < _flat.size():
+			selected = str(_flat[_sel].get("name", ""))
 			chose.emit(selected)
 		accept_event()
 

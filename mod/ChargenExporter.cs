@@ -61,6 +61,7 @@ namespace RavesOfQud
             var j = new JsonWriter();
             j.BeginObject();
             WriteGenotypes(j);
+            WriteSubtypes(j);
             j.EndObject();
             File.WriteAllText(Path.Combine(Root, "chargen.json"), j.ToString());
         }
@@ -112,6 +113,71 @@ namespace RavesOfQud
                 j.Name("extraInfo").BeginArray();
                 try { foreach (var x in g.ExtraInfo) j.Value(x ?? ""); }
                 catch (Exception e) { System.Console.WriteLine("[raves] chargen extrainfo: " + e.Message); }
+                j.EndArray();
+                j.EndObject();
+            }
+            j.EndArray();
+        }
+
+        /// The subtypes, grouped exactly as Qud's chargen groups them: class (Castes for True Kin /
+        /// Callings for Mutated Human) → category (arcology / region) → subtype. Each subtype carries
+        /// its stat bonuses + Qud's OWN ready-made chargen bullets (GetChargenInfo — formatted stat/
+        /// save/skill lines), so the screen shows what Qud shows. The genotype's `subtypes` field
+        /// ("Castes"/"Callings") selects which class the screen displays.
+        private static void WriteSubtypes(JsonWriter j)
+        {
+            j.Name("subtypeClasses").BeginArray();
+            System.Collections.Generic.List<XRL.SubtypeClass> classes;
+            try { classes = XRL.SubtypeFactory.Classes; }
+            catch (Exception e) { System.Console.WriteLine("[raves] chargen subtypes: " + e.Message); j.EndArray(); return; }
+            foreach (var cls in classes)
+            {
+                if (cls == null) continue;
+                j.BeginObject();
+                j.Member("id", SafeStr("subtypeClass.id", () => cls.ID, "?"));                 // "Castes" / "Callings"
+                j.Member("chargenTitle", SafeStr("subtypeClass.title", () => cls.ChargenTitle, null));  // "choose caste"
+                j.Member("singular", SafeStr("subtypeClass.singular", () => cls.SingluarTitle, null));   // "caste" (Qud spells it SingluarTitle)
+                j.Member("statBox", SafeBool(() => cls.StatBoxDisplay == "true"));
+                j.Name("categories").BeginArray();
+                foreach (var cat in cls.Categories)
+                {
+                    if (cat == null) continue;
+                    j.BeginObject();
+                    j.Member("name", SafeStr("category.name", () => cat.Name, ""));
+                    j.Member("display", SafeStr("category.display", () => cat.DisplayName, cat.Name));   // Qud markup
+                    j.Name("subtypes").BeginArray();
+                    foreach (var s in cat.Subtypes)
+                    {
+                        if (s == null) continue;
+                        string name = SafeStr("subtype.name", () => s.Name, "?");
+                        string tile = SafeStr("subtype.tile", () => s.Tile, null);
+                        if (!string.IsNullOrEmpty(tile)) { try { TileExporter.Ensure(tile); } catch { } }
+                        j.BeginObject();
+                        j.Member("name", name);
+                        j.Member("display", SafeStr("subtype.display", () => s.DisplayName, name));
+                        j.Member("tile", tile);
+                        j.Member("detail", SafeStr("subtype.detail", () => s.DetailColor, null));
+                        j.Member("cyberLicensePoints", SafeInt(() => s.CyberneticsLicensePoints));
+                        // structured stat bonuses (for a stat box)
+                        j.Name("statBonuses").BeginArray();
+                        try
+                        {
+                            foreach (var kv in s.Stats)
+                                if (kv.Value != null && kv.Value.Bonus != 0)
+                                    j.BeginObject().Member("name", kv.Value.Name).Member("bonus", kv.Value.Bonus).EndObject();
+                        }
+                        catch (Exception e) { System.Console.WriteLine("[raves] chargen subtype stats: " + e.Message); }
+                        j.EndArray();
+                        // Qud's OWN ready-made chargen bullets (formatted stat/save/skill lines)
+                        j.Name("info").BeginArray();
+                        try { foreach (var line in s.GetChargenInfo()) j.Value(line ?? ""); }
+                        catch (Exception e) { System.Console.WriteLine("[raves] chargen subtype info: " + e.Message); }
+                        j.EndArray();
+                        j.EndObject();
+                    }
+                    j.EndArray();
+                    j.EndObject();
+                }
                 j.EndArray();
                 j.EndObject();
             }

@@ -467,7 +467,7 @@ func _activate(idx: int) -> void:
 				_launching = true
 				OS.shell_open(Brand.URL_STEAM_RUN)   # launch the installed copy
 			elif _qud_up:
-				_open_overlay("res://GenotypeScreen.gd")   # chargen — WIP: genotype stage (drives Qud on Embark later)
+				_open_chargen()   # chargen flow — WIP: genotype → subtype (drives Qud on Embark later)
 		"mods":
 			_open_overlay("res://ModsScreen.gd")
 		"options":
@@ -494,6 +494,56 @@ func _close_overlay() -> void:
 	if _overlay != null:
 		_overlay.queue_free()
 		_overlay = null
+
+# ── chargen flow (WIP) ────────────────────────────────────────────────────────────
+# The interactive character creator as a chain of stage screens: Genotype → Subtype → …
+# Each screen emits `chose(x)`; we record the pick and open the next stage. Embark (driving
+# Qud's builder) comes once the stages are in. State lives here for now.
+var _cg_genotype := ""
+var _cg_subtype := ""
+
+func _open_chargen() -> void:
+	if _overlay != null:
+		return
+	_cg_genotype = ""
+	_cg_subtype = ""
+	var geno: Variant = load("res://GenotypeScreen.gd").new()
+	_overlay = geno
+	add_child(geno)
+	geno.closed.connect(_close_overlay)
+	geno.chose.connect(_on_genotype_chosen)
+
+func _on_genotype_chosen(genotype_name: String) -> void:
+	_cg_genotype = genotype_name
+	var cls := _genotype_subtype_class(genotype_name)   # "Castes" / "Callings"
+	_close_overlay()
+	var sub: Variant = load("res://SubtypeScreen.gd").new()
+	sub.subtype_class = cls
+	sub.genotype_name = genotype_name
+	_overlay = sub
+	add_child(sub)
+	sub.closed.connect(_close_overlay)
+	sub.chose.connect(_on_subtype_chosen)
+
+func _on_subtype_chosen(subtype_name: String) -> void:
+	_cg_subtype = subtype_name
+	# TODO(chargen): open the Attributes stage next; then Mutations/Cybernetics, Summary, Embark.
+	_close_overlay()
+
+## The subtype family a genotype uses ("Castes"/"Callings"), from chargen.json's genotype entry.
+func _genotype_subtype_class(genotype_name: String) -> String:
+	var path := InputModel.support_dir().path_join("chargen.json")
+	if not FileAccess.file_exists(path):
+		return ""
+	var f := FileAccess.open(path, FileAccess.READ)
+	if f == null:
+		return ""
+	var data: Variant = JSON.parse_string(f.get_as_text())
+	if data is Dictionary and data.get("genotypes", null) is Array:
+		for g in data["genotypes"]:
+			if g is Dictionary and str(g.get("name", "")) == genotype_name:
+				return str(g.get("subtypes", ""))
+	return ""
 
 func _enter_viewer() -> void:
 	if not _qud_up:
