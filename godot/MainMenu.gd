@@ -473,6 +473,12 @@ func _enter_viewer() -> void:
 		return
 	if _peer != null:
 		_peer.disconnect_from_host()          # free the probe; MainFrame owns the bridge next
+	# Resume: entering with the bridge up means "watch the running game", so tell MainFrame to
+	# AUTO-CONNECT its data stage on load (stats/panels/minimap fill immediately) instead of
+	# stranding the player at the empty "▶ Connect (data)" prompt. The 3D viewport stays a manual
+	# opt-in ("▶ Turn on viewport") — its build has crash history, so we don't auto-fire it. The
+	# SceneTree persists across change_scene, so a meta flag hands the intent to MainFrame._ready.
+	get_tree().set_meta("holo_auto_connect", true)
 	get_tree().change_scene_to_file("res://MainFrame.tscn")
 
 # ── detect Qud (mod bridge) — drives Continue's enabled state ─────────────────────
@@ -482,6 +488,13 @@ func _process(dt: float) -> void:
 	match _peer.get_status():
 		StreamPeerTCP.STATUS_CONNECTED:
 			_set_qud_up(true)
+			# DRAIN + discard. This is a detection-only probe (it never sends a command, so it
+			# never asks for snapshots), but Qud broadcasts every published snapshot to ALL
+			# connected clients. If we let those pile up unread, our socket's receive buffer fills
+			# and the mod's writer to us stalls/times-out — so read and throw them away.
+			var avail := _peer.get_available_bytes()
+			if avail > 0:
+				_peer.get_data(avail)
 		StreamPeerTCP.STATUS_ERROR, StreamPeerTCP.STATUS_NONE:
 			_set_qud_up(false)
 			_retry += dt

@@ -96,6 +96,14 @@ func _ready() -> void:
 		func(p): return p != null)
 	_apply_full_info()                   # init the toggle label + push the default (perceived) to views
 
+	# Resume (Continue / New Game with the bridge up): MainMenu set this so we AUTO-CONNECT the data
+	# stage now, rather than stranding the player at the empty "▶ Connect (data)" prompt. Data-only —
+	# the 3D viewport stays a manual opt-in ("▶ Turn on viewport"). Deferred so every row/button the
+	# connect path touches is fully built first; the flag is one-shot (cleared here).
+	if get_tree().has_meta("holo_auto_connect") and bool(get_tree().get_meta("holo_auto_connect")):
+		get_tree().remove_meta("holo_auto_connect")
+		_connect_holodeck.call_deferred()
+
 func _on_resize() -> void:
 	UiFont.refresh_theme(theme, get_viewport())
 
