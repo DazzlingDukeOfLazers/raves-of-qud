@@ -98,6 +98,8 @@ namespace RavesOfQud
             ModsExporter.Ensure();
             // One-shot: export Qud's full options tree (OptionsByCategory) for Raves' Options mirror.
             OptionsExporter.Ensure();
+            // One-shot: export Qud's high-score records (Scoreboard2 / HighScores.json) for Raves' Records screen.
+            RecordsExporter.Ensure();
 
             // Keep Unity RENDERING the window while it's unfocused, so Qud's own map
             // repaints in sync with commands we drive from Godot. Unity pauses the
@@ -511,7 +513,8 @@ namespace RavesOfQud
                     {
                         ModsExporter.ReExport();
                         OptionsExporter.ReExport();
-                        Server.Log("[export] re-exported mods + options");
+                        RecordsExporter.ReExport();
+                        Server.Log("[export] re-exported mods + options + records");
                     }
                     catch (Exception e) { Server.Log("export error: " + e.Message); }
                     break;

@@ -57,7 +57,7 @@ const BOX_ASPECT := 0.99
 const BOX_ITEMS := [
 	{"text": "New Game", "act": "new"},
 	{"text": "Continue", "act": "continue"},
-	{"text": "Records", "act": ""},
+	{"text": "Records", "act": "records"},
 	{"text": "Options", "act": "options"},
 	{"text": "Mods", "act": "mods"},
 ]
@@ -445,6 +445,8 @@ func _activate(idx: int) -> void:
 			_open_overlay("res://ModsScreen.gd")
 		"options":
 			_open_overlay("res://OptionsScreen.gd")
+		"records":
+			_open_overlay("res://RecordsScreen.gd")
 		_:
 			pass  # cosmetic Qud item — no-op during the mimic phase
 
