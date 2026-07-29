@@ -13,6 +13,21 @@ Every message is a frame:
 [ 4 bytes: payload length, big-endian ][ payload: UTF-8 JSON ]
 ```
 
+## At a glance (normative)
+
+| property | value |
+|---|---|
+| Transport | TCP, **localhost only**, default port **48710**. No authentication (see the security note above). |
+| Framing | `[4-byte big-endian length][UTF-8 JSON]`. The prefix bounds a frame at ≤4 GiB; real snapshots are tens of KB. |
+| Direction | **server → client** `snapshot` frames are **broadcast** to every connected client. **client → server** `command` frames are applied by the mod; the effect appears in the next snapshot (no per-command ack). |
+| Ordering | in-order per connection (TCP). A `snapshot` **fully replaces** the client's world state — it is not a delta. |
+| Cadence | throttled to ~15/sec; published on turns + reactive signature changes — see [publish cadence](#server-cost--publish-cadence--read-before-touching-bridgetick). |
+| Lifecycle | the client connects and **retries** ~1/sec until the mod opens the socket (first turn). Restarting Qud drops the socket → the client reconnects. The mod is **inert with no client connected** (gated on `ClientCount`). |
+| Compatibility | every snapshot carries `Protocol.Build`; a mod `.cs` compiles only at Qud startup, so "deployed but not restarted" silently runs old behaviour — check the build (see handshake below). |
+| Encoding | UTF-8 JSON. Unknown fields are ignored (forward-compatible); a missing field means absent/default (the client falls back, e.g. `—`). |
+
+Field-level detail is in the sections below (snapshot → per-cell → per-object → colours → water).
+
 ## Version handshake
 
 A mod `.cs` only compiles at Qud startup, so "deployed but not restarted" silently runs old behaviour.

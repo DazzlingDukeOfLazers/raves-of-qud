@@ -55,7 +55,7 @@ single zone, changing nothing visible). That de-risks everything after.
 ## Core types
 
 - **GlobalCoord** `(gx, gy, gz)` — integer world cell coordinate, derived from the Qud zone id
-  (see [Global coordinates](#global-coordinates--ask-5)). The spine for placement, stacking, and
+  (see [Global coordinates](#global-coordinates)). The spine for placement, stacking, and
   distance.
 - **Chunk** — one zone × one stratum (80×25 cells at a given Z). The unit of persistence, loading,
   and eviction. Keyed by `(world/seed, parasangX, parasangY, zoneX, zoneY, stratum)`.
@@ -75,7 +75,7 @@ single zone, changing nothing visible). That de-risks everything after.
 
 ---
 
-## Global coordinates  (ask 5)
+## Global coordinates
 
 **Confirmed by reflection (2026-07-24, Assembly-CSharp `XRL.World.Zone`):** the zone id
 `JoppaWorld.11.22.1.1.10` decomposes as `world.wX.wY.X.Y.Z`, where `Zone` exposes these as **direct
@@ -115,7 +115,7 @@ utility.
 
 ---
 
-## Chunk lifecycle: freeze / unfreeze  (ask 3)
+## Chunk lifecycle: freeze / unfreeze
 
 Each chunk moves through states by distance from the player:
 
@@ -137,7 +137,7 @@ Each chunk moves through states by distance from the player:
 
 ---
 
-## Fog of war (ask 1) + remembered zones (ask 2)
+## Fog of war + remembered zones
 
 Two tiers, both falling out of "is the chunk in the store?":
 
@@ -161,7 +161,7 @@ static vs mobile and live vs remembered — so this is really the same work as t
 
 ---
 
-## Z-height, levels, recessed water  (ask 4)
+## Z-height, levels, recessed water
 
 - **Strata = chunks stacked on gz.** A multi-level place (a tower, a cave complex) is several
   chunks sharing `(parasang, zone)` at different strata. Place each stratum's slab at world-Y =
@@ -179,7 +179,7 @@ static vs mobile and live vs remembered — so this is really the same work as t
 
 ---
 
-## Block editing fork  (ask 6)
+## Block editing fork
 
 The fork (Minecraft-style place/remove, *after* the viewer is done) is why the store is
 **block-first from day one**, even though the viewer is read-only:
@@ -258,7 +258,7 @@ Ordered by when they're needed. Each is additive to the snapshot.
 - **Sync model → ALWAYS SYNCED, Qud is the source of truth.** SIM is authoritative; the store is a
   mirror of Qud. **This defers all provenance/merge logic** (PLAYER-wins precedence) out of Phases
   0–2 — a real simplification: the store just records what Qud last said, SIM overwrites REMEMBERED,
-  done. See the [fork note](#block-editing-fork--ask-6) for how this choice reshapes Phase 3.
+  done. See the [fork note](#block-editing-fork) for how this choice reshapes Phase 3.
 
 **Still open (not blocking Phase 0; defaults noted):**
 
