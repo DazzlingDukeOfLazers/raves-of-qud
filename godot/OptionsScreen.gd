@@ -22,6 +22,8 @@ const FRAME := Color8(0xB6, 0xA1, 0x63)
 
 ## Raves' own editable settings (persisted to settings.json).
 const RAVES_ITEMS := [
+	{"key": "mode", "label": "Mode", "type": "choice",
+		"options": ["User", "1:1"], "values": ["user", "1to1"]},   # 1:1 overrides camera + panels
 	{"key": "font_scale", "label": "Font scale", "type": "slider", "min": 0.7, "max": 1.5, "step": 0.05},
 	{"key": "fullscreen", "label": "Fullscreen", "type": "toggle"},
 	{"key": "full_info", "label": "Show full info by default", "type": "toggle"},
@@ -400,8 +402,36 @@ func _build_raves_setting(item: Dictionary) -> Control:
 		"slider": return _raves_slider(item)
 		"toggle": return _raves_toggle(item)
 		"options": return _raves_options(item)
+		"choice": return _raves_choice(item)
 		"text": return _raves_text(item)
 		_: return _label(str(item.get("label", "?")), LABEL, "body")
+
+## Like _raves_options, but the stored value is a STRING drawn from `values` (parallel to
+## `options`, the display labels) — for settings whose key holds a string, e.g. mode "user"/"1to1".
+## Persist-only: OptionsScreen is a MainMenu overlay (no live Holodeck), so the mode takes effect
+## when you next enter the Holodeck; the Ctrl+M hotkey / highvisor button flip it live in-game.
+func _raves_choice(item: Dictionary) -> Control:
+	var row := VBoxContainer.new()
+	row.add_theme_constant_override("separation", 2)
+	row.add_child(_label(str(item["label"]), LABEL, "body"))
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 16)
+	var opts: Array = item["options"]
+	var vals: Array = item["values"]
+	var cur := str(Settings.get_value(item["key"], vals[0]))
+	var btns: Array = []
+	for i in range(opts.size()):
+		var b := _flat_button()
+		b.text = str(opts[i])
+		var sv := str(vals[i])
+		b.add_theme_color_override("font_color", SEL if sv == cur else DIM)
+		b.pressed.connect(func():
+			Settings.set_value(item["key"], sv); Settings.save()
+			for j in range(btns.size()):
+				btns[j].add_theme_color_override("font_color", SEL if str(vals[j]) == sv else DIM))
+		btns.append(b); h.add_child(b)
+	row.add_child(h)
+	return row
 
 func _raves_slider(item: Dictionary) -> Control:
 	var row := VBoxContainer.new()
@@ -580,7 +610,7 @@ func _exit_tree() -> void:
 
 # ── option presets (save/load a whole options set) ──────────────────────────────────
 
-const RAVES_KEYS := ["font_scale", "fullscreen", "full_info", "camera", "bridge_host", "bridge_port"]
+const RAVES_KEYS := ["font_scale", "fullscreen", "full_info", "camera", "mode", "bridge_host", "bridge_port"]
 
 func _build_preset_bar() -> void:
 	var save_b := _preset_bar_button("Save preset", 0.155, 0.285)
