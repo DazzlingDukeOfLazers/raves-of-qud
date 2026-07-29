@@ -57,8 +57,8 @@ const LEVEL_KEEP_DOWN := 2
 # CameraRig.CamMode exactly. `_cam_rig._mode` is the live mode. (Stage 1 of the Main.gd decomposition.)
 enum CamMode { COMPASS, FOLLOW, FIRST_PERSON, CINEMATIC, MOUSE, KEYBOARD, TOP_FOLLOW }
 var _cam_rig                    # CameraRig (Node3D, loaded); created in _ready. Untyped so the headless
-                                # --check-only stays deterministic (a class_name's cache is flaky there);
-                                # locals off _cam_rig.* therefore need explicit types, not `:=`.
+								# --check-only stays deterministic (a class_name's cache is flaky there);
+								# locals off _cam_rig.* therefore need explicit types, not `:=`.
 var _multiview                  # Multiview (Node, loaded); the all-views grid. Created in _ready.
 var _remote                     # RemoteControl (RefCounted); the godot_cmd file channel. Created in _ready.
 
@@ -243,6 +243,8 @@ func _ready() -> void:
 func set_render_3d(on: bool) -> void:
 	render_3d = on
 	if on:
+		if _one_to_one:
+			_set_mode(CamMode.TOP_FOLLOW, true)   # enter the 1:1 camera as the viewport comes up
 		var live: Dictionary = store.live_snapshot()
 		if not live.is_empty():
 			renderer.render_snapshot(live, _neighbor_zones())
@@ -489,13 +491,46 @@ var _picker                     # DirectionPicker (Node, loaded); created in _re
 func start_direction_picker(icon: Texture2D) -> void:
 	_picker.start(icon)
 
-func _set_mode(m: int) -> void:
+func _set_mode(m: int, force := false) -> void:
+	# 1:1 (parity) mode locks the camera to the Qud-faithful top-down view — user camera
+	# switches (number keys, Shift+C/K/F, multi-view) are ignored until 1:1 is turned off.
+	# `force` is the internal path (set_one_to_one) that is allowed to change it.
+	if _one_to_one and not force:
+		return
 	if _multiview.is_on():
 		_multiview.toggle()   # picking a mode leaves the multi-view grid
 	# The rig does the camera part (state reset, billboard lay-down, zstretch) and reports if it changed.
 	if _cam_rig.set_mode(m):
 		_update_mode_label()
 		_refresh_wm_cards_btn()   # keep the 2D/3D button label in sync
+
+# --- 1:1 (parity) mode ------------------------------------------------------
+# The master switch that flips Raves between the QoL "user" experience and a Qud-faithful
+# "1:1" reproduction. Here it owns the CAMERA half (force + lock the top-down view) and
+# announces changes; MainFrame owns the panel half + persistence via one_to_one_changed.
+var _one_to_one := false
+var _saved_cam_mode := -1      # user-mode camera, restored when leaving 1:1
+signal one_to_one_changed(on: bool)
+
+func is_one_to_one() -> bool:
+	return _one_to_one
+
+func set_one_to_one(on: bool) -> void:
+	if on == _one_to_one:
+		return
+	_one_to_one = on
+	# Camera half — only meaningful with the 3D viewport up (data-only mode has no camera to
+	# flip); set_render_3d re-applies TOP_FOLLOW when the viewport comes on.
+	if on:
+		_saved_cam_mode = _cam_rig._mode
+		if render_3d:
+			_set_mode(CamMode.TOP_FOLLOW, true)   # the "close" camera; refined to true 1:1 next
+	elif render_3d and _saved_cam_mode >= 0:
+		_set_mode(_saved_cam_mode, true)          # back to the user's camera
+	one_to_one_changed.emit(on)
+
+func toggle_one_to_one() -> void:
+	set_one_to_one(not _one_to_one)
 
 ## One gesture -> everything a collaborator needs about a tile. Photograph the BARE
 ## scene FIRST (no selection overlay), then inspect — so shot.png is a clean plate
@@ -768,6 +803,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		# own _input, so this handler won't see keys until it closes.)
 		if event.keycode == KEY_F1:
 			onboarding.open(); return
+		# Ctrl+M: toggle 1:1 (parity) mode — camera + panels flip to Qud-faithful, and back.
+		# Ctrl (not Cmd, which is macOS "minimize"); the highvisor 1:1 button injects this same key.
+		if event.keycode == KEY_M and event.ctrl_pressed \
+				and not (event.meta_pressed or event.shift_pressed or event.alt_pressed):
+			toggle_one_to_one(); return
 		# mode switches first — they reassign what the arrows mean
 		if event.shift_pressed and event.keycode == KEY_C:
 			_set_mode(CamMode.MOUSE); return
@@ -788,7 +828,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.keycode == KEY_5: _set_mode(CamMode.MOUSE); return
 		if event.keycode == KEY_6: _set_mode(CamMode.KEYBOARD); return
 		if event.keycode == KEY_7: _set_mode(CamMode.TOP_FOLLOW); return
-		if event.keycode == KEY_0: _multiview.toggle(); return   # 0 = all-views grid
+		if event.keycode == KEY_0 and not _one_to_one: _multiview.toggle(); return   # 0 = all-views grid (locked out in 1:1)
 		if event.keycode == KEY_QUOTELEFT:      # ` toggles the debug menu
 			_dbg_menu.toggle(); return
 		# B: "become anything" character-creator menu (pick a blueprint to embody)

@@ -70,6 +70,16 @@ func set_snapshot(data: Dictionary) -> void:
 	_tiles.palette = _palette
 	_rerender()
 
+## 1:1 (parity) mode: render a Qud-faithful minimap instead of the QoL variant. Master switch is
+## MainFrame/Holodeck; here we just record it + re-render. (Qud-faithful render branch: TODO — the
+## 1:1 panel pass; foundation only stores the flag so the branch can hang off it.)
+var _one_to_one := false
+func set_one_to_one(on: bool) -> void:
+	if on == _one_to_one:
+		return
+	_one_to_one = on
+	_rerender()
+
 func _rerender() -> void:
 	var data := _last_data
 	if data.is_empty():

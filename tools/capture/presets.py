@@ -44,6 +44,7 @@ RAVES_DEFAULTS = {
     "fullscreen": False,
     "full_info": False,
     "camera": 0,
+    "mode": "user",         # "user" | "1to1" (parity mode overrides camera + panels)
     "bridge_host": "127.0.0.1",
     "bridge_port": 48710,
 }

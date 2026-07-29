@@ -112,6 +112,16 @@ func set_full_info(full: bool) -> void:
 	if not _last_data.is_empty():
 		set_snapshot(_last_data)
 
+## 1:1 (parity) mode: render the Qud-faithful nearby-objects list instead of the QoL variant.
+## (Qud-faithful render branch: TODO — the 1:1 panel pass; foundation stores the flag + re-renders.)
+var _one_to_one := false
+func set_one_to_one(on: bool) -> void:
+	if on == _one_to_one:
+		return
+	_one_to_one = on
+	if not _last_data.is_empty():
+		set_snapshot(_last_data)
+
 ## Compass ARROW from a cell offset (y increases SOUTH). Within RADIUS 1 this is exactly the 8
 ## neighbours plus the centre.
 func _arrow(dx: int, dy: int) -> String:

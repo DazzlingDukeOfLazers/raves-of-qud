@@ -310,6 +310,20 @@ func _apply_full_info() -> void:
 		if p.has_method("set_full_info"):
 			p.set_full_info(_full_info)
 
+# --- 1:1 (parity) mode: panel half + persistence ------------------------------
+# The Holodeck owns the master switch + camera (hotkey / highvisor / preset flip it there and
+# emit one_to_one_changed); here we swap the side panels to their Qud-faithful variant and
+# persist the choice so the next launch (and presets) stick.
+func _on_one_to_one_changed(on: bool) -> void:
+	_set_panels_one_to_one(on)
+	Settings.set_value("mode", "1to1" if on else "user")
+	Settings.save()
+
+func _set_panels_one_to_one(on: bool) -> void:
+	for p in _panels:
+		if p.has_method("set_one_to_one"):
+			p.set_one_to_one(on)
+
 # ── row 3: Holodeck  |grabby|  side panels  (expands to fill) ─────────────────
 
 func _row_main() -> Control:
@@ -400,8 +414,14 @@ func _connect_holodeck() -> void:
 	_holo.embedded = true                       # hide Main's own HUD chrome; move its grade below the frame
 	_holo.render_3d = false                     # DATA ONLY — no 3D build/render at all
 	_holo.connect("snapshot", _apply_stats)     # feeds status bar + panels off the same stream
+	_holo.connect("one_to_one_changed", _on_one_to_one_changed)  # camera flips → sync panels + persist
 	add_child(_holo)                            # ROOT viewport → 3D renders full-window BEHIND the chrome
 	_render_btn.disabled = false
+	# Apply the saved 1:1 / user mode now that the Holodeck (camera owner) exists. When 1:1, this
+	# emits one_to_one_changed → _on_one_to_one_changed pushes the 1:1 variant to the panels too.
+	_holo.set_one_to_one(Settings.one_to_one())
+	if Settings.one_to_one():
+		_set_panels_one_to_one(true)            # ensure panels match on a 1:1 launch
 
 ## Stage 2 — bring the 3D up: build + render the current zone into the root viewport. No SubViewport
 ## present-flip to race the Metal driver (that was the crash); this is the path standalone Main always

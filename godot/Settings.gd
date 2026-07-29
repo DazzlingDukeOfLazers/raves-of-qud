@@ -13,10 +13,16 @@ const DEFAULTS := {
 	"font_scale": 1.0,          # global UI size multiplier (UiFont.scale)
 	"fullscreen": false,        # window mode
 	"full_info": false,         # perceived (false) vs full/debug (true) info by default
-	"camera": 0,                # default CameraRig.CamMode index
+	"camera": 0,                # default CameraRig.CamMode index (user mode)
+	"mode": "user",             # "user" = QoL Holodeck · "1to1" = Qud-faithful parity mode
+	                            # (1to1 hard-overrides camera + panels; see MainFrame._apply_one_to_one)
 	"bridge_host": "127.0.0.1", # which Qud to render (BridgeClient)
 	"bridge_port": 48710,
 }
+
+## True when the parity/1:1 mode is selected (overrides user-mode camera + panels).
+func one_to_one() -> bool:
+	return str(get_value("mode", "user")) == "1to1"
 
 var _data: Dictionary = {}
 

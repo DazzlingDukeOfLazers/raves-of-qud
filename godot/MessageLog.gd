@@ -96,6 +96,15 @@ func set_full_info(full: bool) -> void:
 	_full = full
 	_rerender()
 
+## 1:1 (parity) mode: render the Qud-faithful message log instead of the QoL variant.
+## (Qud-faithful render branch: TODO — the 1:1 panel pass; foundation stores the flag + re-renders.)
+var _one_to_one := false
+func set_one_to_one(on: bool) -> void:
+	if on == _one_to_one:
+		return
+	_one_to_one = on
+	_rerender()
+
 ## Index the zone's objects by lowercased display name -> object dict, so a log line's text can be
 ## matched to a tile. First occurrence wins; ground is skipped.
 func _build_name_index(data: Dictionary) -> void:
