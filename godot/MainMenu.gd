@@ -467,7 +467,7 @@ func _activate(idx: int) -> void:
 				_launching = true
 				OS.shell_open(Brand.URL_STEAM_RUN)   # launch the installed copy
 			elif _qud_up:
-				_enter_viewer()
+				_open_overlay("res://GenotypeScreen.gd")   # chargen — WIP: genotype stage (drives Qud on Embark later)
 		"mods":
 			_open_overlay("res://ModsScreen.gd")
 		"options":

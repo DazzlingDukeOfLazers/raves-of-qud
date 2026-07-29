@@ -105,6 +105,8 @@ namespace RavesOfQud
             OptionsExporter.Ensure();
             // One-shot: export Qud's high-score records (Scoreboard2 / HighScores.json) for Raves' Records screen.
             RecordsExporter.Ensure();
+            // One-shot: export Qud's character-creation data (genotypes, …) for Raves' chargen screens.
+            ChargenExporter.Ensure();
 
             // Keep Unity RENDERING the window while it's unfocused, so Qud's own map
             // repaints in sync with commands we drive from Godot. Unity pauses the
@@ -519,7 +521,8 @@ namespace RavesOfQud
                         ModsExporter.ReExport();
                         OptionsExporter.ReExport();
                         RecordsExporter.ReExport();
-                        Server.Log("[export] re-exported mods + options + records");
+                        ChargenExporter.ReExport();
+                        Server.Log("[export] re-exported mods + options + records + chargen");
                     }
                     catch (Exception e) { Server.Log("export error: " + e.Message); }
                     break;
