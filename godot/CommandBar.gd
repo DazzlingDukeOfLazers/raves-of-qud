@@ -25,6 +25,7 @@ var _palette := {}
 var _ability_tex := {}       # command -> recoloured icon texture, for the direction picker cursor
 var _last_data := {}         # last snapshot, so a mode toggle re-renders without waiting for a new one
 var _one_to_one := false     # 1:1: spread abilities in equal cells (Qud) vs the inline QoL list
+var _abilities: Array = []   # current abilities in bar order, for the 1-9 hotkeys (1:1)
 
 func _ready() -> void:
 	_tiles = load("res://QudTiles.gd").new()
@@ -83,10 +84,11 @@ func set_snapshot(data: Dictionary) -> void:
 	_tiles.palette = _palette
 	_tiles.tiles_dir = String(data.get("tilesDir", _tiles.tiles_dir))
 	_ability_tex.clear()
+	_abilities = data.get("abilities", [])   # keep for the 1-9 hotkeys
 	if _one_to_one:
-		_render_cells(data.get("abilities", []))
+		_render_cells(_abilities)
 	else:
-		_render_inline(data.get("abilities", []))
+		_render_inline(_abilities)
 
 ## 1:1 (parity) mode: spread abilities in equal-width bordered cells across the bar, like Qud (vs the
 ## QoL inline list). Master switch is MainFrame/Holodeck; here we swap the layout + re-render.
@@ -135,13 +137,13 @@ func _render_cells(abilities: Array) -> void:
 	for i in abilities.size():
 		if i > 0:
 			_cells.add_child(VSeparator.new())   # divider between cells, like Qud
-		_cells.add_child(_make_cell(abilities[i], icon_px))
+		_cells.add_child(_make_cell(abilities[i], icon_px, i + 1))   # slot = 1-based hotkey
 
 ## One ability as a centred, equal-share, clickable cell: a nearest-filtered tile icon + a name/state/
 ## hotkey label, both centred. The cell (an HBox) catches the click via gui_input; children IGNORE the
 ## mouse so it falls through. Nothing here takes keyboard focus, so the movement arrows are never
 ## swallowed (the "can't move after Make Camp" bug).
-func _make_cell(a: Dictionary, icon_px: int) -> Control:
+func _make_cell(a: Dictionary, icon_px: int, slot: int) -> Control:
 	var cmd := String(a.get("command", ""))
 	var tex: Texture2D = _tiles.texture_for(a, true)
 	if cmd != "":
@@ -151,8 +153,8 @@ func _make_cell(a: Dictionary, icon_px: int) -> Control:
 	cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL   # equal share of the bar width
 	cell.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	cell.add_theme_constant_override("separation", 6)
-	cell.mouse_filter = Control.MOUSE_FILTER_STOP
 	cell.tooltip_text = QudText.strip(String(a.get("name", "")))
+	cell.mouse_filter = Control.MOUSE_FILTER_STOP
 	cell.gui_input.connect(func(e: InputEvent) -> void:
 		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
 			_activate(cmd))
@@ -165,11 +167,19 @@ func _make_cell(a: Dictionary, icon_px: int) -> Control:
 		ir.mouse_filter = Control.MOUSE_FILTER_IGNORE   # click falls through to the cell
 		cell.add_child(ir)
 	var lbl := Label.new()
-	lbl.text = "%s%s%s" % [QudText.strip(String(a.get("name", ""))), _state_plain(a), _hotkey_plain(a)]
+	lbl.text = "%s%s%s" % [QudText.strip(String(a.get("name", ""))), _state_plain(a), _hotkey_label(a, slot)]
 	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	cell.add_child(lbl)
 	return cell
+
+## The cell's hotkey tag: the mod's own hotkey if it sends one, else the positional bar slot (1-9),
+## which is what the 1-9 keys activate in 1:1. Matches Qud's " <1>".. quick-slot labels.
+func _hotkey_label(a: Dictionary, slot: int) -> String:
+	var hk := String(a.get("hotkey", ""))
+	if hk == "" and slot >= 1 and slot <= 9:
+		hk = str(slot)
+	return " <%s>" % hk if hk != "" else ""
 
 ## Plain-text state/hotkey suffixes for the button label (no bbcode in Button.text).
 func _state_plain(a: Dictionary) -> String:
@@ -195,6 +205,25 @@ func _activate(cmd: String) -> void:
 		"icon": _ability_tex.get(cmd),
 		"pick_dir": DIR_ABILITIES.has(cmd),
 	})
+
+## 1:1 ability hotkeys: the 1-9 keys activate the matching bar slot. Only in 1:1 (where the camera-mode
+## 1-7 bindings are locked out, so the digits are free); user mode leaves them to the camera. Runs in
+## _unhandled_key_input, which fires BEFORE Main's _unhandled_input, so a handled digit never reaches
+## the (locked) camera switch. Nothing here grabs focus.
+func _unhandled_key_input(e: InputEvent) -> void:
+	if not _one_to_one or _abilities.is_empty():
+		return
+	if not (e is InputEventKey and e.pressed and not e.echo):
+		return
+	var slot := -1
+	if e.keycode >= KEY_1 and e.keycode <= KEY_9:
+		slot = e.keycode - KEY_1                       # top-row digits
+	elif e.keycode >= KEY_KP_1 and e.keycode <= KEY_KP_9:
+		slot = e.keycode - KEY_KP_1                    # numpad digits
+	if slot < 0 or slot >= _abilities.size():
+		return
+	_activate(String(_abilities[slot].get("command", "")))
+	get_viewport().set_input_as_handled()
 
 func _state_tag(a: Dictionary) -> String:
 	if bool(a.get("toggleable", false)):
