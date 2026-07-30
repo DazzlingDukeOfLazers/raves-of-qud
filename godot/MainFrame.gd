@@ -279,12 +279,20 @@ func _row_status() -> Control:
 	# Character icon — the player's own tile (filled in from each snapshot's `player` render). Sized
 	# ~2x body so it fills the bar like Qud's avatar.
 	_portrait = TextureRect.new()
-	var isz := int(UiFont.px(get_viewport(), "body") * 2.0)
+	var bpx := UiFont.px(get_viewport(), "body")
+	var isz := int(bpx * 1.7)                          # avatar scale, matched to Qud (was 2.0)
 	_portrait.custom_minimum_size = Vector2(round(isz * 16.0 / 24.0), isz)
 	_portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	h.add_child(_portrait)
+	# Nudge the avatar to Qud's position (Qud indents the bar's left edge slightly).
+	# Offsets are body-relative so they hold across resolutions; tuned to Qud by
+	# measuring the sprite bbox (== 34px left / 3px top at body=42, the 2x framebuffer).
+	var pm := MarginContainer.new()
+	pm.add_theme_constant_override("margin_left", int(round(bpx * 0.81)))
+	pm.add_theme_constant_override("margin_top", int(round(bpx * 0.071)))
+	pm.add_child(_portrait)
+	h.add_child(pm)
 	_l_name = _text("—")
 	# Size to content (clip only past a generous cap) so the name never collapses to 0 in the HBox next
 	# to the expanding rule — clip_text with no min width did exactly that (the name vanished).
