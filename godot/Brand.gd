@@ -16,6 +16,13 @@ const GAME_TAGLINE := "a 3D viewer for Caves of Qud"
 const ORG_NAME := "«the organization that makes Raves of Qud»"   # placeholder
 const LICENSE := "MIT"
 
+## The base Caves of Qud release this 1:1 build was reconstructed against — shown on the
+## title screen's version corner in 1:1 mode (in place of Raves' own name/licence), matching
+## Qud. Reference build (measured off a 1.0.5 title capture); TODO: source dynamically from the
+## mod's title export so it tracks the player's actual install instead of being pinned here.
+const QUD_VERSION := "1.0.5"
+const QUD_BUILD := "2.0.211.50"
+
 # ── the base game it renders ─────────────────────────────────────────────────
 const BASE_GAME := "Caves of Qud"
 const BASE_GAME_RIGHTS_HOLDER := "Freehold Games"   # confirm the exact legal suffix (LLC?) for formal use

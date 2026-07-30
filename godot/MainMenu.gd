@@ -90,6 +90,13 @@ func _ready() -> void:
 	name = "MainMenu"
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	theme = UiFont.make_theme(get_viewport())
+	if Settings.one_to_one():
+		# 1:1: Qud's title labels sit on NO background — clear the Label panel (base + role
+		# variations) so the bottom-left list (Redeem Code … Help) and the version render as
+		# plain text like Qud. User mode keeps Raves' framed look.
+		var empty := StyleBoxEmpty.new()
+		for tt in ["Label", "Caption", "Title", "Big"]:
+			theme.set_stylebox("normal", tt, empty)
 	get_viewport().size_changed.connect(_on_resize)
 	get_window().title = Brand.title()
 	RenderingServer.set_default_clear_color(BG)
@@ -229,6 +236,8 @@ func _place_box(c: Control) -> void:
 ## A small note just under the option box, shown only when Qud is up but no game is live (see
 ## _update_continue_hint). Pure fractional anchors, so it tracks the box across window resizes.
 func _build_continue_hint() -> void:
+	if Settings.one_to_one():
+		return   # Qud shows no such hint — it just greys Continue (mirrored via _refresh_enabled)
 	_continue_hint = _label("Load a game in Caves of Qud to continue", MUTED, "caption")
 	_continue_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_continue_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -428,14 +437,64 @@ func _build_hint() -> void:
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var gold := "#%s" % GOLD.to_html(false)
 	var dim := "#%s" % HINT.to_html(false)
-	l.text = "[center][color=%s]↑↓ navigate      [/color][color=%s][lb]Space[rb][/color][color=%s] select      [/color][color=%s][lb]Esc[rb][/color][color=%s] quit[/color][/center]" % [dim, gold, dim, gold, dim]
+	var tail := "[color=%s] navigate      [/color][color=%s][lb]Space[rb][/color][color=%s] select      [/color][color=%s][lb]Esc[rb][/color][color=%s] quit[/color]" % [dim, gold, dim, gold, dim]
+	if Settings.one_to_one():
+		# Qud shows an ARROW-KEYS icon (a gold d-pad cluster), not the literal "↑↓". Draw it and
+		# inline it at the head of the centred hint.
+		var ih := int(round(UiFont.px(get_viewport(), "caption") * 1.15))
+		var icon := _nav_icon_texture(ih, GOLD)
+		l.push_paragraph(HORIZONTAL_ALIGNMENT_CENTER)
+		l.add_image(icon, icon.get_width(), icon.get_height())
+		l.append_text(tail)
+		l.pop()
+	else:
+		l.text = "[center][color=%s]↑↓ navigate      [/color][color=%s][lb]Space[rb][/color][color=%s] select      [/color][color=%s][lb]Esc[rb][/color][color=%s] quit[/color][/center]" % [dim, gold, dim, gold, dim]
 	add_child(l)
 	_place(l, "hint")
 
+## A small arrow-keys icon (Qud's gold d-pad cluster) drawn procedurally: four keys in the
+## inverted-T layout — up on top; left / down / right below — used in the 1:1 hint in place of "↑↓".
+func _nav_icon_texture(ih: int, color: Color) -> ImageTexture:
+	var g := maxi(1, int(round(ih * 0.10)))
+	var k := int((ih - g) / 2)          # key size (two rows tall)
+	if k < 2:
+		k = 2
+	var w := 3 * k + 2 * g
+	var h := 2 * k + g
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var mid := k + g                     # x of the centre column
+	img.fill_rect(Rect2i(mid, 0, k, k), color)          # up (top centre)
+	img.fill_rect(Rect2i(0, k + g, k, k), color)        # left
+	img.fill_rect(Rect2i(mid, k + g, k, k), color)      # down (centre)
+	img.fill_rect(Rect2i(2 * mid, k + g, k, k), color)  # right
+	return ImageTexture.create_from_image(img)
+
 func _build_version() -> void:
+	if Settings.one_to_one():
+		_build_version_qud()
+		return
 	var l := _label("%s\nbuild %s" % [Brand.GAME_NAME, Brand.LICENSE], MUTED, "caption")
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	l.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+	add_child(l)
+	_place(l, "version")
+
+## 1:1: Qud's own version corner — its release + build, right-aligned, in a READABLE colour.
+## Qud draws the build line very dark (illegible); we lift it. A RichTextLabel so the two lines
+## can differ in brightness AND so it carries none of the Label background panel.
+func _build_version_qud() -> void:
+	var l := RichTextLabel.new()
+	l.bbcode_enabled = true
+	l.fit_content = true
+	l.scroll_active = false
+	l.autowrap_mode = TextServer.AUTOWRAP_OFF
+	l.theme_type_variation = "Caption"
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var ver := "#%s" % SEL.to_html(false)     # release: near-white, like Qud
+	var bld := "#%s" % HINT.to_html(false)    # build: readable teal-grey (Qud's is too dark)
+	l.text = "[right][color=%s]%s[/color]\n[color=%s]build %s[/color][/right]" % [
+		ver, Brand.QUD_VERSION, bld, Brand.QUD_BUILD]
 	add_child(l)
 	_place(l, "version")
 
