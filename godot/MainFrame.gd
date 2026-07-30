@@ -387,6 +387,15 @@ func _apply_panel_sizing(on: bool) -> void:
 		_nearby.size_flags_vertical = Control.SIZE_SHRINK_BEGIN if on else Control.SIZE_EXPAND_FILL
 	if _msglog != null:
 		_msglog.size_flags_vertical = Control.SIZE_EXPAND_FILL   # always the space-filler; dominant in 1:1
+	# Row 4 (Active effects | Target | Context menu). Qud keeps this a thin single-line strip; the QoL
+	# layout reserves taller boxes. 1:1 slims them (context a touch taller for the equipped-weapon sprite),
+	# which also hands the freed height to the play hole above.
+	if _effects != null:
+		_effects.custom_minimum_size = Vector2(0, 58 if on else 90)
+	if _target != null:
+		_target.custom_minimum_size = Vector2(0, 58 if on else 90)
+	if _context != null:
+		_context.custom_minimum_size = Vector2(0, 66 if on else 104)
 
 ## Tell the Holodeck camera what fraction of the window the sidebar now covers, so the 1:1 zone-fit
 ## recentres the view in the visible play hole (left of the sidebar) instead of the full window.
