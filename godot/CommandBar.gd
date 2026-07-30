@@ -181,16 +181,24 @@ func _hotkey_label(a: Dictionary, slot: int) -> String:
 		hk = str(slot)
 	return " <%s>" % hk if hk != "" else ""
 
-## Plain-text state/hotkey suffixes for the button label (no bbcode in Button.text).
-func _state_plain(a: Dictionary) -> String:
-	if bool(a.get("toggleable", false)):
-		return " [on]" if bool(a.get("toggle", false)) else " [off]"
+## Cooldown in TURNS as Qud displays it. The mod sends the raw ActivatedAbilityEntry.Cooldown, which is
+## 10x the shown turns (Qud renders `Cooldown / 10` — e.g. 950 -> 95). 0 = not cooling.
+func _cooldown_turns(a: Dictionary) -> int:
 	var cd := int(a.get("cooldown", 0))
+	return maxi(1, int(cd / 10.0)) if cd > 0 else 0   # never show "cd 0" while still cooling
+
+## Plain-text state suffixes for the cell label. Cooldown first, then toggle/disabled — matching Qud's
+## "[95] [off]" (a toggleable ability can be BOTH cooling down AND toggled off, so show both).
+func _state_plain(a: Dictionary) -> String:
+	var s := ""
+	var cd := _cooldown_turns(a)
 	if cd > 0:
-		return " [cd %d]" % cd
-	if not bool(a.get("enabled", true)):
-		return " [disabled]"
-	return ""
+		s += " [cd %d]" % cd
+	if bool(a.get("toggleable", false)):
+		s += " [on]" if bool(a.get("toggle", false)) else " [off]"
+	elif not bool(a.get("enabled", true)):
+		s += " [disabled]"
+	return s
 
 func _hotkey_plain(a: Dictionary) -> String:
 	var hk := String(a.get("hotkey", ""))
@@ -226,15 +234,16 @@ func _unhandled_key_input(e: InputEvent) -> void:
 	get_viewport().set_input_as_handled()
 
 func _state_tag(a: Dictionary) -> String:
+	var s := ""
+	var cd := _cooldown_turns(a)
+	if cd > 0:
+		s += " [color=%s][cd %d][/color]" % [CD, cd]
 	if bool(a.get("toggleable", false)):
 		var on := bool(a.get("toggle", false))
-		return " [color=%s][%s][/color]" % [ON if on else OFF, "on" if on else "off"]
-	var cd := int(a.get("cooldown", 0))
-	if cd > 0:
-		return " [color=%s][cd %d][/color]" % [CD, cd]
-	if not bool(a.get("enabled", true)):
-		return " [color=%s][disabled][/color]" % DIM
-	return ""
+		s += " [color=%s][%s][/color]" % [ON if on else OFF, "on" if on else "off"]
+	elif not bool(a.get("enabled", true)):
+		s += " [color=%s][disabled][/color]" % DIM
+	return s
 
 func _hotkey_tag(a: Dictionary) -> String:
 	var hk := String(a.get("hotkey", ""))
