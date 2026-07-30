@@ -31,6 +31,7 @@ QudLauncher="*res://QudLauncher.gd"
 
 window/size/viewport_width=1600
 window/size/viewport_height=900
+window/dpi/allow_hidpi=false
 
 [rendering]
 

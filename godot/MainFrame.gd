@@ -289,8 +289,8 @@ func _row_status() -> Control:
 	# Offsets are body-relative so they hold across resolutions; tuned to Qud by
 	# measuring the sprite bbox (== 34px left / 3px top at body=42, the 2x framebuffer).
 	var pm := MarginContainer.new()
-	pm.add_theme_constant_override("margin_left", int(round(bpx * 0.81)))
-	pm.add_theme_constant_override("margin_top", int(round(bpx * 0.071)))
+	pm.add_theme_constant_override("margin_left", int(round(bpx * 0.62)))
+	pm.add_theme_constant_override("margin_top", int(round(bpx * 0.02)))
 	pm.add_child(_portrait)
 	h.add_child(pm)
 	_l_name = _text("—")

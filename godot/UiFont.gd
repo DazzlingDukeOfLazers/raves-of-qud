@@ -12,7 +12,9 @@ extends RefCounted
 ## MIN=28 was the user's readable floor.
 
 const FRAC := 0.0197        # body px = window_height * FRAC
-const MIN := 28             # absolute floor px — no text anywhere is smaller
+const MIN := 14             # absolute floor px — no text anywhere is smaller
+                            # (was 28 when the window rendered at a 2x framebuffer; allow_hidpi is
+                            #  now off so px == real px, and the floor halves to keep the same size)
 
 ## Global multiplier on every UI size, set from the Options "Font scale" setting (Settings
 ## autoload applies it at startup). 1.0 = the tuned default. Re-stamp themes after changing it.
