@@ -49,6 +49,14 @@ static func make_theme(vp: Viewport) -> Theme:
 		f = load("res://fonts/AtkinsonHyperlegible-Regular.ttf")
 	if f != null:
 		t.default_font = f
+		# Register the matching bold so RichTextLabel [b] (message log, nearby, command bar) renders in
+		# Source Code Pro Bold rather than a synthesised/fallback bold. normal/mono stay the regular face.
+		var fb := load("res://fonts/SourceCodePro-Bold.ttf")
+		if fb != null:
+			t.set_font("normal_font", "RichTextLabel", f)
+			t.set_font("mono_font", "RichTextLabel", f)
+			t.set_font("bold_font", "RichTextLabel", fb)
+			t.set_font("bold_italics_font", "RichTextLabel", fb)
 	# Qud's default UI text is the palette grey (y); emphasis stays white via explicit overrides.
 	for base in ["Label", "Button", "CheckBox", "LineEdit", "TextEdit", "OptionButton"]:
 		t.set_color("font_color", base, QudPalette.TEXT)

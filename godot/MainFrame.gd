@@ -73,6 +73,8 @@ var _dev_bar: Control              # holodeck cell's Connect/Turn-on-viewport st
 const SIDEBAR_FRAC_1TO1 := 0.28    # Qud's right sidebar ≈ 28% of window width (measured at 1600×900)
 const SIDEBAR_W_USER := 320.0      # user-mode side-column min width (the original value)
 
+var _crt_layer: CanvasLayer        # CRT scanline+vignette overlay above everything (Settings "crt")
+
 # Mod-version handshake. The mod sends `protocol` (mod/Protocol.cs Version) each snapshot; the client
 # requires at least MIN and understands up to CLIENT. Mismatch -> a message-log status line, so a stale
 # mod (deployed but Qud not restarted) is visible instead of silently shipping old behaviour.
@@ -107,6 +109,7 @@ func _ready() -> void:
 	_panels = [_minimap, _nearby, _msglog, _effects, _target, _context, _command].filter(
 		func(p): return p != null)
 	_apply_full_info()                   # init the toggle label + push the default (perceived) to views
+	_add_crt_overlay()                   # Qud's CRT terminal look, on top of the chrome + 3D
 
 	# Resume (Continue / New Game with the bridge up): MainMenu set this so we AUTO-CONNECT the data
 	# stage now, rather than stranding the player at the empty "▶ Connect (data)" prompt. Data-only —
@@ -336,6 +339,34 @@ func _apply_full_info() -> void:
 	for p in _panels:
 		if p.has_method("set_full_info"):
 			p.set_full_info(_full_info)
+
+# --- CRT overlay (Qud's terminal scanlines + vignette) ------------------------
+## A full-window ColorRect on a top CanvasLayer, running the crt shader. It darkens everything behind
+## it (chrome + the 3D), so it sits above both. Mouse-transparent so it never eats clicks. Visibility
+## follows the "crt" setting; toggle live with set_crt().
+func _add_crt_overlay() -> void:
+	if _crt_layer != null:
+		return
+	_crt_layer = CanvasLayer.new()
+	_crt_layer.layer = 100                       # above the chrome (layer 0) and the 3D
+	var rect := ColorRect.new()
+	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var sh: Shader = load("res://crt.gdshader")
+	if sh != null:
+		var mat := ShaderMaterial.new()
+		mat.shader = sh
+		rect.material = mat
+	_crt_layer.add_child(rect)
+	add_child(_crt_layer)
+	_crt_layer.visible = bool(Settings.get_value("crt", true))
+
+## Turn the CRT overlay on/off live (and persist). No-op if the overlay didn't build.
+func set_crt(on: bool) -> void:
+	if _crt_layer != null:
+		_crt_layer.visible = on
+	Settings.set_value("crt", on)
+	Settings.save()
 
 # --- 1:1 (parity) mode: panel half + persistence ------------------------------
 # The Holodeck owns the master switch + camera (hotkey / highvisor / preset flip it there and

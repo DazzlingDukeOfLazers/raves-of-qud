@@ -13,6 +13,7 @@ const DEFAULTS := {
 	"font_scale": 1.0,          # global UI size multiplier (UiFont.scale)
 	"fullscreen": false,        # window mode
 	"full_info": false,         # perceived (false) vs full/debug (true) info by default
+	"crt": true,                # CRT scanline + vignette overlay (Qud's terminal look), on by default
 	"camera": 0,                # default CameraRig.CamMode index (user mode)
 	"mode": "user",             # "user" = QoL Holodeck · "1to1" = Qud-faithful parity mode
 	                            # (1to1 hard-overrides camera + panels; see MainFrame._apply_one_to_one)
