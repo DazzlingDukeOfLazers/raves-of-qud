@@ -21,6 +21,7 @@ extends Node
 const FLAG := "--launch-qud"
 const PIDFILE := "user://qud_child.pid"
 
+var active := false                   # true when launched by highvisor in this mode
 var _pid := -1
 var _owns := false                    # true once we spawn OR adopt a managed Qud
 var _argv: PackedStringArray = []     # [FLAG, exec, args...] — preserved for Reset re-pass
@@ -31,11 +32,17 @@ func _ready() -> void:
 	var i := uargs.find(FLAG)
 	if i == -1 or i + 1 >= uargs.size():
 		return                                       # not in launch-qud mode — do nothing
+	active = true
 	_argv = uargs.slice(i)                            # from the flag onward
 	_owns = true
 
-	# Borderless: highvisor positions these windows; no titlebar to overlap.
+	# Borderless + self-placed: a borderless Godot window on macOS registers as
+	# subrole AXUnknown, so the window server IGNORES external AX move/resize — we
+	# can't let highvisor tile us from outside (measured). Instead we fill the
+	# upper-right quadrant of the roomiest screen ourselves, in Godot's own coords;
+	# highvisor tiles Qud into the lower-right of that same display.
 	DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_BORDERLESS, true)
+	_place_upper_right_quadrant()
 
 	var exe := uargs[i + 1]
 	var coq_args := uargs.slice(i + 2)                # everything after the exec
@@ -60,6 +67,46 @@ func _ready() -> void:
 ## re-pass them and keep Qud + borderless alive across a script-reload restart.
 func relaunch_args() -> PackedStringArray:
 	return _argv
+
+
+## Fill the upper-right quadrant of the roomiest screen (half its width × half its
+## height), in Godot's own coordinate space so the negative-origin/secondary-display
+## and HiDPI-scale quirks that break external sizing don't apply. Re-asserted after a
+## frame in case going borderless nudged the frame. Matches highvisor's Raves ▲ slot.
+func _place_upper_right_quadrant() -> void:
+	var scr := _largest_screen()
+	var sp := DisplayServer.screen_get_position(scr)
+	var ss := DisplayServer.screen_get_size(scr)
+	# highvisor tiles Qud to the LOWER half (its top = the screen's vertical centre,
+	# computed from the FULL display bounds). Raves must fill from the usable top
+	# (macOS clamps a window below the menu bar) DOWN TO that centre — sizing to a
+	# full half would lap the menu-bar offset into Qud (a ~31px overlap, measured).
+	var usable := DisplayServer.screen_get_usable_rect(scr)
+	var center_y := sp.y + int(ss.y / 2.0)
+	var top_y := usable.position.y
+	var w := int(ss.x / 2.0)
+	var pos := Vector2i(sp.x + ss.x - w, top_y)
+	var size := Vector2i(w, center_y - top_y)
+	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+	DisplayServer.window_set_size(size)
+	DisplayServer.window_set_position(pos)
+	await get_tree().process_frame
+	DisplayServer.window_set_size(size)
+	DisplayServer.window_set_position(pos)
+	print("QudLauncher: placed Raves at ", pos, " size ", size,
+		" (screen ", scr, " full ", sp, "+", ss, " usable ", usable, ")")
+
+
+func _largest_screen() -> int:
+	var best := 0
+	var best_area := -1
+	for s in DisplayServer.get_screen_count():
+		var sz := DisplayServer.screen_get_size(s)
+		var area := sz.x * sz.y
+		if area > best_area:
+			best_area = area
+			best = s
+	return best
 
 
 func _notification(what: int) -> void:

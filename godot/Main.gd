@@ -807,7 +807,10 @@ func _load_settings() -> void:
 		renderer.deep_water_depth = clampf(float(d.get("water_depth", renderer.deep_water_depth)), 0.0, 1.0)
 		renderer.level_height = clampf(float(d.get("level_height", renderer.level_height)), 0.0, 16.0)
 	var win = d.get("win", null)
-	if win is Array and win.size() == 2 and int(win[0]) > 200 and int(win[1]) > 200:
+	# Skip in launch-qud mode: QudLauncher owns the window geometry there (borderless
+	# quadrant), and a saved size would fight it when entering gameplay.
+	if win is Array and win.size() == 2 and int(win[0]) > 200 and int(win[1]) > 200 \
+			and not QudLauncher.active:
 		DisplayServer.window_set_size(Vector2i(int(win[0]), int(win[1])))
 	var m := int(d.get("mode", _cam_rig._mode))
 	if m >= 0 and m <= CamMode.TOP_FOLLOW:
