@@ -752,7 +752,15 @@ func _build_reset_button() -> void:
 func _reset_program() -> void:
 	_save_settings()   # persist before the restart (quit() doesn't fire WM_CLOSE_REQUEST)
 	var sz := DisplayServer.window_get_size()
-	OS.set_restart_on_exit(true, PackedStringArray(["--resolution", "%dx%d" % [sz.x, sz.y]]))
+	var restart := PackedStringArray(["--resolution", "%dx%d" % [sz.x, sz.y]])
+	# If highvisor launched us in --launch-qud mode, re-pass those user args so the
+	# restarted instance stays borderless and re-adopts the still-running Qud (the
+	# quit() below doesn't fire WM_CLOSE_REQUEST, so QudLauncher leaves Qud alive).
+	var qargs := QudLauncher.relaunch_args()
+	if not qargs.is_empty():
+		restart.append("--")
+		restart.append_array(qargs)
+	OS.set_restart_on_exit(true, restart)
 	get_tree().quit()
 
 ## Save on window close (the X); the Reset button saves explicitly in _reset_program.
