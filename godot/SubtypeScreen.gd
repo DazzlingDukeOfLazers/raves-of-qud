@@ -89,8 +89,21 @@ func _ready() -> void:
 	_add_back()
 	_peer.connect_to_host(BridgeClient.host(), BridgeClient.port())
 
-func _process(_dt: float) -> void:
+var _retry_accum := 0.0
+func _process(dt: float) -> void:
 	_peer.poll()
+	# Self-heal an empty/partial load (the mod rewrites chargen.json non-atomically, so a read can catch
+	# it mid-write): re-read (throttled) until the class populates, then rebuild — no stranding on the notice.
+	if _flat.is_empty():
+		_retry_accum += dt
+		if _retry_accum >= 0.2:
+			_retry_accum = 0.0
+			var again := _load_class()
+			if not again.is_empty():
+				_class = again
+				_populate()
+				_sel = clampi(_sel, 0, maxi(0, _flat.size() - 1))
+				_apply_selection()
 	var connected := _peer.get_status() == StreamPeerTCP.STATUS_CONNECTED
 	if connected and not _refreshed:
 		_refreshed = true

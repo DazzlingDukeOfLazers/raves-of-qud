@@ -90,8 +90,22 @@ func _ready() -> void:
 
 ## Auto-refresh on open: ask the mod to re-export, reload chargen.json when it's rewritten. No-op if
 ## the bridge is down (pre-game) — the screen still shows the cached export.
-func _process(_dt: float) -> void:
+var _retry_accum := 0.0
+func _process(dt: float) -> void:
 	_peer.poll()
+	# Self-heal an empty/partial load. The mod rewrites chargen.json non-atomically (truncate+write), so
+	# a read can catch it mid-write and come back empty — keep re-reading (throttled) until the data is
+	# there, then rebuild. Also covers "file not populated yet" without stranding the user on the notice.
+	if _genotypes.is_empty():
+		_retry_accum += dt
+		if _retry_accum >= 0.2:
+			_retry_accum = 0.0
+			var again := _load()
+			if not again.is_empty():
+				_genotypes = again
+				_populate()
+				_sel = clampi(_sel, 0, maxi(0, _genotypes.size() - 1))
+				_apply_selection()
 	var connected := _peer.get_status() == StreamPeerTCP.STATUS_CONNECTED
 	if connected and not _refreshed:
 		_refreshed = true

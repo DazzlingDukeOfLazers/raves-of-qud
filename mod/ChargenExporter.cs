@@ -63,7 +63,23 @@ namespace RavesOfQud
             WriteGenotypes(j);
             WriteSubtypes(j);
             j.EndObject();
-            File.WriteAllText(Path.Combine(Root, "chargen.json"), j.ToString());
+            // Write ATOMICALLY: WriteAllText truncates-then-writes, so a Raves chargen screen reading the
+            // file mid-write catches it empty ("No chargen data yet"). Write a temp then atomically swap
+            // it in, so readers only ever see the complete previous or new file.
+            var path = Path.Combine(Root, "chargen.json");
+            var tmp = path + ".tmp";
+            File.WriteAllText(tmp, j.ToString());
+            try
+            {
+                if (File.Exists(path)) File.Replace(tmp, path, null);   // atomic swap (dest exists)
+                else File.Move(tmp, path);                              // first run: dest doesn't exist
+            }
+            catch
+            {
+                // Rare fallback (fs without Replace): last resort, non-atomic.
+                File.Copy(tmp, path, true);
+                try { File.Delete(tmp); } catch { }
+            }
         }
 
         /// The genotypes (Mutated Human / True Kin, + any mod additions), from the loaded registry so
