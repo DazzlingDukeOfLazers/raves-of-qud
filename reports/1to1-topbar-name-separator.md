@@ -25,7 +25,15 @@ The apps are the source of truth — capture and measure, don't eyeball. See
 4. Measure both captures in the SAME top-left region and align. `/tmp/qud_game.png` is a
    good Qud reference (Joppa, day). Compare RGB + bbox with a short PIL script.
 
-## Element 1 — the "meta" name  (`MainFrame._l_name`, in `_row_status`)
+## Element 1 — the "meta" name  (`MainFrame._l_name`, in `_row_status`) — ✅ DONE (commit 89e7ec0)
+
+**Result:** `_l_name = _text("—", COL_NAME, "caption")` where `COL_NAME := Color("b0b0b0")`
+(neutral grey) and the `caption` role = 0.85×body = 18px. After: Raves name x-height
+**9px, rows 20–28**, peak (166,166,166) — pixel-aligned with Qud (rows 20–28, peak ~161
+neutral grey). The caption role landed the x-height exactly; `custom_minimum_size` 90px
+min left as-is (it's just a floor). Original brief below.
+
+
 
 Currently `_l_name = _text("—")` → theme default colour (`y` = #b1c9c3, a TEAL-tinted grey)
 at `body` size (~21px). Plus `clip_text` + `custom_minimum_size = (90, 0)`.
