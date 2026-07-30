@@ -128,6 +128,7 @@ func _ready() -> void:
 
 func _on_resize() -> void:
 	UiFont.refresh_theme(theme, get_viewport())
+	pass  # CRT logical_h is pushed in _process
 	# The 1:1 sidebar is a fraction of the window, and the camera inset derives from it — re-apply both.
 	if Settings.one_to_one():
 		_apply_layout_mode(true)
@@ -412,10 +413,11 @@ func _add_crt_overlay() -> void:
 	if sh != null:
 		var mat := ShaderMaterial.new()
 		mat.shader = sh
-		rect.material = mat
+		rect.material = mat   # logical_h is pushed every frame in _process (never 0)
 	_crt_layer.add_child(rect)
 	add_child(_crt_layer)
 	_crt_layer.visible = bool(Settings.get_value("crt", true))
+
 
 ## Turn the CRT overlay on/off live (and persist). No-op if the overlay didn't build.
 func set_crt(on: bool) -> void:
