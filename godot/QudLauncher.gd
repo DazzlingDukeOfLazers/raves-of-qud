@@ -20,6 +20,8 @@ extends Node
 
 const FLAG := "--launch-qud"
 const PIDFILE := "user://qud_child.pid"
+const MARGIN_X := 50   # px shift LEFT off the clipped right screen edge
+const MARGIN_Y := 4    # px shift DOWN off the clipped top edge (splits the 8px Qud gap)
 
 var active := false                   # true when launched by highvisor in this mode
 var _pid := -1
@@ -85,7 +87,9 @@ func _place_upper_right_quadrant() -> void:
 	var center_y := sp.y + int(ss.y / 2.0)
 	var top_y := usable.position.y
 	var w := int(ss.x / 2.0)
-	var pos := Vector2i(sp.x + ss.x - w, top_y)
+	# Overscan nudge: the monitor clips edge pixels, so shift off the right edge (left) and off
+	# the top edge (down). Qud's cockpit slot mirrors this (left, and up off the bottom edge).
+	var pos := Vector2i(sp.x + ss.x - w - MARGIN_X, top_y + MARGIN_Y)
 	var size := Vector2i(w, center_y - top_y)
 	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
 	DisplayServer.window_set_size(size)
