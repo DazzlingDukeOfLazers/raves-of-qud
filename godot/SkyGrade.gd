@@ -56,7 +56,8 @@ func setup(embedded: bool, renderer_ref: Node) -> void:
 	env.ambient_light_color = Color(0.72, 0.72, 0.74)
 	env.ambient_light_energy = 0.72
 	# Depth fog fades distant/remembered zones into the sky (colour tracks the sky, updated in _process).
-	env.fog_enabled = true
+	# Off in the minimal 1:1 test (fog is a lighting/atmosphere effect Qud doesn't have).
+	env.fog_enabled = bool(Settings.get_value("fx_lighting", false))
 	env.fog_mode = Environment.FOG_MODE_DEPTH
 	env.fog_depth_begin = 60.0
 	env.fog_depth_end = 240.0
@@ -112,6 +113,15 @@ func update(t: Dictionary, depth: int, zone_center: Vector3) -> void:
 	_update_time(t)
 
 func _process(dt: float) -> void:
+	# 1:1 test: lighting off -> no day/night MULTIPLY grade (true tile colours), no sky bodies.
+	if not bool(Settings.get_value("fx_lighting", false)):
+		if _grade != null:
+			_grade.color = Color.WHITE
+		if _sun != null:
+			_sun.visible = false
+		if _moon != null:
+			_moon.visible = false
+		return
 	# ease the grade + sky so time-of-day shifts smoothly between turns
 	_tint = _tint.lerp(_tint_target, clampf(dt * 2.0, 0.0, 1.0))
 	if _grade != null:

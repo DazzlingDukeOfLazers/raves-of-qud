@@ -408,7 +408,7 @@ func _apply_full_info() -> void:
 # --- CRT overlay (Qud's terminal scanlines + vignette) ------------------------
 ## A full-window ColorRect on a top CanvasLayer, running the crt shader. It darkens everything behind
 ## it (chrome + the 3D), so it sits above both. Mouse-transparent so it never eats clicks. Visibility
-## follows the "crt" setting; toggle live with set_crt().
+## shows only if the fx_scanlines / fx_vignette settings are on (both off in the minimal 1:1 test).
 func _add_crt_overlay() -> void:
 	if _crt_layer != null:
 		return
@@ -417,22 +417,19 @@ func _add_crt_overlay() -> void:
 	var rect := ColorRect.new()
 	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Scanlines and vignette are independent 1:1-test effects; the overlay shows if either is on.
+	var scan := bool(Settings.get_value("fx_scanlines", false))
+	var vig := bool(Settings.get_value("fx_vignette", false))
 	var sh: Shader = load("res://crt.gdshader")
 	if sh != null:
 		var mat := ShaderMaterial.new()
 		mat.shader = sh
-		rect.material = mat   # logical_h is pushed every frame in _process (never 0)
+		mat.set_shader_parameter("scanline_lift", 0.042 if scan else 0.0)
+		mat.set_shader_parameter("vignette_strength", 0.42 if vig else 0.0)
+		rect.material = mat
 	_crt_layer.add_child(rect)
 	add_child(_crt_layer)
-	_crt_layer.visible = bool(Settings.get_value("crt", true))
-
-
-## Turn the CRT overlay on/off live (and persist). No-op if the overlay didn't build.
-func set_crt(on: bool) -> void:
-	if _crt_layer != null:
-		_crt_layer.visible = on
-	Settings.set_value("crt", on)
-	Settings.save()
+	_crt_layer.visible = scan or vig
 
 # --- 1:1 (parity) mode: panel half + persistence ------------------------------
 # The Holodeck owns the master switch + camera (hotkey / highvisor / preset flip it there and
