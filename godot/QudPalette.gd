@@ -21,7 +21,10 @@ const COLORS := {
 }
 
 # Named aliases for the common chrome roles (the code names in comments).
-const BG := Color("0f3b3a")           # k — the screen background ("Qud viridian")
+# NB: Qud's UI CHROME sits on a near-black neutral that's darker/greyer than any tile-palette colour
+# (measured from Qud's bars ≈ (11,14,15)); the palette is for the game WORLD, not the panels.
+const CHROME := Color("0c0f10")       # UI panel/bar fill — near-black (NOT a tile-palette colour)
+const BG := Color("0f3b3a")           # k — the WORLD/clear background ("Qud viridian")
 const PANEL := Color("155352")        # K — one step up, for panels / strips
 const TEXT := Color("b1c9c3")         # y — default UI text (grey)
 const TEXT_BRIGHT := Color("ffffff")  # Y — emphasis / headings

@@ -23,11 +23,11 @@ const COL_HP := Color("00c420")               # G — HP bar green
 const COL_EXP := Color("40a4b9")              # c — LVL/EXP bar (dark cyan)
 const COL_DIM := Color(0.69, 0.79, 0.76, 0.45)   # y (grey), dimmed — hints/captions
 const COL_BORDER := Color(0.69, 0.79, 0.76, 0.16) # y (grey), faint — panel edges
-# Both the panels and the world use palette k — Qud's "usually-black" background (#0f3b3a). Sampling
-# Qud confirms it: the play area is k (dist 11), and the chrome bars are the same k dimmed by the
-# vignette toward the edges. (The old panel colour was K #155352 — the LIGHTER "dark grey" — which read
-# as a bright teal box; k is the correct black.)
-const COL_PANEL := Color("0f3b3a")            # k — chrome fill = the background (borders separate panels)
+# Qud draws its UI CHROME on a near-black neutral (measured: top-bar modal bg (11,14,15)), which is
+# darker and greyer than ANY tile-palette colour — the 18-colour palette is for the game WORLD, not the
+# chrome. So the world/clear stays palette k (the play area samples to k), but the panels use that
+# near-black. (Earlier k-for-panels read too green; K #155352 read as a bright teal box.)
+const COL_PANEL := Color("0c0f10")            # UI near-black chrome fill (Qud's bars ≈ 11,14,15)
 const COL_BG := Color("0f3b3a")               # k — world/clear background ("Qud viridian")
 
 var _holo: Node             # the Main.tscn instance rendering full-window into the ROOT viewport (null until Connect)
@@ -172,7 +172,7 @@ func _strip() -> PanelContainer:
 ## A labelled placeholder for a sub-view that gets its own Godot scene later.
 func _cell(title: String, min_size := Vector2.ZERO) -> PanelContainer:
 	var p := PanelContainer.new()
-	p.add_theme_stylebox_override("panel", _panel_style(Color(0.09, 0.10, 0.13)))
+	p.add_theme_stylebox_override("panel", _panel_style(QudPalette.CHROME))
 	if min_size != Vector2.ZERO:
 		p.custom_minimum_size = min_size
 	var v := VBoxContainer.new()

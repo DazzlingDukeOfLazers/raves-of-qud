@@ -29,7 +29,7 @@ var _last_data := {}          # so the toggle re-renders without waiting for a n
 func _ready() -> void:
 	_tiles = load("res://QudTiles.gd").new()
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.09, 0.10, 0.13)
+	sb.bg_color = QudPalette.CHROME
 	sb.set_border_width_all(1)
 	sb.border_color = Color(1, 1, 1, 0.12)
 	sb.set_corner_radius_all(3)
