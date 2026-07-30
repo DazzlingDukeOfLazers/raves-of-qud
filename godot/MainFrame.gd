@@ -23,6 +23,10 @@ const COL_HP := Color("00c420")               # G — HP bar green
 const COL_EXP := Color("40a4b9")              # c — LVL/EXP bar (dark cyan)
 const COL_DIM := Color(0.69, 0.79, 0.76, 0.45)   # y (grey), dimmed — hints/captions
 const COL_BORDER := Color(0.69, 0.79, 0.76, 0.16) # y (grey), faint — panel edges
+# The character name is NOT the teal `y` default — Qud renders it a desaturated NEUTRAL grey
+# (measured off the top bar: R≈G≈B, glyph core ~161, peak ~180 → ≈ #b0b0b0), a touch smaller than
+# body (x-height 9px vs 11px → the caption role, 0.85×body). See reports/1to1-topbar-name-separator.md.
+const COL_NAME := Color("b0b0b0")             # character name — neutral grey (not teal y)
 # Qud draws its UI CHROME on a near-black neutral (measured: top-bar modal bg (11,14,15)), which is
 # darker and greyer than ANY tile-palette colour — the 18-colour palette is for the game WORLD, not the
 # chrome. So the world/clear stays palette k (the play area samples to k), but the panels use that
@@ -293,7 +297,7 @@ func _row_status() -> Control:
 	pm.add_theme_constant_override("margin_top", int(round(bpx * 0.02)))
 	pm.add_child(_portrait)
 	h.add_child(pm)
-	_l_name = _text("—")
+	_l_name = _text("—", COL_NAME, "caption")
 	# Size to content (clip only past a generous cap) so the name never collapses to 0 in the HBox next
 	# to the expanding rule — clip_text with no min width did exactly that (the name vanished).
 	_l_name.clip_text = true
