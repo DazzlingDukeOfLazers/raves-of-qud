@@ -634,7 +634,10 @@ func _apply_stats(data: Dictionary) -> void:
 		_tiles.tiles_dir = String(data.get("tilesDir", _tiles.tiles_dir))
 		var pobj: Dictionary = data.get("player", {})
 		if not pobj.is_empty():
-			var tex: Texture2D = _tiles.texture_for(pobj, true)
+			# Qud's HUD avatar renders the player tile in WHITE — the object's ColorString `&y`
+			# is the grey TEXT colour, not the graphical tile colour (Qud's TileColor is white and
+			# the mod sends it empty for the player) — with the detail colour (red) painted on top.
+			var tex: Texture2D = _tiles.texture(String(pobj.get("tile", "")), Color.WHITE, _tiles.detail_color(pobj))
 			if tex != null:
 				_portrait.texture = tex
 			_portrait.flip_h = bool(pobj.get("hflip", false))   # match Qud's sprite facing

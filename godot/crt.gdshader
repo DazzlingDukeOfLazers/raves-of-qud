@@ -13,7 +13,7 @@ uniform sampler2D screen_tex : hint_screen_texture, filter_nearest;
 uniform float scanline_lift : hint_range(0.0, 0.2) = 0.042;  // grey added to the lit rows (~+10/255)
 uniform float scanline_period : hint_range(1.0, 6.0) = 2.0;  // LOGICAL px per scanline pair (Qud ≈ 2)
 uniform float px_per_logical : hint_range(1.0, 3.0) = 1.0;   // framebuffer px per logical px (allow_hidpi off -> 1)
-uniform float vignette_strength : hint_range(0.0, 1.0) = 0.42;
+uniform float vignette_strength : hint_range(0.0, 1.0) = 0.0;
 uniform float vignette_feather : hint_range(0.05, 1.0) = 0.55;
 
 void fragment() {
