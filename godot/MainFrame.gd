@@ -23,8 +23,12 @@ const COL_HP := Color("00c420")               # G — HP bar green
 const COL_EXP := Color("40a4b9")              # c — LVL/EXP bar (dark cyan)
 const COL_DIM := Color(0.69, 0.79, 0.76, 0.45)   # y (grey), dimmed — hints/captions
 const COL_BORDER := Color(0.69, 0.79, 0.76, 0.16) # y (grey), faint — panel edges
-const COL_PANEL := Color("155352")            # K — panels / strips
-const COL_BG := Color("0f3b3a")               # k — screen background ("Qud viridian")
+# Both the panels and the world use palette k — Qud's "usually-black" background (#0f3b3a). Sampling
+# Qud confirms it: the play area is k (dist 11), and the chrome bars are the same k dimmed by the
+# vignette toward the edges. (The old panel colour was K #155352 — the LIGHTER "dark grey" — which read
+# as a bright teal box; k is the correct black.)
+const COL_PANEL := Color("0f3b3a")            # k — chrome fill = the background (borders separate panels)
+const COL_BG := Color("0f3b3a")               # k — world/clear background ("Qud viridian")
 
 var _holo: Node             # the Main.tscn instance rendering full-window into the ROOT viewport (null until Connect)
 var _holo_host: Control     # the row-3 left column (control bar + the transparent hole)
@@ -34,6 +38,8 @@ var _connect_btn: Button    # stage 1: bridge + data, no 3D
 var _render_btn: Button     # stage 2: turn the 3D on
 
 # Live status-bar labels, updated from each snapshot's `stats` block.
+var _portrait: TextureRect  # the player's own tile, top-left (Qud's character icon)
+var _tiles: RefCounted      # QudTiles, for resolving the portrait (and any future bar icons)
 var _l_name: Label
 var _l_temp: Label
 var _l_weight: Label
@@ -86,6 +92,7 @@ func _ready() -> void:
 	name = "MainFrame"
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	theme = UiFont.make_theme(get_viewport())   # one source of truth; children inherit
+	_tiles = load("res://QudTiles.gd").new()    # for the status-bar character portrait
 	get_viewport().size_changed.connect(_on_resize)
 
 	# No full-window background rect: the Holodeck now renders 3D into THIS (root) viewport, full-window,
@@ -215,7 +222,52 @@ func _bar(value: float, maxv: float, col: Color) -> ProgressBar:
 	pb.add_theme_stylebox_override("fill", fills)
 	return pb
 
+# A "::" group separator (Qud's dotted divider between adjacent stats).
+func _dots() -> Label:
+	var l := _text("::", COL_DIM)
+	return l
+
+# An expanding horizontal rule that FILLS the gap between groups, so the bar spreads its groups edge to
+# edge like Qud (name far-left, zone far-right) instead of left-packing them.
+func _rule() -> Control:
+	var c := Control.new()
+	c.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	c.custom_minimum_size = Vector2(16, 0)
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var line := ColorRect.new()
+	line.color = COL_BORDER
+	line.anchor_left = 0.0
+	line.anchor_right = 1.0
+	line.anchor_top = 0.5
+	line.anchor_bottom = 0.5
+	line.offset_left = 6
+	line.offset_right = -6
+	line.offset_top = -1
+	line.offset_bottom = 1
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	c.add_child(line)
+	return c
+
+# Colour for a food/water status word, following Qud (good = green, worsening = gold → orange → red).
+const _STATUS_GOOD := ["sated", "overfed", "full", "quenched", "tumescent", "slaked", "watered"]
+const _STATUS_WARN := ["hungry", "peckish", "thirsty"]
+const _STATUS_BAD := ["famished", "parched"]
+const _STATUS_CRIT := ["starving", "dehydrated"]
+func _status_color(word: String) -> Color:
+	var w := word.to_lower().strip_edges()
+	if _STATUS_GOOD.has(w): return Color("00c420")   # G — green
+	if _STATUS_WARN.has(w): return Color("cfc041")   # W — gold
+	if _STATUS_BAD.has(w): return Color("e99f10")    # O — orange
+	if _STATUS_CRIT.has(w): return Color("d74200")   # R — red
+	return QudPalette.TEXT                            # neutral / unknown
+
+func _set_status_label(label: Label, word: String) -> void:
+	label.text = word
+	label.add_theme_color_override("font_color", _status_color(word))
+
 # ── row 1: status strip ──────────────────────────────────────────────────────
+# Qud's top bar spreads its groups across the whole width with horizontal rules between them and "::"
+# dividers within: [icon name] ══ T:temp :: food water :: weight $ ══ QN::MS::AV::DV::MA ══ [zone].
 
 func _row_status() -> Control:
 	var strip := _strip()
@@ -223,43 +275,46 @@ func _row_status() -> Control:
 	h.add_theme_constant_override("separation", 8)
 	strip.add_child(h)
 
-	h.add_child(_icon(UiFont.px(get_viewport(), "body")))   # player portrait (same tile as the Holodeck marker, later)
+	# Character icon — the player's own tile (filled in from each snapshot's `player` render).
+	_portrait = TextureRect.new()
+	var isz := int(UiFont.px(get_viewport(), "body") * 1.35)
+	_portrait.custom_minimum_size = Vector2(round(isz * 16.0 / 24.0), isz)
+	_portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	h.add_child(_portrait)
 	_l_name = _text("—")
-	_l_name.custom_minimum_size = Vector2(220, 0)           # reserve width so long names don't shove the strip
+	# Size to content (clip only past a generous cap) so the name never collapses to 0 in the HBox next
+	# to the expanding rule — clip_text with no min width did exactly that (the name vanished).
 	_l_name.clip_text = true
+	_l_name.custom_minimum_size = Vector2(90, 0)
 	h.add_child(_l_name)
 
-	_l_temp = _text("—")
-	h.add_child(_l_temp)
-	h.add_child(_sep())
-	_l_hunger = _text("—", COL_HUNGER); h.add_child(_l_hunger)   # hunger (Stomach FoodStatus)
-	_l_thirst = _text("—", COL_THIRST); h.add_child(_l_thirst)   # thirst (Stomach WaterStatus)
-	h.add_child(_sep())
-	_l_weight = _text("—")                                 # carry weight cur/max
-	h.add_child(_l_weight)
-	_l_water = _text("—", COL_THIRST)                      # fresh water in drams (= currency)
-	h.add_child(_l_water)
-	h.add_child(_sep())
-	_l_qn = _text("QN: —"); h.add_child(_l_qn)             # quickness (100 nominal)
-	h.add_child(_sep())
-	_l_ms = _text("MS: —"); h.add_child(_l_ms)             # move speed (100 nominal)
-	h.add_child(_sep())
-	_l_av = _text("AV: —"); h.add_child(_l_av)             # attack value
-	h.add_child(_sep())
-	_l_dv = _text("DV: —"); h.add_child(_l_dv)             # defense value
-	_l_ma = _text("MA: —"); h.add_child(_l_ma)             # mental armor
-	h.add_child(_sep())
+	h.add_child(_rule())
+	_l_temp = _text("—"); h.add_child(_l_temp)
+	h.add_child(_dots())
+	_l_hunger = _text("—", COL_HUNGER); h.add_child(_l_hunger)   # food status (colour set per-state)
+	_l_thirst = _text("—", COL_THIRST); h.add_child(_l_thirst)   # water status (colour set per-state)
+	h.add_child(_dots())
+	_l_weight = _text("—"); h.add_child(_l_weight)              # carry weight cur/max
+	_l_water = _text("—", COL_THIRST); h.add_child(_l_water)     # fresh water in drams (= currency)
 
-	_daynight = _text("☾")                                 # day/night — sun/moon glyph (placeholder for a real clock)
+	h.add_child(_rule())
+	_l_qn = _text("QN: —"); h.add_child(_l_qn)             # quickness (100 nominal)
+	h.add_child(_dots())
+	_l_ms = _text("MS: —"); h.add_child(_l_ms)             # move speed (100 nominal)
+	h.add_child(_dots())
+	_l_av = _text("AV: —"); h.add_child(_l_av)             # attack value
+	h.add_child(_dots())
+	_l_dv = _text("DV: —"); h.add_child(_l_dv)             # defense value
+	h.add_child(_dots())
+	_l_ma = _text("MA: —"); h.add_child(_l_ma)             # mental armor
+
+	h.add_child(_rule())
+	_daynight = _text("☾")                                 # day/night — sun/moon glyph
 	_daynight.add_theme_font_size_override("font_size", UiFont.px(get_viewport(), "title"))
 	h.add_child(_daynight)
-	h.add_child(_sep())
-
-	_l_biome = _text("—")                                  # biome · floor
-	h.add_child(_l_biome)
-	var tail := Control.new()                              # push nothing; keep items left-packed
-	tail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	h.add_child(tail)
+	_l_biome = _text("—"); h.add_child(_l_biome)           # zone / biome name (far right, like Qud)
 	return strip
 
 # ── row 2: vitals (HP / LVL-EXP)  |  top menu ────────────────────────────────
@@ -560,14 +615,25 @@ func _enable_viewport() -> void:
 ## fields fall back to "—" so a partial/older mod never shows stale numbers.
 func _apply_stats(data: Dictionary) -> void:
 	var s: Dictionary = data.get("stats", {})
+	# Character icon — the player's own tile, like Qud's top-left avatar.
+	if _portrait != null and _tiles != null:
+		var pal: Dictionary = data.get("palette", {})
+		if not pal.is_empty():
+			_tiles.palette = pal
+		_tiles.tiles_dir = String(data.get("tilesDir", _tiles.tiles_dir))
+		var pobj: Dictionary = data.get("player", {})
+		if not pobj.is_empty():
+			var tex: Texture2D = _tiles.texture_for(pobj, true)
+			if tex != null:
+				_portrait.texture = tex
 	if _l_name != null:
 		_l_name.text = QudText.strip(String(s.get("name", "—")))
 	if _l_temp != null:
-		_l_temp.text = ("%d °C" % int(s["temp"])) if s.has("temp") else "—"
+		_l_temp.text = ("T:%d°" % int(s["temp"])) if s.has("temp") else "—"   # Qud shows "T:25°"
 	if _l_weight != null:
-		_l_weight.text = "%d/%d #" % [int(s.get("weight", 0)), int(s.get("weightMax", 0))]
+		_l_weight.text = "%d/%d#" % [int(s.get("weight", 0)), int(s.get("weightMax", 0))]
 	if _l_water != null:
-		_l_water.text = "%d $" % int(s.get("water", 0))
+		_l_water.text = "%d$" % int(s.get("water", 0))
 	if _l_qn != null:
 		_l_qn.text = "QN: %d" % int(s.get("qn", 0))
 	if _l_ms != null:
@@ -597,10 +663,12 @@ func _apply_stats(data: Dictionary) -> void:
 			_bar_exp.min_value = xp_floor
 			_bar_exp.max_value = xp_next
 			_bar_exp.value = clampi(xp, xp_floor, xp_next)
+	# Food/water status, coloured by state like Qud (good = green, worsening = gold/orange/red). The mod
+	# strips the colour markup, so map the known status words here.
 	if _l_hunger != null:
-		_l_hunger.text = String(s.get("hunger", "—"))
+		_set_status_label(_l_hunger, String(s.get("hunger", "—")))
 	if _l_thirst != null:
-		_l_thirst.text = String(s.get("thirst", "—"))
+		_set_status_label(_l_thirst, String(s.get("thirst", "—")))
 	if _l_biome != null:
 		var terrain := QudText.strip(String(s.get("terrain", "")))
 		# Qud's DisplayName usually already includes the stratum ("salt marsh, surface"); fall back to
