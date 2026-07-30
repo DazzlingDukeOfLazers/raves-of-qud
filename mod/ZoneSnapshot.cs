@@ -189,7 +189,9 @@ namespace RavesOfQud
                 j.Member("fgHex", Hex(_scratch.TileForeground));
                 j.Member("bgHex", Hex(_scratch.TileBackground));
                 j.Member("detailHex", Hex(_scratch.Detail));
-                if (_scratch.HFlip) j.Member("hflip", true);
+                // NB: hflip/vflip are emitted by the caller from Render.getHFlip() (the real display
+                // flip); _scratch (the painted ConsoleChar) never carries it, so don't emit here — a
+                // second hflip key would duplicate/override the correct one.
                 if (_scratch.VFlip) j.Member("vflip", true);
             }
             catch { /* colours are an optimisation; never fail a snapshot over them */ }
@@ -601,6 +603,18 @@ namespace RavesOfQud
                      .Member("color", r.ColorString ?? "")
                      .Member("tilecolor", r.TileColor ?? "")
                      .Member("detail", r.DetailColor ?? "");
+                    // Sprite facing: Qud display-flips creature tiles (their atlas art faces one way; the
+                    // creature faces the other). The reliable source is the CELL's render event (the same
+                    // one the ground path uses) — it evaluates the flip in render context. Render.HFlip is
+                    // false here, and getHFlip() (= HFlip XOR PartyFlip) is unstable per call (the same
+                    // object read true from one serialization, false from another). cell.Render() reflects
+                    // the top object's display; the player/creature is that top object.
+                    try
+                    {
+                        var pc2 = go.CurrentCell;
+                        if (pc2 != null) { var rev = pc2.Render(); if (rev != null && rev.HFlip) j.Member("hflip", true); }
+                    }
+                    catch { }
                     if (painted) WritePaintedColors(j);
                 }
             }

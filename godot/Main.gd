@@ -271,10 +271,27 @@ func _hide_holodeck_chrome() -> void:
 func _on_bridge_connected() -> void:
 	client.send_command("wait", {})
 
+## Qud's per-cell sprite flip (PartyFlip) is render-context state, so the mod can't read it stably for
+## the player's CELL object — but the separate `player` block reads it reliably. Copy that flip onto the
+## player's own cell creature so the renderer (flip_h = obj.hflip) faces the playfield player like Qud.
+func _inject_player_facing(data: Dictionary) -> void:
+	var pl: Dictionary = data.get("player", {})
+	if not pl.has("hflip"):
+		return
+	var px := int(pl.get("x", -9999))
+	var py := int(pl.get("y", -9999))
+	for cell in data.get("cells", []):
+		if int(cell.get("x", -2)) == px and int(cell.get("y", -2)) == py:
+			for obj in cell.get("objs", []):
+				if bool(obj.get("creature", false)):
+					obj["hflip"] = pl.get("hflip")
+			return
+
 func _on_snapshot(data: Dictionary) -> void:
 	# Route the render through the store: draw the live zone plus any remembered
 	# neighbours (same stratum) the player has visited, placed by global offset.
 	Profiler.add_us("server", int(data.get("serverUs", 0)))
+	_inject_player_facing(data)   # the player's cell obj carries no reliable hflip; use the player block's
 	Profiler.begin("ingest")
 	store.ingest(data)   # keep the store current even when not rendering, so 3D can start instantly
 	Profiler.done("ingest")

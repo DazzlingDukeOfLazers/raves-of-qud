@@ -275,9 +275,10 @@ func _row_status() -> Control:
 	h.add_theme_constant_override("separation", 8)
 	strip.add_child(h)
 
-	# Character icon — the player's own tile (filled in from each snapshot's `player` render).
+	# Character icon — the player's own tile (filled in from each snapshot's `player` render). Sized
+	# ~2x body so it fills the bar like Qud's avatar.
 	_portrait = TextureRect.new()
-	var isz := int(UiFont.px(get_viewport(), "body") * 1.35)
+	var isz := int(UiFont.px(get_viewport(), "body") * 2.0)
 	_portrait.custom_minimum_size = Vector2(round(isz * 16.0 / 24.0), isz)
 	_portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -626,6 +627,7 @@ func _apply_stats(data: Dictionary) -> void:
 			var tex: Texture2D = _tiles.texture_for(pobj, true)
 			if tex != null:
 				_portrait.texture = tex
+			_portrait.flip_h = bool(pobj.get("hflip", false))   # match Qud's sprite facing
 	if _l_name != null:
 		_l_name.text = QudText.strip(String(s.get("name", "—")))
 	if _l_temp != null:
