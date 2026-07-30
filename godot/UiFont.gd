@@ -43,9 +43,16 @@ static func px(vp: Viewport, role := "body", bump := 0) -> int:
 ## pick a role with `theme_type_variation = "Title"` instead of hardcoding a number.
 static func make_theme(vp: Viewport) -> Theme:
 	var t := Theme.new()
-	var f := load("res://fonts/AtkinsonHyperlegible-Regular.ttf")
+	# Source Code Pro is Qud's UI font (wiki Visual Style). Fall back to Atkinson if it's ever missing.
+	var f := load("res://fonts/SourceCodePro-Regular.ttf")
+	if f == null:
+		f = load("res://fonts/AtkinsonHyperlegible-Regular.ttf")
 	if f != null:
 		t.default_font = f
+	# Qud's default UI text is the palette grey (y); emphasis stays white via explicit overrides.
+	for base in ["Label", "Button", "CheckBox", "LineEdit", "TextEdit", "OptionButton"]:
+		t.set_color("font_color", base, QudPalette.TEXT)
+	t.set_color("default_color", "RichTextLabel", QudPalette.TEXT)   # RTL uses default_color, not font_color
 	refresh_theme(t, vp)
 	return t
 

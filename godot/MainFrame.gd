@@ -15,15 +15,16 @@ extends Control
 ## NOT wired to Qud yet — it runs standalone so the layout can be iterated fast. Placeholder values
 ## are illustrative; the real bindings arrive with each view.
 
-# Placeholder status colours — tuned later against Qud's real palette.
-const COL_HUNGER := Color(0.90, 0.55, 0.20)   # Famished — warm/hungry
-const COL_THIRST := Color(0.35, 0.65, 1.00)   # Tumescent — water-blue (water is also currency)
-const COL_HP := Color(0.25, 0.80, 0.32)       # HP bar — green
-const COL_EXP := Color(0.46, 0.52, 0.64)      # LVL/EXP bar — bluish grey
-const COL_DIM := Color(1, 1, 1, 0.45)
-const COL_BORDER := Color(1, 1, 1, 0.12)
-const COL_PANEL := Color(0.10, 0.11, 0.14)
-const COL_BG := Color(0.055, 0.065, 0.085)
+# Chrome colours from Caves of Qud's canonical palette (see QudPalette.gd / wiki Visual Style). Inlined
+# as literal Colors so they stay compile-time consts; codes noted in comments.
+const COL_HUNGER := Color("e99f10")           # O — hunger / food-orange
+const COL_THIRST := Color("0096ff")           # B — thirst / water-blue (water is also currency)
+const COL_HP := Color("00c420")               # G — HP bar green
+const COL_EXP := Color("40a4b9")              # c — LVL/EXP bar (dark cyan)
+const COL_DIM := Color(0.69, 0.79, 0.76, 0.45)   # y (grey), dimmed — hints/captions
+const COL_BORDER := Color(0.69, 0.79, 0.76, 0.16) # y (grey), faint — panel edges
+const COL_PANEL := Color("155352")            # K — panels / strips
+const COL_BG := Color("0f3b3a")               # k — screen background ("Qud viridian")
 
 var _holo: Node             # the Main.tscn instance rendering full-window into the ROOT viewport (null until Connect)
 var _holo_host: Control     # the row-3 left column (control bar + the transparent hole)
