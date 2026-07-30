@@ -58,6 +58,10 @@ func _ready() -> void:
 	_rect = TextureRect.new()
 	_rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST   # crisp pixels, no blur
 	_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	# IGNORE_SIZE: the rect's min size is 0 (not the tiny 80x25 texture), so EXPAND_FILL actually grows
+	# it to fill the panel height — otherwise the image stays a small centred strip and the panel's
+	# min-height just adds dead space below it.
+	_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_rect.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_rect.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	v.add_child(_rect)
@@ -92,6 +96,11 @@ func set_one_to_one(on: bool) -> void:
 	_one_to_one = on
 	if _toggle != null:
 		_toggle.visible = not on
+	# Give the map image a real height. Setting it on the TextureRect (content-min) reliably grows the
+	# panel — the panel's own custom_minimum_size wasn't translating into a taller image (the rect stayed
+	# a short strip). ~110px matches Qud's sidebar minimap.
+	if _rect != null:
+		_rect.custom_minimum_size = Vector2(0, 110 if on else 0)
 	if on:
 		_saved_mode = _mode
 		_mode = MODE_MINIMAL     # Qud's structural overview, not the painterly per-cell FULL map
