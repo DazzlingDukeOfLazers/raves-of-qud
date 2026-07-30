@@ -77,16 +77,20 @@ namespace RavesOfQud
         // `shaders` block is dead config — no code reads it):
         //   (a) CC_AnalogTV camera post-effect — always on, but at scanlinesCount=1853 it's
         //       sub-visible; zeroing scanlinesIntensity is correct-but-invisible.
-        //   (b) THE VISIBLE ONES: the Modern-UI chrome shaders. "UI/Textured-Overlay" multiplies
-        //       each panel by an overlay grunge texture (_OverlayTex "distress-diagonal") tinted by
-        //       _ColorOverlay, and "UI/ThreeColorOffset" adds a per-row _Offset. These paint the
-        //       screen-space horizontal lines that show THROUGH the translucent panels (the opaque
-        //       play field hides them, so the world stays clean). We neutralise the overlay tint +
-        //       texture + offset on every UI material that has them, re-sweeping on a throttle to
-        //       catch late-created panels. Originals captured per-material for restore.
-        // Reversible via the flag so Raves can restore Qud's authentic look. KNOWN RESIDUAL: the
-        // highlighted ability-bar button still shows lines from a source not yet isolated (a
-        // separate material/element the UI sweep doesn't reach). See reports/1to1-qud-scanlines.md.
+        //   (b) THE VISIBLE ONES, via THREE mechanisms:
+        //       - Modern-UI shader overlays: "UI/Textured-Overlay" multiplies each panel by an
+        //         overlay grunge texture (_OverlayTex "distress-diagonal") tinted by _ColorOverlay;
+        //         "UI/ThreeColorOffset" adds a per-row _Offset. Neutralise the tint + texture + offset.
+        //       - SPRITE-based patterns on plain UI/Default Images: the bottom "AbilityBar" uses a
+        //         sprite literally named "horizstripetexture" (THE command-bar scanlines), and a
+        //         full-screen "Creases" uses a "creases" grunge sprite. Flatten a stripe image to a
+        //         solid chrome-dark quad; hide a grunge overlay (alpha 0).
+        //       All are screen-row-keyed and show THROUGH the translucent panels (the opaque play
+        //       field hides them, so the world stays clean). We re-sweep on a throttle to catch
+        //       late-created panels; originals captured per-material/image for restore.
+        // Reversible via the flag so Raves can restore Qud's authentic look. Verified clean: top bar,
+        // sidebars, and command bar all drop from even-odd dev ~10-17 to ~0-1.4. See
+        // reports/1to1-qud-scanlines.md.
         public static bool DisableQudScanlines = true;    // 1:1 default: kill Qud's always-on scanlines
         private static bool _scanlineApplyPending;        // a uiQueue task is in flight
         private static bool? _scanlineAppliedValue;       // the value the camera currently reflects
@@ -693,6 +697,36 @@ namespace RavesOfQud
                         if (touched) graphics++;
                     }
 
+                    // (c) SPRITE-based overlays that don't go through the overlay shader: some UI Images are
+                    //     plain UI/Default but their SPRITE is the pattern — the bottom "AbilityBar" uses
+                    //     sprite "horizstripetexture" (the command-bar scanlines), and a full-screen "Creases"
+                    //     uses "creases" grunge. Flatten a stripe image to a solid chrome-dark quad (drop the
+                    //     sprite, set the fill), and hide a grunge overlay (alpha 0). Originals restored via flag.
+                    foreach (var img in UnityEngine.Object.FindObjectsOfType<UnityEngine.UI.Image>())
+                    {
+                        if (img == null || img.sprite == null) continue;
+                        string sn = img.sprite.name + "|" + (img.sprite.texture != null ? img.sprite.texture.name : "");
+                        bool stripe = sn.IndexOf("stripe", StringComparison.OrdinalIgnoreCase) >= 0
+                                   || sn.IndexOf("scanline", StringComparison.OrdinalIgnoreCase) >= 0;
+                        bool grunge = sn.IndexOf("crease", StringComparison.OrdinalIgnoreCase) >= 0
+                                   || sn.IndexOf("distress", StringComparison.OrdinalIgnoreCase) >= 0
+                                   || sn.IndexOf("grain", StringComparison.OrdinalIgnoreCase) >= 0;
+                        if (!stripe && !grunge) continue;
+                        if (!_uiOrigSprite.ContainsKey(img))
+                        {
+                            _uiOrigSprite[img] = img.sprite;
+                            _uiOrigColor[img] = img.color;
+                            newMats++;
+                        }
+                        if (want)
+                        {
+                            if (stripe) { img.sprite = null; img.color = new UnityEngine.Color(0.047f, 0.055f, 0.059f, 1f); }
+                            else { var c = img.color; img.color = new UnityEngine.Color(c.r, c.g, c.b, 0f); }
+                        }
+                        else { img.sprite = _uiOrigSprite[img]; img.color = _uiOrigColor[img]; }
+                        graphics++;
+                    }
+
                     // Latch the state once we've actually found chrome panels (the first in-game tick can fire
                     // before the UI is built — a premature latch would leave it scanlined). Re-sweeps are
                     // throttled by the caller; only log the first apply and any sweep that finds NEW materials
@@ -723,73 +757,88 @@ namespace RavesOfQud
             = new System.Collections.Generic.Dictionary<UnityEngine.Material, float>();
         private static readonly System.Collections.Generic.Dictionary<UnityEngine.Material, UnityEngine.Texture> _uiOrigOverlayTex
             = new System.Collections.Generic.Dictionary<UnityEngine.Material, UnityEngine.Texture>();
+        // Sprite-based stripe/grunge overlays (e.g. AbilityBar "horizstripetexture", full-screen "Creases").
+        private static readonly System.Collections.Generic.Dictionary<UnityEngine.UI.Image, UnityEngine.Sprite> _uiOrigSprite
+            = new System.Collections.Generic.Dictionary<UnityEngine.UI.Image, UnityEngine.Sprite>();
+        private static readonly System.Collections.Generic.Dictionary<UnityEngine.UI.Image, UnityEngine.Color> _uiOrigColor
+            = new System.Collections.Generic.Dictionary<UnityEngine.UI.Image, UnityEngine.Color>();
         private static bool _diagged;
         private static int _diagCount;              // throttle for the 0-match scene dump
         private static int _sweepTick;              // throttle for periodic re-sweeps (late-created panels)
-        private static bool _verboseDiag = false;   // flip to true to re-dump the scene scanline suspects
+        private static bool _verboseDiag = false;   // flip to true to re-dump the bottom-bar scanline suspects
 
         /// <summary>
-        /// One-shot scene walk (main thread): log everything that could draw the chrome's
-        /// screen-space period-2 scanlines — every camera's image-effect components, and any UI
-        /// Graphic or Renderer whose GameObject name or material shader looks scanline/background
-        /// related. Read the [raves] log lines to identify the culprit, then add a targeted disable.
+        /// One-shot scene walk (main thread): dump every UI Graphic whose screen rect sits in the
+        /// BOTTOM ~90px of the screen (the command/ability bar) — name, shader, full material knobs,
+        /// and screen Y — so we can see what draws the residual scanlines there and why the overlay
+        /// sweep didn't clear it. Screen coords via GetWorldCorners (Screen-Space-Overlay canvases
+        /// report corners directly in screen pixels; Unity Y is bottom-up so the bottom bar has low Y).
         /// </summary>
         private static void DumpScanlineSuspects()
         {
             try
             {
-                var rx = new System.Text.RegularExpressions.Regex(
-                    "scan|crt|line|interlac|halftone|analog|overlay|backdrop|background|vignette|grain|noise",
-                    System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-
-                // 1) every camera + its CC_* image-effect components (a 2nd camera is the prime suspect)
-                foreach (var cam in UnityEngine.Object.FindObjectsOfType<UnityEngine.Camera>())
-                {
-                    var fx = new System.Collections.Generic.List<string>();
-                    foreach (var mb in cam.GetComponents<UnityEngine.MonoBehaviour>())
-                    {
-                        if (mb == null) continue;
-                        string tn = mb.GetType().Name;
-                        if (tn.StartsWith("CC_")) fx.Add(tn + (mb.enabled ? "" : "(off)"));
-                    }
-                    Server.Log("DIAG cam '" + cam.name + "' depth=" + cam.depth + " enabled=" + cam.enabled
-                        + " fx=[" + string.Join(",", fx) + "]");
-                }
-
-                // 2) UI graphics (Image/RawImage/Text) whose name or shader matches
+                float sh = UnityEngine.Screen.height;
+                var corners = new UnityEngine.Vector3[4];
                 int hit = 0;
                 foreach (var g in UnityEngine.Object.FindObjectsOfType<UnityEngine.UI.Graphic>())
                 {
-                    if (g == null) continue;
-                    string nm = g.name;
+                    if (g == null || !g.isActiveAndEnabled) continue;
+                    g.rectTransform.GetWorldCorners(corners);
+                    float ymin = corners[0].y, ymax = corners[0].y, xmin = corners[0].x, xmax = corners[0].x;
+                    for (int i = 1; i < 4; i++)
+                    {
+                        if (corners[i].y < ymin) ymin = corners[i].y; if (corners[i].y > ymax) ymax = corners[i].y;
+                        if (corners[i].x < xmin) xmin = corners[i].x; if (corners[i].x > xmax) xmax = corners[i].x;
+                    }
+                    // bottom bar: element bottom edge within 90px of screen bottom, and reasonably wide
+                    if (ymin > 90f || (xmax - xmin) < 30f) continue;
                     var mat = g.material;
-                    string sh = (mat != null && mat.shader != null) ? mat.shader.name : "";
-                    if (rx.IsMatch(nm) || rx.IsMatch(sh))
+                    string msh = (mat != null && mat.shader != null) ? mat.shader.name : "<null>";
+                    var knobs = new System.Collections.Generic.List<string>();
+                    if (mat != null)
                     {
-                        var r = g.rectTransform.rect;
-                        Server.Log("DIAG UI '" + nm + "' shader='" + sh + "' size="
-                            + (int)r.width + "x" + (int)r.height + " on=" + g.isActiveAndEnabled);
-                        if (++hit >= 50) { Server.Log("DIAG UI …capped"); break; }
+                        string[] probe = { "_ColorOverlay", "_OverlayTex", "_Offset", "_MainTex",
+                                           "_ScanlinesIntensity", "_Color", "_Foreground", "_Background" };
+                        foreach (var p in probe)
+                        {
+                            if (!mat.HasProperty(p)) continue;
+                            try
+                            {
+                                if (p == "_OverlayTex" || p == "_MainTex")
+                                { var t = mat.GetTexture(p); knobs.Add(p + "=tex:" + (t != null ? t.name : "null")); }
+                                else if (p == "_Offset" || p == "_ScanlinesIntensity")
+                                    knobs.Add(p + "=" + mat.GetFloat(p).ToString("0.##"));
+                                else { var c = mat.GetColor(p); knobs.Add(p + "=" + c.ToString()); }
+                            }
+                            catch { }
+                        }
                     }
-                }
-
-                // 3) renderers (sprites/quads — the "background tile") whose name or shared shader matches
-                hit = 0;
-                foreach (var rend in UnityEngine.Object.FindObjectsOfType<UnityEngine.Renderer>())
-                {
-                    if (rend == null) continue;
-                    string nm = rend.name;
-                    var mat = rend.sharedMaterial;
-                    string sh = (mat != null && mat.shader != null) ? mat.shader.name : "";
-                    string tex = (mat != null && mat.mainTexture != null) ? mat.mainTexture.name : "";
-                    if (rx.IsMatch(nm) || rx.IsMatch(sh) || rx.IsMatch(tex))
+                    // UI Images carry their texture via the sprite / CanvasRenderer, not the shared
+                    // material's _MainTex — log both so a scanline sprite shows up.
+                    string sprite = "";
+                    var img = g as UnityEngine.UI.Image;
+                    if (img != null && img.sprite != null)
+                        sprite = " sprite='" + img.sprite.name + "'"
+                            + (img.sprite.texture != null ? "/tex:" + img.sprite.texture.name : "");
+                    string crTex = "";
+                    try
                     {
-                        Server.Log("DIAG REND '" + nm + "' shader='" + sh + "' tex='" + tex
-                            + "' on=" + rend.enabled);
-                        if (++hit >= 50) { Server.Log("DIAG REND …capped"); break; }
+                        var cr = g.canvasRenderer;
+                        if (cr != null && cr.materialCount > 0)
+                        {
+                            var cm = cr.GetMaterial(0);
+                            if (cm != null && cm.mainTexture != null) crTex = " CRtex='" + cm.mainTexture.name + "'";
+                        }
                     }
+                    catch { }
+                    Server.Log("BOTTOM '" + g.name + "' <" + g.GetType().Name + "> shader=" + msh
+                        + " y=" + (int)ymin + ".." + (int)ymax + " w=" + (int)(xmax - xmin)
+                        + " a=" + g.color.a.ToString("0.##") + sprite + crTex
+                        + " {" + string.Join(", ", knobs) + "}");
+                    if (++hit >= 40) { Server.Log("BOTTOM …capped"); break; }
                 }
-                Server.Log("DIAG scanline-suspect dump complete");
+                Server.Log("BOTTOM-bar dump complete (" + hit + " graphics)");
             }
             catch (Exception e) { Server.Log("DIAG error: " + e.Message); }
         }

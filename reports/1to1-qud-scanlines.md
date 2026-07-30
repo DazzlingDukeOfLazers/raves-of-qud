@@ -20,44 +20,51 @@ material).
 Measured proof: a fresh instance with both set "off" has the SAME period-2 amplitude as
 before (global `mean|even−odd|` ≈ 4.2; a clean 13→23 lift in flat chrome).
 
-## The two actual sources (found by walking the live scene from the mod)
+## The three actual sources (found by walking the live scene from the mod)
 1. **`CC_AnalogTV`** camera post-effect (`scanlinesIntensity`, `scanlinesCount=1853`). Always
    on, but at 1853 lines over ~1108 px it aliases to **sub-visible** — zeroing it changes
    nothing you can see. We zero it anyway for completeness.
-2. **The Modern-UI chrome shaders** — THE visible ones:
+2. **Modern-UI chrome SHADERS** (top bar, panels, dock, sidebars):
    - **`UI/Textured-Overlay`**: multiplies each panel by an overlay texture
      `_OverlayTex = "distress-diagonal"` tinted by `_ColorOverlay`.
    - **`UI/ThreeColorOffset`**: a per-row `_Offset` (0.66).
-   These are keyed to screen rows, so the lines are consistent across every panel (bright =
-   even screen row everywhere) and show **through the translucent chrome**; the opaque play
-   field covers them, which is why the world is clean. There is **no `_ScanlinesIntensity`**
-   on these UI materials — that name belongs to `CC_AnalogTV` only. (Diagnosed by dumping
-   each UI shader's full property list from the mod on the main thread.)
+   There is **no `_ScanlinesIntensity`** on these UI materials — that name belongs to
+   `CC_AnalogTV` only. (Diagnosed by dumping each UI shader's full property list from the mod.)
+3. **SPRITE-based patterns on plain `UI/Default` Images** (the bit the shader sweep missed):
+   - the bottom **`AbilityBar`** Image uses a sprite literally named **`horizstripetexture`** —
+     THE command-bar scanlines;
+   - a full-screen **`Creases`** Image uses a **`creases`** grunge sprite.
+   These carry the pattern in the sprite, not a material knob, so `_MainTex` reads null and the
+   overlay-shader sweep never touched them. (Found by dumping every bottom-region Graphic's
+   `Image.sprite` / CanvasRenderer texture.)
+
+All are screen-row-keyed, so the lines are consistent across every panel (bright = even screen
+row everywhere) and show **through the translucent chrome**; the opaque play field covers them,
+which is why the world is clean.
 
 ## The fix (mod)
 `EnsureScanlineState()` (driven from `Bridge.Tick` / `TickAction` / `TickRender`, marshalled
-to the main thread via `uiQueue`) walks all `UnityEngine.UI.Graphic`s and, on every material
-that has them, neutralises `_ColorOverlay` (→ transparent), `_OverlayTex` (→ white), and
-`_Offset` (→ 0); it also zeros every `CC_AnalogTV.scanlinesIntensity`. It **re-sweeps on a
-throttle** (every ~20 ticks) because Qud instantiates some panels after the first sweep
-(each with its own material instance). Originals are captured per material so the flag can
-restore Qud's look.
+to the main thread via `uiQueue`), gated by `Bridge.DisableQudScanlines`:
+- zeros every `CC_AnalogTV.scanlinesIntensity`;
+- on every UI material that has them, neutralises `_ColorOverlay` (→ transparent), `_OverlayTex`
+  (→ white), `_Offset` (→ 0);
+- on every `UI.Image` whose sprite/texture name matches `stripe|scanline`, **flattens** it to a
+  solid chrome-dark quad (drops the sprite, sets fill `#0c0f10`); whose name matches
+  `crease|distress|grain`, **hides** it (alpha → 0).
+It **re-sweeps on a throttle** (every ~20 ticks) because Qud instantiates some panels after the
+first sweep. Originals captured per material/image so the flag can restore Qud's look.
 
-### Verified (1× capture, capture px == Qud px)
+### Verified (1× capture, capture px == Qud px) — full-screen residual scan
 | chrome region | with scanlines (even−odd dev) | after fix |
 |---|---|---|
 | top bar | ~10 | **1.3** ✓ |
 | right sidebar | ~4 | **0.15** ✓ |
-| bottom command bar (highlighted button) | ~17 | 12.4 ✗ (residual) |
+| bottom command bar | ~9.6–17 | **~0–1.4** ✓ |
 
-The **top bar** (the element we're actively 1:1-matching) and the sidebars are clean.
-
-## Known residual / TODO
-The **highlighted ability-bar button** still shows lines and is **unchanged by every UI knob
-above** — its source is a separate material/element the `Graphic` sweep doesn't reach (a
-selection-state overlay, or a non-UI/camera element). Not yet isolated. Next step if needed:
-extend the scene walk to non-`Graphic` renderers and selection-highlight objects, or diff
-the button's material set between selected/unselected states.
+A full-screen scan confirms **no flat-chrome scanline residual** remains. The only even-odd
+hits left are genuine UI elements — the HP-bar edge, the selected-ability green border, world
+tiles — and (on a standalone launch) the macOS window titlebar, which the borderless 1:1
+window doesn't have.
 
 ## Reproduce / iterate
 Mods compile at Qud **startup**, so each change needs a Qud restart. Drive:
