@@ -70,6 +70,28 @@ namespace RavesOfQud
         /// Sent in the snapshot so the client can see the mod's per-turn cost split.
         public static long LastRenderBaseUs;
 
+        // --- Qud scanline suppression (1:1 test) ---------------------------------------------
+        // Qud's "scanlines" are TWO independent effects, neither reachable from the in-game
+        // OptionDisplayScanlines checkbox (it's read only in GameManager's screen-warp "Fuzzing"
+        // branch, GameManager.cs:3017, never at startup/options-change) nor from Display.txt (its
+        // `shaders` block is dead config — no code reads it):
+        //   (a) CC_AnalogTV camera post-effect — always on, but at scanlinesCount=1853 it's
+        //       sub-visible; zeroing scanlinesIntensity is correct-but-invisible.
+        //   (b) THE VISIBLE ONES: the Modern-UI chrome shaders. "UI/Textured-Overlay" multiplies
+        //       each panel by an overlay grunge texture (_OverlayTex "distress-diagonal") tinted by
+        //       _ColorOverlay, and "UI/ThreeColorOffset" adds a per-row _Offset. These paint the
+        //       screen-space horizontal lines that show THROUGH the translucent panels (the opaque
+        //       play field hides them, so the world stays clean). We neutralise the overlay tint +
+        //       texture + offset on every UI material that has them, re-sweeping on a throttle to
+        //       catch late-created panels. Originals captured per-material for restore.
+        // Reversible via the flag so Raves can restore Qud's authentic look. KNOWN RESIDUAL: the
+        // highlighted ability-bar button still shows lines from a source not yet isolated (a
+        // separate material/element the UI sweep doesn't reach). See reports/1to1-qud-scanlines.md.
+        public static bool DisableQudScanlines = true;    // 1:1 default: kill Qud's always-on scanlines
+        private static bool _scanlineApplyPending;        // a uiQueue task is in flight
+        private static bool? _scanlineAppliedValue;       // the value the camera currently reflects
+        private static float _origScanlineIntensity = float.NaN;  // captured once, for restore
+
         /// Runs on the TURN THREAD at the start of each player action (BeginTakeActionEvent). Unlike the
         /// render-tied TickRender, this fires even while Qud is unfocused — so it can flush a publish
         /// queued off-turn (a direction prompt answered from Raves, e.g. Make Camp) as soon as the game
@@ -77,6 +99,7 @@ namespace RavesOfQud
         public static void TickAction(GameObject player)
         {
             BridgeServer server = Server;
+            EnsureScanlineState();   // also drive scanline suppression off turns (renders can stall unfocused)
             if (server == null || server.ClientCount == 0) return;
             if (ForcePublishSoon)
             {
@@ -88,6 +111,7 @@ namespace RavesOfQud
         public static void Tick(GameObject player)
         {
             BridgeServer server = Server;
+            EnsureScanlineState();   // drive scanline suppression on every turn too, not just render frames
 
             // Raves not connected? Do NOTHING. This turn hook otherwise runs on EVERY Qud
             // turn even when the viewer is closed — recompositing the map (RenderBase) and
@@ -292,6 +316,7 @@ namespace RavesOfQud
         public static void TickRender(GameObject player)
         {
             BridgeServer server = Server;
+            EnsureScanlineState();              // keep Qud's always-on CC_AnalogTV scanlines suppressed (1:1)
             bool applied = false;
             while (server.Incoming.TryDequeue(out string json))
             {
@@ -591,6 +616,182 @@ namespace RavesOfQud
                 default:
                     break;
             }
+        }
+
+        /// <summary>
+        /// Idempotent: once the Main Camera exists, push the current scanline preference to its
+        /// CC_AnalogTV. Called every rendered frame from TickRender — it no-ops once the camera
+        /// already reflects DisableQudScanlines, and re-arms itself if the flag later changes or
+        /// if the camera isn't built yet. The actual field write is marshalled to the main thread
+        /// via uiQueue (touching a Unity component off the main thread crashes the game — same rule
+        /// as the tile export and screenshot paths).
+        /// </summary>
+        internal static void EnsureScanlineState()
+        {
+            if (_scanlineApplyPending) return;
+            // Already in the desired state? If restoring, we're done. If suppressing, keep re-sweeping on a
+            // throttle — Qud instantiates some panels (ability-bar buttons, popups) AFTER the first sweep,
+            // each with its own material instance, so a one-shot latch leaves those still scanlined.
+            if (_scanlineAppliedValue == DisableQudScanlines)
+            {
+                if (!DisableQudScanlines) return;
+                if ((_sweepTick++ % 20) != 0) return;
+            }
+            GameManager gm = GameManager.Instance;
+            if (gm == null || gm.uiQueue == null) return;   // too early (pre-game thread); retry next frame
+            _scanlineApplyPending = true;
+            bool want = DisableQudScanlines;
+            gm.uiQueue.queueTask(() =>
+            {
+                _scanlineApplyPending = false;
+                try
+                {
+                    // (a) The camera-level CC_AnalogTV scanlines (invisible in practice, but zero them
+                    //     too so "Qud's scanline effect" is fully off). May be >1 across cameras.
+                    foreach (var tv in UnityEngine.Object.FindObjectsOfType<CC_AnalogTV>())
+                    {
+                        if (tv == null) continue;
+                        if (float.IsNaN(_origScanlineIntensity)) _origScanlineIntensity = tv.scanlinesIntensity;
+                        tv.scanlinesIntensity = want ? 0f : _origScanlineIntensity;
+                    }
+
+                    // (b) THE VISIBLE ONES: Qud's UI chrome is drawn with custom shaders — "UI/Textured-Overlay"
+                    //     applies a grunge/scanline OVERLAY texture (_OverlayTex "distress-diagonal") tinted by
+                    //     _ColorOverlay, and "UI/ThreeColorOffset" adds a per-row _Offset. Together these paint
+                    //     the screen-space horizontal lines that show through the translucent panels (the opaque
+                    //     play field hides them, so the world stays clean). There is NO _ScanlinesIntensity on
+                    //     these UI materials (that name belongs to the camera CC_AnalogTV only). Neutralise the
+                    //     overlay tint + the offset on every material that has them; capture originals to restore.
+                    int graphics = 0, newMats = 0;
+                    foreach (var g in UnityEngine.Object.FindObjectsOfType<UnityEngine.UI.Graphic>())
+                    {
+                        if (g == null) continue;
+                        var mat = g.material;
+                        if (mat == null || mat.shader == null) continue;
+                        bool touched = false;
+                        if (mat.HasProperty("_ColorOverlay"))
+                        {
+                            if (!_uiOrigOverlayCol.ContainsKey(mat)) { _uiOrigOverlayCol[mat] = mat.GetColor("_ColorOverlay"); newMats++; }
+                            mat.SetColor("_ColorOverlay", want ? new UnityEngine.Color(0f, 0f, 0f, 0f) : _uiOrigOverlayCol[mat]);
+                            touched = true;
+                        }
+                        // Some panels (e.g. the highlighted ability button) modulate by the overlay TEXTURE
+                        // itself, not just the tint — clearing _ColorOverlay isn't enough. Swap _OverlayTex to
+                        // a flat white texture (neutral under both add and multiply); restore the original.
+                        if (mat.HasProperty("_OverlayTex"))
+                        {
+                            if (!_uiOrigOverlayTex.ContainsKey(mat)) { _uiOrigOverlayTex[mat] = mat.GetTexture("_OverlayTex"); newMats++; }
+                            mat.SetTexture("_OverlayTex", want ? UnityEngine.Texture2D.whiteTexture : _uiOrigOverlayTex[mat]);
+                            touched = true;
+                        }
+                        if (mat.HasProperty("_Offset"))
+                        {
+                            if (!_uiOrigOffset.ContainsKey(mat)) { _uiOrigOffset[mat] = mat.GetFloat("_Offset"); newMats++; }
+                            mat.SetFloat("_Offset", want ? 0f : _uiOrigOffset[mat]);
+                            touched = true;
+                        }
+                        if (touched) graphics++;
+                    }
+
+                    // Latch the state once we've actually found chrome panels (the first in-game tick can fire
+                    // before the UI is built — a premature latch would leave it scanlined). Re-sweeps are
+                    // throttled by the caller; only log the first apply and any sweep that finds NEW materials
+                    // (late-created panels like the ability bar), so the log doesn't spam.
+                    if (graphics > 0)
+                    {
+                        bool first = _scanlineAppliedValue != want;
+                        _scanlineAppliedValue = want;
+                        if (first || newMats > 0)
+                            Server.Log("scanlines " + (want ? "disabled" : "restored")
+                                + " — overlay/offset neutralised on " + graphics + " graphics (+"
+                                + newMats + " new this sweep)");
+                    }
+                    else if (_diagCount++ == 0)
+                    {
+                        Server.Log("scanline: in-game but no overlay/offset UI materials yet — retrying");
+                    }
+                    if (_verboseDiag && !_diagged) { _diagged = true; DumpScanlineSuspects(); }
+                }
+                catch (Exception e) { Server.Log("scanline set: " + e.Message); }
+            }, 0);
+        }
+
+        // Per-material originals for restore of the chrome overlay knobs.
+        private static readonly System.Collections.Generic.Dictionary<UnityEngine.Material, UnityEngine.Color> _uiOrigOverlayCol
+            = new System.Collections.Generic.Dictionary<UnityEngine.Material, UnityEngine.Color>();
+        private static readonly System.Collections.Generic.Dictionary<UnityEngine.Material, float> _uiOrigOffset
+            = new System.Collections.Generic.Dictionary<UnityEngine.Material, float>();
+        private static readonly System.Collections.Generic.Dictionary<UnityEngine.Material, UnityEngine.Texture> _uiOrigOverlayTex
+            = new System.Collections.Generic.Dictionary<UnityEngine.Material, UnityEngine.Texture>();
+        private static bool _diagged;
+        private static int _diagCount;              // throttle for the 0-match scene dump
+        private static int _sweepTick;              // throttle for periodic re-sweeps (late-created panels)
+        private static bool _verboseDiag = false;   // flip to true to re-dump the scene scanline suspects
+
+        /// <summary>
+        /// One-shot scene walk (main thread): log everything that could draw the chrome's
+        /// screen-space period-2 scanlines — every camera's image-effect components, and any UI
+        /// Graphic or Renderer whose GameObject name or material shader looks scanline/background
+        /// related. Read the [raves] log lines to identify the culprit, then add a targeted disable.
+        /// </summary>
+        private static void DumpScanlineSuspects()
+        {
+            try
+            {
+                var rx = new System.Text.RegularExpressions.Regex(
+                    "scan|crt|line|interlac|halftone|analog|overlay|backdrop|background|vignette|grain|noise",
+                    System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+                // 1) every camera + its CC_* image-effect components (a 2nd camera is the prime suspect)
+                foreach (var cam in UnityEngine.Object.FindObjectsOfType<UnityEngine.Camera>())
+                {
+                    var fx = new System.Collections.Generic.List<string>();
+                    foreach (var mb in cam.GetComponents<UnityEngine.MonoBehaviour>())
+                    {
+                        if (mb == null) continue;
+                        string tn = mb.GetType().Name;
+                        if (tn.StartsWith("CC_")) fx.Add(tn + (mb.enabled ? "" : "(off)"));
+                    }
+                    Server.Log("DIAG cam '" + cam.name + "' depth=" + cam.depth + " enabled=" + cam.enabled
+                        + " fx=[" + string.Join(",", fx) + "]");
+                }
+
+                // 2) UI graphics (Image/RawImage/Text) whose name or shader matches
+                int hit = 0;
+                foreach (var g in UnityEngine.Object.FindObjectsOfType<UnityEngine.UI.Graphic>())
+                {
+                    if (g == null) continue;
+                    string nm = g.name;
+                    var mat = g.material;
+                    string sh = (mat != null && mat.shader != null) ? mat.shader.name : "";
+                    if (rx.IsMatch(nm) || rx.IsMatch(sh))
+                    {
+                        var r = g.rectTransform.rect;
+                        Server.Log("DIAG UI '" + nm + "' shader='" + sh + "' size="
+                            + (int)r.width + "x" + (int)r.height + " on=" + g.isActiveAndEnabled);
+                        if (++hit >= 50) { Server.Log("DIAG UI …capped"); break; }
+                    }
+                }
+
+                // 3) renderers (sprites/quads — the "background tile") whose name or shared shader matches
+                hit = 0;
+                foreach (var rend in UnityEngine.Object.FindObjectsOfType<UnityEngine.Renderer>())
+                {
+                    if (rend == null) continue;
+                    string nm = rend.name;
+                    var mat = rend.sharedMaterial;
+                    string sh = (mat != null && mat.shader != null) ? mat.shader.name : "";
+                    string tex = (mat != null && mat.mainTexture != null) ? mat.mainTexture.name : "";
+                    if (rx.IsMatch(nm) || rx.IsMatch(sh) || rx.IsMatch(tex))
+                    {
+                        Server.Log("DIAG REND '" + nm + "' shader='" + sh + "' tex='" + tex
+                            + "' on=" + rend.enabled);
+                        if (++hit >= 50) { Server.Log("DIAG REND …capped"); break; }
+                    }
+                }
+                Server.Log("DIAG scanline-suspect dump complete");
+            }
+            catch (Exception e) { Server.Log("DIAG error: " + e.Message); }
         }
 
         /// <summary>
