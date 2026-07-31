@@ -331,9 +331,12 @@ func _build_chrome_frame(box: Control) -> bool:
 	if top == null:
 		return false
 	var bg := _chrome("panelBgTile.png")
-	if bg != null:   # dark weave panel, inset within the borders, native-scale tiled
-		var r := _edge(bg, TextureRect.STRETCH_TILE, SIDE_W_FRAC, HEADER_H_FRAC * 0.6,
-			1.0 - SIDE_W_FRAC, 1.0 - BOT_H_FRAC)
+	if bg != null:   # dark weave panel — spans the FULL box, UNDER every border, native-scale tiled.
+		# Qud runs the weave under the frame: the border sprites carry a transparent INNER margin
+		# (borderSide is 23px wide but only its outer ~18px are opaque), so if the panel stopped at
+		# the border band the cave-art background showed through that margin as a see-through seam.
+		# A full-box opaque weave underlaps the borders, so their inner margins reveal weave, not bg.
+		var r := _edge(bg, TextureRect.STRETCH_TILE, 0.0, 0.0, 1.0, 1.0)
 		box.add_child(r)
 	var side := _chrome("borderSide.png")
 	if side != null:   # left + right woven borders (right mirrored)
