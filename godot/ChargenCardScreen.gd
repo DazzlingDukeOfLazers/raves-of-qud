@@ -370,9 +370,11 @@ func _build_card(m: Dictionary, idx: int, cw: int, ch: int) -> Control:
 	cell.add_child(caret)
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 4)
+	col.mouse_filter = Control.MOUSE_FILTER_IGNORE   # let clicks fall through to the cell's gui_input
 	cell.add_child(col)
 	var boxc := Control.new()
 	boxc.custom_minimum_size = Vector2(cw, ch)
+	boxc.mouse_filter = Control.MOUSE_FILTER_IGNORE   # (default STOP would swallow the click → no select)
 	var border := NinePatchRect.new()
 	border.modulate = DIM_BORDER
 	border.set_anchors_preset(Control.PRESET_FULL_RECT)
