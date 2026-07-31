@@ -1,31 +1,39 @@
 extends Control
 
-## CHARACTER CREATION — stage 0: GAME MODE (Qud's ":choose game mode:").
+## CHARACTER CREATION — stage 0: GAME MODE, rebuilt to mirror Qud's actual ":choose game mode:"
+## screen (QudGamemodeModuleWindow), measured off a 1920x1080 capture.
 ##
-## Qud's chargen opens on the game-mode module (EmbarkModules.xml → QudGamemodeModule) BEFORE
-## genotype; Raves was skipping straight to Genotype. This is that first step: a LEFT list of the
-## modes (Tutorial / Classic / Roleplay / Wander / Daily) and a RIGHT detail panel with Qud's own
-## description for the selected mode. The pick is captured into `selected` for the flow.
+## Layout (frameless, on Qud's dark ground — NOT the framed-panel mock):
+##   • top-left: a module icon + "Choose Game Mode"
+##   • left edge: a "‹" page-back arrow + "[Esc] Back"; right edge: a dim "›" + "[9] Next"
+##   • centre column, row by row: the character-creation emblem, "character creation" (gold),
+##     ":choose game mode:" (teal), then a HORIZONTAL ROW OF CARDS (Tutorial/Classic/Roleplay/
+##     Wander/Daily) — each a dashed-border box with an icon, a name, and a hotkey; the SELECTED
+##     card gets a gold dashed border, a "›" caret, and brighter text.
+##   • below: the selected mode's description, "[R] Randomize Selection", and the nav hint.
 ##
-## Data-driven where possible: reads a "gameModes" array from chargen.json if the mod has slurped
-## it, else falls back to MODES below (names + descriptions verbatim from EmbarkModules.xml, so the
-## screen is faithful even before a slurp exists). Same chrome as GenotypeScreen.
+## Data-driven: reads chargen.json "gameModes" if the mod has slurped them, else the MODES fallback
+## (names + descriptions verbatim from Qud's EmbarkModules.xml). Card icons load from the exported
+## tiles dir when present (mode "tile"); absent, the card shows just its border + name (WIP).
 
 signal closed
-signal chose(mode: String)   # emitted when the player confirms a game mode (Enter)
+signal chose(mode: String)
 
-# palette — shared with the other menu screens
-const FRAME := Color8(0xB6, 0xA1, 0x63)
-const PANEL := Color(0.055, 0.078, 0.078, 0.96)
-const SCRIM := Color(0.02, 0.03, 0.03, 0.55)
-const TITLE := Color8(0xF0, 0xEA, 0xD8)
-const LABEL := Color8(0x6E, 0xB5, 0xC9)
-const VALUE := Color8(0xC9, 0xC2, 0xA8)
-const GOLD := Color8(0xC8, 0xA9, 0x4E)
-const GREEN := Color8(0x5F, 0xC8, 0x5A)
-const DIM := Color(0.89, 0.85, 0.72, 0.5)
+# ── palette (measured off the Qud capture) ────────────────────────────────────────
+const BG := Color8(0x04, 0x21, 0x20)          # dark ground ~ rgb(4,33,32)
+const CC_GOLD := Color8(0xAC, 0xA3, 0x36)     # "character creation" ~ rgb(172,163,54)
+const SUB_TEAL := Color8(0x29, 0x73, 0x82)    # ":choose game mode:" ~ rgb(41,115,130)
+const MUTED := Color8(0x61, 0x7C, 0x78)       # top-left / description / hint ~ rgb(97,124,120)
+const SEL_GOLD := Color8(0xC8, 0xB8, 0x39)    # selected card border + hotkey ~ rgb(200,184,57)
+const DIM_BORDER := Color8(0x2C, 0x47, 0x47)  # unselected card border (dim teal)
+const NAME_SEL := Color8(0xC5, 0xCE, 0xC6)    # selected mode name (bright)
+const NAME_DIM := Color8(0x4E, 0x64, 0x60)    # unselected mode name
+const HOTKEY_DIM := Color8(0x6B, 0x66, 0x3A)  # unselected hotkey (dim gold)
+const ICON_SEL := Color(1, 1, 1, 1)
+const ICON_DIM := Color(0.55, 0.62, 0.60, 0.85)
+const DIM := Color(0.55, 0.62, 0.60, 0.35)    # very dim (the "[9] Next" affordance)
 
-## Qud's 16-colour palette for {{code|text}} markup in the descriptions (baked). Same as ZoneRenderer.
+## Qud's 16-colour palette for {{code|text}} markup in the descriptions.
 const QUD_COLORS := {
 	"r": Color(0.60, 0.20, 0.15), "R": Color(1.00, 0.30, 0.30),
 	"g": Color(0.00, 0.50, 0.00), "G": Color(0.20, 0.90, 0.20),
@@ -38,28 +46,24 @@ const QUD_COLORS := {
 	"k": Color(0.10, 0.10, 0.10), "K": Color(0.10, 0.10, 0.10),
 }
 
-const SIDE_W_FRAC := 0.016
-const BAR_H_FRAC := 0.022
-
-## Fallback modes — names + descriptions verbatim from Qud's EmbarkModules.xml (QudGamemodeModule),
-## used when chargen.json carries no "gameModes" yet. `desc` keeps Qud's {{c|ù}} bullet markup.
+## Fallback modes — names + descriptions verbatim from Qud's EmbarkModules.xml. `hotkey` matches
+## Qud's per-card letter; `desc` keeps Qud's {{c|ù}} bullet markup.
 const MODES := [
-	{"name": "Tutorial", "display": "Tutorial", "desc": "Learn the basics of Caves of Qud."},
-	{"name": "Classic", "display": "Classic", "desc": "Permadeath: lose your character when you die."},
-	{"name": "Roleplay", "display": "Roleplay", "desc": "Checkpointing at settlements."},
-	{"name": "Wander", "display": "Wander", "desc": "{{c|ù}} Most creatures begin neutral to you.\n{{c|ù}} No XP for killing.\n{{c|ù}} More XP for discoveries and performing the water ritual.\n{{c|ù}} Checkpointing at settlements."},
-	{"name": "Daily", "display": "Daily", "desc": "{{c|ù}} One chance with a fixed character and world seed."},
+	{"name": "Tutorial", "display": "Tutorial", "hotkey": "A", "desc": "Learn the basics of Caves of Qud."},
+	{"name": "Classic", "display": "Classic", "hotkey": "B", "desc": "Permadeath: lose your character when you die."},
+	{"name": "Roleplay", "display": "Roleplay", "hotkey": "C", "desc": "Checkpointing at settlements."},
+	{"name": "Wander", "display": "Wander", "hotkey": "D", "desc": "{{c|ù}} Most creatures begin neutral to you.\n{{c|ù}} No XP for killing.\n{{c|ù}} More XP for discoveries and performing the water ritual.\n{{c|ù}} Checkpointing at settlements."},
+	{"name": "Daily", "display": "Daily", "hotkey": "E", "desc": "{{c|ù}} One chance with a fixed character and world seed."},
 ]
 
-## The confirmed mode name (or "" until confirmed), read by the chargen flow.
 var selected := ""
 
 var _modes: Array = []
-var _sel := 0
-var _rows: Array = []          # [{panel, mode}]
-var _list: VBoxContainer
-var _detail: VBoxContainer
+var _sel := 1                  # default to Classic (Qud's default), like the reference
+var _cards: Array = []         # [{border, icon, name, hotkey, caret}]
+var _desc: RichTextLabel
 var _palette := {}
+var _border_tex: ImageTexture
 
 func _ready() -> void:
 	name = "GameModeScreen"
@@ -69,29 +73,19 @@ func _ready() -> void:
 	for code in QUD_COLORS:
 		_palette[code] = "#" + Color(QUD_COLORS[code]).to_html(false)
 	_modes = _load()
+	_sel = clampi(_sel, 0, maxi(0, _modes.size() - 1))
 
-	var scrim := ColorRect.new()
-	scrim.color = SCRIM
-	scrim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	scrim.mouse_filter = Control.MOUSE_FILTER_STOP
-	add_child(scrim)
+	var bg := ColorRect.new()   # Qud's game-mode screen is a flat dark ground (no cave art)
+	bg.color = BG
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(bg)
 
-	var frame := Control.new()
-	frame.anchor_left = 0.035
-	frame.anchor_right = 0.965
-	frame.anchor_top = 0.05
-	frame.anchor_bottom = 0.95
-	for k in ["left", "top", "right", "bottom"]:
-		frame.set("offset_" + k, 0.0)
-	add_child(frame)
-	_build_frame(frame)
-	_build_header(frame)
-	_build_body(frame)
-	_build_footer(frame)
+	_build_topleft()
+	_build_side_nav()
+	_build_center()
 	_apply_selection()
-	_add_back()
 
-## Prefer the mod's slurped modes (chargen.json "gameModes"); else Qud's XML-verbatim MODES.
 func _load() -> Array:
 	var path := InputModel.support_dir().path_join("chargen.json")
 	if FileAccess.file_exists(path):
@@ -102,228 +96,280 @@ func _load() -> Array:
 				return data["gameModes"]
 	return MODES.duplicate(true)
 
-func _add_back() -> void:
-	var b := Button.new()
-	b.text = "‹ Back"
-	b.focus_mode = Control.FOCUS_NONE
-	b.flat = true
-	b.add_theme_color_override("font_color", GOLD)
-	b.add_theme_color_override("font_hover_color", TITLE)
-	b.anchor_left = 0.02
-	b.anchor_right = 0.14
-	b.anchor_top = 0.93
-	b.anchor_bottom = 0.985
-	for k in ["left", "top", "right", "bottom"]:
-		b.set("offset_" + k, 0.0)
-	b.pressed.connect(func(): closed.emit())
-	add_child(b)
-
 func _fit_to_viewport() -> void:
 	set_anchors_preset(Control.PRESET_TOP_LEFT)
 	position = Vector2.ZERO
 	size = get_viewport_rect().size
 
-# ── frame / header / body / footer ───────────────────────────────────────────────
+# ── top-left header ───────────────────────────────────────────────────────────────
 
-func _build_frame(frame: Control) -> void:
-	var bg_tex := _chrome("panelBgTile.png")
-	if bg_tex != null:
-		var bg := _edge(bg_tex, TextureRect.STRETCH_TILE, 0.0, 0.0, 1.0, 1.0)
-		bg.modulate = Color(1, 1, 1, 0.98)
-		frame.add_child(bg)
-	else:
-		var flat := ColorRect.new()
-		flat.color = PANEL
-		flat.set_anchors_preset(Control.PRESET_FULL_RECT)
-		flat.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		frame.add_child(flat)
-	var side := _chrome("borderSide.png")
-	var bar := _chrome("borderBot.png")
-	if side != null:
-		frame.add_child(_edge(side, TextureRect.STRETCH_SCALE, 0.0, 0.0, SIDE_W_FRAC, 1.0))
-		var r := _edge(side, TextureRect.STRETCH_SCALE, 1.0 - SIDE_W_FRAC, 0.0, 1.0, 1.0)
-		r.flip_h = true
-		frame.add_child(r)
-	if bar != null:
-		var top := _edge(bar, TextureRect.STRETCH_SCALE, 0.0, 0.0, 1.0, BAR_H_FRAC)
-		top.flip_v = true
-		frame.add_child(top)
-		frame.add_child(_edge(bar, TextureRect.STRETCH_SCALE, 0.0, 1.0 - BAR_H_FRAC, 1.0, 1.0))
-	if side == null and bar == null:
-		var ol := Panel.new()
-		ol.set_anchors_preset(Control.PRESET_FULL_RECT)
-		ol.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var sb := StyleBoxFlat.new()
-		sb.bg_color = Color(0, 0, 0, 0)
-		sb.set_border_width_all(2)
-		sb.border_color = FRAME
-		ol.add_theme_stylebox_override("panel", sb)
-		frame.add_child(ol)
+func _build_topleft() -> void:
+	# a small module icon (a filled capsule in a dashed box, like Qud's), then the screen name
+	var box := Control.new()
+	box.position = Vector2(34, 30)
+	box.size = Vector2(40, 42)
+	var vp := get_viewport_rect().size
+	var bt := _dashed_border_tex(40, 42)
+	var b := TextureRect.new()
+	b.texture = bt
+	b.modulate = MUTED
+	b.set_anchors_preset(Control.PRESET_FULL_RECT)
+	b.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_child(b)
+	var cap := ColorRect.new()   # the capsule glyph inside
+	cap.color = MUTED
+	cap.position = Vector2(13, 9); cap.size = Vector2(14, 24)
+	box.add_child(cap)
+	add_child(box)
+	var t := _text("Choose Game Mode", MUTED, "body")
+	t.position = Vector2(86, 38)
+	add_child(t)
 
-func _edge(tex: Texture2D, mode: int, al: float, at: float, ar: float, ab: float) -> TextureRect:
-	var r := TextureRect.new()
-	r.texture = tex
-	r.stretch_mode = mode
-	r.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	r.anchor_left = al
-	r.anchor_top = at
-	r.anchor_right = ar
-	r.anchor_bottom = ab
-	for k in ["left", "top", "right", "bottom"]:
-		r.set("offset_" + k, 0.0)
-	return r
+# ── left / right page nav ─────────────────────────────────────────────────────────
 
-func _build_header(frame: Control) -> void:
-	var l := Label.new()
-	l.text = "◈  Game Mode  ◈"
-	l.theme_type_variation = "Title"
-	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	l.add_theme_color_override("font_color", GOLD)
-	l.anchor_left = 0.0
-	l.anchor_right = 1.0
-	l.anchor_top = 0.02
-	l.anchor_bottom = 0.09
-	for k in ["left", "top", "right", "bottom"]:
-		l.set("offset_" + k, 0.0)
-	frame.add_child(l)
+func _build_side_nav() -> void:
+	var vp := get_viewport_rect().size
+	# LEFT: back arrow + [Esc] Back
+	var la := _text("‹", MUTED, "big")
+	la.add_theme_font_size_override("font_size", int(vp.y * 0.05))
+	la.position = Vector2(vp.x * 0.033, vp.y * 0.485)
+	add_child(la)
+	var lb := _rich("[color=#%s][lb]Esc[rb] Back[/color]" % MUTED.to_html(false), "caption")
+	lb.position = Vector2(vp.x * 0.02, vp.y * 0.525)
+	add_child(lb)
+	# RIGHT: dim forward arrow + [9] Next (advances to genotype)
+	var ra := _text("›", DIM, "big")
+	ra.add_theme_font_size_override("font_size", int(vp.y * 0.05))
+	ra.position = Vector2(vp.x * 0.955, vp.y * 0.485)
+	add_child(ra)
+	var rb := _rich("[right][color=#%s][lb]9[rb] Next[/color][/right]" % DIM.to_html(false), "caption")
+	rb.position = Vector2(vp.x * 0.90, vp.y * 0.525)
+	rb.size = Vector2(vp.x * 0.085, 0)
+	add_child(rb)
 
-func _build_body(frame: Control) -> void:
-	# LEFT: the mode choices
-	var scroll := ScrollContainer.new()
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.anchor_left = 0.03
-	scroll.anchor_right = 0.40
-	scroll.anchor_top = 0.11
-	scroll.anchor_bottom = 0.90
-	for k in ["left", "top", "right", "bottom"]:
-		scroll.set("offset_" + k, 0.0)
-	frame.add_child(scroll)
-	_list = VBoxContainer.new()
-	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_list.add_theme_constant_override("separation", 10)
-	scroll.add_child(_list)
-	_populate()
+# ── centre column ───────────────────────────────────────────────────────────────
 
-	# RIGHT: description of the selected mode
-	var sc := ScrollContainer.new()
-	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	sc.anchor_left = 0.43
-	sc.anchor_right = 0.97
-	sc.anchor_top = 0.11
-	sc.anchor_bottom = 0.90
-	for k in ["left", "top", "right", "bottom"]:
-		sc.set("offset_" + k, 0.0)
-	frame.add_child(sc)
-	_detail = VBoxContainer.new()
-	_detail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_detail.add_theme_constant_override("separation", 8)
-	sc.add_child(_detail)
+func _build_center() -> void:
+	var vp := get_viewport_rect().size
+	# (Qud draws its branching character-creation emblem above the title here; left blank until
+	# that sprite is extracted — see the card icons, same pending extraction.)
+	var cc := _text("character creation", CC_GOLD, "big")
+	cc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	cc.anchor_left = 0.0; cc.anchor_right = 1.0
+	cc.position.y = vp.y * 0.435
+	add_child(cc)
+	var sub := _text(":choose game mode:", SUB_TEAL, "caption")
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	sub.anchor_left = 0.0; sub.anchor_right = 1.0
+	sub.position.y = vp.y * 0.468
+	add_child(sub)
 
-func _populate() -> void:
-	_rows.clear()
-	for c in _list.get_children():
-		c.queue_free()
+	# the horizontal card row, centred
+	var card_w := int(vp.x * 0.049)
+	var card_h := int(vp.y * 0.086)
+	_border_tex = _dashed_border_tex(card_w, card_h)
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", int(vp.x * 0.014))
+	row.anchor_left = 0.0; row.anchor_right = 1.0
+	row.position.y = vp.y * 0.5
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(row)
 	for i in range(_modes.size()):
-		var row := _mode_card(_modes[i], i)
-		_list.add_child(row)
-		_rows.append({"panel": row, "mode": _modes[i]})
+		row.add_child(_build_card(_modes[i], i, card_w, card_h))
 
-func _mode_card(m: Dictionary, idx: int) -> PanelContainer:
-	var panel := PanelContainer.new()
-	panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	panel.mouse_entered.connect(func(): _select(idx))
-	panel.gui_input.connect(func(e): if e is InputEventMouseButton and e.pressed: _select(idx))
-	var pad := MarginContainer.new()
-	for k in ["left", "right", "top", "bottom"]:
-		pad.add_theme_constant_override("margin_" + k, 10)
-	panel.add_child(pad)
-	var v := VBoxContainer.new()
-	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	v.add_theme_constant_override("separation", 2)
-	pad.add_child(v)
-	v.add_child(_rich("[color=#%s]%s[/color]" % [TITLE.to_html(false), _esc(str(m.get("display", m.get("name", "?"))))], "title"))
-	_style_row(panel, false)
-	return panel
+	# description
+	_desc = _rich("", "body")
+	_desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_desc.anchor_left = 0.0; _desc.anchor_right = 1.0
+	_desc.position.y = vp.y * 0.665
+	add_child(_desc)
 
-func _build_footer(frame: Control) -> void:
-	var l := RichTextLabel.new()
-	l.bbcode_enabled = true
-	l.fit_content = true
-	l.scroll_active = false
-	l.theme_type_variation = "Caption"
-	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	l.text = "[center][color=#%s][lb]Esc[rb][/color][color=#%s] Back      [/color][color=#%s]↑↓[/color][color=#%s] choose      [/color][color=#%s][lb]Enter[rb][/color][color=#%s] confirm[/color][/center]" % [
-		GOLD.to_html(false), DIM.to_html(false), GOLD.to_html(false), DIM.to_html(false), GOLD.to_html(false), DIM.to_html(false)]
-	l.anchor_left = 0.0
-	l.anchor_right = 1.0
-	l.anchor_top = 0.92
-	l.anchor_bottom = 0.98
-	for k in ["left", "top", "right", "bottom"]:
-		l.set("offset_" + k, 0.0)
-	frame.add_child(l)
+	# [R] Randomize Selection
+	var rnd := _rich("[center][color=#%s][lb]R[rb][/color][color=#%s] Randomize Selection[/color][/center]" % [
+		SEL_GOLD.to_html(false), MUTED.to_html(false)], "body")
+	rnd.anchor_left = 0.0; rnd.anchor_right = 1.0
+	rnd.position.y = vp.y * 0.905
+	add_child(rnd)
 
-# ── selection + details ────────────────────────────────────────────────────────
+	# nav hint: [arrow-keys] navigate  [Space] select
+	var hint := _rich("", "caption")
+	hint.anchor_left = 0.0; hint.anchor_right = 1.0
+	hint.position.y = vp.y * 0.965
+	var ih := int(round(UiFont.px(get_viewport(), "caption") * 1.15))
+	hint.push_paragraph(HORIZONTAL_ALIGNMENT_CENTER)
+	var icon := _nav_icon_texture(ih, SEL_GOLD)
+	hint.add_image(icon, icon.get_width(), icon.get_height())
+	hint.append_text("[color=#%s] navigate      [/color][color=#%s][lb]Space[rb][/color][color=#%s] select[/color]" % [
+		MUTED.to_html(false), SEL_GOLD.to_html(false), MUTED.to_html(false)])
+	hint.pop()
+	add_child(hint)
+
+func _build_card(m: Dictionary, idx: int, cw: int, ch: int) -> Control:
+	# a card = [caret slot] + [ VBox(border-box w/ icon, name, hotkey) ]
+	var cell := HBoxContainer.new()
+	cell.add_theme_constant_override("separation", 4)
+	cell.mouse_filter = Control.MOUSE_FILTER_STOP
+	cell.mouse_entered.connect(func(): _select(idx))
+	cell.gui_input.connect(func(e):
+		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+			_select(idx); _confirm())
+
+	var caret := _text("›", SEL_GOLD, "big")   # shows only for the selected card (holds its slot)
+	caret.custom_minimum_size = Vector2(12, 0)
+	caret.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	cell.add_child(caret)
+
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 4)
+	cell.add_child(col)
+
+	var boxc := Control.new()   # the dashed border box holding the icon
+	boxc.custom_minimum_size = Vector2(cw, ch)
+	var border := TextureRect.new()
+	border.texture = _border_tex
+	border.modulate = DIM_BORDER
+	border.set_anchors_preset(Control.PRESET_FULL_RECT)
+	border.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	boxc.add_child(border)
+	var icon := TextureRect.new()   # mode tile if exported; else empty (WIP)
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	icon.set_anchors_preset(Control.PRESET_FULL_RECT)
+	icon.offset_left = 12; icon.offset_right = -12; icon.offset_top = 10; icon.offset_bottom = -10
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	icon.texture = _tile(str(m.get("tile", "")))
+	boxc.add_child(icon)
+	col.add_child(boxc)
+
+	var name := _text(str(m.get("display", m.get("name", "?"))), NAME_DIM, "caption")
+	name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	name.custom_minimum_size = Vector2(cw, 0)
+	col.add_child(name)
+	var hk := _text("[%s]" % str(m.get("hotkey", "")), HOTKEY_DIM, "caption")
+	hk.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hk.custom_minimum_size = Vector2(cw, 0)
+	col.add_child(hk)
+
+	_cards.append({"border": border, "icon": icon, "name": name, "hotkey": hk, "caret": caret})
+	return cell
+
+# ── selection ─────────────────────────────────────────────────────────────────────
 
 func _select(idx: int) -> void:
-	if idx < 0 or idx >= _rows.size():
+	if idx < 0 or idx >= _cards.size() or idx == _sel:
 		return
 	_sel = idx
 	_apply_selection()
 
 func _apply_selection() -> void:
-	for i in range(_rows.size()):
-		_style_row(_rows[i]["panel"], i == _sel)
-	_build_detail()
+	for i in range(_cards.size()):
+		var on: bool = (i == _sel)
+		var c: Dictionary = _cards[i]
+		c["border"].modulate = SEL_GOLD if on else DIM_BORDER
+		c["icon"].modulate = ICON_SEL if on else ICON_DIM
+		c["name"].add_theme_color_override("font_color", NAME_SEL if on else NAME_DIM)
+		c["hotkey"].add_theme_color_override("font_color", SEL_GOLD if on else HOTKEY_DIM)
+		c["caret"].add_theme_color_override("font_color", SEL_GOLD if on else Color(0, 0, 0, 0))
+	if _desc != null and _sel >= 0 and _sel < _modes.size():
+		var lines := PackedStringArray()
+		for line in str(_modes[_sel].get("desc", "")).split("\n", false):
+			lines.append(QudText.to_bbcode(line, _palette))
+		_desc.text = "[center][color=#%s]%s[/color][/center]" % [MUTED.to_html(false), "\n".join(lines)]
 
-func _build_detail() -> void:
-	if _detail == null:
-		return
-	for c in _detail.get_children():
-		c.queue_free()
-	if _sel < 0 or _sel >= _modes.size():
-		return
-	var m: Dictionary = _modes[_sel]
-	_detail.add_child(_rich("[color=#%s]%s[/color]" % [GOLD.to_html(false), _esc(str(m.get("display", m.get("name", "?"))))], "big"))
-	_detail.add_child(_gap(6))
-	var desc := str(m.get("desc", ""))
-	for line in desc.split("\n", false):
-		var r := _rich(QudText.to_bbcode(line, _palette), "body")
-		r.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		_detail.add_child(r)
+func _randomize() -> void:
+	if _modes.size() > 1:
+		var n := _sel
+		while n == _sel:
+			n = randi() % _modes.size()
+		_select(n)
 
-func _style_row(panel: PanelContainer, on: bool) -> void:
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.90, 0.86, 0.72, 0.10) if on else Color(1, 1, 1, 0.02)
-	sb.set_corner_radius_all(2)
-	sb.border_width_left = 3 if on else 0
-	sb.border_color = GOLD
-	panel.add_theme_stylebox_override("panel", sb)
+func _confirm() -> void:
+	if _sel >= 0 and _sel < _modes.size():
+		selected = str(_modes[_sel].get("name", ""))
+		chose.emit(selected)
 
 func _unhandled_input(e: InputEvent) -> void:
 	if e.is_action_pressed("ui_cancel"):
-		closed.emit()
-		accept_event()
-	elif e.is_action_pressed("ui_down"):
-		_select(mini(_sel + 1, _rows.size() - 1)); accept_event()
-	elif e.is_action_pressed("ui_up"):
+		closed.emit(); accept_event()
+	elif e.is_action_pressed("ui_right"):
+		_select(mini(_sel + 1, _cards.size() - 1)); accept_event()
+	elif e.is_action_pressed("ui_left"):
 		_select(maxi(_sel - 1, 0)); accept_event()
 	elif e.is_action_pressed("ui_accept"):
-		if _sel >= 0 and _sel < _modes.size():
-			selected = str(_modes[_sel].get("name", ""))
-			chose.emit(selected)
-		accept_event()
+		_confirm(); accept_event()
+	elif e is InputEventKey and e.pressed and not e.echo and e.keycode == KEY_R:
+		_randomize(); accept_event()
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
-func _chrome(file: String) -> Texture2D:
-	var path := InputModel.support_dir().path_join("title").path_join("chrome").path_join(file)
+## A dashed rectangle border as a white texture (tint per state via modulate). Qud draws the card
+## frames as dashed/dotted lines; short dashes with gaps approximate that "ASCII" look.
+func _dashed_border_tex(w: int, h: int) -> ImageTexture:
+	var img := Image.create(maxi(2, w), maxi(2, h), false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var th := 2
+	var dash := 5
+	var gap := 4
+	var c := Color(1, 1, 1, 1)
+	var x := 0
+	while x < w:
+		for dx in range(mini(dash, w - x)):
+			for t in range(th):
+				img.set_pixel(x + dx, t, c)
+				img.set_pixel(x + dx, h - 1 - t, c)
+		x += dash + gap
+	var y := 0
+	while y < h:
+		for dy in range(mini(dash, h - y)):
+			for t in range(th):
+				img.set_pixel(t, y + dy, c)
+				img.set_pixel(w - 1 - t, y + dy, c)
+		y += dash + gap
+	return ImageTexture.create_from_image(img)
+
+## A small arrow-keys icon (gold d-pad cluster), same construction as MainMenu's hint icon.
+func _nav_icon_texture(ih: int, color: Color) -> ImageTexture:
+	var g := maxi(1, int(round(ih * 0.10)))
+	var k := int((ih - g) / 2)
+	if k < 2:
+		k = 2
+	var w := 3 * k + 2 * g
+	var h := 2 * k + g
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var mid := k + g
+	img.fill_rect(Rect2i(mid, 0, k, k), color)
+	img.fill_rect(Rect2i(0, k + g, k, k), color)
+	img.fill_rect(Rect2i(mid, k + g, k, k), color)
+	img.fill_rect(Rect2i(2 * mid, k + g, k, k), color)
+	return ImageTexture.create_from_image(img)
+
+func _tile(tile: String) -> Texture2D:
+	if tile == "":
+		return null
+	var fname := tile.replace("/", "_").replace("\\", "_")
+	var path := InputModel.support_dir().path_join("tiles").path_join(fname)
 	if not FileAccess.file_exists(path):
 		return null
-	var img := Image.new()
-	if img.load(path) != 0:
+	var bytes := FileAccess.get_file_as_bytes(path)
+	if bytes.is_empty():
 		return null
+	var img := Image.new()
+	if img.load_png_from_buffer(bytes) != OK:
+		if img.load(path) != OK:
+			return null
 	return ImageTexture.create_from_image(img)
+
+func _text(txt: String, col: Color, role := "body") -> Label:
+	var l := Label.new()
+	l.text = txt
+	if role != "body":
+		l.theme_type_variation = role.capitalize()
+	l.add_theme_color_override("font_color", col)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return l
 
 func _rich(bb: String, role := "body") -> RichTextLabel:
 	var l := RichTextLabel.new()
@@ -336,11 +382,3 @@ func _rich(bb: String, role := "body") -> RichTextLabel:
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	l.text = bb
 	return l
-
-func _gap(px: int) -> Control:
-	var c := Control.new()
-	c.custom_minimum_size = Vector2(0, px)
-	return c
-
-func _esc(s: String) -> String:
-	return s.replace("[", "[lb]")
