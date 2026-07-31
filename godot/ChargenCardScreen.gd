@@ -451,7 +451,7 @@ func _build_guide() -> void:
 	hatch.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(hatch)
 
-	var bw := 12.0   # border-band thickness
+	var bw := 6.0   # border-band thickness
 	var bg := ColorRect.new()
 	bg.color = Color(0.02, 0.09, 0.09, 1.0)
 	bg.position = Vector2(bw, bw)
