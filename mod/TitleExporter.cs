@@ -66,6 +66,7 @@ namespace RavesOfQud
                     WriteGraphicSprite(menu.logoFader.GetComponentInChildren<Image>(true), logoPath);
                 if (!File.Exists(chromeDump)) ExportChrome(menu, chromeDump);
                 ExportChargenEmblem();
+                ExportNamedSprite("tiny-frame-h", "card_frame.png");   // game-mode card's dotted frame
 
                 System.Console.WriteLine("[raves] title art exported -> " + Dir);
             }
@@ -80,21 +81,24 @@ namespace RavesOfQud
         /// the ASSET stays RESIDENT at the main menu even though the EmbarkBuilder prefab isn't
         /// instantiated — so we find it by name among all loaded sprites and write it like the title
         /// art. MAIN-THREAD ONLY (graphics readback). Reads the player's own install; never bundled.
-        public static void ExportChargenEmblem()
+        public static void ExportChargenEmblem() => ExportNamedSprite("ChargenHeaderDecoration", "chargen_emblem.png");
+
+        /// Find a loaded UI Sprite by exact name and write it to <c>Dir/destFile</c> (like the title
+        /// art). MAIN-THREAD ONLY. Reads the player's own install; never bundled.
+        public static void ExportNamedSprite(string spriteName, string destFile)
         {
             try
             {
-                string dest = Path.Combine(Dir, "chargen_emblem.png");
-                Sprite emblem = null;
+                Sprite found = null;
                 foreach (Sprite sp in Resources.FindObjectsOfTypeAll<Sprite>())
                 {
-                    if (sp != null && sp.name == "ChargenHeaderDecoration") { emblem = sp; break; }
+                    if (sp != null && sp.name == spriteName) { found = sp; break; }
                 }
-                if (emblem == null) return;   // not loaded yet — a later export retries
-                WriteSprite(emblem, dest);
-                System.Console.WriteLine("[raves] chargen emblem exported -> " + dest);
+                if (found == null) return;   // not loaded yet — a later export retries
+                WriteSprite(found, Path.Combine(Dir, destFile));
+                System.Console.WriteLine("[raves] sprite '" + spriteName + "' exported -> " + destFile);
             }
-            catch (Exception e) { System.Console.WriteLine("[raves] emblem export failed: " + e.Message); }
+            catch (Exception e) { System.Console.WriteLine("[raves] sprite export failed: " + e.Message); }
         }
 
         /// The single `background` Image, else the active `backgrounds[]` object's graphic.

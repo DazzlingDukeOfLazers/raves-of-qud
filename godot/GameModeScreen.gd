@@ -79,6 +79,8 @@ var _resolve_until := 0
 var _poll_t := 0.0
 var _emblem_rect: TextureRect     # the sheaf emblem (extracted sprite, or the procedural fallback)
 var _emblem_extracted := false
+var _frame_tex: Texture2D         # Qud's extracted card frame (tiny-frame-h), or null → procedural dashes
+var _frame_extracted := false
 
 func _ready() -> void:
 	name = "GameModeScreen"
@@ -153,6 +155,13 @@ func _resolve_icons() -> void:
 		_cards[i]["colored"] = colored
 		_cards[i]["neutral"] = _mode_icon(t, ICON_MAIN, ICON_DETAIL)
 	_apply_selection()   # push the newly-built textures onto the cards
+	if not _frame_extracted:       # swap Qud's real card frame in once the mod exports it
+		var fr := _load_card_frame()
+		if fr != null:
+			_frame_tex = fr
+			_frame_extracted = true
+			for c in _cards:
+				_apply_card_frame(c["border"])
 	if not _emblem_extracted:      # swap the real sheaf sprite in once the mod exports it
 		var e := _load_emblem()
 		if e != null:
@@ -160,6 +169,34 @@ func _resolve_icons() -> void:
 			_emblem_extracted = true
 	if all_done and _emblem_extracted:
 		_resolve_until = 0
+
+## Point a card's border NinePatchRect at Qud's real frame (tiny-frame-h, 80x80, 9-slice inset 17)
+## when it's been extracted, else the procedural dashed texture. draw_center off — it's a frame only.
+func _apply_card_frame(np: NinePatchRect) -> void:
+	if _frame_tex != null:
+		np.texture = _frame_tex
+		var m := int(round(_frame_tex.get_height() * 17.0 / 80.0))
+		np.patch_margin_left = m; np.patch_margin_right = m
+		np.patch_margin_top = m; np.patch_margin_bottom = m
+	else:
+		np.texture = _border_tex
+		for s in ["left", "top", "right", "bottom"]:
+			np.set("patch_margin_" + s, 0)
+	np.draw_center = false
+	np.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+
+## Qud's extracted card frame (title/card_frame.png = tiny-frame-h, white dotted). Null until exported.
+func _load_card_frame() -> Texture2D:
+	var path := InputModel.support_dir().path_join("title").path_join("card_frame.png")
+	if not FileAccess.file_exists(path):
+		return null
+	var bytes := FileAccess.get_file_as_bytes(path)
+	if bytes.is_empty():
+		return null
+	var img := Image.new()
+	if img.load_png_from_buffer(bytes) != OK:
+		return null
+	return ImageTexture.create_from_image(img)
 
 ## Qud's extracted sheaf emblem (title/chargen_emblem.png, written by the mod). Already the right
 ## muted colour, so it's used as-is. Null until exported.
@@ -278,7 +315,9 @@ func _build_center() -> void:
 	# the horizontal card row, centred
 	var card_w := int(vp.x * 0.049)
 	var card_h := int(vp.y * 0.086)
-	_border_tex = _dashed_border_tex(card_w, card_h)
+	_border_tex = _dashed_border_tex(card_w, card_h)   # procedural fallback
+	_frame_tex = _load_card_frame()                    # Qud's real tiny-frame-h, if exported
+	_frame_extracted = _frame_tex != null
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", int(vp.x * 0.014))
@@ -335,13 +374,13 @@ func _build_card(m: Dictionary, idx: int, cw: int, ch: int) -> Control:
 	col.add_theme_constant_override("separation", 4)
 	cell.add_child(col)
 
-	var boxc := Control.new()   # the dashed border box holding the icon
+	var boxc := Control.new()   # the dotted border box holding the icon
 	boxc.custom_minimum_size = Vector2(cw, ch)
-	var border := TextureRect.new()
-	border.texture = _border_tex
+	var border := NinePatchRect.new()   # Qud's tiny-frame-h (9-sliced) if extracted, else procedural dashes
 	border.modulate = DIM_BORDER
 	border.set_anchors_preset(Control.PRESET_FULL_RECT)
 	border.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_apply_card_frame(border)
 	boxc.add_child(border)
 	var icon := TextureRect.new()   # mode tile if exported; else empty (WIP)
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -536,7 +575,7 @@ func _mode_icon(tile: String, main: Color, detail: Color) -> Texture2D:
 ## card art. Body → foreground, accents → detail. Names not listed fall back to the neutral grey-teal.
 func _mode_palette(name: String) -> Array:
 	match name:
-		"Tutorial": return [Color8(0x74, 0x88, 0x9A), Color8(0xC8, 0xB0, 0x3C)]  # blue-grey mortarboard, yellow tassel
+		"Tutorial": return [Color8(0x15, 0x49, 0x48), Color8(0xC8, 0xB0, 0x3C)]  # dark mortarboard (detail colour), yellow tassel
 		"Classic":  return [Color8(0xA8, 0xC2, 0xBB), Color8(0x15, 0x49, 0x48)]  # grey figure, dark detail
 		"Roleplay": return [Color8(0x3A, 0x52, 0xB2), Color8(0x62, 0xC4, 0xCA)]  # cobalt figures, light-teal triangle
 		"Wander":   return [Color8(0x48, 0x8E, 0x3A), Color8(0x62, 0xC4, 0xCA)]  # green river/road, light-teal castle

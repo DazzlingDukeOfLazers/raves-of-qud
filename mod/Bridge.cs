@@ -497,8 +497,9 @@ namespace RavesOfQud
                                 OptionsExporter.ReExport();
                                 RecordsExporter.ReExport();
                                 ChargenExporter.ReExport();
-                                TitleExporter.ExportChargenEmblem();   // resident even at the menu
-                                Server.Log("[export] re-exported (menu path) mods + options + records + chargen + emblem");
+                                TitleExporter.ExportChargenEmblem();                        // resident even at the menu
+                                TitleExporter.ExportNamedSprite("tiny-frame-h", "card_frame.png");   // the game-mode card's dotted frame
+                                Server.Log("[export] re-exported (menu path) mods + options + records + chargen + emblem + frame");
                             }
                             catch (Exception e) { try { Server.Log("export error: " + e.Message); } catch { } }
                         }, 0);
