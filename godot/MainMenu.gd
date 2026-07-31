@@ -916,11 +916,37 @@ func _open_chargen() -> void:
 func _on_mode_chosen(mode_name: String) -> void:
 	_cg_mode = mode_name
 	_close_overlay()
+	if mode_name == "Tutorial":
+		_start_tutorial()   # pregen guided game — no genotype/subtype, boot straight in
+		return
 	var geno: Variant = load("res://GenotypeScreen.gd").new()
 	_overlay = geno
 	add_child(geno)
 	geno.closed.connect(_close_overlay)
 	geno.chose.connect(_on_genotype_chosen)
+
+## Tutorial mode: ask the mod to boot Qud's guided tutorial (a pregen game), then watch it in the
+## Holodeck — same data-first hand-off as Continue/embark.
+func _start_tutorial() -> void:
+	if not _qud_up or _peer.get_status() != StreamPeerTCP.STATUS_CONNECTED:
+		push_warning("Raves: can't start tutorial — bridge not connected")
+		return
+	_send_command({"type": "command", "name": "tutorial"})
+	_enter_viewer()
+
+## Frame + send a bridge command over the detection peer (same wire format as _send_embark).
+func _send_command(msg: Dictionary) -> void:
+	if _peer.get_status() != StreamPeerTCP.STATUS_CONNECTED:
+		return
+	var payload := JSON.stringify(msg).to_utf8_buffer()
+	var n := payload.size()
+	var frame := PackedByteArray()
+	frame.append((n >> 24) & 0xFF)
+	frame.append((n >> 16) & 0xFF)
+	frame.append((n >> 8) & 0xFF)
+	frame.append(n & 0xFF)
+	frame.append_array(payload)
+	_peer.put_data(frame)
 
 func _on_genotype_chosen(genotype_name: String) -> void:
 	_cg_genotype = genotype_name

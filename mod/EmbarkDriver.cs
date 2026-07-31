@@ -51,6 +51,15 @@ namespace RavesOfQud
 
         /// <summary>Socket-thread entry: queue an embark and wake the main menu. Safe to call
         /// off the game thread — the actual builder driving is marshalled onto Qud's UI queue.</summary>
+        /// <summary>Start the guided TUTORIAL. Unlike a normal embark there's no genotype/subtype —
+        /// Qud's game-mode module does it all in SelectMode("Tutorial"): TutorialManager.StartTutorial,
+        /// a Pregen character, and an advance that boots the tutorial zone. So we just drive the live
+        /// builder's SelectMode. Signalled by Gamemode == "Tutorial".</summary>
+        public static void RequestTutorial()
+        {
+            RequestEmbark(new PendingBuildSpec { Gamemode = "Tutorial" });
+        }
+
         public static void RequestEmbark(PendingBuildSpec spec)
         {
             _pending = spec;
@@ -94,6 +103,33 @@ namespace RavesOfQud
             _pending = null;   // got the builder — commit to this attempt
             try
             {
+                if (spec.Gamemode == "Tutorial")
+                {
+                    // The tutorial is a pregen guided game — no player chargen. Qud's own
+                    // QudGamemodeModule.SelectMode("Tutorial") sets it all up (StartTutorial + a
+                    // Pregen character) and advances the builder; with nothing editable it advances
+                    // all the way to the boot. Suppress the post-boot popups as for a normal embark.
+                    XRL.UI.Popup.Suppress = true;
+                    StartSuppressWindow();
+                    var gmm = eb.GetModule<QudGamemodeModule>();
+                    if (gmm == null)
+                        throw new InvalidOperationException("Gamemode module not found");
+                    System.Console.WriteLine("[raves] tutorial: SelectMode + commit pregen -> boot");
+                    gmm.SelectMode("Tutorial");   // StartTutorial + Pregen chartype (advances to the genotype)
+                    // The guided windows won't advance headlessly, so commit the tutorial's fixed build
+                    // directly (from JoppaTutorial.IntroTutorialStart): a Marsh Taur mutated-human pregen
+                    // starting in the JoppaTutorial zone. Then exitWithInfo builds it and boots.
+                    SetData<QudGenotypeModule>(eb, new QudGenotypeModuleData("Mutated Human"));
+                    SetData<QudPregenModule>(eb, new QudPregenModuleData("Marsh Taur"));
+                    SetData<QudChooseStartingLocationModule>(eb, new QudChooseStartingLocationModuleData("JoppaTutorial"));
+                    // bootGame reads Subtype.data for random-name generation even for a pregen (the
+                    // pregen supplies the real body); without it that line NREs. Any valid calling works.
+                    SetData<QudSubtypeModule>(eb, new QudSubtypeModuleData("Apostle"));
+                    eb.exitWithInfo();
+                    System.Console.WriteLine("[raves] tutorial: exitWithInfo done");
+                    return;
+                }
+
                 // setData directly (NOT the Select*/SelectMode wrappers — those call
                 // builder.advance(), which walks the on-screen windows). Order matters: each
                 // setData re-runs the enable cascade that turns on the next stage —

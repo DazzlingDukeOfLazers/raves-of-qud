@@ -507,6 +507,13 @@ namespace RavesOfQud
                         }, 0);
                     return;
                 }
+                if (name == "tutorial")
+                {
+                    // Start Qud's guided tutorial (pregen game, no chargen). Same drive path as embark,
+                    // routed through the game-mode module's SelectMode("Tutorial").
+                    EmbarkDriver.RequestTutorial();
+                    return;
+                }
                 if (name == "embark")
                 {
                     // THE DRIVE: create the character Raves assembled and start the run, skipping
