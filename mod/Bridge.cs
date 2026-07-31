@@ -497,7 +497,8 @@ namespace RavesOfQud
                                 OptionsExporter.ReExport();
                                 RecordsExporter.ReExport();
                                 ChargenExporter.ReExport();
-                                Server.Log("[export] re-exported (menu path) mods + options + records + chargen");
+                                TitleExporter.ExportChargenEmblem();   // resident even at the menu
+                                Server.Log("[export] re-exported (menu path) mods + options + records + chargen + emblem");
                             }
                             catch (Exception e) { try { Server.Log("export error: " + e.Message); } catch { } }
                         }, 0);

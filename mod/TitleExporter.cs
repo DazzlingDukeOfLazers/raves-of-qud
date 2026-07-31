@@ -65,6 +65,7 @@ namespace RavesOfQud
                 if (!File.Exists(logoPath) && menu.logoFader != null)
                     WriteGraphicSprite(menu.logoFader.GetComponentInChildren<Image>(true), logoPath);
                 if (!File.Exists(chromeDump)) ExportChrome(menu, chromeDump);
+                ExportChargenEmblem();
 
                 System.Console.WriteLine("[raves] title art exported -> " + Dir);
             }
@@ -72,6 +73,28 @@ namespace RavesOfQud
             {
                 System.Console.WriteLine("[raves] title export failed: " + e.Message);
             }
+        }
+
+        /// Export the chargen "sheaf" header emblem — Qud.UI's <c>ChargenHeaderDecoration</c> sprite.
+        /// Unlike the mode-card icons (tile-atlas sprites, path-loadable) it's a prefab UI sprite, but
+        /// the ASSET stays RESIDENT at the main menu even though the EmbarkBuilder prefab isn't
+        /// instantiated — so we find it by name among all loaded sprites and write it like the title
+        /// art. MAIN-THREAD ONLY (graphics readback). Reads the player's own install; never bundled.
+        public static void ExportChargenEmblem()
+        {
+            try
+            {
+                string dest = Path.Combine(Dir, "chargen_emblem.png");
+                Sprite emblem = null;
+                foreach (Sprite sp in Resources.FindObjectsOfTypeAll<Sprite>())
+                {
+                    if (sp != null && sp.name == "ChargenHeaderDecoration") { emblem = sp; break; }
+                }
+                if (emblem == null) return;   // not loaded yet — a later export retries
+                WriteSprite(emblem, dest);
+                System.Console.WriteLine("[raves] chargen emblem exported -> " + dest);
+            }
+            catch (Exception e) { System.Console.WriteLine("[raves] emblem export failed: " + e.Message); }
         }
 
         /// The single `background` Image, else the active `backgrounds[]` object's graphic.

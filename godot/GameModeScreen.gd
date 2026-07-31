@@ -77,6 +77,8 @@ var _peer := StreamPeerTCP.new()
 var _sent := false
 var _resolve_until := 0
 var _poll_t := 0.0
+var _emblem_rect: TextureRect     # the sheaf emblem (extracted sprite, or the procedural fallback)
+var _emblem_extracted := false
 
 func _ready() -> void:
 	name = "GameModeScreen"
@@ -147,8 +149,38 @@ func _resolve_icons() -> void:
 					card["icon"].texture = tex
 				else:
 					all_done = false
-	if all_done:
+	if not _emblem_extracted:      # swap the real sheaf sprite in once the mod exports it
+		var e := _load_emblem()
+		if e != null:
+			_set_emblem(e)
+			_emblem_extracted = true
+	if all_done and _emblem_extracted:
 		_resolve_until = 0
+
+## Qud's extracted sheaf emblem (title/chargen_emblem.png, written by the mod). Already the right
+## muted colour, so it's used as-is. Null until exported.
+func _load_emblem() -> Texture2D:
+	var path := InputModel.support_dir().path_join("title").path_join("chargen_emblem.png")
+	if not FileAccess.file_exists(path):
+		return null
+	var bytes := FileAccess.get_file_as_bytes(path)
+	if bytes.is_empty():
+		return null
+	var img := Image.new()
+	if img.load_png_from_buffer(bytes) != OK:
+		return null
+	return ImageTexture.create_from_image(img)
+
+## Size + centre the emblem rect for a texture, at a fixed display height above the title.
+func _set_emblem(tex: Texture2D) -> void:
+	if _emblem_rect == null or tex == null:
+		return
+	var vp := get_viewport_rect().size
+	_emblem_rect.texture = tex
+	var eh: int = int(vp.y * 0.042)
+	var ew: int = int(eh * float(tex.get_width()) / float(tex.get_height()))
+	_emblem_rect.position = Vector2((vp.x - ew) * 0.5, vp.y * 0.432 - eh)
+	_emblem_rect.size = Vector2(ew, eh)
 
 func _load() -> Array:
 	var path := InputModel.support_dir().path_join("chargen.json")
@@ -215,22 +247,19 @@ func _build_side_nav() -> void:
 
 func _build_center() -> void:
 	var vp := get_viewport_rect().size
-	# the branching "sheaf" emblem above the title. Qud's is a Unity-bundle sprite (not a tile path,
-	# so not exportable like the card icons, and its art can't be redistributed) — so this is Raves'
-	# OWN procedurally-drawn take on the same sigil: a central stem with three fanning branch pairs.
-	var etex := _emblem_texture(MUTED)
-	var es: int = maxi(1, int(round(vp.y * 0.0018)))
-	var ew: int = etex.get_width() * es
-	var eh: int = etex.get_height() * es
+	# the branching "sheaf" emblem above the title. Prefer Qud's OWN sprite (ChargenHeaderDecoration),
+	# extracted from the player's install by the mod like the title art; until that lands, fall back to
+	# a procedural take on the same sigil. _resolve_icons swaps the real one in once it's exported.
 	var em := TextureRect.new()
-	em.texture = etex
 	em.stretch_mode = TextureRect.STRETCH_SCALE
 	em.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	em.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	em.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	em.position = Vector2((vp.x - ew) * 0.5, vp.y * 0.432 - eh)
-	em.size = Vector2(ew, eh)
 	add_child(em)
+	_emblem_rect = em
+	var etex := _load_emblem()
+	_emblem_extracted = etex != null
+	_set_emblem(etex if etex != null else _emblem_texture(MUTED))
 	var cc := _text("character creation", CC_GOLD, "big")
 	cc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	cc.anchor_left = 0.0; cc.anchor_right = 1.0
