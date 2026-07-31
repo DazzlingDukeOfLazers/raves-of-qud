@@ -167,11 +167,11 @@ func _build_background() -> void:
 	var rect := TextureRect.new()
 	rect.texture = tex
 	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
-	rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	# Without this, a TextureRect sizes to the TEXTURE's native size and STRETCH_* never applies —
-	# the 2048x1897 art rendered at native scale, top-left-cropped, so Raves showed a DIFFERENT
-	# (higher/left) portion than Qud (which centre-covers). IGNORE_SIZE makes COVERED fill the
-	# window (centred), matching Qud's crop. (Same gotcha the option-box frame hit.)
+	rect.stretch_mode = TextureRect.STRETCH_SCALE
+	# EXPAND_IGNORE_SIZE so the rect isn't forced to the texture's NATIVE size — _apply_bg_nudge
+	# sizes it to the base COVER × (sx, sy) and STRETCH_SCALE fills it, so independent x/y scaling
+	# genuinely stretches the art to match Qud. (Without IGNORE_SIZE the TextureRect took the
+	# 2048x1897 native size and ignored its rect — the same gotcha the option-box frame hit.)
 	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(rect)
@@ -188,23 +188,30 @@ func _bg_nudge_path() -> String:
 	return InputModel.support_dir().path_join("title_bg.json")
 
 func _apply_bg_nudge() -> void:
-	if _bg_rect == null:
+	if _bg_rect == null or _bg_rect.texture == null:
 		return
 	var vp := get_viewport().get_visible_rect().size
-	# scale > 1 zooms IN (stays covered); scale < 1 shrinks the art below the window (a border of
-	# the clear colour shows) — allowed so it can be dialed down to match Qud. Small floor avoids
-	# a degenerate/negative rect.
-	var sc: float = maxf(0.1, float(_bg_nudge.get("scale", 1.0)))
-	var ew: float = vp.x * (sc - 1.0)
-	var eh: float = vp.y * (sc - 1.0)
+	var ts := _bg_rect.texture.get_size()
+	if ts.x <= 0.0 or ts.y <= 0.0:
+		return
+	# Base = COVER (art fills the window, aspect preserved). sx/sy scale each axis INDEPENDENTLY
+	# from there: >1 stretches/zooms that axis, <1 shrinks it and shows a clear-colour border on
+	# that axis; dx/dy pan. Backward-compat: a lone "scale" applies to both axes. The rect is sized
+	# to cover×(sx,sy) and STRETCH_SCALE fills it, so a non-square rect genuinely stretches the art.
+	var cover: float = maxf(vp.x / ts.x, vp.y / ts.y)
+	var uni: float = float(_bg_nudge.get("scale", 1.0))
+	var sx: float = maxf(0.05, float(_bg_nudge.get("sx", uni)))
+	var sy: float = maxf(0.05, float(_bg_nudge.get("sy", uni)))
 	var dx: float = float(_bg_nudge.get("dx", 0.0))
 	var dy: float = float(_bg_nudge.get("dy", 0.0))
-	_bg_rect.anchor_left = 0.0; _bg_rect.anchor_top = 0.0
-	_bg_rect.anchor_right = 1.0; _bg_rect.anchor_bottom = 1.0
-	_bg_rect.offset_left = -ew * 0.5 + dx
-	_bg_rect.offset_right = ew * 0.5 + dx
-	_bg_rect.offset_top = -eh * 0.5 + dy
-	_bg_rect.offset_bottom = eh * 0.5 + dy
+	var rw: float = ts.x * cover * sx
+	var rh: float = ts.y * cover * sy
+	_bg_rect.anchor_left = 0.5; _bg_rect.anchor_right = 0.5
+	_bg_rect.anchor_top = 0.5; _bg_rect.anchor_bottom = 0.5
+	_bg_rect.offset_left = -rw * 0.5 + dx
+	_bg_rect.offset_right = rw * 0.5 + dx
+	_bg_rect.offset_top = -rh * 0.5 + dy
+	_bg_rect.offset_bottom = rh * 0.5 + dy
 
 func _load_bg_nudge(force := false) -> void:
 	var p := _bg_nudge_path()
