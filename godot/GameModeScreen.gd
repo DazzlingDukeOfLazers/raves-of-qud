@@ -29,8 +29,14 @@ const DIM_BORDER := Color8(0x2C, 0x47, 0x47)  # unselected card border (dim teal
 const NAME_SEL := Color8(0xC5, 0xCE, 0xC6)    # selected mode name (bright)
 const NAME_DIM := Color8(0x4E, 0x64, 0x60)    # unselected mode name
 const HOTKEY_DIM := Color8(0x6B, 0x66, 0x3A)  # unselected hotkey (dim gold)
-const ICON_SEL := Color(1, 1, 1, 1)
-const ICON_DIM := Color(0.55, 0.62, 0.60, 0.85)
+# Qud renders the card icons a NEUTRAL grey-teal (not their fg/detail colour codes), brightness
+# for selection — measured off the capture: selected figure ~rgb(168,194,187) with ~rgb(21,73,72)
+# detail; unselected ~rgb(58,89,101). We bake the SELECTED two-tone into the sprite and modulate
+# down for the unselected state (per-channel factor lands rgb(168,194,187) on rgb(58,89,101)).
+const ICON_MAIN := Color8(0xA8, 0xC2, 0xBB)     # selected figure ~ rgb(168,194,187)
+const ICON_DETAIL := Color8(0x15, 0x49, 0x48)   # detail lines ~ rgb(21,73,72)
+const ICON_SEL := Color(1, 1, 1, 1)             # selected: show the baked colours
+const ICON_DIM := Color(0.35, 0.47, 0.54, 1.0)  # unselected: dim the baked main to ~rgb(58,89,101)
 const DIM := Color(0.55, 0.62, 0.60, 0.35)    # very dim (the "[9] Next" affordance)
 
 ## Qud's 16-colour palette for {{code|text}} markup in the descriptions.
@@ -209,8 +215,22 @@ func _build_side_nav() -> void:
 
 func _build_center() -> void:
 	var vp := get_viewport_rect().size
-	# (Qud draws its branching character-creation emblem above the title here; left blank until
-	# that sprite is extracted — see the card icons, same pending extraction.)
+	# the branching "sheaf" emblem above the title. Qud's is a Unity-bundle sprite (not a tile path,
+	# so not exportable like the card icons, and its art can't be redistributed) — so this is Raves'
+	# OWN procedurally-drawn take on the same sigil: a central stem with three fanning branch pairs.
+	var etex := _emblem_texture(MUTED)
+	var es: int = maxi(1, int(round(vp.y * 0.0018)))
+	var ew: int = etex.get_width() * es
+	var eh: int = etex.get_height() * es
+	var em := TextureRect.new()
+	em.texture = etex
+	em.stretch_mode = TextureRect.STRETCH_SCALE
+	em.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	em.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	em.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	em.position = Vector2((vp.x - ew) * 0.5, vp.y * 0.432 - eh)
+	em.size = Vector2(ew, eh)
+	add_child(em)
 	var cc := _text("character creation", CC_GOLD, "big")
 	cc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	cc.anchor_left = 0.0; cc.anchor_right = 1.0
@@ -387,6 +407,49 @@ func _dashed_border_tex(w: int, h: int) -> ImageTexture:
 		y += dash + gap
 	return ImageTexture.create_from_image(img)
 
+## Raves' own take on the character-creation "sheaf" sigil: a central stem with a dotted head, three
+## fanning branch pairs, and a small base flare — drawn symmetrically at a small native grid (scaled
+## up NEAREST for the pixel look). Original art, not Qud's sprite.
+func _emblem_texture(color: Color) -> ImageTexture:
+	var w := 21
+	var h := 24
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var cx := 10
+	_line(img, cx, 8, cx, 23, color)            # stem
+	for hy in [0, 2, 4, 6]:                      # dotted head
+		_plot(img, cx, hy, color)
+	# three fanning branch pairs (origin on the stem → up and out), mirrored
+	var pairs := [[9, 1, 3], [13, 2, 7], [17, 3, 11]]   # [stem_y, tip_x_left, tip_y]
+	for p in pairs:
+		_line(img, cx, p[0], p[1], p[2], color)          # left branch
+		_line(img, cx, p[0], w - 1 - p[1], p[2], color)  # right branch (mirror)
+	_line(img, cx, 23, 6, 19, color)            # base flare (left)
+	_line(img, cx, 23, 14, 19, color)           # base flare (right)
+	return ImageTexture.create_from_image(img)
+
+func _plot(img: Image, x: int, y: int, c: Color) -> void:
+	if x >= 0 and x < img.get_width() and y >= 0 and y < img.get_height():
+		img.set_pixel(x, y, c)
+
+func _line(img: Image, x0: int, y0: int, x1: int, y1: int, c: Color) -> void:
+	var dx := absi(x1 - x0)
+	var dy := absi(y1 - y0)
+	var sx := 1 if x0 < x1 else -1
+	var sy := 1 if y0 < y1 else -1
+	var err := dx - dy
+	while true:
+		_plot(img, x0, y0, c)
+		if x0 == x1 and y0 == y1:
+			break
+		var e2 := 2 * err
+		if e2 > -dy:
+			err -= dy
+			x0 += sx
+		if e2 < dx:
+			err += dx
+			y0 += sy
+
 ## A small arrow-keys icon (gold d-pad cluster), same construction as MainMenu's hint icon.
 func _nav_icon_texture(ih: int, color: Color) -> ImageTexture:
 	var g := maxi(1, int(round(ih * 0.10)))
@@ -404,10 +467,11 @@ func _nav_icon_texture(ih: int, color: Color) -> ImageTexture:
 	img.fill_rect(Rect2i(2 * mid, k + g, k, k), color)
 	return ImageTexture.create_from_image(img)
 
-## Load a mode's exported tile as a LIGHT icon. Qud's sw_*_mode sprites are dark figures on
-## transparent, recoloured to a light foreground at render; the raw export is near-black, and
-## modulate (multiply) can't lighten it. Invert the opaque pixels so the figure reads light with its
-## detail as dark lines — then the card's white/grey modulate works for selected vs unselected.
+## Load a mode's exported tile, recoloured to Qud's grey-teal card look. Qud's sw_*_mode sprites are
+## near-black figures on transparent that Qud renders LIGHT; modulate (multiply) can't lighten black.
+## Map each opaque pixel by its darkness — dark figure pixels → ICON_MAIN (light teal), bright
+## highlight pixels → ICON_DETAIL (dark teal) — so it reads like Qud's two-tone icon; the card's
+## modulate then dims it for the unselected state.
 func _mode_icon(tile: String) -> Texture2D:
 	if tile == "":
 		return null
@@ -427,7 +491,11 @@ func _mode_icon(tile: String) -> Texture2D:
 		for x in range(img.get_width()):
 			var p := img.get_pixel(x, y)
 			if p.a > 0.04:
-				img.set_pixel(x, y, Color(1.0 - p.r, 1.0 - p.g, 1.0 - p.b, p.a))
+				var cov: float = 1.0 - (p.r + p.g + p.b) / 3.0   # dark → 1 (main), light → 0 (detail)
+				var col := ICON_DETAIL.lerp(ICON_MAIN, cov)
+				img.set_pixel(x, y, Color(col.r, col.g, col.b, p.a))
+			else:
+				img.set_pixel(x, y, Color(0, 0, 0, 0))
 	return ImageTexture.create_from_image(img)
 
 func _text(txt: String, col: Color, role := "body") -> Label:
