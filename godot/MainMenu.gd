@@ -925,9 +925,26 @@ func _on_mode_chosen(mode_name: String) -> void:
 	geno.closed.connect(_close_overlay)
 	geno.chose.connect(_on_genotype_chosen)
 
-## Tutorial mode: ask the mod to boot Qud's guided tutorial (a pregen game), then watch it in the
-## Holodeck — same data-first hand-off as Continue/embark.
+## Tutorial mode: walk the guided pre-game menus (Choose Genotype, onboarding to Mutated Human, with
+## the Tutorial Guide popup) before booting. Reuses the shared card screen with the tutorial extras.
 func _start_tutorial() -> void:
+	var geno: Variant = load("res://GenotypeScreen.gd").new()
+	geno.crumbs = [
+		{"label": "Tutorial", "current": false},
+		{"label": "Choose Genotype", "current": true},
+		{"label": "Pregens", "current": false},
+	]
+	geno.onboard_index = 0   # steer to Mutated Human, the tutorial's genotype
+	geno.guide_body = "Welcome to the Caves of Qud tutorial. For the tutorial, we're picking mutated human."
+	_overlay = geno
+	add_child(geno)
+	geno.closed.connect(_close_overlay)
+	geno.chose.connect(_on_tutorial_genotype)
+
+## After the guided genotype pick, boot Qud's tutorial (the fixed Marsh Taur pregen) and watch it in
+## the Holodeck. (Qud's Pregens step slots in here later.)
+func _on_tutorial_genotype(_genotype_name: String) -> void:
+	_close_overlay()
 	if not _qud_up or _peer.get_status() != StreamPeerTCP.STATUS_CONNECTED:
 		push_warning("Raves: can't start tutorial — bridge not connected")
 		return

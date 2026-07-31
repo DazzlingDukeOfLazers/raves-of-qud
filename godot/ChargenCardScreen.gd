@@ -42,6 +42,13 @@ const QUD_COLORS := {
 
 var selected := ""
 
+## Guided-tutorial extras (opt-in; set before adding to the tree). onboard_index draws a bright
+## highlight box around that card to steer the player; guide_body (+ guide_title) shows a
+## "TUTORIAL GUIDE" popup. Left at defaults, a normal chargen screen shows neither.
+var onboard_index := -1
+var guide_title := "TUTORIAL GUIDE"
+var guide_body := ""
+
 var _items: Array = []
 var _sel := 0
 var _cards: Array = []
@@ -106,6 +113,10 @@ func _ready() -> void:
 	_build_center()
 	_apply_selection()
 	_resolve_icons()
+	if guide_body != "":
+		_build_guide()
+	if onboard_index >= 0:
+		_place_onboard_box()   # coroutine — awaits layout, then boxes the target card
 	_peer.connect_to_host(BridgeClient.host(), BridgeClient.port())
 
 func _process(dt: float) -> void:
@@ -388,6 +399,62 @@ func _build_card(m: Dictionary, idx: int, cw: int, ch: int) -> Control:
 	col.add_child(hk)
 	_cards.append({"cell": cell, "boxc": boxc, "border": border, "icon": icon, "name": nm, "hotkey": hk, "caret": caret})
 	return cell
+
+# ══ guided-tutorial extras ═════════════════════════════════════════════════════════
+
+## Draw a bright highlight box around the onboard target card, steering the player to it. Awaits a
+## couple of frames so the centred card row has its final layout, then reads the card's rect.
+func _place_onboard_box() -> void:
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if onboard_index < 0 or onboard_index >= _cards.size():
+		return
+	var boxc: Control = _cards[onboard_index]["boxc"]
+	var r := boxc.get_global_rect()
+	if r.size.x <= 0.0:
+		return
+	var pad := 9.0
+	var box := Panel.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0, 0, 0, 0)
+	sb.set_border_width_all(2)
+	sb.border_color = SEL_GOLD
+	sb.set_corner_radius_all(1)
+	box.add_theme_stylebox_override("panel", sb)
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.position = r.position - Vector2(pad, pad)
+	box.size = r.size + Vector2(pad * 2.0, pad * 2.0)
+	add_child(box)
+
+## The guided "TUTORIAL GUIDE" popup — a bordered panel (left of centre, like Qud) with a gold
+## header and the caller-supplied body text. Content comes from `guide_body`, set by the caller.
+func _build_guide() -> void:
+	var vp := get_viewport_rect().size
+	var panel := Panel.new()
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.04, 0.13, 0.13, 0.96)
+	sb.set_border_width_all(1)
+	sb.border_color = MUTED
+	sb.content_margin_left = 22; sb.content_margin_right = 22
+	sb.content_margin_top = 16; sb.content_margin_bottom = 16
+	panel.add_theme_stylebox_override("panel", sb)
+	panel.position = Vector2(vp.x * 0.185, vp.y * 0.19)
+	panel.size = Vector2(vp.x * 0.235, vp.y * 0.27)
+	var v := VBoxContainer.new()
+	v.set_anchors_preset(Control.PRESET_FULL_RECT)
+	v.add_theme_constant_override("separation", 12)
+	v.offset_left = 22; v.offset_right = -22; v.offset_top = 16; v.offset_bottom = -16
+	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var hdr := _text(guide_title, SEL_GOLD, "caption")
+	v.add_child(hdr)
+	var body := _rich("[color=#%s]%s[/color]" % [Color8(0x9C, 0xB0, 0xAC).to_html(false),
+		guide_body.replace("[", "[lb]")], "body")
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	v.add_child(body)
+	panel.add_child(v)
+	add_child(panel)
 
 # ══ selection ══════════════════════════════════════════════════════════════════════
 
