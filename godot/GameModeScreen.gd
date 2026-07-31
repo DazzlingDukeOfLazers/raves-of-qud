@@ -100,6 +100,7 @@ func _ready() -> void:
 	_build_side_nav()
 	_build_center()
 	_apply_selection()
+	_resolve_icons()   # colour any already-exported tiles immediately
 	_peer.connect_to_host(BridgeClient.host(), BridgeClient.port())   # trigger a fresh export for the icons
 
 func _process(dt: float) -> void:
@@ -138,17 +139,20 @@ func _resolve_icons() -> void:
 	var latest := _load()
 	var all_done := true
 	for i in range(mini(_cards.size(), latest.size())):
+		if _cards[i].has("colored"):
+			continue
 		var t := str(latest[i].get("tile", ""))
-		var card: Dictionary = _cards[i]
-		if card["icon"].texture == null:
-			if t == "":
-				all_done = false
-			else:
-				var tex := _mode_icon(t)
-				if tex != null:
-					card["icon"].texture = tex
-				else:
-					all_done = false
+		if t == "":
+			all_done = false
+			continue
+		var pal := _mode_palette(str(latest[i].get("name", "")))
+		var colored := _mode_icon(t, pal[0], pal[1])
+		if colored == null:
+			all_done = false
+			continue
+		_cards[i]["colored"] = colored
+		_cards[i]["neutral"] = _mode_icon(t, ICON_MAIN, ICON_DETAIL)
+	_apply_selection()   # push the newly-built textures onto the cards
 	if not _emblem_extracted:      # swap the real sheaf sprite in once the mod exports it
 		var e := _load_emblem()
 		if e != null:
@@ -346,8 +350,7 @@ func _build_card(m: Dictionary, idx: int, cw: int, ch: int) -> Control:
 	icon.set_anchors_preset(Control.PRESET_FULL_RECT)
 	icon.offset_left = 12; icon.offset_right = -12; icon.offset_top = 10; icon.offset_bottom = -10
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	icon.texture = _mode_icon(str(m.get("tile", "")))
-	boxc.add_child(icon)
+	boxc.add_child(icon)   # texture filled by _resolve_icons once the tile has been exported
 	col.add_child(boxc)
 
 	var name := _text(str(m.get("display", m.get("name", "?"))), NAME_DIM, "caption")
@@ -375,7 +378,9 @@ func _apply_selection() -> void:
 		var on: bool = (i == _sel)
 		var c: Dictionary = _cards[i]
 		c["border"].modulate = SEL_GOLD if on else DIM_BORDER
-		c["icon"].modulate = ICON_SEL if on else ICON_DIM
+		if c.has("colored"):   # selected → true colours; unselected → dim neutral grey-teal (like Qud)
+			c["icon"].texture = c["colored"] if on else c["neutral"]
+			c["icon"].modulate = ICON_SEL if on else ICON_DIM
 		c["name"].add_theme_color_override("font_color", NAME_SEL if on else NAME_DIM)
 		c["hotkey"].add_theme_color_override("font_color", SEL_GOLD if on else HOTKEY_DIM)
 		c["caret"].add_theme_color_override("font_color", SEL_GOLD if on else Color(0, 0, 0, 0))
@@ -496,12 +501,12 @@ func _nav_icon_texture(ih: int, color: Color) -> ImageTexture:
 	img.fill_rect(Rect2i(2 * mid, k + g, k, k), color)
 	return ImageTexture.create_from_image(img)
 
-## Load a mode's exported tile, recoloured to Qud's grey-teal card look. Qud's sw_*_mode sprites are
-## near-black figures on transparent that Qud renders LIGHT; modulate (multiply) can't lighten black.
-## Map each opaque pixel by its darkness — dark figure pixels → ICON_MAIN (light teal), bright
-## highlight pixels → ICON_DETAIL (dark teal) — so it reads like Qud's two-tone icon; the card's
-## modulate then dims it for the unselected state.
-func _mode_icon(tile: String) -> Texture2D:
+## Load a mode's exported tile and recolour it two-tone. Qud's sw_*_mode sprites are near-black
+## figures with a few bright accent pixels; Qud renders them with a foreground colour on the body
+## and a detail colour on the accents. Map by darkness: dark pixels → `main`, bright pixels → `detail`
+## (verified vs the reference — Daily glass→tan/face→yellow, Classic body→grey/detail→dark). Passing
+## the neutral grey-teal reproduces the UNSELECTED look; the per-mode palette the SELECTED colours.
+func _mode_icon(tile: String, main: Color, detail: Color) -> Texture2D:
 	if tile == "":
 		return null
 	var fname := tile.replace("/", "_").replace("\\", "_")
@@ -520,12 +525,23 @@ func _mode_icon(tile: String) -> Texture2D:
 		for x in range(img.get_width()):
 			var p := img.get_pixel(x, y)
 			if p.a > 0.04:
-				var cov: float = 1.0 - (p.r + p.g + p.b) / 3.0   # dark → 1 (main), light → 0 (detail)
-				var col := ICON_DETAIL.lerp(ICON_MAIN, cov)
+				var cov: float = 1.0 - (p.r + p.g + p.b) / 3.0   # dark → 1 (main body), light → 0 (detail)
+				var col := detail.lerp(main, cov)
 				img.set_pixel(x, y, Color(col.r, col.g, col.b, p.a))
 			else:
 				img.set_pixel(x, y, Color(0, 0, 0, 0))
 	return ImageTexture.create_from_image(img)
+
+## The SELECTED two-tone colours [main (dark pixels), detail (bright pixels)] per mode, matching Qud's
+## card art. Body → foreground, accents → detail. Names not listed fall back to the neutral grey-teal.
+func _mode_palette(name: String) -> Array:
+	match name:
+		"Tutorial": return [Color8(0x74, 0x88, 0x9A), Color8(0xC8, 0xB0, 0x3C)]  # blue-grey mortarboard, yellow tassel
+		"Classic":  return [Color8(0xA8, 0xC2, 0xBB), Color8(0x15, 0x49, 0x48)]  # grey figure, dark detail
+		"Roleplay": return [Color8(0x3A, 0x52, 0xB2), Color8(0x62, 0xC4, 0xCA)]  # cobalt figures, light-teal triangle
+		"Wander":   return [Color8(0x48, 0x8E, 0x3A), Color8(0x62, 0xC4, 0xCA)]  # green river/road, light-teal castle
+		"Daily":    return [Color8(0x8C, 0x7D, 0x50), Color8(0xC8, 0xB0, 0x3C)]  # tan clock glass, yellow face
+		_:          return [ICON_MAIN, ICON_DETAIL]
 
 func _text(txt: String, col: Color, role := "body") -> Label:
 	var l := Label.new()
