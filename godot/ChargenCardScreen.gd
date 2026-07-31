@@ -336,9 +336,8 @@ func _build_center() -> void:
 		row.add_child(_build_card(_items[i], i, card_w, card_h))
 
 	_desc = _rich("", "body")
-	_desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_desc.anchor_left = 0.0; _desc.anchor_right = 1.0
-	_desc.position.y = vp.y * 0.665
+	_desc.position = Vector2(vp.x * 0.393, vp.y * 0.665)   # left-justified, as in Qud (not centred)
+	_desc.custom_minimum_size.x = vp.x * 0.32
 	add_child(_desc)
 
 	var knob := _load_title_sprite("deco_knob.png")
@@ -448,25 +447,27 @@ func _build_guide() -> void:
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(bg)
 
-	var frame := _load_card_frame()   # dotted border, dim
-	if frame != null:
-		var np := NinePatchRect.new()
-		np.texture = frame
-		var m := int(round(frame.get_height() * 17.0 / 80.0))
-		np.patch_margin_left = m; np.patch_margin_right = m
-		np.patch_margin_top = m; np.patch_margin_bottom = m
-		np.draw_center = false
-		np.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		np.modulate = MUTED
-		np.set_anchors_preset(Control.PRESET_FULL_RECT)
-		np.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		panel.add_child(np)
+	# Qud's popup frame: a continuous dashed border (repeating dotted tile), dim.
+	var border := TextureRect.new()
+	border.texture = _dashed_border_tex(int(pw), int(ph), 3, 3, 2)
+	border.modulate = MUTED
+	border.set_anchors_preset(Control.PRESET_FULL_RECT)
+	border.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	border.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_child(border)
 
-	var sq := 6.0   # 4 bright-yellow corner squares
-	for corner in [Vector2(0, 0), Vector2(pw - sq, 0), Vector2(0, ph - sq), Vector2(pw - sq, ph - sq)]:
+	# 4 bright-yellow squares straddling the N / S / E / W edge midpoints (not the corners)
+	var sq := 7.0
+	var h := sq * 0.5
+	for mid in [
+		Vector2((pw - sq) * 0.5, -h + 1),        # N
+		Vector2((pw - sq) * 0.5, ph - h - 1),     # S
+		Vector2(-h + 1, (ph - sq) * 0.5),         # W
+		Vector2(pw - h - 1, (ph - sq) * 0.5),     # E
+	]:
 		var s := ColorRect.new()
 		s.color = BRIGHT_GOLD
-		s.position = corner
+		s.position = mid
 		s.size = Vector2(sq, sq)
 		s.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		panel.add_child(s)
@@ -484,6 +485,7 @@ func _build_guide() -> void:
 	panel.add_child(trow)
 
 	var body := _rich("", "caption")
+	body.add_theme_font_size_override("normal_font_size", int(vp.y * 0.0155))   # smaller — fits the box, as in Qud
 	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.position = Vector2(20, 52)
 	body.size = Vector2(pw - 40, ph - 66)
@@ -614,7 +616,7 @@ func _apply_selection() -> void:
 		var lines := PackedStringArray()
 		for line in str(_items[_sel].get("desc", "")).split("\n", false):
 			lines.append(QudText.to_bbcode(line, _palette))
-		_desc.text = "[center][color=#%s]%s[/color][/center]" % [MUTED.to_html(false), "\n".join(lines)]
+		_desc.text = "[color=#%s]%s[/color]" % [MUTED.to_html(false), "\n".join(lines)]
 	_position_sel_frame()
 
 func _randomize() -> void:
@@ -730,12 +732,9 @@ func _recolor_tile(tile: String, main: Color, detail: Color) -> Texture2D:
 
 # ══ procedural fallbacks (used until the extracted sprites land) ════════════════════
 
-func _dashed_border_tex(w: int, h: int) -> ImageTexture:
+func _dashed_border_tex(w: int, h: int, dash := 5, gap := 4, th := 2) -> ImageTexture:
 	var img := Image.create(maxi(2, w), maxi(2, h), false, Image.FORMAT_RGBA8)
 	img.fill(Color(0, 0, 0, 0))
-	var th := 2
-	var dash := 5
-	var gap := 4
 	var c := Color(1, 1, 1, 1)
 	var x := 0
 	while x < w:
