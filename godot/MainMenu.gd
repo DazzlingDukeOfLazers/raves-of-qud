@@ -45,6 +45,9 @@ const GOLD := Color8(0xC8, 0xA9, 0x4E)           # keycap accents in the hint
 const HEADER_H_FRAC := 0.185   # borderTop height / box height
 const SIDE_W_FRAC := 0.052     # borderSide width / box width
 const BOT_H_FRAC := 0.052      # borderBot height / box height
+## Qud's header (borderTop 350w) OVERHANGS the box body (339w) by ~1.6% each side — the gilded
+## header + hieroglyph row are wider than the box, an eave. Applied to the header edge below.
+const HEADER_OVERHANG := 0.016  # fraction of box width the header extends BEYOND each side (matches Qud)
 
 ## The box holds a FIXED aspect and scales with window HEIGHT (centered), like Qud's canvas
 ## scaler — so it reads the same shape at any window aspect instead of stretching. Width =
@@ -66,7 +69,7 @@ const LINK_ITEMS := ["Redeem Code", "Modding Toolkit", "Credits", "Help"]
 ## Fallback if the cache file is missing. Normalized [x,y,w,h] window fractions, MEASURED
 ## off the reference capture. Tunable at runtime via title_layout.json (no rebuild).
 const DEFAULT_LAYOUT := {
-	"logo": [0.22, 0.145, 0.56, 0.13],
+	"logo": [0.213, 0.119, 0.56, 0.134],
 	"menu": [0.408, 0.405, 0.184, 0.335],
 	"links": [0.033, 0.785, 0.22, 0.14],
 	"hint": [0.20, 0.953, 0.60, 0.028],
@@ -85,6 +88,9 @@ var _qud_up := false
 var _launching := false
 var _game_live := false        # a snapshot has arrived = a game is actually live (not just a socket open)
 var _continue_hint: Label      # "load a game in Qud" note, shown when Qud is up but no game is live
+var _quit_dialog: Control      # the "Are you sure you want to quit?" modal, or null
+var _quit_sel := 0             # 0 = Yes, 1 = No
+var _quit_opts: Array = []     # [{lbl, act}] for the dialog
 
 func _ready() -> void:
 	name = "MainMenu"
@@ -110,6 +116,7 @@ func _ready() -> void:
 	_build_links()        # the bottom-left secondary list
 	_build_hint()
 	_build_version()
+	_build_quit_button()   # Qud's upper-left "X" → quit confirmation
 
 	_peer.connect_to_host(BridgeClient.host(), BridgeClient.port())  # start detecting Qud
 	_refresh_enabled()
@@ -275,8 +282,9 @@ func _build_chrome_frame(box: Control) -> bool:
 	var bot := _chrome("borderBot.png")
 	if bot != null:   # bottom woven border
 		box.add_child(_edge(bot, TextureRect.STRETCH_SCALE, 0.0, 1.0 - BOT_H_FRAC, 1.0, 1.0))
-	# the gilded hieroglyph header last, on top (its ends carry the top corners)
-	box.add_child(_edge(top, TextureRect.STRETCH_SCALE, 0.0, 0.0, 1.0, HEADER_H_FRAC))
+	# the gilded hieroglyph header last, on top (its ends carry the top corners). It OVERHANGS the
+	# box body left+right (an eave), like Qud's wider borderTop.
+	box.add_child(_edge(top, TextureRect.STRETCH_SCALE, -HEADER_OVERHANG, 0.0, 1.0 + HEADER_OVERHANG, HEADER_H_FRAC))
 	return true
 
 ## A TextureRect anchored to a fractional sub-rect of its parent (the box), mouse-transparent.
@@ -284,6 +292,11 @@ func _edge(tex: Texture2D, mode: int, al: float, at: float, ar: float, ab: float
 	var r := TextureRect.new()
 	r.texture = tex
 	r.stretch_mode = mode
+	# CRITICAL: without this a TextureRect sizes itself to the TEXTURE's native size and ignores
+	# its anchors — the tall borderSide (23x431) then hung 100+px BELOW the box as "legs", the dark
+	# panel tile fell short, and the header rendered at native width. IGNORE_SIZE makes it fill the
+	# anchored sub-rect (so stretch_mode actually applies).
+	r.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	r.anchor_left = al
 	r.anchor_top = at
@@ -498,9 +511,134 @@ func _build_version_qud() -> void:
 	add_child(l)
 	_place(l, "version")
 
+# ── quit button + confirmation ─────────────────────────────────────────────────────
+
+## Qud's upper-left "X" — its Cancel sprite at ~50% alpha (brightens on hover); click (or Esc)
+## opens the "Are you sure you want to quit?" confirmation. Positioned in the top-left corner.
+func _build_quit_button() -> void:
+	var hit := Control.new()
+	hit.name = "QuitX"
+	hit.mouse_filter = Control.MOUSE_FILTER_STOP
+	hit.position = Vector2(22, 22)
+	hit.custom_minimum_size = Vector2(56, 56)
+	hit.size = Vector2(56, 56)
+	var icon := TextureRect.new()
+	icon.set_anchors_preset(Control.PRESET_FULL_RECT)
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	icon.modulate = Color(1, 1, 1, 0.5)   # Qud draws it at 50% alpha
+	var tex := _chrome("Cancel.png")
+	if tex != null:
+		icon.texture = tex
+	else:
+		var l := _label("✕", SEL, "title")   # fallback glyph if the sprite isn't extracted
+		l.set_anchors_preset(Control.PRESET_FULL_RECT)
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		hit.add_child(l)
+	hit.add_child(icon)
+	hit.mouse_entered.connect(func(): icon.modulate = Color(1, 1, 1, 1.0))
+	hit.mouse_exited.connect(func(): icon.modulate = Color(1, 1, 1, 0.5))
+	hit.gui_input.connect(func(e: InputEvent):
+		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+			_confirm_quit())
+	add_child(hit)
+
+func _confirm_quit() -> void:
+	if _quit_dialog != null:
+		return
+	_quit_sel = 0
+	_quit_opts = []
+	var layer := Control.new()
+	layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	layer.mouse_filter = Control.MOUSE_FILTER_STOP
+	var dim := ColorRect.new()   # darken the menu behind the modal
+	dim.color = Color(0, 0, 0, 0.55)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	layer.add_child(dim)
+	# centred gold-bordered panel with the question + Yes / No
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", _dialog_style())
+	var v := VBoxContainer.new()
+	v.alignment = BoxContainer.ALIGNMENT_CENTER
+	v.add_theme_constant_override("separation", 14)
+	var q := _label("Are you sure you want to quit?", SEL, "title")
+	q.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(q)
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 40)
+	for cfg in [{"lbl": "Yes", "act": "yes"}, {"lbl": "No", "act": "no"}]:
+		var opt := _label(cfg["lbl"], MUTED, "big")
+		var idx := _quit_opts.size()
+		opt.mouse_filter = Control.MOUSE_FILTER_STOP
+		opt.mouse_entered.connect(func(): _quit_select(idx))
+		opt.gui_input.connect(func(e: InputEvent):
+			if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+				_quit_select(idx); _quit_activate())
+		row.add_child(opt)
+		_quit_opts.append({"lbl": opt, "act": cfg["act"]})
+	v.add_child(row)
+	panel.add_child(v)
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.pivot_offset = Vector2.ZERO
+	layer.add_child(panel)
+	# centre the panel (deferred so its min size is known)
+	panel.call_deferred("set_anchors_preset", Control.PRESET_CENTER)
+	_quit_dialog = layer
+	add_child(layer)
+	_apply_quit_sel()
+
+func _dialog_style() -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = PANEL
+	sb.set_border_width_all(3)
+	sb.border_color = FRAME
+	sb.set_corner_radius_all(1)
+	sb.content_margin_left = 40
+	sb.content_margin_right = 40
+	sb.content_margin_top = 28
+	sb.content_margin_bottom = 28
+	return sb
+
+func _quit_select(i: int) -> void:
+	if _quit_opts.is_empty():
+		return
+	_quit_sel = clampi(i, 0, _quit_opts.size() - 1)
+	_apply_quit_sel()
+
+func _apply_quit_sel() -> void:
+	for i in range(_quit_opts.size()):
+		var lbl: Label = _quit_opts[i]["lbl"]
+		lbl.add_theme_color_override("font_color", SEL if i == _quit_sel else MUTED)
+
+func _quit_activate() -> void:
+	if _quit_sel < _quit_opts.size() and _quit_opts[_quit_sel]["act"] == "yes":
+		get_tree().quit()
+	else:
+		_close_quit()
+
+func _close_quit() -> void:
+	if _quit_dialog != null:
+		_quit_dialog.queue_free()
+		_quit_dialog = null
+		_quit_opts = []
+
 # ── input ─────────────────────────────────────────────────────────────────────────
 
 func _unhandled_input(e: InputEvent) -> void:
+	if _quit_dialog != null:
+		if e.is_action_pressed("ui_left") or e.is_action_pressed("ui_up"):
+			_quit_select(0); accept_event()
+		elif e.is_action_pressed("ui_right") or e.is_action_pressed("ui_down"):
+			_quit_select(1); accept_event()
+		elif e.is_action_pressed("ui_accept"):
+			_quit_activate(); accept_event()
+		elif e.is_action_pressed("ui_cancel"):
+			_close_quit(); accept_event()   # Esc in the dialog = No
+		return
 	if _overlay != null:
 		return   # a sub-screen (Mods, …) owns input while it's open
 	if e.is_action_pressed("ui_down"):
@@ -510,7 +648,7 @@ func _unhandled_input(e: InputEvent) -> void:
 	elif e.is_action_pressed("ui_accept"):
 		_activate(_sel); accept_event()
 	elif e.is_action_pressed("ui_cancel"):
-		get_tree().quit(); accept_event()
+		_confirm_quit(); accept_event()   # Esc → confirm, like Qud (was an immediate quit)
 
 func _activate(idx: int) -> void:
 	if idx < 0 or idx >= _rows.size():
