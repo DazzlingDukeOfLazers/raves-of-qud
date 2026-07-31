@@ -267,14 +267,19 @@ func _build_menu() -> void:
 	if not _build_chrome_frame(box):
 		_build_approx_frame(box)   # no extracted sprites yet — styled fallback
 
-	# the options, inset within the frame (below the header, between the side borders)
+	# The options, inset within the frame (below the header, between the side borders), CENTER-
+	# aligned so the block sits at the rect's vertical midpoint. Pitch is tuned to Qud: measured off
+	# a 1920x1080 capture, Qud's rows sit ~46px apart (Raves was ~50px with separation 6 — a block
+	# ~20px too tall). separation 2 -> ~46px pitch. The rect midpoint is biased ~0.006 above the box
+	# centre-of-body so the block lands on Qud's block-centre (~0.566 of the box), not the geometric
+	# middle (the header eats the top, so Qud centres the items a touch low).
 	var opts := VBoxContainer.new()
 	opts.alignment = BoxContainer.ALIGNMENT_CENTER
-	opts.add_theme_constant_override("separation", 6)
+	opts.add_theme_constant_override("separation", 2)
 	opts.anchor_left = 0.09
 	opts.anchor_right = 0.91
-	opts.anchor_top = HEADER_H_FRAC + 0.04
-	opts.anchor_bottom = 1.0 - (BOT_H_FRAC + 0.03)
+	opts.anchor_top = HEADER_H_FRAC + 0.0345
+	opts.anchor_bottom = 1.0 - (BOT_H_FRAC + 0.0355)
 	for k in ["left", "top", "right", "bottom"]:
 		opts.set("offset_" + k, 0.0)
 	for cfg in BOX_ITEMS:
