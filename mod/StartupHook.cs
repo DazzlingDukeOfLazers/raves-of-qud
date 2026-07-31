@@ -32,11 +32,45 @@ namespace RavesOfQud
                 // happens in-game (driven by BridgePart); this just moves command RECEPTION early.
                 _ = Bridge.Server;
                 System.Console.WriteLine("[raves] pre-game bridge listener up.");
+                StartHeartbeat();
             }
             catch (Exception e)
             {
                 System.Console.WriteLine("[raves] pre-game bridge start failed: " + e);
             }
+        }
+
+        private static System.Threading.Thread _heartbeat;
+
+        /// Background heartbeat: write bridge_status.txt ("live" while a game is running, else "menu")
+        /// once a second, regardless of focus / idle / turn state. Raves' menu polls the file's
+        /// freshness + content to detect "Qud up" and "game live" ROBUSTLY — the lightweight menu
+        /// probe can't reliably drain the full zone-snapshot stream just to sense that a game exists.
+        private static void StartHeartbeat()
+        {
+            if (_heartbeat != null) return;
+            _heartbeat = new System.Threading.Thread(() =>
+            {
+                string dir = System.IO.Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                    "Library", "Application Support", "RavesOfQud");
+                string path = System.IO.Path.Combine(dir, "bridge_status.txt");
+                while (true)
+                {
+                    try
+                    {
+                        System.IO.Directory.CreateDirectory(dir);
+                        bool live = false;
+                        try { live = The.Game != null && The.Game.Running && The.Player != null; }
+                        catch { /* game state mid-transition — treat as not-live this tick */ }
+                        System.IO.File.WriteAllText(path, live ? "live" : "menu");
+                    }
+                    catch { /* transient IO — retry next tick */ }
+                    System.Threading.Thread.Sleep(1000);
+                }
+            })
+            { IsBackground = true, Name = "RavesHeartbeat" };
+            _heartbeat.Start();
         }
     }
 }

@@ -97,6 +97,15 @@ var _retry := 0.0
 var _qud_up := false
 var _launching := false
 var _game_live := false        # a snapshot has arrived = a game is actually live (not just a socket open)
+
+## Dev convenience: when Qud is up but no game is live, auto-boot a background "Meta" pseudo-game
+## (mod `metagame` → Marsh Taur pregen, Classic) so Continue lights up and the viewer has a real zone
+## without hand-running chargen. The mod broadcasts snapshots to this open probe once it boots, which
+## flips `_game_live`. Set AUTO_META = false to stop Raves spinning up a character in your Qud.
+const AUTO_META := true
+var _meta_sent := false
+var _meta_wait := 0.0
+var _status_poll_t := 0.0
 var _continue_hint: Label      # "load a game in Qud" note, shown when Qud is up but no game is live
 var _bg_rect: TextureRect      # the title background (nudgeable live via title_bg.json)
 var _bg_nudge := {"dx": 0.0, "dy": 0.0, "scale": 1.0}   # live pan/zoom over the base cover
@@ -240,6 +249,26 @@ func _load_bg_nudge(force := false) -> void:
 	if d is Dictionary:
 		_bg_nudge = d
 	_apply_bg_nudge()
+
+## Poll the mod's heartbeat file (StartupHook.StartHeartbeat writes it ~1/s) for the live state.
+## Fresh file ⇒ Qud is up; content "live" ⇒ a game is actually running. Robust vs. the socket probe.
+func _poll_bridge_status() -> void:
+	var path := InputModel.support_dir().path_join("bridge_status.txt")
+	if not FileAccess.file_exists(path):
+		_set_qud_up(false)
+		_set_game_live(false)
+		return
+	var age := Time.get_unix_time_from_system() - float(FileAccess.get_modified_time(path))
+	if age > 3.0:   # stale heartbeat → Qud (the mod) isn't running
+		_set_qud_up(false)
+		_set_game_live(false)
+		return
+	_set_qud_up(true)
+	var live := false
+	var f := FileAccess.open(path, FileAccess.READ)
+	if f != null:
+		live = f.get_as_text().strip_edges() == "live"
+	_set_game_live(live)
 
 func _build_logo() -> void:
 	var tex := _load_title_png("logo.png")
@@ -1053,29 +1082,37 @@ func _process(dt: float) -> void:
 	if _bg_poll_t >= 0.3:
 		_bg_poll_t = 0.0
 		_load_bg_nudge()
+	# Detect "Qud up" / "game live" from the mod's heartbeat file — robust, unlike sensing bytes on
+	# the socket (the menu probe can't reliably drain the full snapshot stream just to detect a game).
+	_status_poll_t += dt
+	if _status_poll_t >= 0.4:
+		_status_poll_t = 0.0
+		_poll_bridge_status()
+
+	# Keep the command socket alive (used only to SEND — e.g. the auto-boot command). Drain and discard
+	# anything the mod broadcasts to us so its per-client writer never stalls.
 	_peer.poll()
 	match _peer.get_status():
 		StreamPeerTCP.STATUS_CONNECTED:
-			_set_qud_up(true)
-			# DRAIN + detect. The mod force-publishes a snapshot the instant we connect, but ONLY if
-			# a game is actually live — so ANY bytes here mean "a game is running" (the mod sends
-			# nothing else to a client). That's how we tell a live game apart from a bare socket open
-			# at Qud's own main menu. We discard the bytes (detection only) but must read them, else
-			# our receive buffer fills and the mod's writer to us stalls.
 			var avail := _peer.get_available_bytes()
 			if avail > 0:
 				_peer.get_data(avail)
-				_set_game_live(true)
 		StreamPeerTCP.STATUS_ERROR, StreamPeerTCP.STATUS_NONE:
-			_set_qud_up(false)
-			_set_game_live(false)   # socket dropped → re-detect on the next connect (mod republishes)
 			_retry += dt
-			if _retry >= 1.0:   # retry ~1/s until Qud is up
+			if _retry >= 1.0:
 				_retry = 0.0
 				_peer = StreamPeerTCP.new()
 				_peer.connect_to_host(BridgeClient.host(), BridgeClient.port())
 		_:
 			pass  # STATUS_CONNECTING
+
+	# Auto-boot the background "Meta" pseudo-game so Continue is usable without hand-running chargen.
+	if AUTO_META and _qud_up and not _game_live and _peer.get_status() == StreamPeerTCP.STATUS_CONNECTED:
+		_meta_wait += dt
+		if not _meta_sent or _meta_wait >= 150.0:   # re-send after 150s covers a first send that landed
+			_send_command({"type": "command", "name": "metagame"})   # before Qud had reached its menu
+			_meta_sent = true
+			_meta_wait = 0.0
 
 func _set_qud_up(up: bool) -> void:
 	if up == _qud_up:
@@ -1083,6 +1120,9 @@ func _set_qud_up(up: bool) -> void:
 	_qud_up = up
 	if up:
 		_launching = false
+	else:
+		_meta_sent = false   # Qud dropped — re-arm auto-boot for the next session
+		_meta_wait = 0.0
 	_refresh_enabled()
 
 func _set_game_live(live: bool) -> void:

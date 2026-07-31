@@ -521,6 +521,13 @@ namespace RavesOfQud
                         }, 0);
                     return;
                 }
+                if (name == "metagame")
+                {
+                    // Boot a background "Meta" pseudo-game (Marsh Taur pregen, Classic) so Raves has a
+                    // live game — lights up Continue + gives the viewer a real zone without manual chargen.
+                    EmbarkDriver.RequestMeta();
+                    return;
+                }
                 if (name == "tutorial")
                 {
                     // BEGIN the guided tutorial: start its chargen so Qud is at the genotype window and

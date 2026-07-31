@@ -39,7 +39,8 @@ namespace RavesOfQud
             public string Genotype;                    // e.g. "Mutated Human", "True Kin"
             public string Subtype;                     // caste/calling id, e.g. "Apostle"
             public string Gamemode = "Classic";        // Classic | Roleplay | Wander | Tutorial
-            public string Chartype = "New";            // "New" = fully custom character
+            public string Chartype = "New";            // "New" = custom; "Pregen" = a prebuilt character
+            public string Pregen;                      // if set: boot this pregen (skips genotype/subtype build)
             public string StartingLocation = "Joppa";  // QudChooseStartingLocationModule id
             public bool TutorialBoot = false;          // Tutorial: commit+boot in one shot (fallback path)
         }
@@ -59,6 +60,22 @@ namespace RavesOfQud
         public static void RequestTutorial()
         {
             RequestEmbark(new PendingBuildSpec { Gamemode = "Tutorial" });
+        }
+
+        /// <summary>Boot a background "Meta" pseudo-game so Raves has a LIVE game to Continue into /
+        /// render without hand-running chargen. Uses the same known-good pregen build the tutorial
+        /// commits (Marsh Taur mutated-human), but as a plain Classic game.</summary>
+        public static void RequestMeta()
+        {
+            RequestEmbark(new PendingBuildSpec
+            {
+                Gamemode = "Classic",
+                Chartype = "Pregen",
+                Genotype = "Mutated Human",
+                Pregen = "Marsh Taur",
+                Subtype = "Apostle",              // supplies random-name data at boot (pregen builds the body)
+                StartingLocation = "JoppaTutorial",
+            });
         }
 
         public static void RequestEmbark(PendingBuildSpec spec)
@@ -124,6 +141,24 @@ namespace RavesOfQud
                         System.Console.WriteLine("[raves] tutorial: begin (SelectMode) — capturing tip, awaiting commit");
                         CaptureTutorialTipSoon(0);   // read the live tip; boot on the later commit
                     }
+                    return;
+                }
+
+                if (!string.IsNullOrEmpty(spec.Pregen))
+                {
+                    // Prebuilt-character boot (the "Meta" pseudo-game). Replicate what SelectMode does
+                    // for a pregen game — Gamemode + Chartype="Pregen" — then fill the same fixed pregen
+                    // build the tutorial commits, and boot. Popups suppressed exactly like a normal embark.
+                    XRL.UI.Popup.Suppress = true;
+                    StartSuppressWindow();
+                    SetData<QudGamemodeModule>(eb, new QudGamemodeModuleData { Mode = spec.Gamemode });
+                    SetData<QudChartypeModule>(eb, new QudChartypeModuleData(spec.Chartype));
+                    SetData<QudGenotypeModule>(eb, new QudGenotypeModuleData(spec.Genotype));
+                    SetData<QudPregenModule>(eb, new QudPregenModuleData(spec.Pregen));
+                    SetData<QudChooseStartingLocationModule>(eb, new QudChooseStartingLocationModuleData(spec.StartingLocation));
+                    SetData<QudSubtypeModule>(eb, new QudSubtypeModuleData(spec.Subtype));
+                    System.Console.WriteLine("[raves] meta: pregen boot (" + spec.Pregen + ", " + spec.Gamemode + ") -> exitWithInfo");
+                    eb.exitWithInfo();
                     return;
                 }
 
