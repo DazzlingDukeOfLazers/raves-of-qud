@@ -43,6 +43,8 @@ const GOLD := Color8(0xC8, 0xA9, 0x4E)           # keycap accents in the hint
 const Q_DLG_FILL := Color(0.024, 0.145, 0.145, 1.0)   # ~ rgb(6,37,37), opaque (fully hides the menu under it)
 const Q_DLG_BORDER := Color8(0x46, 0x64, 0x60)        # thin muted-teal frame line
 const Q_DLG_TEXT := Color8(0x6E, 0x8A, 0x86)          # question text ~ rgb(110,138,134)
+const Q_DLG_LINE := Color8(0x40, 0x6A, 0x73)          # button-row rule + framing ticks ~ rgb(64,106,115)
+const Q_DLG_CELL := Color8(0x11, 0x2D, 0x2E)          # faint Yes/No cell fill ~ rgb(17,45,46)
 
 ## The box is built from Qud's OWN extracted frame sprites (title/chrome/, via the mod)
 ## composed as Qud composes them (Frame/Border): a tiled dark panel, gold woven side +
@@ -713,41 +715,77 @@ func _confirm_quit_1to1() -> void:
 	q.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	q.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	v.add_child(q)
-	var div := ColorRect.new()   # thin muted divider between the question and the buttons
-	div.color = Q_DLG_BORDER
-	div.custom_minimum_size = Vector2(0, 1)
-	div.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	div.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	v.add_child(div)
+	# Button row (Qud's style): a horizontal rule that STOPS at vertical ticks framing the Yes/No
+	# group, each option sitting in a faint cell. Expanding rule segments on both sides auto-centre
+	# the group; the caret keeps its slot in BOTH cells (transparent when unselected) so nothing
+	# shifts as the selection moves.
+	var lt: int = maxi(1, int(round(br.size.y * 0.004)))    # rule / tick thickness
+	var tick_h: int = maxi(6, int(round(br.size.y * 0.04)))  # framing-tick height
 	var row := HBoxContainer.new()
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", 26)
+	row.add_theme_constant_override("separation", 0)
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	for cfg in [{"lbl": "Yes", "act": "yes"}, {"lbl": "No", "act": "no"}]:
-		var cell := HBoxContainer.new()   # [gold caret] + [label]; caret shown only when selected
-		cell.add_theme_constant_override("separation", 4)
+	row.add_child(_dlg_rule(lt))            # left rule (expands)
+	row.add_child(_dlg_tick(lt, tick_h))    # left framing tick
+	var cfgs := [{"lbl": "Yes", "act": "yes"}, {"lbl": "No", "act": "no"}]
+	for i in range(cfgs.size()):
+		if i > 0:
+			var gap := Control.new()   # small gap between the Yes and No cells
+			gap.custom_minimum_size = Vector2(6, 0)
+			gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			row.add_child(gap)
+		var cell := PanelContainer.new()   # faint cell holding [gold caret] + [label]
+		var csb := StyleBoxFlat.new()
+		csb.bg_color = Q_DLG_CELL
+		csb.content_margin_left = 8; csb.content_margin_right = 8
+		csb.content_margin_top = 2; csb.content_margin_bottom = 2
+		cell.add_theme_stylebox_override("panel", csb)
+		cell.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		cell.mouse_filter = Control.MOUSE_FILTER_STOP
-		var caret := _label(">", GOLD, "caption")
+		var inner := HBoxContainer.new()
+		inner.add_theme_constant_override("separation", 4)
+		inner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var caret := _label(">", GOLD, "caption")   # holds its slot always; coloured in _apply_quit_sel
 		caret.add_theme_font_size_override("font_size", fs)
-		caret.visible = false
 		caret.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var opt := _label(cfg["lbl"], MUTED, "caption")
+		var opt := _label(cfgs[i]["lbl"], MUTED, "caption")
 		opt.add_theme_font_size_override("font_size", fs)
 		opt.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		cell.add_child(caret)
-		cell.add_child(opt)
+		inner.add_child(caret); inner.add_child(opt)
+		cell.add_child(inner)
 		var idx := _quit_opts.size()
 		cell.mouse_entered.connect(func(): _quit_select(idx))
 		cell.gui_input.connect(func(e: InputEvent):
 			if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
 				_quit_select(idx); _quit_activate())
 		row.add_child(cell)
-		_quit_opts.append({"lbl": opt, "caret": caret, "act": cfg["act"]})
+		_quit_opts.append({"lbl": opt, "caret": caret, "act": cfgs[i]["act"]})
+	row.add_child(_dlg_tick(lt, tick_h))    # right framing tick
+	row.add_child(_dlg_rule(lt))            # right rule (expands)
 	v.add_child(row)
 	panel.add_child(v)
 	_quit_dialog = layer
 	add_child(layer)
 	_apply_quit_sel()
+
+## A horizontal rule segment for the quit dialog's button row (expands to fill its side).
+func _dlg_rule(thick: int) -> ColorRect:
+	var r := ColorRect.new()
+	r.color = Q_DLG_LINE
+	r.custom_minimum_size = Vector2(0, thick)
+	r.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	r.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return r
+
+## A short vertical framing tick that bookends the Yes/No group (the rule stops at these).
+func _dlg_tick(thick: int, h: int) -> ColorRect:
+	var t := ColorRect.new()
+	t.color = Q_DLG_LINE
+	t.custom_minimum_size = Vector2(thick, h)
+	t.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	t.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return t
 
 func _dialog_style() -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
@@ -772,8 +810,8 @@ func _apply_quit_sel() -> void:
 		var on: bool = (i == _quit_sel)
 		var lbl: Label = _quit_opts[i]["lbl"]
 		lbl.add_theme_color_override("font_color", SEL if on else MUTED)
-		if _quit_opts[i].has("caret"):   # 1:1: the gold caret marks the selected option
-			_quit_opts[i]["caret"].visible = on
+		if _quit_opts[i].has("caret"):   # 1:1: gold caret on the selection; transparent (keeps slot) otherwise
+			_quit_opts[i]["caret"].add_theme_color_override("font_color", GOLD if on else Color(0, 0, 0, 0))
 
 func _quit_activate() -> void:
 	if _quit_sel < _quit_opts.size() and _quit_opts[_quit_sel]["act"] == "yes":
