@@ -895,14 +895,27 @@ func _close_overlay() -> void:
 # The interactive character creator as a chain of stage screens: Genotype → Subtype → …
 # Each screen emits `chose(x)`; we record the pick and open the next stage. Embark (driving
 # Qud's builder) comes once the stages are in. State lives here for now.
+var _cg_mode := ""
 var _cg_genotype := ""
 var _cg_subtype := ""
 
+## Qud's chargen opens on the GAME MODE step (Tutorial/Classic/Roleplay/Wander/Daily) before
+## genotype; mirror that order — mode → genotype → subtype → embark.
 func _open_chargen() -> void:
 	if _overlay != null:
 		return
+	_cg_mode = ""
 	_cg_genotype = ""
 	_cg_subtype = ""
+	var mode: Variant = load("res://GameModeScreen.gd").new()
+	_overlay = mode
+	add_child(mode)
+	mode.closed.connect(_close_overlay)
+	mode.chose.connect(_on_mode_chosen)
+
+func _on_mode_chosen(mode_name: String) -> void:
+	_cg_mode = mode_name
+	_close_overlay()
 	var geno: Variant = load("res://GenotypeScreen.gd").new()
 	_overlay = geno
 	add_child(geno)
@@ -941,6 +954,8 @@ func _embark() -> void:
 
 func _send_embark(genotype: String, subtype: String) -> void:
 	var msg := {"type": "command", "name": "embark", "genotype": genotype, "subtype": subtype}
+	if _cg_mode != "":
+		msg["mode"] = _cg_mode   # game mode (Classic/Roleplay/…); the driver may ignore it for now
 	var payload := JSON.stringify(msg).to_utf8_buffer()
 	var n := payload.size()
 	var frame := PackedByteArray()
