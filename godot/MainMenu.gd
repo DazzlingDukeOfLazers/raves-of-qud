@@ -88,6 +88,10 @@ var _qud_up := false
 var _launching := false
 var _game_live := false        # a snapshot has arrived = a game is actually live (not just a socket open)
 var _continue_hint: Label      # "load a game in Qud" note, shown when Qud is up but no game is live
+var _bg_rect: TextureRect      # the title background (nudgeable live via title_bg.json)
+var _bg_nudge := {"dx": 0.0, "dy": 0.0, "scale": 1.0}   # live pan/zoom over the base cover
+var _bg_nudge_mtime := -1.0
+var _bg_poll_t := 0.0
 var _quit_dialog: Control      # the "Are you sure you want to quit?" modal, or null
 var _quit_sel := 0             # 0 = Yes, 1 = No
 var _quit_opts: Array = []     # [{lbl, act}] for the dialog
@@ -125,6 +129,7 @@ func _on_resize() -> void:
 	UiFont.refresh_theme(theme, get_viewport())
 	if _box != null:
 		_place_box(_box)   # keep the box's aspect across any window shape
+	_apply_bg_nudge()      # the pan/zoom is window-relative, so re-apply on resize
 
 # ── layout cache ──────────────────────────────────────────────────────────────
 
@@ -171,6 +176,50 @@ func _build_background() -> void:
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(rect)
 	move_child(rect, 0)   # first child = behind everything
+	_bg_rect = rect
+	_load_bg_nudge(true)   # apply any saved pan/zoom (from the cockpit nudge tool)
+
+# ── background nudge (live pan/zoom, tuned from the highvisor cockpit) ─────────────
+# The base cover fills the window; `scale` zooms IN from there (>=1, so it stays covered)
+# and dx/dy pan. Values live in title_bg.json in the support dir — the cockpit's nudge tool
+# writes it and MainMenu polls it, so tweaks apply with NO rebuild. Once dialed in, bake the
+# final numbers into the `_bg_nudge` default above so they persist without the runtime file.
+func _bg_nudge_path() -> String:
+	return InputModel.support_dir().path_join("title_bg.json")
+
+func _apply_bg_nudge() -> void:
+	if _bg_rect == null:
+		return
+	var vp := get_viewport().get_visible_rect().size
+	var sc: float = maxf(1.0, float(_bg_nudge.get("scale", 1.0)))   # >=1 keeps it covering the window
+	var ew: float = vp.x * (sc - 1.0)
+	var eh: float = vp.y * (sc - 1.0)
+	var dx: float = float(_bg_nudge.get("dx", 0.0))
+	var dy: float = float(_bg_nudge.get("dy", 0.0))
+	_bg_rect.anchor_left = 0.0; _bg_rect.anchor_top = 0.0
+	_bg_rect.anchor_right = 1.0; _bg_rect.anchor_bottom = 1.0
+	_bg_rect.offset_left = -ew * 0.5 + dx
+	_bg_rect.offset_right = ew * 0.5 + dx
+	_bg_rect.offset_top = -eh * 0.5 + dy
+	_bg_rect.offset_bottom = eh * 0.5 + dy
+
+func _load_bg_nudge(force := false) -> void:
+	var p := _bg_nudge_path()
+	if not FileAccess.file_exists(p):
+		if force:
+			_apply_bg_nudge()   # seed dir empty → identity cover
+		return
+	var m := float(FileAccess.get_modified_time(p))
+	if not force and m == _bg_nudge_mtime:
+		return
+	_bg_nudge_mtime = m
+	var f := FileAccess.open(p, FileAccess.READ)
+	if f == null:
+		return
+	var d: Variant = JSON.parse_string(f.get_as_text())
+	if d is Dictionary:
+		_bg_nudge = d
+	_apply_bg_nudge()
 
 func _build_logo() -> void:
 	var tex := _load_title_png("logo.png")
@@ -788,6 +837,11 @@ func _enter_viewer() -> void:
 # ── detect Qud (mod bridge) — drives Continue's enabled state ─────────────────────
 
 func _process(dt: float) -> void:
+	# poll the live bg-nudge file (~3x/sec) so the cockpit tool's tweaks apply without a rebuild
+	_bg_poll_t += dt
+	if _bg_poll_t >= 0.3:
+		_bg_poll_t = 0.0
+		_load_bg_nudge()
 	_peer.poll()
 	match _peer.get_status():
 		StreamPeerTCP.STATUS_CONNECTED:
