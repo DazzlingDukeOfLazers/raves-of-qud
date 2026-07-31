@@ -18,6 +18,7 @@ const CC_GOLD := Color8(0xAC, 0xA3, 0x36)     # "character creation"
 const SUB_TEAL := Color8(0x29, 0x73, 0x82)    # ":choose …:"
 const MUTED := Color8(0x61, 0x7C, 0x78)       # breadcrumb / description / hint
 const SEL_GOLD := Color8(0xC8, 0xB8, 0x39)    # selected card border + hotkey + caret
+const BRIGHT_GOLD := Color8(0xE8, 0xD0, 0x1C) # onboarding highlight + guide corner squares (bright yellow)
 const DIM_BORDER := Color8(0x2C, 0x47, 0x47)  # unselected card border
 const NAME_SEL := Color8(0xC5, 0xCE, 0xC6)    # selected name
 const NAME_DIM := Color8(0x4E, 0x64, 0x60)    # unselected name
@@ -415,48 +416,102 @@ func _place_onboard_box() -> void:
 	var r := boxc.get_global_rect()
 	if r.size.x <= 0.0:
 		return
-	var pad := 9.0
-	var box := Panel.new()
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0, 0, 0, 0)
-	sb.set_border_width_all(2)
-	sb.border_color = SEL_GOLD
-	sb.set_corner_radius_all(1)
-	box.add_theme_stylebox_override("panel", sb)
+	var pad := 4.0
+	var box: Control
+	var frame := _load_card_frame()   # same dotted tiny-frame-h as the cards, but bright yellow
+	if frame != null:
+		var np := NinePatchRect.new()
+		np.texture = frame
+		var m := int(round(frame.get_height() * 17.0 / 80.0))
+		np.patch_margin_left = m; np.patch_margin_right = m
+		np.patch_margin_top = m; np.patch_margin_bottom = m
+		np.draw_center = false
+		np.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		np.modulate = BRIGHT_GOLD
+		box = np
+	else:
+		var p := Panel.new()
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = Color(0, 0, 0, 0)
+		sb.set_border_width_all(2)
+		sb.border_color = BRIGHT_GOLD
+		p.add_theme_stylebox_override("panel", sb)
+		box = p
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.position = r.position - Vector2(pad, pad)
 	box.size = r.size + Vector2(pad * 2.0, pad * 2.0)
 	add_child(box)
 
-## The guided "TUTORIAL GUIDE" popup — a bordered panel (left of centre, like Qud) with a gold
-## header and the caller-supplied body text. Content comes from `guide_body`, set by the caller.
+## The guided "TUTORIAL GUIDE" popup, in Qud's frame style: a dark panel with the dotted frame border
+## (same tiny-frame-h as the cards, dim), a BRIGHT-YELLOW square at each of the 4 corners, and a title
+## rule — "TUTORIAL GUIDE" (gold) centred in a muted horizontal line — then the body text.
 func _build_guide() -> void:
 	var vp := get_viewport_rect().size
-	var panel := Panel.new()
+	var pw := vp.x * 0.245
+	var ph := vp.y * 0.30
+	var panel := Control.new()
+	panel.position = Vector2(vp.x * 0.182, vp.y * 0.185)
+	panel.size = Vector2(pw, ph)
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.04, 0.13, 0.13, 0.96)
-	sb.set_border_width_all(1)
-	sb.border_color = MUTED
-	sb.content_margin_left = 22; sb.content_margin_right = 22
-	sb.content_margin_top = 16; sb.content_margin_bottom = 16
-	panel.add_theme_stylebox_override("panel", sb)
-	panel.position = Vector2(vp.x * 0.185, vp.y * 0.19)
-	panel.size = Vector2(vp.x * 0.235, vp.y * 0.27)
-	var v := VBoxContainer.new()
-	v.set_anchors_preset(Control.PRESET_FULL_RECT)
-	v.add_theme_constant_override("separation", 12)
-	v.offset_left = 22; v.offset_right = -22; v.offset_top = 16; v.offset_bottom = -16
-	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(panel)
+
+	var bg := ColorRect.new()
+	bg.color = Color(0.02, 0.09, 0.09, 0.95)
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_child(bg)
+
+	var frame := _load_card_frame()   # dotted border, dim
+	if frame != null:
+		var np := NinePatchRect.new()
+		np.texture = frame
+		var m := int(round(frame.get_height() * 17.0 / 80.0))
+		np.patch_margin_left = m; np.patch_margin_right = m
+		np.patch_margin_top = m; np.patch_margin_bottom = m
+		np.draw_center = false
+		np.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		np.modulate = MUTED
+		np.set_anchors_preset(Control.PRESET_FULL_RECT)
+		np.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		panel.add_child(np)
+
+	var sq := 6.0   # 4 bright-yellow corner squares
+	for corner in [Vector2(0, 0), Vector2(pw - sq, 0), Vector2(0, ph - sq), Vector2(pw - sq, ph - sq)]:
+		var s := ColorRect.new()
+		s.color = BRIGHT_GOLD
+		s.position = corner
+		s.size = Vector2(sq, sq)
+		s.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		panel.add_child(s)
+
+	# title rule: [line] TUTORIAL GUIDE [line], near the top
+	var trow := HBoxContainer.new()
+	trow.add_theme_constant_override("separation", 10)
+	trow.position = Vector2(18, 20)
+	trow.size = Vector2(pw - 36, 18)
+	trow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	trow.add_child(_rule_seg())
 	var hdr := _text(guide_title, SEL_GOLD, "caption")
-	v.add_child(hdr)
+	trow.add_child(hdr)
+	trow.add_child(_rule_seg())
+	panel.add_child(trow)
+
 	var body := _rich("[color=#%s]%s[/color]" % [Color8(0x9C, 0xB0, 0xAC).to_html(false),
 		guide_body.replace("[", "[lb]")], "body")
 	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	v.add_child(body)
-	panel.add_child(v)
-	add_child(panel)
+	body.position = Vector2(20, 52)
+	body.size = Vector2(pw - 40, ph - 66)
+	panel.add_child(body)
+
+## A horizontal rule segment for the title bar (expands to fill its side).
+func _rule_seg() -> ColorRect:
+	var r := ColorRect.new()
+	r.color = MUTED
+	r.custom_minimum_size = Vector2(0, 1)
+	r.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	r.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return r
 
 # ══ selection ══════════════════════════════════════════════════════════════════════
 
