@@ -191,7 +191,10 @@ func _apply_bg_nudge() -> void:
 	if _bg_rect == null:
 		return
 	var vp := get_viewport().get_visible_rect().size
-	var sc: float = maxf(1.0, float(_bg_nudge.get("scale", 1.0)))   # >=1 keeps it covering the window
+	# scale > 1 zooms IN (stays covered); scale < 1 shrinks the art below the window (a border of
+	# the clear colour shows) — allowed so it can be dialed down to match Qud. Small floor avoids
+	# a degenerate/negative rect.
+	var sc: float = maxf(0.1, float(_bg_nudge.get("scale", 1.0)))
 	var ew: float = vp.x * (sc - 1.0)
 	var eh: float = vp.y * (sc - 1.0)
 	var dx: float = float(_bg_nudge.get("dx", 0.0))
