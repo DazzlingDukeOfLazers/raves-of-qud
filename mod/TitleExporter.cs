@@ -66,7 +66,9 @@ namespace RavesOfQud
                     WriteGraphicSprite(menu.logoFader.GetComponentInChildren<Image>(true), logoPath);
                 if (!File.Exists(chromeDump)) ExportChrome(menu, chromeDump);
                 ExportChargenEmblem();
-                ExportNamedSprite("tiny-frame-h", "card_frame.png");   // game-mode card's dotted frame
+                ExportNamedSprite("tiny-frame-h", "card_frame.png");             // game-mode card's dotted frame
+                ExportNamedSprite("leftrightarrow", "nav_arrow.png");            // back/forward chevron
+                ExportNamedSprite("polat-center-divider-knob", "deco_knob.png"); // sub-text ornament
 
                 System.Console.WriteLine("[raves] title art exported -> " + Dir);
             }

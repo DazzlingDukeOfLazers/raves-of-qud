@@ -241,48 +241,97 @@ func _fit_to_viewport() -> void:
 # ── top-left header ───────────────────────────────────────────────────────────────
 
 func _build_topleft() -> void:
-	# a small module icon (a filled capsule in a dashed box, like Qud's), then the screen name
+	# Qud's breadcrumb for this screen: a filled rounded-rect glyph inside the same dotted frame the
+	# cards use (tiny-frame-h), then the screen name. Uses the extracted frame if present, else dashes.
 	var box := Control.new()
-	box.position = Vector2(34, 30)
-	box.size = Vector2(40, 42)
-	var vp := get_viewport_rect().size
-	var bt := _dashed_border_tex(40, 42)
-	var b := TextureRect.new()
-	b.texture = bt
-	b.modulate = MUTED
-	b.set_anchors_preset(Control.PRESET_FULL_RECT)
-	b.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	box.add_child(b)
-	var cap := ColorRect.new()   # the capsule glyph inside
-	cap.color = MUTED
-	cap.position = Vector2(13, 9); cap.size = Vector2(14, 24)
-	box.add_child(cap)
+	box.position = Vector2(30, 28)
+	box.size = Vector2(44, 46)
+	var frame := _load_card_frame()
+	if frame != null:
+		var np := NinePatchRect.new()
+		np.texture = frame
+		var m := int(round(frame.get_height() * 17.0 / 80.0))
+		np.patch_margin_left = m; np.patch_margin_right = m
+		np.patch_margin_top = m; np.patch_margin_bottom = m
+		np.draw_center = false
+		np.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		np.modulate = MUTED
+		np.set_anchors_preset(Control.PRESET_FULL_RECT)
+		np.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		box.add_child(np)
+	else:
+		var b := TextureRect.new()
+		b.texture = _dashed_border_tex(44, 46)
+		b.modulate = MUTED
+		b.set_anchors_preset(Control.PRESET_FULL_RECT)
+		b.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		box.add_child(b)
+	var glyph := Panel.new()   # the filled rounded-rect breadcrumb icon
+	var gsb := StyleBoxFlat.new()
+	gsb.bg_color = MUTED
+	gsb.set_corner_radius_all(3)
+	glyph.add_theme_stylebox_override("panel", gsb)
+	glyph.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	glyph.position = Vector2(14, 11); glyph.size = Vector2(16, 24)
+	box.add_child(glyph)
 	add_child(box)
 	var t := _text("Choose Game Mode", MUTED, "body")
-	t.position = Vector2(86, 38)
+	t.position = Vector2(88, 40)
 	add_child(t)
 
 # ── left / right page nav ─────────────────────────────────────────────────────────
 
 func _build_side_nav() -> void:
 	var vp := get_viewport_rect().size
-	# LEFT: back arrow + [Esc] Back
-	var la := _text("‹", MUTED, "big")
-	la.add_theme_font_size_override("font_size", int(vp.y * 0.05))
+	var ah: int = int(vp.y * 0.04)
+	# LEFT: back chevron + [Esc] Back
+	var la := _make_arrow(true, MUTED, ah)
 	la.position = Vector2(vp.x * 0.033, vp.y * 0.485)
 	add_child(la)
 	var lb := _rich("[color=#%s][lb]Esc[rb] Back[/color]" % MUTED.to_html(false), "caption")
 	lb.position = Vector2(vp.x * 0.02, vp.y * 0.525)
 	add_child(lb)
-	# RIGHT: dim forward arrow + [9] Next (advances to genotype)
-	var ra := _text("›", DIM, "big")
-	ra.add_theme_font_size_override("font_size", int(vp.y * 0.05))
+	# RIGHT: dim forward chevron + [9] Next (advances to genotype)
+	var ra := _make_arrow(false, DIM, ah)
 	ra.position = Vector2(vp.x * 0.955, vp.y * 0.485)
 	add_child(ra)
 	var rb := _rich("[right][color=#%s][lb]9[rb] Next[/color][/right]" % DIM.to_html(false), "caption")
 	rb.position = Vector2(vp.x * 0.90, vp.y * 0.525)
 	rb.size = Vector2(vp.x * 0.085, 0)
 	add_child(rb)
+
+## A page-nav chevron: Qud's extracted leftrightarrow sprite (flipped for the left/back arrow),
+## tinted `color`; falls back to the "‹"/"›" glyph before the sprite is exported.
+func _make_arrow(left: bool, color: Color, h: int) -> Control:
+	var tex := _load_title_sprite("nav_arrow.png")
+	if tex != null:
+		var r := TextureRect.new()
+		r.texture = tex
+		r.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		r.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		r.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		r.flip_h = left
+		r.modulate = color
+		r.custom_minimum_size = Vector2(h, h)
+		r.size = Vector2(h, h)
+		r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		return r
+	var l := _text("‹" if left else "›", color, "big")
+	l.add_theme_font_size_override("font_size", h)
+	return l
+
+## Generic loader for an extracted UI sprite in the title/ dir (nav arrow, ornament knob, …).
+func _load_title_sprite(fname: String) -> Texture2D:
+	var path := InputModel.support_dir().path_join("title").path_join(fname)
+	if not FileAccess.file_exists(path):
+		return null
+	var bytes := FileAccess.get_file_as_bytes(path)
+	if bytes.is_empty():
+		return null
+	var img := Image.new()
+	if img.load_png_from_buffer(bytes) != OK:
+		return null
+	return ImageTexture.create_from_image(img)
 
 # ── centre column ───────────────────────────────────────────────────────────────
 
@@ -334,6 +383,25 @@ func _build_center() -> void:
 	_desc.anchor_left = 0.0; _desc.anchor_right = 1.0
 	_desc.position.y = vp.y * 0.665
 	add_child(_desc)
+
+	# sub-text ornament: three of Qud's divider-knob sprites in a triangle (1 up, 2 below)
+	var knob := _load_title_sprite("deco_knob.png")
+	if knob != null:
+		var ks: int = maxi(6, int(vp.y * 0.009))
+		var d: int = int(ks * 1.3)
+		var cx: float = vp.x * 0.5
+		var oy: float = vp.y * 0.775
+		for off in [Vector2(0, -d), Vector2(-d, d), Vector2(d, d)]:
+			var k := TextureRect.new()
+			k.texture = knob
+			k.stretch_mode = TextureRect.STRETCH_SCALE
+			k.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			k.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+			k.modulate = MUTED
+			k.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			k.position = Vector2(cx + off.x - ks * 0.5, oy + off.y - ks * 0.5)
+			k.size = Vector2(ks, ks)
+			add_child(k)
 
 	# [R] Randomize Selection
 	var rnd := _rich("[center][color=#%s][lb]R[rb][/color][color=#%s] Randomize Selection[/color][/center]" % [
