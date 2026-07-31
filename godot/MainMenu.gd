@@ -37,6 +37,13 @@ const MUTED := Color8(0x5C, 0x66, 0x63)          # unselected / disabled / secon
 const HINT := Color8(0x8F, 0xA6, 0x9E)           # hotkey hint text
 const GOLD := Color8(0xC8, 0xA9, 0x4E)           # keycap accents in the hint
 
+# Quit-confirm prompt (1:1). Qud's is a COMPACT panel over the box top, not a big modal —
+# measured off a 1920x1080 capture: near-black teal fill, thin muted-teal border, a muted
+# green question, and "> Yes  No" with a gold caret on the selection.
+const Q_DLG_FILL := Color(0.024, 0.145, 0.145, 1.0)   # ~ rgb(6,37,37), opaque (fully hides the menu under it)
+const Q_DLG_BORDER := Color8(0x46, 0x64, 0x60)        # thin muted-teal frame line
+const Q_DLG_TEXT := Color8(0x6E, 0x8A, 0x86)          # question text ~ rgb(110,138,134)
+
 ## The box is built from Qud's OWN extracted frame sprites (title/chrome/, via the mod)
 ## composed as Qud composes them (Frame/Border): a tiled dark panel, gold woven side +
 ## bottom borders, and the gilded hieroglyph header on top. These fractions are each
@@ -623,6 +630,9 @@ func _confirm_quit() -> void:
 		return
 	_quit_sel = 0
 	_quit_opts = []
+	if Settings.one_to_one():
+		_confirm_quit_1to1()   # Qud's compact over-the-box prompt
+		return
 	var layer := Control.new()
 	layer.set_anchors_preset(Control.PRESET_FULL_RECT)
 	layer.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -664,6 +674,81 @@ func _confirm_quit() -> void:
 	add_child(layer)
 	_apply_quit_sel()
 
+## Qud's 1:1 quit prompt: a COMPACT panel overlaying the top of the option box (under the
+## header, over where New Game/Continue sit), NOT a big centred modal. Muted question, a thin
+## divider, then "> Yes   No" with a gold caret on the selection. Positioned on the box's rect
+## so it tracks the box. Keyboard (arrows / Space / Esc) is handled in _unhandled_input.
+func _confirm_quit_1to1() -> void:
+	var layer := Control.new()
+	layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	layer.mouse_filter = Control.MOUSE_FILTER_STOP   # modal: clicks outside the panel do nothing
+	var br: Rect2 = _box.get_rect() if _box != null else get_viewport().get_visible_rect()
+	# the panel: box-interior width, ~1/5 the box tall, just below the header
+	var panel := Panel.new()
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Q_DLG_FILL
+	sb.set_border_width_all(1)
+	sb.border_color = Q_DLG_BORDER
+	sb.set_corner_radius_all(0)
+	panel.add_theme_stylebox_override("panel", sb)
+	var pw: float = br.size.x * 0.98
+	var ph: float = br.size.y * 0.20
+	panel.position = Vector2(br.position.x + (br.size.x - pw) * 0.5,
+		br.position.y + br.size.y * HEADER_H_FRAC)
+	panel.size = Vector2(pw, ph)
+	layer.add_child(panel)
+	# Qud's dialog font is smaller than the menu items and its narrow font fits the question on one
+	# line; Raves' Atkinson is wider, so size the text off the box height to fit one line with margins.
+	var fs: int = int(round(br.size.y * 0.043))
+	var v := VBoxContainer.new()
+	v.set_anchors_preset(Control.PRESET_FULL_RECT)
+	v.alignment = BoxContainer.ALIGNMENT_CENTER
+	v.add_theme_constant_override("separation", 5)
+	v.offset_left = 7; v.offset_right = -7; v.offset_top = 5; v.offset_bottom = -5
+	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var q := _label("Are you sure you want to quit?", Q_DLG_TEXT, "caption")
+	q.add_theme_font_size_override("font_size", fs)
+	q.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	q.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	q.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	v.add_child(q)
+	var div := ColorRect.new()   # thin muted divider between the question and the buttons
+	div.color = Q_DLG_BORDER
+	div.custom_minimum_size = Vector2(0, 1)
+	div.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	div.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	v.add_child(div)
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 26)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for cfg in [{"lbl": "Yes", "act": "yes"}, {"lbl": "No", "act": "no"}]:
+		var cell := HBoxContainer.new()   # [gold caret] + [label]; caret shown only when selected
+		cell.add_theme_constant_override("separation", 4)
+		cell.mouse_filter = Control.MOUSE_FILTER_STOP
+		var caret := _label(">", GOLD, "caption")
+		caret.add_theme_font_size_override("font_size", fs)
+		caret.visible = false
+		caret.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var opt := _label(cfg["lbl"], MUTED, "caption")
+		opt.add_theme_font_size_override("font_size", fs)
+		opt.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		cell.add_child(caret)
+		cell.add_child(opt)
+		var idx := _quit_opts.size()
+		cell.mouse_entered.connect(func(): _quit_select(idx))
+		cell.gui_input.connect(func(e: InputEvent):
+			if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+				_quit_select(idx); _quit_activate())
+		row.add_child(cell)
+		_quit_opts.append({"lbl": opt, "caret": caret, "act": cfg["act"]})
+	v.add_child(row)
+	panel.add_child(v)
+	_quit_dialog = layer
+	add_child(layer)
+	_apply_quit_sel()
+
 func _dialog_style() -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = PANEL
@@ -684,8 +769,11 @@ func _quit_select(i: int) -> void:
 
 func _apply_quit_sel() -> void:
 	for i in range(_quit_opts.size()):
+		var on: bool = (i == _quit_sel)
 		var lbl: Label = _quit_opts[i]["lbl"]
-		lbl.add_theme_color_override("font_color", SEL if i == _quit_sel else MUTED)
+		lbl.add_theme_color_override("font_color", SEL if on else MUTED)
+		if _quit_opts[i].has("caret"):   # 1:1: the gold caret marks the selected option
+			_quit_opts[i]["caret"].visible = on
 
 func _quit_activate() -> void:
 	if _quit_sel < _quit_opts.size() and _quit_opts[_quit_sel]["act"] == "yes":
