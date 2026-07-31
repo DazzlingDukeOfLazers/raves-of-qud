@@ -49,6 +49,9 @@ var selected := ""
 var onboard_index := -1
 var guide_title := "TUTORIAL GUIDE"
 var guide_body := ""
+## If set, poll this file (in the support dir) for Qud's live tutorial tip and swap it into the
+## popup once the mod captures it — so the real text is read from Qud, never bundled.
+var guide_tip_file := ""
 
 var _items: Array = []
 var _sel := 0
@@ -64,6 +67,9 @@ var _emblem_rect: TextureRect
 var _emblem_extracted := false
 var _frame_tex: Texture2D
 var _frame_extracted := false
+var _guide_body_label: RichTextLabel   # the popup body, so the live tip can be swapped in
+var _guide_tip_last := ""
+var _guide_tip_t := 0.0
 
 # ══ SUBCLASS HOOKS — override these ════════════════════════════════════════════════
 
@@ -114,7 +120,7 @@ func _ready() -> void:
 	_build_center()
 	_apply_selection()
 	_resolve_icons()
-	if guide_body != "":
+	if guide_body != "" or guide_tip_file != "":
 		_build_guide()
 	if onboard_index >= 0:
 		_place_onboard_box()   # coroutine — awaits layout, then boxes the target card
@@ -134,6 +140,18 @@ func _process(dt: float) -> void:
 		if Time.get_ticks_msec() >= _resolve_until:
 			_resolve_until = 0
 			_resolve_icons()
+	if guide_tip_file != "" and _guide_body_label != null:
+		_guide_tip_t += dt
+		if _guide_tip_t >= 0.4:
+			_guide_tip_t = 0.0
+			var path := InputModel.support_dir().path_join(guide_tip_file)
+			if FileAccess.file_exists(path):
+				var f := FileAccess.open(path, FileAccess.READ)
+				if f != null:
+					var tip := f.get_as_text().strip_edges()
+					if tip != "" and tip != _guide_tip_last:
+						_guide_tip_last = tip
+						_update_guide_body(tip)
 
 func _exit_tree() -> void:
 	if _peer != null:
@@ -496,12 +514,20 @@ func _build_guide() -> void:
 	trow.add_child(_rule_seg())
 	panel.add_child(trow)
 
-	var body := _rich("[color=#%s]%s[/color]" % [Color8(0x9C, 0xB0, 0xAC).to_html(false),
-		guide_body.replace("[", "[lb]")], "body")
+	var body := _rich("", "caption")
 	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.position = Vector2(20, 52)
 	body.size = Vector2(pw - 40, ph - 66)
 	panel.add_child(body)
+	_guide_body_label = body
+	_update_guide_body(guide_body)
+
+## Set the popup body text (muted), used for both the initial text and the live tip once captured.
+func _update_guide_body(txt: String) -> void:
+	if _guide_body_label == null:
+		return
+	_guide_body_label.text = "[color=#%s]%s[/color]" % [
+		Color8(0x9C, 0xB0, 0xAC).to_html(false), txt.replace("[", "[lb]")]
 
 ## A horizontal rule segment for the title bar (expands to fill its side).
 func _rule_seg() -> ColorRect:

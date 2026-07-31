@@ -928,6 +928,14 @@ func _on_mode_chosen(mode_name: String) -> void:
 ## Tutorial mode: walk the guided pre-game menus (Choose Genotype, onboarding to Mutated Human, with
 ## the Tutorial Guide popup) before booting. Reuses the shared card screen with the tutorial extras.
 func _start_tutorial() -> void:
+	# BEGIN Qud's tutorial chargen now (if the bridge is up) so the mod parks it at the genotype
+	# window and captures its live tip into tutorial_tip.txt — which the guide popup reads. The body
+	# starts empty and fills in when the real (Qud) text lands; nothing tutorial prose is bundled.
+	var tip_path := InputModel.support_dir().path_join("tutorial_tip.txt")
+	if FileAccess.file_exists(tip_path):
+		DirAccess.remove_absolute(tip_path)   # drop any stale tip so we don't flash the previous one
+	if _qud_up and _peer.get_status() == StreamPeerTCP.STATUS_CONNECTED:
+		_send_command({"type": "command", "name": "tutorial"})   # begin + capture tip
 	var geno: Variant = load("res://GenotypeScreen.gd").new()
 	geno.crumbs = [
 		{"label": "Tutorial", "current": false},
@@ -935,20 +943,20 @@ func _start_tutorial() -> void:
 		{"label": "Pregens", "current": false},
 	]
 	geno.onboard_index = 0   # steer to Mutated Human, the tutorial's genotype
-	geno.guide_body = "Welcome to the Caves of Qud tutorial. For the tutorial, we're picking mutated human."
+	geno.guide_tip_file = "tutorial_tip.txt"
 	_overlay = geno
 	add_child(geno)
 	geno.closed.connect(_close_overlay)
 	geno.chose.connect(_on_tutorial_genotype)
 
-## After the guided genotype pick, boot Qud's tutorial (the fixed Marsh Taur pregen) and watch it in
-## the Holodeck. (Qud's Pregens step slots in here later.)
+## After the guided genotype pick, COMMIT Qud's tutorial (the guided builder is parked at the genotype
+## window; the mod boots the fixed Marsh Taur pregen) and watch it in the Holodeck.
 func _on_tutorial_genotype(_genotype_name: String) -> void:
 	_close_overlay()
 	if not _qud_up or _peer.get_status() != StreamPeerTCP.STATUS_CONNECTED:
 		push_warning("Raves: can't start tutorial — bridge not connected")
 		return
-	_send_command({"type": "command", "name": "tutorial"})
+	_send_command({"type": "command", "name": "tutorial_go"})   # commit + boot
 	_enter_viewer()
 
 ## Frame + send a bridge command over the detection peer (same wire format as _send_embark).

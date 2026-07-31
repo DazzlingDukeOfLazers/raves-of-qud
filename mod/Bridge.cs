@@ -509,9 +509,15 @@ namespace RavesOfQud
                 }
                 if (name == "tutorial")
                 {
-                    // Start Qud's guided tutorial (pregen game, no chargen). Same drive path as embark,
-                    // routed through the game-mode module's SelectMode("Tutorial").
+                    // BEGIN the guided tutorial: start its chargen so Qud is at the genotype window and
+                    // its live tip gets captured to tutorial_tip.txt (Raves reads it). No boot yet.
                     EmbarkDriver.RequestTutorial();
+                    return;
+                }
+                if (name == "tutorial_go")
+                {
+                    // COMMIT: the player confirmed on Raves' guided genotype screen — boot the tutorial.
+                    EmbarkDriver.RequestTutorialCommit();
                     return;
                 }
                 if (name == "embark")

@@ -38,9 +38,10 @@ namespace RavesOfQud
         {
             public string Genotype;                    // e.g. "Mutated Human", "True Kin"
             public string Subtype;                     // caste/calling id, e.g. "Apostle"
-            public string Gamemode = "Classic";        // Classic | Roleplay | Wander
+            public string Gamemode = "Classic";        // Classic | Roleplay | Wander | Tutorial
             public string Chartype = "New";            // "New" = fully custom character
             public string StartingLocation = "Joppa";  // QudChooseStartingLocationModule id
+            public bool TutorialBoot = false;          // Tutorial: commit+boot in one shot (fallback path)
         }
 
         private static volatile PendingBuildSpec _pending;
@@ -105,28 +106,24 @@ namespace RavesOfQud
             {
                 if (spec.Gamemode == "Tutorial")
                 {
-                    // The tutorial is a pregen guided game — no player chargen. Qud's own
-                    // QudGamemodeModule.SelectMode("Tutorial") sets it all up (StartTutorial + a
-                    // Pregen character) and advances the builder; with nothing editable it advances
-                    // all the way to the boot. Suppress the post-boot popups as for a normal embark.
-                    XRL.UI.Popup.Suppress = true;
-                    StartSuppressWindow();
+                    // BEGIN the tutorial's guided chargen so Qud advances to the genotype window and its
+                    // TutorialManager sets the current tip; we then read that tip (lastText) and hand it
+                    // to Raves — Qud's own text, read live, never bundled. Do NOT boot yet: the builder
+                    // stays at the genotype window until Raves confirms (tutorial_go -> commit + boot).
                     var gmm = eb.GetModule<QudGamemodeModule>();
                     if (gmm == null)
                         throw new InvalidOperationException("Gamemode module not found");
-                    System.Console.WriteLine("[raves] tutorial: SelectMode + commit pregen -> boot");
-                    gmm.SelectMode("Tutorial");   // StartTutorial + Pregen chartype (advances to the genotype)
-                    // The guided windows won't advance headlessly, so commit the tutorial's fixed build
-                    // directly (from JoppaTutorial.IntroTutorialStart): a Marsh Taur mutated-human pregen
-                    // starting in the JoppaTutorial zone. Then exitWithInfo builds it and boots.
-                    SetData<QudGenotypeModule>(eb, new QudGenotypeModuleData("Mutated Human"));
-                    SetData<QudPregenModule>(eb, new QudPregenModuleData("Marsh Taur"));
-                    SetData<QudChooseStartingLocationModule>(eb, new QudChooseStartingLocationModuleData("JoppaTutorial"));
-                    // bootGame reads Subtype.data for random-name generation even for a pregen (the
-                    // pregen supplies the real body); without it that line NREs. Any valid calling works.
-                    SetData<QudSubtypeModule>(eb, new QudSubtypeModuleData("Apostle"));
-                    eb.exitWithInfo();
-                    System.Console.WriteLine("[raves] tutorial: exitWithInfo done");
+                    gmm.SelectMode("Tutorial");
+                    if (spec.TutorialBoot)
+                    {
+                        System.Console.WriteLine("[raves] tutorial: one-shot -> commit + boot");
+                        CommitTutorial(eb);   // fallback: no separate BEGIN happened, boot straight in
+                    }
+                    else
+                    {
+                        System.Console.WriteLine("[raves] tutorial: begin (SelectMode) — capturing tip, awaiting commit");
+                        CaptureTutorialTipSoon(0);   // read the live tip; boot on the later commit
+                    }
                     return;
                 }
 
@@ -175,6 +172,92 @@ namespace RavesOfQud
             if (m == null)
                 throw new InvalidOperationException("Embark module not found: " + typeof(T).Name);
             m.setData(data);
+        }
+
+        /// COMMIT the tutorial (after RequestTutorial's BEGIN + tip capture): the guided builder is
+        /// still parked at the genotype window, so fill the tutorial's fixed Marsh Taur mutated-human
+        /// pregen build (JoppaTutorial.IntroTutorialStart) and boot — same call the normal embark uses.
+        public static void RequestTutorialCommit()
+        {
+            var gm = GameManager.Instance;
+            if (gm == null || gm.uiQueue == null) return;
+            gm.uiQueue.queueTask(DriveTutorialCommit, 0);
+        }
+
+        private static void DriveTutorialCommit()
+        {
+            EmbarkBuilder eb = null;
+            try { eb = EmbarkBuilder.gameObject?.GetComponent<EmbarkBuilder>(); }
+            catch { }
+            if (eb == null)
+            {
+                // The BEGIN builder isn't there (never started / already torn down) — fall back to the
+                // one-shot path (starts + commits + boots in one go).
+                RequestEmbark(new PendingBuildSpec { Gamemode = "Tutorial", TutorialBoot = true });
+                return;
+            }
+            System.Console.WriteLine("[raves] tutorial: commit -> exitWithInfo");
+            CommitTutorial(eb);
+        }
+
+        /// Fill the tutorial's fixed pregen build on the (already tutorial-started) builder and boot.
+        private static void CommitTutorial(EmbarkBuilder eb)
+        {
+            try
+            {
+                XRL.UI.Popup.Suppress = true;
+                StartSuppressWindow();
+                SetData<QudGenotypeModule>(eb, new QudGenotypeModuleData("Mutated Human"));
+                SetData<QudPregenModule>(eb, new QudPregenModuleData("Marsh Taur"));
+                SetData<QudChooseStartingLocationModule>(eb, new QudChooseStartingLocationModuleData("JoppaTutorial"));
+                // bootGame reads Subtype.data for random-name generation even for a pregen; without it
+                // that line NREs (the pregen supplies the real body). Any valid calling works.
+                SetData<QudSubtypeModule>(eb, new QudSubtypeModuleData("Apostle"));
+                eb.exitWithInfo();
+            }
+            catch (Exception e)
+            {
+                System.Console.WriteLine("[raves] tutorial commit FAILED: " + e);
+                try { eb.exitWithoutInfo(); } catch { }
+            }
+        }
+
+        /// Poll TutorialManager.lastText (set by IntroTutorialStart.LateUpdate -> manager.Highlight)
+        /// until the genotype-step tip is up, then write it to tutorial_tip.txt for Raves. Re-queues
+        /// itself each frame (LateUpdate needs to run first); bounded so it can't spin forever.
+        private static void CaptureTutorialTipSoon(int tries)
+        {
+            var gm = GameManager.Instance;
+            if (gm == null || gm.uiQueue == null) return;
+            gm.uiQueue.queueTask(() =>
+            {
+                try
+                {
+                    string tip = null;
+                    foreach (var tm in UnityEngine.Resources.FindObjectsOfTypeAll<TutorialManager>())
+                    {
+                        if (tm != null) { tip = tm.lastText; break; }
+                    }
+                    if (!string.IsNullOrEmpty(tip) && tip != "<noframe>")
+                        WriteTutorialTip(tip);
+                    else if (tries < 120)
+                        CaptureTutorialTipSoon(tries + 1);
+                }
+                catch (Exception e) { System.Console.WriteLine("[raves] tip capture: " + e.Message); }
+            }, 0);
+        }
+
+        private static void WriteTutorialTip(string tip)
+        {
+            try
+            {
+                string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                string dir = System.IO.Path.Combine(home, "Library", "Application Support", "RavesOfQud");
+                System.IO.Directory.CreateDirectory(dir);
+                System.IO.File.WriteAllText(System.IO.Path.Combine(dir, "tutorial_tip.txt"), tip);
+                System.Console.WriteLine("[raves] tutorial tip -> tutorial_tip.txt (" + tip.Length + " chars)");
+            }
+            catch (Exception e) { System.Console.WriteLine("[raves] tip write: " + e.Message); }
         }
 
         /// <summary>
