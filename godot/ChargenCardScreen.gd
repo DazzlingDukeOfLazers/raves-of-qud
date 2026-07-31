@@ -71,6 +71,7 @@ var _frame_extracted := false
 var _guide_body_label: RichTextLabel   # the popup body, so the live tip can be swapped in
 var _guide_tip_last := ""
 var _guide_tip_t := 0.0
+var _sel_frame: NinePatchRect          # Qud's big solid-yellow selection frame (corner brackets), moves to the selection
 
 # ══ SUBCLASS HOOKS — override these ════════════════════════════════════════════════
 
@@ -119,10 +120,12 @@ func _ready() -> void:
 	_build_topleft()
 	_build_side_nav()
 	_build_center()
+	_ensure_sel_frame()
 	_apply_selection()
 	_resolve_icons()
 	if guide_body != "" or guide_tip_file != "":
 		_build_guide()
+	_init_sel_frame_deferred()   # awaits layout, then boxes the selected card
 	_peer.connect_to_host(BridgeClient.host(), BridgeClient.port())
 
 func _process(dt: float) -> void:
@@ -314,7 +317,7 @@ func _build_center() -> void:
 	var sub := _text(_subtitle(), SUB_TEAL, "caption")
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	sub.anchor_left = 0.0; sub.anchor_right = 1.0
-	sub.position.y = vp.y * 0.468
+	sub.position.y = vp.y * 0.455   # tighter under the title, as in Qud (was 0.468 — too low)
 	add_child(sub)
 
 	var card_w := int(vp.x * 0.049)
@@ -326,7 +329,7 @@ func _build_center() -> void:
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", int(vp.x * 0.014))
 	row.anchor_left = 0.0; row.anchor_right = 1.0
-	row.position.y = vp.y * 0.5
+	row.position.y = vp.y * 0.483   # tuck the cards just under the subtitle, as in Qud (was 0.5 — too low)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(row)
 	for i in range(_items.size()):
@@ -417,7 +420,7 @@ func _build_card(m: Dictionary, idx: int, cw: int, ch: int) -> Control:
 	hk.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hk.custom_minimum_size = Vector2(cw, 0)
 	col.add_child(hk)
-	_cards.append({"cell": cell, "boxc": boxc, "border": border, "icon": icon, "name": nm, "hotkey": hk, "caret": caret})
+	_cards.append({"cell": cell, "col": col, "boxc": boxc, "border": border, "icon": icon, "name": nm, "hotkey": hk, "caret": caret})
 	return cell
 
 # ══ guided-tutorial extras ═════════════════════════════════════════════════════════
@@ -521,16 +524,86 @@ func _engage() -> void:
 	_onboard_active = false
 	_apply_selection()
 
+# ══ the big selection frame (Qud's solid-yellow corner-bracket highlight) ═════════════
+
+## A single frame that boxes the SELECTED card, generously larger than the card (overlapping toward
+## its neighbour, exactly as Qud draws it). Bright yellow while it's still the onboarding steer, the
+## normal darker gold once the player has engaged. The card's own dotted frame stays dim underneath.
+func _ensure_sel_frame() -> void:
+	if _sel_frame != null:
+		return
+	var np := NinePatchRect.new()
+	# Qud's real selection frame — the "polat-locator-big" sprite (139×186, 9-slice border 16/15).
+	# Extracted at runtime to sel_frame.png; procedural corner-brackets are only the fallback.
+	var tex := _load_title_sprite("sel_frame.png")
+	var ml := 16; var mr := 16; var mt := 15; var mb := 15
+	if tex == null:
+		tex = _sel_frame_tex()
+		ml = 20; mr = 20; mt = 20; mb = 20
+	np.texture = tex
+	np.patch_margin_left = ml; np.patch_margin_right = mr
+	np.patch_margin_top = mt; np.patch_margin_bottom = mb
+	np.draw_center = false
+	np.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	np.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	np.visible = false
+	add_child(np)
+	_sel_frame = np
+
+func _init_sel_frame_deferred() -> void:
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_position_sel_frame()
+
+func _position_sel_frame() -> void:
+	if _sel_frame == null or _sel < 0 or _sel >= _cards.size():
+		return
+	var col: Control = _cards[_sel].get("col")
+	if col == null:
+		return
+	var r := col.get_global_rect()   # self is at (0,0) full-rect, so global == local
+	if r.size.x <= 1.0 or r.size.y <= 1.0:
+		return
+	var vp := get_viewport_rect().size
+	var pl := vp.x * 0.024
+	var pr := vp.x * 0.024
+	var pt := vp.y * 0.024   # top edge lands on the subtitle line, as in Qud
+	var pb := vp.y * 0.0185  # bottom edge clears the hotkey and stops above the flavour line
+	_sel_frame.position = Vector2(r.position.x - pl, r.position.y - pt)
+	_sel_frame.size = Vector2(r.size.x + pl + pr, r.size.y + pt + pb)
+	_sel_frame.modulate = BRIGHT_GOLD if (_onboard_active and _sel == onboard_index) else SEL_GOLD
+	_sel_frame.visible = true
+
+## Procedural frame art: a thin continuous border with a bold L bracket at each corner. Rendered as a
+## NinePatch (corner = bracket, drawn 1:1; edges = the thin line, stretched), white → modulated gold.
+func _sel_frame_tex() -> ImageTexture:
+	var s := 56
+	var img := Image.create(s, s, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var c := Color(1, 1, 1, 1)
+	var t := 2     # thin connecting line
+	var bl := 20   # corner-bracket arm length (== patch_margin)
+	var bt := 3    # corner-bracket thickness
+	for i in range(s):
+		for k in range(t):
+			img.set_pixel(i, k, c)
+			img.set_pixel(i, s - 1 - k, c)
+			img.set_pixel(k, i, c)
+			img.set_pixel(s - 1 - k, i, c)
+	for cn in [[0, 0, 1, 1], [s - 1, 0, -1, 1], [0, s - 1, 1, -1], [s - 1, s - 1, -1, -1]]:
+		var cx: int = cn[0]; var cy: int = cn[1]; var dx: int = cn[2]; var dy: int = cn[3]
+		for a in range(bl):
+			for k in range(bt):
+				img.set_pixel(cx + dx * a, cy + dy * k, c)
+				img.set_pixel(cx + dx * k, cy + dy * a, c)
+	return ImageTexture.create_from_image(img)
+
 func _apply_selection() -> void:
 	for i in range(_cards.size()):
 		var on: bool = (i == _sel)
 		var c: Dictionary = _cards[i]
-		# Onboard highlight: the steered card glows bright yellow until the player engages a card,
-		# then it drops to the normal colour — darker gold once it's the selection, dim otherwise.
-		if i == onboard_index and _onboard_active:
-			c["border"].modulate = BRIGHT_GOLD
-		else:
-			c["border"].modulate = SEL_GOLD if on else DIM_BORDER
+		# Each card's own dotted frame stays dim (as in Qud) — the big _sel_frame is the highlight.
+		c["border"].modulate = DIM_BORDER
 		if c.has("colored"):
 			c["icon"].texture = c["colored"] if on else c["neutral"]
 			c["icon"].modulate = ICON_SEL if on else ICON_DIM
@@ -542,6 +615,7 @@ func _apply_selection() -> void:
 		for line in str(_items[_sel].get("desc", "")).split("\n", false):
 			lines.append(QudText.to_bbcode(line, _palette))
 		_desc.text = "[center][color=#%s]%s[/color][/center]" % [MUTED.to_html(false), "\n".join(lines)]
+	_position_sel_frame()
 
 func _randomize() -> void:
 	if _items.size() > 1:

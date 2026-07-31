@@ -67,6 +67,7 @@ namespace RavesOfQud
                 if (!File.Exists(chromeDump)) ExportChrome(menu, chromeDump);
                 ExportChargenEmblem();
                 ExportNamedSprite("tiny-frame-h", "card_frame.png");             // game-mode card's dotted frame
+                ExportNamedSprite("polat-locator-big", "sel_frame.png");         // the selected-card frame (corner brackets)
                 ExportNamedSprite("leftrightarrow", "nav_arrow.png");            // back/forward chevron
                 ExportNamedSprite("polat-center-divider-knob", "deco_knob.png"); // sub-text ornament
 
@@ -101,6 +102,47 @@ namespace RavesOfQud
                 System.Console.WriteLine("[raves] sprite '" + spriteName + "' exported -> " + destFile);
             }
             catch (Exception e) { System.Console.WriteLine("[raves] sprite export failed: " + e.Message); }
+        }
+
+        /// One-shot discovery dump: write every resident frame-like Sprite (a 9-slice border, or a
+        /// frame/select/box/bracket-ish name) to <c>Dir/frames/&lt;name&gt;.png</c> plus a manifest
+        /// listing name, size, and the 9-slice border margins. Lets us eyeball Qud's ACTUAL selection
+        /// frame and read off its slice margins, instead of approximating it. MAIN-THREAD ONLY.
+        public static void DumpFrameSprites()
+        {
+            try
+            {
+                string dir = Path.Combine(Dir, "frames");
+                Directory.CreateDirectory(dir);
+                var sb = new System.Text.StringBuilder();
+                var seen = new System.Collections.Generic.HashSet<string>();
+                foreach (Sprite sp in Resources.FindObjectsOfTypeAll<Sprite>())
+                {
+                    if (sp == null || sp.texture == null) continue;
+                    Vector4 b = sp.border;   // l, b, r, t
+                    string n = sp.name ?? "";
+                    bool sliced = (b.x + b.y + b.z + b.w) > 0.5f;
+                    bool named =
+                        n.IndexOf("frame", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        n.IndexOf("select", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        n.IndexOf("box", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        n.IndexOf("border", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        n.IndexOf("bracket", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        n.IndexOf("corner", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        n.IndexOf("highlight", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        n.IndexOf("cursor", StringComparison.OrdinalIgnoreCase) >= 0;
+                    if (!sliced && !named) continue;
+                    Rect r = sp.textureRect;
+                    sb.AppendLine(string.Format("{0}  {1}x{2}  border=({3},{4},{5},{6}){7}",
+                        n, (int)r.width, (int)r.height, b.x, b.y, b.z, b.w, sliced ? "  SLICED" : ""));
+                    string safe = Sanitize(n);
+                    if (seen.Add(safe))
+                        WriteSprite(sp, Path.Combine(dir, safe + ".png"));
+                }
+                File.WriteAllText(Path.Combine(Dir, "frames_manifest.txt"), sb.ToString());
+                System.Console.WriteLine("[raves] frame dump -> " + dir + " (" + seen.Count + " sprites)");
+            }
+            catch (Exception e) { System.Console.WriteLine("[raves] DumpFrameSprites failed: " + e.Message); }
         }
 
         /// The single `background` Image, else the active `backgrounds[]` object's graphic.

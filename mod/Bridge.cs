@@ -499,11 +499,25 @@ namespace RavesOfQud
                                 ChargenExporter.ReExport();
                                 TitleExporter.ExportChargenEmblem();                        // resident even at the menu
                                 TitleExporter.ExportNamedSprite("tiny-frame-h", "card_frame.png");         // the game-mode card's dotted frame
+                                TitleExporter.ExportNamedSprite("polat-locator-big", "sel_frame.png");     // the selected-card frame (corner brackets)
                                 TitleExporter.ExportNamedSprite("leftrightarrow", "nav_arrow.png");        // back/forward chevron
                                 TitleExporter.ExportNamedSprite("polat-center-divider-knob", "deco_knob.png"); // the sub-text ornament
                                 Server.Log("[export] re-exported (menu path) chargen chrome");
                             }
                             catch (Exception e) { try { Server.Log("export error: " + e.Message); } catch { } }
+                        }, 0);
+                    return;
+                }
+                if (name == "dumpframes")
+                {
+                    // One-shot: dump all resident frame-like sprites (+ a manifest with 9-slice
+                    // borders) so we can identify Qud's real selection frame. Main-thread readback.
+                    var gmf = GameManager.Instance;
+                    if (gmf != null && gmf.uiQueue != null)
+                        gmf.uiQueue.queueTask(() =>
+                        {
+                            try { TitleExporter.DumpFrameSprites(); Server.Log("[dumpframes] done"); }
+                            catch (Exception e) { try { Server.Log("dumpframes error: " + e.Message); } catch { } }
                         }, 0);
                     return;
                 }
