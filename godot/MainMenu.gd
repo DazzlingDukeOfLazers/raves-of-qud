@@ -163,6 +163,11 @@ func _build_background() -> void:
 	rect.texture = tex
 	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 	rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	# Without this, a TextureRect sizes to the TEXTURE's native size and STRETCH_* never applies —
+	# the 2048x1897 art rendered at native scale, top-left-cropped, so Raves showed a DIFFERENT
+	# (higher/left) portion than Qud (which centre-covers). IGNORE_SIZE makes COVERED fill the
+	# window (centred), matching Qud's crop. (Same gotcha the option-box frame hit.)
+	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(rect)
 	move_child(rect, 0)   # first child = behind everything
