@@ -51,8 +51,9 @@ const HEADER_OVERHANG := 0.016  # fraction of box width the header extends BEYON
 
 ## The box holds a FIXED aspect and scales with window HEIGHT (centered), like Qud's canvas
 ## scaler — so it reads the same shape at any window aspect instead of stretching. Width =
-## height * BOX_ASPECT (Qud's ~330x334 box); position/height come from the "menu" layout rect.
-const BOX_ASPECT := 0.99
+## height * BOX_ASPECT; position/height come from the "menu" layout rect. Measured off a 1920x1080
+## Qud capture: box body is 334w x 354h -> aspect 0.943 (the old 0.99 rendered it ~20px too wide).
+const BOX_ASPECT := 0.943
 
 ## Qud's real menu items, verbatim from Qud.UI.MainMenu. LeftOptions = the centred box;
 ## RightOptions = the bottom-left list. `act` maps an item to a Raves action for this
@@ -70,7 +71,7 @@ const LINK_ITEMS := ["Redeem Code", "Modding Toolkit", "Credits", "Help"]
 ## off the reference capture. Tunable at runtime via title_layout.json (no rebuild).
 const DEFAULT_LAYOUT := {
 	"logo": [0.213, 0.119, 0.56, 0.134],
-	"menu": [0.408, 0.405, 0.184, 0.335],
+	"menu": [0.408, 0.393, 0.184, 0.332],
 	"links": [0.033, 0.785, 0.22, 0.14],
 	"hint": [0.20, 0.953, 0.60, 0.028],
 	"version": [0.80, 0.892, 0.185, 0.052],
