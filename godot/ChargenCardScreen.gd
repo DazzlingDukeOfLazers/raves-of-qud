@@ -441,29 +441,31 @@ func _build_guide() -> void:
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(panel)
 
+	# Border = Qud's panel-border texture (borderTop/Bot/Side): a teal/near-black checkerboard, tiled
+	# to fill the panel; an inset background then leaves it showing only as a band around the edge.
+	var hatch := TextureRect.new()
+	hatch.texture = _hatch_tex(int(pw), int(ph), Color8(46, 99, 105), Color8(0, 21, 20))
+	hatch.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	hatch.stretch_mode = TextureRect.STRETCH_SCALE
+	hatch.set_anchors_preset(Control.PRESET_FULL_RECT)
+	hatch.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_child(hatch)
+
+	var bw := 12.0   # border-band thickness
 	var bg := ColorRect.new()
-	bg.color = Color(0.02, 0.09, 0.09, 0.95)
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.color = Color(0.02, 0.09, 0.09, 1.0)
+	bg.position = Vector2(bw, bw)
+	bg.size = Vector2(pw - bw * 2.0, ph - bw * 2.0)
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(bg)
 
-	# Qud's popup frame: a continuous dashed border (repeating dotted tile), dim.
-	var border := TextureRect.new()
-	border.texture = _dashed_border_tex(int(pw), int(ph), 3, 3, 2)
-	border.modulate = MUTED
-	border.set_anchors_preset(Control.PRESET_FULL_RECT)
-	border.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	border.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	panel.add_child(border)
-
-	# 4 bright-yellow squares straddling the N / S / E / W edge midpoints (not the corners)
-	var sq := 7.0
-	var h := sq * 0.5
+	# 4 bright-yellow squares centred on the N / S / E / W band midpoints — the only breaks in the band
+	var sq := 9.0
 	for mid in [
-		Vector2((pw - sq) * 0.5, -h + 1),        # N
-		Vector2((pw - sq) * 0.5, ph - h - 1),     # S
-		Vector2(-h + 1, (ph - sq) * 0.5),         # W
-		Vector2(pw - h - 1, (ph - sq) * 0.5),     # E
+		Vector2((pw - sq) * 0.5, (bw - sq) * 0.5),        # N
+		Vector2((pw - sq) * 0.5, ph - (bw + sq) * 0.5),   # S
+		Vector2((bw - sq) * 0.5, (ph - sq) * 0.5),        # W
+		Vector2(pw - (bw + sq) * 0.5, (ph - sq) * 0.5),   # E
 	]:
 		var s := ColorRect.new()
 		s.color = BRIGHT_GOLD
@@ -731,6 +733,16 @@ func _recolor_tile(tile: String, main: Color, detail: Color) -> Texture2D:
 	return ImageTexture.create_from_image(img)
 
 # ══ procedural fallbacks (used until the extracted sprites land) ════════════════════
+
+## A checkerboard fill — Qud's borderTop/Bot/Side panel-border texture (originally khaki + near-black
+## `(0,21,20)`), here recoloured. It's a 2px-cell checkerboard: a pixel is `light` when (x/cell + y/cell)
+## is even. Reads as a diagonal lattice; tiles seamlessly. Rendered NEAREST.
+func _hatch_tex(w: int, h: int, light: Color, dark: Color, cell := 2) -> ImageTexture:
+	var img := Image.create(maxi(2, w), maxi(2, h), false, Image.FORMAT_RGBA8)
+	for y in range(img.get_height()):
+		for x in range(img.get_width()):
+			img.set_pixel(x, y, light if ((x / cell + y / cell) % 2 == 0) else dark)
+	return ImageTexture.create_from_image(img)
 
 func _dashed_border_tex(w: int, h: int, dash := 5, gap := 4, th := 2) -> ImageTexture:
 	var img := Image.create(maxi(2, w), maxi(2, h), false, Image.FORMAT_RGBA8)
