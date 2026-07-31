@@ -47,6 +47,7 @@ var selected := ""
 ## highlight box around that card to steer the player; guide_body (+ guide_title) shows a
 ## "TUTORIAL GUIDE" popup. Left at defaults, a normal chargen screen shows neither.
 var onboard_index := -1
+var _onboard_active := true   # onboard card shows the bright highlight until the player engages a card
 var guide_title := "TUTORIAL GUIDE"
 var guide_body := ""
 ## If set, poll this file (in the support dir) for Qud's live tutorial tip and swap it into the
@@ -122,8 +123,6 @@ func _ready() -> void:
 	_resolve_icons()
 	if guide_body != "" or guide_tip_file != "":
 		_build_guide()
-	if onboard_index >= 0:
-		_place_onboard_box()   # coroutine — awaits layout, then boxes the target card
 	_peer.connect_to_host(BridgeClient.host(), BridgeClient.port())
 
 func _process(dt: float) -> void:
@@ -379,10 +378,10 @@ func _build_card(m: Dictionary, idx: int, cw: int, ch: int) -> Control:
 	var cell := HBoxContainer.new()
 	cell.add_theme_constant_override("separation", 4)
 	cell.mouse_filter = Control.MOUSE_FILTER_STOP
-	cell.mouse_entered.connect(func(): _select(idx))
+	cell.mouse_entered.connect(func(): _engage(); _select(idx))
 	cell.gui_input.connect(func(e):
 		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
-			_select(idx); _confirm())
+			_engage(); _select(idx); _confirm())
 	var caret := _text("›", SEL_GOLD, "big")
 	caret.custom_minimum_size = Vector2(12, 0)
 	caret.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -423,42 +422,9 @@ func _build_card(m: Dictionary, idx: int, cw: int, ch: int) -> Control:
 
 # ══ guided-tutorial extras ═════════════════════════════════════════════════════════
 
-## Draw a bright highlight box around the onboard target card, steering the player to it. Awaits a
-## couple of frames so the centred card row has its final layout, then reads the card's rect.
-func _place_onboard_box() -> void:
-	await get_tree().process_frame
-	await get_tree().process_frame
-	if onboard_index < 0 or onboard_index >= _cards.size():
-		return
-	var boxc: Control = _cards[onboard_index]["boxc"]
-	var r := boxc.get_global_rect()
-	if r.size.x <= 0.0:
-		return
-	var pad := 4.0
-	var box: Control
-	var frame := _load_card_frame()   # same dotted tiny-frame-h as the cards, but bright yellow
-	if frame != null:
-		var np := NinePatchRect.new()
-		np.texture = frame
-		var m := int(round(frame.get_height() * 17.0 / 80.0))
-		np.patch_margin_left = m; np.patch_margin_right = m
-		np.patch_margin_top = m; np.patch_margin_bottom = m
-		np.draw_center = false
-		np.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		np.modulate = BRIGHT_GOLD
-		box = np
-	else:
-		var p := Panel.new()
-		var sb := StyleBoxFlat.new()
-		sb.bg_color = Color(0, 0, 0, 0)
-		sb.set_border_width_all(2)
-		sb.border_color = BRIGHT_GOLD
-		p.add_theme_stylebox_override("panel", sb)
-		box = p
-	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	box.position = r.position - Vector2(pad, pad)
-	box.size = r.size + Vector2(pad * 2.0, pad * 2.0)
-	add_child(box)
+## The onboard highlight is the target card's OWN dotted frame drawn in bright yellow (no second box),
+## so it reads as one frame like Qud's. It drops to the normal (darker) colour the moment the player
+## engages a card — see `_engage()` + `_apply_selection()`.
 
 ## The guided "TUTORIAL GUIDE" popup, in Qud's frame style: a dark panel with the dotted frame border
 ## (same tiny-frame-h as the cards, dim), a BRIGHT-YELLOW square at each of the 4 corners, and a title
@@ -547,11 +513,24 @@ func _select(idx: int) -> void:
 	_sel = idx
 	_apply_selection()
 
+## The player has engaged a card (hovered, arrowed, or clicked) — retire the onboarding highlight so
+## the steered card follows the normal selected/unselected colours from here on.
+func _engage() -> void:
+	if not _onboard_active:
+		return
+	_onboard_active = false
+	_apply_selection()
+
 func _apply_selection() -> void:
 	for i in range(_cards.size()):
 		var on: bool = (i == _sel)
 		var c: Dictionary = _cards[i]
-		c["border"].modulate = SEL_GOLD if on else DIM_BORDER
+		# Onboard highlight: the steered card glows bright yellow until the player engages a card,
+		# then it drops to the normal colour — darker gold once it's the selection, dim otherwise.
+		if i == onboard_index and _onboard_active:
+			c["border"].modulate = BRIGHT_GOLD
+		else:
+			c["border"].modulate = SEL_GOLD if on else DIM_BORDER
 		if c.has("colored"):
 			c["icon"].texture = c["colored"] if on else c["neutral"]
 			c["icon"].modulate = ICON_SEL if on else ICON_DIM
@@ -580,9 +559,9 @@ func _unhandled_input(e: InputEvent) -> void:
 	if e.is_action_pressed("ui_cancel"):
 		closed.emit(); accept_event()
 	elif e.is_action_pressed("ui_right"):
-		_select(mini(_sel + 1, _cards.size() - 1)); accept_event()
+		_engage(); _select(mini(_sel + 1, _cards.size() - 1)); accept_event()
 	elif e.is_action_pressed("ui_left"):
-		_select(maxi(_sel - 1, 0)); accept_event()
+		_engage(); _select(maxi(_sel - 1, 0)); accept_event()
 	elif e.is_action_pressed("ui_accept"):
 		_confirm(); accept_event()
 	elif e is InputEventKey and e.pressed and not e.echo and e.keycode == KEY_R:
