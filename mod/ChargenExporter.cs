@@ -62,6 +62,7 @@ namespace RavesOfQud
             j.BeginObject();
             WriteGenotypes(j);
             WriteSubtypes(j);
+            WriteGameModes(j);
             j.EndObject();
             // Write ATOMICALLY: WriteAllText truncates-then-writes, so a Raves chargen screen reading the
             // file mid-write catches it empty ("No chargen data yet"). Write a temp then atomically swap
@@ -196,6 +197,40 @@ namespace RavesOfQud
                 }
                 j.EndArray();
                 j.EndObject();
+            }
+            j.EndArray();
+        }
+
+        /// The chargen GAME MODES (Qud's ":choose game mode:" step), mirroring EmbarkModules.xml →
+        /// QudGamemodeModule: id/title/description + each card's icon tile (an &lt;icon Tile="…"&gt; child)
+        /// and its foreground/detail colour codes. The icon PNGs are queued through TileExporter, exactly
+        /// like the genotype/subtype art, so Raves' Game Mode screen can show Qud's own sprites. Static
+        /// mirror (the module's GameModes dict only populates inside a live chargen builder), kept in
+        /// sync with that file; `hotkey` is the per-card letter Qud assigns in order.
+        private static void WriteGameModes(JsonWriter j)
+        {
+            var modes = new[]
+            {
+                new[] { "Tutorial", "Tutorial", "A", "Items/sw_square_cap.bmp",   "K", "W", "Learn the basics of Caves of Qud." },
+                new[] { "Classic",  "Classic",  "B", "UI/sw_classic_mode.bmp",    "y", "K", "Permadeath: lose your character when you die." },
+                new[] { "Roleplay", "Roleplay", "C", "UI/sw_roleplay_mode.bmp",   "b", "B", "Checkpointing at settlements." },
+                new[] { "Wander",   "Wander",   "D", "UI/sw_wander_mode.bmp",     "g", "C", "{{c|ù}} Most creatures begin neutral to you.\n{{c|ù}} No XP for killing.\n{{c|ù}} More XP for discoveries and performing the water ritual.\n{{c|ù}} Checkpointing at settlements." },
+                new[] { "Daily",    "Daily",    "E", "Items/sw_clockthing.bmp",   "w", "W", "{{c|ù}} One chance with a fixed character and world seed." },
+            };
+            j.Name("gameModes").BeginArray();
+            foreach (var m in modes)
+            {
+                string tile = m[3];
+                if (!string.IsNullOrEmpty(tile)) { try { TileExporter.Ensure(tile); } catch { } }
+                j.BeginObject()
+                    .Member("name", m[0])
+                    .Member("display", m[1])
+                    .Member("hotkey", m[2])
+                    .Member("tile", tile)
+                    .Member("fg", m[4])
+                    .Member("detail", m[5])
+                    .Member("desc", m[6])
+                .EndObject();
             }
             j.EndArray();
         }

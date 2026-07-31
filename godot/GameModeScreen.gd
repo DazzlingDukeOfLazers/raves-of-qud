@@ -64,6 +64,13 @@ var _cards: Array = []         # [{border, icon, name, hotkey, caret}]
 var _desc: RichTextLabel
 var _palette := {}
 var _border_tex: ImageTexture
+# Bridge: ask the mod to (re)export chargen data so the card icons — Qud's own mode sprites — get
+# written, then resolve them into the cards as the tile PNGs land. Data shows from the fallback
+# immediately; icons fill in once exported.
+var _peer := StreamPeerTCP.new()
+var _sent := false
+var _resolve_until := 0
+var _poll_t := 0.0
 
 func _ready() -> void:
 	name = "GameModeScreen"
@@ -85,6 +92,57 @@ func _ready() -> void:
 	_build_side_nav()
 	_build_center()
 	_apply_selection()
+	_peer.connect_to_host(BridgeClient.host(), BridgeClient.port())   # trigger a fresh export for the icons
+
+func _process(dt: float) -> void:
+	_peer.poll()
+	if not _sent and _peer.get_status() == StreamPeerTCP.STATUS_CONNECTED:
+		_sent = true
+		_send_bridge({"type": "command", "name": "export"})
+		_resolve_until = Time.get_ticks_msec() + 6000   # give the mod time to write chargen.json + tiles
+	if _resolve_until > 0:
+		_poll_t += dt
+		if _poll_t >= 0.4:
+			_poll_t = 0.0
+			_resolve_icons()
+		if Time.get_ticks_msec() >= _resolve_until:
+			_resolve_until = 0
+			_resolve_icons()
+
+func _exit_tree() -> void:
+	if _peer != null:
+		_peer.disconnect_from_host()
+
+func _send_bridge(msg: Dictionary) -> void:
+	if _peer.get_status() != StreamPeerTCP.STATUS_CONNECTED:
+		return
+	var payload := JSON.stringify(msg).to_utf8_buffer()
+	var n := payload.size()
+	var frame := PackedByteArray()
+	frame.append((n >> 24) & 0xFF); frame.append((n >> 16) & 0xFF)
+	frame.append((n >> 8) & 0xFF); frame.append(n & 0xFF)
+	frame.append_array(payload)
+	_peer.put_data(frame)
+
+## Reload the modes from chargen.json (once the mod has written it) and fill any card icon whose
+## tile PNG has now been exported. Stops early once every card has its icon.
+func _resolve_icons() -> void:
+	var latest := _load()
+	var all_done := true
+	for i in range(mini(_cards.size(), latest.size())):
+		var t := str(latest[i].get("tile", ""))
+		var card: Dictionary = _cards[i]
+		if card["icon"].texture == null:
+			if t == "":
+				all_done = false
+			else:
+				var tex := _mode_icon(t)
+				if tex != null:
+					card["icon"].texture = tex
+				else:
+					all_done = false
+	if all_done:
+		_resolve_until = 0
 
 func _load() -> Array:
 	var path := InputModel.support_dir().path_join("chargen.json")
@@ -239,7 +297,7 @@ func _build_card(m: Dictionary, idx: int, cw: int, ch: int) -> Control:
 	icon.set_anchors_preset(Control.PRESET_FULL_RECT)
 	icon.offset_left = 12; icon.offset_right = -12; icon.offset_top = 10; icon.offset_bottom = -10
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	icon.texture = _tile(str(m.get("tile", "")))
+	icon.texture = _mode_icon(str(m.get("tile", "")))
 	boxc.add_child(icon)
 	col.add_child(boxc)
 
@@ -346,7 +404,11 @@ func _nav_icon_texture(ih: int, color: Color) -> ImageTexture:
 	img.fill_rect(Rect2i(2 * mid, k + g, k, k), color)
 	return ImageTexture.create_from_image(img)
 
-func _tile(tile: String) -> Texture2D:
+## Load a mode's exported tile as a LIGHT icon. Qud's sw_*_mode sprites are dark figures on
+## transparent, recoloured to a light foreground at render; the raw export is near-black, and
+## modulate (multiply) can't lighten it. Invert the opaque pixels so the figure reads light with its
+## detail as dark lines — then the card's white/grey modulate works for selected vs unselected.
+func _mode_icon(tile: String) -> Texture2D:
 	if tile == "":
 		return null
 	var fname := tile.replace("/", "_").replace("\\", "_")
@@ -360,6 +422,12 @@ func _tile(tile: String) -> Texture2D:
 	if img.load_png_from_buffer(bytes) != OK:
 		if img.load(path) != OK:
 			return null
+	img.convert(Image.FORMAT_RGBA8)
+	for y in range(img.get_height()):
+		for x in range(img.get_width()):
+			var p := img.get_pixel(x, y)
+			if p.a > 0.04:
+				img.set_pixel(x, y, Color(1.0 - p.r, 1.0 - p.g, 1.0 - p.b, p.a))
 	return ImageTexture.create_from_image(img)
 
 func _text(txt: String, col: Color, role := "body") -> Label:

@@ -479,6 +479,30 @@ namespace RavesOfQud
                         PushKeyChar(k[0]);
                     return;
                 }
+                if (name == "export")
+                {
+                    // Re-run the DATA exporters NOW, even at the main menu. The fall-through path
+                    // below enqueues to Server.Incoming, which only drains in-game (turn/render tick)
+                    // — so chargen/mods/etc. data would never refresh at the menu, exactly where the
+                    // chargen screens ask for it. Run it on the uiQueue instead (main thread, drains
+                    // each frame while focused), so a screen that opens at the menu gets fresh data +
+                    // its tile art (TileExporter also queues onto uiQueue). Data-only + cheap.
+                    var gmx = GameManager.Instance;
+                    if (gmx != null && gmx.uiQueue != null)
+                        gmx.uiQueue.queueTask(() =>
+                        {
+                            try
+                            {
+                                ModsExporter.ReExport();
+                                OptionsExporter.ReExport();
+                                RecordsExporter.ReExport();
+                                ChargenExporter.ReExport();
+                                Server.Log("[export] re-exported (menu path) mods + options + records + chargen");
+                            }
+                            catch (Exception e) { try { Server.Log("export error: " + e.Message); } catch { } }
+                        }, 0);
+                    return;
+                }
                 if (name == "embark")
                 {
                     // THE DRIVE: create the character Raves assembled and start the run, skipping
