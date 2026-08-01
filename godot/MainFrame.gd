@@ -560,7 +560,9 @@ func _relayout_topbar() -> void:
 	# Qud's right cluster ends ~5px inside our bar's right edge (its zone name stops at ~1899, ours would
 	# reach ~1904). Inset it so the disc/::/zone line up with Qud rather than hugging the panel margin.
 	_grp_right.position.x = w - _grp_right.size.x - 8.0
-	_place_sep(_sep1, _grp_left, _grp_t)
+	# Qud's name↔T-group separator is the same fixed-width box (||—————||) as the other two, centred in
+	# the gap — not a line stretched to fill it (which ran ~284px vs Qud's ~260).
+	_place_sep(_sep1, _grp_left, _grp_t, 8.0, 261.0, true)
 	# Qud's water$↔QN separator is the same fixed-width box (||—————||) as the one below, floating
 	# ~centred in the gap between the T-group and the stats (Qud caps at 778/1036, ~258px). Centre a
 	# fixed-width box in the gap rather than stretching it (which ran 20px wide).
