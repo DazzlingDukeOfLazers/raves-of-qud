@@ -471,6 +471,11 @@ func _set_status_label(label: Label, word: String) -> void:
 
 func _row_status() -> Control:
 	var strip := _strip()
+	# Trim the space below the bar: Qud's row 2 starts ~4px higher. The bar (and its vcentred avatar/text)
+	# stays put; only the strip's bottom shrinks, lifting row 2 to Qud's y.
+	var sstyle: StyleBoxFlat = _panel_style()
+	sstyle.content_margin_bottom = 1
+	strip.add_theme_stylebox_override("panel", sstyle)
 	var bpx := UiFont.px(get_viewport(), "body")
 	var isz := int(bpx * 1.7)                          # avatar scale, matched to Qud
 	var bar := Control.new()                            # free-positioning host; groups placed by _relayout_topbar
