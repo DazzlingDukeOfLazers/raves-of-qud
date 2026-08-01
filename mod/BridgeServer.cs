@@ -111,6 +111,7 @@ namespace RavesOfQud
                 ClientConn conn;
                 try { conn = new ClientConn(this, client); }
                 catch { try { client.Close(); } catch { } continue; }
+                ReapDead();   // clear any dead ghost (e.g. the just-killed Raves) before the replacement joins
                 lock (_clientsLock) _clients.Add(conn);
                 conn.Start();
                 Log("client connected");
@@ -145,11 +146,38 @@ namespace RavesOfQud
         /// </summary>
         public void Publish(byte[] frame)
         {
+            ReapDead();
             lock (_clientsLock)
             {
                 for (int i = 0; i < _clients.Count; i++)
                     _clients[i].Offer(frame);
             }
+        }
+
+        /// <summary>
+        /// Cull clients whose peer has vanished. Called from <see cref="Publish"/> (so a rebuilt Raves
+        /// reconnecting never has to share the roster with its own dead ghost — the ghost is dropped on the
+        /// very next publish) and from the accept path (so it's gone the instant the replacement connects).
+        /// Collects under the lock but Kills OUTSIDE it: Kill re-enters Remove, and we don't hold
+        /// _clientsLock across that.
+        /// </summary>
+        private void ReapDead()
+        {
+            List<ClientConn> dead = null;
+            lock (_clientsLock)
+            {
+                for (int i = _clients.Count - 1; i >= 0; i--)
+                {
+                    if (_clients[i].IsPeerGone())
+                    {
+                        if (dead == null) dead = new List<ClientConn>();
+                        dead.Add(_clients[i]);
+                        _clients.RemoveAt(i);
+                    }
+                }
+            }
+            if (dead != null)
+                foreach (var c in dead) { Log("reaped dead client"); c.Kill(); }
         }
 
         /// <summary>
@@ -172,6 +200,11 @@ namespace RavesOfQud
                 _srv = srv;
                 _tcp = tcp;
                 _stream = tcp.GetStream();
+                // Best-effort TCP keepalive so a peer that vanishes WITHOUT a clean FIN (a hard-killed
+                // Raves, a yanked connection) is eventually RST'd by the OS and our blocking read unblocks.
+                // Mono may ignore the fine-grained timing knobs; the publish/accept reaper is the real net.
+                try { tcp.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true); }
+                catch { /* option unsupported on this runtime — reaper still covers us */ }
             }
 
             public void Start()
@@ -188,6 +221,25 @@ namespace RavesOfQud
                 if (!_alive) return;
                 Interlocked.Exchange(ref _pending, frame);
                 try { _wake.Set(); } catch { /* disposed during teardown */ }
+            }
+
+            /// Non-blocking liveness probe used by the reaper. A peer that closed or reset shows up as
+            /// "readable with nothing to read" (Poll true + Available 0); a live socket with no pending
+            /// data is NOT readable. Sampled twice to close the one race with the read thread: a live
+            /// client whose inbound command is consumed between samples reads readable-then-empty once,
+            /// but a truly-dead peer stays readable-with-0 across both. Never blocks more than ~1ms.
+            public bool IsPeerGone()
+            {
+                if (!_alive) return true;
+                Socket s;
+                try { s = _tcp.Client; } catch { return true; }
+                if (s == null) return true;
+                try
+                {
+                    if (!(s.Poll(0, SelectMode.SelectRead) && s.Available == 0)) return false;
+                    return s.Poll(1000, SelectMode.SelectRead) && s.Available == 0;   // 1ms confirm
+                }
+                catch { return true; }   // disposed / errored socket → treat as gone
             }
 
             // Send the newest frame WITHOUT ever doing a long blocking Write. The socket stays in blocking
