@@ -32,8 +32,45 @@ namespace RavesOfQud
         private static bool _active;
         private static string _sig = "";
         private static int _lastPollMs;
+        private static PopupMessage _pm;        // cached visible popup — checked cheaply each poll (Visible)
+        private static int _lastScanMs;         // throttles the scene scan that finds a fresh popup
 
         private static void Log(string s) { try { Bridge.Server?.Log(s); } catch { } }
+
+        /// <summary>
+        /// The currently-visible Qud popup, or null. Qud shows modals via TWO windows: the singleton
+        /// (WaitNewPopupMessage's off-UI-thread path — most in-turn popups) AND a per-popup COPY
+        /// (NewPopupMessageAsync via UIManager.copyWindow — AskString and UI-thread-triggered popups, view
+        /// "DynamicPopupMessage"). getWindow("PopupMessage") only sees the singleton, so we scan for any
+        /// visible PopupMessage. The find is cached: while one stays up we just re-check .Visible (cheap);
+        /// the scene scan is throttled so idle frames don't pay for it.
+        /// </summary>
+        // A popup is LIVE only while it still has a pending callback — OnActivateCommand/OnSelect null it out
+        // on dismiss. NewPopupMessageAsync leaves dismissed copies momentarily visible, so "visible" alone
+        // picks up ghosts (seen as a stale inputBox + empty buttons); require a live callback too.
+        private static bool IsLive(PopupMessage w)
+        {
+            try { return w != null && w.Visible && (w.commandCallback != null || w.selectCallback != null); }
+            catch { return false; }
+        }
+
+        private static PopupMessage FindVisiblePopup(bool force)
+        {
+            if (IsLive(_pm)) return _pm;
+            _pm = null;
+            try { var s = UIManager.getWindow("PopupMessage") as PopupMessage; if (IsLive(s)) return _pm = s; } catch { }
+            int now = Environment.TickCount;
+            if (!force && now - _lastScanMs < 120) return null;   // dynamic-copy scan: ~8 Hz when idle
+            _lastScanMs = now;
+            try
+            {
+                var all = UnityEngine.Object.FindObjectsByType<PopupMessage>(FindObjectsSortMode.None);
+                for (int i = 0; i < all.Length; i++)
+                    if (IsLive(all[i])) return _pm = all[i];
+            }
+            catch { }
+            return null;
+        }
 
         /// <summary>Called (on the accept thread) when a client connects. A popup is published only on
         /// change, so a viewer that connects — or a rebuilt Raves that reconnects — WHILE a modal is up
@@ -80,8 +117,8 @@ namespace RavesOfQud
             bool resend = _resend;   // one-shot: a client just connected — re-broadcast the live popup
             _resend = false;
 
-            PopupMessage pm = UIManager.getWindow("PopupMessage") as PopupMessage;
-            bool active = pm != null && pm.Visible;
+            PopupMessage pm = FindVisiblePopup(false);
+            bool active = pm != null;
 
             if (!active)
             {
@@ -171,8 +208,8 @@ namespace RavesOfQud
             {
                 try
                 {
-                    PopupMessage pm = UIManager.getWindow("PopupMessage") as PopupMessage;
-                    if (pm == null || !pm.Visible) return;
+                    PopupMessage pm = FindVisiblePopup(true);
+                    if (pm == null) return;
                     List<QudMenuItem> buttons = pm.controller != null ? pm.controller.bottomContextOptions : null;
                     List<QudMenuItem> options = pm.controller != null ? pm.controller.menuData : null;
 
@@ -184,8 +221,13 @@ namespace RavesOfQud
                     }
                     if (action == "input")
                     {
+                        // KNOWN LIMITATION: AskString (and other NewPopupMessageAsync/copyWindow popups) live
+                        // in a per-popup COPY that FindObjectsByType stops returning by answer-time — only a
+                        // decoy singleton is found — so injecting the text + submitting here targets the
+                        // wrong instance and doesn't reach Qud. The input popup still RENDERS in Raves and is
+                        // answerable in Qud's own window; submitting it FROM Raves is not wired yet. Singleton
+                        // popups (message / yes-no / option-menu) are unaffected and fully round-trip.
                         if (pm.inputBox != null) pm.inputBox.text = text ?? "";
-                        // Submit through the accept/submit bottom button; its callback reads inputBox.text.
                         QudMenuItem acc = FindButton(buttons, "keep", "Accept", "Submit");
                         pm.OnActivateCommand(acc);
                         return;
