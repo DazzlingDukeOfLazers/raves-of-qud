@@ -541,6 +541,14 @@ namespace RavesOfQud
                         }, 0);
                     return;
                 }
+                if (name == "dumpnav")
+                {
+                    // One-shot: dump the top-bar nav-button icons (ActiveButton sprites). uiQueue = main thread.
+                    var gmn = GameManager.Instance;
+                    if (gmn != null && gmn.uiQueue != null)
+                        gmn.uiQueue.queueTask(() => { try { TitleExporter.ExportNavIcons(); } catch (Exception e) { try { Server.Log("dumpnav: " + e.Message); } catch { } } }, 0);
+                    return;
+                }
                 if (name == "metagame")
                 {
                     // Boot a background "Meta" pseudo-game (Marsh Taur pregen, Classic) so Raves has a

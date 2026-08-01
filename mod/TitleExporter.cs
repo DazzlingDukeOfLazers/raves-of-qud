@@ -110,6 +110,43 @@ namespace RavesOfQud
             catch (Exception e) { System.Console.WriteLine("[raves] clock export failed: " + e.Message); return false; }
         }
 
+        /// Dump Qud's top-bar nav buttons (Qud.UI.ActiveButton) — each holds an ActiveImage sprite. Writes
+        /// nav/<obj>.png per button plus a manifest (screen x for ordering, obj name, sprite). Used to
+        /// identify + extract the 12-icon nav cluster. MAIN-THREAD ONLY (graphics readback).
+        public static void ExportNavIcons()
+        {
+            try
+            {
+                string dir = Path.Combine(Dir, "nav");
+                Directory.CreateDirectory(dir);
+                var sb = new System.Text.StringBuilder();
+                int n = 0;
+                foreach (var b in Resources.FindObjectsOfTypeAll<Qud.UI.ActiveButton>())
+                {
+                    if (b == null) continue;
+                    var rt = b.transform as RectTransform;
+                    float x = rt != null ? rt.position.x : -1f;
+                    string nm = b.gameObject.name;
+                    n += NavOne(dir, sb, nm + "__normal", x, b.DisabledImage);   // the resting icon
+                    n += NavOne(dir, sb, nm + "__active", x, b.ActiveImage);     // notification overlay (if any)
+                    foreach (var img in b.GetComponentsInChildren<Image>(true))  // any child icon Image
+                        if (img != null && img.sprite != null)
+                            n += NavOne(dir, sb, nm + "__" + img.gameObject.name, x, img.sprite);
+                }
+                File.WriteAllText(Path.Combine(Dir, "nav_manifest.txt"), sb.ToString());
+                System.Console.WriteLine("[raves] nav dump: " + n + " button images");
+            }
+            catch (Exception e) { System.Console.WriteLine("[raves] nav dump failed: " + e.Message); }
+        }
+
+        private static int NavOne(string dir, System.Text.StringBuilder sb, string tag, float x, Sprite sp)
+        {
+            if (sp == null || sp.texture == null) return 0;
+            sb.AppendLine(string.Format("x={0:0} tag={1} sprite={2}", x, tag, sp.name));
+            try { WriteSprite(sp, Path.Combine(dir, Sanitize(tag) + ".png")); return 1; }
+            catch { return 0; }
+        }
+
         /// Find a loaded UI Sprite by exact name and write it to <c>Dir/destFile</c> (like the title
         /// art). MAIN-THREAD ONLY. Reads the player's own install; never bundled.
         public static void ExportNamedSprite(string spriteName, string destFile)

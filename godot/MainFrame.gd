@@ -192,6 +192,22 @@ func _ensure_clocks() -> void:
 	if not arr.is_empty():
 		_clock_tex = arr
 
+## Load a nav-bar icon (nav_<key>.png in the title dir), extracted from Qud's ActiveButtons.
+func _load_nav_icon(key: String) -> Texture2D:
+	return _load_title_png("nav_%s.png" % key)
+
+func _load_title_png(fname: String) -> Texture2D:
+	var path := InputModel.support_dir().path_join("title").path_join(fname)
+	if not FileAccess.file_exists(path):
+		return null
+	var bytes := FileAccess.get_file_as_bytes(path)
+	if bytes.is_empty():
+		return null
+	var img := Image.new()
+	if img.load_png_from_buffer(bytes) != OK:
+		return null
+	return ImageTexture.create_from_image(img)
+
 func _load_clock_tex(i: int) -> Texture2D:
 	var path := InputModel.support_dir().path_join("title").path_join("clock_%d.png" % i)
 	if not FileAccess.file_exists(path):
@@ -568,6 +584,11 @@ func _row_vitals_menu() -> Control:
 	# six icons only, for parity. Both are cosmetic placeholders except the Perceived/Full toggle.
 	var menu := _strip()
 	menu.size_flags_horizontal = Control.SIZE_SHRINK_END
+	# Qud's nav icons hug the window's right edge; trim this strip's right inset so the cluster sits
+	# flush like Qud's (the default 8px panel margin left it ~7px shy of Qud's last icon).
+	var mstyle: StyleBoxFlat = _panel_style()
+	mstyle.content_margin_right = 1
+	menu.add_theme_stylebox_override("panel", mstyle)
 
 	_menu_verbose = HBoxContainer.new()
 	_menu_verbose.add_theme_constant_override("separation", 4)
@@ -583,13 +604,34 @@ func _row_vitals_menu() -> Control:
 			"POI", "Auto-explore", "▼ Down", "▲ Up"]:
 		_menu_verbose.add_child(_menu_btn(label))
 
-	# Qud's compact top-right cluster: menu · lock · abilities · journal · look · wait. Hidden until 1:1.
+	# Qud's compact top-right cluster: the 11 real nav icons (extracted from Qud's ActiveButtons), in
+	# fixed slots at Qud's ~43px pitch (1.8×body), right-anchored. Python-modelled to Qud's centres.
 	_menu_compact = HBoxContainer.new()
-	_menu_compact.add_theme_constant_override("separation", 4)
+	_menu_compact.add_theme_constant_override("separation", 0)   # pitch = the slot width
 	_menu_compact.visible = false
 	menu.add_child(_menu_compact)
-	for icon in ["≡", "🔒", "🅰", "📖", "🔍", "⏳"]:
-		_menu_compact.add_child(_menu_btn(icon))
+	var nbpx := UiFont.px(get_viewport(), "body")
+	var slot := int(round(nbpx * 2.05))            # ~43px pitch (screen), matching Qud (calibrated)
+	var ihh := int(round(nbpx * 1.6))
+	var iscale := nbpx / 26.0                       # native icon px → render size (consistent, keeps aspect)
+	for key in ["system", "wlock", "map", "find", "look", "rest", "char", "poi", "explore", "down", "up"]:
+		var cell := Control.new()
+		cell.custom_minimum_size = Vector2(slot, ihh)
+		cell.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var tex := _load_nav_icon(key)
+		var ic := TextureRect.new()
+		ic.texture = tex
+		ic.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		ic.stretch_mode = TextureRect.STRETCH_SCALE
+		ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		if tex != null:
+			var ts: Vector2 = tex.get_size() * iscale   # same scale for every icon → native aspect preserved
+			ic.anchor_left = 0.5; ic.anchor_top = 0.5
+			ic.anchor_right = 0.5; ic.anchor_bottom = 0.5
+			ic.offset_left = -ts.x * 0.5; ic.offset_top = -ts.y * 0.5
+			ic.offset_right = ts.x * 0.5; ic.offset_bottom = ts.y * 0.5
+		cell.add_child(ic)
+		_menu_compact.add_child(cell)
 
 	h.add_child(menu)
 	return h
