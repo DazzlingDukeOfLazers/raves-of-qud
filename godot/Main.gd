@@ -860,6 +860,15 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.keycode == KEY_W and event.ctrl_pressed and event.shift_pressed \
 				and not event.meta_pressed:
 			_open_wish(); return
+		# Dedicated stress-test wishes (single combo, no text prompt) — bump the EXP / HP bars straight
+		# from Qud's own wish handler. X = +150 xp, H = -3 hp (hurt), J = full heal.
+		if event.ctrl_pressed and event.shift_pressed and not event.meta_pressed:
+			if event.keycode == KEY_X:
+				client.send_command("wish", {"wish": "xp:150"}); return
+			if event.keycode == KEY_H:
+				client.send_command("wish", {"wish": "statpenalty:Hitpoints:3"}); return
+			if event.keycode == KEY_J:
+				client.send_command("wish", {"wish": "statpenalty:Hitpoints:-9999"}); return
 		# mode switches first — they reassign what the arrows mean
 		if event.shift_pressed and event.keycode == KEY_C:
 			_set_mode(CamMode.MOUSE); return
