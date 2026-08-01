@@ -91,7 +91,7 @@ const STAT_PITCH := 86           # Qud centres each stat on a uniform ~86px grid
 const VITALS_BOX_H := 18         # Qud's HP/EXP bar box height — the bar fills the whole row, text on top
 const VITALS_USER_INSET := 170   # user mode: inset the bar behind the label so green text stays readable
 const COL_VITALS_TRACK := Color8(19, 23, 26)   # Qud's empty-bar track (dark)
-var _l_hp: Label
+var _l_hp: RichTextLabel   # HP line — RichText so only the current-HP number is health-tinted (like Qud)
 var _bar_hp: ProgressBar
 var _l_exp: Label
 var _bar_exp: ProgressBar
@@ -330,7 +330,7 @@ func _bar(value: float, maxv: float, col: Color) -> ProgressBar:
 
 ## One vitals row (HP or LVL/EXP): the bar fills the box, the label + numbers drawn ON TOP (Qud's
 ## layout). 1:1 → bar spans the full box; user → bar inset behind the label (_apply_vitals_mode sets it).
-func _vitals_row(lbl: Label, pb: ProgressBar) -> Control:
+func _vitals_row(lbl: Control, pb: ProgressBar) -> Control:
 	var row := Control.new()
 	row.custom_minimum_size = Vector2(0, VITALS_BOX_H)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -339,11 +339,28 @@ func _vitals_row(lbl: Label, pb: ProgressBar) -> Control:
 	row.add_child(pb)
 	lbl.set_anchors_preset(Control.PRESET_FULL_RECT)
 	lbl.offset_left = 19                       # inset the text to ~x21, aligning with the avatar column (Qud)
-	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if lbl is Label:
+		(lbl as Label).horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		(lbl as Label).vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	elif lbl is RichTextLabel:
+		lbl.offset_top = 2.0                   # RichText has no vertical_alignment — nudge to centre in the box
 	row.add_child(lbl)                         # added after the bar → renders on top
 	return row
+
+## The HP line: a RichTextLabel so only the current-HP number is colour-coded by health (Qud's GetHPColor);
+## the "HP:" prefix and "/ max" stay white. vcentred in the box via a small top offset (RichText has no
+## vertical_alignment). Font matches the other vitals text (theme mono + the 0.85×body size).
+func _hp_rich(font_size: int) -> RichTextLabel:
+	var rt := RichTextLabel.new()
+	rt.bbcode_enabled = true
+	rt.fit_content = false
+	rt.scroll_active = false
+	rt.autowrap_mode = TextServer.AUTOWRAP_OFF
+	rt.clip_contents = false
+	rt.add_theme_font_size_override("normal_font_size", font_size)
+	rt.text = "HP: —"
+	return rt
 
 # Qud's within-group divider — a compact 2×2 block of dim squares (not text colons).
 func _dots(cell_w := 0) -> Control:
@@ -653,8 +670,7 @@ func _row_vitals_menu() -> Control:
 
 	# Qud's vitals text is ~15% smaller than our default body — sized to match (cap ~11px vs Qud's 11).
 	var vfs := int(round(UiFont.px(get_viewport(), "body") * 0.85))
-	_l_hp = _text("HP: —", COL_HP)
-	_l_hp.add_theme_font_size_override("font_size", vfs)
+	_l_hp = _hp_rich(vfs)
 	_bar_hp = _bar(0, 1, COL_HP)
 	vitals.add_child(_vitals_row(_l_hp, _bar_hp))
 
@@ -806,7 +822,8 @@ func _apply_layout_mode(on: bool) -> void:
 ## only re-applied when 1:1 is active or on a mode flip.
 func _apply_vitals_mode(on: bool) -> void:
 	if _l_hp != null:
-		_l_hp.add_theme_color_override("font_color", COL_HP_1TO1 if on else COL_HP)
+		# RichTextLabel base colour ("HP:" + "/ max"); the current number is tinted per-snapshot in _apply_stats.
+		_l_hp.add_theme_color_override("default_color", COL_HP_1TO1 if on else COL_HP)
 	if _l_exp != null:
 		_l_exp.add_theme_color_override("font_color", COL_EXP_1TO1 if on else COL_EXP)
 	_recolor_bar(_bar_hp, COL_HP_BAR_1TO1 if on else COL_HP)
@@ -1047,11 +1064,11 @@ func _apply_stats(data: Dictionary) -> void:
 	var hp := int(s.get("hp", 0))
 	var hpmax := maxi(1, int(s.get("hpMax", 1)))
 	if _l_hp != null:
-		# 1:1 uses Qud's spacing ("HP: 21 / 21"); user mode keeps the compact form.
-		_l_hp.text = ("HP: %d / %d" if Settings.one_to_one() else "HP: %d/%d") % [hp, hpmax]
-		# 1:1: colour the HP readout by health % like Qud (white→green→gold→red→dark red).
 		if Settings.one_to_one():
-			_l_hp.add_theme_color_override("font_color", _hp_color(hp, hpmax))
+			# Qud's spacing, and colour ONLY the current-HP number by health % (rest white). BBCode.
+			_l_hp.text = "HP: [color=#%s]%d[/color] / %d" % [_hp_color(hp, hpmax).to_html(false), hp, hpmax]
+		else:
+			_l_hp.text = "HP: %d/%d" % [hp, hpmax]
 	if _bar_hp != null:
 		_bar_hp.max_value = hpmax
 		_bar_hp.value = hp
