@@ -542,14 +542,15 @@ func _relayout_topbar() -> void:
 	_grp_right.position.x = w - _grp_right.size.x - 8.0
 	_place_sep(_sep1, _grp_left, _grp_t)
 	_place_sep(_sep2, _grp_t, _grp_stats)
-	# Qud leaves ~17px between this separator's || cap and the sky disc; the default 8px pad packed the
-	# pipes right against the disc. Use a wider right pad so the || lands at Qud's x (~1746).
-	_place_sep(_sep3, _grp_stats, _grp_right, 16.0)
+	# Qud's stats↔disc separator is a fixed-width box (||—————||), not a line glued to the stats. Its
+	# right || is 16px left of the disc (aligned above); its left || is ~261px further left, at Qud's x
+	# (~1490). Anchor it to the aligned right end at Qud's box width so the left || matches Qud regardless
+	# of the stats group's width/position (which still sits ~20px left of Qud — a later leftward pass).
+	_place_sep(_sep3, _grp_stats, _grp_right, 16.0, 261.0)
 
-func _place_sep(sep: Control, lg: Control, rg: Control, rpad := 8.0) -> void:
-	var pad := 8.0
-	var x0 := lg.position.x + lg.size.x + pad
+func _place_sep(sep: Control, lg: Control, rg: Control, rpad := 8.0, fixed_w := 0.0) -> void:
 	var x1 := rg.position.x - rpad
+	var x0 := (x1 - fixed_w) if fixed_w > 0.0 else (lg.position.x + lg.size.x + 8.0)
 	sep.size = Vector2(maxf(2.0, x1 - x0), sep.get_combined_minimum_size().y)
 	sep.position = Vector2(x0, (_topbar.size.y - sep.size.y) * 0.5)
 
