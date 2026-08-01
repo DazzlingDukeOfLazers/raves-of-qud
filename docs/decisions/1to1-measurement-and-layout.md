@@ -28,6 +28,35 @@ calibration constant. Concretely, on the top bar Qud turned out to use:
 
 Once the model matches, a single per-group constant (a centre %, an inset) lands the whole group.
 
+## Calibrate across content states — a single snapshot hides the *rule*
+
+The sharpest trap: fit the layout to **one** content state, get it pixel-perfect, and ship a rule that's
+secretly wrong. The top bar was tuned with the zone name "Joppa" (short); we set the T-group and stats to
+fixed fractions of the **window width** (`w×0.30`, `w×0.66`) and it matched to 1px. Then the player walked
+to "desert canyon, surface" — the right cluster grew ~150px, slid left under the fixed-position stats, and
+`sep3` collided *into* the middle of the stats. `w×0.66` had only ever *coincidentally* equalled the right
+answer because the right cluster happened to sit where it did in Joppa.
+
+The fix was to **derive the rule from the relationships between elements, measured across several content
+states**. Capturing Qud at three zone lengths (Joppa / Rustwell / desert) and computing ratios showed the
+real rule: Qud positions T and stats relative to the **right cluster's left edge** (`Rl`), not the window —
+`T = 0.328 × Rl` held *exactly* across all three, and the three inter-group gaps came out **equal**. So the
+layout is "split the leftover space into three equal gaps," computed from the **live** group widths
+(`get_combined_minimum_size()`), which adapts to zone name, status word ("Hungry" vs "Sated"), and stat
+digits alike. No magic percentages.
+
+Rules for not getting fooled again:
+
+- **Any absolute constant tied to the window (`w×k`, a hardcoded x) is a red flag** — it can't know about
+  its neighbours, so it breaks the moment a neighbour's width changes. Prefer relationships (anchor to the
+  adjacent element, or distribute slack) over absolute positions.
+- **Vary the content before believing a fit.** Long *and* short zone, 1- and 3-digit stats, longest status
+  word. If the rule only holds for one, it's a coincidence, not the rule.
+- **Watch out for measurement contamination.** The stats "centre" wobbled across zones only because the
+  extent-midpoint I measured shifts with the *digits shown* (value-dependent glyph widths) — the position
+  rule was actually clean. Measure a value-independent anchor (a constant-width group, a cell edge) when the
+  content varies.
+
 ## The measurement loop (do this, don't eyeball, don't infer)
 
 1. **Capture both apps in the *same* frame.** `hv shot 'CavesOfQud' q.png` + `hv shot 'Raves…' r.png`

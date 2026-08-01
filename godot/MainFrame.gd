@@ -77,8 +77,8 @@ var _grp_right: HBoxContainer   # sky disc :: zone (right edge)
 var _sep1: Control
 var _sep2: Control
 var _sep3: Control
-const TOPBAR_T_CENTER := 0.30    # Qud: T-group centred at 30% of the bar
-const TOPBAR_STATS_CENTER := 0.66  # Qud: stats centred at ~66% (fixed-pitch group centre lands on Qud's)
+# T-group & stats are NOT at fixed % of the bar — _relayout_topbar splits the slack into 3 equal gaps
+# (measured: Qud tracks the right cluster, not the window width). See _relayout_topbar.
 const TOPBAR_SEP := 10           # within-group spacing (Qud's :: gaps are looser than our default 6)
 const TOPBAR_TRACKING := 1       # extra glyph spacing — Qud's top bar tracks looser than Source Code Pro
 const STAT_PITCH := 86           # Qud centres each stat on a uniform ~86px grid (not natural text width)
@@ -575,8 +575,12 @@ func _grp() -> HBoxContainer:
 	g.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return g
 
-## Place the four top-row groups: left/right edge-anchored, T-group & stats centred on their Qud %s;
-## then stretch each separator to the live gap between neighbours. Re-run on resize and each snapshot.
+## Place the four top-row groups: [left][gap][T][gap][stats][gap][right] with the THREE gaps EQUAL —
+## the slack split three ways. Left edge-anchored, right cluster right-anchored (~8px inset). Derived by
+## measuring Qud across zone lengths (Joppa/Rustwell/desert): T lands at 0.328×Rl every time and the gaps
+## come out equal. Uses the LIVE group widths, so a longer zone / status word / stat digits just shrinks
+## the gaps evenly instead of colliding (the old fixed w×0.30 / w×0.66 ignored the right cluster and broke
+## when the zone name grew). Re-run on resize and each snapshot.
 func _relayout_topbar() -> void:
 	if _topbar == null or _grp_right == null:
 		return
@@ -588,11 +592,12 @@ func _relayout_topbar() -> void:
 		g.size = g.get_combined_minimum_size()
 		g.position.y = (hh - g.size.y) * 0.5
 	_grp_left.position.x = 0.0
-	_grp_t.position.x = w * TOPBAR_T_CENTER - _grp_t.size.x * 0.5
-	_grp_stats.position.x = w * TOPBAR_STATS_CENTER - _grp_stats.size.x * 0.5
-	# Qud's right cluster ends ~5px inside our bar's right edge (its zone name stops at ~1899, ours would
-	# reach ~1904). Inset it so the disc/::/zone line up with Qud rather than hugging the panel margin.
+	# Right cluster ends ~8px inside the bar's right edge, so its zone name lines up with Qud's.
 	_grp_right.position.x = w - _grp_right.size.x - 8.0
+	# Split the leftover space between left and right into three equal gaps around T and stats.
+	var gap := (_grp_right.position.x - _grp_left.size.x - _grp_t.size.x - _grp_stats.size.x) / 3.0
+	_grp_t.position.x = _grp_left.size.x + gap
+	_grp_stats.position.x = _grp_t.position.x + _grp_t.size.x + gap
 	# Qud's name↔T-group separator is the same fixed-width box (||—————||) as the other two, centred in
 	# the gap — not a line stretched to fill it (which ran ~284px vs Qud's ~260).
 	_place_sep(_sep1, _grp_left, _grp_t, 8.0, 261.0, true)
@@ -607,14 +612,20 @@ func _relayout_topbar() -> void:
 	_place_sep(_sep3, _grp_stats, _grp_right, 16.0, 261.0)
 
 func _place_sep(sep: Control, lg: Control, rg: Control, rpad := 8.0, fixed_w := 0.0, centered := false) -> void:
+	var lend := lg.position.x + lg.size.x
 	var x0: float
+	var x1: float
 	if fixed_w > 0.0 and centered:
-		x0 = (lg.position.x + lg.size.x + rg.position.x) * 0.5 - fixed_w * 0.5   # float centred in the gap
+		var fw := minf(fixed_w, maxf(4.0, (rg.position.x - lend) - 12.0))   # shrink to fit a tight gap
+		var mid := (lend + rg.position.x) * 0.5
+		x0 = mid - fw * 0.5
+		x1 = mid + fw * 0.5
 	elif fixed_w > 0.0:
-		x0 = (rg.position.x - rpad) - fixed_w                                     # anchored to the right end
+		x1 = rg.position.x - rpad                                            # anchored to the right end
+		x0 = x1 - minf(fixed_w, maxf(4.0, (x1 - lend) - 6.0))
 	else:
-		x0 = lg.position.x + lg.size.x + 8.0                                      # stretch to fill the gap
-	var x1 := (x0 + fixed_w) if fixed_w > 0.0 else (rg.position.x - rpad)
+		x0 = lend + 8.0                                                      # stretch to fill the gap
+		x1 = rg.position.x - rpad
 	sep.size = Vector2(maxf(2.0, x1 - x0), sep.get_combined_minimum_size().y)
 	sep.position = Vector2(x0, (_topbar.size.y - sep.size.y) * 0.5)
 
