@@ -27,6 +27,12 @@ const COL_HP_1TO1 := Color(1, 1, 1)           # Qud: HP text white
 const COL_EXP_1TO1 := Color8(146, 169, 164)   # Qud: LVL/EXP text light grey
 const COL_HP_BAR_1TO1 := Color8(25, 89, 34)   # Qud: HP bar dark green (#195922)
 const COL_EXP_BAR_1TO1 := Color8(47, 80, 86)  # Qud: LVL/EXP bar muted teal (sampled with xp on the bar)
+# Qud colours the HP text by health % (GameObject.GetHPColor): >=100 white, 66-99 green, 33-65 gold,
+# 15-32 red, <15 dark red. RGB from Qud's palette (red sampled from a live low-HP capture).
+const COL_HP_GREEN := Color8(0, 193, 46)      # &G green (66-99%)
+const COL_HP_GOLD := Color8(214, 154, 20)     # &W gold (33-65%)
+const COL_HP_RED := Color8(209, 58, 0)        # &R red (15-32%; sampled)
+const COL_HP_DARKRED := Color8(140, 32, 8)    # &r dark red (<15%)
 const COL_STAT_TEAL := Color("2b6382")        # AV/DV/MA — Qud tints these teal-blue (QN/MS stay neutral)
 const COL_DIM := Color(0.69, 0.79, 0.76, 0.45)   # y (grey), dimmed — hints/captions
 const COL_BORDER := Color(0.69, 0.79, 0.76, 0.16) # y (grey), faint — panel edges
@@ -819,6 +825,15 @@ func _recolor_bar(pb: ProgressBar, col: Color) -> void:
 	if fill is StyleBoxFlat:
 		(fill as StyleBoxFlat).bg_color = col
 
+## Qud's HP-text colour by health %, matching GameObject.GetHPColor().
+func _hp_color(hp: int, hpmax: int) -> Color:
+	var pct := 100 * hp / maxi(1, hpmax)
+	if pct < 15:  return COL_HP_DARKRED
+	if pct < 33:  return COL_HP_RED
+	if pct < 66:  return COL_HP_GOLD
+	if pct < 100: return COL_HP_GREEN
+	return COL_HP_1TO1   # white at full
+
 ## Size the three side-column panels per mode. Qud stacks a SHORT minimap, a content-sized Nearby
 ## objects, and a Message log that fills ALL the remaining height. User (QoL) mode keeps the original
 ## split (taller minimap; nearby + log share the leftover space).
@@ -1012,6 +1027,9 @@ func _apply_stats(data: Dictionary) -> void:
 	if _l_hp != null:
 		# 1:1 uses Qud's spacing ("HP: 21 / 21"); user mode keeps the compact form.
 		_l_hp.text = ("HP: %d / %d" if Settings.one_to_one() else "HP: %d/%d") % [hp, hpmax]
+		# 1:1: colour the HP readout by health % like Qud (white→green→gold→red→dark red).
+		if Settings.one_to_one():
+			_l_hp.add_theme_color_override("font_color", _hp_color(hp, hpmax))
 	if _bar_hp != null:
 		_bar_hp.max_value = hpmax
 		_bar_hp.value = hp
