@@ -634,11 +634,15 @@ func _row_vitals_menu() -> Control:
 	vitals.add_theme_constant_override("separation", 3)
 	vitals.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
+	# Qud's vitals text is ~15% smaller than our default body — sized to match (cap ~11px vs Qud's 11).
+	var vfs := int(round(UiFont.px(get_viewport(), "body") * 0.85))
 	_l_hp = _text("HP: —", COL_HP)
+	_l_hp.add_theme_font_size_override("font_size", vfs)
 	_bar_hp = _bar(0, 1, COL_HP)
 	vitals.add_child(_vitals_row(_l_hp, _bar_hp))
 
 	_l_exp = _text("LVL: —   EXP: —", COL_EXP)
+	_l_exp.add_theme_font_size_override("font_size", vfs)
 	_bar_exp = _bar(0, 1, COL_EXP)
 	vitals.add_child(_vitals_row(_l_exp, _bar_exp))
 	h.add_child(vitals)
