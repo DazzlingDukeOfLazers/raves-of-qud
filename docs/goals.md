@@ -52,6 +52,10 @@ nodes first.
    and set the Godot value 1:1, no scale factor. Capture via highvisor (`hv shot`).
 3. **Diff / measure.** Use the cockpit **Congruence** tool (crossfade + similarity map) and/or a
    short PIL script to find and quantify each divergence (colour, size, position, presence).
+   **Reproduce Qud's *layout model*, not its pixels**, and let the diff *pattern* tell you position vs
+   structure — the discipline that got the top bar to ≤1px is in
+   [`decisions/1to1-measurement-and-layout.md`](decisions/1to1-measurement-and-layout.md). Read it
+   before starting a new row/screen; it's what turns nudge-thrash into one build per fix.
 4. **Reproduce Qud — behind the 1:1 switch.** For each divergence, render Qud's version in Raves
    **gated on `Settings.one_to_one()`**. User mode keeps Raves' own QoL chrome; 1:1 mode is the
    faithful reproduction. This gating discipline is non-negotiable — it's what lets parity work
