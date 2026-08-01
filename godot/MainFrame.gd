@@ -143,6 +143,15 @@ func _input(e: InputEvent) -> void:
 
 # ── helpers ────────────────────────────────────────────────────────────────
 
+## Every Label in the subtree (for a uniform per-strip font size).
+func _labels_under(n: Node) -> Array:
+	var out: Array = []
+	for c in n.get_children():
+		if c is Label:
+			out.append(c)
+		out.append_array(_labels_under(c))
+	return out
+
 func _text(s: String, col := Color.WHITE, role := "body") -> Label:
 	var l := Label.new()
 	l.text = s
@@ -298,10 +307,10 @@ func _row_status() -> Control:
 	pm.add_child(_portrait)
 	h.add_child(pm)
 	_l_name = _text("—", COL_NAME, "caption")
-	# Size to content (clip only past a generous cap) so the name never collapses to 0 in the HBox next
-	# to the expanding rule — clip_text with no min width did exactly that (the name vanished).
-	_l_name.clip_text = true
-	_l_name.custom_minimum_size = Vector2(90, 0)
+	# Size to the name's NATURAL width, like Qud (which doesn't reserve a fixed name slot — a wide slot
+	# pushes the whole middle right). clip_text=false makes the label's min-size = its content, so it
+	# neither collapses to 0 next to the expanding rule nor over-reserves empty space after a short name.
+	_l_name.clip_text = false
 	h.add_child(_l_name)
 
 	h.add_child(_rule())
@@ -326,9 +335,14 @@ func _row_status() -> Control:
 
 	h.add_child(_rule())
 	_daynight = _text("☾")                                 # day/night — sun/moon glyph
-	_daynight.add_theme_font_size_override("font_size", UiFont.px(get_viewport(), "title"))
 	h.add_child(_daynight)
 	_l_biome = _text("—"); h.add_child(_l_biome)           # zone / biome name (far right, like Qud)
+
+	# Qud's top bar is set noticeably smaller than body — shrink the whole strip uniformly to match
+	# (Qud fits all five stats where a body-sized strip fits ~four). One size for every glyph here.
+	var tp := int(round(UiFont.px(get_viewport(), "body") * 0.72))
+	for lbl in _labels_under(h):
+		lbl.add_theme_font_size_override("font_size", tp)
 	return strip
 
 # ── row 2: vitals (HP / LVL-EXP)  |  top menu ────────────────────────────────
