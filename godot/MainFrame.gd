@@ -73,6 +73,8 @@ var _sep2: Control
 var _sep3: Control
 const TOPBAR_T_CENTER := 0.30    # Qud: T-group centred at 30% of the bar
 const TOPBAR_STATS_CENTER := 0.65  # Qud: stats centred at ~65%
+const TOPBAR_SEP := 10           # within-group spacing (Qud's :: gaps are looser than our default 6)
+const TOPBAR_TRACKING := 1       # extra glyph spacing — Qud's top bar tracks looser than Source Code Pro
 var _l_hp: Label
 var _bar_hp: ProgressBar
 var _l_exp: Label
@@ -480,9 +482,14 @@ func _row_status() -> Control:
 	_sep2 = _sep_rule(); bar.add_child(_sep2)
 	_sep3 = _sep_rule(); bar.add_child(_sep3)
 
-	# Qud's top bar is smaller than body — one uniform size for every glyph.
+	# Qud's top bar is smaller than body — one uniform size for every glyph — and tracks looser than
+	# Source Code Pro's default, so apply a FontVariation with extra glyph spacing to match its width.
 	var tp := int(round(bpx * 0.72))
+	var topfont := FontVariation.new()
+	topfont.base_font = load("res://fonts/SourceCodePro-Regular.ttf")
+	topfont.spacing_glyph = TOPBAR_TRACKING
 	for lbl in _labels_under(bar):
+		lbl.add_theme_font_override("font", topfont)
 		lbl.add_theme_font_size_override("font_size", tp)
 
 	bar.resized.connect(_relayout_topbar)
@@ -492,7 +499,7 @@ func _row_status() -> Control:
 ## A within-group HBox (tight, Qud-like spacing). Sized to content; positioned by _relayout_topbar.
 func _grp() -> HBoxContainer:
 	var g := HBoxContainer.new()
-	g.add_theme_constant_override("separation", 6)
+	g.add_theme_constant_override("separation", TOPBAR_SEP)
 	g.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return g
 
