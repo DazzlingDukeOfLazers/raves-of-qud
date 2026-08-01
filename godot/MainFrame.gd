@@ -57,7 +57,9 @@ var _l_ma: Label
 var _l_biome: Label
 var _l_hunger: Label
 var _l_thirst: Label
-var _daynight: Label
+var _daynight: Label           # day/night glyph — fallback until the clock sprites are extracted
+var _clock: TextureRect        # Qud's day/night sky disc (PlayerStatusBar.QudTimeImages, by time-of-day)
+var _clock_tex: Array = []     # loaded clock_0..N textures
 var _l_hp: Label
 var _bar_hp: ProgressBar
 var _l_exp: Label
@@ -143,6 +145,49 @@ func _input(e: InputEvent) -> void:
 		_shot()
 
 # ── helpers ────────────────────────────────────────────────────────────────
+
+## Qud's day/night clock index (from PlayerStatusBar): a JoppaWorld day maps to 7 day + 3 night sprites.
+func _clock_index(t: Dictionary) -> int:
+	if _clock_tex.is_empty():
+		return -1
+	var spd: float = maxf(1.0, float(t.get("segmentsPerDay", 12000)))
+	var seg: float = float(t.get("segment", spd * 0.5))
+	var day_seg := seg / spd * 12000.0            # normalise to Qud's 12000-segment day
+	var num2 := int(day_seg / 10.0)
+	num2 = (num2 + 875) % 1200
+	var idx: int
+	if num2 < 675:
+		idx = int(num2 * 7 / 675.0)               # day: 0..6
+	else:
+		idx = 7 + int((num2 - 675) * 3 / 525.0)   # night: 7..9
+	return clampi(idx, 0, _clock_tex.size() - 1)
+
+## Load the clock sprites once the mod has exported them (clock_0..N in the title dir); polled per snapshot.
+func _ensure_clocks() -> void:
+	if not _clock_tex.is_empty():
+		return
+	var arr: Array = []
+	var i := 0
+	while true:
+		var tex := _load_clock_tex(i)
+		if tex == null:
+			break
+		arr.append(tex)
+		i += 1
+	if not arr.is_empty():
+		_clock_tex = arr
+
+func _load_clock_tex(i: int) -> Texture2D:
+	var path := InputModel.support_dir().path_join("title").path_join("clock_%d.png" % i)
+	if not FileAccess.file_exists(path):
+		return null
+	var bytes := FileAccess.get_file_as_bytes(path)
+	if bytes.is_empty():
+		return null
+	var img := Image.new()
+	if img.load_png_from_buffer(bytes) != OK:
+		return null
+	return ImageTexture.create_from_image(img)
 
 ## Every Label in the subtree (for a uniform per-strip font size).
 func _labels_under(n: Node) -> Array:
@@ -366,7 +411,15 @@ func _row_status() -> Control:
 	_l_ma = _text("MA: —", COL_STAT_TEAL); h.add_child(_l_ma)   # mental armor (teal)
 
 	h.add_child(_rule())
-	_daynight = _text("☾")                                 # day/night — sun/moon glyph
+	_clock = TextureRect.new()                             # Qud's day/night sky disc (real sprite)
+	_clock.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_clock.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_clock.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	var csz := int(round(UiFont.px(get_viewport(), "body") * 1.8))
+	_clock.custom_minimum_size = Vector2(csz, csz)
+	_clock.visible = false
+	h.add_child(_clock)
+	_daynight = _text("☾")                                 # glyph fallback until the sprites land
 	h.add_child(_daynight)
 	_l_biome = _text("—"); h.add_child(_l_biome)           # zone / biome name (far right, like Qud)
 
@@ -737,9 +790,19 @@ func _apply_stats(data: Dictionary) -> void:
 		# our own "— · surface/cavern" from zone.z if it's empty.
 		_l_biome.text = terrain if terrain != "" else ("— · %s" % _floor_name(data))
 	if _daynight != null:
-		var is_day: bool = bool(data.get("time", {}).get("isDay", true))
-		_daynight.text = "☀" if is_day else "☾"
-		_daynight.add_theme_color_override("font_color", Color(1.0, 0.85, 0.35) if is_day else Color(0.6, 0.7, 1.0))
+		var t: Dictionary = data.get("time", {})
+		_ensure_clocks()
+		var idx := _clock_index(t)
+		if idx >= 0 and idx < _clock_tex.size() and _clock_tex[idx] != null:
+			_clock.texture = _clock_tex[idx]
+			_clock.visible = true
+			_daynight.visible = false
+		else:
+			_clock.visible = false
+			_daynight.visible = true
+			var is_day: bool = bool(t.get("isDay", true))
+			_daynight.text = "☀" if is_day else "☾"
+			_daynight.add_theme_color_override("font_color", Color(1.0, 0.85, 0.35) if is_day else Color(0.6, 0.7, 1.0))
 	_check_mod_version(data)
 	# Every sub-view shares one entry point, so feeding them is a loop (adding a panel = build the scene
 	# + append it to _panels in _ready; no wiring change here).

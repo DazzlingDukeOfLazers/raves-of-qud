@@ -86,6 +86,30 @@ namespace RavesOfQud
         /// art. MAIN-THREAD ONLY (graphics readback). Reads the player's own install; never bundled.
         public static void ExportChargenEmblem() => ExportNamedSprite("ChargenHeaderDecoration", "chargen_emblem.png");
 
+        /// Export the top status bar's day/night clock sprites (PlayerStatusBar.QudTimeImages — the
+        /// circular sky disc Qud shows before the zone name). A fixed list (7 day + 3 night); the client
+        /// picks the right index from the time-of-day segment. MAIN-THREAD ONLY (graphics readback).
+        public static bool ExportTimeClocks()
+        {
+            try
+            {
+                var bars = Resources.FindObjectsOfTypeAll<Qud.UI.PlayerStatusBar>();
+                if (bars == null || bars.Length == 0) return false;
+                var imgs = bars[0].QudTimeImages;
+                if (imgs == null || imgs.Count == 0) return false;
+                int n = 0;
+                for (int i = 0; i < imgs.Count; i++)
+                    if (imgs[i] != null && imgs[i].texture != null)
+                    {
+                        WriteSprite(imgs[i], Path.Combine(Dir, "clock_" + i + ".png"));
+                        n++;
+                    }
+                System.Console.WriteLine("[raves] exported " + n + " day/night clock sprites");
+                return n > 0;
+            }
+            catch (Exception e) { System.Console.WriteLine("[raves] clock export failed: " + e.Message); return false; }
+        }
+
         /// Find a loaded UI Sprite by exact name and write it to <c>Dir/destFile</c> (like the title
         /// art). MAIN-THREAD ONLY. Reads the player's own install; never bundled.
         public static void ExportNamedSprite(string spriteName, string destFile)

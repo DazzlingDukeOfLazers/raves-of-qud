@@ -231,6 +231,24 @@ namespace RavesOfQud
         // Set when Raves answers/cancels a prompt off-turn (a direction click); TickRender then forces one
         // publish after the game unblocks, so state changed during the prompt (e.g. a new campfire) shows.
         public static bool ForcePublishSoon;
+        private static bool _clocksExported;   // one-shot guard for the day/night clock-sprite export
+        private static bool _clocksQueued;     // a clock-export uiQueue task is in flight
+
+        /// Queue the one-shot day/night clock-sprite export onto the uiQueue (Unity main thread —
+        /// graphics readback MUST NOT run on the render/turn hook, that crashes the game natively).
+        private static void MaybeExportClocks()
+        {
+            if (_clocksExported || _clocksQueued) return;
+            GameManager gm = GameManager.Instance;
+            if (gm == null || gm.uiQueue == null) return;
+            _clocksQueued = true;
+            gm.uiQueue.queueTask(() =>
+            {
+                try { if (TitleExporter.ExportTimeClocks()) _clocksExported = true; }
+                catch (Exception ex) { try { Server.Log("clock export: " + ex.Message); } catch { } }
+                finally { _clocksQueued = false; }
+            }, 0);
+        }
         private static string _lastPublishedZone;   // zone id of the last snapshot sent; a change bypasses the throttle
         private const int PublishThrottleMs = 66;   // ~15 snapshots/sec ceiling during a burst
 
@@ -321,6 +339,7 @@ namespace RavesOfQud
         {
             BridgeServer server = Server;
             EnsureScanlineState();              // keep Qud's always-on CC_AnalogTV scanlines suppressed (1:1)
+            MaybeExportClocks();                // one-shot day/night sky discs — marshalled to the uiQueue
             bool applied = false;
             while (server.Incoming.TryDequeue(out string json))
             {
@@ -502,6 +521,7 @@ namespace RavesOfQud
                                 TitleExporter.ExportNamedSprite("polat-locator-big", "sel_frame.png");     // the selected-card frame (corner brackets)
                                 TitleExporter.ExportNamedSprite("leftrightarrow", "nav_arrow.png");        // back/forward chevron
                                 TitleExporter.ExportNamedSprite("polat-center-divider-knob", "deco_knob.png"); // the sub-text ornament
+                                if (!_clocksExported && TitleExporter.ExportTimeClocks()) _clocksExported = true;  // day/night sky discs (resident once a HUD has existed)
                                 Server.Log("[export] re-exported (menu path) chargen chrome");
                             }
                             catch (Exception e) { try { Server.Log("export error: " + e.Message); } catch { } }
