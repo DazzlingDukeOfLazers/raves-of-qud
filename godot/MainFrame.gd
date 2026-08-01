@@ -60,6 +60,19 @@ var _l_thirst: Label
 var _daynight: Label           # day/night glyph — fallback until the clock sprites are extracted
 var _clock: TextureRect        # Qud's day/night sky disc (PlayerStatusBar.QudTimeImages, by time-of-day)
 var _clock_tex: Array = []     # loaded clock_0..N textures
+# Top-row groups — a center-on-% layout (positions read off Qud): each group is placed independently in
+# _relayout_topbar so content-width changes (food status, gold digits) grow it around its centre instead
+# of shoving neighbours. Left/right clusters are edge-anchored; T-group & stats centre on their %s.
+var _topbar: Control
+var _grp_left: HBoxContainer    # avatar + name (left edge)
+var _grp_t: HBoxContainer       # T:temp :: food water :: weight $   (centre 30%)
+var _grp_stats: HBoxContainer   # QN :: MS :: AV :: DV :: MA          (centre 65%)
+var _grp_right: HBoxContainer   # sky disc :: zone (right edge)
+var _sep1: Control
+var _sep2: Control
+var _sep3: Control
+const TOPBAR_T_CENTER := 0.30    # Qud: T-group centred at 30% of the bar
+const TOPBAR_STATS_CENTER := 0.65  # Qud: stats centred at ~65%
 var _l_hp: Label
 var _bar_hp: ProgressBar
 var _l_exp: Label
@@ -343,6 +356,37 @@ func _rule_cap() -> Control:
 		cap.add_child(bar)
 	return cap
 
+## A free-positioned separator for the center-on-% top row: a horizontal line spanning the Control's
+## width with Qud's double vertical-bar (║) cap at each end. _place_sep sets its width to the live gap.
+func _sep_rule() -> Control:
+	var c := Control.new()
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var ch := int(round(UiFont.px(get_viewport(), "body") * 0.6))
+	c.custom_minimum_size = Vector2(24, ch)
+	var line := ColorRect.new()
+	line.color = COL_BORDER
+	line.anchor_left = 0.0; line.anchor_right = 1.0
+	line.anchor_top = 0.5; line.anchor_bottom = 0.5
+	line.offset_left = 5; line.offset_right = -5
+	line.offset_top = -1; line.offset_bottom = 1
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	c.add_child(line)
+	for spec in [[0, false], [3, false], [0, true], [3, true]]:
+		var bar := ColorRect.new()
+		bar.color = COL_BORDER
+		bar.anchor_top = 0.5; bar.anchor_bottom = 0.5
+		bar.offset_top = -ch * 0.5; bar.offset_bottom = ch * 0.5
+		var off: int = spec[0]
+		if spec[1]:
+			bar.anchor_left = 1.0; bar.anchor_right = 1.0
+			bar.offset_left = -(off + 1); bar.offset_right = -off
+		else:
+			bar.anchor_left = 0.0; bar.anchor_right = 0.0
+			bar.offset_left = off; bar.offset_right = off + 1
+		bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		c.add_child(bar)
+	return c
+
 # Colour for a food/water status word, following Qud (good = green, worsening = gold → orange → red).
 const _STATUS_GOOD := ["sated", "overfed", "full", "quenched", "tumescent", "slaked", "watered"]
 const _STATUS_WARN := ["hungry", "peckish", "thirsty"]
@@ -366,75 +410,118 @@ func _set_status_label(label: Label, word: String) -> void:
 
 func _row_status() -> Control:
 	var strip := _strip()
-	var h := HBoxContainer.new()
-	h.add_theme_constant_override("separation", 6)   # tight within-group spacing, like Qud
-	strip.add_child(h)
-
-	# Character icon — the player's own tile (filled in from each snapshot's `player` render). Sized
-	# ~2x body so it fills the bar like Qud's avatar.
-	_portrait = TextureRect.new()
 	var bpx := UiFont.px(get_viewport(), "body")
-	var isz := int(bpx * 1.7)                          # avatar scale, matched to Qud (was 2.0)
+	var isz := int(bpx * 1.7)                          # avatar scale, matched to Qud
+	var bar := Control.new()                            # free-positioning host; groups placed by _relayout_topbar
+	bar.custom_minimum_size = Vector2(0, isz)
+	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	strip.add_child(bar)
+	_topbar = bar
+
+	# ── left cluster: avatar + name (left edge) ──
+	_grp_left = _grp()
+	_portrait = TextureRect.new()                      # player tile, filled from each snapshot's `player`
 	_portrait.custom_minimum_size = Vector2(round(isz * 16.0 / 24.0), isz)
 	_portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	# Nudge the avatar to Qud's position (Qud indents the bar's left edge slightly).
-	# Offsets are body-relative so they hold across resolutions; tuned to Qud by
-	# measuring the sprite bbox (== 34px left / 3px top at body=42, the 2x framebuffer).
 	var pm := MarginContainer.new()
 	pm.add_theme_constant_override("margin_left", int(round(bpx * 0.62)))
-	pm.add_theme_constant_override("margin_top", int(round(bpx * 0.02)))
 	pm.add_child(_portrait)
-	h.add_child(pm)
+	_grp_left.add_child(pm)
 	_l_name = _text("—", COL_NAME, "caption")
-	# Size to the name's NATURAL width, like Qud (which doesn't reserve a fixed name slot — a wide slot
-	# pushes the whole middle right). clip_text=false makes the label's min-size = its content, so it
-	# neither collapses to 0 next to the expanding rule nor over-reserves empty space after a short name.
 	_l_name.clip_text = false
-	h.add_child(_l_name)
+	_grp_left.add_child(_l_name)
+	bar.add_child(_grp_left)
 
-	h.add_child(_rule(0.141))                              # name → T-group: fixed gap (Qud left-packs these)
-	_l_temp = _text("—"); h.add_child(_l_temp)
-	h.add_child(_dots())
-	_l_hunger = _text("—", COL_HUNGER); h.add_child(_l_hunger)   # food status (colour set per-state)
-	_l_thirst = _text("—", COL_THIRST); h.add_child(_l_thirst)   # water status (colour set per-state)
-	h.add_child(_dots())
-	_l_weight = _text("—"); h.add_child(_l_weight)              # carry weight cur/max
-	_l_water = _text("—", COL_THIRST); h.add_child(_l_water)     # fresh water in drams (= currency)
+	# ── T-group (centre 30%): T:temp :: food water :: weight $ ──
+	_grp_t = _grp()
+	_l_temp = _text("—"); _grp_t.add_child(_l_temp)
+	_grp_t.add_child(_dots())
+	_l_hunger = _text("—", COL_HUNGER); _grp_t.add_child(_l_hunger)   # food status (colour per-state)
+	_l_thirst = _text("—", COL_THIRST); _grp_t.add_child(_l_thirst)   # water status (colour per-state)
+	_grp_t.add_child(_dots())
+	_l_weight = _text("—"); _grp_t.add_child(_l_weight)               # carry weight cur/max
+	_l_water = _text("—", COL_THIRST); _grp_t.add_child(_l_water)      # fresh water in drams (= currency)
+	bar.add_child(_grp_t)
 
-	h.add_child(_rule(0.184))                              # T-group → stats: fixed gap
-	_l_qn = _text("QN: —"); h.add_child(_l_qn)             # quickness (100 nominal)
-	h.add_child(_dots())
-	_l_ms = _text("MS: —"); h.add_child(_l_ms)             # move speed (100 nominal)
-	h.add_child(_dots())
-	_l_av = _text("AV: —", COL_STAT_TEAL); h.add_child(_l_av)   # attack value (teal, as in Qud)
-	h.add_child(_dots())
-	_l_dv = _text("DV: —", COL_STAT_TEAL); h.add_child(_l_dv)   # defense value (teal)
-	h.add_child(_dots())
-	_l_ma = _text("MA: —", COL_STAT_TEAL); h.add_child(_l_ma)   # mental armor (teal)
+	# ── stats (centre 65%): QN :: MS :: AV :: DV :: MA ──
+	_grp_stats = _grp()
+	_l_qn = _text("QN: —"); _grp_stats.add_child(_l_qn)
+	_grp_stats.add_child(_dots())
+	_l_ms = _text("MS: —"); _grp_stats.add_child(_l_ms)
+	_grp_stats.add_child(_dots())
+	_l_av = _text("AV: —", COL_STAT_TEAL); _grp_stats.add_child(_l_av)   # teal, as in Qud
+	_grp_stats.add_child(_dots())
+	_l_dv = _text("DV: —", COL_STAT_TEAL); _grp_stats.add_child(_l_dv)
+	_grp_stats.add_child(_dots())
+	_l_ma = _text("MA: —", COL_STAT_TEAL); _grp_stats.add_child(_l_ma)
+	bar.add_child(_grp_stats)
 
-	h.add_child(_rule())                                   # stats → sky/zone: expands (zone right-anchored)
-	_clock = TextureRect.new()                             # Qud's day/night sky disc (real sprite)
+	# ── right cluster: sky disc :: zone (right edge) ──
+	_grp_right = _grp()
+	_clock = TextureRect.new()                          # Qud's day/night sky disc (real sprite)
 	_clock.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_clock.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_clock.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	var cw := int(round(UiFont.px(get_viewport(), "body") * 1.8))   # ~40px wide, matching Qud
-	_clock.custom_minimum_size = Vector2(cw, int(round(cw * 0.5)))  # the disc sprite is 2:1 (48x24)
+	var cw := int(round(bpx * 1.8))                     # ~40px wide, matching Qud
+	_clock.custom_minimum_size = Vector2(cw, int(round(cw * 0.5)))   # the disc sprite is 2:1 (48x24)
 	_clock.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_clock.visible = false
-	h.add_child(_clock)
-	_daynight = _text("☾")                                 # glyph fallback until the sprites land
-	h.add_child(_daynight)
-	h.add_child(_dots())                                   # :: between the sky disc and the zone name
-	_l_biome = _text("—"); h.add_child(_l_biome)           # zone / biome name (far right, like Qud)
+	_grp_right.add_child(_clock)
+	_daynight = _text("☾")                              # glyph fallback until the sprites land
+	_grp_right.add_child(_daynight)
+	_grp_right.add_child(_dots())                        # :: between the sky disc and the zone name
+	_l_biome = _text("—"); _grp_right.add_child(_l_biome)   # zone / biome name
+	bar.add_child(_grp_right)
 
-	# Qud's top bar is set noticeably smaller than body — shrink the whole strip uniformly to match
-	# (Qud fits all five stats where a body-sized strip fits ~four). One size for every glyph here.
-	var tp := int(round(UiFont.px(get_viewport(), "body") * 0.72))
-	for lbl in _labels_under(h):
+	# Separators fill the gaps between adjacent groups (sized to the live gap in _relayout_topbar).
+	_sep1 = _sep_rule(); bar.add_child(_sep1)
+	_sep2 = _sep_rule(); bar.add_child(_sep2)
+	_sep3 = _sep_rule(); bar.add_child(_sep3)
+
+	# Qud's top bar is smaller than body — one uniform size for every glyph.
+	var tp := int(round(bpx * 0.72))
+	for lbl in _labels_under(bar):
 		lbl.add_theme_font_size_override("font_size", tp)
+
+	bar.resized.connect(_relayout_topbar)
+	_relayout_topbar.call_deferred()
 	return strip
+
+## A within-group HBox (tight, Qud-like spacing). Sized to content; positioned by _relayout_topbar.
+func _grp() -> HBoxContainer:
+	var g := HBoxContainer.new()
+	g.add_theme_constant_override("separation", 6)
+	g.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return g
+
+## Place the four top-row groups: left/right edge-anchored, T-group & stats centred on their Qud %s;
+## then stretch each separator to the live gap between neighbours. Re-run on resize and each snapshot.
+func _relayout_topbar() -> void:
+	if _topbar == null or _grp_right == null:
+		return
+	var w := _topbar.size.x
+	var hh := _topbar.size.y
+	if w <= 1.0:
+		return
+	for g in [_grp_left, _grp_t, _grp_stats, _grp_right]:
+		g.size = g.get_combined_minimum_size()
+		g.position.y = (hh - g.size.y) * 0.5
+	_grp_left.position.x = 0.0
+	_grp_t.position.x = w * TOPBAR_T_CENTER - _grp_t.size.x * 0.5
+	_grp_stats.position.x = w * TOPBAR_STATS_CENTER - _grp_stats.size.x * 0.5
+	_grp_right.position.x = w - _grp_right.size.x
+	_place_sep(_sep1, _grp_left, _grp_t)
+	_place_sep(_sep2, _grp_t, _grp_stats)
+	_place_sep(_sep3, _grp_stats, _grp_right)
+
+func _place_sep(sep: Control, lg: Control, rg: Control) -> void:
+	var pad := 8.0
+	var x0 := lg.position.x + lg.size.x + pad
+	var x1 := rg.position.x - pad
+	sep.size = Vector2(maxf(2.0, x1 - x0), sep.get_combined_minimum_size().y)
+	sep.position = Vector2(x0, (_topbar.size.y - sep.size.y) * 0.5)
 
 # ── row 2: vitals (HP / LVL-EXP)  |  top menu ────────────────────────────────
 
@@ -809,6 +896,8 @@ func _apply_stats(data: Dictionary) -> void:
 			var is_day: bool = bool(t.get("isDay", true))
 			_daynight.text = "☀" if is_day else "☾"
 			_daynight.add_theme_color_override("font_color", Color(1.0, 0.85, 0.35) if is_day else Color(0.6, 0.7, 1.0))
+	# Content widths just changed (status words, gold digits, zone name) — re-place the centred groups.
+	_relayout_topbar.call_deferred()
 	_check_mod_version(data)
 	# Every sub-view shares one entry point, so feeding them is a loop (adding a panel = build the scene
 	# + append it to _panels in _ready; no wiring change here).
