@@ -485,7 +485,7 @@ func _row_status() -> Control:
 	_clock.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_clock.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_clock.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	var cw := int(round(bpx * 2.2))                     # disc renders ~48px wide, Qud's native sprite size
+	var cw := int(round(bpx * 2.3))                     # disc renders ~48px wide, Qud's native sprite size
 	_clock.custom_minimum_size = Vector2(cw, int(round(cw * 0.5)))   # the disc sprite is 2:1 (48x24)
 	_clock.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_clock.visible = false
@@ -539,15 +539,17 @@ func _relayout_topbar() -> void:
 	_grp_stats.position.x = w * TOPBAR_STATS_CENTER - _grp_stats.size.x * 0.5
 	# Qud's right cluster ends ~5px inside our bar's right edge (its zone name stops at ~1899, ours would
 	# reach ~1904). Inset it so the disc/::/zone line up with Qud rather than hugging the panel margin.
-	_grp_right.position.x = w - _grp_right.size.x - 10.0
+	_grp_right.position.x = w - _grp_right.size.x - 8.0
 	_place_sep(_sep1, _grp_left, _grp_t)
 	_place_sep(_sep2, _grp_t, _grp_stats)
-	_place_sep(_sep3, _grp_stats, _grp_right)
+	# Qud leaves ~17px between this separator's || cap and the sky disc; the default 8px pad packed the
+	# pipes right against the disc. Use a wider right pad so the || lands at Qud's x (~1746).
+	_place_sep(_sep3, _grp_stats, _grp_right, 16.0)
 
-func _place_sep(sep: Control, lg: Control, rg: Control) -> void:
+func _place_sep(sep: Control, lg: Control, rg: Control, rpad := 8.0) -> void:
 	var pad := 8.0
 	var x0 := lg.position.x + lg.size.x + pad
-	var x1 := rg.position.x - pad
+	var x1 := rg.position.x - rpad
 	sep.size = Vector2(maxf(2.0, x1 - x0), sep.get_combined_minimum_size().y)
 	sep.position = Vector2(x0, (_topbar.size.y - sep.size.y) * 0.5)
 
