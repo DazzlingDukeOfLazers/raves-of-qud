@@ -415,12 +415,14 @@ func _row_status() -> Control:
 	_clock.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_clock.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_clock.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	var csz := int(round(UiFont.px(get_viewport(), "body") * 1.8))
-	_clock.custom_minimum_size = Vector2(csz, csz)
+	var cw := int(round(UiFont.px(get_viewport(), "body") * 1.8))   # ~40px wide, matching Qud
+	_clock.custom_minimum_size = Vector2(cw, int(round(cw * 0.5)))  # the disc sprite is 2:1 (48x24)
+	_clock.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_clock.visible = false
 	h.add_child(_clock)
 	_daynight = _text("☾")                                 # glyph fallback until the sprites land
 	h.add_child(_daynight)
+	h.add_child(_dots())                                   # :: between the sky disc and the zone name
 	_l_biome = _text("—"); h.add_child(_l_biome)           # zone / biome name (far right, like Qud)
 
 	# Qud's top bar is set noticeably smaller than body — shrink the whole strip uniformly to match
