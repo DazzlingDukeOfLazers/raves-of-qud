@@ -332,7 +332,7 @@ func _vitals_row(lbl: Label, pb: ProgressBar) -> Control:
 	pb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(pb)
 	lbl.set_anchors_preset(Control.PRESET_FULL_RECT)
-	lbl.offset_left = 6                        # small left inset for the text, like Qud
+	lbl.offset_left = 19                       # inset the text to ~x21, aligning with the avatar column (Qud)
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
