@@ -32,6 +32,8 @@ signal snapshot(data: Dictionary)
 ## keeps the name Cell.
 
 var client: BridgeClient
+var _wish_layer: CanvasLayer    # Ctrl+Shift+W wish prompt overlay (built lazily), sends "wish" to Qud
+var _wish_edit: LineEdit
 var _char_creator: CharacterCreator
 var renderer: ZoneRenderer
 var store := WorldStore.new()   # Phase-0 world store; renderer reads the live zone from it
@@ -853,6 +855,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.keycode == KEY_M and event.ctrl_pressed \
 				and not (event.meta_pressed or event.shift_pressed or event.alt_pressed):
 			toggle_one_to_one(); return
+		# Ctrl+Shift+W: Qud's wish shortcut. Opens a text prompt in Raves; on Enter we ship the wish
+		# to Qud over the bridge (it runs Qud's own wish handler). Lets us grant xp, spawn items, etc.
+		if event.keycode == KEY_W and event.ctrl_pressed and event.shift_pressed \
+				and not event.meta_pressed:
+			_open_wish(); return
 		# mode switches first — they reassign what the arrows mean
 		if event.shift_pressed and event.keycode == KEY_C:
 			_set_mode(CamMode.MOUSE); return
@@ -995,3 +1002,54 @@ func _unhandled_input(event: InputEvent) -> void:
 			var speed: float = _cam_rig._dist * 0.0016
 			# grab-the-world: drag right moves the world right (camera goes left)
 			_cam_rig._pan += (-right * event.relative.x - fwd * event.relative.y) * speed
+
+# ── Wish prompt (Ctrl+Shift+W) ───────────────────────────────────────────────
+# A minimal text prompt that ships whatever you type to Qud's own wish handler over the bridge (grant
+# xp, spawn items, …), no Qud-side prompt needed. A user-mode button will front this later; for now the
+# shortcut is the entry point. send_command no-ops if the bridge isn't connected.
+func _open_wish() -> void:
+	if _wish_layer == null:
+		_wish_layer = CanvasLayer.new()
+		_wish_layer.layer = 128
+		add_child(_wish_layer)
+		var center := CenterContainer.new()
+		center.set_anchors_preset(Control.PRESET_FULL_RECT)
+		center.theme = UiFont.make_theme(get_viewport())   # avoid the CanvasLayer tiny-font trap
+		_wish_layer.add_child(center)
+		var panel := PanelContainer.new()
+		var pstyle := StyleBoxFlat.new()
+		pstyle.bg_color = Color(0.05, 0.06, 0.07, 0.96)
+		pstyle.set_content_margin_all(14)
+		pstyle.border_color = Color(0.30, 0.40, 0.45)
+		pstyle.set_border_width_all(1)
+		panel.add_theme_stylebox_override("panel", pstyle)
+		center.add_child(panel)
+		var vb := VBoxContainer.new()
+		vb.add_theme_constant_override("separation", 6)
+		panel.add_child(vb)
+		var lbl := Label.new()
+		lbl.text = "Wish  (Enter to send · Esc to cancel)"
+		vb.add_child(lbl)
+		_wish_edit = LineEdit.new()
+		_wish_edit.custom_minimum_size = Vector2(460, 0)
+		_wish_edit.placeholder_text = "e.g. xp:5000"
+		_wish_edit.text_submitted.connect(_on_wish_submitted)
+		_wish_edit.gui_input.connect(func(e: InputEvent) -> void:
+			if e is InputEventKey and e.pressed and e.keycode == KEY_ESCAPE:
+				_close_wish())
+		vb.add_child(_wish_edit)
+	_wish_layer.visible = true
+	_wish_edit.text = ""
+	_wish_edit.grab_focus()
+
+func _on_wish_submitted(text: String) -> void:
+	var w := text.strip_edges()
+	if w != "" and client != null:
+		client.send_command("wish", {"wish": w})
+	_close_wish()
+
+func _close_wish() -> void:
+	if _wish_layer != null:
+		_wish_layer.visible = false
+	if _wish_edit != null:
+		_wish_edit.release_focus()

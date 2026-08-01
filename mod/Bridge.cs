@@ -705,6 +705,23 @@ namespace RavesOfQud
                     }
                     catch (Exception e) { Server.Log("itemaction error: " + e.Message); }
                     break;
+                case "wish":
+                    // Grant a Qud wish (the Ctrl+Shift+W prompt) from Raves — the user types the wish text
+                    // in Raves and we run it through Qud's own handler, no on-screen prompt. MAIN-THREAD
+                    // ONLY: wishes spawn objects / grant xp / mutate state, so it runs here (drained by
+                    // Tick/TickRender), never on the socket thread.
+                    try
+                    {
+                        f.TryGetValue("wish", out string wishText);
+                        if (!string.IsNullOrEmpty(wishText))
+                        {
+                            XRL.World.Capabilities.Wishing.HandleWish(player, wishText);
+                            ForcePublishSoon = true;   // refresh Raves once the wish applies (xp, items, …)
+                            Server.Log("[wish] " + wishText);
+                        }
+                    }
+                    catch (Exception e) { Server.Log("wish error: " + e.Message); }
+                    break;
                 // Movement is handled on the socket thread (see OnPayload), so it can
                 // drive an unfocused game. Extend here for main-thread-only commands.
                 default:
