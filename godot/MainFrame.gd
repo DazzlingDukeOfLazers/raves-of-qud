@@ -21,6 +21,7 @@ const COL_HUNGER := Color("e99f10")           # O — hunger / food-orange
 const COL_THIRST := Color("0096ff")           # B — thirst / water-blue (water is also currency)
 const COL_HP := Color("00c420")               # G — HP bar green
 const COL_EXP := Color("40a4b9")              # c — LVL/EXP bar (dark cyan)
+const COL_STAT_TEAL := Color("2b6382")        # AV/DV/MA — Qud tints these teal-blue (QN/MS stay neutral)
 const COL_DIM := Color(0.69, 0.79, 0.76, 0.45)   # y (grey), dimmed — hints/captions
 const COL_BORDER := Color(0.69, 0.79, 0.76, 0.16) # y (grey), faint — panel edges
 # The character name is NOT the teal `y` default — Qud renders it a desaturated NEUTRAL grey
@@ -236,31 +237,62 @@ func _bar(value: float, maxv: float, col: Color) -> ProgressBar:
 	pb.add_theme_stylebox_override("fill", fills)
 	return pb
 
-# A "::" group separator (Qud's dotted divider between adjacent stats).
-func _dots() -> Label:
-	var l := _text("::", COL_DIM)
-	return l
+# Qud's within-group divider — a compact 2×2 block of dim squares (not text colons).
+func _dots() -> Control:
+	var d := Control.new()
+	var sq := 2
+	var gap := 2
+	var side := sq * 2 + gap
+	d.custom_minimum_size = Vector2(side, side)
+	d.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	d.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for iy in range(2):
+		for ix in range(2):
+			var dot := ColorRect.new()
+			dot.color = COL_DIM
+			dot.position = Vector2(ix * (sq + gap), iy * (sq + gap))
+			dot.size = Vector2(sq, sq)
+			dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			d.add_child(dot)
+	return d
 
 # An expanding horizontal rule that FILLS the gap between groups, so the bar spreads its groups edge to
-# edge like Qud (name far-left, zone far-right) instead of left-packing them.
+# edge like Qud (name far-left, zone far-right). Qud caps each rule with a DOUBLE vertical bar (║) where
+# it meets a group, so: ║────────║.
 func _rule() -> Control:
-	var c := Control.new()
-	c.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	c.custom_minimum_size = Vector2(16, 0)
-	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var row := HBoxContainer.new()
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.custom_minimum_size = Vector2(30, 0)
+	row.add_theme_constant_override("separation", 3)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(_rule_cap())
 	var line := ColorRect.new()
 	line.color = COL_BORDER
-	line.anchor_left = 0.0
-	line.anchor_right = 1.0
-	line.anchor_top = 0.5
-	line.anchor_bottom = 0.5
-	line.offset_left = 6
-	line.offset_right = -6
-	line.offset_top = -1
-	line.offset_bottom = 1
+	line.custom_minimum_size = Vector2(8, 2)
+	line.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	line.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	c.add_child(line)
-	return c
+	row.add_child(line)
+	row.add_child(_rule_cap())
+	return row
+
+# The double vertical bar (║) Qud draws where a rule meets a group.
+func _rule_cap() -> Control:
+	var cap := Control.new()
+	var ch := int(round(UiFont.px(get_viewport(), "body") * 0.6))
+	cap.custom_minimum_size = Vector2(4, ch)
+	cap.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	cap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for bx in [0, 3]:
+		var bar := ColorRect.new()
+		bar.color = COL_BORDER
+		bar.anchor_top = 0.0
+		bar.anchor_bottom = 1.0
+		bar.offset_left = bx
+		bar.offset_right = bx + 1
+		bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		cap.add_child(bar)
+	return cap
 
 # Colour for a food/water status word, following Qud (good = green, worsening = gold → orange → red).
 const _STATUS_GOOD := ["sated", "overfed", "full", "quenched", "tumescent", "slaked", "watered"]
@@ -286,7 +318,7 @@ func _set_status_label(label: Label, word: String) -> void:
 func _row_status() -> Control:
 	var strip := _strip()
 	var h := HBoxContainer.new()
-	h.add_theme_constant_override("separation", 8)
+	h.add_theme_constant_override("separation", 6)   # tight within-group spacing, like Qud
 	strip.add_child(h)
 
 	# Character icon — the player's own tile (filled in from each snapshot's `player` render). Sized
@@ -327,11 +359,11 @@ func _row_status() -> Control:
 	h.add_child(_dots())
 	_l_ms = _text("MS: —"); h.add_child(_l_ms)             # move speed (100 nominal)
 	h.add_child(_dots())
-	_l_av = _text("AV: —"); h.add_child(_l_av)             # attack value
+	_l_av = _text("AV: —", COL_STAT_TEAL); h.add_child(_l_av)   # attack value (teal, as in Qud)
 	h.add_child(_dots())
-	_l_dv = _text("DV: —"); h.add_child(_l_dv)             # defense value
+	_l_dv = _text("DV: —", COL_STAT_TEAL); h.add_child(_l_dv)   # defense value (teal)
 	h.add_child(_dots())
-	_l_ma = _text("MA: —"); h.add_child(_l_ma)             # mental armor
+	_l_ma = _text("MA: —", COL_STAT_TEAL); h.add_child(_l_ma)   # mental armor (teal)
 
 	h.add_child(_rule())
 	_daynight = _text("☾")                                 # day/night — sun/moon glyph
