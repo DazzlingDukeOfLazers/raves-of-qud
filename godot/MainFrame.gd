@@ -478,11 +478,14 @@ func _row_status() -> Control:
 
 	# ── right cluster: sky disc :: zone (right edge) ──
 	_grp_right = _grp()
+	# Qud sets the disc and the zone name ~42px apart; the default 10px group separation packed them too
+	# tight (26px), which shoved the narrower disc rightward. 18px → the ~42px gap Qud shows.
+	_grp_right.add_theme_constant_override("separation", 18)
 	_clock = TextureRect.new()                          # Qud's day/night sky disc (real sprite)
 	_clock.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_clock.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_clock.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	var cw := int(round(bpx * 1.8))                     # ~40px wide, matching Qud
+	var cw := int(round(bpx * 2.2))                     # disc renders ~48px wide, Qud's native sprite size
 	_clock.custom_minimum_size = Vector2(cw, int(round(cw * 0.5)))   # the disc sprite is 2:1 (48x24)
 	_clock.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_clock.visible = false
@@ -534,7 +537,9 @@ func _relayout_topbar() -> void:
 	_grp_left.position.x = 0.0
 	_grp_t.position.x = w * TOPBAR_T_CENTER - _grp_t.size.x * 0.5
 	_grp_stats.position.x = w * TOPBAR_STATS_CENTER - _grp_stats.size.x * 0.5
-	_grp_right.position.x = w - _grp_right.size.x
+	# Qud's right cluster ends ~5px inside our bar's right edge (its zone name stops at ~1899, ours would
+	# reach ~1904). Inset it so the disc/::/zone line up with Qud rather than hugging the panel margin.
+	_grp_right.position.x = w - _grp_right.size.x - 10.0
 	_place_sep(_sep1, _grp_left, _grp_t)
 	_place_sep(_sep2, _grp_t, _grp_stats)
 	_place_sep(_sep3, _grp_stats, _grp_right)
