@@ -26,7 +26,7 @@ const COL_EXP := Color("40a4b9")              # c — LVL/EXP bar (dark cyan)
 const COL_HP_1TO1 := Color(1, 1, 1)           # Qud: HP text white
 const COL_EXP_1TO1 := Color8(146, 169, 164)   # Qud: LVL/EXP text light grey
 const COL_HP_BAR_1TO1 := Color8(25, 89, 34)   # Qud: HP bar dark green (#195922)
-const COL_EXP_BAR_1TO1 := Color8(28, 74, 86)  # Qud: LVL/EXP bar muted cyan (empty at xp 0; refine w/ xp)
+const COL_EXP_BAR_1TO1 := Color8(47, 80, 86)  # Qud: LVL/EXP bar muted teal (sampled with xp on the bar)
 const COL_STAT_TEAL := Color("2b6382")        # AV/DV/MA — Qud tints these teal-blue (QN/MS stay neutral)
 const COL_DIM := Color(0.69, 0.79, 0.76, 0.45)   # y (grey), dimmed — hints/captions
 const COL_BORDER := Color(0.69, 0.79, 0.76, 0.16) # y (grey), faint — panel edges
@@ -617,7 +617,7 @@ func _place_sep(sep: Control, lg: Control, rg: Control, rpad := 8.0, fixed_w := 
 
 func _row_vitals_menu() -> Control:
 	var h := HBoxContainer.new()
-	h.add_theme_constant_override("separation", 6)
+	h.add_theme_constant_override("separation", 2)   # tight vitals↔nav gap so the vitals box reaches Qud's edge
 
 	# col 1 — two stacked vitals rows. Qud draws the HP/EXP bar as the FULL box (from the left edge,
 	# length = the value) with the label + numbers ON TOP of it — not a label beside a separate bar.
@@ -647,6 +647,7 @@ func _row_vitals_menu() -> Control:
 	# flush like Qud's (the default 8px panel margin left it ~7px shy of Qud's last icon).
 	var mstyle: StyleBoxFlat = _panel_style()
 	mstyle.content_margin_right = 1
+	mstyle.content_margin_left = 1   # trim the left inset too so the vitals box reaches Qud's right edge
 	menu.add_theme_stylebox_override("panel", mstyle)
 
 	_menu_verbose = HBoxContainer.new()
