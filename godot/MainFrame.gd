@@ -825,6 +825,24 @@ func _recolor_bar(pb: ProgressBar, col: Color) -> void:
 	if fill is StyleBoxFlat:
 		(fill as StyleBoxFlat).bg_color = col
 
+## True when a Qud option (from the exported options.json mirror) is enabled ("Yes"). Lets 1:1 mode
+## honour Qud's own sidebar toggles (Show minimap / Show nearby objects). Unreadable/absent → show.
+func _qud_option_on(id: String) -> bool:
+	var path := InputModel.support_dir().path_join("options.json")
+	if path == "" or not FileAccess.file_exists(path):
+		return true
+	var f := FileAccess.open(path, FileAccess.READ)
+	if f == null:
+		return true
+	var d = JSON.parse_string(f.get_as_text())
+	if d is Dictionary and d.get("categories") is Array:
+		for cat in d["categories"]:
+			if cat is Dictionary and cat.get("options") is Array:
+				for o in cat["options"]:
+					if o is Dictionary and o.get("id") == id:
+						return str(o.get("value", "")) == "Yes"
+	return true
+
 ## Qud's HP-text colour by health %, matching GameObject.GetHPColor().
 func _hp_color(hp: int, hpmax: int) -> Color:
 	var pct := 100 * hp / maxi(1, hpmax)
@@ -841,10 +859,14 @@ func _apply_panel_sizing(on: bool) -> void:
 	if _minimap != null:
 		# Qud's minimap is a short landscape strip; the QoL one reserved a tall box with dead space.
 		_minimap.custom_minimum_size = Vector2(0, 150 if on else 220)
+		# 1:1: honour Qud's "Show minimap" option — hidden when off. User mode always shows it.
+		_minimap.visible = (not on) or _qud_option_on("OptionOverlayMinimap")
 	if _nearby != null:
 		# 1:1: size to content (no dead gap) — the panel itself fits its rows via set_one_to_one.
 		# User: expand to share the leftover height with the log.
 		_nearby.size_flags_vertical = Control.SIZE_SHRINK_BEGIN if on else Control.SIZE_EXPAND_FILL
+		# 1:1: honour Qud's "Show nearby objects list" option — hidden when off.
+		_nearby.visible = (not on) or _qud_option_on("OptionOverlayNearbyObjects")
 	if _msglog != null:
 		_msglog.size_flags_vertical = Control.SIZE_EXPAND_FILL   # always the space-filler; dominant in 1:1
 	# Row 4 (Active effects | Target | Context menu). Qud keeps this a thin single-line strip; the QoL
