@@ -21,6 +21,12 @@ const COL_HUNGER := Color("e99f10")           # O — hunger / food-orange
 const COL_THIRST := Color("0096ff")           # B — thirst / water-blue (water is also currency)
 const COL_HP := Color("00c420")               # G — HP bar green
 const COL_EXP := Color("40a4b9")              # c — LVL/EXP bar (dark cyan)
+# 1:1 mode — Qud's own muted vitals (sampled from Qud): white HP text, grey LVL text, dark-green bar.
+# User mode keeps the bright COL_HP / COL_EXP above.
+const COL_HP_1TO1 := Color(1, 1, 1)           # Qud: HP text white
+const COL_EXP_1TO1 := Color8(146, 169, 164)   # Qud: LVL/EXP text light grey
+const COL_HP_BAR_1TO1 := Color8(25, 89, 34)   # Qud: HP bar dark green (#195922)
+const COL_EXP_BAR_1TO1 := Color8(28, 74, 86)  # Qud: LVL/EXP bar muted cyan (empty at xp 0; refine w/ xp)
 const COL_STAT_TEAL := Color("2b6382")        # AV/DV/MA — Qud tints these teal-blue (QN/MS stay neutral)
 const COL_DIM := Color(0.69, 0.79, 0.76, 0.45)   # y (grey), dimmed — hints/captions
 const COL_BORDER := Color(0.69, 0.79, 0.76, 0.16) # y (grey), faint — panel edges
@@ -755,6 +761,25 @@ func _apply_layout_mode(on: bool) -> void:
 			_row_split.split_offset = 900
 	_apply_panel_sizing(on)
 	_push_play_inset(on)
+	_apply_vitals_mode(on)
+
+## Row-2 vitals colour per mode: 1:1 = Qud's own muted white/grey text + dark-green bar; user = the
+## bright green/cyan. (Format is gated in _apply_stats.) Build-time defaults are user mode, so this is
+## only re-applied when 1:1 is active or on a mode flip.
+func _apply_vitals_mode(on: bool) -> void:
+	if _l_hp != null:
+		_l_hp.add_theme_color_override("font_color", COL_HP_1TO1 if on else COL_HP)
+	if _l_exp != null:
+		_l_exp.add_theme_color_override("font_color", COL_EXP_1TO1 if on else COL_EXP)
+	_recolor_bar(_bar_hp, COL_HP_BAR_1TO1 if on else COL_HP)
+	_recolor_bar(_bar_exp, COL_EXP_BAR_1TO1 if on else COL_EXP)
+
+func _recolor_bar(pb: ProgressBar, col: Color) -> void:
+	if pb == null:
+		return
+	var fill := pb.get_theme_stylebox("fill")
+	if fill is StyleBoxFlat:
+		(fill as StyleBoxFlat).bg_color = col
 
 ## Size the three side-column panels per mode. Qud stacks a SHORT minimap, a content-sized Nearby
 ## objects, and a Message log that fills ALL the remaining height. User (QoL) mode keeps the original
@@ -947,7 +972,8 @@ func _apply_stats(data: Dictionary) -> void:
 	var hp := int(s.get("hp", 0))
 	var hpmax := maxi(1, int(s.get("hpMax", 1)))
 	if _l_hp != null:
-		_l_hp.text = "HP: %d/%d" % [hp, hpmax]
+		# 1:1 uses Qud's spacing ("HP: 21 / 21"); user mode keeps the compact form.
+		_l_hp.text = ("HP: %d / %d" if Settings.one_to_one() else "HP: %d/%d") % [hp, hpmax]
 	if _bar_hp != null:
 		_bar_hp.max_value = hpmax
 		_bar_hp.value = hp
@@ -957,7 +983,7 @@ func _apply_stats(data: Dictionary) -> void:
 		var xp_floor := int(s.get("xpFloor", 0))
 		var xp_next := maxi(xp_floor + 1, int(s.get("xpNext", xp_floor + 1)))
 		if _l_exp != null:
-			_l_exp.text = "LVL: %d   EXP: %d/%d" % [lvl, xp, xp_next]
+			_l_exp.text = ("LVL: %d Exp: %d / %d" if Settings.one_to_one() else "LVL: %d   EXP: %d/%d") % [lvl, xp, xp_next]
 		if _bar_exp != null:
 			_bar_exp.min_value = xp_floor
 			_bar_exp.max_value = xp_next
