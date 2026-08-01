@@ -315,19 +315,21 @@ func _bar(value: float, maxv: float, col: Color) -> ProgressBar:
 	return pb
 
 # Qud's within-group divider — a compact 2×2 block of dim squares (not text colons).
-func _dots() -> Control:
+func _dots(cell_w := 0) -> Control:
 	var d := Control.new()
 	var sq := 2
 	var gap := 2
 	var side := sq * 2 + gap
-	d.custom_minimum_size = Vector2(side, side)
+	var w := maxi(side, cell_w)                 # a wider cell floats the :: in a bigger gap (Qud's T-group)
+	var ox := (w - side) / 2                     # centre the dot block in the cell
+	d.custom_minimum_size = Vector2(w, side)
 	d.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	d.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	for iy in range(2):
 		for ix in range(2):
 			var dot := ColorRect.new()
 			dot.color = COL_DIM
-			dot.position = Vector2(ix * (sq + gap), iy * (sq + gap))
+			dot.position = Vector2(ox + ix * (sq + gap), iy * (sq + gap))
 			dot.size = Vector2(sq, sq)
 			dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			d.add_child(dot)
@@ -469,12 +471,14 @@ func _row_status() -> Control:
 	bar.add_child(_grp_left)
 
 	# ── T-group (centre 30%): T:temp :: food water :: weight $ ──
+	# Qud's :: gaps here are ~44px (much looser than its word spaces); our default 6px dots left them
+	# ~30px, so the group ran 20px narrow. Widen just these two :: to Qud's gap (word spaces stay tight).
 	_grp_t = _grp()
 	_l_temp = _text("—"); _grp_t.add_child(_l_temp)
-	_grp_t.add_child(_dots())
+	_grp_t.add_child(_dots(17))
 	_l_hunger = _text("—", COL_HUNGER); _grp_t.add_child(_l_hunger)   # food status (colour per-state)
 	_l_thirst = _text("—", COL_THIRST); _grp_t.add_child(_l_thirst)   # water status (colour per-state)
-	_grp_t.add_child(_dots())
+	_grp_t.add_child(_dots(17))
 	_l_weight = _text("—"); _grp_t.add_child(_l_weight)               # carry weight cur/max
 	_l_water = _text("—", COL_THIRST); _grp_t.add_child(_l_water)      # fresh water in drams (= currency)
 	bar.add_child(_grp_t)
