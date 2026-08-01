@@ -541,16 +541,25 @@ func _relayout_topbar() -> void:
 	# reach ~1904). Inset it so the disc/::/zone line up with Qud rather than hugging the panel margin.
 	_grp_right.position.x = w - _grp_right.size.x - 8.0
 	_place_sep(_sep1, _grp_left, _grp_t)
-	_place_sep(_sep2, _grp_t, _grp_stats)
+	# Qud's water$↔QN separator is the same fixed-width box (||—————||) as the one below, floating
+	# ~centred in the gap between the T-group and the stats (Qud caps at 778/1036, ~258px). Centre a
+	# fixed-width box in the gap rather than stretching it (which ran 20px wide).
+	_place_sep(_sep2, _grp_t, _grp_stats, 8.0, 261.0, true)
 	# Qud's stats↔disc separator is a fixed-width box (||—————||), not a line glued to the stats. Its
 	# right || is 16px left of the disc (aligned above); its left || is ~261px further left, at Qud's x
 	# (~1490). Anchor it to the aligned right end at Qud's box width so the left || matches Qud regardless
 	# of the stats group's width/position (which still sits ~20px left of Qud — a later leftward pass).
 	_place_sep(_sep3, _grp_stats, _grp_right, 16.0, 261.0)
 
-func _place_sep(sep: Control, lg: Control, rg: Control, rpad := 8.0, fixed_w := 0.0) -> void:
-	var x1 := rg.position.x - rpad
-	var x0 := (x1 - fixed_w) if fixed_w > 0.0 else (lg.position.x + lg.size.x + 8.0)
+func _place_sep(sep: Control, lg: Control, rg: Control, rpad := 8.0, fixed_w := 0.0, centered := false) -> void:
+	var x0: float
+	if fixed_w > 0.0 and centered:
+		x0 = (lg.position.x + lg.size.x + rg.position.x) * 0.5 - fixed_w * 0.5   # float centred in the gap
+	elif fixed_w > 0.0:
+		x0 = (rg.position.x - rpad) - fixed_w                                     # anchored to the right end
+	else:
+		x0 = lg.position.x + lg.size.x + 8.0                                      # stretch to fill the gap
+	var x1 := (x0 + fixed_w) if fixed_w > 0.0 else (rg.position.x - rpad)
 	sep.size = Vector2(maxf(2.0, x1 - x0), sep.get_combined_minimum_size().y)
 	sep.position = Vector2(x0, (_topbar.size.y - sep.size.y) * 0.5)
 
