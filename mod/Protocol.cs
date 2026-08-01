@@ -37,6 +37,7 @@ namespace RavesOfQud
 
         public const string TypeSnapshot = "snapshot";
         public const string TypeCommand  = "command";
+        public const string TypePopup    = "popup";   // server->client: a live Qud modal mirrored to Raves
 
         /// <summary>Length-prefix a JSON string into a ready-to-send frame.</summary>
         public static byte[] Frame(string json)

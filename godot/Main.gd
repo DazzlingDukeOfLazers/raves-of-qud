@@ -34,6 +34,8 @@ signal snapshot(data: Dictionary)
 var client: BridgeClient
 var _wish_layer: CanvasLayer    # Ctrl+Shift+W wish prompt overlay (built lazily), sends "wish" to Qud
 var _wish_edit: LineEdit
+var _popup: PopupOverlay        # mirrors Qud modal popups forwarded by the mod (own file)
+var _palette := {}              # latest Qud colour map (code -> hex) from snapshots, for popup markup
 var _char_creator: CharacterCreator
 var renderer: ZoneRenderer
 var store := WorldStore.new()   # Phase-0 world store; renderer reads the live zone from it
@@ -169,6 +171,7 @@ func _ready() -> void:
 	client = BridgeClient.new()
 	add_child(client)
 	client.snapshot.connect(_on_snapshot)
+	client.popup.connect(_on_popup)
 	client.connected.connect(_on_bridge_connected)
 
 	_sky_grade = load("res://SkyGrade.gd").new()   # day/night atmosphere: WorldEnvironment + grade + sun/moon
@@ -194,6 +197,12 @@ func _ready() -> void:
 	_picker = load("res://DirectionPicker.gd").new()
 	add_child(_picker)
 	_picker.setup(_cam_rig, client)
+
+	# Popup overlay (its own file): mirrors Qud modals (message / yes-no / option list / text prompt)
+	# forwarded by the mod, and ships the viewer's answer back so Qud's blocked turn thread unblocks.
+	_popup = PopupOverlay.new()
+	add_child(_popup)
+	_popup.answered.connect(func(payload: Dictionary): client.send_command("popup", payload))
 
 	_load_settings()   # restore camera heading/mode/zoom/depth/window before the UI reads them
 	_build_mode_label()
@@ -289,7 +298,26 @@ func _inject_player_facing(data: Dictionary) -> void:
 					obj["hflip"] = pl.get("hflip")
 			return
 
+## A Qud modal (message / yes-no / option list / text prompt) mirrored by the mod. During a popup the turn
+## thread is blocked, so NO snapshots arrive — this is the only channel that tells us it opened. The overlay
+## is modal (eats input) until the viewer answers, which ships a "popup" command back to unblock Qud.
+func _on_popup(data: Dictionary) -> void:
+	if _popup == null:
+		return
+	if bool(data.get("active", false)):
+		_popup.show_popup(data, _palette)
+	else:
+		_popup.hide_popup()
+
 func _on_snapshot(data: Dictionary) -> void:
+	# A snapshot can only publish once Qud's turn thread has unblocked — i.e. any popup is already gone —
+	# so treat every snapshot as authoritative "no popup", closing the overlay even if a dismissal frame
+	# was coalesced away. Also cache the colour map so popup markup renders with the same palette.
+	var pal: Dictionary = data.get("palette", {})
+	if not pal.is_empty():
+		_palette = pal
+	if _popup != null:
+		_popup.hide_popup()
 	# Route the render through the store: draw the live zone plus any remembered
 	# neighbours (same stratum) the player has visited, placed by global offset.
 	Profiler.add_us("server", int(data.get("serverUs", 0)))

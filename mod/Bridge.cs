@@ -49,7 +49,7 @@ namespace RavesOfQud
                             // live (TickRender/TickAction run only then), so a fresh client gets current
                             // data at once — and a client can distinguish "game live" from "socket open at
                             // Qud's menu" without sending a turn-passing wait.
-                            s.OnConnect = () => ForcePublishSoon = true;
+                            s.OnConnect = () => { ForcePublishSoon = true; PopupBridge.OnClientConnect(); };
                             s.Start();
                             _server = s;
                             StartFocusKeeper();
@@ -340,6 +340,7 @@ namespace RavesOfQud
             BridgeServer server = Server;
             EnsureScanlineState();              // keep Qud's always-on CC_AnalogTV scanlines suppressed (1:1)
             MaybeExportClocks();                // one-shot day/night sky discs — marshalled to the uiQueue
+            PopupBridge.Ensure();               // arm the UI-thread popup watcher (mirrors Qud modals to Raves)
             bool applied = false;
             while (server.Incoming.TryDequeue(out string json))
             {
@@ -444,6 +445,13 @@ namespace RavesOfQud
             {
                 var f = MiniJson.ParseFlat(json);
                 f.TryGetValue("name", out string name);
+                if (name == "popup")
+                {
+                    // Answer a mirrored Qud popup (dismiss / pick option / submit text). Marshals onto the
+                    // uiQueue itself — the turn thread is parked inside the popup, but the UI thread drains.
+                    PopupBridge.HandleCommand(f);
+                    return;
+                }
                 if (name == "move")
                 {
                     f.TryGetValue("dir", out string dir);

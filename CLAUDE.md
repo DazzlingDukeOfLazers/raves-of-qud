@@ -86,6 +86,10 @@ cp mod/*.cs mod/manifest.json ~/Library/Application\ Support/com.FreeholdGames.C
 /Users/homefolder/Downloads/Godot.app/Contents/MacOS/Godot --headless --path godot/ --quit-after 120
 # ^ only deep-analyses scripts it LOADS. Main.gd is instanced on "Connect", so force-check it:
 /Users/homefolder/Downloads/Godot.app/Contents/MacOS/Godot --headless --path godot/ --check-only --script res://Main.gd
+# In --check-only, `Identifier not found: Settings`/`QudLauncher` are FALSE POSITIVES (autoloads aren't
+# loaded). But `Could not parse global class X from res://X.gd` is REAL — X.gd has a parse error and the
+# export will ship it broken (a Main.gd `class_name` ref then fails at RUNTIME, silently killing the
+# Holodeck). Never lump the two together; if you see a "global class" error, fix X.gd before shipping.
 
 # build a CRISP (HiDPI) macOS .app (dev-run windows are soft on Retina). Needs the 4.7 export templates.
 tools/build_macos.sh && open build/RavesOfQud.app
