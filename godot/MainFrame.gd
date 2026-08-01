@@ -72,9 +72,10 @@ var _sep1: Control
 var _sep2: Control
 var _sep3: Control
 const TOPBAR_T_CENTER := 0.30    # Qud: T-group centred at 30% of the bar
-const TOPBAR_STATS_CENTER := 0.65  # Qud: stats centred at ~65%
+const TOPBAR_STATS_CENTER := 0.66  # Qud: stats centred at ~66% (fixed-pitch group centre lands on Qud's)
 const TOPBAR_SEP := 10           # within-group spacing (Qud's :: gaps are looser than our default 6)
 const TOPBAR_TRACKING := 1       # extra glyph spacing — Qud's top bar tracks looser than Source Code Pro
+const STAT_PITCH := 86           # Qud centres each stat on a uniform ~86px grid (not natural text width)
 var _l_hp: Label
 var _bar_hp: ProgressBar
 var _l_exp: Label
@@ -332,6 +333,21 @@ func _dots() -> Control:
 			d.add_child(dot)
 	return d
 
+## One stat on Qud's uniform grid: the label IS the fixed-pitch cell (centred text, natural height so the
+## group sizes right), with the :: separator straddling the label's left edge (the gap to the previous
+## stat), where Qud draws it. first ⇒ no ::.
+func _stat_cell(lbl: Label, first: bool) -> Label:
+	lbl.custom_minimum_size.x = STAT_PITCH
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if not first:
+		var d := _dots()
+		d.anchor_top = 0.5;  d.anchor_bottom = 0.5   # vertically centre the :: in the label …
+		d.offset_top = -3.0; d.offset_bottom = 3.0
+		d.offset_left = -3.0; d.offset_right = 3.0    # … straddling x = 0 (the label's left edge / gap)
+		lbl.add_child(d)
+	return lbl
+
 # An expanding horizontal rule that FILLS the gap between groups, so the bar spreads its groups edge to
 # edge like Qud (name far-left, zone far-right). Qud caps each rule with a DOUBLE vertical bar (║) where
 # it meets a group, so: ║────────║.
@@ -464,16 +480,16 @@ func _row_status() -> Control:
 	bar.add_child(_grp_t)
 
 	# ── stats (centre 65%): QN :: MS :: AV :: DV :: MA ──
+	# Qud lays these on a uniform ~86px grid (each stat CENTRED in its cell), so narrow stats (AV/DV/MA)
+	# don't bunch up like natural HBox flow. Each stat is a fixed-width centred cell; the :: sits at the
+	# cell boundary (the gap), where Qud draws it. Separation 0 → pitch == cell width.
 	_grp_stats = _grp()
-	_l_qn = _text("QN: —"); _grp_stats.add_child(_l_qn)
-	_grp_stats.add_child(_dots())
-	_l_ms = _text("MS: —"); _grp_stats.add_child(_l_ms)
-	_grp_stats.add_child(_dots())
-	_l_av = _text("AV: —", COL_STAT_TEAL); _grp_stats.add_child(_l_av)   # teal, as in Qud
-	_grp_stats.add_child(_dots())
-	_l_dv = _text("DV: —", COL_STAT_TEAL); _grp_stats.add_child(_l_dv)
-	_grp_stats.add_child(_dots())
-	_l_ma = _text("MA: —", COL_STAT_TEAL); _grp_stats.add_child(_l_ma)
+	_grp_stats.add_theme_constant_override("separation", 0)
+	_l_qn = _text("QN: —"); _grp_stats.add_child(_stat_cell(_l_qn, true))
+	_l_ms = _text("MS: —"); _grp_stats.add_child(_stat_cell(_l_ms, false))
+	_l_av = _text("AV: —", COL_STAT_TEAL); _grp_stats.add_child(_stat_cell(_l_av, false))   # teal, as in Qud
+	_l_dv = _text("DV: —", COL_STAT_TEAL); _grp_stats.add_child(_stat_cell(_l_dv, false))
+	_l_ma = _text("MA: —", COL_STAT_TEAL); _grp_stats.add_child(_stat_cell(_l_ma, false))
 	bar.add_child(_grp_stats)
 
 	# ── right cluster: sky disc :: zone (right edge) ──
