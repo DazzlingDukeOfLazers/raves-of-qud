@@ -455,7 +455,10 @@ func _row_status() -> Control:
 	_topbar = bar
 
 	# ── left cluster: avatar + name (left edge) ──
+	# Qud leaves ~20px between the avatar and the name; the default 10px group gap left the name ~6px
+	# left of Qud. Widen just this group's separation (the avatar itself stays aligned at Qud's x).
 	_grp_left = _grp()
+	_grp_left.add_theme_constant_override("separation", 16)
 	_portrait = TextureRect.new()                      # player tile, filled from each snapshot's `player`
 	_portrait.custom_minimum_size = Vector2(round(isz * 16.0 / 24.0), isz)
 	_portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -554,7 +557,7 @@ func _relayout_topbar() -> void:
 	for g in [_grp_left, _grp_t, _grp_stats, _grp_right]:
 		g.size = g.get_combined_minimum_size()
 		g.position.y = (hh - g.size.y) * 0.5
-	_grp_left.position.x = 5.0   # Qud insets the avatar ~5px from the window edge; we hugged x=0
+	_grp_left.position.x = 0.0
 	_grp_t.position.x = w * TOPBAR_T_CENTER - _grp_t.size.x * 0.5
 	_grp_stats.position.x = w * TOPBAR_STATS_CENTER - _grp_stats.size.x * 0.5
 	# Qud's right cluster ends ~5px inside our bar's right edge (its zone name stops at ~1899, ours would
