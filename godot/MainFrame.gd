@@ -82,6 +82,9 @@ const TOPBAR_STATS_CENTER := 0.66  # Qud: stats centred at ~66% (fixed-pitch gro
 const TOPBAR_SEP := 10           # within-group spacing (Qud's :: gaps are looser than our default 6)
 const TOPBAR_TRACKING := 1       # extra glyph spacing — Qud's top bar tracks looser than Source Code Pro
 const STAT_PITCH := 86           # Qud centres each stat on a uniform ~86px grid (not natural text width)
+const VITALS_BOX_H := 18         # Qud's HP/EXP bar box height — the bar fills the whole row, text on top
+const VITALS_USER_INSET := 170   # user mode: inset the bar behind the label so green text stays readable
+const COL_VITALS_TRACK := Color8(19, 23, 26)   # Qud's empty-bar track (dark)
 var _l_hp: Label
 var _bar_hp: ProgressBar
 var _l_exp: Label
@@ -161,6 +164,8 @@ func _on_resize() -> void:
 	# The 1:1 sidebar is a fraction of the window, and the camera inset derives from it — re-apply both.
 	if Settings.one_to_one():
 		_apply_layout_mode(true)
+	else:
+		_apply_vitals_mode(false)   # user mode: inset the vitals bar + keep bright colours (overlay defaults to 1:1)
 
 func _input(e: InputEvent) -> void:
 	if e is InputEventKey and e.pressed and not e.echo and e.keycode == KEY_F12:
@@ -309,16 +314,30 @@ func _bar(value: float, maxv: float, col: Color) -> ProgressBar:
 	pb.value = value
 	pb.show_percentage = false
 	pb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	pb.custom_minimum_size = Vector2(0, 14)
 	var bgs := StyleBoxFlat.new()
-	bgs.bg_color = Color(0, 0, 0, 0.35)
-	bgs.set_corner_radius_all(3)
+	bgs.bg_color = COL_VITALS_TRACK          # Qud's dark track; sharp corners (Qud bars aren't rounded)
 	var fills := StyleBoxFlat.new()
 	fills.bg_color = col
-	fills.set_corner_radius_all(3)
 	pb.add_theme_stylebox_override("background", bgs)
 	pb.add_theme_stylebox_override("fill", fills)
 	return pb
+
+## One vitals row (HP or LVL/EXP): the bar fills the box, the label + numbers drawn ON TOP (Qud's
+## layout). 1:1 → bar spans the full box; user → bar inset behind the label (_apply_vitals_mode sets it).
+func _vitals_row(lbl: Label, pb: ProgressBar) -> Control:
+	var row := Control.new()
+	row.custom_minimum_size = Vector2(0, VITALS_BOX_H)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pb.set_anchors_preset(Control.PRESET_FULL_RECT)
+	pb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(pb)
+	lbl.set_anchors_preset(Control.PRESET_FULL_RECT)
+	lbl.offset_left = 6                        # small left inset for the text, like Qud
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(lbl)                         # added after the bar → renders on top
+	return row
 
 # Qud's within-group divider — a compact 2×2 block of dim squares (not text colons).
 func _dots(cell_w := 0) -> Control:
@@ -600,31 +619,23 @@ func _row_vitals_menu() -> Control:
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 6)
 
-	# col 1 — two stacked vitals rows, each a label + a coloured percent bar. Expands wide (like
-	# Qud, where the HP/EXP bars span most of the width) while the menu shrinks to the right.
-	var vitals := _strip()
+	# col 1 — two stacked vitals rows. Qud draws the HP/EXP bar as the FULL box (from the left edge,
+	# length = the value) with the label + numbers ON TOP of it — not a label beside a separate bar.
+	# Each row is the bar full-rect with the label overlaid; in 1:1 the bar fills the whole box, in user
+	# mode it's inset behind the label (so the green text stays readable). No panel — the bar is the bg.
+	var vitals := VBoxContainer.new()
 	vitals.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var vb := VBoxContainer.new()
-	vb.add_theme_constant_override("separation", 4)
-	vitals.add_child(vb)
+	vitals.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	vitals.add_theme_constant_override("separation", 3)
+	vitals.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-	var hp := HBoxContainer.new()
-	hp.add_theme_constant_override("separation", 8)
 	_l_hp = _text("HP: —", COL_HP)
-	_l_hp.custom_minimum_size = Vector2(160, 0)
-	hp.add_child(_l_hp)
 	_bar_hp = _bar(0, 1, COL_HP)
-	hp.add_child(_bar_hp)
-	vb.add_child(hp)
+	vitals.add_child(_vitals_row(_l_hp, _bar_hp))
 
-	var xp := HBoxContainer.new()
-	xp.add_theme_constant_override("separation", 8)
 	_l_exp = _text("LVL: —   EXP: —", COL_EXP)
-	_l_exp.custom_minimum_size = Vector2(220, 0)
-	xp.add_child(_l_exp)
 	_bar_exp = _bar(0, 1, COL_EXP)
-	xp.add_child(_bar_exp)
-	vb.add_child(xp)
+	vitals.add_child(_vitals_row(_l_exp, _bar_exp))
 	h.add_child(vitals)
 
 	# col 2 — top menu, a compact cluster hugging the right (Qud's top-right icon menu). Two variants
@@ -773,6 +784,12 @@ func _apply_vitals_mode(on: bool) -> void:
 		_l_exp.add_theme_color_override("font_color", COL_EXP_1TO1 if on else COL_EXP)
 	_recolor_bar(_bar_hp, COL_HP_BAR_1TO1 if on else COL_HP)
 	_recolor_bar(_bar_exp, COL_EXP_BAR_1TO1 if on else COL_EXP)
+	# 1:1 → bar fills the whole box (behind the text); user → inset behind the label so green stays legible
+	var inset := 0.0 if on else float(VITALS_USER_INSET)
+	if _bar_hp != null:
+		_bar_hp.offset_left = inset
+	if _bar_exp != null:
+		_bar_exp.offset_left = inset
 
 func _recolor_bar(pb: ProgressBar, col: Color) -> void:
 	if pb == null:
