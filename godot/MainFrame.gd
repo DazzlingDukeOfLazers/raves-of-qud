@@ -304,10 +304,14 @@ func _dots() -> Control:
 # An expanding horizontal rule that FILLS the gap between groups, so the bar spreads its groups edge to
 # edge like Qud (name far-left, zone far-right). Qud caps each rule with a DOUBLE vertical bar (║) where
 # it meets a group, so: ║────────║.
-func _rule() -> Control:
+func _rule(frac := 0.0) -> Control:
 	var row := HBoxContainer.new()
-	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.custom_minimum_size = Vector2(30, 0)
+	if frac > 0.0:   # fixed width (Qud left-packs name+T-group, so those gaps are fixed, not shared)
+		row.custom_minimum_size = Vector2(get_viewport_rect().size.x * frac, 0)
+		row.size_flags_horizontal = Control.SIZE_FILL
+	else:
+		row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.custom_minimum_size = Vector2(30, 0)
 	row.add_theme_constant_override("separation", 3)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(_rule_cap())
@@ -390,7 +394,7 @@ func _row_status() -> Control:
 	_l_name.clip_text = false
 	h.add_child(_l_name)
 
-	h.add_child(_rule())
+	h.add_child(_rule(0.141))                              # name → T-group: fixed gap (Qud left-packs these)
 	_l_temp = _text("—"); h.add_child(_l_temp)
 	h.add_child(_dots())
 	_l_hunger = _text("—", COL_HUNGER); h.add_child(_l_hunger)   # food status (colour set per-state)
@@ -399,7 +403,7 @@ func _row_status() -> Control:
 	_l_weight = _text("—"); h.add_child(_l_weight)              # carry weight cur/max
 	_l_water = _text("—", COL_THIRST); h.add_child(_l_water)     # fresh water in drams (= currency)
 
-	h.add_child(_rule())
+	h.add_child(_rule(0.184))                              # T-group → stats: fixed gap
 	_l_qn = _text("QN: —"); h.add_child(_l_qn)             # quickness (100 nominal)
 	h.add_child(_dots())
 	_l_ms = _text("MS: —"); h.add_child(_l_ms)             # move speed (100 nominal)
@@ -410,7 +414,7 @@ func _row_status() -> Control:
 	h.add_child(_dots())
 	_l_ma = _text("MA: —", COL_STAT_TEAL); h.add_child(_l_ma)   # mental armor (teal)
 
-	h.add_child(_rule())
+	h.add_child(_rule())                                   # stats → sky/zone: expands (zone right-anchored)
 	_clock = TextureRect.new()                             # Qud's day/night sky disc (real sprite)
 	_clock.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_clock.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
