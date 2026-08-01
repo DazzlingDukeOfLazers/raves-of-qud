@@ -554,7 +554,7 @@ func _relayout_topbar() -> void:
 	for g in [_grp_left, _grp_t, _grp_stats, _grp_right]:
 		g.size = g.get_combined_minimum_size()
 		g.position.y = (hh - g.size.y) * 0.5
-	_grp_left.position.x = 0.0
+	_grp_left.position.x = 5.0   # Qud insets the avatar ~5px from the window edge; we hugged x=0
 	_grp_t.position.x = w * TOPBAR_T_CENTER - _grp_t.size.x * 0.5
 	_grp_stats.position.x = w * TOPBAR_STATS_CENTER - _grp_stats.size.x * 0.5
 	# Qud's right cluster ends ~5px inside our bar's right edge (its zone name stops at ~1899, ours would
