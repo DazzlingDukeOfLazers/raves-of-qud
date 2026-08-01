@@ -166,4 +166,15 @@ func _read_pidfile() -> int:
 		return -1
 	var pid := int(f.get_as_text().strip_edges())
 	# Trust it only if that process is actually alive.
-	return pid if (pid > 0 and OS.is_process_running(pid)) else -1
+	return pid if (pid > 0 and _pid_alive(pid)) else -1
+
+
+## Silent liveness probe. OS.is_process_running() spams an engine ERROR ("does not exist or is not a
+## child of the calling process") for any pid we didn't spawn as a child — and the pidfile's Qud is
+## usually external/adopted (Steam-launched, or a Reset-restart) — so on Unix we probe with `kill -0`
+## instead: it sends no signal, exits 0 iff the pid is alive, and prints nothing to Godot's log. Windows
+## keeps the native call (its backend has no child-only restriction).
+func _pid_alive(pid: int) -> bool:
+	if OS.get_name() == "Windows":
+		return OS.is_process_running(pid)
+	return OS.execute("/bin/kill", ["-0", str(pid)]) == 0
