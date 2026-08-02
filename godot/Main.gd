@@ -1165,6 +1165,11 @@ func _on_wish_submitted(text: String) -> void:
 	var w := text.strip_edges()
 	if w != "" and client != null:
 		client.send_command("wish", {"wish": w})
+		# The wish drains on Qud's game thread (Tick), which does NOT run while Qud sits
+		# unfocused with no turn passing — the wish silently pends and "wishing doesn't
+		# work". Chase it with a wait: PushCommand wakes the parked input loop even
+		# unfocused, the turn ticks, the wish applies, and the snapshot refreshes Raves.
+		client.send_command("wait", {})
 	_close_wish()
 
 func _close_wish() -> void:

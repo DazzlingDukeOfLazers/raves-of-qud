@@ -164,6 +164,19 @@ def main(argv):
         print("godot: onboard" + arg)
     elif cmd == "shot":
         print("shot.png updated" if godot_shot() else "shot: TIMED OUT (is the viewer open?)")
+    elif cmd == "wish":
+        # Execute a Qud wish (godmode, item:<blueprint>, reveal, ...). The wish is drained
+        # on the game thread between turns, so follow it with a wait to flush it even while
+        # Qud is unfocused; the post-wait snapshot then reflects the wish.
+        if len(argv) < 2:
+            sys.exit("usage: control.py wish <text>   e.g. wish godmode · wish item:Torch")
+        text = " ".join(argv[1:])
+        b = Bridge()
+        b.send("wish", wish=text)
+        b.send("wait")
+        print(player_line(b.read_snapshot()))
+        b.close()
+        print("wish sent:", text)
     elif cmd == "export":
         # Re-run Qud's DATA exporters (mods, options, …) NOW over the bridge — the clean
         # trigger for refreshing RavesOfQud/*.json without ticking a fake turn. Qud must be
