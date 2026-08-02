@@ -1001,9 +1001,13 @@ namespace RavesOfQud
                         // over its supporting liquid's BACKGROUND colour. Ask the liquid itself
                         // (RenderBackgroundPrimary/Secondary on a scratch event — water prepends "^b";
                         // NOT GetColor(), which is the NAME colour 'B' and reads a shade too bright).
+                        // Gate on the Swimming EFFECT being present, exactly like Qud: it is applied
+                        // on MOVEMENT into swimmable water, so an immobile aquatic (glowpad) never
+                        // carries it and renders bg-less on plain ground colour.
                         try
                         {
-                            if (go.Brain != null && go.Brain.LimitToAquatic())
+                            if (go.HasEffect<XRL.World.Effects.Swimming>()
+                                && go.Brain != null && go.Brain.LimitToAquatic())
                             {
                                 var support = c.GetAquaticSupportFor(go);
                                 var lv = support?.LiquidVolume;
