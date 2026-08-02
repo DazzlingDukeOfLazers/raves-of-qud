@@ -2399,9 +2399,9 @@ func _seat(s: Sprite3D, tex: ImageTexture, tile: String, cx: int, cy: int, sink:
 # --- greedy-meshed walls ----------------------------------------------------
 
 func _parse_bg(color: String) -> String:
-	# "&r^w" -> "w"  (the background colour); "" if no ^ component.
-	# Counterpart to _fg_letter, which takes the half before the caret.
-	var i := color.find("^")
+	# "&r^w" -> "w"  (the background colour); "" if no ^ component. Qud's rule
+	# (GetBackgroundColorChar) takes the LAST '^' — matters for compound strings.
+	var i := color.rfind("^")
 	if i >= 0 and i + 1 < color.length():
 		return color.substr(i + 1, 1)
 	return ""
@@ -3639,13 +3639,22 @@ const COLORS := {
 
 ## Foreground/detail for an object. When Qud painted the tile it hands us the
 ## RESOLVED rgb, which needs no palette lookup and no &X^Y parsing — prefer it.
+## Which colour string an object's tile recolours from — Qud's tiles rule (Cell.Render) is
+## TileColor over ColorString, EXCEPT a custom render (liquids) writes a COMPOUND back into
+## ColorString ('&Y^y&b') that overrides the static TileColor at draw time. A compound is
+## recognisable by its second '&'.
+func _pick_color_string(obj: Dictionary) -> String:
+	var full := String(obj.get("color", ""))
+	if full.count("&") >= 2:
+		return full
+	var c := String(obj.get("tilecolor", ""))
+	return c if c != "" else full
+
 func _obj_main(obj: Dictionary) -> Color:
 	var hex := String(obj.get("fgHex", ""))
 	if hex != "":
 		return Color(hex)
-	var c := String(obj.get("tilecolor", ""))
-	if c == "": c = String(obj.get("color", ""))
-	return _qud_color(c)
+	return _qud_color(_pick_color_string(obj))
 
 func _obj_detail(obj: Dictionary) -> Color:
 	var hex := String(obj.get("detailHex", ""))
@@ -3660,9 +3669,7 @@ func _color_key(obj: Dictionary) -> String:
 	var hex := String(obj.get("fgHex", ""))
 	if hex != "":
 		return "%s~%s" % [hex, String(obj.get("detailHex", ""))]
-	var c := String(obj.get("tilecolor", ""))
-	if c == "": c = String(obj.get("color", ""))
-	return "%s|%s" % [c, String(obj.get("detail", ""))]
+	return "%s|%s" % [_pick_color_string(obj), String(obj.get("detail", ""))]
 
 ## The FOREGROUND letter of a Qud colour code.
 ##
@@ -3674,11 +3681,17 @@ func _color_key(obj: Dictionary) -> String:
 ## Objects with a TileColor were unaffected (that field has no `^`), which is why
 ## walls and water looked right and this stayed hidden.
 func _fg_letter(code: String) -> String:
+	# QUD'S OWN RULE (RenderEvent.GetForegroundColor): the char after the LAST '&' anywhere in
+	# the string — '^' sets the background and does NOT stop the search. A liquid's custom
+	# render writes compounds like '&Y^y&b': Qud draws that fg 'b' (the blue puddle), and the
+	# old first-caret truncation read 'Y' instead. A bare letter code stays itself.
 	var c := code.strip_edges()
+	var amp := c.rfind("&")
+	if amp >= 0:
+		return c.substr(amp + 1, 1) if amp + 1 < c.length() else ""
 	var caret := c.find("^")
 	if caret >= 0:
-		c = c.substr(0, caret)      # drop the background half
-	c = c.replace("&", "")
+		c = c.substr(0, caret)
 	if c.is_empty():
 		return ""
 	return c.substr(c.length() - 1, 1)
