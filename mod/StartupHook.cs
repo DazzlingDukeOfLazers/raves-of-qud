@@ -31,6 +31,9 @@ namespace RavesOfQud
                 // the "embark" command works at the main menu. Snapshot publishing still only
                 // happens in-game (driven by BridgePart); this just moves command RECEPTION early.
                 _ = Bridge.Server;
+                // Register the message-log callback NOW (before any game loads) so the "since load" count
+                // catches the same load-time messages Qud's own sidebar does — matching its log length.
+                ZoneSnapshot.EnsureMessageCallback();
                 System.Console.WriteLine("[raves] pre-game bridge listener up.");
                 StartHeartbeat();
             }

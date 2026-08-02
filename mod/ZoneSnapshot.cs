@@ -719,17 +719,54 @@ namespace RavesOfQud
              .Member("detail", (r != null) ? r.DetailColor.ToString() : "");
         }
 
+        // --- "since load" message count -------------------------------------------------------------
+        // Qud's on-screen message log (Qud.UI.MessageLogWindow) is CLEARED on every game load and then
+        // accumulates only messages emitted afterwards, via XRLCore.RegisterNewMessageLogEntryCallback —
+        // it does NOT re-show the save's persisted backlog. Player.Messages, which the client renders in
+        // 1:1 mode, DOES include that backlog, so Raves showed far more history than Qud. Mirror Qud's
+        // callback to count messages since the current load; the client trims its 1:1 log to that many.
+        private static readonly object _sinceLock = new object();
+        private static int _sinceLoadCount;
+        private static object _lastMsgGame;
+        private static bool _msgCbRegistered;
+
+        /// Register the message-log callback. MUST run at mod startup (before any game loads) so it catches
+        /// the load-time messages Qud's own sidebar catches — a lazy first-snapshot registration misses them.
+        public static void EnsureMessageCallback()
+        {
+            if (_msgCbRegistered) return;
+            try { XRL.Core.XRLCore.RegisterNewMessageLogEntryCallback(OnNewLogEntry); _msgCbRegistered = true; }
+            catch { }
+        }
+
+        private static void OnNewLogEntry(string log)
+        {
+            try
+            {
+                object g = The.Game;
+                lock (_sinceLock)
+                {
+                    if (!ReferenceEquals(g, _lastMsgGame)) { _sinceLoadCount = 0; _lastMsgGame = g; }  // load → clear, like Qud
+                    _sinceLoadCount++;
+                }
+            }
+            catch { }
+        }
+
         /// The player's recent message-log lines (tail), markup-stripped, for the frame's Message log.
         private static void WriteMessages(JsonWriter j)
         {
             try
             {
+                EnsureMessageCallback();
                 var mq = (The.Game != null && The.Game.Player != null) ? The.Game.Player.Messages : null;
                 if (mq == null || mq.Messages == null) return;
                 var lines = mq.Messages;
                 int n = lines.Count;
                 int start = n > 80 ? n - 80 : 0;   // last ~80 lines is plenty for the panel
                 j.Member("msgCount", n);           // total ever, so the client can diff for NEW lines (filter mode)
+                int since; lock (_sinceLock) since = _sinceLoadCount;
+                j.Member("msgSinceLoad", since);   // how many trailing lines were emitted THIS load (Qud's sidebar window)
                 j.Name("messages").BeginArray();
                 for (int i = start; i < n; i++)
                     j.Value(lines[i]);             // keep {{colour|...}} markup; the client renders it coloured

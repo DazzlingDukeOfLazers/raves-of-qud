@@ -16,6 +16,7 @@ const FILTER_GRACE := 4   # quiet rounds a line survives before its count starts
 
 var _filter := false
 var _last_msgs: Array = []       # last verbatim tail (for verbatim render + delta)
+var _since_load := -1            # count of msgs emitted since Qud loaded (1:1 log trims to this; -1 = all)
 var _entries: Array = []         # filter state: [{text, count, quiet, seen}]
 var _seen_total := -1            # total message count last processed (-1 = not yet initialised)
 var _palette := {}   # Qud colour code -> hex, for rendering {{code|text}} markup
@@ -75,6 +76,7 @@ func set_snapshot(data: Dictionary) -> void:
 ## diff for NEW lines), `palette` = colour code -> hex.
 func set_messages(lines: Array, total: int, palette: Dictionary, data := {}) -> void:
 	_last_msgs = lines
+	_since_load = int(data.get("msgSinceLoad", -1))   # -1 (old mod) = show all; else Qud's since-load window
 	if not palette.is_empty():
 		_palette = palette
 	_tiles.palette = _palette
@@ -213,6 +215,10 @@ func _rerender() -> void:
 
 func _render_verbatim() -> void:
 	var src: Array = _last_msgs
+	# 1:1: Qud's sidebar is cleared on load and shows only messages emitted since — not the save's backlog.
+	# Trim to the mod's since-load count so the history length matches. User mode keeps the full backlog.
+	if _one_to_one and _since_load >= 0 and _since_load < src.size():
+		src = src.slice(src.size() - _since_load)
 	if src.size() > MAX_LINES:
 		src = src.slice(src.size() - MAX_LINES)
 	_rt.clear()
