@@ -158,8 +158,10 @@ keyboard. Two channels:
   with the running viewer.
 - **Godot** — `control.py` drives Godot through a **cooperative command file** for deterministic,
   focus-independent control: `Main` polls `<RavesOfQud>/godot_cmd` (~10 Hz) and executes `cam <1-7>`
-  (camera mode), `shot` (save shot.png), `fph <h>` (first-person height). (Highvisor is the OS-level
-  alternative when a test needs real window input to Godot.)
+  (camera mode), `shot` (save shot.png), `fph <h>` (first-person height), and `inspect <CX> <CY>` —
+  run the cell inspector at a zone cell (writes selection.txt like a Ctrl+click; no focus or mouse
+  needed, e.g. `echo "inspect 6 7" > "$SUPPORT/godot_cmd"` then read selection.txt for the RENDERED
+  lines). (Highvisor is the OS-level alternative when a test needs real window input to Godot.)
 
 ```
 python3 tools/capture/control.py pos          # player cell + zone

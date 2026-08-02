@@ -2153,7 +2153,12 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			_note(cx, cy, idx, "deck(over water)" if wet else "deck(on ground)", y)
 			return
 
-	var tex := _colored_tex_rgb(tile, _obj_main(obj), _obj_detail(obj), _color_key(obj))
+	# A filed FILL verdict applies to the tile's texture everywhere it draws (the fill axis is
+	# independent of shape): fill-holes turns the water wheel's see-through slats opaque in the
+	# FLAT path too — Qud shows them solid, and the old 3D panel path was the only place the
+	# verdict used to reach. Unfiled tiles keep Fill.NONE (transparent as-loaded).
+	var tex := _colored_tex_rgb(tile, _obj_main(obj), _obj_detail(obj), _color_key(obj),
+		_fill_for(tile, Fill.NONE))
 
 	# A filed verdict overrides everything below it. This is how facts that are not
 	# in Qud's data get in: nothing in `sw_waterwheel_1` says the wheel runs
@@ -2162,7 +2167,11 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 	if verdict == "skip":
 		_note(cx, cy, idx, "skipped(user verdict: not drawn)", 0.0)
 		return
-	if verdict == "panel_ew" or verdict == "panel_ns":
+	# Flat (1:1 / 2D) mode: an UPRIGHT panel is edge-on — invisible — under the straight-down
+	# camera (the "water wheel not showing up" bug: its panel_ew override stood it up). The
+	# verdict's orientation is a 3D fact; in flat mode the object falls through to the floor
+	# path and draws as its plain tile, exactly as Qud does.
+	if (verdict == "panel_ew" or verdict == "panel_ns") and not _flat_2d:
 		var vtex := _colored_tex_rgb(tile, _obj_main(obj), _obj_detail(obj), _color_key(obj))
 		if vtex != null:
 			var axis := "ew" if verdict == "panel_ew" else "ns"

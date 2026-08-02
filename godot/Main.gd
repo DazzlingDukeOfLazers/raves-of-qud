@@ -466,6 +466,14 @@ func _exec_godot_cmd(cmd: String) -> void:
 	match parts[0]:
 		"shot":
 			_screenshot(false, true)   # forced: window is unfocused, no auto-draw
+		"inspect":
+			# `inspect CX CY` — run the cell inspector at a ZONE CELL from outside (writes
+			# selection.txt like a Ctrl+click). Closes the loop for tooling: no window focus
+			# or mouse warp needed to ask "what did this cell render as?".
+			if parts.size() >= 3 and _cam_rig != null and _cam_rig._cam != null:
+				var wp := Vector3(float(parts[1]), 0.0, float(parts[2]) * _cam_rig.zstretch())
+				var sp: Vector2 = _cam_rig._cam.unproject_position(wp)
+				inspector.inspect_at(_cam_rig._cam, sp, _cam_rig.zstretch())
 		"cam":
 			if parts.size() > 1:
 				_set_mode(clampi(int(parts[1]) - 1, 0, 7))   # 1-8 -> COMPASS..TOP_FOLLOW
