@@ -37,6 +37,10 @@ var _right_inset := 0.0        # 1:1: fraction of the viewport the side panels c
 const QUD_TILE_W := 16.0       # Qud tile art px (LetterboxCamera.tileWidth/Height)
 const QUD_TILE_H := 24.0
 const QUD_ZOOM_STEP := 0.25    # scroll-wheel zoom quantum (GameManager.ZoomIn/ZoomOut)
+# Qud's zoomed-pan window (empirical, 18-row sweep at 1.5x — see _one_to_one_center):
+# the pan space sits south of the hole centre and is narrower than the letterbox area.
+const QUD_PAN_OFF_Y_PX := 54.0   # pan-space centre minus hole centre, screen px
+const QUD_PAN_AREA_H_PX := 920.0 # pan-space effective height, screen px
 var _play_hole := Rect2()      # px rect of the play hole; Rect2() = unset -> legacy zone-fit
 var _zoom_q := 1.0             # Qud-style zoom factor (quarters, >= 1.0); only meaningful in 1:1
 # Qud tiles are 16x24, so top-down stretches the world's north-south (Z) axis by 24/16 = 1.5 so cells
@@ -381,6 +385,13 @@ func _stage_scale() -> float:
 
 ## Scroll-wheel zoom in 1:1: quarter steps of the factor, floor 1.0 (= the whole-zone fit), exactly
 ## Qud's GameManager.ZoomIn/ZoomOut. Re-applies immediately so the step lands without waiting a frame.
+## Set the 1:1 zoom factor outright (snapped to Qud's quarters, floor 1.0) — the godot_cmd
+## `zoom1to1 <f>` test hook; the wheel/keys go through zoom_1to1_step.
+func set_zoom_1to1(f: float) -> void:
+	_zoom_q = maxf(1.0, snappedf(f, QUD_ZOOM_STEP))
+	if _mode == CamMode.TOP_FOLLOW and _cam != null:
+		_apply_top_down_camera(true)
+
 func zoom_1to1_step(dir: int) -> void:
 	_zoom_q = maxf(1.0, snappedf(_zoom_q + QUD_ZOOM_STEP * float(dir), QUD_ZOOM_STEP))
 	if _mode == CamMode.TOP_FOLLOW and _cam != null:
@@ -406,9 +417,22 @@ func _one_to_one_center() -> Vector3:
 	var half_view_x := _play_hole.size.x / ppu * 0.5
 	var half_view_z := _play_hole.size.y / ppu / TILE_ASPECT * 0.5
 	var slack_x := maxf(0.0, _zone_cells.x * 0.5 - half_view_x)
-	var slack_z := maxf(0.0, _zone_cells.y * 0.5 - half_view_z)
+	# Qud's zoomed VERTICAL pan, measured with an 18-row blob-anchored sweep at 1.5x (the
+	# user's "moving to the centre desyncs" report): the camera follows player - 5/24 cells at
+	# slope 1, clamped to a pan window that is NOT centred on the stage — Qud's pan space sits
+	# ~54 screen px south of the hole centre with an effective height of ~920 px (its dock
+	# safe-area, which differs from the letterbox target area that centres the fit view).
+	# Measured pins at 1.5x: centre range [8.43, 13.21] (follow releases rows ~8.6..13.4).
+	# When the slack collapses (<= 0, e.g. the whole-zone fit) there is no panning at all and
+	# the letterbox centring alone holds (centre = stage centre).
+	var s_total := _stage_scale()
+	var cellh_px := QUD_TILE_H * s_total
+	var pan_shift_z := QUD_PAN_OFF_Y_PX / cellh_px
+	var slack_z := (QUD_TILE_H * _zone_cells.y - QUD_PAN_AREA_H_PX / s_total) / (2.0 * QUD_TILE_H)
+	var p_target := (_player.z - center.z) - 5.0 / 24.0
+	if slack_z > 0.0:
+		center.z += clampf(p_target, -pan_shift_z - slack_z, -pan_shift_z + slack_z)
 	center.x += clampf(_player.x - center.x, -slack_x, slack_x)
-	center.z += clampf(_player.z - center.z, -slack_z, slack_z)
 	return center
 
 ## Ortho vertical size that frames the WHOLE current zone (both axes) within the view, with a small

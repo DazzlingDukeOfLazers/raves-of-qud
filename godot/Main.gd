@@ -466,6 +466,11 @@ func _exec_godot_cmd(cmd: String) -> void:
 	match parts[0]:
 		"shot":
 			_screenshot(false, true)   # forced: window is unfocused, no auto-draw
+		"zoom1to1":
+			# `zoom1to1 <factor>` — set the 1:1 zoom factor directly (quarters, >= 1.0). The
+			# deterministic test input: key/wheel injection proved unreliable for sweeps.
+			if parts.size() >= 2 and _cam_rig != null:
+				_cam_rig.set_zoom_1to1(float(parts[1]))
 		"inspect":
 			# `inspect CX CY` — run the cell inspector at a ZONE CELL from outside (writes
 			# selection.txt like a Ctrl+click). Closes the loop for tooling: no window focus

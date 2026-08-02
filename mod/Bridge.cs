@@ -477,6 +477,20 @@ namespace RavesOfQud
                         Keyboard.PushCommand(cmd, null);
                     return;
                 }
+                if (name == "zoom")
+                {
+                    // Zoom Qud's stage from the bridge: CmdZoomIn/Out are reachable only via real
+                    // Rewired input or the control-panel button (OnControlPanelButton) — PushCommand
+                    // never gets there. Call GameManager.ZoomIn/Out directly; they touch Unity
+                    // state, so marshal via uiQueue (the turn-thread golden rule). Steps are Qud's
+                    // own quarter-steps; "dir":"out" zooms out, anything else zooms in.
+                    f.TryGetValue("dir", out string sdir);
+                    bool zout = sdir == "out";
+                    var zgm = GameManager.Instance;
+                    if (zgm != null && zgm.uiQueue != null)
+                        zgm.uiQueue.queueTask(() => { if (zout) zgm.ZoomOut(); else zgm.ZoomIn(); });
+                    return;
+                }
                 if (name == "dir")
                 {
                     // Answer a Qud direction prompt (PickDirection) with a LeftClick at a CELL — Qud
