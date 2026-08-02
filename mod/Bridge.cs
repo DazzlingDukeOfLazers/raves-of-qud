@@ -335,8 +335,14 @@ namespace RavesOfQud
         /// arrived from an external driver, and — if one applied while idle — publishes a
         /// snapshot immediately so the driver gets a response without waiting for a turn.
         /// </summary>
+        /// Set while ZoneSnapshot rebuilds the light map via a nested BeforeRenderEvent.Send —
+        /// that send re-dispatches to OUR BridgePart handler too; without this guard the
+        /// snapshot build would re-enter TickRender from inside itself.
+        internal static bool InSnapshotRelight;
+
         public static void TickRender(GameObject player)
         {
+            if (InSnapshotRelight) return;
             BridgeServer server = Server;
             EnsureScanlineState();              // keep Qud's always-on CC_AnalogTV scanlines suppressed (1:1)
             MaybeExportClocks();                // one-shot day/night sky discs — marshalled to the uiQueue

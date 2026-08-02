@@ -869,20 +869,30 @@ namespace RavesOfQud
             WriteCommandBar(j, player);  // activated abilities for the row-5 command bar
             WriteMessages(j);           // recent message-log lines for the frame Message log
 
-            // Refresh the VisibilityMap before reading it: it is a RENDER-FRAME artifact —
-            // XRLCore.RenderBaseToBuffer clears + recomputes it every frame, so an UNFOCUSED
-            // Qud (not rendering) leaves it stale/empty and c.IsVisible() reads all-false.
-            // Recompute exactly as the render does (idempotent — the next real frame redoes it).
+            // Refresh the Visibility AND Light maps before reading them: both are RENDER-FRAME
+            // artifacts — every frame XRLCore clears both, sends BeforeRenderEvent (each
+            // LightSource re-radiates; the Daylight widget adds the time-of-day light), then
+            // re-adds player visibility. Reading them at any other moment races that cycle:
+            // our own tick IS a BeforeRenderEvent handler, so a mid-frame publish could read
+            // the maps CLEARED but not yet re-radiated — a torch-lit wall shipped light=1 and
+            // ghost-flickered in Raves seconds after rendering correctly from the turn-end
+            // snapshot. Recompute the full cycle here (idempotent — AddLight max-combines and
+            // the next real frame redoes it all). InSnapshotRelight guards our own handler
+            // against re-entering from the nested event send.
             try
             {
                 var pcell = The.Player?.CurrentCell;
                 if (pcell != null && pcell.ParentZone == z)
                 {
+                    z.ClearLightMap();
                     z.ClearVisiblityMap();
+                    Bridge.InSnapshotRelight = true;
+                    try { BeforeRenderEvent.Send(z); }
+                    finally { Bridge.InSnapshotRelight = false; }
                     z.AddVisibility(pcell.X, pcell.Y, The.Player.GetVisibilityRadius());
                 }
             }
-            catch { }
+            catch { Bridge.InSnapshotRelight = false; }
             j.Name("cells").BeginArray();
             for (int y = 0; y < h; y++)
             {
