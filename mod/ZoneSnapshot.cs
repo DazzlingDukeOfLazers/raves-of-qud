@@ -997,6 +997,20 @@ namespace RavesOfQud
                         // the resolved flag only when FALSE — the client hides these from memory.
                         if (!r.RenderIfDark)
                             j.Member("hideDark", true);
+                        // Qud's Swimming effect: an aquatic-limited creature (eel, glowfish) renders
+                        // over its supporting liquid's BACKGROUND colour (Swimming.Render prepends
+                        // "^b" for water). Send the liquid colour letter; the client fills the cell.
+                        try
+                        {
+                            if (go.Brain != null && go.Brain.LimitToAquatic())
+                            {
+                                var support = c.GetAquaticSupportFor(go);
+                                string lc = support?.LiquidVolume?.GetPrimaryLiquidColor();
+                                if (!string.IsNullOrEmpty(lc))
+                                    j.Member("aquaBg", lc.Substring(lc.Length - 1, 1));
+                            }
+                        }
+                        catch { }
                         if (painted) WritePaintedColors(j);
                         WritePerceivedOverride(j, go);   // "unknown" icon override for unidentified items (Nearby)
                         j.EndObject();
