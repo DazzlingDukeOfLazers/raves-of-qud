@@ -26,6 +26,16 @@ drive one camera per mode off the same code.
 `Esc` closes the ` menu and any selection but **keeps the current camera** (it does not
 snap to COMPASS). There was an 8th mode, `TOP_ZONE`, removed in favour of TOP_FOLLOW.
 
+**1:1 (parity) mode camera** — TOP_FOLLOW is forced + locked, and the zoom switches to **Qud's
+letterbox model** (decompiled `LetterboxCamera`/`GameManager`, reproduced in `CameraRig`): the 80×25
+stage (16×24 art px per cell) fits the **play hole** (row 3's px rect, pushed by MainFrame) at
+`S = min(holeW/1280, holeH/600)` — non-integer allowed, exactly Qud's "Fit" PlayScale — and the
+**wheel / `=` / `-`** step a zoom factor by **0.25** with floor 1.0 (Qud's `ZoomIn`/`ZoomOut`
+quarters). Zoomed in, the camera follows the player **clamped so the view never leaves the zone**
+(Qud's `ClampPanPosition`); at fit-zoom the clamp pins dead centre. Continuous R/wheel zoom and the
+inspector-font `-`/`=` nudge stay user-mode-only. Verified pixel-1:1 against Qud (water-blob boxes
+match within 1px; a 1.5-factor step scales 78px → 117px exactly).
+
 ## Multi-view picker (`0`)
 
 Press **`0`** (or the debug-menu button) for a 3×3 grid of **all seven views live at

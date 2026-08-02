@@ -27,6 +27,18 @@ var _one_to_one := false       # parity mode: fit the ZONE (biggest zoom-out) in
 var _zone_cells := Vector2(80, 25)   # live zone dims in cells (pushed from Main), for the 1:1 zone-fit
 var _right_inset := 0.0        # 1:1: fraction of the viewport the side panels cover; lens-shifts the
 							   # top-down view LEFT so the zone-fit centres in the visible play hole
+# 1:1 pixel model — Qud's LetterboxCamera reproduced (decompiled 2.0.211.50):
+#   stage = tilesWide*16 x tilesHigh*24 art px; base scale S = min(holeW/stageW, holeH/stageH) (the
+#   "Fit" PlayScale, non-integer allowed); zoom factor steps by 0.25, min 1.0 (ZoomIn/ZoomOut round
+#   to quarters); orthographicSize = base/zoom; at zoom > 1 the camera pans to the player, CLAMPED so
+#   the view never leaves the stage (ClampPanPosition) — at fit-zoom the clamp pins dead centre.
+# _play_hole is the on-screen px rect the playfield shows through (row 3's transparent hole, pushed
+# from MainFrame); when it's set, 1:1 uses this model instead of the old margin'd _zone_fit_size.
+const QUD_TILE_W := 16.0       # Qud tile art px (LetterboxCamera.tileWidth/Height)
+const QUD_TILE_H := 24.0
+const QUD_ZOOM_STEP := 0.25    # scroll-wheel zoom quantum (GameManager.ZoomIn/ZoomOut)
+var _play_hole := Rect2()      # px rect of the play hole; Rect2() = unset -> legacy zone-fit
+var _zoom_q := 1.0             # Qud-style zoom factor (quarters, >= 1.0); only meaningful in 1:1
 # Qud tiles are 16x24, so top-down stretches the world's north-south (Z) axis by 24/16 = 1.5 so cells
 # read 16:24 like Qud. Only in full-screen top-down (not perspective, not multi-view: shared world stays square).
 const TILE_ASPECT := 1.5
@@ -162,8 +174,8 @@ func process(dt: float, multiview_on: bool) -> void:
 		_cine_t += dt * 0.35   # slow auto-orbit ONLY with no target; a selected tile holds the framing still
 	# R zooms IN (Shift-guarded so Shift+ chords still switch). F is Fire now (was zoom-out); the wheel
 	# still zooms both ways. Top-down zooms the ortho span via _top_zoom; perspective the eye distance via _dist.
-	var _td_zoom := _mode == CamMode.TOP_FOLLOW
-	if _td_zoom and not Input.is_key_pressed(KEY_SHIFT):
+	var _td_zoom := _mode == CamMode.TOP_FOLLOW and not _one_to_one   # 1:1 zooms in Qud's quarter
+	if _td_zoom and not Input.is_key_pressed(KEY_SHIFT):              # steps (wheel), not continuous R
 		if Input.is_key_pressed(KEY_R): _top_zoom = clampf(_top_zoom * (1.0 - dt), TOP_ZOOM_MIN, TOP_ZOOM_MAX)
 	elif (_mode == CamMode.COMPASS or _mode == CamMode.FOLLOW or _mode == CamMode.FIRST_PERSON) \
 			and not Input.is_key_pressed(KEY_SHIFT):
@@ -270,6 +282,9 @@ func eye_look_for(mode: int) -> Array:
 			return [cc + Vector3(r * cos(COMPASS_PITCH) * sin(_cine_t),
 				r * sin(COMPASS_PITCH) + 2.0, r * cos(COMPASS_PITCH) * cos(_cine_t)), cc]
 		CamMode.TOP_FOLLOW:
+			if _one_to_one and _play_hole.size.x > 0.0:
+				var c := _one_to_one_center()
+				return [c + Vector3(0, TOP_H, 0), c]
 			return [_player + Vector3(0, TOP_H, 0), _player]
 		_:  # COMPASS — the default, stable, cardinal-locked view
 			return [_compass_eye(), _player + Vector3(0, look_h(), 0)]
@@ -319,26 +334,82 @@ func _apply_top_down_camera(top: bool) -> void:
 		_cam.size = _top_ortho_size()
 	elif _cam.projection != Camera3D.PROJECTION_PERSPECTIVE:
 		_cam.projection = Camera3D.PROJECTION_PERSPECTIVE
-	# 1:1 lens shift: the side panels cover the right _right_inset of the window, so slide the ortho
-	# view right by half that (in world units) — the zone then centres in the visible play hole. Ortho
-	# `size` is the vertical span; horizontal world width = size × viewport aspect. Zero outside 1:1/top.
+	# 1:1 lens shift: centre the view on the play HOLE, not the window. With the hole rect known, both
+	# axes shift by (window centre - hole centre) in world units (px / px-per-unit; px-per-unit is
+	# uniform = vp.y / ortho size). Sign: h_offset moves the frustum centre right -> the world appears
+	# left, which is what a hole LEFT of the window centre needs; v symmetrically (screen-y down).
+	# Without a hole rect yet, fall back to the old sidebar-fraction horizontal-only shift.
 	var h_off := 0.0
-	if top and _one_to_one and _right_inset > 0.0 and _cam != null:
+	var v_off := 0.0
+	if top and _one_to_one and _cam != null:
 		var vp: Vector2 = _cam.get_viewport().get_visible_rect().size
-		var aspect := (vp.x / vp.y) if vp.y > 0.0 else (16.0 / 9.0)
-		h_off = _right_inset * 0.5 * _cam.size * aspect
+		if _play_hole.size.x > 0.0 and vp.y > 0.0 and _cam.size > 0.0:
+			var ppu := vp.y / _cam.size                     # px per world unit (= 16S)
+			var hole_c := _play_hole.get_center()
+			h_off = (vp.x * 0.5 - hole_c.x) / ppu
+			v_off = (hole_c.y - vp.y * 0.5) / ppu
+		elif _right_inset > 0.0 and vp.y > 0.0:
+			var aspect := vp.x / vp.y
+			h_off = _right_inset * 0.5 * _cam.size * aspect
 	_cam.h_offset = h_off
+	_cam.v_offset = v_off
 	var attrs := _cam.attributes as CameraAttributesPractical
 	if attrs != null:
 		attrs.dof_blur_far_enabled = not top
 
 func _top_ortho_size() -> float:
 	if _one_to_one:
-		# 1:1 (parity): the whole ZONE is the biggest zoom-out — the zone borders the view. _top_zoom
-		# only zooms IN from there (clamped <= 1), never out past the zone (user TOP_FOLLOW can go to
-		# ~1.5 zones; 1:1 stops at the zone edge).
+		if _play_hole.size.x > 0.0 and _play_hole.size.y > 0.0:
+			# Qud pixel model: S = fit scale x quarter-stepped zoom; a cell renders 16S x 24S px.
+			# ortho size is the FULL viewport's vertical span in (stretched) world units, and one
+			# world unit = 16S px, so size = vp_h / (16S). The lens offsets then centre the stage
+			# in the play hole (see _apply_top_down_camera).
+			var vp: Vector2 = _cam.get_viewport().get_visible_rect().size if _cam != null else Vector2(1920, 1080)
+			return vp.y / (QUD_TILE_W * _stage_scale())
+		# fallback (no hole pushed yet): the old margin'd zone-fit
 		return _zone_fit_size() * minf(_top_zoom, 1.0)
 	return TOP_FOLLOW_SPAN * _top_zoom
+
+## Qud's stage scale: screen px per tile-art px. Base = fit the whole stage (zone) into the play
+## hole (min of the two axes, non-integer allowed — Qud's "Fit" PlayScale), then x the quarter-
+## stepped zoom factor. One world unit (a cell's E-W extent) = 16 art px = 16S screen px.
+func _stage_scale() -> float:
+	var stage_w := _zone_cells.x * QUD_TILE_W
+	var stage_h := _zone_cells.y * QUD_TILE_H
+	var base := minf(_play_hole.size.x / stage_w, _play_hole.size.y / stage_h)
+	return base * _zoom_q
+
+## Scroll-wheel zoom in 1:1: quarter steps of the factor, floor 1.0 (= the whole-zone fit), exactly
+## Qud's GameManager.ZoomIn/ZoomOut. Re-applies immediately so the step lands without waiting a frame.
+func zoom_1to1_step(dir: int) -> void:
+	_zoom_q = maxf(1.0, snappedf(_zoom_q + QUD_ZOOM_STEP * float(dir), QUD_ZOOM_STEP))
+	if _mode == CamMode.TOP_FOLLOW and _cam != null:
+		_apply_top_down_camera(true)
+
+## MainFrame pushes the play hole's px rect (row 3's transparent area) whenever the layout moves.
+func set_play_hole(r: Rect2) -> void:
+	_play_hole = r
+	if _one_to_one and _mode == CamMode.TOP_FOLLOW and _cam != null:
+		_apply_top_down_camera(true)
+
+## The 1:1 camera target: the zone centre plus a pan toward the player, CLAMPED so the visible hole
+## never leaves the stage — Qud's ClampPanPosition. At fit-zoom the clamp is 0 on the binding axis
+## (and the letterboxed axis centres too, exactly like Qud's letterbox), so the view is dead-centred;
+## zoomed in, it follows the player until the view hits a zone edge. Unstretched world units — the
+## caller (_update_camera) applies the N-S z-stretch afterward, so Z spans divide by TILE_ASPECT.
+func _one_to_one_center() -> Vector3:
+	var center := Vector3((_zone_cells.x - 1.0) * 0.5, 0.0, (_zone_cells.y - 1.0) * 0.5)
+	var s := _stage_scale()
+	if s <= 0.0:
+		return center
+	var ppu := QUD_TILE_W * s                                 # px per (unstretched E-W) world unit
+	var half_view_x := _play_hole.size.x / ppu * 0.5
+	var half_view_z := _play_hole.size.y / ppu / TILE_ASPECT * 0.5
+	var slack_x := maxf(0.0, _zone_cells.x * 0.5 - half_view_x)
+	var slack_z := maxf(0.0, _zone_cells.y * 0.5 - half_view_z)
+	center.x += clampf(_player.x - center.x, -slack_x, slack_x)
+	center.z += clampf(_player.z - center.z, -slack_z, slack_z)
+	return center
 
 ## Ortho vertical size that frames the WHOLE current zone (both axes) within the view, with a small
 ## margin — the 1:1 "zone as border" biggest zoom-out. The zone is _zone_cells wide (E-W) and tall
@@ -376,6 +447,7 @@ func set_right_inset(frac: float) -> void:
 func set_one_to_one(on: bool) -> void:
 	_one_to_one = on
 	_top_zoom = 1.0
+	_zoom_q = 1.0     # 1:1 always re-enters at the whole-zone fit (Qud's default zoom factor 1.0)
 	if _mode == CamMode.TOP_FOLLOW and _cam != null:
 		_apply_top_down_camera(true)
 

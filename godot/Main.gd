@@ -566,6 +566,7 @@ func _set_mode(m: int, force := false) -> void:
 # announces changes; MainFrame owns the panel half + persistence via one_to_one_changed.
 var _one_to_one := false
 var _saved_cam_mode := -1      # user-mode camera, restored when leaving 1:1
+var _saved_flat_2d := false    # user-mode tile mode (3D vs flat), restored when leaving 1:1
 signal one_to_one_changed(on: bool)
 
 func is_one_to_one() -> bool:
@@ -584,6 +585,17 @@ func set_one_to_one(on: bool) -> void:
 			_set_mode(CamMode.TOP_FOLLOW, true)   # the Qud-faithful 1:1 top-down (ONE_TO_ONE_SPAN)
 	elif render_3d and _saved_cam_mode >= 0:
 		_set_mode(_saved_cam_mode, true)          # back to the user's camera
+	# Tile half: Qud renders every tile FLAT, as loaded — the voxel walls / stretched-UV 3D look is a
+	# user-mode feature. 1:1 forces the flat path (which also renders ONLY the live zone — see
+	# _neighbor_zones); leaving 1:1 restores whatever the user had. Ordered after the camera flip so
+	# the rebuild happens under the final top-down stretch. (Set _one_to_one first — _toggle_flat_2d
+	# is locked while on, so go through _apply_flat_2d directly.)
+	if on:
+		_saved_flat_2d = _flat_2d
+		if not _flat_2d:
+			_apply_flat_2d(true)
+	elif _flat_2d != _saved_flat_2d:
+		_apply_flat_2d(_saved_flat_2d)
 	one_to_one_changed.emit(on)
 
 func toggle_one_to_one() -> void:
@@ -595,6 +607,12 @@ func set_ui_right_inset(frac: float) -> void:
 	_ui_right_inset = clampf(frac, 0.0, 0.6)
 	if _cam_rig != null:
 		_cam_rig.set_right_inset(_ui_right_inset)
+
+## MainFrame pushes the play hole's actual px rect (row 3's transparent area). The 1:1 camera fits
+## Qud's 80x25 stage into THIS rect (both axes) at Qud's letterbox scale — the pixel-1:1 model.
+func set_play_hole_rect(r: Rect2) -> void:
+	if _cam_rig != null:
+		_cam_rig.set_play_hole(r)
 
 ## One gesture -> everything a collaborator needs about a tile. Photograph the BARE
 ## scene FIRST (no selection overlay), then inspect — so shot.png is a clean plate
@@ -707,9 +725,18 @@ var _flat_2d := false   # false = 3D upright billboards, true = everything flat 
 ## (everything laid flat on the floor, a classic top-down map). The renderer drops its frozen
 ## geometry, so re-render the current snapshot to rebuild the live zone (and neighbours) in the new
 ## mode — instant feedback instead of waiting for the next turn.
+## 1:1 FORCES flat (Qud renders tiles flat, as loaded — the 3D wall stretch/UV mapping is a user-mode
+## feature), so the toggle is locked out while 1:1 is on, like the camera modes.
 func _toggle_flat_2d() -> void:
-	_flat_2d = not _flat_2d
-	renderer.set_flat_2d(_flat_2d)
+	if _one_to_one:
+		return                       # 1:1 owns the tile mode (flat); O is a no-op until user mode
+	_apply_flat_2d(not _flat_2d)
+
+## The shared apply path (O toggle + the 1:1 master switch): set the renderer mode, rebuild the
+## current snapshot in it, and sync the two UI mirrors of the state.
+func _apply_flat_2d(on: bool) -> void:
+	_flat_2d = on
+	renderer.set_flat_2d(on)
 	var live: Dictionary = store.live_snapshot()
 	if not live.is_empty():
 		renderer.render_snapshot(live, _neighbor_zones())
@@ -964,10 +991,14 @@ func _unhandled_input(event: InputEvent) -> void:
 			_screenshot(); return
 		if event.keycode == KEY_P:
 			_dump_profile(); return   # P: macOS grabs F9 (Mission Control)
-		if event.keycode == KEY_MINUS:
+		if event.keycode == KEY_MINUS or event.keycode == KEY_KP_SUBTRACT:
+			if _one_to_one and _cam_rig._mode == CamMode.TOP_FOLLOW:
+				_cam_rig.zoom_1to1_step(-1); return   # Qud's CmdZoomOut (quarter step, floor = fit)
 			inspector.nudge_font(-2)
 			reporter.nudge_font(-2); return
-		if event.keycode == KEY_EQUAL:
+		if event.keycode == KEY_EQUAL or event.keycode == KEY_KP_ADD:
+			if _one_to_one and _cam_rig._mode == CamMode.TOP_FOLLOW:
+				_cam_rig.zoom_1to1_step(1); return    # Qud's CmdZoomIn (quarter step)
 			inspector.nudge_font(2)
 			reporter.nudge_font(2); return
 		# in KEYBOARD mode the arrows drive the camera, not the player
@@ -1016,13 +1047,17 @@ func _unhandled_input(event: InputEvent) -> void:
 				_cam_rig._panning = event.pressed and _cam_rig._mode == CamMode.MOUSE
 			MOUSE_BUTTON_WHEEL_UP:
 				if event.pressed:
-					if _cam_rig._mode == CamMode.TOP_FOLLOW:
+					if _one_to_one and _cam_rig._mode == CamMode.TOP_FOLLOW:
+						_cam_rig.zoom_1to1_step(1)     # Qud's quarter-step zoom in (min factor 1.0 = fit)
+					elif _cam_rig._mode == CamMode.TOP_FOLLOW:
 						_cam_rig._top_zoom = clampf(_cam_rig._top_zoom * 0.9, _cam_rig.TOP_ZOOM_MIN, _cam_rig.TOP_ZOOM_MAX)
 					else:
 						_cam_rig._dist = clampf(_cam_rig._dist * 0.9, _cam_rig.DIST_MIN, _cam_rig.DIST_MAX)
 			MOUSE_BUTTON_WHEEL_DOWN:
 				if event.pressed:
-					if _cam_rig._mode == CamMode.TOP_FOLLOW:
+					if _one_to_one and _cam_rig._mode == CamMode.TOP_FOLLOW:
+						_cam_rig.zoom_1to1_step(-1)    # Qud's quarter-step zoom out (stops at the zone fit)
+					elif _cam_rig._mode == CamMode.TOP_FOLLOW:
 						_cam_rig._top_zoom = clampf(_cam_rig._top_zoom * 1.1, _cam_rig.TOP_ZOOM_MIN, _cam_rig.TOP_ZOOM_MAX)
 					else:
 						_cam_rig._dist = clampf(_cam_rig._dist * 1.1, _cam_rig.DIST_MIN, _cam_rig.DIST_MAX)

@@ -959,6 +959,18 @@ func _push_play_inset(one_to_one: bool) -> void:
 		if w > 0.0 and _side != null:
 			frac = clampf(_side.custom_minimum_size.x / w, 0.0, 0.6)
 	_holo.set_ui_right_inset(frac)
+	_push_play_hole.call_deferred(one_to_one)   # deferred: read the hole rect AFTER the layout settles
+
+## Push the play hole's real px rect (row 3's transparent area) to the camera — the 1:1 pixel model
+## fits Qud's stage into this rect on BOTH axes (the fraction above is horizontal-only and keeps the
+## legacy fallback alive). Rect2() clears it in user mode so the fallback paths take over.
+func _push_play_hole(one_to_one: bool) -> void:
+	if _holo == null or not _holo.has_method("set_play_hole_rect"):
+		return
+	if one_to_one and _holo_hole != null:
+		_holo.set_play_hole_rect(_holo_hole.get_global_rect())
+	else:
+		_holo.set_play_hole_rect(Rect2())
 
 # ── row 3: Holodeck  |grabby|  side panels  (expands to fill) ─────────────────
 
@@ -1031,6 +1043,10 @@ func _holodeck_cell() -> Control:
 	_holo_hole.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_holo_hole.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_holo_hole.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	# The 1:1 camera fits Qud's stage into this rect, so any late layout settle (chrome rows collapsing
+	# on a mode switch, a sidebar drag, a window resize) must re-push it — the deferred push in
+	# _push_play_inset alone can catch the rect mid-settle and leave the stage mis-fit by a few px.
+	_holo_hole.item_rect_changed.connect(func() -> void: _push_play_hole(Settings.one_to_one()))
 	var center := CenterContainer.new()
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
