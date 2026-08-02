@@ -287,9 +287,10 @@ namespace RavesOfQud
                     HFlip = ev.HFlip,
                     VFlip = ev.VFlip,
                 };
-                // The MEMORY view of the paint: Cell.Render applies PaintTileColor/PaintDetailColor
-                // only when Visible — out of sight the tile keeps RenderEvent.Reset's defaults
-                // ("&y", no detail). Ask Qud's own render rather than hardcoding the constants.
+                // The MEMORY view of the paint. Cell.Render's FINAL block overrides the colours of
+                // any not-visible/unlit cell to the K/k ghost (fg "&K", detail "k" in tiles mode),
+                // which is what a Visible:false render resolves to here. Ask Qud's own render
+                // rather than hardcoding — if the ghost palette ever changes, this tracks it.
                 try
                 {
                     var mem = c.Render(Visible: false);
@@ -868,6 +869,20 @@ namespace RavesOfQud
             WriteCommandBar(j, player);  // activated abilities for the row-5 command bar
             WriteMessages(j);           // recent message-log lines for the frame Message log
 
+            // Refresh the VisibilityMap before reading it: it is a RENDER-FRAME artifact —
+            // XRLCore.RenderBaseToBuffer clears + recomputes it every frame, so an UNFOCUSED
+            // Qud (not rendering) leaves it stale/empty and c.IsVisible() reads all-false.
+            // Recompute exactly as the render does (idempotent — the next real frame redoes it).
+            try
+            {
+                var pcell = The.Player?.CurrentCell;
+                if (pcell != null && pcell.ParentZone == z)
+                {
+                    z.ClearVisiblityMap();
+                    z.AddVisibility(pcell.X, pcell.Y, The.Player.GetVisibilityRadius());
+                }
+            }
+            catch { }
             j.Name("cells").BeginArray();
             for (int y = 0; y < h; y++)
             {
@@ -901,8 +916,13 @@ namespace RavesOfQud
                         // None=1 .. Light=200 ..). The client uses this underground to fall
                         // off to black away from sources, matching what Qud shows.
                         .Member("light", (int)c.GetLight())
-                        .Member("explored", c.IsExplored())
-                    .Name("objs").BeginArray();
+                        .Member("explored", c.IsExplored());
+                    // Visibility (occlusion) — INDEPENDENT of light: a torch-lit cell behind a
+                    // wall has light=200 but renders as Qud's K/k ghost. Cell.Render's rule is
+                    // `!Visible || Lit <= None` -> fg "&K", detail "k" (tiles). Sent only when
+                    // false; the client defaults true.
+                    if (!c.IsVisible()) j.Member("visible", false);
+                    j.Name("objs").BeginArray();
 
                     // Qud's painted ground goes first: it is the bottom of the
                     // stack, and on most cells here it is the ONLY thing drawn.

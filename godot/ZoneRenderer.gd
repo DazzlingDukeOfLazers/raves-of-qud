@@ -304,7 +304,6 @@ func flat_2d() -> bool:
 # themselves are the lighting. User mode keeps the full 3D stack; these are hard gates
 # so none of it is even LOADED in 1:1.
 var _one_to_one := false
-const DARK_MEMORY_1TO1 := 0.06   # Qud draws remembered terrain near-full colour (measured ~0.94x; Cell.Render passes normal colours out of sight)
 
 # Qud's stage field as actually RENDERED (measured off native captures — palette 'k' plus Qud's
 # own output transform). The user-mode ground keeps the palette-true colour + shading.
@@ -445,6 +444,15 @@ func _static_signature(cells: Array) -> int:
 
 func render_snapshot(data: Dictionary, neighbors: Array = []) -> void:
 	_tiles_dir = String(data.get("tilesDir", ""))
+	# 1:1: the static bake is the MEMORY view keyed on `explored` — which can SHRINK once after
+	# a load (Qud's FakeUnexploredMap village-reveal gating materialises after the first
+	# snapshot). A bake that included since-retracted cells is stale: drop it and rebuild from
+	# this snapshot's truth. Growth needs no rebake (the dynamic pass ghosts late cells).
+	if _one_to_one and not _static_explored_1to1.is_empty():
+		for cell in data.get("cells", []):
+			if not bool(cell.get("explored", true)) 					and _static_explored_1to1.has(Vector2i(int(cell.get("x", 0)), int(cell.get("y", 0)))):
+				_drop_all_static()
+				break
 	var zdim: Dictionary = data.get("zone", {})
 	if zdim.has("width"): _live_w = float(zdim["width"])
 	if zdim.has("height"): _live_h = float(zdim["height"])
@@ -608,26 +616,26 @@ func _place_cell(cell: Dictionary, offset: Vector2i, wall_cells: Dictionary, ski
 	# initial value (the per-turn _relight_static_sprites keeps it fresh); for a FROZEN
 	# neighbour it's the final value — that zone's plants stay dark in memory.
 	var lf := _light_frac(cell)
-	var vis_1to1 := lf >= 0.995   # Qud's binary model: light 200 = visible, anything else = memory
+	# Qud's render rule (Cell.Render, decompiled): a cell renders FULL colours only when
+	# VISIBLE (line of sight — independent of light; the wire's `visible`, default true)
+	# AND lit above None. Anything else that still draws (RenderIfDark objects) is
+	# recoloured to the K/k GHOST — fg 'K', detail 'k' — Qud's "partially lit" look.
 	if _one_to_one:
-		lf = 1.0   # 1:1: terrain keeps full colour out of sight (Qud's memory model); the flat
-		           # darkness overlay applies the one small memory dim — no per-sprite bake on top
+		lf = 1.0   # no per-sprite dim in 1:1 — the ghost recolour IS the memory look
 	var idx := 0
 	for obj in cell.get("objs", []):
 		var o: Dictionary = obj
-		if _one_to_one and not vis_1to1:
-			# Qud's memory filter (Cell.Render): only Render.RenderIfDark objects draw out of
-			# sight. The mod sends hideDark when that flag is FALSE; on an older mod without the
-			# field, fall back to hiding creatures (their base blueprint is the false case).
+		if _one_to_one:
+			# 1:1 STATICS ARE THE MEMORY VIEW: visibility changes EVERY TURN but this geometry
+			# is frozen at build time, so bake every explored cell as its K/k ghost regardless
+			# of current visibility — the per-turn DYNAMIC pass draws the currently-VISIBLE
+			# cells' objects full-colour on top (statics = what you remember, dynamics = what
+			# you see). Qud's memory filter still applies: only RenderIfDark objects are baked.
 			if bool(o.get("hideDark", o.get("creature", false))):
 				idx += 1
 				continue
-			# The painted ground keeps only its DEFAULT colours out of sight (paint colours are
-			# visible-only in Cell.Render) — swap to the mod's resolved memory colours.
-			if bool(o.get("ground", false)) and o.has("memColor"):
-				o = o.duplicate()
-				o["color"] = str(o["memColor"])
-				o["detail"] = str(o.get("memDetail", ""))
+			o = _ghost_obj(o)
+			_static_explored_1to1[Vector2i(cx, cy)] = true
 		if not _is_prism(o):
 			_place_nonwall(o, cx, cy, idx, in_wall, sink, wet, skip_creatures, stair_cell, lf)
 		# Creature lights are placed in the DYNAMIC pass so they follow the creature;
@@ -635,6 +643,26 @@ func _place_cell(cell: Dictionary, offset: Vector2i, wall_cells: Dictionary, ski
 		if o.has("lightRadius") and not (skip_creatures and _is_creature(o)):
 			_place_light(cx, cy, float(o["lightRadius"]), not _is_creature(o), bool(o.get("onFire", false)))
 		idx += 1
+
+# Cells the 1:1 static (memory) build covered, so the dynamic pass can ghost newly-explored
+# cells the frozen statics missed. Reset per live-zone static build.
+var _static_explored_1to1 := {}
+# Small lift for the dynamic pass's full-colour floor quads so they cover the static ghost
+# quads at the same cell (statics and dynamics share the layer-height scheme otherwise).
+var _dyn_lift_1to1 := 0.0
+const DYN_LIFT_1TO1 := 0.02
+
+## An object's K/k ghost variant — Qud's out-of-sight recolour (Cell.Render's final block:
+## ColorString "&K", DetailColor "k" in tiles mode). Applied to EVERY drawn object in a
+## non-visible/unlit 1:1 cell: walls, furniture, items, the painted ground alike.
+func _ghost_obj(obj: Dictionary) -> Dictionary:
+	var o: Dictionary = obj.duplicate()
+	o["color"] = "&K"
+	o["tilecolor"] = "&K"
+	o["detail"] = "k"
+	o.erase("fgHex")       # painted-colour overrides would beat the ghost in the recolour path
+	o.erase("detailHex")
+	return o
 
 ## Build the live zone's static geometry into its own frozen subtree (once per zone
 ## entry). Creatures are excluded — they render per step in _rebuild_dynamics.
@@ -645,6 +673,8 @@ func _place_cell(cell: Dictionary, offset: Vector2i, wall_cells: Dictionary, ski
 ## build INCREMENTALLY: pass 1 (cheap wall grouping) up front, then a chunk of cells per frame in
 ## _ib_step, flushing each chunk's floors as we go. Also removes the 1–3s transition freeze.
 func _build_static(id: String, cells: Array) -> void:
+	if _one_to_one:
+		_static_explored_1to1.clear()   # fresh memory-coverage set for this zone's bake
 	var sub := Node3D.new()
 	_remembered_root.add_child(sub)
 	_static_zones[id] = sub
@@ -740,29 +770,43 @@ func _rebuild_dynamics(cells: Array) -> void:
 		var sink := _cell_sink(cell)
 		var wet: bool = bool(cell.get("wade", false)) or bool(cell.get("swim", false))
 		var lf: float = _light_frac(cell)   # dim creatures in the dark (night or cavern)
-		var dark_1to1: bool = _one_to_one and lf < 0.995   # per-obj memory filter below (hideDark)
+		# Qud's rule: full colours only when visible AND lit. In 1:1 the statics are the GHOST
+		# memory bake, and THIS per-turn pass overlays what the player currently SEES: every
+		# object of a visible+lit cell in full colour (lifted a hair above the static ghost).
+		# A newly-explored-then-left cell the frozen bake missed gets its ghost drawn here too.
+		var full_1to1: bool = _one_to_one and bool(cell.get("visible", true)) and int(cell.get("light", 200)) > 1
+		var late_ghost_1to1: bool = _one_to_one and not full_1to1 \
+			and bool(cell.get("explored", true)) \
+			and not _static_explored_1to1.has(Vector2i(cx, cy))
 		if _one_to_one:
-			lf = 1.0   # a creature that DOES render from memory (RenderIfDark, e.g. glowing) keeps
-			           # its normal colours in Qud — no modulate dim in 1:1
+			lf = 1.0   # no modulate dim in 1:1 — the ghost recolour is the whole memory look
 		# On the world map the player's card must always read as "you are here" — drawn over
 		# the terrain tiles, never buried behind a hill card. _place_nonwall picks that up.
 		_placing_player = _world_map and Vector2i(cx, cy) == _player_cell
 		var idx := 0
 		for obj in cell.get("objs", []):
-			if dark_1to1 and bool(obj.get("hideDark", obj.get("creature", false))):
-				idx += 1
-				continue   # Qud never draws these out of sight (Render.RenderIfDark false)
-			if not _is_prism(obj) and _is_creature(obj):
-				_place_nonwall(obj, cx, cy, idx, false, sink, wet, false, false, lf)
+			var od: Dictionary = obj
+			if _one_to_one and not full_1to1:
+				if bool(od.get("hideDark", od.get("creature", false))):
+					idx += 1
+					continue   # Qud never draws these out of sight (Render.RenderIfDark false)
+				od = _ghost_obj(od)
+			if _one_to_one and (full_1to1 or late_ghost_1to1):
+				# sight overlay (or a late ghost): ALL drawn objects, not just creatures
+				_dyn_lift_1to1 = DYN_LIFT_1TO1
+				_place_nonwall(od, cx, cy, idx, false, sink, wet, false, false, lf)
+				_dyn_lift_1to1 = 0.0
+			elif not _is_prism(od) and _is_creature(od):
+				_place_nonwall(od, cx, cy, idx, false, sink, wet, false, false, lf)
 				# A lit creature (NPC with a torch/glowsphere) carries its light with it —
 				# placed here every step so it tracks the creature. No smoke: a moving torch
 				# shouldn't trail a plume. (_live_build is false during dynamics, so this doesn't
 				# register for the flicker or leak into _lights, freed only on a static rebuild.)
 				# Glowfish are excluded: their glow will come from a shader on the fish texture,
 				# not the sconce-style pool+flame; they get the orbiting motes instead.
-				if obj.has("lightRadius") and not _should_glow(obj):
-					_place_light(cx, cy, float(obj["lightRadius"]), false)   # glow-critters use the bloom, not a pool
-				if _is_glowfish(obj):
+				if od.has("lightRadius") and not _should_glow(od):
+					_place_light(cx, cy, float(od["lightRadius"]), false)   # glow-critters use the bloom, not a pool
+				if _is_glowfish(od):
 					_make_orbiters(cx, cy)     # bioluminescent bugs circling the fish
 			idx += 1
 	_placing_player = false
@@ -871,25 +915,12 @@ func _build_darkness(cells: Array, parent: Node, clear_player := Vector2i(-9999,
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var any := false
-	# 1:1: Qud's RECTANGULAR model — per-cell flat quads only, binary in practice
-	# (light is 200 or 1 on the wire). A VISIBLE cell gets no overlay; an explored-dark
-	# cell gets the flat memory dim (DARK_MEMORY_1TO1, terrain stays readable like Qud's
-	# remembered map); an unexplored cell drew nothing (no overlay needed). No wall-face
-	# quads (flat mode has no wall geometry) and no faint-memory floor for true darks.
+	# 1:1: Qud's model needs no overlay — the K/k ghost recolour at place time is the
+	# whole memory look (see _ghost_obj); unexplored cells draw nothing at all.
 	if _one_to_one:
-		for cell in cells:
-			if not bool(cell.get("explored", true)):
-				continue
-			var k := Vector2i(int(cell.get("x", 0)), int(cell.get("y", 0)))
-			var a := (1.0 - float(frac[k])) * DARK_MEMORY_1TO1
-			if a >= 0.02:
-				_dark_quad(st, float(k.x), float(k.y), DARK_FLOOR_Y, a); any = true
-		if any:
-			var mi1 := MeshInstance3D.new()
-			mi1.mesh = st.commit()
-			mi1.material_override = _dark_material()
-			parent.add_child(mi1)
-		return
+		return   # 1:1 uses NO overlay at all: unexplored cells draw nothing, and every
+		         # non-visible/unlit cell's objects are K/k ghost-RECOLOURED at place time
+		         # (Cell.Render's model — the ghost is a palette swap, not a black film).
 	for cell in cells:
 		var k := Vector2i(int(cell.get("x", 0)), int(cell.get("y", 0)))
 		var cx := float(k.x)
@@ -2102,7 +2133,7 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			var d := _take_floor()
 			d.material_override = _deck_material(tile, main_c, detail_c, deck)
 			d.scale = Vector3.ONE
-			var y := (BRIDGE_Y + idx * TIEBREAK) if wet else (FLOOR_Y + layer * LAYER_LIFT + idx * TIEBREAK)
+			var y := (BRIDGE_Y + idx * TIEBREAK) if wet else (FLOOR_Y + layer * LAYER_LIFT + idx * TIEBREAK + _dyn_lift_1to1)
 			d.position = Vector3(cx, y, cy)
 			d.visible = true
 			_track(d)
@@ -2149,7 +2180,7 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			var uf := _take_floor()
 			uf.material_override = _mesh_material(tile, main_c, detail_c, utex)
 			uf.scale = Vector3.ONE
-			uf.position = Vector3(cx, FLOOR_Y + layer * LAYER_LIFT + idx * TIEBREAK, cy)
+			uf.position = Vector3(cx, FLOOR_Y + layer * LAYER_LIFT + idx * TIEBREAK + _dyn_lift_1to1, cy)
 			uf.visible = true
 			_track(uf)
 			_note(cx, cy, idx, "stairs-up (flat floor tile)", uf.position.y)
@@ -2232,7 +2263,7 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 		# Floors were one MeshInstance3D per cell — 2000 draw calls on the world map, which
 		# tanked the framerate. Batch them by material into a MultiMesh instead (flushed at the
 		# end of the build): one draw call per tile type. Floors are static, so this is free.
-		var y := FLOOR_Y + layer * LAYER_LIFT + idx * TIEBREAK
+		var y := FLOOR_Y + layer * LAYER_LIFT + idx * TIEBREAK + _dyn_lift_1to1
 		var fmat: Material
 		var fscale := Vector3.ONE
 		var fkind := "floor"
