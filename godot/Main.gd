@@ -466,6 +466,35 @@ func _exec_godot_cmd(cmd: String) -> void:
 	match parts[0]:
 		"shot":
 			_screenshot(false, true)   # forced: window is unfocused, no auto-draw
+		"uidump":
+			# dump the frame's bottom-row widget rects — who is taller than the 90px budget?
+			var fr := get_parent()
+			if fr != null and fr.get("_effects") != null:
+				var ud := FileAccess.open(_support_dir().path_join("uidump.json"), FileAccess.WRITE)
+				if ud != null:
+					var d := {}
+					for k in ["_effects", "_target", "_context", "_command", "_row_split", "_side", "_msglog"]:
+						var n: Control = fr.get(k)
+						if n != null:
+							var r := n.get_global_rect()
+							d[k] = [r.position.x, r.position.y, r.size.x, r.size.y]
+					ud.store_string(JSON.stringify(d))
+					ud.close()
+		"camdump":
+			# dump the camera/hole state to camdump.json — the deterministic probe for
+			# "why is the 1:1 stage the wrong size" class of bugs.
+			var cd := FileAccess.open(_support_dir().path_join("camdump.json"), FileAccess.WRITE)
+			if cd != null and _cam_rig != null:
+				var vpr := get_viewport().get_visible_rect().size
+				cd.store_string(JSON.stringify({
+					"mode": _cam_rig._mode, "main_1to1": _one_to_one, "rig_1to1": _cam_rig._one_to_one,
+					"hole": [_cam_rig._play_hole.position.x, _cam_rig._play_hole.position.y,
+						_cam_rig._play_hole.size.x, _cam_rig._play_hole.size.y],
+					"zoom_q": _cam_rig._zoom_q, "top_zoom": _cam_rig._top_zoom,
+					"ortho": (_cam_rig._cam.size if _cam_rig._cam != null else -1.0),
+					"vp": [vpr.x, vpr.y], "render_3d": render_3d,
+				}))
+				cd.close()
 		"zoom1to1":
 			# `zoom1to1 <factor>` — set the 1:1 zoom factor directly (quarters, >= 1.0). The
 			# deterministic test input: key/wheel injection proved unreliable for sweeps.

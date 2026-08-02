@@ -126,6 +126,8 @@ func set_one_to_one(on: bool) -> void:
 			f.bg_color = Color(0, 0, 0, 0)
 			f.set_border_width_all(0)
 			f.set_corner_radius_all(0)
+			f.content_margin_top = 2
+			f.content_margin_bottom = 2
 		else:
 			f.bg_color = QudPalette.CHROME
 			f.set_border_width_all(1)
@@ -147,7 +149,7 @@ func _render() -> void:
 		_show_none()
 		return
 
-	var _pfx := "Target: " if _one_to_one else ""
+	var _pfx := "[color=#3b596b]TARGET:[/color] " if _one_to_one else ""
 	_rt_name.text = _pfx + QudText.to_bbcode(String(t.get("display", "")), _palette)
 
 	# Left column: the recoloured target sprite — perceived icon by default, real icon in full mode.
@@ -183,7 +185,7 @@ func _render() -> void:
 	_l_dir.visible = _l_dir.text != ""
 
 func _show_none() -> void:
-	var _pfx := "Target: " if _one_to_one else ""
+	var _pfx := "[color=#3b596b]TARGET:[/color] " if _one_to_one else ""
 	_rt_name.text = _pfx + "[color=%s][none][/color]" % DIM
 	_sprite.visible = false
 	_rt_desc.visible = false

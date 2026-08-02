@@ -37,10 +37,8 @@ var _right_inset := 0.0        # 1:1: fraction of the viewport the side panels c
 const QUD_TILE_W := 16.0       # Qud tile art px (LetterboxCamera.tileWidth/Height)
 const QUD_TILE_H := 24.0
 const QUD_ZOOM_STEP := 0.25    # scroll-wheel zoom quantum (GameManager.ZoomIn/ZoomOut)
-# Qud's zoomed-pan window (empirical, 18-row sweep at 1.5x — see _one_to_one_center):
-# the pan space sits south of the hole centre and is narrower than the letterbox area.
-const QUD_PAN_OFF_Y_PX := 54.0   # pan-space centre minus hole centre, screen px
-const QUD_PAN_AREA_H_PX := 920.0 # pan-space effective height, screen px
+const QUD_PAN_AREA_H_PX := 831.0  # Qud's vertical pan-clamp rect (screen px) — empirical; smaller
+                                  # than the 900px letterbox area (its dock safe-area)
 var _play_hole := Rect2()      # px rect of the play hole; Rect2() = unset -> legacy zone-fit
 var _zoom_q := 1.0             # Qud-style zoom factor (quarters, >= 1.0); only meaningful in 1:1
 # Qud tiles are 16x24, so top-down stretches the world's north-south (Z) axis by 24/16 = 1.5 so cells
@@ -417,22 +415,16 @@ func _one_to_one_center() -> Vector3:
 	var half_view_x := _play_hole.size.x / ppu * 0.5
 	var half_view_z := _play_hole.size.y / ppu / TILE_ASPECT * 0.5
 	var slack_x := maxf(0.0, _zone_cells.x * 0.5 - half_view_x)
-	# Qud's zoomed VERTICAL pan, measured with an 18-row blob-anchored sweep at 1.5x (the
-	# user's "moving to the centre desyncs" report): the camera follows player - 5/24 cells at
-	# slope 1, clamped to a pan window that is NOT centred on the stage — Qud's pan space sits
-	# ~54 screen px south of the hole centre with an effective height of ~920 px (its dock
-	# safe-area, which differs from the letterbox target area that centres the fit view).
-	# Measured pins at 1.5x: centre range [8.43, 13.21] (follow releases rows ~8.6..13.4).
-	# When the slack collapses (<= 0, e.g. the whole-zone fit) there is no panning at all and
-	# the letterbox centring alone holds (centre = stage centre).
+	# Slope-1 player follow, SYMMETRIC clamp — but Qud's vertical pan window is WIDER than the
+	# hole-derived slack: its clamp rect is an effective ~831 screen px (the dock safe-area,
+	# not the 900px letterbox area), measured head-to-head at rows 4/12/20 with deterministic
+	# zoom (offsets were a symmetric +-34px at the pins, ~0 at centre, until this constant).
+	# At the whole-zone fit the slack collapses (<=0) and the letterbox centring alone holds.
 	var s_total := _stage_scale()
-	var cellh_px := QUD_TILE_H * s_total
-	var pan_shift_z := QUD_PAN_OFF_Y_PX / cellh_px
-	var slack_z := (QUD_TILE_H * _zone_cells.y - QUD_PAN_AREA_H_PX / s_total) / (2.0 * QUD_TILE_H)
-	var p_target := (_player.z - center.z) - 5.0 / 24.0
-	if slack_z > 0.0:
-		center.z += clampf(p_target, -pan_shift_z - slack_z, -pan_shift_z + slack_z)
+	var slack_z := maxf(0.0,
+		(QUD_TILE_H * _zone_cells.y - QUD_PAN_AREA_H_PX / s_total) / (2.0 * QUD_TILE_H))
 	center.x += clampf(_player.x - center.x, -slack_x, slack_x)
+	center.z += clampf(_player.z - center.z, -slack_z, slack_z)
 	return center
 
 ## Ortho vertical size that frames the WHOLE current zone (both axes) within the view, with a small

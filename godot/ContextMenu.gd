@@ -66,6 +66,8 @@ func set_one_to_one(on: bool) -> void:
 			f.bg_color = Color(0, 0, 0, 0)
 			f.set_border_width_all(0)
 			f.set_corner_radius_all(0)
+			f.content_margin_top = 2
+			f.content_margin_bottom = 2
 		else:
 			f.bg_color = QudPalette.CHROME
 			f.set_border_width_all(1)

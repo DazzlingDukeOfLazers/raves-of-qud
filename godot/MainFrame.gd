@@ -944,12 +944,15 @@ func _apply_panel_sizing(on: bool) -> void:
 	# Row 4 (Active effects | Target | Context menu). Qud keeps this a thin single-line strip; the QoL
 	# layout reserves taller boxes. 1:1 slims them (context a touch taller for the equipped-weapon sprite),
 	# which also hands the freed height to the play hole above.
+	# The bottom budget is EXACT in 1:1: sep(4) + row4(28) + sep(4) + bar(54) = the 90px
+	# bottom chrome Qud has — anything taller CLIPS the zoomed stage (the field stopped at
+	# y=939 instead of 989 until the row-4 panels went single-line).
 	if _effects != null:
-		_effects.custom_minimum_size = Vector2(0, 32 if on else 90)
+		_effects.custom_minimum_size = Vector2(0, 28 if on else 90)
 	if _target != null:
-		_target.custom_minimum_size = Vector2(0, 32 if on else 90)
+		_target.custom_minimum_size = Vector2(0, 28 if on else 90)
 	if _context != null:
-		_context.custom_minimum_size = Vector2(0, 32 if on else 104)
+		_context.custom_minimum_size = Vector2(0, 28 if on else 104)
 
 ## Tell the Holodeck camera what fraction of the window the sidebar now covers, so the 1:1 zone-fit
 ## recentres the view in the visible play hole (left of the sidebar) instead of the full window.
@@ -995,6 +998,10 @@ func _row_main() -> Control:
 	split.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	split.split_offset = 900   # give the Holodeck the lion's share; user can drag the separator
 	_row_split = split
+	# The chrome strips are positioned around THIS rect — any late layout settle (the row-4
+	# panels shrinking on a mode flip) must re-lay them, or the bottom strip keeps covering
+	# the stage the hole just reclaimed (the field-stops-at-947 bug).
+	split.item_rect_changed.connect(func() -> void: _layout_row_bgs.call_deferred())
 
 	var holo := _holodeck_cell()
 	holo.size_flags_horizontal = Control.SIZE_EXPAND_FILL
