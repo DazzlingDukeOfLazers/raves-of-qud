@@ -301,13 +301,16 @@ func _update_camera(dt: float) -> void:
 		target_eye.z *= zs
 		target_look.z *= zs
 
-	# S/D vertical pan + W/X horizontal dolly: slide the whole view (added to both eye and look, so the angle holds).
-	if _cam_lift != 0.0:
-		target_eye.y += _cam_lift
-		target_look.y += _cam_lift
-	if _cam_pan != Vector3.ZERO:
-		target_eye += _cam_pan
-		target_look += _cam_pan
+	# S/D vertical pan + W/X horizontal dolly: slide the whole view (added to both eye and look, so the
+	# angle holds). Never in 1:1 — Qud's letterbox camera has no user offset, and honouring a stale
+	# _cam_pan would silently break the pixel alignment every congruence capture relies on.
+	if not _one_to_one:
+		if _cam_lift != 0.0:
+			target_eye.y += _cam_lift
+			target_look.y += _cam_lift
+		if _cam_pan != Vector3.ZERO:
+			target_eye += _cam_pan
+			target_look += _cam_pan
 
 	if dt <= 0.0 or not _seeded or _snap_cam:
 		_eye = target_eye
@@ -464,6 +467,9 @@ func set_one_to_one(on: bool) -> void:
 	_one_to_one = on
 	_top_zoom = 1.0
 	_zoom_q = 1.0     # 1:1 always re-enters at the whole-zone fit (Qud's default zoom factor 1.0)
+	if on:
+		_cam_pan = Vector3.ZERO   # drop any user dolly/pan — the letterbox model owns the camera
+		_cam_lift = 0.0
 	if _mode == CamMode.TOP_FOLLOW and _cam != null:
 		_apply_top_down_camera(true)
 

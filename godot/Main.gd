@@ -1008,10 +1008,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			_cam_rig._compass_yaw -= _cam_rig.compass_step(); return
 		# W / X dolly the camera one tile forward / back along its heading — move the
 		# camera like the player. Discrete per press; pairs with S/D vertical pan. Not
-		# in FLY (WASD drives the free camera there).
-		if _cam_rig._mode != CamMode.KEYBOARD and event.keycode == KEY_W:
+		# in FLY (WASD drives the free camera there), and not in 1:1 — Qud's camera is
+		# the letterbox model only (zoom + clamped player follow), never a free dolly.
+		if _cam_rig._mode != CamMode.KEYBOARD and not _one_to_one and event.keycode == KEY_W:
 			_cam_rig._cam_pan += _cam_rig.cam_forward() * _cam_rig.CAM_STEP; return
-		if _cam_rig._mode != CamMode.KEYBOARD and event.keycode == KEY_X:
+		if _cam_rig._mode != CamMode.KEYBOARD and not _one_to_one and event.keycode == KEY_X:
 			_cam_rig._cam_pan -= _cam_rig.cam_forward() * _cam_rig.CAM_STEP; return
 		# S / D are forwarded to Qud as key presses (was: camera vertical pan). The mod injects
 		# them through Qud's keymap, so they trigger whatever YOU'VE bound s/d to (soar/descend) —
