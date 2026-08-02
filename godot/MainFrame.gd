@@ -114,7 +114,8 @@ var _menu_compact: HBoxContainer   # 1:1 top menu (Qud's compact icon cluster)
 var _row_split: HSplitContainer    # row-3 split (holo | side); sidebar width set per mode
 var _side: VBoxContainer           # the row-3 side column (panels)
 var _dev_bar: Control              # holodeck cell's Connect/Turn-on-viewport strip (hidden in 1:1)
-const SIDEBAR_FRAC_1TO1 := 0.28    # Qud's right sidebar ≈ 28% of window width (measured at 1600×900)
+const SIDEBAR_FRAC_1TO1 := 0.153   # Qud's MINIMUM message-log width ≈ 15.3% (293px at 1920 — matches a Qud
+                                   # log dragged to its minimum, which maximises the playfield)
 const SIDEBAR_W_USER := 320.0      # user-mode side-column min width (the original value)
 
 var _crt_layer: CanvasLayer        # CRT scanline+vignette overlay above everything (Settings "crt")
@@ -808,7 +809,8 @@ func _apply_layout_mode(on: bool) -> void:
 	if _side != null and _row_split != null:
 		if on:
 			var w := float(get_viewport().get_visible_rect().size.x)
-			_side.custom_minimum_size = Vector2(maxf(SIDEBAR_W_USER, round(w * SIDEBAR_FRAC_1TO1)), 0)
+			# Qud's minimum log width (NOT clamped to the wider user-mode min) so the playfield is largest.
+			_side.custom_minimum_size = Vector2(round(w * SIDEBAR_FRAC_1TO1), 0)
 			_row_split.split_offset = 0   # deterministic: side = its min width, holo takes the rest
 		else:
 			_side.custom_minimum_size = Vector2(SIDEBAR_W_USER, 0)
@@ -816,6 +818,16 @@ func _apply_layout_mode(on: bool) -> void:
 	_apply_panel_sizing(on)
 	_push_play_inset(on)
 	_apply_vitals_mode(on)
+
+## The whole ||| grab-bar (message-log left margin) drags the side column wider/narrower in 1:1. dx<0
+## (dragged left) widens the log. Clamped between a readable min and half the window; the camera play
+## inset follows so the zone re-fits the shrinking/growing hole. Transient (not persisted).
+func _on_sidebar_drag(dx: float) -> void:
+	if not Settings.one_to_one() or _side == null:
+		return
+	var w := float(get_viewport().get_visible_rect().size.x)
+	_side.custom_minimum_size.x = clampf(_side.custom_minimum_size.x - dx, 120.0, w * 0.5)
+	_push_play_inset(true)
 
 ## Row-2 vitals colour per mode: 1:1 = Qud's own muted white/grey text + dark-green bar; user = the
 ## bright green/cyan. (Format is gated in _apply_stats.) Build-time defaults are user mode, so this is
@@ -932,6 +944,7 @@ func _row_main() -> Control:
 	_msglog = load("res://MessageLog.gd").new()      # the real Message log view (its own file)
 	_msglog.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_msglog.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_msglog.left_edge_drag.connect(_on_sidebar_drag)   # 1:1: the ||| grab-bar resizes the side column
 	side.add_child(_minimap)
 	side.add_child(_nearby)
 	side.add_child(_msglog)

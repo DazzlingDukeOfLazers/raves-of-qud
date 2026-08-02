@@ -14,6 +14,11 @@ extends PanelContainer
 const MAX_LINES := 200
 const FILTER_GRACE := 4   # quiet rounds a line survives before its count starts decaying
 
+## 1:1 only: dragging the ||| grab-bar (the panel's left margin) resizes the sidebar. MainFrame connects
+## this and adjusts the side-column width. dx = mouse motion in px (negative = dragged left = wider log).
+signal left_edge_drag(dx: float)
+var _dragging := false
+
 var _filter := false
 var _last_msgs: Array = []       # last verbatim tail (for verbatim render + delta)
 var _since_load := -1            # count of msgs emitted since Qud loaded (1:1 log trims to this; -1 = all)
@@ -111,7 +116,7 @@ const SEP_MARGIN_1TO1 := 20                       # left content inset so text c
 ## insets the content so the ||| grab-bar (drawn in _draw) sits in the left margin.
 func _apply_panel_box() -> void:
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = QudPalette.CHROME
+	sb.bg_color = Color8(17, 33, 38) if _one_to_one else QudPalette.CHROME   # Qud's dark blue-grey log bg
 	sb.content_margin_left = SEP_MARGIN_1TO1 if _one_to_one else 6
 	sb.content_margin_right = 6
 	sb.content_margin_top = 4
@@ -121,6 +126,23 @@ func _apply_panel_box() -> void:
 		sb.border_color = Color(1, 1, 1, 0.12)
 		sb.set_corner_radius_all(3)
 	add_theme_stylebox_override("panel", sb)
+	# resize cursor over the ||| margin (the RichTextLabel child overrides it with the I-beam over text)
+	mouse_default_cursor_shape = Control.CURSOR_HSIZE if _one_to_one else Control.CURSOR_ARROW
+
+## Make the whole ||| grab-bar (the left content margin) a resize handle in 1:1. The RichTextLabel child
+## keeps its I-beam over the text; only the uncovered margin gets this panel's HSIZE cursor + drag.
+func _gui_input(e: InputEvent) -> void:
+	if not _one_to_one:
+		return
+	if e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_LEFT:
+		if e.pressed and e.position.x < float(SEP_MARGIN_1TO1):
+			_dragging = true
+			accept_event()
+		elif not e.pressed:
+			_dragging = false
+	elif e is InputEventMouseMotion and _dragging:
+		left_edge_drag.emit(e.relative.x)
+		accept_event()
 
 ## 1:1 only: draw Qud's "|||" grab-bar down the panel's left edge (behind the inset content).
 func _draw() -> void:
