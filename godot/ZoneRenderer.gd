@@ -608,17 +608,32 @@ func _place_cell(cell: Dictionary, offset: Vector2i, wall_cells: Dictionary, ski
 	# initial value (the per-turn _relight_static_sprites keeps it fresh); for a FROZEN
 	# neighbour it's the final value — that zone's plants stay dark in memory.
 	var lf := _light_frac(cell)
+	var vis_1to1 := lf >= 0.995   # Qud's binary model: light 200 = visible, anything else = memory
 	if _one_to_one:
 		lf = 1.0   # 1:1: terrain keeps full colour out of sight (Qud's memory model); the flat
 		           # darkness overlay applies the one small memory dim — no per-sprite bake on top
 	var idx := 0
 	for obj in cell.get("objs", []):
-		if not _is_prism(obj):
-			_place_nonwall(obj, cx, cy, idx, in_wall, sink, wet, skip_creatures, stair_cell, lf)
+		var o: Dictionary = obj
+		if _one_to_one and not vis_1to1:
+			# Qud's memory filter (Cell.Render): only Render.RenderIfDark objects draw out of
+			# sight. The mod sends hideDark when that flag is FALSE; on an older mod without the
+			# field, fall back to hiding creatures (their base blueprint is the false case).
+			if bool(o.get("hideDark", o.get("creature", false))):
+				idx += 1
+				continue
+			# The painted ground keeps only its DEFAULT colours out of sight (paint colours are
+			# visible-only in Cell.Render) — swap to the mod's resolved memory colours.
+			if bool(o.get("ground", false)) and o.has("memColor"):
+				o = o.duplicate()
+				o["color"] = str(o["memColor"])
+				o["detail"] = str(o.get("memDetail", ""))
+		if not _is_prism(o):
+			_place_nonwall(o, cx, cy, idx, in_wall, sink, wet, skip_creatures, stair_cell, lf)
 		# Creature lights are placed in the DYNAMIC pass so they follow the creature;
 		# here (static) we only place fixed lights (sconces, braziers, lit terrain).
-		if obj.has("lightRadius") and not (skip_creatures and _is_creature(obj)):
-			_place_light(cx, cy, float(obj["lightRadius"]), not _is_creature(obj), bool(obj.get("onFire", false)))
+		if o.has("lightRadius") and not (skip_creatures and _is_creature(o)):
+			_place_light(cx, cy, float(o["lightRadius"]), not _is_creature(o), bool(o.get("onFire", false)))
 		idx += 1
 
 ## Build the live zone's static geometry into its own frozen subtree (once per zone
@@ -725,13 +740,18 @@ func _rebuild_dynamics(cells: Array) -> void:
 		var sink := _cell_sink(cell)
 		var wet: bool = bool(cell.get("wade", false)) or bool(cell.get("swim", false))
 		var lf: float = _light_frac(cell)   # dim creatures in the dark (night or cavern)
-		if _one_to_one and lf < 0.995:
-			continue   # 1:1: Qud draws creatures only in VISIBLE (lit) cells — never in memory
+		var dark_1to1: bool = _one_to_one and lf < 0.995   # per-obj memory filter below (hideDark)
+		if _one_to_one:
+			lf = 1.0   # a creature that DOES render from memory (RenderIfDark, e.g. glowing) keeps
+			           # its normal colours in Qud — no modulate dim in 1:1
 		# On the world map the player's card must always read as "you are here" — drawn over
 		# the terrain tiles, never buried behind a hill card. _place_nonwall picks that up.
 		_placing_player = _world_map and Vector2i(cx, cy) == _player_cell
 		var idx := 0
 		for obj in cell.get("objs", []):
+			if dark_1to1 and bool(obj.get("hideDark", obj.get("creature", false))):
+				idx += 1
+				continue   # Qud never draws these out of sight (Render.RenderIfDark false)
 			if not _is_prism(obj) and _is_creature(obj):
 				_place_nonwall(obj, cx, cy, idx, false, sink, wet, false, false, lf)
 				# A lit creature (NPC with a torch/glowsphere) carries its light with it —

@@ -266,6 +266,7 @@ namespace RavesOfQud
         private sealed class Ground
         {
             public string Tile, Color, Detail, Glyph;
+            public string MemColor, MemDetail;   // the paint's colours when the cell is NOT visible
             public bool HFlip, VFlip;
         }
 
@@ -277,7 +278,7 @@ namespace RavesOfQud
                 if (ev == null) return null;
                 string tile = ev.Tile;
                 if (string.IsNullOrEmpty(tile)) return null;
-                return new Ground
+                var g = new Ground
                 {
                     Tile = tile,
                     Color = ev.ColorString ?? "",
@@ -286,6 +287,20 @@ namespace RavesOfQud
                     HFlip = ev.HFlip,
                     VFlip = ev.VFlip,
                 };
+                // The MEMORY view of the paint: Cell.Render applies PaintTileColor/PaintDetailColor
+                // only when Visible — out of sight the tile keeps RenderEvent.Reset's defaults
+                // ("&y", no detail). Ask Qud's own render rather than hardcoding the constants.
+                try
+                {
+                    var mem = c.Render(Visible: false);
+                    if (mem != null)
+                    {
+                        g.MemColor = mem.ColorString ?? "&y";
+                        g.MemDetail = mem.DetailColor ?? "";
+                    }
+                }
+                catch { }
+                return g;
             }
             catch { return null; }
         }
@@ -310,6 +325,11 @@ namespace RavesOfQud
                 .Member("bridge", false)
                 .Member("sinks", false)
                 .Member("ground", true);
+            if (!string.IsNullOrEmpty(g.MemColor))
+            {
+                j.Member("memColor", g.MemColor);        // paint colours out of sight (usually "&y")
+                j.Member("memDetail", g.MemDetail ?? "");
+            }
             if (hflip) j.Member("hflip", true);
             if (vflip) j.Member("vflip", true);
             j.EndObject();
@@ -950,6 +970,13 @@ namespace RavesOfQud
                         // smoke for these. (Only sent when true; client defaults false.)
                         if (go.HasPart("AnimatedMaterialFire"))
                             j.Member("onFire", true);
+                        // Qud's out-of-sight (memory) filter: Cell.Render draws an object in a
+                        // not-visible/unlit cell ONLY if Render.RenderIfDark. The root Object
+                        // blueprint defaults it TRUE (terrain/walls/items remembered); the base
+                        // Creature flips it FALSE (with ~55 glowing/mechanical re-enables). Send
+                        // the resolved flag only when FALSE — the client hides these from memory.
+                        if (!r.RenderIfDark)
+                            j.Member("hideDark", true);
                         if (painted) WritePaintedColors(j);
                         WritePerceivedOverride(j, go);   // "unknown" icon override for unidentified items (Nearby)
                         j.EndObject();
