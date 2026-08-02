@@ -113,6 +113,12 @@ var _menu_verbose: HBoxContainer   # user-mode top menu (verbose text buttons)
 var _menu_compact: HBoxContainer   # 1:1 top menu (Qud's compact icon cluster)
 var _row_split: HSplitContainer    # row-3 split (holo | side); sidebar width set per mode
 var _side: VBoxContainer           # the row-3 side column (panels)
+# 1:1 only: Qud draws one continuous background behind the top strip (rows 1+2) and one behind the bottom
+# strip (rows 4+5) — no playfield showing through the inter-element gaps. We back the chrome with two
+# opaque rects sized to the strips above/below the play hole (row 3).
+var _top_bg: ColorRect
+var _bottom_bg: ColorRect
+const ROW_BG_1TO1 := Color8(19, 23, 26)   # Qud's continuous chrome-strip background
 var _dev_bar: Control              # holodeck cell's Connect/Turn-on-viewport strip (hidden in 1:1)
 const SIDEBAR_FRAC_1TO1 := 0.153   # Qud's MINIMUM message-log width ≈ 15.3% (293px at 1920 — matches a Qud
                                    # log dragged to its minimum, which maximises the playfield)
@@ -139,6 +145,11 @@ func _ready() -> void:
 	# would hide it. The clear colour stands in for the panel bg in the thin gaps between strips and
 	# before the Holodeck connects.
 	RenderingServer.set_default_clear_color(COL_BG)
+
+	# 1:1 continuous chrome-strip backgrounds — added FIRST so they sit behind the rows (and over the
+	# full-window playfield), filling the gaps the playfield used to show through. Positioned in _layout_row_bgs.
+	_top_bg = _make_row_bg()
+	_bottom_bg = _make_row_bg()
 
 	var rows := VBoxContainer.new()
 	rows.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -173,6 +184,7 @@ func _on_resize() -> void:
 		_apply_layout_mode(true)
 	else:
 		_apply_vitals_mode(false)   # user mode: inset the vitals bar + keep bright colours (overlay defaults to 1:1)
+	_layout_row_bgs.call_deferred()
 
 func _input(e: InputEvent) -> void:
 	if e is InputEventKey and e.pressed and not e.echo and e.keycode == KEY_F12:
@@ -818,6 +830,7 @@ func _apply_layout_mode(on: bool) -> void:
 	_apply_panel_sizing(on)
 	_push_play_inset(on)
 	_apply_vitals_mode(on)
+	_layout_row_bgs.call_deferred()   # size the continuous chrome-strip backgrounds to the new play hole
 
 ## The whole ||| grab-bar (message-log left margin) drags the side column wider/narrower in 1:1. dx<0
 ## (dragged left) widens the log. Clamped between a readable min and half the window; the camera play
@@ -828,6 +841,33 @@ func _on_sidebar_drag(dx: float) -> void:
 	var w := float(get_viewport().get_visible_rect().size.x)
 	_side.custom_minimum_size.x = clampf(_side.custom_minimum_size.x - dx, 120.0, w * 0.5)
 	_push_play_inset(true)
+	_layout_row_bgs.call_deferred()
+
+func _make_row_bg() -> ColorRect:
+	var c := ColorRect.new()
+	c.color = ROW_BG_1TO1
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE   # never eat clicks/arrows headed for the chrome or hole
+	c.visible = false
+	add_child(c)
+	return c
+
+## Position the two 1:1 chrome-strip backgrounds around the play hole (row 3 = _row_split): top strip =
+## window top → hole top; bottom strip = hole bottom → window floor. Hidden in user mode. Deferred callers
+## ensure the split has been laid out first.
+func _layout_row_bgs() -> void:
+	if _top_bg == null or _bottom_bg == null or _row_split == null:
+		return
+	var on := Settings.one_to_one()
+	_top_bg.visible = on
+	_bottom_bg.visible = on
+	if not on:
+		return
+	var r := _row_split.get_rect()          # rows VBox is full-rect at (0,0), so this is in MainFrame coords
+	_top_bg.position = Vector2.ZERO
+	_top_bg.size = Vector2(size.x, maxf(0.0, r.position.y))
+	var hole_bottom := r.position.y + r.size.y
+	_bottom_bg.position = Vector2(0, hole_bottom)
+	_bottom_bg.size = Vector2(size.x, maxf(0.0, size.y - hole_bottom))
 
 ## Row-2 vitals colour per mode: 1:1 = Qud's own muted white/grey text + dark-green bar; user = the
 ## bright green/cyan. (Format is gated in _apply_stats.) Build-time defaults are user mode, so this is
