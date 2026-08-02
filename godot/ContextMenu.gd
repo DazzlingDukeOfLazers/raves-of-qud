@@ -37,10 +37,10 @@ func _ready() -> void:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 4)
 	add_child(v)
-	var title := Label.new()
-	title.text = "Context menu"
-	title.add_theme_font_size_override("font_size", UiFont.px(get_viewport(), "title"))
-	v.add_child(title)
+	_title = Label.new()
+	_title.text = "Context menu"
+	_title.add_theme_font_size_override("font_size", UiFont.px(get_viewport(), "title"))
+	v.add_child(_title)
 
 	_rt = RichTextLabel.new()
 	_rt.bbcode_enabled = true                # names carry Qud {{colour|...}} markup; sprites are inline images
@@ -54,7 +54,11 @@ func _ready() -> void:
 ## MainFrame calls this each snapshot with the full data (needs context + palette + tilesDir).
 ## 1:1: drop the rounded QoL box so the continuous bottom-strip chrome shows through (Qud has no per-panel
 ## box). Keeps the content margins. User mode restores the framed look.
+var _title: Label
+
 func set_one_to_one(on: bool) -> void:
+	if _title != null:
+		_title.visible = not on   # Qud shows the context text with no "Context menu" heading
 	var cur := get_theme_stylebox("panel")
 	if cur is StyleBoxFlat:
 		var f: StyleBoxFlat = (cur as StyleBoxFlat).duplicate()

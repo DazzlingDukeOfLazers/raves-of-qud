@@ -41,7 +41,10 @@ func _ready() -> void:
 ## Uniform panel entry (MainFrame feeds every panel via set_snapshot).
 ## 1:1: drop the rounded QoL box so the continuous bottom-strip chrome shows through (Qud has no per-panel
 ## box — just plain sections). Keeps the content margins. User mode restores the framed look.
+var _one_to_one := false
+
 func set_one_to_one(on: bool) -> void:
+	_one_to_one = on
 	var cur := get_theme_stylebox("panel")
 	if cur is StyleBoxFlat:
 		var f: StyleBoxFlat = (cur as StyleBoxFlat).duplicate()
@@ -63,7 +66,7 @@ func set_effects(effects: Array, palette: Dictionary) -> void:
 	if not palette.is_empty():
 		_palette = palette
 	if effects.is_empty():
-		_rt.text = "[color=%s]— none —[/color]" % DIM
+		_rt.text = "" if _one_to_one else "[color=%s]— none —[/color]" % DIM   # Qud shows nothing when none
 		return
 	var chips: Array[String] = []
 	for e in effects:

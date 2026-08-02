@@ -17,6 +17,13 @@ const ON := "#59d38a"        # toggled-on green
 const OFF := "#8a8f9a"       # toggled-off / dim
 const CD := "#e08a4a"        # cooling-down amber
 
+# 1:1 (measured off Qud's command bar): the ability icon is ~40px tall, the name text is a muted teal
+# and the <N> quick-slot number a light grey; a green frame boxes each ability cell.
+const ICON_PX_1TO1 := 40
+const NAME_1TO1 := "#609caa"       # ability name — measured Color8(96,156,170)
+const NUM_1TO1 := "#929393"        # <N> action number — measured Color8(146,147,147)
+const CELL_FRAME_1TO1 := Color8(11, 148, 71)   # green selection box (Qud draws it on the first/selected cell)
+
 var _tiles: RefCounted       # shared tile recolouring for ability icons (set in _ready)
 var _rt: RichTextLabel       # user (QoL) layout: all abilities inline, left-packed
 var _cells: HBoxContainer    # 1:1 layout: one equal-width cell per ability, spread across the bar (Qud)
@@ -148,31 +155,47 @@ func _render_cells(abilities: Array) -> void:
 		empty.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		_cells.add_child(empty)
 		return
-	var icon_px := int(UiFont.px(get_viewport(), "body") * 1.8)   # visible tile icon (crisp, nearest)
+	var icon_px := ICON_PX_1TO1   # match Qud's ~40px ability icon (Sprint / Make Camp / etc.)
 	for i in abilities.size():
 		if i > 0:
 			_cells.add_child(VSeparator.new())   # divider between cells, like Qud
-		_cells.add_child(_make_cell(abilities[i], icon_px, i + 1))   # slot = 1-based hotkey
+		# Qud frames the selected quick-slot with a green box; default selection is the first ability.
+		_cells.add_child(_make_cell(abilities[i], icon_px, i + 1, i == 0))   # slot = 1-based hotkey
 
 ## One ability as a centred, equal-share, clickable cell: a nearest-filtered tile icon + a name/state/
 ## hotkey label, both centred. The cell (an HBox) catches the click via gui_input; children IGNORE the
 ## mouse so it falls through. Nothing here takes keyboard focus, so the movement arrows are never
 ## swallowed (the "can't move after Make Camp" bug).
-func _make_cell(a: Dictionary, icon_px: int, slot: int) -> Control:
+func _make_cell(a: Dictionary, icon_px: int, slot: int, selected: bool) -> Control:
 	var cmd := String(a.get("command", ""))
 	var tex: Texture2D = _tiles.texture_for(a, true)
 	if cmd != "":
 		_ability_tex[cmd] = tex
-	var cell := HBoxContainer.new()
-	cell.alignment = BoxContainer.ALIGNMENT_CENTER
-	cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL   # equal share of the bar width
-	cell.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	cell.add_theme_constant_override("separation", 6)
-	cell.tooltip_text = QudText.strip(String(a.get("name", "")))
-	cell.mouse_filter = Control.MOUSE_FILTER_STOP
-	cell.gui_input.connect(func(e: InputEvent) -> void:
+	# The click target + optional green selection frame is the outer PanelContainer; children ignore the
+	# mouse so the click falls through to it, and nothing here grabs keyboard focus (movement-arrow bug).
+	var frame := PanelContainer.new()
+	frame.size_flags_horizontal = Control.SIZE_EXPAND_FILL   # equal share of the bar width
+	frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	var fs := StyleBoxFlat.new()
+	fs.bg_color = Color(0, 0, 0, 0)
+	fs.set_corner_radius_all(0)                              # Qud's box is a sharp rectangle
+	fs.set_border_width_all(1 if selected else 0)
+	fs.border_color = CELL_FRAME_1TO1
+	fs.content_margin_left = 6
+	fs.content_margin_right = 6
+	frame.add_theme_stylebox_override("panel", fs)
+	frame.tooltip_text = QudText.strip(String(a.get("name", "")))
+	frame.mouse_filter = Control.MOUSE_FILTER_STOP
+	frame.gui_input.connect(func(e: InputEvent) -> void:
 		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
 			_activate(cmd))
+	var cell := HBoxContainer.new()
+	cell.alignment = BoxContainer.ALIGNMENT_CENTER
+	cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	cell.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	cell.add_theme_constant_override("separation", 6)
+	cell.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	frame.add_child(cell)
 	if tex != null:
 		var ir := TextureRect.new()
 		ir.texture = tex
@@ -181,12 +204,21 @@ func _make_cell(a: Dictionary, icon_px: int, slot: int) -> Control:
 		ir.custom_minimum_size = Vector2(round(icon_px * 16.0 / 24.0), icon_px)
 		ir.mouse_filter = Control.MOUSE_FILTER_IGNORE   # click falls through to the cell
 		cell.add_child(ir)
-	var lbl := Label.new()
-	lbl.text = "%s%s%s" % [QudText.strip(String(a.get("name", ""))), _state_plain(a), _hotkey_label(a, slot)]
-	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	# Name in Qud's muted teal, state + <N> quick-slot in light grey (measured off the command bar).
+	var lbl := RichTextLabel.new()
+	lbl.bbcode_enabled = true
+	lbl.fit_content = true
+	lbl.scroll_active = false
+	lbl.selection_enabled = false
+	lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
+	lbl.focus_mode = Control.FOCUS_NONE
 	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lbl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	lbl.text = "[color=%s]%s[/color][color=%s]%s%s[/color]" % [
+		NAME_1TO1, QudText.strip(String(a.get("name", ""))),
+		NUM_1TO1, _state_plain(a), _hotkey_label(a, slot)]
 	cell.add_child(lbl)
-	return cell
+	return frame
 
 ## The cell's hotkey tag: the mod's own hotkey if it sends one, else the positional bar slot (1-9),
 ## which is what the 1-9 keys activate in 1:1. Matches Qud's " <1>".. quick-slot labels.

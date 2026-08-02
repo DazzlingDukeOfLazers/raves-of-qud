@@ -43,10 +43,10 @@ func _ready() -> void:
 	v.add_theme_constant_override("separation", 4)
 	add_child(v)
 
-	var title := Label.new()
-	title.text = "Target"
-	title.add_theme_font_size_override("font_size", UiFont.px(get_viewport(), "title"))
-	v.add_child(title)
+	_title = Label.new()
+	_title.text = "Target"
+	_title.add_theme_font_size_override("font_size", UiFont.px(get_viewport(), "title"))
+	v.add_child(_title)
 
 	# Two columns: the target SPRITE (left) and its info (right).
 	var body := HBoxContainer.new()
@@ -110,7 +110,15 @@ func _ready() -> void:
 ## MainFrame calls this each snapshot with the full data (needs target + player + palette).
 ## 1:1: drop the rounded QoL box so the continuous bottom-strip chrome shows through (Qud has no per-panel
 ## box). Keeps the content margins. User mode restores the framed look.
+var _title: Label
+var _one_to_one := false
+
 func set_one_to_one(on: bool) -> void:
+	_one_to_one = on
+	if _title != null:
+		_title.visible = not on   # 1:1: title folds into the name row ("Target: [none]")
+	if not _last_data.is_empty():
+		_render()
 	var cur := get_theme_stylebox("panel")
 	if cur is StyleBoxFlat:
 		var f: StyleBoxFlat = (cur as StyleBoxFlat).duplicate()
@@ -139,7 +147,8 @@ func _render() -> void:
 		_show_none()
 		return
 
-	_rt_name.text = QudText.to_bbcode(String(t.get("display", "")), _palette)
+	var _pfx := "Target: " if _one_to_one else ""
+	_rt_name.text = _pfx + QudText.to_bbcode(String(t.get("display", "")), _palette)
 
 	# Left column: the recoloured target sprite — perceived icon by default, real icon in full mode.
 	_tiles.tiles_dir = String(data.get("tilesDir", _tiles.tiles_dir))
@@ -174,7 +183,8 @@ func _render() -> void:
 	_l_dir.visible = _l_dir.text != ""
 
 func _show_none() -> void:
-	_rt_name.text = "[color=%s][none][/color]" % DIM
+	var _pfx := "Target: " if _one_to_one else ""
+	_rt_name.text = _pfx + "[color=%s][none][/color]" % DIM
 	_sprite.visible = false
 	_rt_desc.visible = false
 	_hp_row.visible = false

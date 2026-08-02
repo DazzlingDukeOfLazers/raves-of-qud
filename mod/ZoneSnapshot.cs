@@ -530,7 +530,7 @@ namespace RavesOfQud
             var mws = (player != null) ? SafeMissileWeapons(player) : null;
             if (mws == null || mws.Count == 0)
             {
-                j.Member("kind", "none").Member("text", "No missile weapons equipped.").EndObject();
+                j.Member("kind", "none").Member("text", "You have no missile weapons equipped.").EndObject();   // Qud's exact wording
                 return;
             }
             j.Member("kind", "missile");
@@ -706,10 +706,11 @@ namespace RavesOfQud
         /// disabled / default) as tile + colours, with the glyph as fallback.
         private static void WriteAbilityIcon(JsonWriter j, ActivatedAbilityEntry e)
         {
-            var r = e.UITileDefault;
-            if (!e.Enabled && e.UITileDisabled != null) r = e.UITileDisabled;
-            else if (e.ToggleState && e.UITileToggleOn != null) r = e.UITileToggleOn;
-            else if (e.Cooldown > 0 && e.UITileCoolingDown != null) r = e.UITileCoolingDown;
+            // GetUITile() LAZILY fills the tile from the ability's XmlData (the raw UITileDefault field is
+            // often null until then — that's why Rebuke Robot/Slam came through iconless) AND returns the
+            // state-appropriate variant (toggle-on / cooling / disabled / default). Works for ANY ability.
+            var r = e.UITileDefault;                // seeds the Renderable type for `var` (may be null)
+            try { r = e.GetUITile(); } catch { }
             string tile = (r != null) ? (r.Tile ?? "") : "";
             if (tile.Length > 0) TileExporter.Ensure(tile);
             j.Member("glyph", (r != null && !string.IsNullOrEmpty(r.RenderString)) ? r.RenderString : (e.Icon ?? ""))
