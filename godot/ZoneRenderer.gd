@@ -796,6 +796,9 @@ func _rebuild_dynamics(cells: Array) -> void:
 				if full_1to1 and win.has("aquaBg"):
 					# Qud's Swimming effect: an aquatic-limited creature (eel, glowfish) renders
 					# over its supporting liquid's background colour, not the bare floor.
+					# (NB: a '^bg' in the winner's own colour string does NOT fill the cell in
+					# Qud's tile mode — measured on the luminous-salt puddle '&Y^y&C', whose
+					# cell stays field-coloured behind the art. Only the Swimming bg fills.)
 					_floor_batch_add(_color_material(_qud_color("&" + String(win["aquaBg"]))),
 						Transform3D(Basis(), Vector3(cx, FLOOR_Y + 0.5 * LAYER_LIFT, cy)))
 				_place_nonwall(win, cx, cy, 0, false, sink, wet, false, false, lf)
