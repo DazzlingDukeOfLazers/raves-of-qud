@@ -225,6 +225,10 @@ func _render_filter() -> void:
 		var c: int = e["count"]
 		_append_line(String(e["text"]) + ("  (x%d)" % c if c > 1 else ""))
 
+## Qud's sidebar prefixes every log line with ":: " in a dim neutral grey (measured #818181), then the
+## message in its own colour. Only in 1:1 mode — user mode keeps the clean, prefix-free QoL log.
+const LOG_PREFIX_1TO1 := "[color=#818181]:: [/color]"
+
 ## Append one log line: if its text names a zone object, inline that object's icon first (perceived
 ## or real per the global toggle), then the coloured text.
 func _append_line(markup: String) -> void:
@@ -236,7 +240,8 @@ func _append_line(markup: String) -> void:
 			if tex != null:
 				_rt.add_image(tex, img_w, img_h)
 				_rt.append_text(" ")
-	_rt.append_text(QudText.to_bbcode(markup, _palette) + "\n")
+	var prefix := LOG_PREFIX_1TO1 if _one_to_one else ""   # ":: " sidebar prefix, Qud-faithful (1:1 only)
+	_rt.append_text(prefix + QudText.to_bbcode(markup, _palette) + "\n")
 
 ## The icons for a log line, in order: the player's own icon FIRST if the line says "you" (the subject),
 ## then the object/landmark whose (lowercased) name is the LONGEST one in the line ("brinestalk wall"
