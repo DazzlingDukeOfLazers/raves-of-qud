@@ -58,6 +58,7 @@ namespace RavesOfQud
                     Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
                     "Library", "Application Support", "RavesOfQud");
                 string path = System.IO.Path.Combine(dir, "bridge_status.txt");
+                string statePath = System.IO.Path.Combine(dir, "qud_state.json");
                 while (true)
                 {
                     try
@@ -67,6 +68,20 @@ namespace RavesOfQud
                         try { live = The.Game != null && The.Game.Running && The.Player != null; }
                         catch { /* game state mid-transition — treat as not-live this tick */ }
                         System.IO.File.WriteAllText(path, live ? "live" : "menu");
+                        // First-party state report for highvisor's state tree (its "scene" signal —
+                        // beats OCR guessing). The active view is a plain string field; reading it
+                        // off-thread is safe. Scene = the RAW view name ("MainMenu", "Stage", popup
+                        // views…); highvisor's gametree lists the ones it maps. Same file contract
+                        // as Raves' raves_state.json.
+                        string view = "";
+                        try { view = GameManager.Instance != null ? (GameManager.Instance._ActiveGameView ?? "") : ""; }
+                        catch { }
+                        string scene = live && (view == "Stage" || view == "") ? "play" : view;
+                        bool popup = view.IndexOf("Popup", StringComparison.OrdinalIgnoreCase) >= 0;
+                        System.IO.File.WriteAllText(statePath,
+                            "{\"scene\":\"" + scene.Replace("\"", "'") + "\",\"live\":" + (live ? "true" : "false")
+                            + (popup ? ",\"popup\":\"" + view.Replace("\"", "'") + "\"" : "")
+                            + ",\"ts\":" + DateTimeOffset.UtcNow.ToUnixTimeSeconds() + "}");
                     }
                     catch { /* transient IO — retry next tick */ }
                     System.Threading.Thread.Sleep(1000);

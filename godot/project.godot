@@ -26,6 +26,7 @@ config/features=PackedStringArray("4.7", "Forward Plus")
 Brand="*res://Brand.gd"
 Settings="*res://Settings.gd"
 QudLauncher="*res://QudLauncher.gd"
+UiState="*res://UiState.gd"
 
 [display]
 

@@ -1073,6 +1073,7 @@ func _connect_holodeck() -> void:
 	_holo.connect("one_to_one_changed", _on_one_to_one_changed)  # camera flips → sync panels + persist
 	add_child(_holo)                            # ROOT viewport → 3D renders full-window BEHIND the chrome
 	_render_btn.disabled = false
+	UiState.set_scene("in_game")                # highvisor state report: the gameplay frame is up
 	# Apply the saved 1:1 / user mode now that the Holodeck (camera owner) exists. When 1:1, this
 	# emits one_to_one_changed → _on_one_to_one_changed pushes the 1:1 variant to the panels too.
 	_holo.set_one_to_one(Settings.one_to_one())

@@ -108,6 +108,24 @@ python3 tools/capture/control.py onboard devices   # drive the onboarding UI wit
 python3 tools/capture/presets.py list        # · load compass-fullinfo
 ```
 
+## Launching & driving the apps — ALWAYS through highvisor (`~/bin/hv`)
+
+**Never** `open build/RavesOfQud.app`, never launch Qud by hand, never AppleScript a window into
+place — that manual thrash burns whole sessions and is the #1 recurring failure mode. The flows:
+
+```bash
+hv launch raves          # THE pair start: Raves spawns Qud borderless; both auto-placed
+hv launch raves_solo     # just Raves (no Qud spawn) · qud_solo = just Qud (borderless args)
+hv state                 # which screen is each app on (first-party scene reports, no guessing)
+hv goto qud in_game      # drive an app to a state-tree node (recipes in highvisor/gametree.json)
+hv assert --app raves --node in_game --timeout 20   # block until a state holds (TDD; exit 0/1)
+```
+
+After a Raves rebuild: quit the old Raves, `hv launch raves_solo` (Qud can stay up). If an `hv`
+capability is missing or misbehaving, **fix it in the highvisor repo** (`personal-git/highvisor`,
+see its CLAUDE.md) instead of falling back to manual driving — the workaround dies with the
+session, the fix compounds. The cockpit (`:48721`) has buttons for all of this.
+
 ## Fonts & display — the rules
 
 - **Dev-run windows are soft on Retina** (a Godot limit, not our bug — the floating window gets a non-HiDPI

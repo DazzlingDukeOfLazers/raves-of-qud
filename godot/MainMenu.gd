@@ -704,6 +704,7 @@ func _confirm_quit() -> void:
 	_quit_dialog = layer
 	add_child(layer)
 	_apply_quit_sel()
+	UiState.set_scene("quit_dialog")
 
 ## Qud's 1:1 quit prompt: a COMPACT panel overlaying the top of the option box (under the
 ## header, over where New Game/Continue sit), NOT a big centred modal. Muted question, a thin
@@ -796,6 +797,7 @@ func _confirm_quit_1to1() -> void:
 	_quit_dialog = layer
 	add_child(layer)
 	_apply_quit_sel()
+	UiState.set_scene("quit_dialog")
 
 ## A horizontal rule segment for the quit dialog's button row (expands to fill its side).
 func _dlg_rule(thick: int) -> ColorRect:
@@ -853,6 +855,7 @@ func _close_quit() -> void:
 		_quit_dialog.queue_free()
 		_quit_dialog = null
 		_quit_opts = []
+	UiState.set_scene("title")
 
 # ── input ─────────────────────────────────────────────────────────────────────────
 
@@ -914,11 +917,14 @@ func _open_overlay(script_path: String) -> void:
 	add_child(_overlay)
 	if _overlay.has_signal("closed"):
 		_overlay.closed.connect(_close_overlay)
+	# highvisor state report: overlay scene = the screen's file name (ModsScreen -> mods …)
+	UiState.set_scene(script_path.get_file().get_basename().replace("Screen", "").to_lower())
 
 func _close_overlay() -> void:
 	if _overlay != null:
 		_overlay.queue_free()
 		_overlay = null
+	UiState.set_scene("title")
 
 # ── chargen flow (WIP) ────────────────────────────────────────────────────────────
 # The interactive character creator as a chain of stage screens: Genotype → Subtype → …
@@ -941,6 +947,7 @@ func _open_chargen() -> void:
 	add_child(mode)
 	mode.closed.connect(_close_overlay)
 	mode.chose.connect(_on_mode_chosen)
+	UiState.set_scene("chargen_game_mode")
 
 func _on_mode_chosen(mode_name: String) -> void:
 	_cg_mode = mode_name
@@ -953,6 +960,7 @@ func _on_mode_chosen(mode_name: String) -> void:
 	add_child(geno)
 	geno.closed.connect(_close_overlay)
 	geno.chose.connect(_on_genotype_chosen)
+	UiState.set_scene("chargen_genotype")
 
 ## Tutorial mode: walk the guided pre-game menus (Choose Genotype, onboarding to Mutated Human, with
 ## the Tutorial Guide popup) before booting. Reuses the shared card screen with the tutorial extras.
@@ -1007,6 +1015,7 @@ func _on_genotype_chosen(genotype_name: String) -> void:
 	var cls := _genotype_subtype_class(genotype_name)   # "Castes" / "Callings"
 	_close_overlay()
 	var sub: Variant = load("res://SubtypeScreen.gd").new()
+	UiState.set_scene("chargen_subtype")
 	sub.subtype_class = cls
 	sub.genotype_name = genotype_name
 	_overlay = sub

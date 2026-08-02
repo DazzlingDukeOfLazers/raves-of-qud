@@ -136,6 +136,8 @@ func show_popup(data: Dictionary, palette: Dictionary) -> void:
 		_edit.caret_column = _edit.text.length()
 	else:
 		_edit.release_focus()
+	# highvisor state report: a popup is up (kind feeds `hv assert --popup …`)
+	UiState.set_popup("input" if is_input else ("menu" if _options.size() > 0 else "message"))
 
 func _build_buttons() -> void:
 	for c in _btn_row.get_children():
@@ -245,6 +247,7 @@ func _cancel() -> void:
 func _finish(payload: Dictionary) -> void:
 	visible = false
 	_edit.release_focus()
+	UiState.clear_popup()
 	answered.emit(payload)
 
 ## Called on `active:false` and on any normal snapshot (a snapshot can only publish once Qud's turn thread
@@ -253,4 +256,5 @@ func hide_popup() -> void:
 	if visible:
 		visible = false
 		_edit.release_focus()
+	UiState.clear_popup()
 	_cur_id = -1
