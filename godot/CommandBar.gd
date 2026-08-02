@@ -98,6 +98,21 @@ func set_one_to_one(on: bool) -> void:
 	_one_to_one = on
 	_rt.visible = not on
 	_cells.visible = on
+	# drop the rounded QoL box in 1:1 — the continuous bottom-strip chrome + the VSeparator dividers ARE
+	# Qud's look; the framed box floated on the playfield. Restore it in user mode.
+	var cur := get_theme_stylebox("panel")
+	if cur is StyleBoxFlat:
+		var f: StyleBoxFlat = (cur as StyleBoxFlat).duplicate()
+		if on:
+			f.bg_color = Color(0, 0, 0, 0)
+			f.set_border_width_all(0)
+			f.set_corner_radius_all(0)
+		else:
+			f.bg_color = QudPalette.CHROME
+			f.set_border_width_all(1)
+			f.border_color = Color(1, 1, 1, 0.12)
+			f.set_corner_radius_all(3)
+		add_theme_stylebox_override("panel", f)
 	if not _last_data.is_empty():
 		set_snapshot(_last_data)
 

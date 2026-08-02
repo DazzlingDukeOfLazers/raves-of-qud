@@ -52,6 +52,23 @@ func _ready() -> void:
 	v.add_child(_rt)
 
 ## MainFrame calls this each snapshot with the full data (needs context + palette + tilesDir).
+## 1:1: drop the rounded QoL box so the continuous bottom-strip chrome shows through (Qud has no per-panel
+## box). Keeps the content margins. User mode restores the framed look.
+func set_one_to_one(on: bool) -> void:
+	var cur := get_theme_stylebox("panel")
+	if cur is StyleBoxFlat:
+		var f: StyleBoxFlat = (cur as StyleBoxFlat).duplicate()
+		if on:
+			f.bg_color = Color(0, 0, 0, 0)
+			f.set_border_width_all(0)
+			f.set_corner_radius_all(0)
+		else:
+			f.bg_color = QudPalette.CHROME
+			f.set_border_width_all(1)
+			f.border_color = Color(1, 1, 1, 0.12)
+			f.set_corner_radius_all(3)
+		add_theme_stylebox_override("panel", f)
+
 func set_snapshot(data: Dictionary) -> void:
 	_last_data = data
 	var pal: Dictionary = data.get("palette", {})
