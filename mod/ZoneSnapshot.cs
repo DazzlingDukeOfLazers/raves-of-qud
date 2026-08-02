@@ -897,15 +897,24 @@ namespace RavesOfQud
                     var objects = c.GetObjects();
                     int emitted = 0;
 
-                    // Qud's painted ground (Cell.Render()) matters ONLY on a cell with no object.
-                    // On an occupied cell Cell.Render() composites the WHOLE cell and hands back the
-                    // TOP object's tile — which the objects already draw, so it was always deduped
-                    // away there (else every sprite drew twice). Resolving it per occupied cell was
-                    // pure waste: Cell.Render() is expensive, and on the WORLD MAP every one of the
-                    // 2000 cells is occupied — 2000 Cell.Render() calls + 2000 HashSet allocs every
-                    // turn were the overworld movement lag. So only resolve it on empty cells.
-                    Ground ground = (objects.Count == 0) ? ResolveGround(c) : null;
-                    if (ground == null && objects.Count == 0) continue;   // truly blank cell
+                    // Qud's painted ground (Cell.Render()) matters ONLY on a cell with no DRAWABLE
+                    // object. On an occupied cell Cell.Render() composites the WHOLE cell and hands
+                    // back the TOP object's tile — which the objects already draw, so it was always
+                    // deduped away there (else every sprite drew twice). Resolving it per occupied
+                    // cell was pure waste: Cell.Render() is expensive, and on the WORLD MAP every
+                    // one of the 2000 cells is occupied — 2000 Cell.Render() calls + 2000 HashSet
+                    // allocs every turn were the overworld movement lag.
+                    // "Drawable" must mean Render.Visible — Qud's own first gate. A lone INVISIBLE
+                    // widget (CanyonMarker: Visible=false, glyph '*') otherwise counts as occupancy
+                    // and suppresses the painted grass beneath it: Qud shows the grass, Raves blank.
+                    int drawable = 0;
+                    for (int oi = 0; oi < objects.Count; oi++)
+                    {
+                        Render dr = objects[oi].GetPart<Render>();
+                        if (dr != null && dr.Visible) drawable++;
+                    }
+                    Ground ground = (drawable == 0) ? ResolveGround(c) : null;
+                    if (ground == null && drawable == 0) continue;   // truly blank cell
 
                     bool opened = true;
                     j.BeginObject().Member("x", x).Member("y", y)
@@ -932,6 +941,8 @@ namespace RavesOfQud
                     {
                         Render r = go.GetPart<Render>();
                         if (r == null) continue;
+                        // Qud never draws Visible=false (widgets, hidden objects) — don't ship them.
+                        if (!r.Visible) continue;
 
                         // Drawable = has ART or a GLYPH. Requiring RenderString
                         // silently dropped every tile-only object: RenderString is
