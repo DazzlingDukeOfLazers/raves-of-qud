@@ -1014,14 +1014,14 @@ func _unhandled_input(event: InputEvent) -> void:
 			_cam_rig._cam_pan += _cam_rig.cam_forward() * _cam_rig.CAM_STEP; return
 		if _cam_rig._mode != CamMode.KEYBOARD and not _one_to_one and event.keycode == KEY_X:
 			_cam_rig._cam_pan -= _cam_rig.cam_forward() * _cam_rig.CAM_STEP; return
-		# S / D are forwarded to Qud as key presses (was: camera vertical pan). The mod injects
-		# them through Qud's keymap, so they trigger whatever YOU'VE bound s/d to (soar/descend) —
-		# drive the surface<->world-map transition from Raves without switching focus. One per
-		# press. Skipped in FLY (KEYBOARD) mode, where WASD still flies the free camera.
+		# S / D = go UP / DOWN stairs (Qud's climb commands CmdMoveU / CmdMoveD; Down also
+		# pulls down from the world map). Direct command injection — NOT a raw keymap
+		# forward, so it works whatever s/d are bound to in Qud. Mirrors the top-bar
+		# ▲ Up / ▼ Down buttons. Skipped in FLY (KEYBOARD) mode, where WASD flies the camera.
 		if _cam_rig._mode != CamMode.KEYBOARD and event.keycode == KEY_S:
-			client.send_command("key", {"key": "s"}); return
+			client.send_command("command", {"command": "CmdMoveU"}); return
 		if _cam_rig._mode != CamMode.KEYBOARD and event.keycode == KEY_D:
-			client.send_command("key", {"key": "d"}); return
+			client.send_command("command", {"command": "CmdMoveD"}); return
 		if event.keycode == KEY_ESCAPE:
 			# close the camera/debug menu and any selection, but KEEP the current camera
 			_dismiss_selection()

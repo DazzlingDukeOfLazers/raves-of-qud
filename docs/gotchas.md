@@ -85,7 +85,11 @@ add a one-liner (symptom → rule).
   click-to-target) goes in `_input`; only the camera's own MOUSE-mode orbit/pan/wheel stays in `_unhandled_input`.
 - **`var x := load("res://Y.gd").new()` won't parse** (`load()` is typed `Resource`, has no `.new()`) — declare
   the member typed, assign in `_ready`. **`var x := dict.get(k)` won't parse** either (can't infer from
-  `Variant`) — annotate the type (`var x: Array = ...`).
+  `Variant`) — annotate the type (`var x: Array = ...`). Same trap comparing a Variant loop var:
+  `var up := key == "up"` fails when `key` iterates an untyped Array — `var up: bool = ...`.
+  **After editing ANY `.gd`, run `--check-only --script res://<That>.gd`** — the headless boot check
+  only deep-parses scripts it loads, and a broken `MainFrame.gd` shipped as a BLANK title screen
+  (MainMenu references it) with `--quit-after` still printing clean.
 - **Full-window Holodeck renders into the ROOT viewport**; the day/night MULTIPLY grade must sit on a
   NEGATIVE `CanvasLayer` so it tints only the 3D, not the chrome.
 - **The exported app writes NO `godot.log` / crash report** (ad-hoc signed). Trace via a file under

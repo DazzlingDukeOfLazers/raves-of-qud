@@ -717,7 +717,14 @@ func _row_vitals_menu() -> Control:
 	_menu_verbose.add_child(_info_btn)
 	for label in ["🔒 Lock", "🗺 Minimap", "Look", "Wait", "Character",
 			"POI", "Auto-explore", "▼ Down", "▲ Up"]:
-		_menu_verbose.add_child(_menu_btn(label))
+		var mb := _menu_btn(label)
+		# Up/Down are live: Qud's climb commands (stairs; Down also pulls down from the
+		# world map). The rest of the row is still placeholder.
+		if label == "▲ Up":
+			mb.pressed.connect(func() -> void: _send_stair(true))
+		elif label == "▼ Down":
+			mb.pressed.connect(func() -> void: _send_stair(false))
+		_menu_verbose.add_child(mb)
 
 	# Qud's compact top-right cluster: the 11 real nav icons (extracted from Qud's ActiveButtons), in
 	# fixed slots at Qud's ~43px pitch (1.8×body), right-anchored. Python-modelled to Qud's centres.
@@ -733,6 +740,15 @@ func _row_vitals_menu() -> Control:
 		var cell := Control.new()
 		cell.custom_minimum_size = Vector2(slot, ihh)
 		cell.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		# The up/down nav icons are LIVE (Qud's climb commands); the rest stay cosmetic.
+		# Plain Controls with gui_input — no Button, so nothing grabs focus from the arrows.
+		if key == "up" or key == "down":
+			var stair_up: bool = key == "up"
+			cell.mouse_filter = Control.MOUSE_FILTER_STOP
+			cell.tooltip_text = "Go up (stairs) — s" if stair_up else "Go down (stairs) — d"
+			cell.gui_input.connect(func(e: InputEvent) -> void:
+				if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+					_send_stair(stair_up))
 		var tex := _load_nav_icon(key)
 		var ic := TextureRect.new()
 		ic.texture = tex
@@ -750,6 +766,13 @@ func _row_vitals_menu() -> Control:
 
 	h.add_child(menu)
 	return h
+
+## Up/Down nav (top-bar buttons + the s/d keys in Main): Qud's own climb commands —
+## CmdMoveU / CmdMoveD (stairs; Down also pulls down from the world map). Injected via
+## PushCommand, so they work with Qud unfocused like every other bridge command.
+func _send_stair(up: bool) -> void:
+	if _holo != null:
+		_holo.request_command("CmdMoveU" if up else "CmdMoveD")
 
 func _toggle_full_info() -> void:
 	_full_info = not _full_info
