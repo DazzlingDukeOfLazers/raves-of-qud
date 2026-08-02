@@ -998,16 +998,27 @@ namespace RavesOfQud
                         if (!r.RenderIfDark)
                             j.Member("hideDark", true);
                         // Qud's Swimming effect: an aquatic-limited creature (eel, glowfish) renders
-                        // over its supporting liquid's BACKGROUND colour (Swimming.Render prepends
-                        // "^b" for water). Send the liquid colour letter; the client fills the cell.
+                        // over its supporting liquid's BACKGROUND colour. Ask the liquid itself
+                        // (RenderBackgroundPrimary/Secondary on a scratch event — water prepends "^b";
+                        // NOT GetColor(), which is the NAME colour 'B' and reads a shade too bright).
                         try
                         {
                             if (go.Brain != null && go.Brain.LimitToAquatic())
                             {
                                 var support = c.GetAquaticSupportFor(go);
-                                string lc = support?.LiquidVolume?.GetPrimaryLiquidColor();
-                                if (!string.IsNullOrEmpty(lc))
-                                    j.Member("aquaBg", lc.Substring(lc.Length - 1, 1));
+                                var lv = support?.LiquidVolume;
+                                if (lv != null)
+                                {
+                                    var ev = new RenderEvent();
+                                    ev.Lit = LightLevel.Light;   // ColorsVisible gates the append
+                                    ev.ColorString = "";
+                                    lv.GetPrimaryLiquid()?.RenderBackgroundPrimary(lv, ev);
+                                    lv.GetSecondaryLiquid()?.RenderBackgroundSecondary(lv, ev);
+                                    string cs = ev.ColorString ?? "";
+                                    int ci = cs.LastIndexOf('^');
+                                    if (ci >= 0 && ci + 1 < cs.Length)
+                                        j.Member("aquaBg", cs.Substring(ci + 1, 1));
+                                }
                             }
                         }
                         catch { }
