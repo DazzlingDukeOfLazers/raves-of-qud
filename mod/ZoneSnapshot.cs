@@ -995,6 +995,30 @@ namespace RavesOfQud
                             }
                         }
                         catch { }
+                        // LiquidStained (blood-spattered walls etc.): the effect repaints the fg
+                        // from the staining liquid at render time (RenderStain: "&"+primary
+                        // GetColor(); a secondary liquid overrides DetailColor). Static fields
+                        // stay vanilla, so replicate the same overrides on the wire.
+                        try
+                        {
+                            var st = go.GetEffect<XRL.World.Effects.LiquidStained>();
+                            if (st != null && st.Duration > 0 && st.Liquid != null && !st.IsConcealedByLiquid())
+                            {
+                                string spc = st.Liquid.GetPrimaryLiquidColor();
+                                if (!string.IsNullOrEmpty(spc))
+                                {
+                                    colorOut = "&" + spc;
+                                    tileColorOut = "&" + spc;
+                                }
+                                if (st.Liquid.Secondary != null)
+                                {
+                                    string ssc = st.Liquid.RequireSecondaryLiquid()?.GetColor();
+                                    if (!string.IsNullOrEmpty(ssc))
+                                        detailOut = ssc;
+                                }
+                            }
+                        }
+                        catch { }
                         j.BeginObject()
                             // Identity. Without this an object with no Tile is
                             // unidentifiable on the client — you see a glyph and a
