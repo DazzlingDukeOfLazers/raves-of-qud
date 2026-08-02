@@ -32,16 +32,9 @@ var _notice := ""                # sticky status line (BBCode) pinned at the BOT
 
 func _ready() -> void:
 	_tiles = load("res://QudTiles.gd").new()
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = QudPalette.CHROME
-	sb.set_border_width_all(1)
-	sb.border_color = Color(1, 1, 1, 0.12)
-	sb.set_corner_radius_all(3)
-	sb.content_margin_left = 6
-	sb.content_margin_right = 6
-	sb.content_margin_top = 4
-	sb.content_margin_bottom = 4
-	add_theme_stylebox_override("panel", sb)
+	_apply_panel_box()   # user mode = framed QoL box; 1:1 = borderless + room for the ||| grab-bar
+
+	resized.connect(queue_redraw)   # the ||| grab-bar spans the panel height — redraw when it changes
 
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 4)
@@ -53,7 +46,6 @@ func _ready() -> void:
 	_title.text = "Message log"
 	_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(_title)
-	_apply_title_font()
 	_toggle = Button.new()
 	_toggle.focus_mode = Control.FOCUS_NONE
 	_toggle.pressed.connect(_toggle_mode)
@@ -68,6 +60,7 @@ func _ready() -> void:
 	_rt.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_rt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	v.add_child(_rt)
+	_apply_log_style()
 
 ## Uniform panel entry (MainFrame feeds every panel via set_snapshot).
 func set_snapshot(data: Dictionary) -> void:
@@ -103,17 +96,67 @@ func set_full_info(full: bool) -> void:
 ## verbatim/filter toggle (Qud has neither). Reverting restores the QoL icons + toggle.
 var _one_to_one := false
 var _saved_filter := false   # user's verbatim/filter choice, restored when leaving 1:1
-## Qud's sidebar draws the "Message log" header at the SAME size as the messages; user mode keeps the
-## larger "title" heading. Sized off the same body role the messages inherit, so they always match.
-func _apply_title_font() -> void:
-	if _title != null:
-		_title.add_theme_font_size_override("font_size", UiFont.px(get_viewport(), "body" if _one_to_one else "title"))
+## Qud draws its whole message log — the "Message log" heading AND the lines — at ~0.76x the body UI font
+## (measured 16px vs 21px at 1080), the heading in a dim teal. Match both in 1:1; user mode keeps the
+## larger "title" heading + body-size lines in the default colour.
+const LOG_FONT_FRAC_1TO1 := 0.76
+const TITLE_COLOR_1TO1 := Color8(59, 89, 107)     # Qud's dim grey-teal "Message log" heading
+# Qud's grab-bar between the playfield and the log: three vertical lines "|||", the outer two a lighter
+# teal, the centre a darker grey-teal (measured off Qud). Drawn in the panel's left margin in 1:1.
+const SEP_OUTER := Color8(68, 99, 112)
+const SEP_CENTER := Color8(30, 57, 72)
+const SEP_MARGIN_1TO1 := 20                       # left content inset so text clears the ||| bar
+
+## The panel background: user mode keeps the framed QoL box; 1:1 drops the border (Qud shows none) and
+## insets the content so the ||| grab-bar (drawn in _draw) sits in the left margin.
+func _apply_panel_box() -> void:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = QudPalette.CHROME
+	sb.content_margin_left = SEP_MARGIN_1TO1 if _one_to_one else 6
+	sb.content_margin_right = 6
+	sb.content_margin_top = 4
+	sb.content_margin_bottom = 4
+	if not _one_to_one:
+		sb.set_border_width_all(1)
+		sb.border_color = Color(1, 1, 1, 0.12)
+		sb.set_corner_radius_all(3)
+	add_theme_stylebox_override("panel", sb)
+
+## 1:1 only: draw Qud's "|||" grab-bar down the panel's left edge (behind the inset content).
+func _draw() -> void:
+	if not _one_to_one:
+		return
+	var h := size.y
+	# crisp 1px columns (draw_rect on integer x, not a half-pixel draw_line, so the teal isn't dimmed)
+	draw_rect(Rect2(2, 0, 1, h), SEP_OUTER)
+	draw_rect(Rect2(6, 0, 1, h), SEP_CENTER)
+	draw_rect(Rect2(10, 0, 1, h), SEP_OUTER)
+
+func _apply_log_style() -> void:
+	var body := UiFont.px(get_viewport(), "body")
+	if _one_to_one:
+		var sz := int(round(body * LOG_FONT_FRAC_1TO1))
+		if _title != null:
+			_title.add_theme_font_size_override("font_size", sz)
+			_title.add_theme_color_override("font_color", TITLE_COLOR_1TO1)
+		if _rt != null:
+			_rt.add_theme_font_size_override("normal_font_size", sz)
+			_rt.add_theme_font_size_override("bold_font_size", sz)
+	else:
+		if _title != null:
+			_title.add_theme_font_size_override("font_size", UiFont.px(get_viewport(), "title"))
+			_title.remove_theme_color_override("font_color")
+		if _rt != null:
+			_rt.remove_theme_font_size_override("normal_font_size")
+			_rt.remove_theme_font_size_override("bold_font_size")
 
 func set_one_to_one(on: bool) -> void:
 	if on == _one_to_one:
 		return
 	_one_to_one = on
-	_apply_title_font()
+	_apply_log_style()
+	_apply_panel_box()
+	queue_redraw()          # (re)draw or clear the ||| grab-bar for the new mode
 	if _toggle != null:
 		_toggle.visible = not on
 	if on:
