@@ -995,6 +995,25 @@ namespace RavesOfQud
                             }
                         }
                         catch { }
+                        // Mimic (chameleons): copies a nearby object's colours into
+                        // ActiveColorString/ActiveDetailColor — STABLE per-turn state — but
+                        // applies them only at render time; the static fields stay the
+                        // blueprint grey. Ship the active camouflage.
+                        try
+                        {
+                            var mim = go.GetPart<Mimic>();
+                            if (mim != null && mim.CopyColor)
+                            {
+                                if (!string.IsNullOrEmpty(mim.ActiveColorString))
+                                {
+                                    colorOut = mim.ActiveColorString;
+                                    tileColorOut = mim.ActiveColorString;
+                                }
+                                if (!string.IsNullOrEmpty(mim.ActiveDetailColor))
+                                    detailOut = mim.ActiveDetailColor;
+                            }
+                        }
+                        catch { }
                         // LiquidStained (blood-spattered walls etc.): the effect repaints the fg
                         // from the staining liquid at render time (RenderStain: "&"+primary
                         // GetColor(); a secondary liquid overrides DetailColor). Static fields

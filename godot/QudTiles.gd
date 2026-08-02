@@ -102,12 +102,17 @@ func main_color(obj: Dictionary, fallback := Color.WHITE) -> Color:
 		c = full
 	return color_of(c, fallback)
 
-## Detail (secondary) colour of a serialized object/tile dict.
+## Detail (secondary) colour of a serialized object/tile dict. Empty DetailColor is NOT
+## white: Qud draws the detail-mask pixels in the FG colour then (measured on painted-ground
+## flowers). Mirrors ZoneRenderer._obj_detail — keep the copies in sync.
 func detail_color(obj: Dictionary, fallback := Color.WHITE) -> Color:
 	var hex := String(obj.get("detailHex", ""))
 	if hex != "":
 		return Color(hex)
-	return color_of(String(obj.get("detail", "")), fallback)
+	var d := String(obj.get("detail", "")).strip_edges()
+	if d == "":
+		return main_color(obj, fallback)
+	return color_of(d, fallback)
 
 func color_of(code: String, fallback := Color.WHITE) -> Color:
 	var ch := _fg_letter(code)

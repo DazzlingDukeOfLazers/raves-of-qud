@@ -3660,7 +3660,13 @@ func _obj_detail(obj: Dictionary) -> Color:
 	var hex := String(obj.get("detailHex", ""))
 	if hex != "":
 		return Color(hex)
-	return _qud_color(String(obj.get("detail", "")))
+	var d := String(obj.get("detail", "")).strip_edges()
+	if d == "":
+		# Qud renders the detail-mask pixels in the FG colour when DetailColor is empty
+		# (measured on painted-ground flowers: Qud draws the whole sprite fg; the white
+		# came from our fallback). Keep the copies in sync: QudTiles.detail_color.
+		return _obj_main(obj)
+	return _qud_color(d)
 
 ## Cache key for an object's colours — the painted rgb when present, else the
 ## colour codes. Must distinguish the two, or a painted and an unpainted object
