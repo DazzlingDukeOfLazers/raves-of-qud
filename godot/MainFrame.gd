@@ -120,7 +120,7 @@ var _top_bg: ColorRect
 var _bottom_bg: ColorRect
 const ROW_BG_1TO1 := Color8(19, 23, 26)   # Qud's continuous chrome-strip background
 var _dev_bar: Control              # holodeck cell's Connect/Turn-on-viewport strip (hidden in 1:1)
-const SIDEBAR_FRAC_1TO1 := 0.153   # Qud's MINIMUM message-log width ≈ 15.3% (293px at 1920 — matches a Qud
+const SIDEBAR_FRAC_1TO1 := 0.15     # visual side column: 288px + the 12px split handle = Qud's 300 total   # Qud's MINIMUM message-log width ≈ 15.3% (293px at 1920 — matches a Qud
                                    # log dragged to its minimum, which maximises the playfield)
 const SIDEBAR_W_USER := 320.0      # user-mode side-column min width (the original value)
 
@@ -830,6 +830,9 @@ func _apply_layout_mode(on: bool) -> void:
 	_apply_panel_sizing(on)
 	_push_play_inset(on)
 	_apply_vitals_mode(on)
+	# Borderless in 1:1: Qud's pair-spawned window has no title bar, and the 32px bar skewed every
+	# capture comparison (window 1920x1112 vs 1080) and hv placement. User mode keeps the OS chrome.
+	get_window().borderless = on
 	_layout_row_bgs.call_deferred()   # size the continuous chrome-strip backgrounds to the new play hole
 
 ## The whole ||| grab-bar (message-log left margin) drags the side column wider/narrower in 1:1. dx<0
@@ -942,11 +945,11 @@ func _apply_panel_sizing(on: bool) -> void:
 	# layout reserves taller boxes. 1:1 slims them (context a touch taller for the equipped-weapon sprite),
 	# which also hands the freed height to the play hole above.
 	if _effects != null:
-		_effects.custom_minimum_size = Vector2(0, 58 if on else 90)
+		_effects.custom_minimum_size = Vector2(0, 32 if on else 90)
 	if _target != null:
-		_target.custom_minimum_size = Vector2(0, 58 if on else 90)
+		_target.custom_minimum_size = Vector2(0, 32 if on else 90)
 	if _context != null:
-		_context.custom_minimum_size = Vector2(0, 66 if on else 104)
+		_context.custom_minimum_size = Vector2(0, 32 if on else 104)
 
 ## Tell the Holodeck camera what fraction of the window the sidebar now covers, so the 1:1 zone-fit
 ## recentres the view in the visible play hole (left of the sidebar) instead of the full window.
@@ -964,11 +967,24 @@ func _push_play_inset(one_to_one: bool) -> void:
 ## Push the play hole's real px rect (row 3's transparent area) to the camera — the 1:1 pixel model
 ## fits Qud's stage into this rect on BOTH axes (the fraction above is horizontal-only and keeps the
 ## legacy fallback alive). Rect2() clears it in user mode so the fallback paths take over.
+# Qud's letterbox target area at the reference 1920x1080, MEASURED: top chrome 90px, bottom
+# chrome 90px, right side column 300px (area x[0,1619] y[90,989]). The camera fits the stage
+# into THIS model rect — not the incidental widget rect, whose container separations added
+# ~18px of slop that shifted the stage ~(6,12)px off Qud's. Scaled by window height so other
+# test resolutions stay proportional.
+const QUD_TOP_CHROME := 90.0
+const QUD_BOTTOM_CHROME := 90.0
+const QUD_SIDE_TOTAL_FRAC := 0.15625   # 300 / 1920
+
 func _push_play_hole(one_to_one: bool) -> void:
 	if _holo == null or not _holo.has_method("set_play_hole_rect"):
 		return
-	if one_to_one and _holo_hole != null:
-		_holo.set_play_hole_rect(_holo_hole.get_global_rect())
+	if one_to_one:
+		var vp := get_viewport().get_visible_rect().size
+		var sc := vp.y / 1080.0
+		_holo.set_play_hole_rect(Rect2(0, QUD_TOP_CHROME * sc,
+			vp.x - round(vp.x * QUD_SIDE_TOTAL_FRAC),
+			vp.y - (QUD_TOP_CHROME + QUD_BOTTOM_CHROME) * sc))
 	else:
 		_holo.set_play_hole_rect(Rect2())
 

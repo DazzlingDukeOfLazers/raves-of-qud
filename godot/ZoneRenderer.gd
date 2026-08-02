@@ -304,6 +304,8 @@ func flat_2d() -> bool:
 # themselves are the lighting. User mode keeps the full 3D stack; these are hard gates
 # so none of it is even LOADED in 1:1.
 var _one_to_one := false
+var _ground: MeshInstance3D          # the field plane (clipped to the stage in 1:1)
+var _ground_plane: PlaneMesh
 
 # Qud's stage field as actually RENDERED (measured off native captures — palette 'k' plus Qud's
 # own output transform). The user-mode ground keeps the palette-true colour + shading.
@@ -314,7 +316,9 @@ func set_one_to_one(on: bool) -> void:
 		return
 	_one_to_one = on
 	# The ground plane IS Qud's field in 1:1: unshaded (the per-pixel ambient darkened it to
-	# ~(6,30,30)) at the measured field colour. User mode restores the shaded palette-k ground.
+	# ~(6,30,30)) at the measured field colour, and CLIPPED to the stage rect — Qud's field exists
+	# only inside the 80x25 stage; the letterbox around it is the AREA colour (17,33,38), which the
+	# env clear provides (see SkyGrade). User mode restores the huge shaded palette-k ground.
 	if _ground_mat != null:
 		if on:
 			_ground_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -322,6 +326,13 @@ func set_one_to_one(on: bool) -> void:
 		else:
 			_ground_mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL if SHADED_WORLD else BaseMaterial3D.SHADING_MODE_UNSHADED
 			_ground_mat.albedo_color = _world_bg
+	if _ground_plane != null and _ground != null:
+		if on:
+			_ground_plane.size = Vector2(80, 25)          # exactly the zone footprint
+			_ground.position = Vector3(39.5, -0.02, 12.0) # cells span x[-0.5,79.5] z[-0.5,24.5]
+		else:
+			_ground_plane.size = Vector2(400, 400)
+			_ground.position = Vector3(40, -0.02, 12)
 	_drop_all_static()   # Main re-renders right after (same contract as set_flat_2d)
 
 func _ready() -> void:
@@ -341,6 +352,8 @@ func _ready() -> void:
 	gpm.size = Vector2(400, 400)
 	ground.mesh = gpm
 	ground.position = Vector3(40, -0.02, 12)  # big enough to cover any zone
+	_ground = ground
+	_ground_plane = gpm
 	var gm := StandardMaterial3D.new()
 	gm.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL if SHADED_WORLD else BaseMaterial3D.SHADING_MODE_UNSHADED
 	gm.albedo_color = _world_bg

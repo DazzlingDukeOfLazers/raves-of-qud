@@ -105,6 +105,9 @@ func set_one_to_one(on: bool) -> void:
 	_one_to_one = on
 	_rt.visible = not on
 	_cells.visible = on
+	# Qud's ability bar is exactly 58px tall at 1920x1080 (measured; icons 40px within) — pin it so
+	# the play hole's bottom edge lands where Qud's does. User mode sizes to content as before.
+	custom_minimum_size = Vector2(0, 58) if on else Vector2(0, 0)
 	# drop the rounded QoL box in 1:1 — the continuous bottom-strip chrome + the VSeparator dividers ARE
 	# Qud's look; the framed box floated on the playfield. Restore it in user mode.
 	var cur := get_theme_stylebox("panel")
