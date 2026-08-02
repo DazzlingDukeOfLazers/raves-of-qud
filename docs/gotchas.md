@@ -12,6 +12,7 @@ add a one-liner (symptom → rule).
 | Deployed a fix but nothing changed | mod `.cs` only compiles at Qud **startup** — a stale build is running | `Protocol.Build` in the snapshot / inspector | Qud internals |
 | A placed object (campfire, wall) doesn't draw | static geometry is frozen per zone; the static signature didn't change | did `_static_signature` change? | Renderer |
 | Can't move after an ability prompt (Make Camp) | a focused clickable UI over the Holodeck swallowed the arrows | is that control `FOCUS_NONE`? | Godot / the frame |
+| Can't move after clicking a PANEL (row 4 / sidebar) | `selection_enabled` RichTextLabels grab focus on click — same wall | selectable text needs `FOCUS_NONE` + selection OFF (the command-bar fix, applied to all panels in db39608+1) | Godot / the frame |
 | "Crash" but no crash report written | it's a **hang** (GPU timeout / fillrate), not a crash | is there a fresh `Godot-*.ips`? if not → hang | Renderer |
 | Headless run is "fine" but the windowed app crashes | `--headless` uses a dummy driver — never touches Metal | run a real windowed build to prove a render path | Renderer |
 

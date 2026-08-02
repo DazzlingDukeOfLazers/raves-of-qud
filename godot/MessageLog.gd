@@ -61,7 +61,8 @@ func _ready() -> void:
 	_rt.bbcode_enabled = true            # we convert Qud {{colour|text}} markup to BBCode
 	_rt.scroll_active = true
 	_rt.scroll_following = true            # stay pinned to the newest line
-	_rt.selection_enabled = true
+	_rt.selection_enabled = false   # a selectable RTL grabs focus on click and the arrows stop
+	_rt.focus_mode = Control.FOCUS_NONE   # reaching the player (the command-bar rule)
 	_rt.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_rt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	v.add_child(_rt)

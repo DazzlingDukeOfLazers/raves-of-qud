@@ -70,7 +70,8 @@ func _ready() -> void:
 	_rt_name.bbcode_enabled = true
 	_rt_name.fit_content = true
 	_rt_name.scroll_active = false
-	_rt_name.selection_enabled = true
+	_rt_name.selection_enabled = false   # selectable RTLs grab focus on click -> arrows stop (command-bar rule)
+	_rt_name.focus_mode = Control.FOCUS_NONE
 	_rt_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	right.add_child(_rt_name)
 
@@ -78,7 +79,8 @@ func _ready() -> void:
 	_rt_desc.bbcode_enabled = true
 	_rt_desc.fit_content = true
 	_rt_desc.scroll_active = false
-	_rt_desc.selection_enabled = true
+	_rt_desc.selection_enabled = false
+	_rt_desc.focus_mode = Control.FOCUS_NONE
 	_rt_desc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	right.add_child(_rt_desc)
 

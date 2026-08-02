@@ -45,7 +45,8 @@ func _ready() -> void:
 	_rt = RichTextLabel.new()
 	_rt.bbcode_enabled = true                # names carry Qud {{colour|...}} markup; sprites are inline images
 	_rt.scroll_active = false                # everything fits on one row; never scroll the weapon out of view
-	_rt.selection_enabled = true
+	_rt.selection_enabled = false   # a selectable RTL grabs focus on click and the arrows stop
+	_rt.focus_mode = Control.FOCUS_NONE   # reaching the player (the command-bar rule)
 	_rt.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_rt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_rt.meta_clicked.connect(_on_meta)     # fire / reload / [?] are clickable [url] links
