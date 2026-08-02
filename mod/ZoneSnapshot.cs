@@ -1001,6 +1001,13 @@ namespace RavesOfQud
                         // smoke for these. (Only sent when true; client defaults false.)
                         if (go.HasPart("AnimatedMaterialFire"))
                             j.Member("onFire", true);
+                        // STATIC blueprint flip (TerrainMoonStair's world tile ships HFlip="true";
+                        // EynRoj sets it back false). For NON-creatures the raw field IS the truth:
+                        // getHFlip() = HFlip ^ PartyFlip, and PartyFlip only ever applies to the
+                        // player's party — so terrain/scenery flips are stable data. Creatures stay
+                        // excluded (their display flip is render-context state; see the facing gotcha).
+                        if (r.HFlip && !go.IsCreature)
+                            j.Member("hflip", true);
                         // Qud's out-of-sight (memory) filter: Cell.Render draws an object in a
                         // not-visible/unlit cell ONLY if Render.RenderIfDark. The root Object
                         // blueprint defaults it TRUE (terrain/walls/items remembered); the base
