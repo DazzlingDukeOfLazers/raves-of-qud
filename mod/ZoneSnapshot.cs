@@ -968,6 +968,33 @@ namespace RavesOfQud
 
                         Physics phys = go.GetPart<Physics>();
                         LightSource light = go.GetPart<LightSource>();
+                        string colorOut = r.ColorString ?? "";
+                        string tileColorOut = r.TileColor ?? "";
+                        string detailOut = r.DetailColor ?? "";
+                        // HologramMaterial (holograms/projections) repaints the render colours
+                        // EVERY frame from its cycle ("&C,&b,&c,&B" / "c,C,b,b"); the frame math
+                        // clamps to the LAST entry ~92% of the time, so that IS the steady look
+                        // (the static blueprint '&y' never actually shows; rare '&Y' flickers are
+                        // animation — 1:1 renders the no-animation baseline, like the water sparkle).
+                        try
+                        {
+                            var hm = go.GetPart<HologramMaterial>();
+                            if (hm != null)
+                            {
+                                if (!string.IsNullOrEmpty(hm.ColorStrings))
+                                {
+                                    var pcs = hm.ColorStrings.Split(',');
+                                    colorOut = pcs[pcs.Length - 1];
+                                    tileColorOut = colorOut;
+                                }
+                                if (!string.IsNullOrEmpty(hm.DetailColors))
+                                {
+                                    var pds = hm.DetailColors.Split(',');
+                                    detailOut = pds[pds.Length - 1];
+                                }
+                            }
+                        }
+                        catch { }
                         j.BeginObject()
                             // Identity. Without this an object with no Tile is
                             // unidentifiable on the client — you see a glyph and a
@@ -976,9 +1003,9 @@ namespace RavesOfQud
                             .Member("display", DisplayNameOf(go))
                             .Member("glyph", glyph)
                             .Member("tile", tile)
-                            .Member("color", r.ColorString ?? "")
-                            .Member("tilecolor", r.TileColor ?? "")
-                            .Member("detail", r.DetailColor ?? "")
+                            .Member("color", colorOut)
+                            .Member("tilecolor", tileColorOut)
+                            .Member("detail", detailOut)
                             .Member("layer", r.RenderLayer)
                             .Member("wall", go.IsWall())
                             .Member("solid", phys != null && phys.Solid)
