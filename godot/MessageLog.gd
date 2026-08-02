@@ -21,6 +21,7 @@ var _entries: Array = []         # filter state: [{text, count, quiet, seen}]
 var _seen_total := -1            # total message count last processed (-1 = not yet initialised)
 var _palette := {}   # Qud colour code -> hex, for rendering {{code|text}} markup
 var _rt: RichTextLabel
+var _title: Label                # "Message log" heading — sized "title" in user mode, "body" (= messages) in 1:1
 var _toggle: Button
 var _tiles: RefCounted           # shared tile recolouring for inline message icons (set in _ready)
 var _name_index := {}            # lowercased object name -> object dict (current zone), for icon matching
@@ -48,11 +49,11 @@ func _ready() -> void:
 
 	var head := HBoxContainer.new()
 	v.add_child(head)
-	var title := Label.new()
-	title.text = "Message log"
-	title.add_theme_font_size_override("font_size", UiFont.px(get_viewport(), "title"))
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	head.add_child(title)
+	_title = Label.new()
+	_title.text = "Message log"
+	_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(_title)
+	_apply_title_font()
 	_toggle = Button.new()
 	_toggle.focus_mode = Control.FOCUS_NONE
 	_toggle.pressed.connect(_toggle_mode)
@@ -102,10 +103,17 @@ func set_full_info(full: bool) -> void:
 ## verbatim/filter toggle (Qud has neither). Reverting restores the QoL icons + toggle.
 var _one_to_one := false
 var _saved_filter := false   # user's verbatim/filter choice, restored when leaving 1:1
+## Qud's sidebar draws the "Message log" header at the SAME size as the messages; user mode keeps the
+## larger "title" heading. Sized off the same body role the messages inherit, so they always match.
+func _apply_title_font() -> void:
+	if _title != null:
+		_title.add_theme_font_size_override("font_size", UiFont.px(get_viewport(), "body" if _one_to_one else "title"))
+
 func set_one_to_one(on: bool) -> void:
 	if on == _one_to_one:
 		return
 	_one_to_one = on
+	_apply_title_font()
 	if _toggle != null:
 		_toggle.visible = not on
 	if on:
