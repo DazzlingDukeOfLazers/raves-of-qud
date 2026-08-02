@@ -296,6 +296,35 @@ func set_flat_2d(on: bool) -> void:
 func flat_2d() -> bool:
 	return _flat_2d
 
+# 1:1 (parity) LIGHTING — Qud's rectangular model, measured off the wire + captures:
+# the light byte is BINARY in practice (Light=200 in the sight/source discs, None=1
+# everywhere else; no gradient), unexplored cells draw NOTHING (the field colour shows),
+# explored-but-dark cells draw the terrain DIMMED (Qud's memory look; creatures are
+# never drawn out of sight), and there are no glows/flames/smoke/sun — the lit cells
+# themselves are the lighting. User mode keeps the full 3D stack; these are hard gates
+# so none of it is even LOADED in 1:1.
+var _one_to_one := false
+const DARK_MEMORY_1TO1 := 0.06   # Qud draws remembered terrain near-full colour (measured ~0.94x; Cell.Render passes normal colours out of sight)
+
+# Qud's stage field as actually RENDERED (measured off native captures — palette 'k' plus Qud's
+# own output transform). The user-mode ground keeps the palette-true colour + shading.
+const QUD_FIELD_1TO1 := Color8(17, 52, 51)
+
+func set_one_to_one(on: bool) -> void:
+	if on == _one_to_one:
+		return
+	_one_to_one = on
+	# The ground plane IS Qud's field in 1:1: unshaded (the per-pixel ambient darkened it to
+	# ~(6,30,30)) at the measured field colour. User mode restores the shaded palette-k ground.
+	if _ground_mat != null:
+		if on:
+			_ground_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			_ground_mat.albedo_color = QUD_FIELD_1TO1
+		else:
+			_ground_mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL if SHADED_WORLD else BaseMaterial3D.SHADING_MODE_UNSHADED
+			_ground_mat.albedo_color = _world_bg
+	_drop_all_static()   # Main re-renders right after (same contract as set_flat_2d)
+
 func _ready() -> void:
 	_plane = PlaneMesh.new()
 	_plane.size = Vector2(CELL, CELL)
@@ -563,6 +592,10 @@ func _group_wall_cells(cells: Array, offset: Vector2i, wall_types: Dictionary, w
 ## Pass 2 for ONE cell — floors + verticals (skip walls). This is the heavy, GPU-touching part
 ## (texture recolour, sprites, floor-batch entries); the incremental build calls it in chunks.
 func _place_cell(cell: Dictionary, offset: Vector2i, wall_cells: Dictionary, skip_creatures: bool) -> void:
+	# 1:1: an UNEXPLORED cell draws nothing at all — the field colour is what Qud shows.
+	# (explored defaults true so an older mod build without the field renders as before.)
+	if _one_to_one and not bool(cell.get("explored", true)):
+		return
 	var cx := int(cell.get("x", 0)) + offset.x
 	var cy := int(cell.get("y", 0)) + offset.y
 	var in_wall: bool = wall_cells.has(Vector2i(cx, cy))
@@ -575,6 +608,9 @@ func _place_cell(cell: Dictionary, offset: Vector2i, wall_cells: Dictionary, ski
 	# initial value (the per-turn _relight_static_sprites keeps it fresh); for a FROZEN
 	# neighbour it's the final value — that zone's plants stay dark in memory.
 	var lf := _light_frac(cell)
+	if _one_to_one:
+		lf = 1.0   # 1:1: terrain keeps full colour out of sight (Qud's memory model); the flat
+		           # darkness overlay applies the one small memory dim — no per-sprite bake on top
 	var idx := 0
 	for obj in cell.get("objs", []):
 		if not _is_prism(obj):
@@ -689,6 +725,8 @@ func _rebuild_dynamics(cells: Array) -> void:
 		var sink := _cell_sink(cell)
 		var wet: bool = bool(cell.get("wade", false)) or bool(cell.get("swim", false))
 		var lf: float = _light_frac(cell)   # dim creatures in the dark (night or cavern)
+		if _one_to_one and lf < 0.995:
+			continue   # 1:1: Qud draws creatures only in VISIBLE (lit) cells — never in memory
 		# On the world map the player's card must always read as "you are here" — drawn over
 		# the terrain tiles, never buried behind a hill card. _place_nonwall picks that up.
 		_placing_player = _world_map and Vector2i(cx, cy) == _player_cell
@@ -725,7 +763,8 @@ func _rebuild_dynamics(cells: Array) -> void:
 			break
 	if any_dark:
 		_build_darkness(cells, _dynamic_root)          # fall off to black around light sources
-		_relight_static_sprites(cells)                 # dim trees/brinestalks/fences by cell light
+		if not _one_to_one:
+			_relight_static_sprites(cells)             # dim trees/brinestalks/fences by cell light
 	elif _was_dark:
 		_reset_static_light()                          # dark -> lit: restore full brightness, once
 	_was_dark = any_dark
@@ -812,6 +851,25 @@ func _build_darkness(cells: Array, parent: Node, clear_player := Vector2i(-9999,
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var any := false
+	# 1:1: Qud's RECTANGULAR model — per-cell flat quads only, binary in practice
+	# (light is 200 or 1 on the wire). A VISIBLE cell gets no overlay; an explored-dark
+	# cell gets the flat memory dim (DARK_MEMORY_1TO1, terrain stays readable like Qud's
+	# remembered map); an unexplored cell drew nothing (no overlay needed). No wall-face
+	# quads (flat mode has no wall geometry) and no faint-memory floor for true darks.
+	if _one_to_one:
+		for cell in cells:
+			if not bool(cell.get("explored", true)):
+				continue
+			var k := Vector2i(int(cell.get("x", 0)), int(cell.get("y", 0)))
+			var a := (1.0 - float(frac[k])) * DARK_MEMORY_1TO1
+			if a >= 0.02:
+				_dark_quad(st, float(k.x), float(k.y), DARK_FLOOR_Y, a); any = true
+		if any:
+			var mi1 := MeshInstance3D.new()
+			mi1.mesh = st.commit()
+			mi1.material_override = _dark_material()
+			parent.add_child(mi1)
+		return
 	for cell in cells:
 		var k := Vector2i(int(cell.get("x", 0)), int(cell.get("y", 0)))
 		var cx := float(k.x)
@@ -1226,6 +1284,9 @@ func _override_for(tile: String) -> String:
 ## An additive warm glow on the ground (the "light") plus a small flickering flame
 ## above the sconce. Qud's radius is in cells; 1 cell == 1 world unit.
 func _place_light(cx: int, cy: int, radius: float, smokes := true, on_fire := false) -> void:
+	if _one_to_one:
+		return   # 1:1: Qud has no glow pools / flames / smoke — the rectangular lit cells ARE
+		         # the light. Hard gate so none of this geometry is even created.
 	if _world_map:
 		return   # the parasang overview is flat and fully lit; a flickering torch glow on a
 		         # world tile (e.g. a glowfish parasang) just oscillates distractingly — skip it.
@@ -1398,6 +1459,8 @@ func _fish_rand(cx: int, cy: int, i: int, salt: int) -> float:
 ## A cluster of glowing motes on tilted, elliptical, varied-speed orbits — "bugs circling
 ## in weird orbits". Positions are animated in _process; here we just spawn + seed them.
 func _make_orbiters(cx: int, cy: int) -> void:
+	if _one_to_one:
+		return   # 1:1: no particle motes — Qud draws only the glowfish tile
 	var root := Node3D.new()
 	root.position = Vector3(cx, ORBIT_CENTER_Y, cy)
 	var motes: Array = []

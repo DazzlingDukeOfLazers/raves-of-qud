@@ -881,6 +881,7 @@ namespace RavesOfQud
                         // None=1 .. Light=200 ..). The client uses this underground to fall
                         // off to black away from sources, matching what Qud shows.
                         .Member("light", (int)c.GetLight())
+                        .Member("explored", c.IsExplored())
                     .Name("objs").BeginArray();
 
                     // Qud's painted ground goes first: it is the bottom of the

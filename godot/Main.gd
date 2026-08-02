@@ -585,6 +585,11 @@ func set_one_to_one(on: bool) -> void:
 			_set_mode(CamMode.TOP_FOLLOW, true)   # the Qud-faithful 1:1 top-down (ONE_TO_ONE_SPAN)
 	elif render_3d and _saved_cam_mode >= 0:
 		_set_mode(_saved_cam_mode, true)          # back to the user's camera
+	# Lighting half: 1:1 uses Qud's rectangular model (see ZoneRenderer) — no glow pools, flames,
+	# smoke or motes are LOADED, unexplored cells draw nothing, explored-dark cells get the flat
+	# memory dim. Set BEFORE the flat rebuild below so the rebuild uses the 1:1 light rules.
+	if renderer != null:
+		renderer.set_one_to_one(on)
 	# Tile half: Qud renders every tile FLAT, as loaded — the voxel walls / stretched-UV 3D look is a
 	# user-mode feature. 1:1 forces the flat path (which also renders ONLY the live zone — see
 	# _neighbor_zones); leaving 1:1 restores whatever the user had. Ordered after the camera flip so
@@ -592,10 +597,9 @@ func set_one_to_one(on: bool) -> void:
 	# is locked while on, so go through _apply_flat_2d directly.)
 	if on:
 		_saved_flat_2d = _flat_2d
-		if not _flat_2d:
-			_apply_flat_2d(true)
-	elif _flat_2d != _saved_flat_2d:
-		_apply_flat_2d(_saved_flat_2d)
+		_apply_flat_2d(true)               # rebuild even if already flat — the light rules changed
+	else:
+		_apply_flat_2d(_saved_flat_2d)     # ditto on exit
 	one_to_one_changed.emit(on)
 
 func toggle_one_to_one() -> void:
