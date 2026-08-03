@@ -18,6 +18,7 @@ rules to work safely here. Subsystem facts live in the linked docs; the deep deb
 | [`docs/gotchas.md`](docs/gotchas.md) | non-obvious invariants + "adding X → verify Y" checklists |
 | [`docs/roadmap.md`](docs/roadmap.md) | forward strategy (the world-store pivot) |
 | [`docs/goals.md`](docs/goals.md) | version-tagged milestone goals — **V3 = full 1:1 parity across the state tree** (the reusable per-screen pattern) |
+| [`docs/phase2-test-plan.md`](docs/phase2-test-plan.md) | Phase 2 DoW — Object Checker, Proving Grounds test world, PC save/fixture split, then startup stability → menus |
 | [`docs/decisions/`](docs/decisions/) | the war-story debugging record — the *why* behind the rules below |
 
 **Before adding a feature, skim [`docs/gotchas.md`](docs/gotchas.md)** — most entries cost a debugging
