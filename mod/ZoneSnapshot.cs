@@ -519,6 +519,18 @@ namespace RavesOfQud
                 try { j.Member("hp", t.hitpoints).Member("hpMax", t.baseHitpoints); } catch { }
                 try { var pc = t.CurrentCell; if (pc != null) j.Member("x", pc.X).Member("y", pc.Y); } catch { }
                 try { j.Member("hostile", t.IsHostileTowards(player)); } catch { }
+                // Disposition colour for the TARGET-HIGHLIGHT blink (Cell.RenderTarget's rules):
+                // self ^B / party ^b / hostile ^r / neutral ^g. The client blinks a bg fill at
+                // (x,y) in Qud's ~250ms CurrentFrame windows.
+                try
+                {
+                    string tc = "g";
+                    if (t.IsPlayer()) tc = "B";
+                    else if (t.Brain != null && t.Brain.PartyLeader != null && t.Brain.PartyLeader.IsPlayer()) tc = "b";
+                    else if (t.Brain != null && t.Brain.IsHostileTowards(player)) tc = "r";
+                    j.Member("tcolor", tc);
+                }
+                catch { }
                 // PERCEIVED descriptors — exactly what Qud's look/target line shows, colour markup kept:
                 //   wound      = Strings.WoundLevel (the health WORD, e.g. Perfect/Injured; becomes exact
                 //                hp AV/DV only if the player has scanning for the target — Qud's own rule)
@@ -1016,23 +1028,48 @@ namespace RavesOfQud
                         catch { }
                         // SoupSludge (monosludges): a NON-hero sludge appends its component
                         // liquid's colour EVERY frame (SoupSludge.Render) — for a MONOsludge
-                        // that IS the steady body colour (sugar -> gold). Heroes blink 50/50
-                        // and multi-liquid sludges cycle at 240ms/liquid — no steady phase,
-                        // so those keep the base colours (see reports/2026-08-02-monosludge-*).
+                        // that IS the steady body colour (sugar -> gold). Heroes blink 240/240ms
+                        // and multi-liquid sludges cycle at 240ms/liquid — no steady phase, so
+                        // those keep base colours AND ship the cycle for the client's animator
+                        // (see reports/2026-08-02-monosludge-*).
+                        string animCycle = null;
+                        bool animHero = false;
                         try
                         {
                             var sl = go.GetPart<SoupSludge>();
-                            if (sl != null && sl.ComponentLiquids != null && sl.ComponentLiquids.Count == 1
-                                && !go.HasIntProperty("Hero") && !go.HasPart<GivesRep>())
+                            if (sl != null && sl.ComponentLiquids != null && sl.ComponentLiquids.Count > 0)
                             {
+                                animHero = go.HasIntProperty("Hero") || go.HasPart<GivesRep>();
                                 // NB GetLiquid/StringMap indexers take ReadOnlySpan<char> — CS7069
                                 // from the mod's target framework (Qud's own compiler accepts them,
                                 // dotnet build doesn't). GetLiquidColors(string) is span-free, and
                                 // GetColor() == Colors[0] across the liquids (checked blood/oil/water).
-                                var slcs = LiquidVolume.GetLiquidColors(sl.ComponentLiquids[0]);
-                                string slc = (slcs != null && slcs.Count > 0) ? slcs[0] : null;
-                                if (!string.IsNullOrEmpty(slc))
-                                    colorOut = colorOut + "&" + slc;   // compound: fg = last '&', like Qud
+                                var lets = new System.Collections.Generic.List<string>();
+                                foreach (string lid in sl.ComponentLiquids)
+                                {
+                                    var lcs = LiquidVolume.GetLiquidColors(lid);
+                                    if (lcs != null && lcs.Count > 0) lets.Add(lcs[0]);
+                                }
+                                if (lets.Count > 0)
+                                {
+                                    animCycle = string.Join(",", lets.ToArray());
+                                    if (!animHero && lets.Count == 1)
+                                        colorOut = colorOut + "&" + lets[0];   // steady mono body (compound: fg = last '&')
+                                }
+                            }
+                        }
+                        catch { }
+                        // Smear flash (the animator's 9-in-60 colour flash on liquid-covered
+                        // objects): only the liquids whose RenderSmearPrimary actually recolours —
+                        // convalessence '&C', protean gunk '&c'. LiquidWater's smear is a no-op.
+                        string animSmear = null;
+                        try
+                        {
+                            var cov = go.GetEffect<XRL.World.Effects.LiquidCovered>();
+                            if (cov != null && cov.Duration > 0 && cov.Liquid != null)
+                            {
+                                if (cov.Liquid.Primary == "convalessence") animSmear = "C";
+                                else if (cov.Liquid.Primary == "proteangunk") animSmear = "c";
                             }
                         }
                         catch { }
@@ -1117,6 +1154,14 @@ namespace RavesOfQud
                         // the resolved flag only when FALSE — the client hides these from memory.
                         if (!r.RenderIfDark)
                             j.Member("hideDark", true);
+                        // Animation descriptors for the client's 1:1 animator (only sent when set).
+                        if (animCycle != null)
+                        {
+                            j.Member("animCycle", animCycle);
+                            if (animHero) j.Member("animHero", true);
+                        }
+                        if (animSmear != null)
+                            j.Member("animSmear", animSmear);
                         // Qud's Swimming effect: an aquatic-limited creature (eel, glowfish) renders
                         // over its supporting liquid's BACKGROUND colour. Ask the liquid itself
                         // (RenderBackgroundPrimary/Secondary on a scratch event — water prepends "^b";

@@ -38,6 +38,11 @@ Composited systems in a sludge cell:
    (A 1-px column of green in the (39,12) crops was cell-boundary rounding bleed from the
    targeted neighbour — cw = 20.25 px doesn't land on integers; account for it when cropping.)
 
+> **UPDATE (same day):** the animation pass LANDED — ZoneRenderer's 1:1 animator drives the
+> target-highlight blink, smear flashes, hero-sludge blink, multi-liquid cycles, and pool
+> sparkles as overlay quads over the batched steady base (wire: tcolor / animSmear /
+> animCycle+animHero). The section below describes the pre-animator state.
+
 ## What Raves renders today (policy + gaps)
 
 The 1:1 no-animation baseline ships static fields (`&c`/`C`) → Raves shows a steady TEAL body.

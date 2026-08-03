@@ -18,7 +18,7 @@ namespace RavesOfQud
         /// no way to tell from the outside whether the running code included a
         /// given fix. Every snapshot now says. Bump this when changing the mod.
         /// </summary>
-        public const string Build = "2026-07-29 embark-drive";
+        public const string Build = "2026-08-02 anim-pass";
 
         /// <summary>
         /// Monotonic WIRE version — bump whenever a change to the snapshot format makes a newer client

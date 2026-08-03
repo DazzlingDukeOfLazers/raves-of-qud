@@ -458,6 +458,15 @@ func _static_signature(cells: Array) -> int:
 func render_snapshot(data: Dictionary, neighbors: Array = []) -> void:
 	_tiles_dir = String(data.get("tilesDir", ""))
 
+	# Current combat target (for the 1:1 target-highlight blink). Captured before the
+	# dynamics rebuild consumes it; pos + disposition colour letter from the mod.
+	var tgt: Dictionary = data.get("target", {})
+	if bool(tgt.get("present", false)) and tgt.has("x") and tgt.has("y"):
+		_anim_target = {"pos": Vector2i(int(tgt.get("x", 0)), int(tgt.get("y", 0))),
+			"color": String(tgt.get("tcolor", "g"))}
+	else:
+		_anim_target = {}
+
 	# Qud's real palette, sent by the mod. Base/Colors.xml names the colours but
 	# has no RGB, so COLORS below is a hand-estimate kept only as a fallback for
 	# an older mod build. Changing the palette invalidates every recoloured tile.
@@ -639,6 +648,17 @@ func _place_cell(cell: Dictionary, offset: Vector2i, wall_cells: Dictionary, ski
 # Small lift for the dynamic pass's full-colour floor quads so they cover the static ghost
 # quads at the same cell (statics and dynamics share the layer-height scheme otherwise).
 var _dyn_lift_1to1 := 0.0
+
+# --- 1:1 animation pass (Qud's per-frame render programs, emulated on wall clock) ---
+# Rebuilt every dynamics pass; overlay nodes are children of _dynamic_root, so the
+# rebuild's free() reclaims them — these arrays only hold references for the animator.
+# Phases won't match Qud's frame counter (unsyncable), but duty cycles and periods do.
+var _anim_items: Array = []        # [{kind:"smear"|"blink", node} | {kind:"cycle", nodes:[...]}]
+var _anim_pool_cells: Array = []   # [{cx, cy, tile, key, y}] — sparkle candidates (liquid winners)
+var _anim_target: Dictionary = {}  # {pos: Vector2i, color: letter} from the snapshot's target block
+var _anim_tnode: MeshInstance3D = null   # the target-highlight bg quad (blinks)
+var _sparkle_pool: Array = []      # reusable one-frame white-flash quads
+var _sparkle_lit: Array = []       # sparkles shown this frame; hidden next tick
 const DYN_LIFT_1TO1 := 0.02
 
 ## An object's K/k ghost variant — Qud's out-of-sight recolour (Cell.Render's final block:
@@ -745,6 +765,11 @@ func _rebuild_dynamics(cells: Array) -> void:
 	for c in _dynamic_root.get_children():
 		c.free()
 	_orbiters.clear()           # those orbiter roots were children of _dynamic_root (just freed)
+	_anim_items.clear()         # animator registries: nodes were _dynamic_root children (freed above)
+	_anim_pool_cells.clear()
+	_anim_tnode = null
+	_sparkle_pool.clear()
+	_sparkle_lit.clear()
 	_bank = _dynamic_root
 	_noting = false
 	_dyn_placed.clear()         # record this turn's creatures for the inspector
@@ -793,6 +818,8 @@ func _rebuild_dynamics(cells: Array) -> void:
 					# '&y' is the GLYPH colour; Qud draws the player's TILE white main + data detail.
 					win = win.duplicate()
 					win["fgHex"] = "#ffffff"
+				if full_1to1:
+					_register_anim(win, cx, cy)
 				if full_1to1 and win.has("aquaBg"):
 					# Qud's Swimming effect: an aquatic-limited creature (eel, glowfish) renders
 					# over its supporting liquid's background colour, not the bare floor.
@@ -820,6 +847,12 @@ func _rebuild_dynamics(cells: Array) -> void:
 					_make_orbiters(cx, cy)     # bioluminescent bugs circling the fish
 			idx += 1
 	_placing_player = false
+	# Target-highlight blink: a bg fill under the current combat target's cell, toggled by the
+	# animator in Qud's ~250ms windows (Cell.RenderTarget; colour = disposition, from the wire).
+	if _one_to_one and not _anim_target.is_empty():
+		var tp: Vector2i = _anim_target["pos"]
+		_anim_tnode = _overlay_quad(null, tp.x, tp.y, FLOOR_Y + 0.25 * LAYER_LIFT, false,
+			_qud_color("&" + String(_anim_target["color"])))
 	if _flat_2d:
 		_flush_floor_batch()   # 2D: creatures went to floor quads this turn — emit them into _dynamic_root
 	_dyn_noting = false
@@ -1632,6 +1665,8 @@ func _add_glow(s: Sprite3D, tex: Texture2D) -> void:
 ## Flicker: jitter each light's brightness a little every frame, so torches read
 ## as fire rather than steady lamps. Cheap — modulate the additive quads' alpha.
 func _process(_dt: float) -> void:
+	if _one_to_one:
+		_animate_1to1()          # Qud's per-frame render programs (blinks, flashes, sparkles)
 	if _ib_active:
 		_ib_step()               # advance the incremental live-static build one chunk per frame
 	var gmul := _glow_mul()      # daylight dimming, recomputed once per frame
@@ -3563,6 +3598,126 @@ func _floor_batch_add(mat: Material, xform: Transform3D) -> void:
 
 ## Emit the queued floors as one MultiMesh per material into the current bank, then clear.
 ## Called at the end of each static/neighbour build (while _bank is still set).
+# --- 1:1 animator ------------------------------------------------------------------
+## Register the placed winner's animation programs (called from the 1:1 winner path,
+## visible+lit cells only). Overlays are individual quads over the batched steady base.
+func _register_anim(win: Dictionary, cx: int, cy: int) -> void:
+	var tile := String(win.get("tile", ""))
+	if tile == "":
+		return
+	var y_over := FLOOR_Y + float(win.get("layer", 0)) * LAYER_LIFT + LAYER_LIFT * 0.5 + _dyn_lift_1to1
+	var flip := bool(win.get("hflip", false))
+	# Smear flash: liquid-covered objects flash the covering liquid's colour 9 frames in 60
+	# (convalessence '&C', protean gunk '&c' — RenderSmearPrimary; water's smear is a no-op).
+	var sm := String(win.get("animSmear", ""))
+	if sm != "":
+		var fc := _qud_color("&" + sm)
+		var tex := _colored_tex_rgb(tile, fc, fc, "anim~s" + sm + "~" + _color_key(win), _fill_for(tile, Fill.NONE))
+		if tex != null:
+			_anim_items.append({"kind": "smear", "node": _overlay_quad(tex, cx, cy, y_over, flip)})
+	# Sludge programs (SoupSludge.Render): hero = 240ms component-colour / 240ms base blink;
+	# multi-liquid non-hero = 240ms-per-colour cycle (mono non-hero is steady — wired, no overlay).
+	var cyc := String(win.get("animCycle", ""))
+	if cyc != "":
+		var letters := cyc.split(",")
+		if bool(win.get("animHero", false)):
+			var fch := _qud_color("&" + String(letters[0]))
+			var texh := _colored_tex_rgb(tile, fch, _obj_detail(win), "anim~h" + String(letters[0]) + "~" + _color_key(win), _fill_for(tile, Fill.NONE))
+			if texh != null:
+				_anim_items.append({"kind": "blink", "node": _overlay_quad(texh, cx, cy, y_over, flip)})
+		elif letters.size() > 1:
+			var nodes: Array = []
+			for L in letters:
+				var fcl := _qud_color("&" + String(L))
+				var texl := _colored_tex_rgb(tile, fcl, _obj_detail(win), "anim~c" + String(L) + "~" + _color_key(win), _fill_for(tile, Fill.NONE))
+				if texl != null:
+					nodes.append(_overlay_quad(texl, cx, cy, y_over, flip))
+			if not nodes.is_empty():
+				_anim_items.append({"kind": "cycle", "nodes": nodes})
+	# Pool sparkle candidate: a liquid winning its cell rolls Qud's 1/600 white flash.
+	if bool(win.get("liquid", false)):
+		_anim_pool_cells.append({"cx": cx, "cy": cy, "tile": tile, "key": _color_key(win), "y": y_over})
+
+## One unbatched cell-sized quad for the animator (hidden until its program shows it).
+## tex null + col set = a flat colour fill (the target highlight).
+func _overlay_quad(tex: Texture2D, cx: int, cy: int, y: float, flip := false, col := Color(0, 0, 0, 0)) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.mesh = _plane
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	if tex != null:
+		m.albedo_texture = tex
+		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	elif col.a > 0.0:
+		m.albedo_color = col
+	mi.material_override = m
+	mi.position = Vector3(cx, y, cy)
+	if flip:
+		mi.scale = Vector3(-1, 1, 1)
+	mi.visible = false
+	_dynamic_root.add_child(mi)
+	return mi
+
+## Per-frame driver (from _process, 1:1 only). qf emulates Qud's CurrentFrame (60/s wrap);
+## phases can't sync with Qud's counter, but every duty cycle and period matches.
+func _animate_1to1() -> void:
+	var ms := Time.get_ticks_msec()
+	var qf := int(ms * 0.06) % 60
+	if _anim_tnode != null and is_instance_valid(_anim_tnode):
+		_anim_tnode.visible = (qf < 15) or (qf >= 30 and qf < 45)   # RenderTarget's blink windows
+	for it in _anim_items:
+		var kind := String(it["kind"])
+		if kind == "smear":
+			var n := it["node"] as MeshInstance3D
+			if is_instance_valid(n):
+				n.visible = qf > 5 and qf < 15
+		elif kind == "blink":
+			var n2 := it["node"] as MeshInstance3D
+			if is_instance_valid(n2):
+				n2.visible = (ms % 480) < 240
+		elif kind == "cycle":
+			var nodes: Array = it["nodes"]
+			if not nodes.is_empty():
+				var idx := int(ms / 240.0) % nodes.size()
+				for i in nodes.size():
+					var nn := nodes[i] as MeshInstance3D
+					if is_instance_valid(nn):
+						nn.visible = i == idx
+	# Pool sparkles: expected fires/frame = cells/600 (Qud's per-cell 1/600 roll), one-frame white.
+	for s in _sparkle_lit:
+		if is_instance_valid(s):
+			(s as MeshInstance3D).visible = false
+	_sparkle_lit.clear()
+	var n3 := _anim_pool_cells.size()
+	if n3 > 0:
+		var expect := n3 / 600.0
+		var fires := int(expect) + (1 if randf() < expect - floorf(expect) else 0)
+		fires = mini(fires, 4)
+		for _i in fires:
+			var pc: Dictionary = _anim_pool_cells[randi() % n3]
+			var tw := String(pc["tile"])
+			var fcw := _qud_color("&Y")
+			var texw := _colored_tex_rgb(tw, fcw, fcw, "anim~Y~" + String(pc["key"]), _fill_for(tw, Fill.NONE))
+			if texw == null:
+				continue
+			var q := _take_sparkle()
+			(q.material_override as StandardMaterial3D).albedo_texture = texw
+			(q.material_override as StandardMaterial3D).texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+			(q.material_override as StandardMaterial3D).transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+			q.position = Vector3(int(pc["cx"]), float(pc["y"]) + LAYER_LIFT * 0.25, int(pc["cy"]))
+			q.visible = true
+			_sparkle_lit.append(q)
+
+func _take_sparkle() -> MeshInstance3D:
+	for s in _sparkle_pool:
+		if is_instance_valid(s) and not (s as MeshInstance3D).visible:
+			return s
+	var q := _overlay_quad(null, 0, 0, 0.0)
+	_sparkle_pool.append(q)
+	return q
+
 func _flush_floor_batch() -> void:
 	for mat in _floor_batch:
 		var xforms: Array = _floor_batch[mat]
