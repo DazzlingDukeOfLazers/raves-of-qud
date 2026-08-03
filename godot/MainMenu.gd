@@ -51,12 +51,12 @@ const Q_DLG_CELL := Color8(0x11, 0x2D, 0x2E)          # faint Yes/No cell fill ~
 ## bottom borders, and the gilded hieroglyph header on top. These fractions are each
 ## piece's thickness relative to the box, from the dump (borderTop 350x69, borderSide
 ## 18-wide, borderBot 339x18 on a 339x292 border). Absent sprites -> the styled fallback.
-const HEADER_H_FRAC := 0.185   # borderTop height / box height
+const HEADER_H_FRAC := 0.198   # borderTop height / box height (native 69px on the 349px box)
 const SIDE_W_FRAC := 0.052     # borderSide width / box width
 const BOT_H_FRAC := 0.052      # borderBot height / box height
 ## Qud's header (borderTop 350w) OVERHANGS the box body (339w) by ~1.6% each side — the gilded
 ## header + hieroglyph row are wider than the box, an eave. Applied to the header edge below.
-const HEADER_OVERHANG := 0.016  # fraction of box width the header extends BEYOND each side (matches Qud)
+const HEADER_OVERHANG := 0.024  # (350-334)/2/334 — native sprite width vs box body
 
 ## The box holds a FIXED aspect and scales with window HEIGHT (centered), like Qud's canvas
 ## scaler — so it reads the same shape at any window aspect instead of stretching. Width =
@@ -279,6 +279,9 @@ func _build_logo() -> void:
 		var r := TextureRect.new()
 		r.texture = tex
 		r.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		# THE TextureRect gotcha, again: without this the wordmark rendered at NATIVE
+		# texture size (8% oversized + off-centre), silently ignoring the layout rect
+		r.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		r.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(r)
 		_place(r, "logo")
@@ -316,10 +319,10 @@ func _build_menu() -> void:
 	# middle (the header eats the top, so Qud centres the items a touch low).
 	var opts := VBoxContainer.new()
 	opts.alignment = BoxContainer.ALIGNMENT_CENTER
-	opts.add_theme_constant_override("separation", 2)
+	opts.add_theme_constant_override("separation", 7 if Settings.one_to_one() else 2)   # ElliotSans pitch 46 like Qud
 	opts.anchor_left = 0.09
 	opts.anchor_right = 0.91
-	opts.anchor_top = HEADER_H_FRAC + 0.0345
+	opts.anchor_top = 0.2195   # decoupled from HEADER_H_FRAC: rows measured aligned to Qud
 	opts.anchor_bottom = 1.0 - (BOT_H_FRAC + 0.0355)
 	for k in ["left", "top", "right", "bottom"]:
 		opts.set("offset_" + k, 0.0)
@@ -411,6 +414,7 @@ func _edge(tex: Texture2D, mode: int, al: float, at: float, ar: float, ab: float
 	# panel tile fell short, and the header rendered at native width. IGNORE_SIZE makes it fill the
 	# anchored sub-rect (so stretch_mode actually applies).
 	r.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	r.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST   # crisp checker/hieroglyphs, like Qud
 	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	r.anchor_left = al
 	r.anchor_top = at
@@ -463,6 +467,7 @@ func _option_button(cfg: Dictionary) -> Button:
 	var idx := _rows.size()
 	b.mouse_entered.connect(func(): _select(idx))
 	b.pressed.connect(func(): _activate(idx))
+	_apply_elliot(b, "Medium", 28)
 	return b
 
 func _transparent() -> StyleBoxFlat:
@@ -497,6 +502,7 @@ func _build_links() -> void:
 	for txt in LINK_ITEMS:
 		var l := _label(txt, MUTED, "title")
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		_apply_elliot(l, "Regular", 19)
 		v.add_child(l)
 	add_child(v)
 	_place(v, "links")
@@ -570,6 +576,7 @@ func _build_hint() -> void:
 		# inline it at the head of the centred hint.
 		var ih := int(round(UiFont.px(get_viewport(), "caption") * 1.15))
 		var icon := _nav_icon_texture(ih, GOLD)
+		_apply_elliot(l, "Regular", 17)
 		l.push_paragraph(HORIZONTAL_ALIGNMENT_CENTER)
 		l.add_image(icon, icon.get_width(), icon.get_height())
 		l.append_text(tail)
@@ -622,6 +629,7 @@ func _build_version_qud() -> void:
 	var bld := "#%s" % HINT.to_html(false)    # build: readable teal-grey (Qud's is too dark)
 	l.text = "[right][color=%s]%s[/color]\n[color=%s]build %s[/color][/right]" % [
 		ver, Brand.QUD_VERSION, bld, Brand.QUD_BUILD]
+	_apply_elliot(l, "Regular", 16)
 	add_child(l)
 	_place(l, "version")
 
@@ -928,6 +936,8 @@ func _close_overlay() -> void:
 		_overlay.queue_free()
 		_overlay = null
 	UiState.set_scene("title")
+	# NB selection persists across a screen round-trip in Qud (return from Mods ->
+	# "Mods" still white) — measured; do NOT deselect here.
 
 # ── chargen flow (WIP) ────────────────────────────────────────────────────────────
 # The interactive character creator as a chain of stage screens: Genotype → Subtype → …
@@ -1144,6 +1154,37 @@ func _set_game_live(live: bool) -> void:
 	_refresh_enabled()
 
 # ── UI helpers ──────────────────────────────────────────────────────────────────
+
+# ── ElliotSans — Qud's modern-UI proportional font, carved from the player's own
+# install into title/chrome/ (never redistributed; falls back to the theme font).
+# The title menu / links / hint / version are NOT Source Code Pro in Qud.
+var _elliot_fonts := {}
+
+func _elliot(weight: String) -> FontFile:
+	if _elliot_fonts.has(weight):
+		return _elliot_fonts[weight]
+	var path := InputModel.support_dir().path_join("title").path_join("chrome").path_join("ElliotSans-%s.ttf" % weight)
+	if not FileAccess.file_exists(path):
+		return null
+	var f := FontFile.new()
+	if f.load_dynamic_font(path) != OK:
+		return null
+	_elliot_fonts[weight] = f
+	return f
+
+## Apply ElliotSans to a control in 1:1 mode (no-op otherwise / when not extracted).
+func _apply_elliot(c: Control, weight: String, size: int) -> void:
+	if not Settings.one_to_one():
+		return
+	var f := _elliot(weight)
+	if f == null:
+		return
+	if c is RichTextLabel:
+		c.add_theme_font_override("normal_font", f)
+		c.add_theme_font_size_override("normal_font_size", size)
+	else:
+		c.add_theme_font_override("font", f)
+		c.add_theme_font_size_override("font_size", size)
 
 func _label(txt: String, col := Color.WHITE, role := "body") -> Label:
 	var l := Label.new()
