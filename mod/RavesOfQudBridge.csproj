@@ -42,7 +42,15 @@
     <Reference Include="$(CoQManaged)/UnityEngine.CoreModule.dll" Private="false" />
     <Reference Include="$(CoQManaged)/UnityEngine.dll" Private="false" />
     <Reference Include="$(CoQManaged)/UnityEngine.ImageConversionModule.dll" Private="false" />
+    <Reference Include="$(CoQManaged)/UnityEngine.UI.dll" Private="false" />
+    <Reference Include="$(CoQManaged)/UnityEngine.UIModule.dll" Private="false" />
     <Reference Include="$(CoQManaged)/UnityEngine.ScreenCaptureModule.dll" Private="false" />
+    <Reference Include="$(CoQManaged)/Unity.TextMeshPro.dll" Private="false" />  <!-- ControlledTMPInputField (popup text-entry) -->
+    <Reference Include="$(CoQManaged)/UnityEngine.InputLegacyModule.dll" Private="false" />  <!-- Input.mousePosition transitive -->
+    <Reference Include="$(CoQManaged)/UnityEngine.TextRenderingModule.dll" Private="false" />  <!-- TMP transitive -->
+    <Reference Include="$(CoQManaged)/UnityEngine.IMGUIModule.dll" Private="false" />  <!-- TMP transitive -->
+    <Reference Include="$(CoQManaged)/UnityEngine.TextCoreTextEngineModule.dll" Private="false" />  <!-- TMP transitive -->
+    <Reference Include="$(CoQManaged)/UnityEngine.TextCoreFontEngineModule.dll" Private="false" />  <!-- TMP transitive -->
   </ItemGroup>
 
 </Project>

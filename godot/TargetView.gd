@@ -29,7 +29,7 @@ var _last_data := {}          # so the toggle re-renders without waiting for a n
 func _ready() -> void:
 	_tiles = load("res://QudTiles.gd").new()
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.09, 0.10, 0.13)
+	sb.bg_color = QudPalette.CHROME
 	sb.set_border_width_all(1)
 	sb.border_color = Color(1, 1, 1, 0.12)
 	sb.set_corner_radius_all(3)
@@ -43,10 +43,10 @@ func _ready() -> void:
 	v.add_theme_constant_override("separation", 4)
 	add_child(v)
 
-	var title := Label.new()
-	title.text = "Target"
-	title.add_theme_font_size_override("font_size", UiFont.px(get_viewport(), "title"))
-	v.add_child(title)
+	_title = Label.new()
+	_title.text = "Target"
+	_title.add_theme_font_size_override("font_size", UiFont.px(get_viewport(), "title"))
+	v.add_child(_title)
 
 	# Two columns: the target SPRITE (left) and its info (right).
 	var body := HBoxContainer.new()
@@ -70,7 +70,8 @@ func _ready() -> void:
 	_rt_name.bbcode_enabled = true
 	_rt_name.fit_content = true
 	_rt_name.scroll_active = false
-	_rt_name.selection_enabled = true
+	_rt_name.selection_enabled = false   # selectable RTLs grab focus on click -> arrows stop (command-bar rule)
+	_rt_name.focus_mode = Control.FOCUS_NONE
 	_rt_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	right.add_child(_rt_name)
 
@@ -78,7 +79,8 @@ func _ready() -> void:
 	_rt_desc.bbcode_enabled = true
 	_rt_desc.fit_content = true
 	_rt_desc.scroll_active = false
-	_rt_desc.selection_enabled = true
+	_rt_desc.selection_enabled = false
+	_rt_desc.focus_mode = Control.FOCUS_NONE
 	_rt_desc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	right.add_child(_rt_desc)
 
@@ -108,6 +110,33 @@ func _ready() -> void:
 	right.add_child(_l_dir)
 
 ## MainFrame calls this each snapshot with the full data (needs target + player + palette).
+## 1:1: drop the rounded QoL box so the continuous bottom-strip chrome shows through (Qud has no per-panel
+## box). Keeps the content margins. User mode restores the framed look.
+var _title: Label
+var _one_to_one := false
+
+func set_one_to_one(on: bool) -> void:
+	_one_to_one = on
+	if _title != null:
+		_title.visible = not on   # 1:1: title folds into the name row ("Target: [none]")
+	if not _last_data.is_empty():
+		_render()
+	var cur := get_theme_stylebox("panel")
+	if cur is StyleBoxFlat:
+		var f: StyleBoxFlat = (cur as StyleBoxFlat).duplicate()
+		if on:
+			f.bg_color = Color(0, 0, 0, 0)
+			f.set_border_width_all(0)
+			f.set_corner_radius_all(0)
+			f.content_margin_top = 2
+			f.content_margin_bottom = 2
+		else:
+			f.bg_color = QudPalette.CHROME
+			f.set_border_width_all(1)
+			f.border_color = Color(1, 1, 1, 0.12)
+			f.set_corner_radius_all(3)
+		add_theme_stylebox_override("panel", f)
+
 func set_snapshot(data: Dictionary) -> void:
 	_last_data = data
 	var pal: Dictionary = data.get("palette", {})
@@ -122,7 +151,8 @@ func _render() -> void:
 		_show_none()
 		return
 
-	_rt_name.text = QudText.to_bbcode(String(t.get("display", "")), _palette)
+	var _pfx := "[color=#3b596b]TARGET:[/color] " if _one_to_one else ""
+	_rt_name.text = _pfx + QudText.to_bbcode(String(t.get("display", "")), _palette)
 
 	# Left column: the recoloured target sprite — perceived icon by default, real icon in full mode.
 	_tiles.tiles_dir = String(data.get("tilesDir", _tiles.tiles_dir))
@@ -157,7 +187,8 @@ func _render() -> void:
 	_l_dir.visible = _l_dir.text != ""
 
 func _show_none() -> void:
-	_rt_name.text = "[color=%s][none][/color]" % DIM
+	var _pfx := "[color=#3b596b]TARGET:[/color] " if _one_to_one else ""
+	_rt_name.text = _pfx + "[color=%s][none][/color]" % DIM
 	_sprite.visible = false
 	_rt_desc.visible = false
 	_hp_row.visible = false

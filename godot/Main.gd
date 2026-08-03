@@ -32,6 +32,10 @@ signal snapshot(data: Dictionary)
 ## keeps the name Cell.
 
 var client: BridgeClient
+var _wish_layer: CanvasLayer    # Ctrl+Shift+W wish prompt overlay (built lazily), sends "wish" to Qud
+var _wish_edit: LineEdit
+var _popup: PopupOverlay        # mirrors Qud modal popups forwarded by the mod (own file)
+var _palette := {}              # latest Qud colour map (code -> hex) from snapshots, for popup markup
 var _char_creator: CharacterCreator
 var renderer: ZoneRenderer
 var store := WorldStore.new()   # Phase-0 world store; renderer reads the live zone from it
@@ -57,8 +61,8 @@ const LEVEL_KEEP_DOWN := 2
 # CameraRig.CamMode exactly. `_cam_rig._mode` is the live mode. (Stage 1 of the Main.gd decomposition.)
 enum CamMode { COMPASS, FOLLOW, FIRST_PERSON, CINEMATIC, MOUSE, KEYBOARD, TOP_FOLLOW }
 var _cam_rig                    # CameraRig (Node3D, loaded); created in _ready. Untyped so the headless
-                                # --check-only stays deterministic (a class_name's cache is flaky there);
-                                # locals off _cam_rig.* therefore need explicit types, not `:=`.
+								# --check-only stays deterministic (a class_name's cache is flaky there);
+								# locals off _cam_rig.* therefore need explicit types, not `:=`.
 var _multiview                  # Multiview (Node, loaded); the all-views grid. Created in _ready.
 var _remote                     # RemoteControl (RefCounted); the godot_cmd file channel. Created in _ready.
 
@@ -84,6 +88,7 @@ var embedded := false
 ## set_render_3d(true) to bring the viewport up separately. Default true = standalone renders normally.
 var render_3d := true
 var _ui_theme: Theme   # project-wide default theme (UiFont) on the root viewport — see _ready
+var _ui_right_inset := 0.0   # 1:1: fraction of the window the side panels cover; recentres the cam (MainFrame pushes it)
 
 # Responsive HUD text: a fraction of viewport height, but never below a floor —
 # "min(px, %vh)" web sensibility, re-applied on window resize.
@@ -96,6 +101,11 @@ func _ui_font_size() -> int:
 ## menu (title, mode buttons, toggle buttons, slider labels), and the corner Reset button. Re-run on
 ## window resize so it tracks the viewport.
 func _apply_ui_fonts() -> void:
+	# Re-assert the 1:1 (parity) camera span on any window resize — a resize otherwise reverts the
+	# top-down ortho span toward user-mode framing, which breaks the 1:1 match at a fixed size.
+	if _one_to_one and render_3d and _cam_rig != null:
+		_cam_rig.set_one_to_one(true)
+		_cam_rig.set_right_inset(_ui_right_inset)   # the inset is a fraction of the window — track resizes
 	UiFont.refresh_theme(_ui_theme, get_viewport())   # keep the project-wide default in sync with the window
 	_stamp_theme_roots(get_tree().root)               # make the default theme cross CanvasLayer boundaries
 	var fs := _ui_font_size()
@@ -161,6 +171,7 @@ func _ready() -> void:
 	client = BridgeClient.new()
 	add_child(client)
 	client.snapshot.connect(_on_snapshot)
+	client.popup.connect(_on_popup)
 	client.connected.connect(_on_bridge_connected)
 
 	_sky_grade = load("res://SkyGrade.gd").new()   # day/night atmosphere: WorldEnvironment + grade + sun/moon
@@ -186,6 +197,12 @@ func _ready() -> void:
 	_picker = load("res://DirectionPicker.gd").new()
 	add_child(_picker)
 	_picker.setup(_cam_rig, client)
+
+	# Popup overlay (its own file): mirrors Qud modals (message / yes-no / option list / text prompt)
+	# forwarded by the mod, and ships the viewer's answer back so Qud's blocked turn thread unblocks.
+	_popup = PopupOverlay.new()
+	add_child(_popup)
+	_popup.answered.connect(func(payload: Dictionary): client.send_command("popup", payload))
 
 	_load_settings()   # restore camera heading/mode/zoom/depth/window before the UI reads them
 	_build_mode_label()
@@ -243,6 +260,10 @@ func _ready() -> void:
 func set_render_3d(on: bool) -> void:
 	render_3d = on
 	if on:
+		if _one_to_one:
+			_cam_rig.set_one_to_one(true)         # robust: 1:1 span even if already TOP_FOLLOW
+			_cam_rig.set_right_inset(_ui_right_inset)   # recentre the view in the play hole
+			_set_mode(CamMode.TOP_FOLLOW, true)   # enter the 1:1 camera as the viewport comes up
 		var live: Dictionary = store.live_snapshot()
 		if not live.is_empty():
 			renderer.render_snapshot(live, _neighbor_zones())
@@ -261,10 +282,46 @@ func _hide_holodeck_chrome() -> void:
 func _on_bridge_connected() -> void:
 	client.send_command("wait", {})
 
+## Qud's per-cell sprite flip (PartyFlip) is render-context state, so the mod can't read it stably for
+## the player's CELL object — but the separate `player` block reads it reliably. Copy that flip onto the
+## player's own cell creature so the renderer (flip_h = obj.hflip) faces the playfield player like Qud.
+func _inject_player_facing(data: Dictionary) -> void:
+	var pl: Dictionary = data.get("player", {})
+	if not pl.has("hflip"):
+		return
+	var px := int(pl.get("x", -9999))
+	var py := int(pl.get("y", -9999))
+	for cell in data.get("cells", []):
+		if int(cell.get("x", -2)) == px and int(cell.get("y", -2)) == py:
+			for obj in cell.get("objs", []):
+				if bool(obj.get("creature", false)):
+					obj["hflip"] = pl.get("hflip")
+			return
+
+## A Qud modal (message / yes-no / option list / text prompt) mirrored by the mod. During a popup the turn
+## thread is blocked, so NO snapshots arrive — this is the only channel that tells us it opened. The overlay
+## is modal (eats input) until the viewer answers, which ships a "popup" command back to unblock Qud.
+func _on_popup(data: Dictionary) -> void:
+	if _popup == null:
+		return
+	if bool(data.get("active", false)):
+		_popup.show_popup(data, _palette)
+	else:
+		_popup.hide_popup()
+
 func _on_snapshot(data: Dictionary) -> void:
+	# A snapshot can only publish once Qud's turn thread has unblocked — i.e. any popup is already gone —
+	# so treat every snapshot as authoritative "no popup", closing the overlay even if a dismissal frame
+	# was coalesced away. Also cache the colour map so popup markup renders with the same palette.
+	var pal: Dictionary = data.get("palette", {})
+	if not pal.is_empty():
+		_palette = pal
+	if _popup != null:
+		_popup.hide_popup()
 	# Route the render through the store: draw the live zone plus any remembered
 	# neighbours (same stratum) the player has visited, placed by global offset.
 	Profiler.add_us("server", int(data.get("serverUs", 0)))
+	_inject_player_facing(data)   # the player's cell obj carries no reliable hflip; use the player block's
 	Profiler.begin("ingest")
 	store.ingest(data)   # keep the store current even when not rendering, so 3D can start instantly
 	Profiler.done("ingest")
@@ -298,6 +355,7 @@ func _on_snapshot(data: Dictionary) -> void:
 	if z.has("width") and z.has("height"):
 		_zone_center = Vector3(float(z["width"]) / 2.0, 0.0, float(z["height"]) / 2.0)
 		_zone_dims = Vector2(float(z["width"]), float(z["height"]))
+		_cam_rig.set_zone_cells(_zone_dims)   # 1:1 zone-fit tracks the live zone size
 
 	# Read the player cell FIRST. An absent/invalid cell (a mid-teardown frame, or the
 	# player briefly having no cell) reports (-1,-1) — hold the last good camera state and
@@ -408,6 +466,48 @@ func _exec_godot_cmd(cmd: String) -> void:
 	match parts[0]:
 		"shot":
 			_screenshot(false, true)   # forced: window is unfocused, no auto-draw
+		"uidump":
+			# dump the frame's bottom-row widget rects — who is taller than the 90px budget?
+			var fr := get_parent()
+			if fr != null and fr.get("_effects") != null:
+				var ud := FileAccess.open(_support_dir().path_join("uidump.json"), FileAccess.WRITE)
+				if ud != null:
+					var d := {}
+					for k in ["_effects", "_target", "_context", "_command", "_row_split", "_side", "_msglog"]:
+						var n: Control = fr.get(k)
+						if n != null:
+							var r := n.get_global_rect()
+							d[k] = [r.position.x, r.position.y, r.size.x, r.size.y]
+					ud.store_string(JSON.stringify(d))
+					ud.close()
+		"camdump":
+			# dump the camera/hole state to camdump.json — the deterministic probe for
+			# "why is the 1:1 stage the wrong size" class of bugs.
+			var cd := FileAccess.open(_support_dir().path_join("camdump.json"), FileAccess.WRITE)
+			if cd != null and _cam_rig != null:
+				var vpr := get_viewport().get_visible_rect().size
+				cd.store_string(JSON.stringify({
+					"mode": _cam_rig._mode, "main_1to1": _one_to_one, "rig_1to1": _cam_rig._one_to_one,
+					"hole": [_cam_rig._play_hole.position.x, _cam_rig._play_hole.position.y,
+						_cam_rig._play_hole.size.x, _cam_rig._play_hole.size.y],
+					"zoom_q": _cam_rig._zoom_q, "top_zoom": _cam_rig._top_zoom,
+					"ortho": (_cam_rig._cam.size if _cam_rig._cam != null else -1.0),
+					"vp": [vpr.x, vpr.y], "render_3d": render_3d,
+				}))
+				cd.close()
+		"zoom1to1":
+			# `zoom1to1 <factor>` — set the 1:1 zoom factor directly (quarters, >= 1.0). The
+			# deterministic test input: key/wheel injection proved unreliable for sweeps.
+			if parts.size() >= 2 and _cam_rig != null:
+				_cam_rig.set_zoom_1to1(float(parts[1]))
+		"inspect":
+			# `inspect CX CY` — run the cell inspector at a ZONE CELL from outside (writes
+			# selection.txt like a Ctrl+click). Closes the loop for tooling: no window focus
+			# or mouse warp needed to ask "what did this cell render as?".
+			if parts.size() >= 3 and _cam_rig != null and _cam_rig._cam != null:
+				var wp := Vector3(float(parts[1]), 0.0, float(parts[2]) * _cam_rig.zstretch())
+				var sp: Vector2 = _cam_rig._cam.unproject_position(wp)
+				inspector.inspect_at(_cam_rig._cam, sp, _cam_rig.zstretch())
 		"cam":
 			if parts.size() > 1:
 				_set_mode(clampi(int(parts[1]) - 1, 0, 7))   # 1-8 -> COMPASS..TOP_FOLLOW
@@ -489,13 +589,76 @@ var _picker                     # DirectionPicker (Node, loaded); created in _re
 func start_direction_picker(icon: Texture2D) -> void:
 	_picker.start(icon)
 
-func _set_mode(m: int) -> void:
+func _set_mode(m: int, force := false) -> void:
+	# 1:1 (parity) mode locks the camera to the Qud-faithful top-down view — user camera
+	# switches (number keys, Shift+C/K/F, multi-view) are ignored until 1:1 is turned off.
+	# `force` is the internal path (set_one_to_one) that is allowed to change it.
+	if _one_to_one and not force:
+		return
 	if _multiview.is_on():
 		_multiview.toggle()   # picking a mode leaves the multi-view grid
 	# The rig does the camera part (state reset, billboard lay-down, zstretch) and reports if it changed.
 	if _cam_rig.set_mode(m):
 		_update_mode_label()
 		_refresh_wm_cards_btn()   # keep the 2D/3D button label in sync
+
+# --- 1:1 (parity) mode ------------------------------------------------------
+# The master switch that flips Raves between the QoL "user" experience and a Qud-faithful
+# "1:1" reproduction. Here it owns the CAMERA half (force + lock the top-down view) and
+# announces changes; MainFrame owns the panel half + persistence via one_to_one_changed.
+var _one_to_one := false
+var _saved_cam_mode := -1      # user-mode camera, restored when leaving 1:1
+var _saved_flat_2d := false    # user-mode tile mode (3D vs flat), restored when leaving 1:1
+signal one_to_one_changed(on: bool)
+
+func is_one_to_one() -> bool:
+	return _one_to_one
+
+func set_one_to_one(on: bool) -> void:
+	if on == _one_to_one:
+		return
+	_one_to_one = on
+	_cam_rig.set_one_to_one(on)   # 1:1 vs user ortho span (safe in data-only; guards a null camera)
+	# Camera half — only meaningful with the 3D viewport up (data-only mode has no camera to
+	# flip); set_render_3d re-applies TOP_FOLLOW when the viewport comes on.
+	if on:
+		_saved_cam_mode = _cam_rig._mode
+		if render_3d:
+			_set_mode(CamMode.TOP_FOLLOW, true)   # the Qud-faithful 1:1 top-down (ONE_TO_ONE_SPAN)
+	elif render_3d and _saved_cam_mode >= 0:
+		_set_mode(_saved_cam_mode, true)          # back to the user's camera
+	# Lighting half: 1:1 uses Qud's rectangular model (see ZoneRenderer) — no glow pools, flames,
+	# smoke or motes are LOADED, unexplored cells draw nothing, explored-dark cells get the flat
+	# memory dim. Set BEFORE the flat rebuild below so the rebuild uses the 1:1 light rules.
+	if renderer != null:
+		renderer.set_one_to_one(on)
+	# Tile half: Qud renders every tile FLAT, as loaded — the voxel walls / stretched-UV 3D look is a
+	# user-mode feature. 1:1 forces the flat path (which also renders ONLY the live zone — see
+	# _neighbor_zones); leaving 1:1 restores whatever the user had. Ordered after the camera flip so
+	# the rebuild happens under the final top-down stretch. (Set _one_to_one first — _toggle_flat_2d
+	# is locked while on, so go through _apply_flat_2d directly.)
+	if on:
+		_saved_flat_2d = _flat_2d
+		_apply_flat_2d(true)               # rebuild even if already flat — the light rules changed
+	else:
+		_apply_flat_2d(_saved_flat_2d)     # ditto on exit
+	one_to_one_changed.emit(on)
+
+func toggle_one_to_one() -> void:
+	set_one_to_one(not _one_to_one)
+
+## MainFrame tells us how much of the window the 1:1 side panels cover (0..~0.4). The camera shifts its
+## lens so the zone-fit centres in the visible play hole (left of the sidebar), not the full window.
+func set_ui_right_inset(frac: float) -> void:
+	_ui_right_inset = clampf(frac, 0.0, 0.6)
+	if _cam_rig != null:
+		_cam_rig.set_right_inset(_ui_right_inset)
+
+## MainFrame pushes the play hole's actual px rect (row 3's transparent area). The 1:1 camera fits
+## Qud's 80x25 stage into THIS rect (both axes) at Qud's letterbox scale — the pixel-1:1 model.
+func set_play_hole_rect(r: Rect2) -> void:
+	if _cam_rig != null:
+		_cam_rig.set_play_hole(r)
 
 ## One gesture -> everything a collaborator needs about a tile. Photograph the BARE
 ## scene FIRST (no selection overlay), then inspect — so shot.png is a clean plate
@@ -608,9 +771,18 @@ var _flat_2d := false   # false = 3D upright billboards, true = everything flat 
 ## (everything laid flat on the floor, a classic top-down map). The renderer drops its frozen
 ## geometry, so re-render the current snapshot to rebuild the live zone (and neighbours) in the new
 ## mode — instant feedback instead of waiting for the next turn.
+## 1:1 FORCES flat (Qud renders tiles flat, as loaded — the 3D wall stretch/UV mapping is a user-mode
+## feature), so the toggle is locked out while 1:1 is on, like the camera modes.
 func _toggle_flat_2d() -> void:
-	_flat_2d = not _flat_2d
-	renderer.set_flat_2d(_flat_2d)
+	if _one_to_one:
+		return                       # 1:1 owns the tile mode (flat); O is a no-op until user mode
+	_apply_flat_2d(not _flat_2d)
+
+## The shared apply path (O toggle + the 1:1 master switch): set the renderer mode, rebuild the
+## current snapshot in it, and sync the two UI mirrors of the state.
+func _apply_flat_2d(on: bool) -> void:
+	_flat_2d = on
+	renderer.set_flat_2d(on)
 	var live: Dictionary = store.live_snapshot()
 	if not live.is_empty():
 		renderer.render_snapshot(live, _neighbor_zones())
@@ -683,7 +855,15 @@ func _build_reset_button() -> void:
 func _reset_program() -> void:
 	_save_settings()   # persist before the restart (quit() doesn't fire WM_CLOSE_REQUEST)
 	var sz := DisplayServer.window_get_size()
-	OS.set_restart_on_exit(true, PackedStringArray(["--resolution", "%dx%d" % [sz.x, sz.y]]))
+	var restart := PackedStringArray(["--resolution", "%dx%d" % [sz.x, sz.y]])
+	# If highvisor launched us in --launch-qud mode, re-pass those user args so the
+	# restarted instance stays borderless and re-adopts the still-running Qud (the
+	# quit() below doesn't fire WM_CLOSE_REQUEST, so QudLauncher leaves Qud alive).
+	var qargs := QudLauncher.relaunch_args()
+	if not qargs.is_empty():
+		restart.append("--")
+		restart.append_array(qargs)
+	OS.set_restart_on_exit(true, restart)
 	get_tree().quit()
 
 ## Save on window close (the X); the Reset button saves explicitly in _reset_program.
@@ -730,7 +910,10 @@ func _load_settings() -> void:
 		renderer.deep_water_depth = clampf(float(d.get("water_depth", renderer.deep_water_depth)), 0.0, 1.0)
 		renderer.level_height = clampf(float(d.get("level_height", renderer.level_height)), 0.0, 16.0)
 	var win = d.get("win", null)
-	if win is Array and win.size() == 2 and int(win[0]) > 200 and int(win[1]) > 200:
+	# Skip in launch-qud mode: QudLauncher owns the window geometry there (borderless
+	# quadrant), and a saved size would fight it when entering gameplay.
+	if win is Array and win.size() == 2 and int(win[0]) > 200 and int(win[1]) > 200 \
+			and not QudLauncher.active:
 		DisplayServer.window_set_size(Vector2i(int(win[0]), int(win[1])))
 	var m := int(d.get("mode", _cam_rig._mode))
 	if m >= 0 and m <= CamMode.TOP_FOLLOW:
@@ -768,6 +951,25 @@ func _unhandled_input(event: InputEvent) -> void:
 		# own _input, so this handler won't see keys until it closes.)
 		if event.keycode == KEY_F1:
 			onboarding.open(); return
+		# Ctrl+M: toggle 1:1 (parity) mode — camera + panels flip to Qud-faithful, and back.
+		# Ctrl (not Cmd, which is macOS "minimize"); the highvisor 1:1 button injects this same key.
+		if event.keycode == KEY_M and event.ctrl_pressed \
+				and not (event.meta_pressed or event.shift_pressed or event.alt_pressed):
+			toggle_one_to_one(); return
+		# Ctrl+Shift+W: Qud's wish shortcut. Opens a text prompt in Raves; on Enter we ship the wish
+		# to Qud over the bridge (it runs Qud's own wish handler). Lets us grant xp, spawn items, etc.
+		if event.keycode == KEY_W and event.ctrl_pressed and event.shift_pressed \
+				and not event.meta_pressed:
+			_open_wish(); return
+		# Dedicated stress-test wishes (single combo, no text prompt) — bump the EXP / HP bars straight
+		# from Qud's own wish handler. X = +150 xp, H = -3 hp (hurt), J = full heal.
+		if event.ctrl_pressed and event.shift_pressed and not event.meta_pressed:
+			if event.keycode == KEY_X:
+				client.send_command("wish", {"wish": "xp:150"}); return
+			if event.keycode == KEY_H:
+				client.send_command("wish", {"wish": "statpenalty:Hitpoints:3"}); return
+			if event.keycode == KEY_J:
+				client.send_command("wish", {"wish": "statpenalty:Hitpoints:-9999"}); return
 		# mode switches first — they reassign what the arrows mean
 		if event.shift_pressed and event.keycode == KEY_C:
 			_set_mode(CamMode.MOUSE); return
@@ -788,7 +990,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.keycode == KEY_5: _set_mode(CamMode.MOUSE); return
 		if event.keycode == KEY_6: _set_mode(CamMode.KEYBOARD); return
 		if event.keycode == KEY_7: _set_mode(CamMode.TOP_FOLLOW); return
-		if event.keycode == KEY_0: _multiview.toggle(); return   # 0 = all-views grid
+		if event.keycode == KEY_0 and not _one_to_one: _multiview.toggle(); return   # 0 = all-views grid (locked out in 1:1)
 		if event.keycode == KEY_QUOTELEFT:      # ` toggles the debug menu
 			_dbg_menu.toggle(); return
 		# B: "become anything" character-creator menu (pick a blueprint to embody)
@@ -806,19 +1008,20 @@ func _unhandled_input(event: InputEvent) -> void:
 			_cam_rig._compass_yaw -= _cam_rig.compass_step(); return
 		# W / X dolly the camera one tile forward / back along its heading — move the
 		# camera like the player. Discrete per press; pairs with S/D vertical pan. Not
-		# in FLY (WASD drives the free camera there).
-		if _cam_rig._mode != CamMode.KEYBOARD and event.keycode == KEY_W:
+		# in FLY (WASD drives the free camera there), and not in 1:1 — Qud's camera is
+		# the letterbox model only (zoom + clamped player follow), never a free dolly.
+		if _cam_rig._mode != CamMode.KEYBOARD and not _one_to_one and event.keycode == KEY_W:
 			_cam_rig._cam_pan += _cam_rig.cam_forward() * _cam_rig.CAM_STEP; return
-		if _cam_rig._mode != CamMode.KEYBOARD and event.keycode == KEY_X:
+		if _cam_rig._mode != CamMode.KEYBOARD and not _one_to_one and event.keycode == KEY_X:
 			_cam_rig._cam_pan -= _cam_rig.cam_forward() * _cam_rig.CAM_STEP; return
-		# S / D are forwarded to Qud as key presses (was: camera vertical pan). The mod injects
-		# them through Qud's keymap, so they trigger whatever YOU'VE bound s/d to (soar/descend) —
-		# drive the surface<->world-map transition from Raves without switching focus. One per
-		# press. Skipped in FLY (KEYBOARD) mode, where WASD still flies the free camera.
+		# S / D = go UP / DOWN stairs (Qud's climb commands CmdMoveU / CmdMoveD; Down also
+		# pulls down from the world map). Direct command injection — NOT a raw keymap
+		# forward, so it works whatever s/d are bound to in Qud. Mirrors the top-bar
+		# ▲ Up / ▼ Down buttons. Skipped in FLY (KEYBOARD) mode, where WASD flies the camera.
 		if _cam_rig._mode != CamMode.KEYBOARD and event.keycode == KEY_S:
-			client.send_command("key", {"key": "s"}); return
+			client.send_command("command", {"command": "CmdMoveU"}); return
 		if _cam_rig._mode != CamMode.KEYBOARD and event.keycode == KEY_D:
-			client.send_command("key", {"key": "d"}); return
+			client.send_command("command", {"command": "CmdMoveD"}); return
 		if event.keycode == KEY_ESCAPE:
 			# close the camera/debug menu and any selection, but KEEP the current camera
 			_dismiss_selection()
@@ -835,10 +1038,14 @@ func _unhandled_input(event: InputEvent) -> void:
 			_screenshot(); return
 		if event.keycode == KEY_P:
 			_dump_profile(); return   # P: macOS grabs F9 (Mission Control)
-		if event.keycode == KEY_MINUS:
+		if event.keycode == KEY_MINUS or event.keycode == KEY_KP_SUBTRACT:
+			if _one_to_one and _cam_rig._mode == CamMode.TOP_FOLLOW:
+				_cam_rig.zoom_1to1_step(-1); return   # Qud's CmdZoomOut (quarter step, floor = fit)
 			inspector.nudge_font(-2)
 			reporter.nudge_font(-2); return
-		if event.keycode == KEY_EQUAL:
+		if event.keycode == KEY_EQUAL or event.keycode == KEY_KP_ADD:
+			if _one_to_one and _cam_rig._mode == CamMode.TOP_FOLLOW:
+				_cam_rig.zoom_1to1_step(1); return    # Qud's CmdZoomIn (quarter step)
 			inspector.nudge_font(2)
 			reporter.nudge_font(2); return
 		# in KEYBOARD mode the arrows drive the camera, not the player
@@ -887,13 +1094,17 @@ func _unhandled_input(event: InputEvent) -> void:
 				_cam_rig._panning = event.pressed and _cam_rig._mode == CamMode.MOUSE
 			MOUSE_BUTTON_WHEEL_UP:
 				if event.pressed:
-					if _cam_rig._mode == CamMode.TOP_FOLLOW:
+					if _one_to_one and _cam_rig._mode == CamMode.TOP_FOLLOW:
+						_cam_rig.zoom_1to1_step(1)     # Qud's quarter-step zoom in (min factor 1.0 = fit)
+					elif _cam_rig._mode == CamMode.TOP_FOLLOW:
 						_cam_rig._top_zoom = clampf(_cam_rig._top_zoom * 0.9, _cam_rig.TOP_ZOOM_MIN, _cam_rig.TOP_ZOOM_MAX)
 					else:
 						_cam_rig._dist = clampf(_cam_rig._dist * 0.9, _cam_rig.DIST_MIN, _cam_rig.DIST_MAX)
 			MOUSE_BUTTON_WHEEL_DOWN:
 				if event.pressed:
-					if _cam_rig._mode == CamMode.TOP_FOLLOW:
+					if _one_to_one and _cam_rig._mode == CamMode.TOP_FOLLOW:
+						_cam_rig.zoom_1to1_step(-1)    # Qud's quarter-step zoom out (stops at the zone fit)
+					elif _cam_rig._mode == CamMode.TOP_FOLLOW:
 						_cam_rig._top_zoom = clampf(_cam_rig._top_zoom * 1.1, _cam_rig.TOP_ZOOM_MIN, _cam_rig.TOP_ZOOM_MAX)
 					else:
 						_cam_rig._dist = clampf(_cam_rig._dist * 1.1, _cam_rig.DIST_MIN, _cam_rig.DIST_MAX)
@@ -910,3 +1121,59 @@ func _unhandled_input(event: InputEvent) -> void:
 			var speed: float = _cam_rig._dist * 0.0016
 			# grab-the-world: drag right moves the world right (camera goes left)
 			_cam_rig._pan += (-right * event.relative.x - fwd * event.relative.y) * speed
+
+# ── Wish prompt (Ctrl+Shift+W) ───────────────────────────────────────────────
+# A minimal text prompt that ships whatever you type to Qud's own wish handler over the bridge (grant
+# xp, spawn items, …), no Qud-side prompt needed. A user-mode button will front this later; for now the
+# shortcut is the entry point. send_command no-ops if the bridge isn't connected.
+func _open_wish() -> void:
+	if _wish_layer == null:
+		_wish_layer = CanvasLayer.new()
+		_wish_layer.layer = 128
+		add_child(_wish_layer)
+		var center := CenterContainer.new()
+		center.set_anchors_preset(Control.PRESET_FULL_RECT)
+		center.theme = UiFont.make_theme(get_viewport())   # avoid the CanvasLayer tiny-font trap
+		_wish_layer.add_child(center)
+		var panel := PanelContainer.new()
+		var pstyle := StyleBoxFlat.new()
+		pstyle.bg_color = Color(0.05, 0.06, 0.07, 0.96)
+		pstyle.set_content_margin_all(14)
+		pstyle.border_color = Color(0.30, 0.40, 0.45)
+		pstyle.set_border_width_all(1)
+		panel.add_theme_stylebox_override("panel", pstyle)
+		center.add_child(panel)
+		var vb := VBoxContainer.new()
+		vb.add_theme_constant_override("separation", 6)
+		panel.add_child(vb)
+		var lbl := Label.new()
+		lbl.text = "Wish  (Enter to send · Esc to cancel)"
+		vb.add_child(lbl)
+		_wish_edit = LineEdit.new()
+		_wish_edit.custom_minimum_size = Vector2(460, 0)
+		_wish_edit.placeholder_text = "e.g. xp:5000"
+		_wish_edit.text_submitted.connect(_on_wish_submitted)
+		_wish_edit.gui_input.connect(func(e: InputEvent) -> void:
+			if e is InputEventKey and e.pressed and e.keycode == KEY_ESCAPE:
+				_close_wish())
+		vb.add_child(_wish_edit)
+	_wish_layer.visible = true
+	_wish_edit.text = ""
+	_wish_edit.grab_focus()
+
+func _on_wish_submitted(text: String) -> void:
+	var w := text.strip_edges()
+	if w != "" and client != null:
+		client.send_command("wish", {"wish": w})
+		# The wish drains on Qud's game thread (Tick), which does NOT run while Qud sits
+		# unfocused with no turn passing — the wish silently pends and "wishing doesn't
+		# work". Chase it with a wait: PushCommand wakes the parked input loop even
+		# unfocused, the turn ticks, the wish applies, and the snapshot refreshes Raves.
+		client.send_command("wait", {})
+	_close_wish()
+
+func _close_wish() -> void:
+	if _wish_layer != null:
+		_wish_layer.visible = false
+	if _wish_edit != null:
+		_wish_edit.release_focus()

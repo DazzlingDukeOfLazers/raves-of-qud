@@ -56,7 +56,8 @@ func setup(embedded: bool, renderer_ref: Node) -> void:
 	env.ambient_light_color = Color(0.72, 0.72, 0.74)
 	env.ambient_light_energy = 0.72
 	# Depth fog fades distant/remembered zones into the sky (colour tracks the sky, updated in _process).
-	env.fog_enabled = true
+	# Off in the minimal 1:1 test (fog is a lighting/atmosphere effect Qud doesn't have).
+	env.fog_enabled = bool(Settings.get_value("fx_lighting", false)) and not Settings.one_to_one()
 	env.fog_mode = Environment.FOG_MODE_DEPTH
 	env.fog_depth_begin = 60.0
 	env.fog_depth_end = 240.0
@@ -112,6 +113,21 @@ func update(t: Dictionary, depth: int, zone_center: Vector3) -> void:
 	_update_time(t)
 
 func _process(dt: float) -> void:
+	# 1:1 test: lighting off -> no day/night MULTIPLY grade (true tile colours), no sky bodies.
+	# 1:1 (parity) HARD-forces this off regardless of the user's fx_lighting — Qud's lighting is
+	# the rectangular per-cell model in ZoneRenderer; the grade/sun/fog are user-mode features.
+	if Settings.one_to_one() or not bool(Settings.get_value("fx_lighting", false)):
+		if _grade != null:
+			_grade.color = Color.WHITE
+		if _sun != null:
+			_sun.visible = false
+		if _moon != null:
+			_moon.visible = false
+		# 1:1: the clear colour IS Qud's letterbox/area colour (measured 17,33,38 — everything
+		# outside the 80x25 stage, which the clipped field plane now leaves exposed).
+		if Settings.one_to_one() and _env != null:
+			_env.background_color = Color8(17, 33, 38)
+		return
 	# ease the grade + sky so time-of-day shifts smoothly between turns
 	_tint = _tint.lerp(_tint_target, clampf(dt * 2.0, 0.0, 1.0))
 	if _grade != null:
@@ -199,7 +215,9 @@ func _update_sky(hour: float, dawn: float, dusk: float) -> void:
 	if _sun_light != null:
 		var d := (_zone_center - _sun.position).normalized()
 		_sun_light.rotation = Vector3(asin(clampf(d.y, -1.0, 1.0)), atan2(d.x, d.z), 0.0)
-		_sun_light.light_energy = sun_a * 0.6
+		# 1:1 / fx-off: the directional sun stays dark (rectangular per-cell light only)
+		var fx_on := bool(Settings.get_value("fx_lighting", false)) and not Settings.one_to_one()
+		_sun_light.light_energy = (sun_a * 0.6) if fx_on else 0.0
 
 ## A body's world position for arc progress 0(rise)..1(set), tilted so it clears the horizon.
 func _body_pos(p: float) -> Vector3:

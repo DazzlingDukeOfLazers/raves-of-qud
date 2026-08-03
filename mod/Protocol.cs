@@ -18,7 +18,7 @@ namespace RavesOfQud
         /// no way to tell from the outside whether the running code included a
         /// given fix. Every snapshot now says. Bump this when changing the mod.
         /// </summary>
-        public const string Build = "2026-07-27b onfire-flag";
+        public const string Build = "2026-08-03 anim-pass-g";
 
         /// <summary>
         /// Monotonic WIRE version — bump whenever a change to the snapshot format makes a newer client
@@ -37,6 +37,7 @@ namespace RavesOfQud
 
         public const string TypeSnapshot = "snapshot";
         public const string TypeCommand  = "command";
+        public const string TypePopup    = "popup";   // server->client: a live Qud modal mirrored to Raves
 
         /// <summary>Length-prefix a JSON string into a ready-to-send frame.</summary>
         public static byte[] Frame(string json)

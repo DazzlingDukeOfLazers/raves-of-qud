@@ -2,31 +2,47 @@
 
 Strategy for six forward-looking asks (fog of war, remembering visited zones, memory
 freeze/unfreeze, Z-height, cross-zone distance, and a future Minecraft-style editing fork).
-**No code yet — this is the plan.** The point of writing it down: all six are the *same*
-architectural change wearing six hats.
+The insight that shaped it: all six are the *same* architectural change wearing six hats — a
+persistent, chunked, block-first world store that the live snapshot merely writes into.
+
+> **Status (2026-07-28): Phase 0 shipped; Phase 1 partially shipped.**
+> Raves no longer renders the wire directly — it ingests each snapshot into a persistent
+> [`WorldStore`](../godot/WorldStore.gd), keys saved zones by the mod's `gameId`, records structured
+> zone coordinates, persists explored zones to disk, and renders remembered neighbours (dimmed,
+> static-only). New-game isolation and disk round-trip are covered by
+> [`tests/test_persist.gd`](../godot/tests/test_persist.gd).
+>
+> - **Now:** UI / visual-parity work (menu screens — Records is next — then in-world parity), plus
+>   Phase 1 hardening. The store spine is in; this rides on top of it.
+> - **Next:** finish Phase 1 — render-radius policy, LRU eviction under a memory budget, grow the
+>   ground plane, and Tier-0 biome fog plates. See [acceptance criteria](#phase-1-acceptance-criteria).
+> - **Later:** Phase 2 (stacked strata / caves) and Phase 3 (the editing fork) — still proposals.
+>
+> The design rationale below is unchanged and still governs; only the "what exists yet" framing has
+> been corrected. A dated build log lives in the [progress appendix](#build-log-2026-07-24).
 
 ---
 
 ## The one change that unlocks all six
 
-Today the client renders **the live snapshot**: Qud sends the current zone every turn, we build
-meshes from it, and it's replaced next turn. Nothing persists, nothing but the active zone exists,
-and the geometry is derived straight off Qud's tile art. Every one of the six asks dies on that
-model.
+The original model rendered **the live snapshot** directly: Qud sent the current zone every turn, we
+built meshes from it, and it was replaced next turn — nothing persisted, nothing but the active zone
+existed. Every one of the six asks died on that model.
 
-**The pivot:** stop rendering the wire. Maintain a **persistent, chunked, block-first world store**;
-the live snapshot becomes just *one writer* into it. The renderer becomes a pure function of the
-store.
+**The pivot (now shipped for one axis of it):** stop rendering the wire. The live snapshot is just
+*one writer* into a persistent, chunked, block-first world store; the renderer reads the store. This
+is in place today for per-zone persistence and remembered neighbours; the chunk-lifecycle and
+block-column parts below are the remaining build-out.
 
 ```
-  NOW:   wire ──► build meshes ──► screen        (one zone, ephemeral)
+  OLD:      wire ──► build meshes ──► screen         (one zone, ephemeral — replaced)
 
-  TARGET: wire ──► WorldStore ◄── player edits    (many zones, persistent, block-first)
-                      │                                    ▲ (fork only)
-                      ▼
-                  renderer (pure fn of store, per chunk, with load/evict lifecycle)
-                      │
-                   disk (chunk files, keyed by game seed)
+  CURRENT:  wire ──► WorldStore ──► renderer          (many zones; explored zones persist to disk,
+                        │                               keyed by gameId; neighbours render dimmed)
+                        ▼
+                   disk (per-zone JSON, keyed by gameId)
+
+  NEXT:     …  ◄── player edits  (fork only, Phase 3);  chunk load/evict lifecycle + block columns
 ```
 
 Once the store exists, each ask is a small feature on top of it — not its own subsystem:
@@ -48,7 +64,7 @@ single zone, changing nothing visible). That de-risks everything after.
 ## Core types
 
 - **GlobalCoord** `(gx, gy, gz)` — integer world cell coordinate, derived from the Qud zone id
-  (see [Global coordinates](#global-coordinates--ask-5)). The spine for placement, stacking, and
+  (see [Global coordinates](#global-coordinates)). The spine for placement, stacking, and
   distance.
 - **Chunk** — one zone × one stratum (80×25 cells at a given Z). The unit of persistence, loading,
   and eviction. Keyed by `(world/seed, parasangX, parasangY, zoneX, zoneY, stratum)`.
@@ -63,20 +79,22 @@ single zone, changing nothing visible). That de-risks everything after.
   and precedence rules stay unbuilt until the fork (Phase 3); keep the enum slot so the format
   doesn't churn later.
 - **Keying by game seed** — the store must carry Qud's game/seed/world id so a *new game* or a
-  regenerated world doesn't render a stale mirror. **Add a `gameId` to the wire** and namespace all
-  chunk files under it. Critically, this is *our* mirror on disk — we never write into Qud's saves.
+  regenerated world doesn't render a stale mirror. **✓ Shipped:** the snapshot carries `gameId`
+  (`The.Game.GameID`) and `WorldStore` namespaces every zone file under it (see
+  `WorldStore._resolve_dir`); cross-game isolation is asserted in `test_persist.gd`. Critically, this
+  is *our* mirror on disk — we never write into Qud's saves.
 
 ---
 
-## Global coordinates  (ask 5)
+## Global coordinates
 
 **Confirmed by reflection (2026-07-24, Assembly-CSharp `XRL.World.Zone`):** the zone id
 `JoppaWorld.11.22.1.1.10` decomposes as `world.wX.wY.X.Y.Z`, where `Zone` exposes these as **direct
 int fields** — `wX, wY` (parasang), `X, Y` (zone within the 3×3 parasang), `Z` (stratum) — plus
 `Width, Height`. Our sample: parasang (11,22), zone (1,1), stratum 10. Zone dims `80×25`.
 
-**So the mod should emit `wX/wY/X/Y/Z` structured off `The.ActiveZone`, NOT parse the string** —
-removes the field-order risk entirely. Then:
+**✓ Shipped:** the mod emits `wx/wy/zx/zy/z` structured off `The.ActiveZone` in the `zone` block (no
+string parsing), and `World.gd` derives global coordinates from them. Then:
 
 ```
 gx = (wX * 3 + X) * 80 + cellX          # (wX*3+X) is the global zone column
@@ -98,17 +116,16 @@ these so fog of war and remembered-vs-live use Qud's own bookkeeping instead of 
   or weighted Euclidean if we ever want a true metric (weight gz by the world-Y we give a stratum).
 - **Edge cases:** only defined within one `world` root — cross-world (pocket dimensions, other named
   worlds) has no shared metric; guard on equal world id. World does not wrap.
-- **Action:** implement `globalCoord(zoneId, x, y)` **once**, mirrored in C# and GDScript (same
-  discipline as `tile_family`). **Confirm the parasang-vs-zone field order and the stratum baseline
-  against Qud's `ZoneID` in the mod** before trusting the math — verify a value, don't trust the
-  field name.
+- **✓ Shipped:** `globalCoord(zoneId, x, y)` lives in `godot/World.gd` (used by `WorldStore` as
+  `WorldMath`); the parasang-vs-zone field order and stratum baseline were confirmed against Qud's
+  live `ZoneID` before wiring the math.
 
 This function also *places zones in the 3D scene* (asks 2 & 4), so it's foundational, not just a
 utility.
 
 ---
 
-## Chunk lifecycle: freeze / unfreeze  (ask 3)
+## Chunk lifecycle: freeze / unfreeze
 
 Each chunk moves through states by distance from the player:
 
@@ -130,7 +147,7 @@ Each chunk moves through states by distance from the player:
 
 ---
 
-## Fog of war (ask 1) + remembered zones (ask 2)
+## Fog of war + remembered zones
 
 Two tiers, both falling out of "is the chunk in the store?":
 
@@ -154,7 +171,7 @@ static vs mobile and live vs remembered — so this is really the same work as t
 
 ---
 
-## Z-height, levels, recessed water  (ask 4)
+## Z-height, levels, recessed water
 
 - **Strata = chunks stacked on gz.** A multi-level place (a tower, a cave complex) is several
   chunks sharing `(parasang, zone)` at different strata. Place each stratum's slab at world-Y =
@@ -172,7 +189,7 @@ static vs mobile and live vs remembered — so this is really the same work as t
 
 ---
 
-## Block editing fork  (ask 6)
+## Block editing fork
 
 The fork (Minecraft-style place/remove, *after* the viewer is done) is why the store is
 **block-first from day one**, even though the viewer is read-only:
@@ -199,37 +216,54 @@ The fork (Minecraft-style place/remove, *after* the viewer is done) is why the s
 
 ---
 
-## New wire fields the mod should add (incremental)
+## Wire fields — status
 
-Ordered by when they're needed. Each is additive to the snapshot.
+Each is additive to the snapshot. Exact field names as emitted by `ZoneSnapshot.BuildJson` (see
+[`protocol.md`](protocol.md) for the full contract).
 
-1. `gameId` / world seed — namespaces the store (needed the moment we persist).
-2. **Zone coords `wX,wY,X,Y,Z`** off `The.ActiveZone` (confirmed real int fields — no string parse)
-   — for global coords. *Done-adjacent: this is the `globalCoord` task.*
-3. Overworld biome + colour per parasang/zone — for Tier-0 fog plates. **Confirmed needed** (Daniel
-   wants real biome tint). Locate the world-map/region API by reflection.
-4. Per-object `static` vs `mobile` is mostly derivable (`IsCreature`), but confirm furniture/items.
-   *(Optional, for a wider live actor radius:* stream creatures from adjacent resident zones too.)
-   Qud's `Zone.ExploredMap` / `VisibilityMap` / `FakeUnexploredMap` (per-cell bits, confirmed by
-   reflection) can drive fog/remembered state directly instead of us tracking it.
-5. Z-transition objects (stairs/shafts) + target zone id — for level linking.
-6. Per-cell floor offset / liquid depth beyond `wade`/`swim` — for recessed water and column relief.
-7. Material identity per wall/block (blueprint name is already sent) — for the block model.
+| field(s) | for | status |
+|---|---|---|
+| `gameId` | namespaces the store the moment we persist | **shipped** |
+| `zone.wx/wy/zx/zy/z` (structured, off `The.ActiveZone`) | global coords (ask 5) | **shipped** |
+| `worldTerrain` (world-map tile + biome name) | Tier-0 fog plate identity / travel log | **shipped** (biome *colour tint* for the fog plate is not yet consumed) |
+| per-object `creature` (`IsCreature`) | static-vs-mobile split; drop actors from remembered zones | **shipped** |
+| object `name` (`Blueprint`) | block-model material identity (starting point) | **shipped** |
+| per-cell `wade`/`swim` liquid depth | recessed water | **shipped** (a general per-cell **floor offset** for column relief is not) |
+| overworld biome **colour** per parasang/zone | real biome-tinted Tier-0 fog plates | **not started** — locate the world-map/region render API by reflection |
+| `Zone.ExploredMap` / `VisibilityMap` / `FakeUnexploredMap` (per-cell bits) | drive fog/remembered state from Qud's own bookkeeping | **not started** |
+| adjacent-resident-zone actors | a live creature radius > the active zone | **not started** |
+| z-transition objects (stairs/shafts) + target zone id | level linking (Phase 2) | **not started** |
+| explicit per-block material / column model | the block-first store (Phase 3 fork) | **not started** (blueprint name is the stopgap) |
 
 ---
 
 ## Phased roadmap
 
-- **Phase 0 — the pivot (de-risk, invisible):** GlobalCoord + a persistent per-zone store keyed by
-  `gameId`; renderer reads the store instead of the wire, for the single live zone. Nothing changes
-  on screen. Ships the spine. *Distance (ask 5) is free here.*
-- **Phase 1 — neighbours & memory:** stream stored neighbour chunks; remembered rendering (dimmed,
-  static-only, ask 2); Tier-0 fog plates (ask 1); hot/warm/cold/evicted lifecycle + LRU (ask 3).
-  One subsystem, three asks.
-- **Phase 2 — the third dimension:** strata stacking + cutaway/translucent levels; z-transitions;
-  per-cell floor offset + recessed water (ask 4).
-- **Phase 3 — the fork:** block-column editing on the store the viewer already uses (ask 6).
-  The store was block-first from Phase 0, so this is features, not a rewrite.
+- **Phase 0 — the pivot (de-risk, invisible): ✅ shipped.** GlobalCoord (`World.gd`) + a persistent
+  per-zone store keyed by `gameId` (`WorldStore.gd`); renderer reads the store instead of the wire.
+  Nothing changed on screen. Distance (ask 5) is free here.
+- **Phase 1 — neighbours & memory: 🟡 partially shipped.** Done: remembered-neighbour rendering
+  (dimmed, static-only, ask 2), depth-fog dimming, on-disk persistence, the static/dynamic freeze.
+  Remaining: hot/warm/cold/**evicted lifecycle + LRU under a memory budget** (ask 3), a configurable
+  **render radius**, growing the ground plane, and **Tier-0 biome fog plates** (ask 1). See the
+  [acceptance criteria](#phase-1-acceptance-criteria).
+- **Phase 2 — the third dimension: ⬜ proposal.** Strata stacking + cutaway/translucent levels;
+  z-transitions; per-cell floor offset + recessed water (ask 4).
+- **Phase 3 — the fork: ⬜ proposal.** Block-column editing on the store the viewer already uses
+  (ask 6). The store is block-first by design, so this is features, not a rewrite.
+
+### Phase 1 acceptance criteria
+
+Phase 1 is **complete** when the store can:
+1. load and render neighbours out to a **configurable render radius** (not just the immediate ring);
+2. **evict** cold records to disk under a defined memory budget (LRU by last-visited tick — the
+   `_tick` counter already exists as the ordering key);
+3. survive a scene reload / Qud restart with the explored world intact — **✓ already covered** by
+   `test_persist.gd`;
+4. prove **new-game isolation** in an automated test — **✓ already covered** by `test_persist.gd`;
+5. render **Tier-0 biome plates** for never-visited zones using real overworld biome colour.
+
+(3) and (4) are done; (1), (2), and (5) are the remaining work.
 
 ---
 
@@ -251,7 +285,7 @@ Ordered by when they're needed. Each is additive to the snapshot.
 - **Sync model → ALWAYS SYNCED, Qud is the source of truth.** SIM is authoritative; the store is a
   mirror of Qud. **This defers all provenance/merge logic** (PLAYER-wins precedence) out of Phases
   0–2 — a real simplification: the store just records what Qud last said, SIM overwrites REMEMBERED,
-  done. See the [fork note](#block-editing-fork--ask-6) for how this choice reshapes Phase 3.
+  done. See the [fork note](#block-editing-fork) for how this choice reshapes Phase 3.
 
 **Still open (not blocking Phase 0; defaults noted):**
 
@@ -264,14 +298,6 @@ Ordered by when they're needed. Each is additive to the snapshot.
 
 ---
 
-## Smallest first step
-
-`globalCoord(zoneId, x, y)` in the mod + a headless print of two cells' vector — one afternoon,
-zero render risk, and it forces us to confirm the zone-id field order (ask 5) that everything else
-stacks on. From there, Phase 0's store is the real spine.
-
----
-
 ## Parked (post-MVP polish)
 
 Deliberately deferred until the MVP is together — hardcoded sensible defaults for now.
@@ -279,6 +305,13 @@ Deliberately deferred until the MVP is together — hardcoded sensible defaults 
 - **User-facing sliders** for the render/atmosphere tunables: fog begin/end/curve (currently
   `Main` constants), and likely ambient/sun energy, `SIDE_CARVE`/`CAP_CARVE`, day-length. An
   in-viewer settings panel so Daniel dials the look live instead of editing constants + reloading.
+
+---
+
+# Historical decisions & progress log
+
+Below is the dated record that shaped the plan above. The **canonical current status is the top
+status block** — this section is history, not a second source of truth.
 
 ## MVP definition (Daniel, 2026-07-24)
 
@@ -290,18 +323,17 @@ Deliberately deferred until the MVP is together — hardcoded sensible defaults 
 - **Hardening Phase 1** (radius/eviction, ground plane, robustness).
 - **Timestamps to Pareto the longest delays** — the profiler (F9 → profile.txt).
 
-## Progress (as of 2026-07-24)
+## Build log (2026-07-24)
 
 Phase 0 done (global coords + store). Phase 1 landed: remembered-neighbour rendering (full
 fidelity, frozen), **depth-fog dimming**, **on-disk persistence** keyed by `gameId`, the **profiler**,
-and the **static/dynamic freeze** (per-step render ~85ms → a few ms). Also this session:
+and the **static/dynamic freeze** (per-step render ~85ms → a few ms). Also that session:
 - **Camera**: modes + `` ` `` debug menu (compass default = the disorientation fix; first-person,
   cinematic-v1, orbit, fly); seamless zone crossings. See docs/tools.md "Camera modes".
 - **Remote control loop**: `control.py` drives Qud (move) + Godot (cam/shot via godot_cmd);
   works while **Qud is focused** (not fully unattended — Qud pauses input/render unfocused). See
   docs/tools.md "Remote control".
 
-Remaining Phase 1: render radius + LRU eviction, grow the 400×400 ground plane. Deferred camera
-work: Follow smoothing, Godot→Qud control-translation (up = forward at any heading; FP
-rotate-vs-strafe). Then Phase 2 (Z-strata / caves) and Phase 3 (editing fork). Cinematic v2 (combat
-event buffer) waits on the mod sending combat events.
+Deferred camera work (unchanged): Follow smoothing, Godot→Qud control-translation (up = forward at
+any heading; FP rotate-vs-strafe). Cinematic v2 (combat event buffer) waits on the mod sending
+combat events.

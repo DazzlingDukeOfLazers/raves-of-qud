@@ -24,7 +24,7 @@ var _last_data := {}       # last snapshot, so a mode toggle re-renders without 
 func _ready() -> void:
 	_tiles = load("res://QudTiles.gd").new()
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.09, 0.10, 0.13)
+	sb.bg_color = QudPalette.CHROME
 	sb.set_border_width_all(1)
 	sb.border_color = Color(1, 1, 1, 0.12)
 	sb.set_corner_radius_all(3)
@@ -37,21 +37,45 @@ func _ready() -> void:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 4)
 	add_child(v)
-	var title := Label.new()
-	title.text = "Context menu"
-	title.add_theme_font_size_override("font_size", UiFont.px(get_viewport(), "title"))
-	v.add_child(title)
+	_title = Label.new()
+	_title.text = "Context menu"
+	_title.add_theme_font_size_override("font_size", UiFont.px(get_viewport(), "title"))
+	v.add_child(_title)
 
 	_rt = RichTextLabel.new()
 	_rt.bbcode_enabled = true                # names carry Qud {{colour|...}} markup; sprites are inline images
 	_rt.scroll_active = false                # everything fits on one row; never scroll the weapon out of view
-	_rt.selection_enabled = true
+	_rt.selection_enabled = false   # a selectable RTL grabs focus on click and the arrows stop
+	_rt.focus_mode = Control.FOCUS_NONE   # reaching the player (the command-bar rule)
 	_rt.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_rt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_rt.meta_clicked.connect(_on_meta)     # fire / reload / [?] are clickable [url] links
 	v.add_child(_rt)
 
 ## MainFrame calls this each snapshot with the full data (needs context + palette + tilesDir).
+## 1:1: drop the rounded QoL box so the continuous bottom-strip chrome shows through (Qud has no per-panel
+## box). Keeps the content margins. User mode restores the framed look.
+var _title: Label
+
+func set_one_to_one(on: bool) -> void:
+	if _title != null:
+		_title.visible = not on   # Qud shows the context text with no "Context menu" heading
+	var cur := get_theme_stylebox("panel")
+	if cur is StyleBoxFlat:
+		var f: StyleBoxFlat = (cur as StyleBoxFlat).duplicate()
+		if on:
+			f.bg_color = Color(0, 0, 0, 0)
+			f.set_border_width_all(0)
+			f.set_corner_radius_all(0)
+			f.content_margin_top = 2
+			f.content_margin_bottom = 2
+		else:
+			f.bg_color = QudPalette.CHROME
+			f.set_border_width_all(1)
+			f.border_color = Color(1, 1, 1, 0.12)
+			f.set_corner_radius_all(3)
+		add_theme_stylebox_override("panel", f)
+
 func set_snapshot(data: Dictionary) -> void:
 	_last_data = data
 	var pal: Dictionary = data.get("palette", {})

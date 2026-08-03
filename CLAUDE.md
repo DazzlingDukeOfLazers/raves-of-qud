@@ -1,164 +1,56 @@
 # Working notes for Claude (and future humans)
 
-**Docs map:** `README.md` is the hub (architecture, platform constraints, Qud data model, API).
-Subsystems: [`docs/rendering.md`](docs/rendering.md) (the 3D pipeline + **voxel walls**),
-[`docs/tools.md`](docs/tools.md) (Python tools + in-viewer inspector/report + the **Python-first
-workflow**), [`docs/protocol.md`](docs/protocol.md) (wire format), [`docs/roadmap.md`](docs/roadmap.md)
-(**forward strategy**: persistent chunked block-store — fog of war, remembered zones, freeze/unfreeze,
-Z-height, cross-zone distance, future block-editing fork). Read the relevant page before
-changing a subsystem.
+**This file is the operating manual** — the local environment (paths, commands) plus the non-negotiable
+rules to work safely here. Subsystem facts live in the linked docs; the deep debugging history is in
+[`docs/decisions/`](docs/decisions/). If a path here is wrong, fix it here.
 
-`README.md` explains the project and the data model. **This file is the local
-environment**: the exact paths and commands, so no session has to rediscover
-them after a compaction. If a path here is wrong, fix it here.
+## Docs map — read the relevant page before changing a subsystem
 
-## Before adding a feature: read `docs/gotchas.md`
+| page | what |
+|---|---|
+| [`README.md`](README.md) | product overview + quickstart + the engineering reference |
+| [`docs/architecture.md`](docs/architecture.md) | Holodeck boot chain, components, panels, the bridge cadence |
+| [`docs/rendering.md`](docs/rendering.md) | the 3D pipeline — classification, voxel walls, lighting, water |
+| [`docs/cameras.md`](docs/cameras.md) | camera modes + viewer controls (**canonical** for controls) |
+| [`docs/protocol.md`](docs/protocol.md) | the bridge wire format |
+| [`docs/qud-api.md`](docs/qud-api.md) | verified Qud namespaces + signatures (reflection-confirmed) |
+| [`docs/tools.md`](docs/tools.md) | the Python tools, the in-viewer inspector, the Python-first workflow |
+| [`docs/gotchas.md`](docs/gotchas.md) | non-obvious invariants + "adding X → verify Y" checklists |
+| [`docs/roadmap.md`](docs/roadmap.md) | forward strategy (the world-store pivot) |
+| [`docs/goals.md`](docs/goals.md) | version-tagged milestone goals — **V3 = full 1:1 parity across the state tree** (the reusable per-screen pattern) |
+| [`docs/phase2-test-plan.md`](docs/phase2-test-plan.md) | Phase 2 DoW — Object Checker, Proving Grounds test world, PC save/fixture split, then startup stability → menus |
+| [`docs/decisions/`](docs/decisions/) | the war-story debugging record — the *why* behind the rules below |
 
-`docs/gotchas.md` is the registry of non-obvious invariants (Qud internals, the renderer's static/dynamic
-split, unfocused-publish timing, Godot input routing) plus "when adding X, verify Y" checklists. Most of
-them cost a debugging round-trip to learn — skim the relevant checklist before adding a panel, snapshot
-field, interaction, or ability, and add a one-liner when a new quirk bites.
+**Before adding a feature, skim [`docs/gotchas.md`](docs/gotchas.md)** — most entries cost a debugging
+round-trip to learn. Add a one-liner there when a new quirk bites.
 
 ## Terminology: the "Holodeck"
 
-The **Holodeck** is the player-facing Raves view — the Godot 3D/2.5D window that renders the world
-the player is in (camera modes, the 3D⇄2D toggle, landmarks, the selection inspector). It's one
-component; other user interfaces (menus, character/inventory, etc.) are separate. Use "the Holodeck"
-in prose for the player viewport. NOTE: this is the product name, not the Godot API — `get_viewport()`,
-`SubViewport`, and "the Godot viewport" stay as-is in code and technical notes.
+The **Holodeck** is the player-facing Raves view — the Godot 3D/2.5D window (camera modes, the 3D⇄2D toggle,
+the selection inspector). One component; menus/inventory are separate. It's the product name, not the Godot
+API — `get_viewport()`, `SubViewport`, "the Godot viewport" stay as-is in code.
 
-## Boot chain + Holodeck components (2026-07-27)
+## Architecture in one paragraph
 
-`project.godot` main scene is **`MainMenu.tscn`** — a launcher (`MainMenu.gd`) that stamps the window
-title from the **`Brand`** autoload (`Brand.gd`, the runtime source of truth for the game name / tagline /
-attribution / URLs; `config/name` in project.godot is just the export literal) and, on Play,
-`change_scene_to_file("res://MainFrame.tscn")`. So the runtime order is **MainMenu → MainFrame → Main
-(the Holodeck)**.
-
-**`Main.gd` is decomposed** — it was a ~1800-line god-object; the camera and its neighbours now live in
-their own files, each created in `Main._ready` and driven by thin delegates:
-- **`SkyGrade.gd`** — day/night atmosphere (WorldEnvironment/fog, the MULTIPLY grade, sun/moon, time→tint).
-- **`CameraRig.gd`** — the `_pivot`+`_cam` nodes, all 7 camera modes + placement math (`_cam_rig`; untyped
-  on purpose — a `class_name`'s cache is flaky under headless `--check-only`, so locals off `_cam_rig.*`
-  take explicit types, not `:=`).
-- **`Multiview.gd`** — the all-views SubViewport grid (`mv` godot-cmd toggles it headlessly).
-- **`RemoteControl.gd`** — the `godot_cmd` file poller (control.py channel); Main keeps `_exec_godot_cmd`.
-- **`DebugMenu.gd`** — the backtick menu (`dbg` godot-cmd toggles it); Main keeps the shared `_toggle_flat_2d`.
-- **`DirectionPicker.gd`** — the ability-prompt cursor (Make Camp). It `gui_release_focus()` on end so the
-  movement arrows return to the Holodeck; **any clickable UI over the Holodeck must be `FOCUS_NONE`** or the
-  focused control swallows the arrows (bit the command bar: "can't move after Make Camp").
-
-`MainFrame.gd` (a `Control`,
-built in code like the rest) is the 5-row gameplay chrome: status strip; HP/EXP + top menu; the
-**Holodeck | side panels** row; effects/target/context; command bar. The Holodeck (`Main.tscn`) renders
-**FULL-WINDOW into the root viewport** — its original, crash-free home. The chrome floats on top and
-row 3's left cell is a transparent **hole** the 3D shows through (`_holo_hole`, mouse-ignore, no
-stylebox). There is **no `SubViewportContainer`/`SubViewport`** — that was the Metal crash source and is
-gone. See `_holodeck_cell()`. MainFrame drops its full-window bg ColorRect (it would cover the 3D) and
-sets `RenderingServer.set_default_clear_color(COL_BG)` for the gaps/pre-connect look.
-- **`Main.embedded`** (set by MainFrame before add_child) hides the Holodeck's own chrome (mode label,
-  Reset/2D buttons) so the frame owns them, AND moves Main's day/night MULTIPLY grade to a **negative
-  CanvasLayer** so it tints only the 3D, never the frame's chrome. Standalone `Main` is unchanged.
-- **Data flow, ONE bridge:** `Main` emits a `snapshot(data)` signal each frame; `MainFrame._apply_stats`
-  fills the status bar/vitals from it — no second bridge connection. Missing fields fall back to `—`.
-- **Player stats come from the mod's `stats` block** (`ZoneSnapshot.WriteStats`). Verified Qud APIs:
-  name=`DisplayNameOnly`; hp=`hitpoints`/`baseHitpoints`; level/xp=`GetStatValue("Level"/"XP")`;
-  xp thresholds=`Leveler.GetXPForLevel(lvl)`/`(lvl+1)`; temp=`pPhysics.Temperature`;
-  QN/MS=`GetStatValue("Speed"/"MoveSpeed")`; **AV/DV/MA=`Stats.GetCombatAV/DV/MA`** (displayed values
-  with attribute mods — plain `GetStatValue` matches AV only by luck); weight=`GetCarriedWeight`/
-  `GetMaxCarriedWeight`; water=`GetFreeDrams("water")` (liquid ids are **lowercase**);
-  hunger/thirst=`Stomach.FoodStatus()`/`WaterStatus()` (strip `{{color|text}}` markup);
-  biome=`Zone.DisplayName`. Adding a field is: emit it in WriteStats → read it in `_apply_stats`.
-- **Each panel is its own scene**, fed by `_apply_stats`: `MinimapView` (full/minimal toggle),
-  `NearbyObjects` (3x3, client-side from `cells`), `MessageLog`, `ActiveEffects` (row 4 L), `TargetView`
-  (row 4 M), `ContextMenu` (row 4 R). Message log: verbatim/filter toggle (filter = one line per unique
-  message, `(xN)` on repeat, decays off after a grace of quiet rounds; a "round" = a snapshot with NEW
-  messages, diffed via `msgCount`; **seeded from the backlog on connect** so it's never empty). It also
-  inlines **object icons** matched from each line's text against a zone name→object index, a **"you"**
-  pictograph (the player's own render) on player-subject lines, and **landmark** world-map tiles
-  accumulated from `worldTerrain` as you travel.
-- **Active effects / Target / Context menu (row 4).** Effects = `player.Effects` DisplayName (coloured;
-  LiquidCovered → the liquid's `GetSmearedName`, e.g. "wet"). Target = `Sidebar.CurrentTarget`: name +
-  Qud's perceived descriptor line (`Strings.WoundLevel` / `Description.GetFeelingDescription` /
-  `GetDifficultyDescription`) + direction. Context = the missile-weapon area (`GetMissileWeapons` +
-  `MissileWeapon.Status`) with clickable **`[F] fire` / `[R] reload` / `[?]`** (change cell).
-- **Perceived vs full (global toggle in the top menu, 👁).** Panels default to what the player PERCEIVES;
-  the toggle reveals full/debug info. Icons: the mod sends the full tile + a perceived override
-  (`tileP/colorP/detailP/glyphP` via `GameObject.RenderForUI()`) **only when `!Understood()`**, so an
-  unidentified artifact shows Qud's "unknown" icon; `QudTiles.texture_for(obj, full)` picks. Text: Target
-  shows the wound WORD by default, exact HP only in full. See the perceived-vs-full memory.
-- **Buttons drive Qud over the bridge.** Client → `send_command("command", {command})` (e.g. `CmdFire`)
-  which the mod injects via `Keyboard.PushCommand` (binding-independent), or
-  `send_command("itemaction", {item, command})` → main-thread `InventoryActionEvent.Check` (e.g.
-  `ReplaceSocketCell`). `F` in Raves = fire (a Raves keybind being retired for Qud's own controls).
-- **Command bar (row 5, `CommandBar.gd`).** The player's activated abilities in Qud's bar order
-  (`ActivatedAbilities.GetAbilityListOrderedByPreference`; do NOT filter on `Visible` — it defaults
-  false and `AddAbility` never sets it). Each: name + state-appropriate UI-tile icon + `[on/off/cd]` +
-  `<hotkey>`, name clickable to activate (the ability's `Command`). Far-left **Ⓐ Abilities** button =
-  `CmdAbilities` (Qud's `a` menu).
-- **Direction picker (for abilities that prompt, e.g. Make Camp = `CommandSurvivalCamp`).** Qud's
-  `PickDirection` **blocks the turn thread** waiting for a LeftClick at a CELL. Clicking the ability
-  starts `Main.start_direction_picker(icon)`: the ability icon becomes the cursor over the Holodeck,
-  the mouse→cell ray (reusing the inspector's mapping) finds the tile, clicking an adjacent one sends
-  `send_command("dir", {x,y})` → `PushMouseEvent("LeftClick", x, y)` (Qud derives the direction), a
-  non-adjacent/right-click/Esc sends `dircancel` → RightClick (Qud must be UNBLOCKED or it freezes).
-  **Gated to known direction commands** (`CommandBar.DIR_ABILITIES`) so we never orphan a blocked prompt.
-  Picker input is handled in `Main._input` (the frame's containers eat clicks before `_unhandled_input`).
-- **Off-turn refresh after a prompt.** `PickDirection` blocks and Make Camp costs no turn, and render-tied
-  `TickRender` (BeforeRender) does NOT fire while Qud is unfocused — so a `dir`/`dircancel` sets
-  `Bridge.ForcePublishSoon`, flushed on **`BeginTakeActionEvent`** (a TURN-thread event that fires each
-  player action even unfocused). Then the renderer must notice the new object: **live STATIC geometry is
-  frozen per zone** (only creatures rebuild per step), so `ZoneRenderer` rebuilds static when a cheap
-  **static signature** (`_static_signature`, static objects only) changes — that's what draws a placed
-  campfire without leaving the zone.
-- **Qud markup** (`{{code|text}}` spans AND running `&X` foreground / `^X` background) is handled by the
-  shared **`QudText`** util (`to_bbcode(s, palette)`, `strip(s)`). Messages/nearby names render coloured;
-  status-bar name/biome are stripped. The palette (code→hex) rides each snapshot.
-- **Input:** Main renders into the ROOT viewport, so it receives keyboard directly via its own
-  `_unhandled_input` (the chrome's menu buttons are focus-less, so they never swallow keys). One
-  keypress → one delivery → one step. Do NOT re-add key forwarding. (The old SubViewport path needed a
-  no-forward rule to avoid double-stepping; full-window has no such duplication.)
-- **Enabling the Holodeck — still TWO stages (data-first), but no SubViewport dance:** `Connect (data)`
-  instances `Main` into the root viewport with **`Main.render_3d = false`** — `_on_snapshot` skips ALL
-  3D build/render, so the bridge + status bar + panels run with ZERO GPU work, and only the empty 3D
-  world (sky) shows in the hole. `Turn on viewport` calls `set_render_3d(true)`, which builds + renders
-  the current zone into the root viewport — the exact path standalone `Main` always used, so there is
-  **no separate Metal render target to overrun** (that was the crash). The two stages remain because
-  data-first is cheap insurance: it keeps the data view provably independent of the 3D. The old
-  SubViewport mitigations (quarter-res `stretch_shrink`, `_present_viewport` timer) are gone with the
-  SubViewport itself. If a crash somehow recurs, capture it via the dev editor (see "Debugging rules").
-
-## When a snapshot is sent (the bridge cadence)
-
-`BridgePart` hooks two Qud events: `EndTurnEvent` → `Bridge.Tick` (per turn) and `BeforeRenderEvent` →
-`Bridge.TickRender` (every rendered frame while Qud is focused). A snapshot (`ZoneSnapshot.BuildJson`,
-a full zone scan) publishes via `PublishNow`, rate-limited to `PublishThrottleMs` (~15/sec). Triggers:
-
-- **Turn-based** (`Tick`) — any action that ends a turn. Always publishes (throttled).
-- **A command Raves drove** (`TickRender`) — move / wait / key / become / zoo / shot → immediate reply.
-- **Zone change** (`Tick` + `TickRender`) — walk over an edge, soar/descend, travel → forced past the throttle.
-- **No-turn reactive refresh** (`TickRender`) — `BuildSignature` fingerprints the observed state ~10×/sec
-  (`SigCheckMs`); any change marks it dirty and the throttle republishes. This is what makes targeting
-  (and other no-turn changes) show without a move. The signature covers: **combat target**, **player HP**,
-  **position**, **level/XP**, **active effects**, **message count**, **body temperature**, **zone**.
-  **To make more things reactive, add the signal to `BuildSignature` — nothing else changes.** Keep each
-  read cheap + guarded (it runs 10×/sec); never do a zone scan there.
-
-The mod is INERT with no client connected (gated on `server.ClientCount`), so solo Qud is unaffected.
+Runtime order: **MainMenu → MainFrame → Main (the Holodeck)**. `Main.gd` is decomposed into delegate files
+(SkyGrade / CameraRig / Multiview / RemoteControl / DebugMenu / DirectionPicker). `MainFrame.gd` is the
+5-row gameplay chrome; the Holodeck renders **full-window into the root viewport** (no `SubViewport` — that
+was the Metal crash source) with a transparent hole in row 3. **ONE bridge:** `Main` emits `snapshot(data)`;
+`MainFrame._apply_stats` fills the panels. Full detail — components, panels, the direction picker, the
+snapshot cadence — in [`docs/architecture.md`](docs/architecture.md). **The rule that bites: any clickable
+UI over the Holodeck must be `FOCUS_NONE`** or it swallows the movement arrows.
 
 ## Branches & platform (parallel dev on Mac + PC)
 
-Two working branches off `main`: **`dd/mac`** (the Mac) and **`dd/pc`** (the second computer,
-Windows). `main` is the shared, cross-platform base. To keep merges clean:
+Mac and PC (Windows) develop in parallel off a shared base; feature work happens on its own branch (check
+`git branch` — don't assume a fixed name). To keep merges clean:
 
-- **All OS-specific tooling is behind a seam** — `tools/capture/plat.py` dispatches by OS to
-  `plat_mac.py` / `plat_win.py`. Cross-platform code (bridge, Godot, mod logic) is shared.
-  **PC work = implement `plat_win.py`** (mirror `plat_mac.py`'s function names; guidance is in its
-  docstring). Do NOT edit the other OS's backend — that's exactly what would cause merge conflicts.
-- The **"Local paths" table below is macOS / this machine**; the PC branch keeps its own values
-  there. Expect that section to differ per branch — that's fine, not a conflict to resolve.
-- Everything else (`godot/`, `mod/`, cross-platform `tools/`) should merge cleanly; coordinate on
-  shared feature files as usual.
+- **All OS-specific tooling is behind a seam** — `tools/capture/plat.py` dispatches by OS to `plat_mac.py` /
+  `plat_win.py`. Cross-platform code (bridge, Godot, mod logic) is shared. **PC work = implement
+  `plat_win.py`** (mirror `plat_mac.py`'s function names). **Do NOT edit the other OS's backend** — that's
+  exactly what causes merge conflicts.
+- The **"Local paths" table below is macOS / this machine**; the PC branch keeps its own values there.
+  Expect that section to differ per branch — fine, not a conflict.
 
 ## Local paths (this machine — macOS)
 
@@ -171,7 +63,7 @@ Windows). `main` is the shared, cross-platform base. To keep merges clean:
 | Qud game data (XML) | `<Qud>/Contents/Resources/Data/StreamingAssets/Base` |
 | mod deploy target | `~/Library/Application Support/com.FreeholdGames.CavesOfQud/Mods/RavesOfQudBridge/` |
 | exported tiles | `~/Library/Application Support/RavesOfQud/tiles` |
-| standing overrides | `~/Library/Application Support/RavesOfQud/overrides.json` (seed copy committed at repo `overrides.seed.json`) |
+| standing overrides | `~/Library/Application Support/RavesOfQud/overrides.json` (seed committed at `overrides.seed.json`) |
 | inspector output | `~/Library/Application Support/RavesOfQud/selection.txt` (latest), `selections.log` (history) |
 | Qud crash log | `~/Library/Logs/Freehold Games/CavesOfQud/Player.log` |
 | bridge socket | `127.0.0.1:48710` |
@@ -182,302 +74,130 @@ Windows). `main` is the shared, cross-platform base. To keep merges clean:
 # type-check the mod against the REAL Qud API (catches API drift before a restart)
 dotnet build mod/RavesOfQudBridge.csproj
 
-# deploy the mod  — REQUIRES A FULL QUD RESTART (mods compile at startup)
+# look up an EXACT Qud API signature — decompile the shipped assembly (don't guess; reflect, don't grep)
+DOTNET_ROOT=/opt/homebrew/Cellar/dotnet/<ver>/libexec ~/.dotnet/tools/ilspycmd \
+  "<Managed>/Assembly-CSharp.dll" -t <FullTypeName>
+
+# deploy the mod — REQUIRES A FULL QUD RESTART (mods compile at startup)
 cp mod/*.cs mod/manifest.json ~/Library/Application\ Support/com.FreeholdGames.CavesOfQud/Mods/RavesOfQudBridge/
 
-# validate the Godot scripts parse + _ready runs, without a window.
-# "Raves bridge: connected" and no errors == clean. .gd changes need NO restart for a dev-run — but the
-# EXPORTED app freezes scripts at build time, so re-run tools/build_macos.sh for a change to reach it.
-# NB: after ADDING a `class_name`, the headless parse fails ("Could not find type X") until an
-# editor rescan (the class cache lives in the gitignored .godot/): run `--editor --quit` once first.
+# validate the Godot scripts parse + _ready runs, without a window ("connected" + no errors == clean).
+# .gd changes need NO restart for a dev-run; the EXPORTED app freezes scripts at build time (rebuild to ship).
+# After ADDING a `class_name`, the headless parse fails until an editor rescan: run `--editor --quit` once.
 /Users/homefolder/Downloads/Godot.app/Contents/MacOS/Godot --headless --path godot/ --quit-after 120
-
-# ^ CAVEAT: that run only DEEP-ANALYSES scripts it actually loads. Main.gd is instanced by MainFrame only
-# on "Connect", so its parse/type errors are NOT caught above (this hid a bad ref + `:=` inference breaks
-# during the CameraRig extraction). To truly validate one script, force it:
+# ^ only deep-analyses scripts it LOADS. Main.gd is instanced on "Connect", so force-check it:
 /Users/homefolder/Downloads/Godot.app/Contents/MacOS/Godot --headless --path godot/ --check-only --script res://Main.gd
+# In --check-only, `Identifier not found: Settings`/`QudLauncher` are FALSE POSITIVES (autoloads aren't
+# loaded). But `Could not parse global class X from res://X.gd` is REAL — X.gd has a parse error and the
+# export will ship it broken (a Main.gd `class_name` ref then fails at RUNTIME, silently killing the
+# Holodeck). Never lump the two together; if you see a "global class" error, fix X.gd before shipping.
 
-# build a CRISP (HiDPI) macOS .app — dev-run windows are soft on Retina (see "Display" below).
-# Exports + re-signs ad-hoc; output is build/RavesOfQud.app (gitignored). Needs the 4.7 export
-# templates installed (one-time, ~1.3GB, Editor > Manage Export Templates).
-tools/build_macos.sh   &&   open build/RavesOfQud.app
+# build a CRISP (HiDPI) macOS .app (dev-run windows are soft on Retina). Needs the 4.7 export templates.
+tools/build_macos.sh && open build/RavesOfQud.app
 
 # read live state off the bridge (BLOCKS until the player takes a turn)
-python3 tools/capture/snap.py summary
-python3 tools/capture/snap.py cell 66 6
-python3 tools/capture/snap.py water
-python3 tools/capture/snap.py find glowfish
+python3 tools/capture/snap.py summary        # also: cell 66 6 · water · find glowfish
 
 # inspect an exported tile's pixels / opaque band / transparency
-python3 tools/capture/tile.py Tiles_sw_floor_brickb3.bmp
-python3 tools/capture/tile.py --list water
+python3 tools/capture/tile.py Tiles_sw_floor_brickb3.bmp   # also: --list water
 
-# DRIVE the game headlessly — works with Qud UNFOCUSED (build 2026-07-24k+; see docs/tools.md).
-# move -> Qud, cam/shot/fph -> Godot via the godot_cmd file. Godot screenshots work unfocused.
-python3 tools/capture/control.py move N 5
-python3 tools/capture/control.py cam 1
-python3 tools/capture/control.py shot     # -> shot.png (read it)
+# DRIVE the game headlessly — works with Qud UNFOCUSED (see docs/tools.md).
+python3 tools/capture/control.py move N 5    # cam <1-7> · shot -> shot.png · export (re-export data)
+python3 tools/capture/control.py onboard devices   # drive the onboarding UI with NO Qud running
 
-# Drive the onboarding UI with NO Qud needed (only the Godot window running):
-python3 tools/capture/control.py onboard devices   # devices/ktype/layout/function/numpad/mouse/close
-python3 tools/capture/control.py shot              # -> shot.png; read it to verify the screen
+# Option PRESETS — save/load a whole options set for deterministic test state (see docs/tools.md)
+python3 tools/capture/presets.py list        # · load compass-fullinfo
 ```
 
-## Display & fonts
+## Launching & driving the apps — ALWAYS through highvisor (`~/bin/hv`)
 
-- **Dev-run windows are PIXELATED on Retina — a Godot limitation, not our bug. Don't chase it
-  in-code.** Measured at the render target: a floating `--path`/editor window gets a NON-HiDPI
-  backing (framebuffer = logical size, e.g. 1600x900), which macOS upscales 2x on a 2x display, so
-  ALL text is soft. `allow_hidpi`, `content_scale_factor`, fullscreen and maximize were all ignored
-  or rejected from dev-run (only exclusive fullscreen/maximize even reach native res, and macOS
-  refused to switch modes). The fix is to EXPORT (`tools/build_macos.sh`): an exported .app sets
-  `NSHighResolutionCapable` and renders native = crisp. So: dev-run for fast iteration (soft),
-  exported .app when you need it crisp (reading UI, demos, tuning fonts). ~1 session was burned
-  re-discovering this — check the render-target size before theorizing.
-- **All UI font sizes come from ONE source of truth: `godot/UiFont.gd`** (`FRAC` = body px ÷ window
-  height, `MIN` = absolute floor, role multipliers). Change `FRAC`/`MIN` → the whole app re-sizes.
-  Press **L** in-app for the font ruler (Lorem Ipsum at each px).
-- **It's AUTOMATIC via a project-wide default theme** — `UiFont.make_theme()` builds a Theme (body
-  size + Atkinson font); Main assigns it to `get_tree().root.theme`, and `Main._stamp_theme_roots()`
-  re-broadcasts it (see the CanvasLayer trap below). Refreshed on resize. So **any Control that
-  doesn't override inherits the right size/font for free — including future UI.** That's how a whole
-  imported file (CharacterCreator, zero overrides) was fixed without touching it. For a non-body size,
-  prefer `theme_type_variation = "Title"/"Big"/"Caption"` (registered on the theme) over hardcoding;
-  `UiFont.px(vp, role)` explicit overrides also work and win over the theme.
-  **Do NOT hardcode a font_size number in new UI** — it escapes the source of truth.
-- **The CanvasLayer / plain-Node theme trap (this is why "B become" was tiny).** In Godot 4 a Control
-  whose *direct parent is neither a Control nor a Window* becomes its own **theme root** and does NOT
-  inherit `get_tree().root.theme`. One `CanvasLayer` (or bare `Node`) anywhere in the chain severs
-  propagation, and the subtree silently falls back to the tiny built-in default. **Any new pop-up/HUD
-  you root under a CanvasLayer must be reconnected to the source of truth.** Two ways, pick one:
-  1. **Preferred, zero-maintenance:** add the UI subtree to the tree, then it's covered automatically
-     — `Main._stamp_theme_roots()` walks the whole tree and assigns `_ui_theme` to every theme-root
-     Control that has none (only nulls, so an intentional custom theme still wins). It runs deferred at
-     startup (after all UI is built) and on every resize. If you build UI *lazily* (only when first
-     shown) rather than in `_ready`, call `_apply_ui_fonts()` after building so the stamp re-runs.
-  2. **Self-contained:** set `my_root_control.theme = UiFont.make_theme(get_viewport())` on the top
-     Control of your subtree yourself (what OnboardingControl does).
-- **A panel that sizes its font only at build time stays TINY** — the window is still small at
-  `_ready`, and the panel never grows. Re-apply `UiFont.px(...)` on every SHOW/repaint (that was the
-  bug on the selection log and report form), or hook `get_viewport().size_changed` like the mode label.
+**Never** `open build/RavesOfQud.app`, never launch Qud by hand, never AppleScript a window into
+place — that manual thrash burns whole sessions and is the #1 recurring failure mode. The flows:
 
-The `onboard` command jumps the wizard straight to a named screen so Claude can
-photograph and verify each one. `shot` no longer depends on `renderer.tiles_dir()`
-(it falls back to `InputModel.support_dir()`), so screenshots work before Qud connects.
+```bash
+hv launch raves          # THE pair start: Raves spawns Qud borderless; both auto-placed
+hv launch raves_solo     # just Raves (no Qud spawn) · qud_solo = just Qud (borderless args)
+hv state                 # which screen is each app on (first-party scene reports, no guessing)
+hv goto qud in_game      # drive an app to a state-tree node (recipes in highvisor/gametree.json)
+hv assert --app raves --node in_game --timeout 20   # block until a state holds (TDD; exit 0/1)
+```
 
-## The feedback loop
+After a Raves rebuild: quit the old Raves, `hv launch raves_solo` (Qud can stay up). If an `hv`
+capability is missing or misbehaving, **fix it in the highvisor repo** (`personal-git/highvisor`,
+see its CLAUDE.md) instead of falling back to manual driving — the workaround dies with the
+session, the fix compounds. The cockpit (`:48721`) has buttons for all of this.
 
-Claude **cannot see the Holodeck** (the Godot viewport). Don't ask the user to describe what
-they see in words — that round-trip has been the main source of wasted effort.
+## Fonts & display — the rules
+
+- **Dev-run windows are soft on Retina** (a Godot limit, not our bug — the floating window gets a non-HiDPI
+  backing). Don't chase it in-code; **EXPORT** (`tools/build_macos.sh`) when you need it crisp.
+- **All UI font sizes come from ONE source: `godot/UiFont.gd`.** Do **NOT** hardcode a `font_size` — use
+  `theme_type_variation` (`"Title"/"Big"/"Caption"`) or `UiFont.px(vp, role)`. Press **L** in-app for the ruler.
+- **CanvasLayer theme trap:** a Control whose direct parent is neither a Control nor a Window becomes its own
+  theme root and won't inherit the app theme → tiny built-in font. Fix: keep it in the tree (covered by
+  `Main._stamp_theme_roots()`), or set `theme = UiFont.make_theme(get_viewport())` on your subtree's root.
+- A panel that sizes its font only at build time stays tiny — re-apply on every show/resize.
+
+## The feedback loop (capture and inspect; do not infer)
+
+Don't ask the user to describe what they see, and don't guess from the wire — capture and read back.
+The apps screenshot themselves and highvisor can capture the Holodeck window, so verify appearance from
+a real image; that round-trip of asking the user to describe is the main source of wasted effort.
 
 1. User points at a cell in Godot: **Ctrl/Cmd+click**, or hover and press **I**.
-2. `CellInspector` writes `selection.txt`, copies to the clipboard, and shows a panel.
-3. Claude reads `selection.txt` directly — no transcription.
+2. `CellInspector` writes `selection.txt` (and copies to the clipboard).
+3. Claude reads `selection.txt` directly.
 
-The report pairs **WIRE** (what Qud sent) with **RENDERED** (what `ZoneRenderer`
-actually did, and at what Y). Every rendering bug so far has lived in the gap
-between those two, so always read both halves.
+The report pairs **WIRE** (what Qud sent) with **RENDERED** (what `ZoneRenderer` did, and at what Y). Every
+rendering bug so far lived in the gap between those two — always read both halves.
 
-## Screenshots — F12 in the Godot window
+## Screenshots
 
-Claude **cannot** capture the screen: macOS `screencapture` fails without Screen Recording
-permission (`could not create image from display`). So both apps capture themselves.
+macOS `screencapture` needs Screen Recording permission (often unavailable), so the apps also capture
+themselves. For outside-driven work, **highvisor captures a specific window** — `hv shot '<window>' out.png`.
 
-**Ctrl/Cmd + right-click a tile in the Holodeck** is the one to use: it inspects that tile
-*and* photographs both apps. One gesture produces everything needed to discuss it —
+- **Ctrl/Cmd + right-click a Holodeck tile** = inspect that tile **and** photograph both apps in one gesture:
+  `RavesOfQud/selection.txt` (the report), `shot.png` (the Holodeck, marker on the tile), `qud_shot.png`
+  (Qud's window). The text report is hidden from the shot.
+- **F12** does the screenshots alone (`shot.png` + `qud_shot.png`). Qud's file appears at end-of-frame, so
+  allow a moment. Godot's `shot` marshals `UnityEngine.ScreenCapture` to the main thread via `uiQueue`.
 
-| file | what |
-|---|---|
-| `RavesOfQud/selection.txt` | the report: blueprint, tile, colours, flags, and what the renderer DID |
-| `RavesOfQud/shot.png` | the Holodeck (Raves viewport), with the 3D marker on the picked tile |
-| `RavesOfQud/qud_shot.png` | Qud's own window, for side-by-side comparison |
+## Tile reports — overrides + notes
 
-The text report is hidden from the shot (the marker stays), so the picture shows the scene
-rather than the panel.
+Some things aren't in Qud's data (a water wheel runs E–W but the tile doesn't say so). Inspect a tile and use
+the form (lower right); Esc clears the selection.
 
-**F12** does the screenshots alone, without inspecting:
+- **Standing rules** (shape, fill) → `overrides.json`, keyed by tile family. `ZoneRenderer._load_overrides()`
+  reads it **live** every frame — it's config that persists until changed. The form's **Clear rules** button
+  is the undo; the inspector prints `OVERRIDE …` for any tile with an entry. The tile→family reduction has
+  ONE GDScript source (`ZoneRenderer.tile_family()`); the C# `TileFamily()` is a separate server-side copy.
+- **One-off notes** (colour, position, free text) → dated `.md` tickets under `reports/`; delete once addressed.
 
-| file | what |
-|---|---|
-| `~/Library/Application Support/RavesOfQud/shot.png` | the Godot viewport |
-| `~/Library/Application Support/RavesOfQud/qud_shot.png` | Qud's own window |
+## Lighting & geometry
 
-Godot saves its viewport directly; it also sends a `shot` command so the mod calls
-`UnityEngine.ScreenCapture.CaptureScreenshot` — marshalled to the main thread via `uiQueue`,
-same rule as tile export. Qud's file appears at end-of-frame, so allow a moment.
+- **Lighting is faked**: a day/night MULTIPLY grade + a per-cell darkness overlay + additive glows. The world
+  honors `ZoneRenderer.SHADED_WORLD` (**currently `true`** → per-pixel). Full writeup:
+  [`docs/rendering.md`](docs/rendering.md) §5.
+- **Prototype geometry/pixel algorithms in Python first** — I can't see the viewport, so verify the
+  *algorithm* in Python (`tools/capture/voxel.py`, `fill.py` mirror the GDScript), then port. Appearance
+  still needs a screenshot; the algorithm doesn't. See [`docs/tools.md`](docs/tools.md).
 
-Claude reads both with the Read tool. This replaces the user manually screenshotting and
-pasting, which is how most of this project's visual debugging has worked so far.
+## Hard-won rules (one-liners; full stories in [`docs/decisions/debugging-lessons.md`](docs/decisions/debugging-lessons.md))
 
-## Tile reports — two kinds, two places
-
-Some things aren't in Qud's data: a water wheel runs east–west, but `sw_waterwheel_1` doesn't
-say so. Inspect a tile (Ctrl/Cmd+click, or hover + I) and use the form (lower right). Cancel or Esc clears the selection. Destructive actions (Clear rules) are in the form's ☰ hamburger, not beside Submit. Submissions split by type:
-
-**Standing rules** (shape, fill) → `~/Library/Application Support/RavesOfQud/overrides.json`,
-keyed by tile family, one entry per tile:
-
-```json
-{ "tiles": { "sw_waterwheel": { "shape": "…E–W…", "fill": "…fill the holes…" } } }
-```
-
-`ZoneRenderer._load_overrides()` reads this **live** every frame. It is **config** — it persists
-until changed. The form's **Clear rules** button removes a tile's entry; that is the undo. Never
-hand-delete an entry to "resolve" a tile unless you mean to revert its render. Hand-editing the
-JSON is fine (read-modify-write preserves it).
-
-The tile→family reduction has **one** GDScript source, `ZoneRenderer.tile_family()`; the form
-calls it rather than duplicating it, so a written key and a looked-up key can't drift. The
-inspector prints `OVERRIDE shape=… fill=…` for any tile that has an entry, so a rule that
-doesn't take (typo'd family, wrong tile) is visible, not silent. The C# `TileFamily()` in the
-mod is a separate copy on purpose — it's server-side, used only for ground-dedup within a
-snapshot, and never touches override keying.
-
-**One-off notes** (colour, position, free text) → dated `.md` files under `reports/`, each with
-the full inspector capture attached. These are **tickets**: read the directory for what's
-outstanding, delete a file once addressed. Deleting a note never changes the render.
-
-## Lighting is FAKED (the world is unshaded)
-
-Day/night is a full-screen **MULTIPLY** ColorRect (`Main._grade`) tinting the whole viewport by
-time of day — the only way to grade an unshaded scene. It sits on CanvasLayer 0, below the UI
-(layer 1), so the world dims but panels/text stay bright. The mod sends `time` (hour, dawn/dusk
-boundaries, `isDay`, label) from `The.Game.Turns` + the static `Calendar` fields. Night is a cool
-moonlit blue, dawn/dusk warm, midday neutral. **Qud has no moon phase** — the only "moon" is the
-Moonstair location — so none is sent or faked.
-
-**Darkness is PER CELL, not from the grade** (caverns + the surface at night). A single MULTIPLY
-can't do "black + bright light pools" — in LDR it dims the additive glows too — so the mod sends
-each cell's `light` (`(int)Cell.GetLight()`) and `ZoneRenderer._build_darkness` lays a MIX-black
-overlay that falls off to black around sources, matching Qud's own map. Consequence: underground and
-at night the grade stays **bright** (`CAVE_TINT`/`NIGHT_TINT` are near-neutral, NOT dim) or it would
-double-dark and kill the pools; the overlay does all the dimming. Full writeup + the frozen-zone /
-sight-disc subtleties: **[`docs/rendering.md`](docs/rendering.md) §5a** — read it before touching lighting.
-
-
-Every material in `ZoneRenderer` is `SHADING_MODE_UNSHADED` so tiles show their exact colours.
-A real `OmniLight3D`/`DirectionalLight3D` therefore does **nothing** to the scene. Any "light"
-must be **additive geometry**: `_place_light()` draws a warm radial ground-glow quad plus a
-flickering flame billboard, both `BLEND_MODE_ADD`, which brighten whatever's behind them without
-scene lighting. The mod sends `lightRadius` (from `LightSource.Radius` where `Lit`); Qud's flame
-itself is procedural (particles + `AnimatedMaterialFire`), so there's no tile to extract.
-
-## Prototype geometry algorithms in Python first
-
-I cannot see the Godot viewport, so voxel/relief algorithms were being written straight into
-GDScript and verified only by the user's screenshots — slow, and it hid an off depth order. Do the
-algorithm in Python where its output is inspectable, THEN port. `tools/capture/voxel.py` is the
-record of that discipline: it prototyped a luminance height-ranking rule and, in doing so, *measured*
-the fact that governs the subsystem — Qud tiles are 2-bit masks, ≤3 colours ⇒ ≤3 heights, so no
-ranking rule can add relief. That is why the walls shipped as **binary flush-and-carve** (non-bg
-flush, bg carved) rather than any ranking — the renderer no longer ranks height at all (see
-`docs/rendering.md` §4). Still the right habit for any NEW geometry/pixel algorithm: prototype and
-inspect in Python before porting. (Lighting/shadow *appearance* still needs a screenshot; the
-*algorithm* does not.)
-
-## Debugging rules, learned expensively
-
-- **The EXPORTED app writes NO crash reports** (ad-hoc signed → macOS suppresses `~/Library/Logs/
-  DiagnosticReports/*.ips`), and its stdout is block-buffered when redirected to a file, so a crash
-  loses the tail. To get a real GDScript backtrace or native stack, run the project under the **dev
-  editor** instead: `Godot --path godot` (writes `Godot-*.ips`, flushes errors). `godot.log` under
-  `app_userdata/Raves of Qud/logs/` flushes script errors too. Don't trust an empty redirected log
-  as "no error" — it's probably just unflushed.
-- **Look up Qud APIs against the real assembly, don't guess.** `dotnet build mod/…csproj` compiles
-  against the game's `Assembly-CSharp.dll`, so a wrong method/stat name is a compile error you catch
-  *before* the user runs. For exact signatures, decompile: `DOTNET_ROOT=/opt/homebrew/Cellar/dotnet/
-  <ver>/libexec ~/.dotnet/tools/ilspycmd "<Managed>/Assembly-CSharp.dll" -t <FullTypeName>`. This is
-  how the status-bar stat APIs were nailed (AV via GetStatValue matched by luck; DV/MA needed
-  `Stats.GetCombatDV/MA`). `GetStatValue(name)` compiles for ANY string and returns 0 for a bad name,
-  so a field reading 0 at runtime = wrong key, not a crash.
-- **A cell is not just its objects.** Qud paints a ground layer (dirt, grass) onto cells with
-  no `GameObject` at all — 1103 of 2000 in a Joppa zone. `Cell.Render()` composites it. Missing
-  this cost six wrong hypotheses and four shipped-but-inert fixes.
-- **Measure before hypothesising.** When a search keeps coming up empty, verify the dataset is
-  complete instead of refining the search. Emitting `nHeld`/`nRendered`/`nSent` per cell proved
-  in one turn that nothing was being dropped, which eliminated the entire object path — after
-  six rounds of guessing had not.
-- **Know which build is running.** Mod `.cs` only compiles at Qud startup. `Protocol.Build`
-  ships in every snapshot and the inspector prints it. Several rounds here were spent reasoning
-  over a build that did not contain the fix being tested.
-- **Verify a fix did something.** `RenderTile` was deployed and reasoned about for several
-  rounds before `fg=` being empty on every object revealed it had never once fired.
-- **The mod runs INSIDE Qud, so it can slow the GAME, not just Raves.** "Overworld sluggish" cost
-  many rounds guessing at Godot before measuring the bridge: the mod built a full snapshot on every
-  turn even with Raves closed (gate on `ClientCount`), and world-map travel auto-advances a BURST of
-  turns — publishing ~60–100 snapshots/sec, pinning Qud AND starving Godot's frame loop (the
-  "lighting eases slowly" tell). Measure `serverUs`, `renderBaseUs`, and the **publish RATE** (10ms
-  gaps = a flood) before touching the client. See protocol.md "publish cadence".
-- **A continuous visual glitch with NO new data is a client-side per-frame animation.** The world
-  map's "oscillating light" persisted while idle (throttle → zero snapshots), which pinned it to
-  `_process` (the torch flicker), not the data.
-- **`--headless` cannot catch GPU/driver bugs — it renders with a dummy driver.** A `MultiMesh`
-  with a `billboard_mode` material `SIGBUS`-crashed the Metal driver (`memmove` on the instance
-  buffer); the headless parse-check rendered it "fine" because it never touches Metal. A crash in
-  `AGXMetal*` / `IOGPUMetalResource` / a `memmove` under the RenderingServer flush is a GPU
-  resource fault, NOT a GDScript error — suspect the newest instanced/material path, and prefer the
-  proven `Sprite3D` billboard over per-instance `MultiMesh` billboards. Only a real windowed run
-  proves a render path; headless only proves it parses and `_ready` runs.
-- **A single-frame GPU-resource spike can overflow the Metal allocator — spread big builds across
-  frames.** The world-map crash was NOT raw volume (the surface is the same cell count and never
-  crashed); it was the number of *distinct* resources created in ONE frame (the world map has a
-  different terrain texture/material per cell). The fix was the incremental build (`_ib_step`, a
-  chunk per frame), not any single "bad node". When a deterministic same-stack GPU crash resists
-  reasoning, STOP guessing and bisect *with the user* on a real machine: a couple of cheap toggles
-  (does it crash on the surface? with the feature off?) localized it in two rounds after several
-  wrong hypotheses. Trust the bisection over the theory.
-- **No crash report means a HANG, not a crash — and a hang is usually fillrate/overdraw.** A `SIGBUS`
-  always writes `~/Library/Logs/DiagnosticReports/Godot-*.ips`; when several "crashes" wrote none, the
-  app was being GPU-timeout-killed, a different failure entirely. The cause was giant **additive**
-  glow quads (10 × parasang-scale, 240×360, overlapping) — a fillrate bomb. Two lessons: (1) FIRST
-  check for a fresh `.ips` to tell crash from hang before theorizing; (2) big per-object additive
-  quads hang the GPU — but so does environment **bloom** on this setup (a full-screen multi-pass
-  post-process, on top of DOF + fog, at the ~4K external-display window size, tips the M1 Pro past
-  the GPU timeout). The only fill-free "brighter" is an **HDR modulate on an alpha-scissored sprite**
-  (clamps toward white, no halo, no extra pass); a real glow *halo* needs a smaller window or fewer
-  post-passes. Budget GPU fill/post-process for the WORST display (4K), not the laptop panel. Also:
-  a mid-bisect "still crashes" can be a stale build — confirm a `⟳ Reset`/relaunch actually took.
-- **Prefer accessors to fields.** `Render.getTile()` / `getRenderString()` resolve what is
-  actually drawn; the `Tile`/`RenderString` fields are static blueprint values, empty for
-  anything runtime-chosen.
-- **Verify a value, don't trust a field name.** `ColorUtility.CAMERA_BACKGROUND` sounds like the
-  world's background colour. It is the alias `"camera background"` → `#40a4b9`, plain cyan.
-  Trusting it turned the entire world turquoise.
-- **Vertex-colour albedo needs `vertex_color_is_srgb = true`.** Godot defaults it to `false` and
-  treats per-vertex colours as *linear*, so sRGB palette values (from `_qud_color`) render pale and
-  desaturated — the wall reds came out muddy tan (#805840, sat 0.50) instead of brick (#993326,
-  sat 0.75). Tiles that use an albedo *texture* are unaffected (textures carry an sRGB flag); only
-  colour baked into vertices needs this. Diagnosed by *sampling the rendered pixel* and comparing
-  saturation to the palette — the measure-don't-guess rule applied to colour.
-- **Python: `0` is falsy.** `(obj.get("layer") or 99)` silently excluded every layer-0 object —
-  the most common layer in Qud data — and printed an empty result that read like a real finding.
-- **Don't truncate the output you are searching.** Three separate `head`/`tail`/`[:30]` caps in
-  this project cut off exactly the rows being looked for.
-- **Ask the user to click, don't infer from screenshots.** The inspector exists for this. Five
-  hypotheses were formed from pixels; one selection would have beaten all of them.
-- **Unfocused Godot doesn't DRAW.** Godot's `_process` runs unfocused (file polling works) but it
-  doesn't render, so a screenshot that `await`s `frame_post_draw` hangs — use `RenderingServer.force_draw()`.
-- **Driving an unfocused Qud is SOLVED** (build 2026-07-24k+), but the how matters. Qud parks its turn
-  thread on `while (!GameManager.focused) Thread.Sleep(200)` when the window backgrounds, and applies
-  injected commands only through render/turn-tied hooks. Fix = two coupled pieces: inject moves via
-  `Keyboard.PushCommand` (wakes the turn thread from any thread, no render needed) + a watchdog that
-  holds `GameManager.focused = true` while a client is connected. `runInBackground` is a red herring
-  (it's the render loop, not the turn thread). Decompile the game to confirm engine behaviour before
-  theorising; see docs/tools.md "Remote control".
-
-## Ground rules learned the hard way
-
-- **Reflect, don't grep.** String-grepping `Assembly-CSharp.dll` once "proved"
-  `Render` fields were lowercase; they're capitalized. Use a
-  `MetadataLoadContext` probe for exact signatures. See README's toolkit section.
-- **Prefer Qud's own predicates** to inferring from tile names — `Cell.HasBridge()`,
-  `HasWadingDepthLiquid()`, `GameObject.HasIntProperty("Bridge")`, `IsCreature`.
-  Tile families are a *symptom* of game state, not the source of truth.
-- **Never call Unity from the turn thread.** It crashes the game natively.
-  Marshal through `GameManager.Instance.uiQueue`. Harmony patching is blocked on
-  Apple Silicon (`mprotect EACCES`).
-- **Tile paths mix separators** — creature tiles use `\`, most others `/`.
-  Normalize both.
-- A snapshot is only published **on a turn**. Capture scripts must block, and
-  must reconnect on EOF (restarting Qud drops the socket).
-- Commit and push after each round of work once it builds.
+- **Never call Unity from the turn thread** — it crashes the game natively. Marshal through
+  `GameManager.Instance.uiQueue`. (Harmony patching is blocked on Apple Silicon.)
+- **Look up Qud APIs against the real assembly** (`dotnet build`), don't guess. **Reflect, don't grep.**
+  Prefer accessors (`getTile()`) and Qud predicates (`Cell.HasBridge()`) over field names / tile-name inference.
+- **Know which build is running** (`Protocol.Build` ships in every snapshot) and **verify a fix fired**
+  before reasoning over it — mod `.cs` compiles only at Qud startup.
+- **Measure before hypothesising.** A cell is not just its objects (Qud paints a ground layer).
+- **`--headless` can't catch GPU bugs** (dummy driver) — only a real windowed run proves a render path. No
+  crash report = a **HANG** (fillrate/overdraw), not a crash; check for a fresh `Godot-*.ips` first. For a
+  real GDScript backtrace / native stack, run under the dev editor: `Godot --path godot` (it flushes errors;
+  the exported app writes none).
+- **Vertex-colour meshes need `vertex_color_is_srgb = true`** or palette colours desaturate.
+- **Driving an unfocused Qud is solved** (`Keyboard.PushCommand` + a focus watchdog) — see the decisions doc.
+- **Commit + push after each round — but only once the relevant checks pass**, not merely "it builds":
+  the mod build (`dotnet build`), the Godot parse/run check, and any targeted regression checks for what
+  you touched. Then run the **author guard**: `git log --all --format='%ae' | grep -i allspice` must print
+  **nothing** before every push (`--all` catches an allspice-authored commit on *any* ref, not just HEAD).

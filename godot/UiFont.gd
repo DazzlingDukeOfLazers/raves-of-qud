@@ -12,7 +12,13 @@ extends RefCounted
 ## MIN=28 was the user's readable floor.
 
 const FRAC := 0.0197        # body px = window_height * FRAC
-const MIN := 28             # absolute floor px — no text anywhere is smaller
+const MIN := 14             # absolute floor px — no text anywhere is smaller
+                            # (was 28 when the window rendered at a 2x framebuffer; allow_hidpi is
+                            #  now off so px == real px, and the floor halves to keep the same size)
+
+## Global multiplier on every UI size, set from the Options "Font scale" setting (Settings
+## autoload applies it at startup). 1.0 = the tuned default. Re-stamp themes after changing it.
+static var scale := 1.0
 
 ## Roles are multipliers of the body size, so the hierarchy scales together.
 const ROLE := {
@@ -29,7 +35,7 @@ static func px(vp: Viewport, role := "body", bump := 0) -> int:
 	if vp != null:
 		h = vp.get_visible_rect().size.y
 	var mult := float(ROLE.get(role, 1.0))
-	return maxi(MIN, int(h * FRAC * mult) + bump)
+	return maxi(int(MIN * scale), int(h * FRAC * mult * scale) + bump)
 
 ## THE automatic hook: a project-wide default Theme carrying the body size + the bundled Atkinson
 ## font. Assign it to the ROOT viewport (Main does this) and EVERY Control that doesn't explicitly
@@ -39,9 +45,24 @@ static func px(vp: Viewport, role := "body", bump := 0) -> int:
 ## pick a role with `theme_type_variation = "Title"` instead of hardcoding a number.
 static func make_theme(vp: Viewport) -> Theme:
 	var t := Theme.new()
-	var f := load("res://fonts/AtkinsonHyperlegible-Regular.ttf")
+	# Source Code Pro is Qud's UI font (wiki Visual Style). Fall back to Atkinson if it's ever missing.
+	var f := load("res://fonts/SourceCodePro-Regular.ttf")
+	if f == null:
+		f = load("res://fonts/AtkinsonHyperlegible-Regular.ttf")
 	if f != null:
 		t.default_font = f
+		# Register the matching bold so RichTextLabel [b] (message log, nearby, command bar) renders in
+		# Source Code Pro Bold rather than a synthesised/fallback bold. normal/mono stay the regular face.
+		var fb := load("res://fonts/SourceCodePro-Bold.ttf")
+		if fb != null:
+			t.set_font("normal_font", "RichTextLabel", f)
+			t.set_font("mono_font", "RichTextLabel", f)
+			t.set_font("bold_font", "RichTextLabel", fb)
+			t.set_font("bold_italics_font", "RichTextLabel", fb)
+	# Qud's default UI text is the palette grey (y); emphasis stays white via explicit overrides.
+	for base in ["Label", "Button", "CheckBox", "LineEdit", "TextEdit", "OptionButton"]:
+		t.set_color("font_color", base, QudPalette.TEXT)
+	t.set_color("default_color", "RichTextLabel", QudPalette.TEXT)   # RTL uses default_color, not font_color
 	refresh_theme(t, vp)
 	return t
 

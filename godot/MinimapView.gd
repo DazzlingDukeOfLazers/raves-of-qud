@@ -24,13 +24,14 @@ var _palette := {}
 var _rect: TextureRect
 var _tex: ImageTexture   # reused across snapshots; only reallocated when the zone size changes
 var _toggle: Button
+var _title: Label      # header — "Minimap" (user) or the zone name (1:1, Qud-style)
 var _mode := MODE_FULL
 var _last_data := {}   # last snapshot, so a mode toggle re-renders without waiting for a new one
 
 func _ready() -> void:
 	_tiles = load("res://QudTiles.gd").new()
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.09, 0.10, 0.13)
+	sb.bg_color = QudPalette.CHROME
 	sb.set_border_width_all(1)
 	sb.border_color = Color(1, 1, 1, 0.12)
 	sb.set_corner_radius_all(3)
@@ -43,11 +44,11 @@ func _ready() -> void:
 
 	var head := HBoxContainer.new()
 	v.add_child(head)
-	var title := Label.new()
-	title.text = "Minimap"
-	title.add_theme_font_size_override("font_size", UiFont.px(get_viewport(), "title"))
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	head.add_child(title)
+	_title = Label.new()
+	_title.text = "Minimap"
+	_title.add_theme_font_size_override("font_size", UiFont.px(get_viewport(), "title"))
+	_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(_title)
 	_toggle = Button.new()
 	_toggle.focus_mode = Control.FOCUS_NONE
 	_toggle.pressed.connect(_toggle_mode)
@@ -57,6 +58,10 @@ func _ready() -> void:
 	_rect = TextureRect.new()
 	_rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST   # crisp pixels, no blur
 	_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	# IGNORE_SIZE: the rect's min size is 0 (not the tiny 80x25 texture), so EXPAND_FILL actually grows
+	# it to fill the panel height — otherwise the image stays a small centred strip and the panel's
+	# min-height just adds dead space below it.
+	_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_rect.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_rect.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	v.add_child(_rect)
@@ -68,6 +73,43 @@ func set_snapshot(data: Dictionary) -> void:
 	if not pal.is_empty():
 		_palette = pal
 	_tiles.palette = _palette
+	if _one_to_one:
+		_update_title_1to1()   # Qud puts the zone name atop the minimap; keep it live as we travel
+	_rerender()
+
+## 1:1 header: the zone/terrain name (Qud's sidebar header), from the snapshot's stats. Falls back to
+## "Minimap" so the header is never blank before the first stats arrive.
+func _update_title_1to1() -> void:
+	if _title == null:
+		return
+	var nm := QudText.strip(String(_last_data.get("stats", {}).get("terrain", "")))
+	_title.text = nm if nm != "" else "Minimap"
+
+## 1:1 (parity) mode: render the Qud-faithful minimap — the MINIMAL (structural) map, no FULL/MINIMAL
+## toggle (Qud has none), and the header shows the zone name instead of "Minimap". Reverting restores
+## the QoL header + toggle.
+var _one_to_one := false
+var _saved_mode := MODE_FULL   # user's FULL/MINIMAL choice, restored when leaving 1:1
+func set_one_to_one(on: bool) -> void:
+	if on == _one_to_one:
+		return
+	_one_to_one = on
+	if _toggle != null:
+		_toggle.visible = not on
+	# Give the map image a real height. Setting it on the TextureRect (content-min) reliably grows the
+	# panel — the panel's own custom_minimum_size wasn't translating into a taller image (the rect stayed
+	# a short strip). ~110px matches Qud's sidebar minimap.
+	if _rect != null:
+		_rect.custom_minimum_size = Vector2(0, 110 if on else 0)
+	if on:
+		_saved_mode = _mode
+		_mode = MODE_MINIMAL     # Qud's structural overview, not the painterly per-cell FULL map
+		_update_title_1to1()
+	else:
+		_mode = _saved_mode      # restore the user's map style
+		if _title != null:
+			_title.text = "Minimap"
+		_refresh_toggle()
 	_rerender()
 
 func _rerender() -> void:

@@ -1,0 +1,40 @@
+{
+  "_comment": "Placement of Caves of Qud's modern main-menu elements, measured from a 1793x997 capture (build 2.0.211.59), so Raves' title matches WITHOUT redistributing Qud art. Normalized [x,y,w,h] window fractions. 'menu' = the centred, gilded option box (New Game/Continue/Records/Options/Mods); 'links' = the bottom-left secondary list (Redeem Code/Modding Toolkit/Credits/Help); 'logo' top-centre; 'hint' bottom-centre; 'version' bottom-right. MainMenu.gd reads the runtime copy at ~/Library/Application Support/RavesOfQud/title_layout.json (seeded from this file). Re-measure -> overwrite to re-tune (no rebuild).",
+  "source": "Caves of Qud 1.0.5 main menu (modern)",
+  "measured_from": [
+    1793,
+    997
+  ],
+  "elements": {
+    "logo": [
+      0.213,
+      0.119,
+      0.56,
+      0.134
+    ],
+    "menu": [
+      0.408,
+      0.393,
+      0.184,
+      0.332
+    ],
+    "links": [
+      0.033,
+      0.785,
+      0.22,
+      0.14
+    ],
+    "hint": [
+      0.2,
+      0.953,
+      0.6,
+      0.028
+    ],
+    "version": [
+      0.8,
+      0.892,
+      0.185,
+      0.052
+    ]
+  }
+}

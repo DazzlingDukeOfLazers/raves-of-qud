@@ -189,7 +189,9 @@ namespace RavesOfQud
                 j.Member("fgHex", Hex(_scratch.TileForeground));
                 j.Member("bgHex", Hex(_scratch.TileBackground));
                 j.Member("detailHex", Hex(_scratch.Detail));
-                if (_scratch.HFlip) j.Member("hflip", true);
+                // NB: hflip/vflip are emitted by the caller from Render.getHFlip() (the real display
+                // flip); _scratch (the painted ConsoleChar) never carries it, so don't emit here — a
+                // second hflip key would duplicate/override the correct one.
                 if (_scratch.VFlip) j.Member("vflip", true);
             }
             catch { /* colours are an optimisation; never fail a snapshot over them */ }
@@ -264,6 +266,7 @@ namespace RavesOfQud
         private sealed class Ground
         {
             public string Tile, Color, Detail, Glyph;
+            public string MemColor, MemDetail;   // the paint's colours when the cell is NOT visible
             public bool HFlip, VFlip;
         }
 
@@ -275,7 +278,7 @@ namespace RavesOfQud
                 if (ev == null) return null;
                 string tile = ev.Tile;
                 if (string.IsNullOrEmpty(tile)) return null;
-                return new Ground
+                var g = new Ground
                 {
                     Tile = tile,
                     Color = ev.ColorString ?? "",
@@ -284,6 +287,21 @@ namespace RavesOfQud
                     HFlip = ev.HFlip,
                     VFlip = ev.VFlip,
                 };
+                // The MEMORY view of the paint. Cell.Render's FINAL block overrides the colours of
+                // any not-visible/unlit cell to the K/k ghost (fg "&K", detail "k" in tiles mode),
+                // which is what a Visible:false render resolves to here. Ask Qud's own render
+                // rather than hardcoding — if the ghost palette ever changes, this tracks it.
+                try
+                {
+                    var mem = c.Render(Visible: false);
+                    if (mem != null)
+                    {
+                        g.MemColor = mem.ColorString ?? "&y";
+                        g.MemDetail = mem.DetailColor ?? "";
+                    }
+                }
+                catch { }
+                return g;
             }
             catch { return null; }
         }
@@ -308,6 +326,11 @@ namespace RavesOfQud
                 .Member("bridge", false)
                 .Member("sinks", false)
                 .Member("ground", true);
+            if (!string.IsNullOrEmpty(g.MemColor))
+            {
+                j.Member("memColor", g.MemColor);        // paint colours out of sight (usually "&y")
+                j.Member("memDetail", g.MemDetail ?? "");
+            }
             if (hflip) j.Member("hflip", true);
             if (vflip) j.Member("vflip", true);
             j.EndObject();
@@ -496,6 +519,18 @@ namespace RavesOfQud
                 try { j.Member("hp", t.hitpoints).Member("hpMax", t.baseHitpoints); } catch { }
                 try { var pc = t.CurrentCell; if (pc != null) j.Member("x", pc.X).Member("y", pc.Y); } catch { }
                 try { j.Member("hostile", t.IsHostileTowards(player)); } catch { }
+                // Disposition colour for the TARGET-HIGHLIGHT blink (Cell.RenderTarget's rules):
+                // self ^B / party ^b / hostile ^r / neutral ^g. The client blinks a bg fill at
+                // (x,y) in Qud's ~250ms CurrentFrame windows.
+                try
+                {
+                    string tc = "g";
+                    if (t.IsPlayer()) tc = "B";
+                    else if (t.Brain != null && t.Brain.PartyLeader != null && t.Brain.PartyLeader.IsPlayer()) tc = "b";
+                    else if (t.Brain != null && t.Brain.IsHostileTowards(player)) tc = "r";
+                    j.Member("tcolor", tc);
+                }
+                catch { }
                 // PERCEIVED descriptors — exactly what Qud's look/target line shows, colour markup kept:
                 //   wound      = Strings.WoundLevel (the health WORD, e.g. Perfect/Injured; becomes exact
                 //                hp AV/DV only if the player has scanning for the target — Qud's own rule)
@@ -528,7 +563,7 @@ namespace RavesOfQud
             var mws = (player != null) ? SafeMissileWeapons(player) : null;
             if (mws == null || mws.Count == 0)
             {
-                j.Member("kind", "none").Member("text", "No missile weapons equipped.").EndObject();
+                j.Member("kind", "none").Member("text", "You have no missile weapons equipped.").EndObject();   // Qud's exact wording
                 return;
             }
             j.Member("kind", "missile");
@@ -582,6 +617,38 @@ namespace RavesOfQud
             j.EndObject();
         }
 
+        /// The smear-flash colour of each liquid's RenderSmearPrimary (full decompile sweep of the
+        /// 27 XRL.Liquids classes, 2026-08-02): the fg letter the covered object flashes in frames
+        /// 6-14 of 60. Null = that liquid's smear is a no-op (water, acid, algae, cloning, lava,
+        /// neutronflux, salt). Keep in sync with the client's flash program (ZoneRenderer animator).
+        private static string SmearColorOf(string liquid)
+        {
+            switch (liquid)
+            {
+                case "asphalt":
+                case "ink":
+                case "oil":
+                case "ooze":
+                case "putrescence": return "K";
+                case "blood": return "r";
+                case "brainbrine": return "W";
+                case "cider":
+                case "honey":
+                case "sludge": return "w";
+                case "convalessence": return "C";
+                case "gel": return "Y";
+                case "goo": return "G";
+                case "proteangunk": return "c";
+                case "sap": return "W";
+                case "slime": return "g";
+                case "sunslag":
+                case "warmstatic": return "Y";
+                case "wax": return "y";
+                case "wine": return "m";
+                default: return null;
+            }
+        }
+
         /// Write an object's render fields for a panel icon: the FULL (known) tile from the raw Render
         /// part, PLUS a perceived override (see WritePerceivedOverride). The client shows the perceived
         /// icon by default and the full one under the global "Full info" toggle.
@@ -601,6 +668,18 @@ namespace RavesOfQud
                      .Member("color", r.ColorString ?? "")
                      .Member("tilecolor", r.TileColor ?? "")
                      .Member("detail", r.DetailColor ?? "");
+                    // Sprite facing: Qud display-flips creature tiles (their atlas art faces one way; the
+                    // creature faces the other). The reliable source is the CELL's render event (the same
+                    // one the ground path uses) — it evaluates the flip in render context. Render.HFlip is
+                    // false here, and getHFlip() (= HFlip XOR PartyFlip) is unstable per call (the same
+                    // object read true from one serialization, false from another). cell.Render() reflects
+                    // the top object's display; the player/creature is that top object.
+                    try
+                    {
+                        var pc2 = go.CurrentCell;
+                        if (pc2 != null) { var rev = pc2.Render(); if (rev != null && rev.HFlip) j.Member("hflip", true); }
+                    }
+                    catch { }
                     if (painted) WritePaintedColors(j);
                 }
             }
@@ -692,10 +771,11 @@ namespace RavesOfQud
         /// disabled / default) as tile + colours, with the glyph as fallback.
         private static void WriteAbilityIcon(JsonWriter j, ActivatedAbilityEntry e)
         {
-            var r = e.UITileDefault;
-            if (!e.Enabled && e.UITileDisabled != null) r = e.UITileDisabled;
-            else if (e.ToggleState && e.UITileToggleOn != null) r = e.UITileToggleOn;
-            else if (e.Cooldown > 0 && e.UITileCoolingDown != null) r = e.UITileCoolingDown;
+            // GetUITile() LAZILY fills the tile from the ability's XmlData (the raw UITileDefault field is
+            // often null until then — that's why Rebuke Robot/Slam came through iconless) AND returns the
+            // state-appropriate variant (toggle-on / cooling / disabled / default). Works for ANY ability.
+            var r = e.UITileDefault;                // seeds the Renderable type for `var` (may be null)
+            try { r = e.GetUITile(); } catch { }
             string tile = (r != null) ? (r.Tile ?? "") : "";
             if (tile.Length > 0) TileExporter.Ensure(tile);
             j.Member("glyph", (r != null && !string.IsNullOrEmpty(r.RenderString)) ? r.RenderString : (e.Icon ?? ""))
@@ -705,17 +785,54 @@ namespace RavesOfQud
              .Member("detail", (r != null) ? r.DetailColor.ToString() : "");
         }
 
+        // --- "since load" message count -------------------------------------------------------------
+        // Qud's on-screen message log (Qud.UI.MessageLogWindow) is CLEARED on every game load and then
+        // accumulates only messages emitted afterwards, via XRLCore.RegisterNewMessageLogEntryCallback —
+        // it does NOT re-show the save's persisted backlog. Player.Messages, which the client renders in
+        // 1:1 mode, DOES include that backlog, so Raves showed far more history than Qud. Mirror Qud's
+        // callback to count messages since the current load; the client trims its 1:1 log to that many.
+        private static readonly object _sinceLock = new object();
+        private static int _sinceLoadCount;
+        private static object _lastMsgGame;
+        private static bool _msgCbRegistered;
+
+        /// Register the message-log callback. MUST run at mod startup (before any game loads) so it catches
+        /// the load-time messages Qud's own sidebar catches — a lazy first-snapshot registration misses them.
+        public static void EnsureMessageCallback()
+        {
+            if (_msgCbRegistered) return;
+            try { XRL.Core.XRLCore.RegisterNewMessageLogEntryCallback(OnNewLogEntry); _msgCbRegistered = true; }
+            catch { }
+        }
+
+        private static void OnNewLogEntry(string log)
+        {
+            try
+            {
+                object g = The.Game;
+                lock (_sinceLock)
+                {
+                    if (!ReferenceEquals(g, _lastMsgGame)) { _sinceLoadCount = 0; _lastMsgGame = g; }  // load → clear, like Qud
+                    _sinceLoadCount++;
+                }
+            }
+            catch { }
+        }
+
         /// The player's recent message-log lines (tail), markup-stripped, for the frame's Message log.
         private static void WriteMessages(JsonWriter j)
         {
             try
             {
+                EnsureMessageCallback();
                 var mq = (The.Game != null && The.Game.Player != null) ? The.Game.Player.Messages : null;
                 if (mq == null || mq.Messages == null) return;
                 var lines = mq.Messages;
                 int n = lines.Count;
                 int start = n > 80 ? n - 80 : 0;   // last ~80 lines is plenty for the panel
                 j.Member("msgCount", n);           // total ever, so the client can diff for NEW lines (filter mode)
+                int since; lock (_sinceLock) since = _sinceLoadCount;
+                j.Member("msgSinceLoad", since);   // how many trailing lines were emitted THIS load (Qud's sidebar window)
                 j.Name("messages").BeginArray();
                 for (int i = start; i < n; i++)
                     j.Value(lines[i]);             // keep {{colour|...}} markup; the client renders it coloured
@@ -796,6 +913,30 @@ namespace RavesOfQud
             WriteCommandBar(j, player);  // activated abilities for the row-5 command bar
             WriteMessages(j);           // recent message-log lines for the frame Message log
 
+            // Refresh the Visibility AND Light maps before reading them: both are RENDER-FRAME
+            // artifacts — every frame XRLCore clears both, sends BeforeRenderEvent (each
+            // LightSource re-radiates; the Daylight widget adds the time-of-day light), then
+            // re-adds player visibility. Reading them at any other moment races that cycle:
+            // our own tick IS a BeforeRenderEvent handler, so a mid-frame publish could read
+            // the maps CLEARED but not yet re-radiated — a torch-lit wall shipped light=1 and
+            // ghost-flickered in Raves seconds after rendering correctly from the turn-end
+            // snapshot. Recompute the full cycle here (idempotent — AddLight max-combines and
+            // the next real frame redoes it all). InSnapshotRelight guards our own handler
+            // against re-entering from the nested event send.
+            try
+            {
+                var pcell = The.Player?.CurrentCell;
+                if (pcell != null && pcell.ParentZone == z)
+                {
+                    z.ClearLightMap();
+                    z.ClearVisiblityMap();
+                    Bridge.InSnapshotRelight = true;
+                    try { BeforeRenderEvent.Send(z); }
+                    finally { Bridge.InSnapshotRelight = false; }
+                    z.AddVisibility(pcell.X, pcell.Y, The.Player.GetVisibilityRadius());
+                }
+            }
+            catch { Bridge.InSnapshotRelight = false; }
             j.Name("cells").BeginArray();
             for (int y = 0; y < h; y++)
             {
@@ -810,15 +951,24 @@ namespace RavesOfQud
                     var objects = c.GetObjects();
                     int emitted = 0;
 
-                    // Qud's painted ground (Cell.Render()) matters ONLY on a cell with no object.
-                    // On an occupied cell Cell.Render() composites the WHOLE cell and hands back the
-                    // TOP object's tile — which the objects already draw, so it was always deduped
-                    // away there (else every sprite drew twice). Resolving it per occupied cell was
-                    // pure waste: Cell.Render() is expensive, and on the WORLD MAP every one of the
-                    // 2000 cells is occupied — 2000 Cell.Render() calls + 2000 HashSet allocs every
-                    // turn were the overworld movement lag. So only resolve it on empty cells.
-                    Ground ground = (objects.Count == 0) ? ResolveGround(c) : null;
-                    if (ground == null && objects.Count == 0) continue;   // truly blank cell
+                    // Qud's painted ground (Cell.Render()) matters ONLY on a cell with no DRAWABLE
+                    // object. On an occupied cell Cell.Render() composites the WHOLE cell and hands
+                    // back the TOP object's tile — which the objects already draw, so it was always
+                    // deduped away there (else every sprite drew twice). Resolving it per occupied
+                    // cell was pure waste: Cell.Render() is expensive, and on the WORLD MAP every
+                    // one of the 2000 cells is occupied — 2000 Cell.Render() calls + 2000 HashSet
+                    // allocs every turn were the overworld movement lag.
+                    // "Drawable" must mean Render.Visible — Qud's own first gate. A lone INVISIBLE
+                    // widget (CanyonMarker: Visible=false, glyph '*') otherwise counts as occupancy
+                    // and suppresses the painted grass beneath it: Qud shows the grass, Raves blank.
+                    int drawable = 0;
+                    for (int oi = 0; oi < objects.Count; oi++)
+                    {
+                        Render dr = objects[oi].GetPart<Render>();
+                        if (dr != null && dr.Visible) drawable++;
+                    }
+                    Ground ground = (drawable == 0) ? ResolveGround(c) : null;
+                    if (ground == null && drawable == 0) continue;   // truly blank cell
 
                     bool opened = true;
                     j.BeginObject().Member("x", x).Member("y", y)
@@ -829,7 +979,13 @@ namespace RavesOfQud
                         // None=1 .. Light=200 ..). The client uses this underground to fall
                         // off to black away from sources, matching what Qud shows.
                         .Member("light", (int)c.GetLight())
-                    .Name("objs").BeginArray();
+                        .Member("explored", c.IsExplored());
+                    // Visibility (occlusion) — INDEPENDENT of light: a torch-lit cell behind a
+                    // wall has light=200 but renders as Qud's K/k ghost. Cell.Render's rule is
+                    // `!Visible || Lit <= None` -> fg "&K", detail "k" (tiles). Sent only when
+                    // false; the client defaults true.
+                    if (!c.IsVisible()) j.Member("visible", false);
+                    j.Name("objs").BeginArray();
 
                     // Qud's painted ground goes first: it is the bottom of the
                     // stack, and on most cells here it is the ONLY thing drawn.
@@ -839,6 +995,8 @@ namespace RavesOfQud
                     {
                         Render r = go.GetPart<Render>();
                         if (r == null) continue;
+                        // Qud never draws Visible=false (widgets, hidden objects) — don't ship them.
+                        if (!r.Visible) continue;
 
                         // Drawable = has ART or a GLYPH. Requiring RenderString
                         // silently dropped every tile-only object: RenderString is
@@ -854,6 +1012,193 @@ namespace RavesOfQud
 
                         Physics phys = go.GetPart<Physics>();
                         LightSource light = go.GetPart<LightSource>();
+                        string colorOut = r.ColorString ?? "";
+                        string tileColorOut = r.TileColor ?? "";
+                        string detailOut = r.DetailColor ?? "";
+                        // HologramMaterial (holograms/projections) repaints the render colours
+                        // EVERY frame from its cycle ("&C,&b,&c,&B" / "c,C,b,b"); the frame math
+                        // clamps to the LAST entry ~92% of the time, so that IS the steady look
+                        // (the static blueprint '&y' never actually shows; rare '&Y' flickers are
+                        // animation — 1:1 renders the no-animation baseline, like the water sparkle).
+                        try
+                        {
+                            var hm = go.GetPart<HologramMaterial>();
+                            if (hm != null)
+                            {
+                                if (!string.IsNullOrEmpty(hm.ColorStrings))
+                                {
+                                    var pcs = hm.ColorStrings.Split(',');
+                                    colorOut = pcs[pcs.Length - 1];
+                                    tileColorOut = colorOut;
+                                }
+                                if (!string.IsNullOrEmpty(hm.DetailColors))
+                                {
+                                    var pds = hm.DetailColors.Split(',');
+                                    detailOut = pds[pds.Length - 1];
+                                }
+                            }
+                        }
+                        catch { }
+                        // Mimic (chameleons): copies a nearby object's colours into
+                        // ActiveColorString/ActiveDetailColor — STABLE per-turn state — but
+                        // applies them only at render time; the static fields stay the
+                        // blueprint grey. Ship the active camouflage.
+                        try
+                        {
+                            var mim = go.GetPart<Mimic>();
+                            if (mim != null && mim.CopyColor)
+                            {
+                                if (!string.IsNullOrEmpty(mim.ActiveColorString))
+                                {
+                                    colorOut = mim.ActiveColorString;
+                                    tileColorOut = mim.ActiveColorString;
+                                }
+                                if (!string.IsNullOrEmpty(mim.ActiveDetailColor))
+                                    detailOut = mim.ActiveDetailColor;
+                            }
+                        }
+                        catch { }
+                        // SoupSludge (monosludges): a NON-hero sludge appends its component
+                        // liquid's colour EVERY frame (SoupSludge.Render) — for a MONOsludge
+                        // that IS the steady body colour (sugar -> gold). Heroes blink 240/240ms
+                        // and multi-liquid sludges cycle at 240ms/liquid — no steady phase, so
+                        // those keep base colours AND ship the cycle for the client's animator
+                        // (see reports/2026-08-02-monosludge-*).
+                        string animCycle = null;
+                        bool animHero = false;
+                        try
+                        {
+                            var sl = go.GetPart<SoupSludge>();
+                            if (sl != null && sl.ComponentLiquids != null && sl.ComponentLiquids.Count > 0)
+                            {
+                                animHero = go.HasIntProperty("Hero") || go.HasPart<GivesRep>();
+                                // NB GetLiquid/StringMap indexers take ReadOnlySpan<char> — CS7069
+                                // from the mod's target framework (Qud's own compiler accepts them,
+                                // dotnet build doesn't). GetLiquidColors(string) is span-free, and
+                                // GetColor() == Colors[0] across the liquids (checked blood/oil/water).
+                                var lets = new System.Collections.Generic.List<string>();
+                                foreach (string lid in sl.ComponentLiquids)
+                                {
+                                    var lcs = LiquidVolume.GetLiquidColors(lid);
+                                    if (lcs != null && lcs.Count > 0) lets.Add(lcs[0]);
+                                }
+                                if (lets.Count > 0)
+                                {
+                                    animCycle = string.Join(",", lets.ToArray());
+                                    if (!animHero && lets.Count == 1)
+                                        colorOut = colorOut + "&" + lets[0];   // steady mono body (compound: fg = last '&')
+                                }
+                            }
+                        }
+                        catch { }
+                        // Liquid MIXES: the pool's SECONDARY liquid appends its colour to the
+                        // render event every frame (LiquidWater.RenderSecondary += "&b" — why a
+                        // dilute cider pool reads BLUE in Qud: '&w^r'+'&b' = compound, fg = last
+                        // '&'). The static fields hold only the base, so replay the append here.
+                        // Idempotent for pools whose statics already carry the compound (the
+                        // last-'&' rule makes a repeated letter a no-op).
+                        try
+                        {
+                            var lvp = go.LiquidVolume;
+                            if (lvp != null && lvp.IsOpenVolume() && lvp.Secondary != null)
+                            {
+                                var ev2 = new RenderEvent();
+                                ev2.Lit = LightLevel.Light;
+                                ev2.ColorString = colorOut;
+                                lvp.RequireSecondaryLiquid()?.RenderSecondary(lvp, ev2);
+                                if (!string.IsNullOrEmpty(ev2.ColorString))
+                                    colorOut = ev2.ColorString;
+                            }
+                        }
+                        catch { }
+                        // Gas (spore clouds, poison, cryo...): Qud renders EVERY gas as a 4-tile
+                        // swirl cycle (Tiles2/gas_0..3.png, 15 frames = 250ms per step) coloured by
+                        // the Gas part's per-instance ColorString — the static Render has NO tile
+                        // and default colours, so the wire shipped an empty husk. Ship the colour,
+                        // export the cycle tiles, and give the steady base the first frame.
+                        string animGas = null;
+                        try
+                        {
+                            var gasp = go.GetPart<Gas>();
+                            if (gasp != null)
+                            {
+                                animGas = gasp.ColorString ?? (r.ColorString ?? "&y");
+                                for (int gi = 0; gi < 4; gi++)
+                                    TileExporter.Ensure("Tiles2/gas_" + gi + ".png");
+                                if (tile.Length == 0) tile = "Tiles2/gas_0.png";
+                            }
+                        }
+                        catch { }
+                        // Engulfed (a dacca's swallowed prey, a slime-engulfed victim): the victim
+                        // WINS its cell, but Engulfed.Render swaps in the ENGULFER's tile+colours
+                        // for frames 0-30 of every 60 — half-second alternation predator/prey.
+                        // Ship the engulfer's render for the client's overlay.
+                        string engTile = null, engColor = null, engDetail = null;
+                        try
+                        {
+                            var engf = go.GetEffect<XRL.World.Effects.Engulfed>();
+                            var engBy = engf?.EngulfedBy;
+                            var engR = engBy?.Render;
+                            if (engR != null)
+                            {
+                                engTile = engR.Tile ?? "";
+                                engColor = engR.ColorString ?? "";
+                                engDetail = engR.DetailColor ?? "";
+                                if (engTile.Length > 0) TileExporter.Ensure(engTile);
+                            }
+                        }
+                        catch { }
+                        // ConcealedHologramMaterial (the Moon Stair's secretly-virtual assets —
+                        // glitchwood trees etc.): renders NORMAL until the player stands ADJACENT,
+                        // then flickers hologram tints on a 200-frame wheel. The proximity gate is
+                        // client-side (the snapshot carries the player position); just flag the part.
+                        bool animCHolo = false;
+                        try { animCHolo = go.HasPart<ConcealedHologramMaterial>(); } catch { }
+                        // Smear flash (the animator's 9-in-60 colour flash on liquid-covered
+                        // objects): only the liquids whose RenderSmearPrimary actually recolours —
+                        // convalessence '&C', protean gunk '&c'. LiquidWater's smear is a no-op.
+                        string animSmear = null;
+                        try
+                        {
+                            var cov = go.GetEffect<XRL.World.Effects.LiquidCovered>();
+                            if (cov != null && cov.Duration > 0 && cov.Liquid != null)
+                            {
+                                // Qud's NATIVE gate (RenderSmearWithNativeSupplied): an object whose
+                                // LiquidNative tag matches the covering liquid never smears — the
+                                // Rainbow Wood's gunk-native mushrooms sit in soup without flashing
+                                // (the wading player still does; a cider-covered dandy cap flashes).
+                                string lnative = null;
+                                try { lnative = go.GetTagOrStringProperty("LiquidNative"); } catch { }
+                                string lprim = cov.Liquid.Primary;
+                                if (lprim != null && lprim != lnative)
+                                    animSmear = SmearColorOf(lprim);
+                            }
+                        }
+                        catch { }
+                        // LiquidStained (blood-spattered walls etc.): the effect repaints the fg
+                        // from the staining liquid at render time (RenderStain: "&"+primary
+                        // GetColor(); a secondary liquid overrides DetailColor). Static fields
+                        // stay vanilla, so replicate the same overrides on the wire.
+                        try
+                        {
+                            var st = go.GetEffect<XRL.World.Effects.LiquidStained>();
+                            if (st != null && st.Duration > 0 && st.Liquid != null && !st.IsConcealedByLiquid())
+                            {
+                                string spc = st.Liquid.GetPrimaryLiquidColor();
+                                if (!string.IsNullOrEmpty(spc))
+                                {
+                                    colorOut = "&" + spc;
+                                    tileColorOut = "&" + spc;
+                                }
+                                if (st.Liquid.Secondary != null)
+                                {
+                                    string ssc = st.Liquid.RequireSecondaryLiquid()?.GetColor();
+                                    if (!string.IsNullOrEmpty(ssc))
+                                        detailOut = ssc;
+                                }
+                            }
+                        }
+                        catch { }
                         j.BeginObject()
                             // Identity. Without this an object with no Tile is
                             // unidentifiable on the client — you see a glyph and a
@@ -862,9 +1207,9 @@ namespace RavesOfQud
                             .Member("display", DisplayNameOf(go))
                             .Member("glyph", glyph)
                             .Member("tile", tile)
-                            .Member("color", r.ColorString ?? "")
-                            .Member("tilecolor", r.TileColor ?? "")
-                            .Member("detail", r.DetailColor ?? "")
+                            .Member("color", colorOut)
+                            .Member("tilecolor", tileColorOut)
+                            .Member("detail", detailOut)
                             .Member("layer", r.RenderLayer)
                             .Member("wall", go.IsWall())
                             .Member("solid", phys != null && phys.Solid)
@@ -897,6 +1242,64 @@ namespace RavesOfQud
                         // smoke for these. (Only sent when true; client defaults false.)
                         if (go.HasPart("AnimatedMaterialFire"))
                             j.Member("onFire", true);
+                        // STATIC blueprint flip (TerrainMoonStair's world tile ships HFlip="true";
+                        // EynRoj sets it back false). For NON-creatures the raw field IS the truth:
+                        // getHFlip() = HFlip ^ PartyFlip, and PartyFlip only ever applies to the
+                        // player's party — so terrain/scenery flips are stable data. Creatures stay
+                        // excluded (their display flip is render-context state; see the facing gotcha).
+                        if (r.HFlip && !go.IsCreature)
+                            j.Member("hflip", true);
+                        // Qud's out-of-sight (memory) filter: Cell.Render draws an object in a
+                        // not-visible/unlit cell ONLY if Render.RenderIfDark. The root Object
+                        // blueprint defaults it TRUE (terrain/walls/items remembered); the base
+                        // Creature flips it FALSE (with ~55 glowing/mechanical re-enables). Send
+                        // the resolved flag only when FALSE — the client hides these from memory.
+                        if (!r.RenderIfDark)
+                            j.Member("hideDark", true);
+                        // Animation descriptors for the client's 1:1 animator (only sent when set).
+                        if (animCycle != null)
+                        {
+                            j.Member("animCycle", animCycle);
+                            if (animHero) j.Member("animHero", true);
+                        }
+                        if (animSmear != null)
+                            j.Member("animSmear", animSmear);
+                        if (animGas != null)
+                            j.Member("animGas", animGas);
+                        if (!string.IsNullOrEmpty(engTile))
+                            j.Member("engTile", engTile).Member("engColor", engColor ?? "")
+                             .Member("engDetail", engDetail ?? "");
+                        if (animCHolo)
+                            j.Member("animCHolo", true);
+                        // Qud's Swimming effect: an aquatic-limited creature (eel, glowfish) renders
+                        // over its supporting liquid's BACKGROUND colour. Ask the liquid itself
+                        // (RenderBackgroundPrimary/Secondary on a scratch event — water prepends "^b";
+                        // NOT GetColor(), which is the NAME colour 'B' and reads a shade too bright).
+                        // Gate on the Swimming EFFECT being present, exactly like Qud: it is applied
+                        // on MOVEMENT into swimmable water, so an immobile aquatic (glowpad) never
+                        // carries it and renders bg-less on plain ground colour.
+                        try
+                        {
+                            if (go.HasEffect<XRL.World.Effects.Swimming>()
+                                && go.Brain != null && go.Brain.LimitToAquatic())
+                            {
+                                var support = c.GetAquaticSupportFor(go);
+                                var lv = support?.LiquidVolume;
+                                if (lv != null)
+                                {
+                                    var ev = new RenderEvent();
+                                    ev.Lit = LightLevel.Light;   // ColorsVisible gates the append
+                                    ev.ColorString = "";
+                                    lv.GetPrimaryLiquid()?.RenderBackgroundPrimary(lv, ev);
+                                    lv.GetSecondaryLiquid()?.RenderBackgroundSecondary(lv, ev);
+                                    string cs = ev.ColorString ?? "";
+                                    int ci = cs.LastIndexOf('^');
+                                    if (ci >= 0 && ci + 1 < cs.Length)
+                                        j.Member("aquaBg", cs.Substring(ci + 1, 1));
+                                }
+                            }
+                        }
+                        catch { }
                         if (painted) WritePaintedColors(j);
                         WritePerceivedOverride(j, go);   // "unknown" icon override for unidentified items (Nearby)
                         j.EndObject();

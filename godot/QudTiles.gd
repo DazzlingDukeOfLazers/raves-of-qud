@@ -94,17 +94,25 @@ func main_color(obj: Dictionary, fallback := Color.WHITE) -> Color:
 	var hex := String(obj.get("fgHex", ""))
 	if hex != "":
 		return Color(hex)
+	# Qud's tiles rule with the custom-render exception: a COMPOUND color string (second '&',
+	# e.g. a liquid's '&Y^y&b') overrides the static tilecolor — see ZoneRenderer._pick_color_string.
+	var full := String(obj.get("color", ""))
 	var c := String(obj.get("tilecolor", ""))
-	if c == "":
-		c = String(obj.get("color", ""))
+	if full.count("&") >= 2 or c == "":
+		c = full
 	return color_of(c, fallback)
 
-## Detail (secondary) colour of a serialized object/tile dict.
+## Detail (secondary) colour of a serialized object/tile dict. Empty DetailColor is NOT
+## white: Qud draws the detail-mask pixels in the FG colour then (measured on painted-ground
+## flowers). Mirrors ZoneRenderer._obj_detail — keep the copies in sync.
 func detail_color(obj: Dictionary, fallback := Color.WHITE) -> Color:
 	var hex := String(obj.get("detailHex", ""))
 	if hex != "":
 		return Color(hex)
-	return color_of(String(obj.get("detail", "")), fallback)
+	var d := String(obj.get("detail", "")).strip_edges()
+	if d == "":
+		return main_color(obj, fallback)
+	return color_of(d, fallback)
 
 func color_of(code: String, fallback := Color.WHITE) -> Color:
 	var ch := _fg_letter(code)
@@ -116,11 +124,17 @@ func color_of(code: String, fallback := Color.WHITE) -> Color:
 
 ## Foreground letter of a Qud colour code: drop the ^background half and the &, take the last char.
 func _fg_letter(code: String) -> String:
+	# QUD'S OWN RULE (RenderEvent.GetForegroundColor): the char after the LAST '&' anywhere in
+	# the string — '^' sets the background and does NOT stop the search. A liquid's custom
+	# render writes compounds like '&Y^y&b': Qud draws that fg 'b' (the blue puddle), and the
+	# old first-caret truncation read 'Y' instead. A bare letter code stays itself.
 	var c := code.strip_edges()
+	var amp := c.rfind("&")
+	if amp >= 0:
+		return c.substr(amp + 1, 1) if amp + 1 < c.length() else ""
 	var caret := c.find("^")
 	if caret >= 0:
 		c = c.substr(0, caret)
-	c = c.replace("&", "")
 	if c.is_empty():
 		return ""
 	return c.substr(c.length() - 1, 1)

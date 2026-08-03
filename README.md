@@ -1,4 +1,4 @@
-# Raves of Qud
+# Raves of Qud — a Godot 3D / 2.5D viewer for Caves of Qud
 
 A **2.5D / 3D augmentation layer for [Caves of Qud](https://www.cavesofqud.com/)**. It does
 *not* reimplement the game. A real, paid, modded copy of Qud runs as the authoritative
@@ -25,43 +25,83 @@ API terms — `get_viewport()`, `SubViewport`, "the Godot viewport" — stay as-
 Qud owns worldgen, AI, combat, items, saves, tiles — everything. This repo owns two mappings:
 Godot input → Qud command, and Qud zone state → 3D scene.
 
+## What you need
+
+- A **paid, installed copy of [Caves of Qud](https://www.cavesofqud.com/)** with local C# scripting mods
+  allowed. Raves ships **no** game assets — tiles are extracted at runtime from your own install into a
+  git-ignored folder.
+- **Godot 4.7** — the tested path. Other Godot 4.x versions may work but are not the compatibility
+  contract. (Built and tested on macOS; the mod compiles in-process, so no Windows build is needed.)
+- Optional **.NET SDK** to type-check the mod against Qud's assembly before a restart.
+
+## Quickstart
+
+**macOS quickstart** (the tested path; adjust the mod path on Windows):
+
+```bash
+# 1. Deploy the bridge mod (it compiles at Qud startup — a mod change needs a full restart).
+mkdir -p ~/Library/Application\ Support/com.FreeholdGames.CavesOfQud/Mods/RavesOfQudBridge/
+cp mod/*.cs mod/manifest.json \
+  ~/Library/Application\ Support/com.FreeholdGames.CavesOfQud/Mods/RavesOfQudBridge/
+# 2. Launch Qud; enable the mod + "allow local C# scripting mods"; load a save.
+# 3. Verify the bridge is live (the mod opens the socket on the first turn):
+nc -z 127.0.0.1 48710 && echo "bridge up"
+# 4. Open godot/ in Godot 4.7 and press Play — it auto-connects to 127.0.0.1:48710 and retries until Qud answers.
+```
+
+Environment paths and the dev loop: [Running it](#running-it) and `CLAUDE.md`.
+
+## What you can do today
+
+Render the current zone as a lit 3D/2.5D scene (voxel walls, billboard sprites, oriented fences); orbit/
+pan/zoom with **7 camera modes** + a multi-view grid ([docs/cameras.md](docs/cameras.md)); move and act
+with input round-tripped through Qud; **inspect any tile** (Ctrl/Cmd-click) to compare wire-vs-rendered;
+and use a **1:1 Qud-style menu** with Mods/Options screens (a live options mirror + save/load presets).
+Day/night, per-cell lighting, water/bridges, and the message/target/effects panels track Qud each turn.
+
+## Limitations
+
+Single-player viewer of **your own** local game — multiplayer is a [proposal](docs/multiplayer.md), not
+implemented. macOS is the built/tested platform (a Windows branch exists). The bridge is **localhost-only
+with no authentication** — never expose port 48710. Dev-run Godot windows look soft on Retina; export a
+build for crisp text.
+
 ---
 
 ## Documentation map
 
-This README is the **hub**: architecture, platform constraints, the Qud data model, and the
-verified API. Detailed subsystems live in `docs/`:
+This README is the **front door** (above) plus a deep **engineering reference** (below). Detailed
+subsystems have canonical homes in `docs/` — prefer those; the reference below is the reverse-engineering
+record:
 
 | page | what |
 |---|---|
+| **[docs/architecture.md](docs/architecture.md)** | Holodeck boot chain, components, panels, the **threading model**, platform constraints, tile extraction, the bridge cadence. |
 | **[docs/rendering.md](docs/rendering.md)** | the 3D render pipeline — classification, **voxel walls**, shading, day/night, lights, fill, overrides. *Start here for anything visual.* |
-| **[docs/cameras.md](docs/cameras.md)** | camera modes, the **multi-view picker**, the top-down **16:24 aspect stretch**, settings persistence, and viewer controls. |
-| **[docs/tools.md](docs/tools.md)** | the Python inspection tools, the in-viewer inspector/report/screenshots, the remote-control + **OS-input harness** (`control.py`, `desktop.py`), and the **Python-first workflow**. |
-| **[docs/protocol.md](docs/protocol.md)** | the wire format (snapshot & command frames). |
-| **[docs/legacy-integration-playbook.md](docs/legacy-integration-playbook.md)** | **portable playbook** — how to apply the bridge / two-window-focus / OS-input-harness / reverse-engineering lessons to ANY new "Godot on top of a legacy game" target. Read before starting a new integration. |
+| **[docs/cameras.md](docs/cameras.md)** | camera modes (**canonical**), the multi-view picker, and viewer controls. |
+| **[docs/protocol.md](docs/protocol.md)** | the wire format — normative summary, snapshot & command frames, fields, colours + palette, water. |
+| **[docs/qud-api.md](docs/qud-api.md)** | verified Qud namespaces + signatures (reflection-confirmed). |
+| **[docs/tools.md](docs/tools.md)** | the Python inspection tools, the in-viewer inspector/report/screenshots, `control.py`/`desktop.py`, option presets, and the **Python-first workflow**. |
+| **[docs/gotchas.md](docs/gotchas.md)** · **[docs/roadmap.md](docs/roadmap.md)** · **[docs/decisions/](docs/decisions/)** | invariants + checklists · the world-store roadmap · the war-story debugging record. |
+| **[docs/legacy-integration-playbook.md](docs/legacy-integration-playbook.md)** | **portable playbook** for any "Godot on top of a legacy game" target. |
 | **[docs/client-in-unity.md](docs/client-in-unity.md)** | **ecosystem port** — build a Raves client in **Unity** against the same engine-agnostic bridge (socket, classification, tiles, colour, input in C#). |
 | **[docs/client-in-unreal.md](docs/client-in-unreal.md)** | **ecosystem port** — the same client in **Unreal Engine 5** (FSocket, USTRUCT parse, ISM walls, image-wrapper tiles). |
 | **[docs/migrating-clients.md](docs/migrating-clients.md)** | **portable-vs-engine-specific** split, a Godot↔Unity↔Unreal concept crosswalk, port order, and the protocol-versioning rules for multiple clients. |
 
-> **Python-first, for anyone (human or AI) picking this up:** Claude can't see the Holodeck (the Godot viewport),
-> so geometry/pixel algorithms (voxel heights, fill rules) are **prototyped and verified in Python
-> first** (`tools/capture/voxel.py`, `fill.py` — they mirror the GDScript exactly), then ported.
-> Lighting/appearance still needs a screenshot; the algorithm does not. The product is
+> **Python-first, for anyone (human or AI) picking this up:** geometry/pixel algorithms (voxel heights,
+> fill rules) are **prototyped and verified in Python first** (`tools/capture/voxel.py`, `fill.py` — they
+> mirror the GDScript exactly), then ported — because that makes them deterministic and testable without
+> a running window. Final lighting/appearance is verified from **captured Holodeck screenshots** (the
+> apps screenshot themselves; highvisor can also capture the window). The product is
 > well-documented GDScript; Python is validation. See [docs/tools.md](docs/tools.md).
 
-## Table of contents
-1. [Repo layout](#repo-layout)
-2. [Running it](#running-it)
-3. [Architecture & the threading model](#architecture--the-threading-model)
-4. [Hard-won platform constraints](#hard-won-platform-constraints) ← read this first
-5. [The tile system](#the-tile-system-engine-assisted-extraction)
-6. [Wire protocol (the snapshot)](#wire-protocol-the-snapshot) → detail in [docs/protocol.md](docs/protocol.md)
-7. [Qud data model & mappings](#qud-data-model--mappings) ← the "datatypes" reference
-8. [Rendering & tools](#rendering--tools) → [docs/rendering.md](docs/rendering.md), [docs/tools.md](docs/tools.md)
-9. [Verified Qud API reference](#verified-qud-api-reference)
-10. [Open problems / next steps](#open-problems--next-steps)
-
 ---
+
+# Engineering reference
+
+> New readers can stop at the documentation map above — this section is for working on the internals. It
+> keeps repo-level orientation (layout, running it) and a **one-screen index of the data model** with links
+> to each fact's canonical home; the deep detail lives in the subsystem docs.
 
 ## Repo layout
 
@@ -133,426 +173,56 @@ combat/doors/AI exactly as a keypress would.
 
 ---
 
-## Architecture & the threading model
+## Architecture, threading & the wire
 
-The single most important thing to internalise, because it dictates everything:
-
-**Qud runs its turn logic on a dedicated BACKGROUND thread** (`XRLCore._ThreadStart` →
-`RunGame` → `ProcessSingleTurn`), *not* Unity's main/render thread.
-
-- **Reading game state** (Zone, Cell, Render, GameObject) is safe on that turn thread — that's
-  where the objects live. `EndTurnEvent`, and thus `Bridge.Tick`, fire there.
-- **Any Unity graphics call** on the turn thread (`Texture2D` ctor, `Graphics.Blit`,
-  `ReadPixels`, `SpriteManager.GetUnitySprite`) → **"Graphics device is null" → an uncatchable
-  native crash.** (Learned by crashing.)
-
-So the mod is split by thread:
-- **Turn thread** (`Bridge.Tick` via `EndTurnEvent`): read the zone, serialize JSON, enqueue
-  tile-export requests, publish over the socket. No Unity graphics, ever.
-- **Main thread**: tile export runs here via `GameManager.Instance.uiQueue.queueTask(...)`
-  (see below), the only place graphics calls are legal.
-
-The socket server itself (`BridgeServer.cs`) is pure .NET on its own background threads;
-inbound commands land in a `ConcurrentQueue` and are applied on the turn thread.
-
----
-
-## Hard-won platform constraints
-
-These cost real time to discover. Save yourself:
-
-| Constraint | Consequence |
-|---|---|
-| **Turn logic is off Unity's main thread** | Graphics on the turn thread crashes hard. Marshal to main thread. |
-| **Harmony is blocked on Apple Silicon macOS** (`mprotect EACCES`) | Runtime method-patching doesn't work. Can't patch `GameManager.LateUpdate` etc. Use Qud's own events. |
-| **Qud's whole event system runs on the turn thread** | Even `BeforeRenderEvent` fires there, not the main thread (verified with a `UnitySynchronizationContext` probe). No event hook reaches the main thread. |
-| **`GameManager.Instance.uiQueue`** is the escape hatch | `QupKit.ThreadTaskQueue.queueTask(Action, delay)` — drained on the UI/main thread. This is how graphics work gets onto the main thread. Confirmed working. |
-| **`SynchronizationContext.Current is UnitySynchronizationContext` only on the main thread** | Cheap, crash-proof main-thread guard if you're unsure what thread you're on. |
-| **Tiles are packed in Unity 6 atlases, not loose PNGs** | Can't point Godot at files on disk. Extract via the running game (below). |
-| **Exported tile files are PNG content even when named `.bmp`** | Godot's `Image.load_from_file` picks the loader by extension and fails. Read bytes and `load_png_from_buffer`. |
-| **`string`-grepping `Assembly-CSharp.dll` lies about casing** | It reported Render fields lowercase; they're capitalized. Reflect with `MetadataLoadContext` for ground truth. |
-
----
-
-## The tile system (engine-assisted extraction)
-
-Qud has **~44,525 tiles** packed into a few dozen Unity-6 atlas pages, with a path→rect lookup
-baked into a MonoBehaviour. Decoding atlases + reversing that manifest offline is fragile — so
-we don't. **The running game already has the atlas loaded; the mod asks it for pixels:**
-
-1. Turn thread (`TileExporter.Ensure`): dedupe + enqueue the tile path. **No Unity calls.**
-2. Main thread (`TileExportPump.Export`, via `uiQueue`):
-   `Kobold.SpriteManager.GetUnitySprite(path)` → `sprite.texture` (atlas) + `sprite.textureRect`
-   → scaled `Graphics.Blit` of just that rect into a small `RenderTexture` → `ReadPixels` →
-   `EncodeToPNG` → write to `~/Library/Application Support/RavesOfQud/tiles/`.
-3. On-demand (per distinct tile seen), cached, resumable. The snapshot carries `tilesDir` so
-   Godot knows where to load.
-
-You can **force-export tiles that never occur naturally** (e.g. the isolated wall variant used
-for a fully-bordered top) with `TileExporter.Ensure("Assets/Content/Textures/Tiles/wall_rock-00000000.bmp")`
-— the atlas has all 256 autotile variants regardless of what's placed in a zone.
-
-Tile path → filename: replace `/ \ :` with `_`. Content is always PNG.
-
----
-
-## Wire protocol (the snapshot)
-
-localhost TCP **48710**. Every message: `[4-byte big-endian length][UTF-8 JSON]`.
-
-**Server → client (once per turn):**
-```json
-{
-  "type": "snapshot",
-  "tilesDir": "/Users/you/Library/Application Support/RavesOfQud/tiles",
-  "zone":   { "id": "JoppaWorld.11.22.1.1.10", "width": 80, "height": 25 },
-  "player": { "x": 40, "y": 12 },
-  "cells": [
-    { "x": 41, "y": 12, "objs": [
-        { "glyph":".", "tile":"...deep-00100010.png", "color":"&b^B", "tilecolor":"&b",
-          "detail":"B", "layer":2, "wall":false, "solid":false, "occluding":false },
-        ... bottom→top of the cell stack ...
-    ]}
-  ]
-}
-```
-Only **non-empty** cells are sent. Snapshots only fire on a **turn** (the player must act) —
-capture scripts get nothing until you take a step.
-
-**Client → server:** `{ "type":"command", "name":"move", "dir":"N" }` — `dir` ∈
-`N S E W NE NW SE SW`. Applied on the turn thread; the sim resolves the whole turn.
-
----
+- **Holodeck architecture** — boot chain, `Main.gd` decomposition, the MainFrame chrome, panels, the
+  direction picker, the **threading model** (turn thread vs main thread; graphics only via `uiQueue`), the
+  macOS platform constraints, and the tile-extraction pipeline → **[docs/architecture.md](docs/architecture.md)**.
+- **The wire protocol** — snapshot + command frames, the normative summary, per-cell/per-object fields,
+  colours, water → **[docs/protocol.md](docs/protocol.md)**.
+- **Verified Qud API reference** — namespaces + signatures, reflection-confirmed → **[docs/qud-api.md](docs/qud-api.md)**.
 
 ## Qud data model & mappings
 
-This is the reference the project was reverse-engineered into. **All verified against the
-live 1.0 build (Unity `6000.0.77f1`) by reflection + live capture, not from memory.**
+The full reverse-engineered data model (verified against the live 1.0 build by reflection + capture) now
+lives in the subsystem docs. The load-bearing facts, and where each is documented in depth:
 
-### ⚠️ The single most important thing: a cell is NOT just its objects
+- **A cell is NOT just its objects.** Qud paints a ground layer (dirt/grass) onto ~1103/2000 cells that hold
+  no GameObject; the mod sends it as a RenderLayer-0 floor at the bottom of each cell's stack.
+  → [protocol.md](docs/protocol.md), [rendering.md §2](docs/rendering.md).
+- **Accessors, not fields.** `Render.getTile()` / `getRenderString()` resolve runtime-chosen art; the
+  `.Tile` / `.RenderString` *fields* are static blueprint values (empty for `PickRandomTile` etc.).
+  → [protocol.md](docs/protocol.md), [decisions](docs/decisions/debugging-lessons.md).
+- **Colour model.** `ColorString` = `&FG^BG`; `_qud_color` takes the **foreground** (the half before the
+  `^`). Tiles are 2-colour masks: black→`TileColor`, white→`DetailColor`, transparent→the world
+  background. The 16-char palette ships live in every snapshot (`k`=#0f3b3a, the world's dark teal — **not**
+  black). → [protocol.md Colours + palette table](docs/protocol.md#colours), [rendering.md §3](docs/rendering.md).
+- **Tile geometry (16×24).** A top-down **cap** over a south **front-face**; the split is not at row 16 and
+  varies by family (`_wall_split`; measure from the isolated `-00000000` variant, never `-11111111`).
+  → [rendering.md §3–4](docs/rendering.md).
+- **Autotiling.** Walls/water carry an 8-bit neighbour bitmask (`-XXXXXXXX`); fences/pipes carry a
+  `{n,s,e,w}` connection set (`_connector_dirs`). → [rendering.md §1, §4](docs/rendering.md).
+- **RenderLayer → classification.** The `layer` field (+ `wall` / `occluding`) decides flat-floor vs prism
+  vs billboard. → [protocol.md RenderLayer values](docs/protocol.md), [rendering.md §1](docs/rendering.md).
+- **Water & bridges are first-class Qud concepts** — `Cell.HasWadingDepthLiquid()` / `HasBridge()`, not
+  tile-name inference. The render rule: keep the water **flat**, recess the actor (`sinks` = `IsCreature &&
+  !IsFlying`, cropped at the waterline; a bridge cancels the sink and decks over the water).
+  → [protocol.md Water & bridges](docs/protocol.md#water--bridges), [rendering.md §6](docs/rendering.md).
 
-**Qud draws a painted ground layer that is not in the object model.** In a Joppa zone,
-**1103 of 2000 cells contain no `GameObject` at all** — and Qud still paints dirt and grass
-on them:
-
-```
-object-free cells whose compositor still yields a tile: 1103
-   1,0 = Tiles/tile-dirt1.png        3,0 = Terrain/sw_grass2.bmp
-   2,0 = Terrain/sw_grass1.bmp       4,0 = assets_content_textures_tiles_tile-grass1.png
-```
-
-`Cell.Render()` composites it and returns a `RenderEvent` carrying `Tile`, `ColorString`,
-`DetailColor`, `BackgroundString`, `RenderString`, `HFlip`/`VFlip`. **Iterating `Cell.Objects`
-alone gives you a world with no ground cover.** `ZoneSnapshot` emits this as a RenderLayer 0
-floor at the bottom of every cell's stack.
-
-> **Cost of not knowing this:** the missing grass survived *six* wrong hypotheses and four
-> shipped fixes (`RenderTile`, the `Render` accessors, a tile-only filter, `GetObjects()`) —
-> every one of which operated on the object path and was therefore **inert by construction**.
-> "There is no grass blueprint in this zone" was true and useless: grass is not a blueprint.
->
-> What broke it was **measuring instead of hypothesising**. The mod started emitting, per cell,
-> `nHeld` (`GetObjectCount`), `nRendered` (`RenderedObjectsCount`) and `nSent`. They came back
-> `1001 == 1001 == 1001`, which proved nothing was being dropped and eliminated the entire
-> object path in one step — leaving only "Qud draws it from somewhere else." **When a search
-> keeps failing, stop refining the search and verify the dataset is complete.**
-
-### Accessors vs fields — `getTile()`, not `.Tile`
-`Render.Tile` / `Render.RenderString` are the **blueprint's static values** and are empty for
-anything that picks its art at runtime (`PickRandomTile`, `RandomTileOnMove`, harvestable
-states). The `Render` part has accessors that resolve what is actually drawn:
-`getTile()`, `getRenderString()`, `getTileColor()`, `getTileOrRenderColor()`, `GetRenderColor()`.
-
-`GameObject.RenderTile(ConsoleChar)` is the **override hook** for parts that paint themselves.
-In a whole Joppa zone it fired for **zero** objects — don't rely on it, but when it does fire
-its `ConsoleChar` carries already-resolved RGB (`TileForeground`/`TileBackground`/`Detail`).
-
-### Per-object fields (from `XRL.World.Parts.Render` + `GameObject`)
-| snapshot field | Qud source | notes |
-|---|---|---|
-| `glyph` | `Render.RenderString` | ASCII char |
-| `tile` | `Render.Tile` | atlas path, e.g. `Assets/Content/Textures/Tiles/wall_rock-11111111.bmp` |
-| `color` | `Render.ColorString` | **full** string, `&fg^bg` |
-| `tilecolor` | `Render.TileColor` | the tile's foreground colour |
-| `detail` | `Render.DetailColor` | the tile's detail/highlight colour |
-| `layer` | `Render.RenderLayer` | draw order → drives flat/vertical classification |
-| `wall` | `GameObject.IsWall()` | true for solid tagged walls (rock/metal/brinestalk) |
-| `solid` | `Physics.Solid` | impassable |
-| `occluding` | `Render.Occluding` | blocks line of sight → the prism-vs-sprite discriminator |
-
-### Colour model (this bit is subtle and non-obvious)
-Qud `ColorString` = `&X^Y`: `&X` = **foreground**, `^Y` = **background**. Tiles are 2-colour
-masks recoloured on the CPU:
-- **black** mask pixels → foreground (`TileColor`)
-- **white** mask pixels → detail (`DetailColor`)
-- **transparent** → the cell **background** (Qud's dark-green world background). Do **not** flood
-  gaps with the object's `^X` — for e.g. metal (`&r^C`) the cyan belongs to the *detail/border*
-  pixels, not the gap fill. Gaps read as the world green.
-
-**Palette — don't hand-estimate it. `Base/Colors.xml` names the 16 colours but contains
-NO RGB**; the values live in code. The mod reads them out of
-`ConsoleLib.Console.ColorUtility.colorFromChar(char)` (a static dictionary lookup returning a
-struct — no graphics calls, safe on the turn thread) and ships them in every snapshot as
-`palette`. Measured values:
-
-| | | | |
-|---|---|---|---|
-| `k` **#0f3b3a** | `K` #155352 | `y` #b1c9c3 | `Y` #ffffff |
-| `w` #98875f | `W` #cfc041 | `g` #009403 | `G` #00c420 |
-| `b` #0048bd | `B` #0096ff | `c` #40a4b9 | `C` #77bfcf |
-
-> **`k` is not black — it is `#0f3b3a`, a dark teal, and it IS the colour of the Qud world.**
-> Guessing it as near-black is what made the 3D view render on a black void instead of Qud's
-> field, and flattened wall-vs-floor contrast. `WORLD_BG` derives from `palette["k"]`.
->
-> Also: `ColorUtility.CAMERA_BACKGROUND` is **not** the field colour despite the name — it's
-> the alias `"camera background"` → `#40a4b9`, plain cyan. Trusting it painted the entire world
-> turquoise. Verify a value before believing a field name.
-
-`_qud_color()` in `ZoneRenderer.gd` takes the **foreground** — the half *before* the `^` — and
-prefers the shipped `palette` over the hand-estimated fallback table.
-
-> A ColorString is `&FG^BG`. Keying off the **trailing letter** returns the BACKGROUND whenever
-> one is present. The player is `&y^k`, so it read as `k` — `#0f3b3a`, the world's own dark
-> teal — and a pale grey figure rendered dark-teal-on-dark-teal, with only its red detail
-> pixels visible. Objects carrying a `TileColor` were unaffected (that field has no `^`), which
-> is why walls and water looked correct and the bug stayed hidden.
-
-### Tile geometry: the 2.5D convention
-Tiles are **16×24**, packing two views into one image:
-- the **top-down cap** (what you see looking down)
-- below it, the **south front-face** (the elevation you see looking north at a wall)
-
-**The boundary is NOT at row 16, and is not the same for every family.** Measured from the
-isolated (`-00000000`) tiles:
-
-All three wall families share the same structure — the face is the **last 10 rows**:
-
-```
-row 13   #o............o#     cap's bottom rim (matches the interior pattern)
-row 14   #oooo##oo##oooo#     the wall's TOP LIP — belongs to the FACE
-row 15+  #o###o####o###o#     face proper
-```
-
-| family | cap | separator | face |
-|---|---|---|---|
-| `wall_rock-00000000` | rows 0–13 | none | rows 14–23 |
-| `wall_brinestalk-00000000` | rows 0–13 | none | rows 14–23 |
-| `wall_metal-00000000` | rows 0–13 | none | rows 14–23 |
-| `wall_metal-10100010` | rows 0–12 | **row 13 blank** | rows 14–23 |
-
-Two guesses were wrong before this: the tile **width** (16), and **9 rows** (face at 15). Both
-leave row 14 — the wall's lip — sitting on the roof, which reads as a stray band of wall texture
-along the roof's front edge. `_wall_split()` honours an explicit transparent separator when the
-art has one, else takes the last `WALL_FACE_ROWS` (10) rows.
-
-> Getting this from the `-11111111` interior tile is impossible — it has no borders. Always
-> measure against the **isolated `-00000000`** variant, where every edge is drawn.
-
-North faces are *never drawn* — Qud only draws south faces in its top-down view. Directional
-tiles (fences) are drawn as a **front elevation** when perpendicular to view (E-W) and
-**top-down** when parallel (N-S). Content can be vertically padded/centred inside the 24px
-frame — crop to the opaque rows to seat things on the ground.
-
-### Autotiling suffixes
-- **Walls & water** (`wall_rock-XXXXXXXX`, `wall_brinestalk-XXXXXXXX`, `deep-XXXXXXXX`): an
-  **8-bit neighbour bitmask** (`-11111111` = fully surrounded interior; `-00000000` = isolated,
-  bordered on all sides). In 3D you mostly *discard* the autotiling for faces (real geometry
-  supplies connectivity) but *reuse* the bitmask idea for face culling.
-- **Fences/pipes** (`fence_ns`, `ironfence_ew`, `pipe_ne`, bare `fence_`): the suffix after the
-  last `_` is the **connection set** ⊆ `{n,s,e,w}`. `_connector_dirs()` parses it.
-
-### RenderLayer → classification (calibrated from live data)
-| layer | contents | 3D treatment |
-|---|---|---|
-| 0 | ground clutter (`sw_ground_dots`, `*`) | flat floor |
-| 2 | liquids (`deep-*` water) | flat floor |
-| 3 | trees, plants, watervines | upright billboard |
-| 5 | small stones | upright billboard |
-| 6 | furniture, torches | upright billboard |
-| 7 | walls, fences, doors, tents | prism / oriented panel |
-| 10 | creatures | upright billboard |
-| 100 | special NPCs | upright billboard |
-
-**Roofs use each cell's own autotile variant.** A wall's `-XXXXXXXX` suffix says which of its
-8 neighbours are also walls, and Qud's art omits the border on those edges. Canonicalising every
-wall to `-11111111` and capping it with the isolated `-00000000` tile draws all four borders on
-every cell, so a run of wall reads as a **grid of separate framed squares** instead of one
-continuous roof. `_rebuild_walls` groups roof cells **by variant** — one mesh per variant — so
-shared edges join seamlessly. Sides stay greedy-merged; only the cap needs per-cell art.
-
-**Classification rules (in `ZoneRenderer.gd`):**
-- **prism** (3D box): `wall && occluding` **and the tile is not a `family_<dirs>` set** →
-  rock/metal/brinestalk.
-- **deck** (flat + opaque): the object carries the `Bridge` int-property (see below).
-  Checked *before* layer, because bridges are RenderLayer 3.
-- **flat floor**: `layer <= FLOOR_LAYER_MAX (2)`.
-- **directional connector** (oriented standing panels): any tile matching `family_<dirs>` —
-  fences, pipes, tent walls, **and axles**. See the gate note below.
-- **upright billboard**: everything else.
-
-**User verdicts are stored in `overrides.json`, one entry per tile family, and applied before
-the renderer's own classification.** Some facts are not in Qud's data at all: a water wheel
-runs east–west, but nothing in `sw_waterwheel_1` says so — no suffix, no blueprint flag. Inspect
-a tile, use the form in the lower right, and the verdict is written to
-`RavesOfQud/reports/<zone>_<x>-<y>_<tile>_v<n>.md`. `ZoneRenderer._load_overrides()` re-reads
-that directory every snapshot and keys verdicts by **tile family**, so one report covers every
-variant (`sw_waterwheel_1` and `_3`; every `wall_rock-XXXXXXXX`). Verdicts apply live — file one,
-take a turn, see it. Verdicts come on **two independent axes**, and a tile can carry one of each:
-
-| axis | verdicts | effect |
-|---|---|---|
-| **shape** | wall · panel N–S · panel E–W · billboard · flat · not-drawn | what geometry gets built |
-| **fill** | fill the holes · enclosed only · transparent · opaque block | how the art's transparent pixels are treated |
-| **position** | `POS: float` · `POS: ground` | vertical placement — seated on the floor (default) or centred at cell mid-height |
-
-`fill the holes with BACKGROUND` (`Fill.SPAN`) is the **union of three** rules — enclosed gaps
-(`INTERIOR`), row-spans and column-spans. Each catches holes the others miss, and none is a
-superset: a water wheel's paddle bottoms fill only by row-span; a millstone's side notches only by
-enclosure; the pinched neck joining a millstone's cap to its body only by column-span. So "fill it
-in" is all three. It always fills ≥ the default and never squares off the silhouette — that's
-`ALL`. Wheel 130→141, millstone 76→96 (the cap now reads as one solid stone with the body).
-
-Colour, height, position and duplicated remain notes for a human. Fill is its own axis because
-the geometric rules genuinely cannot settle it — whether a water wheel's paddle compartments
-should read as background or as see-through is a judgement about the picture, not a property
-of it.
-
-> Mind the axis wording: **running E–W means the faces point N/S.** The form labels say both.
-
-**What counts as a directional connector.** The `family_<dirs>` suffix alone is too weak — an
-item or creature tile ending `_e`/`_ne` would match by accident. This was originally gated on the
-**wall** flag, which was safe but too narrow: axles (`sw_axle_2_ew`) are machinery, not walls, so
-they fell through to a billboard and lay *across* their run instead of along it. The gate now is:
-wall-flagged qualifies outright; anything else must **also have its family's `_ew` sibling on
-disk**, which a real directional family ships and an accidental name collision does not.
-
-**Panel height scales with the art.** `PANEL_REF_ROWS` (10) is a standard fence's opaque band, and
-`FENCE_H` is calibrated to it, so a fence still lands at exactly 0.6 while an axle's 2-row shaft
-gets 0.12 instead of being smeared up to fence height. Sight-blocking connectors (tents) still
-take `WALL_H` outright.
-
-**Painted ground vegetation stands up.** The painted layer is flat by default — dirt, gravel —
-but grass is cover you stand among, not a texture you walk on, so it routes to the billboard
-path and is seated on the ground like any plant. The test is `UPRIGHT_GROUND` in
-`ZoneRenderer.gd`, matched against the tile name. **This is a name heuristic**, which this
-codebase otherwise avoids in favour of Qud's own predicates — but the painted layer comes from
-`Cell.Render()` with no GameObject or blueprint behind it, so the tile path is the only signal
-there is. Extend the list as new cover appears.
-
-**`occluding` sets a panel's HEIGHT, not its shape.** This is the subtle one. A tent wall
-is a fence at full height: its art is `tent_nw`/`tent_ew`/`tent_ns` — the same connection-set
-naming as `fence_`/`pipe_` — but it *occludes*. Testing `wall && occluding` first claimed
-tents as blocks before they could reach the connector path. So the directional-family test
-comes first, and `occluding` only chooses `WALL_H` (tents) vs `FENCE_H` (pickets, pipes).
-Real walls are safe because `wall_rock-11111111` / `wall_brinestalk-*` / `wall_metal-*` are
-**autotile bitmasks**, which don't parse as a connection set.
-
-Verify a rule change with `python3 tools/capture/snap.py classify`, which buckets every
-object in the live zone by outcome. After the tent change: `panel(tall)` = 13, all `tent_*`;
-`prism` = 186, only `wall_brinestalk-*` and `wall_metal-*`; `panel(low)` = 28, all `fence_*`.
-Note it *reimplements* the renderer's rules in Python, so it's a cross-check, not proof —
-the authoritative answer is the `RENDERED` line from `CellInspector`.
-
-### Water depth & bridges
-Both are **first-class Qud concepts** — don't infer them from tile names.
-
-- **Depth** is `LiquidVolume.Volume` (`Base/ObjectBlueprints/PhysicalPhenomena.xml`: puddle 500 →
-  deep pool 4000 → extra-deep 8000), surfaced as `Cell.HasWadingDepthLiquid()` /
-  `HasSwimmingDepthLiquid()`. The `deep-`/`shallow-`/`puddle_N` tile family is *chosen from*
-  volume by the `PaintedLiquidAtlas` system, so it's a symptom, not the source of truth.
-  **Confirmed against a control** (`JoppaWorld.11.22.1.1.10`, `snap.py water`): in a frame that
-  contains *all three* water families, `wade` holds all 52 `deep-*` and the `dry` bucket holds
-  all 13 `shallow-*` and all 4 `puddle_*`. So wading depth **is** deep water, and you don't
-  sink in puddles. Watervines also sit in non-wading cells, so they keep full height.
-
-  > Methodology note worth repeating: the *first* capture of this zone happened to contain no
-  > shallow water at all, and "no shallow tiles in a wade cell" looked like proof. It wasn't —
-  > it was absence of evidence. The claim only became real once a frame contained shallow water
-  > that could have been flagged wading and wasn't. When a correlation here looks perfect, check
-  > that the negative case is actually present in the sample.
-- **Bridges** are `<intproperty Name="Bridge" Value="1" />` on the blueprint —
-  `Walkway`, `Bridge`, `BrineBridge`, `WoodFloor`, `MarbleFloor` in `ZoneTerrain.xml`.
-  `Cell.HasBridge()` for the cell; `GameObject.HasIntProperty("Bridge")` for the object.
-- **Tile shape gotcha**: bridge art (`Tiles/sw_floor_brickb1-4.bmp`) is **line-work on a fully
-  transparent field** — only ~25% of pixels are opaque. Rendered as-is it does *not* hide the
-  water beneath it. Recolour it with `fill = true` so the transparent field becomes ground colour.
-  Water tiles (`Liquids/Water/deep-*`) are the opposite: **100% opaque** noise masks.
-- **A bridge cell's stack**, straight off the wire — the water is a separate object *below* the
-  deck, so the deck has to out-Y it rather than replace it:
-  ```
-  (66,6) wade=true swim=false
-     idx=0  layer=2  bridge=false  Liquids/Water/deep-00100010.png  &b^B
-     idx=1  layer=3  bridge=true   Tiles/sw_floor_brickb3.bmp       &w    <- BrineBridge
-  ```
-- **Tile paths mix separators**: creature tiles arrive with **backslashes**
-  (`creatures\sw_glowfish.bmp`), most others with `/`. `_mask()`/`TileExporter.FileFor` normalise
-  both to `_`. Anything new that parses a tile path must handle both — note `_connector_dirs()`
-  uses `get_file()`, which splits on `/` only.
-
-**The rendering rule: keep the water flat, recess the actor.** Water renders as an ordinary floor
-quad. A creature standing in it (`sinks` = `IsCreature && !IsFlying`) is drawn with its sprite
-**cropped at the waterline** rather than lowered — the water is a flat quad with no volume, so a
-lowered sprite would just poke out beneath it as soon as the camera tilts. The crop is measured
-against the tile's **opaque band** (`_opaque_v`), not the 16×24 frame, because the art is padded
-inside the frame. A bridge sets `sink = 0`: you cross at full height over an opaque deck.
+The hard-won *why* behind each — the grass mystery, the trailing-letter colour bug, the `CAMERA_BACKGROUND`
+turquoise trap, the wading-depth control — is in
+[docs/decisions/debugging-lessons.md](docs/decisions/debugging-lessons.md).
 
 ---
+
 
 ## Rendering & tools
 
-The 3D render pipeline is documented in full in **[docs/rendering.md](docs/rendering.md)** — object
-classification, the painted ground layer, colour/fill, the **voxel walls** (the active area), the
-faked lighting (unshaded world), day/night + sun/moon, water/bridges, and user overrides. The
-inspection tooling and the in-viewer feedback loop are in **[docs/tools.md](docs/tools.md)**.
-
-The essentials, so this hub stands alone:
-
-- `ZoneRenderer.gd` rebuilds per snapshot, pooling nodes. **Walls are voxel geometry** (cap + sides
-  extruded per colour-rank height, + a solid dark core), lit by a day/night sun that casts shadows.
-- **Everything is `UNSHADED` by default** (exact tile colours); `SHADED_WORLD` flips walls+ground to
-  shaded so lighting/shadows apply. All "lighting" (torches, day/night) is therefore additive/tint
-  geometry, not real lights on unshaded surfaces.
-- **Prototype geometry algorithms in Python first** (`voxel.py`, `fill.py`), then port to GDScript.
-  Claude can't see the viewport; the human's channel is the **cell inspector** (Ctrl+click → a
-  report file pairing WIRE vs RENDERED) and **F12 screenshots** (both apps self-capture).
-
-
-## Verified Qud API reference
-
-Namespaces and signatures confirmed by reflection against `6000.0.77f1`. **Not a stable public
-API — re-verify after a Qud update with the reflection probe.**
-
-```
-XRL.The.ActiveZone : Zone            XRL.The.Player : GameObject
-XRL.IEventRegistrar                  XRL.IPlayerMutator.mutate(GameObject)   [PlayerMutator] attr
-XRL.World.IPart:
-    Register(GameObject, IEventRegistrar) ; FireEvent(Event)
-    WantEvent(int ID, int cascade)  ;  HandleEvent(EndTurnEvent) / HandleEvent(BeforeRenderEvent)
-XRL.World.EndTurnEvent  (pooled; static .ID)      per-turn hook, fires on the TURN thread
-XRL.World.BeforeRenderEvent (static .ID)          also fires on the TURN thread, NOT main
-XRL.World.Zone:      fields Width, Height (int) ; prop ZoneID (string) ; GetCell(int,int) -> Cell
-XRL.World.Cell:      X, Y, Objects, ParentZone
-XRL.World.GameObject:
-    GetPart<T>() ; HasPart<T>() ; AddPart(IPart) ; CurrentCell (prop) ; Physics (field)
-    IsWall() ; IsOpenLiquidVolume() ; IsWadingDepthLiquid()
-XRL.World.Parts.Render (fields CAPITALIZED):
-    RenderString, ColorString, TileColor, DetailColor, Tile (string), RenderLayer (int)
-    Visible (bool prop), Occluding (bool prop)
-XRL.World.Parts.Physics:  Solid (bool prop)
-XRL.World.CommandEvent.Send(GameObject actor, string cmd, GameObject target, Cell cell,
-    int standoff, bool forced, bool silent, GameObject handler)     // no 2-arg overload
-    // movement command IDs: CmdMoveN/S/E/W/NE/NW/SE/SW  (Commands.xml)
-Kobold.SpriteManager (static):
-    GetUnitySprite(string) -> UnityEngine.Sprite
-    GetTextureInfo(string, bool) ; TryGetTextureInfo(string, out exTextureInfo) ; HasTextureInfo(string)
-GameManager (global namespace):
-    static Instance (field) ; uiQueue, gameQueue (QupKit.ThreadTaskQueue) ; MainCamera
-QupKit.ThreadTaskQueue:
-    queueTask(Action, int delay) ; queueSingletonTask(...) ; executeTasks() ; HasTask() ; awaitTask(Action)
-```
-
----
+The 3D render pipeline — object classification, the painted ground layer, colour/fill, the **voxel walls**,
+lighting (the world honours `SHADED_WORLD`, currently on), day/night + sun/moon, water/bridges, and user
+overrides — is documented in full in **[docs/rendering.md](docs/rendering.md)**. The Python inspection tools
+and the in-viewer feedback loop (Ctrl/Cmd-click → `selection.txt`; F12 screenshots) are in
+**[docs/tools.md](docs/tools.md)**.
 
 ## Open problems / next steps
 
@@ -565,13 +235,15 @@ walls**, and the Python-first verification workflow. What's left:
 - Faint cell-seam phase can still differ between autotile variants; chase with `snap.py` if it shows.
 - `MultiMesh` per (variant, mesh, rotation) if per-cell instance counts hitch at render radius.
 
-**World model / streaming** — see [docs/roadmap.md](docs/roadmap.md) for the full plan. The pivot:
-stop rendering the live snapshot; maintain a persistent chunked block-store, snapshot as one writer.
-That single change is the spine for fog of war, remembered zones, memory freeze/unfreeze, Z-height,
-cross-zone distance, and a future block-editing fork. Hierarchy: world of parasangs; parasang = 3×3
-zones; zone = 80×25 cells; plus Z-strata.
-- Full re-render per snapshot; the painted ground doubled the payload (~2000 objects/frame).
-  **Cell-level diffing** is a prerequisite for streaming.
+**World model / streaming** — see [docs/roadmap.md](docs/roadmap.md) for the current status. The
+persistent `WorldStore` pivot has **shipped**: snapshots are ingested into a per-zone store keyed by
+`gameId`, explored zones persist to disk, and remembered neighbours render dimmed. Remaining work is an
+adjustable render radius, eviction/budgets, ground-plane growth, and later stacked strata — the spine
+for fog of war, memory freeze/unfreeze, Z-height, cross-zone distance, and a future block-editing fork.
+Hierarchy: world of parasangs; parasang = 3×3 zones; zone = 80×25 cells; plus Z-strata.
+- Each snapshot is a full zone rebuild, but the client already **freezes static geometry** and rebuilds
+  only the dynamic layer per turn (per-step render ~85ms → a few ms). The remaining cost is the
+  full-zone serialize on the mod side; measure with the profiler (F9) before optimizing further.
 
 **Rendering polish**:
 - Sprites/floors don't cast or receive shadows (only walls + ground do). Shadows on the ground
@@ -584,10 +256,9 @@ zones; zone = 80×25 cells; plus Z-strata.
 
 ### Working style that paid off
 Ground every change in real data (reflect the DLL, capture a live snapshot, decode a tile) rather
-than guessing; the agent can't see the Godot viewport, so the loop is **compile-harness →
+than guessing; appearance is verified from captured screenshots, so the loop is **compile-harness →
 deploy → user re-runs → capture/screenshot → adjust**. Keep the Qud-coupled surface small and
 isolated so a Qud update is a quick re-verify, not a rewrite.
-```
 
 **License:** MIT (see `LICENSE`). Requires a separately-purchased copy of Caves of Qud; Caves of
 Qud and its assets are © Freehold Games.

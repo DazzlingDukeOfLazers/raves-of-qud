@@ -9,7 +9,7 @@ WITHOUT a human at the keyboard. Two channels:
               with the running Godot viewer.
   2. Godot  — Claude can't send keys to Godot, only to Qud. So Godot polls a small
               command file (<RavesOfQud>/godot_cmd); we write lines it executes:
-              `shot` (save shot.png), `cam <1-6>` (camera mode), `fph <h>` (fp height),
+              `shot` (save shot.png), `cam <1-7>` (camera mode), `fph <h>` (fp height),
               `onboard [screen]` (open/jump the onboarding UI: devices/ktype/layout/numpad/mouse/close).
 
 Examples:
@@ -164,6 +164,27 @@ def main(argv):
         print("godot: onboard" + arg)
     elif cmd == "shot":
         print("shot.png updated" if godot_shot() else "shot: TIMED OUT (is the viewer open?)")
+    elif cmd == "wish":
+        # Execute a Qud wish (godmode, item:<blueprint>, reveal, ...). The wish is drained
+        # on the game thread between turns, so follow it with a wait to flush it even while
+        # Qud is unfocused; the post-wait snapshot then reflects the wish.
+        if len(argv) < 2:
+            sys.exit("usage: control.py wish <text>   e.g. wish godmode · wish item:Torch")
+        text = " ".join(argv[1:])
+        b = Bridge()
+        b.send("wish", wish=text)
+        b.send("wait")
+        print(player_line(b.read_snapshot()))
+        b.close()
+        print("wish sent:", text)
+    elif cmd == "export":
+        # Re-run Qud's DATA exporters (mods, options, …) NOW over the bridge — the clean
+        # trigger for refreshing RavesOfQud/*.json without ticking a fake turn. Qud must be
+        # in-game (bridge up); the mod's "export" command calls each exporter's ReExport().
+        b = Bridge()
+        b.send("export")
+        b.close()
+        print("export: requested (Qud re-exports its data files)")
     elif cmd == "zoo":
         # Build a debug showcase zone in-game. Sent to QUD over the bridge (not the
         # godot_cmd file): `zoo [category] [page]`. category = creatures (default) /

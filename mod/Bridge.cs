@@ -45,6 +45,11 @@ namespace RavesOfQud
                             // Route commands the instant they arrive (background thread),
                             // so movement can wake an unfocused game (see OnPayload).
                             s.OnPayload = OnPayload;
+                            // On any client connect, force a snapshot publish. It only fires if a game is
+                            // live (TickRender/TickAction run only then), so a fresh client gets current
+                            // data at once — and a client can distinguish "game live" from "socket open at
+                            // Qud's menu" without sending a turn-passing wait.
+                            s.OnConnect = () => { ForcePublishSoon = true; PopupBridge.OnClientConnect(); };
                             s.Start();
                             _server = s;
                             StartFocusKeeper();
@@ -65,6 +70,32 @@ namespace RavesOfQud
         /// Sent in the snapshot so the client can see the mod's per-turn cost split.
         public static long LastRenderBaseUs;
 
+        // --- Qud scanline suppression (1:1 test) ---------------------------------------------
+        // Qud's "scanlines" are TWO independent effects, neither reachable from the in-game
+        // OptionDisplayScanlines checkbox (it's read only in GameManager's screen-warp "Fuzzing"
+        // branch, GameManager.cs:3017, never at startup/options-change) nor from Display.txt (its
+        // `shaders` block is dead config — no code reads it):
+        //   (a) CC_AnalogTV camera post-effect — always on, but at scanlinesCount=1853 it's
+        //       sub-visible; zeroing scanlinesIntensity is correct-but-invisible.
+        //   (b) THE VISIBLE ONES, via THREE mechanisms:
+        //       - Modern-UI shader overlays: "UI/Textured-Overlay" multiplies each panel by an
+        //         overlay grunge texture (_OverlayTex "distress-diagonal") tinted by _ColorOverlay;
+        //         "UI/ThreeColorOffset" adds a per-row _Offset. Neutralise the tint + texture + offset.
+        //       - SPRITE-based patterns on plain UI/Default Images: the bottom "AbilityBar" uses a
+        //         sprite literally named "horizstripetexture" (THE command-bar scanlines), and a
+        //         full-screen "Creases" uses a "creases" grunge sprite. Flatten a stripe image to a
+        //         solid chrome-dark quad; hide a grunge overlay (alpha 0).
+        //       All are screen-row-keyed and show THROUGH the translucent panels (the opaque play
+        //       field hides them, so the world stays clean). We re-sweep on a throttle to catch
+        //       late-created panels; originals captured per-material/image for restore.
+        // Reversible via the flag so Raves can restore Qud's authentic look. Verified clean: top bar,
+        // sidebars, and command bar all drop from even-odd dev ~10-17 to ~0-1.4. See
+        // reports/1to1-qud-scanlines.md.
+        public static bool DisableQudScanlines = true;    // 1:1 default: kill Qud's always-on scanlines
+        private static bool _scanlineApplyPending;        // a uiQueue task is in flight
+        private static bool? _scanlineAppliedValue;       // the value the camera currently reflects
+        private static float _origScanlineIntensity = float.NaN;  // captured once, for restore
+
         /// Runs on the TURN THREAD at the start of each player action (BeginTakeActionEvent). Unlike the
         /// render-tied TickRender, this fires even while Qud is unfocused — so it can flush a publish
         /// queued off-turn (a direction prompt answered from Raves, e.g. Make Camp) as soon as the game
@@ -72,6 +103,7 @@ namespace RavesOfQud
         public static void TickAction(GameObject player)
         {
             BridgeServer server = Server;
+            EnsureScanlineState();   // also drive scanline suppression off turns (renders can stall unfocused)
             if (server == null || server.ClientCount == 0) return;
             if (ForcePublishSoon)
             {
@@ -83,6 +115,7 @@ namespace RavesOfQud
         public static void Tick(GameObject player)
         {
             BridgeServer server = Server;
+            EnsureScanlineState();   // drive scanline suppression on every turn too, not just render frames
 
             // Raves not connected? Do NOTHING. This turn hook otherwise runs on EVERY Qud
             // turn even when the viewer is closed — recompositing the map (RenderBase) and
@@ -90,6 +123,18 @@ namespace RavesOfQud
             // Qud's global runInBackground/vsync. That made plain solo Qud sluggish on every
             // move. Gate the whole thing on a live client so the mod is inert without Raves.
             if (server == null || server.ClientCount == 0) return;
+
+            // One-shot: export Qud's title art (its MainMenu textures are still resident,
+            // the GameObject just inactive) so Raves' menu can render the real assets.
+            TitleExporter.Ensure();
+            // One-shot: export the installed-mod list (ModManager.ModMap) for Raves' Mods screen.
+            ModsExporter.Ensure();
+            // One-shot: export Qud's full options tree (OptionsByCategory) for Raves' Options mirror.
+            OptionsExporter.Ensure();
+            // One-shot: export Qud's high-score records (Scoreboard2 / HighScores.json) for Raves' Records screen.
+            RecordsExporter.Ensure();
+            // One-shot: export Qud's character-creation data (genotypes, …) for Raves' chargen screens.
+            ChargenExporter.Ensure();
 
             // Keep Unity RENDERING the window while it's unfocused, so Qud's own map
             // repaints in sync with commands we drive from Godot. Unity pauses the
@@ -186,6 +231,24 @@ namespace RavesOfQud
         // Set when Raves answers/cancels a prompt off-turn (a direction click); TickRender then forces one
         // publish after the game unblocks, so state changed during the prompt (e.g. a new campfire) shows.
         public static bool ForcePublishSoon;
+        private static bool _clocksExported;   // one-shot guard for the day/night clock-sprite export
+        private static bool _clocksQueued;     // a clock-export uiQueue task is in flight
+
+        /// Queue the one-shot day/night clock-sprite export onto the uiQueue (Unity main thread —
+        /// graphics readback MUST NOT run on the render/turn hook, that crashes the game natively).
+        private static void MaybeExportClocks()
+        {
+            if (_clocksExported || _clocksQueued) return;
+            GameManager gm = GameManager.Instance;
+            if (gm == null || gm.uiQueue == null) return;
+            _clocksQueued = true;
+            gm.uiQueue.queueTask(() =>
+            {
+                try { if (TitleExporter.ExportTimeClocks()) _clocksExported = true; }
+                catch (Exception ex) { try { Server.Log("clock export: " + ex.Message); } catch { } }
+                finally { _clocksQueued = false; }
+            }, 0);
+        }
         private static string _lastPublishedZone;   // zone id of the last snapshot sent; a change bypasses the throttle
         private const int PublishThrottleMs = 66;   // ~15 snapshots/sec ceiling during a burst
 
@@ -272,9 +335,18 @@ namespace RavesOfQud
         /// arrived from an external driver, and — if one applied while idle — publishes a
         /// snapshot immediately so the driver gets a response without waiting for a turn.
         /// </summary>
+        /// Set while ZoneSnapshot rebuilds the light map via a nested BeforeRenderEvent.Send —
+        /// that send re-dispatches to OUR BridgePart handler too; without this guard the
+        /// snapshot build would re-enter TickRender from inside itself.
+        internal static bool InSnapshotRelight;
+
         public static void TickRender(GameObject player)
         {
+            if (InSnapshotRelight) return;
             BridgeServer server = Server;
+            EnsureScanlineState();              // keep Qud's always-on CC_AnalogTV scanlines suppressed (1:1)
+            MaybeExportClocks();                // one-shot day/night sky discs — marshalled to the uiQueue
+            PopupBridge.Ensure();               // arm the UI-thread popup watcher (mirrors Qud modals to Raves)
             bool applied = false;
             while (server.Incoming.TryDequeue(out string json))
             {
@@ -379,6 +451,13 @@ namespace RavesOfQud
             {
                 var f = MiniJson.ParseFlat(json);
                 f.TryGetValue("name", out string name);
+                if (name == "popup")
+                {
+                    // Answer a mirrored Qud popup (dismiss / pick option / submit text). Marshals onto the
+                    // uiQueue itself — the turn thread is parked inside the popup, but the UI thread drains.
+                    PopupBridge.HandleCommand(f);
+                    return;
+                }
                 if (name == "move")
                 {
                     f.TryGetValue("dir", out string dir);
@@ -402,6 +481,20 @@ namespace RavesOfQud
                     f.TryGetValue("command", out string cmd);
                     if (!string.IsNullOrEmpty(cmd))
                         Keyboard.PushCommand(cmd, null);
+                    return;
+                }
+                if (name == "zoom")
+                {
+                    // Zoom Qud's stage from the bridge: CmdZoomIn/Out are reachable only via real
+                    // Rewired input or the control-panel button (OnControlPanelButton) — PushCommand
+                    // never gets there. Call GameManager.ZoomIn/Out directly; they touch Unity
+                    // state, so marshal via uiQueue (the turn-thread golden rule). Steps are Qud's
+                    // own quarter-steps; "dir":"out" zooms out, anything else zooms in.
+                    f.TryGetValue("dir", out string sdir);
+                    bool zout = sdir == "out";
+                    var zgm = GameManager.Instance;
+                    if (zgm != null && zgm.uiQueue != null)
+                        zgm.uiQueue.queueTask(() => { if (zout) zgm.ZoomOut(); else zgm.ZoomIn(); });
                     return;
                 }
                 if (name == "dir")
@@ -431,6 +524,99 @@ namespace RavesOfQud
                     f.TryGetValue("key", out string k);
                     if (!string.IsNullOrEmpty(k))
                         PushKeyChar(k[0]);
+                    return;
+                }
+                if (name == "export")
+                {
+                    // Re-run the DATA exporters NOW, even at the main menu. The fall-through path
+                    // below enqueues to Server.Incoming, which only drains in-game (turn/render tick)
+                    // — so chargen/mods/etc. data would never refresh at the menu, exactly where the
+                    // chargen screens ask for it. Run it on the uiQueue instead (main thread, drains
+                    // each frame while focused), so a screen that opens at the menu gets fresh data +
+                    // its tile art (TileExporter also queues onto uiQueue). Data-only + cheap.
+                    var gmx = GameManager.Instance;
+                    if (gmx != null && gmx.uiQueue != null)
+                        gmx.uiQueue.queueTask(() =>
+                        {
+                            try
+                            {
+                                ModsExporter.ReExport();
+                                OptionsExporter.ReExport();
+                                RecordsExporter.ReExport();
+                                ChargenExporter.ReExport();
+                                TitleExporter.ExportChargenEmblem();                        // resident even at the menu
+                                TitleExporter.ExportNamedSprite("tiny-frame-h", "card_frame.png");         // the game-mode card's dotted frame
+                                TitleExporter.ExportNamedSprite("polat-locator-big", "sel_frame.png");     // the selected-card frame (corner brackets)
+                                TitleExporter.ExportNamedSprite("leftrightarrow", "nav_arrow.png");        // back/forward chevron
+                                TitleExporter.ExportNamedSprite("polat-center-divider-knob", "deco_knob.png"); // the sub-text ornament
+                                if (!_clocksExported && TitleExporter.ExportTimeClocks()) _clocksExported = true;  // day/night sky discs (resident once a HUD has existed)
+                                Server.Log("[export] re-exported (menu path) chargen chrome");
+                            }
+                            catch (Exception e) { try { Server.Log("export error: " + e.Message); } catch { } }
+                        }, 0);
+                    return;
+                }
+                if (name == "dumpframes")
+                {
+                    // One-shot: dump all resident frame-like sprites (+ a manifest with 9-slice
+                    // borders) so we can identify Qud's real selection frame. Main-thread readback.
+                    var gmf = GameManager.Instance;
+                    if (gmf != null && gmf.uiQueue != null)
+                        gmf.uiQueue.queueTask(() =>
+                        {
+                            try { TitleExporter.DumpFrameSprites(); Server.Log("[dumpframes] done"); }
+                            catch (Exception e) { try { Server.Log("dumpframes error: " + e.Message); } catch { } }
+                        }, 0);
+                    return;
+                }
+                if (name == "dumpnav")
+                {
+                    // One-shot: dump the top-bar nav-button icons (ActiveButton sprites). uiQueue = main thread.
+                    var gmn = GameManager.Instance;
+                    if (gmn != null && gmn.uiQueue != null)
+                        gmn.uiQueue.queueTask(() => { try { TitleExporter.ExportNavIcons(); } catch (Exception e) { try { Server.Log("dumpnav: " + e.Message); } catch { } } }, 0);
+                    return;
+                }
+                if (name == "metagame")
+                {
+                    // Boot a background "Meta" pseudo-game (Marsh Taur pregen, Classic) so Raves has a
+                    // live game — lights up Continue + gives the viewer a real zone without manual chargen.
+                    EmbarkDriver.RequestMeta();
+                    return;
+                }
+                if (name == "tutorial")
+                {
+                    // BEGIN the guided tutorial: start its chargen so Qud is at the genotype window and
+                    // its live tip gets captured to tutorial_tip.txt (Raves reads it). No boot yet.
+                    EmbarkDriver.RequestTutorial();
+                    return;
+                }
+                if (name == "tutorial_go")
+                {
+                    // COMMIT: the player confirmed on Raves' guided genotype screen — boot the tutorial.
+                    EmbarkDriver.RequestTutorialCommit();
+                    return;
+                }
+                if (name == "embark")
+                {
+                    // THE DRIVE: create the character Raves assembled and start the run, skipping
+                    // Qud's on-screen chargen. RequestEmbark stashes the spec, wakes the main menu
+                    // ("Pick:New Game" -> XRLCore.NewGame() -> EmbarkBuilder.Begin()), then drives
+                    // the live builder headlessly on the UI queue. Only meaningful at the main menu
+                    // (no-op / times out if a game is already running or the menu isn't active).
+                    f.TryGetValue("genotype", out string g);
+                    f.TryGetValue("subtype", out string sub);
+                    if (string.IsNullOrEmpty(g) || string.IsNullOrEmpty(sub))
+                    {
+                        try { Server.Log("embark ignored: need both genotype and subtype"); } catch { }
+                        return;
+                    }
+                    var spec = new EmbarkDriver.PendingBuildSpec { Genotype = g, Subtype = sub };
+                    f.TryGetValue("gamemode", out string gm);
+                    if (!string.IsNullOrEmpty(gm)) spec.Gamemode = gm;
+                    f.TryGetValue("start", out string sl);
+                    if (!string.IsNullOrEmpty(sl)) spec.StartingLocation = sl;
+                    EmbarkDriver.RequestEmbark(spec);
                     return;
                 }
             }
@@ -495,6 +681,38 @@ namespace RavesOfQud
                     try { Server.Log("[catalog] wrote " + PlayerBecome.WriteCatalog()); }
                     catch (Exception e) { Server.Log("catalog error: " + e.Message); }
                     break;
+                case "export":
+                    // Re-run the DATA exporters on demand — the clean replacement for ticking a
+                    // fake turn to fire the one-shot Ensure()s. Data-only + cheap; add each new
+                    // exporter (records, …) here. Title art is one-shot (never changes), so skip it.
+                    try
+                    {
+                        ModsExporter.ReExport();
+                        OptionsExporter.ReExport();
+                        RecordsExporter.ReExport();
+                        ChargenExporter.ReExport();
+                        Server.Log("[export] re-exported mods + options + records + chargen");
+                    }
+                    catch (Exception e) { Server.Log("export error: " + e.Message); }
+                    break;
+                case "setoption":
+                    // Update Qud from Raves' Options mirror. MAIN-THREAD ONLY: SetOption updates
+                    // flags / audio / UI. Re-export so Raves reflects the applied value + any
+                    // dependent-option visibility change. Some options need a restart (o.Restart).
+                    try
+                    {
+                        f.TryGetValue("id", out string oid);
+                        f.TryGetValue("value", out string oval);
+                        f.TryGetValue("defer", out string odefer);   // "1" = batch apply: skip the
+                        if (!string.IsNullOrEmpty(oid))               //  per-call re-export; caller sends
+                        {                                            //  one "export" after the last one.
+                            XRL.UI.Options.SetOption(oid, oval ?? "");
+                            if (odefer != "1") OptionsExporter.ReExport();
+                            Server.Log("[setoption] " + oid + " = " + oval);
+                        }
+                    }
+                    catch (Exception e) { Server.Log("setoption error: " + e.Message); }
+                    break;
                 case "itemaction":
                     // Invoke an inventory action on one of the player's equipped weapons — e.g. the
                     // context menu's "[?]" -> ReplaceSocketCell (change the battery). MAIN-THREAD ONLY:
@@ -515,11 +733,249 @@ namespace RavesOfQud
                     }
                     catch (Exception e) { Server.Log("itemaction error: " + e.Message); }
                     break;
+                case "wish":
+                    // Grant a Qud wish (the Ctrl+Shift+W prompt) from Raves — the user types the wish text
+                    // in Raves and we run it through Qud's own handler, no on-screen prompt. MAIN-THREAD
+                    // ONLY: wishes spawn objects / grant xp / mutate state, so it runs here (drained by
+                    // Tick/TickRender), never on the socket thread.
+                    try
+                    {
+                        f.TryGetValue("wish", out string wishText);
+                        if (!string.IsNullOrEmpty(wishText))
+                        {
+                            XRL.World.Capabilities.Wishing.HandleWish(player, wishText);
+                            ForcePublishSoon = true;   // refresh Raves once the wish applies (xp, items, …)
+                            Server.Log("[wish] " + wishText);
+                        }
+                    }
+                    catch (Exception e) { Server.Log("wish error: " + e.Message); }
+                    break;
                 // Movement is handled on the socket thread (see OnPayload), so it can
                 // drive an unfocused game. Extend here for main-thread-only commands.
                 default:
                     break;
             }
+        }
+
+        /// <summary>
+        /// Idempotent: once the Main Camera exists, push the current scanline preference to its
+        /// CC_AnalogTV. Called every rendered frame from TickRender — it no-ops once the camera
+        /// already reflects DisableQudScanlines, and re-arms itself if the flag later changes or
+        /// if the camera isn't built yet. The actual field write is marshalled to the main thread
+        /// via uiQueue (touching a Unity component off the main thread crashes the game — same rule
+        /// as the tile export and screenshot paths).
+        /// </summary>
+        internal static void EnsureScanlineState()
+        {
+            if (_scanlineApplyPending) return;
+            // Already in the desired state? If restoring, we're done. If suppressing, keep re-sweeping on a
+            // throttle — Qud instantiates some panels (ability-bar buttons, popups) AFTER the first sweep,
+            // each with its own material instance, so a one-shot latch leaves those still scanlined.
+            if (_scanlineAppliedValue == DisableQudScanlines)
+            {
+                if (!DisableQudScanlines) return;
+                if ((_sweepTick++ % 20) != 0) return;
+            }
+            GameManager gm = GameManager.Instance;
+            if (gm == null || gm.uiQueue == null) return;   // too early (pre-game thread); retry next frame
+            _scanlineApplyPending = true;
+            bool want = DisableQudScanlines;
+            gm.uiQueue.queueTask(() =>
+            {
+                _scanlineApplyPending = false;
+                try
+                {
+                    // (a) The camera-level CC_AnalogTV scanlines (invisible in practice, but zero them
+                    //     too so "Qud's scanline effect" is fully off). May be >1 across cameras.
+                    foreach (var tv in UnityEngine.Object.FindObjectsOfType<CC_AnalogTV>())
+                    {
+                        if (tv == null) continue;
+                        if (float.IsNaN(_origScanlineIntensity)) _origScanlineIntensity = tv.scanlinesIntensity;
+                        tv.scanlinesIntensity = want ? 0f : _origScanlineIntensity;
+                    }
+
+                    // (b) THE VISIBLE ONES: Qud's UI chrome is drawn with custom shaders — "UI/Textured-Overlay"
+                    //     applies a grunge/scanline OVERLAY texture (_OverlayTex "distress-diagonal") tinted by
+                    //     _ColorOverlay, and "UI/ThreeColorOffset" adds a per-row _Offset. Together these paint
+                    //     the screen-space horizontal lines that show through the translucent panels (the opaque
+                    //     play field hides them, so the world stays clean). There is NO _ScanlinesIntensity on
+                    //     these UI materials (that name belongs to the camera CC_AnalogTV only). Neutralise the
+                    //     overlay tint + the offset on every material that has them; capture originals to restore.
+                    int graphics = 0, newMats = 0;
+                    foreach (var g in UnityEngine.Object.FindObjectsOfType<UnityEngine.UI.Graphic>())
+                    {
+                        if (g == null) continue;
+                        var mat = g.material;
+                        if (mat == null || mat.shader == null) continue;
+                        bool touched = false;
+                        if (mat.HasProperty("_ColorOverlay"))
+                        {
+                            if (!_uiOrigOverlayCol.ContainsKey(mat)) { _uiOrigOverlayCol[mat] = mat.GetColor("_ColorOverlay"); newMats++; }
+                            mat.SetColor("_ColorOverlay", want ? new UnityEngine.Color(0f, 0f, 0f, 0f) : _uiOrigOverlayCol[mat]);
+                            touched = true;
+                        }
+                        // Some panels (e.g. the highlighted ability button) modulate by the overlay TEXTURE
+                        // itself, not just the tint — clearing _ColorOverlay isn't enough. Swap _OverlayTex to
+                        // a flat white texture (neutral under both add and multiply); restore the original.
+                        if (mat.HasProperty("_OverlayTex"))
+                        {
+                            if (!_uiOrigOverlayTex.ContainsKey(mat)) { _uiOrigOverlayTex[mat] = mat.GetTexture("_OverlayTex"); newMats++; }
+                            mat.SetTexture("_OverlayTex", want ? UnityEngine.Texture2D.whiteTexture : _uiOrigOverlayTex[mat]);
+                            touched = true;
+                        }
+                        if (mat.HasProperty("_Offset"))
+                        {
+                            if (!_uiOrigOffset.ContainsKey(mat)) { _uiOrigOffset[mat] = mat.GetFloat("_Offset"); newMats++; }
+                            mat.SetFloat("_Offset", want ? 0f : _uiOrigOffset[mat]);
+                            touched = true;
+                        }
+                        if (touched) graphics++;
+                    }
+
+                    // (c) SPRITE-based overlays that don't go through the overlay shader: some UI Images are
+                    //     plain UI/Default but their SPRITE is the pattern — the bottom "AbilityBar" uses
+                    //     sprite "horizstripetexture" (the command-bar scanlines), and a full-screen "Creases"
+                    //     uses "creases" grunge. Flatten a stripe image to a solid chrome-dark quad (drop the
+                    //     sprite, set the fill), and hide a grunge overlay (alpha 0). Originals restored via flag.
+                    foreach (var img in UnityEngine.Object.FindObjectsOfType<UnityEngine.UI.Image>())
+                    {
+                        if (img == null || img.sprite == null) continue;
+                        string sn = img.sprite.name + "|" + (img.sprite.texture != null ? img.sprite.texture.name : "");
+                        bool stripe = sn.IndexOf("stripe", StringComparison.OrdinalIgnoreCase) >= 0
+                                   || sn.IndexOf("scanline", StringComparison.OrdinalIgnoreCase) >= 0;
+                        bool grunge = sn.IndexOf("crease", StringComparison.OrdinalIgnoreCase) >= 0
+                                   || sn.IndexOf("distress", StringComparison.OrdinalIgnoreCase) >= 0
+                                   || sn.IndexOf("grain", StringComparison.OrdinalIgnoreCase) >= 0;
+                        if (!stripe && !grunge) continue;
+                        if (!_uiOrigSprite.ContainsKey(img))
+                        {
+                            _uiOrigSprite[img] = img.sprite;
+                            _uiOrigColor[img] = img.color;
+                            newMats++;
+                        }
+                        if (want)
+                        {
+                            if (stripe) { img.sprite = null; img.color = new UnityEngine.Color(0.047f, 0.055f, 0.059f, 1f); }
+                            else { var c = img.color; img.color = new UnityEngine.Color(c.r, c.g, c.b, 0f); }
+                        }
+                        else { img.sprite = _uiOrigSprite[img]; img.color = _uiOrigColor[img]; }
+                        graphics++;
+                    }
+
+                    // Latch the state once we've actually found chrome panels (the first in-game tick can fire
+                    // before the UI is built — a premature latch would leave it scanlined). Re-sweeps are
+                    // throttled by the caller; only log the first apply and any sweep that finds NEW materials
+                    // (late-created panels like the ability bar), so the log doesn't spam.
+                    if (graphics > 0)
+                    {
+                        bool first = _scanlineAppliedValue != want;
+                        _scanlineAppliedValue = want;
+                        if (first || newMats > 0)
+                            Server.Log("scanlines " + (want ? "disabled" : "restored")
+                                + " — overlay/offset neutralised on " + graphics + " graphics (+"
+                                + newMats + " new this sweep)");
+                    }
+                    else if (_diagCount++ == 0)
+                    {
+                        Server.Log("scanline: in-game but no overlay/offset UI materials yet — retrying");
+                    }
+                    if (_verboseDiag && !_diagged) { _diagged = true; DumpScanlineSuspects(); }
+                }
+                catch (Exception e) { Server.Log("scanline set: " + e.Message); }
+            }, 0);
+        }
+
+        // Per-material originals for restore of the chrome overlay knobs.
+        private static readonly System.Collections.Generic.Dictionary<UnityEngine.Material, UnityEngine.Color> _uiOrigOverlayCol
+            = new System.Collections.Generic.Dictionary<UnityEngine.Material, UnityEngine.Color>();
+        private static readonly System.Collections.Generic.Dictionary<UnityEngine.Material, float> _uiOrigOffset
+            = new System.Collections.Generic.Dictionary<UnityEngine.Material, float>();
+        private static readonly System.Collections.Generic.Dictionary<UnityEngine.Material, UnityEngine.Texture> _uiOrigOverlayTex
+            = new System.Collections.Generic.Dictionary<UnityEngine.Material, UnityEngine.Texture>();
+        // Sprite-based stripe/grunge overlays (e.g. AbilityBar "horizstripetexture", full-screen "Creases").
+        private static readonly System.Collections.Generic.Dictionary<UnityEngine.UI.Image, UnityEngine.Sprite> _uiOrigSprite
+            = new System.Collections.Generic.Dictionary<UnityEngine.UI.Image, UnityEngine.Sprite>();
+        private static readonly System.Collections.Generic.Dictionary<UnityEngine.UI.Image, UnityEngine.Color> _uiOrigColor
+            = new System.Collections.Generic.Dictionary<UnityEngine.UI.Image, UnityEngine.Color>();
+        private static bool _diagged;
+        private static int _diagCount;              // throttle for the 0-match scene dump
+        private static int _sweepTick;              // throttle for periodic re-sweeps (late-created panels)
+        private static bool _verboseDiag = false;   // flip to true to re-dump the bottom-bar scanline suspects
+
+        /// <summary>
+        /// One-shot scene walk (main thread): dump every UI Graphic whose screen rect sits in the
+        /// BOTTOM ~90px of the screen (the command/ability bar) — name, shader, full material knobs,
+        /// and screen Y — so we can see what draws the residual scanlines there and why the overlay
+        /// sweep didn't clear it. Screen coords via GetWorldCorners (Screen-Space-Overlay canvases
+        /// report corners directly in screen pixels; Unity Y is bottom-up so the bottom bar has low Y).
+        /// </summary>
+        private static void DumpScanlineSuspects()
+        {
+            try
+            {
+                float sh = UnityEngine.Screen.height;
+                var corners = new UnityEngine.Vector3[4];
+                int hit = 0;
+                foreach (var g in UnityEngine.Object.FindObjectsOfType<UnityEngine.UI.Graphic>())
+                {
+                    if (g == null || !g.isActiveAndEnabled) continue;
+                    g.rectTransform.GetWorldCorners(corners);
+                    float ymin = corners[0].y, ymax = corners[0].y, xmin = corners[0].x, xmax = corners[0].x;
+                    for (int i = 1; i < 4; i++)
+                    {
+                        if (corners[i].y < ymin) ymin = corners[i].y; if (corners[i].y > ymax) ymax = corners[i].y;
+                        if (corners[i].x < xmin) xmin = corners[i].x; if (corners[i].x > xmax) xmax = corners[i].x;
+                    }
+                    // bottom bar: element bottom edge within 90px of screen bottom, and reasonably wide
+                    if (ymin > 90f || (xmax - xmin) < 30f) continue;
+                    var mat = g.material;
+                    string msh = (mat != null && mat.shader != null) ? mat.shader.name : "<null>";
+                    var knobs = new System.Collections.Generic.List<string>();
+                    if (mat != null)
+                    {
+                        string[] probe = { "_ColorOverlay", "_OverlayTex", "_Offset", "_MainTex",
+                                           "_ScanlinesIntensity", "_Color", "_Foreground", "_Background" };
+                        foreach (var p in probe)
+                        {
+                            if (!mat.HasProperty(p)) continue;
+                            try
+                            {
+                                if (p == "_OverlayTex" || p == "_MainTex")
+                                { var t = mat.GetTexture(p); knobs.Add(p + "=tex:" + (t != null ? t.name : "null")); }
+                                else if (p == "_Offset" || p == "_ScanlinesIntensity")
+                                    knobs.Add(p + "=" + mat.GetFloat(p).ToString("0.##"));
+                                else { var c = mat.GetColor(p); knobs.Add(p + "=" + c.ToString()); }
+                            }
+                            catch { }
+                        }
+                    }
+                    // UI Images carry their texture via the sprite / CanvasRenderer, not the shared
+                    // material's _MainTex — log both so a scanline sprite shows up.
+                    string sprite = "";
+                    var img = g as UnityEngine.UI.Image;
+                    if (img != null && img.sprite != null)
+                        sprite = " sprite='" + img.sprite.name + "'"
+                            + (img.sprite.texture != null ? "/tex:" + img.sprite.texture.name : "");
+                    string crTex = "";
+                    try
+                    {
+                        var cr = g.canvasRenderer;
+                        if (cr != null && cr.materialCount > 0)
+                        {
+                            var cm = cr.GetMaterial(0);
+                            if (cm != null && cm.mainTexture != null) crTex = " CRtex='" + cm.mainTexture.name + "'";
+                        }
+                    }
+                    catch { }
+                    Server.Log("BOTTOM '" + g.name + "' <" + g.GetType().Name + "> shader=" + msh
+                        + " y=" + (int)ymin + ".." + (int)ymax + " w=" + (int)(xmax - xmin)
+                        + " a=" + g.color.a.ToString("0.##") + sprite + crTex
+                        + " {" + string.Join(", ", knobs) + "}");
+                    if (++hit >= 40) { Server.Log("BOTTOM …capped"); break; }
+                }
+                Server.Log("BOTTOM-bar dump complete (" + hit + " graphics)");
+            }
+            catch (Exception e) { Server.Log("DIAG error: " + e.Message); }
         }
 
         /// <summary>

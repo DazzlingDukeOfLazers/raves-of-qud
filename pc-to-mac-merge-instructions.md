@@ -1,5 +1,9 @@
 # PC → Mac merge instructions
 
+> **Historical runbook** — written for the 2026-07-25 PC→Mac branch reconciliation. Do not rerun blindly:
+> verify the current branch + remote state first (the branch/commit IDs below may be stale). Once the merge
+> is settled, this can move to `docs/history/` — keep only any enduring branch policy.
+
 Read this on the Mac **before** fetching, testing, or merging the PC branches.
 
 ## What changed on the PC (and why this matters)

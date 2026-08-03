@@ -18,7 +18,7 @@ var _last_data := {}     # last snapshot, so a mode toggle re-renders without wa
 func _ready() -> void:
 	_tiles = load("res://QudTiles.gd").new()
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.09, 0.10, 0.13)
+	sb.bg_color = QudPalette.CHROME
 	sb.set_border_width_all(1)
 	sb.border_color = Color(1, 1, 1, 0.12)
 	sb.set_corner_radius_all(3)
@@ -38,7 +38,8 @@ func _ready() -> void:
 	_rt = RichTextLabel.new()
 	_rt.bbcode_enabled = true             # names are rendered in their Qud colours
 	_rt.scroll_active = true
-	_rt.selection_enabled = true
+	_rt.selection_enabled = false   # a selectable RTL grabs focus on click and the arrows stop
+	_rt.focus_mode = Control.FOCUS_NONE   # reaching the player (the command-bar rule)
 	_rt.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_rt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	v.add_child(_rt)
@@ -109,6 +110,22 @@ func set_snapshot(data: Dictionary) -> void:
 ## Driven by MainFrame's global top-menu toggle: perceived icons (default) vs the real ones.
 func set_full_info(full: bool) -> void:
 	_full = full
+	if not _last_data.is_empty():
+		set_snapshot(_last_data)
+
+## 1:1 (parity) mode: render the Qud-faithful nearby-objects list instead of the QoL variant.
+## (Qud-faithful render branch: TODO — the 1:1 panel pass; foundation stores the flag + re-renders.)
+var _one_to_one := false
+func set_one_to_one(on: bool) -> void:
+	if on == _one_to_one:
+		return
+	_one_to_one = on
+	# 1:1: let the list size to its rows (Qud's Nearby objects is content-height, with the Message log
+	# below taking the rest). fit_content grows the label to its text; scroll off so it doesn't cap.
+	# User: the QoL panel scrolls inside its expanded share of the column.
+	if _rt != null:
+		_rt.fit_content = on
+		_rt.scroll_active = not on
 	if not _last_data.is_empty():
 		set_snapshot(_last_data)
 

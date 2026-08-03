@@ -1,8 +1,11 @@
-# Multiplayer — architecture & roadmap
+# Multiplayer — Caves of Qud co-op mod architecture (proposal)
 
-Direct-P2P co-op for the Raves viewer. **No code yet — this is the plan**, written before
-the first slice so the seams are chosen deliberately. Companion to `docs/roadmap.md` (the
-world-store pivot) and `docs/protocol.md` (the bridge wire).
+> **Status: design proposal — multiplayer is NOT implemented.** This is the plan, not shipped code.
+> Unvalidated assumptions to prove before trusting any of it: zone serialization, deterministic
+> regeneration, multi-body turn control, real-time ticking, and NAT traversal.
+
+Direct-P2P co-op for the Raves viewer, written before the first slice so the seams are chosen
+deliberately. Companion to `docs/roadmap.md` (the world-store pivot) and `docs/protocol.md` (the bridge wire).
 
 Decisions in this doc were made with Daniel on **2026-07-27**; see [Decided](#decided) and
 [Open questions](#open-questions).

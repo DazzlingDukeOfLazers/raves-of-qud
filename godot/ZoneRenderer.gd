@@ -296,6 +296,45 @@ func set_flat_2d(on: bool) -> void:
 func flat_2d() -> bool:
 	return _flat_2d
 
+# 1:1 (parity) LIGHTING — Qud's rectangular model, measured off the wire + captures:
+# the light byte is BINARY in practice (Light=200 in the sight/source discs, None=1
+# everywhere else; no gradient), unexplored cells draw NOTHING (the field colour shows),
+# explored-but-dark cells draw the terrain DIMMED (Qud's memory look; creatures are
+# never drawn out of sight), and there are no glows/flames/smoke/sun — the lit cells
+# themselves are the lighting. User mode keeps the full 3D stack; these are hard gates
+# so none of it is even LOADED in 1:1.
+var _one_to_one := false
+var _ground: MeshInstance3D          # the field plane (clipped to the stage in 1:1)
+var _ground_plane: PlaneMesh
+
+# Qud's stage field as actually RENDERED (measured off native captures — palette 'k' plus Qud's
+# own output transform). The user-mode ground keeps the palette-true colour + shading.
+const QUD_FIELD_1TO1 := Color8(17, 52, 51)
+
+func set_one_to_one(on: bool) -> void:
+	if on == _one_to_one:
+		return
+	_one_to_one = on
+	# The ground plane IS Qud's field in 1:1: unshaded (the per-pixel ambient darkened it to
+	# ~(6,30,30)) at the measured field colour, and CLIPPED to the stage rect — Qud's field exists
+	# only inside the 80x25 stage; the letterbox around it is the AREA colour (17,33,38), which the
+	# env clear provides (see SkyGrade). User mode restores the huge shaded palette-k ground.
+	if _ground_mat != null:
+		if on:
+			_ground_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			_ground_mat.albedo_color = QUD_FIELD_1TO1
+		else:
+			_ground_mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL if SHADED_WORLD else BaseMaterial3D.SHADING_MODE_UNSHADED
+			_ground_mat.albedo_color = _world_bg
+	if _ground_plane != null and _ground != null:
+		if on:
+			_ground_plane.size = Vector2(80, 25)          # exactly the zone footprint
+			_ground.position = Vector3(39.5, -0.02, 12.0) # cells span x[-0.5,79.5] z[-0.5,24.5]
+		else:
+			_ground_plane.size = Vector2(400, 400)
+			_ground.position = Vector3(40, -0.02, 12)
+	_drop_all_static()   # Main re-renders right after (same contract as set_flat_2d)
+
 func _ready() -> void:
 	_plane = PlaneMesh.new()
 	_plane.size = Vector2(CELL, CELL)
@@ -313,6 +352,8 @@ func _ready() -> void:
 	gpm.size = Vector2(400, 400)
 	ground.mesh = gpm
 	ground.position = Vector3(40, -0.02, 12)  # big enough to cover any zone
+	_ground = ground
+	_ground_plane = gpm
 	var gm := StandardMaterial3D.new()
 	gm.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL if SHADED_WORLD else BaseMaterial3D.SHADING_MODE_UNSHADED
 	gm.albedo_color = _world_bg
@@ -416,9 +457,15 @@ func _static_signature(cells: Array) -> int:
 
 func render_snapshot(data: Dictionary, neighbors: Array = []) -> void:
 	_tiles_dir = String(data.get("tilesDir", ""))
-	var zdim: Dictionary = data.get("zone", {})
-	if zdim.has("width"): _live_w = float(zdim["width"])
-	if zdim.has("height"): _live_h = float(zdim["height"])
+
+	# Current combat target (for the 1:1 target-highlight blink). Captured before the
+	# dynamics rebuild consumes it; pos + disposition colour letter from the mod.
+	var tgt: Dictionary = data.get("target", {})
+	if bool(tgt.get("present", false)) and tgt.has("x") and tgt.has("y"):
+		_anim_target = {"pos": Vector2i(int(tgt.get("x", 0)), int(tgt.get("y", 0))),
+			"color": String(tgt.get("tcolor", "g"))}
+	else:
+		_anim_target = {}
 
 	# Qud's real palette, sent by the mod. Base/Colors.xml names the colours but
 	# has no RGB, so COLORS below is a hand-estimate kept only as a fallback for
@@ -547,8 +594,7 @@ func _group_wall_cells(cells: Array, offset: Vector2i, wall_types: Dictionary, w
 				continue
 			_note(cx, cy, widx, "prism", WALL_H)
 			var tile := _canon_wall_tile(String(obj.get("tile", "")))
-			var main_c := String(obj.get("tilecolor", ""))
-			if main_c == "": main_c = String(obj.get("color", ""))
+			var main_c := _pick_color_string(obj)   # compound beats tilecolor (the shared rule)
 			var detail_c := String(obj.get("detail", ""))
 			var bg := _parse_bg(String(obj.get("color", "")))
 			var key := "%s|%s|%s|%s" % [tile, main_c, detail_c, bg]
@@ -563,6 +609,12 @@ func _group_wall_cells(cells: Array, offset: Vector2i, wall_types: Dictionary, w
 ## Pass 2 for ONE cell — floors + verticals (skip walls). This is the heavy, GPU-touching part
 ## (texture recolour, sprites, floor-batch entries); the incremental build calls it in chunks.
 func _place_cell(cell: Dictionary, offset: Vector2i, wall_cells: Dictionary, skip_creatures: bool) -> void:
+	# 1:1 renders EVERYTHING per turn in the dynamic pass (like Qud renders per frame): a
+	# frozen ghost bake went stale whenever a liquid sloshed or objects changed (the
+	# "Qud shows a watervine, Raves shows water" bug — the bake predated the vine's cell
+	# state). Statics contribute nothing in 1:1.
+	if _one_to_one:
+		return
 	var cx := int(cell.get("x", 0)) + offset.x
 	var cy := int(cell.get("y", 0)) + offset.y
 	var in_wall: bool = wall_cells.has(Vector2i(cx, cy))
@@ -575,15 +627,50 @@ func _place_cell(cell: Dictionary, offset: Vector2i, wall_cells: Dictionary, ski
 	# initial value (the per-turn _relight_static_sprites keeps it fresh); for a FROZEN
 	# neighbour it's the final value — that zone's plants stay dark in memory.
 	var lf := _light_frac(cell)
+	# Qud's render rule (Cell.Render, decompiled): a cell renders FULL colours only when
+	# VISIBLE (line of sight — independent of light; the wire's `visible`, default true)
+	# AND lit above None. Anything else that still draws (RenderIfDark objects) is
+	# recoloured to the K/k GHOST — fg 'K', detail 'k' — Qud's "partially lit" look.
+	if _one_to_one:
+		lf = 1.0   # no per-sprite dim in 1:1 — the ghost recolour IS the memory look
 	var idx := 0
 	for obj in cell.get("objs", []):
-		if not _is_prism(obj):
-			_place_nonwall(obj, cx, cy, idx, in_wall, sink, wet, skip_creatures, stair_cell, lf)
+		var o: Dictionary = obj
+		if not _is_prism(o):
+			_place_nonwall(o, cx, cy, idx, in_wall, sink, wet, skip_creatures, stair_cell, lf)
 		# Creature lights are placed in the DYNAMIC pass so they follow the creature;
 		# here (static) we only place fixed lights (sconces, braziers, lit terrain).
-		if obj.has("lightRadius") and not (skip_creatures and _is_creature(obj)):
-			_place_light(cx, cy, float(obj["lightRadius"]), not _is_creature(obj), bool(obj.get("onFire", false)))
+		if o.has("lightRadius") and not (skip_creatures and _is_creature(o)):
+			_place_light(cx, cy, float(o["lightRadius"]), not _is_creature(o), bool(o.get("onFire", false)))
 		idx += 1
+
+# Small lift for the dynamic pass's full-colour floor quads so they cover the static ghost
+# quads at the same cell (statics and dynamics share the layer-height scheme otherwise).
+var _dyn_lift_1to1 := 0.0
+
+# --- 1:1 animation pass (Qud's per-frame render programs, emulated on wall clock) ---
+# Rebuilt every dynamics pass; overlay nodes are children of _dynamic_root, so the
+# rebuild's free() reclaims them — these arrays only hold references for the animator.
+# Phases won't match Qud's frame counter (unsyncable), but duty cycles and periods do.
+var _anim_items: Array = []        # [{kind:"smear"|"blink", node} | {kind:"cycle", nodes:[...]}]
+var _anim_pool_cells: Array = []   # [{cx, cy, tile, key, y}] — sparkle candidates (liquid winners)
+var _anim_target: Dictionary = {}  # {pos: Vector2i, color: letter} from the snapshot's target block
+var _anim_tnode: MeshInstance3D = null   # the target-highlight bg quad (blinks)
+var _sparkle_pool: Array = []      # reusable one-frame white-flash quads
+var _sparkle_lit: Array = []       # sparkles shown this frame; hidden next tick
+const DYN_LIFT_1TO1 := 0.02
+
+## An object's K/k ghost variant — Qud's out-of-sight recolour (Cell.Render's final block:
+## ColorString "&K", DetailColor "k" in tiles mode). Applied to EVERY drawn object in a
+## non-visible/unlit 1:1 cell: walls, furniture, items, the painted ground alike.
+func _ghost_obj(obj: Dictionary) -> Dictionary:
+	var o: Dictionary = obj.duplicate()
+	o["color"] = "&K"
+	o["tilecolor"] = "&K"
+	o["detail"] = "k"
+	o.erase("fgHex")       # painted-colour overrides would beat the ghost in the recolour path
+	o.erase("detailHex")
+	return o
 
 ## Build the live zone's static geometry into its own frozen subtree (once per zone
 ## entry). Creatures are excluded — they render per step in _rebuild_dynamics.
@@ -677,6 +764,11 @@ func _rebuild_dynamics(cells: Array) -> void:
 	for c in _dynamic_root.get_children():
 		c.free()
 	_orbiters.clear()           # those orbiter roots were children of _dynamic_root (just freed)
+	_anim_items.clear()         # animator registries: nodes were _dynamic_root children (freed above)
+	_anim_pool_cells.clear()
+	_anim_tnode = null
+	_sparkle_pool.clear()
+	_sparkle_lit.clear()
 	_bank = _dynamic_root
 	_noting = false
 	_dyn_placed.clear()         # record this turn's creatures for the inspector
@@ -689,25 +781,77 @@ func _rebuild_dynamics(cells: Array) -> void:
 		var sink := _cell_sink(cell)
 		var wet: bool = bool(cell.get("wade", false)) or bool(cell.get("swim", false))
 		var lf: float = _light_frac(cell)   # dim creatures in the dark (night or cavern)
+		# 1:1 draws the WHOLE cell state fresh each turn (statics are empty in 1:1): an
+		# unexplored cell draws nothing; a visible+lit cell draws every object full-colour;
+		# anything else draws its RenderIfDark objects as the K/k ghost. No frozen bake, so
+		# nothing to go stale when liquids slosh or objects change.
+		if _one_to_one and not bool(cell.get("explored", true)):
+			continue
+		var full_1to1: bool = _one_to_one and bool(cell.get("visible", true)) and int(cell.get("light", 200)) > 1
+		if _one_to_one:
+			lf = 1.0   # no modulate dim in 1:1 — the ghost recolour is the whole memory look
 		# On the world map the player's card must always read as "you are here" — drawn over
 		# the terrain tiles, never buried behind a hill card. _place_nonwall picks that up.
 		_placing_player = _world_map and Vector2i(cx, cy) == _player_cell
+		if _one_to_one:
+			# Qud renders ONE object per cell (Cell.Render): among the eligible objects — all of
+			# them when the cell is visible+lit, only the RenderIfDark ones otherwise — the highest
+			# RenderLayer wins, ties going to the LATER object in the cell's list (Qud compares
+			# with `>=`). A vine standing in deep water therefore covers the water entirely;
+			# stacking the whole list painted bright water under every vine.
+			var win: Dictionary = {}
+			var win_layer := -INF
+			for obj in cell.get("objs", []):
+				var wd: Dictionary = obj
+				if not full_1to1 and bool(wd.get("hideDark", false)):
+					continue   # Qud never draws these out of sight (Render.RenderIfDark false)
+				var lay := float(wd.get("layer", 0))
+				if lay >= win_layer:
+					win = wd
+					win_layer = lay
+			if not win.is_empty():
+				if not full_1to1:
+					win = _ghost_obj(win)
+				elif Vector2i(cx, cy) == _player_cell and String(win.get("tilecolor", "")) == "":
+					# The avatar-colour gotcha (see the HUD portrait fix): the player's ColorString
+					# '&y' is the GLYPH colour; Qud draws the player's TILE white main + data detail.
+					win = win.duplicate()
+					win["fgHex"] = "#ffffff"
+				if full_1to1:
+					_register_anim(win, cx, cy)
+				if full_1to1 and win.has("aquaBg"):
+					# Qud's Swimming effect: an aquatic-limited creature (eel, glowfish) renders
+					# over its supporting liquid's background colour, not the bare floor.
+					# (NB: a '^bg' in the winner's own colour string does NOT fill the cell in
+					# Qud's tile mode — measured on the luminous-salt puddle '&Y^y&C', whose
+					# cell stays field-coloured behind the art. Only the Swimming bg fills.)
+					_floor_batch_add(_color_material(_qud_color("&" + String(win["aquaBg"]))),
+						Transform3D(Basis(), Vector3(cx, FLOOR_Y + 0.5 * LAYER_LIFT, cy)))
+				_place_nonwall(win, cx, cy, 0, false, sink, wet, false, false, lf)
+			continue
 		var idx := 0
 		for obj in cell.get("objs", []):
-			if not _is_prism(obj) and _is_creature(obj):
-				_place_nonwall(obj, cx, cy, idx, false, sink, wet, false, false, lf)
+			var od: Dictionary = obj
+			if not _is_prism(od) and _is_creature(od):
+				_place_nonwall(od, cx, cy, idx, false, sink, wet, false, false, lf)
 				# A lit creature (NPC with a torch/glowsphere) carries its light with it —
 				# placed here every step so it tracks the creature. No smoke: a moving torch
 				# shouldn't trail a plume. (_live_build is false during dynamics, so this doesn't
 				# register for the flicker or leak into _lights, freed only on a static rebuild.)
 				# Glowfish are excluded: their glow will come from a shader on the fish texture,
 				# not the sconce-style pool+flame; they get the orbiting motes instead.
-				if obj.has("lightRadius") and not _should_glow(obj):
-					_place_light(cx, cy, float(obj["lightRadius"]), false)   # glow-critters use the bloom, not a pool
-				if _is_glowfish(obj):
+				if od.has("lightRadius") and not _should_glow(od):
+					_place_light(cx, cy, float(od["lightRadius"]), false)   # glow-critters use the bloom, not a pool
+				if _is_glowfish(od):
 					_make_orbiters(cx, cy)     # bioluminescent bugs circling the fish
 			idx += 1
 	_placing_player = false
+	# Target-highlight blink: a bg fill under the current combat target's cell, toggled by the
+	# animator in Qud's ~250ms windows (Cell.RenderTarget; colour = disposition, from the wire).
+	if _one_to_one and not _anim_target.is_empty():
+		var tp: Vector2i = _anim_target["pos"]
+		_anim_tnode = _overlay_quad(null, tp.x, tp.y, FLOOR_Y + 0.25 * LAYER_LIFT, false,
+			_qud_color("&" + String(_anim_target["color"])))
 	if _flat_2d:
 		_flush_floor_batch()   # 2D: creatures went to floor quads this turn — emit them into _dynamic_root
 	_dyn_noting = false
@@ -725,7 +869,8 @@ func _rebuild_dynamics(cells: Array) -> void:
 			break
 	if any_dark:
 		_build_darkness(cells, _dynamic_root)          # fall off to black around light sources
-		_relight_static_sprites(cells)                 # dim trees/brinestalks/fences by cell light
+		if not _one_to_one:
+			_relight_static_sprites(cells)             # dim trees/brinestalks/fences by cell light
 	elif _was_dark:
 		_reset_static_light()                          # dark -> lit: restore full brightness, once
 	_was_dark = any_dark
@@ -812,6 +957,12 @@ func _build_darkness(cells: Array, parent: Node, clear_player := Vector2i(-9999,
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var any := false
+	# 1:1: Qud's model needs no overlay — the K/k ghost recolour at place time is the
+	# whole memory look (see _ghost_obj); unexplored cells draw nothing at all.
+	if _one_to_one:
+		return   # 1:1 uses NO overlay at all: unexplored cells draw nothing, and every
+		         # non-visible/unlit cell's objects are K/k ghost-RECOLOURED at place time
+		         # (Cell.Render's model — the ghost is a palette swap, not a black film).
 	for cell in cells:
 		var k := Vector2i(int(cell.get("x", 0)), int(cell.get("y", 0)))
 		var cx := float(k.x)
@@ -1226,6 +1377,9 @@ func _override_for(tile: String) -> String:
 ## An additive warm glow on the ground (the "light") plus a small flickering flame
 ## above the sconce. Qud's radius is in cells; 1 cell == 1 world unit.
 func _place_light(cx: int, cy: int, radius: float, smokes := true, on_fire := false) -> void:
+	if _one_to_one:
+		return   # 1:1: Qud has no glow pools / flames / smoke — the rectangular lit cells ARE
+		         # the light. Hard gate so none of this geometry is even created.
 	if _world_map:
 		return   # the parasang overview is flat and fully lit; a flickering torch glow on a
 		         # world tile (e.g. a glowfish parasang) just oscillates distractingly — skip it.
@@ -1316,7 +1470,7 @@ const SMOKE_OFF_SUN := 0.5      # emit only when sun_a is below this; 0.5 == the
 ## Should the sconce smoke be emitting right now? It's a night-only effect (the flame
 ## fully fades by day), so it runs only in full night and stops once day breaks.
 func _smoke_on() -> bool:
-	return _daylight < SMOKE_OFF_SUN
+	return bool(Settings.get_value("fx_particles", false)) and _daylight < SMOKE_OFF_SUN
 
 ## Build the shared draw-mesh + process material once; every sconce's emitter reuses them
 ## (each GPUParticles3D still has its own seed, so plumes aren't in lockstep).
@@ -1398,6 +1552,8 @@ func _fish_rand(cx: int, cy: int, i: int, salt: int) -> float:
 ## A cluster of glowing motes on tilted, elliptical, varied-speed orbits — "bugs circling
 ## in weird orbits". Positions are animated in _process; here we just spawn + seed them.
 func _make_orbiters(cx: int, cy: int) -> void:
+	if _one_to_one:
+		return   # 1:1: no particle motes — Qud draws only the glowfish tile
 	var root := Node3D.new()
 	root.position = Vector3(cx, ORBIT_CENTER_Y, cy)
 	var motes: Array = []
@@ -1508,6 +1664,8 @@ func _add_glow(s: Sprite3D, tex: Texture2D) -> void:
 ## Flicker: jitter each light's brightness a little every frame, so torches read
 ## as fire rather than steady lamps. Cheap — modulate the additive quads' alpha.
 func _process(_dt: float) -> void:
+	if _one_to_one:
+		_animate_1to1()          # Qud's per-frame render programs (blinks, flashes, sparkles)
 	if _ib_active:
 		_ib_step()               # advance the incremental live-static build one chunk per frame
 	var gmul := _glow_mul()      # daylight dimming, recomputed once per frame
@@ -2003,8 +2161,10 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 		_note(cx, cy, idx, "skipped(no tile — not drawn by Qud)", 0.0)
 		return
 
-	var main_c := String(obj.get("tilecolor", ""))
-	if main_c == "": main_c = String(obj.get("color", ""))
+	# THE shared precedence rule (compound colour beats tilecolor) — this string ALSO keys
+	# the material cache, so the old tilecolor-first derivation made a tarry soup pool
+	# ('&c^C&K', fg K) collide with a plain soup pool ('&c') and serve the wrong material.
+	var main_c := _pick_color_string(obj)
 	var detail_c := String(obj.get("detail", ""))
 	var layer := int(obj.get("layer", 99))
 
@@ -2019,14 +2179,19 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			var d := _take_floor()
 			d.material_override = _deck_material(tile, main_c, detail_c, deck)
 			d.scale = Vector3.ONE
-			var y := (BRIDGE_Y + idx * TIEBREAK) if wet else (FLOOR_Y + layer * LAYER_LIFT + idx * TIEBREAK)
+			var y := (BRIDGE_Y + idx * TIEBREAK) if wet else (FLOOR_Y + layer * LAYER_LIFT + idx * TIEBREAK + _dyn_lift_1to1)
 			d.position = Vector3(cx, y, cy)
 			d.visible = true
 			_track(d)
 			_note(cx, cy, idx, "deck(over water)" if wet else "deck(on ground)", y)
 			return
 
-	var tex := _colored_tex_rgb(tile, _obj_main(obj), _obj_detail(obj), _color_key(obj))
+	# A filed FILL verdict applies to the tile's texture everywhere it draws (the fill axis is
+	# independent of shape): fill-holes turns the water wheel's see-through slats opaque in the
+	# FLAT path too — Qud shows them solid, and the old 3D panel path was the only place the
+	# verdict used to reach. Unfiled tiles keep Fill.NONE (transparent as-loaded).
+	var tex := _colored_tex_rgb(tile, _obj_main(obj), _obj_detail(obj), _color_key(obj),
+		_fill_for(tile, Fill.NONE))
 
 	# A filed verdict overrides everything below it. This is how facts that are not
 	# in Qud's data get in: nothing in `sw_waterwheel_1` says the wheel runs
@@ -2035,7 +2200,11 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 	if verdict == "skip":
 		_note(cx, cy, idx, "skipped(user verdict: not drawn)", 0.0)
 		return
-	if verdict == "panel_ew" or verdict == "panel_ns":
+	# Flat (1:1 / 2D) mode: an UPRIGHT panel is edge-on — invisible — under the straight-down
+	# camera (the "water wheel not showing up" bug: its panel_ew override stood it up). The
+	# verdict's orientation is a 3D fact; in flat mode the object falls through to the floor
+	# path and draws as its plain tile, exactly as Qud does.
+	if (verdict == "panel_ew" or verdict == "panel_ns") and not _flat_2d:
 		var vtex := _colored_tex_rgb(tile, _obj_main(obj), _obj_detail(obj), _color_key(obj))
 		if vtex != null:
 			var axis := "ew" if verdict == "panel_ew" else "ns"
@@ -2066,7 +2235,7 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			var uf := _take_floor()
 			uf.material_override = _mesh_material(tile, main_c, detail_c, utex)
 			uf.scale = Vector3.ONE
-			uf.position = Vector3(cx, FLOOR_Y + layer * LAYER_LIFT + idx * TIEBREAK, cy)
+			uf.position = Vector3(cx, FLOOR_Y + layer * LAYER_LIFT + idx * TIEBREAK + _dyn_lift_1to1, cy)
 			uf.visible = true
 			_track(uf)
 			_note(cx, cy, idx, "stairs-up (flat floor tile)", uf.position.y)
@@ -2149,7 +2318,7 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 		# Floors were one MeshInstance3D per cell — 2000 draw calls on the world map, which
 		# tanked the framerate. Batch them by material into a MultiMesh instead (flushed at the
 		# end of the build): one draw call per tile type. Floors are static, so this is free.
-		var y := FLOOR_Y + layer * LAYER_LIFT + idx * TIEBREAK
+		var y := FLOOR_Y + layer * LAYER_LIFT + idx * TIEBREAK + _dyn_lift_1to1
 		var fmat: Material
 		var fscale := Vector3.ONE
 		var fkind := "floor"
@@ -2159,6 +2328,12 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			fmat = _color_material(_qud_color(String(obj.get("color", ""))))
 			fscale = Vector3(0.5, 1.0, 0.5)
 			fkind = "floor(no tile: flat colour dot)"
+		if bool(obj.get("hflip", false)):
+			# Sprite facing (the display-flip gotcha) reaches the batched floor path as a
+			# mirrored basis — the quad is cell-centred, and floor materials cull-disable,
+			# so the negative winding still draws.
+			fscale.x = -fscale.x
+			fkind += " hflip"
 		_floor_batch_add(fmat, Transform3D(Basis().scaled(fscale), Vector3(cx, y, cy)))
 		_note(cx, cy, idx, fkind, y)
 	elif tex != null:
@@ -2263,9 +2438,9 @@ func _seat(s: Sprite3D, tex: ImageTexture, tile: String, cx: int, cy: int, sink:
 # --- greedy-meshed walls ----------------------------------------------------
 
 func _parse_bg(color: String) -> String:
-	# "&r^w" -> "w"  (the background colour); "" if no ^ component.
-	# Counterpart to _fg_letter, which takes the half before the caret.
-	var i := color.find("^")
+	# "&r^w" -> "w"  (the background colour); "" if no ^ component. Qud's rule
+	# (GetBackgroundColorChar) takes the LAST '^' — matters for compound strings.
+	var i := color.rfind("^")
 	if i >= 0 and i + 1 < color.length():
 		return color.substr(i + 1, 1)
 	return ""
@@ -3424,6 +3599,285 @@ func _floor_batch_add(mat: Material, xform: Transform3D) -> void:
 
 ## Emit the queued floors as one MultiMesh per material into the current bank, then clear.
 ## Called at the end of each static/neighbour build (while _bank is still set).
+# --- 1:1 animator ------------------------------------------------------------------
+## Register the placed winner's animation programs (called from the 1:1 winner path,
+## visible+lit cells only). Overlays are individual quads over the batched steady base.
+func _register_anim(win: Dictionary, cx: int, cy: int) -> void:
+	var tile := String(win.get("tile", ""))
+	if tile == "":
+		return
+	var y_over := FLOOR_Y + float(win.get("layer", 0)) * LAYER_LIFT + LAYER_LIFT * 0.5 + _dyn_lift_1to1
+	var flip := bool(win.get("hflip", false))
+	# Smear flash: liquid-covered objects flash the covering liquid's colour 9 frames in 60
+	# (convalessence '&C', protean gunk '&c' — RenderSmearPrimary; water's smear is a no-op).
+	var sm := String(win.get("animSmear", ""))
+	if sm != "":
+		var fc := _qud_color("&" + sm)
+		var tex := _colored_tex_rgb(tile, fc, fc, "anim~s" + sm + "~" + _color_key(win), _fill_for(tile, Fill.NONE))
+		if tex != null:
+			_anim_items.append({"kind": "smear", "node": _overlay_quad(tex, cx, cy, y_over, flip)})
+	# Sludge programs (SoupSludge.Render): hero = 240ms component-colour / 240ms base blink;
+	# multi-liquid non-hero = 240ms-per-colour cycle (mono non-hero is steady — wired, no overlay).
+	var cyc := String(win.get("animCycle", ""))
+	if cyc != "":
+		var letters := cyc.split(",")
+		if bool(win.get("animHero", false)):
+			var fch := _qud_color("&" + String(letters[0]))
+			var texh := _colored_tex_rgb(tile, fch, _obj_detail(win), "anim~h" + String(letters[0]) + "~" + _color_key(win), _fill_for(tile, Fill.NONE))
+			if texh != null:
+				_anim_items.append({"kind": "blink", "node": _overlay_quad(texh, cx, cy, y_over, flip)})
+		elif letters.size() > 1:
+			var nodes: Array = []
+			for L in letters:
+				var fcl := _qud_color("&" + String(L))
+				var texl := _colored_tex_rgb(tile, fcl, _obj_detail(win), "anim~c" + String(L) + "~" + _color_key(win), _fill_for(tile, Fill.NONE))
+				if texl != null:
+					nodes.append(_overlay_quad(texl, cx, cy, y_over, flip))
+			if not nodes.is_empty():
+				_anim_items.append({"kind": "cycle", "nodes": nodes})
+	# Gas swirl (Qud's Gas.Render): a 4-tile cycle — Tiles2/gas_0..3.png at 15 frames
+	# (250ms) per step, in the gas type's colour. Always exactly one frame visible, so
+	# the overlay fully replaces the steady base (which shows frame 0).
+	var gcol := String(win.get("animGas", ""))
+	if gcol != "":
+		var gc := _qud_color(gcol)
+		var gnodes: Array = []
+		for gi in 4:
+			var gtile := "Tiles2/gas_%d.png" % gi
+			var gtex := _colored_tex_rgb(gtile, gc, gc, "anim~g" + gcol + "~" + str(gi), _fill_for(gtile, Fill.NONE))
+			if gtex != null:
+				gnodes.append(_overlay_quad(gtex, cx, cy, y_over, false))
+		if not gnodes.is_empty():
+			# per-cloud random phase, like Qud's per-gas FrameOffset (clouds don't step in unison)
+			_anim_items.append({"kind": "gas", "nodes": gnodes, "off": randi() % 60})
+	# Fire (AnimatedMaterialFire — the wire's onFire flag is exactly that part): Qud tints
+	# the flameless tile's fg through &R / &W / &r / &W in 15-frame windows with a RANDOM-
+	# WALKING phase (FrameOffset += 1..5 per frame — chaotic flicker, not a pulse), and its
+	# particle layer dances ~20 pure-red pixels above the fire. Overlays: 3 tint variants +
+	# 3 tiny rising ember quads.
+	if bool(win.get("onFire", false)):
+		var fnodes: Array = []
+		for L in ["R", "W", "r"]:
+			var fcf := _qud_color("&" + String(L))
+			var ftex := _colored_tex_rgb(tile, fcf, _obj_detail(win), "anim~f" + String(L) + "~" + _color_key(win), _fill_for(tile, Fill.NONE))
+			if ftex != null:
+				fnodes.append(_overlay_quad(ftex, cx, cy, y_over, flip))
+		if fnodes.size() == 3:
+			# Three particle layers (Daniel's spec): RED embers with a raised floor, YELLOW
+			# tongues at the wood base expiring at half the red column, and GREY smoke that
+			# alphas out while rising two tiles. +dz = screen-south (toward the wood).
+			var embers: Array = []
+			for _e in 3:
+				var eq := _overlay_quad(null, cx, cy, y_over + LAYER_LIFT * 0.25, false, Color(1, 0, 0))
+				eq.scale = Vector3(0.10, 1.0, 0.14)
+				eq.visible = true
+				embers.append({"node": eq, "t": "red", "dx": randf_range(-0.18, 0.18), "dz": randf_range(0.10, 0.28)})
+			for _e in 2:
+				var yq := _overlay_quad(null, cx, cy, y_over + LAYER_LIFT * 0.2, false, Color(1.0, 0.85, 0.1))
+				yq.scale = Vector3(0.09, 1.0, 0.12)
+				yq.visible = true
+				embers.append({"node": yq, "t": "yellow", "dx": randf_range(-0.16, 0.16), "dz": randf_range(0.10, 0.28)})
+			for _e in 3:
+				var sq := _overlay_quad(null, cx, cy, y_over + LAYER_LIFT * 0.3, false, Color(0.45, 0.45, 0.45, 0.55))
+				var smat := sq.material_override as StandardMaterial3D
+				if smat != null:
+					smat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+				sq.scale = Vector3(0.16, 1.0, 0.18)
+				sq.visible = true
+				embers.append({"node": sq, "t": "smoke", "dx": randf_range(-0.2, 0.2), "dz": randf_range(-0.05, 0.10)})
+			_anim_items.append({"kind": "fire", "nodes": fnodes, "off": randi() % 60,
+				"embers": embers, "cx": cx, "cy": cy, "lfoPhase": randf() * TAU})
+	# Engulfed (Engulfed.Render): the swallowed winner shows its ENGULFER's tile+colours
+	# for frames 0-30 of every 60 — the half-second predator/prey alternation (the dacca
+	# that ate a prism perch). One overlay, visible the first half of each second.
+	var etile := String(win.get("engTile", ""))
+	if etile != "":
+		var etex := _colored_tex_rgb(etile, _qud_color(String(win.get("engColor", ""))),
+			_qud_color(String(win.get("engDetail", ""))),
+			"anim~e" + String(win.get("engColor", "")) + "~" + String(win.get("engDetail", "")) + "~" + etile,
+			_fill_for(etile, Fill.NONE))
+		if etex != null:
+			_anim_items.append({"kind": "engulf", "node": _overlay_quad(etex, cx, cy, y_over, false)})
+	# ConcealedHologramMaterial (Moon Stair "virtual" assets): normal from afar; when the
+	# PLAYER IS ADJACENT it flickers hologram tints on a 200-frame wheel — 12 frames of
+	# C/c -> b/C -> c/b windows, plus a rare white blip (approximates Qud's glyph sputter).
+	if bool(win.get("animCHolo", false)):
+		var cnodes: Array = []
+		for pair in [["C", "c"], ["b", "C"], ["c", "b"], ["Y", "y"]]:
+			var cfg := _qud_color("&" + String(pair[0]))
+			var cdt := _qud_color("&" + String(pair[1]))
+			var ctex := _colored_tex_rgb(tile, cfg, cdt, "anim~ch" + String(pair[0]) + String(pair[1]) + "~" + _color_key(win), _fill_for(tile, Fill.NONE))
+			if ctex != null:
+				cnodes.append(_overlay_quad(ctex, cx, cy, y_over, flip))
+		if cnodes.size() == 4:
+			_anim_items.append({"kind": "cholo", "nodes": cnodes, "off": randi() % 200,
+				"cx": cx, "cy": cy})
+	# Pool sparkle candidate: a liquid winning its cell rolls Qud's 1/600 flash — WHITE for
+	# water-family pools ('&Y'), CYAN for protean gunk ('&c', its own program: near-invisible
+	# on the cyan soup, exactly Qud's look — the soup does NOT glitter like water).
+	if bool(win.get("liquid", false)):
+		var spark := "c" if tile.contains("Gunk") else "Y"
+		_anim_pool_cells.append({"cx": cx, "cy": cy, "tile": tile, "key": _color_key(win), "y": y_over, "spark": spark})
+
+## One unbatched cell-sized quad for the animator (hidden until its program shows it).
+## tex null + col set = a flat colour fill (the target highlight).
+func _overlay_quad(tex: Texture2D, cx: int, cy: int, y: float, flip := false, col := Color(0, 0, 0, 0)) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.mesh = _plane
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	if tex != null:
+		m.albedo_texture = tex
+		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	elif col.a > 0.0:
+		m.albedo_color = col
+	mi.material_override = m
+	mi.position = Vector3(cx, y, cy)
+	if flip:
+		mi.scale = Vector3(-1, 1, 1)
+	mi.visible = false
+	_dynamic_root.add_child(mi)
+	return mi
+
+## Per-frame driver (from _process, 1:1 only). qf emulates Qud's CurrentFrame (60/s wrap);
+## phases can't sync with Qud's counter, but every duty cycle and period matches.
+func _animate_1to1() -> void:
+	var ms := Time.get_ticks_msec()
+	var qf := int(ms * 0.06) % 60
+	if _anim_tnode != null and is_instance_valid(_anim_tnode):
+		_anim_tnode.visible = (qf < 15) or (qf >= 30 and qf < 45)   # RenderTarget's blink windows
+	for it in _anim_items:
+		var kind := String(it["kind"])
+		if kind == "smear":
+			var n := it["node"] as MeshInstance3D
+			if is_instance_valid(n):
+				n.visible = qf > 5 and qf < 15
+		elif kind == "blink":
+			var n2 := it["node"] as MeshInstance3D
+			if is_instance_valid(n2):
+				n2.visible = (ms % 480) < 240
+		elif kind == "cycle":
+			var nodes: Array = it["nodes"]
+			if not nodes.is_empty():
+				var idx := int(ms / 240.0) % nodes.size()
+				for i in nodes.size():
+					var nn := nodes[i] as MeshInstance3D
+					if is_instance_valid(nn):
+						nn.visible = i == idx
+		elif kind == "cholo":
+			var chn: Array = it["nodes"]
+			if chn.size() == 4:
+				# proximity gate: the glitch only shows with the player ADJACENT (Chebyshev <= 1)
+				var adj: bool = maxi(absi(int(it["cx"]) - _player_cell.x), absi(int(it["cy"]) - _player_cell.y)) <= 1
+				var cidx := -1
+				if adj:
+					it["off"] = int(it.get("off", 0)) + (randi() % 21)   # Qud: FrameOffset += 0..20/frame
+					var w200 := (qf + int(it["off"])) % 200
+					if w200 < 4: cidx = 0        # &C/c
+					elif w200 < 8: cidx = 1      # &b/C
+					elif w200 < 12: cidx = 2     # &c/b
+					elif randi() % 400 == 0: cidx = 3   # the rare &Y/y blip (glyph-sputter stand-in)
+				for i in chn.size():
+					var cn := chn[i] as MeshInstance3D
+					if is_instance_valid(cn):
+						cn.visible = i == cidx
+		elif kind == "engulf":
+			var en2 := it["node"] as MeshInstance3D
+			if is_instance_valid(en2):
+				en2.visible = qf <= 30   # Engulfed.Render: engulfer shown frames 0-30 of 60
+		elif kind == "gas":
+			var gn: Array = it["nodes"]
+			if not gn.is_empty():
+				var gidx := ((qf + int(it.get("off", 0))) / 15) % gn.size()   # Gas.Render: 250ms/tile, per-cloud phase
+				for i in gn.size():
+					var g := gn[i] as MeshInstance3D
+					if is_instance_valid(g):
+						g.visible = i == gidx
+		elif kind == "fire":
+			var fn: Array = it["nodes"]
+			if fn.size() == 3:
+				# Qud's random-walk phase: FrameOffset += 1..5 EVERY frame
+				it["off"] = int(it.get("off", 0)) + 1 + (randi() % 5)
+				var fw: int = ((qf + int(it["off"])) % 60) / 15
+				var fidx: int = [0, 1, 2, 1][fw]   # windows: &R, &W, &r, &W
+				for i in fn.size():
+					var f := fn[i] as MeshInstance3D
+					if is_instance_valid(f):
+						f.visible = i == fidx
+				# Layered fire physics: red floor raised (+0.28..+0.10 -> top +0.02); yellow
+				# tongues spawn at the wood base (+0.45..+0.32) and expire at half the red
+				# column (+0.24); smoke rises TWO tiles (to dz -1.9) fading alpha to zero.
+				var fcx := int(it.get("cx", 0))
+				var fcy := int(it.get("cy", 0))
+				for e in it.get("embers", []):
+					var en := e["node"] as MeshInstance3D
+					if not is_instance_valid(en):
+						continue
+					var et := String(e.get("t", "red"))
+					if et == "red":
+						e["dz"] = float(e["dz"]) - (0.015 + randf() * 0.01)   # half speed
+						e["dx"] = clampf(float(e["dx"]) + randf_range(-0.03, 0.03), -0.22, 0.22)
+						if float(e["dz"]) < 0.02:
+							e["dz"] = randf_range(0.10, 0.28)
+							e["dx"] = randf_range(-0.18, 0.18)
+					elif et == "yellow":
+						# same band + ceiling as the red now, at half speed
+						e["dz"] = float(e["dz"]) - (0.0125 + randf() * 0.01)
+						e["dx"] = clampf(float(e["dx"]) + randf_range(-0.025, 0.025), -0.2, 0.2)
+						if float(e["dz"]) < 0.02:
+							e["dz"] = randf_range(0.10, 0.28)
+							e["dx"] = randf_range(-0.16, 0.16)
+					else:
+						e["dz"] = float(e["dz"]) - (0.02 + randf() * 0.015)
+						e["dx"] = clampf(float(e["dx"]) + randf_range(-0.02, 0.02), -0.35, 0.35)
+						var prog := clampf((0.10 - float(e["dz"])) / 2.0, 0.0, 1.0)
+						var sm := en.material_override as StandardMaterial3D
+						if sm != null:
+							sm.albedo_color = Color(0.45, 0.45, 0.45, 0.55 * (1.0 - prog))
+						if float(e["dz"]) < -1.9:
+							e["dz"] = randf_range(-0.05, 0.10)
+							# LFO on the spawn x: the smoke column sways slowly (~4.2s period,
+							# amplitude 0.22 cells, per-fire phase) instead of spawning centred.
+							var lfo := sin(float(ms) * 0.0015 + float(it.get("lfoPhase", 0.0))) * 0.22
+							e["dx"] = lfo + randf_range(-0.06, 0.06)
+					en.position.x = fcx + float(e["dx"])
+					en.position.z = fcy + float(e["dz"])
+	# Pool sparkles: expected fires/frame = cells/600 (Qud's per-cell 1/600 roll), one-frame white.
+	for s in _sparkle_lit:
+		if is_instance_valid(s):
+			(s as MeshInstance3D).visible = false
+	_sparkle_lit.clear()
+	var n3 := _anim_pool_cells.size()
+	if n3 > 0:
+		var expect := n3 / 600.0
+		var fires := int(expect) + (1 if randf() < expect - floorf(expect) else 0)
+		fires = mini(fires, 4)
+		for _i in fires:
+			var pc: Dictionary = _anim_pool_cells[randi() % n3]
+			var tw := String(pc["tile"])
+			var sl := String(pc.get("spark", "Y"))
+			var fcw := _qud_color("&" + sl)
+			var texw := _colored_tex_rgb(tw, fcw, fcw, "anim~" + sl + "~" + String(pc["key"]), _fill_for(tw, Fill.NONE))
+			if texw == null:
+				continue
+			var q := _take_sparkle()
+			(q.material_override as StandardMaterial3D).albedo_texture = texw
+			(q.material_override as StandardMaterial3D).texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+			(q.material_override as StandardMaterial3D).transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+			q.position = Vector3(int(pc["cx"]), float(pc["y"]) + LAYER_LIFT * 0.25, int(pc["cy"]))
+			q.visible = true
+			_sparkle_lit.append(q)
+
+func _take_sparkle() -> MeshInstance3D:
+	for s in _sparkle_pool:
+		if is_instance_valid(s) and not (s as MeshInstance3D).visible:
+			return s
+	var q := _overlay_quad(null, 0, 0, 0.0)
+	_sparkle_pool.append(q)
+	return q
+
 func _flush_floor_batch() -> void:
 	for mat in _floor_batch:
 		var xforms: Array = _floor_batch[mat]
@@ -3503,19 +3957,34 @@ const COLORS := {
 
 ## Foreground/detail for an object. When Qud painted the tile it hands us the
 ## RESOLVED rgb, which needs no palette lookup and no &X^Y parsing — prefer it.
+## Which colour string an object's tile recolours from — Qud's tiles rule (Cell.Render) is
+## TileColor over ColorString, EXCEPT a custom render (liquids) writes a COMPOUND back into
+## ColorString ('&Y^y&b') that overrides the static TileColor at draw time. A compound is
+## recognisable by its second '&'.
+func _pick_color_string(obj: Dictionary) -> String:
+	var full := String(obj.get("color", ""))
+	if full.count("&") >= 2:
+		return full
+	var c := String(obj.get("tilecolor", ""))
+	return c if c != "" else full
+
 func _obj_main(obj: Dictionary) -> Color:
 	var hex := String(obj.get("fgHex", ""))
 	if hex != "":
 		return Color(hex)
-	var c := String(obj.get("tilecolor", ""))
-	if c == "": c = String(obj.get("color", ""))
-	return _qud_color(c)
+	return _qud_color(_pick_color_string(obj))
 
 func _obj_detail(obj: Dictionary) -> Color:
 	var hex := String(obj.get("detailHex", ""))
 	if hex != "":
 		return Color(hex)
-	return _qud_color(String(obj.get("detail", "")))
+	var d := String(obj.get("detail", "")).strip_edges()
+	if d == "":
+		# Qud renders the detail-mask pixels in the FG colour when DetailColor is empty
+		# (measured on painted-ground flowers: Qud draws the whole sprite fg; the white
+		# came from our fallback). Keep the copies in sync: QudTiles.detail_color.
+		return _obj_main(obj)
+	return _qud_color(d)
 
 ## Cache key for an object's colours — the painted rgb when present, else the
 ## colour codes. Must distinguish the two, or a painted and an unpainted object
@@ -3524,9 +3993,7 @@ func _color_key(obj: Dictionary) -> String:
 	var hex := String(obj.get("fgHex", ""))
 	if hex != "":
 		return "%s~%s" % [hex, String(obj.get("detailHex", ""))]
-	var c := String(obj.get("tilecolor", ""))
-	if c == "": c = String(obj.get("color", ""))
-	return "%s|%s" % [c, String(obj.get("detail", ""))]
+	return "%s|%s" % [_pick_color_string(obj), String(obj.get("detail", ""))]
 
 ## The FOREGROUND letter of a Qud colour code.
 ##
@@ -3538,11 +4005,17 @@ func _color_key(obj: Dictionary) -> String:
 ## Objects with a TileColor were unaffected (that field has no `^`), which is why
 ## walls and water looked right and this stayed hidden.
 func _fg_letter(code: String) -> String:
+	# QUD'S OWN RULE (RenderEvent.GetForegroundColor): the char after the LAST '&' anywhere in
+	# the string — '^' sets the background and does NOT stop the search. A liquid's custom
+	# render writes compounds like '&Y^y&b': Qud draws that fg 'b' (the blue puddle), and the
+	# old first-caret truncation read 'Y' instead. A bare letter code stays itself.
 	var c := code.strip_edges()
+	var amp := c.rfind("&")
+	if amp >= 0:
+		return c.substr(amp + 1, 1) if amp + 1 < c.length() else ""
 	var caret := c.find("^")
 	if caret >= 0:
-		c = c.substr(0, caret)      # drop the background half
-	c = c.replace("&", "")
+		c = c.substr(0, caret)
 	if c.is_empty():
 		return ""
 	return c.substr(c.length() - 1, 1)

@@ -4,6 +4,18 @@ Non-obvious rules that bite, and what to verify when adding a kind of thing. Mos
 round-trip to learn — the point is to never pay for them twice. Keep it current: when a new quirk bites,
 add a one-liner (symptom → rule).
 
+## Fast lookup (symptom → first check)
+
+| Symptom | Likely cause | First check | Section |
+|---|---|---|---|
+| A change never shows until you move the player | unfocused Qud runs only the turn thread — `TickRender` doesn't fire | is Qud's window unfocused? did a turn actually end? | Qud internals |
+| Deployed a fix but nothing changed | mod `.cs` only compiles at Qud **startup** — a stale build is running | `Protocol.Build` in the snapshot / inspector | Qud internals |
+| A placed object (campfire, wall) doesn't draw | static geometry is frozen per zone; the static signature didn't change | did `_static_signature` change? | Renderer |
+| Can't move after an ability prompt (Make Camp) | a focused clickable UI over the Holodeck swallowed the arrows | is that control `FOCUS_NONE`? | Godot / the frame |
+| Can't move after clicking a PANEL (row 4 / sidebar) | `selection_enabled` RichTextLabels grab focus on click — same wall | selectable text needs `FOCUS_NONE` + selection OFF (the command-bar fix, applied to all panels in db39608+1) | Godot / the frame |
+| "Crash" but no crash report written | it's a **hang** (GPU timeout / fillrate), not a crash | is there a fresh `Godot-*.ips`? if not → hang | Renderer |
+| Headless run is "fine" but the windowed app crashes | `--headless` uses a dummy driver — never touches Metal | run a real windowed build to prove a render path | Renderer |
+
 ---
 
 ## Part 1 — Invariants (symptom → rule)
@@ -25,9 +37,20 @@ add a one-liner (symptom → rule).
   the perceived-vs-full memory.
 - **A placed object's LIGHT can attach a snapshot AFTER its sprite appears** (a just-made campfire lights
   up next tick). Anything keyed on "the object appeared" must also react to "the object lit up."
-- **API details, always decompile — don't guess.** `pPhysics` is obsolete (use `Physics`); liquid ids are
-  lowercase; AV/DV/MA need `Stats.GetCombat*`, not `GetStatValue`; `PushMouseEvent("LeftClick", x, y)` takes
-  CELL coords. `dotnet build mod/…csproj` fails on a wrong name before the user ever runs.
+- **API details, always decompile — don't guess.** `GameObject.Physics` is the reflected field to prefer
+  for new code; `pPhysics` is a legacy convenience accessor **still compiling** (the mod uses
+  `player.pPhysics.Temperature`) but marked obsolete by the assembly (`CS0618: Use Physics`) — don't assume
+  one swaps for the other without compiling against the shipped DLL. Liquid ids are lowercase; AV/DV/MA need
+  `Stats.GetCombat*`, not `GetStatValue`; `PushMouseEvent("LeftClick", x, y)` takes CELL coords.
+  `dotnet build mod/…csproj` fails on a wrong name before the user ever runs.
+- **Driving Qud's MENUS / character creation from outside = MOUSE, not keys** — Qud (Unity) drops synthetic
+  keyboard events pre-game and exposes no accessibility tree for its menus. But the **click shape is
+  surface-specific**, not one universal recipe: plain Unity buttons + world cells take a **bare** click (no
+  pre-move, no `kCGMouseEventClickState`); legacy console popups and the **title menu** need a **hover**
+  (a pre-move event) first — try bare, then hover when the highlight doesn't move. Highvisor's `hv click
+  [--hover]` implements this verified matrix; full write-up in highvisor `docs/05-driving-input.md`.
+  *Symptom of the wrong shape:* the menu highlight follows your cursor but clicks never activate. In-GAME,
+  keep using the mod's `PushCommand`.
 
 ### Renderer (ZoneRenderer)
 - **LIVE STATIC geometry is built ONCE per zone and frozen** — walls, furniture, sprites, lights. Only
@@ -39,8 +62,10 @@ add a one-liner (symptom → rule).
   zone dropped+rebuilt (far→near incremental) mid-walk → "foreground tiles vanish until you stop." Only
   genuinely PLACED structures (campfire, dug wall) should trigger a rebuild. Adding a new object CLASS that
   moves/spreads/decays each turn? exclude it here too, or verify it can't appear on a cell the player traverses.
-- **"Light" in Raves is the per-cell DARKNESS OVERLAY** from Qud's light map (`cell.light`), not real 3D
-  lights (the world is UNSHADED). A campfire/torch glow is additive geometry placed in the static build.
+- **`cell.light` is Qud's per-cell DARKNESS/visibility OVERLAY, not Godot lighting** — the two are
+  different things; say which layer you're changing. World walls and ground **are** per-pixel shaded today
+  (`ZoneRenderer.SHADED_WORLD = true`); many sprite/effect materials remain unshaded or additive. A
+  campfire/torch glow is additive geometry placed in the static build.
 - **Billboard parallax:** a flat `y=0` ground ray overshoots standing sprites at the low camera angle. The
   inspector's `_pick_cell` marches back to the occupied cell; the direction picker wants the literal ground cell.
 
@@ -61,7 +86,15 @@ add a one-liner (symptom → rule).
   click-to-target) goes in `_input`; only the camera's own MOUSE-mode orbit/pan/wheel stays in `_unhandled_input`.
 - **`var x := load("res://Y.gd").new()` won't parse** (`load()` is typed `Resource`, has no `.new()`) — declare
   the member typed, assign in `_ready`. **`var x := dict.get(k)` won't parse** either (can't infer from
-  `Variant`) — annotate the type (`var x: Array = ...`).
+  `Variant`) — annotate the type (`var x: Array = ...`). Same trap comparing a Variant loop var:
+  (Colour-precedence copies: `_pick_color_string` is THE rule — a site deriving main colour as
+  "tilecolor else color" also poisons the MATERIAL cache key: a compound '&c^C&K' pool collided
+  with a plain '&c' pool and served the wrong material. Grep for `get("tilecolor"` when adding
+  colour paths.)
+  `var up := key == "up"` fails when `key` iterates an untyped Array — `var up: bool = ...`.
+  **After editing ANY `.gd`, run `--check-only --script res://<That>.gd`** — the headless boot check
+  only deep-parses scripts it loads, and a broken `MainFrame.gd` shipped as a BLANK title screen
+  (MainMenu references it) with `--quit-after` still printing clean.
 - **Full-window Holodeck renders into the ROOT viewport**; the day/night MULTIPLY grade must sit on a
   NEGATIVE `CanvasLayer` so it tints only the 3D, not the chrome.
 - **The exported app writes NO `godot.log` / crash report** (ad-hoc signed). Trace via a file under

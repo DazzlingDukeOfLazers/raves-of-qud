@@ -1,8 +1,22 @@
-# Rendering model
+# Rendering model — Raves of Qud 2.5D tiles, voxel walls, lighting & water
 
 How `godot/ZoneRenderer.gd` (and `Main.gd`) turn a per-turn snapshot into the 3D scene.
 Everything here is in **GDScript** — Python is only for *verifying* the algorithms
 (see [tools.md](tools.md) and the Python-first note at the bottom).
+
+## The mental model (read first)
+
+A snapshot becomes the scene through a fixed pipeline, and each section below is one stage of it:
+
+```
+snapshot → classify each object → build geometry → colour + fill → lighting/darkness → freeze (static) / rebuild (dynamic)
+```
+
+Every object lands in one of **five visual layers**: (1) **painted ground** (dirt/grass, drawn even where
+no GameObject exists), (2) **flat/deck surfaces** (floors, bridges), (3) **wall geometry** (the voxel
+walls), (4) **upright sprites/panels** (creatures, items, fences), (5) **lighting/darkness overlays**.
+Classification (§1) picks the layer; the later sections explain each layer's geometry, colour, and
+lifecycle. A quick glossary of the terms used throughout is at the [bottom](#glossary).
 
 ---
 
@@ -119,9 +133,10 @@ an albedo *texture* are unaffected. See CLAUDE.md's debugging rules.
 
 ---
 
-## 5. Lighting — everything is FAKED because the world is UNSHADED
+## 5. Lighting — exact-colour art, optional shaded geometry, simulated light effects
 
-Materials are `SHADING_MODE_UNSHADED` by default so tiles show exact colours; a real light does
+World geometry follows the `SHADED_WORLD` constant (**currently `true`** → per-pixel shaded; flip it
+`false` for the flat, fully-unshaded look). Under the unshaded path, tiles show exact colours and a real light does
 nothing to them. `SHADED_WORLD = true` switches **walls and the ground** to `PER_PIXEL` so they
 receive the sun and cast shadows (ambient raised ~0.72 so tiles keep colour in shadow; baked
 vertex shade dropped so it doesn't double). Billboards/floors stay unshaded.
@@ -233,45 +248,9 @@ or have the mod send the real sight radius).
   never lowered — the water is a flat quad, so a sunk sprite would poke out under it.
 - A **bridge** decks over the water (opaque, lifted); anything on it is at full height.
 
-### 6a. Why "just make the water tile transparent" doesn't reveal a submerged actor
-
-This has bitten us, so it's written down. In **Qud (2D)** a cell is a paint stack: the water
-tile is composited *on top of* the creature, so making the water tile semi-transparent would
-let the creature show through. That mental model is correct **for Qud**.
-
-In **Raves (3D) it does not map**, for two coupled reasons:
-
-1. **The water is a flat floor quad near the ground, not an overlay.** It lies roughly in the
-   ground plane (`FLOOR_Y + layer*LAYER_LIFT`), a near-horizontal sheet. It never sits *in front
-   of* the vertical creature billboard the way a 2D tile does, so its opacity has almost nothing
-   to do with whether you can see the actor.
-2. **The submerged part of the actor is never drawn.** "Submerged" is faked by **cropping** the
-   billboard at the waterline (`_seat` with `sink` — see above), not by lowering it. The pixels
-   below the waterline don't exist in the scene. So even a fully transparent water tile reveals
-   *nothing*: there is no geometry behind it to show.
-
-Corollary: **transparency belongs to the water, submersion belongs to the crop, and neither one
-alone gets you "see the fish under the water."** An earlier attempt layered transparency onto the
-*creature* (a veil) and drew it uncropped; that both put the effect on the wrong object and
-destroyed the half-submerged read. Reverted.
-
-### 6b. If we do want "see the submerged part through the water" (future)
-
-It's a real rendering change, not a tile tweak. The honest version:
-
-- **Give deep water genuine vertical depth.** Model a deep-water cell as a *basin*: the floor sits
-  below the surface, and the **surface** is a translucent quad raised to a consistent water height
-  (shared across the pool, or it reads as a floating pane over one cell).
-- **Draw the actor uncropped, standing on the basin floor**, so its lower part is genuinely *below*
-  the raised translucent surface and shows through it; its top stays above, clear.
-- Watch the **occluders**: the world's big opaque ground plane (`y ≈ -0.02`) will hide anything
-  drawn below it, so the basin floor and actor feet have to stay above it (or the ground plane must
-  be cut out under deep water).
-- This touches shorelines (deep water meeting land/bridges/wading), so design it deliberately with
-  screenshots at each step — don't hack it live per-cell.
-
-Until then, deep water stays **opaque flat quad + cropped actor** (§6), which reads correctly as
-"mostly submerged, top poking out."
+> Naive approaches (a transparent water tile; a veiled actor) do **not** reveal a submerged actor in
+> 3D, and a real "see the submerged part" change is a rendering change, not a tile tweak — see the
+> [appendix](#appendix-rejected-approaches-and-rationale).
 
 ---
 
@@ -409,3 +388,66 @@ and verified in Python first**, then ported to GDScript. `tools/capture/voxel.py
 mirror the GDScript algorithms exactly and render inspectable output. Lighting/shadow *appearance*
 still needs a screenshot (F12 in the Holodeck); the *algorithm* does not. This is not optional — it
 is how the depth-order bug was caught without a round-trip.
+
+---
+
+## Appendix: rejected approaches and rationale
+
+### 6a. Why "just make the water tile transparent" doesn't reveal a submerged actor
+
+This has bitten us, so it's written down. In **Qud (2D)** a cell is a paint stack: the water
+tile is composited *on top of* the creature, so making the water tile semi-transparent would
+let the creature show through. That mental model is correct **for Qud**.
+
+In **Raves (3D) it does not map**, for two coupled reasons:
+
+1. **The water is a flat floor quad near the ground, not an overlay.** It lies roughly in the
+   ground plane (`FLOOR_Y + layer*LAYER_LIFT`), a near-horizontal sheet. It never sits *in front
+   of* the vertical creature billboard the way a 2D tile does, so its opacity has almost nothing
+   to do with whether you can see the actor.
+2. **The submerged part of the actor is never drawn.** "Submerged" is faked by **cropping** the
+   billboard at the waterline (`_seat` with `sink` — see above), not by lowering it. The pixels
+   below the waterline don't exist in the scene. So even a fully transparent water tile reveals
+   *nothing*: there is no geometry behind it to show.
+
+Corollary: **transparency belongs to the water, submersion belongs to the crop, and neither one
+alone gets you "see the fish under the water."** An earlier attempt layered transparency onto the
+*creature* (a veil) and drew it uncropped; that both put the effect on the wrong object and
+destroyed the half-submerged read. Reverted.
+
+### 6b. If we do want "see the submerged part through the water" (future)
+
+It's a real rendering change, not a tile tweak. The honest version:
+
+- **Give deep water genuine vertical depth.** Model a deep-water cell as a *basin*: the floor sits
+  below the surface, and the **surface** is a translucent quad raised to a consistent water height
+  (shared across the pool, or it reads as a floating pane over one cell).
+- **Draw the actor uncropped, standing on the basin floor**, so its lower part is genuinely *below*
+  the raised translucent surface and shows through it; its top stays above, clear.
+- Watch the **occluders**: the world's big opaque ground plane (`y ≈ -0.02`) will hide anything
+  drawn below it, so the basin floor and actor feet have to stay above it (or the ground plane must
+  be cut out under deep water).
+- This touches shorelines (deep water meeting land/bridges/wading), so design it deliberately with
+  screenshots at each step — don't hack it live per-cell.
+
+Until then, deep water stays **opaque flat quad + cropped actor** (§6), which reads correctly as
+"mostly submerged, top poking out."
+
+---
+
+## Glossary
+
+Terms used throughout this page:
+
+- **cap / face / core** — parts of a voxel **wall**: the top **cap** (drawn from the tile's top edge), the
+  vertical **face(s)** the camera sees, and the solid **core** between them.
+- **live zone** — the zone the player is currently in, rebuilt from the snapshot each turn.
+- **frozen neighbor** — an adjacent zone's static geometry kept in memory but not rebuilt each turn (only
+  the live zone's creatures rebuild per step; static geometry is frozen per zone — see §on freezing).
+- **grade** — the full-screen day/night **MULTIPLY** tint (`Main._grade`) over the whole viewport.
+- **darkness overlay** — the per-cell MIX-black layer (`_build_darkness`) that does the actual dimming
+  underground / at night, falling off to black around light sources (the grade stays near-neutral so it
+  doesn't double-dark the light pools).
+- **additive glow** — a `BLEND_MODE_ADD` quad/billboard that brightens whatever's behind it without scene
+  lighting (how "lights" are faked in the unshaded path).
+- **override** — a standing per-tile-family rule (shape/fill) in `overrides.json`, read live each frame.

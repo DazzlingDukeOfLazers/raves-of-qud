@@ -25,3 +25,6 @@ __pycache__/
 .idea/
 .vscode/
 build/
+
+# highvisor regression run output (captures + diffs)
+tools/regression/_regress/

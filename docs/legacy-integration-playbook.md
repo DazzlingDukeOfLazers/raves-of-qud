@@ -6,7 +6,9 @@ own render loop and input model. Caves of Qud (Unity/.NET) is the worked example
 *problems* below recur for any target: an emulator, a Unity/Unreal/Godot game, a terminal roguelike,
 a Flash/Air port, a native app. The specifics differ every time; the failure modes don't.
 
-Read this before starting a new target. It will save you the multi-day detours we already paid for.
+**In one line:** build a **Godot front end for a legacy game** using three separable systems — a structured
+**data bridge**, a **rendering/capture** loop, and an **OS-level input harness** — and prove each one on its
+own. Read this before starting a new target; it will save you the multi-day detours we already paid for.
 
 ---
 
@@ -25,6 +27,19 @@ comes from conflating them.
 You will want all three. The bridge is fastest and cleanest but can't reach everything; the OS harness
 reaches everything but is slower and coarser; rendering is what humans (and your captures) actually see.
 
+### Start here (prove each plane once, in order)
+
+Before building anything fancy, get one end-to-end signal on each plane — they're independent, so verify
+them independently:
+
+1. **One snapshot out.** Get the game to emit one piece of live state over the bridge (a socket line).
+2. **One command in.** Inject one command (a move) through the game's *own* input queue and see it resolve.
+3. **One capture.** Screenshot the game window — including while it's **unfocused** (the render wall).
+4. **One OS fallback action.** Drive one UI element the bridge can't reach with synthetic mouse input.
+
+If all four work, the hard unknowns are retired and the rest is building out. If one fights you, that's
+your real project — and the section for it below tells you why.
+
 ---
 
 ## Plane 1 — the data & command bridge
@@ -34,12 +49,17 @@ games usually do), a small mod that opens a localhost TCP server is the cleanest
 messages simply: `[4-byte big-endian length][UTF-8 JSON]`. One direction publishes per-turn/per-frame
 snapshots; the other accepts commands.
 
-**Threading is the trap.** The socket runs on a background thread; the game's API almost always must be
-touched only on its **main/logic thread**. Get this wrong and you get silent no-ops, or crashes
-("graphics device is null"), or heisenbugs.
-- Receive on the background thread → hand work to the main thread via the game's own marshaling
-  primitive (a task queue, an event hook). Never call engine APIs from the socket thread.
-- Find out which calls are main-thread-only *the hard way costs a day* — see "main-thread-only APIs"
+**Threading is the trap — and a target can have MORE THAN ONE special thread.** The socket runs on a
+background thread; the game's API must be touched only on the **target's safe game/event thread**, which is
+**not necessarily the engine's graphics/main thread.** Raves proves the distinction: Qud runs its turn
+logic on a dedicated background thread (that's where reading Zone/Cell/GameObject is safe and where even
+`BeforeRenderEvent` fires), while Unity **graphics** calls must go to Unity's main thread — two different
+threads. Get it wrong and you get silent no-ops, or crashes ("graphics device is null"), or heisenbugs.
+- Receive on the socket thread → hand work to the **target's game/event thread** via its own marshaling
+  primitive (a task queue, a per-turn/-frame event hook). Never call engine APIs from the socket thread.
+- Then marshal **graphics/rendering API calls specifically** to the engine's main/graphics thread (in
+  Unity via `uiQueue`) — a second hop. Reading game state usually does *not* need that hop.
+- Find out which calls belong to which thread *the hard way costs a day* — see "main-thread-only APIs"
   under Plane 2.
 
 **Inject commands through the game's own input path, not a reimplementation.** Don't try to
@@ -148,9 +168,13 @@ Build it in-process (ctypes/FFI to the OS input APIs), not by shelling out — a
   "Accessibility" settings pane (that's assistive *features*; you want **Privacy & Security →
   Accessibility**). Check the real state with `AXIsProcessTrusted()`, not a proxy. It took effect live,
   no restart — but be ready to relaunch the host if it doesn't.
-- **Synthetic clicks need more than down+up.** Post a `MouseMoved` to the target first, and set
-  `kCGMouseEventClickState` on the down/up events — many apps (Unity included) **drop clicks without
-  it.** Keyboard needed neither; the mouse did. If keys work but clicks don't, this is why.
+- **Synthetic input is target- AND surface-specific — there is no universal click recipe.** Start with a
+  minimal warp + down/up. Add an explicit `MouseMoved`/hover event, or a `kCGMouseEventClickState` field,
+  **only when readback proves that surface needs it** — some controls require them and others *reject* them
+  (in Caves of Qud a Sprint button accepts both, but world cells reject a pre-move and Qud clicks reject
+  click-state). See highvisor's verified per-surface matrix (highvisor `docs/05-driving-input.md`) as the
+  concrete case study. And **successful event posting is not proof the app reacted** — always capture/read
+  back after the action.
 - **App names differ per API.** The window-list *owner* name, the AppleScript *application* name, and
   the process name can all differ (Qud: owner `CavesOfQud`, app `CoQ`). Resolve an alias per call.
 - **Target by fraction, not pixels.** Get the window rect, then click at `(x + fx*w, y + fy*h)`. This is
