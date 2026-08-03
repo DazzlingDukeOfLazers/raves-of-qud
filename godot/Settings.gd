@@ -31,10 +31,48 @@ func one_to_one() -> bool:
 	return str(get_value("mode", "user")) == "1to1"
 
 var _data: Dictionary = {}
+var _rect_mtime := -1.0
 
 func _ready() -> void:
 	_load()
 	apply_global()
+	# Window-placement channel: highvisor WRITES window_rect.json (the reverse of our
+	# state reports) and we place ourselves via DisplayServer — macOS AX cannot
+	# reliably move a borderless Godot window (readback showed sets landing at
+	# y=-2196 / failing outright once 1:1 went chromeless).
+	var t := Timer.new()
+	t.wait_time = 0.5
+	t.timeout.connect(_poll_window_rect)
+	add_child(t)
+	t.start()
+	_poll_window_rect()
+
+func _poll_window_rect() -> void:
+	var path := InputModel.support_dir().path_join("window_rect.json")
+	if not FileAccess.file_exists(path):
+		return
+	var m := FileAccess.get_modified_time(path)
+	if float(m) == _rect_mtime:
+		return
+	_rect_mtime = float(m)
+	var f := FileAccess.open(path, FileAccess.READ)
+	if f == null:
+		return
+	var d: Variant = JSON.parse_string(f.get_as_text())
+	if not (d is Dictionary):
+		return
+	if DisplayServer.window_get_mode() != DisplayServer.WINDOW_MODE_WINDOWED:
+		return   # never fight fullscreen
+	var w := int(d.get("w", 0))
+	var h := int(d.get("h", 0))
+	if w > 0 and h > 0:
+		DisplayServer.window_set_size(Vector2i(w, h))
+	if d.has("x") and d.has("y"):
+		# The rect arrives in CG coordinates (origin = primary display's top-left);
+		# Godot's virtual-desktop origin is the bounding box's top-left. The primary
+		# screen's godot-space position IS the offset between the two spaces.
+		var off := DisplayServer.screen_get_position(DisplayServer.get_primary_screen())
+		DisplayServer.window_set_position(Vector2i(int(d.get("x")), int(d.get("y"))) + off)
 
 func get_value(key: String, default_val = null) -> Variant:
 	if _data.has(key):
@@ -60,6 +98,10 @@ func apply_global() -> void:
 	var want := DisplayServer.WINDOW_MODE_FULLSCREEN if fs else DisplayServer.WINDOW_MODE_WINDOWED
 	if DisplayServer.window_get_mode() != want:
 		DisplayServer.window_set_mode(want)
+	# 1:1 runs CHROMELESS, matching Qud's -popupwindow: the macOS title strip ate
+	# ~28px of the frame, shifting all content down vs Qud and ghosting every
+	# parity diff (2026-08-03 menu baseline). User mode keeps the titlebar.
+	DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_BORDERLESS, one_to_one())
 
 func _path() -> String:
 	return InputModel.support_dir().path_join("settings.json")
