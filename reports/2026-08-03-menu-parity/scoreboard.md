@@ -10,7 +10,7 @@ channel Δ>32. Playfield congruence for reference: mean-diff ≈ 2, hot ≈ 0%.
 | title   |  7.35 |  6.6% | layout aligns after the chromeless fix; remaining heat = wordmark x-offset, menu hover/selection styling, hint bar, version-line ("build …" extra in Raves) |
 | options | 15.80 |  4.8% | RAVES section now HIDDEN under --one-to-one (raves_solo passes it; 1:1 locked for the run) — remaining delta is pure layout: Raves is a narrow centred column + Save/Load preset bar; Qud is a full-width two-pane with left category rail |
 | records | 18.44 | 11.0% | different design generation: Raves = "◆ Records ◆" score-list + summary pane; Qud = ENDED RUNS entry stack with left rail (Ended Runs / Daily ×2 / Achievements) + per-entry delete |
-| mods    |  4.96 |  2.8% | **1:1 PASS DONE (2026-08-03)**: full Qud reproduction — panel geometry/lines/7×7 dither bands (phase-anchored tiles), pictograph, ┤Mods├ header, row anatomy (thumb frame+ticks, ⠿ glyph, ▪ key/values, `<...>` path elision, chip badges), fresh-open no-selection state, empty preview box, bottom command bar with > cursor. Exporter fixed: version NRE (XRL.Version struct), size round-half-up. Remaining: glyph AA + chip dither phase + title-screen residue (version corner/hint bar → title item) |
+| mods    |  5.10 |  2.9% | ✅ **DONE — Daniel signed off 2026-08-03.** Full Qud reproduction incl. container grid (one-cell header + [thin][list][pane][thin] + full-width footer line + darkspace), frame sprites (5-dot corners, imperfect borders), 7×7 dither tiles (bands/chips/highlight, phase-anchored), hover-SELECT persistent highlight (hv mouse discovery), dotted row separators, `<...>` path elision, exporter version/size fixes. Residual = glyph AA + title-screen corner below the panel |
 
 (First baseline had title 14.60/13.4% — a systemic ~28px offset from Raves' window
 title strip. Fixed at the source 2026-08-03: 1:1 runs CHROMELESS like Qud's
@@ -21,8 +21,7 @@ window_rect.json file channel; macOS AX cannot move a borderless Godot window.)
 
 ## Suggested work order
 
-mods (bounded scope: frame, selection styling, preview pane, bottom command bar)
-→ title polish (wordmark offset, hover styling, version line)
+~~mods~~ (DONE) → title polish (wordmark offset, hover styling, version line)
 → options (two-pane + rail relayout) → records (full redesign to the ENDED RUNS
 stack + left rail).
 
