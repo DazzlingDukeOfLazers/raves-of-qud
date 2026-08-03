@@ -587,32 +587,37 @@ func _mod_row_1to1(mod: Dictionary, idx: int) -> Control:
 	row.gui_input.connect(func(e): if e is InputEventMouseButton and e.pressed: _select(idx))
 	# NB no row background: Qud marks selection only by un-chipping the badges + the pane
 
-	# thumbnail: 64px art, solid green 1px border + corner dot-ticks
+	# thumbnail: 64px art in Qud's frame SPRITE (5-dot corners + imperfect border,
+	# extracted with alpha from the reference — procedural drawing can't match the jank)
 	var tframe := Control.new()
 	tframe.name = "thumbframe"
-	tframe.position = Vector2(19, 9)   # border lands at real (147, row_top+13) like Qud
-	tframe.size = Vector2(72, 72)
+	tframe.position = Vector2(28, 6)   # sprite lands at real (140, row_top+6) like Qud
+	tframe.size = Vector2(79, 79)
 	tframe.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	tframe.draw.connect(func():
-		tframe.draw_rect(Rect2(4, 4, 64, 64), Q_THUMB_GREEN, false, 1.0)
-		for corner in [Vector2(0, 0), Vector2(68, 0), Vector2(0, 68), Vector2(68, 68)]:
-			var dxs := [Vector2(0, 0), Vector2(4, 0), Vector2(0, 4)] if corner.x == 0 else [Vector2(0, 0), Vector2(-4, 0), Vector2(0, 4)]
-			if corner.y > 0:
-				dxs = [Vector2(0, 0), Vector2(4, 0), Vector2(0, -4)] if corner.x == 0 else [Vector2(0, 0), Vector2(-4, 0), Vector2(0, -4)]
-			for d in dxs:
-				tframe.draw_rect(Rect2(corner + d + Vector2(1, 1), Vector2(2, 2)), Q_THUMB_GREEN))
+	var fspr := _chrome("modsThumbFrame.png")
+	if fspr != null:
+		var fr := TextureRect.new()
+		fr.texture = fspr
+		fr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		tframe.add_child(fr)
+	else:
+		tframe.draw.connect(func():
+			tframe.draw_rect(Rect2(7, 7, 66, 66), Q_THUMB_GREEN, false, 1.0)
+			for corner in [Vector2(0, 0), Vector2(75, 0), Vector2(0, 75), Vector2(75, 75)]:
+				tframe.draw_rect(Rect2(corner + Vector2(1, 1), Vector2(2, 2)), Q_THUMB_GREEN))
 	row.add_child(tframe)
 	var icon := TextureRect.new()
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	icon.position = Vector2(5, 5)
-	icon.size = Vector2(62, 62)
+	icon.position = Vector2(8, 8)
+	icon.size = Vector2(64, 64)
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var itex := _png(str(mod.get("preview", "")))
 	if itex == null:
 		itex = _fallback_logo()
 	icon.texture = itex
 	tframe.add_child(icon)
+	tframe.move_child(icon, 0)   # art UNDER the frame sprite so the border overdraws edges
 
 	# text column
 	var v := VBoxContainer.new()
@@ -674,46 +679,47 @@ func _apply_selection_1to1() -> void:
 	for c in _pane_1to1.get_children():
 		c.queue_free()
 
-	# preview box: BLACK 128px square with green corner ticks — shown even with no
-	# selection (Qud's fresh-open state: empty box + the four-squares glyph, nothing else)
-	var holder := CenterContainer.new()
-	holder.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	# preview box: BLACK 128px square in Qud's frame SPRITE (imperfect border + 5-dot
+	# corners) — shown even with no selection (Qud's fresh-open state: empty box + the
+	# four-squares glyph, nothing else). Sprite placed at Qud's absolute spot.
+	var wrapper := Control.new()
+	wrapper.custom_minimum_size = Vector2(0, 150)
 	var pframe := Control.new()
-	pframe.custom_minimum_size = Vector2(140, 140)
-	pframe.draw.connect(func():
-		for corner in [Vector2(0, 0), Vector2(134, 0), Vector2(0, 134), Vector2(134, 134)]:
-			var dxs := [Vector2(0, 0), Vector2(5, 0), Vector2(0, 5)] if corner.x == 0 else [Vector2(0, 0), Vector2(-5, 0), Vector2(0, 5)]
-			if corner.y > 0:
-				dxs = [Vector2(0, 0), Vector2(5, 0), Vector2(0, -5)] if corner.x == 0 else [Vector2(0, 0), Vector2(-5, 0), Vector2(0, -5)]
-			for d in dxs:
-				pframe.draw_rect(Rect2(corner + d + Vector2(2, 2), Vector2(2, 2)), Q_THUMB_GREEN))
+	pframe.position = Vector2(65, 7)   # sprite at real (1570, 141) vs pane origin (1505, 134)
+	pframe.size = Vector2(143, 143)
 	var blackbg := ColorRect.new()
 	blackbg.color = Color.BLACK
-	blackbg.position = Vector2(6, 6)
-	blackbg.size = Vector2(128, 128)
+	blackbg.position = Vector2(9, 9)
+	blackbg.size = Vector2(127, 127)
 	pframe.add_child(blackbg)
 	var has_sel := _sel >= 0 and _sel < _mods.size()
 	if has_sel:
 		var img := TextureRect.new()
 		img.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		img.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		img.position = Vector2(6, 6)
-		img.size = Vector2(128, 128)
+		img.position = Vector2(9, 9)
+		img.size = Vector2(127, 127)
 		var tex := _png(str(_mods[_sel].get("preview", "")))
 		if tex == null:
 			tex = _fallback_logo()
 		img.texture = tex
 		pframe.add_child(img)
-	holder.add_child(pframe)
-	_pane_1to1.add_child(holder)
-	_pane_1to1.add_child(_spacer(36))
+	var pspr := _chrome("modsPaneFrame.png")
+	if pspr != null:
+		var fr := TextureRect.new()
+		fr.texture = pspr
+		fr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		pframe.add_child(fr)   # frame OVER the art, like Qud
+	else:
+		pframe.draw.connect(func():
+			pframe.draw_rect(Rect2(8, 8, 129, 129), Color8(59, 126, 72), false, 1.0)
+			for corner in [Vector2(0, 0), Vector2(137, 0), Vector2(0, 137), Vector2(137, 137)]:
+				pframe.draw_rect(Rect2(corner + Vector2(2, 2), Vector2(2, 2)), Color8(59, 126, 72)))
+	wrapper.add_child(pframe)
+	_pane_1to1.add_child(wrapper)
+	_pane_1to1.add_child(_spacer(24))
 	if not has_sel:
-		var g := CenterContainer.new()
-		g.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		var gi := TextureRect.new()
-		gi.texture = _glyph_tex()
-		g.add_child(gi)
-		_pane_1to1.add_child(g)
+		_pane_1to1.add_child(_glyph_line())
 		return
 	var mod: Dictionary = _mods[_sel]
 
@@ -723,12 +729,7 @@ func _apply_selection_1to1() -> void:
 	name_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_pane_1to1.add_child(name_l)
 
-	var glyph_c := CenterContainer.new()
-	glyph_c.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var glyph_i := TextureRect.new()
-	glyph_i.texture = _glyph_tex()
-	glyph_c.add_child(glyph_i)
-	_pane_1to1.add_child(glyph_c)
+	_pane_1to1.add_child(_glyph_line())
 
 	var by_l := _rich("[center][color=#%s]by %s[/color][/center]" % [
 		Q_GOLD.to_html(false), _esc(QudText.strip(str(mod.get("author", ""))))], "body")
@@ -788,20 +789,23 @@ static func _dither_tex(base: Color, dot: Color, seed_v: int) -> ImageTexture:
 	_dither_cache[key] = tex
 	return tex
 
-## The ⠿-ish four-squares glyph Qud puts after mod names (2×2 white blocks).
-static var _glyph_tex_cache: ImageTexture
-static func _glyph_tex() -> ImageTexture:
-	if _glyph_tex_cache != null:
-		return _glyph_tex_cache
+## The ⠿-ish four-squares glyph Qud puts after mod names — WHITE in the list rows,
+## GOLD-OLIVE in the preview pane (measured (139,145,61)).
+static var _glyph_tex_cache := {}
+static func _glyph_tex(col: Color = Color8(255, 255, 255)) -> ImageTexture:
+	var key := str(col)
+	if _glyph_tex_cache.has(key):
+		return _glyph_tex_cache[key]
 	var img := Image.create(12, 12, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0, 0, 0, 0))
 	for gx in [0, 7]:
 		for gy in [0, 7]:
 			for x in range(5):
 				for y in range(5):
-					img.set_pixel(gx + x, gy + y, Color8(255, 255, 255))
-	_glyph_tex_cache = ImageTexture.create_from_image(img)
-	return _glyph_tex_cache
+					img.set_pixel(gx + x, gy + y, col)
+	var tex := ImageTexture.create_from_image(img)
+	_glyph_tex_cache[key] = tex
+	return tex
 
 ## A command-bar / badge chip: Qud's chip is a bare rect of the 7×7 dither (no border).
 ## `parts` is [[text, Color], ...] — Labels report proper minimum sizes (RichTextLabel
@@ -895,6 +899,17 @@ func _qud_palette() -> Dictionary:
 	for code in QudPalette.COLORS:
 		out[code] = QudPalette.COLORS[code].to_html(false)
 	return out
+
+## The pane's gold four-squares glyph, centred on the IMAGE BOX axis (x=130 pane-local
+## ≈ real 1641), not the pane's own centre — Qud aligns it to the preview box.
+func _glyph_line() -> Control:
+	var line := Control.new()
+	line.custom_minimum_size = Vector2(0, 12)
+	var gi := TextureRect.new()
+	gi.texture = _glyph_tex(Color8(139, 145, 61))
+	gi.position = Vector2(130, 0)
+	line.add_child(gi)
+	return line
 
 func _spacer(hpx: int) -> Control:
 	var s := Control.new()
