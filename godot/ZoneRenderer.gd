@@ -3649,6 +3649,27 @@ func _register_anim(win: Dictionary, cx: int, cy: int) -> void:
 		if not gnodes.is_empty():
 			# per-cloud random phase, like Qud's per-gas FrameOffset (clouds don't step in unison)
 			_anim_items.append({"kind": "gas", "nodes": gnodes, "off": randi() % 60})
+	# Fire (AnimatedMaterialFire — the wire's onFire flag is exactly that part): Qud tints
+	# the flameless tile's fg through &R / &W / &r / &W in 15-frame windows with a RANDOM-
+	# WALKING phase (FrameOffset += 1..5 per frame — chaotic flicker, not a pulse), and its
+	# particle layer dances ~20 pure-red pixels above the fire. Overlays: 3 tint variants +
+	# 3 tiny rising ember quads.
+	if bool(win.get("onFire", false)):
+		var fnodes: Array = []
+		for L in ["R", "W", "r"]:
+			var fcf := _qud_color("&" + String(L))
+			var ftex := _colored_tex_rgb(tile, fcf, _obj_detail(win), "anim~f" + String(L) + "~" + _color_key(win), _fill_for(tile, Fill.NONE))
+			if ftex != null:
+				fnodes.append(_overlay_quad(ftex, cx, cy, y_over, flip))
+		if fnodes.size() == 3:
+			var embers: Array = []
+			for _e in 3:
+				var eq := _overlay_quad(null, cx, cy, y_over + LAYER_LIFT * 0.25, false, Color(1, 0, 0))
+				eq.scale = Vector3(0.10, 1.0, 0.14)
+				eq.visible = true
+				embers.append({"node": eq, "dx": randf_range(-0.3, 0.3), "dz": randf_range(0.0, 0.6)})
+			_anim_items.append({"kind": "fire", "nodes": fnodes, "off": randi() % 60,
+				"embers": embers, "cx": cx, "cy": cy})
 	# Pool sparkle candidate: a liquid winning its cell rolls Qud's 1/600 flash — WHITE for
 	# water-family pools ('&Y'), CYAN for protean gunk ('&c', its own program: near-invisible
 	# on the cyan soup, exactly Qud's look — the soup does NOT glitter like water).
@@ -3711,6 +3732,31 @@ func _animate_1to1() -> void:
 					var g := gn[i] as MeshInstance3D
 					if is_instance_valid(g):
 						g.visible = i == gidx
+		elif kind == "fire":
+			var fn: Array = it["nodes"]
+			if fn.size() == 3:
+				# Qud's random-walk phase: FrameOffset += 1..5 EVERY frame
+				it["off"] = int(it.get("off", 0)) + 1 + (randi() % 5)
+				var fw: int = ((qf + int(it["off"])) % 60) / 15
+				var fidx: int = [0, 1, 2, 1][fw]   # windows: &R, &W, &r, &W
+				for i in fn.size():
+					var f := fn[i] as MeshInstance3D
+					if is_instance_valid(f):
+						f.visible = i == fidx
+				# rising embers: drift north within ~0.7 cells, reset to the fire's base
+				var fcx := int(it.get("cx", 0))
+				var fcy := int(it.get("cy", 0))
+				for e in it.get("embers", []):
+					var en := e["node"] as MeshInstance3D
+					if not is_instance_valid(en):
+						continue
+					e["dz"] = float(e["dz"]) - (0.04 + randf() * 0.03)
+					e["dx"] = clampf(float(e["dx"]) + randf_range(-0.04, 0.04), -0.4, 0.4)
+					if float(e["dz"]) < -0.7:
+						e["dz"] = randf_range(0.0, 0.2)
+						e["dx"] = randf_range(-0.3, 0.3)
+					en.position.x = fcx + float(e["dx"])
+					en.position.z = fcy + float(e["dz"])
 	# Pool sparkles: expected fires/frame = cells/600 (Qud's per-cell 1/600 roll), one-frame white.
 	for s in _sparkle_lit:
 		if is_instance_valid(s):
