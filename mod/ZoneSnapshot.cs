@@ -1091,6 +1091,24 @@ namespace RavesOfQud
                             }
                         }
                         catch { }
+                        // Gas (spore clouds, poison, cryo...): Qud renders EVERY gas as a 4-tile
+                        // swirl cycle (Tiles2/gas_0..3.png, 15 frames = 250ms per step) coloured by
+                        // the Gas part's per-instance ColorString — the static Render has NO tile
+                        // and default colours, so the wire shipped an empty husk. Ship the colour,
+                        // export the cycle tiles, and give the steady base the first frame.
+                        string animGas = null;
+                        try
+                        {
+                            var gasp = go.GetPart<Gas>();
+                            if (gasp != null)
+                            {
+                                animGas = gasp.ColorString ?? (r.ColorString ?? "&y");
+                                for (int gi = 0; gi < 4; gi++)
+                                    TileExporter.Ensure("Tiles2/gas_" + gi + ".png");
+                                if (tile.Length == 0) tile = "Tiles2/gas_0.png";
+                            }
+                        }
+                        catch { }
                         // Smear flash (the animator's 9-in-60 colour flash on liquid-covered
                         // objects): only the liquids whose RenderSmearPrimary actually recolours —
                         // convalessence '&C', protean gunk '&c'. LiquidWater's smear is a no-op.
@@ -1201,6 +1219,8 @@ namespace RavesOfQud
                         }
                         if (animSmear != null)
                             j.Member("animSmear", animSmear);
+                        if (animGas != null)
+                            j.Member("animGas", animGas);
                         // Qud's Swimming effect: an aquatic-limited creature (eel, glowfish) renders
                         // over its supporting liquid's BACKGROUND colour. Ask the liquid itself
                         // (RenderBackgroundPrimary/Secondary on a scratch event — water prepends "^b";

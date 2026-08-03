@@ -3634,6 +3634,21 @@ func _register_anim(win: Dictionary, cx: int, cy: int) -> void:
 					nodes.append(_overlay_quad(texl, cx, cy, y_over, flip))
 			if not nodes.is_empty():
 				_anim_items.append({"kind": "cycle", "nodes": nodes})
+	# Gas swirl (Qud's Gas.Render): a 4-tile cycle — Tiles2/gas_0..3.png at 15 frames
+	# (250ms) per step, in the gas type's colour. Always exactly one frame visible, so
+	# the overlay fully replaces the steady base (which shows frame 0).
+	var gcol := String(win.get("animGas", ""))
+	if gcol != "":
+		var gc := _qud_color(gcol)
+		var gnodes: Array = []
+		for gi in 4:
+			var gtile := "Tiles2/gas_%d.png" % gi
+			var gtex := _colored_tex_rgb(gtile, gc, gc, "anim~g" + gcol + "~" + str(gi), _fill_for(gtile, Fill.NONE))
+			if gtex != null:
+				gnodes.append(_overlay_quad(gtex, cx, cy, y_over, false))
+		if not gnodes.is_empty():
+			# per-cloud random phase, like Qud's per-gas FrameOffset (clouds don't step in unison)
+			_anim_items.append({"kind": "gas", "nodes": gnodes, "off": randi() % 60})
 	# Pool sparkle candidate: a liquid winning its cell rolls Qud's 1/600 flash — WHITE for
 	# water-family pools ('&Y'), CYAN for protean gunk ('&c', its own program: near-invisible
 	# on the cyan soup, exactly Qud's look — the soup does NOT glitter like water).
@@ -3688,6 +3703,14 @@ func _animate_1to1() -> void:
 					var nn := nodes[i] as MeshInstance3D
 					if is_instance_valid(nn):
 						nn.visible = i == idx
+		elif kind == "gas":
+			var gn: Array = it["nodes"]
+			if not gn.is_empty():
+				var gidx := ((qf + int(it.get("off", 0))) / 15) % gn.size()   # Gas.Render: 250ms/tile, per-cloud phase
+				for i in gn.size():
+					var g := gn[i] as MeshInstance3D
+					if is_instance_valid(g):
+						g.visible = i == gidx
 	# Pool sparkles: expected fires/frame = cells/600 (Qud's per-cell 1/600 roll), one-frame white.
 	for s in _sparkle_lit:
 		if is_instance_valid(s):
