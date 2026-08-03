@@ -519,7 +519,7 @@ func _build_1to1() -> void:
 	var title := Label.new()
 	title.text = "Mods"
 	title.add_theme_color_override("font_color", Q_GOLD)
-	title.add_theme_font_size_override("font_size", 20)
+	title.add_theme_font_size_override("font_size", 22)
 	title.position = Vector2(830, Q_HEADLINE_Y - 12)
 	title.size = Vector2(79, 26)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -893,16 +893,16 @@ func _chip_dither_sb(compact: bool = false) -> StyleBoxTexture:
 	sb.axis_stretch_vertical = StyleBoxTexture.AXIS_STRETCH_MODE_TILE
 	sb.content_margin_left = 7 if compact else 14
 	sb.content_margin_right = 7 if compact else 14
-	sb.content_margin_top = 3 if compact else 7
-	sb.content_margin_bottom = 3 if compact else 7
+	sb.content_margin_top = 3 if compact else 2
+	sb.content_margin_bottom = 3 if compact else 2
 	return sb
 
 func _chip_flat_sb(compact: bool = false) -> StyleBoxEmpty:
 	var sb := StyleBoxEmpty.new()
 	sb.content_margin_left = 7 if compact else 14
 	sb.content_margin_right = 7 if compact else 14
-	sb.content_margin_top = 3 if compact else 7
-	sb.content_margin_bottom = 3 if compact else 7
+	sb.content_margin_top = 3 if compact else 2
+	sb.content_margin_bottom = 3 if compact else 2
 	return sb
 
 ## The small │ terminal where the command-bar line meets the chip group.
