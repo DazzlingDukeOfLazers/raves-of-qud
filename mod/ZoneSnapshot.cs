@@ -1148,6 +1148,12 @@ namespace RavesOfQud
                             }
                         }
                         catch { }
+                        // ConcealedHologramMaterial (the Moon Stair's secretly-virtual assets —
+                        // glitchwood trees etc.): renders NORMAL until the player stands ADJACENT,
+                        // then flickers hologram tints on a 200-frame wheel. The proximity gate is
+                        // client-side (the snapshot carries the player position); just flag the part.
+                        bool animCHolo = false;
+                        try { animCHolo = go.HasPart<ConcealedHologramMaterial>(); } catch { }
                         // Smear flash (the animator's 9-in-60 colour flash on liquid-covered
                         // objects): only the liquids whose RenderSmearPrimary actually recolours —
                         // convalessence '&C', protean gunk '&c'. LiquidWater's smear is a no-op.
@@ -1263,6 +1269,8 @@ namespace RavesOfQud
                         if (!string.IsNullOrEmpty(engTile))
                             j.Member("engTile", engTile).Member("engColor", engColor ?? "")
                              .Member("engDetail", engDetail ?? "");
+                        if (animCHolo)
+                            j.Member("animCHolo", true);
                         // Qud's Swimming effect: an aquatic-limited creature (eel, glowfish) renders
                         // over its supporting liquid's BACKGROUND colour. Ask the liquid itself
                         // (RenderBackgroundPrimary/Secondary on a scratch event — water prepends "^b";

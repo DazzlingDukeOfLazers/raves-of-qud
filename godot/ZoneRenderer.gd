@@ -3698,6 +3698,20 @@ func _register_anim(win: Dictionary, cx: int, cy: int) -> void:
 			_fill_for(etile, Fill.NONE))
 		if etex != null:
 			_anim_items.append({"kind": "engulf", "node": _overlay_quad(etex, cx, cy, y_over, false)})
+	# ConcealedHologramMaterial (Moon Stair "virtual" assets): normal from afar; when the
+	# PLAYER IS ADJACENT it flickers hologram tints on a 200-frame wheel — 12 frames of
+	# C/c -> b/C -> c/b windows, plus a rare white blip (approximates Qud's glyph sputter).
+	if bool(win.get("animCHolo", false)):
+		var cnodes: Array = []
+		for pair in [["C", "c"], ["b", "C"], ["c", "b"], ["Y", "y"]]:
+			var cfg := _qud_color("&" + String(pair[0]))
+			var cdt := _qud_color("&" + String(pair[1]))
+			var ctex := _colored_tex_rgb(tile, cfg, cdt, "anim~ch" + String(pair[0]) + String(pair[1]) + "~" + _color_key(win), _fill_for(tile, Fill.NONE))
+			if ctex != null:
+				cnodes.append(_overlay_quad(ctex, cx, cy, y_over, flip))
+		if cnodes.size() == 4:
+			_anim_items.append({"kind": "cholo", "nodes": cnodes, "off": randi() % 200,
+				"cx": cx, "cy": cy})
 	# Pool sparkle candidate: a liquid winning its cell rolls Qud's 1/600 flash — WHITE for
 	# water-family pools ('&Y'), CYAN for protean gunk ('&c', its own program: near-invisible
 	# on the cyan soup, exactly Qud's look — the soup does NOT glitter like water).
@@ -3752,6 +3766,23 @@ func _animate_1to1() -> void:
 					var nn := nodes[i] as MeshInstance3D
 					if is_instance_valid(nn):
 						nn.visible = i == idx
+		elif kind == "cholo":
+			var chn: Array = it["nodes"]
+			if chn.size() == 4:
+				# proximity gate: the glitch only shows with the player ADJACENT (Chebyshev <= 1)
+				var adj: bool = maxi(absi(int(it["cx"]) - _player_cell.x), absi(int(it["cy"]) - _player_cell.y)) <= 1
+				var cidx := -1
+				if adj:
+					it["off"] = int(it.get("off", 0)) + (randi() % 21)   # Qud: FrameOffset += 0..20/frame
+					var w200 := (qf + int(it["off"])) % 200
+					if w200 < 4: cidx = 0        # &C/c
+					elif w200 < 8: cidx = 1      # &b/C
+					elif w200 < 12: cidx = 2     # &c/b
+					elif randi() % 400 == 0: cidx = 3   # the rare &Y/y blip (glyph-sputter stand-in)
+				for i in chn.size():
+					var cn := chn[i] as MeshInstance3D
+					if is_instance_valid(cn):
+						cn.visible = i == cidx
 		elif kind == "engulf":
 			var en2 := it["node"] as MeshInstance3D
 			if is_instance_valid(en2):
