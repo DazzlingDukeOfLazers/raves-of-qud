@@ -617,6 +617,38 @@ namespace RavesOfQud
             j.EndObject();
         }
 
+        /// The smear-flash colour of each liquid's RenderSmearPrimary (full decompile sweep of the
+        /// 27 XRL.Liquids classes, 2026-08-02): the fg letter the covered object flashes in frames
+        /// 6-14 of 60. Null = that liquid's smear is a no-op (water, acid, algae, cloning, lava,
+        /// neutronflux, salt). Keep in sync with the client's flash program (ZoneRenderer animator).
+        private static string SmearColorOf(string liquid)
+        {
+            switch (liquid)
+            {
+                case "asphalt":
+                case "ink":
+                case "oil":
+                case "ooze":
+                case "putrescence": return "K";
+                case "blood": return "r";
+                case "brainbrine": return "W";
+                case "cider":
+                case "honey":
+                case "sludge": return "w";
+                case "convalessence": return "C";
+                case "gel": return "Y";
+                case "goo": return "G";
+                case "proteangunk": return "c";
+                case "sap": return "W";
+                case "slime": return "g";
+                case "sunslag":
+                case "warmstatic": return "Y";
+                case "wax": return "y";
+                case "wine": return "m";
+                default: return null;
+            }
+        }
+
         /// Write an object's render fields for a panel icon: the FULL (known) tile from the raw Render
         /// part, PLUS a perceived override (see WritePerceivedOverride). The client shows the perceived
         /// icon by default and the full one under the global "Full info" toggle.
@@ -1071,11 +1103,12 @@ namespace RavesOfQud
                                 // Qud's NATIVE gate (RenderSmearWithNativeSupplied): an object whose
                                 // LiquidNative tag matches the covering liquid never smears — the
                                 // Rainbow Wood's gunk-native mushrooms sit in soup without flashing
-                                // (the wading player still does).
+                                // (the wading player still does; a cider-covered dandy cap flashes).
                                 string lnative = null;
                                 try { lnative = go.GetTagOrStringProperty("LiquidNative"); } catch { }
-                                if (cov.Liquid.Primary == "convalessence" && lnative != "convalessence") animSmear = "C";
-                                else if (cov.Liquid.Primary == "proteangunk" && lnative != "proteangunk") animSmear = "c";
+                                string lprim = cov.Liquid.Primary;
+                                if (lprim != null && lprim != lnative)
+                                    animSmear = SmearColorOf(lprim);
                             }
                         }
                         catch { }
