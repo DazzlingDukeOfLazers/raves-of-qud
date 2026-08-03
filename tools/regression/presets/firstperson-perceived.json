@@ -1,0 +1,14 @@
+{
+  "name": "firstperson-perceived",
+  "description": "First-person camera + perceived info (full_info OFF, Qud's default player-facing view). For capturing the FP Holodeck and the perceived-descriptor panels deterministically.",
+  "created": "2026-07-28T00:00:00",
+  "raves": {
+    "font_scale": 1.0,
+    "fullscreen": false,
+    "full_info": false,
+    "camera": 2,
+    "bridge_host": "127.0.0.1",
+    "bridge_port": 48710
+  },
+  "qud": {}
+}

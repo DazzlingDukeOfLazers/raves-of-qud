@@ -1,14 +1,29 @@
-# Tools & workflow
+# Tools & workflow — inspecting and driving Raves of Qud
 
 Two kinds of tooling: **Python** (inspection & verification, in `tools/capture/`) and the
 **in-viewer** Godot tools (the human's feedback channel). GDScript is the product; Python exists
 to check it.
 
+## What are you trying to do?
+
+| Goal | Command / tool | Needs Qud in-game? |
+|---|---|---|
+| Inspect the wire snapshot | `snap.py summary` / `cell X Y` / `find <name>` | yes |
+| Inspect a tile's pixels | `tile.py <name>` | no |
+| Capture both apps | Ctrl/Cmd-click a Holodeck tile, or **F12**; `control.py qudshot` for Qud alone | yes (Qud shot) |
+| Move the player / drive a turn | `control.py move N 5` (or `go N 3 qudshot`) | yes |
+| Re-export Qud's data files | `control.py export` | yes |
+| Jump to a known options config | `presets.py load <name>` ([presets](#option-presets--deterministic-test-fixtures-presetspy)) — Raves settings need a relaunch | yes (for the Qud half) |
+| Reach a Qud menu the bridge can't | `desktop.py`, or drive via **highvisor** | any |
+| Regression / parity vs Qud | **highvisor** `hv scene …` (see its parity kit) | both |
+
+Detailed reference for each follows.
+
 ---
 
 ## The Python-first rule (read this)
 
-Claude cannot see the Godot viewport. Historically that meant render/geometry code was written
+Claude cannot see the Holodeck (the Godot viewport). Historically that meant render/geometry code was written
 straight into GDScript and verified only by the human's screenshots — slow, and it hid bugs (an
 off voxel depth order survived a full round-trip). So:
 
@@ -118,7 +133,10 @@ ticket *was* the override. See [rendering.md §7](rendering.md#7-user-overrides)
 
 ## In-viewer: screenshots
 
-`screencapture` is blocked (no Screen Recording permission), so both apps capture themselves:
+macOS `screencapture` needs Screen Recording permission (often unavailable), so both apps also
+capture themselves. (Note: **highvisor can now capture a specific window directly** — `hv shot
+'<window>' out.png` — which is the usual path when driving from outside; the self-capture below is the
+in-app/no-highvisor route.)
 
 - **F12** → `RavesOfQud/shot.png` (Godot viewport) + asks the mod for `qud_shot.png` (Qud's own
   window, via `UnityEngine.ScreenCapture` marshalled to the main thread).
@@ -129,7 +147,7 @@ Claude reads both PNGs from disk. This replaces manual screenshot-and-paste.
 
 ---
 
-## Remote control — driving Qud + the viewer headlessly (`control.py`)
+## Remote control — driving Qud + the Holodeck headlessly (`control.py`)
 
 `tools/capture/control.py` drives the game from OUTSIDE, so a loop can run without a human at the
 keyboard. Two channels:
@@ -138,9 +156,12 @@ keyboard. Two channels:
   `move <dir> [n]` (dirs N/S/E/W/NE/NW/SE/SW), then reads the resulting snapshot (player cell/zone).
   The mod's `BridgeServer` broadcasts to every client and shares one command queue, so this coexists
   with the running viewer.
-- **Godot** — Claude can't send keys to Godot, only to Qud. So `Main` polls a command file
-  (`<RavesOfQud>/godot_cmd`, ~10 Hz) and executes: `cam <1-6>` (camera mode), `shot` (save
-  shot.png), `fph <h>` (first-person height).
+- **Godot** — `control.py` drives Godot through a **cooperative command file** for deterministic,
+  focus-independent control: `Main` polls `<RavesOfQud>/godot_cmd` (~10 Hz) and executes `cam <1-7>`
+  (camera mode), `shot` (save shot.png), `fph <h>` (first-person height), and `inspect <CX> <CY>` —
+  run the cell inspector at a zone cell (writes selection.txt like a Ctrl+click; no focus or mouse
+  needed, e.g. `echo "inspect 6 7" > "$SUPPORT/godot_cmd"` then read selection.txt for the RENDERED
+  lines). (Highvisor is the OS-level alternative when a test needs real window input to Godot.)
 
 ```
 python3 tools/capture/control.py pos          # player cell + zone
@@ -205,12 +226,43 @@ unfocused). This took two coupled fixes — see below.
 - A blocked player (marsh/water/wall) applies the move but doesn't change cells — check the position,
   not just that the command returned. A blocked move may also not end a turn, so no snapshot comes back.
 
+## Option presets — deterministic test fixtures (`presets.py`)
+
+`tools/capture/presets.py` saves/loads a whole **options set** as one named file, so tests (and you) can
+jump deterministically between known configurations instead of hand-toggling. A preset captures both
+**raves** (Raves' own `settings.json`: camera, full_info, font_scale, …) and **qud** (every Qud option's
+value, `id -> value`).
+
+```bash
+python3 tools/capture/presets.py list                        # working set + committed fixtures
+python3 tools/capture/presets.py save my-case --desc "why" --repo   # snapshot current state (--repo = commit it)
+python3 tools/capture/presets.py load compass-fullinfo        # apply it (deterministic jump)
+python3 tools/capture/presets.py sync                         # committed fixtures -> support dir
+```
+
+- Files: working copies in `<support>/option_presets/`; **committed, documented fixtures** in
+  `tools/regression/presets/` (that dir's `README.md` is the list + *why* each exists).
+- `load` applies **qud** options over the bridge (Qud in-game) as one deferred batch — N `setoption
+  defer=1` then a single `export`, not N re-exports — and writes **raves** settings into `settings.json`,
+  which take effect on Raves' **next launch** (so a highvisor test does `presets.py load X` → `hv launch
+  raves` → `hv scene …`). The Options screen's in-app **Load** button applies raves settings live instead.
+- In a regression scene, a `{ "shell": ["python3","../capture/presets.py","load","<qud-preset>"] }` step
+  sets live Qud state before capture (Raves-setting presets need the launch pattern above). Bless goldens
+  as preset-driven tests are added. Full guidance: `tools/regression/presets/README.md`.
+
 ## OS-input harness — `desktop.py` (reach Qud UI the bridge can't)
 
-The bridge only moves the player + a few commands. `tools/capture/desktop.py` drives Qud (or Godot) with
-REAL synthetic input at the OS level — so it reaches menus, inventory, dialogs, the ability bar, anything.
+The bridge only moves the player + a few commands. `tools/capture/desktop.py` is a legacy/general
+OS-input helper that drives Qud (or Godot) with REAL synthetic input at the OS level (CoreGraphics
+CGEvent). It has been **verified against selected in-game controls** (e.g. the Sprint button, below).
 Clicking Qud also focuses it, refreshing its render (the map-sync fallback). All in-process via ctypes
-(CoreGraphics CGEvent for mouse/keys, CGWindowList for bounds); `activate` uses an osascript Apple Event.
+(CGEvent for mouse/keys, CGWindowList for bounds); `activate` uses an osascript Apple Event.
+
+> **Synthetic input is surface-specific — `desktop.py` posts one fixed event shape.** For Qud title
+> menus, legacy console popups, and world cells, the reliable path is **highvisor's per-surface
+> bare/`--hover` matrix** (highvisor `docs/05-driving-input.md`): plain Unity buttons + world cells take
+> a bare click; legacy popups need `--hover`; the title menu is bare-then-`--hover`. `desktop.py` does
+> not yet expose those per-surface event shapes, so don't treat it as a universal input tool.
 
 ```
 python3 tools/capture/desktop.py check              # Accessibility granted for the host?
@@ -245,9 +297,12 @@ python3 tools/capture/qud.py load         # main menu: press C (Continue) -> Ret
 python3 tools/capture/qud.py restart      # quit + start + load, all three
 ```
 `load` is keyboard-based (the `C` Continue shortcut + `Return` on the pre-selected latest save, from
-decompiling `Qud.UI.MainMenu`), so it needs no menu-position calibration — just Accessibility for the
-keystrokes. `quit`/`start`/`status` need no permissions. Verified full cycle: quit → start → load → back
-in-game on the current build.
+decompiling `Qud.UI.MainMenu`), driven by **focused OS-level CGEvent keystrokes on the pre-game main
+menu** — a different surface from in-game input, which is why it can work where synthetic keyboard to the
+live game does not. `quit`/`start`/`status` need no permissions; `load` needs Accessibility for the
+keystrokes. **Re-verify `load`/`restart` against the current build before relying on them** — the
+menu-key path is brittle across Qud updates; if it regresses, route pre-game navigation through
+highvisor mouse scenes (highvisor `docs/05-driving-input.md`) instead.
 
 **Gotchas (hard-won):**
 - **Accessibility** is required for synthetic input (not for `bounds`/`activate`). The host process is the
@@ -256,20 +311,26 @@ in-game on the current build.
   Check with `AXIsProcessTrusted()` (`desktop.py check`). Took effect live, no restart.
 - **App names differ per API:** Qud's window OWNER is `CavesOfQud`, its osascript app name is `CoQ` — the
   alias "Qud" resolves both. Qud + Godot may be on different monitors (global coords, negative y ok).
-- **Mouse clicks need a `CGEventMouseMoved` first + `kCGMouseEventClickState` set**, or the app drops them
-  (keyboard needs neither). Fixed in `_post_mouse`.
+- **Mouse-event shape is surface-specific — don't assume a universal recipe.** `_post_mouse` posts a
+  `CGEventMouseMoved` + `kCGMouseEventClickState`, which the Sprint control accepts; but Qud **world
+  cells reject a pre-move** and Qud clicks **reject `clickState`**. Start minimal (warp + down/up), add
+  a pre-move or click-state only when readback proves that surface needs it, and prefer highvisor's
+  verified per-surface matrix (highvisor `docs/05-driving-input.md`) for Qud UI. Posting an event is not
+  proof the app reacted — always capture/read back after.
 - Coordinates are FRACTIONS of the window (robust to position). qud_shot is 2× Retina but fractions map
   1:1 to the logical window.
 
 ## Camera modes (viewer)
 
-Pick with the `` ` `` debug menu or number keys **1–6** (current mode + controls show on screen):
-**1 COMPASS** (default, cardinal-LOCKED low-angle — never spins on movement; Q/E rotate 90°, R/F zoom),
-**2 FOLLOW** (trails heading), **3 FIRST-PERSON** (hides the player; menu height slider),
-**4 CINEMATIC** (frames player + selected tile; orbits only with nothing selected),
-**5 ORBIT** (mouse), **6 FLY** (WASD). Esc → COMPASS. Zone crossings shift the live camera transform
-in sync with the world re-anchor (Main._process runs before the client's, so the eye is also nudged
-that frame to avoid a 1-frame flip). See the header comment in `godot/Main.gd`.
+**Canonical reference: [`docs/cameras.md`](cameras.md)** — if this list disagrees with that page, that
+page wins. Pick with the `` ` `` debug menu or number keys **1–7** (current mode + controls show on
+screen): **1 COMPASS** (default, cardinal-LOCKED low-angle — never spins on movement; Q/E rotate 90°,
+R/F zoom), **2 FOLLOW** (trails heading), **3 FIRST-PERSON** (hides the player; menu height slider),
+**4 CINEMATIC** (frames player + selected tile; orbits only with nothing selected), **5 MOUSE** (orbit),
+**6 KEYBOARD** (WASD fly), **7 TOP-FOLLOW** (top-down follow). **Esc keeps the current camera** (it does
+NOT snap to COMPASS); it closes the ` menu / any selection. Zone crossings shift the live camera transform
+in sync with the world re-anchor (Main._process runs before the client's, so the eye is also nudged that
+frame to avoid a 1-frame flip). See the header comment in `godot/Main.gd`.
 
 ---
 

@@ -15,8 +15,16 @@ tools/tiletool/obj/
 assets/qud/
 *.dll
 
+# Python (the capture tools are stdlib scripts; never commit bytecode)
+__pycache__/
+*.pyc
+
 # OS / editor
 .DS_Store
 *.swp
 .idea/
 .vscode/
+build/
+
+# highvisor regression run output (captures + diffs)
+tools/regression/_regress/

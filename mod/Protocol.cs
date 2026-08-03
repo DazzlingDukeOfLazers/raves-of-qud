@@ -18,13 +18,26 @@ namespace RavesOfQud
         /// no way to tell from the outside whether the running code included a
         /// given fix. Every snapshot now says. Bump this when changing the mod.
         /// </summary>
-        public const string Build = "2026-07-24o bg-sync";
+        public const string Build = "2026-08-03 anim-pass-g";
+
+        /// <summary>
+        /// Monotonic WIRE version — bump whenever a change to the snapshot format makes a newer client
+        /// DEPEND on a newer mod (a field the client now needs). The client knows the minimum it requires
+        /// (godot/MainFrame.gd MIN_MOD_PROTOCOL) and warns in the message log when the running mod is older
+        /// — so a forgotten "restart Caves of Qud after a mod change" can't silently ship stale behaviour
+        /// (which is exactly what hid the liquid fix until a restart). History:
+        ///   1  baseline (pre-handshake)
+        ///   2  adds per-object `liquid` flag (static-signature fix) + this `protocol` field
+        ///   3  adds per-object `onFire` flag (daytime campfire flame + smoke)
+        /// </summary>
+        public const int Version = 3;
 
         // Arbitrary high port; keep in sync with godot/BridgeClient.gd (PORT).
         public const int DefaultPort = 48710;
 
         public const string TypeSnapshot = "snapshot";
         public const string TypeCommand  = "command";
+        public const string TypePopup    = "popup";   // server->client: a live Qud modal mirrored to Raves
 
         /// <summary>Length-prefix a JSON string into a ready-to-send frame.</summary>
         public static byte[] Frame(string json)

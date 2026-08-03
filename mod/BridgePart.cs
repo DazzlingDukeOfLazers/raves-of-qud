@@ -22,12 +22,22 @@ namespace RavesOfQud
             // at the input prompt, when no turn is ending). That is the only place we
             // can drain + apply a command that arrived from an external driver while the
             // game is idle — otherwise the move waits forever for a turn that never comes.
-            return base.WantEvent(ID, cascade) || ID == EndTurnEvent.ID || ID == BeforeRenderEvent.ID;
+            // BeginTakeAction: fires on the TURN THREAD at the start of each player action — even while
+            // Qud is unfocused (BeforeRender does not). Lets us flush an off-turn publish queued while the
+            // game was blocked in a prompt (e.g. Make Camp's direction pick) as soon as it unblocks.
+            return base.WantEvent(ID, cascade) || ID == EndTurnEvent.ID || ID == BeforeRenderEvent.ID
+                || ID == BeginTakeActionEvent.ID;
         }
 
         public override bool HandleEvent(EndTurnEvent E)
         {
             Bridge.Tick(ParentObject);
+            return base.HandleEvent(E);
+        }
+
+        public override bool HandleEvent(BeginTakeActionEvent E)
+        {
+            Bridge.TickAction(ParentObject);
             return base.HandleEvent(E);
         }
 

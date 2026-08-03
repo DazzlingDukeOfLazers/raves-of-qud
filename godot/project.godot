@@ -14,18 +14,26 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 
 [application]
 
+; config/name is the editor/export project name. The RUNTIME source of truth for the
+; game name is Brand.GAME_NAME (autoload below); MainMenu stamps the window title from
+; it on launch, so a rename only needs Brand.gd (+ this literal, which Godot requires).
 config/name="Raves of Qud"
-run/main_scene="res://Main.tscn"
+run/main_scene="res://MainMenu.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
+
+[autoload]
+
+Brand="*res://Brand.gd"
+Settings="*res://Settings.gd"
+QudLauncher="*res://QudLauncher.gd"
+UiState="*res://UiState.gd"
 
 [display]
 
-; A logical 1600x900 window rendered at NATIVE pixel density (allow_hidpi) is the
-; real fix for the "aliased text": on a Retina Mac, hidpi=false renders at logical
-; resolution and lets macOS upscale -> blur. hidpi=true draws at physical pixels ->
-; crisp, without a 3840-wide window the OS then clamps and appears to "jump".
-; Resizable — drag it to whatever size you like.
 window/size/viewport_width=1600
 window/size/viewport_height=900
-window/size/resizable=true
-window/dpi/allow_hidpi=true
+window/dpi/allow_hidpi=false
+
+[rendering]
+
+textures/vram_compression/import_etc2_astc=true

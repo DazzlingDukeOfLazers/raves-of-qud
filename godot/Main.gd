@@ -1,242 +1,345 @@
 extends Node3D
 
+## Emitted every snapshot with the raw Qud data, so a host (MainFrame) can drive its status bar /
+## panels off the same stream the Holodeck renders — no second bridge connection needed.
+signal snapshot(data: Dictionary)
+
 ## Wires the bridge client to the renderer, drives the camera, and maps input to
 ## Qud movement commands. Built in code so the scene file stays a single node.
 ##
-## CAMERA MODES — pick with the ` debug menu or number keys 1-6; the current mode
+## CAMERA MODES — pick with the ` debug menu or number keys 1-7; the current mode
 ## and its controls show on screen.
 ##   1 COMPASS  (default)  cardinal-LOCKED low-angle view. Follows the player's
 ##                         position but NEVER rotates on movement, so the world
-##                         doesn't spin under you. Q/E rotate the heading 90°,
-##                         R/F zoom. This is the stable, non-disorienting default.
+##                         doesn't spin under you. Q/E rotate the heading (45° default,
+##                         90° toggle in the ` menu), R/F zoom. The stable, default view.
 ##   2 FOLLOW              rides behind your heading, looking ahead (trails movement).
 ##   3 FIRST_PERSON        at the player, eye-level, looking along the locked heading.
 ##   4 CINEMATIC           frames you + the selected tile, slowly orbiting (v1;
 ##                         combat-aware framing via an event buffer is future work).
 ##   5 MOUSE               orbit/pan with the mouse around the SELECTED tile.
 ##   6 KEYBOARD            free flight. WASD moves the camera, arrows AIM it.
+##   7 TOP_FOLLOW          Qud-classic overhead: orthographic, straight down, NORTH up,
+##                         tracking the player; R/F or the wheel zoom in and out.
 ##
 ##   Esc returns to COMPASS (and dismisses the report). Shift+C/K/F still jump to
 ##   mouse/keyboard/follow. Wheel zooms. Ctrl/Cmd+click or I inspects a tile.
 ##   F12                   -> save the viewport to <tilesDir>/../shot.png
-##   Ctrl/Cmd + right-click -> inspect the tile AND photograph both apps
+##   Ctrl/Cmd + right-click -> photograph the CLEAN scene, then inspect (+ Qud shot)
 ##
 ## Terminology: "tile" here means a map square (Qud's Cell). Note the collision —
 ## the `tile` field on the wire is the sprite-art path. Code touching Qud's API
 ## keeps the name Cell.
 
 var client: BridgeClient
+var _wish_layer: CanvasLayer    # Ctrl+Shift+W wish prompt overlay (built lazily), sends "wish" to Qud
+var _wish_edit: LineEdit
+var _popup: PopupOverlay        # mirrors Qud modal popups forwarded by the mod (own file)
+var _palette := {}              # latest Qud colour map (code -> hex) from snapshots, for popup markup
+var _char_creator: CharacterCreator
 var renderer: ZoneRenderer
 var store := WorldStore.new()   # Phase-0 world store; renderer reads the live zone from it
 var _prof_turns := 0            # for the periodic profile auto-dump
 var inspector: CellInspector
 var reporter: TileReport
+var onboarding: OnboardingControl
+var _font_preview: FontPreview
 
-# Day/night grade. The world is UNSHADED, so a real light does nothing; instead a
-# full-screen MULTIPLY rect tints the whole viewport by time of day. It sits below
-# the UI layer, so panels and text stay at full brightness.
-var _grade: ColorRect
-var _tint := Color.WHITE          # current, smoothed
-var _tint_target := Color.WHITE
-var _time_label := ""
-var _day_frac := 0.5
-var _dawn_h := 6.5
-var _dusk_h := 20.0
-var _sun: Sprite3D
-var _moon: Sprite3D
-var _sun_light: DirectionalLight3D   # follows the sun; drives future shadows
-var _env: Environment
-var _sky := Color(0.05, 0.05, 0.07)
-var _sky_target := Color(0.05, 0.05, 0.07)
-const SKY_NIGHT := Color(0.03, 0.05, 0.12)   # deep blue night void
-const SKY_DAY := Color(0.32, 0.55, 0.85)     # daytime blue
-const SKY_DUSK := Color(0.75, 0.45, 0.35)    # warm dawn/dusk horizon
-const SKY_DIST := 180.0
-const NIGHT_TINT := Color(0.34, 0.40, 0.62)   # cool moonlit blue (Qud has no moon phase)
-const DAY_TINT := Color(1.0, 0.99, 0.96)       # near-neutral, a hair warm
-const DUSK_TINT := Color(1.0, 0.72, 0.50)      # warm dawn/dusk
+# Day/night atmosphere (sky bodies + MULTIPLY grade + time->tint) lives in SkyGrade.gd, fed each snapshot.
+var _sky_grade                     # SkyGrade (Node3D); created in _ready
 
-enum CamMode { COMPASS, FOLLOW, FIRST_PERSON, CINEMATIC, MOUSE, KEYBOARD }
-var _mode: int = CamMode.COMPASS   # cardinal-locked: stable, doesn't spin on movement
+const SURFACE_Z := 10
+var _depth := SURFACE_Z            # current stratum (zone.z); >SURFACE_Z is underground
 
-var _pivot: Node3D
-var _cam: Camera3D
-var _yaw := 0.7
-var _pitch := 0.9            # radians above the ground plane (MOUSE orbit)
-var _dist := 14.0
+# Vertical level stacking: how many strata BELOW the live zone still render (deeper
+# ones cull off). Shallower levels never render (they'd occlude from above). The gap
+# between levels is renderer.level_height (a ` menu slider).
+const LEVEL_KEEP_DOWN := 2
 
-# --- compass cam (cardinal-locked, the disorientation fix) -------------------
-const COMPASS_PITCH := 0.61     # ~35° above the ground: a low, dramatic angle
-var _compass_yaw := 0.0         # locked heading in radians; Q/E rotate in 90° steps
-var _cine_t := 0.0              # cinematic auto-orbit phase
-const FP_EYE_H := 0.55          # first-person default eye height above the ground
-var _fp_height := FP_EYE_H      # live first-person eye height (debug-menu slider)
+# The camera rig (nodes + modes + placement math) lives in CameraRig.gd, created in _ready. Main keeps
+# this enum as a MIRROR so its mode checks (input, snapshot, multiview) read `CamMode.X`; the values match
+# CameraRig.CamMode exactly. `_cam_rig._mode` is the live mode. (Stage 1 of the Main.gd decomposition.)
+enum CamMode { COMPASS, FOLLOW, FIRST_PERSON, CINEMATIC, MOUSE, KEYBOARD, TOP_FOLLOW }
+var _cam_rig                    # CameraRig (Node3D, loaded); created in _ready. Untyped so the headless
+								# --check-only stays deterministic (a class_name's cache is flaky there);
+								# locals off _cam_rig.* therefore need explicit types, not `:=`.
+var _multiview                  # Multiview (Node, loaded); the all-views grid. Created in _ready.
+var _remote                     # RemoteControl (RefCounted); the godot_cmd file channel. Created in _ready.
+
+# Remembered view/render settings, saved on exit and restored on launch (so Raves doesn't
+# reset to "looking south" every run). In user:// — available at startup, before the mod
+# sends the support-dir path.
+const SETTINGS_PATH := "user://raves_settings.json"
+
 var _zone_center := Vector3(40, 0, 12)
-var _pan := Vector3.ZERO     # user pan offset (MOUSE mode); persists across turns
-
-# --- follow-cam -------------------------------------------------------------
-const TILES_BEHIND := 2.0    # how far back down the facing the camera sits
-const FOCUS_AHEAD := 2.0     # look at a point this far in FRONT of the player
-const FOLLOW_LERP := 6.0     # per-second approach; keeps steps from snapping
-var _player := Vector3(40, 0, 12)
+var _zone_dims := Vector2(80, 25)   # live zone width x height in cells
 var _prev_tile := Vector2i(-9999, -9999)
 var _prev_zone_id := ""          # to detect zone crossings (shift the camera to stay continuous)
-var _facing := Vector2(0, 1)     # +z is south; Qud y grows southward
-var _eye := Vector3.ZERO         # smoothed camera position
-var _look := Vector3.ZERO        # smoothed look-at target
-var _seeded := false
-
-# --- free camera ------------------------------------------------------------
-const FLY_SPEED := 9.0
-const AIM_SPEED := 1.6
-var _free_eye := Vector3.ZERO
-
-var _orbiting := false
-var _panning := false
 var _mode_label: Label
-var _debug_menu_title: Label
+var _dbg_menu                   # DebugMenu (Node, loaded); the ` panel. Created in _ready.
+var _reset_btn: Button
+var _wm_cards_btn: Button   # persistent top-right world-map card toggle (mirrors O / the ` menu)
+## Set true by MainFrame before this scene enters its SubViewport: the Holodeck is hosted inside the
+## main UI frame, so hide its OWN chrome (mode label + Reset/2D buttons). The frame supplies its menu.
+var embedded := false
+
+## When false, skip ALL 3D build/render work in _on_snapshot — bridge + data (the snapshot signal)
+## keep flowing with zero GPU/Metal work. The frame connects data-first with this off, then calls
+## set_render_3d(true) to bring the viewport up separately. Default true = standalone renders normally.
+var render_3d := true
+var _ui_theme: Theme   # project-wide default theme (UiFont) on the root viewport — see _ready
+var _ui_right_inset := 0.0   # 1:1: fraction of the window the side panels cover; recentres the cam (MainFrame pushes it)
 
 # Responsive HUD text: a fraction of viewport height, but never below a floor —
 # "min(px, %vh)" web sensibility, re-applied on window resize.
-const FONT_FRAC := 0.024
-const MIN_FONT := 20
+# Font sizes come from UiFont (the single source of truth). These stay as thin aliases so the rest
+# of the file / the ruler read the same numbers.
 func _ui_font_size() -> int:
-	return maxi(MIN_FONT, int(get_viewport().get_visible_rect().size.y * FONT_FRAC))
+	return UiFont.px(get_viewport(), "body")
 
+## Size EVERY label/button in the top UI from the source of truth: the mode label, the whole debug
+## menu (title, mode buttons, toggle buttons, slider labels), and the corner Reset button. Re-run on
+## window resize so it tracks the viewport.
 func _apply_ui_fonts() -> void:
+	# Re-assert the 1:1 (parity) camera span on any window resize — a resize otherwise reverts the
+	# top-down ortho span toward user-mode framing, which breaks the 1:1 match at a fixed size.
+	if _one_to_one and render_3d and _cam_rig != null:
+		_cam_rig.set_one_to_one(true)
+		_cam_rig.set_right_inset(_ui_right_inset)   # the inset is a fraction of the window — track resizes
+	UiFont.refresh_theme(_ui_theme, get_viewport())   # keep the project-wide default in sync with the window
+	_stamp_theme_roots(get_tree().root)               # make the default theme cross CanvasLayer boundaries
 	var fs := _ui_font_size()
 	if _mode_label != null:
 		_mode_label.add_theme_font_size_override("font_size", fs)
-	if _debug_menu_title != null:
-		_debug_menu_title.add_theme_font_size_override("font_size", fs)
-	for m in _mode_buttons:
-		(_mode_buttons[m] as Button).add_theme_font_size_override("font_size", fs)
+	var dbg_panel: Control = _dbg_menu.panel() if _dbg_menu != null else null
+	if dbg_panel != null:
+		_apply_font_recursive(dbg_panel, fs)
+	if _reset_btn != null:
+		_reset_btn.add_theme_font_size_override("font_size", fs)
+	if _wm_cards_btn != null:
+		_wm_cards_btn.add_theme_font_size_override("font_size", fs)
 	# keep the debug menu just BELOW the help label so they never overlap, even as
 	# the responsive font grows the label's height
-	if _debug_menu != null and _mode_label != null:
+	if dbg_panel != null and _mode_label != null:
 		var lh: float = maxf(_mode_label.get_minimum_size().y, float(fs))
-		_debug_menu.position = Vector2(14, _mode_label.position.y + lh + 8.0)
+		dbg_panel.position = Vector2(14, _mode_label.position.y + lh + 8.0)
 
-const ORBIT_SENS := 0.006
-const PITCH_MIN := 0.12
-const PITCH_MAX := 1.45
-const DIST_MIN := 3.0
-const DIST_MAX := 140.0
+## Make the project-wide default theme (UiFont) reach EVERY Control, even ones nested under a
+## CanvasLayer or plain Node. In Godot 4 a Control whose direct parent is neither a Control nor a
+## Window becomes its own "theme root" and does NOT inherit the root viewport's theme — so a single
+## CanvasLayer in the chain (CharacterCreator, and any future pop-up UI) severs propagation and the
+## controls fall back to the tiny built-in default. Assigning `_ui_theme` to each such theme-root
+## Control reconnects the whole tree to the one source of truth. Idempotent; safe to re-run on resize
+## or after new UI is built. Controls that set their OWN theme on purpose (OnboardingControl) are left
+## alone so their explicit choice still wins.
+func _stamp_theme_roots(node: Node) -> void:
+	if node is Control:
+		var p := node.get_parent()
+		if not (p is Control) and (node as Control).theme == null:
+			(node as Control).theme = _ui_theme
+	for c in node.get_children():
+		_stamp_theme_roots(c)
+
+## Apply a font size to every Label/Button under `node` (recursively) — how the debug menu and any
+## nested popups get sized uniformly from one call.
+func _apply_font_recursive(node: Node, size: int) -> void:
+	if node is Label or node is Button:
+		node.add_theme_font_size_override("font_size", size)
+	for c in node.get_children():
+		_apply_font_recursive(c, size)
+
+## Show/hide the font-size ruler (Lorem Ipsum at each px) with the current UI-font math in the header,
+## so you can pick the MINIMUM and NORMAL sizes. Toggle: L, or the ` menu button.
+func _toggle_font_preview() -> void:
+	if _font_preview == null:
+		return
+	var vp := get_viewport().get_visible_rect().size
+	var hdr := "Font-size ruler — window %dx%d · current UI font %dpx  (UiFont.MIN=%d, FRAC=%.4f)" % [
+		int(vp.x), int(vp.y), _ui_font_size(), UiFont.MIN, UiFont.FRAC]
+	_font_preview.toggle(hdr)
 
 func _ready() -> void:
+	# Source-of-truth fonts, made AUTOMATIC: a project-wide default theme on the root viewport, so
+	# every Control that doesn't override — CharacterCreator, and any future UI — inherits the UiFont
+	# body size + the Atkinson font for free. Refreshed on resize in _apply_ui_fonts.
+	_ui_theme = UiFont.make_theme(get_viewport())
+	get_tree().root.theme = _ui_theme
+
 	renderer = ZoneRenderer.new()
 	add_child(renderer)
 
 	client = BridgeClient.new()
 	add_child(client)
 	client.snapshot.connect(_on_snapshot)
+	client.popup.connect(_on_popup)
+	client.connected.connect(_on_bridge_connected)
 
-	var we := WorldEnvironment.new()
-	var env := Environment.new()
-	env.background_mode = Environment.BG_COLOR
-	env.background_color = Color(0.05, 0.05, 0.07)
-	# Use the explicit ambient colour as fill (default source is the dark BG, which
-	# left lit surfaces almost black). This is what makes the rock read as lit.
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	# high, near-neutral ambient so shaded surfaces keep their tile colour where the
-	# sun does not reach; the sun then adds directional highlight + shadow on top.
-	env.ambient_light_color = Color(0.72, 0.72, 0.74)
-	env.ambient_light_energy = 0.72
-	# Depth fog fades distant geometry into the sky, so remembered neighbour zones
-	# read as "over the horizon" while the live zone around the player stays crisp.
-	# Begins past most of the live zone (~80x25 cells), full a couple of zones out.
-	# The fog colour tracks the sky (updated per hour in _process) for a seamless
-	# horizon. Tunable: begin/end distance and the curve.
-	env.fog_enabled = true
-	env.fog_mode = Environment.FOG_MODE_DEPTH
-	env.fog_depth_begin = 60.0
-	env.fog_depth_end = 240.0
-	env.fog_depth_curve = 1.4     # >1: stay clear longer, then ramp up toward the end
-	env.fog_light_color = env.background_color
-	env.fog_sky_affect = 0.0      # the sky IS the fog colour; don't double-fog it
-	_env = env
-	we.environment = env
-	add_child(we)
+	_sky_grade = load("res://SkyGrade.gd").new()   # day/night atmosphere: WorldEnvironment + grade + sun/moon
+	add_child(_sky_grade)
+	_sky_grade.setup(embedded, renderer)
 
-	# MULTIPLY grade over the 3D, under the UI. layer 0 keeps it below the panels
-	# (default layer 1), so the world dims at night but text does not.
-	var glayer := CanvasLayer.new()
-	glayer.layer = 0
-	add_child(glayer)
-	_grade = ColorRect.new()
-	_grade.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_grade.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var gmat := CanvasItemMaterial.new()
-	gmat.blend_mode = CanvasItemMaterial.BLEND_MODE_MUL
-	_grade.material = gmat
-	_grade.color = DAY_TINT
-	glayer.add_child(_grade)
+	_cam_rig = load("res://CameraRig.gd").new()   # pivot + camera + modes + placement math
+	add_child(_cam_rig)
+	_cam_rig.setup(self, renderer, null)          # inspector wired in once it's built (below)
 
-	# sky bodies: sun and moon, big bright discs far out on an arc set by the hour.
-	# In a steep top-down view they sit high; tilt the camera down to see them rise
-	# and set on the horizon.
-	_sun = _make_sky_body(Color(1.0, 0.93, 0.6), 26.0)
-	_moon = _make_sky_body(Color(0.82, 0.86, 1.0), 16.0)
-	add_child(_sun)
-	add_child(_moon)
+	# Multi-view grid (its own file). Built BEFORE the debug menu, whose button connects to its toggle.
+	# Pane clicks call back into Main._multiview_inspect (Main owns the inspector + report form).
+	_multiview = load("res://Multiview.gd").new()
+	add_child(_multiview)
+	_multiview.setup(_cam_rig, _MODE_NAMES, _multiview_inspect)
 
-	# a real sun light, aimed by the hour. It does little to the current UNSHADED
-	# materials, but it is the hook directional shadows will hang on once walls
-	# move to a shaded material.
-	_sun_light = DirectionalLight3D.new()
-	_sun_light.light_energy = 0.0            # set per hour in _update_sky
-	_sun_light.shadow_enabled = true
-	_sun_light.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
-	_sun_light.shadow_bias = 0.04
-	_sun_light.shadow_normal_bias = 1.5
-	add_child(_sun_light)
+	# Remote-command channel (the godot_cmd file poller for control.py). Driven from _process; the dispatch
+	# (_exec_godot_cmd) stays here since each command drives a Main subsystem.
+	_remote = load("res://RemoteControl.gd").new()
+	_remote.setup(_support_dir, _exec_godot_cmd)
 
-	_pivot = Node3D.new()
-	add_child(_pivot)
-	_cam = Camera3D.new()
-	_pivot.add_child(_cam)
-	# Depth of field: a field of vinewafer reads as one flat colour blob without
-	# it. Far blur only — near blur would smear the player.
-	var attrs := CameraAttributesPractical.new()
-	attrs.dof_blur_far_enabled = true
-	attrs.dof_blur_far_distance = 18.0
-	attrs.dof_blur_far_transition = 12.0
-	attrs.dof_blur_amount = 0.10
-	_cam.attributes = attrs
+	# Direction picker (ability-prompt cursor, its own file). Driven from _process/_input.
+	_picker = load("res://DirectionPicker.gd").new()
+	add_child(_picker)
+	_picker.setup(_cam_rig, client)
 
+	# Popup overlay (its own file): mirrors Qud modals (message / yes-no / option list / text prompt)
+	# forwarded by the mod, and ships the viewer's answer back so Qud's blocked turn thread unblocks.
+	_popup = PopupOverlay.new()
+	add_child(_popup)
+	_popup.answered.connect(func(payload: Dictionary): client.send_command("popup", payload))
+
+	_load_settings()   # restore camera heading/mode/zoom/depth/window before the UI reads them
 	_build_mode_label()
-	_build_debug_menu()
+	# The ` debug menu (its own file). It reaches Main actions through these callbacks; _toggle_flat_2d
+	# stays here (the O key + persistent button share it), and it mirrors the flat state back via refresh_flat_2d.
+	_dbg_menu = load("res://DebugMenu.gd").new()
+	add_child(_dbg_menu)
+	_dbg_menu.build(_cam_rig, renderer, _multiview, _MODE_NAMES, {
+		"set_mode": _set_mode,
+		"toggle_flat_2d": _toggle_flat_2d,
+		"font_ruler": _toggle_font_preview,
+		"water_changed": _on_water_depth_changed,
+		"level_changed": _on_level_height_changed,
+	})
+	_build_reset_button()
 	_apply_ui_fonts()
 	get_viewport().size_changed.connect(_apply_ui_fonts)
-	_update_camera(0.0)
+	_cam_rig.apply_zstretch()   # a restored top-down mode needs the stretch applied at startup
+	_cam_rig.snap()             # place the camera from the restored state (was _update_camera(0.0))
 
 	inspector = CellInspector.new()
 	add_child(inspector)
-	inspector.setup(renderer, _cam)
+	inspector.setup(renderer, _cam_rig._cam)
+	_cam_rig.set_inspector(inspector)
 
 	reporter = TileReport.new()
 	add_child(reporter)
 	reporter.setup(renderer)
 	reporter.dismissed.connect(_dismiss_selection)
 
+	onboarding = OnboardingControl.new()
+	add_child(onboarding)
+	onboarding.setup()
+
+	_font_preview = FontPreview.new()
+	add_child(_font_preview)
+
+	_char_creator = CharacterCreator.new()
+	_char_creator.client = client
+	add_child(_char_creator)
+
+	# Every UI subtree above is now in the tree; re-run so the theme stamp reaches the ones built
+	# after the first _apply_ui_fonts() call (inspector, reporter, onboarding, font ruler, character
+	# creator). Deferred so each node's own _ready()/_build has finished.
+	_apply_ui_fonts.call_deferred()
+
+	if embedded:
+		_hide_holodeck_chrome()
+
+## Hide the Holodeck's own on-screen chrome (mode label, ⟳ Reset, tiles-2D button) when it's hosted
+## inside the main UI frame — the frame will provide these controls itself. The world, the debug menu
+## (`), and the inspector still work; only the always-on HUD buttons go away.
+## Turn the 3D build/render on or off at runtime. Turning it ON renders the current zone immediately
+## (from the store the data-only path kept current) instead of waiting for the next turn.
+func set_render_3d(on: bool) -> void:
+	render_3d = on
+	if on:
+		if _one_to_one:
+			_cam_rig.set_one_to_one(true)         # robust: 1:1 span even if already TOP_FOLLOW
+			_cam_rig.set_right_inset(_ui_right_inset)   # recentre the view in the play hole
+			_set_mode(CamMode.TOP_FOLLOW, true)   # enter the 1:1 camera as the viewport comes up
+		var live: Dictionary = store.live_snapshot()
+		if not live.is_empty():
+			renderer.render_snapshot(live, _neighbor_zones())
+
+func _hide_holodeck_chrome() -> void:
+	if _mode_label != null:
+		_mode_label.visible = false
+	if _reset_btn != null:
+		_reset_btn.visible = false
+	if _wm_cards_btn != null:
+		_wm_cards_btn.visible = false
+
+## On (re)connect, wait one turn so Qud publishes a snapshot immediately and Raves has a
+## zone to render — instead of a blank view until the player first moves. Passes a turn for
+## now; a no-turn refresh will replace this later.
+func _on_bridge_connected() -> void:
+	client.send_command("wait", {})
+
+## Qud's per-cell sprite flip (PartyFlip) is render-context state, so the mod can't read it stably for
+## the player's CELL object — but the separate `player` block reads it reliably. Copy that flip onto the
+## player's own cell creature so the renderer (flip_h = obj.hflip) faces the playfield player like Qud.
+func _inject_player_facing(data: Dictionary) -> void:
+	var pl: Dictionary = data.get("player", {})
+	if not pl.has("hflip"):
+		return
+	var px := int(pl.get("x", -9999))
+	var py := int(pl.get("y", -9999))
+	for cell in data.get("cells", []):
+		if int(cell.get("x", -2)) == px and int(cell.get("y", -2)) == py:
+			for obj in cell.get("objs", []):
+				if bool(obj.get("creature", false)):
+					obj["hflip"] = pl.get("hflip")
+			return
+
+## A Qud modal (message / yes-no / option list / text prompt) mirrored by the mod. During a popup the turn
+## thread is blocked, so NO snapshots arrive — this is the only channel that tells us it opened. The overlay
+## is modal (eats input) until the viewer answers, which ships a "popup" command back to unblock Qud.
+func _on_popup(data: Dictionary) -> void:
+	if _popup == null:
+		return
+	if bool(data.get("active", false)):
+		_popup.show_popup(data, _palette)
+	else:
+		_popup.hide_popup()
+
 func _on_snapshot(data: Dictionary) -> void:
+	# A snapshot can only publish once Qud's turn thread has unblocked — i.e. any popup is already gone —
+	# so treat every snapshot as authoritative "no popup", closing the overlay even if a dismissal frame
+	# was coalesced away. Also cache the colour map so popup markup renders with the same palette.
+	var pal: Dictionary = data.get("palette", {})
+	if not pal.is_empty():
+		_palette = pal
+	if _popup != null:
+		_popup.hide_popup()
 	# Route the render through the store: draw the live zone plus any remembered
 	# neighbours (same stratum) the player has visited, placed by global offset.
 	Profiler.add_us("server", int(data.get("serverUs", 0)))
+	_inject_player_facing(data)   # the player's cell obj carries no reliable hflip; use the player block's
 	Profiler.begin("ingest")
-	store.ingest(data)
+	store.ingest(data)   # keep the store current even when not rendering, so 3D can start instantly
 	Profiler.done("ingest")
-	Profiler.begin("neighbors")
-	var nbs := _neighbor_zones()
-	Profiler.done("neighbors")
-	# first-person: hide the player creature (the camera sits on its cell)
-	var pc: Dictionary = data.get("player", {})
-	renderer.set_hidden_cell(Vector2i(int(pc.get("x", -1)), int(pc.get("y", -1)))
-			if _mode == CamMode.FIRST_PERSON else Vector2i(-9999, -9999))
-	Profiler.begin("render")
-	renderer.render_snapshot(store.live_snapshot(), nbs)
-	Profiler.done("render")
+	# The 3D build/render (meshes, SubViewport) is the heavy GPU work. When render_3d is off (the frame
+	# hosts us data-first, viewport later) we skip ALL of it and just feed data — no Metal work at all.
+	if render_3d:
+		Profiler.begin("neighbors")
+		var nbs := _neighbor_zones()
+		Profiler.done("neighbors")
+		# first-person: hide the player creature (the camera sits on its cell)
+		var pc: Dictionary = data.get("player", {})
+		renderer.set_hidden_cell(Vector2i(int(pc.get("x", -1)), int(pc.get("y", -1)))
+				if _cam_rig._mode == CamMode.FIRST_PERSON else Vector2i(-9999, -9999))
+		Profiler.begin("render")
+		renderer.render_snapshot(store.live_snapshot(), nbs)
+		Profiler.done("render")
 	inspector.on_snapshot(data)
+	snapshot.emit(data)   # let a host frame update its status bar / panels off the same data (always)
 
 	# Auto-dump the profile every N turns (cumulative, no reset) so it's always fresh
 	# without needing a keypress — the manual P key can be flaky (window focus / UI).
@@ -244,58 +347,59 @@ func _on_snapshot(data: Dictionary) -> void:
 	if _prof_turns % 40 == 0:
 		_dump_profile(false)
 
-	_update_time(data.get("time", {}))
+	_depth = int(data.get("zone", {}).get("z", SURFACE_Z))
+	_sky_grade.update(data.get("time", {}), _depth, _zone_center)   # day/night; uses last frame's zone centre
+	_update_mode_label()   # refresh the ⏱ time label with the new time
 
 	var z: Dictionary = data.get("zone", {})
 	if z.has("width") and z.has("height"):
 		_zone_center = Vector3(float(z["width"]) / 2.0, 0.0, float(z["height"]) / 2.0)
+		_zone_dims = Vector2(float(z["width"]), float(z["height"]))
+		_cam_rig.set_zone_cells(_zone_dims)   # 1:1 zone-fit tracks the live zone size
 
-	# Crossing a zone edge re-anchors the live zone to local coords, so the player's
-	# (px,py) jumps discontinuously (e.g. 0 -> 79) and everything on screen shifts.
-	# Shift the camera by the SAME amount (the two zones' global-origin difference) so
-	# it stays locked on the same world content — a seamless continuous crossing, no
-	# cut or sweep. Also don't read the coord jump as a step (it flipped `_facing`).
-	var zid := String(z.get("id", ""))
-	var old_zid := _prev_zone_id
-	var crossed := old_zid != "" and zid != old_zid
-	_prev_zone_id = zid
-	if crossed and store.has_zone(old_zid) and store.has_zone(zid):
-		var oo: Vector3i = store.record(old_zid).get("origin", Vector3i.ZERO)
-		var no: Vector3i = store.record(zid).get("origin", Vector3i.ZERO)
-		var shift := Vector3(oo.x - no.x, 0.0, oo.y - no.y)
-		_eye += shift
-		_look += shift
-		_free_eye += shift
-		# _update_camera already ran THIS frame (Main._process precedes the client's),
-		# positioning the camera from the pre-shift eye — but the world just re-anchored.
-		# Shift the live camera transform too so this frame renders in sync (no 1-frame
-		# flip); next frame's lerp continues seamlessly from the shifted eye.
-		if _cam != null:
-			_cam.position += shift
-			if _cam.position.distance_to(_look) > 0.001:
-				_cam.look_at(_look, Vector3.UP)
-	elif crossed:
-		print("[cross] SKIPPED shift: old=%s has=%s  new=%s has=%s" % [
-			old_zid, store.has_zone(old_zid), zid, store.has_zone(zid)])
-
+	# Read the player cell FIRST. An absent/invalid cell (a mid-teardown frame, or the
+	# player briefly having no cell) reports (-1,-1) — hold the last good camera state and
+	# ignore this frame entirely rather than re-anchoring the world off garbage coords.
 	var p: Dictionary = data.get("player", {})
 	var px := int(p.get("x", -1))
 	var py := int(p.get("y", -1))
 	if px < 0 or py < 0:
 		return
 	var tile := Vector2i(px, py)
-	if not crossed and _prev_tile.x > -9999 and tile != _prev_tile:
-		# facing = the direction of the last actual step, so the camera trails behind
-		var d := Vector2(tile.x - _prev_tile.x, tile.y - _prev_tile.y)
-		if d.length() > 0.0:
-			_facing = d.normalized()
+	var moved := _prev_tile.x > -9999 and tile != _prev_tile
+
+	# Crossing a zone edge re-anchors the live zone to local coords, so the player's
+	# (px,py) jumps discontinuously (e.g. 0 -> 79) and everything on screen shifts.
+	# Shift the camera by the SAME amount (the two zones' global-origin difference) so
+	# it stays locked on the same world content — a seamless continuous crossing, no
+	# cut or sweep. Also don't read the coord jump as a step (it flipped `_facing`).
+	#
+	# GUARD — the shift only makes sense for a player who actually STEPPED over the edge:
+	# a real crossing always jumps the local tile. If the zone id changes while the player
+	# sits still (e.g. "become" swaps the body onto a stationary corpse and the reported
+	# zone id flaps), applying the shift would yank the eye off a motionless player every
+	# frame while the lerp scrolls it back — the reset-away / scroll-toward loop. So gate
+	# the whole crossing on `moved`.
+	var zid := String(z.get("id", ""))
+	var old_zid := _prev_zone_id
+	var crossed := moved and old_zid != "" and zid != old_zid
+	_prev_zone_id = zid
+	if crossed and store.has_zone(old_zid) and store.has_zone(zid):
+		var oo: Vector3i = store.record(old_zid).get("origin", Vector3i.ZERO)
+		var no: Vector3i = store.record(zid).get("origin", Vector3i.ZERO)
+		# Shift the camera by the two zones' global-origin difference so it stays locked on the
+		# same world content across the re-anchor — a seamless continuous crossing.
+		_cam_rig.apply_cross_shift(Vector3(oo.x - no.x, 0.0, oo.y - no.y))
+	elif crossed:
+		print("[cross] SKIPPED shift: old=%s has=%s  new=%s has=%s" % [
+			old_zid, store.has_zone(old_zid), zid, store.has_zone(zid)])
+
+	# facing = the direction of the last actual step (a crossing's coord jump doesn't count), so the
+	# camera trails behind. The rig applies it, tracks the player, and self-seeds on the first frame.
+	var stepped := moved and not crossed
+	var step_dir := Vector2(tile.x - _prev_tile.x, tile.y - _prev_tile.y) if stepped else Vector2.ZERO
 	_prev_tile = tile
-	_player = Vector3(px, 0, py)
-	if not _seeded:
-		_seeded = true
-		_free_eye = _follow_eye()
-		_eye = _free_eye
-		_look = _follow_look()
+	_cam_rig.set_player(Vector3(px, 0, py), step_dir, stepped)
 
 ## Remembered zones to draw around the live one: every OTHER stored zone on the
 ## same stratum, offset by the difference of its global origin from the live zone's
@@ -303,6 +407,13 @@ func _on_snapshot(data: Dictionary) -> void:
 ## radius is Phase 1's freeze-unfreeze step — for now the store holds few zones.
 func _neighbor_zones() -> Array:
 	var out: Array = []
+	# 2D mode floors EVERY object in EVERY cell, so a full surface zone plus its remembered
+	# neighbours is far more geometry than the 3D path (walls are greedy-meshed there, most cells
+	# hold nothing to floor). Rebuilding all of them flat in one re-render blew past the GPU timeout
+	# and hung on the surface (the overworld is a single zone, so it never hit this). Render just the
+	# live zone flat; neighbour context returns in 3D. (Incremental flat neighbours are a follow-up.)
+	if _flat_2d:
+		return out
 	var live_id := store.live_id()
 	if live_id == "":
 		return out
@@ -313,13 +424,24 @@ func _neighbor_zones() -> Array:
 		if id == live_id:
 			continue
 		var rec: Dictionary = store.record(id)
-		if int(rec.get("stratum", -9999)) != live_z:
+		# Vertical stacking: keep same-stratum neighbours (dz==0, the horizontal
+		# remembered zones) plus DEEPER levels (dz>0) up to LEVEL_KEEP_DOWN, which
+		# _sync_neighbors offsets downward. Shallower levels (dz<0) are turned off —
+		# they'd hang above as a terrain ceiling and occlude the current level.
+		var dz: int = int(rec.get("stratum", -9999)) - live_z
+		if dz < 0 or dz > LEVEL_KEEP_DOWN:
 			continue
 		var o: Vector3i = rec.get("origin", Vector3i.ZERO)
+		# the player's position when this zone was last live (its final snapshot), so the
+		# renderer can erase the sight-disc they carried out of it (see _build_darkness).
+		var pl: Dictionary = rec.get("snapshot", {}).get("player", {})
 		out.append({
 			"id": id,
 			"cells": rec.get("snapshot", {}).get("cells", []),
 			"offset": Vector2i(o.x - live_origin.x, o.y - live_origin.y),
+			"dz": dz,
+			"px": int(pl.get("x", -9999)),
+			"py": int(pl.get("y", -9999)),
 		})
 	return out
 
@@ -327,24 +449,15 @@ func _neighbor_zones() -> Array:
 # Claude can't send keys to Godot, only commands to Qud's bridge. So Godot polls a
 # small command file: control.py writes lines, we execute + delete. Lets an external
 # driver trigger Godot-side actions (screenshot, switch camera) to close the loop.
-var _cmd_accum := 0.0
-func _poll_godot_cmd(dt: float) -> void:
-	_cmd_accum += dt
-	if _cmd_accum < 0.1:
-		return
-	_cmd_accum = 0.0
-	if renderer == null:
-		return
-	var base := renderer.tiles_dir().get_base_dir()
-	if base == "":
-		return
-	var path := base.path_join("godot_cmd")
-	if not FileAccess.file_exists(path):
-		return
-	var txt := FileAccess.get_file_as_string(path)
-	DirAccess.remove_absolute(path)   # consume it
-	for line in txt.split("\n", false):
-		_exec_godot_cmd(line.strip_edges())
+## The RavesOfQud data dir. Prefer the renderer's tiles dir (proven correct once a
+## turn has been taken), but fall back to the OS support dir so the command channel +
+## screenshots work BEFORE Qud connects — e.g. to photograph the onboarding UI cold.
+func _support_dir() -> String:
+	if renderer != null:
+		var b := renderer.tiles_dir().get_base_dir()
+		if b != "":
+			return b
+	return InputModel.support_dir()
 
 func _exec_godot_cmd(cmd: String) -> void:
 	if cmd == "":
@@ -353,18 +466,75 @@ func _exec_godot_cmd(cmd: String) -> void:
 	match parts[0]:
 		"shot":
 			_screenshot(false, true)   # forced: window is unfocused, no auto-draw
+		"uidump":
+			# dump the frame's bottom-row widget rects — who is taller than the 90px budget?
+			var fr := get_parent()
+			if fr != null and fr.get("_effects") != null:
+				var ud := FileAccess.open(_support_dir().path_join("uidump.json"), FileAccess.WRITE)
+				if ud != null:
+					var d := {}
+					for k in ["_effects", "_target", "_context", "_command", "_row_split", "_side", "_msglog"]:
+						var n: Control = fr.get(k)
+						if n != null:
+							var r := n.get_global_rect()
+							d[k] = [r.position.x, r.position.y, r.size.x, r.size.y]
+					ud.store_string(JSON.stringify(d))
+					ud.close()
+		"camdump":
+			# dump the camera/hole state to camdump.json — the deterministic probe for
+			# "why is the 1:1 stage the wrong size" class of bugs.
+			var cd := FileAccess.open(_support_dir().path_join("camdump.json"), FileAccess.WRITE)
+			if cd != null and _cam_rig != null:
+				var vpr := get_viewport().get_visible_rect().size
+				cd.store_string(JSON.stringify({
+					"mode": _cam_rig._mode, "main_1to1": _one_to_one, "rig_1to1": _cam_rig._one_to_one,
+					"hole": [_cam_rig._play_hole.position.x, _cam_rig._play_hole.position.y,
+						_cam_rig._play_hole.size.x, _cam_rig._play_hole.size.y],
+					"zoom_q": _cam_rig._zoom_q, "top_zoom": _cam_rig._top_zoom,
+					"ortho": (_cam_rig._cam.size if _cam_rig._cam != null else -1.0),
+					"vp": [vpr.x, vpr.y], "render_3d": render_3d,
+				}))
+				cd.close()
+		"zoom1to1":
+			# `zoom1to1 <factor>` — set the 1:1 zoom factor directly (quarters, >= 1.0). The
+			# deterministic test input: key/wheel injection proved unreliable for sweeps.
+			if parts.size() >= 2 and _cam_rig != null:
+				_cam_rig.set_zoom_1to1(float(parts[1]))
+		"inspect":
+			# `inspect CX CY` — run the cell inspector at a ZONE CELL from outside (writes
+			# selection.txt like a Ctrl+click). Closes the loop for tooling: no window focus
+			# or mouse warp needed to ask "what did this cell render as?".
+			if parts.size() >= 3 and _cam_rig != null and _cam_rig._cam != null:
+				var wp := Vector3(float(parts[1]), 0.0, float(parts[2]) * _cam_rig.zstretch())
+				var sp: Vector2 = _cam_rig._cam.unproject_position(wp)
+				inspector.inspect_at(_cam_rig._cam, sp, _cam_rig.zstretch())
 		"cam":
 			if parts.size() > 1:
-				_set_mode(clampi(int(parts[1]) - 1, 0, 5))   # 1-6 -> COMPASS..KEYBOARD
+				_set_mode(clampi(int(parts[1]) - 1, 0, 7))   # 1-8 -> COMPASS..TOP_FOLLOW
+		"mv":
+			_multiview.toggle()   # all-views grid (same as the 0 key / the ` menu button)
+		"dbg":
+			_dbg_menu.toggle()    # the ` debug menu (for headless UI checks)
 		"fph":
 			if parts.size() > 1:
-				_fp_height = clampf(float(parts[1]), 0.15, 3.0)
+				_cam_rig._fp_height = clampf(float(parts[1]), 0.15, 3.0)
+		"onboard":
+			# `onboard` opens the chooser; `onboard <screen>` jumps to a screen
+			# (devices/ktype/layout/numpad/mouse); `onboard close` dismisses it.
+			if parts.size() > 1 and parts[1] == "close":
+				onboarding.close()
+			elif parts.size() > 1:
+				onboarding.show_screen(parts[1])
+			else:
+				onboarding.open()
 
 var _bg_draw_accum := 0.0
 const BG_DRAW_INTERVAL := 0.05   # ~20fps forced draws while unfocused
 
 func _process(dt: float) -> void:
-	_poll_godot_cmd(dt)
+	_remote.poll(dt)
+	if _picker.is_picking():
+		_picker.update_cursor()
 	# Keep the viewer rendering while its window is UNFOCUSED, so it stays live beside
 	# Qud for side-by-side human testing (a human drives one window; both must move).
 	# macOS pauses an unfocused window's draw, but _process still runs — so force a draw
@@ -375,175 +545,16 @@ func _process(dt: float) -> void:
 		if _bg_draw_accum >= BG_DRAW_INTERVAL:
 			_bg_draw_accum = 0.0
 			RenderingServer.force_draw()
-	# ease the grade so time-of-day shifts smoothly between turns
-	_tint = _tint.lerp(_tint_target, clampf(dt * 2.0, 0.0, 1.0))
-	if _grade != null:
-		_grade.color = _tint
-	_sky = _sky.lerp(_sky_target, clampf(dt * 2.0, 0.0, 1.0))
-	if _env != null:
-		_env.background_color = _sky
-		_env.fog_light_color = _sky   # fade distant zones into the current sky colour
 
-	if _mode == CamMode.KEYBOARD:
-		_fly(dt)
-	elif _mode == CamMode.MOUSE and not Input.is_key_pressed(KEY_SHIFT):
-		# orbit params: Q/E yaw, R/F pitch
-		if Input.is_key_pressed(KEY_Q): _yaw -= 1.5 * dt
-		if Input.is_key_pressed(KEY_E): _yaw += 1.5 * dt
-		if Input.is_key_pressed(KEY_R): _pitch = clampf(_pitch + 1.0 * dt, PITCH_MIN, PITCH_MAX)
-		if Input.is_key_pressed(KEY_F): _pitch = clampf(_pitch - 1.0 * dt, PITCH_MIN, PITCH_MAX)
-	elif _mode == CamMode.CINEMATIC and (inspector == null or inspector.selected_tile() == null):
-		_cine_t += dt * 0.35   # slow auto-orbit ONLY with no target; a selected tile holds the framing still
-	# R/F zoom in the player-relative modes (Shift-guarded so Shift+F still switches)
-	if (_mode == CamMode.COMPASS or _mode == CamMode.FOLLOW or _mode == CamMode.FIRST_PERSON) \
-			and not Input.is_key_pressed(KEY_SHIFT):
-		if Input.is_key_pressed(KEY_R): _dist = clampf(_dist * (1.0 - dt), DIST_MIN, DIST_MAX)
-		if Input.is_key_pressed(KEY_F): _dist = clampf(_dist * (1.0 + dt), DIST_MIN, DIST_MAX)
-	_update_camera(dt)
-
-# --- camera placement -------------------------------------------------------
-
-func _facing3() -> Vector3:
-	return Vector3(_facing.x, 0, _facing.y).normalized()
-
-## Behind the player along the facing, raised by the current zoom/pitch.
-func _follow_eye() -> Vector3:
-	var f := _facing3()
-	var back := TILES_BEHIND + _dist * cos(_pitch)
-	return _player - f * back + Vector3(0, _dist * sin(_pitch), 0)
-
-func _follow_look() -> Vector3:
-	return _player + _facing3() * FOCUS_AHEAD
-
-## MOUSE mode orbits whatever tile is selected, so inspecting and then looking
-## around don't fight each other. Falls back to the player.
-func _orbit_center() -> Vector3:
-	var sel = inspector.selected_tile() if inspector != null else null
-	var c: Vector3 = _player
-	if sel != null:
-		c = Vector3(sel.x, 0, sel.y)
-	return c + _pan
-
-# The fixed compass heading as a unit direction (what the camera looks ALONG).
-func _compass_dir() -> Vector3:
-	return Vector3(sin(_compass_yaw), 0, cos(_compass_yaw))
-
-# COMPASS: behind the player along the LOCKED heading at a low angle. Follows the
-# player's position but never rotates on movement — this is the disorientation fix.
-func _compass_eye() -> Vector3:
-	var back := TILES_BEHIND + _dist * cos(COMPASS_PITCH)
-	return _player - _compass_dir() * back + Vector3(0, _dist * sin(COMPASS_PITCH), 0)
-
-# CINEMATIC v1: frame the player and the selected target tile (their midpoint), at a
-# distance that fits both, slowly orbiting. Combat-aware framing (an event buffer of
-# attackers) is future work once Qud sends combat events.
-func _frame_center() -> Vector3:
-	var sel = inspector.selected_tile() if inspector != null else null
-	if sel != null:
-		return (_player + Vector3(sel.x, 0.0, sel.y)) * 0.5
-	return _player
-
-func _frame_radius() -> float:
-	var sel = inspector.selected_tile() if inspector != null else null
-	if sel != null:
-		return clampf(_player.distance_to(Vector3(sel.x, 0.0, sel.y)) * 0.9 + 7.0, 9.0, 40.0)
-	return 13.0
-
-func _update_camera(dt: float) -> void:
-	var target_eye: Vector3
-	var target_look: Vector3
-	match _mode:
-		CamMode.KEYBOARD:
-			target_eye = _free_eye
-			target_look = _free_eye + _aim_dir()
-		CamMode.MOUSE:
-			var c := _orbit_center()
-			target_eye = c + Vector3(
-				_dist * cos(_pitch) * sin(_yaw),
-				_dist * sin(_pitch),
-				_dist * cos(_pitch) * cos(_yaw))
-			target_look = c
-		CamMode.FOLLOW:
-			target_eye = _follow_eye()
-			target_look = _follow_look()
-		CamMode.FIRST_PERSON:
-			target_eye = _player + Vector3(0, _fp_height, 0)
-			target_look = target_eye + _compass_dir() + Vector3(0, -0.15, 0)
-		CamMode.CINEMATIC:
-			var cc := _frame_center()
-			var r := _frame_radius()
-			target_eye = cc + Vector3(
-				r * cos(COMPASS_PITCH) * sin(_cine_t),
-				r * sin(COMPASS_PITCH) + 2.0,
-				r * cos(COMPASS_PITCH) * cos(_cine_t))
-			target_look = cc
-		_:  # COMPASS — the default, stable, cardinal-locked view
-			target_eye = _compass_eye()
-			target_look = _player
-
-	if dt <= 0.0 or not _seeded:
-		_eye = target_eye
-		_look = target_look
-	else:
-		var k: float = clampf(FOLLOW_LERP * dt, 0.0, 1.0)
-		_eye = _eye.lerp(target_eye, k)
-		_look = _look.lerp(target_look, k)
-
-	_pivot.position = Vector3.ZERO
-	_cam.position = _eye
-	if _eye.distance_to(_look) > 0.001:
-		_cam.look_at(_look, Vector3.UP)
-
-func _aim_dir() -> Vector3:
-	return Vector3(cos(_pitch) * sin(_yaw + PI), -sin(_pitch), cos(_pitch) * cos(_yaw + PI))
-
-func _fly(dt: float) -> void:
-	# arrows AIM in this mode; they do not reach the player
-	if Input.is_key_pressed(KEY_LEFT):  _yaw -= AIM_SPEED * dt
-	if Input.is_key_pressed(KEY_RIGHT): _yaw += AIM_SPEED * dt
-	if Input.is_key_pressed(KEY_UP):    _pitch = clampf(_pitch + AIM_SPEED * dt, -PITCH_MAX, PITCH_MAX)
-	if Input.is_key_pressed(KEY_DOWN):  _pitch = clampf(_pitch - AIM_SPEED * dt, -PITCH_MAX, PITCH_MAX)
-	var fwd := _aim_dir()
-	fwd.y = 0.0
-	if fwd.length() > 0.001: fwd = fwd.normalized()
-	var right := fwd.cross(Vector3.UP).normalized()
-	var move := Vector3.ZERO
-	if Input.is_key_pressed(KEY_W): move += fwd
-	if Input.is_key_pressed(KEY_S): move -= fwd
-	if Input.is_key_pressed(KEY_D): move -= right
-	if Input.is_key_pressed(KEY_A): move += right
-	if Input.is_key_pressed(KEY_SPACE): move += Vector3.UP
-	if Input.is_key_pressed(KEY_Z): move -= Vector3.UP
-	if move.length() > 0.001:
-		_free_eye += move.normalized() * FLY_SPEED * dt
-
-# --- camera-relative movement (the Godot -> Qud control translation) ---------
-# The player moves in Qud's absolute 8-way compass, but the arrow keys mean
-# directions relative to the CAMERA — "up" is forward on screen no matter which
-# way the camera faces. We take the camera's ground-plane heading, build the
-# screen-space intent (forward/back/strafe), rotate it into world space, and snap
-# to the nearest compass name before sending it to the bridge.
-
-## The direction the camera looks ALONG on the ground plane, per mode. FOLLOW
-## trails your last step; COMPASS / FIRST_PERSON use the locked compass heading.
-func _camera_heading() -> Vector3:
-	var h: Vector3 = _facing3() if _mode == CamMode.FOLLOW else _compass_dir()
-	h.y = 0.0
-	if h.length() < 0.001:
-		return Vector3(0, 0, 1)   # default: south (matches _facing seed)
-	return h.normalized()
-
-## Snap a world ground vector to the nearest of Qud's 8 compass directions.
-## +x = east, +z = south (Godot z mirrors Qud's south-growing y). Angle 0 = East,
-## increasing toward South; 45° sectors.
-func _dir_to_compass(v: Vector3) -> String:
-	var idx: int = int(round(atan2(v.z, v.x) / (PI / 4.0))) & 7
-	return ["E", "SE", "S", "SW", "W", "NW", "N", "NE"][idx]
+	# Camera modes, held-key zoom/fly, placement, and wall cutaway all live in the rig now.
+	_cam_rig.process(dt, _multiview.is_on())
+	if _multiview.is_on():
+		_multiview.update()
 
 ## Move the player relative to the camera. `intent` is (strafe, forward) in screen
 ## space: (0,1)=forward, (0,-1)=back, (1,0)=right, (-1,0)=left.
 func _move_relative(intent: Vector2) -> void:
-	var h := _camera_heading()
+	var h: Vector3 = _cam_rig.camera_heading()
 	var right := h.cross(Vector3.UP)   # camera/body right (world space)
 	if right.length() < 0.001:
 		right = Vector3(1, 0, 0)
@@ -551,133 +562,110 @@ func _move_relative(intent: Vector2) -> void:
 	var v := h * intent.y + right * intent.x
 	if v.length() < 0.001:
 		return
-	client.send_command("move", {"dir": _dir_to_compass(v.normalized())})
+	client.send_command("move", {"dir": _cam_rig.dir_to_compass(v.normalized())})
 
-func _set_mode(m: int) -> void:
-	if m == _mode:
+## Send a named Qud command (CmdFire, CmdReload, …) over the bridge — from a Raves hotkey or a UI
+## button. The mod injects it into Qud's input like a keypress, so any targeting UI opens in the Qud
+## window. No-op until the bridge is up.
+func request_command(cmd: String) -> void:
+	if client != null:
+		client.send_command("command", {"command": cmd})
+
+## Invoke an inventory action (e.g. ReplaceSocketCell — "change the battery") on a specific equipped
+## weapon, identified by its Qud GameObject id. Runs on Qud's main thread mod-side.
+func request_item_action(item_id: String, action: String) -> void:
+	if client != null:
+		client.send_command("itemaction", {"item": item_id, "command": action})
+
+# --- direction picker (for abilities like Make Camp that prompt for a direction) ----------------
+# Qud's PickDirection blocks the turn thread waiting for a LeftClick at a CELL (it derives the
+# direction). We show the ability's icon as a cursor over the Holodeck; clicking an adjacent tile
+# sends that cell (mod injects the click), a non-adjacent click / right-click / Esc cancels (mod
+# injects a RightClick so Qud UNBLOCKS). Only started for abilities that actually prompt, else Qud
+# would freeze waiting. The picker itself lives in DirectionPicker.gd; Main drives it from _process/_input.
+var _picker                     # DirectionPicker (Node, loaded); created in _ready
+
+## Public entry point — MainFrame calls this on the Holodeck when an ability prompts for a direction.
+func start_direction_picker(icon: Texture2D) -> void:
+	_picker.start(icon)
+
+func _set_mode(m: int, force := false) -> void:
+	# 1:1 (parity) mode locks the camera to the Qud-faithful top-down view — user camera
+	# switches (number keys, Shift+C/K/F, multi-view) are ignored until 1:1 is turned off.
+	# `force` is the internal path (set_one_to_one) that is allowed to change it.
+	if _one_to_one and not force:
 		return
-	# entering free flight, start from where the camera already is
-	if m == CamMode.KEYBOARD:
-		_free_eye = _eye
-	if m == CamMode.MOUSE:
-		_pan = Vector3.ZERO
-	_mode = m
-	_update_mode_label()
+	if _multiview.is_on():
+		_multiview.toggle()   # picking a mode leaves the multi-view grid
+	# The rig does the camera part (state reset, billboard lay-down, zstretch) and reports if it changed.
+	if _cam_rig.set_mode(m):
+		_update_mode_label()
+		_refresh_wm_cards_btn()   # keep the 2D/3D button label in sync
 
-## One gesture -> everything a collaborator needs about a tile: the report
-## (selection.txt), this viewer's view (shot.png) and Qud's own view
-## (qud_shot.png), all pointing at the same tile.
+# --- 1:1 (parity) mode ------------------------------------------------------
+# The master switch that flips Raves between the QoL "user" experience and a Qud-faithful
+# "1:1" reproduction. Here it owns the CAMERA half (force + lock the top-down view) and
+# announces changes; MainFrame owns the panel half + persistence via one_to_one_changed.
+var _one_to_one := false
+var _saved_cam_mode := -1      # user-mode camera, restored when leaving 1:1
+var _saved_flat_2d := false    # user-mode tile mode (3D vs flat), restored when leaving 1:1
+signal one_to_one_changed(on: bool)
+
+func is_one_to_one() -> bool:
+	return _one_to_one
+
+func set_one_to_one(on: bool) -> void:
+	if on == _one_to_one:
+		return
+	_one_to_one = on
+	_cam_rig.set_one_to_one(on)   # 1:1 vs user ortho span (safe in data-only; guards a null camera)
+	# Camera half — only meaningful with the 3D viewport up (data-only mode has no camera to
+	# flip); set_render_3d re-applies TOP_FOLLOW when the viewport comes on.
+	if on:
+		_saved_cam_mode = _cam_rig._mode
+		if render_3d:
+			_set_mode(CamMode.TOP_FOLLOW, true)   # the Qud-faithful 1:1 top-down (ONE_TO_ONE_SPAN)
+	elif render_3d and _saved_cam_mode >= 0:
+		_set_mode(_saved_cam_mode, true)          # back to the user's camera
+	# Lighting half: 1:1 uses Qud's rectangular model (see ZoneRenderer) — no glow pools, flames,
+	# smoke or motes are LOADED, unexplored cells draw nothing, explored-dark cells get the flat
+	# memory dim. Set BEFORE the flat rebuild below so the rebuild uses the 1:1 light rules.
+	if renderer != null:
+		renderer.set_one_to_one(on)
+	# Tile half: Qud renders every tile FLAT, as loaded — the voxel walls / stretched-UV 3D look is a
+	# user-mode feature. 1:1 forces the flat path (which also renders ONLY the live zone — see
+	# _neighbor_zones); leaving 1:1 restores whatever the user had. Ordered after the camera flip so
+	# the rebuild happens under the final top-down stretch. (Set _one_to_one first — _toggle_flat_2d
+	# is locked while on, so go through _apply_flat_2d directly.)
+	if on:
+		_saved_flat_2d = _flat_2d
+		_apply_flat_2d(true)               # rebuild even if already flat — the light rules changed
+	else:
+		_apply_flat_2d(_saved_flat_2d)     # ditto on exit
+	one_to_one_changed.emit(on)
+
+func toggle_one_to_one() -> void:
+	set_one_to_one(not _one_to_one)
+
+## MainFrame tells us how much of the window the 1:1 side panels cover (0..~0.4). The camera shifts its
+## lens so the zone-fit centres in the visible play hole (left of the sidebar), not the full window.
+func set_ui_right_inset(frac: float) -> void:
+	_ui_right_inset = clampf(frac, 0.0, 0.6)
+	if _cam_rig != null:
+		_cam_rig.set_right_inset(_ui_right_inset)
+
+## MainFrame pushes the play hole's actual px rect (row 3's transparent area). The 1:1 camera fits
+## Qud's 80x25 stage into THIS rect (both axes) at Qud's letterbox scale — the pixel-1:1 model.
+func set_play_hole_rect(r: Rect2) -> void:
+	if _cam_rig != null:
+		_cam_rig.set_play_hole(r)
+
+## One gesture -> everything a collaborator needs about a tile. Photograph the BARE
+## scene FIRST (no selection overlay), then inspect — so shot.png is a clean plate
+## of the tile, paired with the report (selection.txt) and Qud's view (qud_shot.png).
 func _inspect_and_capture() -> void:
-	_inspect()
 	await _screenshot(true)
-
-## Turn Qud's hour into a day/night tint. hour arrives as hour*1000 (int wire).
-## Uses the calendar's own dawn/dusk boundaries, so it matches when Qud calls it
-## day. Night is a cool moonlit blue; dawn and dusk are warm; midday is neutral.
-func _update_time(t: Dictionary) -> void:
-	if t.is_empty():
-		return
-	# everything arrives in day-SEGMENTS; normalise to a 0..24 hour here
-	var spd: float = maxf(1.0, float(t.get("segmentsPerDay", 12000)))
-	var hour: float = float(t.get("segment", spd * 0.5)) / spd * 24.0
-	var dawn: float = float(t.get("startOfDay", 3250)) / spd * 24.0
-	var dusk: float = float(t.get("startOfNight", 10000)) / spd * 24.0
-	_time_label = String(t.get("label", ""))
-	_day_frac = hour / 24.0
-	_dawn_h = dawn
-	_dusk_h = dusk
-	_tint_target = _tint_for_hour(hour, dawn, dusk, 24.0)
-	_sky_target = _sky_for_hour(hour, dawn, dusk)
-	_update_sky(hour, dawn, dusk)
-	_update_mode_label()
-
-## A bright disc billboard for a celestial body.
-func _make_sky_body(col: Color, size_units: float) -> Sprite3D:
-	var n := 48
-	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
-	var c := (n - 1) * 0.5
-	for y in n:
-		for x in n:
-			var d: float = Vector2(x - c, y - c).length() / c
-			# solid disc with a soft glowing rim
-			var a := 1.0 if d < 0.72 else clampf(1.0 - (d - 0.72) / 0.28, 0.0, 1.0)
-			img.set_pixel(x, y, Color(col.r, col.g, col.b, a))
-	var spr := Sprite3D.new()
-	spr.texture = ImageTexture.create_from_image(img)
-	spr.pixel_size = size_units / n
-	spr.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	spr.shaded = false
-	spr.transparent = true
-	spr.no_depth_test = true            # always draw in the sky, behind nothing
-	spr.render_priority = -1
-	spr.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
-	return spr
-
-## Position sun and moon on a tilted arc: rise east, peak overhead, set west. The
-## sun tracks day (dawn..dusk); the moon tracks the night span, opposite the sun.
-## Fades each in/out across dawn and dusk so neither pops.
-func _update_sky(hour: float, dawn: float, dusk: float) -> void:
-	if _sun == null:
-		return
-	var sun_up := hour >= dawn and hour <= dusk
-	var sun_p: float = clampf((hour - dawn) / maxf(0.01, dusk - dawn), 0.0, 1.0)
-	# night runs dusk -> 24 -> dawn; fold it into 0..1 for the moon
-	var nlen: float = (24.0 - dusk) + dawn
-	var np: float = ((hour - dusk) if hour >= dusk else (hour + 24.0 - dusk)) / maxf(0.01, nlen)
-
-	_sun.position = _body_pos(sun_p)
-	_moon.position = _body_pos(np)
-
-	# cross-fade over ~1h at each boundary
-	var sun_a: float = clampf(minf(hour - dawn, dusk - hour) + 0.5, 0.0, 1.0) if sun_up else 0.0
-	_sun.modulate = Color(1, 1, 1, sun_a)
-	_moon.modulate = Color(1, 1, 1, 1.0 - sun_a)
-	_sun.visible = sun_a > 0.01
-	_moon.visible = sun_a < 0.99
-
-	# aim the sun light down its arc and fade its energy with daylight, so shadows
-	# appear during the day and vanish at night (ambient + grade carry the night).
-	if _sun_light != null:
-		var d := (_zone_center - _sun.position).normalized()
-		_sun_light.rotation = Vector3(asin(clampf(d.y, -1.0, 1.0)), atan2(d.x, d.z), 0.0)
-		_sun_light.light_energy = sun_a * 0.6
-
-## A body's world position for arc progress 0(rise)..1(set), tilted so it clears
-## the horizon in a tilted view rather than sitting straight overhead.
-func _body_pos(p: float) -> Vector3:
-	var theta: float = p * PI                         # 0..PI, east->zenith->west
-	var dir := Vector3(cos(theta), sin(theta) * 0.85 + 0.12, -0.45).normalized()
-	return _zone_center + dir * SKY_DIST
-
-## Background sky colour by hour: night deep-blue, dawn/dusk warm, midday blue.
-func _sky_for_hour(hour: float, dawn: float, dusk: float) -> Color:
-	var w := 1.5
-	if hour < dawn - w or hour > dusk + w:
-		return SKY_NIGHT
-	if hour < dawn:
-		return SKY_NIGHT.lerp(SKY_DUSK, (hour - (dawn - w)) / w)
-	if hour < dawn + w:
-		return SKY_DUSK.lerp(SKY_DAY, (hour - dawn) / w)
-	if hour < dusk - w:
-		return SKY_DAY
-	if hour < dusk:
-		return SKY_DAY.lerp(SKY_DUSK, (hour - (dusk - w)) / w)
-	return SKY_DUSK.lerp(SKY_NIGHT, (hour - dusk) / w)
-
-func _tint_for_hour(hour: float, dawn: float, dusk: float, hpd: float) -> Color:
-	# widths of the dawn/dusk transitions, in hours
-	var w := 2.0
-	if hour < dawn - w or hour > dusk + w:
-		return NIGHT_TINT
-	if hour < dawn:                                   # pre-dawn -> dawn glow
-		return NIGHT_TINT.lerp(DUSK_TINT, (hour - (dawn - w)) / w)
-	if hour < dawn + w:                               # dawn glow -> full day
-		return DUSK_TINT.lerp(DAY_TINT, (hour - dawn) / w)
-	if hour < dusk - w:                               # full day
-		return DAY_TINT
-	if hour < dusk:                                   # day -> dusk glow
-		return DAY_TINT.lerp(DUSK_TINT, (hour - (dusk - w)) / w)
-	return DUSK_TINT.lerp(NIGHT_TINT, (hour - dusk) / w)  # dusk glow -> night
+	_inspect()
 
 ## Clear everything a selection put on screen: report form, inspector panel, marker.
 ## Bound to Esc and to the form's Cancel button.
@@ -687,7 +675,16 @@ func _dismiss_selection() -> void:
 
 ## Inspect, and aim the report form at the same tile.
 func _inspect() -> void:
-	inspector.inspect_at_mouse()
+	inspector.inspect_at(_cam_rig._cam, get_viewport().get_mouse_position(), _cam_rig.zstretch())
+	var sel = inspector.selected_tile()
+	if sel != null:
+		reporter.set_target(sel.x, sel.y, inspector.zone_id(),
+			inspector.last_objects(), inspector.last_report())
+
+## Inspect from a multi-view pane: raycast with that pane's camera + the pane-local mouse
+## position. The 3D marker is shared, so the pick shows across every pane.
+func _multiview_inspect(cam: Camera3D, pos: Vector2) -> void:
+	inspector.inspect_at(cam, pos)
 	var sel = inspector.selected_tile()
 	if sel != null:
 		reporter.set_target(sel.x, sel.y, inspector.zone_id(),
@@ -712,14 +709,14 @@ func _dump_profile(reset := true) -> void:
 ## and this is better anyway: it captures the rendered viewport exactly, with no
 ## window chrome and nothing overlapping it.
 func _screenshot(clean := false, forced := false) -> void:
-	var dir := renderer.tiles_dir().get_base_dir()
+	var dir := _support_dir()
 	if dir == "":
 		return
-	# `clean` drops the text report out of frame so the shot shows the scene; the
-	# 3D marker stays, so the picture still says which tile was picked.
+	# `clean` drops the WHOLE selection overlay — report panel and 3D marker — out of
+	# frame, so the shot is a bare plate of the scene; restored right after.
 	var restore := false
-	if clean and inspector.panel_visible():
-		inspector.set_panel_visible(false)
+	if clean and inspector.overlay_visible():
+		inspector.set_overlay_visible(false)
 		restore = true
 	if forced:
 		# a remote (control.py) shot: the window is unfocused so no frame is being
@@ -729,7 +726,7 @@ func _screenshot(clean := false, forced := false) -> void:
 		await RenderingServer.frame_post_draw      # let the frame finish first
 	var img := get_viewport().get_texture().get_image()
 	if restore:
-		inspector.set_panel_visible(true)
+		inspector.set_overlay_visible(true)
 	if img == null:
 		return
 	var path := dir.path_join("shot.png")
@@ -743,84 +740,236 @@ func _build_mode_label() -> void:
 	add_child(layer)
 	_mode_label = Label.new()
 	_mode_label.position = Vector2(14, 8)
-	_mode_label.add_theme_font_size_override("font_size", 15)
+	_mode_label.add_theme_font_size_override("font_size", UiFont.px(get_viewport()))  # _apply_ui_fonts keeps it live
 	_mode_label.add_theme_color_override("font_color", Color(0.75, 0.9, 0.75))
 	layer.add_child(_mode_label)
 	_update_mode_label()
 
 const _MODE_NAMES := {
-	CamMode.COMPASS: "COMPASS — cardinal-locked · arrows move (↑=fwd) · Q/E rotate · R/F zoom",
-	CamMode.FOLLOW: "FOLLOW — trails your heading · arrows move (↑=fwd) · R/F zoom",
-	CamMode.FIRST_PERSON: "FIRST-PERSON — ↑↓ move · ←→ turn · Shift+←→ strafe",
+	CamMode.COMPASS: "COMPASS — cardinal-locked · arrows move (↑=fwd) · Q/E rotate · R/F zoom · S/D height · W/X dolly",
+	CamMode.FOLLOW: "FOLLOW — trails your heading · arrows move (↑=fwd) · R/F zoom · S/D height · W/X dolly",
+	CamMode.FIRST_PERSON: "FIRST-PERSON — ↑↓ move · ←→ turn · Ctrl+Shift+←→ strafe · Shift+arrows diagonal",
 	CamMode.CINEMATIC: "CINEMATIC — frames you + selected tile",
 	CamMode.MOUSE: "ORBIT — drag around the selected tile",
 	CamMode.KEYBOARD: "FLY — WASD move, arrows aim",
+	CamMode.TOP_FOLLOW: "TOP-DOWN FOLLOW — classic overhead · north up · tracks you · R/F zoom",
 }
 
 func _update_mode_label() -> void:
-	_mode_label.text = "camera: %s     ·  ` menu · 1-6 modes" % _MODE_NAMES.get(_mode, "?")
-	if _time_label != "":
-		_mode_label.text += "     ⏱ " + _time_label
-	_update_debug_menu()
+	_mode_label.text = "camera: %s     ·  ` menu · 1-7 · 0 all-views · F1 controls" % _MODE_NAMES.get(_cam_rig._mode, "?")
+	if _sky_grade != null and _sky_grade.time_label != "":
+		_mode_label.text += "     ⏱ " + _sky_grade.time_label
+	if _dbg_menu != null:
+		_dbg_menu.set_active_mode(_cam_rig._mode)   # highlight the active mode button
 
 # --- debug menu -------------------------------------------------------------
 
-var _debug_menu: PanelContainer
-var _mode_buttons := {}
+# --- world 2D/3D toggle (shared: the ` menu's face button, the O key, and the persistent top-right btn) ---
+var _flat_2d := false   # false = 3D upright billboards, true = everything flat on the floor (2D map)
 
-func _build_debug_menu() -> void:
+## Flip the WHOLE world — every stratum — between 3D (upright billboards + wall blocks) and 2D
+## (everything laid flat on the floor, a classic top-down map). The renderer drops its frozen
+## geometry, so re-render the current snapshot to rebuild the live zone (and neighbours) in the new
+## mode — instant feedback instead of waiting for the next turn.
+## 1:1 FORCES flat (Qud renders tiles flat, as loaded — the 3D wall stretch/UV mapping is a user-mode
+## feature), so the toggle is locked out while 1:1 is on, like the camera modes.
+func _toggle_flat_2d() -> void:
+	if _one_to_one:
+		return                       # 1:1 owns the tile mode (flat); O is a no-op until user mode
+	_apply_flat_2d(not _flat_2d)
+
+## The shared apply path (O toggle + the 1:1 master switch): set the renderer mode, rebuild the
+## current snapshot in it, and sync the two UI mirrors of the state.
+func _apply_flat_2d(on: bool) -> void:
+	_flat_2d = on
+	renderer.set_flat_2d(on)
+	var live: Dictionary = store.live_snapshot()
+	if not live.is_empty():
+		renderer.render_snapshot(live, _neighbor_zones())
+	if _dbg_menu != null:
+		_dbg_menu.refresh_flat_2d(_flat_2d)   # the ` menu's mirror of this state
+	_refresh_wm_cards_btn()
+
+## Label for the persistent top-right button — the current tile mode (3D up vs 2D flat).
+func _refresh_wm_cards_btn() -> void:
+	if _wm_cards_btn == null:
+		return
+	_wm_cards_btn.text = "tiles (O): %s" % ("2D flat" if _flat_2d else "3D up")
+
+## Live-apply the deep-water depth: creatures are re-cropped in the dynamic pass, so
+## re-render the current snapshot (same zone -> only the cheap dynamics rebuild) for
+## instant feedback instead of waiting for the next turn.
+func _on_water_depth_changed(v: float) -> void:
+	renderer.deep_water_depth = v
+	var live: Dictionary = store.live_snapshot()
+	if not live.is_empty():
+		renderer.render_snapshot(live, _neighbor_zones())
+
+## Live-apply the level gap: only neighbour subtree positions change, so a re-render
+## just repositions the already-built stacks (no rebuild) — instant feedback.
+func _on_level_height_changed(v: float) -> void:
+	renderer.level_height = v
+	var live: Dictionary = store.live_snapshot()
+	if not live.is_empty():
+		renderer.render_snapshot(live, _neighbor_zones())
+
+## Top-right corner buttons, stacked in a VBox so they never overlap at any font size:
+##   ⟳ Reset            — restarts the whole program (picks up code changes) at the current size
+##   WM cards (O)       — the world-map card orientation toggle, with its live state on the label
+func _build_reset_button() -> void:
 	var layer := CanvasLayer.new()
-	layer.layer = 2
+	layer.layer = 3
 	add_child(layer)
-	var panel := PanelContainer.new()
-	panel.position = Vector2(14, 34)
-	panel.visible = false
-	layer.add_child(panel)
-	var vb := VBoxContainer.new()
-	panel.add_child(vb)
-	var title := Label.new()
-	title.text = "Debug · camera  (`)"
-	_debug_menu_title = title
-	vb.add_child(title)
-	for m in [CamMode.COMPASS, CamMode.FOLLOW, CamMode.FIRST_PERSON, CamMode.CINEMATIC,
-			CamMode.MOUSE, CamMode.KEYBOARD]:
-		var b := Button.new()
-		b.text = "%d  %s" % [m + 1, String(_MODE_NAMES[m]).split(" —")[0].split(" ·")[0]]
-		# click-only: don't take keyboard focus, or a focused button would swallow the
-		# movement arrows (Godot uses them for UI focus navigation) after any click.
-		b.focus_mode = Control.FOCUS_NONE
-		var mv: int = m
-		b.pressed.connect(func(): _set_mode(mv))
-		vb.add_child(b)
-		_mode_buttons[m] = b
-	# first-person eye-height slider
-	var hl := Label.new()
-	hl.text = "first-person height"
-	vb.add_child(hl)
-	var sld := HSlider.new()
-	sld.min_value = 0.15
-	sld.max_value = 3.0
-	sld.step = 0.05
-	sld.value = _fp_height
-	sld.custom_minimum_size = Vector2(160, 0)
-	sld.focus_mode = Control.FOCUS_NONE   # drag-only; keep arrows for the player
-	sld.value_changed.connect(func(v): _fp_height = v)
-	vb.add_child(sld)
-	_debug_menu = panel
-	_update_debug_menu()
+	# A VBox pinned to the top-right corner (grow LEFT to fit the widest label, DOWN to stack).
+	var box := VBoxContainer.new()
+	box.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	box.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	box.grow_vertical = Control.GROW_DIRECTION_END
+	box.offset_left = -10.0
+	box.offset_right = -10.0
+	box.offset_top = 10.0
+	box.add_theme_constant_override("separation", 6)
+	layer.add_child(box)
 
-func _toggle_debug_menu() -> void:
-	if _debug_menu != null:
-		_debug_menu.visible = not _debug_menu.visible
+	_reset_btn = Button.new()
+	_reset_btn.text = "⟳ Reset"
+	_reset_btn.focus_mode = Control.FOCUS_NONE   # click-only; keep arrows for the player
+	_reset_btn.size_flags_horizontal = Control.SIZE_SHRINK_END   # hug the right edge under the anchor
+	_reset_btn.pressed.connect(_reset_program)
+	box.add_child(_reset_btn)
 
-func _update_debug_menu() -> void:
-	for m in _mode_buttons:
-		(_mode_buttons[m] as Button).modulate = Color(0.55, 1.0, 0.55) if m == _mode else Color(1, 1, 1)
+	# The 2D/3D toggle, surfaced as a persistent button (not just the ` debug menu and the O key) so
+	# its effect is discoverable — the label shows the current tile mode (3D up vs 2D flat).
+	_wm_cards_btn = Button.new()
+	_wm_cards_btn.focus_mode = Control.FOCUS_NONE
+	_wm_cards_btn.size_flags_horizontal = Control.SIZE_SHRINK_END
+	_wm_cards_btn.pressed.connect(_toggle_flat_2d)
+	box.add_child(_wm_cards_btn)
+	_refresh_wm_cards_btn()
+
+	_reset_btn.add_theme_font_size_override("font_size", UiFont.px(get_viewport()))
+	_wm_cards_btn.add_theme_font_size_override("font_size", UiFont.px(get_viewport()))
+
+## Relaunch the process, preserving the current window size via --resolution (a plain
+## reload_current_scene would keep the old cached scripts; a restart re-reads them).
+func _reset_program() -> void:
+	_save_settings()   # persist before the restart (quit() doesn't fire WM_CLOSE_REQUEST)
+	var sz := DisplayServer.window_get_size()
+	var restart := PackedStringArray(["--resolution", "%dx%d" % [sz.x, sz.y]])
+	# If highvisor launched us in --launch-qud mode, re-pass those user args so the
+	# restarted instance stays borderless and re-adopts the still-running Qud (the
+	# quit() below doesn't fire WM_CLOSE_REQUEST, so QudLauncher leaves Qud alive).
+	var qargs := QudLauncher.relaunch_args()
+	if not qargs.is_empty():
+		restart.append("--")
+		restart.append_array(qargs)
+	OS.set_restart_on_exit(true, restart)
+	get_tree().quit()
+
+## Save on window close (the X); the Reset button saves explicitly in _reset_program.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		_save_settings()
+
+## Persist the view/render settings a run should remember.
+func _save_settings() -> void:
+	var sz := DisplayServer.window_get_size()
+	var d := {
+		"mode": _cam_rig._mode,
+		"compass_yaw": _cam_rig._compass_yaw,
+		"compass_45": _cam_rig._compass_45,
+		"look_head": _cam_rig._look_head,
+		"dist": _cam_rig._dist,
+		"top_zoom": _cam_rig._top_zoom,
+		"fp_height": _cam_rig._fp_height,
+		"water_depth": (renderer.deep_water_depth if renderer != null else 0.6),
+		"level_height": (renderer.level_height if renderer != null else 4.0),
+		"win": [sz.x, sz.y],
+	}
+	var f := FileAccess.open(SETTINGS_PATH, FileAccess.WRITE)
+	if f != null:
+		f.store_string(JSON.stringify(d))
+		f.close()
+
+## Restore what _save_settings wrote. Sets values only (no _set_mode — the label isn't
+## built yet); the mode's camera/renderer setup follows from the rig's _mode in its _update_camera and
+## the set_top_down call here. Missing/invalid keys keep the code defaults.
+func _load_settings() -> void:
+	if not FileAccess.file_exists(SETTINGS_PATH):
+		return
+	var d = JSON.parse_string(FileAccess.get_file_as_string(SETTINGS_PATH))
+	if typeof(d) != TYPE_DICTIONARY:
+		return
+	_cam_rig._compass_yaw = float(d.get("compass_yaw", _cam_rig._compass_yaw))
+	_cam_rig._compass_45 = bool(d.get("compass_45", _cam_rig._compass_45))
+	_cam_rig._look_head = bool(d.get("look_head", _cam_rig._look_head))
+	_cam_rig._dist = clampf(float(d.get("dist", _cam_rig._dist)), _cam_rig.DIST_MIN, _cam_rig.DIST_MAX)
+	_cam_rig._top_zoom = clampf(float(d.get("top_zoom", _cam_rig._top_zoom)), _cam_rig.TOP_ZOOM_MIN, _cam_rig.TOP_ZOOM_MAX)
+	_cam_rig._fp_height = clampf(float(d.get("fp_height", _cam_rig._fp_height)), 0.15, 3.0)
+	if renderer != null:
+		renderer.deep_water_depth = clampf(float(d.get("water_depth", renderer.deep_water_depth)), 0.0, 1.0)
+		renderer.level_height = clampf(float(d.get("level_height", renderer.level_height)), 0.0, 16.0)
+	var win = d.get("win", null)
+	# Skip in launch-qud mode: QudLauncher owns the window geometry there (borderless
+	# quadrant), and a saved size would fight it when entering gameplay.
+	if win is Array and win.size() == 2 and int(win[0]) > 200 and int(win[1]) > 200 \
+			and not QudLauncher.active:
+		DisplayServer.window_set_size(Vector2i(int(win[0]), int(win[1])))
+	var m := int(d.get("mode", _cam_rig._mode))
+	if m >= 0 and m <= CamMode.TOP_FOLLOW:
+		_cam_rig._mode = m
+		if renderer != null:
+			renderer.set_top_down(m == CamMode.TOP_FOLLOW)
 
 # --- input ------------------------------------------------------------------
 
+## Direction-picker input is handled in _input (BEFORE the GUI), because the frame's container Controls
+## consume mouse clicks over the Holodeck before they'd reach _unhandled_input. Only consumes while
+## picking; otherwise events flow to the GUI / _unhandled_input as normal.
+func _input(event: InputEvent) -> void:
+	if _picker.is_picking() and _picker.handle_input(event):
+		get_viewport().set_input_as_handled()
+		return
+	# Inspect clicks must be caught HERE (before the GUI): when the Holodeck is embedded in MainFrame, the
+	# frame's container Controls eat mouse clicks over it before _unhandled_input — the same reason the
+	# picker lives here. Ctrl/Cmd+click inspects; Ctrl/Cmd+right-click inspects AND photographs both apps.
+	# (Non-inspect mouse — MOUSE-mode orbit/pan, wheel zoom — stays in _unhandled_input.)
+	if event is InputEventMouseButton and event.pressed and (event.ctrl_pressed or event.meta_pressed):
+		if event.button_index == MOUSE_BUTTON_LEFT:
+			_inspect()
+			get_viewport().set_input_as_handled()
+		elif event.button_index == MOUSE_BUTTON_RIGHT:
+			_inspect_and_capture()
+			get_viewport().set_input_as_handled()
+
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
+		# Shift+Space: wait a turn in Qud (a Godot->Qud passthrough). Takes a turn for now.
+		if event.shift_pressed and event.keycode == KEY_SPACE:
+			client.send_command("wait", {}); return
+		# F1 opens the controls chooser. (While it's open it swallows input via its
+		# own _input, so this handler won't see keys until it closes.)
+		if event.keycode == KEY_F1:
+			onboarding.open(); return
+		# Ctrl+M: toggle 1:1 (parity) mode — camera + panels flip to Qud-faithful, and back.
+		# Ctrl (not Cmd, which is macOS "minimize"); the highvisor 1:1 button injects this same key.
+		if event.keycode == KEY_M and event.ctrl_pressed \
+				and not (event.meta_pressed or event.shift_pressed or event.alt_pressed):
+			toggle_one_to_one(); return
+		# Ctrl+Shift+W: Qud's wish shortcut. Opens a text prompt in Raves; on Enter we ship the wish
+		# to Qud over the bridge (it runs Qud's own wish handler). Lets us grant xp, spawn items, etc.
+		if event.keycode == KEY_W and event.ctrl_pressed and event.shift_pressed \
+				and not event.meta_pressed:
+			_open_wish(); return
+		# Dedicated stress-test wishes (single combo, no text prompt) — bump the EXP / HP bars straight
+		# from Qud's own wish handler. X = +150 xp, H = -3 hp (hurt), J = full heal.
+		if event.ctrl_pressed and event.shift_pressed and not event.meta_pressed:
+			if event.keycode == KEY_X:
+				client.send_command("wish", {"wish": "xp:150"}); return
+			if event.keycode == KEY_H:
+				client.send_command("wish", {"wish": "statpenalty:Hitpoints:3"}); return
+			if event.keycode == KEY_J:
+				client.send_command("wish", {"wish": "statpenalty:Hitpoints:-9999"}); return
 		# mode switches first — they reassign what the arrows mean
 		if event.shift_pressed and event.keycode == KEY_C:
 			_set_mode(CamMode.MOUSE); return
@@ -828,6 +977,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			_set_mode(CamMode.KEYBOARD); return
 		if event.shift_pressed and event.keycode == KEY_F:
 			_set_mode(CamMode.FOLLOW); return
+		# Plain F = FIRE (forwarded to Qud), NOT a camera key. Qud runs its own fire/targeting flow.
+		# (Temporary Raves keybinds are being retired; Qud's own controls arrive next.)
+		if event.keycode == KEY_F and not event.shift_pressed \
+				and not (event.ctrl_pressed or event.meta_pressed or event.alt_pressed):
+			request_command("CmdFire"); return
 		# camera modes by number (mirrored in the ` debug menu)
 		if event.keycode == KEY_1: _set_mode(CamMode.COMPASS); return
 		if event.keycode == KEY_2: _set_mode(CamMode.FOLLOW); return
@@ -835,46 +989,90 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.keycode == KEY_4: _set_mode(CamMode.CINEMATIC); return
 		if event.keycode == KEY_5: _set_mode(CamMode.MOUSE); return
 		if event.keycode == KEY_6: _set_mode(CamMode.KEYBOARD); return
+		if event.keycode == KEY_7: _set_mode(CamMode.TOP_FOLLOW); return
+		if event.keycode == KEY_0 and not _one_to_one: _multiview.toggle(); return   # 0 = all-views grid (locked out in 1:1)
 		if event.keycode == KEY_QUOTELEFT:      # ` toggles the debug menu
-			_toggle_debug_menu(); return
-		# Q/E rotate the locked compass heading 90° (COMPASS mode only)
-		if _mode == CamMode.COMPASS and event.keycode == KEY_Q:
-			_compass_yaw -= PI * 0.5; return
-		if _mode == CamMode.COMPASS and event.keycode == KEY_E:
-			_compass_yaw += PI * 0.5; return
+			_dbg_menu.toggle(); return
+		# B: "become anything" character-creator menu (pick a blueprint to embody)
+		if event.keycode == KEY_B and not event.shift_pressed \
+				and not (event.ctrl_pressed or event.meta_pressed):
+			_char_creator.toggle(renderer.tiles_dir().get_base_dir()); return
+		# O: flip the whole world 3D (billboards) <-> 2D (flat on the floor). (Was B; moved off B
+		# when the character-creator merge took B for "become".)
+		if event.keycode == KEY_O:
+			_toggle_flat_2d(); return
+		# Q/E rotate the locked compass heading (COMPASS mode only), 45° or 90° per _compass_45
+		if _cam_rig._mode == CamMode.COMPASS and event.keycode == KEY_Q:
+			_cam_rig._compass_yaw += _cam_rig.compass_step(); return
+		if _cam_rig._mode == CamMode.COMPASS and event.keycode == KEY_E:
+			_cam_rig._compass_yaw -= _cam_rig.compass_step(); return
+		# W / X dolly the camera one tile forward / back along its heading — move the
+		# camera like the player. Discrete per press; pairs with S/D vertical pan. Not
+		# in FLY (WASD drives the free camera there), and not in 1:1 — Qud's camera is
+		# the letterbox model only (zoom + clamped player follow), never a free dolly.
+		if _cam_rig._mode != CamMode.KEYBOARD and not _one_to_one and event.keycode == KEY_W:
+			_cam_rig._cam_pan += _cam_rig.cam_forward() * _cam_rig.CAM_STEP; return
+		if _cam_rig._mode != CamMode.KEYBOARD and not _one_to_one and event.keycode == KEY_X:
+			_cam_rig._cam_pan -= _cam_rig.cam_forward() * _cam_rig.CAM_STEP; return
+		# S / D = go UP / DOWN stairs (Qud's climb commands CmdMoveU / CmdMoveD; Down also
+		# pulls down from the world map). Direct command injection — NOT a raw keymap
+		# forward, so it works whatever s/d are bound to in Qud. Mirrors the top-bar
+		# ▲ Up / ▼ Down buttons. Skipped in FLY (KEYBOARD) mode, where WASD flies the camera.
+		if _cam_rig._mode != CamMode.KEYBOARD and event.keycode == KEY_S:
+			client.send_command("command", {"command": "CmdMoveU"}); return
+		if _cam_rig._mode != CamMode.KEYBOARD and event.keycode == KEY_D:
+			client.send_command("command", {"command": "CmdMoveD"}); return
 		if event.keycode == KEY_ESCAPE:
+			# close the camera/debug menu and any selection, but KEEP the current camera
 			_dismiss_selection()
-			_set_mode(CamMode.COMPASS); return
+			if _dbg_menu != null:
+				_dbg_menu.close()
+			if _char_creator != null:
+				_char_creator.visible = false
+			return
 		if event.keycode == KEY_I:
 			_inspect(); return
+		if event.keycode == KEY_L:
+			_toggle_font_preview(); return   # L: font-size ruler (Lorem Ipsum at each px)
 		if event.keycode == KEY_F12:
 			_screenshot(); return
 		if event.keycode == KEY_P:
 			_dump_profile(); return   # P: macOS grabs F9 (Mission Control)
-		if event.keycode == KEY_MINUS:
+		if event.keycode == KEY_MINUS or event.keycode == KEY_KP_SUBTRACT:
+			if _one_to_one and _cam_rig._mode == CamMode.TOP_FOLLOW:
+				_cam_rig.zoom_1to1_step(-1); return   # Qud's CmdZoomOut (quarter step, floor = fit)
 			inspector.nudge_font(-2)
 			reporter.nudge_font(-2); return
-		if event.keycode == KEY_EQUAL:
+		if event.keycode == KEY_EQUAL or event.keycode == KEY_KP_ADD:
+			if _one_to_one and _cam_rig._mode == CamMode.TOP_FOLLOW:
+				_cam_rig.zoom_1to1_step(1); return    # Qud's CmdZoomIn (quarter step)
 			inspector.nudge_font(2)
 			reporter.nudge_font(2); return
 		# in KEYBOARD mode the arrows drive the camera, not the player
-		if _mode == CamMode.KEYBOARD:
+		if _cam_rig._mode == CamMode.KEYBOARD:
 			return
-		# Arrows move the PLAYER relative to the camera heading — "up" is always
-		# forward on screen, whichever way the camera faces (the Godot->Qud
-		# translation). Numpad stays ABSOLUTE 8-way compass as a precise fallback.
-		# FIRST-PERSON turns in place on L/R (Shift+L/R strafes) instead of moving.
+		# Arrows move the PLAYER relative to the camera heading — "up" is always forward on
+		# screen (the Godot->Qud translation). SHIFT+arrow = that direction rotated 45° to the
+		# DIAGONAL (Up=NE, Right=SE, Down=SW, Left=NW). FIRST-PERSON turns in place on plain
+		# L/R; Ctrl/Cmd+Shift+L/R strafes there. Numpad is the ABSOLUTE 8-way fallback.
+		var mod: bool = event.ctrl_pressed or event.meta_pressed
+		var diag: bool = event.shift_pressed and not mod    # Shift alone -> diagonal move
+		var strafe_mod: bool = event.shift_pressed and mod  # Ctrl/Cmd+Shift -> strafe (first-person)
 		match event.keycode:
-			KEY_UP:    _move_relative(Vector2(0, 1))    # forward
-			KEY_DOWN:  _move_relative(Vector2(0, -1))   # back
+			KEY_UP:    _move_relative(Vector2(1, 1) if diag else Vector2(0, 1))      # NE / forward
+			KEY_DOWN:  _move_relative(Vector2(-1, -1) if diag else Vector2(0, -1))   # SW / back
 			KEY_LEFT:
-				if _mode == CamMode.FIRST_PERSON and not event.shift_pressed:
-					_compass_yaw += PI * 0.25            # turn left 45°
+				if diag:
+					_move_relative(Vector2(-1, 1))       # NW diagonal
+				elif _cam_rig._mode == CamMode.FIRST_PERSON and not strafe_mod:
+					_cam_rig._compass_yaw += PI * 0.25            # turn left 45°
 				else:
-					_move_relative(Vector2(-1, 0))       # strafe left
+					_move_relative(Vector2(-1, 0))       # strafe left (non-FP, or FP Ctrl+Shift)
 			KEY_RIGHT:
-				if _mode == CamMode.FIRST_PERSON and not event.shift_pressed:
-					_compass_yaw -= PI * 0.25            # turn right 45°
+				if diag:
+					_move_relative(Vector2(1, -1))       # SE diagonal
+				elif _cam_rig._mode == CamMode.FIRST_PERSON and not strafe_mod:
+					_cam_rig._compass_yaw -= PI * 0.25            # turn right 45°
 				else:
 					_move_relative(Vector2(1, 0))        # strafe right
 			KEY_KP_8: client.send_command("move", {"dir": "N"})
@@ -888,31 +1086,94 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventMouseButton:
 		match event.button_index:
 			MOUSE_BUTTON_LEFT:
-				# Ctrl/Cmd+click inspects; a plain click orbits (MOUSE mode)
-				if event.pressed and (event.ctrl_pressed or event.meta_pressed):
-					_inspect()
-				else:
-					_orbiting = event.pressed and _mode == CamMode.MOUSE
+				# Ctrl/Cmd+click inspect is handled in _input (containers eat it here when embedded);
+				# a plain click orbits (MOUSE mode).
+				_cam_rig._orbiting = event.pressed and _cam_rig._mode == CamMode.MOUSE
 			MOUSE_BUTTON_RIGHT, MOUSE_BUTTON_MIDDLE:
-				# Ctrl/Cmd + right-click = inspect AND photograph both apps, so a
-				# single gesture hands over coordinates, wire data and the picture.
-				if (event.pressed and event.button_index == MOUSE_BUTTON_RIGHT
-						and (event.ctrl_pressed or event.meta_pressed)):
-					_inspect_and_capture()
-				else:
-					_panning = event.pressed and _mode == CamMode.MOUSE
-			MOUSE_BUTTON_WHEEL_UP:   if event.pressed: _dist = clampf(_dist * 0.9, DIST_MIN, DIST_MAX)
-			MOUSE_BUTTON_WHEEL_DOWN: if event.pressed: _dist = clampf(_dist * 1.1, DIST_MIN, DIST_MAX)
+				# Ctrl/Cmd+right-click inspect+capture is handled in _input; a plain right/middle pans.
+				_cam_rig._panning = event.pressed and _cam_rig._mode == CamMode.MOUSE
+			MOUSE_BUTTON_WHEEL_UP:
+				if event.pressed:
+					if _one_to_one and _cam_rig._mode == CamMode.TOP_FOLLOW:
+						_cam_rig.zoom_1to1_step(1)     # Qud's quarter-step zoom in (min factor 1.0 = fit)
+					elif _cam_rig._mode == CamMode.TOP_FOLLOW:
+						_cam_rig._top_zoom = clampf(_cam_rig._top_zoom * 0.9, _cam_rig.TOP_ZOOM_MIN, _cam_rig.TOP_ZOOM_MAX)
+					else:
+						_cam_rig._dist = clampf(_cam_rig._dist * 0.9, _cam_rig.DIST_MIN, _cam_rig.DIST_MAX)
+			MOUSE_BUTTON_WHEEL_DOWN:
+				if event.pressed:
+					if _one_to_one and _cam_rig._mode == CamMode.TOP_FOLLOW:
+						_cam_rig.zoom_1to1_step(-1)    # Qud's quarter-step zoom out (stops at the zone fit)
+					elif _cam_rig._mode == CamMode.TOP_FOLLOW:
+						_cam_rig._top_zoom = clampf(_cam_rig._top_zoom * 1.1, _cam_rig.TOP_ZOOM_MIN, _cam_rig.TOP_ZOOM_MAX)
+					else:
+						_cam_rig._dist = clampf(_cam_rig._dist * 1.1, _cam_rig.DIST_MIN, _cam_rig.DIST_MAX)
 	elif event is InputEventMouseMotion:
-		if _orbiting:
-			_yaw += event.relative.x * ORBIT_SENS
-			_pitch = clampf(_pitch + event.relative.y * ORBIT_SENS, PITCH_MIN, PITCH_MAX)
-		elif _panning:
+		if _cam_rig._orbiting:
+			_cam_rig._yaw += event.relative.x * _cam_rig.ORBIT_SENS
+			_cam_rig._pitch = clampf(_cam_rig._pitch + event.relative.y * _cam_rig.ORBIT_SENS, _cam_rig.PITCH_MIN, _cam_rig.PITCH_MAX)
+		elif _cam_rig._panning:
 			# pan along the ground plane, scaled by zoom so it feels constant
-			var right := _cam.global_transform.basis.x
-			var fwd := -_cam.global_transform.basis.z
+			var right: Vector3 = _cam_rig._cam.global_transform.basis.x
+			var fwd: Vector3 = -_cam_rig._cam.global_transform.basis.z
 			right.y = 0.0; fwd.y = 0.0
 			right = right.normalized(); fwd = fwd.normalized()
-			var speed := _dist * 0.0016
+			var speed: float = _cam_rig._dist * 0.0016
 			# grab-the-world: drag right moves the world right (camera goes left)
-			_pan += (-right * event.relative.x - fwd * event.relative.y) * speed
+			_cam_rig._pan += (-right * event.relative.x - fwd * event.relative.y) * speed
+
+# ── Wish prompt (Ctrl+Shift+W) ───────────────────────────────────────────────
+# A minimal text prompt that ships whatever you type to Qud's own wish handler over the bridge (grant
+# xp, spawn items, …), no Qud-side prompt needed. A user-mode button will front this later; for now the
+# shortcut is the entry point. send_command no-ops if the bridge isn't connected.
+func _open_wish() -> void:
+	if _wish_layer == null:
+		_wish_layer = CanvasLayer.new()
+		_wish_layer.layer = 128
+		add_child(_wish_layer)
+		var center := CenterContainer.new()
+		center.set_anchors_preset(Control.PRESET_FULL_RECT)
+		center.theme = UiFont.make_theme(get_viewport())   # avoid the CanvasLayer tiny-font trap
+		_wish_layer.add_child(center)
+		var panel := PanelContainer.new()
+		var pstyle := StyleBoxFlat.new()
+		pstyle.bg_color = Color(0.05, 0.06, 0.07, 0.96)
+		pstyle.set_content_margin_all(14)
+		pstyle.border_color = Color(0.30, 0.40, 0.45)
+		pstyle.set_border_width_all(1)
+		panel.add_theme_stylebox_override("panel", pstyle)
+		center.add_child(panel)
+		var vb := VBoxContainer.new()
+		vb.add_theme_constant_override("separation", 6)
+		panel.add_child(vb)
+		var lbl := Label.new()
+		lbl.text = "Wish  (Enter to send · Esc to cancel)"
+		vb.add_child(lbl)
+		_wish_edit = LineEdit.new()
+		_wish_edit.custom_minimum_size = Vector2(460, 0)
+		_wish_edit.placeholder_text = "e.g. xp:5000"
+		_wish_edit.text_submitted.connect(_on_wish_submitted)
+		_wish_edit.gui_input.connect(func(e: InputEvent) -> void:
+			if e is InputEventKey and e.pressed and e.keycode == KEY_ESCAPE:
+				_close_wish())
+		vb.add_child(_wish_edit)
+	_wish_layer.visible = true
+	_wish_edit.text = ""
+	_wish_edit.grab_focus()
+
+func _on_wish_submitted(text: String) -> void:
+	var w := text.strip_edges()
+	if w != "" and client != null:
+		client.send_command("wish", {"wish": w})
+		# The wish drains on Qud's game thread (Tick), which does NOT run while Qud sits
+		# unfocused with no turn passing — the wish silently pends and "wishing doesn't
+		# work". Chase it with a wait: PushCommand wakes the parked input loop even
+		# unfocused, the turn ticks, the wish applies, and the snapshot refreshes Raves.
+		client.send_command("wait", {})
+	_close_wish()
+
+func _close_wish() -> void:
+	if _wish_layer != null:
+		_wish_layer.visible = false
+	if _wish_edit != null:
+		_wish_edit.release_focus()

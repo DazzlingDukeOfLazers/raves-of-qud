@@ -36,11 +36,17 @@ const CHECKER_PX := 10           # checkerboard square size
 
 var _panel: PanelContainer
 var _label: RichTextLabel
-var _mark_pad: MeshInstance3D
-var _mark_pin: MeshInstance3D
-var _font_size := FONT_SIZE_DEFAULT
+var _mark_box: MeshInstance3D   # dashed wireframe outlining the whole 3D tile
+var _mark_pin: MeshInstance3D   # dashed finder line rising from the tile top
+var _font_bump := 0   # live +/- nudge (px) on top of the UiFont source-of-truth size
 var _last_report := ""
+
+## The selection-log font size: the project's source-of-truth body size plus the user's nudge,
+## capped so a big nudge can't overflow. The mono FACE is set separately (columns must line up).
+func _cur_font() -> int:
+	return mini(FONT_SIZE_MAX, UiFont.px(get_viewport(), "body", _font_bump))
 var _selected = null      # Vector2i of the last inspected tile
+var _saved_overlay := {}  # visibility snapshot while a clean screenshot is taken
 
 # sprite preview (upper right): the real billboard texture turning over a
 # checkerboard, so filled-vs-transparent is visible rather than inferred
@@ -71,11 +77,15 @@ func on_snapshot(data: Dictionary) -> void:
 ## the ray lands on, so clicking the *top* of a tall wall reports the cell behind
 ## it. Aim at the ground, or orbit overhead, when picking near walls.
 func _ground_hit() -> Variant:
-	if _cam == null:
+	return _ground_hit_cam(_cam, get_viewport().get_mouse_position())
+
+## Ground-plane hit for an arbitrary camera + viewport-local mouse position (so a
+## multi-view pane can pick with its own camera).
+func _ground_hit_cam(cam: Camera3D, mp: Vector2) -> Variant:
+	if cam == null:
 		return null
-	var mp := get_viewport().get_mouse_position()
-	var from := _cam.project_ray_origin(mp)
-	var dir := _cam.project_ray_normal(mp)
+	var from := cam.project_ray_origin(mp)
+	var dir := cam.project_ray_normal(mp)
 	if absf(dir.y) < 1e-6:
 		return null
 	var t := -from.y / dir.y
@@ -105,15 +115,22 @@ func selected_tile() -> Variant:
 	return _selected
 
 func inspect_at_mouse() -> void:
-	var hit = _ground_hit()
+	inspect_at(_cam, get_viewport().get_mouse_position())
+
+## Inspect using a specific camera + viewport-local mouse position. The main view passes
+## its camera + the window mouse; a multi-view pane passes its own camera + pane-local pos.
+## The marker is a node in the shared 3D world, so it shows in every pane at once.
+func inspect_at(cam: Camera3D, mp: Vector2, zscale := 1.0) -> void:
+	var hit = _ground_hit_cam(cam, mp)
 	if hit == null:
 		return
-	var cell := _pick_cell(hit)
-	var cx := cell.x
-	var cy := cell.y
+	# `zscale` > 1 means the world is Z-stretched for the top-down view; divide the
+	# north-south hit back to unstretched cell coords.
+	var h := Vector3(hit.x, hit.y, hit.z / zscale)
+	var cell := _pick_cell(h, cam, mp)
 	_selected = cell
-	var report := build_report(cx, cy, hit)
-	_show(report, cx, cy)
+	var report := build_report(cell.x, cell.y, h)
+	_show(report, cell.x, cell.y)
 	DisplayServer.clipboard_set(report)
 	_write(report)
 
@@ -126,11 +143,11 @@ func _occupied(c: Vector2i) -> bool:
 ## the hit cell is empty we march the hit point back TOWARD the camera and snap to the
 ## first occupied cell: the wall the user actually clicked. Accurate picks (overhead,
 ## or clicking bare ground with nothing between) return the hit cell unchanged.
-func _pick_cell(hit: Vector3) -> Vector2i:
+func _pick_cell(hit: Vector3, cam: Camera3D, mp: Vector2) -> Vector2i:
 	var cell := Vector2i(roundi(hit.x), roundi(hit.z))
-	if _occupied(cell) or _cam == null:
+	if _occupied(cell) or cam == null:
 		return cell
-	var dir := _cam.project_ray_normal(get_viewport().get_mouse_position())
+	var dir := cam.project_ray_normal(mp)
 	var back := Vector2(-dir.x, -dir.z)      # toward the camera, on the ground plane
 	if back.length() < 1e-6:
 		return cell
@@ -145,12 +162,20 @@ func _pick_cell(hit: Vector3) -> Vector2i:
 
 # --- the report -------------------------------------------------------------
 
+## Qud LightLevel byte -> a short human label (matches ZoneRenderer's darkness mapping).
+func _light_name(lv: int) -> String:
+	if lv <= 0: return "(Blackout)"
+	if lv == 1: return "(None — dark)"
+	if lv < 30: return "(darkvision — reads dark)"
+	if lv < 200: return "(Safelight — dim)"
+	return "(Lit)"
+
 func build_report(cx: int, cy: int, hit: Vector3) -> String:
 	var L: Array[String] = []
 	var zone: Dictionary = _snap.get("zone", {})
 	var player: Dictionary = _snap.get("player", {})
 
-	L.append("=== Raves of Qud — cell %d,%d ===" % [cx, cy])
+	L.append("=== %s — cell %d,%d ===" % [Brand.GAME_NAME, cx, cy])
 	L.append("mod build: %s" % String(_snap.get("mod", "?? (pre-marker build — restart Qud)")))
 	L.append("zone %s  %sx%s   player (%s,%s)   picked at world (%.2f, %.2f)" % [
 		zone.get("id", "?"), zone.get("width", "?"), zone.get("height", "?"),
@@ -170,8 +195,10 @@ func build_report(cx: int, cy: int, hit: Vector3) -> String:
 	var cell: Dictionary = _by_cell[Vector2i(cx, cy)]
 	_update_preview(cell)
 	var sink := _renderer.cell_sink(cell) if _renderer != null else 0.0
-	L.append("cell flags: bridge=%s wade=%s swim=%s   -> sink %.2f" % [
-		cell.get("bridge", false), cell.get("wade", false), cell.get("swim", false), sink])
+	var lv := int(cell.get("light", -1))
+	var lstr := "n/a (pre-cell-light mod)" if lv < 0 else "%d %s" % [lv, _light_name(lv)]
+	L.append("cell flags: bridge=%s wade=%s swim=%s  light=%s   -> sink %.2f" % [
+		cell.get("bridge", false), cell.get("wade", false), cell.get("swim", false), lstr, sink])
 
 	# what the renderer did, keyed by object index so it lines up below
 	var acts := {}
@@ -281,9 +308,9 @@ func _show(report: String, cx: int, cy: int) -> void:
 	_last_report = report
 	_repaint()
 	_panel.visible = true
-	_mark_pad.position = Vector3(cx, 0.30, cy)
-	_mark_pin.position = Vector3(cx, 1.60, cy)
-	_mark_pad.visible = true
+	_mark_box.position = Vector3(cx, 0.0, cy)
+	_mark_pin.position = Vector3(cx, 0.0, cy)
+	_mark_box.visible = true
 	_mark_pin.visible = true
 
 ## Re-flow the current report for the current font size. How many lines fit
@@ -291,9 +318,12 @@ func _show(report: String, cx: int, cy: int) -> void:
 func _repaint() -> void:
 	if _last_report == "":
 		return
+	# Re-apply the size from the CURRENT window every repaint — it was only set once at build time
+	# (when the window was still small), so it never grew to the source-of-truth size.
+	_label.add_theme_font_size_override("normal_font_size", _cur_font())
 	var lines := _last_report.split("\n")
 	var avail := get_viewport().get_visible_rect().size.y - 48.0
-	var fits := maxi(6, floori(avail / (_font_size * LINE_HEIGHT_RATIO)))
+	var fits := maxi(6, floori(avail / (_cur_font() * LINE_HEIGHT_RATIO)))
 	if lines.size() <= fits:
 		_label.text = _last_report
 	else:
@@ -306,8 +336,8 @@ func _repaint() -> void:
 func nudge_font(delta: int) -> void:
 	if not _panel.visible:
 		return
-	_font_size = clampi(_font_size + delta, FONT_SIZE_MIN, FONT_SIZE_MAX)
-	_label.add_theme_font_size_override("normal_font_size", _font_size)
+	_font_bump = clampi(_font_bump + delta, -14, 40)
+	_label.add_theme_font_size_override("normal_font_size", _cur_font())
 	_repaint()
 
 ## Temporarily hide the report so a screenshot shows the scene, not the text.
@@ -322,8 +352,31 @@ func set_panel_visible(v: bool) -> void:
 func hide_panel() -> void:
 	_panel.visible = false
 	_preview.visible = false
-	_mark_pad.visible = false
+	_mark_box.visible = false
 	_mark_pin.visible = false
+
+## Hide the ENTIRE selection overlay — report panel, preview, AND the 3D marker —
+## then restore exactly what was showing. The capture gesture uses this to shoot a
+## bare plate of the scene before the selection is drawn.
+func overlay_visible() -> bool:
+	return panel_visible() or (_mark_box != null and _mark_box.visible)
+
+func set_overlay_visible(v: bool) -> void:
+	if not v:
+		_saved_overlay = {
+			"panel": _panel.visible, "preview": _preview.visible,
+			"box": _mark_box.visible, "pin": _mark_pin.visible,
+		}
+		set_panel_visible(false)
+		_preview.visible = false
+		_mark_box.visible = false
+		_mark_pin.visible = false
+	elif not _saved_overlay.is_empty():
+		set_panel_visible(_saved_overlay["panel"])
+		_preview.visible = _saved_overlay["preview"]
+		_mark_box.visible = _saved_overlay["box"]
+		_mark_pin.visible = _saved_overlay["pin"]
+		_saved_overlay = {}
 
 # --- scaffolding ------------------------------------------------------------
 
@@ -349,7 +402,7 @@ func _build_ui() -> void:
 	# no wrapping: the report is column-aligned, and a wrap destroys the alignment
 	_label.autowrap_mode = TextServer.AUTOWRAP_OFF
 	_label.add_theme_color_override("default_color", Color(0.85, 0.95, 0.85))
-	_label.add_theme_font_size_override("normal_font_size", _font_size)
+	_label.add_theme_font_size_override("normal_font_size", _cur_font())
 	# monospace, so tile names and flag columns line up
 	# Atkinson Hyperlegible Mono (bundled). The report is column-aligned — tile
 	# names, flag columns — so the label needs a MONOSPACE cut, not the project's
@@ -416,7 +469,7 @@ func _build_preview() -> void:
 
 	_preview_caption = Label.new()
 	_preview_caption.position = Vector2(0, PREVIEW_PX + 2)
-	_preview_caption.add_theme_font_size_override("font_size", 13)
+	_preview_caption.add_theme_font_size_override("font_size", UiFont.px(get_viewport(), "caption"))
 	_preview_caption.add_theme_color_override("font_color", Color(0.8, 0.92, 0.8))
 	_preview.add_child(_preview_caption)
 
@@ -456,23 +509,111 @@ func _update_preview(cell: Dictionary) -> void:
 		return
 	_preview.visible = false
 
-func _build_marker() -> void:
-	var pad := BoxMesh.new()
-	pad.size = Vector3(1.0, 0.05, 1.0)
-	_mark_pad = MeshInstance3D.new()
-	_mark_pad.mesh = pad
-	_mark_pad.material_override = _marker_material(Color(1.0, 0.95, 0.3, 0.45))
-	_mark_pad.visible = false
-	add_child(_mark_pad)
+# Selection marker geometry. No fill: the marker is the tile's 3D volume drawn as
+# dashed edges (footprint just above the floor, up to a cell-tall top) plus a dashed
+# finder line rising from the top so the pick stays locatable behind walls.
+const MARK_FLOOR_LIFT := 0.01   # sit the footprint ring just clear of the floor quads
+const MARK_PIN_RISE := 1.6      # finder-line height above the tile top
+const MARK_DASH := 0.12         # dash length, world units
+const MARK_GAP := 0.09          # gap between dashes
+const MARK_COLOR := Color(1.0, 0.95, 0.3, 0.9)
 
-	# a pin so the selection stays findable behind walls / at a shallow pitch
-	var pin := BoxMesh.new()
-	pin.size = Vector3(0.07, 2.6, 0.07)
+func _build_marker() -> void:
+	# Parent the marker under the RENDERER (not the inspector) so it inherits the renderer's
+	# Z-stretch in top-down and stays aligned with the cells. Falls back to self if needed.
+	var parent: Node = _renderer if _renderer != null else self
+	_mark_box = MeshInstance3D.new()
+	_mark_box.mesh = _prism_outline_mesh()
+	_mark_box.material_override = _marker_material(MARK_COLOR)
+	_mark_box.visible = false
+	parent.add_child(_mark_box)
+
+	# a finder line so the selection stays findable behind walls / at a shallow pitch
 	_mark_pin = MeshInstance3D.new()
-	_mark_pin.mesh = pin
-	_mark_pin.material_override = _marker_material(Color(1.0, 0.95, 0.3, 0.9))
+	_mark_pin.mesh = _pin_mesh()
+	_mark_pin.material_override = _marker_material(MARK_COLOR)
 	_mark_pin.visible = false
-	add_child(_mark_pin)
+	parent.add_child(_mark_pin)
+
+## Dashed wireframe of the tile's 3D volume: a footprint ring just above the floor,
+## a matching ring at cell height, and the four vertical edges — the whole prism in
+## dashes, no fill. Built in cell-local space; _show sets the instance to the cell.
+func _prism_outline_mesh() -> ArrayMesh:
+	var y0 := ZoneRenderer.FLOOR_Y + MARK_FLOOR_LIFT
+	var y1 := ZoneRenderer.WALL_H
+	var h := 0.5
+	var c := [
+		Vector3(-h, y0, -h), Vector3(h, y0, -h), Vector3(h, y0, h), Vector3(-h, y0, h),
+		Vector3(-h, y1, -h), Vector3(h, y1, -h), Vector3(h, y1, h), Vector3(-h, y1, h),
+	]
+	var edges := [
+		[0, 1], [1, 2], [2, 3], [3, 0],   # footprint, just above the floor
+		[4, 5], [5, 6], [6, 7], [7, 4],   # top ring at cell height
+		[0, 4], [1, 5], [2, 6], [3, 7],   # vertical edges of the prism
+	]
+	var pts := PackedVector3Array()
+	for e in edges:
+		_dash_into(c[e[0]], c[e[1]], pts)
+	return _lines_mesh(pts)
+
+## A vertical dashed line from the tile top upward — the behind-walls finder.
+func _pin_mesh() -> ArrayMesh:
+	var top := ZoneRenderer.WALL_H
+	var pts := PackedVector3Array()
+	_dash_into(Vector3(0, top, 0), Vector3(0, top + MARK_PIN_RISE, 0), pts)
+	return _lines_mesh(pts)
+
+## Split a->b into dashes, appending each dash's two endpoints to `out`.
+func _dash_into(a: Vector3, b: Vector3, out: PackedVector3Array) -> void:
+	var seg := b - a
+	var total := seg.length()
+	if total < 1e-5:
+		return
+	var dir := seg / total
+	var step := MARK_DASH + MARK_GAP
+	var t := 0.0
+	while t < total:
+		out.append(a + dir * t)
+		out.append(a + dir * minf(t + MARK_DASH, total))
+		t += step
+
+## Each consecutive pair in `pts` is one dash, built as a thin 3D BOX with a world-unit
+## thickness (not a 1px line primitive). In perspective, near dashes then draw thicker than
+## far ones — a depth cue for the pick — and a box is visible from any angle. Plain geometry,
+## no shader (the earlier ribbon+shader version rendered nothing).
+const MARK_LINE_W := 0.02   # world half-thickness of the marker lines
+func _lines_mesh(pts: PackedVector3Array) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var any := false
+	var i := 0
+	while i + 1 < pts.size():
+		if _box_segment(st, pts[i], pts[i + 1], MARK_LINE_W):
+			any = true
+		i += 2
+	if not any:
+		return ArrayMesh.new()
+	return st.commit()
+
+## Append a thin rectangular prism from a→b (half-thickness w) to the SurfaceTool. Returns
+## false for a degenerate (zero-length) segment.
+func _box_segment(st: SurfaceTool, a: Vector3, b: Vector3, w: float) -> bool:
+	var d := b - a
+	var L := d.length()
+	if L < 1e-6:
+		return false
+	d /= L
+	var up := Vector3.UP if absf(d.dot(Vector3.UP)) < 0.99 else Vector3.RIGHT
+	var u := d.cross(up).normalized() * w
+	var v := d.cross(u).normalized() * w
+	var c := [
+		a - u - v, a + u - v, a + u + v, a - u + v,
+		b - u - v, b + u - v, b + u + v, b - u + v,
+	]
+	for fi in [0, 1, 2, 0, 2, 3,  4, 6, 5, 4, 7, 6,  0, 4, 5, 0, 5, 1,
+			1, 5, 6, 1, 6, 2,  2, 6, 7, 2, 7, 3,  3, 7, 4, 3, 4, 0]:
+		st.add_vertex(c[fi])
+	return true
 
 func _marker_material(col: Color) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()

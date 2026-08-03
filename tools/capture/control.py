@@ -9,7 +9,8 @@ WITHOUT a human at the keyboard. Two channels:
               with the running Godot viewer.
   2. Godot  — Claude can't send keys to Godot, only to Qud. So Godot polls a small
               command file (<RavesOfQud>/godot_cmd); we write lines it executes:
-              `shot` (save shot.png), `cam <1-6>` (camera mode), `fph <h>` (fp height).
+              `shot` (save shot.png), `cam <1-7>` (camera mode), `fph <h>` (fp height),
+              `onboard [screen]` (open/jump the onboarding UI: devices/ktype/layout/numpad/mouse/close).
 
 Examples:
     python3 tools/capture/control.py pos                 # print player cell + zone
@@ -19,6 +20,10 @@ Examples:
     python3 tools/capture/control.py shot                # Godot screenshot -> shot.png
     python3 tools/capture/control.py qudshot             # QUD's own screen -> qud_shot.png (no Godot needed)
     python3 tools/capture/control.py go N 3 qudshot      # 3 steps N, then read Qud's map (the dev loop)
+    python3 tools/capture/control.py zoo creatures 0     # build a debug zoo (pens+signs) in the current zone
+    python3 tools/capture/control.py zoo weapons         # dense labeled weapon cache
+    python3 tools/capture/control.py catalog             # dump become_catalog.json (what `become` accepts)
+    python3 tools/capture/control.py become Dresser      # turn the player INTO a dresser (any blueprint works)
 
 Requires Qud running with the bridge mod, and (for `shot`/`cam`) the Raves viewer open.
 """
@@ -151,8 +156,63 @@ def main(argv):
     elif cmd == "fph":
         godot("fph " + argv[1])
         print("godot: fp height", argv[1])
+    elif cmd == "onboard":
+        # `onboard` opens the chooser; `onboard <screen>` jumps to a screen
+        # (devices/ktype/layout/numpad/mouse); `onboard close` dismisses it.
+        arg = (" " + argv[1]) if len(argv) > 1 else ""
+        godot("onboard" + arg)
+        print("godot: onboard" + arg)
     elif cmd == "shot":
         print("shot.png updated" if godot_shot() else "shot: TIMED OUT (is the viewer open?)")
+    elif cmd == "wish":
+        # Execute a Qud wish (godmode, item:<blueprint>, reveal, ...). The wish is drained
+        # on the game thread between turns, so follow it with a wait to flush it even while
+        # Qud is unfocused; the post-wait snapshot then reflects the wish.
+        if len(argv) < 2:
+            sys.exit("usage: control.py wish <text>   e.g. wish godmode · wish item:Torch")
+        text = " ".join(argv[1:])
+        b = Bridge()
+        b.send("wish", wish=text)
+        b.send("wait")
+        print(player_line(b.read_snapshot()))
+        b.close()
+        print("wish sent:", text)
+    elif cmd == "export":
+        # Re-run Qud's DATA exporters (mods, options, …) NOW over the bridge — the clean
+        # trigger for refreshing RavesOfQud/*.json without ticking a fake turn. Qud must be
+        # in-game (bridge up); the mod's "export" command calls each exporter's ReExport().
+        b = Bridge()
+        b.send("export")
+        b.close()
+        print("export: requested (Qud re-exports its data files)")
+    elif cmd == "zoo":
+        # Build a debug showcase zone in-game. Sent to QUD over the bridge (not the
+        # godot_cmd file): `zoo [category] [page]`. category = creatures (default) /
+        # weapons / food / items / implants. Creatures paginate ~100 pens/zone.
+        cat = argv[1] if len(argv) > 1 else "creatures"
+        page = argv[2] if len(argv) > 2 else "0"
+        b = Bridge()
+        b.send("zoo", cat=cat, page=page)
+        b.close()
+        print("zoo: built %s page %s (move/wait once to refresh the snapshot)" % (cat, page))
+    elif cmd == "become":
+        # Turn the player INTO an arbitrary blueprint (creature/item/furniture).
+        # `become <Blueprint>`  e.g. `become Dresser` — yes, you can be an immobile
+        # dresser. Sent to QUD over the bridge (main-thread swap in the mod).
+        if len(argv) < 2:
+            sys.exit("usage: become <Blueprint>   (try `catalog` first for the list)")
+        bp = " ".join(argv[1:])   # blueprint names can contain spaces (e.g. "Iron Gate")
+        b = Bridge()
+        b.send("become", bp=bp)
+        b.close()
+        print("become: swapped to '%s' (move/wait once to refresh the snapshot)" % bp)
+    elif cmd == "catalog":
+        # Dump the pickable-blueprint catalog to <support>/become_catalog.json so the
+        # character-creator menu (and you) can see what `become` accepts.
+        b = Bridge()
+        b.send("catalog")
+        b.close()
+        print("catalog: wrote %s" % os.path.join(BASE, "become_catalog.json"))
     elif cmd == "qudshot":
         print("qud_shot.png updated" if qud_shot() else "qudshot: TIMED OUT (is Qud running?)")
     elif cmd == "go":

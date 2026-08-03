@@ -1,0 +1,14 @@
+{
+  "name": "compass-fullinfo",
+  "description": "Compass camera + full-info panels ON. Baseline for capturing the panels/HUD with exact stats shown (the debug/full view), so panel-parity shots are deterministic.",
+  "created": "2026-07-28T00:00:00",
+  "raves": {
+    "font_scale": 1.0,
+    "fullscreen": false,
+    "full_info": true,
+    "camera": 0,
+    "bridge_host": "127.0.0.1",
+    "bridge_port": 48710
+  },
+  "qud": {}
+}

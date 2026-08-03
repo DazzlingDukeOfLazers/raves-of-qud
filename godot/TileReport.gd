@@ -38,6 +38,7 @@ const VERDICTS := [
 	"FILL: wrong — see notes",
 	"POS: FLOAT centered in the tile",
 	"POS: seat on the GROUND (default)",
+	"EFFECT: bioluminescent GLOW",
 	"wrong COLOUR",
 	"wrong HEIGHT / scale",
 	"wrong POSITION / offset",
@@ -53,11 +54,14 @@ var _subject: OptionButton      # WHICH object in the tile the report is about
 var _notes: TextEdit
 var _status: Label
 
-const FONT := 19          # matches the inspector's readable default
 const PANEL_W := 520
 
-var _font := FONT
+var _font_bump := 0        # live +/- nudge (px) on top of the UiFont source-of-truth size
 var _title: Label
+
+## The form's font size: the project's source-of-truth body size plus the user's nudge.
+func _cur_font() -> int:
+	return mini(48, UiFont.px(get_viewport(), "body", _font_bump))
 var _send: Button
 var _cancel: Button
 var _menu: MenuButton
@@ -105,6 +109,7 @@ func set_target(cx: int, cy: int, zone: String, objects: Array, report: String) 
 
 	_target.text = "tile (%d, %d)" % [cx, cy]
 	_status.text = ""
+	_apply_font()          # size from the CURRENT window (build-time was still small)
 	_panel.visible = true
 
 func _sync_subject() -> void:
@@ -129,6 +134,8 @@ func _submit() -> void:
 ## Which overrides slot a verdict belongs in: "shape", "fill", or "" for a note.
 func _rule_slot(verdict: String) -> String:
 	var v := verdict.to_lower()
+	if v.contains("effect:") or v.contains("glow"):
+		return "effect"
 	if v.contains("pos:"):
 		return "position"
 	if v.contains("fill"):
@@ -342,26 +349,27 @@ func _build() -> void:
 ## Same '-' / '=' keys as the inspector, so both panels scale together rather
 ## than one being legible and the other not.
 func nudge_font(delta: int) -> void:
-	_font = clampi(_font + delta, 10, 40)
+	_font_bump = clampi(_font_bump + delta, -14, 40)
 	_apply_font()
 
 func _apply_font() -> void:
+	var fs := _cur_font()
 	for c in [_title, _target, _status]:
-		c.add_theme_font_size_override("font_size", _font)
+		c.add_theme_font_size_override("font_size", fs)
 	for ob in [_verdict, _subject]:
-		ob.add_theme_font_size_override("font_size", _font)
+		ob.add_theme_font_size_override("font_size", fs)
 		# the dropdown is a separate PopupMenu and does not inherit the button's size
 		var pop: PopupMenu = ob.get_popup()
 		if pop != null:
-			pop.add_theme_font_size_override("font_size", _font)
-	_notes.add_theme_font_size_override("font_size", _font)
-	_send.add_theme_font_size_override("font_size", _font)
-	_cancel.add_theme_font_size_override("font_size", _font)
-	_menu.add_theme_font_size_override("font_size", _font)
+			pop.add_theme_font_size_override("font_size", fs)
+	_notes.add_theme_font_size_override("font_size", fs)
+	_send.add_theme_font_size_override("font_size", fs)
+	_cancel.add_theme_font_size_override("font_size", fs)
+	_menu.add_theme_font_size_override("font_size", fs)
 	var mpop: PopupMenu = _menu.get_popup()
 	if mpop != null:
-		mpop.add_theme_font_size_override("font_size", _font)
-	_notes.custom_minimum_size = Vector2(0, mini(_font * 5, 130))
+		mpop.add_theme_font_size_override("font_size", fs)
+	_notes.custom_minimum_size = Vector2(0, mini(fs * 5, 260))
 
 ## Dismiss the form without filing. Also tells the caller to clear the selection
 ## (marker + inspector panel), since "cancel" means "never mind this tile".

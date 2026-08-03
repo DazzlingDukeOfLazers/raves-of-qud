@@ -1,0 +1,15 @@
+{
+  "name": "one-to-one",
+  "description": "1:1 parity mode — Raves reproduces Qud faithfully (Qud-faithful top-down camera + 1:1 side panels), overriding the QoL 'user' mode. Load this for the 1:1 stage / parity comparison. Raves-side only (qud options untouched; load 'baseline' to reset those).",
+  "created": "2026-07-29T13:00:00",
+  "raves": {
+    "font_scale": 1.0,
+    "fullscreen": false,
+    "full_info": false,
+    "camera": 6,
+    "mode": "1to1",
+    "bridge_host": "127.0.0.1",
+    "bridge_port": 48710
+  },
+  "qud": {}
+}
