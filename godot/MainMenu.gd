@@ -102,7 +102,10 @@ var _game_live := false        # a snapshot has arrived = a game is actually liv
 ## (mod `metagame` → Marsh Taur pregen, Classic) so Continue lights up and the viewer has a real zone
 ## without hand-running chargen. The mod broadcasts snapshots to this open probe once it boots, which
 ## flips `_game_live`. Set AUTO_META = false to stop Raves spinning up a character in your Qud.
-const AUTO_META := true
+## OFF (2026-08-03): it re-sent every 150s, silently booting throwaway characters whenever both
+## apps idled at their titles — sabotaged menu-parity driving and littered husk saves. Sync via
+## named saves now (`hv loadsave`); Continue's "load a game in Qud" hint covers the empty case.
+const AUTO_META := false
 var _meta_sent := false
 var _meta_wait := 0.0
 var _status_poll_t := 0.0
