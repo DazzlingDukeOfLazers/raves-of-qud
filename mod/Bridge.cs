@@ -497,6 +497,86 @@ namespace RavesOfQud
                         zgm.uiQueue.queueTask(() => { if (zout) zgm.ZoomOut(); else zgm.ZoomIn(); });
                     return;
                 }
+                if (name == "uiback")
+                {
+                    // First-party "press Escape" for Qud's MODERN menu screens (Records/
+                    // Options/Mods/…). Those screens read input hardware-side, so OS-
+                    // synthesized Escape never lands (highvisor's HID events included);
+                    // fire the framework's own cancel event instead. UI state — uiQueue.
+                    var bgm = GameManager.Instance;
+                    if (bgm != null && bgm.uiQueue != null)
+                        bgm.uiQueue.queueTask(() =>
+                        {
+                            try
+                            {
+                                // Most faithful: the active modern window's own OnCancel()
+                                // (ModManagerUI, high scores, …) — the method its UI wires up.
+                                try
+                                {
+                                    var uim = Qud.UI.UIManager.instance;
+                                    var wnd = (uim != null) ? uim.currentWindow : null;
+                                    if (wnd != null)
+                                    {
+                                        var mi = wnd.GetType().GetMethod("OnCancel", System.Type.EmptyTypes);
+                                        if (mi != null)
+                                        {
+                                            mi.Invoke(wnd, null);
+                                            // OnCancel -> RemoveGameView(Hard:false) sets bViewUpdated
+                                            // but the view pump only runs when the console buffer is
+                                            // dirty — at an idle title screen that's NEVER. Kick it, or
+                                            // _ActiveGameView (our scene report) stays stale forever.
+                                            ConsoleLib.Console.TextConsole.BufferUpdated = true;
+                                            System.Console.WriteLine("[raves] uiback: " + wnd.GetType().Name + ".OnCancel()");
+                                            return;
+                                        }
+                                    }
+                                }
+                                catch (Exception wex) { System.Console.WriteLine("[raves] uiback window: " + wex.Message); }
+                                var nav = XRL.UI.Framework.NavigationController.instance;
+                                if (nav == null) { System.Console.WriteLine("[raves] uiback: no NavigationController"); return; }
+                                // Screens register commandHandlers["Cancel"] (string id), not the
+                                // button enum — fire the command; button event as a fallback.
+                                // SINGLE-SHOT ladder — fire exactly one cancel. A shotgun of
+                                // fallbacks double-fires: the extra Cancel lands on the main
+                                // menu, where Cancel == "Are you sure you want to quit?".
+                                var ev = nav.FireInputCommandEvent("Cancel");
+                                if (ev != null && ev.handled)
+                                {
+                                    ConsoleLib.Console.TextConsole.BufferUpdated = true;
+                                    System.Console.WriteLine("[raves] uiback: nav command Cancel handled");
+                                    return;
+                                }
+                                var ev2 = nav.FireInputButtonEvent(XRL.UI.Framework.InputButtonTypes.CancelButton);
+                                if (ev2 != null && ev2.handled)
+                                {
+                                    ConsoleLib.Console.TextConsole.BufferUpdated = true;
+                                    System.Console.WriteLine("[raves] uiback: nav button Cancel handled");
+                                    return;
+                                }
+                                // Last rung — screens that POLL ControlManager.isCommandDown("Cancel"):
+                                // inject a Cancel FrameCommand the way real input does (enqueue into
+                                // the private CommandQueue; next frame promotes it). Data access only.
+                                bool queued = false;
+                                try
+                                {
+                                    var cmType = typeof(ControlManager);
+                                    var fcType = cmType.GetNestedType("FrameCommand");
+                                    var fc = Activator.CreateInstance(fcType);
+                                    fcType.GetField("id").SetValue(fc, "Cancel");
+                                    var qField = cmType.GetField("CommandQueue",
+                                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+                                    var q = qField.GetValue(null);
+                                    q.GetType().GetMethod("Enqueue").Invoke(q, new object[] { fc });
+                                    queued = true;
+                                }
+                                catch (Exception rex) { System.Console.WriteLine("[raves] uiback reflection: " + rex.Message); }
+                                ConsoleLib.Console.TextConsole.BufferUpdated = true;
+                                System.Console.WriteLine("[raves] uiback: queue-injected Cancel (queued=" + queued + ")");
+                            }
+                            catch (Exception ex) { System.Console.WriteLine("[raves] uiback error: " + ex.Message); }
+                        });
+                    return;
+                }
                 if (name == "dir")
                 {
                     // Answer a Qud direction prompt (PickDirection) with a LeftClick at a CELL — Qud
