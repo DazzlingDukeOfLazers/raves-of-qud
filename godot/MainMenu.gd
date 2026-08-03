@@ -389,16 +389,21 @@ func _build_chrome_frame(box: Control) -> bool:
 		var r := _edge(bg, TextureRect.STRETCH_TILE, 0.0, 0.0, 1.0, 1.0)
 		box.add_child(r)
 	var side := _chrome("borderSide.png")
-	if side != null:   # left + right woven borders (right mirrored)
-		box.add_child(_edge(side, TextureRect.STRETCH_SCALE, 0.0, HEADER_H_FRAC * 0.6,
+	if side != null:   # left + right woven borders, NATIVE scale — stretching shimmered
+		# the alternating checker; TILE draws 1:1 from the sprite's top
+		box.add_child(_edge(side, TextureRect.STRETCH_TILE, 0.0, HEADER_H_FRAC * 0.6,
 			SIDE_W_FRAC, 1.0 - BOT_H_FRAC * 0.4))
-		var rt := _edge(side, TextureRect.STRETCH_SCALE, 1.0 - SIDE_W_FRAC, HEADER_H_FRAC * 0.6,
+		var rt := _edge(side, TextureRect.STRETCH_TILE, 1.0 - SIDE_W_FRAC, HEADER_H_FRAC * 0.6,
 			1.0, 1.0 - BOT_H_FRAC * 0.4)
 		rt.flip_h = true
 		box.add_child(rt)
 	var bot := _chrome("borderBot.png")
-	if bot != null:   # bottom woven border
-		box.add_child(_edge(bot, TextureRect.STRETCH_SCALE, 0.0, 1.0 - BOT_H_FRAC, 1.0, 1.0))
+	if bot != null:   # bottom border in two mirrored halves — BOTH corners get the
+		# sprite's native corner art (a single stretch mangled the right corner)
+		box.add_child(_edge(bot, TextureRect.STRETCH_TILE, 0.0, 1.0 - BOT_H_FRAC, 0.5, 1.0))
+		var rb := _edge(bot, TextureRect.STRETCH_TILE, 0.5, 1.0 - BOT_H_FRAC, 1.0, 1.0)
+		rb.flip_h = true
+		box.add_child(rb)
 	# the gilded hieroglyph header last, on top (its ends carry the top corners). It OVERHANGS the
 	# box body left+right (an eave), like Qud's wider borderTop.
 	box.add_child(_edge(top, TextureRect.STRETCH_SCALE, -HEADER_OVERHANG, 0.0, 1.0 + HEADER_OVERHANG, HEADER_H_FRAC))
@@ -470,6 +475,47 @@ func _option_button(cfg: Dictionary) -> Button:
 	_apply_elliot(b, "Medium", 28)
 	return b
 
+## Qud's selection marker: thin bright ragged bars at the button's top + bottom
+## edges, sized to the text (+24px). Uses the buttonHighlight sprite's edge strips
+## when extracted (their raggedness IS Qud's), else plain bright rects.
+func _make_hl_bars(b: Button) -> Control:
+	var wrap := Control.new()
+	wrap.name = "hlbars"
+	wrap.set_anchors_preset(Control.PRESET_FULL_RECT)
+	wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var f := b.get_theme_font("font")
+	var fs := b.get_theme_font_size("font_size")
+	var tw := f.get_string_size(b.text, HORIZONTAL_ALIGNMENT_CENTER, -1, fs).x
+	var w := tw + 80.0   # Qud's bars run well past the text (measured 144px on 64px 'Mods')
+	for spec in [[0.0, 0.0, -1.0], [1.0, -3.0, 1.0]]:
+		var bar: Control
+		if _hl != null:
+			var at := AtlasTexture.new()
+			at.atlas = _hl
+			var hh := int(_hl.get_height())
+			at.region = Rect2(0, 0 if spec[2] < 0 else hh - 3, _hl.get_width(), 3)
+			var tr := TextureRect.new()
+			tr.texture = at
+			tr.stretch_mode = TextureRect.STRETCH_SCALE
+			tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			tr.self_modulate = Color8(224, 216, 189)
+			bar = tr
+		else:
+			var cr := ColorRect.new()
+			cr.color = Color8(224, 216, 189, 230)
+			bar = cr
+		bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		bar.anchor_left = 0.5
+		bar.anchor_right = 0.5
+		bar.anchor_top = spec[0]
+		bar.anchor_bottom = spec[0]
+		bar.offset_left = -w * 0.5
+		bar.offset_right = w * 0.5
+		bar.offset_top = spec[1]
+		bar.offset_bottom = spec[1] + 3.0
+		wrap.add_child(bar)
+	return wrap
+
 func _transparent() -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(0, 0, 0, 0)
@@ -498,11 +544,15 @@ func _highlight_box() -> StyleBox:
 func _build_links() -> void:
 	var v := VBoxContainer.new()
 	v.alignment = BoxContainer.ALIGNMENT_BEGIN
-	v.add_theme_constant_override("separation", 6)
+	v.add_theme_constant_override("separation", 14 if Settings.one_to_one() else 6)
+	if Settings.one_to_one():
+		var pad := Control.new()   # Qud's list starts ~28px lower than the layout rect
+		pad.custom_minimum_size = Vector2(0, 28)
+		v.add_child(pad)
 	for txt in LINK_ITEMS:
 		var l := _label(txt, MUTED, "title")
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-		_apply_elliot(l, "Regular", 19)
+		_apply_elliot(l, "Bold", 21)
 		v.add_child(l)
 	add_child(v)
 	_place(v, "links")
@@ -533,8 +583,19 @@ func _apply_selection() -> void:
 		var col: Color = SEL if on else MUTED
 		for role in ["font_color", "font_hover_color", "font_pressed_color", "font_disabled_color"]:
 			b.add_theme_color_override(role, col)
-		# Qud shows selection with its buttonHighlight sprite behind the option (if extracted)
-		b.add_theme_stylebox_override("normal", _highlight_box() if on else _transparent())
+		if Settings.one_to_one():
+			# Qud's selection = two THIN BRIGHT ragged bars hugging the item's top and
+			# bottom edges, only slightly wider than the text (measured: ~2px tall,
+			# text+24 wide, peak (224,216,189)) — not a full-width sprite wash.
+			var bars := b.get_node_or_null("hlbars")
+			if on and bars == null:
+				b.add_child(_make_hl_bars(b))
+			elif not on and bars != null:
+				bars.queue_free()
+			b.add_theme_stylebox_override("normal", _transparent())
+		else:
+			# user mode keeps the sprite wash behind the option
+			b.add_theme_stylebox_override("normal", _highlight_box() if on else _transparent())
 
 ## Qud disables Continue until there's a save; we mirror that against the live bridge —
 ## Continue lights up (becomes selectable) only while a modded Qud is running.
@@ -572,14 +633,27 @@ func _build_hint() -> void:
 	var dim := "#%s" % HINT.to_html(false)
 	var tail := "[color=%s] navigate      [/color][color=%s][lb]Space[rb][/color][color=%s] select      [/color][color=%s][lb]Esc[rb][/color][color=%s] quit[/color]" % [dim, gold, dim, gold, dim]
 	if Settings.one_to_one():
-		# Qud shows an ARROW-KEYS icon (a gold d-pad cluster), not the literal "↑↓". Draw it and
-		# inline it at the head of the centred hint.
+		# Qud: BOLD hint text; the arrow-keys icon and each keycap sit inside WHITE
+		# [ ] brackets; the d-pad keys carry dark directional arrows.
 		var ih := int(round(UiFont.px(get_viewport(), "caption") * 1.15))
 		var icon := _nav_icon_texture(ih, GOLD)
-		_apply_elliot(l, "Regular", 17)
+		# Qud's hint bar stays MONO (Source Code Pro), bolder than regular — an
+		# emboldened variation of the theme font, not ElliotSans
+		var fv := FontVariation.new()
+		fv.base_font = get_theme_font("normal_font", "RichTextLabel")
+		fv.variation_embolden = 0.5
+		l.add_theme_font_override("normal_font", fv)
+		l.add_theme_font_size_override("normal_font_size", 18)
+		var wht := "#FFFFFF"
 		l.push_paragraph(HORIZONTAL_ALIGNMENT_CENTER)
+		l.append_text("[color=%s][lb][/color]" % wht)
 		l.add_image(icon, icon.get_width(), icon.get_height())
-		l.append_text(tail)
+		l.append_text("[color=%s][rb][/color]" % wht)
+		l.append_text("[color=%s] navigate      [/color]" % dim)
+		l.append_text("[color=%s][lb][/color][color=%s]Space[/color][color=%s][rb][/color]" % [wht, gold, wht])
+		l.append_text("[color=%s] select      [/color]" % dim)
+		l.append_text("[color=%s][lb][/color][color=%s]Esc[/color][color=%s][rb][/color]" % [wht, gold, wht])
+		l.append_text("[color=%s] quit[/color]" % dim)
 		l.pop()
 	else:
 		l.text = "[center][color=%s]↑↓ navigate      [/color][color=%s][lb]Space[rb][/color][color=%s] select      [/color][color=%s][lb]Esc[rb][/color][color=%s] quit[/color][/center]" % [dim, gold, dim, gold, dim]
@@ -602,6 +676,16 @@ func _nav_icon_texture(ih: int, color: Color) -> ImageTexture:
 	img.fill_rect(Rect2i(0, k + g, k, k), color)        # left
 	img.fill_rect(Rect2i(mid, k + g, k, k), color)      # down (centre)
 	img.fill_rect(Rect2i(2 * mid, k + g, k, k), color)  # right
+	# dark directional arrows on the keys (Qud's keys aren't plain squares)
+	var dark := Color8(20, 34, 34)
+	var ctr := int(k / 2.0)
+	for i in range(maxi(1, int(k / 3.0))):
+		var w2 := 1 + 2 * i
+		var x0 := ctr - i
+		img.fill_rect(Rect2i(mid + x0, 1 + i, w2, 1), dark)                       # up
+		img.fill_rect(Rect2i(mid + x0, k + g + k - 2 - i, w2, 1), dark)           # down
+		img.fill_rect(Rect2i(1 + i, k + g + x0, 1, w2), dark)                     # left
+		img.fill_rect(Rect2i(2 * mid + k - 2 - i, k + g + x0, 1, w2), dark)       # right
 	return ImageTexture.create_from_image(img)
 
 func _build_version() -> void:
@@ -627,11 +711,24 @@ func _build_version_qud() -> void:
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var ver := "#%s" % SEL.to_html(false)     # release: near-white, like Qud
 	var bld := "#%s" % HINT.to_html(false)    # build: readable teal-grey (Qud's is too dark)
-	l.text = "[right][color=%s]%s[/color]\n[color=%s]build %s[/color][/right]" % [
-		ver, Brand.QUD_VERSION, bld, Brand.QUD_BUILD]
+	var hv_ver := _read_hv_version()
+	var extra := "\n[color=%s]raves %s%s[/color]" % [bld, Brand.RAVES_VERSION,
+		(" · hv " + hv_ver) if hv_ver != "" else ""]
+	l.text = "[right][color=%s]%s[/color]\n[color=%s]build %s[/color]%s[/right]" % [
+		ver, Brand.QUD_VERSION, bld, Brand.QUD_BUILD, extra]
 	_apply_elliot(l, "Regular", 16)
 	add_child(l)
 	_place(l, "version")
+	l.offset_top += 28   # Qud's corner sits lower than the seeded layout rect
+	l.offset_bottom += 28
+
+## highvisor's daemon publishes its version next to Raves' state files.
+func _read_hv_version() -> String:
+	var path := InputModel.support_dir().path_join("hv_version.txt")
+	if not FileAccess.file_exists(path):
+		return ""
+	var f := FileAccess.open(path, FileAccess.READ)
+	return f.get_as_text().strip_edges() if f != null else ""
 
 # ── quit button + confirmation ─────────────────────────────────────────────────────
 
@@ -641,15 +738,15 @@ func _build_quit_button() -> void:
 	var hit := Control.new()
 	hit.name = "QuitX"
 	hit.mouse_filter = Control.MOUSE_FILTER_STOP
-	hit.position = Vector2(22, 22)
-	hit.custom_minimum_size = Vector2(56, 56)
-	hit.size = Vector2(56, 56)
+	hit.position = Vector2(26, 26)
+	hit.custom_minimum_size = Vector2(42, 42)   # Qud's X is smaller/thinner than 56px
+	hit.size = Vector2(42, 42)
 	var icon := TextureRect.new()
 	icon.set_anchors_preset(Control.PRESET_FULL_RECT)
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	icon.modulate = Color(1, 1, 1, 0.5)   # Qud draws it at 50% alpha
+	icon.modulate = Color(0.62, 0.62, 0.62, 0.55)   # Qud's X: darker + ~50% alpha
 	var tex := _chrome("Cancel.png")
 	if tex != null:
 		icon.texture = tex

@@ -12,6 +12,7 @@ extends Node
 
 # ── the project ──────────────────────────────────────────────────────────────
 const GAME_NAME := "Raves of Qud"
+const RAVES_VERSION := "0.2.0"   # shown in the 1:1 title version corner under Qud's build
 const GAME_TAGLINE := "a 3D viewer for Caves of Qud"
 const ORG_NAME := "«the organization that makes Raves of Qud»"   # placeholder
 const LICENSE := "MIT"
