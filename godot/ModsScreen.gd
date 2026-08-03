@@ -557,9 +557,9 @@ func _build_1to1() -> void:
 	# bottom command bar: a 1px line with a PACKED chip group over its middle —
 	# Qud has no line between chips (the group is contiguous, ~4px gaps) and no
 	# corner ticks; small │ terminals flank the group where the line ends.
-	_hline(p, Q_INNER_L, Q_INNER_R, Q_BOTLINE_Y, 1)
+	_hline(p, 8, 1735, Q_BOTLINE_Y, 1)   # full inner width, like the ┤Mods├ row
 	var bar := CenterContainer.new()
-	bar.position = Vector2(Q_INNER_L, Q_BOTLINE_Y - 15)   # group centres on the panel, like Qud
+	bar.position = Vector2(Q_INNER_L, Q_BOTLINE_Y - 18)   # chips end ~real 992: darkspace above the band
 	bar.size = Vector2(Q_INNER_R - Q_INNER_L, 30)
 	p.add_child(bar)
 	var grp := PanelContainer.new()   # flat panel-bg behind the whole group: the 1px
@@ -911,7 +911,7 @@ func _bar_tick() -> Control:
 	t.custom_minimum_size = Vector2(2, 30)
 	var r := ColorRect.new()
 	r.color = Q_LINE
-	r.position = Vector2(0, 9)
+	r.position = Vector2(0, 12)
 	r.size = Vector2(2, 12)
 	t.add_child(r)
 	return t
