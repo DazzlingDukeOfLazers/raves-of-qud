@@ -1091,6 +1091,26 @@ namespace RavesOfQud
                             }
                         }
                         catch { }
+                        // Liquid MIXES: the pool's SECONDARY liquid appends its colour to the
+                        // render event every frame (LiquidWater.RenderSecondary += "&b" — why a
+                        // dilute cider pool reads BLUE in Qud: '&w^r'+'&b' = compound, fg = last
+                        // '&'). The static fields hold only the base, so replay the append here.
+                        // Idempotent for pools whose statics already carry the compound (the
+                        // last-'&' rule makes a repeated letter a no-op).
+                        try
+                        {
+                            var lvp = go.LiquidVolume;
+                            if (lvp != null && lvp.IsOpenVolume() && lvp.Secondary != null)
+                            {
+                                var ev2 = new RenderEvent();
+                                ev2.Lit = LightLevel.Light;
+                                ev2.ColorString = colorOut;
+                                lvp.RequireSecondaryLiquid()?.RenderSecondary(lvp, ev2);
+                                if (!string.IsNullOrEmpty(ev2.ColorString))
+                                    colorOut = ev2.ColorString;
+                            }
+                        }
+                        catch { }
                         // Gas (spore clouds, poison, cryo...): Qud renders EVERY gas as a 4-tile
                         // swirl cycle (Tiles2/gas_0..3.png, 15 frames = 250ms per step) coloured by
                         // the Gas part's per-instance ColorString — the static Render has NO tile
