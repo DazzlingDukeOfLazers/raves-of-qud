@@ -1,0 +1,1590 @@
+[
+ {
+  "bp": "AirCurrentMicrosensor",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_aircurrent'"
+  ],
+  "stage": {
+   "bp": "AirCurrentMicrosensor",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_aircurrent.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "AnchorSpikes",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_cyber_anchor_spikes'"
+  ],
+  "stage": {
+   "bp": "AnchorSpikes",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_cyber_anchor_spikes.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "AnomalyFumigator",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_cyber_anomaly_fumigator'"
+  ],
+  "stage": {
+   "bp": "AnomalyFumigator",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_cyber_anomaly_fumigator.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "BeautifulVisage",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_beautiful'"
+  ],
+  "stage": {
+   "bp": "BeautifulVisage",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_beautiful.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "BiodynamicPowerPlant",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_cyber_biodynamic_power_plant'"
+  ],
+  "stage": {
+   "bp": "BiodynamicPowerPlant",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_cyber_biodynamic_power_plant.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "BiologicalIndexer",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_scanningmodule'"
+  ],
+  "stage": {
+   "bp": "BiologicalIndexer",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_scanningmodule.bmp",
+   "color": "&C",
+   "detail": "R",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "BionicArm",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_bionicarm'"
+  ],
+  "stage": {
+   "bp": "BionicArm",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_bionicarm.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "BionicHands",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_bionichands'"
+  ],
+  "stage": {
+   "bp": "BionicHands",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_bionichands.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "BionicHeart",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_bionicheart'"
+  ],
+  "stage": {
+   "bp": "BionicHeart",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_bionicheart.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "BionicLiver",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_cyberliver'"
+  ],
+  "stage": {
+   "bp": "BionicLiver",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_cyberliver.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "BionicLiver",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "BionicLiver",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_cyberliver.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "CarbideHandBones",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_carbidehand'"
+  ],
+  "stage": {
+   "bp": "CarbideHandBones",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_carbidehand.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "CathedraBlackOpal",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_cathedra'"
+  ],
+  "stage": {
+   "bp": "CathedraBlackOpal",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_cathedra.bmp",
+   "color": "&c",
+   "detail": "K",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "CathedraRuby",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "CathedraRuby",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_cathedra.bmp",
+   "color": "&c",
+   "detail": "R",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "CathedraSapphire",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "CathedraSapphire",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_cathedra.bmp",
+   "color": "&c",
+   "detail": "B",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "CathedraWhiteOpal",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "CathedraWhiteOpal",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_cathedra.bmp",
+   "color": "&c",
+   "detail": "Y",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "CherubicVisage",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_cherubic'"
+  ],
+  "stage": {
+   "bp": "CherubicVisage",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_cherubic.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "CommunicationsInterlock",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_comminterlock'"
+  ],
+  "stage": {
+   "bp": "CommunicationsInterlock",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_comminterlock.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "CrysteelHandBones",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_carbidehand'"
+  ],
+  "stage": {
+   "bp": "CrysteelHandBones",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_carbidehand.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "CustomVisage",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_custom'"
+  ],
+  "stage": {
+   "bp": "CustomVisage",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_custom.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "DermalInsulation",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_dermalinsulation'"
+  ],
+  "stage": {
+   "bp": "DermalInsulation",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_dermalinsulation.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "DermalPlating",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_dermalplating'"
+  ],
+  "stage": {
+   "bp": "DermalPlating",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_dermalplating.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "DopamineSynth",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_dopamine'"
+  ],
+  "stage": {
+   "bp": "DopamineSynth",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_dopamine.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "ElectromagneticSensor",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_electromagsensor'"
+  ],
+  "stage": {
+   "bp": "ElectromagneticSensor",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_electromagsensor.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "EquipmentRack",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_cyber_equipment_rack'"
+  ],
+  "stage": {
+   "bp": "EquipmentRack",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_cyber_equipment_rack.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "FireSuppressionSystem",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_cyber_fire_suppression_system'"
+  ],
+  "stage": {
+   "bp": "FireSuppressionSystem",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_cyber_fire_suppression_system.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "ForceModulator",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_comminterlock'"
+  ],
+  "stage": {
+   "bp": "ForceModulator",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_comminterlock.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "FulleriteHandBones",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_carbidehand'"
+  ],
+  "stage": {
+   "bp": "FulleriteHandBones",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_carbidehand.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "GiantHands",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_gianthands'"
+  ],
+  "stage": {
+   "bp": "GiantHands",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_gianthands.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "GraftedMirrorArm",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_implant_grafted_mirror_arm'"
+  ],
+  "stage": {
+   "bp": "GraftedMirrorArm",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/implant_grafted_mirror_arm.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "GroundingShunts",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_grounding_shunts'"
+  ],
+  "stage": {
+   "bp": "GroundingShunts",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_grounding_shunts.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "GunRack",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_gunrack'"
+  ],
+  "stage": {
+   "bp": "GunRack",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_gunrack.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "HighFidelityMatterRecompositer",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_cyber_high_fidelity_matter_recompositer'"
+  ],
+  "stage": {
+   "bp": "HighFidelityMatterRecompositer",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_cyber_high_fidelity_matter_recompositer.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "HighGradeDermalInsulation",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_highgrade'"
+  ],
+  "stage": {
+   "bp": "HighGradeDermalInsulation",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_highgrade.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "HolographicVisage",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_implant_holographic_visage'"
+  ],
+  "stage": {
+   "bp": "HolographicVisage",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/implant_holographic_visage.bmp",
+   "color": "&B",
+   "detail": "B",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "HyperElasticAnkleTendons",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_hypertendons'"
+  ],
+  "stage": {
+   "bp": "HyperElasticAnkleTendons",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_hypertendons.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "InflatableAxons",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_axions'"
+  ],
+  "stage": {
+   "bp": "InflatableAxons",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_axions.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "IntravenousPort",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_intravenous'"
+  ],
+  "stage": {
+   "bp": "IntravenousPort",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_intravenous.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "MagneticCore",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_magnetic_core'"
+  ],
+  "stage": {
+   "bp": "MagneticCore",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_magnetic_core.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "MatterRecompositer",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_matter'"
+  ],
+  "stage": {
+   "bp": "MatterRecompositer",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_matter.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "MedassistModule",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_cyber_medassist_module'"
+  ],
+  "stage": {
+   "bp": "MedassistModule",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_cyber_medassist_module.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "MicromanipulatorArray",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_cyber_micromanipulator_array'"
+  ],
+  "stage": {
+   "bp": "MicromanipulatorArray",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_cyber_micromanipulator_array.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "MotorizedTreads",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_treads'"
+  ],
+  "stage": {
+   "bp": "MotorizedTreads",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_treads.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "NavigationSystem",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_cyber_navigation_system'"
+  ],
+  "stage": {
+   "bp": "NavigationSystem",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_cyber_navigation_system.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "NightVision",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_night_vision_implant'"
+  ],
+  "stage": {
+   "bp": "NightVision",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/night_vision_implant.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "NocturnalApex",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_nocturnal'"
+  ],
+  "stage": {
+   "bp": "NocturnalApex",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_nocturnal.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "OnboardRecoiler",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_cyber_onboard_recoiler'"
+  ],
+  "stage": {
+   "bp": "OnboardRecoiler",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_cyber_onboard_recoiler.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "OpticalMultiscanner",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_multiscanner'"
+  ],
+  "stage": {
+   "bp": "OpticalMultiscanner",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_multiscanner.bmp",
+   "color": "&C",
+   "detail": "m",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "PalladiumElectrodeposits",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "PalladiumElectrodeposits",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_electrodeposits.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "ParabolicMuscularSubroutine",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "ParabolicMuscularSubroutine",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_parabolic.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "PenetratingRadar",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "PenetratingRadar",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_cyber_penetrating_radar.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Pentaceps",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "Pentaceps",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_pentacips.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Phase-Adaptive Scope",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "Phase-Adaptive Scope",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/implant_phase_adaptive_scope.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "PhaseHarmonicModulator",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "PhaseHarmonicModulator",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_cyber_phase_harmonic_modulator.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "PneumaticPistons",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "PneumaticPistons",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_cyber_pneumatic_pistons.bmp",
+   "color": "&c",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "PrecisionForceLathe",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "PrecisionForceLathe",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/implant_precision_force_lathe.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "RapidReleaseFingerFlexors",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "RapidReleaseFingerFlexors",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_flexors.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "ReactiveCranialPlating",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "ReactiveCranialPlating",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_cyber_reactive_cranial_plating.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "ReactiveTraumaPlate",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "ReactiveTraumaPlate",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_cyber_reactive_trauma_plate.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Schemasoft2",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "Schemasoft2",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_schemasoft.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Schemasoft3",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "Schemasoft3",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_schemasoft.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Schemasoft4",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "Schemasoft4",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_schemasoft.bmp",
+   "color": "&C",
+   "detail": "R",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "SecurityInterlock",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "SecurityInterlock",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_security.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "SingleSkillsoft1",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "SingleSkillsoft1",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_skillsoft.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "SingleSkillsoft2",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "SingleSkillsoft2",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_skillsoft.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "SingleSkillsoft3",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "SingleSkillsoft3",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_skillsoft.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "SkinGlitter1",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "SkinGlitter1",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_skin_glitter.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "SkinGlitter2",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "SkinGlitter2",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_skin_glitter.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "SocialCoprocessor",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_social_coprocessor'"
+  ],
+  "stage": {
+   "bp": "SocialCoprocessor",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_social_coprocessor.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "StabilizerArmLocks",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_armlocks'"
+  ],
+  "stage": {
+   "bp": "StabilizerArmLocks",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_armlocks.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "StasisEntangler",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_implant_stasis_entangler'"
+  ],
+  "stage": {
+   "bp": "StasisEntangler",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/implant_stasis_entangler.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "StasisProjector",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_stasis_projector'"
+  ],
+  "stage": {
+   "bp": "StasisProjector",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_stasis_projector.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "TechnologicalIndexer",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_scanningmodule'"
+  ],
+  "stage": {
+   "bp": "TechnologicalIndexer",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_scanningmodule.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "TibularHydrojets",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_tibular_hydrojets'"
+  ],
+  "stage": {
+   "bp": "TibularHydrojets",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_tibular_hydrojets.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "TranslucentSkin",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_transparent'"
+  ],
+  "stage": {
+   "bp": "TranslucentSkin",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_transparent.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "TransparentSkin",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "TransparentSkin",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_transparent.bmp",
+   "color": "&C",
+   "detail": "R",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "TreeSkillsoft",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_skillsoft'"
+  ],
+  "stage": {
+   "bp": "TreeSkillsoft",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_skillsoft.bmp",
+   "color": "&C",
+   "detail": "R",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "UltraElasticAnkleTendons",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_ultratendons'"
+  ],
+  "stage": {
+   "bp": "UltraElasticAnkleTendons",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_ultratendons.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1
+ }
+]

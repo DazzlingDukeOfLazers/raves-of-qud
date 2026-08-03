@@ -1,0 +1,5815 @@
+[
+ {
+  "bp": "Albino ape corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat3'"
+  ],
+  "stage": {
+   "bp": "Albino ape corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat3.bmp",
+   "color": "&Y",
+   "detail": "w",
+   "name": "{{Y|albino ape}} corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Albino Ape Heart",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_ape_heart'"
+  ],
+  "stage": {
+   "bp": "Albino Ape Heart",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_ape_heart.bmp",
+   "color": "&r",
+   "detail": "Y",
+   "name": "{{r|albino ape heart}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Amaranthine Dust",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_paste'"
+  ],
+  "stage": {
+   "bp": "Amaranthine Dust",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_paste.bmp",
+   "color": "&r",
+   "detail": "r",
+   "name": "{{r|amaranthine dust}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Ancient Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat3'"
+  ],
+  "stage": {
+   "bp": "Ancient Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat3.bmp",
+   "color": "&y",
+   "detail": "Y",
+   "name": "mummified corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Animal Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat2'"
+  ],
+  "stage": {
+   "bp": "Animal Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat2.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "[Corpse]"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Arsplice Seed",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_arsplice_seed'"
+  ],
+  "stage": {
+   "bp": "Arsplice Seed",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_arsplice_seed.bmp",
+   "color": "&m",
+   "detail": "C",
+   "name": "{{C-C-c-m-m-c-C-C sequence|arsplice}} seed"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Arthropod Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "Arthropod Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat2.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "[Corpse]"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Baboon Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat2'"
+  ],
+  "stage": {
+   "bp": "Baboon Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat2.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "baboon corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Banana",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_banana'"
+  ],
+  "stage": {
+   "bp": "Banana",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_banana.bmp",
+   "color": "&W",
+   "detail": "w",
+   "name": "{{W|banana}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Barkbiter Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat4'"
+  ],
+  "stage": {
+   "bp": "Barkbiter Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat4.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "barkbiter corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Barkbiter Jerky",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_jerky3'"
+  ],
+  "stage": {
+   "bp": "Barkbiter Jerky",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_jerky3.bmp",
+   "color": "&w",
+   "detail": "r",
+   "name": "{{W|barkbiter jerky}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Bat Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat1'"
+  ],
+  "stage": {
+   "bp": "Bat Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat1.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "bat corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Bear Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat1'"
+  ],
+  "stage": {
+   "bp": "Bear Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat1.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "bear corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Bear Jerky",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_jerky3'"
+  ],
+  "stage": {
+   "bp": "Bear Jerky",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_jerky3.bmp",
+   "color": "&w",
+   "detail": "r",
+   "name": "{{w|bear jerky}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Beetle Jerky",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_jerky1'"
+  ],
+  "stage": {
+   "bp": "Beetle Jerky",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_jerky1.bmp",
+   "color": "&w",
+   "detail": "r",
+   "name": "{{K|beetle jerky}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Black Puma Haunch",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_haunch'"
+  ],
+  "stage": {
+   "bp": "Black Puma Haunch",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_haunch.bmp",
+   "color": "&r",
+   "detail": "K",
+   "name": "{{K|black puma}} haunch"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Bloated Pearlfrog Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat2'"
+  ],
+  "stage": {
+   "bp": "Bloated Pearlfrog Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat2.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "bloated pearlfrog corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Boar Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat2'"
+  ],
+  "stage": {
+   "bp": "Boar Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat2.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "boar corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Boar Jerky",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_jerky2'"
+  ],
+  "stage": {
+   "bp": "Boar Jerky",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_jerky2.bmp",
+   "color": "&w",
+   "detail": "r",
+   "name": "boar jerky"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Bone Worm Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_bone_worm_corpse'"
+  ],
+  "stage": {
+   "bp": "Bone Worm Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_bone_worm_corpse.bmp",
+   "color": "&Y",
+   "detail": "y",
+   "name": "bone worm corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Bop Cheek",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_bop_cheek'"
+  ],
+  "stage": {
+   "bp": "Bop Cheek",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_bop_cheek.bmp",
+   "color": "&B",
+   "detail": "",
+   "name": "{{B|bop cheek}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Bouquet",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_bouquet_2'"
+  ],
+  "stage": {
+   "bp": "Bouquet",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_bouquet_2.bmp",
+   "color": "&Y",
+   "detail": "K",
+   "name": "bouquet of flowers"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Bundle of Noisegrass",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_grass_bundle'"
+  ],
+  "stage": {
+   "bp": "Bundle of Noisegrass",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_grass_bundle.bmp",
+   "color": "&m",
+   "detail": "y",
+   "name": "bundle of noisegrass"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Canned Have-It-All",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_can'"
+  ],
+  "stage": {
+   "bp": "Canned Have-It-All",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_can.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "{{w|canned Have-It-All}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Cave Spider Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat4'"
+  ],
+  "stage": {
+   "bp": "Cave Spider Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat4.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "cave spider corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "CaverCorpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_bones_4'"
+  ],
+  "stage": {
+   "bp": "CaverCorpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_bones_4.bmp",
+   "color": "&Y",
+   "detail": "",
+   "name": "{{Y|ancient bones}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "CaverCorpse2",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_bones_2'"
+  ],
+  "stage": {
+   "bp": "CaverCorpse2",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 7,
+   "tile": "Items/sw_bones_2.bmp",
+   "color": "&Y",
+   "detail": "",
+   "name": "{{Y|ancient bones}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Charred Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat1'"
+  ],
+  "stage": {
+   "bp": "Charred Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 7,
+   "tile": "Items/sw_splat1.bmp",
+   "color": "&K",
+   "detail": "y",
+   "name": "charred corpse"
+  },
+  "wire_objs": 7
+ },
+ {
+  "bp": "Charred Goatfolk Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat1'"
+  ],
+  "stage": {
+   "bp": "Charred Goatfolk Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat1.bmp",
+   "color": "&K",
+   "detail": "w",
+   "name": "charred goatfolk corpse"
+  },
+  "wire_objs": 7
+ },
+ {
+  "bp": "Chitinous Puma Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat3'"
+  ],
+  "stage": {
+   "bp": "Chitinous Puma Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat3.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "chitinous puma corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Clue_SeveredTongue",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_severed_tongue'"
+  ],
+  "stage": {
+   "bp": "Clue_SeveredTongue",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_severed_tongue.bmp",
+   "color": "&r",
+   "detail": "K",
+   "name": "severed tongue"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Clue_YuckwheatChaff",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_wheat_stem'"
+  ],
+  "stage": {
+   "bp": "Clue_YuckwheatChaff",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_wheat_stem.bmp",
+   "color": "&g",
+   "detail": "g",
+   "name": "yuckwheat chaff"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Clump of Grave Moss",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_grave_moss_clump'"
+  ],
+  "stage": {
+   "bp": "Clump of Grave Moss",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_grave_moss_clump.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "clump of {{C|grave moss}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Compacted Bone Matter",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_compacted_bone_matter'"
+  ],
+  "stage": {
+   "bp": "Compacted Bone Matter",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_compacted_bone_matter.bmp",
+   "color": "&Y",
+   "detail": "Y",
+   "name": "{{Y|compacted bone matter}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Compacted Bone Meal",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_paste'"
+  ],
+  "stage": {
+   "bp": "Compacted Bone Meal",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_paste.bmp",
+   "color": "&Y",
+   "detail": "Y",
+   "name": "{{Y|bone meal}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "ConfusionBreatherCorpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat2'"
+  ],
+  "stage": {
+   "bp": "ConfusionBreatherCorpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat2.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "mazebeard corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "ConfusionBreatherGland",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_breather_gland'"
+  ],
+  "stage": {
+   "bp": "ConfusionBreatherGland",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_breather_gland.bmp",
+   "color": "&b",
+   "detail": "y",
+   "name": "{{b|mazebeard gland}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "ConfusionBreatherGlandPaste",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_paste'"
+  ],
+  "stage": {
+   "bp": "ConfusionBreatherGlandPaste",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_paste.bmp",
+   "color": "&b",
+   "detail": "b",
+   "name": "{{b|mazebeard gland paste}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Congealed Blaze",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_sparktick_plasma'"
+  ],
+  "stage": {
+   "bp": "Congealed Blaze",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_sparktick_plasma.bmp",
+   "color": "&r",
+   "detail": "r",
+   "name": "congealed {{blaze|blaze}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Congealed Hulk Honey",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_sparktick_plasma'"
+  ],
+  "stage": {
+   "bp": "Congealed Hulk Honey",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_sparktick_plasma.bmp",
+   "color": "&G",
+   "detail": "G",
+   "name": "congealed {{G|hulk}} {{w|honey}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Congealed Love",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "Congealed Love",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_sparktick_plasma.bmp",
+   "color": "&y",
+   "detail": "R",
+   "name": "congealed {{love|love}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Congealed Rubbergum",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "Congealed Rubbergum",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_sparktick_plasma.bmp",
+   "color": "&W",
+   "detail": "W",
+   "name": "congealed {{rubbergum|rubbergum}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Congealed Salve",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "Congealed Salve",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_sparktick_plasma.bmp",
+   "color": "&y",
+   "detail": "Y",
+   "name": "{{|congealed &Ysalve}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Congealed Shade Oil",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "Congealed Shade Oil",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_sparktick_plasma.bmp",
+   "color": "&y",
+   "detail": "K",
+   "name": "congealed {{shade|shade oil}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Congealed Skulk",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "Congealed Skulk",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_sparktick_plasma.bmp",
+   "color": "&b",
+   "detail": "r",
+   "name": "congealed {{skulk|skulk}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat3'"
+  ],
+  "stage": {
+   "bp": "Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat3.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "[Corpse]"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "CorrosiveBreatherCorpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat1'"
+  ],
+  "stage": {
+   "bp": "CorrosiveBreatherCorpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat1.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "tartbeard corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "CorrosiveBreatherGland",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_breather_gland'"
+  ],
+  "stage": {
+   "bp": "CorrosiveBreatherGland",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_breather_gland.bmp",
+   "color": "&g",
+   "detail": "y",
+   "name": "{{g|tartbeard gland}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "CorrosiveBreatherGlandPaste",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_paste'"
+  ],
+  "stage": {
+   "bp": "CorrosiveBreatherGlandPaste",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_paste.bmp",
+   "color": "&g",
+   "detail": "g",
+   "name": "{{g|tartbeard gland paste}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Crab Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat4'"
+  ],
+  "stage": {
+   "bp": "Crab Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat4.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "[Corpse]"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Crab Jerky",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_jerky1'"
+  ],
+  "stage": {
+   "bp": "Crab Jerky",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_jerky1.bmp",
+   "color": "&w",
+   "detail": "r",
+   "name": "{{Y|crab jerky}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Croc Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat1'"
+  ],
+  "stage": {
+   "bp": "Croc Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat1.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "{{g|croc}} corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Croc Jerky",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_jerky2'"
+  ],
+  "stage": {
+   "bp": "Croc Jerky",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_jerky2.bmp",
+   "color": "&w",
+   "detail": "r",
+   "name": "{{g|croc jerky}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Crushed Grave Moss",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_grave_moss_crushed'"
+  ],
+  "stage": {
+   "bp": "Crushed Grave Moss",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_grave_moss_crushed.bmp",
+   "color": "&C",
+   "detail": "y",
+   "name": "{{C|crushed grave moss}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Crusty Loaf",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_loaf'"
+  ],
+  "stage": {
+   "bp": "Crusty Loaf",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "items/sw_loaf.bmp",
+   "color": "&w",
+   "detail": "W",
+   "name": "crusty loaf"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Cryptic Girshling Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat2'"
+  ],
+  "stage": {
+   "bp": "Cryptic Girshling Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat2.bmp",
+   "color": "&m",
+   "detail": "w",
+   "name": "{{m|girshling}} corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Crystal Flowers",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_flowers_crystal_4'"
+  ],
+  "stage": {
+   "bp": "Crystal Flowers",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_flowers_crystal_4.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "crystal flowers"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Crystal of Eve",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_eve_crystal'"
+  ],
+  "stage": {
+   "bp": "Crystal of Eve",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_eve_crystal.bmp",
+   "color": "&b",
+   "detail": "M",
+   "name": "{{crystalline|crystal of Eve}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Cured Dawnglider Tail",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_dawnglider_tail'"
+  ],
+  "stage": {
+   "bp": "Cured Dawnglider Tail",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_dawnglider_tail.bmp",
+   "color": "&y",
+   "detail": "y",
+   "name": "{{W|cured dawnglider tail}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Dawnglider Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat2'"
+  ],
+  "stage": {
+   "bp": "Dawnglider Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat2.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "dawnglider corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Dawnglider Tail",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "Dawnglider Tail",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_dawnglider_tail.bmp",
+   "color": "&G",
+   "detail": "G",
+   "name": "{{G|dawnglider tail}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Defanged Girshling Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat3'"
+  ],
+  "stage": {
+   "bp": "Defanged Girshling Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat3.bmp",
+   "color": "&m",
+   "detail": "w",
+   "name": "defanged girshling corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Dog Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat3'"
+  ],
+  "stage": {
+   "bp": "Dog Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat3.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "dog corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Dreadroot Tuber",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_tuber'"
+  ],
+  "stage": {
+   "bp": "Dreadroot Tuber",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_tuber.bmp",
+   "color": "&w",
+   "detail": "K",
+   "name": "{{K|dreadroot tuber}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Dream Smoke",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_bottle_smoke'"
+  ],
+  "stage": {
+   "bp": "Dream Smoke",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_bottle_smoke.bmp",
+   "color": "&b",
+   "detail": "b",
+   "name": "{{dreamsmoke|dream smoke}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Dried Lah Petals",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_lah_petals'"
+  ],
+  "stage": {
+   "bp": "Dried Lah Petals",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_lah_petals.bmp",
+   "color": "&r",
+   "detail": "w",
+   "name": "dried {{lah|lah petals}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Dried Vanta Petals",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_lah_petals'"
+  ],
+  "stage": {
+   "bp": "Dried Vanta Petals",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_lah_petals.bmp",
+   "color": "&K",
+   "detail": "y",
+   "name": "{{K|dried vanta petals}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Dromad Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat2'"
+  ],
+  "stage": {
+   "bp": "Dromad Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat2.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "dromad corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Drop of Nectar",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_sparktick_plasma'"
+  ],
+  "stage": {
+   "bp": "Drop of Nectar",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_sparktick_plasma.bmp",
+   "color": "&M",
+   "detail": "M",
+   "name": "drop of {{nectar|nectar}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Earthworm Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat4'"
+  ],
+  "stage": {
+   "bp": "Earthworm Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat4.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "earthworm corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Ekuemekiyyen Greens",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_greens'"
+  ],
+  "stage": {
+   "bp": "Ekuemekiyyen Greens",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "items/sw_greens.bmp",
+   "color": "&g",
+   "detail": "w",
+   "name": "{{g|Ekuemekiyyen greens}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "ElderConfusionBreatherCorpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat3'"
+  ],
+  "stage": {
+   "bp": "ElderConfusionBreatherCorpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat3.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "elder mazebeard corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "ElderConfusionBreatherGland",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_breather_gland'"
+  ],
+  "stage": {
+   "bp": "ElderConfusionBreatherGland",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_breather_gland.bmp",
+   "color": "&B",
+   "detail": "y",
+   "name": "{{B|elder mazebeard gland}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "ElderConfusionBreatherGlandPaste",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_paste'"
+  ],
+  "stage": {
+   "bp": "ElderConfusionBreatherGlandPaste",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_paste.bmp",
+   "color": "&B",
+   "detail": "B",
+   "name": "{{B|concentrated mazebeard gland paste}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "ElderCorrosiveBreatherCorpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat2'"
+  ],
+  "stage": {
+   "bp": "ElderCorrosiveBreatherCorpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat2.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "elder tartbeard corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "ElderCorrosiveBreatherGland",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_breather_gland'"
+  ],
+  "stage": {
+   "bp": "ElderCorrosiveBreatherGland",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_breather_gland.bmp",
+   "color": "&G",
+   "detail": "y",
+   "name": "{{G|elder tartbeard gland}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "ElderCorrosiveBreatherGlandPaste",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_paste'"
+  ],
+  "stage": {
+   "bp": "ElderCorrosiveBreatherGlandPaste",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_paste.bmp",
+   "color": "&G",
+   "detail": "G",
+   "name": "{{G|concentrated tartbeard gland paste}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "ElderFireBreatherCorpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat2'"
+  ],
+  "stage": {
+   "bp": "ElderFireBreatherCorpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat2.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "elder flamebeard corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "ElderFireBreatherGland",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_breather_gland'"
+  ],
+  "stage": {
+   "bp": "ElderFireBreatherGland",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_breather_gland.bmp",
+   "color": "&R",
+   "detail": "y",
+   "name": "{{R|elder flamebeard gland}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "ElderFireBreatherGlandPaste",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_paste'"
+  ],
+  "stage": {
+   "bp": "ElderFireBreatherGlandPaste",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_paste.bmp",
+   "color": "&R",
+   "detail": "R",
+   "name": "{{R|concentrated flamebeard gland paste}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "ElderIceBreatherCorpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat1'"
+  ],
+  "stage": {
+   "bp": "ElderIceBreatherCorpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat1.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "elder sleetbeard corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "ElderIceBreatherGland",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_breather_gland'"
+  ],
+  "stage": {
+   "bp": "ElderIceBreatherGland",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_breather_gland.bmp",
+   "color": "&C",
+   "detail": "y",
+   "name": "{{c|elder sleetbeard gland}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "ElderIceBreatherGlandPaste",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_paste'"
+  ],
+  "stage": {
+   "bp": "ElderIceBreatherGlandPaste",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_paste.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "{{c|concentrated sleetbeard gland paste}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "ElderNormalityBreatherCorpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat3'"
+  ],
+  "stage": {
+   "bp": "ElderNormalityBreatherCorpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat3.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "elder nullbeard corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "ElderNormalityBreatherGland",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_breather_gland'"
+  ],
+  "stage": {
+   "bp": "ElderNormalityBreatherGland",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_breather_gland.bmp",
+   "color": "&K",
+   "detail": "y",
+   "name": "{{Y|elder nullbeard gland}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "ElderNormalityBreatherGlandPaste",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_paste'"
+  ],
+  "stage": {
+   "bp": "ElderNormalityBreatherGlandPaste",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_paste.bmp",
+   "color": "&K",
+   "detail": "K",
+   "name": "{{Y|concentrated nullbeard gland paste}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "ElderPoisonBreatherCorpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat1'"
+  ],
+  "stage": {
+   "bp": "ElderPoisonBreatherCorpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat1.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "elder gallbeard corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "ElderPoisonBreatherGland",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_breather_gland'"
+  ],
+  "stage": {
+   "bp": "ElderPoisonBreatherGland",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_breather_gland.bmp",
+   "color": "&G",
+   "detail": "y",
+   "name": "{{G|elder gallbeard gland}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "ElderPoisonBreatherGlandPaste",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_paste'"
+  ],
+  "stage": {
+   "bp": "ElderPoisonBreatherGlandPaste",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_paste.bmp",
+   "color": "&G",
+   "detail": "G",
+   "name": "{{G|concentrated gallbeard gland paste}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "ElderSleepBreatherCorpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat3'"
+  ],
+  "stage": {
+   "bp": "ElderSleepBreatherCorpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat3.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "elder dreambeard corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "ElderSleepBreatherGland",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_breather_gland'"
+  ],
+  "stage": {
+   "bp": "ElderSleepBreatherGland",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_breather_gland.bmp",
+   "color": "&W",
+   "detail": "y",
+   "name": "{{W|elder dreambeard gland}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "ElderSleepBreatherGlandPaste",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_paste'"
+  ],
+  "stage": {
+   "bp": "ElderSleepBreatherGlandPaste",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_paste.bmp",
+   "color": "&W",
+   "detail": "W",
+   "name": "{{W|concentrated dreambeard gland paste}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "ElderStunBreatherCorpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat2'"
+  ],
+  "stage": {
+   "bp": "ElderStunBreatherCorpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat2.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "elder stillbeard corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "ElderStunBreatherGland",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_breather_gland'"
+  ],
+  "stage": {
+   "bp": "ElderStunBreatherGland",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_breather_gland.bmp",
+   "color": "&C",
+   "detail": "y",
+   "name": "{{C|elder stillbeard gland}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "ElderStunBreatherGlandPaste",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_paste'"
+  ],
+  "stage": {
+   "bp": "ElderStunBreatherGlandPaste",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_paste.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "{{C|concentrated stillbeard gland paste}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Electric Snail Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat1'"
+  ],
+  "stage": {
+   "bp": "Electric Snail Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat1.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "electric snail corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Electrofuge Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat3'"
+  ],
+  "stage": {
+   "bp": "Electrofuge Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat3.bmp",
+   "color": "&W",
+   "detail": "w",
+   "name": "electrofuge corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Enigma Snail Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat2'"
+  ],
+  "stage": {
+   "bp": "Enigma Snail Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat2.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "enigma snail corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Equimax Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat1'"
+  ],
+  "stage": {
+   "bp": "Equimax Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat1.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "equimax corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "ExileCorpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat4'"
+  ],
+  "stage": {
+   "bp": "ExileCorpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat4.bmp",
+   "color": "&O",
+   "detail": "o",
+   "name": "{{Y|human remains}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Eyeless Crab Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat3'"
+  ],
+  "stage": {
+   "bp": "Eyeless Crab Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 4,
+   "tile": "Items/sw_splat3.bmp",
+   "color": "&Y",
+   "detail": "w",
+   "name": "eyeless crab corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Eyeless Crab Legs",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_crab_legs'"
+  ],
+  "stage": {
+   "bp": "Eyeless Crab Legs",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_crab_legs.bmp",
+   "color": "&Y",
+   "detail": "w",
+   "name": "eyeless crab legs"
+  },
+  "wire_objs": 4
+ },
+ {
+  "bp": "Eyeless King Crab Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat1'"
+  ],
+  "stage": {
+   "bp": "Eyeless King Crab Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat1.bmp",
+   "color": "&y",
+   "detail": "Y",
+   "name": "eyeless king crab corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Eyeless King Crab Legs",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "Eyeless King Crab Legs",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_crab_legs.bmp",
+   "color": "&Y",
+   "detail": "y",
+   "name": "eyeless king crab legs"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Fermented Tongue",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_fermented_tongue'"
+  ],
+  "stage": {
+   "bp": "Fermented Tongue",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_fermented_tongue.bmp",
+   "color": "&r",
+   "detail": "w",
+   "name": "{{r|fermented tongue}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Fermented Yondercane",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_yondercane'"
+  ],
+  "stage": {
+   "bp": "Fermented Yondercane",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_yondercane.bmp",
+   "color": "&w",
+   "detail": "b",
+   "name": "{{B|fermented yondercane}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Fermented Yuckwheat Stem",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_stem'"
+  ],
+  "stage": {
+   "bp": "Fermented Yuckwheat Stem",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_stem.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "{{w|fermented yuckwheat stem}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Fire ant corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat4'"
+  ],
+  "stage": {
+   "bp": "Fire ant corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat4.bmp",
+   "color": "&R",
+   "detail": "w",
+   "name": "{{r|fire ant}} corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Fire Ant Gaster",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_fireant_gaster'"
+  ],
+  "stage": {
+   "bp": "Fire Ant Gaster",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "items/sw_fireant_gaster.bmp",
+   "color": "&r",
+   "detail": "y",
+   "name": "{{R|fire ant gaster}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Fire Ant Gaster Paste",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_paste'"
+  ],
+  "stage": {
+   "bp": "Fire Ant Gaster Paste",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_paste.bmp",
+   "color": "&y",
+   "detail": "R",
+   "name": "{{R|fire ant gaster paste}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Fire Snout Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat2'"
+  ],
+  "stage": {
+   "bp": "Fire Snout Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat2.bmp",
+   "color": "&r",
+   "detail": "w",
+   "name": "fire snout corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "FireBreatherCorpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat2'"
+  ],
+  "stage": {
+   "bp": "FireBreatherCorpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat2.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "flamebeard corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "FireBreatherGland",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_breather_gland'"
+  ],
+  "stage": {
+   "bp": "FireBreatherGland",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_breather_gland.bmp",
+   "color": "&r",
+   "detail": "y",
+   "name": "{{r|flamebeard gland}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "FireBreatherGlandPaste",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_paste'"
+  ],
+  "stage": {
+   "bp": "FireBreatherGlandPaste",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_paste.bmp",
+   "color": "&r",
+   "detail": "r",
+   "name": "{{r|flamebeard gland paste}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Fish Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat3'"
+  ],
+  "stage": {
+   "bp": "Fish Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat3.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "[Corpse]"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Fish Jerky",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_jerky2'"
+  ],
+  "stage": {
+   "bp": "Fish Jerky",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_jerky2.bmp",
+   "color": "&w",
+   "detail": "Y",
+   "name": "{{Y|fish jerky}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Flayed Goatfolk Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "Flayed Goatfolk Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat3.bmp",
+   "color": "&R",
+   "detail": "w",
+   "name": "flayed goatfolk corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Flowers",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_flowers_bunched_4'"
+  ],
+  "stage": {
+   "bp": "Flowers",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_flowers_bunched_4.bmp",
+   "color": "&Y",
+   "detail": "W",
+   "name": "flowers"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Food",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_loaf'"
+  ],
+  "stage": {
+   "bp": "Food",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "items/sw_loaf.bmp",
+   "color": "&y",
+   "detail": "",
+   "name": "[Food]"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Food Cube",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_cube'"
+  ],
+  "stage": {
+   "bp": "Food Cube",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "items/sw_cube.bmp",
+   "color": "&R",
+   "detail": "g",
+   "name": "food cube"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Freeze-Dried Hoarshrooms",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_pickled_mushrooms'"
+  ],
+  "stage": {
+   "bp": "Freeze-Dried Hoarshrooms",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_pickled_mushrooms.bmp",
+   "color": "&y",
+   "detail": "C",
+   "name": "{{C|freeze-dried hoarshrooms}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Fresh Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat1'"
+  ],
+  "stage": {
+   "bp": "Fresh Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat1.bmp",
+   "color": "&r",
+   "detail": "w",
+   "name": "fresh corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Frog Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat4'"
+  ],
+  "stage": {
+   "bp": "Frog Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat4.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "[Corpse]"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Frog Jerky",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_jerky1'"
+  ],
+  "stage": {
+   "bp": "Frog Jerky",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_jerky1.bmp",
+   "color": "&w",
+   "detail": "r",
+   "name": "{{w|frog jerky}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "FungusFace",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_limb_organic'"
+  ],
+  "stage": {
+   "bp": "FungusFace",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "items/sw_limb_organic.bmp",
+   "color": "&m",
+   "detail": "C",
+   "name": "[limb]"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "FungusHead",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_limb_organic'"
+  ],
+  "stage": {
+   "bp": "FungusHead",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "items/sw_limb_organic.bmp",
+   "color": "&m",
+   "detail": "C",
+   "name": "[limb]"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "FungusLimb",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "FungusLimb",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "items/sw_limb_organic.bmp",
+   "color": "&m",
+   "detail": "C",
+   "name": "[limb]"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "GenericFace",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "GenericFace",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "items/sw_limb_organic.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "[limb]"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "GenericHead",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "GenericHead",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "items/sw_limb_organic.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "[limb]"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "GenericLimb",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "GenericLimb",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "items/sw_limb_organic.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "[limb]"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Ghost Perch Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat1'"
+  ],
+  "stage": {
+   "bp": "Ghost Perch Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat1.bmp",
+   "color": "&m",
+   "detail": "w",
+   "name": "ghost perch corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Giant Beetle Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat3'"
+  ],
+  "stage": {
+   "bp": "Giant Beetle Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat3.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "giant beetle corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Giant Beetle Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat2'"
+  ],
+  "stage": {
+   "bp": "Giant Beetle Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat2.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "giant beetle corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Giant Centipede Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "Giant Centipede Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat3.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "giant centipede corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Giant Dragonfly Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat3'"
+  ],
+  "stage": {
+   "bp": "Giant Dragonfly Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat3.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "giant dragonfly corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Gibbon Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat2'"
+  ],
+  "stage": {
+   "bp": "Gibbon Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat2.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "gibbon corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Girshling Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat4'"
+  ],
+  "stage": {
+   "bp": "Girshling Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat4.bmp",
+   "color": "&m",
+   "detail": "w",
+   "name": "{{m|girshling}} corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Glowfish Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "Glowfish Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat2.bmp",
+   "color": "&m",
+   "detail": "w",
+   "name": "glowfish corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Glowmoth Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat2'"
+  ],
+  "stage": {
+   "bp": "Glowmoth Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat2.bmp",
+   "color": "&G",
+   "detail": "w",
+   "name": "glowmoth corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Goat Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat1'"
+  ],
+  "stage": {
+   "bp": "Goat Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat1.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "goat corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Goat Jerky",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_jerky2'"
+  ],
+  "stage": {
+   "bp": "Goat Jerky",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_jerky2.bmp",
+   "color": "&w",
+   "detail": "r",
+   "name": "{{w|goat jerky}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Goatfolk Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat4'"
+  ],
+  "stage": {
+   "bp": "Goatfolk Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat4.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "goatfolk corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Godshroom Cap",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_eaters_flesh'"
+  ],
+  "stage": {
+   "bp": "Godshroom Cap",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_eaters_flesh.bmp",
+   "color": "&o",
+   "detail": "O",
+   "name": "{{o|Eater's flesh}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Great Saltback Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat2'"
+  ],
+  "stage": {
+   "bp": "Great Saltback Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat2.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "great saltback corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Greater Voider Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat3'"
+  ],
+  "stage": {
+   "bp": "Greater Voider Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat3.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "greater voider corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Hindren Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "Hindren Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat2.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "hindren corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Hoarshroom",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_plump_mushroom'"
+  ],
+  "stage": {
+   "bp": "Hoarshroom",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_plump_mushroom.bmp",
+   "color": "&C",
+   "detail": "Y",
+   "name": "{{C|luminous}} hoarshroom"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Horned Chameleon Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat4'"
+  ],
+  "stage": {
+   "bp": "Horned Chameleon Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat4.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "horned chameleon corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Human Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat1'"
+  ],
+  "stage": {
+   "bp": "Human Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat1.bmp",
+   "color": "&y",
+   "detail": "w",
+   "name": "human corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Humanoid Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat1'"
+  ],
+  "stage": {
+   "bp": "Humanoid Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat1.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "[Corpse]"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Humble Pie",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_pie'"
+  ],
+  "stage": {
+   "bp": "Humble Pie",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "items/sw_pie.bmp",
+   "color": "&w",
+   "detail": "W",
+   "name": "humble pie"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Hunk of Cheese",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_cheese'"
+  ],
+  "stage": {
+   "bp": "Hunk of Cheese",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "items/sw_cheese.bmp",
+   "color": "&W",
+   "detail": "w",
+   "name": "hunk of {{W|cheese}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Ice frog corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat3'"
+  ],
+  "stage": {
+   "bp": "Ice frog corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat3.bmp",
+   "color": "&C",
+   "detail": "w",
+   "name": "{{C|ice frog}} corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "IceBreatherCorpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat2'"
+  ],
+  "stage": {
+   "bp": "IceBreatherCorpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat2.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "sleetbeard corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "IceBreatherGland",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_breather_gland'"
+  ],
+  "stage": {
+   "bp": "IceBreatherGland",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_breather_gland.bmp",
+   "color": "&c",
+   "detail": "y",
+   "name": "{{c|sleetbeard gland}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "IceBreatherGlandPaste",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_paste'"
+  ],
+  "stage": {
+   "bp": "IceBreatherGlandPaste",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_paste.bmp",
+   "color": "&c",
+   "detail": "c",
+   "name": "{{c|sleetbeard gland paste}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Jerky",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_jerky1'"
+  ],
+  "stage": {
+   "bp": "Jerky",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_jerky1.bmp",
+   "color": "&w",
+   "detail": "r",
+   "name": "[jerky]"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "JoppaCorpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat2'"
+  ],
+  "stage": {
+   "bp": "JoppaCorpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat2.bmp",
+   "color": "&r",
+   "detail": "Y",
+   "name": "{{Y|human remains}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Jumble of Tongues",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_tongue_jumble'"
+  ],
+  "stage": {
+   "bp": "Jumble of Tongues",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_tongue_jumble.bmp",
+   "color": "&m",
+   "detail": "r",
+   "name": "jumble of tongues"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Kaleidoslug Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat1'"
+  ],
+  "stage": {
+   "bp": "Kaleidoslug Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat1.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "kaleidoslug corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Knollworm Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat3'"
+  ],
+  "stage": {
+   "bp": "Knollworm Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat3.bmp",
+   "color": "&y",
+   "detail": "w",
+   "name": "knollworm corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Lagroot Tuber",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_tuber'"
+  ],
+  "stage": {
+   "bp": "Lagroot Tuber",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_tuber.bmp",
+   "color": "&W",
+   "detail": "w",
+   "name": "lagroot tuber"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Lah Petals",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_lah_petals'"
+  ],
+  "stage": {
+   "bp": "Lah Petals",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_lah_petals.bmp",
+   "color": "&r",
+   "detail": "W",
+   "name": "{{lah|lah petals}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Leech Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat1'"
+  ],
+  "stage": {
+   "bp": "Leech Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat1.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "leech corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Leech Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat4'"
+  ],
+  "stage": {
+   "bp": "Leech Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat4.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "leech corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Lignin",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_jam'"
+  ],
+  "stage": {
+   "bp": "Lignin",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_Jam.bmp",
+   "color": "&G",
+   "detail": "w",
+   "name": "{{G|lignin}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Lover's Blossom",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_lovers_blossom'"
+  ],
+  "stage": {
+   "bp": "Lover's Blossom",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/lovers_blossom.bmp",
+   "color": "&R",
+   "detail": "R",
+   "name": "{{R|lover's blossom}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Madpole Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat2'"
+  ],
+  "stage": {
+   "bp": "Madpole Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat2.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "madpole corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Mangled Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat1'"
+  ],
+  "stage": {
+   "bp": "Mangled Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat1.bmp",
+   "color": "&r",
+   "detail": "w",
+   "name": "mangled corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Mashed Lag",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_jar2'"
+  ],
+  "stage": {
+   "bp": "Mashed Lag",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_jar2.bmp",
+   "color": "&W",
+   "detail": "W",
+   "name": "{{W|mashed lag}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Memory Eater Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "Memory Eater Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat1.bmp",
+   "color": "&y",
+   "detail": "w",
+   "name": "memory eater corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Mimic Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat4'"
+  ],
+  "stage": {
+   "bp": "Mimic Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat4.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "mimic corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Mirror Dust",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_paste'"
+  ],
+  "stage": {
+   "bp": "Mirror Dust",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_paste.bmp",
+   "color": "&Y",
+   "detail": "Y",
+   "name": "{{Y|mirror dust}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Mirror Shard",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_shard'"
+  ],
+  "stage": {
+   "bp": "Mirror Shard",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_shard.bmp",
+   "color": "&Y",
+   "detail": "Y",
+   "name": "{{Y|mirror shard}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Moldering Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat4'"
+  ],
+  "stage": {
+   "bp": "Moldering Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat4.bmp",
+   "color": "&w",
+   "detail": "B",
+   "name": "moldering corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Mopango Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat3'"
+  ],
+  "stage": {
+   "bp": "Mopango Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat3.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "mopango corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Mushroom",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_loaf'"
+  ],
+  "stage": {
+   "bp": "Mushroom",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "items/sw_loaf.bmp",
+   "color": "&y",
+   "detail": "",
+   "name": "[mushroom]"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "NormalityBreatherCorpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat2'"
+  ],
+  "stage": {
+   "bp": "NormalityBreatherCorpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat2.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "nullbeard corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "NormalityBreatherGland",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_breather_gland'"
+  ],
+  "stage": {
+   "bp": "NormalityBreatherGland",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_breather_gland.bmp",
+   "color": "&y",
+   "detail": "y",
+   "name": "{{y|nullbeard gland}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "NormalityBreatherGlandPaste",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_paste'"
+  ],
+  "stage": {
+   "bp": "NormalityBreatherGlandPaste",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_paste.bmp",
+   "color": "&y",
+   "detail": "y",
+   "name": "{{y|nullbeard gland paste}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Ogre ape corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat2'"
+  ],
+  "stage": {
+   "bp": "Ogre ape corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat2.bmp",
+   "color": "&W",
+   "detail": "w",
+   "name": "{{W|ogre ape corpse}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Ogre Ape Heart",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_ape_heart'"
+  ],
+  "stage": {
+   "bp": "Ogre Ape Heart",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_ape_heart.bmp",
+   "color": "&r",
+   "detail": "W",
+   "name": "{{r|ogre ape heart}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Organ",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_fireant_gaster'"
+  ],
+  "stage": {
+   "bp": "Organ",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "items/sw_fireant_gaster.bmp",
+   "color": "&y",
+   "detail": "",
+   "name": "[Organ]"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Phase Silk",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_phasesilk'"
+  ],
+  "stage": {
+   "bp": "Phase Silk",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_phasesilk.bmp",
+   "color": "&Y",
+   "detail": "y",
+   "name": "{{Y|phase silk}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Pickled Mushrooms",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_pickled_mushrooms'"
+  ],
+  "stage": {
+   "bp": "Pickled Mushrooms",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_pickled_mushrooms.bmp",
+   "color": "&y",
+   "detail": "w",
+   "name": "{{K|pickled mushrooms}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Pickles",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_pickles'"
+  ],
+  "stage": {
+   "bp": "Pickles",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_pickles.bmp",
+   "color": "&y",
+   "detail": "g",
+   "name": "{{g|pickles}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Pig Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat1'"
+  ],
+  "stage": {
+   "bp": "Pig Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat1.bmp",
+   "color": "&r",
+   "detail": "w",
+   "name": "pig corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "PlantFace",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_limb_organic'"
+  ],
+  "stage": {
+   "bp": "PlantFace",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "items/sw_limb_organic.bmp",
+   "color": "&g",
+   "detail": "G",
+   "name": "[limb]"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "PlantHead",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_limb_organic'"
+  ],
+  "stage": {
+   "bp": "PlantHead",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "items/sw_limb_organic.bmp",
+   "color": "&g",
+   "detail": "G",
+   "name": "[limb]"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "PlantLimb",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "PlantLimb",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "items/sw_limb_organic.bmp",
+   "color": "&g",
+   "detail": "G",
+   "name": "[limb]"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Plasmatic Girshling Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat3'"
+  ],
+  "stage": {
+   "bp": "Plasmatic Girshling Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat3.bmp",
+   "color": "&m",
+   "detail": "w",
+   "name": "{{m|girshling}} corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Plump Mushroom",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_plump_mushroom'"
+  ],
+  "stage": {
+   "bp": "Plump Mushroom",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_plump_mushroom.bmp",
+   "color": "&r",
+   "detail": "y",
+   "name": "plump mushroom"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "PoisonBreatherCorpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat2'"
+  ],
+  "stage": {
+   "bp": "PoisonBreatherCorpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat2.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "gallbeard corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "PoisonBreatherGland",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_breather_gland'"
+  ],
+  "stage": {
+   "bp": "PoisonBreatherGland",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_breather_gland.bmp",
+   "color": "&g",
+   "detail": "y",
+   "name": "{{g|gallbeard gland}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "PoisonBreatherGlandPaste",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_paste'"
+  ],
+  "stage": {
+   "bp": "PoisonBreatherGlandPaste",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_paste.bmp",
+   "color": "&g",
+   "detail": "g",
+   "name": "{{g|gallbeard gland paste}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Preservable",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_apple'"
+  ],
+  "stage": {
+   "bp": "Preservable",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_apple.bmp",
+   "color": "&R",
+   "detail": "g",
+   "name": "[preservable]"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Psychal Gland",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_psychal_gland'"
+  ],
+  "stage": {
+   "bp": "Psychal Gland",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_psychal_gland.bmp",
+   "color": "&m",
+   "detail": "r",
+   "name": "{{m|psychal gland}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Psychal Gland Paste",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_paste'"
+  ],
+  "stage": {
+   "bp": "Psychal Gland Paste",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_paste.bmp",
+   "color": "&y",
+   "detail": "m",
+   "name": "{{m|psychal gland paste}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Quartz Baboon Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat1'"
+  ],
+  "stage": {
+   "bp": "Quartz Baboon Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat1.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "quartz baboon corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Qudzu Stem",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_stem'"
+  ],
+  "stage": {
+   "bp": "Qudzu Stem",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_stem.bmp",
+   "color": "&r",
+   "detail": "w",
+   "name": "{{r|qudzu stem}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "quillipede corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat3'"
+  ],
+  "stage": {
+   "bp": "quillipede corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat3.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "quillipede corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Rank Girshling Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat2'"
+  ],
+  "stage": {
+   "bp": "Rank Girshling Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat2.bmp",
+   "color": "&m",
+   "detail": "w",
+   "name": "{{m|girshling}} corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Raw Barkbiter Meat",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_rawmeat1'"
+  ],
+  "stage": {
+   "bp": "Raw Barkbiter Meat",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_rawmeat1.bmp",
+   "color": "&r",
+   "detail": "w",
+   "name": "{{r|raw barkbiter meat}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Raw Bear Meat",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_rawmeat1'"
+  ],
+  "stage": {
+   "bp": "Raw Bear Meat",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_rawmeat1.bmp",
+   "color": "&r",
+   "detail": "w",
+   "name": "{{r|raw bear meat}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Raw Beetle Meat",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "Raw Beetle Meat",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_rawmeat1.bmp",
+   "color": "&y",
+   "detail": "G",
+   "name": "{{y|raw beetle meat}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Raw Boar Meat",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_rawmeat2'"
+  ],
+  "stage": {
+   "bp": "Raw Boar Meat",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_rawmeat2.bmp",
+   "color": "&r",
+   "detail": "w",
+   "name": "{{r|raw boar meat}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Raw Croc Meat",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_rawmeat3'"
+  ],
+  "stage": {
+   "bp": "Raw Croc Meat",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_rawmeat3.bmp",
+   "color": "&r",
+   "detail": "w",
+   "name": "{{r|raw croc meat}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Raw Fish Meat",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_rawmeat1'"
+  ],
+  "stage": {
+   "bp": "Raw Fish Meat",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_rawmeat1.bmp",
+   "color": "&r",
+   "detail": "w",
+   "name": "{{Y|raw fish meat}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Raw Frog Meat",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_rawmeat1'"
+  ],
+  "stage": {
+   "bp": "Raw Frog Meat",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_rawmeat1.bmp",
+   "color": "&r",
+   "detail": "w",
+   "name": "{{r|raw frog meat}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Raw Goat Meat",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_rawmeat2'"
+  ],
+  "stage": {
+   "bp": "Raw Goat Meat",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_rawmeat2.bmp",
+   "color": "&r",
+   "detail": "w",
+   "name": "{{r|raw goat meat}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Raw Meat",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "Raw Meat",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_rawmeat1.bmp",
+   "color": "&r",
+   "detail": "w",
+   "name": "[raw meat]"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Raw Pig Meat",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "Raw Pig Meat",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_rawmeat2.bmp",
+   "color": "&r",
+   "detail": "w",
+   "name": "{{r|raw pig meat}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Raw Scorpiock Meat",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_rawmeat3'"
+  ],
+  "stage": {
+   "bp": "Raw Scorpiock Meat",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_rawmeat3.bmp",
+   "color": "&r",
+   "detail": "w",
+   "name": "{{r|raw scorpiock meat}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Raw Worm Meat",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_rawmeat3'"
+  ],
+  "stage": {
+   "bp": "Raw Worm Meat",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_rawmeat3.bmp",
+   "color": "&r",
+   "detail": "w",
+   "name": "{{r|raw worm meat}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Ray Cat Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat2'"
+  ],
+  "stage": {
+   "bp": "Ray Cat Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat2.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "ray cat corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Rhinox Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat3'"
+  ],
+  "stage": {
+   "bp": "Rhinox Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat3.bmp",
+   "color": "&y",
+   "detail": "w",
+   "name": "rhinox corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Ripe Cucumber",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_cucumber'"
+  ],
+  "stage": {
+   "bp": "Ripe Cucumber",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_cucumber.bmp",
+   "color": "&G",
+   "detail": "g",
+   "name": "{{G|ripe cucumber}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Rubber Tree Seed",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_seeds'"
+  ],
+  "stage": {
+   "bp": "Rubber Tree Seed",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_seeds.bmp",
+   "color": "&W",
+   "detail": "g",
+   "name": "{{r|rubber tree seed}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Rustacean Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat3'"
+  ],
+  "stage": {
+   "bp": "Rustacean Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat3.bmp",
+   "color": "&r",
+   "detail": "w",
+   "name": "rustacean corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Salamander Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat2'"
+  ],
+  "stage": {
+   "bp": "Salamander Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat2.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "salamander corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Salthopper Chip",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_apple'"
+  ],
+  "stage": {
+   "bp": "Salthopper Chip",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_apple.bmp",
+   "color": "&Y",
+   "detail": "y",
+   "name": "salthopper chip"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Salthopper Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat2'"
+  ],
+  "stage": {
+   "bp": "Salthopper Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat2.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "salthopper corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Saltwurm Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat1'"
+  ],
+  "stage": {
+   "bp": "Saltwurm Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat1.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "salt kraken corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Sated Dreamcrungle",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_dreamcrungle_dead'"
+  ],
+  "stage": {
+   "bp": "Sated Dreamcrungle",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_dreamcrungle_dead.bmp",
+   "color": "&b",
+   "detail": "B",
+   "name": "sated dreamcrungle"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Scaled Reptile Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat2'"
+  ],
+  "stage": {
+   "bp": "Scaled Reptile Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat2.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "[Corpse]"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Scorpiock Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat3'"
+  ],
+  "stage": {
+   "bp": "Scorpiock Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat3.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "scorpiock corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Scorpiock Jerky",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_jerky1'"
+  ],
+  "stage": {
+   "bp": "Scorpiock Jerky",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_jerky1.bmp",
+   "color": "&w",
+   "detail": "r",
+   "name": "{{W|scorpiock jerky}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Seedsprout Worm Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat4'"
+  ],
+  "stage": {
+   "bp": "Seedsprout Worm Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat4.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "seedsprout worm corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "SegmentedMirthworm_Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat3'"
+  ],
+  "stage": {
+   "bp": "SegmentedMirthworm_Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat3.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "segmented mirthworm corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "SkrefCorpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "SkrefCorpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat3.bmp",
+   "color": "&r",
+   "detail": "w",
+   "name": "{{r|{{r|bloody}} flattened remains}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "SleepBreatherCorpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "passed on retry (turn-flow race)"
+  ],
+  "stage": {
+   "bp": "SleepBreatherCorpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat2.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "dreambeard corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "SleepBreatherGland",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_breather_gland'"
+  ],
+  "stage": {
+   "bp": "SleepBreatherGland",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_breather_gland.bmp",
+   "color": "&w",
+   "detail": "y",
+   "name": "{{w|dreambeard gland}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "SleepBreatherGlandPaste",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_paste'"
+  ],
+  "stage": {
+   "bp": "SleepBreatherGlandPaste",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_paste.bmp",
+   "color": "&w",
+   "detail": "W",
+   "name": "{{w|dreambeard gland paste}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Sliced Bop Cheek",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_sliced_bop_cheek'"
+  ],
+  "stage": {
+   "bp": "Sliced Bop Cheek",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_sliced_bop_cheek.bmp",
+   "color": "&B",
+   "detail": "B",
+   "name": "{{B|sliced bop cheek}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "SlogCorpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat1'"
+  ],
+  "stage": {
+   "bp": "SlogCorpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat1.bmp",
+   "color": "&M",
+   "detail": "w",
+   "name": "corpse of Slog"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Small Animal Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat3'"
+  ],
+  "stage": {
+   "bp": "Small Animal Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat3.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "[Corpse]"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Smoldered Mushroom",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_mushroom'"
+  ],
+  "stage": {
+   "bp": "Smoldered Mushroom",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "items/sw_mushroom.bmp",
+   "color": "&y",
+   "detail": "K",
+   "name": "smoldered mushroom"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Snack",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_loaf'"
+  ],
+  "stage": {
+   "bp": "Snack",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "items/sw_loaf.bmp",
+   "color": "&y",
+   "detail": "",
+   "name": "[Snack]"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Snail Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat4'"
+  ],
+  "stage": {
+   "bp": "Snail Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat4.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "[Corpse]"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Snailmother Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat2'"
+  ],
+  "stage": {
+   "bp": "Snailmother Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat2.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "snailmother corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Snapjaw Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat4'"
+  ],
+  "stage": {
+   "bp": "Snapjaw Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat4.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "snapjaw corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Soul Curd",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_sparktick_plasma'"
+  ],
+  "stage": {
+   "bp": "Soul Curd",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_sparktick_plasma.bmp",
+   "color": "&C",
+   "detail": "W",
+   "name": "{{soul|soul curd}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Spark Tick Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat2'"
+  ],
+  "stage": {
+   "bp": "Spark Tick Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat2.bmp",
+   "color": "&W",
+   "detail": "w",
+   "name": "{{W|spark tick}} corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Spark Tick Plasma",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_sparktick_plasma'"
+  ],
+  "stage": {
+   "bp": "Spark Tick Plasma",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_sparktick_plasma.bmp",
+   "color": "&y",
+   "detail": "W",
+   "name": "{{W|spark tick plasma}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Spark Tick Scutum",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_sparktick_scutum'"
+  ],
+  "stage": {
+   "bp": "Spark Tick Scutum",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_sparktick_scutum.bmp",
+   "color": "&W",
+   "detail": "w",
+   "name": "{{W|spark tick scutum}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Spine Fruit",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_spinefruit'"
+  ],
+  "stage": {
+   "bp": "Spine Fruit",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_spinefruit.bmp",
+   "color": "&M",
+   "detail": "M",
+   "name": "spine fruit"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Spine Fruit Jam",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_jam'"
+  ],
+  "stage": {
+   "bp": "Spine Fruit Jam",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_Jam.bmp",
+   "color": "&M",
+   "detail": "M",
+   "name": "{{M|spine fruit jam}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Starapple",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_apple'"
+  ],
+  "stage": {
+   "bp": "Starapple",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_apple.bmp",
+   "color": "&R",
+   "detail": "g",
+   "name": "starapple"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Starapple Preserves",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_jam'"
+  ],
+  "stage": {
+   "bp": "Starapple Preserves",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_Jam.bmp",
+   "color": "&R",
+   "detail": "R",
+   "name": "{{R|starapple jam}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Starch",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "Starch",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_Jam.bmp",
+   "color": "&Y",
+   "detail": "G",
+   "name": "{{Y|starch}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "StunBreatherCorpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat1'"
+  ],
+  "stage": {
+   "bp": "StunBreatherCorpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat1.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "stillbeard corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "StunBreatherGland",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_breather_gland'"
+  ],
+  "stage": {
+   "bp": "StunBreatherGland",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_breather_gland.bmp",
+   "color": "&c",
+   "detail": "y",
+   "name": "{{c|stillbeard gland}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "StunBreatherGlandPaste",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_paste'"
+  ],
+  "stage": {
+   "bp": "StunBreatherGlandPaste",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_paste.bmp",
+   "color": "&c",
+   "detail": "c",
+   "name": "{{c|stillbeard gland paste}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Sultan Croc Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat4'"
+  ],
+  "stage": {
+   "bp": "Sultan Croc Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat4.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "sultan {{g|croc}} corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Sun-Dried Banana",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_dried_food'"
+  ],
+  "stage": {
+   "bp": "Sun-Dried Banana",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_dried_food.bmp",
+   "color": "&W",
+   "detail": "w",
+   "name": "{{W|sun-dried banana}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Svardym Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat4'"
+  ],
+  "stage": {
+   "bp": "Svardym Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat4.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "svardym corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Taco Suprema",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_taco'"
+  ],
+  "stage": {
+   "bp": "Taco Suprema",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_taco.bmp",
+   "color": "&y",
+   "detail": "m",
+   "name": "{{m|taco suprema}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "TarBones",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_bones_5'"
+  ],
+  "stage": {
+   "bp": "TarBones",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_bones_5.bmp",
+   "color": "&Y",
+   "detail": "Y",
+   "name": "{{K|tar-encrusted bones}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Tongue Twist",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_tongue_twist'"
+  ],
+  "stage": {
+   "bp": "Tongue Twist",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_tongue_twist.bmp",
+   "color": "&r",
+   "detail": "r",
+   "name": "{{r|tongue twist}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Troll Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat1'"
+  ],
+  "stage": {
+   "bp": "Troll Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat1.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "troll corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Unimax Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat3'"
+  ],
+  "stage": {
+   "bp": "Unimax Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat3.bmp",
+   "color": "&Y",
+   "detail": "w",
+   "name": "unimax corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Urberry",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_urberry'"
+  ],
+  "stage": {
+   "bp": "Urberry",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_urberry.bmp",
+   "color": "&m",
+   "detail": "g",
+   "name": "{{m|urberry}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Urchin Belcher Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat3'"
+  ],
+  "stage": {
+   "bp": "Urchin Belcher Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat3.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "urchin belcher corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Urshiib Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat4'"
+  ],
+  "stage": {
+   "bp": "Urshiib Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat4.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "urshiib corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Vanta Petals",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_lah_petals'"
+  ],
+  "stage": {
+   "bp": "Vanta Petals",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_lah_petals.bmp",
+   "color": "&K",
+   "detail": "y",
+   "name": "{{K|vanta petals}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Vinewafer",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_vinewafer'"
+  ],
+  "stage": {
+   "bp": "Vinewafer",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_vinewafer.bmp",
+   "color": "&g",
+   "detail": "w",
+   "name": "vinewafer"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Vinewafer Sheaf",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_vinewafer_sheaf'"
+  ],
+  "stage": {
+   "bp": "Vinewafer Sheaf",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_vinewafer_sheaf.bmp",
+   "color": "&g",
+   "detail": "w",
+   "name": "{{g|vinewafer sheaf}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Voider Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat3'"
+  ],
+  "stage": {
+   "bp": "Voider Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat3.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "voider corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Voider Gland",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_voider_gland'"
+  ],
+  "stage": {
+   "bp": "Voider Gland",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_voider_gland.bmp",
+   "color": "&B",
+   "detail": "r",
+   "name": "{{B|voider gland}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Voider Gland Paste",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_paste'"
+  ],
+  "stage": {
+   "bp": "Voider Gland Paste",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_paste.bmp",
+   "color": "&y",
+   "detail": "B",
+   "name": "{{B|voider gland paste}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Wild Rice",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_wild_rice'"
+  ],
+  "stage": {
+   "bp": "Wild Rice",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_wild_rice.bmp",
+   "color": "&m",
+   "detail": "y",
+   "name": "{{m-M-m-M sequence|wild}} rice"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Winged Arthropod Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat2'"
+  ],
+  "stage": {
+   "bp": "Winged Arthropod Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat2.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "[Corpse]"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Witchwood Bark",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_jerky1'"
+  ],
+  "stage": {
+   "bp": "Witchwood Bark",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_jerky1.bmp",
+   "color": "&W",
+   "detail": "w",
+   "name": "{{W|witchwood bark}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Woodsprog Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat1'"
+  ],
+  "stage": {
+   "bp": "Woodsprog Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat1.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "woodsprog corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Woodsprog Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat2'"
+  ],
+  "stage": {
+   "bp": "Woodsprog Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat2.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "woodsprog corpse"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Worm Corpse",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat1'"
+  ],
+  "stage": {
+   "bp": "Worm Corpse",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_splat1.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "[Corpse]"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Worm Jerky",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_jerky3'"
+  ],
+  "stage": {
+   "bp": "Worm Jerky",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_jerky3.bmp",
+   "color": "&w",
+   "detail": "r",
+   "name": "worm jerky"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Yondercane",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_yondercane'"
+  ],
+  "stage": {
+   "bp": "Yondercane",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_yondercane.bmp",
+   "color": "&W",
+   "detail": "B",
+   "name": "{{W|yondercane}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Yuckwheat Stem",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_wheat_stem'"
+  ],
+  "stage": {
+   "bp": "Yuckwheat Stem",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_wheat_stem.bmp",
+   "color": "&w",
+   "detail": "W",
+   "name": "{{w|yuckwheat stem}}"
+  },
+  "wire_objs": 1
+ }
+]

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using XRL.World;          // GameObject, Zone, Cell, GameObjectFactory
-using XRL.World.Parts;    // Render
+using XRL.World.Parts;    // Render, Brain
 
 namespace RavesOfQud
 {
@@ -25,11 +25,10 @@ namespace RavesOfQud
     /// </summary>
     public static class ObjectChecker
     {
-        // Stage rect half-extents around the zone-center stage cell. Big enough to
-        // isolate the element from leftover zone dressing; small enough to leave
-        // the rest of the zone (and any parked zoo) alone.
-        private const int RX = 3;
-        private const int RY = 2;
+        // The clear is the WHOLE ZONE, not a stage rect: a rect leaks — staged
+        // creatures wander out between checks and accumulate into a zone-wide
+        // brawl (the 908-creature sweep died to exactly that: escapee goatfolk,
+        // ambient popups, a feared player). "Clean field" means the zone.
 
         // Blueprint enumeration for the sweep — the checker's OWN list (walls,
         // plants, liquids added), separate from PlayerBecome.Categories so the
@@ -47,32 +46,46 @@ namespace RavesOfQud
 
             int cx = zone.Width / 2;
             int cy = zone.Height / 2;
-            int cleared = ClearStage(zone, player, cx, cy);
+            int cleared = ClearZone(zone, player);
 
             GameObject obj;
             try { obj = GameObjectFactory.Factory.CreateObject(bp); }
             catch (Exception e) { return WriteResult(bp, false, "create threw: " + e.Message, null, cx, cy, cleared); }
             if (obj == null) return WriteResult(bp, false, "create returned null", null, cx, cy, cleared);
 
+            Pacify(obj, player);
+
             Cell stage = zone.GetCell(cx, cy);
             if (stage == null) return WriteResult(bp, false, "no stage cell", null, cx, cy, cleared);
-            stage.AddObject(obj);
 
-            // Park the player adjacent (west of the stage) — inside the cleared
-            // field, distance 1, so proximity-gated behaviour is armed.
-            Cell seat = zone.GetCell(cx - 1, cy);
-            if (seat != null) player.SystemMoveTo(seat);
+            // AddObject fires the object-entered event chain — special blueprints
+            // (period variants, corpses) can THROW in a handler. Unwrapped, that
+            // skipped WriteResult and the sweep saw only a silent timeout; report
+            // the real error instead (the 908-creature sweep's 7 mystery FAILs).
+            try
+            {
+                stage.AddObject(obj);
+
+                // Park the player adjacent (west of the stage) — inside the cleared
+                // field, distance 1, so proximity-gated behaviour is armed.
+                Cell seat = zone.GetCell(cx - 1, cy);
+                if (seat != null) player.SystemMoveTo(seat);
+            }
+            catch (Exception e)
+            {
+                return WriteResult(bp, false, "stage threw: " + e.Message, obj, cx, cy, cleared);
+            }
 
             return WriteResult(bp, true, null, obj, cx, cy, cleared);
         }
 
-        /// Remove every object in the stage rect except the player. Obliterate after
+        /// Remove every object in the zone except the player. Obliterate after
         /// RemoveObject (the PlayerBecome retire pattern) so nothing lingers in pools.
-        private static int ClearStage(Zone zone, GameObject player, int cx, int cy)
+        private static int ClearZone(Zone zone, GameObject player)
         {
             int n = 0;
-            for (int y = cy - RY; y <= cy + RY; y++)
-                for (int x = cx - RX; x <= cx + RX; x++)
+            for (int y = 0; y < zone.Height; y++)
+                for (int x = 0; x < zone.Width; x++)
                 {
                     Cell c = zone.GetCell(x, y);
                     if (c == null) continue;
@@ -85,6 +98,26 @@ namespace RavesOfQud
                     }
                 }
             return n;
+        }
+
+        /// Deterministic-stage rule: a staged creature must not fight, flee, or
+        /// wander off the stage — but it stays ACTIVE (animations must run; the
+        /// proximity-gated behaviours are the point of the adjacent seat). The
+        /// KNOWN EXCEPTIONS (engulfers pull, puffers burst — aggression that
+        /// isn't hostility) stay live by design; the sweep is what finds them.
+        private static void Pacify(GameObject obj, GameObject player)
+        {
+            try
+            {
+                Brain brain = obj.GetPart<Brain>();
+                if (brain == null) return;
+                brain.Hostile = false;
+                brain.Wanders = false;
+                brain.WandersRandomly = false;
+                try { brain.Goals.Clear(); } catch { }
+                try { brain.AdjustFeeling(player, 100); } catch { }
+            }
+            catch { }
         }
 
         /// <summary>

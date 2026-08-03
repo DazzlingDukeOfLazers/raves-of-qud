@@ -1,0 +1,3775 @@
+[
+ {
+  "bp": "ActivePlant",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'assets_content_textures_tiles_tile-9-4'"
+  ],
+  "stage": {
+   "bp": "ActivePlant",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "assets_content_textures_tiles_tile-9-4.png",
+   "color": "&G",
+   "detail": "",
+   "name": "[Plant]"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Aloe Fugues",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_aloe_solo'"
+  ],
+  "stage": {
+   "bp": "Aloe Fugues",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_aloe_solo.bmp",
+   "color": "&G",
+   "detail": "M",
+   "name": "aloe fugues"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Aloe Porta",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_aloe_solo'"
+  ],
+  "stage": {
+   "bp": "Aloe Porta",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_aloe_solo.bmp",
+   "color": "&y",
+   "detail": "B",
+   "name": "aloe porta"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Aloe Pyra",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "Aloe Pyra",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_aloe_solo.bmp",
+   "color": "&R",
+   "detail": "R",
+   "name": "aloe pyra"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Aloe Volta",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_aloe_volta_2'"
+  ],
+  "stage": {
+   "bp": "Aloe Volta",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_aloe_volta_2.bmp",
+   "color": "&W",
+   "detail": "w",
+   "name": "aloe volta"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Asphodel",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_flower'"
+  ],
+  "stage": {
+   "bp": "Asphodel",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_flower.bmp",
+   "color": "&M",
+   "detail": "M",
+   "name": "Asphodel, Earl of Omonporch"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Asphodelyte",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_flower'"
+  ],
+  "stage": {
+   "bp": "Asphodelyte",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 13,
+   "tile": "Creatures/sw_flower.bmp",
+   "color": "&G",
+   "detail": "r",
+   "name": "asphodelyte"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Banana Tree",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_tree_banana_4'"
+  ],
+  "stage": {
+   "bp": "Banana Tree",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_tree_banana_4.bmp",
+   "color": "&g",
+   "detail": "G",
+   "name": "banana tree"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Bending Gjaus",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_bending-gjaus-1'"
+  ],
+  "stage": {
+   "bp": "Bending Gjaus",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/bending-gjaus-1.png",
+   "color": "&W",
+   "detail": "g",
+   "name": "bending gjaus"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Bop Sponge",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_coral_ball_3'"
+  ],
+  "stage": {
+   "bp": "Bop Sponge",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_coral_ball_3.bmp",
+   "color": "&B",
+   "detail": "",
+   "name": "bop sponge"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Brinestalk",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'assets_content_textures_tiles_tile-brinestalk'"
+  ],
+  "stage": {
+   "bp": "Brinestalk",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "assets_content_textures_tiles_tile-brinestalk.png",
+   "color": "&w",
+   "detail": "g",
+   "name": "brinestalk"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Bush Golem",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_golem_bush'"
+  ],
+  "stage": {
+   "bp": "Bush Golem",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_golem_bush.png",
+   "color": "&y",
+   "detail": "w",
+   "name": "bush golem"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Chavvah Branch",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_chavvah_branch_floor_2'"
+  ],
+  "stage": {
+   "bp": "Chavvah Branch",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_chavvah_branch_floor_2.bmp",
+   "color": "&m",
+   "detail": "y",
+   "name": "crystalline branch"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Chavvah Chime Left",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_chavvah_chime_double_1'"
+  ],
+  "stage": {
+   "bp": "Chavvah Chime Left",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_chavvah_chime_double_1.bmp",
+   "color": "&y",
+   "detail": "m",
+   "name": "chiming rock"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Chavvah Chime Right",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_chavvah_chime_double_2'"
+  ],
+  "stage": {
+   "bp": "Chavvah Chime Right",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_chavvah_chime_double_2.bmp",
+   "color": "&y",
+   "detail": "m",
+   "name": "chiming rock"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Chavvah Dense Leaves",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_chavvah_leaves_dense_3'"
+  ],
+  "stage": {
+   "bp": "Chavvah Dense Leaves",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_chavvah_leaves_dense_3.bmp",
+   "color": "&y",
+   "detail": "y",
+   "name": "dense crystal leaves"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Chavvah Sparse Leaves",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_chavvah_leaves_sparse_4'"
+  ],
+  "stage": {
+   "bp": "Chavvah Sparse Leaves",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_chavvah_leaves_sparse_4.bmp",
+   "color": "&y",
+   "detail": "y",
+   "name": "sparse crystal leaves"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Chavvah Taproot Floor",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_chavvah_branch_floor_6'"
+  ],
+  "stage": {
+   "bp": "Chavvah Taproot Floor",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_chavvah_branch_floor_6.bmp",
+   "color": "&m",
+   "detail": "y",
+   "name": "crystalline taproot"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Chiliad Creature Consortium",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_pottedplant_ornate_2'"
+  ],
+  "stage": {
+   "bp": "Chiliad Creature Consortium",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_pottedplant_ornate_2.bmp",
+   "color": "&g",
+   "detail": "m",
+   "name": "Consortium brinestalker"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Chiliad Creature Flowers",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_chiliad-flower'"
+  ],
+  "stage": {
+   "bp": "Chiliad Creature Flowers",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/chiliad-flower.png",
+   "color": "&w",
+   "detail": "g",
+   "name": "blooming marsheater"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Chiliad Creature Roots",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_chiliad-root'"
+  ],
+  "stage": {
+   "bp": "Chiliad Creature Roots",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/chiliad-root.png",
+   "color": "&g",
+   "detail": "Y",
+   "name": "brine root"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Chiliad Creature Succulents",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_chiliad-succulent'"
+  ],
+  "stage": {
+   "bp": "Chiliad Creature Succulents",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/chiliad-succulent.png",
+   "color": "&g",
+   "detail": "b",
+   "name": "glade cactus"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Chiliad Creature Trees",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_chiliad-tree'"
+  ],
+  "stage": {
+   "bp": "Chiliad Creature Trees",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/chiliad-tree.png",
+   "color": "&R",
+   "detail": "g",
+   "name": "shading mudeater"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Chiliad Creature Vines",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_chiliad-vine'"
+  ],
+  "stage": {
+   "bp": "Chiliad Creature Vines",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/chiliad-vine.png",
+   "color": "&g",
+   "detail": "K",
+   "name": "mud vine"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Chiliad Dogthorn Tree",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_chiliad-dogthorn-1'"
+  ],
+  "stage": {
+   "bp": "Chiliad Dogthorn Tree",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/chiliad-dogthorn-1.png",
+   "color": "&G",
+   "detail": "w",
+   "name": "dogthorn tree"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Chiliad Starapple Tree",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_chiliad-starapple'"
+  ],
+  "stage": {
+   "bp": "Chiliad Starapple Tree",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/chiliad-starapple.png",
+   "color": "&g",
+   "detail": "K",
+   "name": "starapple tree"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Chiliad Watervine",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_chiliad-watervine-1'"
+  ],
+  "stage": {
+   "bp": "Chiliad Watervine",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/chiliad-watervine-1.png",
+   "color": "&K",
+   "detail": "K",
+   "name": "watervine"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Chiliad Witchwood Tree",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_chiliad-witchwood-2'"
+  ],
+  "stage": {
+   "bp": "Chiliad Witchwood Tree",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/chiliad-witchwood-2.png",
+   "color": "&W",
+   "detail": "w",
+   "name": "witchwood tree"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Clue_BloodyWatervine",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'assets_content_textures_tiles_sw_watervine3'"
+  ],
+  "stage": {
+   "bp": "Clue_BloodyWatervine",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Assets_Content_Textures_Tiles_sw_watervine3.bmp",
+   "color": "&r",
+   "detail": "r",
+   "name": "{{r|{{r|blood}}-stained patch of watervine}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Coral",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_reef_organic_even_1'"
+  ],
+  "stage": {
+   "bp": "Coral",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "terrain/sw_reef_organic_even_1.bmp",
+   "color": "&r",
+   "detail": "",
+   "name": "[Coral]"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Coral and Palladium Strut",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_reef_both_even_1'"
+  ],
+  "stage": {
+   "bp": "Coral and Palladium Strut",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_reef_both_even_1.bmp",
+   "color": "&r",
+   "detail": "r",
+   "name": "palladium strut with coral growth"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Coral and Palladium Strut A",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_reef_both_even_4'"
+  ],
+  "stage": {
+   "bp": "Coral and Palladium Strut A",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_reef_both_even_4.bmp",
+   "color": "&r",
+   "detail": "r",
+   "name": "palladium strut with coral growth"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Coral and Palladium Strut B",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_reef_both_odd_2'"
+  ],
+  "stage": {
+   "bp": "Coral and Palladium Strut B",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_reef_both_odd_2.bmp",
+   "color": "&r",
+   "detail": "r",
+   "name": "palladium strut with coral growth"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Coral Polyp",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_reef_organic_odd_1'"
+  ],
+  "stage": {
+   "bp": "Coral Polyp",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_reef_organic_odd_1.bmp",
+   "color": "&r",
+   "detail": "r",
+   "name": "coral polyp"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Coral Polyp A",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_reef_organic_even_1'"
+  ],
+  "stage": {
+   "bp": "Coral Polyp A",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_reef_organic_even_1.bmp",
+   "color": "&r",
+   "detail": "r",
+   "name": "coral polyp"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Coral Polyp B",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "Coral Polyp B",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_reef_organic_odd_1.bmp",
+   "color": "&r",
+   "detail": "r",
+   "name": "coral polyp"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Crystal",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'assets_content_textures_tiles_tile-9-4'"
+  ],
+  "stage": {
+   "bp": "Crystal",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "assets_content_textures_tiles_tile-9-4.png",
+   "color": "&m",
+   "detail": "",
+   "name": "[Crystal]"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Crystal Chime",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'assets_content_textures_tiles_tile-9-4'"
+  ],
+  "stage": {
+   "bp": "Crystal Chime",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "assets_content_textures_tiles_tile-9-4.png",
+   "color": "&m",
+   "detail": "",
+   "name": "[Crystal]"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Crystalline Radicle",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'tiles2_roots_base_'"
+  ],
+  "stage": {
+   "bp": "Crystalline Radicle",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Tiles2/Roots/base_.png",
+   "color": "&m",
+   "detail": "y",
+   "name": "young crystalline root"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Crystalline Root",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'tiles2_roots_spikey_'"
+  ],
+  "stage": {
+   "bp": "Crystalline Root",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Tiles2/Roots/spikey_.png",
+   "color": "&m",
+   "detail": "y",
+   "name": "crystalline root"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "CrystalWall",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'assets_content_textures_tiles_tile-9-4'"
+  ],
+  "stage": {
+   "bp": "CrystalWall",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "assets_content_textures_tiles_tile-9-4.png",
+   "color": "&K^M",
+   "detail": "K",
+   "name": "large hexagonal crystal"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Dicalyptus Tree",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_bigtree1'"
+  ],
+  "stage": {
+   "bp": "Dicalyptus Tree",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 0,
+   "tile": "Terrain/sw_bigtree1.bmp",
+   "color": "&g",
+   "detail": "w",
+   "name": "diacalyptus tree"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Dogthorn Tree",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_fattree1'"
+  ],
+  "stage": {
+   "bp": "Dogthorn Tree",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_fattree1.bmp",
+   "color": "&G",
+   "detail": "w",
+   "name": "dogthorn tree"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Dogthorn Tree2",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_fattree3'"
+  ],
+  "stage": {
+   "bp": "Dogthorn Tree2",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "terrain/sw_fattree3.png",
+   "color": "&k",
+   "detail": "w",
+   "name": "dogthorn tree"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Dreadroot",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_dreadroot'"
+  ],
+  "stage": {
+   "bp": "Dreadroot",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_dreadroot.bmp",
+   "color": "&K",
+   "detail": "K",
+   "name": "dreadroot"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Dreamcrungle",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_dreamcrungle'"
+  ],
+  "stage": {
+   "bp": "Dreamcrungle",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_dreamcrungle.bmp",
+   "color": "&B",
+   "detail": "B",
+   "name": "dreamcrungle"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Dreamer",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_chavvah_chime_8'"
+  ],
+  "stage": {
+   "bp": "Dreamer",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_chavvah_chime_8.bmp",
+   "color": "&B",
+   "detail": "b",
+   "name": "_"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Dyvvrach",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_chavvah_chime_1'"
+  ],
+  "stage": {
+   "bp": "Dyvvrach",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_chavvah_chime_1.bmp",
+   "color": "&r",
+   "detail": "R",
+   "name": "Dyvvrach"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Eel Grass",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_extrasolar-grass'"
+  ],
+  "stage": {
+   "bp": "Eel Grass",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/extrasolar-grass.png",
+   "color": "&g",
+   "detail": "G",
+   "name": "eel grass"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Elder Lagroot",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_elder_lagroot'"
+  ],
+  "stage": {
+   "bp": "Elder Lagroot",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_elder_lagroot.bmp",
+   "color": "&W",
+   "detail": "w",
+   "name": "elder lagroot"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Euclid",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_yurl'"
+  ],
+  "stage": {
+   "bp": "Euclid",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_yurl.bmp",
+   "color": "&G",
+   "detail": "W",
+   "name": "Euclid"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Farm Bop Sponge",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_coral_ball_3'"
+  ],
+  "stage": {
+   "bp": "Farm Bop Sponge",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_coral_ball_3.bmp",
+   "color": "&b",
+   "detail": "",
+   "name": "bop sponge"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Feral Lah",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_feral_lah'"
+  ],
+  "stage": {
+   "bp": "Feral Lah",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_feral_lah.bmp",
+   "color": "&r",
+   "detail": "R",
+   "name": "{{r|feral lah}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Feral Lah Pod",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_tumbling_pod'"
+  ],
+  "stage": {
+   "bp": "Feral Lah Pod",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_tumbling_pod.bmp",
+   "color": "&R",
+   "detail": "W",
+   "name": "{{r|tumbling pod}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Finger Coral",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_coral_branching_2'"
+  ],
+  "stage": {
+   "bp": "Finger Coral",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_coral_branching_2.bmp",
+   "color": "&r",
+   "detail": "R",
+   "name": "finger coral"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Flower Golem",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_golem_flower'"
+  ],
+  "stage": {
+   "bp": "Flower Golem",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_golem_flower.png",
+   "color": "&y",
+   "detail": "w",
+   "name": "flower golem"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Flowers Cherub",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_cherub_flower'"
+  ],
+  "stage": {
+   "bp": "Flowers Cherub",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_cherub_flower.bmp",
+   "color": "&Y",
+   "detail": "y",
+   "name": "flower cherub"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Fracti",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_fracti6'"
+  ],
+  "stage": {
+   "bp": "Fracti",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_fracti6.bmp",
+   "color": "&g",
+   "detail": "y",
+   "name": "fractus"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Fracti2",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_fracti5'"
+  ],
+  "stage": {
+   "bp": "Fracti2",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_fracti5.bmp",
+   "color": "&g",
+   "detail": "W",
+   "name": "fractus"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Fracti3",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_fracti5'"
+  ],
+  "stage": {
+   "bp": "Fracti3",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_fracti5.bmp",
+   "color": "&g",
+   "detail": "w",
+   "name": "fractus"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Fractus Golem",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_golem_fractus'"
+  ],
+  "stage": {
+   "bp": "Fractus Golem",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_golem_fractus.png",
+   "color": "&y",
+   "detail": "w",
+   "name": "fractus golem"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Glitchwood Tree",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_fattree2'"
+  ],
+  "stage": {
+   "bp": "Glitchwood Tree",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_fattree2.bmp",
+   "color": "&y",
+   "detail": "K",
+   "name": "glitchwood tree"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Glowpad",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_glowpad'"
+  ],
+  "stage": {
+   "bp": "Glowpad",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "creatures/sw_glowpad.bmp",
+   "color": "&m",
+   "detail": "g",
+   "name": "glowpad"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Gnawed Watervine",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'assets_content_textures_tiles_sw_watervine2'"
+  ],
+  "stage": {
+   "bp": "Gnawed Watervine",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Assets_Content_Textures_Tiles_sw_watervine2.bmp",
+   "color": "&K",
+   "detail": "K",
+   "name": "gnawed watervine"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Gorged Growth",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_moss_monster'"
+  ],
+  "stage": {
+   "bp": "Gorged Growth",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_moss_monster.bmp",
+   "color": "&r",
+   "detail": "Y",
+   "name": "gorged growth"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Grave Moss",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_moss_1'"
+  ],
+  "stage": {
+   "bp": "Grave Moss",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_moss_1.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "grave moss"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Haddas",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_bigtree1'"
+  ],
+  "stage": {
+   "bp": "Haddas",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_bigtree1.bmp",
+   "color": "&r",
+   "detail": "w",
+   "name": "Mayor Haddas"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Holographic Banana Tree",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_tree_banana_2'"
+  ],
+  "stage": {
+   "bp": "Holographic Banana Tree",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_tree_banana_2.bmp",
+   "color": "&r",
+   "detail": "W",
+   "name": "banana tree"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Holographic Beth",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_lurking_beth'"
+  ],
+  "stage": {
+   "bp": "Holographic Beth",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_lurking_beth.bmp",
+   "color": "&c",
+   "detail": "R",
+   "name": "holographic beth"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Holographic Dicalyptus Tree",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_bigtree2'"
+  ],
+  "stage": {
+   "bp": "Holographic Dicalyptus Tree",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 7,
+   "tile": "Terrain/sw_bigtree2.bmp",
+   "color": "&g",
+   "detail": "w",
+   "name": "diacalyptus tree"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Holographic Dogthorn Tree",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_fattree2'"
+  ],
+  "stage": {
+   "bp": "Holographic Dogthorn Tree",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_fattree2.bmp",
+   "color": "&G",
+   "detail": "w",
+   "name": "dogthorn tree"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Holographic Ivory",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_young_ivory'"
+  ],
+  "stage": {
+   "bp": "Holographic Ivory",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_young_ivory.bmp",
+   "color": "&y",
+   "detail": "Y",
+   "name": "{{Y|holographic ivory}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Holographic Shimscale Mangrove Tree",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_mangrove1'"
+  ],
+  "stage": {
+   "bp": "Holographic Shimscale Mangrove Tree",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_mangrove1.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "shimscale mangrove tree"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Holographic Star Palm",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_palm'"
+  ],
+  "stage": {
+   "bp": "Holographic Star Palm",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_palm.bmp",
+   "color": "&G",
+   "detail": "w",
+   "name": "star palm"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Holographic Swarmshade Tree",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_fattree2'"
+  ],
+  "stage": {
+   "bp": "Holographic Swarmshade Tree",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_fattree2.bmp",
+   "color": "&g",
+   "detail": "w",
+   "name": "swarmshade tree"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Holographic Ziv Bough",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_warp_wood_2'"
+  ],
+  "stage": {
+   "bp": "Holographic Ziv Bough",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_warp_wood_2.bmp",
+   "color": "&g",
+   "detail": "w",
+   "name": "ziv bough"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Icosahedar",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_tree_bulbs_1'"
+  ],
+  "stage": {
+   "bp": "Icosahedar",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_tree_bulbs_1.bmp",
+   "color": "&W",
+   "detail": "y",
+   "name": "icosahedar"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Irritable Palm",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_palm'"
+  ],
+  "stage": {
+   "bp": "Irritable Palm",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_palm.bmp",
+   "color": "&C",
+   "detail": "w",
+   "name": "irritable palm"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Jilted Lover",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'assets_content_textures_creatures_sw_plant'"
+  ],
+  "stage": {
+   "bp": "Jilted Lover",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Assets_Content_Textures_Creatures_sw_plant.bmp",
+   "color": "&g^w",
+   "detail": "R",
+   "name": "{{g|jilted lover}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Lagroot",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_lagroot'"
+  ],
+  "stage": {
+   "bp": "Lagroot",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_lagroot.bmp",
+   "color": "&w",
+   "detail": "y",
+   "name": "lagroot"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Lahbloom",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_lahbloom'"
+  ],
+  "stage": {
+   "bp": "Lahbloom",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_lahbloom.bmp",
+   "color": "&W",
+   "detail": "w",
+   "name": "lahbloom"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Leafless Dogthorn Tree",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_fattree3'"
+  ],
+  "stage": {
+   "bp": "Leafless Dogthorn Tree",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "terrain/sw_fattree3.png",
+   "color": "&k",
+   "detail": "w",
+   "name": "dogthorn tree"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Livid Creeper",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_livid_creeper'"
+  ],
+  "stage": {
+   "bp": "Livid Creeper",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_livid_creeper.bmp",
+   "color": "&c^w",
+   "detail": "B",
+   "name": "livid creeper"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Lurking Beth",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_lurking_beth'"
+  ],
+  "stage": {
+   "bp": "Lurking Beth",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "creatures/sw_lurking_beth.bmp",
+   "color": "&c",
+   "detail": "R",
+   "name": "lurking beth"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Mechanical Flowers Cherub",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_cherub_flower_mechanical'"
+  ],
+  "stage": {
+   "bp": "Mechanical Flowers Cherub",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 7,
+   "tile": "Creatures/sw_cherub_flower_mechanical.bmp",
+   "color": "&C",
+   "detail": "W",
+   "name": "mechanical flower cherub"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Mechanical Roots Cherub",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_cherub_root_mechanical'"
+  ],
+  "stage": {
+   "bp": "Mechanical Roots Cherub",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_cherub_root_mechanical.bmp",
+   "color": "&C",
+   "detail": "W",
+   "name": "mechanical root cherub"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Mechanical Succulents Cherub",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_cherub_succulent_mechanical'"
+  ],
+  "stage": {
+   "bp": "Mechanical Succulents Cherub",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_cherub_succulent_mechanical.bmp",
+   "color": "&C",
+   "detail": "W",
+   "name": "mechanical fractus cherub"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Mechanical Trees Cherub",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_cherub_tree_mechanical'"
+  ],
+  "stage": {
+   "bp": "Mechanical Trees Cherub",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_cherub_tree_mechanical.bmp",
+   "color": "&C",
+   "detail": "W",
+   "name": "mechanical tree cherub"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Mechanical Vines Cherub",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_cherub_vine_mechanical'"
+  ],
+  "stage": {
+   "bp": "Mechanical Vines Cherub",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_cherub_vine_mechanical.bmp",
+   "color": "&C",
+   "detail": "W",
+   "name": "mechanical vine cherub"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Miryam",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_chavvah_chime_6'"
+  ],
+  "stage": {
+   "bp": "Miryam",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_chavvah_chime_6.bmp",
+   "color": "&K",
+   "detail": "y",
+   "name": "Miryam"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Moon-and-Sun Shade",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_moon-and-sun-shade-2'"
+  ],
+  "stage": {
+   "bp": "Moon-and-Sun Shade",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/moon-and-sun-shade-2.png",
+   "color": "&g",
+   "detail": "w",
+   "name": "moon-and-sun shade"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "MutatedBush",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'assets_content_textures_creatures_sw_farmer'"
+  ],
+  "stage": {
+   "bp": "MutatedBush",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Assets_Content_Textures_Creatures_sw_farmer.bmp",
+   "color": "&G",
+   "detail": "w",
+   "name": "[Mutated Plant]"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "MutatedFlower",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'assets_content_textures_creatures_sw_farmer'"
+  ],
+  "stage": {
+   "bp": "MutatedFlower",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Assets_Content_Textures_Creatures_sw_farmer.bmp",
+   "color": "&G",
+   "detail": "w",
+   "name": "[Mutated Plant]"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "MutatedPlant",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "MutatedPlant",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Assets_Content_Textures_Creatures_sw_farmer.bmp",
+   "color": "&G",
+   "detail": "w",
+   "name": "[Mutated Plant]"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "MutatedRoots",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "MutatedRoots",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Assets_Content_Textures_Creatures_sw_farmer.bmp",
+   "color": "&G",
+   "detail": "w",
+   "name": "[Mutated Plant]"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "MutatedSucculent",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "MutatedSucculent",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Assets_Content_Textures_Creatures_sw_farmer.bmp",
+   "color": "&G",
+   "detail": "w",
+   "name": "[Mutated Plant]"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "MutatedTree",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "MutatedTree",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Assets_Content_Textures_Creatures_sw_farmer.bmp",
+   "color": "&G",
+   "detail": "w",
+   "name": "[Mutated Plant]"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "MutatedVine",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "MutatedVine",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Assets_Content_Textures_Creatures_sw_farmer.bmp",
+   "color": "&G",
+   "detail": "w",
+   "name": "[Mutated Plant]"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "n-Ary Tree",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_tree_crystal_1'"
+  ],
+  "stage": {
+   "bp": "n-Ary Tree",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_tree_crystal_1.bmp",
+   "color": "&m",
+   "detail": "y",
+   "name": "n-ary tree"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Nachash Tree",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_tree_curly_1'"
+  ],
+  "stage": {
+   "bp": "Nachash Tree",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_tree_curly_1.bmp",
+   "color": "&g",
+   "detail": "w",
+   "name": "nachash tree"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Nails of Jy",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_finger-root-2'"
+  ],
+  "stage": {
+   "bp": "Nails of Jy",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/finger-root-2.png",
+   "color": "&r",
+   "detail": "R",
+   "name": "nails of Jy"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Nimbus Beam",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_tree_fuzzy_2'"
+  ],
+  "stage": {
+   "bp": "Nimbus Beam",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_tree_fuzzy_2.bmp",
+   "color": "&g",
+   "detail": "w",
+   "name": "nimbus beam"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Noisegrass",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_noise_grass_4'"
+  ],
+  "stage": {
+   "bp": "Noisegrass",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_noise_grass_4.bmp",
+   "color": "&K",
+   "detail": "y",
+   "name": "noisegrass"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "OasisGlowpad",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_glowpad'"
+  ],
+  "stage": {
+   "bp": "OasisGlowpad",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "creatures/sw_glowpad.bmp",
+   "color": "&C",
+   "detail": "g",
+   "name": "oddly-hued glowpad"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Ornate Potted Plant 1",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_pottedplant_ornate_1'"
+  ],
+  "stage": {
+   "bp": "Ornate Potted Plant 1",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_pottedplant_ornate_1.bmp",
+   "color": "&g",
+   "detail": "C",
+   "name": "plant in ornate pot"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Ornate Potted Plant 2",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_pottedplant_ornate_2'"
+  ],
+  "stage": {
+   "bp": "Ornate Potted Plant 2",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_pottedplant_ornate_2.bmp",
+   "color": "&g",
+   "detail": "C",
+   "name": "plant in ornate pot"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Ornate Potted Plant 3",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_pottedplant_ornate_3'"
+  ],
+  "stage": {
+   "bp": "Ornate Potted Plant 3",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_pottedplant_ornate_3.bmp",
+   "color": "&g",
+   "detail": "C",
+   "name": "plant in ornate pot"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Ornate Potted Plant 4",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_bonsai'"
+  ],
+  "stage": {
+   "bp": "Ornate Potted Plant 4",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_bonsai.bmp",
+   "color": "&g",
+   "detail": "C",
+   "name": "plant in ornate pot"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Plant",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'assets_content_textures_tiles_tile-9-4'"
+  ],
+  "stage": {
+   "bp": "Plant",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "assets_content_textures_tiles_tile-9-4.png",
+   "color": "&G",
+   "detail": "",
+   "name": "[Plant]"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Plant Turret",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'assets_content_textures_creatures_sw_farmer'"
+  ],
+  "stage": {
+   "bp": "Plant Turret",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Assets_Content_Textures_Creatures_sw_farmer.bmp",
+   "color": "&g",
+   "detail": "w",
+   "name": "{{g|spitting plant}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "PlasticTree",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_plastic_tree'"
+  ],
+  "stage": {
+   "bp": "PlasticTree",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_plastic_tree.bmp",
+   "color": "&G",
+   "detail": "w",
+   "name": "strange furniture"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "PolypCache",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_sunslag_bulb_odd'"
+  ],
+  "stage": {
+   "bp": "PolypCache",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_sunslag_bulb_odd.bmp",
+   "color": "&Y",
+   "detail": "W",
+   "name": "swollen bulb"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Prickler",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_prickler'"
+  ],
+  "stage": {
+   "bp": "Prickler",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_prickler.bmp",
+   "color": "&W^K",
+   "detail": "w",
+   "name": "{{g|prickler}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Psychal Rhythm Rock",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_crystal2'"
+  ],
+  "stage": {
+   "bp": "Psychal Rhythm Rock",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_crystal2.bmp",
+   "color": "&Y",
+   "detail": "m",
+   "name": "psychal rhythm rock"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Qudzu",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_qudzu'"
+  ],
+  "stage": {
+   "bp": "Qudzu",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_qudzu.bmp",
+   "color": "&r",
+   "detail": "w",
+   "name": "{{r|qudzu}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Red Death Dacca",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_dacca'"
+  ],
+  "stage": {
+   "bp": "Red Death Dacca",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_dacca.bmp",
+   "color": "&r",
+   "detail": "r",
+   "name": "{{r|red death dacca}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Ring of Moss",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_ring-moss-2'"
+  ],
+  "stage": {
+   "bp": "Ring of Moss",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/ring-moss-2.png",
+   "color": "&g",
+   "detail": "w",
+   "name": "ring of moss"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Root Golem",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_golem_root'"
+  ],
+  "stage": {
+   "bp": "Root Golem",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_golem_root.png",
+   "color": "&y",
+   "detail": "w",
+   "name": "root golem"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Roots Cherub",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_cherub_root'"
+  ],
+  "stage": {
+   "bp": "Roots Cherub",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_cherub_root.bmp",
+   "color": "&Y",
+   "detail": "y",
+   "name": "root cherub"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Santalalotze",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_santalalotze'"
+  ],
+  "stage": {
+   "bp": "Santalalotze",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "creatures/sw_santalalotze.bmp",
+   "color": "&G",
+   "detail": "M",
+   "name": "Santalalotze"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "SapientMutatedBush",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'assets_content_textures_creatures_sw_farmer'"
+  ],
+  "stage": {
+   "bp": "SapientMutatedBush",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Assets_Content_Textures_Creatures_sw_farmer.bmp",
+   "color": "&G",
+   "detail": "w",
+   "name": "[Mutated Plant]"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "SapientMutatedFlower",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'assets_content_textures_creatures_sw_farmer'"
+  ],
+  "stage": {
+   "bp": "SapientMutatedFlower",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Assets_Content_Textures_Creatures_sw_farmer.bmp",
+   "color": "&G",
+   "detail": "w",
+   "name": "[Mutated Plant]"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "SapientMutatedSucculent",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "SapientMutatedSucculent",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Assets_Content_Textures_Creatures_sw_farmer.bmp",
+   "color": "&G",
+   "detail": "w",
+   "name": "[Mutated Plant]"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "SapientMutatedTree",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "SapientMutatedTree",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Assets_Content_Textures_Creatures_sw_farmer.bmp",
+   "color": "&G",
+   "detail": "w",
+   "name": "[Mutated Plant]"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "SapientMutatedVine",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "SapientMutatedVine",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Assets_Content_Textures_Creatures_sw_farmer.bmp",
+   "color": "&G",
+   "detail": "w",
+   "name": "[Mutated Plant]"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Seed-Spitting Vine",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_seed_spitting_vine'"
+  ],
+  "stage": {
+   "bp": "Seed-Spitting Vine",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_seed_spitting_vine.bmp",
+   "color": "&G",
+   "detail": "g",
+   "name": "{{g|seed-spitting vine}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Shimscale Mangrove Tree",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_mangrove2'"
+  ],
+  "stage": {
+   "bp": "Shimscale Mangrove Tree",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_mangrove2.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "shimscale mangrove tree"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Shimscale Mangrove Tree_blue",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_mangrove1'"
+  ],
+  "stage": {
+   "bp": "Shimscale Mangrove Tree_blue",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "terrain/sw_mangrove1.bmp",
+   "color": "&w",
+   "detail": "w",
+   "name": "shimscale mangrove tree"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Sixshrew",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_pottedplant_ornate_2'"
+  ],
+  "stage": {
+   "bp": "Sixshrew",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_pottedplant_ornate_2.bmp",
+   "color": "&W",
+   "detail": "W",
+   "name": "Sixshrew"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Slime Grass",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_weeds2'"
+  ],
+  "stage": {
+   "bp": "Slime Grass",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_weeds2.bmp",
+   "color": "&w",
+   "detail": "g",
+   "name": "scumgrass"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "SmallHexCrystal",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_hex_small'"
+  ],
+  "stage": {
+   "bp": "SmallHexCrystal",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_hex_small.bmp",
+   "color": "&K^k",
+   "detail": "C",
+   "name": "hexagonal crystal"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "SolidPlant",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'assets_content_textures_tiles_tile-9-4'"
+  ],
+  "stage": {
+   "bp": "SolidPlant",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "assets_content_textures_tiles_tile-9-4.png",
+   "color": "&w",
+   "detail": "w",
+   "name": "[Plant]"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "SolidTree",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'assets_content_textures_tiles_tile-9-4'"
+  ],
+  "stage": {
+   "bp": "SolidTree",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "assets_content_textures_tiles_tile-9-4.png",
+   "color": "&w",
+   "detail": "w",
+   "name": "[Plant]"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Sponge",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_coral_ball_1'"
+  ],
+  "stage": {
+   "bp": "Sponge",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "terrain/sw_coral_ball_1.bmp",
+   "color": "&r",
+   "detail": "",
+   "name": "[Sponge]"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Sprouting Orb",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_sprouting_orb'"
+  ],
+  "stage": {
+   "bp": "Sprouting Orb",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_sprouting_orb.bmp",
+   "color": "&g",
+   "detail": "G",
+   "name": "sprouting orb"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Star Orchid Lily",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_star-orchid-lily-2'"
+  ],
+  "stage": {
+   "bp": "Star Orchid Lily",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/star-orchid-lily-2.png",
+   "color": "&g",
+   "detail": "M",
+   "name": "star orchid lily"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Star Palm",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_palm'"
+  ],
+  "stage": {
+   "bp": "Star Palm",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_palm.bmp",
+   "color": "&G",
+   "detail": "w",
+   "name": "star palm"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Starapple Farm Ezra",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_starappletree'"
+  ],
+  "stage": {
+   "bp": "Starapple Farm Ezra",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_starappletree.bmp",
+   "color": "&R",
+   "detail": "R",
+   "name": "starapple tree"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Starapple Farm Tree",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_starappletree'"
+  ],
+  "stage": {
+   "bp": "Starapple Farm Tree",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_starappletree.bmp",
+   "color": "&g",
+   "detail": "K",
+   "name": "starapple tree"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Starapple Tree",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "Starapple Tree",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_starappletree.bmp",
+   "color": "&g",
+   "detail": "K",
+   "name": "starapple tree"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Starapple Tree Barathrumite",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "Starapple Tree Barathrumite",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_starappletree.bmp",
+   "color": "&g",
+   "detail": "K",
+   "name": "starapple tree"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Starapple Tree Ripe",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "Starapple Tree Ripe",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_starappletree.bmp",
+   "color": "&R",
+   "detail": "R",
+   "name": "starapple tree"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Starship Ornate Potted Plant 2",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_pottedplant_ornate_2'"
+  ],
+  "stage": {
+   "bp": "Starship Ornate Potted Plant 2",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_pottedplant_ornate_2.bmp",
+   "color": "&g",
+   "detail": "C",
+   "name": "plant in ornate pot"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Starship Ornate Potted Plant 3",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_pottedplant_ornate_3'"
+  ],
+  "stage": {
+   "bp": "Starship Ornate Potted Plant 3",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_pottedplant_ornate_3.bmp",
+   "color": "&g",
+   "detail": "C",
+   "name": "plant in ornate pot"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Stillvine",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'assets_content_textures_tiles_sw_watervine1'"
+  ],
+  "stage": {
+   "bp": "Stillvine",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Assets_Content_Textures_Tiles_sw_watervine1.bmp",
+   "color": "&K",
+   "detail": "C",
+   "name": "stillvine"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Succulent Golem",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_golem_succulent'"
+  ],
+  "stage": {
+   "bp": "Succulent Golem",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_golem_succulent.png",
+   "color": "&y",
+   "detail": "w",
+   "name": "succulent golem"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Succulents Cherub",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_cherub_succulent'"
+  ],
+  "stage": {
+   "bp": "Succulents Cherub",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_cherub_succulent.bmp",
+   "color": "&Y",
+   "detail": "y",
+   "name": "fractus cherub"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Sunflower",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_tree_circle_2'"
+  ],
+  "stage": {
+   "bp": "Sunflower",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_tree_circle_2.bmp",
+   "color": "&W",
+   "detail": "g",
+   "name": "sunflower"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Swarmshade Tree",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_fattree2'"
+  ],
+  "stage": {
+   "bp": "Swarmshade Tree",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_fattree2.bmp",
+   "color": "&g",
+   "detail": "w",
+   "name": "swarmshade tree"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Swarmshade Tree_blue",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_fattree1'"
+  ],
+  "stage": {
+   "bp": "Swarmshade Tree_blue",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_fattree1.bmp",
+   "color": "&g",
+   "detail": "w",
+   "name": "swarmshade tree"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Tammuz",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_chavvah_chime_4'"
+  ],
+  "stage": {
+   "bp": "Tammuz",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_chavvah_chime_4.bmp",
+   "color": "&y",
+   "detail": "M",
+   "name": "Tammuz"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "TauSoft",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_chavvah_soft'"
+  ],
+  "stage": {
+   "bp": "TauSoft",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_chavvah_soft.bmp",
+   "color": "&m",
+   "detail": "y",
+   "name": "glowing soft"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Thicksalt",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_chavvah_chime_7'"
+  ],
+  "stage": {
+   "bp": "Thicksalt",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_chavvah_chime_7.bmp",
+   "color": "&W",
+   "detail": "w",
+   "name": "Thicksalt"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Thirst Thistle",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_thirst_thistle'"
+  ],
+  "stage": {
+   "bp": "Thirst Thistle",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_thirst_thistle.bmp",
+   "color": "&Y",
+   "detail": "Y",
+   "name": "thirst thistle"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Tikva",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_chavvah_chime_3'"
+  ],
+  "stage": {
+   "bp": "Tikva",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_chavvah_chime_3.bmp",
+   "color": "&G",
+   "detail": "g",
+   "name": "Tikva"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Tillifergaewicz",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_tillifergaewicz'"
+  ],
+  "stage": {
+   "bp": "Tillifergaewicz",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_tillifergaewicz.bmp",
+   "color": "&G",
+   "detail": "W",
+   "name": "Tillifergaewicz"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Tongue Tyrant",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_anemone_6'"
+  ],
+  "stage": {
+   "bp": "Tongue Tyrant",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_anemone_6.bmp",
+   "color": "&m",
+   "detail": "m",
+   "name": "tongue tyrant"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Tree",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'assets_content_textures_tiles_tile-9-4'"
+  ],
+  "stage": {
+   "bp": "Tree",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "assets_content_textures_tiles_tile-9-4.png",
+   "color": "&G",
+   "detail": "",
+   "name": "[Plant]"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Tree Golem",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_golem_tree'"
+  ],
+  "stage": {
+   "bp": "Tree Golem",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_golem_tree.png",
+   "color": "&y",
+   "detail": "w",
+   "name": "tree golem"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Trees Cherub",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_cherub_tree'"
+  ],
+  "stage": {
+   "bp": "Trees Cherub",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_cherub_tree.bmp",
+   "color": "&Y",
+   "detail": "y",
+   "name": "tree cherub"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Tunnel Sponge",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_sponge_tube_3'"
+  ],
+  "stage": {
+   "bp": "Tunnel Sponge",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_sponge_tube_3.bmp",
+   "color": "&W",
+   "detail": "r",
+   "name": "tunnel sponge"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Tzedech",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_chavvah_chime_9'"
+  ],
+  "stage": {
+   "bp": "Tzedech",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_chavvah_chime_9.bmp",
+   "color": "&Y",
+   "detail": "y",
+   "name": "Tzedech"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Uplifted Glowpad",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_glowpad'"
+  ],
+  "stage": {
+   "bp": "Uplifted Glowpad",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "creatures/sw_glowpad.bmp",
+   "color": "&m",
+   "detail": "g",
+   "name": "{{M|Winsteinepine, legendary glowpad}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Urberry Bush",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_urberry_bush_2'"
+  ],
+  "stage": {
+   "bp": "Urberry Bush",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_urberry_bush_2.bmp",
+   "color": "&G",
+   "detail": "k",
+   "name": "urberry bush"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Vantabloom",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_vantabloom'"
+  ],
+  "stage": {
+   "bp": "Vantabloom",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_vantabloom.bmp",
+   "color": "&y",
+   "detail": "y",
+   "name": "vantabloom"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Vantabud",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_vantabud'"
+  ],
+  "stage": {
+   "bp": "Vantabud",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_vantabud.bmp",
+   "color": "&y",
+   "detail": "y",
+   "name": "vantabud"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Vine Golem",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_golem_vine'"
+  ],
+  "stage": {
+   "bp": "Vine Golem",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_golem_vine.png",
+   "color": "&y",
+   "detail": "w",
+   "name": "vine golem"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Vines Cherub",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_cherub_vine'"
+  ],
+  "stage": {
+   "bp": "Vines Cherub",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_cherub_vine.bmp",
+   "color": "&Y",
+   "detail": "y",
+   "name": "vine cherub"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Watervine",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'assets_content_textures_tiles_sw_watervine2'"
+  ],
+  "stage": {
+   "bp": "Watervine",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Assets_Content_Textures_Tiles_sw_watervine2.bmp",
+   "color": "&K",
+   "detail": "K",
+   "name": "watervine"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Watervine Barathrumite",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'assets_content_textures_tiles_sw_watervine1'"
+  ],
+  "stage": {
+   "bp": "Watervine Barathrumite",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Assets_Content_Textures_Tiles_sw_watervine1.bmp",
+   "color": "&K",
+   "detail": "K",
+   "name": "watervine"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Wheel of Qv",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_extrasolar-vine-4'"
+  ],
+  "stage": {
+   "bp": "Wheel of Qv",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/extrasolar-vine-4.png",
+   "color": "&C",
+   "detail": "c",
+   "name": "wheel of Qv"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Witchwood Tree",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_talltree1'"
+  ],
+  "stage": {
+   "bp": "Witchwood Tree",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_talltree1.bmp",
+   "color": "&W",
+   "detail": "w",
+   "name": "witchwood tree"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Yempuris",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_yempuris-phi-1'"
+  ],
+  "stage": {
+   "bp": "Yempuris",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/yempuris-phi-1.png",
+   "color": "&g",
+   "detail": "m",
+   "name": "yempuris phi"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Yempuris Spread",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "Yempuris Spread",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 2,
+   "tile": "Terrain/yempuris-phi-1.png",
+   "color": "&g",
+   "detail": "m",
+   "name": "yempuris phi"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Yonderbrush",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_yonderbrush'"
+  ],
+  "stage": {
+   "bp": "Yonderbrush",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "creatures/sw_yonderbrush.bmp",
+   "color": "&B",
+   "detail": "w",
+   "name": "{{B|yonderbrush}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Young Ivory",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_young_ivory'"
+  ],
+  "stage": {
+   "bp": "Young Ivory",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_young_ivory.bmp",
+   "color": "&Y",
+   "detail": "Y",
+   "name": "{{Y|young ivory}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Yuckwheat",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_wheat_3'"
+  ],
+  "stage": {
+   "bp": "Yuckwheat",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_wheat_3.bmp",
+   "color": "&w",
+   "detail": "k",
+   "name": "yuckwheat"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Yuckwheat Barathrumite",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_wheat_2'"
+  ],
+  "stage": {
+   "bp": "Yuckwheat Barathrumite",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_wheat_2.bmp",
+   "color": "&w",
+   "detail": "k",
+   "name": "yuckwheat"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Yurl",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_yurl'"
+  ],
+  "stage": {
+   "bp": "Yurl",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Creatures/sw_yurl.bmp",
+   "color": "&g",
+   "detail": "W",
+   "name": "Yurl"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Ziv Bough",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_warp_wood_1'"
+  ],
+  "stage": {
+   "bp": "Ziv Bough",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_warp_wood_1.bmp",
+   "color": "&g",
+   "detail": "w",
+   "name": "ziv bough"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Ziv Bough_blue",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_warp_wood_2'"
+  ],
+  "stage": {
+   "bp": "Ziv Bough_blue",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Terrain/sw_warp_wood_2.bmp",
+   "color": "&G",
+   "detail": "w",
+   "name": "ziv bough"
+  },
+  "wire_objs": 1
+ }
+]

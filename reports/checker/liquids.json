@@ -1,0 +1,1633 @@
+[
+ {
+  "bp": "AcidPool",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_puddle_3'"
+  ],
+  "stage": {
+   "bp": "AcidPool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/puddle_3.png",
+   "color": "&G^g",
+   "detail": "g",
+   "name": "puddle of {{G|acid}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "AcidPuddle",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_deep-00000000'"
+  ],
+  "stage": {
+   "bp": "AcidPuddle",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/deep-00000000.png",
+   "color": "&G^g",
+   "detail": "g",
+   "name": "pool of {{G|acid}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "AcidWaterPool",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_puddle_1'"
+  ],
+  "stage": {
+   "bp": "AcidWaterPool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/puddle_1.png",
+   "color": "&b^B&g",
+   "detail": "B",
+   "name": "puddle of {{G|acidic}} {{B|water}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "AlgaePool",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "AlgaePool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/deep-00000000.png",
+   "color": "&g^C",
+   "detail": "C",
+   "name": "deep pool of {{g|algal}} {{B|water}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "AlgalWaterBloodDeepPool",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_deep-00000000'"
+  ],
+  "stage": {
+   "bp": "AlgalWaterBloodDeepPool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/deep-00000000.png",
+   "color": "&b^B&r^C",
+   "detail": "B",
+   "name": "deep pool of {{r|bloody}} {{g|algal}} {{B|water}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "AlgalWaterBloodPool",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "AlgalWaterBloodPool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/deep-00000000.png",
+   "color": "&b^B&r^C",
+   "detail": "B",
+   "name": "deep pool of {{r|bloody}} {{g|algal}} {{B|water}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "AlgalWaterDeepPool",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "AlgalWaterDeepPool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/deep-00000000.png",
+   "color": "&g^C",
+   "detail": "C",
+   "name": "deep pool of {{g|algal}} {{B|water}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "AlgalWaterPool",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "AlgalWaterPool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/deep-00000000.png",
+   "color": "&g^C",
+   "detail": "C",
+   "name": "deep pool of {{g|algal}} {{B|water}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "AsphaltDeepPool",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_speckle_deep-00000000'"
+  ],
+  "stage": {
+   "bp": "AsphaltDeepPool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Speckle/deep-00000000.png",
+   "color": "&k^K",
+   "detail": "K",
+   "name": "deep pool of {{K|asphalt}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "AsphaltPuddle",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_speckle_deep-00000000'"
+  ],
+  "stage": {
+   "bp": "AsphaltPuddle",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Speckle/deep-00000000.png",
+   "color": "&k^K",
+   "detail": "K",
+   "name": "pool of {{K|asphalt}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "BloodPool",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_puddle_3'"
+  ],
+  "stage": {
+   "bp": "BloodPool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/puddle_3.png",
+   "color": "&r^k",
+   "detail": "k",
+   "name": "puddle of {{r|blood}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "BloodSplash",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_puddle_2'"
+  ],
+  "stage": {
+   "bp": "BloodSplash",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/puddle_2.png",
+   "color": "&r^k",
+   "detail": "k",
+   "name": "puddle of {{r|blood}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "BrackishPool",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "BrackishPool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/puddle_3.png",
+   "color": "&b^B",
+   "detail": "B",
+   "name": "puddle of {{w|brackish}} {{B|water}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "BrackishWaterPuddle",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_deep-00000000'"
+  ],
+  "stage": {
+   "bp": "BrackishWaterPuddle",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/deep-00000000.png",
+   "color": "&b^B",
+   "detail": "B",
+   "name": "pool of {{w|brackish}} {{B|water}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "BrainbrinePool",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_puddle_2'"
+  ],
+  "stage": {
+   "bp": "BrainbrinePool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/puddle_2.png",
+   "color": "&g^W",
+   "detail": "W",
+   "name": "puddle of {{brainbrine|brain brine}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "BrainBrinePool",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_puddle_1'"
+  ],
+  "stage": {
+   "bp": "BrainBrinePool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/puddle_1.png",
+   "color": "&g^W",
+   "detail": "W",
+   "name": "puddle of {{brainbrine|brain brine}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "CiderPool",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_puddle_4'"
+  ],
+  "stage": {
+   "bp": "CiderPool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/puddle_4.png",
+   "color": "&w^r",
+   "detail": "r",
+   "name": "puddle of {{cider|cider}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "CloningPool",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_puddle_4'"
+  ],
+  "stage": {
+   "bp": "CloningPool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/puddle_4.png",
+   "color": "&M^Y",
+   "detail": "Y",
+   "name": "puddle of {{cloning|cloning draught}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "CloningPuddle",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_puddle_2'"
+  ],
+  "stage": {
+   "bp": "CloningPuddle",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/puddle_2.png",
+   "color": "&M^Y",
+   "detail": "Y",
+   "name": "puddle of {{cloning|cloning draught}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Clue_Putrescence",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_puddle_1'"
+  ],
+  "stage": {
+   "bp": "Clue_Putrescence",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/puddle_1.png",
+   "color": "&g^K",
+   "detail": "K",
+   "name": "putrescence of {{putrid|putrescence}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "ConvalessenceDeepPool",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_deep-00000000'"
+  ],
+  "stage": {
+   "bp": "ConvalessenceDeepPool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/deep-00000000.png",
+   "color": "&Y^C",
+   "detail": "C",
+   "name": "deep pool of {{C|convalessence}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "ConvalessencePool",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_puddle_2'"
+  ],
+  "stage": {
+   "bp": "ConvalessencePool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/puddle_2.png",
+   "color": "&Y^C",
+   "detail": "C",
+   "name": "puddle of {{C|convalessence}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "ConvalessencePuddle",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "ConvalessencePuddle",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/deep-00000000.png",
+   "color": "&Y^C",
+   "detail": "C",
+   "name": "pool of {{C|convalessence}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "DamnedPool",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_puddle_3'"
+  ],
+  "stage": {
+   "bp": "DamnedPool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/puddle_3.png",
+   "color": "&g^K&r",
+   "detail": "K",
+   "name": "puddle of {{r|bloody}} {{Y|waxen}} {{K|inky}} {{putrid|putrescence}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "DeepBrackishPool",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "DeepBrackishPool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/deep-00000000.png",
+   "color": "&b^B",
+   "detail": "B",
+   "name": "pool of {{w|brackish}} {{B|water}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "DeepFreshWaterPool",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_deep-00000000'"
+  ],
+  "stage": {
+   "bp": "DeepFreshWaterPool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/deep-00000000.png",
+   "color": "&b^B",
+   "detail": "B",
+   "name": "deep pool of {{B|fresh water}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "DilutedWarmStaticPuddle",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_static_pure_deep_1-00000000'"
+  ],
+  "stage": {
+   "bp": "DilutedWarmStaticPuddle",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Static/Pure/deep_1-00000000.png",
+   "color": "&y^Y",
+   "detail": "Y",
+   "name": "pool of {{Y|dilute}} {{Y|warm static}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "FreshWaterPool",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_puddle_1'"
+  ],
+  "stage": {
+   "bp": "FreshWaterPool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/puddle_1.png",
+   "color": "&b^B",
+   "detail": "B",
+   "name": "puddle of {{B|fresh water}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "FreshWaterPool300",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_deep-00000000'"
+  ],
+  "stage": {
+   "bp": "FreshWaterPool300",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/deep-00000000.png",
+   "color": "&b^B",
+   "detail": "B",
+   "name": "pool of {{B|fresh water}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "FreshWaterPool500",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "FreshWaterPool500",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/deep-00000000.png",
+   "color": "&b^B",
+   "detail": "B",
+   "name": "pool of {{B|fresh water}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "FreshWaterPuddle",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_puddle_4'"
+  ],
+  "stage": {
+   "bp": "FreshWaterPuddle",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/puddle_4.png",
+   "color": "&b^B",
+   "detail": "B",
+   "name": "puddle of {{B|fresh water}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "GelPool",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_puddle_1'"
+  ],
+  "stage": {
+   "bp": "GelPool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/puddle_1.png",
+   "color": "&y^Y",
+   "detail": "Y",
+   "name": "puddle of {{Y|gel}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "GooPool",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_puddle_4'"
+  ],
+  "stage": {
+   "bp": "GooPool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/puddle_4.png",
+   "color": "&Y^G",
+   "detail": "G",
+   "name": "puddle of {{G|green goo}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "GooPuddle",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_splotchy_deep-00000000'"
+  ],
+  "stage": {
+   "bp": "GooPuddle",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Splotchy/deep-00000000.png",
+   "color": "&Y^G",
+   "detail": "G",
+   "name": "pool of {{G|green goo}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "HoneyPool",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_puddle_2'"
+  ],
+  "stage": {
+   "bp": "HoneyPool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/puddle_2.png",
+   "color": "&w^W",
+   "detail": "W",
+   "name": "puddle of {{w|honey}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "HoneyPuddle",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_gunk_deep-00000000'"
+  ],
+  "stage": {
+   "bp": "HoneyPuddle",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Gunk/deep-00000000.png",
+   "color": "&w^W",
+   "detail": "W",
+   "name": "pool of {{w|honey}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "InkDrop",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_puddle_4'"
+  ],
+  "stage": {
+   "bp": "InkDrop",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/puddle_4.png",
+   "color": "&y^k",
+   "detail": "k",
+   "name": "puddle of {{K|ink}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "InkPool",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_puddle_1'"
+  ],
+  "stage": {
+   "bp": "InkPool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/puddle_1.png",
+   "color": "&y^k",
+   "detail": "k",
+   "name": "puddle of {{K|ink}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "LavaPool",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_puddle_4'"
+  ],
+  "stage": {
+   "bp": "LavaPool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/puddle_4.png",
+   "color": "&W^R",
+   "detail": "R",
+   "name": "puddle of {{lava|lava}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "LavaPuddle",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_splotchy_deep-00000000'"
+  ],
+  "stage": {
+   "bp": "LavaPuddle",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Splotchy/deep-00000000.png",
+   "color": "&W^R",
+   "detail": "R",
+   "name": "pool of {{lava|lava}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "LushAcidPuddle",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_deep-00000000'"
+  ],
+  "stage": {
+   "bp": "LushAcidPuddle",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/deep-00000000.png",
+   "color": "&G^g&m",
+   "detail": "g",
+   "name": "pool of {{m|lush}} {{G|acid}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "MoltenWaxDrop",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_puddle_1'"
+  ],
+  "stage": {
+   "bp": "MoltenWaxDrop",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/puddle_1.png",
+   "color": "&y^Y",
+   "detail": "Y",
+   "name": "puddle of {{Y|molten wax}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "MoltenWaxPuddle",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_splotchy_deep-00000000'"
+  ],
+  "stage": {
+   "bp": "MoltenWaxPuddle",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Splotchy/deep-00000000.png",
+   "color": "&y^Y",
+   "detail": "Y",
+   "name": "pool of {{Y|molten wax}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "NeutronfluxPool",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_puddle_1'"
+  ],
+  "stage": {
+   "bp": "NeutronfluxPool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/puddle_1.png",
+   "color": "&Y^y",
+   "detail": "y",
+   "name": "puddle"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "NeutronPool",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_puddle_1'"
+  ],
+  "stage": {
+   "bp": "NeutronPool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 0,
+   "tile": "Liquids/Water/puddle_1.png",
+   "color": "&Y^y",
+   "detail": "y",
+   "name": "puddle"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "OilDeepPool",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_puddle_1'"
+  ],
+  "stage": {
+   "bp": "OilDeepPool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 0,
+   "tile": "Liquids/Water/puddle_1.png",
+   "color": "&Y^k",
+   "detail": "k",
+   "name": "puddle of {{K|oil}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "OilPool",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "OilPool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/puddle_1.png",
+   "color": "&Y^k",
+   "detail": "k",
+   "name": "puddle of {{K|oil}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "OilPuddle",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "OilPuddle",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/puddle_1.png",
+   "color": "&Y^k",
+   "detail": "k",
+   "name": "puddle of {{K|oil}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "OilyAsphaltPool",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_speckle_deep-00000000'"
+  ],
+  "stage": {
+   "bp": "OilyAsphaltPool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Speckle/deep-00000000.png",
+   "color": "&k^K&k",
+   "detail": "K",
+   "name": "deep pool of {{K|oily}} {{K|asphalt}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "OozePool",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_puddle_3'"
+  ],
+  "stage": {
+   "bp": "OozePool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/puddle_3.png",
+   "color": "&y^k",
+   "detail": "k",
+   "name": "puddle of {{K|black ooze}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "OozePuddle",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_splotchy_deep-00000000'"
+  ],
+  "stage": {
+   "bp": "OozePuddle",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Splotchy/deep-00000000.png",
+   "color": "&y^k",
+   "detail": "k",
+   "name": "pool of {{K|black ooze}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "Pond",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_deep-00000000'"
+  ],
+  "stage": {
+   "bp": "Pond",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/deep-00000000.png",
+   "color": "&b^B",
+   "detail": "B",
+   "name": "pool of {{Y|salty}} {{B|water}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "ProteanDeepPool",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_gunk_deep-00000000'"
+  ],
+  "stage": {
+   "bp": "ProteanDeepPool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Gunk/deep-00000000.png",
+   "color": "&c^C",
+   "detail": "C",
+   "name": "deep pool of {{c|primordial soup}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "PutrescencePool",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_puddle_1'"
+  ],
+  "stage": {
+   "bp": "PutrescencePool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/puddle_1.png",
+   "color": "&g^K",
+   "detail": "K",
+   "name": "puddle of {{putrid|putrescence}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "RankPool",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_splotchy_deep-00000000'"
+  ],
+  "stage": {
+   "bp": "RankPool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Splotchy/deep-00000000.png",
+   "color": "&Y^G&w",
+   "detail": "G",
+   "name": "pool of {{w|sludgy}} {{K|oozing}} {{G|green goo}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "SaltBloodDeepPool",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_speckle_deep-00000000'"
+  ],
+  "stage": {
+   "bp": "SaltBloodDeepPool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Speckle/deep-00000000.png",
+   "color": "&Y^y&r",
+   "detail": "y",
+   "name": "deep pool of {{r|bloody}} {{Y|salt}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "SaltDeepPool",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "SaltDeepPool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Speckle/deep-00000000.png",
+   "color": "&Y^y",
+   "detail": "y",
+   "name": "deep pool of {{Y|salt}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "SaltPool",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_puddle_3'"
+  ],
+  "stage": {
+   "bp": "SaltPool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/puddle_3.png",
+   "color": "&Y^y",
+   "detail": "y",
+   "name": "puddle of {{Y|salt}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "SaltPuddle",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_speckle_deep-00000000'"
+  ],
+  "stage": {
+   "bp": "SaltPuddle",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Speckle/deep-00000000.png",
+   "color": "&Y^y",
+   "detail": "y",
+   "name": "pool of {{Y|salt}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "SaltyAcidPool",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_puddle_4'"
+  ],
+  "stage": {
+   "bp": "SaltyAcidPool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/puddle_4.png",
+   "color": "&G^g",
+   "detail": "g",
+   "name": "puddle of {{w|brackish}} {{G|acid}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "SaltyWaterDeepPool",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_deep-00000000'"
+  ],
+  "stage": {
+   "bp": "SaltyWaterDeepPool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/deep-00000000.png",
+   "color": "&b^B",
+   "detail": "B",
+   "name": "deep pool of {{Y|salty}} {{B|water}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "SaltyWaterExtraDeepPool",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "SaltyWaterExtraDeepPool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/deep-00000000.png",
+   "color": "&b^B",
+   "detail": "B",
+   "name": "deep pool of {{Y|salty}} {{B|water}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "SaltyWaterPuddle",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "SaltyWaterPuddle",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/deep-00000000.png",
+   "color": "&b^B",
+   "detail": "B",
+   "name": "pool of {{Y|salty}} {{B|water}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "SapPool",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_puddle_4'"
+  ],
+  "stage": {
+   "bp": "SapPool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/puddle_4.png",
+   "color": "&W^Y",
+   "detail": "Y",
+   "name": "puddle of {{W|sap}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "SlimePool",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_puddle_3'"
+  ],
+  "stage": {
+   "bp": "SlimePool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/puddle_3.png",
+   "color": "&w^g",
+   "detail": "g",
+   "name": "puddle of {{slimy|slime}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "SlimePuddle",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_splotchy_deep-00000000'"
+  ],
+  "stage": {
+   "bp": "SlimePuddle",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Splotchy/deep-00000000.png",
+   "color": "&w^g",
+   "detail": "g",
+   "name": "pool of {{slimy|slime}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "SludgePool",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_puddle_1'"
+  ],
+  "stage": {
+   "bp": "SludgePool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/puddle_1.png",
+   "color": "&Y^w",
+   "detail": "w",
+   "name": "puddle of {{w|brown sludge}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "SludgePuddle",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_splotchy_deep-00000000'"
+  ],
+  "stage": {
+   "bp": "SludgePuddle",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Splotchy/deep-00000000.png",
+   "color": "&Y^w",
+   "detail": "w",
+   "name": "pool of {{w|brown sludge}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "SmallConvalessencePuddle",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_puddle_3'"
+  ],
+  "stage": {
+   "bp": "SmallConvalessencePuddle",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/puddle_3.png",
+   "color": "&Y^C",
+   "detail": "C",
+   "name": "puddle of {{C|convalessence}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "SmallLavaPuddle",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_puddle_4'"
+  ],
+  "stage": {
+   "bp": "SmallLavaPuddle",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/puddle_4.png",
+   "color": "&W^R",
+   "detail": "R",
+   "name": "puddle of {{lava|lava}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "SmallSlimePuddle",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_puddle_2'"
+  ],
+  "stage": {
+   "bp": "SmallSlimePuddle",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/puddle_2.png",
+   "color": "&w^g",
+   "detail": "g",
+   "name": "puddle of {{slimy|slime}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "SunslagPool",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_puddle_3'"
+  ],
+  "stage": {
+   "bp": "SunslagPool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/puddle_3.png",
+   "color": "&Y^W",
+   "detail": "W",
+   "name": "puddle of {{sunslag|sunslag}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "TarPool",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_puddle_2'"
+  ],
+  "stage": {
+   "bp": "TarPool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/puddle_2.png",
+   "color": "&k^K",
+   "detail": "K",
+   "name": "puddle of {{K|asphalt}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "UnctuousAlgalWaterPool",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_deep-00000000'"
+  ],
+  "stage": {
+   "bp": "UnctuousAlgalWaterPool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/deep-00000000.png",
+   "color": "&g^C",
+   "detail": "C",
+   "name": "pool of {{g|algal}} {{Y|unctuous}} {{B|water}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "VomitPool",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_puddle_3'"
+  ],
+  "stage": {
+   "bp": "VomitPool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/puddle_3.png",
+   "color": "&g^K",
+   "detail": "K",
+   "name": "puddle of {{putrid|putrescence}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "WarmStaticPuddle",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_static_pure_deep_1-00000000'"
+  ],
+  "stage": {
+   "bp": "WarmStaticPuddle",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Static/Pure/deep_1-00000000.png",
+   "color": "&y^Y",
+   "detail": "Y",
+   "name": "pool of {{Y|warm static}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "WaterPool",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_puddle_3'"
+  ],
+  "stage": {
+   "bp": "WaterPool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/puddle_3.png",
+   "color": "&b^B",
+   "detail": "B",
+   "name": "puddle of {{B|fresh water}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "WaxPool",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_puddle_1'"
+  ],
+  "stage": {
+   "bp": "WaxPool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/puddle_1.png",
+   "color": "&y^Y",
+   "detail": "Y",
+   "name": "puddle of {{Y|molten wax}}"
+  },
+  "wire_objs": 1
+ },
+ {
+  "bp": "WinePool",
+  "pass": true,
+  "reasons": [],
+  "warns": [],
+  "stage": {
+   "bp": "WinePool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/puddle_1.png",
+   "color": "&m^r",
+   "detail": "r",
+   "name": "puddle of {{m|wine}}"
+  },
+  "wire_objs": 1
+ }
+]

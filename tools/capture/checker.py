@@ -46,7 +46,9 @@ REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 REPORTS = os.path.join(REPO, "reports", "checker")
 
 # Qud colour codes: &X (foreground), ^X (background), X in the 16-colour set.
+# DetailColor is a BARE palette char (e.g. "w"), no & prefix — different shape.
 COLOR_RE = re.compile(r"^(?:[&^][a-zA-Z])+$")
+DETAIL_RE = re.compile(r"^[a-zA-Z]$")
 
 
 def _wait_file(path, before, wait=6.0):
@@ -60,9 +62,17 @@ def _wait_file(path, before, wait=6.0):
 
 
 def _tail(tile):
-    """The meaningful tile-name tail (never match the raw path — snap.py's rule)."""
-    t = (tile or "").replace("\\", "/").rsplit("/", 1)[-1]
-    return t.rsplit(".", 1)[0].lower()
+    """Normalized tile name for tail-matching. Static Render.Tile and the wire
+    spell the same asset differently (underscore-flattened vs slashed paths), so
+    flatten separators and compare with endswith — never the raw path (snap.py's
+    rule: 'tent' must not hit 'Content')."""
+    t = (tile or "").lower().replace("\\", "_").replace("/", "_")
+    return t.rsplit(".", 1)[0]
+
+
+def _tile_match(a, b):
+    a, b = _tail(a), _tail(b)
+    return bool(a) and bool(b) and (a.endswith(b) or b.endswith(a))
 
 
 def refresh_catalog(b=None):
@@ -80,13 +90,45 @@ def refresh_catalog(b=None):
         return json.load(f)
 
 
-def check_one(b, bp):
-    """Stage `bp`, wait a turn, diff ground truth vs the wire. Returns a verdict dict."""
+def _snapshot_unstick(b):
+    """A snapshot that never comes usually means a BLOCKING POPUP parked the turn
+    loop (ambient events fire mid-sweep: 'You spot a dromad caravan'). Dismiss
+    over the bridge — popups can stack, so cancel several — and re-tick."""
+    for _ in range(6):
+        b.send("popup", action="cancel")
+        time.sleep(0.5)
+    b.send("wait")
+    return b.read_snapshot(timeout=15)
+
+
+def check_one(b, bp, _retry=True):
+    """Stage `bp`, wait a turn, diff ground truth vs the wire. Returns a verdict dict.
+
+    One retry on the never-updated signature: elements that alter TURN FLOW
+    (sleep gas auto-passes the player's turns) can race the ground-truth wait —
+    a ~0.2%% flake that moves between elements run-to-run. A retried pass keeps
+    the retry visible as a warn; a repeat failure is real and stays a FAIL."""
     before = os.path.getmtime(STAGE) if os.path.exists(STAGE) else 0
     b.send("check", bp=bp)
     b.send("wait")                      # tick a turn: drains the command, publishes the snapshot
-    snap = b.read_snapshot()
+    try:
+        snap = b.read_snapshot(timeout=15)
+    except (OSError, ConnectionError):
+        snap = _snapshot_unstick(b)
     if not _wait_file(STAGE, before, wait=3.0):
+        if _retry:
+            # Settle before retrying: an instant retry inherits the same
+            # disturbed turn window (verified — a double-fail probed clean).
+            time.sleep(2.0)
+            b.send("wait")
+            try:
+                b.read_snapshot(timeout=10)
+            except (OSError, ConnectionError):
+                pass
+            r = check_one(b, bp, _retry=False)
+            r.setdefault("warns", []).append("passed on retry (turn-flow race)" if r.get("pass")
+                                             else "retried once")
+            return r
         return {"bp": bp, "pass": False, "reasons": ["checker_stage.json never updated (old mod build?)"]}
     with open(STAGE) as f:
         stage = json.load(f)
@@ -113,15 +155,15 @@ def check_one(b, bp):
             if not any(o.get("tile") or o.get("glyph") for o in objs):
                 reasons.append("no art on the wire (no tile, no glyph)")
             for o in objs:
-                for k in ("color", "tilecolor", "detail"):
+                for k, rx in (("color", COLOR_RE), ("tilecolor", COLOR_RE), ("detail", DETAIL_RE)):
                     v = o.get(k)
-                    if v and not COLOR_RE.match(v):
+                    if v and not rx.match(v):
                         warns.append("odd %s %r" % (k, v))
-            st = _tail(stage.get("tile"))
-            if st and not any(st == _tail(o.get("tile")) for o in objs):
+            st = stage.get("tile")
+            if _tail(st) and not any(_tile_match(st, o.get("tile")) for o in objs):
                 # Runtime art can differ from the static blueprint tile
                 # (RandomTile and friends) — flag it, don't fail it.
-                warns.append("wire tile != blueprint tile %r" % st)
+                warns.append("wire tile != blueprint tile %r" % _tail(st))
 
     return {"bp": bp, "pass": not reasons, "reasons": reasons, "warns": warns,
             "stage": stage, "wire_objs": len(objs)}
