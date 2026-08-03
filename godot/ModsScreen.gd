@@ -629,8 +629,8 @@ func _mod_row_1to1(mod: Dictionary, idx: int) -> Control:
 	head.append_text("  [color=#FFFFFF]by [/color][color=#FFFFFF]%s[/color]" % author_bb)
 	v.add_child(head)
 
-	var meta := _rich(_kv("Version", _null_dash(mod.get("version"))) + "    "
-		+ _kv("Size", _null_dash(mod.get("size"))) + "    "
+	var meta := _rich(_kv("Version", _null_dash(mod.get("version"))) + "  "
+		+ _kv("Size", _null_dash(mod.get("size"))) + "  "
 		+ _kv("Tags", ", ".join(mod.get("tags", []))), "body")
 	meta.add_theme_font_size_override("normal_font_size", 16)
 	v.add_child(meta)
@@ -822,22 +822,37 @@ func _chip_1to1_parts(parts: Array, dithered: bool = true) -> Control:
 
 func _chip_dither_sb() -> StyleBoxTexture:
 	var sb := StyleBoxTexture.new()
+	# The chip weave IS the window-border pattern, darker: border #35555C/#1A282A ->
+	# chip (12,60,63)/(6,29,31). modsChipTile.png is the band tile remapped to that
+	# palette; the fallback derives it from the band tile at runtime the same way.
 	var tex: Texture2D = _chrome("modsChipTile.png")
-	sb.texture = tex if tex != null else _dither_tex(Q_BG, Color8(12, 60, 63), 13)
+	if tex == null:
+		var bandtex: Texture2D = _chrome("modsBandTop.png")
+		if bandtex != null:
+			var img := bandtex.get_image()
+			img.convert(Image.FORMAT_RGB8)
+			var base := Color8(0x35, 0x55, 0x5C)
+			for y in range(img.get_height()):
+				for x in range(img.get_width()):
+					var c := img.get_pixel(x, y)
+					var near_base: bool = absf(c.r - base.r) + absf(c.g - base.g) + absf(c.b - base.b) < 0.15
+					img.set_pixel(x, y, Color8(12, 60, 63) if near_base else Color8(6, 29, 31))
+			tex = ImageTexture.create_from_image(img)
+	sb.texture = tex if tex != null else _dither_tex(Color8(12, 60, 63), Color8(6, 29, 31), 13)
 	sb.axis_stretch_horizontal = StyleBoxTexture.AXIS_STRETCH_MODE_TILE
 	sb.axis_stretch_vertical = StyleBoxTexture.AXIS_STRETCH_MODE_TILE
-	sb.content_margin_left = 12
-	sb.content_margin_right = 12
-	sb.content_margin_top = 6
-	sb.content_margin_bottom = 6
+	sb.content_margin_left = 8
+	sb.content_margin_right = 8
+	sb.content_margin_top = 3
+	sb.content_margin_bottom = 3
 	return sb
 
 func _chip_flat_sb() -> StyleBoxEmpty:
 	var sb := StyleBoxEmpty.new()
-	sb.content_margin_left = 12
-	sb.content_margin_right = 12
-	sb.content_margin_top = 6
-	sb.content_margin_bottom = 6
+	sb.content_margin_left = 8
+	sb.content_margin_right = 8
+	sb.content_margin_top = 3
+	sb.content_margin_bottom = 3
 	return sb
 
 func _kv(key: String, val: String) -> String:
