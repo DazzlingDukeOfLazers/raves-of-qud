@@ -3662,13 +3662,28 @@ func _register_anim(win: Dictionary, cx: int, cy: int) -> void:
 			if ftex != null:
 				fnodes.append(_overlay_quad(ftex, cx, cy, y_over, flip))
 		if fnodes.size() == 3:
+			# Three particle layers (Daniel's spec): RED embers with a raised floor, YELLOW
+			# tongues at the wood base expiring at half the red column, and GREY smoke that
+			# alphas out while rising two tiles. +dz = screen-south (toward the wood).
 			var embers: Array = []
 			for _e in 3:
 				var eq := _overlay_quad(null, cx, cy, y_over + LAYER_LIFT * 0.25, false, Color(1, 0, 0))
 				eq.scale = Vector3(0.10, 1.0, 0.14)
 				eq.visible = true
-				# spawn in the WOOD band (the art's lower third: dz +0.15..+0.42 = screen-bottom)
-				embers.append({"node": eq, "dx": randf_range(-0.18, 0.18), "dz": randf_range(0.15, 0.42)})
+				embers.append({"node": eq, "t": "red", "dx": randf_range(-0.18, 0.18), "dz": randf_range(0.10, 0.28)})
+			for _e in 2:
+				var yq := _overlay_quad(null, cx, cy, y_over + LAYER_LIFT * 0.2, false, Color(1.0, 0.85, 0.1))
+				yq.scale = Vector3(0.09, 1.0, 0.12)
+				yq.visible = true
+				embers.append({"node": yq, "t": "yellow", "dx": randf_range(-0.16, 0.16), "dz": randf_range(0.32, 0.45)})
+			for _e in 3:
+				var sq := _overlay_quad(null, cx, cy, y_over + LAYER_LIFT * 0.3, false, Color(0.45, 0.45, 0.45, 0.55))
+				var smat := sq.material_override as StandardMaterial3D
+				if smat != null:
+					smat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+				sq.scale = Vector3(0.16, 1.0, 0.18)
+				sq.visible = true
+				embers.append({"node": sq, "t": "smoke", "dx": randf_range(-0.2, 0.2), "dz": randf_range(-0.05, 0.10)})
 			_anim_items.append({"kind": "fire", "nodes": fnodes, "off": randi() % 60,
 				"embers": embers, "cx": cx, "cy": cy})
 	# Pool sparkle candidate: a liquid winning its cell rolls Qud's 1/600 flash — WHITE for
@@ -3744,19 +3759,38 @@ func _animate_1to1() -> void:
 					var f := fn[i] as MeshInstance3D
 					if is_instance_valid(f):
 						f.visible = i == fidx
-				# rising embers, TIGHT to the wood (the art's lower third): spawn in the wood
-				# band, rise ~0.4 cells to just past mid-tile, reset — the flame hugs the logs.
+				# Layered fire physics: red floor raised (+0.28..+0.10 -> top +0.02); yellow
+				# tongues spawn at the wood base (+0.45..+0.32) and expire at half the red
+				# column (+0.24); smoke rises TWO tiles (to dz -1.9) fading alpha to zero.
 				var fcx := int(it.get("cx", 0))
 				var fcy := int(it.get("cy", 0))
 				for e in it.get("embers", []):
 					var en := e["node"] as MeshInstance3D
 					if not is_instance_valid(en):
 						continue
-					e["dz"] = float(e["dz"]) - (0.03 + randf() * 0.02)
-					e["dx"] = clampf(float(e["dx"]) + randf_range(-0.03, 0.03), -0.22, 0.22)
-					if float(e["dz"]) < 0.02:
-						e["dz"] = randf_range(0.15, 0.42)
-						e["dx"] = randf_range(-0.18, 0.18)
+					var et := String(e.get("t", "red"))
+					if et == "red":
+						e["dz"] = float(e["dz"]) - (0.03 + randf() * 0.02)
+						e["dx"] = clampf(float(e["dx"]) + randf_range(-0.03, 0.03), -0.22, 0.22)
+						if float(e["dz"]) < 0.02:
+							e["dz"] = randf_range(0.10, 0.28)
+							e["dx"] = randf_range(-0.18, 0.18)
+					elif et == "yellow":
+						e["dz"] = float(e["dz"]) - (0.025 + randf() * 0.02)
+						e["dx"] = clampf(float(e["dx"]) + randf_range(-0.025, 0.025), -0.2, 0.2)
+						if float(e["dz"]) < 0.24:
+							e["dz"] = randf_range(0.32, 0.45)
+							e["dx"] = randf_range(-0.16, 0.16)
+					else:
+						e["dz"] = float(e["dz"]) - (0.02 + randf() * 0.015)
+						e["dx"] = clampf(float(e["dx"]) + randf_range(-0.02, 0.02), -0.35, 0.35)
+						var prog := clampf((0.10 - float(e["dz"])) / 2.0, 0.0, 1.0)
+						var sm := en.material_override as StandardMaterial3D
+						if sm != null:
+							sm.albedo_color = Color(0.45, 0.45, 0.45, 0.55 * (1.0 - prog))
+						if float(e["dz"]) < -1.9:
+							e["dz"] = randf_range(-0.05, 0.10)
+							e["dx"] = randf_range(-0.2, 0.2)
 					en.position.x = fcx + float(e["dx"])
 					en.position.z = fcy + float(e["dz"])
 	# Pool sparkles: expected fires/frame = cells/600 (Qud's per-cell 1/600 roll), one-frame white.
