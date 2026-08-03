@@ -37,7 +37,7 @@ const Q_INNER_L := 19                         # inner frame x, panel-relative (r
 const Q_INNER_R := 1719                       # inner frame right (real 1809)
 const Q_TOPLINE_Y := 16                       # inner top 2px line (real 64)
 const Q_HEADLINE_Y := 43                      # ┤ Mods ├ 2px line (real 91)
-const Q_BOTLINE_Y := 934                      # command-bar 2px line (real 982)
+const Q_BOTLINE_Y := 935                      # command-bar 1px line (real 983)
 const Q_DIVIDER_X := 1399                     # list/pane divider (real 1489)
 const Q_BG := Color8(6, 37, 37)               # flat panel interior
 const Q_DITHER_BASE := Color8(0x35, 0x55, 0x5C)   # border-band dither
@@ -498,25 +498,30 @@ func _build_1to1() -> void:
 		var tex: Texture2D = _chrome(spec[0])
 		p.add_child(_tile_rect(tex if tex != null else fallback, spec[1]))
 
-	# inner structural lines
-	_hline(p, Q_INNER_L, Q_INNER_R, Q_TOPLINE_Y, 2)
-	_vline(p, Q_INNER_L, Q_TOPLINE_Y, Q_BOTLINE_Y + 2, 1)
-	_vline(p, Q_INNER_R, Q_TOPLINE_Y, Q_BOTLINE_Y + 2, 1)
-	_vline(p, Q_DIVIDER_X, Q_TOPLINE_Y, Q_BOTLINE_Y, 1)
+	# The container GRID, exactly Qud's: the horizontal lines span the FULL inner
+	# width (5..1739) while the verticals (19 / 1399 / 1719) run only from the
+	# header line down to the command-bar line and stop FREE (no bottom
+	# throughline) — so the header strip is ONE cell spanning everything, and the
+	# content row is four columns: [thin][list][pane][thin].
+	# Top line: 4 measured segments — the small gaps are Qud's line ornaments
+	# flanking the pictograph (its stem crossing is covered by the sprite).
+	for seg in [[5, 796], [803, 870], [875, 936], [943, 1739]]:
+		_hline(p, seg[0], seg[1], Q_TOPLINE_Y, 2)
+	_vline(p, Q_INNER_L, Q_HEADLINE_Y, Q_BOTLINE_Y + 1, 1)
+	_vline(p, Q_INNER_R, Q_HEADLINE_Y, Q_BOTLINE_Y + 1, 1)
+	_vline(p, Q_DIVIDER_X, Q_HEADLINE_Y, Q_BOTLINE_Y, 1)
 
-	# ┤ Mods ├ header line: two segments with a centred gap for the title
-	var mid := (Q_INNER_L + Q_INNER_R) / 2.0
-	var gap := 46.0
-	_hline(p, Q_INNER_L, mid - gap, Q_HEADLINE_Y, 2)
-	_hline(p, mid + gap, Q_INNER_R, Q_HEADLINE_Y, 2)
-	for bx in [mid - gap, mid + gap - 2.0]:   # the tall │ brackets at the gap edges
+	# ┤ Mods ├ header line: full inner width with the measured title gap (830..909)
+	_hline(p, 5, 830, Q_HEADLINE_Y, 2)
+	_hline(p, 909, 1739, Q_HEADLINE_Y, 2)
+	for bx in [830.0, 907.0]:   # the tall │ brackets at the gap edges
 		_vline(p, bx, Q_HEADLINE_Y - 8, Q_HEADLINE_Y + 10, 2)
 	var title := Label.new()
 	title.text = "Mods"
 	title.add_theme_color_override("font_color", Q_GOLD)
 	title.add_theme_font_size_override("font_size", 20)
-	title.position = Vector2(mid - gap, Q_HEADLINE_Y - 12)
-	title.size = Vector2(gap * 2, 26)
+	title.position = Vector2(830, Q_HEADLINE_Y - 12)
+	title.size = Vector2(79, 26)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	p.add_child(title)
 
@@ -532,12 +537,12 @@ func _build_1to1() -> void:
 	# LEFT: the mod list
 	var scroll := ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.position = Vector2(Q_INNER_L + 3, 77)
+	scroll.position = Vector2(Q_INNER_L + 3, 74)
 	scroll.size = Vector2(Q_DIVIDER_X - Q_INNER_L - 6, Q_BOTLINE_Y - 82)
 	p.add_child(scroll)
 	_list_1to1 = VBoxContainer.new()
 	_list_1to1.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_list_1to1.add_theme_constant_override("separation", Q_ROW_PITCH - Q_ROW_H)
+	_list_1to1.add_theme_constant_override("separation", 9)   # Qud row pitch 113
 	scroll.add_child(_list_1to1)
 	_populate_1to1()
 
@@ -549,16 +554,17 @@ func _build_1to1() -> void:
 	p.add_child(_pane_1to1)
 	_apply_selection_1to1()
 
-	# bottom command bar: 2px line with dither chips riding it
-	_hline(p, Q_INNER_L, Q_INNER_R, Q_BOTLINE_Y, 2)
-	for bx2 in [Q_INNER_L, Q_INNER_R - 2.0]:
-		_vline(p, bx2, Q_BOTLINE_Y - 6, Q_BOTLINE_Y + 8, 2)
+	# bottom command bar: a 1px line with a PACKED chip group over its middle —
+	# Qud has no line between chips (the group is contiguous, ~4px gaps) and no
+	# corner ticks; small │ terminals flank the group where the line ends.
+	_hline(p, Q_INNER_L, Q_INNER_R, Q_BOTLINE_Y, 1)
 	var chips := HBoxContainer.new()
-	chips.add_theme_constant_override("separation", 24)
+	chips.add_theme_constant_override("separation", 6)
 	chips.alignment = BoxContainer.ALIGNMENT_CENTER
-	chips.position = Vector2(Q_INNER_L, Q_BOTLINE_Y - 14)
+	chips.position = Vector2(Q_INNER_L, Q_BOTLINE_Y - 15)   # group centres on the panel, like Qud
 	chips.size = Vector2(Q_INNER_R - Q_INNER_L, 30)
 	p.add_child(chips)
+	chips.add_child(_bar_tick())
 	var first := true
 	for pair in [["Esc", "Back"], ["space", "Disable mod"], ["v", "Disable all"],
 			["r", "Save and Reload"], ["u", "Undo"]]:
@@ -567,6 +573,7 @@ func _build_1to1() -> void:
 			parts.push_front(["> ", Q_LABEL_GREY])   # Qud's bar cursor sits on the first item
 			first = false
 		chips.add_child(_chip_1to1_parts(parts))
+	chips.add_child(_bar_tick())
 
 func _populate_1to1() -> void:
 	_rows.clear()
@@ -576,16 +583,30 @@ func _populate_1to1() -> void:
 		var empty := _text("No mods found.", Q_VALUE, "body")
 		_list_1to1.add_child(empty)
 	for i in range(_mods.size()):
-		var row := _mod_row_1to1(_mods[i], i)
+		var row := _mod_row_1to1(_mods[i], i, i < _mods.size() - 1)
 		_list_1to1.add_child(row)
 		_rows.append({"panel": row, "mod": _mods[i]})
 
-func _mod_row_1to1(mod: Dictionary, idx: int) -> Control:
+func _mod_row_1to1(mod: Dictionary, idx: int, separator: bool = false) -> Control:
 	var row := Control.new()
 	row.custom_minimum_size = Vector2(0, Q_ROW_H)
 	row.mouse_filter = Control.MOUSE_FILTER_STOP
 	row.gui_input.connect(func(e): if e is InputEventMouseButton and e.pressed: _select(idx))
 	# NB no row background: Qud marks selection only by un-chipping the badges + the pane
+	if separator:
+		# Qud's dotted divider between list items (measured: 2on-3off-3on-3off,
+		# colour (58,89,101), at row_top+101, spanning x 8..width-7)
+		row.draw.connect(func():
+			var col := Color8(58, 89, 101)
+			var x := 8.0
+			var xe := row.size.x - 7.0
+			var y := 101.0
+			while x < xe:
+				row.draw_rect(Rect2(x, y, minf(2, xe - x), 1), col)
+				x += 5
+				if x < xe:
+					row.draw_rect(Rect2(x, y, minf(3, xe - x), 1), col)
+				x += 6)
 
 	# thumbnail: 64px art in Qud's frame SPRITE (5-dot corners + imperfect border,
 	# extracted with alpha from the reference — procedural drawing can't match the jank)
@@ -845,19 +866,30 @@ func _chip_dither_sb() -> StyleBoxTexture:
 	sb.texture = tex if tex != null else _dither_tex(Color8(12, 60, 63), Color8(6, 29, 31), 13)
 	sb.axis_stretch_horizontal = StyleBoxTexture.AXIS_STRETCH_MODE_TILE
 	sb.axis_stretch_vertical = StyleBoxTexture.AXIS_STRETCH_MODE_TILE
-	sb.content_margin_left = 8
-	sb.content_margin_right = 8
-	sb.content_margin_top = 3
-	sb.content_margin_bottom = 3
+	sb.content_margin_left = 14
+	sb.content_margin_right = 14
+	sb.content_margin_top = 7
+	sb.content_margin_bottom = 7
 	return sb
 
 func _chip_flat_sb() -> StyleBoxEmpty:
 	var sb := StyleBoxEmpty.new()
-	sb.content_margin_left = 8
-	sb.content_margin_right = 8
-	sb.content_margin_top = 3
-	sb.content_margin_bottom = 3
+	sb.content_margin_left = 14
+	sb.content_margin_right = 14
+	sb.content_margin_top = 7
+	sb.content_margin_bottom = 7
 	return sb
+
+## The small │ terminal where the command-bar line meets the chip group.
+func _bar_tick() -> Control:
+	var t := Control.new()
+	t.custom_minimum_size = Vector2(2, 30)
+	var r := ColorRect.new()
+	r.color = Q_LINE
+	r.position = Vector2(0, 9)
+	r.size = Vector2(2, 12)
+	t.add_child(r)
+	return t
 
 func _kv(key: String, val: String) -> String:
 	return "[color=#%s]▪ %s:[/color] [color=#%s]%s[/color]" % [
