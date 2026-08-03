@@ -1129,6 +1129,25 @@ namespace RavesOfQud
                             }
                         }
                         catch { }
+                        // Engulfed (a dacca's swallowed prey, a slime-engulfed victim): the victim
+                        // WINS its cell, but Engulfed.Render swaps in the ENGULFER's tile+colours
+                        // for frames 0-30 of every 60 — half-second alternation predator/prey.
+                        // Ship the engulfer's render for the client's overlay.
+                        string engTile = null, engColor = null, engDetail = null;
+                        try
+                        {
+                            var engf = go.GetEffect<XRL.World.Effects.Engulfed>();
+                            var engBy = engf?.EngulfedBy;
+                            var engR = engBy?.Render;
+                            if (engR != null)
+                            {
+                                engTile = engR.Tile ?? "";
+                                engColor = engR.ColorString ?? "";
+                                engDetail = engR.DetailColor ?? "";
+                                if (engTile.Length > 0) TileExporter.Ensure(engTile);
+                            }
+                        }
+                        catch { }
                         // Smear flash (the animator's 9-in-60 colour flash on liquid-covered
                         // objects): only the liquids whose RenderSmearPrimary actually recolours —
                         // convalessence '&C', protean gunk '&c'. LiquidWater's smear is a no-op.
@@ -1241,6 +1260,9 @@ namespace RavesOfQud
                             j.Member("animSmear", animSmear);
                         if (animGas != null)
                             j.Member("animGas", animGas);
+                        if (!string.IsNullOrEmpty(engTile))
+                            j.Member("engTile", engTile).Member("engColor", engColor ?? "")
+                             .Member("engDetail", engDetail ?? "");
                         // Qud's Swimming effect: an aquatic-limited creature (eel, glowfish) renders
                         // over its supporting liquid's BACKGROUND colour. Ask the liquid itself
                         // (RenderBackgroundPrimary/Secondary on a scratch event — water prepends "^b";

@@ -3687,6 +3687,17 @@ func _register_anim(win: Dictionary, cx: int, cy: int) -> void:
 				embers.append({"node": sq, "t": "smoke", "dx": randf_range(-0.2, 0.2), "dz": randf_range(-0.05, 0.10)})
 			_anim_items.append({"kind": "fire", "nodes": fnodes, "off": randi() % 60,
 				"embers": embers, "cx": cx, "cy": cy, "lfoPhase": randf() * TAU})
+	# Engulfed (Engulfed.Render): the swallowed winner shows its ENGULFER's tile+colours
+	# for frames 0-30 of every 60 — the half-second predator/prey alternation (the dacca
+	# that ate a prism perch). One overlay, visible the first half of each second.
+	var etile := String(win.get("engTile", ""))
+	if etile != "":
+		var etex := _colored_tex_rgb(etile, _qud_color(String(win.get("engColor", ""))),
+			_qud_color(String(win.get("engDetail", ""))),
+			"anim~e" + String(win.get("engColor", "")) + "~" + String(win.get("engDetail", "")) + "~" + etile,
+			_fill_for(etile, Fill.NONE))
+		if etex != null:
+			_anim_items.append({"kind": "engulf", "node": _overlay_quad(etex, cx, cy, y_over, false)})
 	# Pool sparkle candidate: a liquid winning its cell rolls Qud's 1/600 flash — WHITE for
 	# water-family pools ('&Y'), CYAN for protean gunk ('&c', its own program: near-invisible
 	# on the cyan soup, exactly Qud's look — the soup does NOT glitter like water).
@@ -3741,6 +3752,10 @@ func _animate_1to1() -> void:
 					var nn := nodes[i] as MeshInstance3D
 					if is_instance_valid(nn):
 						nn.visible = i == idx
+		elif kind == "engulf":
+			var en2 := it["node"] as MeshInstance3D
+			if is_instance_valid(en2):
+				en2.visible = qf <= 30   # Engulfed.Render: engulfer shown frames 0-30 of 60
 		elif kind == "gas":
 			var gn: Array = it["nodes"]
 			if not gn.is_empty():
