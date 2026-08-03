@@ -1068,8 +1068,14 @@ namespace RavesOfQud
                             var cov = go.GetEffect<XRL.World.Effects.LiquidCovered>();
                             if (cov != null && cov.Duration > 0 && cov.Liquid != null)
                             {
-                                if (cov.Liquid.Primary == "convalessence") animSmear = "C";
-                                else if (cov.Liquid.Primary == "proteangunk") animSmear = "c";
+                                // Qud's NATIVE gate (RenderSmearWithNativeSupplied): an object whose
+                                // LiquidNative tag matches the covering liquid never smears — the
+                                // Rainbow Wood's gunk-native mushrooms sit in soup without flashing
+                                // (the wading player still does).
+                                string lnative = null;
+                                try { lnative = go.GetTagOrStringProperty("LiquidNative"); } catch { }
+                                if (cov.Liquid.Primary == "convalessence" && lnative != "convalessence") animSmear = "C";
+                                else if (cov.Liquid.Primary == "proteangunk" && lnative != "proteangunk") animSmear = "c";
                             }
                         }
                         catch { }

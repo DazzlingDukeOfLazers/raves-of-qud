@@ -3634,9 +3634,12 @@ func _register_anim(win: Dictionary, cx: int, cy: int) -> void:
 					nodes.append(_overlay_quad(texl, cx, cy, y_over, flip))
 			if not nodes.is_empty():
 				_anim_items.append({"kind": "cycle", "nodes": nodes})
-	# Pool sparkle candidate: a liquid winning its cell rolls Qud's 1/600 white flash.
+	# Pool sparkle candidate: a liquid winning its cell rolls Qud's 1/600 flash — WHITE for
+	# water-family pools ('&Y'), CYAN for protean gunk ('&c', its own program: near-invisible
+	# on the cyan soup, exactly Qud's look — the soup does NOT glitter like water).
 	if bool(win.get("liquid", false)):
-		_anim_pool_cells.append({"cx": cx, "cy": cy, "tile": tile, "key": _color_key(win), "y": y_over})
+		var spark := "c" if tile.contains("Gunk") else "Y"
+		_anim_pool_cells.append({"cx": cx, "cy": cy, "tile": tile, "key": _color_key(win), "y": y_over, "spark": spark})
 
 ## One unbatched cell-sized quad for the animator (hidden until its program shows it).
 ## tex null + col set = a flat colour fill (the target highlight).
@@ -3698,8 +3701,9 @@ func _animate_1to1() -> void:
 		for _i in fires:
 			var pc: Dictionary = _anim_pool_cells[randi() % n3]
 			var tw := String(pc["tile"])
-			var fcw := _qud_color("&Y")
-			var texw := _colored_tex_rgb(tw, fcw, fcw, "anim~Y~" + String(pc["key"]), _fill_for(tw, Fill.NONE))
+			var sl := String(pc.get("spark", "Y"))
+			var fcw := _qud_color("&" + sl)
+			var texw := _colored_tex_rgb(tw, fcw, fcw, "anim~" + sl + "~" + String(pc["key"]), _fill_for(tw, Fill.NONE))
 			if texw == null:
 				continue
 			var q := _take_sparkle()
