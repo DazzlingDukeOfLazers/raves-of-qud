@@ -16,6 +16,7 @@ to check it.
 | Jump to a known options config | `presets.py load <name>` ([presets](#option-presets--deterministic-test-fixtures-presetspy)) — Raves settings need a relaunch | yes (for the Qud half) |
 | Reach a Qud menu the bridge can't | `desktop.py`, or drive via **highvisor** | any |
 | Regression / parity vs Qud | **highvisor** `hv scene …` (see its parity kit) | both |
+| Verify elements one at a time | `checker.py sweep <cat>` ([Object Checker](#the-object-checker--per-element-verification-checkerpy)) | yes |
 
 Detailed reference for each follows.
 
@@ -225,6 +226,30 @@ unfocused). This took two coupled fixes — see below.
   pause-on-unfocus. While the viewer is connected + idle, Qud sits ~10% CPU (animation frames), not a spin.
 - A blocked player (marsh/water/wall) applies the move but doesn't change cells — check the position,
   not just that the command returned. A blocked move may also not end a turn, so no snapshot comes back.
+
+## The Object Checker — per-element verification (`checker.py`)
+
+The deterministic rung below the zoo ([phase2-test-plan](phase2-test-plan.md) Workstream A): load Qud
+elements **one at a time** onto a clean stage and verify each. The mod's `check` command clears a rect
+at zone center, places the blueprint, and parks the player **adjacent** (distance ≤ 1 arms
+proximity-gated effects: ConcealedHologramMaterial's flicker, puffers); `checklist` dumps the
+category enumeration (`checker_catalog.json` — walls/plants/creatures/liquids/furniture/items/
+weapons/food/implants, selection shared with `ZooBuilder.Select`).
+
+```bash
+python3 tools/capture/checker.py list                 # category -> element counts
+python3 tools/capture/checker.py one Dresser          # stage + verify one element (exit 0/1)
+python3 tools/capture/checker.py sweep walls          # whole category -> reports/checker/walls.{md,json}
+python3 tools/capture/checker.py sweep creatures --start 100 --limit 50   # resumable slices
+```
+
+Each element is verified by diffing **ground truth** (`checker_stage.json` — what the mod staged:
+blueprint, stage cell, static Render tile/colours) against **the wire** (the same-turn snapshot):
+the stage cell arrived, the element carries art, colours parse as Qud codes; a wire-vs-blueprint
+tile mismatch is a WARN (runtime tiles may legitimately differ — RandomTile). `--shots` also saves
+the same-turn Qud/Raves screenshot pair under `reports/checker/shots/` for the pixel-congruence
+pass (mean-diff + the strict checks) to consume. Reports are re-runnable — the regression suite for
+every future change.
 
 ## Option presets — deterministic test fixtures (`presets.py`)
 
