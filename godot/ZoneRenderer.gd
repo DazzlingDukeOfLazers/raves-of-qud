@@ -3675,7 +3675,7 @@ func _register_anim(win: Dictionary, cx: int, cy: int) -> void:
 				var yq := _overlay_quad(null, cx, cy, y_over + LAYER_LIFT * 0.2, false, Color(1.0, 0.85, 0.1))
 				yq.scale = Vector3(0.09, 1.0, 0.12)
 				yq.visible = true
-				embers.append({"node": yq, "t": "yellow", "dx": randf_range(-0.16, 0.16), "dz": randf_range(0.32, 0.45)})
+				embers.append({"node": yq, "t": "yellow", "dx": randf_range(-0.16, 0.16), "dz": randf_range(0.26, 0.38)})
 			for _e in 3:
 				var sq := _overlay_quad(null, cx, cy, y_over + LAYER_LIFT * 0.3, false, Color(0.45, 0.45, 0.45, 0.55))
 				var smat := sq.material_override as StandardMaterial3D
@@ -3685,7 +3685,7 @@ func _register_anim(win: Dictionary, cx: int, cy: int) -> void:
 				sq.visible = true
 				embers.append({"node": sq, "t": "smoke", "dx": randf_range(-0.2, 0.2), "dz": randf_range(-0.05, 0.10)})
 			_anim_items.append({"kind": "fire", "nodes": fnodes, "off": randi() % 60,
-				"embers": embers, "cx": cx, "cy": cy})
+				"embers": embers, "cx": cx, "cy": cy, "lfoPhase": randf() * TAU})
 	# Pool sparkle candidate: a liquid winning its cell rolls Qud's 1/600 flash — WHITE for
 	# water-family pools ('&Y'), CYAN for protean gunk ('&c', its own program: near-invisible
 	# on the cyan soup, exactly Qud's look — the soup does NOT glitter like water).
@@ -3778,8 +3778,8 @@ func _animate_1to1() -> void:
 					elif et == "yellow":
 						e["dz"] = float(e["dz"]) - (0.025 + randf() * 0.02)
 						e["dx"] = clampf(float(e["dx"]) + randf_range(-0.025, 0.025), -0.2, 0.2)
-						if float(e["dz"]) < 0.24:
-							e["dz"] = randf_range(0.32, 0.45)
+						if float(e["dz"]) < 0.16:
+							e["dz"] = randf_range(0.26, 0.38)
 							e["dx"] = randf_range(-0.16, 0.16)
 					else:
 						e["dz"] = float(e["dz"]) - (0.02 + randf() * 0.015)
@@ -3790,7 +3790,10 @@ func _animate_1to1() -> void:
 							sm.albedo_color = Color(0.45, 0.45, 0.45, 0.55 * (1.0 - prog))
 						if float(e["dz"]) < -1.9:
 							e["dz"] = randf_range(-0.05, 0.10)
-							e["dx"] = randf_range(-0.2, 0.2)
+							# LFO on the spawn x: the smoke column sways slowly (~4.2s period,
+							# amplitude 0.22 cells, per-fire phase) instead of spawning centred.
+							var lfo := sin(float(ms) * 0.0015 + float(it.get("lfoPhase", 0.0))) * 0.22
+							e["dx"] = lfo + randf_range(-0.06, 0.06)
 					en.position.x = fcx + float(e["dx"])
 					en.position.z = fcy + float(e["dz"])
 	# Pool sparkles: expected fires/frame = cells/600 (Qud's per-cell 1/600 roll), one-frame white.
