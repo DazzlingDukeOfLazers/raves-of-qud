@@ -179,7 +179,9 @@ func _load_qud_options() -> Array:
 	return []
 
 func _cat_names() -> Array:
-	var out := ["Raves"]
+	var out := []
+	if not Settings.one_to_one_only:
+		out.append("Raves")   # hidden under --one-to-one: Qud's options has no such section
 	for c in _qud_cats:
 		out.append(str(c.get("name", "?")))
 	return out
@@ -280,18 +282,21 @@ func _populate_body() -> void:
 	_sections.clear()
 	var col := _body_col
 
-	# RAVES section — editable settings (searchable, never "advanced")
-	var rheader := _section_header_node("Raves")
-	col.add_child(rheader)
-	var rrows: Array = []
-	for item in RAVES_ITEMS:
-		var rrow := _build_raves_setting(item)
-		col.add_child(rrow)
-		rrows.append(_row_meta(rrow, str(item.get("label", "")),
-			str(item.get("label", "")) + " " + str(item.get("key", "")), false))
-	var rsp := _spacer(12)
-	col.add_child(rsp)
-	_sections.append({"header": rheader, "spacer": rsp, "rows": rrows})
+	# RAVES section — editable settings (searchable, never "advanced"). Hidden entirely
+	# under --one-to-one: Qud's options has no such section, and hiding it is what locks
+	# the mode (no toggle back to user; run without the flag for that).
+	if not Settings.one_to_one_only:
+		var rheader := _section_header_node("Raves")
+		col.add_child(rheader)
+		var rrows: Array = []
+		for item in RAVES_ITEMS:
+			var rrow := _build_raves_setting(item)
+			col.add_child(rrow)
+			rrows.append(_row_meta(rrow, str(item.get("label", "")),
+				str(item.get("label", "")) + " " + str(item.get("key", "")), false))
+		var rsp := _spacer(12)
+		col.add_child(rsp)
+		_sections.append({"header": rheader, "spacer": rsp, "rows": rrows})
 
 	# Qud's mirrored tree — every option is built once; the Advanced toggle + search decide what shows.
 	for cat in _qud_cats:

@@ -26,14 +26,25 @@ const DEFAULTS := {
 	"bridge_port": 48710,
 }
 
+## True when Raves was launched with --one-to-one (or --1to1): 1:1 is LOCKED for this
+## run. The Options screen hides the RAVES section entirely — parity with Qud's options,
+## and deliberately no toggle back to user mode (run without the flag for that). Doubles
+## as the pressure valve that flushes out user-mode UI elements missing a 1:1 gate.
+var one_to_one_only := false
+
 ## True when the parity/1:1 mode is selected (overrides user-mode camera + panels).
 func one_to_one() -> bool:
+	if one_to_one_only:
+		return true
 	return str(get_value("mode", "user")) == "1to1"
 
 var _data: Dictionary = {}
 var _rect_mtime := -1.0
 
 func _ready() -> void:
+	for a in Array(OS.get_cmdline_args()) + Array(OS.get_cmdline_user_args()):
+		if a == "--one-to-one" or a == "--1to1":
+			one_to_one_only = true
 	_load()
 	apply_global()
 	# Window-placement channel: highvisor WRITES window_rect.json (the reverse of our

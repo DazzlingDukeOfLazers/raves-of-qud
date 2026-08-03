@@ -8,7 +8,7 @@ channel Δ>32. Playfield congruence for reference: mean-diff ≈ 2, hot ≈ 0%.
 | screen  | meanAbsDiff | %px>32 | verdict |
 |---------|------------:|-------:|---------|
 | title   |  7.35 |  6.6% | layout aligns after the chromeless fix; remaining heat = wordmark x-offset, menu hover/selection styling, hint bar, version-line ("build …" extra in Raves) |
-| options | 15.56 |  4.6% | partially mirrored (SOUND sliders etc.) but Raves is a narrow centred column with its own RAVES section + Save/Load preset bar; Qud is a full-width two-pane with left category rail |
+| options | 15.80 |  4.8% | RAVES section now HIDDEN under --one-to-one (raves_solo passes it; 1:1 locked for the run) — remaining delta is pure layout: Raves is a narrow centred column + Save/Load preset bar; Qud is a full-width two-pane with left category rail |
 | records | 18.44 | 11.0% | different design generation: Raves = "◆ Records ◆" score-list + summary pane; Qud = ENDED RUNS entry stack with left rail (Ended Runs / Daily ×2 / Achievements) + per-entry delete |
 | mods    | 16.50 | 15.5% | closest content (same two mods, same metadata lines); differs in frame ("◆ Mods ◆"), selection styling, preview pane behaviour, bottom command bar (Qud: space/v/Save+Reload/undo) |
 

@@ -515,6 +515,16 @@ namespace RavesOfQud
                                 {
                                     var uim = Qud.UI.UIManager.instance;
                                     var wnd = (uim != null) ? uim.currentWindow : null;
+                                    if (wnd == null)
+                                    {
+                                        // currentWindow is nulled on some view transitions —
+                                        // resolve by the ACTIVE VIEW NAME instead (the same
+                                        // string our heartbeat reports as the scene).
+                                        var view = GameManager.Instance != null
+                                            ? GameManager.Instance._ActiveGameView : null;
+                                        if (!string.IsNullOrEmpty(view))
+                                            try { wnd = Qud.UI.UIManager.getWindow(view); } catch { }
+                                    }
                                     if (wnd != null)
                                     {
                                         var mi = wnd.GetType().GetMethod("OnCancel", System.Type.EmptyTypes);

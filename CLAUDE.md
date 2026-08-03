@@ -117,6 +117,10 @@ place — that manual thrash burns whole sessions and is the #1 recurring failur
 ```bash
 hv launch raves          # THE pair start: Raves spawns Qud borderless; both auto-placed
 hv launch raves_solo     # just Raves (no Qud spawn) · qud_solo = just Qud (borderless args)
+                         # raves_solo passes --one-to-one: 1:1 LOCKED for the run — the Options
+                         # screen hides the RAVES section (Qud has none), so there is no toggle
+                         # back to user mode; launch the .app without the flag for user mode.
+                         # Gate ALL user-mode-only UI on Settings.one_to_one_only / one_to_one().
 hv state                 # which screen is each app on (first-party scene reports, no guessing)
 hv goto qud in_game      # drive an app to a state-tree node (recipes in highvisor/gametree.json)
 hv assert --app raves --node in_game --timeout 20   # block until a state holds (TDD; exit 0/1)
