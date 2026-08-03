@@ -3675,7 +3675,7 @@ func _register_anim(win: Dictionary, cx: int, cy: int) -> void:
 				var yq := _overlay_quad(null, cx, cy, y_over + LAYER_LIFT * 0.2, false, Color(1.0, 0.85, 0.1))
 				yq.scale = Vector3(0.09, 1.0, 0.12)
 				yq.visible = true
-				embers.append({"node": yq, "t": "yellow", "dx": randf_range(-0.16, 0.16), "dz": randf_range(0.26, 0.38)})
+				embers.append({"node": yq, "t": "yellow", "dx": randf_range(-0.16, 0.16), "dz": randf_range(0.10, 0.28)})
 			for _e in 3:
 				var sq := _overlay_quad(null, cx, cy, y_over + LAYER_LIFT * 0.3, false, Color(0.45, 0.45, 0.45, 0.55))
 				var smat := sq.material_override as StandardMaterial3D
@@ -3770,16 +3770,17 @@ func _animate_1to1() -> void:
 						continue
 					var et := String(e.get("t", "red"))
 					if et == "red":
-						e["dz"] = float(e["dz"]) - (0.03 + randf() * 0.02)
+						e["dz"] = float(e["dz"]) - (0.015 + randf() * 0.01)   # half speed
 						e["dx"] = clampf(float(e["dx"]) + randf_range(-0.03, 0.03), -0.22, 0.22)
 						if float(e["dz"]) < 0.02:
 							e["dz"] = randf_range(0.10, 0.28)
 							e["dx"] = randf_range(-0.18, 0.18)
 					elif et == "yellow":
-						e["dz"] = float(e["dz"]) - (0.025 + randf() * 0.02)
+						# same band + ceiling as the red now, at half speed
+						e["dz"] = float(e["dz"]) - (0.0125 + randf() * 0.01)
 						e["dx"] = clampf(float(e["dx"]) + randf_range(-0.025, 0.025), -0.2, 0.2)
-						if float(e["dz"]) < 0.16:
-							e["dz"] = randf_range(0.26, 0.38)
+						if float(e["dz"]) < 0.02:
+							e["dz"] = randf_range(0.10, 0.28)
 							e["dx"] = randf_range(-0.16, 0.16)
 					else:
 						e["dz"] = float(e["dz"]) - (0.02 + randf() * 0.015)
