@@ -594,8 +594,7 @@ func _group_wall_cells(cells: Array, offset: Vector2i, wall_types: Dictionary, w
 				continue
 			_note(cx, cy, widx, "prism", WALL_H)
 			var tile := _canon_wall_tile(String(obj.get("tile", "")))
-			var main_c := String(obj.get("tilecolor", ""))
-			if main_c == "": main_c = String(obj.get("color", ""))
+			var main_c := _pick_color_string(obj)   # compound beats tilecolor (the shared rule)
 			var detail_c := String(obj.get("detail", ""))
 			var bg := _parse_bg(String(obj.get("color", "")))
 			var key := "%s|%s|%s|%s" % [tile, main_c, detail_c, bg]
@@ -2162,8 +2161,10 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 		_note(cx, cy, idx, "skipped(no tile — not drawn by Qud)", 0.0)
 		return
 
-	var main_c := String(obj.get("tilecolor", ""))
-	if main_c == "": main_c = String(obj.get("color", ""))
+	# THE shared precedence rule (compound colour beats tilecolor) — this string ALSO keys
+	# the material cache, so the old tilecolor-first derivation made a tarry soup pool
+	# ('&c^C&K', fg K) collide with a plain soup pool ('&c') and serve the wrong material.
+	var main_c := _pick_color_string(obj)
 	var detail_c := String(obj.get("detail", ""))
 	var layer := int(obj.get("layer", 99))
 
