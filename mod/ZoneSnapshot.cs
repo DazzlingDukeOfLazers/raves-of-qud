@@ -1014,6 +1014,28 @@ namespace RavesOfQud
                             }
                         }
                         catch { }
+                        // SoupSludge (monosludges): a NON-hero sludge appends its component
+                        // liquid's colour EVERY frame (SoupSludge.Render) — for a MONOsludge
+                        // that IS the steady body colour (sugar -> gold). Heroes blink 50/50
+                        // and multi-liquid sludges cycle at 240ms/liquid — no steady phase,
+                        // so those keep the base colours (see reports/2026-08-02-monosludge-*).
+                        try
+                        {
+                            var sl = go.GetPart<SoupSludge>();
+                            if (sl != null && sl.ComponentLiquids != null && sl.ComponentLiquids.Count == 1
+                                && !go.HasIntProperty("Hero") && !go.HasPart<GivesRep>())
+                            {
+                                // NB GetLiquid/StringMap indexers take ReadOnlySpan<char> — CS7069
+                                // from the mod's target framework (Qud's own compiler accepts them,
+                                // dotnet build doesn't). GetLiquidColors(string) is span-free, and
+                                // GetColor() == Colors[0] across the liquids (checked blood/oil/water).
+                                var slcs = LiquidVolume.GetLiquidColors(sl.ComponentLiquids[0]);
+                                string slc = (slcs != null && slcs.Count > 0) ? slcs[0] : null;
+                                if (!string.IsNullOrEmpty(slc))
+                                    colorOut = colorOut + "&" + slc;   // compound: fg = last '&', like Qud
+                            }
+                        }
+                        catch { }
                         // LiquidStained (blood-spattered walls etc.): the effect repaints the fg
                         // from the staining liquid at render time (RenderStain: "&"+primary
                         // GetColor(); a secondary liquid overrides DetailColor). Static fields
