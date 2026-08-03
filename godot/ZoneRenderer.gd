@@ -3667,7 +3667,8 @@ func _register_anim(win: Dictionary, cx: int, cy: int) -> void:
 				var eq := _overlay_quad(null, cx, cy, y_over + LAYER_LIFT * 0.25, false, Color(1, 0, 0))
 				eq.scale = Vector3(0.10, 1.0, 0.14)
 				eq.visible = true
-				embers.append({"node": eq, "dx": randf_range(-0.3, 0.3), "dz": randf_range(0.0, 0.6)})
+				# spawn in the WOOD band (the art's lower third: dz +0.15..+0.42 = screen-bottom)
+				embers.append({"node": eq, "dx": randf_range(-0.18, 0.18), "dz": randf_range(0.15, 0.42)})
 			_anim_items.append({"kind": "fire", "nodes": fnodes, "off": randi() % 60,
 				"embers": embers, "cx": cx, "cy": cy})
 	# Pool sparkle candidate: a liquid winning its cell rolls Qud's 1/600 flash — WHITE for
@@ -3743,18 +3744,19 @@ func _animate_1to1() -> void:
 					var f := fn[i] as MeshInstance3D
 					if is_instance_valid(f):
 						f.visible = i == fidx
-				# rising embers: drift north within ~0.7 cells, reset to the fire's base
+				# rising embers, TIGHT to the wood (the art's lower third): spawn in the wood
+				# band, rise ~0.4 cells to just past mid-tile, reset — the flame hugs the logs.
 				var fcx := int(it.get("cx", 0))
 				var fcy := int(it.get("cy", 0))
 				for e in it.get("embers", []):
 					var en := e["node"] as MeshInstance3D
 					if not is_instance_valid(en):
 						continue
-					e["dz"] = float(e["dz"]) - (0.04 + randf() * 0.03)
-					e["dx"] = clampf(float(e["dx"]) + randf_range(-0.04, 0.04), -0.4, 0.4)
-					if float(e["dz"]) < -0.7:
-						e["dz"] = randf_range(0.0, 0.2)
-						e["dx"] = randf_range(-0.3, 0.3)
+					e["dz"] = float(e["dz"]) - (0.03 + randf() * 0.02)
+					e["dx"] = clampf(float(e["dx"]) + randf_range(-0.03, 0.03), -0.22, 0.22)
+					if float(e["dz"]) < 0.02:
+						e["dz"] = randf_range(0.15, 0.42)
+						e["dx"] = randf_range(-0.18, 0.18)
 					en.position.x = fcx + float(e["dx"])
 					en.position.z = fcy + float(e["dz"])
 	# Pool sparkles: expected fires/frame = cells/600 (Qud's per-cell 1/600 roll), one-frame white.
