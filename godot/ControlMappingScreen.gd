@@ -9,11 +9,12 @@ extends CanvasLayer
 ## "None" for unbound slots, a pale frame on the selected cell, and the bottom hint
 ## bar. Rebinding stays in Qud for now — Space/Delete/+ are drawn but inert.
 ##
-## Faithfully mirrored QUD QUIRK: behind the modern list Qud leaves its legacy console
-## view stuck on "Control Mapping / Loading… / [Esc] Back" inside a pale frame with a
-## translucent tint (the modern screen never finishes the console handoff). We draw
-## that ghost too — 1:1 means warts — all colours/geometry measured from
-## reports/2026-08-04-status-screens/controlmap_qud.png.
+## DELIBERATE DEVIATION (Daniel, 2026-08-04): behind the modern list Qud leaves its
+## legacy console view stuck on "Control Mapping / Loading… / [Esc] Back" inside a
+## pale frame with a translucent tint (the modern screen never finishes the console
+## handoff). We ported it faithfully first (measured from reports/2026-08-04-status-
+## screens/controlmap_qud.png, converged at 5.56 mean-diff), then HID it — it makes
+## the real content hard to read. SHOW_GHOST=true restores full parity for measuring.
 ##
 ## CanvasLayer 90 (under the CRT at 100), same slot as StatusScreens. Esc closes AND
 ## sends the bridge "uiback" so Qud leaves its KeybindsScreen in step.
@@ -42,6 +43,9 @@ var C_RAIL := _cm8(70, 130, 140)        # category rail items
 var C_SEP := _cm8(65, 106, 115)         # ║ separators / rail markers / dotted divider
 var C_SEL := _cm8(168, 194, 187)        # selected-cell frame
 var C_HINT := _cm8(167, 192, 186)
+
+# the ghost legacy-console view — see the deviation note in the header
+const SHOW_GHOST := false
 
 # geometry (1920x1080 design space, measured)
 const BG_RECT := Rect2(0, 90, 1620, 900)
@@ -306,17 +310,19 @@ func _draw_static() -> void:
 	var fnt := _root.get_theme_font("font", "Label")
 	_static.draw_rect(BG_RECT, C_BG)
 
-	# the ghost legacy-console view (see the header comment): tint + frame + stuck text
-	_static.draw_rect(GHOST_RECT, C_GHOST_TINT)
-	var g := GHOST_RECT
-	_static.draw_rect(Rect2(g.position.x, g.position.y, g.size.x, 5), C_GHOST_FRAME)
-	_static.draw_rect(Rect2(g.position.x, g.end.y - 5, g.size.x, 5), C_GHOST_FRAME)
-	_static.draw_rect(Rect2(g.position.x, g.position.y, 5, g.size.y), C_GHOST_FRAME)
-	_static.draw_rect(Rect2(g.end.x - 5, g.position.y, 5, g.size.y), C_GHOST_FRAME)
-	_static.draw_string(fnt, Vector2(304, 185), "Control Mapping", HORIZONTAL_ALIGNMENT_LEFT, -1, 34, C_GHOST_TEXT)
-	_static.draw_string(fnt, Vector2(59, 489), "Loading...", HORIZONTAL_ALIGNMENT_LEFT, -1, 35, C_GHOST_TEXT)
-	_static.draw_string(fnt, Vector2(57, 552), "<", HORIZONTAL_ALIGNMENT_LEFT, -1, 34, C_GHOST_TEXT)
-	_static.draw_string(fnt, Vector2(29, 583), "[Esc] Back", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, C_GHOST_TEXT)
+	# the ghost legacy-console view: tint + frame + stuck text (hidden by default —
+	# deliberate deviation, see the header comment)
+	if SHOW_GHOST:
+		_static.draw_rect(GHOST_RECT, C_GHOST_TINT)
+		var g := GHOST_RECT
+		_static.draw_rect(Rect2(g.position.x, g.position.y, g.size.x, 5), C_GHOST_FRAME)
+		_static.draw_rect(Rect2(g.position.x, g.end.y - 5, g.size.x, 5), C_GHOST_FRAME)
+		_static.draw_rect(Rect2(g.position.x, g.position.y, 5, g.size.y), C_GHOST_FRAME)
+		_static.draw_rect(Rect2(g.end.x - 5, g.position.y, 5, g.size.y), C_GHOST_FRAME)
+		_static.draw_string(fnt, Vector2(304, 185), "Control Mapping", HORIZONTAL_ALIGNMENT_LEFT, -1, 34, C_GHOST_TEXT)
+		_static.draw_string(fnt, Vector2(59, 489), "Loading...", HORIZONTAL_ALIGNMENT_LEFT, -1, 35, C_GHOST_TEXT)
+		_static.draw_string(fnt, Vector2(57, 552), "<", HORIZONTAL_ALIGNMENT_LEFT, -1, 34, C_GHOST_TEXT)
+		_static.draw_string(fnt, Vector2(29, 583), "[Esc] Back", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, C_GHOST_TEXT)
 
 	# title + magnifier + config line (Qud's "letterspacing" is just the bigger font —
 	# SCP advance = 0.6*size lands the measured 15.7px/char at size 26 exactly; the

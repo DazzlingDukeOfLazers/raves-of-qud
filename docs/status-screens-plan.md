@@ -58,8 +58,10 @@ visual parity first, actions wired per-screen afterwards over the bridge.
 **Done off-order — Control Mapping** (2026-08-04, `ControlMappingScreen.gd`, its own screen, not a
 tab): system-menu popup pick mirrors into Raves (`popup_option` by text), data from
 `BindingsExporter.cs` (Qud's own formatted binds via `CommandBindingManager.GetCommandBindings`,
-CP437 arrows mapped client-side), read-only v1 at **5.56 mean-diff** incl. the faithfully-mirrored
-ghost legacy-console frame Qud leaves behind the modern list. Esc closes both sides (`uiback`
+CP437 arrows mapped client-side), read-only v1 at **5.56 mean-diff** measured WITH the
+faithfully-mirrored ghost legacy-console frame Qud leaves behind the modern list.
+**Deliberate deviation** (Daniel): the ghost is HIDDEN by default (`SHOW_GHOST=false`) — it makes
+the real content hard to read; flip it on to re-measure full parity. Esc closes both sides (`uiback`
 `KeybindsScreen.Exit()` special-case; completes on next Qud focus when unfocused). Rebinding = later
 interactivity pass. Residual diff lives in the hint row (ability-bar z-order differs) + title glyphs.
 
