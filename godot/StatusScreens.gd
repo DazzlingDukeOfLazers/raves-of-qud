@@ -68,6 +68,7 @@ var _seeded := false
 # we request a fresh export on open via our own bridge peer (Records pattern)
 var _attr_pane: Control = null
 var _char_mtime := 0
+var _pane_pal_empty := true
 var _peer := StreamPeerTCP.new()
 var _tiles: RefCounted = null
 var _last_player := {}
@@ -288,7 +289,9 @@ func _load_character() -> void:
 	if not FileAccess.file_exists(path):
 		return
 	var mt := FileAccess.get_modified_time(path)
-	if _attr_pane != null and mt == _char_mtime:
+	# rebuild despite an unchanged file if the pane was built before the palette
+	# arrived (an early open rendered every colour code white)
+	if _attr_pane != null and mt == _char_mtime and not (_pane_pal_empty and not _palette.is_empty()):
 		return
 	var f := FileAccess.open(path, FileAccess.READ)
 	if f == null:
@@ -310,6 +313,7 @@ func _load_character() -> void:
 		_tiles.palette = _palette if not _palette.is_empty() else _tiles.palette
 		tex = _tiles.texture(String(_last_player.get("tile", "")), Color.WHITE,
 			_tiles.detail_color(_last_player))
+	_pane_pal_empty = _palette.is_empty()
 	_attr_pane.setup(data, _palette, tex)
 	_attr_pane.visible = (_tab == "attributes")
 	# fresh export may land AFTER this read — poll the mtime once more shortly

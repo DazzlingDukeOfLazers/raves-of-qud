@@ -73,7 +73,7 @@ func _build() -> void:
 	_label(str(_data.get("title", "")), Vector2(199, 191), C_SUBTITLE, 14)
 	var info := _rich(Vector2(199, 207), 14)
 	var lb := "#" + C_LABEL.to_html(false)
-	var pv := "#" + C_POINTS.to_html(false)
+	var pv := "#FFFFFF"   # Qud renders the numbers white
 	info.text = ("[color=%s]Level:[/color] [color=%s]%d[/color] [color=%s]»[/color] " +
 		"[color=%s]HP:[/color] [color=%s]%d/%d[/color] [color=%s]»[/color] " +
 		"[color=%s]XP:[/color] [color=%s]%d/%d[/color] [color=%s]»[/color] " +
@@ -91,22 +91,20 @@ func _build() -> void:
 	_boxes.draw.connect(_draw_left)
 	add_child(_boxes)
 
-	var attrs: Dictionary = _data.get("attributes", {})
-	var sec: Dictionary = _data.get("secondary", {})
-	var res: Dictionary = _data.get("resists", {})
+	var stats: Dictionary = _data.get("stats", {})
 	_section_header(Vector2(215, 230), "MAIN ATTRIBUTES", 815,
 		"Attribute Points:", int(_data.get("ap", 0)), 456)
 	var mains := ["STR", "AGI", "TOU", "INT", "WIL", "EGO"]
 	for i in mains.size():
-		_stat_box(mains[i], int(attrs.get(mains[i], 0)), Vector2(BOX_X0 + i * BOX_PITCH, 255), true)
+		_stat_box(mains[i], stats.get(mains[i], {}), Vector2(BOX_X0 + i * BOX_PITCH, 255), true)
 	_section_header(Vector2(215, 423), "SECONDARY ATTRIBUTES", 815, "", 0, 0)
 	var secs := ["QN", "MS", "AV", "DV", "MA"]
 	for i in secs.size():
-		_stat_box(secs[i], int(sec.get(secs[i], 0)), Vector2(BOX_X0 + i * BOX_PITCH, 447), false)
+		_stat_box(secs[i], stats.get(secs[i], {}), Vector2(BOX_X0 + i * BOX_PITCH, 447), false)
 	_section_header(Vector2(215, 615), "RESISTANCES", 815, "", 0, 0)
 	var rs := ["AR", "ER", "CR", "HR"]
 	for i in rs.size():
-		_stat_box(rs[i], int(res.get(rs[i], 0)), Vector2(BOX_X0 + i * BOX_PITCH, 645), false)
+		_stat_box(rs[i], stats.get(rs[i], {}), Vector2(BOX_X0 + i * BOX_PITCH, 645), false)
 
 	# per-section flavor slots (Qud shows the hovered stat's help under ITS section's
 	# row; one selection across all three groups; default STR)
@@ -133,7 +131,8 @@ func _build() -> void:
 		# name + " (n)" when Qud's ShouldShowLevel says so (CanLevel; defects/fixed stay bare)
 		var nm := str(m.get("display", m.get("name", "?")))
 		var row := _rich(Vector2(872, 280 + i * 36), 16)
-		row.add_theme_color_override("default_color", C_PALE)
+		row.size = Vector2(420, 22)   # list column only — a 700px row covered the detail pane,
+		row.add_theme_color_override("default_color", C_PALE)   # eating its wheel + hover
 		var body := QudText.to_bbcode(nm, _palette)
 		if bool(m.get("showLevel", false)):
 			# Qud renders the (n) in cyan, not the name colour
@@ -187,7 +186,18 @@ func _section_header(pos: Vector2, title: String, rule_end: float, extra: String
 			hdr.draw_rect(Rect2(rx + 1, 9, hdr.size.x - rx - 1, 1), C_RULE))
 	add_child(hdr)
 
-func _stat_box(id: String, value: int, pos: Vector2, with_mod: bool) -> void:
+## Palette colour for a Qud colour code, with the console-table fallback.
+func _code_col(code: String, fallback: Color) -> Color:
+	if _palette.has(code):
+		return Color(String(_palette[code]))
+	var tbl: Dictionary = _tiles_colors()
+	return tbl.get(code, fallback)
+
+static func _tiles_colors() -> Dictionary:
+	return load("res://QudTiles.gd").COLORS
+
+func _stat_box(id: String, sd: Dictionary, pos: Vector2, with_mod: bool) -> void:
+	var value := int(sd.get("v", 0))
 	var box := Control.new()
 	box.position = pos
 	box.size = Vector2(BOX_W, BOX_H)
@@ -213,21 +223,17 @@ func _stat_box(id: String, value: int, pos: Vector2, with_mod: bool) -> void:
 		box.draw_string(f, Vector2((BOX_W - lw) * 0.5, 22), id, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, C_BOX_LABEL)
 		var vs := str(value)
 		var vw := f.get_string_size(vs, HORIZONTAL_ALIGNMENT_LEFT, -1, 18).x
-		var bases: Dictionary = _data.get("bases", {})
-		var vcol := C_VALUE
-		if bases.has(id):
-			var b := int(bases[id])
-			if value > b:
-				vcol = C_GREEN     # buffed above base (Qud's AV with armour on)
-			elif value < b:
-				vcol = C_RED       # debuffed below base (Qud's DV)
+		# Qud's own colour code (C/G/r), computed mod-side from Statistic Value vs Base
+		var vcol := _code_col(str(sd.get("c", "C")), C_VALUE)
 		box.draw_string(f, Vector2((BOX_W - vw) * 0.5, 45), vs, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, vcol)
 		if with_mod:
-			var mod := int(floor((value - 16) / 2.0))
-			var ms := "[%s%d]" % ["+" if mod >= 0 else "", mod]
+			# Qud: Modifier > -1 -> {{G|[+n]}}, else {{R|[n]}} (Statistic.Modifier, exported)
+			var mod := int(sd.get("m", 0))
+			var ms := "[%s%d]" % ["+" if mod > -1 else "", mod]
 			var mw := f.get_string_size(ms, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
 			box.draw_string(f, Vector2((BOX_W - mw) * 0.5, 63), ms,
-				HORIZONTAL_ALIGNMENT_LEFT, -1, 14, C_GREEN if mod >= 0 else C_RED)
+				HORIZONTAL_ALIGNMENT_LEFT, -1, 14,
+				_code_col("G", C_GREEN) if mod > -1 else _code_col("R", C_RED))
 		if _sel_stat == id:
 			box.draw_string(f, Vector2(-11, 36), ">", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, C_GOLD))
 	add_child(box)

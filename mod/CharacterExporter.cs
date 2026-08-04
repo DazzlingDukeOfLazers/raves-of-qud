@@ -50,15 +50,36 @@ namespace RavesOfQud
             return Stat(p, name).ToString();
         }
 
-        private static int BaseStat(GameObject p, string name)
+        private static XRL.World.Statistic StatObj(GameObject p, string name)
         {
-            try
+            try { return p.Statistics != null && p.Statistics.ContainsKey(name) ? p.Statistics[name] : null; }
+            catch { return null; }
+        }
+
+        /// Qud's exact value-colour rule (CharacterAttributeLine.setData): C default,
+        /// G above base, lowercase r below — MS inverts (lower is better).
+        private static string CodeFor(XRL.World.Statistic st, bool inverse)
+        {
+            if (st == null) return "C";
+            if (!inverse)
             {
-                var st = p.Statistics != null && p.Statistics.ContainsKey(name) ? p.Statistics[name] : null;
-                if (st != null) return st.BaseValue;
+                if (st.Value > st.BaseValue) return "G";
+                if (st.Value < st.BaseValue) return "r";
             }
-            catch { }
-            return 0;
+            else
+            {
+                if (st.Value < st.BaseValue) return "G";
+                if (st.Value > st.BaseValue) return "r";
+            }
+            return "C";
+        }
+
+        private static void StatBox(JsonWriter j, string key, int shown, string code, XRL.World.Statistic st, bool withMod)
+        {
+            j.Name(key).BeginObject();
+            j.Member("v", shown).Member("c", code);
+            if (withMod && st != null) j.Member("m", st.Modifier);
+            j.EndObject();
         }
 
         private static string Help(GameObject p, string name)
@@ -94,23 +115,35 @@ namespace RavesOfQud
             j.Member("ap", Stat(p, "AP"));
             j.Member("mp", Stat(p, "MP"));
 
-            j.Name("attributes").BeginObject();
-            j.Member("STR", Stat(p, "Strength")).Member("AGI", Stat(p, "Agility"))
-             .Member("TOU", Stat(p, "Toughness")).Member("INT", Stat(p, "Intelligence"))
-             .Member("WIL", Stat(p, "Willpower")).Member("EGO", Stat(p, "Ego"));
-            j.EndObject();
-
-            j.Name("secondary").BeginObject();
-            j.Member("QN", Stat(p, "Speed"));
-            j.Member("MS", int.TryParse(DisplayStat(p, "MoveSpeed"), out var msd) ? msd : Stat(p, "MoveSpeed"));
-            try { j.Member("AV", XRL.Rules.Stats.GetCombatAV(p)); } catch { }
-            try { j.Member("DV", XRL.Rules.Stats.GetCombatDV(p)); } catch { }
-            try { j.Member("MA", XRL.Rules.Stats.GetCombatMA(p)); } catch { }
-            j.EndObject();
-
-            j.Name("resists").BeginObject();
-            j.Member("AR", Stat(p, "AcidResistance")).Member("ER", Stat(p, "ElectricResistance"))
-             .Member("CR", Stat(p, "ColdResistance")).Member("HR", Stat(p, "HeatResistance"));
+            // Per-box data mirroring CharacterAttributeLine.setData verbatim: the shown
+            // number (combat values for AV/DV/MA, 200-Value for MS), Qud's colour CODE
+            // (palette-resolved client-side), and Statistic.Modifier for the mains.
+            j.Name("stats").BeginObject();
+            var names = new[] { "Strength", "Agility", "Toughness", "Intelligence", "Willpower", "Ego" };
+            var keys = new[] { "STR", "AGI", "TOU", "INT", "WIL", "EGO" };
+            for (int i = 0; i < names.Length; i++)
+            {
+                var st = StatObj(p, names[i]);
+                StatBox(j, keys[i], st != null ? st.Value : Stat(p, names[i]), CodeFor(st, false), st, true);
+            }
+            var qn = StatObj(p, "Speed");
+            StatBox(j, "QN", qn != null ? qn.Value : 0, CodeFor(qn, false), qn, false);
+            var ms = StatObj(p, "MoveSpeed");
+            StatBox(j, "MS", ms != null ? 200 - ms.Value : 0, CodeFor(ms, true), ms, false);
+            int av = 0, dv = 0, ma = 0;
+            try { av = XRL.Rules.Stats.GetCombatAV(p); } catch { }
+            try { dv = XRL.Rules.Stats.GetCombatDV(p); } catch { }
+            try { ma = XRL.Rules.Stats.GetCombatMA(p); } catch { }
+            StatBox(j, "AV", av, CodeFor(StatObj(p, "AV"), false), null, false);
+            StatBox(j, "DV", dv, CodeFor(StatObj(p, "DV"), false), null, false);
+            StatBox(j, "MA", ma, CodeFor(StatObj(p, "MA"), false), null, false);
+            var rn = new[] { "AcidResistance", "ElectricResistance", "ColdResistance", "HeatResistance" };
+            var rk = new[] { "AR", "ER", "CR", "HR" };
+            for (int i = 0; i < rn.Length; i++)
+            {
+                var st = StatObj(p, rn[i]);
+                StatBox(j, rk[i], st != null ? st.Value : 0, CodeFor(st, false), st, false);
+            }
             j.EndObject();
 
             j.Name("help").BeginObject();
@@ -121,17 +154,6 @@ namespace RavesOfQud
              .Member("AV", Help(p, "AV")).Member("DV", Help(p, "DV")).Member("MA", Help(p, "MA"))
              .Member("AR", Help(p, "AcidResistance")).Member("ER", Help(p, "ElectricResistance"))
              .Member("CR", Help(p, "ColdResistance")).Member("HR", Help(p, "HeatResistance"));
-            j.EndObject();
-
-            // base values for the buff/debuff value colouring (green > base, red < base)
-            j.Name("bases").BeginObject();
-            j.Member("STR", BaseStat(p, "Strength")).Member("AGI", BaseStat(p, "Agility"))
-             .Member("TOU", BaseStat(p, "Toughness")).Member("INT", BaseStat(p, "Intelligence"))
-             .Member("WIL", BaseStat(p, "Willpower")).Member("EGO", BaseStat(p, "Ego"))
-             .Member("QN", BaseStat(p, "Speed")).Member("MS", BaseStat(p, "MoveSpeed"))
-             .Member("AV", Stat(p, "AV")).Member("DV", Stat(p, "DV")).Member("MA", Stat(p, "MA"))
-             .Member("AR", BaseStat(p, "AcidResistance")).Member("ER", BaseStat(p, "ElectricResistance"))
-             .Member("CR", BaseStat(p, "ColdResistance")).Member("HR", BaseStat(p, "HeatResistance"));
             j.EndObject();
 
             j.Name("mutations").BeginArray();
