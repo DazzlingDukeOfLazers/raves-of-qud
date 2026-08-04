@@ -390,7 +390,21 @@ def main(argv):
         names = names[start:start + limit if limit else None]
         results = []
         for i, bp in enumerate(names):
-            r = check_one(b, bp)
+            # The mod's server intermittently RESETS the long-lived sweep
+            # connection during scored runs (the per-element qud_shot bridges
+            # add ~2 connect/disconnect cycles each; after ~25 elements the
+            # broadcast path drops everyone). Reconnect and retry the element
+            # once — the server itself recovers instantly.
+            try:
+                r = check_one(b, bp)
+            except (ConnectionError, OSError):
+                try:
+                    b.close()
+                except OSError:
+                    pass
+                time.sleep(1.0)
+                b = control.Bridge()
+                r = check_one(b, bp)
             if "--shots" in argv or "--diff" in argv:
                 r["shots"] = shots_for(bp, cat)
             if "--diff" in argv:
