@@ -196,12 +196,34 @@ func _on_resize() -> void:
 func _input(e: InputEvent) -> void:
 	if e is InputEventKey and e.pressed and not e.echo and e.keycode == KEY_F12:
 		_shot()
-	# X or F2: the 8-tab status screens. X because macOS eats a bare F2 (brightness) —
-	# that read as "the button does nothing"; F2 kept for hv recipes + Fn users.
-	if e is InputEventKey and e.pressed and not e.echo \
-			and not e.ctrl_pressed and not e.meta_pressed and not e.shift_pressed \
-			and (e.keycode == KEY_F2 or e.keycode == KEY_X):
-		_toggle_status()
+	# Qud's OWN status-screen keys (Commands.xml defaults): k=skills, x/Tab=attributes,
+	# e=equipment (i, inventory, lands there too — the carousel has no Inventory tab),
+	# n=tinkering, j=journal, q=quests, Ctrl+F=reputation. Only from gameplay (the
+	# overlay's per-tab layer owns letters while open, like Qud's Adventure layer).
+	# F2 stays as the hv-recipe toggle. 1:1-only; consumed so the camera/inspector
+	# bindings underneath never double-fire.
+	if e is InputEventKey and e.pressed and not e.echo and _status != null \
+			and Settings.one_to_one() and not e.alt_pressed:
+		var ctrl: bool = e.ctrl_pressed or e.meta_pressed
+		if e.keycode == KEY_F and ctrl and not e.shift_pressed:
+			if not _status.visible:
+				_status.open("reputation")
+			get_viewport().set_input_as_handled()
+			return
+		if not ctrl and not e.shift_pressed:
+			if e.keycode == KEY_F2:
+				_toggle_status()
+				get_viewport().set_input_as_handled()
+				return
+			if not _status.visible and STATUS_TAB_KEYS.has(e.keycode):
+				_status.open(STATUS_TAB_KEYS[e.keycode])
+				get_viewport().set_input_as_handled()
+				return
+
+# Qud's Commands.xml default binds -> our tab ids (see the handler above)
+const STATUS_TAB_KEYS := {KEY_K: "skills", KEY_X: "attributes", KEY_TAB: "attributes",
+	KEY_E: "equipment", KEY_I: "equipment", KEY_N: "tinkering", KEY_J: "journal",
+	KEY_Q: "quests"}
 
 func _toggle_status() -> void:
 	if _status == null or not Settings.one_to_one():
