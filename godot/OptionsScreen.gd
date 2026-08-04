@@ -67,26 +67,29 @@ func _ready() -> void:
 	theme = UiFont.make_theme(get_viewport())
 	_qud_cats = _load_qud_options()
 
-	var bgtex := _load_png("title/background.png")
-	if bgtex != null:
-		var bg := TextureRect.new()
-		bg.texture = bgtex
-		bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-		bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-		bg.mouse_filter = Control.MOUSE_FILTER_STOP
-		add_child(bg)
-	var dark := ColorRect.new()
-	dark.color = Color(0.02, 0.03, 0.035, 0.85 if bgtex != null else 1.0)
-	dark.set_anchors_preset(Control.PRESET_FULL_RECT)
-	dark.mouse_filter = Control.MOUSE_FILTER_STOP
-	add_child(dark)
+	if Settings.one_to_one():
+		_build_1to1()
+	else:
+		var bgtex := _load_png("title/background.png")
+		if bgtex != null:
+			var bg := TextureRect.new()
+			bg.texture = bgtex
+			bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+			bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+			bg.mouse_filter = Control.MOUSE_FILTER_STOP
+			add_child(bg)
+		var dark := ColorRect.new()
+		dark.color = Color(0.02, 0.03, 0.035, 0.85 if bgtex != null else 1.0)
+		dark.set_anchors_preset(Control.PRESET_FULL_RECT)
+		dark.mouse_filter = Control.MOUSE_FILTER_STOP
+		add_child(dark)
 
-	_build_header()
-	_build_sidebar()
-	_build_body()
-	_build_footer()
-	_add_back()
-	_build_preset_bar()
+		_build_header()
+		_build_sidebar()
+		_build_body()
+		_build_footer()
+		_add_back()
+		_build_preset_bar()
 	_peer.connect_to_host(BridgeClient.host(), BridgeClient.port())   # for write-back to Qud
 
 ## Poll the bridge; Qud-option edits WRITE BACK only while a modded Qud is in-game (connected).
@@ -219,6 +222,14 @@ func _build_header() -> void:
 	_zero(_search_edit)
 	_search_edit.text_changed.connect(_on_search)
 	add_child(_search_edit)
+	var mag := Control.new()   # the magnifier glyph left of the field
+	mag.position = Vector2(472, 80)
+	mag.size = Vector2(20, 20)
+	mag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	mag.draw.connect(func():
+		mag.draw_arc(Vector2(8, 8), 6.0, 0.0, TAU, 20, O_TEXT, 2.0)
+		mag.draw_line(Vector2(12, 12), Vector2(18, 18), O_TEXT, 2.0))
+	add_child(mag)
 
 	# Advanced toggle — reveal options Qud currently hides (Requires/capability not met, visible=false).
 	_adv_btn = Button.new()
@@ -299,12 +310,16 @@ func _populate_body() -> void:
 		_sections.append({"header": rheader, "spacer": rsp, "rows": rrows})
 
 	# Qud's mirrored tree — every option is built once; the Advanced toggle + search decide what shows.
+	var one := Settings.one_to_one()
+	var first_cat := true
 	for cat in _qud_cats:
-		var header := _section_header_node(str(cat.get("name", "?")))
+		var header := _section_header_1to1(str(cat.get("name", "?")), first_cat) if one \
+			else _section_header_node(str(cat.get("name", "?")))
+		first_cat = false
 		col.add_child(header)
 		var rows: Array = []
 		for opt in cat.get("options", []):
-			var row := _build_qud_option(opt)
+			var row := _qud_option_1to1(opt) if one else _build_qud_option(opt)
 			col.add_child(row)
 			rows.append(_row_meta(row, str(opt.get("label", "")), _opt_hay(opt),
 				not bool(opt.get("visible", true))))
@@ -840,6 +855,370 @@ func _preset_cancel_row() -> Control:
 	b.add_theme_color_override("font_color", DIM)
 	b.pressed.connect(_close_preset_overlay)
 	return b
+
+# ── 1:1 build — Qud's OPTIONS console screen (same framework as Records) ─────────
+# Interlaced bg, dotted rail divider, right-aligned category rail, OPTIONS header
+# with search field + advanced toggle, full-width option rows (sliders with dotted
+# tracks, [■] checkboxes, value lists), scroll track, [Esc] Back chevron, hint bar.
+# Rows are VISUAL parity first; write-back interactions stay in user mode for now.
+
+## Same 2D-canvas gamma pre-compensation as RecordsScreen._q (see there).
+static func _q(r8: int, g8: int, b8: int) -> Color:
+	var f := func(v: int) -> int: return v if v <= 20 else mini(255, int(round(v * 1.13)))
+	return Color8(f.call(r8), f.call(g8), f.call(b8))
+
+var O_BG := _q(6, 44, 42)
+var O_LINE := _q(58, 89, 101)
+var O_GOLD := _q(200, 184, 57)
+var O_CYAN_SEL := _q(108, 183, 200)
+var O_CYAN := _q(56, 154, 176)
+var O_TEXT := _q(167, 192, 186)
+var O_DIM := _q(21, 73, 72)
+
+func _build_1to1() -> void:
+	var bg := ColorRect.new()
+	bg.color = O_BG
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(bg)
+
+	# dotted rail divider + end caps (x325, like Records at 331)
+	var div := Control.new()
+	div.set_anchors_preset(Control.PRESET_FULL_RECT)
+	div.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	div.draw.connect(func():
+		var y := 25.0
+		while y < 1040.0:
+			div.draw_rect(Rect2(325, y, 1, minf(5, 1040 - y)), O_LINE)
+			y += 6.0
+		for cy in [25.0, 1035.0]:
+			div.draw_rect(Rect2(322, cy, 7, 6), _q(53, 90, 98)))
+	add_child(div)
+
+	# header: OPTIONS + search field + advanced toggle
+	var title := Label.new()
+	title.text = "OPTIONS"
+	title.add_theme_color_override("font_color", O_GOLD)
+	var fv := FontVariation.new()
+	fv.base_font = get_theme_font("font", "Label")
+	fv.spacing_glyph = 3
+	title.add_theme_font_override("font", fv)
+	title.add_theme_font_size_override("font_size", 22)
+	title.position = Vector2(339, 72)
+	add_child(title)
+	# search field (functional: filters rows via the existing _on_search)
+	_search_edit = LineEdit.new()
+	_search_edit.placeholder_text = "<search>"
+	_search_edit.position = Vector2(498, 75)
+	_search_edit.size = Vector2(162, 30)
+	_search_edit.add_theme_font_size_override("font_size", 16)
+	_search_edit.add_theme_color_override("font_color", O_TEXT)
+	_search_edit.add_theme_color_override("font_placeholder_color", O_DIM)
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = O_BG
+	sb.set_border_width_all(1)
+	sb.border_color = O_LINE
+	sb.content_margin_left = 8
+	sb.content_margin_right = 8
+	for st in ["normal", "focus"]:
+		_search_edit.add_theme_stylebox_override(st, sb)
+	_search_edit.text_changed.connect(_on_search)
+	add_child(_search_edit)
+	var mag := Control.new()   # the magnifier glyph left of the field
+	mag.position = Vector2(472, 80)
+	mag.size = Vector2(20, 20)
+	mag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	mag.draw.connect(func():
+		mag.draw_arc(Vector2(8, 8), 6.0, 0.0, TAU, 20, O_TEXT, 2.0)
+		mag.draw_line(Vector2(12, 12), Vector2(18, 18), O_TEXT, 2.0))
+	add_child(mag)
+	var adv := RichTextLabel.new()
+	adv.bbcode_enabled = true
+	adv.fit_content = true
+	adv.scroll_active = false
+	adv.autowrap_mode = TextServer.AUTOWRAP_OFF
+	adv.add_theme_font_size_override("normal_font_size", 16)
+	adv.text = "[color=#%s][lb]■[rb][/color][color=#%s] Show advanced options[/color]" % [
+		O_TEXT.to_html(false), O_TEXT.to_html(false)]
+	adv.position = Vector2(656, 82)
+	adv.mouse_filter = Control.MOUSE_FILTER_STOP
+	adv.gui_input.connect(func(e): if e is InputEventMouseButton and e.pressed: _toggle_advanced())
+	add_child(adv)
+
+	# right-aligned category rail with markers
+	var names := _cat_names()
+	for i in range(names.size()):
+		var l := Label.new()
+		l.text = str(names[i])
+		l.add_theme_color_override("font_color", O_CYAN_SEL)
+		l.add_theme_font_size_override("font_size", 16)
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		l.position = Vector2(54, 166 + i * 30)
+		l.size = Vector2(234, 22)
+		l.mouse_filter = Control.MOUSE_FILTER_STOP
+		var nm := str(names[i])
+		l.gui_input.connect(func(e):
+			if e is InputEventMouseButton and e.pressed and _anchors.has(nm):
+				_scroll.ensure_control_visible(_anchors[nm]))
+		add_child(l)
+		var dot := ColorRect.new()
+		dot.color = O_LINE
+		dot.position = Vector2(296, 173 + i * 30)
+		dot.size = Vector2(5, 5)
+		add_child(dot)
+
+	# content scroller
+	_scroll = ScrollContainer.new()
+	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
+	_scroll.position = Vector2(332, 115)
+	_scroll.size = Vector2(1420, 880)
+	add_child(_scroll)
+	_body_col = VBoxContainer.new()
+	_body_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_body_col.add_theme_constant_override("separation", 5)
+	_scroll.add_child(_body_col)
+	_populate_body()
+
+	# scroll track (x1764, 10px)
+	var track := Control.new()
+	track.position = Vector2(1760, 110)
+	track.size = Vector2(10, 865)
+	track.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	track.draw.connect(func():
+		track.draw_rect(Rect2(0, 0, 10, track.size.y), _q(29, 41, 46))
+		var vsb := _scroll.get_v_scroll_bar()
+		var content := maxf(1.0, float(vsb.max_value))
+		var vis := float(vsb.page) if vsb.page > 0 else _scroll.size.y
+		var frac := clampf(vis / content, 0.05, 1.0)
+		var pos := 0.0
+		if content > vis:
+			pos = float(vsb.value) / (content - vis)
+		var th := track.size.y * frac
+		track.draw_rect(Rect2(0, (track.size.y - th) * pos, 10, th), O_LINE))
+	add_child(track)
+	_scroll.get_v_scroll_bar().value_changed.connect(func(_v): track.queue_redraw())
+
+	# [Esc] Back chevron
+	var back := Control.new()
+	back.position = Vector2(30, 520)
+	back.size = Vector2(110, 75)
+	back.mouse_filter = Control.MOUSE_FILTER_STOP
+	back.gui_input.connect(func(e): if e is InputEventMouseButton and e.pressed: closed.emit())
+	back.draw.connect(func():
+		back.draw_line(Vector2(48, 12), Vector2(36, 24), _q(120, 140, 138), 3.0)
+		back.draw_line(Vector2(36, 24), Vector2(48, 36), _q(120, 140, 138), 3.0))
+	add_child(back)
+	var bl := RichTextLabel.new()
+	bl.bbcode_enabled = true
+	bl.fit_content = true
+	bl.scroll_active = false
+	bl.autowrap_mode = TextServer.AUTOWRAP_OFF
+	bl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bl.add_theme_font_size_override("normal_font_size", 16)
+	bl.text = "[color=#%s][lb]Esc[rb][/color][color=#%s] Back[/color]" % [
+		O_GOLD.to_html(false), O_TEXT.to_html(false)]
+	bl.position = Vector2(4, 48)
+	back.add_child(bl)
+
+	# bottom hint
+	var hint := RichTextLabel.new()
+	hint.bbcode_enabled = true
+	hint.fit_content = true
+	hint.scroll_active = false
+	hint.autowrap_mode = TextServer.AUTOWRAP_OFF
+	hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hint.add_theme_font_size_override("normal_font_size", 16)
+	var wht := "#FFFFFF"
+	var dimc := "#%s" % O_TEXT.to_html(false)
+	var goldc := "#%s" % O_GOLD.to_html(false)
+	hint.push_paragraph(HORIZONTAL_ALIGNMENT_LEFT)
+	hint.append_text("[color=%s][lb][/color]" % wht)
+	hint.add_image(_options_nav_icon(15), 22, 15)
+	hint.append_text("[color=%s][rb][/color]" % wht)
+	hint.append_text("[color=%s] navigate  [/color]" % dimc)
+	hint.append_text("[color=%s][lb]-[rb][/color][color=%s] Collapse All  [/color]" % [goldc, dimc])
+	hint.append_text("[color=%s][lb]+[rb][/color][color=%s] Expand All  [/color]" % [goldc, dimc])
+	hint.append_text("[color=%s][lb]Space[rb][/color][color=%s] Toggle Visibilty[/color]" % [goldc, dimc])
+	hint.pop()
+	hint.position = Vector2(365, 1005)
+	add_child(hint)
+
+	# interlace LAST, over everything (Qud console-screen scanlines)
+	var scan := ColorRect.new()
+	scan.set_anchors_preset(Control.PRESET_FULL_RECT)
+	scan.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var sh := Shader.new()
+	sh.code = """
+shader_type canvas_item;
+void fragment() {
+	float row = floor(FRAGCOORD.y);
+	COLOR = vec4(0.0, 0.0, 0.0, mod(row, 2.0) >= 1.0 ? 0.5 : 0.0);
+}
+"""
+	var mat := ShaderMaterial.new()
+	mat.shader = sh
+	scan.material = mat
+	add_child(scan)
+
+func _options_nav_icon(ih: int) -> ImageTexture:
+	var g := maxi(1, int(round(ih * 0.10)))
+	var k := int((ih - g) / 2.0)
+	if k < 2:
+		k = 2
+	var w := 3 * k + 2 * g
+	var h := 2 * k + g
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var mid := k + g
+	img.fill_rect(Rect2i(mid, 0, k, k), O_GOLD)
+	img.fill_rect(Rect2i(0, k + g, k, k), O_GOLD)
+	img.fill_rect(Rect2i(mid, k + g, k, k), O_GOLD)
+	img.fill_rect(Rect2i(2 * mid, k + g, k, k), O_GOLD)
+	return ImageTexture.create_from_image(img)
+
+## Section header: "[-] SOUND" — big cyan caps; the FIRST section carries Qud's
+## fresh-open selection dither bar across the content width.
+func _section_header_1to1(name: String, selected: bool) -> Control:
+	var wrap := Control.new()
+	wrap.custom_minimum_size = Vector2(0, 24)
+	if selected:
+		var hl := TextureRect.new()
+		var htex: Texture2D = _chrome_opt("modsHoverTile.png")
+		if htex != null:
+			hl.texture = htex
+			hl.stretch_mode = TextureRect.STRETCH_TILE
+		hl.position = Vector2(0, 0)
+		hl.size = Vector2(772, 26)
+		hl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		wrap.add_child(hl)
+	var pre := Label.new()
+	pre.text = "[-]"
+	pre.add_theme_color_override("font_color", O_CYAN)
+	pre.add_theme_font_size_override("font_size", 16)
+	pre.position = Vector2(8, 5)
+	wrap.add_child(pre)
+	var l := Label.new()
+	l.text = name.to_upper()
+	l.add_theme_color_override("font_color", O_CYAN_SEL)
+	l.add_theme_font_size_override("font_size", 24)
+	l.position = Vector2(48, 0)
+	wrap.add_child(l)
+	_anchors[name] = wrap
+	return wrap
+
+func _chrome_opt(file: String) -> Texture2D:
+	var path := InputModel.support_dir().path_join("title").path_join("chrome").path_join(file)
+	if not FileAccess.file_exists(path):
+		return null
+	var img := Image.new()
+	if img.load(path) != 0:
+		return null
+	return ImageTexture.create_from_image(img)
+
+## One option row, Qud console style. Sliders: label line + dotted track with a
+## square thumb and the value at the right. Checkboxes: "[■]/[ ]" + label.
+## Combos: label + value list with the current one highlighted.
+func _qud_option_1to1(opt: Dictionary) -> Control:
+	var t := str(opt.get("type", ""))
+	var wrap := Control.new()
+	var label := str(opt.get("label", ""))
+	match t:
+		"Slider":
+			wrap.custom_minimum_size = Vector2(0, 46)
+			var l := Label.new()
+			l.text = label
+			l.add_theme_color_override("font_color", O_TEXT)
+			l.add_theme_font_size_override("font_size", 16)
+			l.position = Vector2(53, 0)
+			wrap.add_child(l)
+			var vmin := float(opt.get("min", 0))
+			var vmax := maxf(1.0, float(opt.get("max", 100)))
+			var val := float(str(opt.get("value", "0")).to_float())
+			var fracv := clampf((val - vmin) / (vmax - vmin), 0.0, 1.0)
+			var tr := Control.new()
+			tr.position = Vector2(53, 26)
+			tr.size = Vector2(671, 22)
+			tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			tr.draw.connect(func():
+				tr.draw_rect(Rect2(0, 6, 2, 10), O_LINE)          # left terminal
+				var x := 4.0
+				while x < 655.0:                                   # dotted rail
+					tr.draw_rect(Rect2(x, 10, 2, 1), O_LINE)
+					x += 4.0
+				tr.draw_rect(Rect2(655, 6, 2, 10), O_LINE)         # right terminal
+				var tx := 4.0 + (649.0 - 18.0) * fracv
+				var ht: Texture2D = _chrome_opt("modsHoverTile.png")
+				if ht != null:
+					tr.draw_texture_rect(ht, Rect2(tx, 2, 18, 18), true)
+				else:
+					tr.draw_rect(Rect2(tx, 2, 18, 18), O_CYAN))
+			wrap.add_child(tr)
+			var v := Label.new()
+			v.text = str(opt.get("value", ""))
+			v.add_theme_color_override("font_color", O_TEXT)
+			v.add_theme_font_size_override("font_size", 16)
+			v.position = Vector2(716, 18)
+			wrap.add_child(v)
+		"Checkbox":
+			wrap.custom_minimum_size = Vector2(0, 20)
+			var on := str(opt.get("value", "")) == "Yes"
+			var rl := RichTextLabel.new()
+			rl.bbcode_enabled = true
+			rl.fit_content = true
+			rl.scroll_active = false
+			rl.autowrap_mode = TextServer.AUTOWRAP_OFF
+			rl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			rl.add_theme_font_size_override("normal_font_size", 16)
+			var box := "[lb]■[rb]" if on else "[lb] [rb]"
+			rl.text = "[color=#%s]%s[/color][color=#%s] %s[/color]" % [
+				O_TEXT.to_html(false), box, O_TEXT.to_html(false), label]
+			rl.position = Vector2(53, 0)
+			wrap.add_child(rl)
+		"Combo", "BigCombo":
+			var vals: Array = opt.get("values", [])
+			var shown: Array = opt.get("displayValues", [])
+			if shown.is_empty():
+				shown = vals
+			var cur := str(opt.get("value", ""))
+			var l2 := Label.new()
+			l2.text = label
+			l2.add_theme_color_override("font_color", O_TEXT)
+			l2.add_theme_font_size_override("font_size", 16)
+			l2.position = Vector2(53, 0)
+			wrap.add_child(l2)
+			var rl2 := RichTextLabel.new()
+			rl2.bbcode_enabled = true
+			rl2.fit_content = true
+			rl2.scroll_active = false
+			rl2.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			rl2.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			rl2.add_theme_font_size_override("normal_font_size", 16)
+			var parts := PackedStringArray()
+			for i2 in range(shown.size()):
+				var raw := str(vals[i2]) if i2 < vals.size() else str(shown[i2])
+				var disp := str(shown[i2])
+				if raw == cur:
+					parts.append("[color=#%s]%s[/color]" % [O_GOLD.to_html(false), disp])
+				else:
+					parts.append("[color=#%s]%s[/color]" % [O_CYAN.to_html(false), disp])
+			rl2.text = "  " + "  ".join(parts)
+			rl2.position = Vector2(61, 24)
+			rl2.size = Vector2(690, 0)
+			wrap.add_child(rl2)
+			wrap.custom_minimum_size = Vector2(0, 30)
+			wrap.ready.connect(func():
+				await get_tree().process_frame
+				wrap.custom_minimum_size = Vector2(0, 24 + rl2.size.y))
+		_:
+			wrap.custom_minimum_size = Vector2(0, 26)
+			var l3 := Label.new()
+			l3.text = label
+			l3.add_theme_color_override("font_color", O_TEXT)
+			l3.add_theme_font_size_override("font_size", 16)
+			l3.position = Vector2(53, 2)
+			wrap.add_child(l3)
+	return wrap
 
 func _check(on: bool) -> String:
 	return "[■]  " if on else "[  ]  "
