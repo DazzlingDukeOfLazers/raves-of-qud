@@ -24,15 +24,32 @@ const NAME_1TO1 := "#609caa"       # ability name — measured Color8(96,156,170
 const NUM_1TO1 := "#929393"        # <N> action number — measured Color8(146,147,147)
 const CELL_FRAME_1TO1 := Color8(11, 148, 71)   # green selection box (Qud draws it on the first/selected cell)
 
+# 1:1 PAGINATION (measured off Qud with 10+ abilities on sync-raves-and-qud): Qud packs
+# content-sized cells left-to-right and moves what doesn't fit onto further pages — the
+# left gutter becomes "ABILITIES / page N of M" with a green up/down stepper showing the
+# page number, and Ctrl+Tab / Ctrl+Shift+Tab flip pages. With one page, surplus width is
+# shared between the cells (plain HBox expand — the meta 4-ability spread).
+const GUTTER_W_1TO1 := 180                       # first cell's green frame starts x180
+const ABIL_CYAN := Color8(41, 130, 181)          # ABILITIES / page N of M text
+const PAGE_NUM := Color8(141, 124, 84)           # the stepper's page digit
+const PAGE_ARROW := Color8(11, 148, 71)          # stepper arrows — Qud's selection green
+
 var _tiles: RefCounted       # shared tile recolouring for ability icons (set in _ready)
 var _rt: RichTextLabel       # user (QoL) layout: all abilities inline, left-packed
 var _cells: HBoxContainer    # 1:1 layout: one equal-width cell per ability, spread across the bar (Qud)
+var _cellwrap: ScrollContainer   # clips the cells: their min width must NOT inflate the chrome row
 var _abilities_btn: Button   # far-left: opens Qud's Abilities menu (the 'a' command)
 var _palette := {}
 var _ability_tex := {}       # command -> recoloured icon texture, for the direction picker cursor
 var _last_data := {}         # last snapshot, so a mode toggle re-renders without waiting for a new one
 var _one_to_one := false     # 1:1: spread abilities in equal cells (Qud) vs the inline QoL list
 var _abilities: Array = []   # current abilities in bar order, for the 1-9 hotkeys (1:1)
+var _page := 0               # current 1:1 bar page
+var _pages: Array = []       # per-page arrays of indices into _abilities
+var _gutter: Control         # 1:1 left gutter: ABILITIES / page N of M / stepper
+var _gutter_title: Label
+var _gutter_page: Label
+var _gutter_box: VBoxContainer   # the ABILITIES/page stack — pushed below the keycap hints when paged
 
 func _ready() -> void:
 	_tiles = load("res://QudTiles.gd").new()
@@ -75,12 +92,61 @@ func _ready() -> void:
 	h.add_child(_rt)
 
 	# 1:1 layout: equal-width cells spread across the bar (hidden until 1:1). Populated per snapshot.
+	# The cells live inside a scrollbar-less ScrollContainer so their combined MINIMUM width never
+	# propagates to the row: with enough abilities (9 on sync-raves-and-qud) a bare HBox min
+	# (~2600px) inflates the whole chrome VBox past the window and every trailing element — the
+	# side column with the message log included — silently walks off the right edge.
+	# 1:1 left gutter (replaces the QoL button): Qud's cyan ABILITIES label + the page
+	# line and green stepper when the bar paginates. Click = open the Abilities menu
+	# (same function as the button); the stepper arrows flip pages.
+	_gutter = Control.new()
+	_gutter.custom_minimum_size = Vector2(GUTTER_W_1TO1, 0)
+	_gutter.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_gutter.visible = false
+	_gutter.mouse_filter = Control.MOUSE_FILTER_STOP
+	_gutter.tooltip_text = "Open the Abilities menu (a)"
+	_gutter.gui_input.connect(func(e: InputEvent) -> void:
+		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+			if _pages.size() > 1 and e.position.x > GUTTER_W_1TO1 - 26:
+				_flip_page(-1 if e.position.y < _gutter.size.y * 0.5 else 1)
+			else:
+				command_requested.emit({"type": "command", "command": "CmdAbilities"}))
+	_gutter.draw.connect(_draw_gutter)
+	var gv := VBoxContainer.new()
+	_gutter_box = gv
+	gv.set_anchors_preset(Control.PRESET_FULL_RECT)
+	gv.alignment = BoxContainer.ALIGNMENT_CENTER
+	gv.add_theme_constant_override("separation", 0)
+	gv.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_gutter.add_child(gv)
+	_gutter_title = Label.new()
+	_gutter_title.text = "ABILITIES"
+	_gutter_title.add_theme_color_override("font_color", ABIL_CYAN)
+	_gutter_title.add_theme_font_size_override("font_size", 16)
+	_gutter_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_gutter_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	gv.add_child(_gutter_title)
+	_gutter_page = Label.new()
+	_gutter_page.add_theme_color_override("font_color", ABIL_CYAN)
+	_gutter_page.add_theme_font_size_override("font_size", 16)
+	_gutter_page.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_gutter_page.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_gutter_page.visible = false
+	gv.add_child(_gutter_page)
+	h.add_child(_gutter)
+
+	_cellwrap = ScrollContainer.new()
+	_cellwrap.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
+	_cellwrap.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_cellwrap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_cellwrap.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_cellwrap.visible = false
+	h.add_child(_cellwrap)
 	_cells = HBoxContainer.new()
 	_cells.add_theme_constant_override("separation", 0)   # dividers come from VSeparators between cells
 	_cells.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_cells.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_cells.visible = false
-	h.add_child(_cells)
+	_cellwrap.add_child(_cells)
 
 ## MainFrame calls this each snapshot with the full data (needs abilities + palette + tilesDir).
 func set_snapshot(data: Dictionary) -> void:
@@ -104,7 +170,9 @@ func set_one_to_one(on: bool) -> void:
 		return
 	_one_to_one = on
 	_rt.visible = not on
-	_cells.visible = on
+	_cellwrap.visible = on
+	_abilities_btn.visible = not on   # 1:1 uses Qud's ABILITIES gutter instead
+	_gutter.visible = on
 	# Qud's ability bar is exactly 58px tall at 1920x1080 (measured; icons 40px within) — pin it so
 	# the play hole's bottom edge lands where Qud's does. User mode sizes to content as before.
 	custom_minimum_size = Vector2(0, 54) if on else Vector2(0, 0)   # 90px budget: 4+28+4+54
@@ -151,6 +219,8 @@ func _render_cells(abilities: Array) -> void:
 	for c in _cells.get_children():
 		c.queue_free()
 	if abilities.is_empty():
+		_pages = []
+		_update_gutter()
 		var empty := Label.new()
 		empty.text = "No abilities"
 		empty.add_theme_color_override("font_color", Color.html(DIM))
@@ -159,11 +229,111 @@ func _render_cells(abilities: Array) -> void:
 		_cells.add_child(empty)
 		return
 	var icon_px := ICON_PX_1TO1   # match Qud's ~40px ability icon (Sprint / Make Camp / etc.)
-	for i in abilities.size():
-		if i > 0:
+	_pages = _paginate(abilities)
+	_page = clampi(_page, 0, _pages.size() - 1)
+	_update_gutter()
+	var page: Array = _pages[_page]
+	for j in page.size():
+		var i: int = page[j]
+		if j > 0:
 			_cells.add_child(VSeparator.new())   # divider between cells, like Qud
 		# Qud frames the selected quick-slot with a green box; default selection is the first ability.
-		_cells.add_child(_make_cell(abilities[i], icon_px, i + 1, i == 0))   # slot = 1-based hotkey
+		# Slots restart per page — the 1-9 keys always activate the VISIBLE cells.
+		_cells.add_child(_make_cell(abilities[i], icon_px, j + 1, j == 0))
+
+## Greedy page fit, like Qud: pack content-sized cells until the next one would not fit
+## in the bar (window minus the gutter), then start a new page. Cell width is estimated
+## from the same font/icon/margins _make_cell lays out.
+func _paginate(abilities: Array) -> Array:
+	var avail := (size.x if size.x > 100.0 else 1920.0) - GUTTER_W_1TO1 - 26.0
+	var f := get_theme_font("normal_font", "RichTextLabel")
+	if f == null:
+		f = get_theme_font("font", "Label")
+	var fsize := 14   # the cell labels pin 14px (measured off Qud's bar) — estimate with the same
+	var pages: Array = []
+	var cur: Array = []
+	var used := 0.0
+	for i in abilities.size():
+		var a: Dictionary = abilities[i]
+		var txt := "%s%s%s" % [QudText.strip(String(a.get("name", ""))),
+			_state_plain(a), _hotkey_label(a, (cur.size() + 1))]
+		var wmin := 8.0 + round(ICON_PX_1TO1 * 16.0 / 24.0) + 6.0 \
+			+ f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize).x
+		var need := wmin + (10.0 if cur.size() > 0 else 0.0)   # divider + separation
+		if cur.size() > 0 and used + need > avail:
+			pages.append(cur)
+			cur = []
+			used = 0.0
+			need = wmin
+		cur.append(i)
+		used += need
+	if not cur.is_empty():
+		pages.append(cur)
+	return pages
+
+# The gutter's paged-mode extras, all measured off Qud: the Ctrl+Tab / Ctrl+Shift+Tab
+# keycap hints along the top (gold ~(182,164,5), 17x11 keycaps with micro-labels), and
+# the green up/down stepper with the page digit right of the text block.
+const HINT_GOLD := Color8(182, 164, 5)
+const HINT_GOLD_DIM := Color8(125, 114, 9)
+
+func _draw_gutter() -> void:
+	if _pages.size() <= 1:
+		return
+	var f := get_theme_font("font", "Label")
+	# keycap hints row at the very top: [Ctrl]+Tab   [Ctrl]+[Shift]+Tab
+	var hy := 2.0
+	var x := 64.0
+	x = _draw_keycap(f, x, hy, 17.0, "Ctrl")
+	x = _draw_plus(f, x, hy)
+	x = _draw_hint_text(f, x, hy, "Tab")
+	x += 7.0
+	x = _draw_keycap(f, x, hy, 17.0, "Ctrl")
+	x = _draw_plus(f, x, hy)
+	x = _draw_keycap(f, x, hy, 18.0, "Shift")
+	x = _draw_plus(f, x, hy)
+	_draw_hint_text(f, x, hy, "Tab")
+	# green up/down stepper + the page digit
+	var cx := GUTTER_W_1TO1 - 14.0
+	var cy := _gutter.size.y * 0.5
+	_gutter.draw_colored_polygon(PackedVector2Array([
+		Vector2(cx - 7, cy - 10), Vector2(cx + 7, cy - 10), Vector2(cx, cy - 18)]), PAGE_ARROW)
+	_gutter.draw_colored_polygon(PackedVector2Array([
+		Vector2(cx - 7, cy + 10), Vector2(cx + 7, cy + 10), Vector2(cx, cy + 18)]), PAGE_ARROW)
+	_gutter.draw_string(f, Vector2(cx - 5, cy + 6), str(_page + 1),
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 16, PAGE_NUM)
+
+## One bordered keycap with a tiny centred label; returns the x after it.
+func _draw_keycap(f: Font, x: float, y: float, w: float, label: String) -> float:
+	_gutter.draw_rect(Rect2(x, y, w, 11), HINT_GOLD, false, 1.0)
+	var tw := f.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 6).x
+	_gutter.draw_string(f, Vector2(x + (w - tw) * 0.5, y + 7), label,
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 6, HINT_GOLD_DIM)
+	return x + w
+
+func _draw_plus(f: Font, x: float, y: float) -> float:
+	_gutter.draw_string(f, Vector2(x + 1, y + 7), "+", HORIZONTAL_ALIGNMENT_LEFT, -1, 8, HINT_GOLD_DIM)
+	return x + 7.0
+
+func _draw_hint_text(f: Font, x: float, y: float, txt: String) -> float:
+	_gutter.draw_string(f, Vector2(x, y + 8), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, HINT_GOLD)
+	return x + f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x
+
+func _flip_page(dir: int) -> void:
+	if _pages.size() <= 1:
+		return
+	_page = wrapi(_page + dir, 0, _pages.size())
+	_render_cells(_abilities)
+
+func _update_gutter() -> void:
+	if _gutter_page == null:
+		return
+	_gutter_page.visible = _pages.size() > 1
+	if _pages.size() > 1:
+		_gutter_page.text = "page %d of %d" % [_page + 1, _pages.size()]
+	if _gutter_box != null:
+		_gutter_box.offset_top = 13.0 if _pages.size() > 1 else 0.0   # room for the keycap hints
+	_gutter.queue_redraw()
 
 ## One ability as a centred, equal-share, clickable cell: a nearest-filtered tile icon + a name/state/
 ## hotkey label, both centred. The cell (an HBox) catches the click via gui_input; children IGNORE the
@@ -184,8 +354,8 @@ func _make_cell(a: Dictionary, icon_px: int, slot: int, selected: bool) -> Contr
 	fs.set_corner_radius_all(0)                              # Qud's box is a sharp rectangle
 	fs.set_border_width_all(1 if selected else 0)
 	fs.border_color = CELL_FRAME_1TO1
-	fs.content_margin_left = 6
-	fs.content_margin_right = 6
+	fs.content_margin_left = 4
+	fs.content_margin_right = 4
 	frame.add_theme_stylebox_override("panel", fs)
 	frame.tooltip_text = QudText.strip(String(a.get("name", "")))
 	frame.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -217,6 +387,7 @@ func _make_cell(a: Dictionary, icon_px: int, slot: int, selected: bool) -> Contr
 	lbl.focus_mode = Control.FOCUS_NONE
 	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	lbl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	lbl.add_theme_font_size_override("normal_font_size", 14)   # Qud's bar text measures ~14px (advance ~8.4/char)
 	lbl.text = "[color=%s]%s[/color][color=%s]%s%s[/color]" % [
 		NAME_1TO1, QudText.strip(String(a.get("name", ""))),
 		NUM_1TO1, _state_plain(a), _hotkey_label(a, slot)]
@@ -273,14 +444,23 @@ func _unhandled_key_input(e: InputEvent) -> void:
 		return
 	if not (e is InputEventKey and e.pressed and not e.echo):
 		return
+	# Ctrl+Tab / Ctrl+Shift+Tab flip bar pages (Qud's own binding, shown in its gutter)
+	if e.keycode == KEY_TAB and e.ctrl_pressed and _pages.size() > 1:
+		_flip_page(-1 if e.shift_pressed else 1)
+		get_viewport().set_input_as_handled()
+		return
 	var slot := -1
 	if e.keycode >= KEY_1 and e.keycode <= KEY_9:
 		slot = e.keycode - KEY_1                       # top-row digits
 	elif e.keycode >= KEY_KP_1 and e.keycode <= KEY_KP_9:
 		slot = e.keycode - KEY_KP_1                    # numpad digits
-	if slot < 0 or slot >= _abilities.size():
+	if slot < 0:
 		return
-	_activate(String(_abilities[slot].get("command", "")))
+	# the digits act on the VISIBLE page's cells (slots restart per page, like Qud)
+	var page: Array = _pages[_page] if _page < _pages.size() else []
+	if slot >= page.size():
+		return
+	_activate(String(_abilities[page[slot]].get("command", "")))
 	get_viewport().set_input_as_handled()
 
 func _state_tag(a: Dictionary) -> String:

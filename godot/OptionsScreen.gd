@@ -67,26 +67,29 @@ func _ready() -> void:
 	theme = UiFont.make_theme(get_viewport())
 	_qud_cats = _load_qud_options()
 
-	var bgtex := _load_png("title/background.png")
-	if bgtex != null:
-		var bg := TextureRect.new()
-		bg.texture = bgtex
-		bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-		bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-		bg.mouse_filter = Control.MOUSE_FILTER_STOP
-		add_child(bg)
-	var dark := ColorRect.new()
-	dark.color = Color(0.02, 0.03, 0.035, 0.85 if bgtex != null else 1.0)
-	dark.set_anchors_preset(Control.PRESET_FULL_RECT)
-	dark.mouse_filter = Control.MOUSE_FILTER_STOP
-	add_child(dark)
+	if Settings.one_to_one():
+		_build_1to1()
+	else:
+		var bgtex := _load_png("title/background.png")
+		if bgtex != null:
+			var bg := TextureRect.new()
+			bg.texture = bgtex
+			bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+			bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+			bg.mouse_filter = Control.MOUSE_FILTER_STOP
+			add_child(bg)
+		var dark := ColorRect.new()
+		dark.color = Color(0.02, 0.03, 0.035, 0.85 if bgtex != null else 1.0)
+		dark.set_anchors_preset(Control.PRESET_FULL_RECT)
+		dark.mouse_filter = Control.MOUSE_FILTER_STOP
+		add_child(dark)
 
-	_build_header()
-	_build_sidebar()
-	_build_body()
-	_build_footer()
-	_add_back()
-	_build_preset_bar()
+		_build_header()
+		_build_sidebar()
+		_build_body()
+		_build_footer()
+		_add_back()
+		_build_preset_bar()
 	_peer.connect_to_host(BridgeClient.host(), BridgeClient.port())   # for write-back to Qud
 
 ## Poll the bridge; Qud-option edits WRITE BACK only while a modded Qud is in-game (connected).
@@ -179,7 +182,9 @@ func _load_qud_options() -> Array:
 	return []
 
 func _cat_names() -> Array:
-	var out := ["Raves"]
+	var out := []
+	if not Settings.one_to_one_only:
+		out.append("Raves")   # hidden under --one-to-one: Qud's options has no such section
 	for c in _qud_cats:
 		out.append(str(c.get("name", "?")))
 	return out
@@ -217,6 +222,14 @@ func _build_header() -> void:
 	_zero(_search_edit)
 	_search_edit.text_changed.connect(_on_search)
 	add_child(_search_edit)
+	var mag := Control.new()   # the magnifier glyph left of the field
+	mag.position = Vector2(472, 80)
+	mag.size = Vector2(20, 20)
+	mag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	mag.draw.connect(func():
+		mag.draw_arc(Vector2(8, 8), 6.0, 0.0, TAU, 20, O_TEXT, 2.0)
+		mag.draw_line(Vector2(12, 12), Vector2(18, 18), O_TEXT, 2.0))
+	add_child(mag)
 
 	# Advanced toggle — reveal options Qud currently hides (Requires/capability not met, visible=false).
 	_adv_btn = Button.new()
@@ -280,26 +293,33 @@ func _populate_body() -> void:
 	_sections.clear()
 	var col := _body_col
 
-	# RAVES section — editable settings (searchable, never "advanced")
-	var rheader := _section_header_node("Raves")
-	col.add_child(rheader)
-	var rrows: Array = []
-	for item in RAVES_ITEMS:
-		var rrow := _build_raves_setting(item)
-		col.add_child(rrow)
-		rrows.append(_row_meta(rrow, str(item.get("label", "")),
-			str(item.get("label", "")) + " " + str(item.get("key", "")), false))
-	var rsp := _spacer(12)
-	col.add_child(rsp)
-	_sections.append({"header": rheader, "spacer": rsp, "rows": rrows})
+	# RAVES section — editable settings (searchable, never "advanced"). Hidden entirely
+	# under --one-to-one: Qud's options has no such section, and hiding it is what locks
+	# the mode (no toggle back to user; run without the flag for that).
+	if not Settings.one_to_one_only:
+		var rheader := _section_header_node("Raves")
+		col.add_child(rheader)
+		var rrows: Array = []
+		for item in RAVES_ITEMS:
+			var rrow := _build_raves_setting(item)
+			col.add_child(rrow)
+			rrows.append(_row_meta(rrow, str(item.get("label", "")),
+				str(item.get("label", "")) + " " + str(item.get("key", "")), false))
+		var rsp := _spacer(12)
+		col.add_child(rsp)
+		_sections.append({"header": rheader, "spacer": rsp, "rows": rrows})
 
 	# Qud's mirrored tree — every option is built once; the Advanced toggle + search decide what shows.
+	var one := Settings.one_to_one()
+	var first_cat := true
 	for cat in _qud_cats:
-		var header := _section_header_node(str(cat.get("name", "?")))
+		var header := _section_header_1to1(str(cat.get("name", "?")), first_cat) if one \
+			else _section_header_node(str(cat.get("name", "?")))
+		first_cat = false
 		col.add_child(header)
 		var rows: Array = []
 		for opt in cat.get("options", []):
-			var row := _build_qud_option(opt)
+			var row := _qud_option_1to1(opt) if one else _build_qud_option(opt)
 			col.add_child(row)
 			rows.append(_row_meta(row, str(opt.get("label", "")), _opt_hay(opt),
 				not bool(opt.get("visible", true))))
@@ -835,6 +855,466 @@ func _preset_cancel_row() -> Control:
 	b.add_theme_color_override("font_color", DIM)
 	b.pressed.connect(_close_preset_overlay)
 	return b
+
+# ── 1:1 build — Qud's OPTIONS console screen (same framework as Records) ─────────
+# Interlaced bg, dotted rail divider, right-aligned category rail, OPTIONS header
+# with search field + advanced toggle, full-width option rows (sliders with dotted
+# tracks, [■] checkboxes, value lists), scroll track, [Esc] Back chevron, hint bar.
+# Rows are VISUAL parity first; write-back interactions stay in user mode for now.
+
+## Same 2D-canvas gamma pre-compensation as RecordsScreen._q (see there).
+static func _q(r8: int, g8: int, b8: int) -> Color:
+	var f := func(v: int) -> int: return v if v <= 20 else mini(255, int(round(v * 1.13)))
+	return Color8(f.call(r8), f.call(g8), f.call(b8))
+
+var O_BG := _q(6, 44, 42)
+var O_LINE := _q(58, 89, 101)
+var O_GOLD := _q(200, 184, 57)
+var O_CYAN_SEL := _q(108, 183, 200)
+var O_CYAN := _q(56, 154, 176)
+var O_TEXT := _q(167, 192, 186)
+var O_DIM := _q(21, 73, 72)
+
+func _build_1to1() -> void:
+	var bg := ColorRect.new()
+	bg.color = O_BG
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(bg)
+
+	# dotted rail divider + end caps (x325, like Records at 331)
+	var div := Control.new()
+	div.set_anchors_preset(Control.PRESET_FULL_RECT)
+	div.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	div.draw.connect(func():
+		var y := 25.0
+		while y < 1040.0:
+			div.draw_rect(Rect2(325, y, 1, minf(5, 1040 - y)), O_LINE)
+			y += 6.0
+		for cy in [25.0, 1035.0]:
+			div.draw_rect(Rect2(322, cy, 7, 6), _q(53, 90, 98)))
+	add_child(div)
+
+	# header: OPTIONS + search field + advanced toggle
+	var title := Label.new()
+	title.text = "OPTIONS"
+	title.add_theme_color_override("font_color", O_GOLD)
+	var fv := FontVariation.new()
+	fv.base_font = get_theme_font("font", "Label")
+	fv.spacing_glyph = 3
+	title.add_theme_font_override("font", fv)
+	title.add_theme_font_size_override("font_size", 22)
+	title.position = Vector2(339, 72)
+	add_child(title)
+	# search field (functional: filters rows via the existing _on_search)
+	_search_edit = LineEdit.new()
+	_search_edit.placeholder_text = "<search>"
+	_search_edit.position = Vector2(498, 75)
+	_search_edit.size = Vector2(162, 30)
+	_search_edit.add_theme_font_size_override("font_size", 16)
+	_search_edit.add_theme_color_override("font_color", O_TEXT)
+	_search_edit.add_theme_color_override("font_placeholder_color", O_DIM)
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = O_BG
+	sb.set_border_width_all(1)
+	sb.border_color = O_LINE
+	sb.content_margin_left = 8
+	sb.content_margin_right = 8
+	for st in ["normal", "focus"]:
+		_search_edit.add_theme_stylebox_override(st, sb)
+	_search_edit.text_changed.connect(_on_search)
+	add_child(_search_edit)
+	var mag := Control.new()   # the magnifier glyph left of the field
+	mag.position = Vector2(472, 80)
+	mag.size = Vector2(20, 20)
+	mag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	mag.draw.connect(func():
+		mag.draw_arc(Vector2(8, 8), 6.0, 0.0, TAU, 20, O_TEXT, 2.0)
+		mag.draw_line(Vector2(12, 12), Vector2(18, 18), O_TEXT, 2.0))
+	add_child(mag)
+	var adv := RichTextLabel.new()
+	adv.bbcode_enabled = true
+	adv.fit_content = true
+	adv.scroll_active = false
+	adv.autowrap_mode = TextServer.AUTOWRAP_OFF
+	adv.add_theme_font_size_override("normal_font_size", 16)
+	adv.text = "[color=#%s][lb]■[rb][/color][color=#%s] Show advanced options[/color]" % [
+		O_TEXT.to_html(false), O_TEXT.to_html(false)]
+	adv.position = Vector2(656, 82)
+	adv.mouse_filter = Control.MOUSE_FILTER_STOP
+	adv.gui_input.connect(func(e): if e is InputEventMouseButton and e.pressed: _toggle_advanced())
+	add_child(adv)
+
+	# right-aligned category rail with markers
+	var names := _cat_names()
+	for i in range(names.size()):
+		var l := Label.new()
+		l.text = str(names[i])
+		l.add_theme_color_override("font_color", O_CYAN_SEL)
+		l.add_theme_font_size_override("font_size", 16)
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		l.position = Vector2(54, 166 + i * 30)
+		l.size = Vector2(234, 22)
+		l.mouse_filter = Control.MOUSE_FILTER_STOP
+		var nm := str(names[i])
+		l.gui_input.connect(func(e):
+			if e is InputEventMouseButton and e.pressed and _anchors.has(nm):
+				_scroll.ensure_control_visible(_anchors[nm]))
+		add_child(l)
+		var dot := ColorRect.new()
+		dot.color = O_LINE
+		dot.position = Vector2(296, 173 + i * 30)
+		dot.size = Vector2(5, 5)
+		add_child(dot)
+
+	# content scroller
+	_scroll = ScrollContainer.new()
+	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
+	_scroll.position = Vector2(332, 115)
+	_scroll.size = Vector2(1420, 880)
+	add_child(_scroll)
+	_body_col = VBoxContainer.new()
+	_body_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_body_col.add_theme_constant_override("separation", 5)
+	_scroll.add_child(_body_col)
+	_populate_body()
+
+	# scroll track (x1764, 10px)
+	var track := Control.new()
+	track.position = Vector2(1760, 110)
+	track.size = Vector2(10, 865)
+	track.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	track.draw.connect(func():
+		track.draw_rect(Rect2(0, 0, 10, track.size.y), _q(29, 41, 46))
+		var vsb := _scroll.get_v_scroll_bar()
+		var content := maxf(1.0, float(vsb.max_value))
+		var vis := float(vsb.page) if vsb.page > 0 else _scroll.size.y
+		var frac := clampf(vis / content, 0.05, 1.0)
+		var pos := 0.0
+		if content > vis:
+			pos = float(vsb.value) / (content - vis)
+		var th := track.size.y * frac
+		track.draw_rect(Rect2(0, (track.size.y - th) * pos, 10, th), O_LINE))
+	add_child(track)
+	_scroll.get_v_scroll_bar().value_changed.connect(func(_v): track.queue_redraw())
+
+	# [Esc] Back chevron
+	var back := Control.new()
+	back.position = Vector2(30, 520)
+	back.size = Vector2(110, 75)
+	back.mouse_filter = Control.MOUSE_FILTER_STOP
+	back.gui_input.connect(func(e): if e is InputEventMouseButton and e.pressed: closed.emit())
+	back.draw.connect(func():
+		back.draw_line(Vector2(48, 12), Vector2(36, 24), _q(120, 140, 138), 3.0)
+		back.draw_line(Vector2(36, 24), Vector2(48, 36), _q(120, 140, 138), 3.0))
+	add_child(back)
+	var bl := RichTextLabel.new()
+	bl.bbcode_enabled = true
+	bl.fit_content = true
+	bl.scroll_active = false
+	bl.autowrap_mode = TextServer.AUTOWRAP_OFF
+	bl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bl.add_theme_font_size_override("normal_font_size", 16)
+	bl.text = "[color=#%s][lb]Esc[rb][/color][color=#%s] Back[/color]" % [
+		O_GOLD.to_html(false), O_TEXT.to_html(false)]
+	bl.position = Vector2(4, 48)
+	back.add_child(bl)
+
+	# bottom hint
+	var hint := RichTextLabel.new()
+	hint.bbcode_enabled = true
+	hint.fit_content = true
+	hint.scroll_active = false
+	hint.autowrap_mode = TextServer.AUTOWRAP_OFF
+	hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hint.add_theme_font_size_override("normal_font_size", 16)
+	var wht := "#FFFFFF"
+	var dimc := "#%s" % O_TEXT.to_html(false)
+	var goldc := "#%s" % O_GOLD.to_html(false)
+	hint.push_paragraph(HORIZONTAL_ALIGNMENT_LEFT)
+	hint.append_text("[color=%s][lb][/color]" % wht)
+	hint.add_image(_options_nav_icon(15), 22, 15)
+	hint.append_text("[color=%s][rb][/color]" % wht)
+	hint.append_text("[color=%s] navigate  [/color]" % dimc)
+	hint.append_text("[color=%s][lb]-[rb][/color][color=%s] Collapse All  [/color]" % [goldc, dimc])
+	hint.append_text("[color=%s][lb]+[rb][/color][color=%s] Expand All  [/color]" % [goldc, dimc])
+	hint.append_text("[color=%s][lb]Space[rb][/color][color=%s] Toggle Visibilty[/color]" % [goldc, dimc])
+	hint.pop()
+	hint.position = Vector2(365, 1005)
+	add_child(hint)
+
+	# interlace LAST, over everything (Qud console-screen scanlines)
+	var scan := ColorRect.new()
+	scan.set_anchors_preset(Control.PRESET_FULL_RECT)
+	scan.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var sh := Shader.new()
+	sh.code = """
+shader_type canvas_item;
+uniform sampler2D screen_tex : hint_screen_texture;
+void fragment() {
+	vec4 c = texture(screen_tex, SCREEN_UV);
+	float row = floor(FRAGCOORD.y);
+	if (mod(row, 2.0) >= 1.0) {
+		// Qud's scanline is LUMINANCE-WEIGHTED: dark bg halves, bright text is
+		// barely touched (measured: bg x0.50, text x0.92-0.99). A flat 50% cut
+		// shreds glyphs into stripes.
+		float lum = max(c.r, max(c.g, c.b)) * 255.0;
+		float f = mix(0.5, 1.0, smoothstep(30.0, 180.0, lum));
+		COLOR = vec4(c.rgb * f, 1.0);
+	} else {
+		COLOR = vec4(c.rgb, 1.0);
+	}
+}
+"""
+	var mat := ShaderMaterial.new()
+	mat.shader = sh
+	scan.material = mat
+	add_child(scan)
+
+## The 7x7 border weave recoloured to the console slider palette (bright
+## (58,89,101) / dark (29,41,46), gamma-compensated) — Qud uses it for both the
+## slider ribbon and the thumb block. Derived from the extracted band tile;
+## generated fallback keeps the pattern family.
+var _slider_tile_cache: ImageTexture
+func _slider_weave_tile() -> ImageTexture:
+	if _slider_tile_cache != null:
+		return _slider_tile_cache
+	var bright := _q(58, 89, 101)
+	var dark := _q(29, 41, 46)
+	var img: Image
+	var bandtex: Texture2D = _chrome_opt("modsBandTop.png")
+	if bandtex != null:
+		img = bandtex.get_image()
+		img.convert(Image.FORMAT_RGB8)
+		var base := Color8(0x35, 0x55, 0x5C)
+		for y in range(img.get_height()):
+			for x in range(img.get_width()):
+				var c := img.get_pixel(x, y)
+				var near := absf(c.r - base.r) + absf(c.g - base.g) + absf(c.b - base.b) < 0.15
+				img.set_pixel(x, y, bright if near else dark)
+	else:
+		img = Image.create(7, 7, false, Image.FORMAT_RGB8)
+		img.fill(bright)
+		for i in range(7):
+			img.set_pixel(i, (i * 3) % 7, dark)
+	_slider_tile_cache = ImageTexture.create_from_image(img)
+	return _slider_tile_cache
+
+func _options_nav_icon(ih: int) -> ImageTexture:
+	var g := maxi(1, int(round(ih * 0.10)))
+	var k := int((ih - g) / 2.0)
+	if k < 2:
+		k = 2
+	var w := 3 * k + 2 * g
+	var h := 2 * k + g
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var mid := k + g
+	img.fill_rect(Rect2i(mid, 0, k, k), O_GOLD)
+	img.fill_rect(Rect2i(0, k + g, k, k), O_GOLD)
+	img.fill_rect(Rect2i(mid, k + g, k, k), O_GOLD)
+	img.fill_rect(Rect2i(2 * mid, k + g, k, k), O_GOLD)
+	return ImageTexture.create_from_image(img)
+
+## Section header: "[-] SOUND" — big cyan caps; the FIRST section carries Qud's
+## fresh-open selection dither bar across the content width.
+func _section_header_1to1(name: String, selected: bool) -> Control:
+	var wrap := Control.new()
+	wrap.custom_minimum_size = Vector2(0, 24)
+	if selected:
+		var hl := TextureRect.new()
+		var htex: Texture2D = null
+		var hpath := InputModel.support_dir().path_join("title").path_join("chrome").path_join("modsHoverTile.png")
+		if FileAccess.file_exists(hpath):
+			var himg := Image.new()
+			if himg.load(hpath) == 0:
+				htex = ImageTexture.create_from_image(QudChrome.brighten(himg))
+		if htex != null:
+			hl.texture = htex
+			hl.stretch_mode = TextureRect.STRETCH_TILE
+		hl.position = Vector2(0, 0)
+		hl.size = Vector2(772, 26)
+		hl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		wrap.add_child(hl)
+	var pre := Label.new()
+	pre.text = "[-]"
+	pre.add_theme_color_override("font_color", O_CYAN)
+	pre.add_theme_font_size_override("font_size", 16)
+	pre.position = Vector2(8, 5)
+	wrap.add_child(pre)
+	var l := Label.new()
+	l.text = name.to_upper()
+	l.add_theme_color_override("font_color", O_CYAN_SEL)
+	l.add_theme_font_size_override("font_size", 24)
+	l.position = Vector2(48, 0)
+	wrap.add_child(l)
+	_anchors[name] = wrap
+	return wrap
+
+func _chrome_opt(file: String) -> Texture2D:
+	var path := InputModel.support_dir().path_join("title").path_join("chrome").path_join(file)
+	if not FileAccess.file_exists(path):
+		return null
+	var img := Image.new()
+	if img.load(path) != 0:
+		return null
+	return ImageTexture.create_from_image(img)
+
+## One option row, Qud console style. Sliders: label line + dotted track with a
+## square thumb and the value at the right. Checkboxes: "[■]/[ ]" + label.
+## Combos: label + value list with the current one highlighted.
+func _qud_option_1to1(opt: Dictionary) -> Control:
+	var t := str(opt.get("type", ""))
+	var wrap := Control.new()
+	var label := str(opt.get("label", ""))
+	match t:
+		"Slider":
+			wrap.custom_minimum_size = Vector2(0, 46)
+			var l := Label.new()
+			l.text = label
+			l.add_theme_color_override("font_color", O_TEXT)
+			l.add_theme_font_size_override("font_size", 16)
+			l.position = Vector2(53, 0)
+			wrap.add_child(l)
+			var vmin := float(opt.get("min", 0))
+			var vmax := maxf(1.0, float(opt.get("max", 100)))
+			var inc := maxf(1.0, float(opt.get("increment", 0)))
+			var oid := str(opt.get("id", ""))
+			# FUNCTIONAL: click/drag sets the value and writes back to Qud over the
+			# bridge (setoption; defer=1 during the drag, a final full apply+re-export
+			# on release). st is a Dictionary so the lambdas share mutable state.
+			var st := {"val": float(str(opt.get("value", "0")).to_float()), "drag": false, "sent": ""}
+			var tr := Control.new()
+			tr.position = Vector2(53, 26)
+			tr.size = Vector2(671, 22)
+			tr.mouse_filter = Control.MOUSE_FILTER_STOP
+			var v := Label.new()
+			v.text = str(int(st.val))
+			v.add_theme_color_override("font_color", O_GOLD)   # Qud renders slider values gold
+			v.add_theme_font_size_override("font_size", 16)
+			v.position = Vector2(716, 16)
+			tr.draw.connect(func():
+				# Qud's track AND thumb are the 7x7 border WEAVE in the console
+				# palette — a 4px weave ribbon with a 20x20 weave block thumb;
+				# endcaps are 4px-wide columns at the thumb's height
+				var wt := _slider_weave_tile()
+				var fracv := clampf((float(st.val) - vmin) / (vmax - vmin), 0.0, 1.0)
+				if wt != null:
+					tr.draw_texture_rect(wt, Rect2(0, 7, 4, 20), true)
+					tr.draw_texture_rect(wt, Rect2(2, 15, 653, 4), true)
+					tr.draw_texture_rect(wt, Rect2(653, 7, 4, 20), true)
+				else:
+					tr.draw_rect(Rect2(0, 7, 4, 20), O_LINE)
+					tr.draw_rect(Rect2(2, 16, 653, 2), O_LINE)
+					tr.draw_rect(Rect2(653, 7, 4, 20), O_LINE)
+				var tx := 2.0 + (653.0 - 20.0) * fracv
+				if wt != null:
+					tr.draw_texture_rect(wt, Rect2(tx, 7, 20, 20), true)
+				else:
+					tr.draw_rect(Rect2(tx, 7, 20, 20), O_CYAN))
+			var apply := func(mx: float, final: bool):
+				var fr := clampf((mx - 2.0) / 651.0, 0.0, 1.0)
+				var nv := clampf(roundf((vmin + fr * (vmax - vmin)) / inc) * inc, vmin, vmax)
+				if nv != float(st.val) or final:
+					st.val = nv
+					v.text = str(int(nv))
+					tr.queue_redraw()
+					var sval := str(int(nv))
+					if oid != "" and (final or sval != str(st.sent)):
+						st.sent = sval
+						_send_bridge({"type": "command", "name": "setoption",
+							"id": oid, "value": sval, "defer": "0" if final else "1"})
+			tr.gui_input.connect(func(e):
+				if e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_LEFT:
+					st.drag = e.pressed
+					apply.call(e.position.x, not e.pressed)
+				elif e is InputEventMouseMotion and st.drag:
+					apply.call(e.position.x, false))
+			wrap.add_child(tr)
+			wrap.add_child(v)
+		"Checkbox":
+			wrap.custom_minimum_size = Vector2(0, 20)
+			# FUNCTIONAL: click toggles Yes/No and writes back over the bridge.
+			var cst := {"on": str(opt.get("value", "")) == "Yes"}
+			var coid := str(opt.get("id", ""))
+			var rl := RichTextLabel.new()
+			rl.bbcode_enabled = true
+			rl.fit_content = true
+			rl.scroll_active = false
+			rl.autowrap_mode = TextServer.AUTOWRAP_OFF
+			rl.mouse_filter = Control.MOUSE_FILTER_STOP
+			rl.add_theme_font_size_override("normal_font_size", 16)
+			var paint := func():
+				var box := "[lb]■[rb]" if cst.on else "[lb] [rb]"
+				rl.text = "[color=#%s]%s[/color][color=#%s] %s[/color]" % [
+					O_TEXT.to_html(false), box, O_TEXT.to_html(false), label]
+			paint.call()
+			rl.gui_input.connect(func(e):
+				if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+					cst.on = not cst.on
+					paint.call()
+					if coid != "":
+						_send_bridge({"type": "command", "name": "setoption",
+							"id": coid, "value": "Yes" if cst.on else "No"}))
+			rl.position = Vector2(53, 0)
+			wrap.add_child(rl)
+		"Combo", "BigCombo":
+			var vals: Array = opt.get("values", [])
+			var shown: Array = opt.get("displayValues", [])
+			if shown.is_empty():
+				shown = vals
+			var l2 := Label.new()
+			l2.text = label
+			l2.add_theme_color_override("font_color", O_TEXT)
+			l2.add_theme_font_size_override("font_size", 16)
+			l2.position = Vector2(53, 0)
+			wrap.add_child(l2)
+			# FUNCTIONAL: each value is its own clickable Label in a flow container —
+			# clicking selects it (gold) and writes back over the bridge.
+			var xst := {"cur": str(opt.get("value", ""))}
+			var xoid := str(opt.get("id", ""))
+			var flow := HFlowContainer.new()
+			flow.position = Vector2(61, 24)
+			flow.size = Vector2(690, 0)
+			flow.add_theme_constant_override("h_separation", 19)
+			flow.add_theme_constant_override("v_separation", 6)
+			var vlabels: Array = []
+			for i2 in range(shown.size()):
+				var raw := str(vals[i2]) if i2 < vals.size() else str(shown[i2])
+				var vl := Label.new()
+				vl.text = str(shown[i2])
+				vl.add_theme_font_size_override("font_size", 16)
+				vl.add_theme_color_override("font_color", O_GOLD if raw == str(xst.cur) else O_CYAN)
+				vl.mouse_filter = Control.MOUSE_FILTER_STOP
+				vlabels.append(vl)
+				var rawc := raw
+				vl.gui_input.connect(func(e):
+					if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+						xst.cur = rawc
+						for j2 in range(vlabels.size()):
+							var rj := str(vals[j2]) if j2 < vals.size() else str(shown[j2])
+							vlabels[j2].add_theme_color_override("font_color",
+								O_GOLD if rj == rawc else O_CYAN)
+						if xoid != "":
+							_send_bridge({"type": "command", "name": "setoption",
+								"id": xoid, "value": rawc}))
+				flow.add_child(vl)
+			wrap.add_child(flow)
+			var rl2 := flow   # the sizing hook below reads rl2.size
+			wrap.custom_minimum_size = Vector2(0, 30)
+			wrap.ready.connect(func():
+				await get_tree().process_frame
+				wrap.custom_minimum_size = Vector2(0, 24 + rl2.size.y))
+		_:
+			wrap.custom_minimum_size = Vector2(0, 26)
+			var l3 := Label.new()
+			l3.text = label
+			l3.add_theme_color_override("font_color", O_TEXT)
+			l3.add_theme_font_size_override("font_size", 16)
+			l3.position = Vector2(53, 2)
+			wrap.add_child(l3)
+	return wrap
 
 func _check(on: bool) -> String:
 	return "[■]  " if on else "[  ]  "

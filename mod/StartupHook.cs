@@ -76,7 +76,11 @@ namespace RavesOfQud
                         string view = "";
                         try { view = GameManager.Instance != null ? (GameManager.Instance._ActiveGameView ?? "") : ""; }
                         catch { }
-                        string scene = live && (view == "Stage" || view == "") ? "play" : view;
+                        // A live game IS "play" even when the view string still says
+                        // "MainMenu" — after an UNFOCUSED load the view pump hasn't run,
+                        // and the stale scene fooled the state tree into "title".
+                        string scene = live && (view == "Stage" || view == "" || view == "MainMenu")
+                            ? "play" : view;
                         bool popup = view.IndexOf("Popup", StringComparison.OrdinalIgnoreCase) >= 0;
                         System.IO.File.WriteAllText(statePath,
                             "{\"scene\":\"" + scene.Replace("\"", "'") + "\",\"live\":" + (live ? "true" : "false")
@@ -84,6 +88,8 @@ namespace RavesOfQud
                             + ",\"ts\":" + DateTimeOffset.UtcNow.ToUnixTimeSeconds() + "}");
                     }
                     catch { /* transient IO — retry next tick */ }
+                    try { LoadSave.Pump(); }   // re-arm a pending picker load (~1/s)
+                    catch { }
                     System.Threading.Thread.Sleep(1000);
                 }
             })

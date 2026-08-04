@@ -135,6 +135,8 @@ namespace RavesOfQud
             RecordsExporter.Ensure();
             // One-shot: export Qud's character-creation data (genotypes, …) for Raves' chargen screens.
             ChargenExporter.Ensure();
+            // Live: seed the character-sheet export when a game is up (re-run via "export").
+            CharacterExporter.ReExport();
 
             // Keep Unity RENDERING the window while it's unfocused, so Qud's own map
             // repaints in sync with commands we drive from Godot. Unity pauses the
@@ -497,6 +499,160 @@ namespace RavesOfQud
                         zgm.uiQueue.queueTask(() => { if (zout) zgm.ZoomOut(); else zgm.ZoomIn(); });
                     return;
                 }
+                if (name == "setoption")
+                {
+                    // SetOption touches UI/audio state — run it on the uiQueue, which drains
+                    // at the MENU too. (The turn-thread drain also has a setoption case, but
+                    // that only runs in-game — menu edits from Raves' Options queued forever.)
+                    f.TryGetValue("id", out string soid);
+                    f.TryGetValue("value", out string soval);
+                    f.TryGetValue("defer", out string sodefer);
+                    if (!string.IsNullOrEmpty(soid))
+                    {
+                        var sgm = GameManager.Instance;
+                        if (sgm != null && sgm.uiQueue != null)
+                            sgm.uiQueue.queueTask(() =>
+                            {
+                                try
+                                {
+                                    XRL.UI.Options.SetOption(soid, soval ?? "");
+                                    if (sodefer != "1") OptionsExporter.ReExport();
+                                    Server.Log("[setoption] " + soid + " = " + soval);
+                                }
+                                catch (Exception ex) { Server.Log("setoption error: " + ex.Message); }
+                            });
+                    }
+                    return;
+                }
+                if (name == "deletesave")
+                {
+                    // Raves' picker confirmed a delete: remove it via Qud's own
+                    // SaveGameInfo.Delete() (DataManager.DeleteSaveDirectory — the
+                    // exact cleanup a picker-row delete performs). Confirm UX is
+                    // Raves-side; this command is the already-confirmed action.
+                    f.TryGetValue("id", out string dsid);
+                    if (!string.IsNullOrEmpty(dsid))
+                    {
+                        var dgm = GameManager.Instance;
+                        if (dgm != null && dgm.uiQueue != null)
+                            dgm.uiQueue.queueTask(() =>
+                            {
+                                try
+                                {
+                                    var t = Qud.API.SavesAPI.GetSavedGameInfo();
+                                    t.Wait(5000);
+                                    Qud.API.SaveGameInfo hit = null;
+                                    if (t.IsCompleted && t.Result != null)
+                                        foreach (var i in t.Result)
+                                            if (i != null && i.ID == dsid) { hit = i; break; }
+                                    if (hit == null) { Server.Log("[deletesave] no save with ID " + dsid); return; }
+                                    hit.Delete();
+                                    Server.Log("[deletesave] deleted '" + hit.Name + "' (" + dsid + ")");
+                                }
+                                catch (Exception ex) { Server.Log("deletesave error: " + ex.Message); }
+                            });
+                    }
+                    return;
+                }
+                if (name == "loadsave")
+                {
+                    // Raves' 1:1 picker chose a save: load it by ID via Qud's own
+                    // picker flow (see LoadSave.cs — completes the completionSource
+                    // exactly like a row click; opens the picker first if needed).
+                    f.TryGetValue("id", out string lsid);
+                    if (!string.IsNullOrEmpty(lsid)) LoadSave.Request(lsid);
+                    return;
+                }
+                if (name == "uiback")
+                {
+                    // First-party "press Escape" for Qud's MODERN menu screens (Records/
+                    // Options/Mods/…). Those screens read input hardware-side, so OS-
+                    // synthesized Escape never lands (highvisor's HID events included);
+                    // fire the framework's own cancel event instead. UI state — uiQueue.
+                    var bgm = GameManager.Instance;
+                    if (bgm != null && bgm.uiQueue != null)
+                        bgm.uiQueue.queueTask(() =>
+                        {
+                            try
+                            {
+                                // Most faithful: the active modern window's own OnCancel()
+                                // (ModManagerUI, high scores, …) — the method its UI wires up.
+                                try
+                                {
+                                    var uim = Qud.UI.UIManager.instance;
+                                    var wnd = (uim != null) ? uim.currentWindow : null;
+                                    if (wnd == null)
+                                    {
+                                        // currentWindow is nulled on some view transitions —
+                                        // resolve by the ACTIVE VIEW NAME instead (the same
+                                        // string our heartbeat reports as the scene).
+                                        var view = GameManager.Instance != null
+                                            ? GameManager.Instance._ActiveGameView : null;
+                                        if (!string.IsNullOrEmpty(view))
+                                            try { wnd = Qud.UI.UIManager.getWindow(view); } catch { }
+                                    }
+                                    if (wnd != null)
+                                    {
+                                        var mi = wnd.GetType().GetMethod("OnCancel", System.Type.EmptyTypes);
+                                        if (mi != null)
+                                        {
+                                            mi.Invoke(wnd, null);
+                                            // OnCancel -> RemoveGameView(Hard:false) sets bViewUpdated
+                                            // but the view pump only runs when the console buffer is
+                                            // dirty — at an idle title screen that's NEVER. Kick it, or
+                                            // _ActiveGameView (our scene report) stays stale forever.
+                                            ConsoleLib.Console.TextConsole.BufferUpdated = true;
+                                            System.Console.WriteLine("[raves] uiback: " + wnd.GetType().Name + ".OnCancel()");
+                                            return;
+                                        }
+                                    }
+                                }
+                                catch (Exception wex) { System.Console.WriteLine("[raves] uiback window: " + wex.Message); }
+                                var nav = XRL.UI.Framework.NavigationController.instance;
+                                if (nav == null) { System.Console.WriteLine("[raves] uiback: no NavigationController"); return; }
+                                // Screens register commandHandlers["Cancel"] (string id), not the
+                                // button enum — fire the command; button event as a fallback.
+                                // SINGLE-SHOT ladder — fire exactly one cancel. A shotgun of
+                                // fallbacks double-fires: the extra Cancel lands on the main
+                                // menu, where Cancel == "Are you sure you want to quit?".
+                                var ev = nav.FireInputCommandEvent("Cancel");
+                                if (ev != null && ev.handled)
+                                {
+                                    ConsoleLib.Console.TextConsole.BufferUpdated = true;
+                                    System.Console.WriteLine("[raves] uiback: nav command Cancel handled");
+                                    return;
+                                }
+                                var ev2 = nav.FireInputButtonEvent(XRL.UI.Framework.InputButtonTypes.CancelButton);
+                                if (ev2 != null && ev2.handled)
+                                {
+                                    ConsoleLib.Console.TextConsole.BufferUpdated = true;
+                                    System.Console.WriteLine("[raves] uiback: nav button Cancel handled");
+                                    return;
+                                }
+                                // Last rung — screens that POLL ControlManager.isCommandDown("Cancel"):
+                                // inject a Cancel FrameCommand the way real input does (enqueue into
+                                // the private CommandQueue; next frame promotes it). Data access only.
+                                bool queued = false;
+                                try
+                                {
+                                    var cmType = typeof(ControlManager);
+                                    var fcType = cmType.GetNestedType("FrameCommand");
+                                    var fc = Activator.CreateInstance(fcType);
+                                    fcType.GetField("id").SetValue(fc, "Cancel");
+                                    var qField = cmType.GetField("CommandQueue",
+                                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+                                    var q = qField.GetValue(null);
+                                    q.GetType().GetMethod("Enqueue").Invoke(q, new object[] { fc });
+                                    queued = true;
+                                }
+                                catch (Exception rex) { System.Console.WriteLine("[raves] uiback reflection: " + rex.Message); }
+                                ConsoleLib.Console.TextConsole.BufferUpdated = true;
+                                System.Console.WriteLine("[raves] uiback: queue-injected Cancel (queued=" + queued + ")");
+                            }
+                            catch (Exception ex) { System.Console.WriteLine("[raves] uiback error: " + ex.Message); }
+                        });
+                    return;
+                }
                 if (name == "dir")
                 {
                     // Answer a Qud direction prompt (PickDirection) with a LeftClick at a CELL — Qud
@@ -544,6 +700,7 @@ namespace RavesOfQud
                                 OptionsExporter.ReExport();
                                 RecordsExporter.ReExport();
                                 ChargenExporter.ReExport();
+                                CharacterExporter.ReExport();   // live sheet data for the status screens
                                 TitleExporter.ExportChargenEmblem();                        // resident even at the menu
                                 TitleExporter.ExportNamedSprite("tiny-frame-h", "card_frame.png");         // the game-mode card's dotted frame
                                 TitleExporter.ExportNamedSprite("polat-locator-big", "sel_frame.png");     // the selected-card frame (corner brackets)
