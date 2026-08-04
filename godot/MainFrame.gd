@@ -168,6 +168,14 @@ func _ready() -> void:
 	_panels = [_minimap, _nearby, _msglog, _effects, _target, _context, _command].filter(
 		func(p): return p != null)
 	_apply_full_info()                   # init the toggle label + push the default (perceived) to views
+	# Follow the GAME's lifecycle: when a once-live game ends (Save and Quit / death /
+	# Qud closing), return to Raves' title like Qud returns to its own. Polls the mod
+	# heartbeat; 3 consecutive non-live reads (~3s) debounce load transitions.
+	var lt := Timer.new()
+	lt.wait_time = 1.0
+	lt.timeout.connect(_poll_game_lifecycle)
+	add_child(lt)
+	lt.start()
 	# The 8-tab status screens (V4): created hidden NOW so its message-log history
 	# accumulates from the very first snapshot; F2 toggles it. Fed via _panels.
 	_status = load("res://StatusScreens.gd").new()
@@ -1212,6 +1220,31 @@ func _enable_viewport() -> void:
 
 ## Update the status bar from one snapshot's `stats` block (and `time` for day/night). Missing
 ## fields fall back to "—" so a partial/older mod never shows stale numbers.
+# ── game-lifecycle watch: leave the viewer when the game ends ────────────────
+var _seen_live := false
+var _dead_reads := 0
+
+func _poll_game_lifecycle() -> void:
+	var path := InputModel.support_dir().path_join("bridge_status.txt")
+	var live := false
+	if FileAccess.file_exists(path):
+		var age := Time.get_unix_time_from_system() - float(FileAccess.get_modified_time(path))
+		if age <= 3.0:
+			var f := FileAccess.open(path, FileAccess.READ)
+			if f != null:
+				live = f.get_as_text().strip_edges() == "live"
+	if live:
+		_seen_live = true
+		_dead_reads = 0
+		return
+	if not _seen_live:
+		return           # never had a game this session — the connect flow owns startup
+	_dead_reads += 1
+	if _dead_reads >= 3:
+		# the game is gone (saved-and-quit, died, or Qud closed) — mirror Qud's
+		# return to the title. MainMenu's _ready reports scene=title itself.
+		get_tree().change_scene_to_file("res://MainMenu.tscn")
+
 func _apply_stats(data: Dictionary) -> void:
 	var s: Dictionary = data.get("stats", {})
 	_report_overflow.call_deferred()   # after this snapshot's text lands + a layout pass
