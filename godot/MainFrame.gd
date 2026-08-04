@@ -152,6 +152,7 @@ func _ready() -> void:
 	_bottom_bg = _make_row_bg()
 
 	var rows := VBoxContainer.new()
+	_rows_box = rows   # the overflow tripwire audits each row's minimum against the window
 	rows.set_anchors_preset(Control.PRESET_FULL_RECT)
 	rows.add_theme_constant_override("separation", 4)
 	add_child(rows)
@@ -814,6 +815,27 @@ func _add_crt_overlay() -> void:
 	add_child(_crt_layer)
 	_crt_layer.visible = scan or vig
 
+# Chrome-overflow tripwire: if any row's minimum width exceeds the window, the root
+# VBox inflates past the viewport on the next layout pass and EVERY trailing element
+# (the side column with the message log, right-side clusters) silently walks off the
+# right edge — exactly how the sync-raves-and-qud message log vanished (its 9-ability
+# command bar carried a 2600px minimum). Log the offender chain instead.
+var _rows_box: VBoxContainer = null
+var _overflow_reported := false
+func _report_overflow() -> void:
+	if _overflow_reported or _rows_box == null:
+		return
+	var w := get_viewport_rect().size.x
+	for row in _rows_box.get_children():
+		if row is Control and (row as Control).get_combined_minimum_size().x > w:
+			_overflow_reported = true
+			print("CHROME OVERFLOW: row '%s' min %.0f > window %.0f — trailing chrome will leave the screen" % [
+				row.name, (row as Control).get_combined_minimum_size().x, w])
+			for c in (row as Control).get_children():
+				if c is Control:
+					print("   child '%s' (%s) min %.0f" % [c.name, c.get_class(),
+						(c as Control).get_combined_minimum_size().x])
+
 # --- 1:1 (parity) mode: panel half + persistence ------------------------------
 # The Holodeck owns the master switch + camera (hotkey / highvisor / preset flip it there and
 # emit one_to_one_changed); here we swap the side panels to their Qud-faithful variant and
@@ -1143,6 +1165,7 @@ func _enable_viewport() -> void:
 ## fields fall back to "—" so a partial/older mod never shows stale numbers.
 func _apply_stats(data: Dictionary) -> void:
 	var s: Dictionary = data.get("stats", {})
+	_report_overflow.call_deferred()   # after this snapshot's text lands + a layout pass
 	# Character icon — the player's own tile, like Qud's top-left avatar.
 	if _portrait != null and _tiles != null:
 		var pal: Dictionary = data.get("palette", {})

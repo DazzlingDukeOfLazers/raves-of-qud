@@ -27,6 +27,7 @@ const CELL_FRAME_1TO1 := Color8(11, 148, 71)   # green selection box (Qud draws 
 var _tiles: RefCounted       # shared tile recolouring for ability icons (set in _ready)
 var _rt: RichTextLabel       # user (QoL) layout: all abilities inline, left-packed
 var _cells: HBoxContainer    # 1:1 layout: one equal-width cell per ability, spread across the bar (Qud)
+var _cellwrap: ScrollContainer   # clips the cells: their min width must NOT inflate the chrome row
 var _abilities_btn: Button   # far-left: opens Qud's Abilities menu (the 'a' command)
 var _palette := {}
 var _ability_tex := {}       # command -> recoloured icon texture, for the direction picker cursor
@@ -75,12 +76,22 @@ func _ready() -> void:
 	h.add_child(_rt)
 
 	# 1:1 layout: equal-width cells spread across the bar (hidden until 1:1). Populated per snapshot.
+	# The cells live inside a scrollbar-less ScrollContainer so their combined MINIMUM width never
+	# propagates to the row: with enough abilities (9 on sync-raves-and-qud) a bare HBox min
+	# (~2600px) inflates the whole chrome VBox past the window and every trailing element — the
+	# side column with the message log included — silently walks off the right edge.
+	_cellwrap = ScrollContainer.new()
+	_cellwrap.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
+	_cellwrap.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_cellwrap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_cellwrap.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_cellwrap.visible = false
+	h.add_child(_cellwrap)
 	_cells = HBoxContainer.new()
 	_cells.add_theme_constant_override("separation", 0)   # dividers come from VSeparators between cells
 	_cells.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_cells.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_cells.visible = false
-	h.add_child(_cells)
+	_cellwrap.add_child(_cells)
 
 ## MainFrame calls this each snapshot with the full data (needs abilities + palette + tilesDir).
 func set_snapshot(data: Dictionary) -> void:
@@ -104,7 +115,7 @@ func set_one_to_one(on: bool) -> void:
 		return
 	_one_to_one = on
 	_rt.visible = not on
-	_cells.visible = on
+	_cellwrap.visible = on
 	# Qud's ability bar is exactly 58px tall at 1920x1080 (measured; icons 40px within) — pin it so
 	# the play hole's bottom edge lands where Qud's does. User mode sizes to content as before.
 	custom_minimum_size = Vector2(0, 54) if on else Vector2(0, 0)   # 90px budget: 4+28+4+54

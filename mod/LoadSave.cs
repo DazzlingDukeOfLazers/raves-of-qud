@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using ConsoleLib.Console;  // Keyboard.PushMouseEvent — the title menu's own dispatch
+using XRL;                 // The.Game — the live-game guard
 
 namespace RavesOfQud
 {
@@ -28,6 +29,18 @@ namespace RavesOfQud
         /// <summary>Bridge entry (any thread): start/replace the pending request.</summary>
         public static void Request(string id)
         {
+            // NEVER while a game is live: pushing Pick:Continue mid-game kicks Qud back
+            // to the title WITHOUT saving (observed). The picker flow only makes sense
+            // from the title; in-game loads need a save-and-quit first.
+            try
+            {
+                if (The.Game != null && The.Game.Running)
+                {
+                    Log("[loadsave] refused " + id + " — a game is running (save and quit first)");
+                    return;
+                }
+            }
+            catch { /* game state mid-transition — treat as not-live */ }
             _id = id;
             _deadline = DateTime.UtcNow.AddSeconds(20);
             _opened = false;
