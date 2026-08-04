@@ -216,8 +216,12 @@ func _input(e: InputEvent) -> void:
 	# overlay's per-tab layer owns letters while open, like Qud's Adventure layer).
 	# F2 stays as the hv-recipe toggle. 1:1-only; consumed so the camera/inspector
 	# bindings underneath never double-fire.
+	# a modal popup may have consumed this key in ITS _input (set_input_as_handled
+	# only stops _unhandled_input, not other _input callbacks) — answering "No"
+	# with N must not ALSO open the Tinkering tab
 	if e is InputEventKey and e.pressed and not e.echo and _status != null \
-			and Settings.one_to_one() and not e.alt_pressed:
+			and Settings.one_to_one() and not e.alt_pressed \
+			and not get_viewport().is_input_handled():
 		var ctrl: bool = e.ctrl_pressed or e.meta_pressed
 		if e.keycode == KEY_F and ctrl and not e.shift_pressed:
 			if not _status.visible:

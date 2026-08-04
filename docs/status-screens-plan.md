@@ -80,6 +80,16 @@ USER MODE ONLY: a RAVES rail category below Debug with the golden-restore action
 the screen now opens from the mirrored menu in both modes). Residual diff lives in the hint row
 (ability-bar z-order differs) + title glyphs.
 
+**Popup chrome (2026-08-04, PopupOverlay.gd)**: mirrored dialogs now wear Qud's frame, measured off
+`sysmenu_qud.png` — panel (6,37,37), inset top line (53,90,98) with the centred notch + stops, bottom
+line (64,106,115) running through the button row's gap, 26px selection bar (23,59,60) with gold ">",
+option/hotkey/disabled colours straight from Qud's own {{...}} markup via QudText.to_bbcode (the
+palette ships in snapshots; Qud's 'W' is the gold #cfc041). Same +6 capture-fit compensation as the
+control-mapping screen. Menu + yes/no verified live side-by-side; title-in-notch placement = later
+round. Also fixed: popup hotkey answers no longer leak into MainFrame's status-tab keys (_input vs
+set_input_as_handled), and popup row rebuilds remove old children immediately (queue_free lingers a
+frame and poisons same-frame re-shows).
+
 ## Per-screen workflow (the proven V3 loop)
 
 1. `hv goto` recipes + first-party asserts for the tab (gametree nodes exist).

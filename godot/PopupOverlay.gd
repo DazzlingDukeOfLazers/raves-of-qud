@@ -36,6 +36,25 @@ func _init() -> void:
 func _ready() -> void:
 	_build()
 
+# Qud dialog chrome, measured off reports/2026-08-04-status-screens/sysmenu_qud.png
+# (panel bg 6,37,37 · inset top line 53,90,98 with a centred gap + short stops ·
+# bottom line 64,106,115 carrying the button text in its gap · selected option =
+# 26px bar 23,59,60 with a gold ">" · option/hotkey colours come from Qud's own
+# {{...}} markup via QudText.to_bbcode). Drawn at +6/channel above the dark knee —
+# the same capture-fitted compensation as ControlMappingScreen (q8 overshoots here).
+static func _cq(r8: int, g8: int, b8: int) -> Color:
+	return Color8(r8 if r8 <= 20 else r8 + 6, g8 if g8 <= 20 else g8 + 6, b8 if b8 <= 20 else b8 + 6)
+
+var C_PANEL := _cq(6, 37, 37)
+var C_TOPLINE := _cq(53, 90, 98)
+var C_BOTLINE := _cq(64, 106, 115)
+var C_SELBAR := _cq(23, 59, 60)
+var C_GOLD := _cq(200, 184, 57)
+var C_PALE := _cq(168, 194, 187)
+var C_BTN := _cq(100, 140, 135)
+
+var _panel: PanelContainer
+
 func _build() -> void:
 	if _built:
 		return
@@ -56,19 +75,23 @@ func _build() -> void:
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_root.add_child(center)
 
-	var panel := PanelContainer.new()
+	_panel = PanelContainer.new()
 	var st := StyleBoxFlat.new()
-	st.bg_color = Color(0.047, 0.059, 0.063, 0.98)       # Qud near-black chrome
-	st.set_content_margin_all(18)
-	st.border_color = Color(0.30, 0.40, 0.45)
-	st.set_border_width_all(1)
-	panel.add_theme_stylebox_override("panel", st)
-	panel.custom_minimum_size = Vector2(440, 0)
-	center.add_child(panel)
+	st.bg_color = C_PANEL
+	# measured insets: 25 l/r · 24 top (first row at +26 incl the +8 line) · 6 bottom
+	# (the button row sits ON the bottom line; see _draw_chrome)
+	st.content_margin_left = 25
+	st.content_margin_right = 25
+	st.content_margin_top = 24
+	st.content_margin_bottom = 6
+	_panel.add_theme_stylebox_override("panel", st)
+	_panel.custom_minimum_size = Vector2(288, 0)
+	_panel.draw.connect(_draw_chrome)
+	center.add_child(_panel)
 
 	var vb := VBoxContainer.new()
-	vb.add_theme_constant_override("separation", 12)
-	panel.add_child(vb)
+	vb.add_theme_constant_override("separation", 8)
+	_panel.add_child(vb)
 
 	_title = _mk_rt()
 	vb.add_child(_title)
@@ -81,6 +104,17 @@ func _build() -> void:
 
 	_edit = LineEdit.new()
 	_edit.custom_minimum_size = Vector2(400, 0)
+	_edit.add_theme_color_override("font_color", C_PALE)
+	_edit.add_theme_color_override("caret_color", C_PALE)
+	var esb := StyleBoxFlat.new()
+	esb.bg_color = Color8(2, 22, 22)
+	esb.set_border_width_all(1)
+	esb.border_color = C_BOTLINE
+	esb.content_margin_left = 8
+	esb.content_margin_top = 4
+	esb.content_margin_bottom = 4
+	_edit.add_theme_stylebox_override("normal", esb)
+	_edit.add_theme_stylebox_override("focus", esb)
 	_edit.text_submitted.connect(func(_t: String): _submit_input())
 	_edit.gui_input.connect(func(e: InputEvent):
 		if e is InputEventKey and e.pressed and e.keycode == KEY_ESCAPE:
@@ -88,9 +122,43 @@ func _build() -> void:
 	vb.add_child(_edit)
 
 	_btn_row = HBoxContainer.new()
-	_btn_row.add_theme_constant_override("separation", 10)
+	_btn_row.add_theme_constant_override("separation", 18)
 	_btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	vb.add_child(_btn_row)
+
+## The Qud dialog frame: inset top line with a centred gap (the title's home) and
+## the bottom line running THROUGH the button row's gap, both with short stops.
+func _draw_chrome() -> void:
+	var w := _panel.size.x
+	var h := _panel.size.y
+	# top line at +8, 2px, with Qud's centred notch (title placement: later round)
+	var gap_w := minf(160.0, w - 60.0)
+	var g0 := (w - gap_w) * 0.5
+	var g1 := (w + gap_w) * 0.5
+	_panel.draw_rect(Rect2(0, 8, g0 - 4, 2), C_TOPLINE)
+	_panel.draw_rect(Rect2(g1 + 4, 8, w - g1 - 4, 2), C_TOPLINE)
+	_panel.draw_rect(Rect2(g0 - 4, 2, 2, 14), C_TOPLINE)   # ┤ stop
+	_panel.draw_rect(Rect2(g1 + 2, 2, 2, 14), C_TOPLINE)   # ├ stop
+	# bottom line through the button row (or plain, 14 up, when there are no buttons).
+	# Use MINIMUM sizes — the actual rects aren't laid out yet on the show frame.
+	var by := h - 14.0
+	var bw := 0.0
+	if _btn_row.visible and _btn_row.get_child_count() > 0:
+		var bh := _btn_row.get_combined_minimum_size().y
+		by = h - 6.0 - bh * 0.5
+		for c in _btn_row.get_children():
+			if c is Control:
+				bw += (c as Control).get_combined_minimum_size().x
+		bw += 18.0 * maxi(0, _btn_row.get_child_count() - 1)
+	if bw > 0.0:
+		var b0 := (w - bw) * 0.5 - 12.0
+		var b1 := (w + bw) * 0.5 + 12.0
+		_panel.draw_rect(Rect2(0, by, b0 - 4, 1), C_BOTLINE)
+		_panel.draw_rect(Rect2(b1 + 4, by, w - b1 - 4, 1), C_BOTLINE)
+		_panel.draw_rect(Rect2(b0 - 4, by - 7, 2, 14), C_BOTLINE)
+		_panel.draw_rect(Rect2(b1 + 2, by - 7, 2, 14), C_BOTLINE)
+	else:
+		_panel.draw_rect(Rect2(0, by, w, 1), C_BOTLINE)
 
 func _mk_rt() -> RichTextLabel:
 	var rt := RichTextLabel.new()
@@ -98,7 +166,9 @@ func _mk_rt() -> RichTextLabel:
 	rt.fit_content = true
 	rt.scroll_active = false
 	rt.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	rt.custom_minimum_size = Vector2(404, 0)
+	rt.custom_minimum_size = Vector2(238, 0)
+	rt.add_theme_font_size_override("normal_font_size", 16)
+	rt.add_theme_color_override("default_color", C_PALE)
 	return rt
 
 ## Show / update the overlay from a mod popup frame. `palette` is the Qud colour map from the last snapshot.
@@ -130,7 +200,11 @@ func show_popup(data: Dictionary, palette: Dictionary) -> void:
 	_title.visible = title_markup != ""
 	if _title.visible:
 		_title.text = "[b]%s[/b]" % QudText.to_bbcode(title_markup, _palette)
-	_msg.text = QudText.to_bbcode(str(data.get("message", "")), _palette)
+	var msg_raw := str(data.get("message", ""))
+	# menus ship an EMPTY body ("{{y|}}") — hide it or it pads the panel to msg width
+	_msg.visible = QudText.strip(msg_raw).strip_edges() != ""
+	_msg.custom_minimum_size = Vector2(430, 0)
+	_msg.text = QudText.to_bbcode(msg_raw, _palette)
 
 	_build_options()
 	_build_buttons()
@@ -153,41 +227,65 @@ func show_popup(data: Dictionary, palette: Dictionary) -> void:
 
 func _build_buttons() -> void:
 	for c in _btn_row.get_children():
-		c.queue_free()
+		_btn_row.remove_child(c)   # remove NOW — queue_free'd rows linger a frame and
+		c.queue_free()             # poison get_children() on a same-frame re-show
 	for b in _buttons:
 		var bt := Button.new()
 		bt.text = QudText.strip(str(b.get("text", "")))
 		bt.focus_mode = Control.FOCUS_NONE
+		bt.flat = true
+		bt.add_theme_font_size_override("font_size", 16)
+		bt.add_theme_color_override("font_color", C_BTN)
+		bt.add_theme_color_override("font_hover_color", C_PALE)
+		bt.add_theme_color_override("font_pressed_color", C_PALE)
+		var empty := StyleBoxEmpty.new()
+		for sn in ["normal", "hover", "pressed", "focus"]:
+			bt.add_theme_stylebox_override(sn, empty)
 		var cmd := str(b.get("command", ""))
 		bt.pressed.connect(func(): _answer_button(cmd))
 		_btn_row.add_child(bt)
+	_panel.queue_redraw()   # the bottom line's gap tracks the button row
 
+## Option rows keep QUD'S OWN colours ({{W|[k]}} hotkeys etc.) via to_bbcode; the
+## selected row gets Qud's 26px bar + gold ">" cursor.
 func _build_options() -> void:
 	for c in _opt_box.get_children():
+		_opt_box.remove_child(c)
 		c.queue_free()
 	for i in _options.size():
-		var row := Button.new()
-		row.text = QudText.strip(str(_options[i].get("text", "")))
-		row.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		row.focus_mode = Control.FOCUS_NONE
-		row.flat = true
+		var row := PanelContainer.new()
+		row.custom_minimum_size = Vector2(0, 26)
+		row.mouse_filter = Control.MOUSE_FILTER_STOP
+		var rt := _mk_rt()
+		rt.fit_content = true
+		rt.autowrap_mode = TextServer.AUTOWRAP_OFF
+		rt.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(rt)
 		var idx := i
-		row.pressed.connect(func(): _answer_option(idx))
+		row.gui_input.connect(func(e: InputEvent):
+			if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+				_answer_option(idx))
 		row.mouse_entered.connect(func(): _sel = idx; _highlight_option())
 		_opt_box.add_child(row)
 
 func _highlight_option() -> void:
 	var kids := _opt_box.get_children()
-	for i in kids.size():
-		var b: Button = kids[i]
-		b.add_theme_color_override("font_color", Color(1, 1, 1) if i == _sel else Color(0.69, 0.79, 0.76))
-		# a subtle selected background so the caret is obvious
+	var goldc := "#%s" % C_GOLD.to_html(false)
+	for i in mini(kids.size(), _options.size()):
+		var row: PanelContainer = kids[i]
+		var rt: RichTextLabel = row.get_child(0)
+		var body := QudText.to_bbcode(str(_options[i].get("text", "")), _palette)
 		if i == _sel:
+			rt.text = "[color=%s]> [/color]%s" % [goldc, body]
 			var sb := StyleBoxFlat.new()
-			sb.bg_color = Color(0.12, 0.20, 0.20)
-			b.add_theme_stylebox_override("normal", sb)
+			sb.bg_color = C_SELBAR
+			sb.content_margin_left = 4
+			row.add_theme_stylebox_override("panel", sb)
 		else:
-			b.remove_theme_stylebox_override("normal")
+			rt.text = "  " + body
+			var sbe := StyleBoxEmpty.new()
+			sbe.content_margin_left = 4
+			row.add_theme_stylebox_override("panel", sbe)
 
 # --- input -----------------------------------------------------------------------------------------
 
