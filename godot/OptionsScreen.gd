@@ -1184,17 +1184,20 @@ func _qud_option_1to1(opt: Dictionary) -> Control:
 				# Qud's track AND thumb are the 7x7 border WEAVE in the console
 				# palette — a 4px weave ribbon with a 20x20 weave block thumb
 				var wt := _slider_weave_tile()
-				tr.draw_rect(Rect2(0, 6, 2, 10), O_LINE)           # left terminal
+				# endcaps are 4px-wide, 25px-tall WEAVE columns (same pattern, vertical)
 				if wt != null:
-					tr.draw_texture_rect(wt, Rect2(2, 8, 653, 4), true)
+					tr.draw_texture_rect(wt, Rect2(0, 2, 4, 25), true)
+					tr.draw_texture_rect(wt, Rect2(2, 12, 653, 4), true)
+					tr.draw_texture_rect(wt, Rect2(653, 2, 4, 25), true)
 				else:
-					tr.draw_rect(Rect2(2, 9, 653, 2), O_LINE)
-				tr.draw_rect(Rect2(655, 6, 2, 10), O_LINE)         # right terminal
+					tr.draw_rect(Rect2(0, 2, 4, 25), O_LINE)
+					tr.draw_rect(Rect2(2, 13, 653, 2), O_LINE)
+					tr.draw_rect(Rect2(653, 2, 4, 25), O_LINE)
 				var tx := 2.0 + (653.0 - 20.0) * fracv
 				if wt != null:
-					tr.draw_texture_rect(wt, Rect2(tx, 1, 20, 20), true)
+					tr.draw_texture_rect(wt, Rect2(tx, 5, 20, 20), true)
 				else:
-					tr.draw_rect(Rect2(tx, 1, 20, 20), O_CYAN))
+					tr.draw_rect(Rect2(tx, 5, 20, 20), O_CYAN))
 			wrap.add_child(tr)
 			var v := Label.new()
 			v.text = str(opt.get("value", ""))
