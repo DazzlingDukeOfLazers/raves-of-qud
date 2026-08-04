@@ -96,6 +96,7 @@ var _bar_hp: ProgressBar
 var _l_exp: Label
 var _bar_exp: ProgressBar
 var _msglog: Control        # the Message log view (MessageLog.gd)
+var _status: CanvasLayer    # the 8-tab status screens overlay (StatusScreens.gd, V4; layer 90)
 var _nearby: Control        # the Nearby objects view (NearbyObjects.gd)
 var _minimap: Control       # the Minimap view (MinimapView.gd)
 var _effects: Control       # the Active effects view (ActiveEffects.gd)
@@ -167,6 +168,11 @@ func _ready() -> void:
 	_panels = [_minimap, _nearby, _msglog, _effects, _target, _context, _command].filter(
 		func(p): return p != null)
 	_apply_full_info()                   # init the toggle label + push the default (perceived) to views
+	# The 8-tab status screens (V4): created hidden NOW so its message-log history
+	# accumulates from the very first snapshot; F2 toggles it. Fed via _panels.
+	_status = load("res://StatusScreens.gd").new()
+	add_child(_status)
+	_panels.append(_status)
 	_add_crt_overlay()                   # Qud's CRT terminal look, on top of the chrome + 3D
 
 	# Resume (Continue / New Game with the bridge up): MainMenu set this so we AUTO-CONNECT the data
@@ -190,6 +196,13 @@ func _on_resize() -> void:
 func _input(e: InputEvent) -> void:
 	if e is InputEventKey and e.pressed and not e.echo and e.keycode == KEY_F12:
 		_shot()
+	# F2: the 8-tab status screens (1:1 mirror; placeholder opener until per-tab keys land)
+	if e is InputEventKey and e.pressed and not e.echo and e.keycode == KEY_F2 \
+			and _status != null and Settings.one_to_one():
+		if _status.visible:
+			_status.close()
+		else:
+			_status.open()
 
 # ── helpers ────────────────────────────────────────────────────────────────
 
