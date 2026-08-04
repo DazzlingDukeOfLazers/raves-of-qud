@@ -218,6 +218,16 @@ def shots_for(bp, cat="single"):
     outdir = os.path.join(REPORTS, "shots", cat)
     os.makedirs(outdir, exist_ok=True)
     pair = {}
+    # Focus Qud for its capture: on Windows its tile-map camera only
+    # recomposites while FOCUSED (the mac unfocused-render fixes don't hold
+    # here — a frozen buffer served identical map crops across 240 turns).
+    # Raves' capture is focus-independent (force_draw), so focus can stay put.
+    if plat.IS_WIN:
+        try:
+            plat.activate("CavesOfQud")
+            time.sleep(0.5)
+        except Exception:
+            pass
     if _fresh_capture("qud", control.qud_shot, control.QUD_SHOT):
         pair["qud"] = os.path.join(outdir, _safe(bp) + "_qud.png")
         shutil.copyfile(control.QUD_SHOT, pair["qud"])
@@ -264,8 +274,14 @@ def calibrate():
     # and the cluster grew to ~3 cells wide). Raves: wall-vs-EMPTY — its two
     # wall sprites share most of their pattern under the zone tint, so the
     # wall-vs-wall diff caught only the differing band.
-    qrect = congruence.diff_cluster(caps["a"]["qud"], caps["b"]["qud"])
-    rrect = congruence.diff_cluster(caps["a"]["raves"], caps["c"]["raves"])
+    #
+    # Search fracs are PER APP, measured on the pinned PC layout against the
+    # apps' SELF-captures (client-area px): Qud's sidebar starts ≈60% of its
+    # 2301-wide render (its Nearby-objects icon is a pixel-perfect copy of the
+    # staged sprite — it won twice before the clip excluded it); Raves' 1:1
+    # panels start ≈48.6% of 3232. Re-measure if either layout changes.
+    qrect = congruence.diff_cluster(caps["a"]["qud"], caps["b"]["qud"], search_frac=0.58)
+    rrect = congruence.diff_cluster(caps["a"]["raves"], caps["c"]["raves"], search_frac=0.48)
     path = congruence.save_geometry(qrect, rrect)
     outdir = os.path.join(REPORTS, "shots", "calib")
     congruence.save_crop(caps["a"]["qud"], qrect, os.path.join(outdir, "cell_qud.png"))

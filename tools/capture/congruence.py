@@ -117,11 +117,15 @@ def diff_cluster(path_a, path_b, min_delta=40, search_frac=0.72):
                     if abs(a[0] - b[0]) + abs(a[1] - b[1]) + abs(a[2] - b[2]) > min_delta:
                         n += 1
             heat[gy][gx] = n
-    # hottest tile = seed; flood to 4-neighbours with >= 25% of seed heat
+    # hottest tile = seed; flood to 4-neighbours carrying ANY heat (>=1 changed
+    # sample). Contiguity does the noise rejection — ambient sparkle isn't
+    # attached to the element's cluster — and a stricter floor undershoots
+    # small/dim cells (Qud's zoomed-out stage caught only the sprite's hottest
+    # band, which then misaligned the resampled comparison).
     sy, sx = max(((y, x) for y in range(gh) for x in range(gw)), key=lambda p: heat[p[0]][p[1]])
     if heat[sy][sx] == 0:
         raise ValueError("no changed pixels between %s and %s" % (path_a, path_b))
-    floor_heat = max(1, heat[sy][sx] // 4)
+    floor_heat = 1
     seen, stack = set(), [(sy, sx)]
     while stack:
         y, x = stack.pop()

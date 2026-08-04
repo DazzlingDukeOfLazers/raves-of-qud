@@ -77,26 +77,37 @@ bar and the method (mean |Δ| + %px>32; playfield reference ≈ 2 / 0%).
 NPC-specific checks ride this rung: billboard sprite congruence, the **H-flip
 sprite-facing rule** (see the picker's tile work), submerged/stained variants.
 
-### Rung 3 status (2026-08-04, PC)
+### Rung 3 status (2026-08-04 evening, PC) — WORKING END TO END
 
-Scoring is WIRED: `congruence.py` (crop + mean-diff/%hot + strict checks, Pillow
-fast-path with stdlib fallback), `checker.py calibrate` (three-frame differential:
-wall-vs-wall for Qud — identical occlusion isolates the sprite; wall-vs-empty for
-Raves — its wall sprites share their pattern under the zone tint), `--diff` on
-one/sweep, capture staleness guards both sides (both apps can serve the previous
-element's frame — hash and retry). The Raves stage-cell rect calibrates
-reproducibly. **Blocked on window determinism before the geometry is trustworthy:**
+The full loop runs and scores: stage → focus-managed staleness-guarded capture
+pair → calibrated stage-cell crop → mean-diff verdict. First scored sample:
+Dresser 6.94/0% PASS; walls ×10 all wire+pixel PASS (means 3.8–8.1).
+Calibration reproduces identically run-over-run on both apps.
 
-- Raves' self-placement DPI-doubles on Windows (3232×1878 → 6954×3912 over a
-  session) — the window_rect channel re-applies logical size as physical px.
-- Qud's window resized + zoomed out mid-session; the calibration clip fraction
-  and cell size move with it. Pin BOTH windows (hv move / layout + the fixed
-  channel) and normalize Qud's stage zoom, THEN `calibrate` once and commit the
-  geometry.
-- Parity note for scoring: the golden save is at NIGHT — Raves night-dims the
-  playfield while Qud's own render of the staged wall reads bright. Either a
-  daytime golden or Qud time-wish normalization before captures; decide when
-  tuning the PASS/WARN bands.
+What the earlier "blockers" actually were (all resolved):
+- The "Raves DPI doubling" was a MEASUREMENT artifact: a restarted highvisor
+  daemon lost DPI awareness (ctypes doesn't raise on a FALSE Win32 return, so
+  the awareness call could fail silently) and reported virtualized rects. Fixed
+  in highvisor (checked returns + `ping` now reports `dpi_status`); the window
+  itself was stable all along.
+- "Qud resized/zoomed": the capture size was the same DPI artifact; the real
+  Qud render is its 2301×1213 client area throughout.
+- The "night dimming" was two things: dawn-hour light ramp (turns advanced the
+  clock) AND a frozen map buffer — on Windows, Qud's tile-map camera only
+  recomposites while FOCUSED (the mac unfocused-render fixes don't hold here).
+  `shots_for` now focuses Qud for its capture; the golden save is re-archived
+  at High Salt Sun (midday) so every boot starts in good light.
+
+Still open (quality, not correctness):
+- **Qud stage zoom**: the bridge `zoom` command didn't change the stage
+  (uiQueue ZoomIn/ZoomOut appear to no-op here) — tiles are ~14px, so the Qud
+  cell rect is small (24×16) and wall means cluster tightly (~8). A bigger
+  stage = sharper discrimination. Investigate GameManager zoom vs the stage
+  scale option, focused.
+- `wire_delta` (dominant-vs-palette) needs ambient-tint awareness before it's
+  a real check — raw palette RGB vs the tinted render reads ~136 on a PASS.
+- Per-app calibration clip fracs (0.58 Qud / 0.48 Raves) are layout constants —
+  re-measure if either window layout changes.
 
 ## Rung 4 — animation fixtures (the decoded-program list)
 
