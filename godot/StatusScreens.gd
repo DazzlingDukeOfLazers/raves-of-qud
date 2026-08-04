@@ -56,6 +56,7 @@ var _pane_host: Control
 var _log_scroll: ScrollContainer
 var _log_box: VBoxContainer
 var _search: LineEdit
+var _hint: RichTextLabel     # bottom hint bar — content changes per tab, like Qud's
 var _cursor: Label           # the gold > beside the newest log line
 var _filter := ""
 
@@ -102,14 +103,17 @@ func _build() -> void:
 	# 3D Holodeck under the canvas hole — same reason the CRT overlay uses a shader)
 	var scrim := ColorRect.new()
 	var sh := Shader.new()
+	# NOT a multiply: Qud's scrim is an ~82%-opaque dark-teal ALPHA BLEND — fitted
+	# out = k*in + b per channel on dark ground AND the bright Joppa water pools
+	# (a multiply matched the darks but left brights 2x too bright)
 	sh.code = """
 shader_type canvas_item;
 uniform sampler2D screen_tex : hint_screen_texture;
 void fragment() {
 	vec4 c = texture(screen_tex, SCREEN_UV);
-	COLOR = vec4(c.rgb * vec3(%f, %f, %f), 1.0);
+	COLOR = vec4(c.rgb * vec3(0.190, 0.168, 0.170) + vec3(3.79, 21.27, 20.34) / 255.0, 1.0);
 }
-""" % [SCRIM.r, SCRIM.g, SCRIM.b]
+"""
 	var mat := ShaderMaterial.new()
 	mat.shader = sh
 	scrim.material = mat
@@ -162,26 +166,45 @@ void fragment() {
 		_filter = t.strip_edges().to_lower()
 		_refresh_log())
 	_root.add_child(_search)
-	var hint := RichTextLabel.new()
-	hint.bbcode_enabled = true
-	hint.fit_content = true
-	hint.scroll_active = false
-	hint.autowrap_mode = TextServer.AUTOWRAP_OFF
-	hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hint.add_theme_font_size_override("normal_font_size", 16)
+	_hint = RichTextLabel.new()
+	_hint.bbcode_enabled = true
+	_hint.fit_content = true
+	_hint.scroll_active = false
+	_hint.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_hint.add_theme_font_size_override("normal_font_size", 16)
+	# Qud centres the hint row on x~1067 (measured on both tabs); a CenterContainer
+	# keeps it centred as per-tab content changes its width
+	var hc := CenterContainer.new()
+	hc.position = Vector2(367, 950)
+	hc.size = Vector2(1400, 28)
+	hc.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hc.add_child(_hint)
+	_root.add_child(hc)
+	_build_hints()
+
+
+## Rebuild the bottom hint bar for the active tab (Qud's changes per screen).
+func _build_hints() -> void:
+	if _hint == null:
+		return
+	_hint.clear()
 	var wht := "#FFFFFF"
 	var dimc := "#%s" % S_HINT.to_html(false)
 	var goldc := "#%s" % QudChrome.q8(200, 184, 57).to_html(false)
-	hint.push_paragraph(HORIZONTAL_ALIGNMENT_LEFT)
-	hint.append_text("[color=%s][lb][/color]" % wht)
-	hint.add_image(_nav_icon(15), 22, 15)
-	hint.append_text("[color=%s][rb][/color]" % wht)
-	hint.append_text("[color=%s] navigation  [/color]" % dimc)
-	hint.append_text("[color=%s][lb][/color][color=%s]Space[/color][color=%s][rb][/color]" % [wht, goldc, wht])
-	hint.append_text("[color=%s] Accept[/color]" % dimc)
-	hint.pop()
-	hint.position = Vector2(920, 952)
-	_root.add_child(hint)
+	_hint.push_paragraph(HORIZONTAL_ALIGNMENT_LEFT)
+	_hint.append_text("[color=%s][lb][/color]" % wht)
+	_hint.add_image(_nav_icon(15), 22, 15)
+	_hint.append_text("[color=%s][rb][/color]" % wht)
+	_hint.append_text("[color=%s] navigation  [/color]" % dimc)
+	var keys := [["Space", "Accept"]]
+	if _tab == "attributes":
+		keys.append(["E", "Show Effects"])
+		keys.append(["M", "Buy Mutation"])
+	for k in keys:
+		_hint.append_text("[color=%s][lb][/color][color=%s]%s[/color][color=%s][rb][/color]" % [wht, goldc, k[0], wht])
+		_hint.append_text("[color=%s] %s  [/color]" % [dimc, k[1]])
+	_hint.pop()
 
 func _nav_icon(ih: int) -> ImageTexture:
 	var gold := QudChrome.q8(200, 184, 57)
@@ -264,6 +287,7 @@ func _set_tab(id: String) -> void:
 	if id == "attributes":
 		_request_export()
 		_load_character()
+	_build_hints()
 	if visible:
 		UiState.set_scene("status_" + _tab)
 

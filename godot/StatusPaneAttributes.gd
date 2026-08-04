@@ -25,6 +25,9 @@ var C_RED := QudChrome.q8(208, 58, 0)
 var C_MUT_TITLE := QudChrome.q8(0, 139, 255)
 var C_MUT_TYPE := QudChrome.q8(56, 154, 176)
 var C_RULE := QudChrome.q8(60, 84, 92)
+var C_LINE := QudChrome.q8(68, 99, 112)        # spine / divider lines / header rules
+var C_FRAME := QudChrome.q8(55, 84, 98)        # stat-box frame + corner loops
+var C_BAND := QudChrome.q8(30, 57, 72)         # the divider's solid centre band
 var C_GOLD := QudChrome.q8(195, 180, 56)
 
 const BOX_W := 70
@@ -63,8 +66,9 @@ func _build() -> void:
 	if _portrait != null:
 		var pr := TextureRect.new()
 		pr.texture = _portrait
-		pr.position = Vector2(168, 176)
-		pr.size = Vector2(24, 36)
+		pr.position = Vector2(160, 166)
+		pr.size = Vector2(40, 60)
+		pr.flip_h = true   # Qud's sheet portrait faces left (the sprite-facing rule)
 		pr.stretch_mode = TextureRect.STRETCH_SCALE
 		pr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		pr.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -149,12 +153,14 @@ func _build() -> void:
 	_select_mut(0)
 
 func _draw_left() -> void:
-	# centre column divider (double dotted verticals) + list/detail divider
-	for dx in [828.0, 833.0]:
-		var y := 170.0
-		while y < 935.0:
-			_boxes.draw_rect(Rect2(dx, y, 1, 3), C_RULE)
-			y += 6.0
+	# centre divider (measured): solid 1px lines at x816/x834 flanking a 6px solid
+	# navy band at x823..828 — the border-band family, flat at 1x
+	_boxes.draw_rect(Rect2(816, 170, 1, 765), C_LINE)
+	_boxes.draw_rect(Rect2(823, 170, 6, 765), C_BAND)
+	_boxes.draw_rect(Rect2(834, 170, 1, 765), C_LINE)
+	# the left spine: below the portrait, down the whole column; header rules tie into it
+	_boxes.draw_rect(Rect2(173, 218, 1, 717), C_LINE)
+	# mutations list/detail divider (still dotted in Qud)
 	var y2 := 252.0
 	while y2 < 935.0:
 		_boxes.draw_rect(Rect2(1310, y2, 1, 3), C_RULE)
@@ -168,22 +174,25 @@ func _section_header(pos: Vector2, title: String, rule_end: float, extra: String
 	var f := get_theme_font("font", "Label")
 	var tw := f.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
 	hdr.draw.connect(func():
-		# ─┤ TITLE ├──── rules with bracket ticks
-		hdr.draw_rect(Rect2(0, 9, 8, 1), C_RULE)
-		hdr.draw_rect(Rect2(8, 4, 1, 11), C_RULE)
+		# spine ──┤ TITLE ├── rule running to a few px shy of the centre divider
+		var x0 := 173.0 - hdr.position.x    # start at the left spine (mutations: the divider)
+		if hdr.position.x > 830.0:
+			x0 = 840.0 - hdr.position.x
+		hdr.draw_rect(Rect2(x0, 9, 8 - x0 + 8, 1), C_LINE)
+		hdr.draw_rect(Rect2(8, 4, 1, 11), C_LINE)
 		hdr.draw_string(f, Vector2(14, 16), title, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, C_HEADER)
 		var rx := 14.0 + tw + 6.0
-		hdr.draw_rect(Rect2(rx, 4, 1, 11), C_RULE)
+		hdr.draw_rect(Rect2(rx, 4, 1, 11), C_LINE)
 		var ex := (extra_x - hdr.position.x) if extra != "" else 0.0
 		if extra != "":
-			hdr.draw_rect(Rect2(rx + 1, 9, ex - rx - 8, 1), C_RULE)
+			hdr.draw_rect(Rect2(rx + 1, 9, ex - rx - 8, 1), C_LINE)
 			var etw := f.get_string_size(extra, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
 			hdr.draw_string(f, Vector2(ex, 16), extra, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, C_POINTS)
 			hdr.draw_string(f, Vector2(ex + etw + 8, 16), str(extra_val),
 				HORIZONTAL_ALIGNMENT_LEFT, -1, 16, C_GOLD if extra_val > 0 else C_BOX_LABEL)
-			hdr.draw_rect(Rect2(ex + etw + 28, 9, hdr.size.x - (ex + etw + 28), 1), C_RULE)
+			hdr.draw_rect(Rect2(ex + etw + 28, 9, hdr.size.x - (ex + etw + 28), 1), C_LINE)
 		else:
-			hdr.draw_rect(Rect2(rx + 1, 9, hdr.size.x - rx - 1, 1), C_RULE))
+			hdr.draw_rect(Rect2(rx + 1, 9, hdr.size.x - rx - 1, 1), C_LINE))
 	add_child(hdr)
 
 ## Palette colour for a Qud colour code, with the console-table fallback.
@@ -206,19 +215,28 @@ func _stat_box(id: String, sd: Dictionary, pos: Vector2, with_mod: bool) -> void
 	box.set_meta("stat", id)
 	var f := get_theme_font("font", "Label")
 	box.draw.connect(func():
-		# dotted frame + corner dots (the Qud pane-frame family)
-		for bx in [0.0, BOX_W - 1.0]:
-			var y := 4.0
-			while y < BOX_H - 4.0:
-				box.draw_rect(Rect2(bx, y, 1, 3), C_RULE)
-				y += 6.0
-		for by in [0.0, BOX_H - 1.0]:
-			var x := 4.0
-			while x < BOX_W - 4.0:
-				box.draw_rect(Rect2(x, by, 3, 1), C_RULE)
-				x += 6.0
-		for p in [[0, 0], [BOX_W - 3, 0], [0, BOX_H - 3], [BOX_W - 3, BOX_H - 3]]:
-			box.draw_rect(Rect2(p[0], p[1], 3, 3), C_RULE)
+		# Qud's frame: solid 2px border with an interlocking 7x7 corner loop at the
+		# upper-left and (mirrored) lower-right — transcribed pixel-for-pixel
+		var W := float(BOX_W)
+		var H := float(BOX_H)
+		# UL loop: hollow 7x7 ring, 2px stub, 7px bar, then the borders take over
+		box.draw_rect(Rect2(0, 0, 7, 2), C_FRAME)
+		box.draw_rect(Rect2(0, 5, 7, 2), C_FRAME)
+		box.draw_rect(Rect2(0, 2, 2, 3), C_FRAME)
+		box.draw_rect(Rect2(5, 2, 2, 3), C_FRAME)
+		box.draw_rect(Rect2(5, 7, 2, 2), C_FRAME)
+		box.draw_rect(Rect2(0, 9, 7, 2), C_FRAME)
+		box.draw_rect(Rect2(0, 11, 2, H - 11), C_FRAME)          # left border
+		box.draw_rect(Rect2(9, 0, W - 9, 2), C_FRAME)            # top border
+		# LR loop (180-degree mirror)
+		box.draw_rect(Rect2(W - 7, H - 2, 7, 2), C_FRAME)
+		box.draw_rect(Rect2(W - 7, H - 7, 7, 2), C_FRAME)
+		box.draw_rect(Rect2(W - 2, H - 5, 2, 3), C_FRAME)
+		box.draw_rect(Rect2(W - 7, H - 5, 2, 3), C_FRAME)
+		box.draw_rect(Rect2(W - 7, H - 9, 2, 2), C_FRAME)
+		box.draw_rect(Rect2(W - 7, H - 11, 7, 2), C_FRAME)
+		box.draw_rect(Rect2(W - 2, 0, 2, H - 11), C_FRAME)       # right border
+		box.draw_rect(Rect2(0, H - 2, W - 9, 2), C_FRAME)        # bottom border
 		var lw := f.get_string_size(id, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
 		box.draw_string(f, Vector2((BOX_W - lw) * 0.5, 22), id, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, C_BOX_LABEL)
 		var vs := str(value)
