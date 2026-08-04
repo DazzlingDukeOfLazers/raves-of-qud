@@ -49,6 +49,7 @@ var _pages: Array = []       # per-page arrays of indices into _abilities
 var _gutter: Control         # 1:1 left gutter: ABILITIES / page N of M / stepper
 var _gutter_title: Label
 var _gutter_page: Label
+var _gutter_box: VBoxContainer   # the ABILITIES/page stack — pushed below the keycap hints when paged
 
 func _ready() -> void:
 	_tiles = load("res://QudTiles.gd").new()
@@ -110,20 +111,9 @@ func _ready() -> void:
 				_flip_page(-1 if e.position.y < _gutter.size.y * 0.5 else 1)
 			else:
 				command_requested.emit({"type": "command", "command": "CmdAbilities"}))
-	_gutter.draw.connect(func():
-		if _pages.size() <= 1:
-			return
-		# green up/down stepper + the page digit, right of the text block (measured)
-		var cx := GUTTER_W_1TO1 - 14.0
-		var cy := _gutter.size.y * 0.5
-		_gutter.draw_colored_polygon(PackedVector2Array([
-			Vector2(cx - 7, cy - 10), Vector2(cx + 7, cy - 10), Vector2(cx, cy - 18)]), PAGE_ARROW)
-		_gutter.draw_colored_polygon(PackedVector2Array([
-			Vector2(cx - 7, cy + 10), Vector2(cx + 7, cy + 10), Vector2(cx, cy + 18)]), PAGE_ARROW)
-		var f := get_theme_font("font", "Label")
-		_gutter.draw_string(f, Vector2(cx - 5, cy + 6), str(_page + 1),
-			HORIZONTAL_ALIGNMENT_LEFT, -1, 16, PAGE_NUM))
+	_gutter.draw.connect(_draw_gutter)
 	var gv := VBoxContainer.new()
+	_gutter_box = gv
 	gv.set_anchors_preset(Control.PRESET_FULL_RECT)
 	gv.alignment = BoxContainer.ALIGNMENT_CENTER
 	gv.add_theme_constant_override("separation", 0)
@@ -281,6 +271,54 @@ func _paginate(abilities: Array) -> Array:
 		pages.append(cur)
 	return pages
 
+# The gutter's paged-mode extras, all measured off Qud: the Ctrl+Tab / Ctrl+Shift+Tab
+# keycap hints along the top (gold ~(182,164,5), 17x11 keycaps with micro-labels), and
+# the green up/down stepper with the page digit right of the text block.
+const HINT_GOLD := Color8(182, 164, 5)
+const HINT_GOLD_DIM := Color8(125, 114, 9)
+
+func _draw_gutter() -> void:
+	if _pages.size() <= 1:
+		return
+	var f := get_theme_font("font", "Label")
+	# keycap hints row at the very top: [Ctrl]+Tab   [Ctrl]+[Shift]+Tab
+	var hy := 2.0
+	var x := 64.0
+	x = _draw_keycap(f, x, hy, 17.0, "Ctrl")
+	x = _draw_plus(f, x, hy)
+	x = _draw_hint_text(f, x, hy, "Tab")
+	x += 7.0
+	x = _draw_keycap(f, x, hy, 17.0, "Ctrl")
+	x = _draw_plus(f, x, hy)
+	x = _draw_keycap(f, x, hy, 18.0, "Shift")
+	x = _draw_plus(f, x, hy)
+	_draw_hint_text(f, x, hy, "Tab")
+	# green up/down stepper + the page digit
+	var cx := GUTTER_W_1TO1 - 14.0
+	var cy := _gutter.size.y * 0.5
+	_gutter.draw_colored_polygon(PackedVector2Array([
+		Vector2(cx - 7, cy - 10), Vector2(cx + 7, cy - 10), Vector2(cx, cy - 18)]), PAGE_ARROW)
+	_gutter.draw_colored_polygon(PackedVector2Array([
+		Vector2(cx - 7, cy + 10), Vector2(cx + 7, cy + 10), Vector2(cx, cy + 18)]), PAGE_ARROW)
+	_gutter.draw_string(f, Vector2(cx - 5, cy + 6), str(_page + 1),
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 16, PAGE_NUM)
+
+## One bordered keycap with a tiny centred label; returns the x after it.
+func _draw_keycap(f: Font, x: float, y: float, w: float, label: String) -> float:
+	_gutter.draw_rect(Rect2(x, y, w, 11), HINT_GOLD, false, 1.0)
+	var tw := f.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 6).x
+	_gutter.draw_string(f, Vector2(x + (w - tw) * 0.5, y + 7), label,
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 6, HINT_GOLD_DIM)
+	return x + w
+
+func _draw_plus(f: Font, x: float, y: float) -> float:
+	_gutter.draw_string(f, Vector2(x + 1, y + 7), "+", HORIZONTAL_ALIGNMENT_LEFT, -1, 8, HINT_GOLD_DIM)
+	return x + 7.0
+
+func _draw_hint_text(f: Font, x: float, y: float, txt: String) -> float:
+	_gutter.draw_string(f, Vector2(x, y + 8), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, HINT_GOLD)
+	return x + f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x
+
 func _flip_page(dir: int) -> void:
 	if _pages.size() <= 1:
 		return
@@ -293,6 +331,8 @@ func _update_gutter() -> void:
 	_gutter_page.visible = _pages.size() > 1
 	if _pages.size() > 1:
 		_gutter_page.text = "page %d of %d" % [_page + 1, _pages.size()]
+	if _gutter_box != null:
+		_gutter_box.offset_top = 13.0 if _pages.size() > 1 else 0.0   # room for the keycap hints
 	_gutter.queue_redraw()
 
 ## One ability as a centred, equal-share, clickable cell: a nearest-filtered tile icon + a name/state/

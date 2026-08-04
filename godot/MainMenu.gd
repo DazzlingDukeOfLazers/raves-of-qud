@@ -1030,8 +1030,11 @@ func _activate(idx: int) -> void:
 	match String(row["cfg"].get("act", "")):
 		"continue":
 			# Qud's Continue opens the save picker (ModernSaveManagement); mirror it
-			# in 1:1 mode. User mode keeps the direct attach-to-running-game jump.
-			if Settings.one_to_one():
+			# in 1:1 mode — but only when no game is LIVE. Qud can't sit at its title
+			# with a running game, so a live game means "attach to it" (also, the mod
+			# refuses loadsave mid-game — the picker would dead-end). User mode keeps
+			# the direct attach-to-running-game jump.
+			if Settings.one_to_one() and not _game_live:
 				_open_overlay("res://LoadGameScreen.gd")
 			else:
 				_enter_viewer()
