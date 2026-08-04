@@ -35,13 +35,17 @@ const BOX_X0 := 206
 var _data := {}
 var _palette := {}
 var _portrait: Texture2D = null
-var _sel_stat := ""          # nothing selected by default (matches Qud fresh-open); hover selects
+var _sel_stat := "STR"       # Qud default: STR selected, its flavor text under the MAIN row
 var _sel_mut := 0
 var _boxes: Control
 var _mut_list: Control
 var _detail: Control
 var _help_lbl: RichTextLabel
+var _help_slots := {}        # section -> RichTextLabel (flavor text under that section's row)
 var _detail_labels: Array = []
+const SECTION_OF := {"STR": "main", "AGI": "main", "TOU": "main", "INT": "main", "WIL": "main", "EGO": "main",
+	"QN": "sec", "MS": "sec", "AV": "sec", "DV": "sec", "MA": "sec",
+	"AR": "res", "ER": "res", "CR": "res", "HR": "res"}
 
 func setup(data: Dictionary, palette: Dictionary, portrait: Texture2D) -> void:
 	_data = data
@@ -104,12 +108,16 @@ func _build() -> void:
 	for i in rs.size():
 		_stat_box(rs[i], int(res.get(rs[i], 0)), Vector2(BOX_X0 + i * BOX_PITCH, 645), false)
 
-	# the selected stat's Qud help text, under the resist row
-	_help_lbl = _rich(Vector2(206, 725), 16)
-	_help_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_help_lbl.size = Vector2(610, 160)
-	_help_lbl.fit_content = false
-	add_child(_help_lbl)
+	# per-section flavor slots (Qud shows the hovered stat's help under ITS section's
+	# row; one selection across all three groups; default STR)
+	for slot in [["main", 339.0], ["sec", 531.0], ["res", 729.0]]:
+		var hl := _rich(Vector2(206, slot[1]), 16)
+		hl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		hl.size = Vector2(600, 84)
+		hl.fit_content = false
+		hl.add_theme_color_override("default_color", C_PALE)
+		add_child(hl)
+		_help_slots[slot[0]] = hl
 	_apply_stat_sel()
 
 	# ── right column: mutations ────────────────────────────────────────────────
@@ -122,11 +130,15 @@ func _build() -> void:
 	var muts: Array = _data.get("mutations", [])
 	for i in muts.size():
 		var m: Dictionary = muts[i]
-		# Qud's own annotated list text ("Burrowing Claws (1)", bare "Night Vision")
+		# name + " (n)" when Qud's ShouldShowLevel says so (CanLevel; defects/fixed stay bare)
 		var nm := str(m.get("display", m.get("name", "?")))
 		var row := _rich(Vector2(872, 280 + i * 36), 16)
 		row.add_theme_color_override("default_color", C_PALE)
-		row.text = QudText.to_bbcode(nm, _palette)
+		var body := QudText.to_bbcode(nm, _palette)
+		if bool(m.get("showLevel", false)):
+			# Qud renders the (n) in cyan, not the name colour
+			body += " [color=#%s](%d)[/color]" % [C_MUT_TYPE.to_html(false), int(m.get("uiLevel", 0))]
+		row.text = body
 		row.mouse_filter = Control.MOUSE_FILTER_STOP
 		var idx := i
 		row.mouse_entered.connect(func(): _select_mut(idx))
@@ -169,7 +181,7 @@ func _section_header(pos: Vector2, title: String, rule_end: float, extra: String
 			var etw := f.get_string_size(extra, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
 			hdr.draw_string(f, Vector2(ex, 16), extra, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, C_POINTS)
 			hdr.draw_string(f, Vector2(ex + etw + 8, 16), str(extra_val),
-				HORIZONTAL_ALIGNMENT_LEFT, -1, 16, C_GOLD)
+				HORIZONTAL_ALIGNMENT_LEFT, -1, 16, C_GOLD if extra_val > 0 else C_BOX_LABEL)
 			hdr.draw_rect(Rect2(ex + etw + 28, 9, hdr.size.x - (ex + etw + 28), 1), C_RULE)
 		else:
 			hdr.draw_rect(Rect2(rx + 1, 9, hdr.size.x - rx - 1, 1), C_RULE))
@@ -201,7 +213,15 @@ func _stat_box(id: String, value: int, pos: Vector2, with_mod: bool) -> void:
 		box.draw_string(f, Vector2((BOX_W - lw) * 0.5, 22), id, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, C_BOX_LABEL)
 		var vs := str(value)
 		var vw := f.get_string_size(vs, HORIZONTAL_ALIGNMENT_LEFT, -1, 18).x
-		box.draw_string(f, Vector2((BOX_W - vw) * 0.5, 45), vs, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, C_VALUE)
+		var bases: Dictionary = _data.get("bases", {})
+		var vcol := C_VALUE
+		if bases.has(id):
+			var b := int(bases[id])
+			if value > b:
+				vcol = C_GREEN     # buffed above base (Qud's AV with armour on)
+			elif value < b:
+				vcol = C_RED       # debuffed below base (Qud's DV)
+		box.draw_string(f, Vector2((BOX_W - vw) * 0.5, 45), vs, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, vcol)
 		if with_mod:
 			var mod := int(floor((value - 16) / 2.0))
 			var ms := "[%s%d]" % ["+" if mod >= 0 else "", mod]
@@ -209,7 +229,7 @@ func _stat_box(id: String, value: int, pos: Vector2, with_mod: bool) -> void:
 			box.draw_string(f, Vector2((BOX_W - mw) * 0.5, 63), ms,
 				HORIZONTAL_ALIGNMENT_LEFT, -1, 14, C_GREEN if mod >= 0 else C_RED)
 		if _sel_stat == id:
-			box.draw_string(f, Vector2(-14, 45), ">", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, C_GOLD))
+			box.draw_string(f, Vector2(-11, 36), ">", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, C_GOLD))
 	add_child(box)
 
 func _select_stat(id: String) -> void:
@@ -222,11 +242,12 @@ func _select_stat(id: String) -> void:
 			c.queue_redraw()
 
 func _apply_stat_sel() -> void:
-	if _help_lbl == null:
+	if _help_slots.is_empty():
 		return
 	var help: Dictionary = _data.get("help", {})
-	_help_lbl.text = QudText.to_bbcode(str(help.get(_sel_stat, "")), _palette)
-	_help_lbl.add_theme_color_override("default_color", C_PALE)
+	var sect: String = SECTION_OF.get(_sel_stat, "")
+	for k in _help_slots:
+		_help_slots[k].text = QudText.to_bbcode(str(help.get(_sel_stat, "")), _palette) if k == sect else ""
 
 func _select_mut(idx: int) -> void:
 	var muts: Array = _data.get("mutations", [])
@@ -243,17 +264,30 @@ func _select_mut(idx: int) -> void:
 	var mtype := _center_label("[%s Mutation]" % str(m.get("type", "?")), cx, 304, C_MUT_TYPE, 16)
 	var rank := _center_label("RANK %d/%d" % [int(m.get("level", 0)), int(m.get("maxLevel", 10))],
 		cx, 326, C_GREEN, 16)
-	var desc := _rich(Vector2(1328, 372), 16)
-	add_child(desc)
+	# body (description + rank text) lives in a scrollbar-less scroller — long
+	# mutations (Electrical Generation etc.) overflow the column otherwise
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
+	scroll.position = Vector2(1328, 372)
+	scroll.size = Vector2(354, 556)
+	add_child(scroll)
+	var body_box := VBoxContainer.new()
+	body_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	body_box.add_theme_constant_override("separation", 0)
+	scroll.add_child(body_box)
+	_detail_labels.append(scroll)
+	var desc := _rich(Vector2.ZERO, 16)
+	body_box.add_child(desc)
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	desc.size = Vector2(354, 60)
+	desc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	desc.fit_content = true
 	desc.add_theme_color_override("default_color", C_PALE)
-	desc.text = QudText.to_bbcode(str(m.get("desc", "")), _palette)
-	var this_rank := _rich(Vector2(1328, 435), 16)
-	add_child(this_rank)
+	desc.text = QudText.to_bbcode(str(m.get("desc", "")), _palette) + "\n"
+	var this_rank := _rich(Vector2.ZERO, 16)
+	body_box.add_child(this_rank)
 	this_rank.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	this_rank.size = Vector2(354, 240)
+	this_rank.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	this_rank.fit_content = true
 	this_rank.add_theme_color_override("default_color", C_PALE)
 	var g := "#" + C_GREEN.to_html(false)
@@ -261,7 +295,7 @@ func _select_mut(idx: int) -> void:
 	if m.has("nextText"):
 		body += "\n\n[color=%s]Next rank:[/color]\n%s" % [g, QudText.to_bbcode(str(m.get("nextText", "")), _palette)]
 	this_rank.text = body
-	for l in [title, mtype, rank, desc, this_rank]:
+	for l in [title, mtype, rank]:
 		_detail_labels.append(l)
 
 func _center_label(txt: String, cx: float, y: float, col: Color, size_px: int) -> Label:

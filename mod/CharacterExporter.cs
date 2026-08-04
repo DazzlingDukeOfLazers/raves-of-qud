@@ -50,6 +50,17 @@ namespace RavesOfQud
             return Stat(p, name).ToString();
         }
 
+        private static int BaseStat(GameObject p, string name)
+        {
+            try
+            {
+                var st = p.Statistics != null && p.Statistics.ContainsKey(name) ? p.Statistics[name] : null;
+                if (st != null) return st.BaseValue;
+            }
+            catch { }
+            return 0;
+        }
+
         private static string Help(GameObject p, string name)
         {
             try
@@ -112,6 +123,17 @@ namespace RavesOfQud
              .Member("CR", Help(p, "ColdResistance")).Member("HR", Help(p, "HeatResistance"));
             j.EndObject();
 
+            // base values for the buff/debuff value colouring (green > base, red < base)
+            j.Name("bases").BeginObject();
+            j.Member("STR", BaseStat(p, "Strength")).Member("AGI", BaseStat(p, "Agility"))
+             .Member("TOU", BaseStat(p, "Toughness")).Member("INT", BaseStat(p, "Intelligence"))
+             .Member("WIL", BaseStat(p, "Willpower")).Member("EGO", BaseStat(p, "Ego"))
+             .Member("QN", BaseStat(p, "Speed")).Member("MS", BaseStat(p, "MoveSpeed"))
+             .Member("AV", Stat(p, "AV")).Member("DV", Stat(p, "DV")).Member("MA", Stat(p, "MA"))
+             .Member("AR", BaseStat(p, "AcidResistance")).Member("ER", BaseStat(p, "ElectricResistance"))
+             .Member("CR", BaseStat(p, "ColdResistance")).Member("HR", BaseStat(p, "HeatResistance"));
+            j.EndObject();
+
             j.Name("mutations").BeginArray();
             try
             {
@@ -128,6 +150,7 @@ namespace RavesOfQud
                         try { j.Member("uiLevel", m.GetUIDisplayLevel()); } catch { }
                         try { j.Member("maxLevel", m.GetMaxLevel()); } catch { }
                         try { j.Member("defect", m.IsDefect()); } catch { }
+                        try { j.Member("showLevel", m.ShouldShowLevel()); } catch { }   // Qud's own (n)-suffix rule
                         try { j.Member("type", m.GetMutationType() ?? ""); } catch { }
                         try { j.Member("desc", m.GetDescription() ?? ""); } catch { }
                         try { j.Member("levelText", m.GetLevelText(m.Level) ?? ""); } catch { }
