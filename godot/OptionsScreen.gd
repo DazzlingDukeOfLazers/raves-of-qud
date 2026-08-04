@@ -1179,17 +1179,27 @@ func _qud_option_1to1(opt: Dictionary) -> Control:
 			wrap.add_child(l)
 			var vmin := float(opt.get("min", 0))
 			var vmax := maxf(1.0, float(opt.get("max", 100)))
-			var val := float(str(opt.get("value", "0")).to_float())
-			var fracv := clampf((val - vmin) / (vmax - vmin), 0.0, 1.0)
+			var inc := maxf(1.0, float(opt.get("increment", 0)))
+			var oid := str(opt.get("id", ""))
+			# FUNCTIONAL: click/drag sets the value and writes back to Qud over the
+			# bridge (setoption; defer=1 during the drag, a final full apply+re-export
+			# on release). st is a Dictionary so the lambdas share mutable state.
+			var st := {"val": float(str(opt.get("value", "0")).to_float()), "drag": false, "sent": ""}
 			var tr := Control.new()
 			tr.position = Vector2(53, 26)
 			tr.size = Vector2(671, 22)
-			tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			tr.mouse_filter = Control.MOUSE_FILTER_STOP
+			var v := Label.new()
+			v.text = str(int(st.val))
+			v.add_theme_color_override("font_color", O_GOLD)   # Qud renders slider values gold
+			v.add_theme_font_size_override("font_size", 16)
+			v.position = Vector2(716, 16)
 			tr.draw.connect(func():
 				# Qud's track AND thumb are the 7x7 border WEAVE in the console
-				# palette — a 4px weave ribbon with a 20x20 weave block thumb
+				# palette — a 4px weave ribbon with a 20x20 weave block thumb;
+				# endcaps are 4px-wide columns at the thumb's height
 				var wt := _slider_weave_tile()
-				# endcaps are 4px-wide, 25px-tall WEAVE columns (same pattern, vertical)
+				var fracv := clampf((float(st.val) - vmin) / (vmax - vmin), 0.0, 1.0)
 				if wt != null:
 					tr.draw_texture_rect(wt, Rect2(0, 7, 4, 20), true)
 					tr.draw_texture_rect(wt, Rect2(2, 15, 653, 4), true)
@@ -1203,12 +1213,25 @@ func _qud_option_1to1(opt: Dictionary) -> Control:
 					tr.draw_texture_rect(wt, Rect2(tx, 7, 20, 20), true)
 				else:
 					tr.draw_rect(Rect2(tx, 7, 20, 20), O_CYAN))
+			var apply := func(mx: float, final: bool):
+				var fr := clampf((mx - 2.0) / 651.0, 0.0, 1.0)
+				var nv := clampf(roundf((vmin + fr * (vmax - vmin)) / inc) * inc, vmin, vmax)
+				if nv != float(st.val) or final:
+					st.val = nv
+					v.text = str(int(nv))
+					tr.queue_redraw()
+					var sval := str(int(nv))
+					if oid != "" and (final or sval != str(st.sent)):
+						st.sent = sval
+						_send_bridge({"type": "command", "name": "setoption",
+							"id": oid, "value": sval, "defer": "0" if final else "1"})
+			tr.gui_input.connect(func(e):
+				if e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_LEFT:
+					st.drag = e.pressed
+					apply.call(e.position.x, not e.pressed)
+				elif e is InputEventMouseMotion and st.drag:
+					apply.call(e.position.x, false))
 			wrap.add_child(tr)
-			var v := Label.new()
-			v.text = str(opt.get("value", ""))
-			v.add_theme_color_override("font_color", O_GOLD)   # Qud renders slider values gold
-			v.add_theme_font_size_override("font_size", 16)
-			v.position = Vector2(716, 16)
 			wrap.add_child(v)
 		"Checkbox":
 			wrap.custom_minimum_size = Vector2(0, 20)

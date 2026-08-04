@@ -497,6 +497,31 @@ namespace RavesOfQud
                         zgm.uiQueue.queueTask(() => { if (zout) zgm.ZoomOut(); else zgm.ZoomIn(); });
                     return;
                 }
+                if (name == "setoption")
+                {
+                    // SetOption touches UI/audio state — run it on the uiQueue, which drains
+                    // at the MENU too. (The turn-thread drain also has a setoption case, but
+                    // that only runs in-game — menu edits from Raves' Options queued forever.)
+                    f.TryGetValue("id", out string soid);
+                    f.TryGetValue("value", out string soval);
+                    f.TryGetValue("defer", out string sodefer);
+                    if (!string.IsNullOrEmpty(soid))
+                    {
+                        var sgm = GameManager.Instance;
+                        if (sgm != null && sgm.uiQueue != null)
+                            sgm.uiQueue.queueTask(() =>
+                            {
+                                try
+                                {
+                                    XRL.UI.Options.SetOption(soid, soval ?? "");
+                                    if (sodefer != "1") OptionsExporter.ReExport();
+                                    Server.Log("[setoption] " + soid + " = " + soval);
+                                }
+                                catch (Exception ex) { Server.Log("setoption error: " + ex.Message); }
+                            });
+                    }
+                    return;
+                }
                 if (name == "uiback")
                 {
                     // First-party "press Escape" for Qud's MODERN menu screens (Records/
