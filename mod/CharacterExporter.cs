@@ -107,6 +107,19 @@ namespace RavesOfQud
             try { geno = p.GetGenotype() ?? ""; } catch { }
             try { sub = p.GetStringProperty("Subtype") ?? ""; } catch { }
             j.Member("title", (geno + " " + sub).Trim());
+            // the portrait tile, self-contained (no snapshot dependency): path + detail
+            // colour code; TileExporter queues the art if it isn't on disk yet
+            try
+            {
+                var r = p.GetPart<XRL.World.Parts.Render>();
+                if (r != null)
+                {
+                    string tile = r.Tile ?? "";
+                    if (tile.Length > 0) TileExporter.Ensure(tile);
+                    j.Member("tile", tile).Member("detail", r.DetailColor ?? "");
+                }
+            }
+            catch { }
             j.Member("level", Stat(p, "Level"));
             try { j.Member("hp", p.hitpoints).Member("hpMax", p.baseHitpoints); } catch { }
             j.Member("xp", Stat(p, "XP"));

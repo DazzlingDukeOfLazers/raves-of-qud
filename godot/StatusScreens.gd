@@ -70,6 +70,8 @@ var _seeded := false
 var _attr_pane: Control = null
 var _char_mtime := 0
 var _pane_pal_empty := true
+var _portrait_tex: Texture2D = null   # live player tile — also the attributes tab's icon
+var _portrait_tex_flipped: Texture2D = null   # pre-flipped for the bar (negative-rect draws misplace)
 var _peer := StreamPeerTCP.new()
 var _tiles: RefCounted = null
 var _last_player := {}
@@ -230,10 +232,20 @@ func _draw_bar() -> void:
 		var cx0: int = CELL_X[i]
 		var cw: int = CELL_X[i + 1] - cx0
 		var icon: Texture2D = _icons.get("%s_%s" % [t["id"], "on" if active else "off"])
+		var live: bool = (t["id"] == "attributes" and _portrait_tex_flipped != null)
 		var tw := f.get_string_size(t["name"], HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
-		var iw := (icon.get_width() + 10.0) if icon != null else 0.0
+		var iw := 0.0
+		if live:
+			iw = 24.0 + 10.0
+		elif icon != null:
+			iw = icon.get_width() + 10.0
 		var x := cx0 + (cw - (iw + tw)) * 0.5
-		if icon != null:
+		if live:
+			# Qud's Attributes tab icon IS the character sprite, same 24x36 as the
+			# sheet portrait, facing left (texture pre-flipped)
+			_bar.draw_texture_rect(_portrait_tex_flipped, Rect2(x, 10, 24, 36), false,
+				Color.WHITE if active else Color(0.5, 0.62, 0.66))
+		elif icon != null:
 			_bar.draw_texture(icon, Vector2(x, (BAR_H - icon.get_height()) * 0.5 + 1))
 		_bar.draw_string(f, Vector2(x + iw, 36), t["name"],
 			HORIZONTAL_ALIGNMENT_LEFT, -1, 16, S_ACTIVE if active else S_INACTIVE)
@@ -315,7 +327,10 @@ func _load_character() -> void:
 	var mt := FileAccess.get_modified_time(path)
 	# rebuild despite an unchanged file if the pane was built before the palette
 	# arrived (an early open rendered every colour code white)
-	if _attr_pane != null and mt == _char_mtime and not (_pane_pal_empty and not _palette.is_empty()):
+	var pane_missing_portrait: bool = _attr_pane != null and _attr_pane.has_method("has_portrait") \
+		and not _attr_pane.has_portrait() and not _last_player.is_empty()
+	if _attr_pane != null and mt == _char_mtime \
+			and not (_pane_pal_empty and not _palette.is_empty()) and not pane_missing_portrait:
 		return
 	var f := FileAccess.open(path, FileAccess.READ)
 	if f == null:
@@ -331,12 +346,23 @@ func _load_character() -> void:
 		_attr_pane = load("res://StatusPaneAttributes.gd").new()
 		_root.add_child(_attr_pane)
 	# the player portrait: white tile + detail colour, like the frame's avatar
+	# portrait straight from character.json (tile + detail code) — snapshots proved
+	# an unreliable source (they only flow on turns/connect; a menu-opened pane raced)
 	var tex: Texture2D = null
-	if not _last_player.is_empty() and _tiles_dir != "":
-		_tiles.tiles_dir = _tiles_dir
-		_tiles.palette = _palette if not _palette.is_empty() else _tiles.palette
-		tex = _tiles.texture(String(_last_player.get("tile", "")), Color.WHITE,
-			_tiles.detail_color(_last_player))
+	var tile := String(data.get("tile", ""))
+	if tile != "":
+		_tiles.tiles_dir = InputModel.support_dir().path_join("tiles")
+		if not _palette.is_empty():
+			_tiles.palette = _palette
+		tex = _tiles.texture(tile, Color.WHITE, _tiles.color_of(String(data.get("detail", "")), Color.WHITE))
+	_portrait_tex = tex
+	_portrait_tex_flipped = null
+	if tex != null:
+		var fi := tex.get_image()
+		fi.flip_x()
+		_portrait_tex_flipped = ImageTexture.create_from_image(fi)
+	if _bar != null:
+		_bar.queue_redraw()   # the attributes tab icon IS the live portrait
 	_pane_pal_empty = _palette.is_empty()
 	_attr_pane.setup(data, _palette, tex)
 	_attr_pane.visible = (_tab == "attributes")
