@@ -239,12 +239,23 @@ def shots_for(bp, cat="single"):
 
 
 def score_pair(r, pair):
-    """Attach the stage-cell congruence verdict (congruence.py) to a result."""
+    """Attach the stage-cell congruence verdict (congruence.py) to a result.
+    A capture copy can race the writer and land truncated (killed the 908-
+    creature run at 786) — retry once, then skip scoring with a warn rather
+    than crash the sweep."""
     if "qud" not in pair or "raves" not in pair:
         r.setdefault("warns", []).append("no capture pair — congruence skipped")
         return r
     geom = congruence.load_geometry()
-    r["congruence"] = congruence.score(pair["qud"], pair["raves"], geom, r.get("wire_hex"))
+    for attempt in range(2):
+        try:
+            r["congruence"] = congruence.score(pair["qud"], pair["raves"], geom, r.get("wire_hex"))
+            return r
+        except Exception as e:
+            if attempt == 0:
+                time.sleep(0.5)
+                continue
+            r.setdefault("warns", []).append("congruence skipped: %s" % e)
     return r
 
 
@@ -414,6 +425,8 @@ def main(argv):
             print("[%d/%d] %-40s %s%s" % (start + i + 1, start + len(names), bp,
                                           "PASS" if r["pass"] else "FAIL " + "; ".join(r["reasons"]),
                                           "  px:%s mean=%s" % (px["band"], px["mean_abs_diff"]) if px else ""))
+            if (i + 1) % 50 == 0:
+                write_report(cat, results)   # crash insurance: merge-flush every 50
         b.close()
         print("report:", write_report(cat, results))
     else:
