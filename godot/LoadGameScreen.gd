@@ -16,6 +16,7 @@ extends Control
 ## Opened by MainMenu's Continue in 1:1 mode only; `closed` fires on Back.
 
 signal closed
+signal load_requested(id: String)   # the chosen save's Primary.json ID — MainMenu drives the load
 
 # palette — measured off the Qud capture, pre-compensated via QudChrome (the 2D canvas
 # darkens mid-tones ~x0.885; see QudChrome.gd)
@@ -312,7 +313,12 @@ func _entry(sv: Dictionary, idx: int) -> Control:
 	cell.size = Vector2(CELL_W, ROW_H)
 	cell.mouse_filter = Control.MOUSE_FILTER_STOP
 	cell.mouse_entered.connect(func(): _select(idx))
-	cell.gui_input.connect(func(e): if e is InputEventMouseButton and e.pressed: _select(idx))
+	# hover already selected the row, so a left-click = activate (Qud's picker rule)
+	cell.gui_input.connect(func(e):
+		if e is InputEventMouseButton and e.pressed:
+			_select(idx)
+			if e.button_index == MOUSE_BUTTON_LEFT:
+				_activate(idx))
 
 	# persistent selection dither — the measured 7x7 weave, anchored to SCREEN phase
 	# (Qud's dither is screen-continuous; the mods hover tile is a different colourway)
@@ -482,6 +488,13 @@ func _select(idx: int) -> void:
 	_sel = idx
 	_apply_selection()
 
+## Chosen (click / Space): hand the save ID up — MainMenu sends the bridge command
+## and enters the viewer once the game goes live.
+func _activate(idx: int) -> void:
+	if idx < 0 or idx >= _saves.size():
+		return
+	load_requested.emit(str(_saves[idx]["id"]))
+
 func _apply_selection() -> void:
 	for i in range(_rows.size()):
 		_style(_rows[i], i == _sel)
@@ -490,6 +503,8 @@ func _unhandled_input(e: InputEvent) -> void:
 	if e.is_action_pressed("ui_cancel"):
 		closed.emit()
 		accept_event()
+	elif e.is_action_pressed("ui_accept"):
+		_activate(_sel); accept_event()
 	elif e.is_action_pressed("ui_down"):
 		_select(mini(_sel + 1, _rows.size() - 1)); accept_event()
 	elif e.is_action_pressed("ui_up"):

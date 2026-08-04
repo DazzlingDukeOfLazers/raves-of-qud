@@ -522,6 +522,15 @@ namespace RavesOfQud
                     }
                     return;
                 }
+                if (name == "loadsave")
+                {
+                    // Raves' 1:1 picker chose a save: load it by ID via Qud's own
+                    // picker flow (see LoadSave.cs — completes the completionSource
+                    // exactly like a row click; opens the picker first if needed).
+                    f.TryGetValue("id", out string lsid);
+                    if (!string.IsNullOrEmpty(lsid)) LoadSave.Request(lsid);
+                    return;
+                }
                 if (name == "uiback")
                 {
                     // First-party "press Escape" for Qud's MODERN menu screens (Records/

@@ -84,6 +84,8 @@ namespace RavesOfQud
                             + ",\"ts\":" + DateTimeOffset.UtcNow.ToUnixTimeSeconds() + "}");
                     }
                     catch { /* transient IO — retry next tick */ }
+                    try { LoadSave.Pump(); }   // re-arm a pending picker load (~1/s)
+                    catch { }
                     System.Threading.Thread.Sleep(1000);
                 }
             })

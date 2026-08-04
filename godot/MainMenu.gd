@@ -1062,6 +1062,8 @@ func _open_overlay(script_path: String) -> void:
 	add_child(_overlay)
 	if _overlay.has_signal("closed"):
 		_overlay.closed.connect(_close_overlay)
+	if _overlay.has_signal("load_requested"):
+		_overlay.load_requested.connect(_on_load_requested)
 	# highvisor state report: overlay scene = the screen's file name (ModsScreen -> mods …)
 	UiState.set_scene(script_path.get_file().get_basename().replace("Screen", "").to_lower())
 
@@ -1281,11 +1283,25 @@ func _set_qud_up(up: bool) -> void:
 		_meta_wait = 0.0
 	_refresh_enabled()
 
+# A picker load is in flight: the mod is loading the chosen save in Qud; the moment
+# the heartbeat flips to live, enter the viewer (the same attach as user-mode Continue).
+var _pending_load := false
+
+## LoadGameScreen chose a save: ask the mod to load it (LoadSave.cs completes Qud's
+## own picker completionSource), close the picker, and wait for the game to go live.
+func _on_load_requested(id: String) -> void:
+	_send_command({"type": "command", "name": "loadsave", "id": id})
+	_pending_load = true
+	_close_overlay()
+
 func _set_game_live(live: bool) -> void:
 	if live == _game_live:
 		return
 	_game_live = live
 	_refresh_enabled()
+	if live and _pending_load:
+		_pending_load = false
+		_enter_viewer()
 
 # ── UI helpers ──────────────────────────────────────────────────────────────────
 
