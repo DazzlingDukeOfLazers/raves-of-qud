@@ -129,6 +129,9 @@ func toggle() -> void:
 	if _panel != null:
 		_panel.visible = not _panel.visible
 
+func is_open() -> bool:
+	return _panel != null and _panel.visible
+
 func close() -> void:
 	if _panel != null:
 		_panel.visible = false

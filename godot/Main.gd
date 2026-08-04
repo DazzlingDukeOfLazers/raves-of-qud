@@ -1023,12 +1023,23 @@ func _unhandled_input(event: InputEvent) -> void:
 		if _cam_rig._mode != CamMode.KEYBOARD and event.keycode == KEY_D:
 			client.send_command("command", {"command": "CmdMoveD"}); return
 		if event.keycode == KEY_ESCAPE:
-			# close the camera/debug menu and any selection, but KEEP the current camera
+			# close the camera/debug menu and any selection, but KEEP the current camera.
+			# With nothing to dismiss, 1:1 Esc = Qud's own binding (CmdSystemMenu,
+			# Commands.xml): the system-menu POPUP opens in Qud and mirrors back into
+			# Raves through the popup bridge — picking Save and Quit / Options there
+			# round-trips like any popup.
+			# NB .visible on the debug menu is useless — the NODE stays visible, only
+			# its internal panel toggles (is_open() reads that). Same trap generally.
+			var had_ui: bool = (inspector != null and inspector.selected_tile() != null) \
+				or (_dbg_menu != null and _dbg_menu.is_open()) \
+				or (_char_creator != null and _char_creator.visible)
 			_dismiss_selection()
 			if _dbg_menu != null:
 				_dbg_menu.close()
 			if _char_creator != null:
 				_char_creator.visible = false
+			if not had_ui and _one_to_one:
+				client.send_command("command", {"command": "CmdSystemMenu"})
 			return
 		if event.keycode == KEY_I:
 			_inspect(); return
