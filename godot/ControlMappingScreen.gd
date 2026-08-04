@@ -79,6 +79,8 @@ var _sel_row := 0                # index into the VISIBLE row list
 var _sel_col := 0
 var _rows: Array = []            # layout: {y,h,display,binds} rows only (headers drawn separately)
 var _blocks: Array = []          # layout: headers + section extents for separators
+var _rail_rects: Array = []      # per-category hover hit areas (built in _draw_static)
+var _rail_active := 0            # category the list last jumped to — its marker draws gold
 var _peer := StreamPeerTCP.new()
 var _font_bold: Font = null
 
@@ -184,6 +186,22 @@ func _root_input(e: InputEvent) -> void:
 			_scroll_by(-ROW_H * 2)
 		elif e.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			_scroll_by(ROW_H * 2)
+	elif e is InputEventMouseMotion:
+		for i in _rail_rects.size():
+			if _rail_rects[i].has_point(e.position):
+				if i != _rail_active:
+					_rail_active = i
+					_jump_to_cat(i)
+					_static.queue_redraw()
+				return
+
+## Scroll the list so category `ci`'s section header sits at the top of the view.
+func _jump_to_cat(ci: int) -> void:
+	for b in _blocks:
+		if int(b["cat"]) == ci:
+			_scroll = clampf(b["y"] - 8.0, 0.0, maxf(0.0, _content_h - LIST_H))
+			_content.queue_redraw()
+			return
 
 func _move_sel(dir: int) -> void:
 	if _rows.is_empty():
@@ -264,14 +282,15 @@ func _relayout() -> void:
 	_blocks = []
 	var fnt := _root.get_theme_font("font", "Label")
 	var y := 8.0
-	for cat in _cats:
+	for ci in _cats.size():
+		var cat: Dictionary = _cats[ci]
 		var shown: Array = []
 		for c in cat["commands"]:
 			if _filter == "" or str(c["display"]).to_lower().find(_filter) >= 0:
 				shown.append(c)
 		if shown.is_empty():
 			continue
-		_blocks.append({"y": y, "title": "[-] " + str(cat["name"]).to_upper()})
+		_blocks.append({"y": y, "cat": ci, "title": "[-] " + str(cat["name"]).to_upper()})
 		y += HEADER_H
 		var first_row_y := y
 		for c in shown:
@@ -337,15 +356,20 @@ func _draw_static() -> void:
 	_static.draw_string(fnt, Vector2(333 + lw, 121), "Keyboard & Mouse",
 		HORIZONTAL_ALIGNMENT_LEFT, -1, 16, C_BIND)
 
-	# category rail: right-aligned at x279, wrap at 130, small marker beside each item
+	# category rail: right-aligned at x279, wrap at 130, small marker beside each item.
+	# Hovering an item jumps the list to that category (its marker goes gold) — the
+	# hit rects are rebuilt here so they always match what was actually drawn.
+	_rail_rects.clear()
 	var ry := 173.0
-	for cat in _cats:
-		var lines := _wrap(fnt, str(cat["name"]), 130.0, 16)
+	for ci in _cats.size():
+		var lines := _wrap(fnt, str(_cats[ci]["name"]), 130.0, 16)
 		for i in lines.size():
 			var w := fnt.get_string_size(lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
 			_static.draw_string(fnt, Vector2(279 - w, ry + i * 21), lines[i],
 				HORIZONTAL_ALIGNMENT_LEFT, -1, 16, C_RAIL)
-		_static.draw_rect(Rect2(285, ry - 8, 3, 3), C_SEP)
+		_static.draw_rect(Rect2(285, ry - 8, 3, 3),
+			C_TITLE if ci == _rail_active else C_SEP)
+		_rail_rects.append(Rect2(149, ry - 14, 146, lines.size() * 21 + 6))
 		ry += lines.size() * 21 + 9
 
 	# dotted rail divider

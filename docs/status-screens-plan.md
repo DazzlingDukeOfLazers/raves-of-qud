@@ -61,7 +61,9 @@ tab): system-menu popup pick mirrors into Raves (`popup_option` by text), data f
 CP437 arrows mapped client-side), read-only v1 at **5.56 mean-diff** measured WITH the
 faithfully-mirrored ghost legacy-console frame Qud leaves behind the modern list.
 **Deliberate deviation** (Daniel): the ghost is HIDDEN by default (`SHOW_GHOST=false`) — it makes
-the real content hard to read; flip it on to re-measure full parity. Esc closes both sides (`uiback`
+the real content hard to read; flip it on to re-measure full parity. Also Raves-added UX (Daniel):
+hovering a rail category jumps the list to that section and its marker square goes gold (clamped
+at the list end, so the last sections can't reach the very top). Esc closes both sides (`uiback`
 `KeybindsScreen.Exit()` special-case; completes on next Qud focus when unfocused). Rebinding = later
 interactivity pass. Residual diff lives in the hint row (ability-bar z-order differs) + title glyphs.
 
