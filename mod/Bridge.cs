@@ -639,7 +639,24 @@ namespace RavesOfQud
                                             // dirty — at an idle title screen that's NEVER. Kick it, or
                                             // _ActiveGameView (our scene report) stays stale forever.
                                             ConsoleLib.Console.TextConsole.BufferUpdated = true;
-                                            System.Console.WriteLine("[raves] uiback: " + wnd.GetType().Name + ".OnCancel()");
+                                            // UNFOCUSED Qud: async void Exit() completes its await chain
+                                            // (completionSource -> KeybindsMenu resume -> Hide -> the
+                                            // system-menu handler) through Unity's SynchronizationContext,
+                                            // which macOS stops draining for a backgrounded window even
+                                            // with runInBackground=true (turns + uiQueue keep running —
+                                            // only these continuations stall, leaving the screen up and
+                                            // TURNS BLOCKED until the next focus). We're ON the main
+                                            // thread here: pump the context's private Exec() a few times
+                                            // so the whole close chain resolves right now.
+                                            try
+                                            {
+                                                var sc = System.Threading.SynchronizationContext.Current;
+                                                var exec = sc?.GetType().GetMethod("Exec",
+                                                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                                                for (int pi = 0; pi < 8 && exec != null; pi++) exec.Invoke(sc, null);
+                                            }
+                                            catch (Exception pex) { System.Console.WriteLine("[raves] uiback pump: " + pex.Message); }
+                                            System.Console.WriteLine("[raves] uiback: " + wnd.GetType().Name + " cancel/exit invoked");
                                             return;
                                         }
                                     }

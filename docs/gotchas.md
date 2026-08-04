@@ -113,6 +113,19 @@ add a one-liner (symptom → rule).
 - **`KeybindsScreen` needs the `uiback` Exit() special-case** (inherited `OnCancel` is a no-op, same as
   `StatusScreensScreen`), and its `async void Exit()` only COMPLETES while Qud's main loop runs — an
   unfocused Qud stays on the screen until next activation (the heartbeat scene flips then, not before).
+  Worse: while it (or any modal screen) is up, TURNS ARE BLOCKED — "my remapped key does nothing" was
+  Qud parked on Keybinds. The uiback handler now pumps Unity's SynchronizationContext (private `Exec()`,
+  reflection) after invoking Exit so the close chain resolves unfocused; macOS stops draining those
+  continuations for a backgrounded window even with `runInBackground=true` (turns + uiQueue keep running).
+- **A Control Mapping remap only works in Raves via `QudBinds.gd`** — Raves' in-game keys are hardcoded;
+  the custom-bind fallback (end of Main's key chain) routes unclaimed combos to Qud's command executor.
+  Movement keys the `match` just handled MUST bail before the fallback or they double-send. Bare digits
+  in Qud's display strings are ambiguous (numpad7 renders "7") — match both keycodes.
+- **`hv restart raves` relaunches via the `raves_solo` launcher = `--one-to-one` LOCKED** (highvisor
+  apps.py profile) — every restarted instance is 1:1 regardless of settings. User-mode testing needs the
+  `raves_user` launcher (no flag, in ~/.config/highvisor/launch.json). The lock used to leak into
+  settings.json via `_on_one_to_one_changed` persisting it (making unflagged launches come up 1:1 too) —
+  now guarded; `UiState` reports the EFFECTIVE mode (`Settings.one_to_one()`), not the stored value.
 
 ---
 

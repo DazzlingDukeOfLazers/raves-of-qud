@@ -220,7 +220,10 @@ func _unhandled_input(e: InputEvent) -> void:
 #    confirm/conflict popups mirror back through the popup bridge) ─────────────
 
 func _start_capture() -> void:
-	if _rows.is_empty():
+	if _rows.is_empty() or _sel_row >= _rows.size():
+		return
+	if _rows[_sel_row].has("action"):
+		_send_edit({"action": str(_rows[_sel_row]["action"])})   # RAVES action row
 		return
 	_capture = true
 	_content.queue_redraw()
@@ -259,6 +262,9 @@ func _capture_key(e: InputEventKey) -> void:
 func _send_edit(fields: Dictionary) -> void:
 	if _rows.is_empty() or _sel_row >= _rows.size():
 		return
+	# an action row has no cell to set/remove — only its own action (or defaults) applies
+	if _rows[_sel_row].has("action") and str(fields.get("action", "")) in ["set", "remove"]:
+		return
 	var msg := {"type": "command", "name": "rebind",
 		"id": str(_rows[_sel_row]["id"]), "slot": str(_sel_col)}
 	msg.merge(fields)
@@ -295,6 +301,14 @@ func _click_select(pos: Vector2) -> void:
 	for ri in _rows.size():
 		var r: Dictionary = _rows[ri]
 		if cy >= r["y"] and cy < r["y"] + r["h"]:
+			if r.has("action"):
+				# action rows have no cells — a second click on the selected row RUNS it
+				if ri == _sel_row:
+					_start_capture()
+				else:
+					_sel_row = ri
+				_content.queue_redraw()
+				return
 			var col := int(floor((pos.x - CELL_X0) / CELL_PITCH))
 			if pos.x >= CELL_X0 and col >= 0 and col <= 3 \
 					and pos.x - (CELL_X0 + col * CELL_PITCH) <= CELL_W:
@@ -441,6 +455,18 @@ func _relayout() -> void:
 		_blocks[_blocks.size() - 1]["rows_y0"] = first_row_y
 		_blocks[_blocks.size() - 1]["rows_y1"] = y
 		y += SECTION_GAP
+	# USER MODE ONLY (hidden in 1:1 — no Qud counterpart): a Raves category with
+	# the golden-restore action (the mod snapshots the original map before the
+	# first Raves-side edit; this puts it back wholesale).
+	if not Settings.one_to_one() and not _cats.is_empty() and _filter == "":
+		_blocks.append({"y": y, "cat": _cats.size(), "title": "[-] RAVES", "plain": true})
+		y += HEADER_H
+		_blocks[_blocks.size() - 1]["rows_y0"] = y
+		_rows.append({"y": y, "h": ROW_H, "id": "", "action": "golden",
+			"lines": ["Restore golden control mapping"], "binds": ["", "", "", ""]})
+		y += ROW_H
+		_blocks[_blocks.size() - 1]["rows_y1"] = y
+		y += SECTION_GAP
 	_content_h = y
 	_content.size = Vector2(LIST_W, maxf(LIST_H, _content_h))
 	_scroll = clampf(_scroll, 0.0, maxf(0.0, _content_h - LIST_H))
@@ -511,6 +537,14 @@ func _draw_static() -> void:
 			C_TITLE if ci == _rail_active else C_SEP)
 		_rail_rects.append(Rect2(149, ry - 14, 146, lines.size() * 21 + 6))
 		ry += lines.size() * 21 + 9
+	# the user-mode-only RAVES section's rail entry (see _relayout)
+	if not Settings.one_to_one() and not _cats.is_empty():
+		var rw := fnt.get_string_size("Raves", HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
+		_static.draw_string(fnt, Vector2(279 - rw, ry), "Raves",
+			HORIZONTAL_ALIGNMENT_LEFT, -1, 16, C_RAIL)
+		_static.draw_rect(Rect2(285, ry - 8, 3, 3),
+			C_TITLE if _rail_active == _cats.size() else C_SEP)
+		_rail_rects.append(Rect2(149, ry - 14, 146, 27))
 
 	# dotted rail divider
 	var dy := 150.0
@@ -529,7 +563,7 @@ func _draw_content() -> void:
 		# ║ column separators span the section's rows
 		var s0: float = clampf(b["rows_y0"] + off, 0.0, LIST_H)
 		var s1: float = clampf(b["rows_y1"] + off, 0.0, LIST_H)
-		if s1 > s0:
+		if s1 > s0 and not b.get("plain", false):
 			for i in range(1, 4):
 				var sx := CELL_X0 + CELL_PITCH * i - 11.0 - LIST_X
 				_content.draw_rect(Rect2(sx, s0, 1, s1 - s0), C_SEP)
@@ -543,6 +577,14 @@ func _draw_content() -> void:
 		for i in lines.size():
 			_content.draw_string(fnt, Vector2(NAME_X - LIST_X, ry + 16 + i * 21), lines[i],
 				HORIZONTAL_ALIGNMENT_LEFT, -1, 16, C_NAME)
+		if r.has("action"):
+			# action row (RAVES section): no bind cells — selection frames the name,
+			# Space / a second click runs it
+			if ri == _sel_row:
+				var nw := fnt.get_string_size(str(lines[0]), HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
+				_content.draw_rect(Rect2(NAME_X - LIST_X - 6, ry, nw + 12, 23),
+					C_TITLE if _capture else C_SEL, false, 1.0)
+			continue
 		var mid: float = ry + r["h"] * 0.5 - 2.0
 		for col in 4:
 			var cx := CELL_X0 + CELL_PITCH * col - LIST_X

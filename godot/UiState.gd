@@ -41,7 +41,9 @@ func _path() -> String:
 	return OS.get_environment("HOME").path_join("Library/Application Support/RavesOfQud/raves_state.json")
 
 func _write() -> void:
-	var d := {"scene": _scene, "mode": str(Settings.get_value("mode", "user")),
+	# EFFECTIVE mode — a --one-to-one LOCKED run behaves 1to1 regardless of the
+	# stored setting (which the lock no longer overwrites); report what's true
+	var d := {"scene": _scene, "mode": "1to1" if Settings.one_to_one() else "user",
 		"ts": int(Time.get_unix_time_from_system())}
 	if _popup != "":
 		d["popup"] = _popup

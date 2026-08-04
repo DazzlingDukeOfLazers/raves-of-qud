@@ -915,8 +915,11 @@ func _report_overflow() -> void:
 func _on_one_to_one_changed(on: bool) -> void:
 	_set_panels_one_to_one(on)
 	_apply_layout_mode(on)
-	Settings.set_value("mode", "1to1" if on else "user")
-	Settings.save()
+	# a --one-to-one LOCKED run isn't a user choice — persisting it made every later
+	# UNFLAGGED launch come up 1:1 too (the lock leaked into settings.json)
+	if not Settings.one_to_one_only:
+		Settings.set_value("mode", "1to1" if on else "user")
+		Settings.save()
 
 func _set_panels_one_to_one(on: bool) -> void:
 	for p in _panels:
@@ -1212,10 +1215,11 @@ func _connect_holodeck() -> void:
 	_holo.connect("snapshot", _apply_stats)     # feeds status bar + panels off the same stream
 	_holo.connect("one_to_one_changed", _on_one_to_one_changed)  # camera flips → sync panels + persist
 	# a system-menu pick of "Control Mapping" mirrors into Raves' own screen (Qud
-	# opens its KeybindsScreen from the same answer); 1:1-only like the status tabs
+	# opens its KeybindsScreen from the same answer). BOTH modes — user mode gets
+	# the extra RAVES section (golden restore) that 1:1 hides.
 	# stripped option text keeps its hotkey prefix ("[c] Control Mapping") — match the tail
 	_holo.connect("popup_option", func(text: String):
-		if _controlmap != null and Settings.one_to_one() \
+		if _controlmap != null \
 				and text.strip_edges().to_lower().ends_with("control mapping"):
 			_controlmap.open())
 	# while a frame overlay is open, Main's Esc must not ALSO pop Qud's system menu

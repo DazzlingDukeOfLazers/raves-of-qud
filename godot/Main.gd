@@ -37,6 +37,7 @@ var _wish_layer: CanvasLayer    # Ctrl+Shift+W wish prompt overlay (built lazily
 var _wish_edit: LineEdit
 var _popup: PopupOverlay        # mirrors Qud modal popups forwarded by the mod (own file)
 var overlay_check: Callable = Callable()   # MainFrame: "is a frame overlay (status/controlmap) open?"
+var _binds := QudBinds.new()    # the player's Qud keybindings — custom-remap fallback routing
 var _palette := {}              # latest Qud colour map (code -> hex) from snapshots, for popup markup
 var _char_creator: CharacterCreator
 var renderer: ZoneRenderer
@@ -199,6 +200,8 @@ func _ready() -> void:
 	_picker = load("res://DirectionPicker.gd").new()
 	add_child(_picker)
 	_picker.setup(_cam_rig, client)
+
+	_binds.setup(_support_dir())   # custom-keybind fallback map (reloads on export change)
 
 	# Popup overlay (its own file): mirrors Qud modals (message / yes-no / option list / text prompt)
 	# forwarded by the mod, and ships the viewer's answer back so Qud's blocked turn thread unblocks.
@@ -1103,6 +1106,19 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_KP_9: client.send_command("move", {"dir": "NE"})
 			KEY_KP_1: client.send_command("move", {"dir": "SW"})
 			KEY_KP_3: client.send_command("move", {"dir": "SE"})
+		# LAST fallback: the player's own Qud keybindings (Control Mapping remaps).
+		# Qud stores a remap fine but Raves' hardcoded keys never consulted it, so a
+		# custom bind ("{" = Move east) died at our seam. Raves handlers above keep
+		# precedence (movement keys just moved — bail before double-sending); any
+		# unclaimed combo that matches a binding runs Qud's own command.
+		if event.keycode in [KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_KP_8, KEY_KP_2,
+				KEY_KP_4, KEY_KP_6, KEY_KP_7, KEY_KP_9, KEY_KP_1, KEY_KP_3]:
+			return
+		if not (_popup != null and _popup.visible) \
+				and not (overlay_check.is_valid() and bool(overlay_check.call())):
+			var qcmd: String = _binds.match_event(event)
+			if qcmd != "":
+				client.send_command("command", {"command": qcmd})
 	elif event is InputEventMouseButton:
 		match event.button_index:
 			MOUSE_BUTTON_LEFT:

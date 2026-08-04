@@ -71,8 +71,14 @@ mirrored); [+] = Qud's RestoreDefaults flow. GOLDEN COPY: before the first Raves
 snapshots `bindings.golden.json` + `keymap.golden.json` (support dir; reference committed at
 `reports/2026-08-04-status-screens/bindings.golden.json`); bridge `rebind action=golden` restores it
 via LoadCurrentKeymap — full set→remove→golden-restore loop verified live. Esc closes both sides (`uiback`
-`KeybindsScreen.Exit()` special-case; completes on next Qud focus when unfocused). Residual diff
-lives in the hint row (ability-bar z-order differs) + title glyphs.
+`KeybindsScreen.Exit()` special-case + a SynchronizationContext pump so the async close chain — which
+macOS stops draining for an unfocused window even with runInBackground — resolves without a focus;
+turns verified unblocked with Qud never activated). REMAPS WORK IN RAVES: `QudBinds.gd` parses the
+exported display strings and Main routes any unclaimed key combo matching a binding to Qud's command
+executor (hardcoded Raves keys keep precedence; "{" → Move east verified by player position).
+USER MODE ONLY: a RAVES rail category below Debug with the golden-restore action row (hidden in 1:1;
+the screen now opens from the mirrored menu in both modes). Residual diff lives in the hint row
+(ability-bar z-order differs) + title glyphs.
 
 ## Per-screen workflow (the proven V3 loop)
 
