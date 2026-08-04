@@ -32,27 +32,27 @@ const BAR_H_FRAC := 0.022
 const Q_PANEL := Rect2(90, 48, 1742, 962)     # outer dither-band edge
 const Q_BAND_H := 12                          # top/bottom dither band px
 const Q_BAND_V := 10                          # left/right dither band px
-const Q_LINE := Color8(65, 106, 115)          # inner structural lines
+var Q_LINE := QudChrome.q8(65, 106, 115)      # inner structural lines (gamma-comp)
 const Q_INNER_L := 19                         # inner frame x, panel-relative (real 109)
 const Q_INNER_R := 1719                       # inner frame right (real 1809)
 const Q_TOPLINE_Y := 16                       # inner top 2px line (real 64)
 const Q_HEADLINE_Y := 43                      # ┤ Mods ├ 2px line (real 91)
 const Q_BOTLINE_Y := 935                      # command-bar 1px line (real 983)
 const Q_DIVIDER_X := 1399                     # list/pane divider (real 1489)
-const Q_BG := Color8(6, 37, 37)               # flat panel interior
-const Q_DITHER_BASE := Color8(0x35, 0x55, 0x5C)   # border-band dither
-const Q_DITHER_DOT := Color8(0x1A, 0x28, 0x2A)
-const Q_SEL_BASE := Color8(0x1A, 0x3F, 0x42)      # selection / chip dither
-const Q_SEL_DOT := Color8(0x0F, 0x1F, 0x20)
-const Q_GOLD := Color8(200, 184, 57)          # 'W' — header, authors, keycaps
-const Q_WHITE := Color8(255, 255, 255)        # row titles
-const Q_KEY_BLUE := Color8(0, 159, 255)       # 'B' — ▪ bullets + field keys
-const Q_VALUE := Color8(90, 156, 174)         # field values
-const Q_DESC := Color8(56, 154, 176)          # pane description
-const Q_GREEN := Color8(0, 187, 29)           # ENABLED
-const Q_TAN := Color8(177, 142, 88)           # 'w' — # SCRIPTING
-const Q_LABEL_GREY := Color8(177, 177, 177)   # command-bar labels
-const Q_THUMB_GREEN := Color8(30, 140, 50)    # thumb frame + corner ticks
+var Q_BG := QudChrome.q8(6, 37, 37)           # flat panel interior
+var Q_DITHER_BASE := QudChrome.q8(0x35, 0x55, 0x5C)   # border-band dither
+var Q_DITHER_DOT := QudChrome.q8(0x1A, 0x28, 0x2A)
+var Q_SEL_BASE := QudChrome.q8(0x1A, 0x3F, 0x42)      # selection / chip dither
+var Q_SEL_DOT := QudChrome.q8(0x0F, 0x1F, 0x20)
+var Q_GOLD := QudChrome.q8(200, 184, 57)      # 'W' — header, authors, keycaps
+var Q_WHITE := Color8(255, 255, 255)          # row titles
+var Q_KEY_BLUE := QudChrome.q8(0, 159, 255)   # 'B' — ▪ bullets + field keys
+var Q_VALUE := QudChrome.q8(90, 156, 174)     # field values
+var Q_DESC := QudChrome.q8(56, 154, 176)      # pane description
+var Q_GREEN := QudChrome.q8(0, 187, 29)       # ENABLED
+var Q_TAN := QudChrome.q8(177, 142, 88)       # 'w' — # SCRIPTING
+var Q_LABEL_GREY := QudChrome.q8(177, 177, 177)   # command-bar labels
+var Q_THUMB_GREEN := QudChrome.q8(30, 140, 50)    # thumb frame + corner ticks
 const Q_ROW_PITCH := 112                      # row top -> next row top
 const Q_ROW_H := 113   # full cell (Qud hover rect 113..225); separator rides the boundary
 
@@ -199,7 +199,8 @@ func _chrome(file: String) -> Texture2D:
 	var img := Image.new()
 	if img.load(path) != 0:
 		return null
-	return ImageTexture.create_from_image(img)
+	# extracted Qud pixels must be pre-brightened to survive the canvas transform
+	return ImageTexture.create_from_image(QudChrome.brighten(img))
 
 func _png(path: String) -> Texture2D:
 	if path == "" or not FileAccess.file_exists(path):
@@ -619,7 +620,7 @@ func _mod_row_1to1(mod: Dictionary, idx: int, separator: bool = false) -> Contro
 		# Qud's dotted divider between list items (measured: 2on-3off-3on-3off,
 		# colour (58,89,101), at row_top+101, spanning x 8..width-7)
 		row.draw.connect(func():
-			var col := Color8(58, 89, 101)
+			var col := QudChrome.q8(58, 89, 101)
 			var x := 8.0
 			var xe := row.size.x - 7.0
 			var y := 112.0
@@ -694,7 +695,7 @@ func _mod_row_1to1(mod: Dictionary, idx: int, separator: bool = false) -> Contro
 	var enabled: bool = bool(mod.get("enabled", true))
 	badges.add_child(_chip_1to1_parts([[
 		"ENABLED" if enabled else "DISABLED",
-		Q_GREEN if enabled else Color8(120, 120, 120)]], true, true))
+		Q_GREEN if enabled else QudChrome.q8(120, 120, 120)]], true, true))
 	if bool(mod.get("scripting", false)):
 		badges.add_child(_chip_1to1_parts([["# SCRIPTING", Q_TAN]], true, true))
 	v.add_child(badges)
@@ -758,9 +759,9 @@ func _apply_selection_1to1() -> void:
 		pframe.add_child(fr)   # frame OVER the art, like Qud
 	else:
 		pframe.draw.connect(func():
-			pframe.draw_rect(Rect2(8, 8, 129, 129), Color8(59, 126, 72), false, 1.0)
+			pframe.draw_rect(Rect2(8, 8, 129, 129), QudChrome.q8(59, 126, 72), false, 1.0)
 			for corner in [Vector2(0, 0), Vector2(137, 0), Vector2(0, 137), Vector2(137, 137)]:
-				pframe.draw_rect(Rect2(corner + Vector2(2, 2), Vector2(2, 2)), Color8(59, 126, 72)))
+				pframe.draw_rect(Rect2(corner + Vector2(2, 2), Vector2(2, 2)), QudChrome.q8(59, 126, 72)))
 	wrapper.add_child(pframe)
 	_pane_1to1.add_child(wrapper)
 	_pane_1to1.add_child(_spacer(24))
@@ -886,7 +887,7 @@ func _chip_dither_sb(compact: bool = false) -> StyleBoxTexture:
 				for x in range(img.get_width()):
 					var c := img.get_pixel(x, y)
 					var near_base: bool = absf(c.r - base.r) + absf(c.g - base.g) + absf(c.b - base.b) < 0.15
-					img.set_pixel(x, y, Color8(12, 60, 63) if near_base else Color8(6, 29, 31))
+					img.set_pixel(x, y, QudChrome.q8(12, 60, 63) if near_base else QudChrome.q8(6, 29, 31))
 			tex = ImageTexture.create_from_image(img)
 	sb.texture = tex if tex != null else _dither_tex(Color8(12, 60, 63), Color8(6, 29, 31), 13)
 	sb.axis_stretch_horizontal = StyleBoxTexture.AXIS_STRETCH_MODE_TILE
@@ -963,7 +964,7 @@ func _glyph_line() -> Control:
 	var line := Control.new()
 	line.custom_minimum_size = Vector2(0, 12)
 	var gi := TextureRect.new()
-	gi.texture = _glyph_tex(Color8(139, 145, 61))
+	gi.texture = _glyph_tex(QudChrome.q8(139, 145, 61))
 	gi.position = Vector2(130, 0)
 	line.add_child(gi)
 	return line

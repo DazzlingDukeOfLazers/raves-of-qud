@@ -1124,7 +1124,12 @@ func _section_header_1to1(name: String, selected: bool) -> Control:
 	wrap.custom_minimum_size = Vector2(0, 24)
 	if selected:
 		var hl := TextureRect.new()
-		var htex: Texture2D = _chrome_opt("modsHoverTile.png")
+		var htex: Texture2D = null
+		var hpath := InputModel.support_dir().path_join("title").path_join("chrome").path_join("modsHoverTile.png")
+		if FileAccess.file_exists(hpath):
+			var himg := Image.new()
+			if himg.load(hpath) == 0:
+				htex = ImageTexture.create_from_image(QudChrome.brighten(himg))
 		if htex != null:
 			hl.texture = htex
 			hl.stretch_mode = TextureRect.STRETCH_TILE
@@ -1186,13 +1191,13 @@ func _qud_option_1to1(opt: Dictionary) -> Control:
 				var wt := _slider_weave_tile()
 				# endcaps are 4px-wide, 25px-tall WEAVE columns (same pattern, vertical)
 				if wt != null:
-					tr.draw_texture_rect(wt, Rect2(0, 5, 4, 25), true)
+					tr.draw_texture_rect(wt, Rect2(0, 7, 4, 20), true)
 					tr.draw_texture_rect(wt, Rect2(2, 15, 653, 4), true)
-					tr.draw_texture_rect(wt, Rect2(653, 5, 4, 25), true)
+					tr.draw_texture_rect(wt, Rect2(653, 7, 4, 20), true)
 				else:
-					tr.draw_rect(Rect2(0, 5, 4, 25), O_LINE)
+					tr.draw_rect(Rect2(0, 7, 4, 20), O_LINE)
 					tr.draw_rect(Rect2(2, 16, 653, 2), O_LINE)
-					tr.draw_rect(Rect2(653, 5, 4, 25), O_LINE)
+					tr.draw_rect(Rect2(653, 7, 4, 20), O_LINE)
 				var tx := 2.0 + (653.0 - 20.0) * fracv
 				if wt != null:
 					tr.draw_texture_rect(wt, Rect2(tx, 7, 20, 20), true)

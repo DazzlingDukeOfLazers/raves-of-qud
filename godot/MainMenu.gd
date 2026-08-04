@@ -32,19 +32,19 @@ const BG := Color8(0x0C, 0x1A, 0x16)              # dark teal — clear-colour f
 const PANEL := Color(0.059, 0.082, 0.082, 0.90)   # #0F1515 box interior, semi-transparent
 const FRAME := Color8(0xB6, 0xA1, 0x63)           # gilded frame border (tan-gold)
 const HEADER_BG := Color(0.10, 0.13, 0.08, 0.92)  # header strip behind the (future) glyphs
-const SEL := Color8(0xF6, 0xF6, 0xF6)             # selected option — near-white
-const MUTED := Color8(0x5C, 0x66, 0x63)          # unselected / disabled / secondary — grey-green
-const HINT := Color8(0x8F, 0xA6, 0x9E)           # hotkey hint text
-const GOLD := Color8(0xC8, 0xA9, 0x4E)           # keycap accents in the hint
+var SEL := QudChrome.q8(0xF6, 0xF6, 0xF6)         # selected option — near-white (gamma-comp)
+var MUTED := QudChrome.q8(0x5C, 0x66, 0x63)      # unselected / disabled / secondary — grey-green
+var HINT := QudChrome.q8(0x8F, 0xA6, 0x9E)       # hotkey hint text
+var GOLD := QudChrome.q8(0xC8, 0xA9, 0x4E)       # keycap accents in the hint
 
 # Quit-confirm prompt (1:1). Qud's is a COMPACT panel over the box top, not a big modal —
 # measured off a 1920x1080 capture: near-black teal fill, thin muted-teal border, a muted
 # green question, and "> Yes  No" with a gold caret on the selection.
-const Q_DLG_FILL := Color(0.024, 0.145, 0.145, 1.0)   # ~ rgb(6,37,37), opaque (fully hides the menu under it)
-const Q_DLG_BORDER := Color8(0x46, 0x64, 0x60)        # thin muted-teal frame line
-const Q_DLG_TEXT := Color8(0x6E, 0x8A, 0x86)          # question text ~ rgb(110,138,134)
-const Q_DLG_LINE := Color8(0x40, 0x6A, 0x73)          # button-row rule + framing ticks ~ rgb(64,106,115)
-const Q_DLG_CELL := Color8(0x11, 0x2D, 0x2E)          # faint Yes/No cell fill ~ rgb(17,45,46)
+var Q_DLG_FILL := QudChrome.q8(6, 37, 37)             # opaque dialog fill (gamma-comp)
+var Q_DLG_BORDER := QudChrome.q8(0x46, 0x64, 0x60)    # thin muted-teal frame line
+var Q_DLG_TEXT := QudChrome.q8(0x6E, 0x8A, 0x86)      # question text ~ rgb(110,138,134)
+var Q_DLG_LINE := QudChrome.q8(0x40, 0x6A, 0x73)      # button-row rule + framing ticks
+var Q_DLG_CELL := QudChrome.q8(0x11, 0x2D, 0x2E)      # faint Yes/No cell fill
 
 ## The box is built from Qud's OWN extracted frame sprites (title/chrome/, via the mod)
 ## composed as Qud composes them (Frame/Border): a tiled dark panel, gold woven side +
@@ -300,6 +300,9 @@ func _load_title_png(file: String) -> Texture2D:
 	var img := Image.new()
 	if img.load(path) != 0:   # 0 == OK
 		return null
+	# NB: unlike the console-screen TILES, the title ART + chrome sprites render
+	# FAITHFULLY through the canvas (measured — brightening them overshot ×1.13);
+	# only flat draws and text colours need QudChrome compensation.
 	return ImageTexture.create_from_image(img)
 
 # ── the centred option box ───────────────────────────────────────────────────────

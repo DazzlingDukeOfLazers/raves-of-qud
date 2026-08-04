@@ -187,6 +187,7 @@ func _load_records() -> Array:
 	return scores
 
 func _chrome(file: String) -> Texture2D:
+	# NB 1:1 callers get gamma-brightened pixels via _chrome_1to1 below.
 	var path := InputModel.support_dir().path_join("title").path_join("chrome").path_join(file)
 	if not FileAccess.file_exists(path):
 		return null
@@ -660,7 +661,12 @@ func _entry_1to1(rec: Dictionary, idx: int, separator: bool) -> Control:
 	# persistent selection dither (Qud family tile), > cursor, delete — toggled in _style
 	var hl := TextureRect.new()
 	hl.name = "hl"
-	var htex: Texture2D = _chrome("modsHoverTile.png")
+	var htex: Texture2D = null
+	var hpath := InputModel.support_dir().path_join("title").path_join("chrome").path_join("modsHoverTile.png")
+	if FileAccess.file_exists(hpath):
+		var himg := Image.new()
+		if himg.load(hpath) == 0:
+			htex = ImageTexture.create_from_image(QudChrome.brighten(himg))
 	if htex != null:
 		hl.texture = htex
 		hl.stretch_mode = TextureRect.STRETCH_TILE
