@@ -404,9 +404,23 @@ func _build_chrome_frame(box: Control) -> bool:
 		var rb := _edge(bot, TextureRect.STRETCH_TILE, 0.5, 1.0 - BOT_H_FRAC, 1.0, 1.0)
 		rb.flip_h = true
 		box.add_child(rb)
-	# the gilded hieroglyph header last, on top (its ends carry the top corners). It OVERHANGS the
-	# box body left+right (an eave), like Qud's wider borderTop.
-	box.add_child(_edge(top, TextureRect.STRETCH_SCALE, -HEADER_OVERHANG, 0.0, 1.0 + HEADER_OVERHANG, HEADER_H_FRAC))
+	# the gilded hieroglyph header last, on top (its ends carry the top corners). Drawn at
+	# EXACTLY native size, centred — any scaling (even ~1%) plus NEAREST filtering drops
+	# pixel columns periodically and breaks the checker band's rhythm (Qud's is uniform).
+	var hdr := TextureRect.new()
+	hdr.texture = top
+	hdr.stretch_mode = TextureRect.STRETCH_KEEP
+	hdr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	hdr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hdr.anchor_left = 0.5
+	hdr.anchor_right = 0.5
+	hdr.anchor_top = 0.0
+	hdr.anchor_bottom = 0.0
+	hdr.offset_left = -top.get_width() / 2.0
+	hdr.offset_right = top.get_width() / 2.0
+	hdr.offset_top = 0.0
+	hdr.offset_bottom = top.get_height()
+	box.add_child(hdr)
 	return true
 
 ## A TextureRect anchored to a fractional sub-rect of its parent (the box), mouse-transparent.
