@@ -257,8 +257,7 @@ def calibrate():
     by design. Writes fixtures/checker_geometry.json + crop previews to eyeball."""
     b = control.Bridge()
     caps = {}
-    for tag, bp, must_pass in (("a", "Wax Block", True), ("b", "Black Marble", True),
-                               ("c", "__calib_empty__", False)):
+    for tag, bp, must_pass in (("a", "Wax Block", True), ("c", "__calib_empty__", False)):
         r = check_one(b, bp)
         if must_pass and not r["pass"]:
             b.close()
@@ -269,18 +268,17 @@ def calibrate():
             sys.exit("calibrate: capture failed (is the Raves viewer open?)")
         caps[tag] = pair
     b.close()
-    # Qud: wall-vs-WALL — both walls occlude identically, so the diff is the
-    # sprite alone (wall-vs-empty also flips the LOS shadow east of the cell
-    # and the cluster grew to ~3 cells wide). Raves: wall-vs-EMPTY — its two
-    # wall sprites share most of their pattern under the zone tint, so the
-    # wall-vs-wall diff caught only the differing band.
+    # Wall-vs-EMPTY for both apps: the diff is the whole sprite = the cell.
+    # (At the sweep zoom — `checker.py zoom` first — Qud's cluster comes back
+    # a perfect 16:24 cell with no LOS-shadow contamination; wall-vs-wall
+    # instead caught only the two sprites' differing band.)
     #
     # Search fracs are PER APP, measured on the pinned PC layout against the
     # apps' SELF-captures (client-area px): Qud's sidebar starts ≈60% of its
     # 2301-wide render (its Nearby-objects icon is a pixel-perfect copy of the
     # staged sprite — it won twice before the clip excluded it); Raves' 1:1
     # panels start ≈48.6% of 3232. Re-measure if either layout changes.
-    qrect = congruence.diff_cluster(caps["a"]["qud"], caps["b"]["qud"], search_frac=0.58)
+    qrect = congruence.diff_cluster(caps["a"]["qud"], caps["c"]["qud"], search_frac=0.58)
     rrect = congruence.diff_cluster(caps["a"]["raves"], caps["c"]["raves"], search_frac=0.48)
     path = congruence.save_geometry(qrect, rrect)
     outdir = os.path.join(REPORTS, "shots", "calib")
@@ -293,8 +291,22 @@ def calibrate():
 
 
 def write_report(cat, results):
+    """Write <cat>.md + .json, MERGING with the existing json by blueprint —
+    so --start/--limit slices aggregate into one report instead of clobbering
+    it (chunked long sweeps; resumed runs)."""
     os.makedirs(REPORTS, exist_ok=True)
-    with open(os.path.join(REPORTS, cat + ".json"), "w") as f:
+    jpath = os.path.join(REPORTS, cat + ".json")
+    merged = {}
+    if os.path.exists(jpath):
+        try:
+            for r in json.load(open(jpath)):
+                merged[r["bp"]] = r
+        except ValueError:
+            pass
+    for r in results:
+        merged[r["bp"]] = r
+    results = list(merged.values())
+    with open(jpath, "w") as f:
         json.dump(results, f, indent=1)
 
     passed = sum(1 for r in results if r["pass"])
@@ -330,6 +342,25 @@ def main(argv):
         cat = refresh_catalog()
         for k in cat:
             print("%-10s %d" % (k, len(cat[k])))
+    elif cmd == "zoom":
+        # Deterministic stage zoom for the pixel pass: clamp to max-in, back off
+        # 2 quarter-steps. Qud must be FOCUSED — its uiQueue (which ZoomIn/Out
+        # marshal through) never drains unfocused on Windows, the same root as
+        # the frozen-map-buffer capture fix. Rerun `calibrate` after this.
+        if plat.IS_WIN:
+            plat.activate("CavesOfQud")
+            time.sleep(0.8)
+        b = control.Bridge()
+        for _ in range(14):
+            b.send("zoom", dir="in")
+            time.sleep(0.35)
+        for _ in range(2):
+            b.send("zoom", dir="out")
+            time.sleep(0.35)
+        b.send("wait")
+        b.read_snapshot(timeout=15)
+        b.close()
+        print("zoom: clamped to max-in minus 2 (rerun `checker.py calibrate` now)")
     elif cmd == "calibrate":
         calibrate()
     elif cmd == "one":
