@@ -43,8 +43,19 @@ The Mac just landed the missing primitive: the mod's **`loadsave`** bridge comma
 2. **Create the PC's checker anchor save**: embark once, park in a cleared zone,
    save+quit, `saves.py golden checker` (per-platform binary, committed index only —
    the Workstream C convention).
-3. Rig boot becomes `hv restart qud` → `hv loadsave checker` → sweep: no chargen, no
-   famished drift, same zone every run.
+3. Rig boot becomes restore → load → sweep: no chargen, no famished drift, same zone
+   every run. **Verified on the PC 2026-08-04** (golden `checker`, char `Tygashwuraq`):
+
+   ```bash
+   python tools/capture/saves.py restore checker   # Qud must be down
+   hv loadsave Tygashwuraq                          # restarts to title if needed, exact-ID load
+   # then over the bridge: popup cancel ×N (load popup), wish godmode (resets per boot)
+   python tools/capture/checker.py sweep <cat>
+   ```
+
+   Gotcha (cost a debugging loop): `loadsave` needs the MERGED mod deployed —
+   an old deployed mod ignores the command silently. `Player.log` shows
+   `[loadsave] …` lines when the right build is running.
 
 ## Rung 3 — pixel congruence: the missing half of A (tiles & NPC sprites)
 

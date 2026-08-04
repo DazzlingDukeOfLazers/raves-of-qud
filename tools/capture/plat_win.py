@@ -306,6 +306,13 @@ def support_dir():
     return os.path.join(os.path.expanduser("~"), "Library", "Application Support", "RavesOfQud")
 
 
+def qud_data_dir():
+    """QUD'S OWN data dir (saves under Synced/Saves, mods, options) — not ours.
+    Unity persistentDataPath on Windows: AppData/LocalLow/<company>/<product>."""
+    return os.path.join(os.path.expanduser("~"), "AppData", "LocalLow",
+                        "Freehold Games", "CavesOfQud")
+
+
 # --- process / launch -----------------------------------------------------------
 def list_pids(match=QUD_PROC_MATCH):
     r = subprocess.run(["tasklist", "/FO", "CSV", "/NH"], capture_output=True, text=True)

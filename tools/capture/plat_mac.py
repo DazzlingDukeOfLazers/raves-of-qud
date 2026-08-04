@@ -310,6 +310,12 @@ def support_dir():
     return os.path.join(os.path.expanduser("~"), "Library", "Application Support", "RavesOfQud")
 
 
+def qud_data_dir():
+    """QUD'S OWN data dir (saves under Synced/Saves, mods, options) — not ours."""
+    return os.path.join(os.path.expanduser("~"), "Library", "Application Support",
+                        "com.FreeholdGames.CavesOfQud")
+
+
 # --- process / launch (macOS) ---------------------------------------------------
 def list_pids(match=QUD_PROC_MATCH):
     r = subprocess.run(["pgrep", "-f", match], capture_output=True, text=True)
