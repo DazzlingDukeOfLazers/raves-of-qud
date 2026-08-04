@@ -63,9 +63,16 @@ faithfully-mirrored ghost legacy-console frame Qud leaves behind the modern list
 **Deliberate deviation** (Daniel): the ghost is HIDDEN by default (`SHOW_GHOST=false`) — it makes
 the real content hard to read; flip it on to re-measure full parity. Also Raves-added UX (Daniel):
 hovering a rail category jumps the list to that section and its marker square goes gold (clamped
-at the list end, so the last sections can't reach the very top). Esc closes both sides (`uiback`
-`KeybindsScreen.Exit()` special-case; completes on next Qud focus when unfocused). Rebinding = later
-interactivity pass. Residual diff lives in the hint row (ability-bar z-order differs) + title glyphs.
+at the list end, so the last sections can't reach the very top). INTERACTIVE (2026-08-04):
+click/arrow to a cell, Space (or click again) captures the next key combo → `KeybindApplier.cs`
+applies it through Qud's own `ReplaceCommandBindingIndex`/`InitializeInputManager`/`SaveCurrentKeymap`
+(conflict + confirm popups mirror back through the popup bridge); Delete clears (Qud confirm
+mirrored); [+] = Qud's RestoreDefaults flow. GOLDEN COPY: before the first Raves-side edit the mod
+snapshots `bindings.golden.json` + `keymap.golden.json` (support dir; reference committed at
+`reports/2026-08-04-status-screens/bindings.golden.json`); bridge `rebind action=golden` restores it
+via LoadCurrentKeymap — full set→remove→golden-restore loop verified live. Esc closes both sides (`uiback`
+`KeybindsScreen.Exit()` special-case; completes on next Qud focus when unfocused). Residual diff
+lives in the hint row (ability-bar z-order differs) + title glyphs.
 
 ## Per-screen workflow (the proven V3 loop)
 

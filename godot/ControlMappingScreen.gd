@@ -24,6 +24,21 @@ signal closed
 # Qud's bind strings carry CP437 arrows — map to the real glyphs client-side
 const ARROWS := {24: "↑", 25: "↓", 26: "→", 27: "←"}
 
+# Godot keycode → Unity InputSystem <Keyboard>/ control name, for rebinding. The mod
+# validates with InputSystem.FindControl and pops a visible error on a bad name.
+const UNITY_KEYS := {
+	KEY_SPACE: "space", KEY_ENTER: "enter", KEY_TAB: "tab", KEY_BACKSPACE: "backspace",
+	KEY_DELETE: "delete", KEY_INSERT: "insert", KEY_HOME: "home", KEY_END: "end",
+	KEY_PAGEUP: "pageUp", KEY_PAGEDOWN: "pageDown",
+	KEY_UP: "upArrow", KEY_DOWN: "downArrow", KEY_LEFT: "leftArrow", KEY_RIGHT: "rightArrow",
+	KEY_QUOTELEFT: "backquote", KEY_APOSTROPHE: "quote", KEY_SEMICOLON: "semicolon",
+	KEY_COMMA: "comma", KEY_PERIOD: "period", KEY_SLASH: "slash", KEY_BACKSLASH: "backslash",
+	KEY_BRACKETLEFT: "leftBracket", KEY_BRACKETRIGHT: "rightBracket",
+	KEY_MINUS: "minus", KEY_EQUAL: "equals",
+	KEY_KP_ADD: "numpadPlus", KEY_KP_SUBTRACT: "numpadMinus", KEY_KP_MULTIPLY: "numpadMultiply",
+	KEY_KP_DIVIDE: "numpadDivide", KEY_KP_PERIOD: "numpadPeriod", KEY_KP_ENTER: "numpadEnter",
+}
+
 # Measured colours. NOT q8: capture-fitting THIS screen (solid border/bg/text pairs,
 # round 2) gave `captured ≈ drawn - 6` above the dark knee — q8's ×1.13 overshoots
 # every pale here. Local compensation: +6 per channel above 20, identity below.
@@ -81,7 +96,10 @@ var _rows: Array = []            # layout: {y,h,display,binds} rows only (header
 var _blocks: Array = []          # layout: headers + section extents for separators
 var _rail_rects: Array = []      # per-category hover hit areas (built in _draw_static)
 var _rail_active := 0            # category the list last jumped to — its marker draws gold
+var _capture := false            # true while the selected cell waits for the new key
 var _peer := StreamPeerTCP.new()
+var _out_queue: Array = []       # edits waiting for the bridge socket to reconnect
+var _flush_tries := 0
 var _font_bold: Font = null
 
 func _init() -> void:
@@ -162,6 +180,13 @@ func close(sync_qud := true) -> void:
 func _unhandled_input(e: InputEvent) -> void:
 	if not visible:
 		return
+	# CAPTURE MODE: the selected cell owns the next keypress (Esc cancels; bare
+	# modifiers wait for the real key — same feel as Qud's own capture)
+	if _capture:
+		if e is InputEventKey and e.pressed and not e.echo:
+			_capture_key(e)
+			get_viewport().set_input_as_handled()
+		return
 	if e.is_action_pressed("ui_cancel"):
 		close()
 		get_viewport().set_input_as_handled()
@@ -175,10 +200,75 @@ func _unhandled_input(e: InputEvent) -> void:
 			KEY_RIGHT, KEY_KP_6: _sel_col = mini(3, _sel_col + 1)
 			KEY_PAGEUP:          _scroll_by(-LIST_H * 0.9)
 			KEY_PAGEDOWN:        _scroll_by(LIST_H * 0.9)
+			KEY_SPACE, KEY_ENTER, KEY_KP_ENTER:
+				_start_capture()
+			KEY_DELETE, KEY_BACKSPACE:
+				_send_edit({"action": "remove"})
+			KEY_KP_ADD, KEY_PLUS:
+				_send_edit({"action": "defaults"})
+			KEY_EQUAL:
+				if e.shift_pressed:              # "+" on a US layout
+					_send_edit({"action": "defaults"})
+				else:
+					used = false
 			_:                   used = false
 		if used:
 			_content.queue_redraw()
 			get_viewport().set_input_as_handled()
+
+# ── rebinding (mod KeybindApplier applies via Qud's own CommandBindingManager;
+#    confirm/conflict popups mirror back through the popup bridge) ─────────────
+
+func _start_capture() -> void:
+	if _rows.is_empty():
+		return
+	_capture = true
+	_content.queue_redraw()
+
+func _capture_key(e: InputEventKey) -> void:
+	var kc := e.keycode
+	if kc == KEY_ESCAPE:
+		_capture = false
+		_content.queue_redraw()
+		return
+	if kc in [KEY_SHIFT, KEY_CTRL, KEY_ALT, KEY_META, KEY_CAPSLOCK]:
+		return   # modifier alone — keep waiting for the real key
+	var uname := ""
+	if kc >= KEY_A and kc <= KEY_Z:
+		uname = char(kc).to_lower()
+	elif kc >= KEY_0 and kc <= KEY_9:
+		uname = char(kc)
+	elif kc >= KEY_KP_0 and kc <= KEY_KP_9:
+		uname = "numpad%d" % (kc - KEY_KP_0)
+	elif kc >= KEY_F1 and kc <= KEY_F12:
+		uname = "f%d" % (kc - KEY_F1 + 1)
+	elif UNITY_KEYS.has(kc):
+		uname = UNITY_KEYS[kc]
+	if uname == "":
+		_capture = false   # unmappable key — drop out visibly rather than mis-bind
+		_content.queue_redraw()
+		return
+	_capture = false
+	_send_edit({"action": "set", "key": uname,
+		"ctrl": "1" if e.ctrl_pressed else "0",
+		"shift": "1" if e.shift_pressed else "0",
+		"alt": "1" if e.alt_pressed else "0"})
+	_content.queue_redraw()
+
+## Send a rebind edit for the SELECTED cell and poll for the refreshed export.
+func _send_edit(fields: Dictionary) -> void:
+	if _rows.is_empty() or _sel_row >= _rows.size():
+		return
+	var msg := {"type": "command", "name": "rebind",
+		"id": str(_rows[_sel_row]["id"]), "slot": str(_sel_col)}
+	msg.merge(fields)
+	_send_bridge(msg)
+	# the apply is async in Qud (may raise a mirrored confirm popup first) — poll
+	# the export a few times so the new value shows up whenever it lands
+	for delay in [0.8, 1.8, 3.5, 6.0]:
+		get_tree().create_timer(delay).timeout.connect(func():
+			if visible:
+				_load_bindings())
 
 func _root_input(e: InputEvent) -> void:
 	if e is InputEventMouseButton and e.pressed:
@@ -186,6 +276,8 @@ func _root_input(e: InputEvent) -> void:
 			_scroll_by(-ROW_H * 2)
 		elif e.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			_scroll_by(ROW_H * 2)
+		elif e.button_index == MOUSE_BUTTON_LEFT and not _capture:
+			_click_select(e.position)
 	elif e is InputEventMouseMotion:
 		for i in _rail_rects.size():
 			if _rail_rects[i].has_point(e.position):
@@ -194,6 +286,27 @@ func _root_input(e: InputEvent) -> void:
 					_jump_to_cat(i)
 					_static.queue_redraw()
 				return
+
+## Click a bind cell to select it; a second click on the selected cell starts capture.
+func _click_select(pos: Vector2) -> void:
+	if pos.x < LIST_X or pos.x > LIST_X + LIST_W or pos.y < LIST_Y or pos.y > LIST_Y + LIST_H:
+		return
+	var cy := pos.y - LIST_Y + _scroll
+	for ri in _rows.size():
+		var r: Dictionary = _rows[ri]
+		if cy >= r["y"] and cy < r["y"] + r["h"]:
+			var col := int(floor((pos.x - CELL_X0) / CELL_PITCH))
+			if pos.x >= CELL_X0 and col >= 0 and col <= 3 \
+					and pos.x - (CELL_X0 + col * CELL_PITCH) <= CELL_W:
+				if ri == _sel_row and col == _sel_col:
+					_start_capture()
+				else:
+					_sel_row = ri
+					_sel_col = col
+			else:
+				_sel_row = ri   # clicking the name selects the row, keeps the column
+			_content.queue_redraw()
+			return
 
 ## Scroll the list so category `ci`'s section header sits at the top of the view.
 func _jump_to_cat(ci: int) -> void:
@@ -221,11 +334,37 @@ func _scroll_by(dy: float) -> void:
 
 # ── data ───────────────────────────────────────────────────────────────────────
 
+## Send over our own bridge peer; a dead socket (Qud restarted) queues the message
+## and flushes once reconnected — an edit must never be silently dropped.
 func _send_bridge(msg: Dictionary) -> void:
 	_peer.poll()
 	if _peer.get_status() != StreamPeerTCP.STATUS_CONNECTED:
+		_out_queue.append(msg)
+		_peer.disconnect_from_host()
 		_peer.connect_to_host(BridgeClient.host(), BridgeClient.port())
+		_flush_tries = 0
+		get_tree().create_timer(0.5).timeout.connect(_flush_queue)
 		return
+	_put_frame(msg)
+
+func _flush_queue() -> void:
+	if _out_queue.is_empty():
+		return
+	_peer.poll()
+	if _peer.get_status() == StreamPeerTCP.STATUS_CONNECTED:
+		for m in _out_queue:
+			_put_frame(m)
+		_out_queue.clear()
+		return
+	_flush_tries += 1
+	if _flush_tries < 10:
+		_peer.disconnect_from_host()
+		_peer.connect_to_host(BridgeClient.host(), BridgeClient.port())
+		get_tree().create_timer(0.5).timeout.connect(_flush_queue)
+	else:
+		_out_queue.clear()   # Qud is gone — dropping beats replaying stale edits later
+
+func _put_frame(msg: Dictionary) -> void:
 	var payload := JSON.stringify(msg).to_utf8_buffer()
 	var frame := PackedByteArray()
 	var n := payload.size()
@@ -261,6 +400,7 @@ func _load_bindings() -> void:
 		var cmds: Array = []
 		for c in cat.get("commands", []):
 			cmds.append({
+				"id": str(c.get("id", "")),
 				"display": str(c.get("display", "")),
 				"binds": [_map_arrows(str(c.get("b1", ""))), _map_arrows(str(c.get("b2", ""))),
 					_map_arrows(str(c.get("b3", ""))), _map_arrows(str(c.get("b4", "")))],
@@ -296,7 +436,7 @@ func _relayout() -> void:
 		for c in shown:
 			var lines := _wrap(fnt, str(c["display"]), NAME_W, 16)
 			var h := ROW_H * maxf(1.0, lines.size())
-			_rows.append({"y": y, "h": h, "lines": lines, "binds": c["binds"]})
+			_rows.append({"y": y, "h": h, "id": c["id"], "lines": lines, "binds": c["binds"]})
 			y += h
 		_blocks[_blocks.size() - 1]["rows_y0"] = first_row_y
 		_blocks[_blocks.size() - 1]["rows_y1"] = y
@@ -408,17 +548,21 @@ func _draw_content() -> void:
 			var cx := CELL_X0 + CELL_PITCH * col - LIST_X
 			var t: String = r["binds"][col]
 			var bound := t != ""
+			var col_color := C_BIND if bound else C_NONE
 			if not bound:
 				t = "None"
+			if _capture and ri == _sel_row and col == _sel_col:
+				t = "press key"
+				col_color = C_TITLE
 			var size := 16
 			if fnt.get_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x > CELL_W - 4:
 				size = 11
 			var tw := fnt.get_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
 			_content.draw_string(fnt, Vector2(cx + (CELL_W - tw) * 0.5, mid + size * 0.36), t,
-				HORIZONTAL_ALIGNMENT_LEFT, -1, size, C_BIND if bound else C_NONE)
+				HORIZONTAL_ALIGNMENT_LEFT, -1, size, col_color)
 			if ri == _sel_row and col == _sel_col:
 				var fr := Rect2(cx + 1, ry, CELL_W, 23)
-				_content.draw_rect(fr, C_SEL, false, 1.0)
+				_content.draw_rect(fr, C_TITLE if _capture else C_SEL, false, 1.0)
 
 # ── bottom hints ───────────────────────────────────────────────────────────────
 

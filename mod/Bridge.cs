@@ -563,6 +563,29 @@ namespace RavesOfQud
                     if (!string.IsNullOrEmpty(lsid)) LoadSave.Request(lsid);
                     return;
                 }
+                if (name == "rebind")
+                {
+                    // Raves' Control Mapping edits (KeybindApplier mirrors Qud's own
+                    // KeybindsScreen flows; confirm/conflict popups mirror back to
+                    // Raves through the popup bridge). action: set|remove|defaults|golden.
+                    f.TryGetValue("action", out string rbAct);
+                    f.TryGetValue("id", out string rbId);
+                    f.TryGetValue("slot", out string rbSlotS);
+                    int.TryParse(rbSlotS, out int rbSlot);
+                    f.TryGetValue("key", out string rbKey);
+                    f.TryGetValue("ctrl", out string rbC);
+                    f.TryGetValue("shift", out string rbS);
+                    f.TryGetValue("alt", out string rbA);
+                    switch (rbAct)
+                    {
+                        case "remove":   _ = KeybindApplier.Remove(rbId, rbSlot); break;
+                        case "defaults": _ = KeybindApplier.Defaults(); break;
+                        case "golden":   _ = KeybindApplier.RestoreGolden(); break;
+                        default:         _ = KeybindApplier.Apply(rbId, rbSlot, rbKey,
+                                             rbC == "1", rbS == "1", rbA == "1"); break;
+                    }
+                    return;
+                }
                 if (name == "uiback")
                 {
                     // First-party "press Escape" for Qud's MODERN menu screens (Records/
