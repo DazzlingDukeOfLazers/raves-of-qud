@@ -127,6 +127,9 @@ void fragment() {
 	_bar.position = Vector2(0, BAR_Y)
 	_bar.size = Vector2(1920, BAR_H)
 	_bar.mouse_filter = Control.MOUSE_FILTER_STOP
+	# NEAREST for everything the bar draws — the live tab icon scales 1.5x, and the
+	# default LINEAR filter smears it soft/dim next to the crisp NEAREST portrait
+	_bar.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_bar.draw.connect(_draw_bar)
 	_bar.gui_input.connect(_bar_input)
 	_root.add_child(_bar)
