@@ -522,6 +522,36 @@ namespace RavesOfQud
                     }
                     return;
                 }
+                if (name == "deletesave")
+                {
+                    // Raves' picker confirmed a delete: remove it via Qud's own
+                    // SaveGameInfo.Delete() (DataManager.DeleteSaveDirectory — the
+                    // exact cleanup a picker-row delete performs). Confirm UX is
+                    // Raves-side; this command is the already-confirmed action.
+                    f.TryGetValue("id", out string dsid);
+                    if (!string.IsNullOrEmpty(dsid))
+                    {
+                        var dgm = GameManager.Instance;
+                        if (dgm != null && dgm.uiQueue != null)
+                            dgm.uiQueue.queueTask(() =>
+                            {
+                                try
+                                {
+                                    var t = Qud.API.SavesAPI.GetSavedGameInfo();
+                                    t.Wait(5000);
+                                    Qud.API.SaveGameInfo hit = null;
+                                    if (t.IsCompleted && t.Result != null)
+                                        foreach (var i in t.Result)
+                                            if (i != null && i.ID == dsid) { hit = i; break; }
+                                    if (hit == null) { Server.Log("[deletesave] no save with ID " + dsid); return; }
+                                    hit.Delete();
+                                    Server.Log("[deletesave] deleted '" + hit.Name + "' (" + dsid + ")");
+                                }
+                                catch (Exception ex) { Server.Log("deletesave error: " + ex.Message); }
+                            });
+                    }
+                    return;
+                }
                 if (name == "loadsave")
                 {
                     // Raves' 1:1 picker chose a save: load it by ID via Qud's own

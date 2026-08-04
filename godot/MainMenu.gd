@@ -1064,6 +1064,9 @@ func _open_overlay(script_path: String) -> void:
 		_overlay.closed.connect(_close_overlay)
 	if _overlay.has_signal("load_requested"):
 		_overlay.load_requested.connect(_on_load_requested)
+	if _overlay.has_signal("delete_requested"):
+		_overlay.delete_requested.connect(func(id):
+			_send_command({"type": "command", "name": "deletesave", "id": str(id)}))
 	# highvisor state report: overlay scene = the screen's file name (ModsScreen -> mods …)
 	UiState.set_scene(script_path.get_file().get_basename().replace("Screen", "").to_lower())
 
@@ -1072,6 +1075,7 @@ func _close_overlay() -> void:
 		_overlay.queue_free()
 		_overlay = null
 	UiState.set_scene("title")
+	_refresh_enabled()   # e.g. Continue greys if the picker deleted the last save
 	# NB selection persists across a screen round-trip in Qud (return from Mods ->
 	# "Mods" still white) — measured; do NOT deselect here.
 

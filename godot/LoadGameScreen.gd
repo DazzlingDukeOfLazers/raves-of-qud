@@ -16,7 +16,8 @@ extends Control
 ## Opened by MainMenu's Continue in 1:1 mode only; `closed` fires on Back.
 
 signal closed
-signal load_requested(id: String)   # the chosen save's Primary.json ID — MainMenu drives the load
+signal load_requested(id: String)     # the chosen save's Primary.json ID — MainMenu drives the load
+signal delete_requested(id: String)   # confirmed delete — MainMenu sends deletesave to the mod
 
 # palette — measured off the Qud capture, pre-compensated via QudChrome (the 2D canvas
 # darkens mid-tones ~x0.885; see QudChrome.gd)
@@ -42,6 +43,16 @@ var _rows: Array = []        # cell Controls, index-aligned with _saves
 var _sel := 0
 var _tiles: RefCounted = null
 
+# delete flow — Qud's HandleDelete mirrored: {{R|Delete X}} confirm → deletesave over
+# the bridge (MainMenu relays) → poll the save dir off disk → "Game Deleted!" → re-list
+var _popup: PopupOverlay = null
+var _popup_seq := 0
+var _popup_mode := ""        # "confirm" | "deleted"
+var _popup_target := {}
+var _palette := {}           # colour-code → hex for QudText markup in the popups
+var _del_dir := ""           # save dir we're waiting to see vanish
+var _del_deadline := 0
+
 func _ready() -> void:
 	name = "LoadGameScreen"
 	set_anchors_preset(Control.PRESET_TOP_LEFT)
@@ -51,6 +62,9 @@ func _ready() -> void:
 	theme = UiFont.make_theme(get_viewport())
 	_tiles = load("res://QudTiles.gd").new()
 	_tiles.tiles_dir = InputModel.support_dir().path_join("tiles")
+	for code in _tiles.COLORS:
+		_palette[code] = "#" + Color(_tiles.COLORS[code]).to_html(false)
+	set_process(false)   # only runs while polling a pending delete
 	_saves = _load_saves()
 	_build()
 
@@ -79,6 +93,7 @@ func _load_saves() -> Array:
 			continue
 		var dirpath := root.path_join(sub)
 		out.append({
+			"dir": dirpath,
 			"name": str(data.get("Name", "?")),
 			"level": int(data.get("Level", 0)),
 			"mode": str(data.get("GameMode", "?")),
@@ -447,6 +462,11 @@ func _entry(sv: Dictionary, idx: int) -> Control:
 	del.add_theme_font_size_override("font_size", 16)
 	del.position = Vector2(110, 91)
 	del.visible = false
+	del.mouse_filter = Control.MOUSE_FILTER_STOP   # clickable (only visible when selected)
+	del.gui_input.connect(func(e):
+		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+			_confirm_delete(idx)
+			del.accept_event())
 	cell.add_child(del)
 
 	_style(cell, false)
@@ -495,6 +515,78 @@ func _activate(idx: int) -> void:
 		return
 	load_requested.emit(str(_saves[idx]["id"]))
 
+# ── delete flow (mirrors Qud's SaveManagement.HandleDelete) ────────────────────
+
+func _ensure_popup() -> void:
+	if _popup != null:
+		return
+	_popup = PopupOverlay.new()
+	add_child(_popup)
+	_popup.answered.connect(_on_popup_answered)
+
+## Qud's exact popup shapes: AcceptCancelButton for the confirm, AcceptButton after.
+func _show_qud_popup(title: String, message: String, cancelable: bool) -> void:
+	_ensure_popup()
+	_popup_seq += 1
+	var btns := [{"text": "{{y|Accept}}", "command": "keep", "hotkey": "Accept"}]
+	if cancelable:
+		btns.append({"text": "{{y|Cancel}}", "command": "Cancel", "hotkey": "Cancel"})
+	_popup.show_popup({"id": _popup_seq, "title": title, "message": message,
+		"buttons": btns}, _palette)
+
+func _confirm_delete(idx: int) -> void:
+	if idx < 0 or idx >= _saves.size() or _del_dir != "":
+		return
+	_select(idx)
+	_popup_mode = "confirm"
+	_popup_target = _saves[idx]
+	var nm := str(_popup_target["name"])
+	_show_qud_popup("{{R|Delete %s}}" % nm,
+		"Are you sure you want to delete the save game for %s?" % nm, true)
+
+func _on_popup_answered(payload: Dictionary) -> void:
+	var mode := _popup_mode
+	_popup_mode = ""
+	if mode == "confirm":
+		if str(payload.get("btn", "")) == "Cancel":
+			return
+		delete_requested.emit(str(_popup_target["id"]))
+		_del_dir = str(_popup_target["dir"])
+		_del_deadline = Time.get_ticks_msec() + 8000
+		set_process(true)   # poll the dir off disk
+	elif mode == "deleted":
+		_reload()
+
+## Poll for the mod's delete landing on disk; then Qud's "Game Deleted!" popup.
+func _process(_dt: float) -> void:
+	if _del_dir == "":
+		set_process(false)
+		return
+	var gone := not FileAccess.file_exists(_del_dir.path_join("Primary.json"))
+	if not gone and Time.get_ticks_msec() < _del_deadline:
+		return
+	_del_dir = ""
+	set_process(false)
+	if gone:
+		_popup_mode = "deleted"
+		_show_qud_popup("", "Game Deleted!", false)
+	else:
+		_reload()   # delete never landed — just resync the list quietly
+
+## Re-read the saves and rebuild the whole screen (it's static and cheap). Qud
+## Exits the picker when the last save is gone — mirror with `closed`.
+func _reload() -> void:
+	_saves = _load_saves()
+	if _saves.is_empty():
+		closed.emit()
+		return
+	_sel = clampi(_sel, 0, _saves.size() - 1)
+	_popup = null   # child — freed with the rest; recreated lazily
+	for c in get_children():
+		c.queue_free()
+	_rows.clear()
+	_build()
+
 func _apply_selection() -> void:
 	for i in range(_rows.size()):
 		_style(_rows[i], i == _sel)
@@ -505,6 +597,9 @@ func _unhandled_input(e: InputEvent) -> void:
 		accept_event()
 	elif e.is_action_pressed("ui_accept"):
 		_activate(_sel); accept_event()
+	elif e is InputEventKey and e.pressed and (e.keycode == KEY_DELETE or e.keycode == KEY_BACKSPACE):
+		# the Mac "delete" key is BACKSPACE; forward-delete is KEY_DELETE — honour both
+		_confirm_delete(_sel); accept_event()
 	elif e.is_action_pressed("ui_down"):
 		_select(mini(_sel + 1, _rows.size() - 1)); accept_event()
 	elif e.is_action_pressed("ui_up"):
