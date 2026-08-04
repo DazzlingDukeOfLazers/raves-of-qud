@@ -575,9 +575,20 @@ func _build_1to1() -> void:
 	var sh := Shader.new()
 	sh.code = """
 shader_type canvas_item;
+uniform sampler2D screen_tex : hint_screen_texture;
 void fragment() {
+	vec4 c = texture(screen_tex, SCREEN_UV);
 	float row = floor(FRAGCOORD.y);
-	COLOR = vec4(0.0, 0.0, 0.0, mod(row, 2.0) >= 1.0 ? 0.5 : 0.0);
+	if (mod(row, 2.0) >= 1.0) {
+		// Qud's scanline is LUMINANCE-WEIGHTED: dark bg halves, bright text is
+		// barely touched (measured: bg x0.50, text x0.92-0.99). A flat 50% cut
+		// shreds glyphs into stripes.
+		float lum = max(c.r, max(c.g, c.b)) * 255.0;
+		float f = mix(0.5, 1.0, smoothstep(30.0, 180.0, lum));
+		COLOR = vec4(c.rgb * f, 1.0);
+	} else {
+		COLOR = vec4(c.rgb, 1.0);
+	}
 }
 """
 	var mat := ShaderMaterial.new()
