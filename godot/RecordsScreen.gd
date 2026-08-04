@@ -67,26 +67,29 @@ func _ready() -> void:
 		_palette[code] = "#" + Color(QUD_COLORS[code]).to_html(false)
 	_records = _load_records()
 
-	var scrim := ColorRect.new()
-	scrim.color = SCRIM
-	scrim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	scrim.mouse_filter = Control.MOUSE_FILTER_STOP   # swallow clicks to the menu behind
-	add_child(scrim)
+	if Settings.one_to_one():
+		_build_1to1()
+	else:
+		var scrim := ColorRect.new()
+		scrim.color = SCRIM
+		scrim.set_anchors_preset(Control.PRESET_FULL_RECT)
+		scrim.mouse_filter = Control.MOUSE_FILTER_STOP   # swallow clicks to the menu behind
+		add_child(scrim)
 
-	var frame := Control.new()          # the window panel, inset from the screen edges
-	frame.anchor_left = 0.035
-	frame.anchor_right = 0.965
-	frame.anchor_top = 0.05
-	frame.anchor_bottom = 0.95
-	for k in ["left", "top", "right", "bottom"]:
-		frame.set("offset_" + k, 0.0)
-	add_child(frame)
-	_build_frame(frame)
-	_build_header(frame)
-	_build_body(frame)
-	_build_footer(frame)
-	_apply_selection()
-	_add_back()
+		var frame := Control.new()          # the window panel, inset from the screen edges
+		frame.anchor_left = 0.035
+		frame.anchor_right = 0.965
+		frame.anchor_top = 0.05
+		frame.anchor_bottom = 0.95
+		for k in ["left", "top", "right", "bottom"]:
+			frame.set("offset_" + k, 0.0)
+		add_child(frame)
+		_build_frame(frame)
+		_build_header(frame)
+		_build_body(frame)
+		_build_footer(frame)
+		_apply_selection()
+		_add_back()
 	_peer.connect_to_host(BridgeClient.host(), BridgeClient.port())   # for the live re-export on open
 
 ## Auto-refresh on open: once the bridge is up, ask Qud to re-export its records, then reload
@@ -130,9 +133,14 @@ func _send_bridge(msg: Dictionary) -> void:
 ## Reload the records from disk and rebuild the left column, preserving the selection if possible.
 func _reload_records() -> void:
 	_records = _load_records()
-	if _list == null:
-		return
-	_populate_records()
+	if Settings.one_to_one():
+		if _list_1to1 == null:
+			return
+		_populate_1to1()
+	else:
+		if _list == null:
+			return
+		_populate_records()
 	_sel = clampi(_sel, 0, maxi(0, _records.size() - 1))
 	_apply_selection()
 
@@ -369,6 +377,10 @@ func _select(idx: int) -> void:
 	_apply_selection()
 
 func _apply_selection() -> void:
+	if Settings.one_to_one():
+		for i in range(_rows.size()):
+			_style_entry_1to1(_rows[i]["panel"], i == _sel)
+		return
 	for i in range(_rows.size()):
 		_style_row(_rows[i]["panel"], i == _sel)
 	if _summary == null:
@@ -397,6 +409,313 @@ func _unhandled_input(e: InputEvent) -> void:
 		_select(maxi(_sel - 1, 0)); accept_event()
 
 # ── small helpers ──────────────────────────────────────────────────────────────
+
+# ── 1:1 build — Qud's ENDED RUNS screen, reproduced from measurement ────────────
+# Bare flat background (no gilded panel): a dotted rail divider with end caps, the
+# right-aligned rail list, the entry stack with a persistent dither-highlighted
+# selection (+ > cursor + per-entry delete label), dotted separators, a 10px
+# scroll track, the left [Esc] Back chevron, and the bottom hint.
+
+## Raves' 2D canvas renders mid-tones ~x0.885 darker than specified (a pipeline
+## gamma the 3D playfield never hit because its colours were tuned empirically).
+## _q() pre-compensates so the CAPTURED pixels land on Qud's measured values.
+static func _q(r8: int, g8: int, b8: int) -> Color:
+	# channels <= 20 render ~faithfully already (the pipeline's curve flattens near
+	# black); scaling them overshoots, so only compensate above that
+	var f := func(v: int) -> int: return v if v <= 20 else mini(255, int(round(v * 1.13)))
+	return Color8(f.call(r8), f.call(g8), f.call(b8))
+
+var R_BG := _q(6, 44, 42)
+var R_LINE := _q(58, 89, 101)
+var R_TRACK := _q(29, 41, 46)
+var R_GOLD := _q(200, 184, 57)
+var R_CYAN_SEL := _q(108, 183, 200)
+var R_CYAN := _q(56, 154, 176)
+var R_BODY_SEL := _q(168, 194, 187)
+var R_BODY_DIM := _q(21, 73, 72)
+var R_CURSOR := _q(197, 207, 207)
+const R_ENTRY_PITCH := 126
+const R_ENTRY_H := 104
+const RAIL_ITEMS := ["Ended Runs", "Daily (global)", "Daily (friends)", "Achievements"]
+
+var _list_1to1: VBoxContainer
+var _scrollbar_1to1: Control
+var _scroll_1to1: ScrollContainer
+
+func _build_1to1() -> void:
+	var bg := ColorRect.new()
+	bg.color = R_BG
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(bg)
+
+	# dotted rail divider (x331, y25..1054, 5-on/1-off) with square end caps
+	var div := Control.new()
+	div.set_anchors_preset(Control.PRESET_FULL_RECT)
+	div.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	div.draw.connect(func():
+		var y := 25.0
+		while y < 1054.0:
+			div.draw_rect(Rect2(331, y, 1, minf(5, 1054 - y)), R_LINE)
+			y += 6.0
+		for cy in [25.0, 1049.0]:
+			div.draw_rect(Rect2(328, cy, 7, 6), _q(53, 90, 98)))
+	add_child(div)
+
+	# title
+	var title := Label.new()
+	title.text = "ENDED RUNS"
+	title.add_theme_color_override("font_color", R_GOLD)
+	var fv := FontVariation.new()
+	fv.base_font = get_theme_font("font", "Label")
+	fv.spacing_glyph = 3
+	title.add_theme_font_override("font", fv)
+	title.add_theme_font_size_override("font_size", 22)
+	title.position = Vector2(347, 96)
+	add_child(title)
+
+	# rail (right-aligned, with small square markers right of each item)
+	for i in range(RAIL_ITEMS.size()):
+		var l := Label.new()
+		l.text = RAIL_ITEMS[i]
+		l.add_theme_color_override("font_color", R_CYAN_SEL)
+		l.add_theme_font_size_override("font_size", 16)
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		l.position = Vector2(60, 191 + i * 30)
+		l.size = Vector2(236, 22)
+		add_child(l)
+		var dot := ColorRect.new()
+		dot.color = R_LINE
+		dot.position = Vector2(302, 198 + i * 30)
+		dot.size = Vector2(5, 5)
+		add_child(dot)
+
+	# entry stack in a scroller
+	_scroll_1to1 = ScrollContainer.new()
+	_scroll_1to1.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_scroll_1to1.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
+	_scroll_1to1.position = Vector2(340, 144)
+	_scroll_1to1.size = Vector2(1270, 861)
+	add_child(_scroll_1to1)
+	_list_1to1 = VBoxContainer.new()
+	_list_1to1.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_list_1to1.add_theme_constant_override("separation", 0)
+	_scroll_1to1.add_child(_list_1to1)
+	_populate_1to1()
+
+	# scroll track (10px, x1616..1626, y135..1010) synced to the scroller
+	_scrollbar_1to1 = Control.new()
+	_scrollbar_1to1.position = Vector2(1616, 135)
+	_scrollbar_1to1.size = Vector2(10, 875)
+	_scrollbar_1to1.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_scrollbar_1to1.draw.connect(func():
+		var sb := _scrollbar_1to1
+		sb.draw_rect(Rect2(0, 0, 10, sb.size.y), R_TRACK)
+		var vsb := _scroll_1to1.get_v_scroll_bar()
+		var content := maxf(1.0, float(vsb.max_value))
+		var vis := float(vsb.page) if vsb.page > 0 else _scroll_1to1.size.y
+		var frac := clampf(vis / content, 0.05, 1.0)
+		var pos := 0.0
+		if content > vis:
+			pos = float(vsb.value) / (content - vis)
+		var th := sb.size.y * frac
+		sb.draw_rect(Rect2(0, (sb.size.y - th) * pos, 10, th), R_LINE))
+	add_child(_scrollbar_1to1)
+	_scroll_1to1.get_v_scroll_bar().value_changed.connect(func(_v): _scrollbar_1to1.queue_redraw())
+
+	# [Esc] Back chevron, left mid-screen (clickable)
+	var back := Control.new()
+	back.position = Vector2(30, 520)
+	back.size = Vector2(110, 75)
+	back.mouse_filter = Control.MOUSE_FILTER_STOP
+	back.gui_input.connect(func(e): if e is InputEventMouseButton and e.pressed: closed.emit())
+	back.draw.connect(func():
+		back.draw_line(Vector2(48, 12), Vector2(36, 24), _q(120, 140, 138), 3.0)
+		back.draw_line(Vector2(36, 24), Vector2(48, 36), _q(120, 140, 138), 3.0))
+	add_child(back)
+	var bl := RichTextLabel.new()
+	bl.bbcode_enabled = true
+	bl.fit_content = true
+	bl.scroll_active = false
+	bl.autowrap_mode = TextServer.AUTOWRAP_OFF
+	bl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bl.add_theme_font_size_override("normal_font_size", 16)
+	bl.text = "[color=#%s][lb]Esc[rb][/color][color=#%s] Back[/color]" % [
+		R_GOLD.to_html(false), R_BODY_SEL.to_html(false)]
+	bl.position = Vector2(4, 48)
+	back.add_child(bl)
+
+	# bottom hint: [icon] navigate  [Space] select
+	var hint := RichTextLabel.new()
+	hint.bbcode_enabled = true
+	hint.fit_content = true
+	hint.scroll_active = false
+	hint.autowrap_mode = TextServer.AUTOWRAP_OFF
+	hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hint.add_theme_font_size_override("normal_font_size", 16)
+	var wht := "#FFFFFF"
+	var dimc := "#%s" % R_BODY_SEL.to_html(false)
+	var goldc := "#%s" % R_GOLD.to_html(false)
+	hint.push_paragraph(HORIZONTAL_ALIGNMENT_LEFT)
+	hint.append_text("[color=%s][lb][/color]" % wht)
+	hint.add_image(_records_nav_icon(15), 22, 15)
+	hint.append_text("[color=%s][rb][/color]" % wht)
+	hint.append_text("[color=%s] navigate  [/color]" % dimc)
+	hint.append_text("[color=%s][lb][/color][color=%s]Space[/color][color=%s][rb][/color]" % [wht, goldc, wht])
+	hint.append_text("[color=%s] select[/color]" % dimc)
+	hint.pop()
+	hint.position = Vector2(370, 1010)
+	add_child(hint)
+
+	# Qud renders this screen INTERLACED: odd rows at ~50% (measured bg pairs
+	# (6,44,42)/(2,22,22)) — a console-style scanline filter Mods doesn't have.
+	var scan := ColorRect.new()
+	scan.set_anchors_preset(Control.PRESET_FULL_RECT)
+	scan.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var sh := Shader.new()
+	sh.code = """
+shader_type canvas_item;
+void fragment() {
+	float row = floor(FRAGCOORD.y);
+	COLOR = vec4(0.0, 0.0, 0.0, mod(row, 2.0) >= 1.0 ? 0.5 : 0.0);
+}
+"""
+	var mat := ShaderMaterial.new()
+	mat.shader = sh
+	scan.material = mat
+	add_child(scan)
+
+func _records_nav_icon(ih: int) -> ImageTexture:
+	var g := maxi(1, int(round(ih * 0.10)))
+	var k := int((ih - g) / 2.0)
+	if k < 2:
+		k = 2
+	var w := 3 * k + 2 * g
+	var h := 2 * k + g
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var mid := k + g
+	img.fill_rect(Rect2i(mid, 0, k, k), R_GOLD)
+	img.fill_rect(Rect2i(0, k + g, k, k), R_GOLD)
+	img.fill_rect(Rect2i(mid, k + g, k, k), R_GOLD)
+	img.fill_rect(Rect2i(2 * mid, k + g, k, k), R_GOLD)
+	return ImageTexture.create_from_image(img)
+
+func _populate_1to1() -> void:
+	_rows.clear()
+	for c in _list_1to1.get_children():
+		c.queue_free()
+	if _records.is_empty():
+		var empty := Label.new()
+		empty.text = "No ended runs yet."
+		empty.add_theme_color_override("font_color", R_CYAN)
+		_list_1to1.add_child(empty)
+		return
+	for i in range(_records.size()):
+		var cell := _entry_1to1(_records[i], i, i < _records.size() - 1)
+		_list_1to1.add_child(cell)
+		_rows.append({"panel": cell, "rec": _records[i]})
+	_apply_selection()
+
+## The 4 body lines Qud shows per entry, pulled from the Details text:
+## ended-on date, cause of death (or "You quit."), points, turns survived.
+func _entry_lines(rec: Dictionary) -> Array:
+	var det := QudText.strip(str(rec.get("Details", "")))
+	var date := ""
+	var cause := ""
+	var scored := ""
+	var survived := ""
+	for raw in det.split("\n"):
+		var t := str(raw).strip_edges()
+		if t == "":
+			continue
+		if t.begins_with("This game ended"):
+			date = t
+		elif t.begins_with("You scored"):
+			scored = t
+		elif t.begins_with("You survived"):
+			survived = t
+		elif date != "" and cause == "" and not t.begins_with("You were level"):
+			cause = t
+	return [date, cause, scored, survived]
+
+func _entry_1to1(rec: Dictionary, idx: int, separator: bool) -> Control:
+	var cell := Control.new()
+	cell.custom_minimum_size = Vector2(0, R_ENTRY_PITCH)
+	cell.mouse_filter = Control.MOUSE_FILTER_STOP
+	cell.mouse_entered.connect(func(): _select(idx))
+	cell.gui_input.connect(func(e): if e is InputEventMouseButton and e.pressed: _select(idx))
+
+	# persistent selection dither (Qud family tile), > cursor, delete — toggled in _style
+	var hl := TextureRect.new()
+	hl.name = "hl"
+	var htex: Texture2D = _chrome("modsHoverTile.png")
+	if htex != null:
+		hl.texture = htex
+		hl.stretch_mode = TextureRect.STRETCH_TILE
+	hl.position = Vector2(16, 0)
+	hl.size = Vector2(734, R_ENTRY_H)
+	hl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hl.visible = false
+	cell.add_child(hl)
+	var cur := Label.new()
+	cur.name = "cur"
+	cur.text = ">"
+	cur.add_theme_color_override("font_color", R_CURSOR)
+	cur.add_theme_font_size_override("font_size", 16)
+	cur.position = Vector2(0, 50)
+	cur.visible = false
+	cell.add_child(cur)
+	var del := Label.new()
+	del.name = "del"
+	del.text = "delete"
+	del.add_theme_color_override("font_color", R_BODY_SEL)
+	del.add_theme_font_size_override("font_size", 16)
+	del.position = Vector2(690, 86)
+	del.visible = false
+	cell.add_child(del)
+
+	var head := Label.new()
+	head.name = "head"
+	head.text = "%s :: Level %d :: %s" % [str(rec.get("Name", "?")),
+		int(rec.get("Level", 0)), str(rec.get("GameMode", "?"))]
+	head.add_theme_font_size_override("font_size", 16)
+	head.position = Vector2(16, 4)
+	cell.add_child(head)
+	var lines := _entry_lines(rec)
+	for j in range(lines.size()):
+		var bl2 := Label.new()
+		bl2.name = "body%d" % j
+		bl2.text = str(lines[j])
+		bl2.add_theme_font_size_override("font_size", 16)
+		bl2.position = Vector2(16, [26, 47, 67, 88][j])
+		cell.add_child(bl2)
+
+	if separator:
+		cell.draw.connect(func():
+			var x := 16.0
+			var xe := 750.0
+			while x < xe:
+				cell.draw_rect(Rect2(x, 114, minf(2, xe - x), 1), R_LINE)
+				x += 5
+				if x < xe:
+					cell.draw_rect(Rect2(x, 114, minf(3, xe - x), 1), R_LINE)
+				x += 6)
+	_style_entry_1to1(cell, false)
+	return cell
+
+func _style_entry_1to1(cell: Control, on: bool) -> void:
+	for nm in ["hl", "cur", "del"]:
+		var n := cell.get_node_or_null(nm)
+		if n != null:
+			n.visible = on
+	var head := cell.get_node_or_null("head")
+	if head != null:
+		head.add_theme_color_override("font_color", R_CYAN_SEL if on else R_CYAN)
+	for j in range(4):
+		var b := cell.get_node_or_null("body%d" % j)
+		if b != null:
+			b.add_theme_color_override("font_color", R_BODY_SEL if on else R_BODY_DIM)
 
 func _text(txt: String, col: Color, role := "body") -> Label:
 	var l := Label.new()
