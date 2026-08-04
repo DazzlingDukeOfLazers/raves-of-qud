@@ -793,6 +793,15 @@ func _row_vitals_menu() -> Control:
 		cell.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		# The up/down nav icons are LIVE (Qud's climb commands); the rest stay cosmetic.
 		# Plain Controls with gui_input — no Button, so nothing grabs focus from the arrows.
+		if key == "system":
+			# the hamburger opens Qud's system menu (checkpoints / options / save & quit)
+			# — CmdSystemMenu over the bridge; the popup mirrors back, same as Esc
+			cell.mouse_filter = Control.MOUSE_FILTER_STOP
+			cell.tooltip_text = "System menu (checkpoints, options, save and quit) — Esc"
+			cell.gui_input.connect(func(e: InputEvent) -> void:
+				if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+					if _holo != null:
+						_holo.request_command("CmdSystemMenu"))
 		if key == "char":
 			# the person icon opens the 8-tab status screens — Qud's own opener
 			cell.mouse_filter = Control.MOUSE_FILTER_STOP
