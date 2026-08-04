@@ -1264,32 +1264,44 @@ func _qud_option_1to1(opt: Dictionary) -> Control:
 			var shown: Array = opt.get("displayValues", [])
 			if shown.is_empty():
 				shown = vals
-			var cur := str(opt.get("value", ""))
 			var l2 := Label.new()
 			l2.text = label
 			l2.add_theme_color_override("font_color", O_TEXT)
 			l2.add_theme_font_size_override("font_size", 16)
 			l2.position = Vector2(53, 0)
 			wrap.add_child(l2)
-			var rl2 := RichTextLabel.new()
-			rl2.bbcode_enabled = true
-			rl2.fit_content = true
-			rl2.scroll_active = false
-			rl2.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-			rl2.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			rl2.add_theme_font_size_override("normal_font_size", 16)
-			var parts := PackedStringArray()
+			# FUNCTIONAL: each value is its own clickable Label in a flow container —
+			# clicking selects it (gold) and writes back over the bridge.
+			var xst := {"cur": str(opt.get("value", ""))}
+			var xoid := str(opt.get("id", ""))
+			var flow := HFlowContainer.new()
+			flow.position = Vector2(61, 24)
+			flow.size = Vector2(690, 0)
+			flow.add_theme_constant_override("h_separation", 19)
+			flow.add_theme_constant_override("v_separation", 6)
+			var vlabels: Array = []
 			for i2 in range(shown.size()):
 				var raw := str(vals[i2]) if i2 < vals.size() else str(shown[i2])
-				var disp := str(shown[i2])
-				if raw == cur:
-					parts.append("[color=#%s]%s[/color]" % [O_GOLD.to_html(false), disp])
-				else:
-					parts.append("[color=#%s]%s[/color]" % [O_CYAN.to_html(false), disp])
-			rl2.text = "  " + "  ".join(parts)
-			rl2.position = Vector2(61, 24)
-			rl2.size = Vector2(690, 0)
-			wrap.add_child(rl2)
+				var vl := Label.new()
+				vl.text = str(shown[i2])
+				vl.add_theme_font_size_override("font_size", 16)
+				vl.add_theme_color_override("font_color", O_GOLD if raw == str(xst.cur) else O_CYAN)
+				vl.mouse_filter = Control.MOUSE_FILTER_STOP
+				vlabels.append(vl)
+				var rawc := raw
+				vl.gui_input.connect(func(e):
+					if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+						xst.cur = rawc
+						for j2 in range(vlabels.size()):
+							var rj := str(vals[j2]) if j2 < vals.size() else str(shown[j2])
+							vlabels[j2].add_theme_color_override("font_color",
+								O_GOLD if rj == rawc else O_CYAN)
+						if xoid != "":
+							_send_bridge({"type": "command", "name": "setoption",
+								"id": xoid, "value": rawc}))
+				flow.add_child(vl)
+			wrap.add_child(flow)
+			var rl2 := flow   # the sizing hook below reads rl2.size
 			wrap.custom_minimum_size = Vector2(0, 30)
 			wrap.ready.connect(func():
 				await get_tree().process_frame
