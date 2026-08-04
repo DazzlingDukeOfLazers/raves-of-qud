@@ -22,7 +22,12 @@ USAGE (Qud running + bridge mod, in-game)
   checker.py list                     # category -> element counts (refreshes the catalog)
   checker.py one Dresser              # stage + verify one element
   checker.py one "Iron Gate" --shots  # ... and capture the Qud/Raves screenshot pair
-  checker.py sweep walls              # verify a whole category -> reports/checker/
+  checker.py calibrate                # locate the stage cell in BOTH apps' captures
+                                      # (needs the 1:1 viewer attached; writes
+                                      # fixtures/checker_geometry.json — rerun after
+                                      # any window-size/layout change)
+  checker.py one Dresser --diff       # + crop the stage cell and pixel-score the pair
+  checker.py sweep walls --diff       # pixel-scored category sweep (slow: ~2 frames/element)
   checker.py sweep creatures --start 100 --limit 50   # resumable slices
 
 Output: reports/checker/<cat>.md (human) + <cat>.json (machine, re-runnable
@@ -36,6 +41,7 @@ import sys
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import congruence
 import control
 import plat
 
@@ -165,26 +171,109 @@ def check_one(b, bp, _retry=True):
                 # (RandomTile and friends) — flag it, don't fail it.
                 warns.append("wire tile != blueprint tile %r" % _tail(st))
 
+    # The wire's RGB for the blueprint's foreground colour, via the snapshot's
+    # REAL palette (the mod exports ConsoleLib's table) — the strict
+    # dominant-colour-vs-wire check compares the rendered crop against this.
+    wire_hex = None
+    pal = snap.get("palette") or {}
+    color = (stage.get("color") or "").lstrip("&")
+    if color:
+        wire_hex = (pal.get(color[:1]) or "").lstrip("#") or None
+
     return {"bp": bp, "pass": not reasons, "reasons": reasons, "warns": warns,
-            "stage": stage, "wire_objs": len(objs)}
+            "stage": stage, "wire_objs": len(objs), "wire_hex": wire_hex}
 
 
 def _safe(bp):
     return re.sub(r"[^A-Za-z0-9_-]+", "_", bp)
 
 
+_last_md5 = {"qud": None, "raves": None}
+
+
+def _fresh_capture(kind, capture_fn, src):
+    """Run capture_fn until src's content differs from the previous element's
+    capture (or two attempts pass). Both apps can serve a stale frame: the Raves
+    viewer races its snapshot apply; Qud's ScreenCapture can fire before
+    RenderBase recomposites the turn."""
+    import hashlib
+    for attempt in range(2):
+        if not capture_fn():
+            return False
+        md5 = hashlib.md5(open(src, "rb").read()).hexdigest()
+        if md5 != _last_md5[kind] or attempt == 1:
+            _last_md5[kind] = md5
+            return True
+        time.sleep(1.2)
+    return True
+
+
 def shots_for(bp, cat="single"):
-    """Capture the same-turn Qud/Raves pair for the congruence pass."""
+    """Capture the same-turn Qud/Raves pair for the congruence pass.
+
+    Both halves can race the turn (see _fresh_capture); the Raves side also
+    gets a settle first — read_snapshot() returns the moment the frame is
+    broadcast, but the viewer needs a beat to apply + render it (caught in
+    calibration: the 'Black Marble' capture showed the wax block)."""
     outdir = os.path.join(REPORTS, "shots", cat)
     os.makedirs(outdir, exist_ok=True)
     pair = {}
-    if control.qud_shot():
+    if _fresh_capture("qud", control.qud_shot, control.QUD_SHOT):
         pair["qud"] = os.path.join(outdir, _safe(bp) + "_qud.png")
         shutil.copyfile(control.QUD_SHOT, pair["qud"])
-    if control.godot_shot():
+    time.sleep(0.8)   # let the viewer apply the snapshot it just received
+    if _fresh_capture("raves", control.godot_shot, control.SHOT):
         pair["raves"] = os.path.join(outdir, _safe(bp) + "_raves.png")
         shutil.copyfile(control.SHOT, pair["raves"])
     return pair
+
+
+def score_pair(r, pair):
+    """Attach the stage-cell congruence verdict (congruence.py) to a result."""
+    if "qud" not in pair or "raves" not in pair:
+        r.setdefault("warns", []).append("no capture pair — congruence skipped")
+        return r
+    geom = congruence.load_geometry()
+    r["congruence"] = congruence.score(pair["qud"], pair["raves"], geom, r.get("wire_hex"))
+    return r
+
+
+def calibrate():
+    """Two-frame differential calibration (congruence.py docstring): a full-tile
+    wall frame vs an EMPTY-stage frame — the diff is the whole sprite, i.e. the
+    cell. (Wall-vs-wall failed: different walls share most of their pattern
+    under the zone tint, so only the differing band clustered.) The empty frame
+    stages a bogus blueprint: the zone clears, nothing lands, the verdict FAILS
+    by design. Writes fixtures/checker_geometry.json + crop previews to eyeball."""
+    b = control.Bridge()
+    caps = {}
+    for tag, bp, must_pass in (("a", "Wax Block", True), ("b", "Black Marble", True),
+                               ("c", "__calib_empty__", False)):
+        r = check_one(b, bp)
+        if must_pass and not r["pass"]:
+            b.close()
+            sys.exit("calibrate: staging %r failed: %s" % (bp, r["reasons"]))
+        pair = shots_for(bp, "calib")
+        if "qud" not in pair or "raves" not in pair:
+            b.close()
+            sys.exit("calibrate: capture failed (is the Raves viewer open?)")
+        caps[tag] = pair
+    b.close()
+    # Qud: wall-vs-WALL — both walls occlude identically, so the diff is the
+    # sprite alone (wall-vs-empty also flips the LOS shadow east of the cell
+    # and the cluster grew to ~3 cells wide). Raves: wall-vs-EMPTY — its two
+    # wall sprites share most of their pattern under the zone tint, so the
+    # wall-vs-wall diff caught only the differing band.
+    qrect = congruence.diff_cluster(caps["a"]["qud"], caps["b"]["qud"])
+    rrect = congruence.diff_cluster(caps["a"]["raves"], caps["c"]["raves"])
+    path = congruence.save_geometry(qrect, rrect)
+    outdir = os.path.join(REPORTS, "shots", "calib")
+    congruence.save_crop(caps["a"]["qud"], qrect, os.path.join(outdir, "cell_qud.png"))
+    congruence.save_crop(caps["a"]["raves"], rrect, os.path.join(outdir, "cell_raves.png"))
+    print("qud   stage cell:", qrect)
+    print("raves stage cell:", rrect)
+    print("geometry:", path)
+    print("previews:", outdir, "(eyeball cell_qud/cell_raves — both should be the Wax Block)")
 
 
 def write_report(cat, results):
@@ -193,12 +282,23 @@ def write_report(cat, results):
         json.dump(results, f, indent=1)
 
     passed = sum(1 for r in results if r["pass"])
+    scored = [r for r in results if r.get("congruence")]
+    px_line = ""
+    if scored:
+        bands = {"PASS": 0, "WARN": 0, "FAIL": 0}
+        for r in scored:
+            bands[r["congruence"]["band"]] += 1
+        px_line = "pixel: %(PASS)d PASS / %(WARN)d WARN / %(FAIL)d FAIL" % bands
     lines = ["# Object Checker — %s" % cat, "",
-             "%d/%d PASS  (%s)" % (passed, len(results), time.strftime("%Y-%m-%d %H:%M")), "",
-             "| element | verdict | notes |", "|---|---|---|"]
+             "%d/%d PASS  (%s)  %s" % (passed, len(results), time.strftime("%Y-%m-%d %H:%M"), px_line), "",
+             "| element | verdict | px | notes |", "|---|---|---|---|"]
     for r in results:
         notes = "; ".join(r.get("reasons", []) + r.get("warns", []))
-        lines.append("| %s | %s | %s |" % (r["bp"], "PASS" if r["pass"] else "**FAIL**", notes))
+        px = r.get("congruence")
+        pxs = ""
+        if px:
+            pxs = "%s %.1f/%.0f%%" % (px["band"], px["mean_abs_diff"], px["pct_hot"])
+        lines.append("| %s | %s | %s | %s |" % (r["bp"], "PASS" if r["pass"] else "**FAIL**", pxs, notes))
     path = os.path.join(REPORTS, cat + ".md")
     with open(path, "w") as f:
         f.write("\n".join(lines) + "\n")
@@ -214,16 +314,20 @@ def main(argv):
         cat = refresh_catalog()
         for k in cat:
             print("%-10s %d" % (k, len(cat[k])))
+    elif cmd == "calibrate":
+        calibrate()
     elif cmd == "one":
-        args = [a for a in argv[1:] if a != "--shots"]
+        args = [a for a in argv[1:] if a not in ("--shots", "--diff")]
         if not args:
-            sys.exit("usage: checker.py one <Blueprint> [--shots]")
+            sys.exit("usage: checker.py one <Blueprint> [--shots] [--diff]")
         bp = " ".join(args)
         b = control.Bridge()
         r = check_one(b, bp)
         b.close()
-        if "--shots" in argv:
+        if "--shots" in argv or "--diff" in argv:
             r["shots"] = shots_for(bp)
+        if "--diff" in argv:
+            score_pair(r, r.get("shots", {}))
         print(json.dumps(r, indent=1))
         sys.exit(0 if r["pass"] else 1)
     elif cmd == "sweep":
@@ -240,11 +344,15 @@ def main(argv):
         results = []
         for i, bp in enumerate(names):
             r = check_one(b, bp)
-            if "--shots" in argv:
+            if "--shots" in argv or "--diff" in argv:
                 r["shots"] = shots_for(bp, cat)
+            if "--diff" in argv:
+                score_pair(r, r.get("shots", {}))
             results.append(r)
-            print("[%d/%d] %-40s %s" % (start + i + 1, start + len(names), bp,
-                                        "PASS" if r["pass"] else "FAIL " + "; ".join(r["reasons"])))
+            px = r.get("congruence")
+            print("[%d/%d] %-40s %s%s" % (start + i + 1, start + len(names), bp,
+                                          "PASS" if r["pass"] else "FAIL " + "; ".join(r["reasons"]),
+                                          "  px:%s mean=%s" % (px["band"], px["mean_abs_diff"]) if px else ""))
         b.close()
         print("report:", write_report(cat, results))
     else:

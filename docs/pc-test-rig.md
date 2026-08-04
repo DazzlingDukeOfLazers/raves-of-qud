@@ -77,6 +77,27 @@ bar and the method (mean |Δ| + %px>32; playfield reference ≈ 2 / 0%).
 NPC-specific checks ride this rung: billboard sprite congruence, the **H-flip
 sprite-facing rule** (see the picker's tile work), submerged/stained variants.
 
+### Rung 3 status (2026-08-04, PC)
+
+Scoring is WIRED: `congruence.py` (crop + mean-diff/%hot + strict checks, Pillow
+fast-path with stdlib fallback), `checker.py calibrate` (three-frame differential:
+wall-vs-wall for Qud — identical occlusion isolates the sprite; wall-vs-empty for
+Raves — its wall sprites share their pattern under the zone tint), `--diff` on
+one/sweep, capture staleness guards both sides (both apps can serve the previous
+element's frame — hash and retry). The Raves stage-cell rect calibrates
+reproducibly. **Blocked on window determinism before the geometry is trustworthy:**
+
+- Raves' self-placement DPI-doubles on Windows (3232×1878 → 6954×3912 over a
+  session) — the window_rect channel re-applies logical size as physical px.
+- Qud's window resized + zoomed out mid-session; the calibration clip fraction
+  and cell size move with it. Pin BOTH windows (hv move / layout + the fixed
+  channel) and normalize Qud's stage zoom, THEN `calibrate` once and commit the
+  geometry.
+- Parity note for scoring: the golden save is at NIGHT — Raves night-dims the
+  playfield while Qud's own render of the staged wall reads bright. Either a
+  daytime golden or Qud time-wish normalization before captures; decide when
+  tuning the PASS/WARN bands.
+
 ## Rung 4 — animation fixtures (the decoded-program list)
 
 Per `phase2-test-plan.md`: every decoded animation gets a named fixture — gas swirl,
