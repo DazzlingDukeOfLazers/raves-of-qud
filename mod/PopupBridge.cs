@@ -118,6 +118,12 @@ namespace RavesOfQud
             _resend = false;
 
             PopupMessage pm = FindVisiblePopup(false);
+            // Believed-active but not found? FORCE the full scan before declaring a
+            // dismissal: the cheap path rate-limits the dynamic-copy scan (~8 Hz), so a
+            // one-poll IsLive hiccup on an AskString COPY published a false
+            // active:false + a fresh-id reshow — which reset the text the user was
+            // typing in Raves ("kept resetting as I tried to type QUIT").
+            if (pm == null && _active) pm = FindVisiblePopup(true);
             bool active = pm != null;
 
             if (!active)

@@ -16,6 +16,7 @@ signal answered(payload: Dictionary)
 
 var _palette := {}
 var _cur_id := -1             # id of the popup currently shown (or last answered) — dedupes resends
+var _content_sig := ""        # content fingerprint — a flap re-announce must not reset typed input
 var _buttons: Array = []      # [{text,command,hotkey}] — the bottom button row
 var _options: Array = []      # [{text,command}] — PickOption items (empty for a plain message)
 var _sel := 0                 # highlighted option index (menu mode)
@@ -109,6 +110,17 @@ func show_popup(data: Dictionary, palette: Dictionary) -> void:
 	var id := int(data.get("id", -1))
 	if id == _cur_id:
 		return                      # same popup (or one we already answered) — don't rebuild/reshow
+	# a re-announced popup with IDENTICAL content (watcher flap / reconnect): keep the
+	# user's half-typed input instead of rebuilding — the reset-while-typing bug
+	var content_sig := "%s|%s|%s|%s|%s" % [str(data.get("message", "")), str(data.get("title", "")),
+		str(data.get("buttons", [])), str(data.get("options", [])), str(data.get("input", false))]
+	if content_sig == _content_sig and bool(data.get("input", false)) and _edit != null and _edit.text != "":
+		_cur_id = id
+		visible = true
+		UiState.set_popup("input")
+		_edit.grab_focus()
+		return
+	_content_sig = content_sig
 	_cur_id = id
 	_buttons = data.get("buttons", [])
 	_options = data.get("options", [])
