@@ -1072,6 +1072,35 @@ void fragment() {
 	scan.material = mat
 	add_child(scan)
 
+## The 7x7 border weave recoloured to the console slider palette (bright
+## (58,89,101) / dark (29,41,46), gamma-compensated) — Qud uses it for both the
+## slider ribbon and the thumb block. Derived from the extracted band tile;
+## generated fallback keeps the pattern family.
+var _slider_tile_cache: ImageTexture
+func _slider_weave_tile() -> ImageTexture:
+	if _slider_tile_cache != null:
+		return _slider_tile_cache
+	var bright := _q(58, 89, 101)
+	var dark := _q(29, 41, 46)
+	var img: Image
+	var bandtex: Texture2D = _chrome_opt("modsBandTop.png")
+	if bandtex != null:
+		img = bandtex.get_image()
+		img.convert(Image.FORMAT_RGB8)
+		var base := Color8(0x35, 0x55, 0x5C)
+		for y in range(img.get_height()):
+			for x in range(img.get_width()):
+				var c := img.get_pixel(x, y)
+				var near := absf(c.r - base.r) + absf(c.g - base.g) + absf(c.b - base.b) < 0.15
+				img.set_pixel(x, y, bright if near else dark)
+	else:
+		img = Image.create(7, 7, false, Image.FORMAT_RGB8)
+		img.fill(bright)
+		for i in range(7):
+			img.set_pixel(i, (i * 3) % 7, dark)
+	_slider_tile_cache = ImageTexture.create_from_image(img)
+	return _slider_tile_cache
+
 func _options_nav_icon(ih: int) -> ImageTexture:
 	var g := maxi(1, int(round(ih * 0.10)))
 	var k := int((ih - g) / 2.0)
@@ -1152,24 +1181,26 @@ func _qud_option_1to1(opt: Dictionary) -> Control:
 			tr.size = Vector2(671, 22)
 			tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			tr.draw.connect(func():
-				tr.draw_rect(Rect2(0, 6, 2, 10), O_LINE)          # left terminal
-				var x := 4.0
-				while x < 655.0:                                   # dotted rail
-					tr.draw_rect(Rect2(x, 10, 2, 1), O_LINE)
-					x += 4.0
-				tr.draw_rect(Rect2(655, 6, 2, 10), O_LINE)         # right terminal
-				var tx := 4.0 + (649.0 - 18.0) * fracv
-				var ht: Texture2D = _chrome_opt("modsHoverTile.png")
-				if ht != null:
-					tr.draw_texture_rect(ht, Rect2(tx, 2, 18, 18), true)
+				# Qud's track AND thumb are the 7x7 border WEAVE in the console
+				# palette — a 4px weave ribbon with a 20x20 weave block thumb
+				var wt := _slider_weave_tile()
+				tr.draw_rect(Rect2(0, 6, 2, 10), O_LINE)           # left terminal
+				if wt != null:
+					tr.draw_texture_rect(wt, Rect2(2, 8, 653, 4), true)
 				else:
-					tr.draw_rect(Rect2(tx, 2, 18, 18), O_CYAN))
+					tr.draw_rect(Rect2(2, 9, 653, 2), O_LINE)
+				tr.draw_rect(Rect2(655, 6, 2, 10), O_LINE)         # right terminal
+				var tx := 2.0 + (653.0 - 20.0) * fracv
+				if wt != null:
+					tr.draw_texture_rect(wt, Rect2(tx, 1, 20, 20), true)
+				else:
+					tr.draw_rect(Rect2(tx, 1, 20, 20), O_CYAN))
 			wrap.add_child(tr)
 			var v := Label.new()
 			v.text = str(opt.get("value", ""))
-			v.add_theme_color_override("font_color", O_TEXT)
+			v.add_theme_color_override("font_color", O_GOLD)   # Qud renders slider values gold
 			v.add_theme_font_size_override("font_size", 16)
-			v.position = Vector2(716, 18)
+			v.position = Vector2(716, 16)
 			wrap.add_child(v)
 		"Checkbox":
 			wrap.custom_minimum_size = Vector2(0, 20)
