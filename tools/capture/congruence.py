@@ -135,8 +135,30 @@ def diff_cluster(path_a, path_b, min_delta=40, search_frac=0.72):
         stack += [(y + 1, x), (y - 1, x), (y, x + 1), (y, x - 1)]
     xs = [x for _, x in seen]
     ys = [y for y, _ in seen]
-    return {"x": min(xs) * t, "y": min(ys) * t,
-            "w": (max(xs) - min(xs) + 1) * t, "h": (max(ys) - min(ys) + 1) * t}
+    coarse = {"x": min(xs) * t, "y": min(ys) * t,
+              "w": (max(xs) - min(xs) + 1) * t, "h": (max(ys) - min(ys) + 1) * t}
+
+    # Refine to the EXACT changed-pixel bbox: the 8px grid quantizes each edge
+    # by up to a tile, and a rect a few px off the true cell is invisible on
+    # wall scores (wall overlaps wall) but poisons sparse sprites — furniture
+    # scored 301 FAILs off a ~10px-left Raves rect before this pass existed.
+    x0 = max(0, coarse["x"] - t)
+    y0 = max(0, coarse["y"] - t)
+    x1 = min(w - 1, coarse["x"] + coarse["w"] + t)
+    y1 = min(h - 1, coarse["y"] + coarse["h"] + t)
+    fx0, fy0, fx1, fy1 = x1, y1, x0, y0
+    for yy in range(y0, y1 + 1):
+        for xx in range(x0, x1 + 1):
+            a = ga(xx, yy)
+            b = gb(xx, yy)
+            if abs(a[0] - b[0]) + abs(a[1] - b[1]) + abs(a[2] - b[2]) > min_delta:
+                if xx < fx0: fx0 = xx
+                if xx > fx1: fx1 = xx
+                if yy < fy0: fy0 = yy
+                if yy > fy1: fy1 = yy
+    if fx1 < fx0:
+        return coarse
+    return {"x": fx0, "y": fy0, "w": fx1 - fx0 + 1, "h": fy1 - fy0 + 1}
 
 
 # ---------------------------------------------------------------- scoring
