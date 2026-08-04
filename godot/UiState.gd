@@ -38,7 +38,10 @@ func _ready() -> void:
 	t.start()
 
 func _path() -> String:
-	return OS.get_environment("HOME").path_join("Library/Application Support/RavesOfQud/raves_state.json")
+	# Resolve through InputModel (USERPROFILE first, then HOME) — a bare HOME read
+	# is empty on Windows, which silently wrote the heartbeat to a relative path
+	# and left highvisor blind to Raves' scene on the PC.
+	return InputModel.support_dir().path_join("raves_state.json")
 
 func _write() -> void:
 	var d := {"scene": _scene, "mode": str(Settings.get_value("mode", "user")),

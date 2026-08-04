@@ -110,6 +110,22 @@ static func config_path() -> String:
 	var dir := support_dir()
 	return "" if dir == "" else dir.path_join(CONFIG_FILE)
 
+## QUD'S OWN data dir (Unity persistentDataPath) — not ours. The one resolver for
+## every reader of Qud's saves/options on disk; a bare HOME read is empty on Windows
+## and the bundle-id path is macOS-only (Windows: AppData/LocalLow/<company>/<product>).
+static func qud_data_dir() -> String:
+	if OS.get_name() == "Windows":
+		var up := OS.get_environment("USERPROFILE")
+		return "" if up == "" else up.path_join("AppData").path_join("LocalLow") \
+			.path_join("Freehold Games").path_join("CavesOfQud")
+	var home := OS.get_environment("HOME")
+	return "" if home == "" else home.path_join("Library").path_join("Application Support") \
+		.path_join("com.FreeholdGames.CavesOfQud")
+
+static func qud_saves_dir() -> String:
+	var d := qud_data_dir()
+	return "" if d == "" else d.path_join("Synced").path_join("Saves")
+
 ## The live keycode for an action: a rebind if set, else the coded default.
 func key_for(action_id: String) -> int:
 	if rebinds.has(action_id):
