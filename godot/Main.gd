@@ -3,6 +3,7 @@ extends Node3D
 ## Emitted every snapshot with the raw Qud data, so a host (MainFrame) can drive its status bar /
 ## panels off the same stream the Holodeck renders — no second bridge connection needed.
 signal snapshot(data: Dictionary)
+signal popup_option(text: String)   # a mirrored menu popup's picked option (plain text)
 
 ## Wires the bridge client to the renderer, drives the camera, and maps input to
 ## Qud movement commands. Built in code so the scene file stays a single node.
@@ -35,6 +36,7 @@ var client: BridgeClient
 var _wish_layer: CanvasLayer    # Ctrl+Shift+W wish prompt overlay (built lazily), sends "wish" to Qud
 var _wish_edit: LineEdit
 var _popup: PopupOverlay        # mirrors Qud modal popups forwarded by the mod (own file)
+var overlay_check: Callable = Callable()   # MainFrame: "is a frame overlay (status/controlmap) open?"
 var _palette := {}              # latest Qud colour map (code -> hex) from snapshots, for popup markup
 var _char_creator: CharacterCreator
 var renderer: ZoneRenderer
@@ -202,7 +204,10 @@ func _ready() -> void:
 	# forwarded by the mod, and ships the viewer's answer back so Qud's blocked turn thread unblocks.
 	_popup = PopupOverlay.new()
 	add_child(_popup)
-	_popup.answered.connect(func(payload: Dictionary): client.send_command("popup", payload))
+	_popup.answered.connect(func(payload: Dictionary):
+		client.send_command("popup", payload)
+		if str(payload.get("action", "")) == "option":
+			popup_option.emit(str(payload.get("text", ""))))
 
 	_load_settings()   # restore camera heading/mode/zoom/depth/window before the UI reads them
 	_build_mode_label()
@@ -1038,7 +1043,11 @@ func _unhandled_input(event: InputEvent) -> void:
 				_dbg_menu.close()
 			if _char_creator != null:
 				_char_creator.visible = false
-			if not had_ui and _one_to_one:
+			# a MainFrame overlay (status screens / control mapping) owns Esc for its
+			# own close — Main runs FIRST in _unhandled_input (later sibling), so
+			# without this check Esc would ALSO pop Qud's system menu underneath
+			var overlay_open: bool = overlay_check.is_valid() and bool(overlay_check.call())
+			if not had_ui and _one_to_one and not overlay_open:
 				client.send_command("command", {"command": "CmdSystemMenu"})
 			return
 		if event.keycode == KEY_I:

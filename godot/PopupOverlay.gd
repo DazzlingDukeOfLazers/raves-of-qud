@@ -246,7 +246,10 @@ func _answer_button(command: String) -> void:
 func _answer_option(index: int) -> void:
 	if index < 0 or index >= _options.size():
 		return
-	_finish({"action": "option", "index": index})
+	# the chosen option's plain text rides along (the mod ignores it) so Main can
+	# mirror menu picks locally — e.g. "Control Mapping" opens Raves' own screen
+	_finish({"action": "option", "index": index,
+		"text": QudText.strip(str(_options[index].get("text", "")))})
 
 func _submit_input() -> void:
 	_finish({"action": "input", "text": _edit.text})

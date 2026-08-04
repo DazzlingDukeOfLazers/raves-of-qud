@@ -55,6 +55,14 @@ always visible in the bar).
 Interactivity (buy mutation, equip, tinker, quest tracking) follows the menus-V3 law:
 visual parity first, actions wired per-screen afterwards over the bridge.
 
+**Done off-order — Control Mapping** (2026-08-04, `ControlMappingScreen.gd`, its own screen, not a
+tab): system-menu popup pick mirrors into Raves (`popup_option` by text), data from
+`BindingsExporter.cs` (Qud's own formatted binds via `CommandBindingManager.GetCommandBindings`,
+CP437 arrows mapped client-side), read-only v1 at **5.56 mean-diff** incl. the faithfully-mirrored
+ghost legacy-console frame Qud leaves behind the modern list. Esc closes both sides (`uiback`
+`KeybindsScreen.Exit()` special-case; completes on next Qud focus when unfocused). Rebinding = later
+interactivity pass. Residual diff lives in the hint row (ability-bar z-order differs) + title glyphs.
+
 ## Per-screen workflow (the proven V3 loop)
 
 1. `hv goto` recipes + first-party asserts for the tab (gametree nodes exist).

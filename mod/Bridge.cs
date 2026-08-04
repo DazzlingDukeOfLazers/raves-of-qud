@@ -598,7 +598,11 @@ namespace RavesOfQud
                                         // OnCancel/OnCloseButton no-op when the nav context died (seen
                                         // after a mutation-buy popup left the screen un-Escapable even
                                         // for the KEYBOARD; Exit() always tears it down).
-                                        if (wnd.GetType().Name == "StatusScreensScreen")
+                                        // KeybindsScreen: same story — the inherited OnCancel() is a no-op;
+                                        // its real close is Exit() (CancelButton handler; completes the
+                                        // completionSource so KeybindsMenu() resumes and Hide()s).
+                                        if (wnd.GetType().Name == "StatusScreensScreen"
+                                            || wnd.GetType().Name == "KeybindsScreen")
                                         {
                                             var exi = wnd.GetType().GetMethod("Exit", System.Type.EmptyTypes);
                                             if (exi != null) mi = exi;
@@ -711,6 +715,7 @@ namespace RavesOfQud
                                 RecordsExporter.ReExport();
                                 ChargenExporter.ReExport();
                                 CharacterExporter.ReExport();   // live sheet data for the status screens
+                                BindingsExporter.ReExport();    // control-mapping data
                                 TitleExporter.ExportChargenEmblem();                        // resident even at the menu
                                 TitleExporter.ExportNamedSprite("tiny-frame-h", "card_frame.png");         // the game-mode card's dotted frame
                                 TitleExporter.ExportNamedSprite("polat-locator-big", "sel_frame.png");     // the selected-card frame (corner brackets)

@@ -99,6 +99,20 @@ add a one-liner (symptom → rule).
   NEGATIVE `CanvasLayer` so it tints only the 3D, not the chrome.
 - **The exported app writes NO `godot.log` / crash report** (ad-hoc signed). Trace via a file under
   `InputModel.support_dir()` (`~/Library/Application Support/RavesOfQud`), or run the dev editor.
+- **Per-screen colour compensation differs.** `QudChrome.q8` (×1.13, Records-fitted) OVERSHOOTS on the
+  Control Mapping screen — capture-fitting its solids gave `captured ≈ drawn − 6` above the dark knee
+  (`ControlMappingScreen._cm8`, +6/channel). Fit each new screen from its OWN solid fills (border/bg),
+  not glyph edges, before trusting either curve. Also: Qud's "letterspaced" headers are NOT tracked —
+  they're the SEMIBOLD face at a bigger size (SCP advance = 0.6×size explains every measured pitch).
+- **Main's Esc handler runs before overlay screens** (`_unhandled_input` is reverse tree order; the
+  Holodeck is the LAST child). Frame overlays (status screens, control mapping) must be reflected in
+  `Main.overlay_check` or 1:1 Esc ALSO fires `CmdSystemMenu` at Qud underneath the overlay's own close.
+- **Qud modal answers: mirror menu picks by TEXT, not index.** `PopupOverlay` rides the picked option's
+  stripped text along in the answer payload (`popup_option` signal); the text keeps its hotkey prefix —
+  match `ends_with("control mapping")`, not equality.
+- **`KeybindsScreen` needs the `uiback` Exit() special-case** (inherited `OnCancel` is a no-op, same as
+  `StatusScreensScreen`), and its `async void Exit()` only COMPLETES while Qud's main loop runs — an
+  unfocused Qud stays on the screen until next activation (the heartbeat scene flips then, not before).
 
 ---
 

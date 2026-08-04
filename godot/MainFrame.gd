@@ -97,6 +97,7 @@ var _l_exp: Label
 var _bar_exp: ProgressBar
 var _msglog: Control        # the Message log view (MessageLog.gd)
 var _status: CanvasLayer    # the 8-tab status screens overlay (StatusScreens.gd, V4; layer 90)
+var _controlmap: CanvasLayer   # the Control Mapping screen (ControlMappingScreen.gd, V4; layer 90)
 var _nearby: Control        # the Nearby objects view (NearbyObjects.gd)
 var _minimap: Control       # the Minimap view (MinimapView.gd)
 var _effects: Control       # the Active effects view (ActiveEffects.gd)
@@ -181,6 +182,11 @@ func _ready() -> void:
 	_status = load("res://StatusScreens.gd").new()
 	add_child(_status)
 	_panels.append(_status)
+	# Control Mapping (V4): opened by picking "Control Mapping" in the mirrored
+	# system-menu popup (see _connect_holodeck's popup_option hook); Esc inside
+	# closes it AND uibacks Qud off its KeybindsScreen.
+	_controlmap = load("res://ControlMappingScreen.gd").new()
+	add_child(_controlmap)
 	_add_crt_overlay()                   # Qud's CRT terminal look, on top of the chrome + 3D
 
 	# Resume (Continue / New Game with the bridge up): MainMenu set this so we AUTO-CONNECT the data
@@ -1205,6 +1211,17 @@ func _connect_holodeck() -> void:
 	_holo.render_3d = false                     # DATA ONLY — no 3D build/render at all
 	_holo.connect("snapshot", _apply_stats)     # feeds status bar + panels off the same stream
 	_holo.connect("one_to_one_changed", _on_one_to_one_changed)  # camera flips → sync panels + persist
+	# a system-menu pick of "Control Mapping" mirrors into Raves' own screen (Qud
+	# opens its KeybindsScreen from the same answer); 1:1-only like the status tabs
+	# stripped option text keeps its hotkey prefix ("[c] Control Mapping") — match the tail
+	_holo.connect("popup_option", func(text: String):
+		if _controlmap != null and Settings.one_to_one() \
+				and text.strip_edges().to_lower().ends_with("control mapping"):
+			_controlmap.open())
+	# while a frame overlay is open, Main's Esc must not ALSO pop Qud's system menu
+	_holo.overlay_check = func() -> bool:
+		return (_status != null and _status.visible) \
+			or (_controlmap != null and _controlmap.visible)
 	add_child(_holo)                            # ROOT viewport → 3D renders full-window BEHIND the chrome
 	_render_btn.disabled = false
 	UiState.set_scene("in_game")                # highvisor state report: the gameplay frame is up
