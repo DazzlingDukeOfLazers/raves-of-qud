@@ -621,13 +621,28 @@ func _refresh_enabled() -> void:
 		var act: String = row["cfg"].get("act", "")
 		var enabled := true
 		if act == "continue":
-			enabled = _game_live   # a LIVE game, not merely an open bridge socket
+			# 1:1 Continue opens the save picker (reads Qud's saves off disk), so it
+			# enables exactly when Qud's would: saves exist. User-mode Continue still
+			# attaches to the RUNNING game, so it needs a live one.
+			enabled = _saves_exist() if Settings.one_to_one() else _game_live
 		row["enabled"] = enabled
 		row["btn"].disabled = not enabled
 	if _sel < _rows.size() and not _rows[_sel]["enabled"]:
 		_step(1)
 	_apply_selection()
 	_update_continue_hint()
+
+## Any Qud save on disk? (Gates 1:1 Continue, like Qud's own.) Cheap: one dir listing.
+func _saves_exist() -> bool:
+	var root := OS.get_environment("HOME").path_join(
+		"Library/Application Support/com.FreeholdGames.CavesOfQud/Synced/Saves")
+	var d := DirAccess.open(root)
+	if d == null:
+		return false
+	for sub in d.get_directories():
+		if FileAccess.file_exists(root.path_join(sub).path_join("Primary.json")):
+			return true
+	return false
 
 ## Show "load a game in Qud" only when the bridge is up but no game is live — otherwise a greyed
 ## Continue looks broken. Hidden when Qud's down (nothing to say) or a game IS live (Continue works).
@@ -1014,7 +1029,12 @@ func _activate(idx: int) -> void:
 		return
 	match String(row["cfg"].get("act", "")):
 		"continue":
-			_enter_viewer()
+			# Qud's Continue opens the save picker (ModernSaveManagement); mirror it
+			# in 1:1 mode. User mode keeps the direct attach-to-running-game jump.
+			if Settings.one_to_one():
+				_open_overlay("res://LoadGameScreen.gd")
+			else:
+				_enter_viewer()
 		"new":
 			if not _qud_up and not _launching:
 				_launching = true
