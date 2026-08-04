@@ -594,6 +594,16 @@ namespace RavesOfQud
                                     if (wnd != null)
                                     {
                                         var mi = wnd.GetType().GetMethod("OnCancel", System.Type.EmptyTypes);
+                                        // StatusScreensScreen: go straight to the unguarded Exit() — its
+                                        // OnCancel/OnCloseButton no-op when the nav context died (seen
+                                        // after a mutation-buy popup left the screen un-Escapable even
+                                        // for the KEYBOARD; Exit() always tears it down).
+                                        if (wnd.GetType().Name == "StatusScreensScreen")
+                                        {
+                                            var exi = wnd.GetType().GetMethod("Exit", System.Type.EmptyTypes);
+                                            if (exi != null) mi = exi;
+                                        }
+                                        if (mi == null) mi = wnd.GetType().GetMethod("Exit", System.Type.EmptyTypes);
                                         if (mi != null)
                                         {
                                             mi.Invoke(wnd, null);

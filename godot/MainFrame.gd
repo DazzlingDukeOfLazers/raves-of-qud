@@ -196,13 +196,20 @@ func _on_resize() -> void:
 func _input(e: InputEvent) -> void:
 	if e is InputEventKey and e.pressed and not e.echo and e.keycode == KEY_F12:
 		_shot()
-	# F2: the 8-tab status screens (1:1 mirror; placeholder opener until per-tab keys land)
-	if e is InputEventKey and e.pressed and not e.echo and e.keycode == KEY_F2 \
-			and _status != null and Settings.one_to_one():
-		if _status.visible:
-			_status.close()
-		else:
-			_status.open()
+	# X or F2: the 8-tab status screens. X because macOS eats a bare F2 (brightness) —
+	# that read as "the button does nothing"; F2 kept for hv recipes + Fn users.
+	if e is InputEventKey and e.pressed and not e.echo \
+			and not e.ctrl_pressed and not e.meta_pressed and not e.shift_pressed \
+			and (e.keycode == KEY_F2 or e.keycode == KEY_X):
+		_toggle_status()
+
+func _toggle_status() -> void:
+	if _status == null or not Settings.one_to_one():
+		return
+	if _status.visible:
+		_status.close()
+	else:
+		_status.open()
 
 # ── helpers ────────────────────────────────────────────────────────────────
 
@@ -756,6 +763,13 @@ func _row_vitals_menu() -> Control:
 		cell.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		# The up/down nav icons are LIVE (Qud's climb commands); the rest stay cosmetic.
 		# Plain Controls with gui_input — no Button, so nothing grabs focus from the arrows.
+		if key == "char":
+			# the person icon opens the 8-tab status screens — Qud's own opener
+			cell.mouse_filter = Control.MOUSE_FILTER_STOP
+			cell.tooltip_text = "Character / status screens — x or F2"
+			cell.gui_input.connect(func(e: InputEvent) -> void:
+				if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+					_toggle_status())
 		if key == "up" or key == "down":
 			var stair_up: bool = key == "up"
 			cell.mouse_filter = Control.MOUSE_FILTER_STOP
