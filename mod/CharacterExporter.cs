@@ -1,0 +1,147 @@
+using System;
+using System.IO;
+using System.Text;
+using XRL.World;
+using XRL.World.Parts;
+
+namespace RavesOfQud
+{
+    /// <summary>
+    /// Export the player's CHARACTER SHEET data — attributes, resistances, points and
+    /// the full mutation list with per-rank text — to <c>character.json</c> in the
+    /// RavesOfQud support dir, for the status screens' Attributes &amp; Powers tab.
+    ///
+    /// Live data (stats change every level/effect), so there is no one-shot guard:
+    /// the bridge "export" command re-runs it (Raves' screen requests one on open),
+    /// and the connect block seeds a first copy when a game is live. Data-only reads
+    /// of the player object (no Unity calls) — same class of access as ZoneSnapshot.
+    /// </summary>
+    public static class CharacterExporter
+    {
+        public static void ReExport()
+        {
+            try { Export(); }
+            catch (Exception e) { System.Console.WriteLine("[raves] character export failed: " + e.Message); }
+        }
+
+        private static string Root
+        {
+            get
+            {
+                string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                return Path.Combine(home, "Library", "Application Support", "RavesOfQud");
+            }
+        }
+
+        private static int Stat(GameObject p, string name)
+        {
+            try { return p.Stat(name); } catch { return 0; }
+        }
+
+        /// Qud's DISPLAY value (MoveSpeed shows as 200-value, etc.) — mirrors Statistic.GetDisplayValue.
+        private static string DisplayStat(GameObject p, string name)
+        {
+            try
+            {
+                var st = p.Statistics != null && p.Statistics.ContainsKey(name) ? p.Statistics[name] : null;
+                if (st != null) return st.GetDisplayValue();
+            }
+            catch { }
+            return Stat(p, name).ToString();
+        }
+
+        private static string Help(GameObject p, string name)
+        {
+            try
+            {
+                var st = p.Statistics != null && p.Statistics.ContainsKey(name) ? p.Statistics[name] : null;
+                if (st != null) return st.GetHelpText() ?? "";
+            }
+            catch { }
+            return "";
+        }
+
+        private static void Export()
+        {
+            GameObject p = null;
+            try { p = XRL.The.Player; } catch { }
+            if (p == null) return;   // menu / mid-transition — nothing to export
+
+            var j = new JsonWriter();
+            j.BeginObject();
+            try { j.Member("name", p.DisplayNameOnlyStripped ?? ""); } catch { }
+            // "Mutated Human Tinker" — genotype + subtype, as the sheet's subtitle
+            string geno = "", sub = "";
+            try { geno = p.GetGenotype() ?? ""; } catch { }
+            try { sub = p.GetStringProperty("Subtype") ?? ""; } catch { }
+            j.Member("title", (geno + " " + sub).Trim());
+            j.Member("level", Stat(p, "Level"));
+            try { j.Member("hp", p.hitpoints).Member("hpMax", p.baseHitpoints); } catch { }
+            j.Member("xp", Stat(p, "XP"));
+            try { j.Member("xpNext", Leveler.GetXPForLevel(Stat(p, "Level") + 1)); } catch { }
+            try { j.Member("weight", p.Weight); } catch { }   // the sheet shows TOTAL object weight, not carried
+            j.Member("ap", Stat(p, "AP"));
+            j.Member("mp", Stat(p, "MP"));
+
+            j.Name("attributes").BeginObject();
+            j.Member("STR", Stat(p, "Strength")).Member("AGI", Stat(p, "Agility"))
+             .Member("TOU", Stat(p, "Toughness")).Member("INT", Stat(p, "Intelligence"))
+             .Member("WIL", Stat(p, "Willpower")).Member("EGO", Stat(p, "Ego"));
+            j.EndObject();
+
+            j.Name("secondary").BeginObject();
+            j.Member("QN", Stat(p, "Speed"));
+            j.Member("MS", int.TryParse(DisplayStat(p, "MoveSpeed"), out var msd) ? msd : Stat(p, "MoveSpeed"));
+            try { j.Member("AV", XRL.Rules.Stats.GetCombatAV(p)); } catch { }
+            try { j.Member("DV", XRL.Rules.Stats.GetCombatDV(p)); } catch { }
+            try { j.Member("MA", XRL.Rules.Stats.GetCombatMA(p)); } catch { }
+            j.EndObject();
+
+            j.Name("resists").BeginObject();
+            j.Member("AR", Stat(p, "AcidResistance")).Member("ER", Stat(p, "ElectricResistance"))
+             .Member("CR", Stat(p, "ColdResistance")).Member("HR", Stat(p, "HeatResistance"));
+            j.EndObject();
+
+            j.Name("help").BeginObject();
+            j.Member("STR", Help(p, "Strength")).Member("AGI", Help(p, "Agility"))
+             .Member("TOU", Help(p, "Toughness")).Member("INT", Help(p, "Intelligence"))
+             .Member("WIL", Help(p, "Willpower")).Member("EGO", Help(p, "Ego"))
+             .Member("QN", Help(p, "Speed")).Member("MS", Help(p, "MoveSpeed"))
+             .Member("AV", Help(p, "AV")).Member("DV", Help(p, "DV")).Member("MA", Help(p, "MA"))
+             .Member("AR", Help(p, "AcidResistance")).Member("ER", Help(p, "ElectricResistance"))
+             .Member("CR", Help(p, "ColdResistance")).Member("HR", Help(p, "HeatResistance"));
+            j.EndObject();
+
+            j.Name("mutations").BeginArray();
+            try
+            {
+                var muts = p.GetPart<Mutations>();
+                if (muts != null && muts.MutationList != null)
+                {
+                    foreach (var m in muts.MutationList)
+                    {
+                        if (m == null) continue;
+                        j.BeginObject();
+                        try { j.Member("name", m.GetDisplayName(false) ?? ""); } catch { }
+                        try { j.Member("display", m.GetDisplayName(true) ?? ""); } catch { }   // Qud's own list text, annotations included
+                        j.Member("level", m.Level);
+                        try { j.Member("uiLevel", m.GetUIDisplayLevel()); } catch { }
+                        try { j.Member("maxLevel", m.GetMaxLevel()); } catch { }
+                        try { j.Member("defect", m.IsDefect()); } catch { }
+                        try { j.Member("type", m.GetMutationType() ?? ""); } catch { }
+                        try { j.Member("desc", m.GetDescription() ?? ""); } catch { }
+                        try { j.Member("levelText", m.GetLevelText(m.Level) ?? ""); } catch { }
+                        try { if (m.Level < m.GetMaxLevel()) j.Member("nextText", m.GetLevelText(m.Level + 1) ?? ""); } catch { }
+                        j.EndObject();
+                    }
+                }
+            }
+            catch { }
+            j.EndArray();
+            j.EndObject();
+
+            Directory.CreateDirectory(Root);
+            File.WriteAllText(Path.Combine(Root, "character.json"), j.ToString(), new UTF8Encoding(false));   // NO BOM — Godot's JSON.parse_string rejects it
+        }
+    }
+}

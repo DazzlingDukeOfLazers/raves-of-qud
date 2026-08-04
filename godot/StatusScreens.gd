@@ -64,12 +64,23 @@ var _all_lines: Array = []
 var _msg_total := 0
 var _seeded := false
 
+# character sheet (Attributes & Powers): mod CharacterExporter -> character.json;
+# we request a fresh export on open via our own bridge peer (Records pattern)
+var _attr_pane: Control = null
+var _char_mtime := 0
+var _peer := StreamPeerTCP.new()
+var _tiles: RefCounted = null
+var _last_player := {}
+var _tiles_dir := ""
+
 func _init() -> void:
 	layer = 90                                   # above chrome+3D, under the CRT (100)
 	visible = false
 
 func _ready() -> void:
 	name = "StatusScreens"
+	_tiles = load("res://QudTiles.gd").new()
+	_peer.connect_to_host(BridgeClient.host(), BridgeClient.port())
 	_root = Control.new()
 	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_root.mouse_filter = Control.MOUSE_FILTER_STOP     # modal while shown
@@ -243,10 +254,68 @@ func _set_tab(id: String) -> void:
 	_tab = id
 	_bar.queue_redraw()
 	_log_scroll.visible = (id == "messagelog")
+	if _cursor != null:
+		_cursor.visible = (id == "messagelog")
 	if id == "messagelog":
 		_refresh_log()
+	if _attr_pane != null:
+		_attr_pane.visible = (id == "attributes")
+	if id == "attributes":
+		_request_export()
+		_load_character()
 	if visible:
 		UiState.set_scene("status_" + _tab)
+
+## Ask the mod for a fresh data export (character.json etc.); fire-and-forget.
+func _request_export() -> void:
+	_peer.poll()
+	if _peer.get_status() != StreamPeerTCP.STATUS_CONNECTED:
+		_peer.connect_to_host(BridgeClient.host(), BridgeClient.port())
+		return
+	var payload := JSON.stringify({"type": "command", "name": "export"}).to_utf8_buffer()
+	var frame := PackedByteArray()
+	var n := payload.size()
+	frame.append((n >> 24) & 0xFF)
+	frame.append((n >> 16) & 0xFF)
+	frame.append((n >> 8) & 0xFF)
+	frame.append(n & 0xFF)
+	frame.append_array(payload)
+	_peer.put_data(frame)
+
+## (Re)build the Attributes & Powers pane from character.json when it changes.
+func _load_character() -> void:
+	var path := InputModel.support_dir().path_join("character.json")
+	if not FileAccess.file_exists(path):
+		return
+	var mt := FileAccess.get_modified_time(path)
+	if _attr_pane != null and mt == _char_mtime:
+		return
+	var f := FileAccess.open(path, FileAccess.READ)
+	if f == null:
+		return
+	var txt := f.get_as_text()
+	if txt.length() > 0 and txt.unicode_at(0) == 0xFEFF:
+		txt = txt.substr(1)   # strip a UTF-8 BOM — JSON.parse_string rejects it
+	var data: Variant = JSON.parse_string(txt)
+	if not (data is Dictionary):
+		return
+	_char_mtime = mt
+	if _attr_pane == null:
+		_attr_pane = load("res://StatusPaneAttributes.gd").new()
+		_root.add_child(_attr_pane)
+	# the player portrait: white tile + detail colour, like the frame's avatar
+	var tex: Texture2D = null
+	if not _last_player.is_empty() and _tiles_dir != "":
+		_tiles.tiles_dir = _tiles_dir
+		_tiles.palette = _palette if not _palette.is_empty() else _tiles.palette
+		tex = _tiles.texture(String(_last_player.get("tile", "")), Color.WHITE,
+			_tiles.detail_color(_last_player))
+	_attr_pane.setup(data, _palette, tex)
+	_attr_pane.visible = (_tab == "attributes")
+	# fresh export may land AFTER this read — poll the mtime once more shortly
+	get_tree().create_timer(1.2).timeout.connect(func():
+		if visible and _tab == "attributes":
+			_load_character())
 
 # ── open / close / input ───────────────────────────────────────────────────────
 
@@ -307,6 +376,10 @@ func set_snapshot(data: Dictionary) -> void:
 	var pal: Dictionary = data.get("palette", {})
 	if not pal.is_empty():
 		_palette = pal   # same shape MessageLog/QudText already consume
+	var pobj: Dictionary = data.get("player", {})
+	if not pobj.is_empty():
+		_last_player = pobj
+	_tiles_dir = String(data.get("tilesDir", _tiles_dir))
 	var lines: Array = data.get("messages", [])
 	var total := int(data.get("msgCount", 0))
 	if not _seeded:

@@ -135,6 +135,8 @@ namespace RavesOfQud
             RecordsExporter.Ensure();
             // One-shot: export Qud's character-creation data (genotypes, …) for Raves' chargen screens.
             ChargenExporter.Ensure();
+            // Live: seed the character-sheet export when a game is up (re-run via "export").
+            CharacterExporter.ReExport();
 
             // Keep Unity RENDERING the window while it's unfocused, so Qud's own map
             // repaints in sync with commands we drive from Godot. Unity pauses the
@@ -698,6 +700,7 @@ namespace RavesOfQud
                                 OptionsExporter.ReExport();
                                 RecordsExporter.ReExport();
                                 ChargenExporter.ReExport();
+                                CharacterExporter.ReExport();   // live sheet data for the status screens
                                 TitleExporter.ExportChargenEmblem();                        // resident even at the menu
                                 TitleExporter.ExportNamedSprite("tiny-frame-h", "card_frame.png");         // the game-mode card's dotted frame
                                 TitleExporter.ExportNamedSprite("polat-locator-big", "sel_frame.png");     // the selected-card frame (corner brackets)
