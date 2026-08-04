@@ -188,6 +188,25 @@ namespace RavesOfQud
                         try { j.Member("showLevel", m.ShouldShowLevel()); } catch { }   // Qud's own (n)-suffix rule
                         try { j.Member("type", m.GetMutationType() ?? ""); } catch { }
                         try { j.Member("desc", m.GetDescription() ?? ""); } catch { }
+                        try
+                        {
+                            var ic = m.GetIcon();
+                            if (ic != null)
+                            {
+                                string mtile = ic.getTile();
+                                if (!string.IsNullOrEmpty(mtile))
+                                {
+                                    TileExporter.Ensure(mtile);
+                                    string mcol = ic.getTileColor();
+                                    if (string.IsNullOrEmpty(mcol)) mcol = ic.getColorString();
+                                    char mdc = ic.getDetailColor();
+                                    j.Member("iconTile", mtile)
+                                     .Member("iconColor", mcol ?? "")
+                                     .Member("iconDetail", mdc == '\0' ? "" : mdc.ToString());
+                                }
+                            }
+                        }
+                        catch { }
                         try { j.Member("levelText", m.GetLevelText(m.Level) ?? ""); } catch { }
                         try { if (m.Level < m.GetMaxLevel()) j.Member("nextText", m.GetLevelText(m.Level + 1) ?? ""); } catch { }
                         j.EndObject();

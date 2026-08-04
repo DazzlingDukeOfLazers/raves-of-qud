@@ -71,7 +71,6 @@ var _attr_pane: Control = null
 var _char_mtime := 0
 var _pane_pal_empty := true
 var _portrait_tex: Texture2D = null   # live player tile — also the attributes tab's icon
-var _portrait_tex_flipped: Texture2D = null   # pre-flipped for the bar (negative-rect draws misplace)
 var _peer := StreamPeerTCP.new()
 var _tiles: RefCounted = null
 var _last_player := {}
@@ -232,7 +231,7 @@ func _draw_bar() -> void:
 		var cx0: int = CELL_X[i]
 		var cw: int = CELL_X[i + 1] - cx0
 		var icon: Texture2D = _icons.get("%s_%s" % [t["id"], "on" if active else "off"])
-		var live: bool = (t["id"] == "attributes" and _portrait_tex_flipped != null)
+		var live: bool = (t["id"] == "attributes" and _portrait_tex != null)
 		var tw := f.get_string_size(t["name"], HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
 		var iw := 0.0
 		if live:
@@ -242,9 +241,13 @@ func _draw_bar() -> void:
 		var x := cx0 + (cw - (iw + tw)) * 0.5
 		if live:
 			# Qud's Attributes tab icon IS the character sprite, same 24x36 as the
-			# sheet portrait, facing left (texture pre-flipped)
-			_bar.draw_texture_rect(_portrait_tex_flipped, Rect2(x, 10, 24, 36), false,
+			# sheet portrait, facing left. Flip via TRANSFORM so the 1.5x NEAREST
+			# duplicate-columns land like the portrait's flip_h (scale THEN mirror —
+			# a pre-flipped image mirrors first and doubles the other side: derpy).
+			_bar.draw_set_transform(Vector2(x + 24.0, 10.0), 0.0, Vector2(-1, 1))
+			_bar.draw_texture_rect(_portrait_tex, Rect2(0, 0, 24, 36), false,
 				Color.WHITE if active else Color(0.5, 0.62, 0.66))
+			_bar.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 		elif icon != null:
 			_bar.draw_texture(icon, Vector2(x, (BAR_H - icon.get_height()) * 0.5 + 1))
 		_bar.draw_string(f, Vector2(x + iw, 36), t["name"],
@@ -356,11 +359,6 @@ func _load_character() -> void:
 			_tiles.palette = _palette
 		tex = _tiles.texture(tile, Color.WHITE, _tiles.color_of(String(data.get("detail", "")), Color.WHITE))
 	_portrait_tex = tex
-	_portrait_tex_flipped = null
-	if tex != null:
-		var fi := tex.get_image()
-		fi.flip_x()
-		_portrait_tex_flipped = ImageTexture.create_from_image(fi)
 	if _bar != null:
 		_bar.queue_redraw()   # the attributes tab icon IS the live portrait
 	_pane_pal_empty = _palette.is_empty()
