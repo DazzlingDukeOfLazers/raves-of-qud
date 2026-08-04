@@ -1235,17 +1235,28 @@ func _qud_option_1to1(opt: Dictionary) -> Control:
 			wrap.add_child(v)
 		"Checkbox":
 			wrap.custom_minimum_size = Vector2(0, 20)
-			var on := str(opt.get("value", "")) == "Yes"
+			# FUNCTIONAL: click toggles Yes/No and writes back over the bridge.
+			var cst := {"on": str(opt.get("value", "")) == "Yes"}
+			var coid := str(opt.get("id", ""))
 			var rl := RichTextLabel.new()
 			rl.bbcode_enabled = true
 			rl.fit_content = true
 			rl.scroll_active = false
 			rl.autowrap_mode = TextServer.AUTOWRAP_OFF
-			rl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			rl.mouse_filter = Control.MOUSE_FILTER_STOP
 			rl.add_theme_font_size_override("normal_font_size", 16)
-			var box := "[lb]■[rb]" if on else "[lb] [rb]"
-			rl.text = "[color=#%s]%s[/color][color=#%s] %s[/color]" % [
-				O_TEXT.to_html(false), box, O_TEXT.to_html(false), label]
+			var paint := func():
+				var box := "[lb]■[rb]" if cst.on else "[lb] [rb]"
+				rl.text = "[color=#%s]%s[/color][color=#%s] %s[/color]" % [
+					O_TEXT.to_html(false), box, O_TEXT.to_html(false), label]
+			paint.call()
+			rl.gui_input.connect(func(e):
+				if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+					cst.on = not cst.on
+					paint.call()
+					if coid != "":
+						_send_bridge({"type": "command", "name": "setoption",
+							"id": coid, "value": "Yes" if cst.on else "No"}))
 			rl.position = Vector2(53, 0)
 			wrap.add_child(rl)
 		"Combo", "BigCombo":
