@@ -29,12 +29,22 @@ both apps, and coverage, so a change can be judged on the thing it touched.
 
 USAGE
   parity.py score  <spec.json> <qud.png> <raves.png> [--leaf NAME] [--json]
+                   [--stable <qud2.png>]   ignore pixels the reference does not hold still
   parity.py bounds <spec.json> <img.png> [--leaf NAME]      # what a leaf sees
   parity.py mask   <spec.json> <img.png> <leaf> <out.png>   # eyeball the mask
 
 The spec is data (reports/<date>/parity-<screen>.json) so new screens are a JSON
 edit, not code. Leaf names are the same strings the highvisor gametree uses for
 its per-leaf 1:1 scores.
+
+--stable: Qud draws its status screens over the LIVE playfield, which shows through
+the scrim and differs every run -- creatures move, tiles animate. That lands on the
+list leaves as noise big enough to swamp the thing being measured (the same build
+scored list_item 5.70 and 9.00 on consecutive captures with no code change between
+them). Pass a SECOND Qud capture of the same screen and every pixel that differs
+between the two is dropped from every leaf: what is left is the UI, which is what
+these leaves are about. Cheaper and safer than blanking Qud's world, which has no
+option for it and no obviously reversible lever in its render stack.
 """
 import json
 import sys
@@ -209,10 +219,23 @@ def score_leaf(q, r, leaf, defaults, spec=None):
                 qud_px=int(qm.sum()), raves_px=int(rm.sum()))
 
 
-def cmd_score(spec_path, qud_path, raves_path, only=None, as_json=False):
+def cmd_score(spec_path, qud_path, raves_path, only=None, as_json=False, stable=None):
     spec, leaves = load_spec(spec_path)
     q = np.asarray(Image.open(qud_path).convert("RGB"))
     r = np.asarray(Image.open(raves_path).convert("RGB"))
+    if stable:
+        q2 = np.asarray(Image.open(stable).convert("RGB"))
+        if q2.shape == q.shape:
+            # Where the reference did not hold still between two captures, it is the
+            # world showing through -- not UI. Paint those pixels identical in both so
+            # they contribute nothing, rather than dropping them (which would change
+            # every leaf's pixel count and make the numbers incomparable).
+            moved = (np.abs(q.astype(int) - q2.astype(int)).max(axis=2) > 6)
+            q = q.copy(); r = r.copy()
+            q[moved] = 0
+            r[moved] = 0
+            print("  [--stable] ignoring %d px the reference did not hold still (%.1f%%)"
+                  % (int(moved.sum()), 100.0 * moved.mean()))
     defaults = spec.get("defaults", {})
     rows = [score_leaf(q, r, lf, defaults, spec) for lf in leaves
             if only is None or lf["name"].startswith(only)]
@@ -270,7 +293,8 @@ def main(argv):
     if "--leaf" in argv:
         only = argv[argv.index("--leaf") + 1]
     if cmd == "score":
-        cmd_score(argv[2], argv[3], argv[4], only, "--json" in argv)
+        stable = argv[argv.index("--stable") + 1] if "--stable" in argv else None
+        cmd_score(argv[2], argv[3], argv[4], only, "--json" in argv, stable)
     elif cmd == "bounds":
         cmd_bounds(argv[2], argv[3], only)
     elif cmd == "mask":

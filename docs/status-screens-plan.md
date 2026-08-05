@@ -508,3 +508,26 @@ Declared at the practical limit and NOT worth further chasing:
   - `list_item` / `list_cat` — their diff is dominated by the live PLAYFIELD showing through
     Qud's scrim behind the text, which differs every run. The glyphs themselves land within 1-2px.
     Read these two as noisy; judge list typography from the token positions, not the leaf score.
+
+### The outer frame was three-quarters missing (2026-08-05)
+
+Walking `outer_frame`'s error to its worst columns turned up two absent elements, and chasing
+those turned up something larger: **Raves drew only the BOTTOM edge of the screen frame.** Qud
+lights 1018 px on its top line, 712 on the left and 711 on the right; Raves lit 189 (the filter
+strip crossing that row), 2 and 40. The leaf's 4.55 average had hidden it -- three 1px lines are
+nothing against a 74,080px band, which is a good argument for reading a leaf's worst columns
+and not just its mean.
+
+MEASURED and now drawn: top y197 in four segments (158-204, 213-581, 1338-1705, 1714-1760 --
+the gaps are notches and the long one is the filter strip), left x166 y227-938, right x1753
+y228-938. The verticals start ~30px below the top line; that gap belongs to the corner ornament.
+
+The "[Ctrl+Tab] show cybernetics" hint went in with it, read off the reference as a BITMAP rather
+than eyeballed: a 24x1 tick at y227 and a 1x16 at x189 joining it to the frame edge, a 20x15
+keycap outline at (207,220) with "Ctrl" inside, "+Tab]" in the same gold, and the label from x278
+in the hint grey -- all at font 14, because 16 made "show" 37px wide against Qud's 33 and the
+error compounds along the line.
+
+outer_frame 4.55 -> 2.80; screen composite 3.19, frame 2.34.
+
+Still open here: our "Ctrl" label slightly overflows its keycap box.

@@ -415,3 +415,14 @@ Three things it makes impossible rather than merely discouraged:
   through. `find` walks both and says which one it found.
 - **A silent wrong pick.** Two waterskins is a real case. Ambiguity is an ERROR listing the
   candidates, not a first-match guess.
+
+#### `--stable`: a mask that turned out not to be needed here
+
+`score --stable <second-qud-capture>` drops every pixel the reference did not hold still between
+two captures, on the theory that the live playfield behind Qud's scrim was polluting the list
+leaves. Measured: it finds **764 px, 0.0%** of the frame -- because the game is PAUSED while a
+status screen is open, so nothing animates within a run. The list leaves' variation (the same
+build scoring list_item 5.70 and 9.00) therefore comes from the game STATE differing between
+runs, not from animation, and the cure is fixture discipline -- reload the same save, do not move
+-- which `fixture.py` now makes routine. The flag is kept for screens that do animate; the
+finding is recorded so nobody re-derives it.

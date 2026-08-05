@@ -153,6 +153,27 @@ void fragment() {
 	_root.add_child(_pane_host)
 	_build_log_pane()
 
+	# THE OUTER FRAME. Only the bottom rule existed; the top, left and right edges were
+	# never drawn at all (measured: Qud lights 1018/712/711 px on them, Raves 189/2/40 --
+	# and the 189 was the filter strip crossing that row, not a line). MEASURED off Qud:
+	#   top    y197, in four segments -- 158-204, 213-581, 1338-1705, 1714-1760, the gaps
+	#          at 205-212 and 1706-1713 being notches and the long one the filter strip
+	#   left   x166, y227-938        right  x1753, y228-938
+	#   bottom y937, x158-1760       (the rule that was already here)
+	# The verticals start ~30px below the top line: that gap is the corner ornament's,
+	# and drawing through it would be worse than leaving it.
+	var frame := Control.new()
+	frame.position = Vector2.ZERO
+	frame.size = Vector2(1920, 1080)
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	frame.draw.connect(func():
+		for seg in [[158.0, 204.0], [213.0, 581.0], [1338.0, 1705.0], [1714.0, 1760.0]]:
+			frame.draw_rect(Rect2(seg[0], 197.0, seg[1] - seg[0] + 1.0, 1.0), S_RULE)
+		frame.draw_rect(Rect2(166.0, 227.0, 1.0, 712.0), S_RULE)
+		frame.draw_rect(Rect2(1753.0, 228.0, 1.0, 711.0), S_RULE)
+		_draw_cyber_hint(frame))
+	_root.add_child(frame)
+
 	# bottom rule + search + hint
 	var bottom := Control.new()
 	bottom.position = Vector2(0, 936)
@@ -276,6 +297,28 @@ func _draw_bar() -> void:
 	# numpad 7/9 page keycaps with end-stop glyphs: "⊣ [7]" left, "[9] ⊢" right
 	_draw_keycap(163, true)
 	_draw_keycap(1722, false)
+
+## Qud's "[Ctrl+Tab] show cybernetics" hint, hung off the frame's left edge.
+##
+## All MEASURED off the reference, by reading the region as a bitmap rather than
+## eyeballing it: the ⊣ tick that joins it to the edge is a 24x1 at y227 plus a 1x16
+## at x189; the keycap is a 20x15 outline at (207,220) with "Ctrl" inside; "+Tab]"
+## follows in the same gold, and "show cybernetics" runs from x278 in the hint grey.
+func _draw_cyber_hint(c: CanvasItem) -> void:
+	var f: Font = _root.get_theme_default_font()
+	if f == null:
+		return
+	c.draw_rect(Rect2(166.0, 227.0, 24.0, 1.0), S_RULE)     # ⊣ into the left edge
+	c.draw_rect(Rect2(189.0, 220.0, 1.0, 16.0), S_RULE)
+	# 14, not 16: MEASURED against Qud's own advances -- its "show" is 33px for four
+	# glyphs where 16 gave us 37, and the error compounds along the line
+	c.draw_string(f, Vector2(199.0, 233.0), "[", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, S_GOLD)
+	# the keycap: outline only, the label inset
+	c.draw_rect(Rect2(207.0, 220.0, 20.0, 15.0), S_GOLD, false, 1.0)
+	c.draw_string(f, Vector2(209.0, 231.0), "Ctrl", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, S_GOLD)
+	c.draw_string(f, Vector2(229.0, 233.0), "+Tab]", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, S_GOLD)
+	c.draw_string(f, Vector2(278.0, 233.0), "show cybernetics",
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 14, S_HINT)
 
 func _draw_keycap(x: float, left: bool) -> void:
 	var box_x := x + (18.0 if left else 0.0)
