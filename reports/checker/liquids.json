@@ -4,7 +4,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'liquids_water_puddle_1'"
+   "wire tile != blueprint tile 'liquids_water_puddle_3'"
   ],
   "stage": {
    "bp": "AcidPool",
@@ -12,20 +12,20 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 1,
-   "tile": "Liquids/Water/puddle_1.png",
+   "cleared": 7,
+   "tile": "Liquids/Water/puddle_3.png",
    "color": "&G^g",
    "detail": "g",
    "name": "puddle of {{G|acid}}"
   },
-  "wire_objs": 1,
+  "wire_objs": 7,
   "wire_hex": "00c420",
   "shots": {
    "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\AcidPool_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\AcidPool_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.72,
+   "mean_abs_diff": 1.73,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -41,7 +41,8 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'liquids_water_deep-00000000'"
+   "wire tile != blueprint tile 'liquids_water_deep-00000000'",
+   "no capture pair \u2014 congruence skipped"
   ],
   "stage": {
    "bp": "AcidPuddle",
@@ -58,7 +59,6 @@
   "wire_objs": 1,
   "wire_hex": "00c420",
   "shots": {
-   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\AcidPuddle_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\AcidPuddle_raves.png"
   },
   "congruence": {
@@ -85,7 +85,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Liquids/Water/puddle_1.png",
+   "tile": "Liquids/Water/puddle_2.png",
    "color": "&b^B&g",
    "detail": "B",
    "name": "puddle of {{G|acidic}} {{B|water}}"
@@ -97,7 +97,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\AcidWaterPool_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.73,
+   "mean_abs_diff": 1.75,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -112,7 +112,9 @@
   "bp": "AlgaePool",
   "pass": true,
   "reasons": [],
-  "warns": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_deep-00000000'"
+  ],
   "stage": {
    "bp": "AlgaePool",
    "ok": true,
@@ -169,7 +171,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\AlgalWaterBloodDeepPool_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 2.14,
+   "mean_abs_diff": 2.15,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -204,7 +206,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\AlgalWaterBloodPool_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 2.15,
+   "mean_abs_diff": 2.16,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -239,7 +241,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\AlgalWaterDeepPool_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 2.17,
+   "mean_abs_diff": 2.16,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -274,7 +276,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\AlgalWaterPool_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 2.17,
+   "mean_abs_diff": 2.15,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -311,7 +313,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\AsphaltDeepPool_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 2.37,
+   "mean_abs_diff": 2.3,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -348,7 +350,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\AsphaltPuddle_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 2.29,
+   "mean_abs_diff": 2.33,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -385,7 +387,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\BloodPool_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.72,
+   "mean_abs_diff": 1.76,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -422,7 +424,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\BloodSplash_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.75,
+   "mean_abs_diff": 1.74,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -459,7 +461,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\BrackishPool_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.73,
+   "mean_abs_diff": 1.76,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -496,7 +498,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\BrackishWaterPuddle_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 2.13,
+   "mean_abs_diff": 2.1,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -512,7 +514,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'liquids_water_puddle_2'"
+   "wire tile != blueprint tile 'liquids_water_puddle_4'"
   ],
   "stage": {
    "bp": "BrainbrinePool",
@@ -521,7 +523,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Liquids/Water/puddle_2.png",
+   "tile": "Liquids/Water/puddle_4.png",
    "color": "&g^W",
    "detail": "W",
    "name": "puddle of {{brainbrine|brain brine}}"
@@ -533,7 +535,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\BrainbrinePool_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.73,
+   "mean_abs_diff": 1.76,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -549,7 +551,8 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'liquids_water_puddle_3'"
+   "wire tile != blueprint tile 'liquids_water_puddle_4'",
+   "no capture pair \u2014 congruence skipped"
   ],
   "stage": {
    "bp": "BrainBrinePool",
@@ -558,7 +561,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Liquids/Water/puddle_3.png",
+   "tile": "Liquids/Water/puddle_4.png",
    "color": "&g^W",
    "detail": "W",
    "name": "puddle of {{brainbrine|brain brine}}"
@@ -566,7 +569,6 @@
   "wire_objs": 1,
   "wire_hex": "009403",
   "shots": {
-   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\BrainBrinePool_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\BrainBrinePool_raves.png"
   },
   "congruence": {
@@ -585,9 +587,7 @@
   "bp": "CiderPool",
   "pass": true,
   "reasons": [],
-  "warns": [
-   "wire tile != blueprint tile 'liquids_water_puddle_3'"
-  ],
+  "warns": [],
   "stage": {
    "bp": "CiderPool",
    "ok": true,
@@ -595,7 +595,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Liquids/Water/puddle_3.png",
+   "tile": "Liquids/Water/puddle_2.png",
    "color": "&w^r",
    "detail": "r",
    "name": "puddle of {{cider|cider}}"
@@ -607,7 +607,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\CiderPool_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.76,
+   "mean_abs_diff": 1.74,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -630,7 +630,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Liquids/Water/puddle_3.png",
+   "tile": "Liquids/Water/puddle_2.png",
    "color": "&M^Y",
    "detail": "Y",
    "name": "puddle of {{cloning|cloning draught}}"
@@ -642,8 +642,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\CloningPool_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.34,
-   "pct_hot": 4.7,
+   "mean_abs_diff": 5.54,
+   "pct_hot": 3.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -657,7 +657,9 @@
   "bp": "CloningPuddle",
   "pass": true,
   "reasons": [],
-  "warns": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_puddle_3'"
+  ],
   "stage": {
    "bp": "CloningPuddle",
    "ok": true,
@@ -693,7 +695,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'liquids_water_puddle_2'"
+   "wire tile != blueprint tile 'liquids_water_puddle_3'"
   ],
   "stage": {
    "bp": "Clue_Putrescence",
@@ -702,7 +704,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Liquids/Water/puddle_2.png",
+   "tile": "Liquids/Water/puddle_3.png",
    "color": "&g^K",
    "detail": "K",
    "name": "putrescence of {{putrid|putrescence}}"
@@ -714,7 +716,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\Clue_Putrescence_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.72,
+   "mean_abs_diff": 1.75,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -751,7 +753,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\ConvalessenceDeepPool_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 11.1,
+   "mean_abs_diff": 11.13,
    "pct_hot": 6.2,
    "band": "PASS",
    "white_px": [
@@ -767,7 +769,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'liquids_water_puddle_1'"
+   "wire tile != blueprint tile 'liquids_water_puddle_4'"
   ],
   "stage": {
    "bp": "ConvalessencePool",
@@ -776,7 +778,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Liquids/Water/puddle_1.png",
+   "tile": "Liquids/Water/puddle_4.png",
    "color": "&Y^C",
    "detail": "C",
    "name": "puddle of {{C|convalessence}}"
@@ -788,12 +790,12 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\ConvalessencePool_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.13,
+   "mean_abs_diff": 7.5,
    "pct_hot": 3.7,
    "band": "PASS",
    "white_px": [
-    8,
-    309
+    7,
+    283
    ],
    "dominant_delta": 0,
    "wire_delta": 239
@@ -823,7 +825,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\ConvalessencePuddle_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 11.15,
+   "mean_abs_diff": 11.13,
    "pct_hot": 6.2,
    "band": "PASS",
    "white_px": [
@@ -932,7 +934,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\DeepFreshWaterPool_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 2.19,
+   "mean_abs_diff": 2.18,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -969,12 +971,12 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\DilutedWarmStaticPuddle_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 24.05,
-   "pct_hot": 11.0,
-   "band": "WARN",
+   "mean_abs_diff": 49.0,
+   "pct_hot": 23.0,
+   "band": "FAIL",
    "white_px": [
     3,
-    375
+    363
    ],
    "dominant_delta": 0,
    "wire_delta": 161
@@ -985,7 +987,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'liquids_water_puddle_1'"
+   "wire tile != blueprint tile 'liquids_water_puddle_4'"
   ],
   "stage": {
    "bp": "FreshWaterPool",
@@ -994,7 +996,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Liquids/Water/puddle_1.png",
+   "tile": "Liquids/Water/puddle_4.png",
    "color": "&b^B",
    "detail": "B",
    "name": "puddle of {{B|fresh water}}"
@@ -1006,7 +1008,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\FreshWaterPool_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.74,
+   "mean_abs_diff": 1.73,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1043,7 +1045,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\FreshWaterPool300_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 2.16,
+   "mean_abs_diff": 2.17,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1080,7 +1082,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\FreshWaterPool500_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 2.16,
+   "mean_abs_diff": 2.17,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1096,7 +1098,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'liquids_water_puddle_4'"
+   "wire tile != blueprint tile 'liquids_water_puddle_3'"
   ],
   "stage": {
    "bp": "FreshWaterPuddle",
@@ -1105,7 +1107,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Liquids/Water/puddle_4.png",
+   "tile": "Liquids/Water/puddle_3.png",
    "color": "&b^B",
    "detail": "B",
    "name": "puddle of {{B|fresh water}}"
@@ -1117,8 +1119,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\FreshWaterPuddle_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 3.03,
-   "pct_hot": 3.7,
+   "mean_abs_diff": 1.75,
+   "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
     0,
@@ -1154,12 +1156,12 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\GelPool_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 5.82,
-   "pct_hot": 3.7,
+   "mean_abs_diff": 1.73,
+   "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
     0,
-    118
+    0
    ],
    "dominant_delta": 0,
    "wire_delta": 161
@@ -1191,12 +1193,12 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\GooPool_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 8.54,
-   "pct_hot": 3.8,
+   "mean_abs_diff": 1.76,
+   "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
     0,
-    299
+    0
    ],
    "dominant_delta": 0,
    "wire_delta": 239
@@ -1228,22 +1230,24 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\GooPuddle_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 13.12,
-   "pct_hot": 6.0,
-   "band": "WARN",
+   "mean_abs_diff": 2.16,
+   "pct_hot": 0.0,
+   "band": "PASS",
    "white_px": [
-    14,
-    720
+    0,
+    0
    ],
    "dominant_delta": 0,
-   "wire_delta": 15
+   "wire_delta": 239
   }
  },
  {
   "bp": "HoneyPool",
   "pass": true,
   "reasons": [],
-  "warns": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_puddle_1'"
+  ],
   "stage": {
    "bp": "HoneyPool",
    "ok": true,
@@ -1251,7 +1255,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Liquids/Water/puddle_2.png",
+   "tile": "Liquids/Water/puddle_1.png",
    "color": "&w^W",
    "detail": "W",
    "name": "puddle of {{w|honey}}"
@@ -1263,8 +1267,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\HoneyPool_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 3.8,
-   "pct_hot": 3.8,
+   "mean_abs_diff": 1.75,
+   "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
     0,
@@ -1300,24 +1304,22 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\HoneyPuddle_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.97,
-   "pct_hot": 8.1,
+   "mean_abs_diff": 2.5,
+   "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
     0,
     0
    ],
    "dominant_delta": 0,
-   "wire_delta": 73
+   "wire_delta": 136
   }
  },
  {
   "bp": "InkDrop",
   "pass": true,
   "reasons": [],
-  "warns": [
-   "wire tile != blueprint tile 'liquids_water_puddle_1'"
-  ],
+  "warns": [],
   "stage": {
    "bp": "InkDrop",
    "ok": true,
@@ -1337,8 +1339,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\InkDrop_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.12,
-   "pct_hot": 3.7,
+   "mean_abs_diff": 1.73,
+   "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
     0,
@@ -1353,7 +1355,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'liquids_water_puddle_4'"
+   "wire tile != blueprint tile 'liquids_water_puddle_2'"
   ],
   "stage": {
    "bp": "InkPool",
@@ -1362,7 +1364,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Liquids/Water/puddle_4.png",
+   "tile": "Liquids/Water/puddle_2.png",
    "color": "&y^k",
    "detail": "k",
    "name": "puddle of {{K|ink}}"
@@ -1374,8 +1376,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\InkPool_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 6.96,
-   "pct_hot": 3.7,
+   "mean_abs_diff": 1.74,
+   "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
     0,
@@ -1411,7 +1413,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\LavaPool_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 6.36,
+   "mean_abs_diff": 6.48,
    "pct_hot": 4.7,
    "band": "PASS",
    "white_px": [
@@ -1448,7 +1450,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\LavaPuddle_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.57,
+   "mean_abs_diff": 7.28,
    "pct_hot": 6.0,
    "band": "PASS",
    "white_px": [
@@ -1485,15 +1487,15 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\LushAcidPuddle_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 9.84,
-   "pct_hot": 6.2,
+   "mean_abs_diff": 2.17,
+   "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
     0,
     0
    ],
    "dominant_delta": 0,
-   "wire_delta": 176
+   "wire_delta": 148
   }
  },
  {
@@ -1522,12 +1524,12 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\MoltenWaxDrop_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 6.03,
-   "pct_hot": 3.7,
+   "mean_abs_diff": 1.72,
+   "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
     0,
-    40
+    0
    ],
    "dominant_delta": 0,
    "wire_delta": 161
@@ -1559,15 +1561,15 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\MoltenWaxPuddle_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 8.87,
-   "pct_hot": 6.0,
+   "mean_abs_diff": 2.13,
+   "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
     0,
-    276
+    0
    ],
    "dominant_delta": 0,
-   "wire_delta": 13
+   "wire_delta": 161
   }
  },
  {
@@ -1596,8 +1598,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\NeutronfluxPool_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.54,
-   "pct_hot": 0.9,
+   "mean_abs_diff": 1.17,
+   "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
     0,
@@ -1633,8 +1635,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\NeutronPool_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.53,
-   "pct_hot": 0.9,
+   "mean_abs_diff": 1.18,
+   "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
     0,
@@ -1649,7 +1651,8 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'liquids_water_puddle_3'"
+   "wire tile != blueprint tile 'liquids_water_puddle_2'",
+   "no capture pair \u2014 congruence skipped"
   ],
   "stage": {
    "bp": "OilDeepPool",
@@ -1658,7 +1661,7 @@
    "x": 40,
    "y": 12,
    "cleared": 0,
-   "tile": "Liquids/Water/puddle_3.png",
+   "tile": "Liquids/Water/puddle_2.png",
    "color": "&Y^k",
    "detail": "k",
    "name": "puddle of {{K|oil}}"
@@ -1666,7 +1669,6 @@
   "wire_objs": 1,
   "wire_hex": "ffffff",
   "shots": {
-   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\OilDeepPool_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\OilDeepPool_raves.png"
   },
   "congruence": {
@@ -1686,11 +1688,47 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'liquids_water_puddle_2'",
-   "no capture pair \u2014 congruence skipped"
+   "wire tile != blueprint tile 'liquids_water_puddle_3'"
   ],
   "stage": {
    "bp": "OilPool",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Liquids/Water/puddle_3.png",
+   "color": "&Y^k",
+   "detail": "k",
+   "name": "puddle of {{K|oil}}"
+  },
+  "wire_objs": 1,
+  "wire_hex": "ffffff",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\OilPool_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\OilPool_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 1.74,
+   "pct_hot": 0.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 239
+  }
+ },
+ {
+  "bp": "OilPuddle",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_puddle_2'"
+  ],
+  "stage": {
+   "bp": "OilPuddle",
    "ok": true,
    "error": "",
    "x": 40,
@@ -1704,50 +1742,16 @@
   "wire_objs": 1,
   "wire_hex": "ffffff",
   "shots": {
-   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\OilPool_raves.png"
-  },
-  "congruence": {
-   "mean_abs_diff": 5.83,
-   "pct_hot": 2.3,
-   "band": "PASS",
-   "white_px": [
-    65,
-    425
-   ],
-   "dominant_delta": 0,
-   "wire_delta": 239
-  }
- },
- {
-  "bp": "OilPuddle",
-  "pass": true,
-  "reasons": [],
-  "warns": [],
-  "stage": {
-   "bp": "OilPuddle",
-   "ok": true,
-   "error": "",
-   "x": 40,
-   "y": 12,
-   "cleared": 1,
-   "tile": "Liquids/Water/puddle_1.png",
-   "color": "&Y^k",
-   "detail": "k",
-   "name": "puddle of {{K|oil}}"
-  },
-  "wire_objs": 1,
-  "wire_hex": "ffffff",
-  "shots": {
    "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\OilPuddle_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\OilPuddle_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 8.89,
-   "pct_hot": 3.7,
+   "mean_abs_diff": 1.76,
+   "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
-    8,
-    309
+    0,
+    0
    ],
    "dominant_delta": 0,
    "wire_delta": 239
@@ -1779,7 +1783,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\OilyAsphaltPool_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.73,
+   "mean_abs_diff": 2.32,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1787,7 +1791,7 @@
     0
    ],
    "dominant_delta": 0,
-   "wire_delta": 22
+   "wire_delta": 11
   }
  },
  {
@@ -1795,7 +1799,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'liquids_water_puddle_4'"
+   "wire tile != blueprint tile 'liquids_water_puddle_1'"
   ],
   "stage": {
    "bp": "OozePool",
@@ -1804,7 +1808,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Liquids/Water/puddle_4.png",
+   "tile": "Liquids/Water/puddle_1.png",
    "color": "&y^k",
    "detail": "k",
    "name": "puddle of {{K|black ooze}}"
@@ -1816,8 +1820,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\OozePool_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 6.97,
-   "pct_hot": 3.7,
+   "mean_abs_diff": 1.75,
+   "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
     0,
@@ -1853,8 +1857,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\OozePuddle_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 11.25,
-   "pct_hot": 6.0,
+   "mean_abs_diff": 2.13,
+   "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
     0,
@@ -1890,15 +1894,15 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\Pond_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 4.5,
-   "pct_hot": 6.2,
+   "mean_abs_diff": 2.13,
+   "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 128,
-   "wire_delta": 16
+   "dominant_delta": 0,
+   "wire_delta": 141
   }
  },
  {
@@ -1927,15 +1931,15 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\ProteanDeepPool_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 6.96,
-   "pct_hot": 8.1,
+   "mean_abs_diff": 2.5,
+   "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 128,
-   "wire_delta": 16
+   "dominant_delta": 0,
+   "wire_delta": 137
   }
  },
  {
@@ -1943,7 +1947,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'liquids_water_puddle_4'"
+   "wire tile != blueprint tile 'liquids_water_puddle_2'"
   ],
   "stage": {
    "bp": "PutrescencePool",
@@ -1952,7 +1956,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Liquids/Water/puddle_4.png",
+   "tile": "Liquids/Water/puddle_2.png",
    "color": "&g^K",
    "detail": "K",
    "name": "puddle of {{putrid|putrescence}}"
@@ -1964,8 +1968,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\PutrescencePool_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 2.95,
-   "pct_hot": 3.7,
+   "mean_abs_diff": 1.76,
+   "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
     0,
@@ -2001,15 +2005,15 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\RankPool_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.05,
-   "pct_hot": 6.0,
+   "mean_abs_diff": 2.11,
+   "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 32,
-   "wire_delta": 175
+   "dominant_delta": 0,
+   "wire_delta": 239
   }
  },
  {
@@ -2038,8 +2042,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\SaltBloodDeepPool_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.72,
-   "pct_hot": 7.2,
+   "mean_abs_diff": 2.32,
+   "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
     0,
@@ -2075,12 +2079,12 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\SaltDeepPool_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 11.42,
-   "pct_hot": 7.2,
+   "mean_abs_diff": 2.3,
+   "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
-    14,
-    522
+    0,
+    0
    ],
    "dominant_delta": 0,
    "wire_delta": 239
@@ -2091,7 +2095,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'liquids_water_puddle_4'"
+   "wire tile != blueprint tile 'liquids_water_puddle_3'"
   ],
   "stage": {
    "bp": "SaltPool",
@@ -2100,7 +2104,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Liquids/Water/puddle_4.png",
+   "tile": "Liquids/Water/puddle_3.png",
    "color": "&Y^y",
    "detail": "y",
    "name": "puddle of {{Y|salt}}"
@@ -2112,12 +2116,12 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\SaltPool_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.3,
-   "pct_hot": 3.7,
+   "mean_abs_diff": 1.75,
+   "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
-    7,
-    283
+    0,
+    0
    ],
    "dominant_delta": 0,
    "wire_delta": 239
@@ -2147,12 +2151,12 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\SaltPuddle_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 11.36,
-   "pct_hot": 7.2,
+   "mean_abs_diff": 2.34,
+   "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
-    14,
-    522
+    0,
+    0
    ],
    "dominant_delta": 0,
    "wire_delta": 239
@@ -2162,9 +2166,7 @@
   "bp": "SaltyAcidPool",
   "pass": true,
   "reasons": [],
-  "warns": [
-   "wire tile != blueprint tile 'liquids_water_puddle_1'"
-  ],
+  "warns": [],
   "stage": {
    "bp": "SaltyAcidPool",
    "ok": true,
@@ -2172,7 +2174,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Liquids/Water/puddle_1.png",
+   "tile": "Liquids/Water/puddle_3.png",
    "color": "&G^g",
    "detail": "g",
    "name": "puddle of {{w|brackish}} {{G|acid}}"
@@ -2184,8 +2186,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\SaltyAcidPool_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 2.82,
-   "pct_hot": 3.7,
+   "mean_abs_diff": 1.75,
+   "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
     0,
@@ -2221,15 +2223,15 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\SaltyWaterDeepPool_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 4.48,
-   "pct_hot": 6.2,
+   "mean_abs_diff": 2.17,
+   "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 128,
-   "wire_delta": 16
+   "dominant_delta": 0,
+   "wire_delta": 141
   }
  },
  {
@@ -2258,15 +2260,15 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\SaltyWaterExtraDeepPool_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 6.11,
-   "pct_hot": 6.2,
+   "mean_abs_diff": 2.16,
+   "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
     0,
     0
    ],
    "dominant_delta": 0,
-   "wire_delta": 72
+   "wire_delta": 141
   }
  },
  {
@@ -2293,15 +2295,15 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\SaltyWaterPuddle_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 6.13,
-   "pct_hot": 6.2,
+   "mean_abs_diff": 2.16,
+   "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
     0,
     0
    ],
    "dominant_delta": 0,
-   "wire_delta": 72
+   "wire_delta": 141
   }
  },
  {
@@ -2309,7 +2311,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'liquids_water_puddle_4'"
+   "wire tile != blueprint tile 'liquids_water_puddle_1'"
   ],
   "stage": {
    "bp": "SapPool",
@@ -2318,7 +2320,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Liquids/Water/puddle_4.png",
+   "tile": "Liquids/Water/puddle_1.png",
    "color": "&W^Y",
    "detail": "Y",
    "name": "puddle of {{W|sap}}"
@@ -2330,12 +2332,12 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\SapPool_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 5.26,
-   "pct_hot": 3.7,
+   "mean_abs_diff": 1.76,
+   "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
     0,
-    40
+    0
    ],
    "dominant_delta": 0,
    "wire_delta": 191
@@ -2346,7 +2348,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'liquids_water_puddle_3'"
+   "wire tile != blueprint tile 'liquids_water_puddle_2'"
   ],
   "stage": {
    "bp": "SlimePool",
@@ -2355,7 +2357,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Liquids/Water/puddle_3.png",
+   "tile": "Liquids/Water/puddle_2.png",
    "color": "&w^g",
    "detail": "g",
    "name": "puddle of {{slimy|slime}}"
@@ -2367,8 +2369,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\SlimePool_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 5.29,
-   "pct_hot": 4.7,
+   "mean_abs_diff": 1.72,
+   "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
     0,
@@ -2404,24 +2406,22 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\SlimePuddle_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 6.78,
-   "pct_hot": 6.0,
+   "mean_abs_diff": 2.14,
+   "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 32,
-   "wire_delta": 15
+   "dominant_delta": 0,
+   "wire_delta": 136
   }
  },
  {
   "bp": "SludgePool",
   "pass": true,
   "reasons": [],
-  "warns": [
-   "wire tile != blueprint tile 'liquids_water_puddle_1'"
-  ],
+  "warns": [],
   "stage": {
    "bp": "SludgePool",
    "ok": true,
@@ -2429,7 +2429,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Liquids/Water/puddle_1.png",
+   "tile": "Liquids/Water/puddle_2.png",
    "color": "&Y^w",
    "detail": "w",
    "name": "puddle of {{w|brown sludge}}"
@@ -2441,12 +2441,12 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\SludgePool_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.74,
-   "pct_hot": 3.7,
+   "mean_abs_diff": 1.74,
+   "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
-    8,
-    309
+    0,
+    0
    ],
    "dominant_delta": 0,
    "wire_delta": 239
@@ -2476,24 +2476,22 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\SludgePuddle_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 11.85,
-   "pct_hot": 6.0,
+   "mean_abs_diff": 2.12,
+   "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
-    14,
-    720
+    0,
+    0
    ],
    "dominant_delta": 0,
-   "wire_delta": 15
+   "wire_delta": 239
   }
  },
  {
   "bp": "SmallConvalessencePuddle",
   "pass": true,
   "reasons": [],
-  "warns": [
-   "wire tile != blueprint tile 'liquids_water_puddle_4'"
-  ],
+  "warns": [],
   "stage": {
    "bp": "SmallConvalessencePuddle",
    "ok": true,
@@ -2501,7 +2499,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Liquids/Water/puddle_4.png",
+   "tile": "Liquids/Water/puddle_2.png",
    "color": "&Y^C",
    "detail": "C",
    "name": "puddle of {{C|convalessence}}"
@@ -2513,12 +2511,12 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\SmallConvalessencePuddle_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.47,
-   "pct_hot": 3.7,
+   "mean_abs_diff": 6.81,
+   "pct_hot": 3.8,
    "band": "PASS",
    "white_px": [
-    7,
-    283
+    0,
+    299
    ],
    "dominant_delta": 0,
    "wire_delta": 239
@@ -2529,7 +2527,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'liquids_water_puddle_4'"
+   "wire tile != blueprint tile 'liquids_water_puddle_2'"
   ],
   "stage": {
    "bp": "SmallLavaPuddle",
@@ -2538,7 +2536,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Liquids/Water/puddle_4.png",
+   "tile": "Liquids/Water/puddle_2.png",
    "color": "&W^R",
    "detail": "R",
    "name": "puddle of {{lava|lava}}"
@@ -2550,8 +2548,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\SmallLavaPuddle_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 5.01,
-   "pct_hot": 3.7,
+   "mean_abs_diff": 4.79,
+   "pct_hot": 3.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -2573,7 +2571,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Liquids/Water/puddle_4.png",
+   "tile": "Liquids/Water/puddle_2.png",
    "color": "&w^g",
    "detail": "g",
    "name": "puddle of {{slimy|slime}}"
@@ -2585,8 +2583,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\SmallSlimePuddle_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 4.36,
-   "pct_hot": 3.7,
+   "mean_abs_diff": 1.73,
+   "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
     0,
@@ -2601,7 +2599,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'liquids_water_puddle_2'"
+   "wire tile != blueprint tile 'liquids_water_puddle_4'"
   ],
   "stage": {
    "bp": "SunslagPool",
@@ -2610,7 +2608,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Liquids/Water/puddle_2.png",
+   "tile": "Liquids/Water/puddle_4.png",
    "color": "&Y^W",
    "detail": "W",
    "name": "puddle of {{sunslag|sunslag}}"
@@ -2622,12 +2620,12 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\SunslagPool_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.14,
-   "pct_hot": 3.8,
+   "mean_abs_diff": 1.74,
+   "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
     0,
-    299
+    0
    ],
    "dominant_delta": 0,
    "wire_delta": 239
@@ -2638,7 +2636,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'liquids_water_puddle_2'"
+   "wire tile != blueprint tile 'liquids_water_puddle_1'"
   ],
   "stage": {
    "bp": "TarPool",
@@ -2647,7 +2645,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Liquids/Water/puddle_2.png",
+   "tile": "Liquids/Water/puddle_1.png",
    "color": "&k^K",
    "detail": "K",
    "name": "puddle of {{K|asphalt}}"
@@ -2659,7 +2657,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\TarPool_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.29,
+   "mean_abs_diff": 1.76,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -2696,15 +2694,15 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\UnctuousAlgalWaterPool_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 6.82,
-   "pct_hot": 6.2,
+   "mean_abs_diff": 2.12,
+   "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
     0,
     0
    ],
    "dominant_delta": 0,
-   "wire_delta": 16
+   "wire_delta": 100
   }
  },
  {
@@ -2712,7 +2710,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'liquids_water_puddle_4'"
+   "wire tile != blueprint tile 'liquids_water_puddle_3'"
   ],
   "stage": {
    "bp": "VomitPool",
@@ -2721,7 +2719,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Liquids/Water/puddle_4.png",
+   "tile": "Liquids/Water/puddle_3.png",
    "color": "&g^K",
    "detail": "K",
    "name": "puddle of {{putrid|putrescence}}"
@@ -2733,8 +2731,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\VomitPool_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 2.95,
-   "pct_hot": 3.7,
+   "mean_abs_diff": 1.75,
+   "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
     0,
@@ -2770,12 +2768,12 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\WarmStaticPuddle_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 21.88,
-   "pct_hot": 10.0,
+   "mean_abs_diff": 24.06,
+   "pct_hot": 11.0,
    "band": "WARN",
    "white_px": [
     3,
-    363
+    375
    ],
    "dominant_delta": 0,
    "wire_delta": 161
@@ -2807,8 +2805,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\WaterPool_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 3.03,
-   "pct_hot": 3.7,
+   "mean_abs_diff": 1.75,
+   "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
     0,
@@ -2844,12 +2842,12 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\WaxPool_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.9,
-   "pct_hot": 4.7,
+   "mean_abs_diff": 1.71,
+   "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
     0,
-    68
+    0
    ],
    "dominant_delta": 0,
    "wire_delta": 161
@@ -2859,7 +2857,9 @@
   "bp": "WinePool",
   "pass": true,
   "reasons": [],
-  "warns": [],
+  "warns": [
+   "wire tile != blueprint tile 'liquids_water_puddle_2'"
+  ],
   "stage": {
    "bp": "WinePool",
    "ok": true,
@@ -2867,7 +2867,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Liquids/Water/puddle_1.png",
+   "tile": "Liquids/Water/puddle_2.png",
    "color": "&m^r",
    "detail": "r",
    "name": "puddle of {{m|wine}}"
@@ -2879,8 +2879,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\WinePool_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 4.96,
-   "pct_hot": 3.7,
+   "mean_abs_diff": 1.75,
+   "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
     0,

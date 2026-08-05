@@ -69,13 +69,17 @@ divergence?). Everything else in furniture: 711 PASS / 15 WARN / 12 KNOWN.
 
 ## 7. Singles triage (2026-08-05)
 
-- **CaverCorpse / CaverCorpse2 — REPRODUCIBLE export bug (the real one).**
-  XML: `Tile=sw_bones_4, ColorString=&M, TileColor=&M` (magenta — matches
-  Qud's pink render). The export captured `color: &y` and a different bones
-  variant: something in the `Bones` base (part behavior at creation) mutates
-  ColorString while Qud's tile draw follows the &M path, and the tile variant
-  re-rolls. Probes: FAIL 30.0 → WARN 22.7 — consistently off. NEXT FIX:
-  reflect the Bones part (same method as EpistemicDisguise/ConveyorPad).
+- **CaverCorpse / CaverCorpse2 — ~~export bug~~ FIXED 2026-08-05: it was the
+  WINNER TIE RULE.** The Bones colour trail was a red herring — the wire's
+  `tilecolor &M` was right all along (RandomColors mutates ColorString only;
+  the RandomTile variant re-roll is builder behavior, benign). The real bug:
+  the corpse spills its inventory into the cell, giving TWO layer-6 objects
+  (corpse idx 0, unexamined trinket idx 5). Classic Cell.Render breaks ties
+  last-wins (`>=`), which the 1:1 winner had faithfully copied — but Qud's
+  MODERN tile stage draws FIRST-of-ties (measured). ZoneRenderer's 1:1 winner
+  now uses strict `>`. Probes: CaverCorpse 22.7 WARN → 5.33 PASS,
+  CaverCorpse2 3.56 PASS; liquids regression re-sweep clean (the only flags
+  are the warm-static animation family, section 4).
 - **Fire Ant Queen — one-off staging interference, not a render bug.** The
   baseline pair caught her mid-BURROW: Qud's frame shows the staircase tile
   she left behind. Re-probe: PASS 1.72 clean. Watch for recurrence; if it

@@ -794,11 +794,14 @@ func _rebuild_dynamics(cells: Array) -> void:
 		# the terrain tiles, never buried behind a hill card. _place_nonwall picks that up.
 		_placing_player = _world_map and Vector2i(cx, cy) == _player_cell
 		if _one_to_one:
-			# Qud renders ONE object per cell (Cell.Render): among the eligible objects — all of
-			# them when the cell is visible+lit, only the RenderIfDark ones otherwise — the highest
-			# RenderLayer wins, ties going to the LATER object in the cell's list (Qud compares
-			# with `>=`). A vine standing in deep water therefore covers the water entirely;
-			# stacking the whole list painted bright water under every vine.
+			# Qud renders ONE object per cell: among the eligible objects — all of
+			# them when the cell is visible+lit, only the RenderIfDark ones otherwise — the
+			# highest RenderLayer wins. TIES go to the EARLIER object in the cell's list:
+			# classic Cell.Render compares with `>=` (last-wins), but the MODERN tile stage
+			# we mirror draws first-wins — measured on the CaverCorpse spill (corpse idx 0 +
+			# unexamined trinket idx 5, both layer 6: Qud shows the corpse; `>=` here showed
+			# the trinket and the checker caught the divergence). The vine-over-deep-water
+			# rule is unaffected — that's a strict layer difference, not a tie.
 			var win: Dictionary = {}
 			var win_layer := -INF
 			for obj in cell.get("objs", []):
@@ -806,7 +809,7 @@ func _rebuild_dynamics(cells: Array) -> void:
 				if not full_1to1 and bool(wd.get("hideDark", false)):
 					continue   # Qud never draws these out of sight (Render.RenderIfDark false)
 				var lay := float(wd.get("layer", 0))
-				if lay >= win_layer:
+				if lay > win_layer:
 					win = wd
 					win_layer = lay
 			if not win.is_empty():
