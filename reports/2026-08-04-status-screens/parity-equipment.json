@@ -188,6 +188,37 @@
      ]
     ]
    }
+  },
+  {
+   "name": "outer_frame",
+   "kind": "frame",
+   "rect": [
+    158,
+    197,
+    1604,
+    743
+   ],
+   "inset": 16
+  },
+  {
+   "name": "list_cat",
+   "kind": "composite",
+   "rect": [
+    855,
+    286,
+    420,
+    26
+   ]
+  },
+  {
+   "name": "list_item",
+   "kind": "composite",
+   "rect": [
+    855,
+    260,
+    420,
+    26
+   ]
   }
  ]
 }

@@ -238,3 +238,26 @@ add a one-liner (symptom → rule).
 - **A matching ink BBOX is not the objective.** Nudging the doll tile +1px in x made every bbox
   line up with Qud's exactly and TRIPLED the pixel diff (16 -> 52): the bbox disagreement was a
   one-column dim edge. Score on pixels; read bboxes as a diagnostic only.
+
+## Equipment tab, round two: the doll label, natural weapons, and TWO list font sizes
+
+- **The primary-limb star is part of the label string, not a separate glyph.**
+  `EquipmentLine.setData` builds `"{{G|*}}" + GetCardinalDescription()`, so the star wraps and
+  centres WITH the text. Drawing it at a fixed offset left of the cell is what made it collide
+  with a short first line ("Left Hand" put the L on top of the star). It is GREEN, not gold.
+- **`DefaultBehavior` DOES render in the doll** -- `Equipped ?? DefaultBehavior`, and when it
+  falls through it renders `GreyOutForUI()`'d, which just forces both tones to `K`. That is why
+  a mutant claw shows as a dark teal ghost. An earlier note here claimed Qud leaves those slots
+  empty; that came from a parity leaf reading 0 ink, **which is exactly what a brightness-
+  thresholded ink mask reports for a sprite painted in `K`**. A dark sprite is invisible to the
+  ink mask -- never read "0 ink" as "nothing there" without looking.
+  (Qud greys the same way when an item spans several parts and this is not the first of them.)
+- **The inventory list is drawn at TWO font sizes**, which is easy to miss because both row kinds
+  share a 26px pitch: a CATEGORY name's glyphs advance 13.3px, an ITEM name's advance 9.75px --
+  size 22 and 16 through the 0.6*size letterspacing. The hotkey column stays at 16 in both. No
+  amount of column nudging lines up a row whose glyphs are the wrong size; measure the advance of
+  a REPEATED letter ("Data" gives you three) before touching any x.
+- Row icons follow the same 20x30 law as the filter bar and the doll (`InventoryLine.icon`),
+  left-anchored rather than centred. We had them at 13x19.
+- **Glyph ink starts are not advances.** Comparing "where does the ink of `[` begin" between apps
+  measures the left bearing, not the layout; only same-character runs give a real advance.

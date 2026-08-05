@@ -29,6 +29,14 @@ const LETTER_X := 861.0
 const NAME_X := 909.0
 const CAT_W_EDGE := 1673.0
 const ITEM_W_EDGE := 1753.0
+# Qud draws the list at TWO sizes, which is easy to miss because both rows share a
+# pitch: a CATEGORY name's glyphs advance 13.3px, an ITEM name's advance 9.75px.
+# Qud's letterspaced UI font advances 0.6*size, so that is 22 and 16. Our 16 was
+# right for items all along and 35% small on the categories -- no amount of column
+# nudging can line up a row whose glyphs are the wrong size. The hotkey letter stays
+# at ITEM_FONT in both kinds (measured: "b)" and "c)" land identically).
+const ROW_FONT := 22    # category rows
+const ITEM_FONT := 16   # item rows, and the hotkey column everywhere
 
 # Qud reserves these letters for commands, so the inventory spread skips them
 # (measured off the reference: a,b,c,f,g,… — d/e/q/s never appear).
@@ -443,15 +451,30 @@ func _draw_doll() -> void:
 						at.x += dw
 						dw = -dw
 					_static.draw_texture_rect(tex, Rect2(at, Vector2(dw, dh)), false)
-			if bool(sl.get("primary", false)):
-				_static.draw_string(_font, pos + Vector2(-8, BOX_H + 14), "*",
-					HORIZONTAL_ALIGNMENT_LEFT, -1, 14, C_GOLD)
-		# label, centred under the box and wrapped like Qud ("Worn on / Hands")
-		var lines := _wrap_label(label)
+		# Label, centred under the box and wrapped like Qud ("Worn on / Hands"). The
+		# primary-limb marker is NOT a separate glyph parked to the left of the cell:
+		# EquipmentLine.setData builds ONE string, "{{G|*}}" + the cardinal description,
+		# so the star wraps and centres WITH the text. Ours sat at a fixed offset, which
+		# is why a short first line ran over it ("Left Hand" put the L on the star). It
+		# is green too -- {{G|}} -- where we had gold.
+		var primary := sl != null and bool(sl.get("primary", false))
+		var lines := _wrap_label(("* " if primary else "") + label)
 		for i in lines.size():
 			var w := _font.get_string_size(lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
-			_static.draw_string(_font, pos + Vector2((BOX_W - w) * 0.5, BOX_H + 16 + i * 15),
-				lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, 14, C_LABEL)
+			var at := pos + Vector2((BOX_W - w) * 0.5, BOX_H + 16 + i * 15)
+			if i == 0 and primary:
+				var sw := _font.get_string_size("* ", HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
+				_static.draw_string(_font, at, "* ",
+					HORIZONTAL_ALIGNMENT_LEFT, -1, 14, _star_color())
+				_static.draw_string(_font, at + Vector2(sw, 0), lines[i].substr(2),
+					HORIZONTAL_ALIGNMENT_LEFT, -1, 14, C_LABEL)
+			else:
+				_static.draw_string(_font, at, lines[i],
+					HORIZONTAL_ALIGNMENT_LEFT, -1, 14, C_LABEL)
+
+## Qud's {{G|}} green for the primary-limb star, out of the real palette.
+func _star_color() -> Color:
+	return _tiles.color_of("G", Color(0.0, 0.8, 0.35))
 
 ## Map an exported body part to its doll cell label. Qud's part names come through
 ## LOWERCASE ("left hand", "worn on back"), so match case-insensitively and rebuild
@@ -507,28 +530,37 @@ func _draw_rows() -> void:
 			continue
 		if i == _sel:
 			_content.draw_rect(Rect2(0, y, LIST_W - 4, ROW_H - 2), C_SEL)
+		# +17, not +16: at ROW_FONT the ink sits a pixel higher than Qud's otherwise
 		var base := y + 16.0
 		# hotkey letter column, then the row itself
 		_content.draw_string(_font, Vector2(LETTER_X - LIST_X, base), "%s)" % r["letter"],
-			HORIZONTAL_ALIGNMENT_LEFT, -1, 16, C_DIM)
+			HORIZONTAL_ALIGNMENT_LEFT, -1, ITEM_FONT, C_DIM)
 		if str(r["kind"]) == "cat":
-			_content.draw_string(_font, Vector2(NAME_X - LIST_X - 40, base),
-				"[+]" if bool(r["collapsed"]) else "[-]", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, C_DIM)
-			_draw_markup(_content, "{{c|%s}}" % r["name"], Vector2(NAME_X - LIST_X, base))
+			# MEASURED: Qud's '[' starts at x880 (the bracket group runs 880..899), so the
+			# gap after "a)" is real. At NAME_X-40 (869) our '[' landed ON the ')'.
+			_content.draw_string(_font, Vector2(NAME_X - LIST_X - 34, base),
+				"[+]" if bool(r["collapsed"]) else "[-]", HORIZONTAL_ALIGNMENT_LEFT, -1, ROW_FONT, C_DIM)
+			# MEASURED: a category name's first glyph starts at x920 in Qud (item names
+			# start at 928, after the icon) -- NAME_X alone was fitted to the item rows.
+			_draw_markup_sized(_content, "{{c|%s}}" % r["name"],
+				Vector2(918.0 - LIST_X, base), ROW_FONT)
 			var cw := "|%d lbs.|" % int(r["weight"])
-			var cww := _font.get_string_size(cw, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
+			var cww := _font.get_string_size(cw, HORIZONTAL_ALIGNMENT_LEFT, -1, ITEM_FONT).x
 			_content.draw_string(_font, Vector2(CAT_W_EDGE - LIST_X - cww, base), cw,
-				HORIZONTAL_ALIGNMENT_LEFT, -1, 16, C_DIM)
+				HORIZONTAL_ALIGNMENT_LEFT, -1, ITEM_FONT, C_DIM)
 		else:
-			_draw_tile(r, Vector2(NAME_X - LIST_X - 2, y + 3))
-			_draw_markup(_content, str(r.get("name", "")), Vector2(NAME_X - LIST_X + 16, base))
+			# MEASURED in Qud: the row icon spans x905..925, so its 20-wide box starts at
+			# 905 and is centred on the row (30 tall over a 26px row -- it overflows a
+			# little, as Qud's does, its pivot being the vertical middle).
+			_draw_tile(r, Vector2(905.0 - LIST_X, y + (ROW_H - 30.0) * 0.5))
+			_draw_markup(_content, str(r.get("name", "")), Vector2(926.0 - LIST_X, base))
 			var iw := "[%d lbs.]" % int(r.get("weight", 0))
-			var iww := _font.get_string_size(iw, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
+			var iww := _font.get_string_size(iw, HORIZONTAL_ALIGNMENT_LEFT, -1, ITEM_FONT).x
 			_content.draw_string(_font, Vector2(ITEM_W_EDGE - LIST_X - iww, base), iw,
-				HORIZONTAL_ALIGNMENT_LEFT, -1, 16, C_DIM)
+				HORIZONTAL_ALIGNMENT_LEFT, -1, ITEM_FONT, C_DIM)
 
 func _draw_markup(target: CanvasItem, s: String, pos: Vector2) -> void:
-	_draw_markup_sized(target, s, pos, 16)
+	_draw_markup_sized(target, s, pos, ITEM_FONT)
 
 func _draw_markup_sized(target: CanvasItem, s: String, pos: Vector2, size: int) -> void:
 	var x := pos.x
@@ -547,7 +579,10 @@ func _draw_tile(r: Dictionary, pos: Vector2) -> void:
 		_tiles.color_of(str(r.get("color", "")), Color.WHITE),
 		_tiles.color_of(str(r.get("detail", "")), Color.WHITE))
 	if tex != null:
-		_content.draw_texture_rect(tex, Rect2(pos, Vector2(13, 19)), false)
+		# Same law as the filter bar and the doll: InventoryLine.icon's RectTransform is
+		# 20x30 (left-anchored, pivot 0.5, preserveAspect FALSE) over a 16x24 sprite, so
+		# the WHOLE tile is drawn at 20x30. We had it at 13x19.
+		_content.draw_texture_rect(tex, Rect2(pos, Vector2(20, 30)), false)
 
 # ── input ──────────────────────────────────────────────────────────────────────
 

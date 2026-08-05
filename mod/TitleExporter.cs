@@ -210,6 +210,24 @@ namespace RavesOfQud
                             }
                     }
                     catch (Exception de) { System.Console.WriteLine("[raves] doll probe: " + de.Message); }
+                    // and the INVENTORY LIST's row icon, same question again
+                    try
+                    {
+                        var ils = Resources.FindObjectsOfTypeAll<Qud.UI.InventoryLine>();
+                        if (ils != null)
+                            foreach (var il in ils)
+                            {
+                                var ii = il != null && il.icon != null ? il.icon.image : null;
+                                if (ii == null) continue;
+                                var irt = ii.rectTransform;
+                                System.Console.WriteLine("[raves] list icon rect " + irt.rect
+                                    + " anchorMin " + irt.anchorMin + " anchorMax " + irt.anchorMax
+                                    + " pivot " + irt.pivot + " scale " + irt.localScale
+                                    + " preserveAspect " + ii.preserveAspect);
+                                break;
+                            }
+                    }
+                    catch (Exception le) { System.Console.WriteLine("[raves] list probe: " + le.Message); }
                     // Unity's 9-slice borders (l,b,r,t) — the client needs these to know
                     // which pixels are corner and which stretch
                     File.WriteAllText(Path.Combine(Dir, "cell_frame.json"),

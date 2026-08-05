@@ -36,13 +36,17 @@ namespace RavesOfQud
             catch (Exception e) { System.Console.WriteLine("[raves] inventory export failed: " + e.Message); }
         }
 
-        private static void WriteTile(JsonWriter j, GameObject go, string context = "Inventory")
+        private static void WriteTile(JsonWriter j, GameObject go, string context = "Inventory",
+            bool grey = false)
         {
             try
             {
                 // RenderForUI returns a RenderEvent (fields, not the Renderable accessors)
                 var r = go.RenderForUI(context);
                 if (r == null) return;
+                // GreyOutForUI just forces both tones to 'K'; let QUD apply it so the
+                // resolved chars below come back already greyed
+                if (grey) { try { r = r.GreyOutForUI(); } catch { } }
                 string tile = r._Tile;
                 if (string.IsNullOrEmpty(tile)) return;
                 TileExporter.Ensure(tile);
@@ -149,21 +153,43 @@ namespace RavesOfQud
                         try { j.Member("type", bp.Type ?? ""); } catch { }
                         try { j.Member("desc", bp.GetOrdinalName() ?? ""); } catch { }
                         try { j.Member("primary", bp.Primary); } catch { }
-                        // EQUIPPED ONLY — EquipmentLine renders bp.Equipped (plus
-                        // Cybernetics), never DefaultBehavior, so a natural weapon like a
-                        // mutant claw shows NO tile in Qud's doll. Our DefaultBehavior
-                        // fallback drew a claw in a slot Qud leaves empty (parity leaf
-                        // doll_image[4]: Qud ink 1x3, ours 39x35).
+                        // EquipmentLine.setData, verbatim: the slot shows
+                        //     Equipped ?? DefaultBehavior
+                        // and when it falls through to DefaultBehavior it renders
+                        // GreyOutForUI()'d -- which is why a mutant claw appears in the
+                        // doll as a DARK TEAL ghost rather than not at all. An earlier
+                        // note here claimed Qud leaves those slots empty; that came from
+                        // a parity leaf reading 0 ink, which is what a brightness-
+                        // thresholded ink mask reports for a sprite painted in 'K'.
+                        // Qud greys the same way when an item is equipped across several
+                        // parts and this is not the FIRST of them (the off-hand of a
+                        // two-handed weapon), so mirror that too.
                         GameObject eq = null;
+                        bool greyed = false;
                         try { eq = bp.Equipped; } catch { }
                         if (eq == null) { try { eq = bp.Cybernetics; } catch { } }
+                        if (eq == null)
+                        {
+                            try { eq = bp.DefaultBehavior; greyed = eq != null; } catch { }
+                        }
+                        else
+                        {
+                            try
+                            {
+                                var on = new List<BodyPart>();
+                                bp.ParentBody.GetPartsEquippedOn(eq, on);
+                                if (on.Count > 0 && on[0] != bp) greyed = true;
+                            }
+                            catch { }
+                        }
                         if (eq != null)
                         {
                             try { j.Member("item", eq.DisplayName ?? ""); } catch { }
+                            if (greyed) j.Member("greyed", true);
                             // the PAPER DOLL uses Qud's "Equipment" render context
                             // (EquipmentLine: RenderForUI("Equipment")) — a different tile
                             // and colours than the "Inventory" context the list uses
-                            WriteTile(j, eq, "Equipment");
+                            WriteTile(j, eq, "Equipment", greyed);
                         }
                         j.EndObject();
                     }
