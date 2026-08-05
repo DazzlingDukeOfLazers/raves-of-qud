@@ -253,3 +253,21 @@ shows (200,184,57) — brighter and more saturated, so the accent is NOT a strai
 find what EquipmentLine feeds the third colour. Also STILL OPEN: source scale — our ink is 41x32 vs
 Qud's 47x48, so Qud renders these sprites from a larger source, not a stretched 16x24 tile.
 Doll band is flat at ~5.6 through both changes because shape/scale mismatch dominates the average.
+
+
+## Equipment tiles — NEAREST filter + doll aspect (2026-08-05)
+
+Daniel spotted the doll tiles looking BLURRED. Cause: the pane's drawing Controls inherited the
+default LINEAR texture_filter — the same law that bit the status-screens tab icon
+("draw_* calls inherit the drawing Control's texture_filter"). `_static` and `_content` are now
+NEAREST, so doll items, filter icons and inventory row tiles are all crisp.
+
+Doll tiles also re-shaped to the source 2:3 (36x54 in the 55x62 slot, was a stretched 47x50):
+narrower and taller, ink 32x36 (was 41x32).
+
+**The band averages got WORSE for both changes** — doll 5.64 -> 5.72, strip 11.53 -> 12.62, full
+5.20 -> 5.22 — while the pane visibly improved. That is the metric misleading, not a regression:
+BLUR REGRESSES TO THE MEAN, so a soft tile scores better against a mismatched reference than a sharp
+one does. Treat per-band means as a coarse guide only; for tile work compare crops and ink boxes.
+Qud's doll ink is 47x48 (nearly square) vs our 32x36, so Qud is NOT drawing a 2:3 tile scaled — it
+renders these from a larger, wider source. That remains the open item.

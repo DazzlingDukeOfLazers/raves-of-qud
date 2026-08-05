@@ -93,6 +93,9 @@ func _ready() -> void:
 	_static = Control.new()
 	_static.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_static.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# NEAREST or every tile this pane draws (doll items, filter icons) comes out
+	# LINEAR-smeared — draw_* inherits the drawing Control's texture_filter.
+	_static.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_static.draw.connect(_draw_static)
 	add_child(_static)
 	_clip = Control.new()
@@ -103,6 +106,7 @@ func _ready() -> void:
 	add_child(_clip)
 	_content = Control.new()
 	_content.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_content.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_content.draw.connect(_draw_rows)
 	_clip.add_child(_content)
 
@@ -289,8 +293,10 @@ func _draw_doll() -> void:
 					# 55x62 slot (bark armor 47x48, torch 47x45, boots 47x43) where ours
 					# spanned 22x25 — the sprite nearly fills the cell rather than sitting
 					# small in the middle.
+					# 2:3 like the source tile (16x24): narrower and taller than the
+					# stretched 47x50 first pass, centred in the 55x62 slot
 					_static.draw_texture_rect(tex,
-						Rect2(pos + Vector2(4, 6), Vector2(47, 50)), false)
+						Rect2(pos + Vector2(10, 4), Vector2(36, 54)), false)
 			if bool(sl.get("primary", false)):
 				_static.draw_string(_font, pos + Vector2(-8, BOX_H + 14), "*",
 					HORIZONTAL_ALIGNMENT_LEFT, -1, 14, C_GOLD)
