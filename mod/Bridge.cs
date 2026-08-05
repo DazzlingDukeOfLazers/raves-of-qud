@@ -499,6 +499,55 @@ namespace RavesOfQud
                     PopupBridge.HandleCommand(f);
                     return;
                 }
+                if (name == "savegame")
+                {
+                    // FIXTURE AFFORDANCE -- and NOT the "save as a new game" it looks like.
+                    // XRLCore.SaveGame(name) names a FILE inside the CURRENT game's folder; the
+                    // slot it writes keeps the same ID and Name, so Qud's Load Game picker never
+                    // shows it as a separate entry and `hv loadsave` cannot reach it. It is an
+                    // orphan on disk. For a repeatable fixture use tools/capture/fixture.py quests,
+                    // which rebuilds the state on top of the golden save instead.
+                    f.TryGetValue("save", out string saveName);
+                    if (string.IsNullOrEmpty(saveName)) { Server.Log("savegame: no name"); return; }
+                    var gms = GameManager.Instance;
+                    if (gms != null && gms.uiQueue != null)
+                        gms.uiQueue.queueTask(() =>
+                        {
+                            try
+                            {
+                                XRL.Core.XRLCore.Core.SaveGame(saveName);
+                                Server.Log("savegame: wrote " + saveName);
+                            }
+                            catch (Exception e) { try { Server.Log("savegame failed: " + e.Message); } catch { } }
+                        }, 0);
+                    return;
+                }
+                if (name == "startquest")
+                {
+                    // FIXTURE AFFORDANCE, not gameplay. Building the Quests tab needs a save that
+                    // actually has quests, and neither golden save does; walking a character through
+                    // Joppa's dialogue to earn one is not something the harness can drive. This calls
+                    // QUD'S OWN start path (the same one Conversations.Parts.QuestHandler uses), so
+                    // the resulting quest is a real one with real steps -- not a fabricated stub that
+                    // would render differently from the thing we are trying to mirror.
+                    f.TryGetValue("quest", out string questName);
+                    f.TryGetValue("giver", out string questGiver);
+                    if (string.IsNullOrEmpty(questName)) { Server.Log("startquest: no quest name"); return; }
+                    if (string.IsNullOrEmpty(questGiver)) questGiver = "Raves fixture";
+                    var gmq = GameManager.Instance;
+                    if (gmq != null && gmq.uiQueue != null)
+                        gmq.uiQueue.queueTask(() =>
+                        {
+                            try
+                            {
+                                The.Game.StartQuest(questName, questGiver);
+                                QuestsExporter.ReExport();
+                                Server.Log("startquest: started " + questName);
+                            }
+                            catch (Exception e) { try { Server.Log("startquest failed: " + e.Message); } catch { } }
+                        }, 0);
+                    return;
+                }
                 if (name == "uiprobe")
                 {
                     // Dump a live Qud screen's RectTransform layout for a parity pass.

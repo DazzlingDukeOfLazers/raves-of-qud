@@ -19,12 +19,14 @@ IndexError halfway through a session. `find` walks both.
 
 Commands
   reload [<save>]        reload the fixture save, then wait for a fresh export
+  quests                 reload + grant the standard quest fixture (2 real quests)
   find <substr>          resolve one object by name -> id, kind, where it lives
   twiddle <substr>       raise Qud's item interaction popup for it, and verify
   state                  what both apps think they are showing
 
 Examples
   fixture.py reload
+  fixture.py quests
   fixture.py find robe
   fixture.py twiddle robe
 """
@@ -121,6 +123,38 @@ def cmd_reload(save=DEFAULT_SAVE):
     print(f"reloaded; export refreshed with {n} pack items")
 
 
+
+# The standard quest fixture: two REAL quests from Quests.xml, with their real givers.
+# One is fresh (four incomplete steps), the other already has a completed step -- so the
+# renderer gets both step states without anyone having to play to them.
+QUEST_FIXTURE = [
+    ("What's Eating the Watervine?", "Mehmet"),
+    ("Fetch Argyve a Knickknack", "Argyve"),
+]
+
+
+def cmd_quests(save=DEFAULT_SAVE):
+    """Reload the golden save and grant the quest fixture.
+
+    WHY THIS IS A SCRIPT AND NOT A SAVE FILE: Qud's SaveGame(name) names a FILE inside the
+    current game's folder -- same ID, same Name -- so the picker never shows it as a separate
+    entry and `hv loadsave` can't reach it. Qud has no "save as a new game" API. Granting the
+    quests on top of the golden save each time is reproducible, adds no state to the user's
+    save directory, and can't drift from the golden save the way a copy would.
+    """
+    cmd_reload(save)
+    for quest, giver in QUEST_FIXTURE:
+        print(f"granting {quest!r} (giver {giver})")
+        Bridge().send("startquest", quest=quest, giver=giver)
+        time.sleep(2.5)
+    Bridge().send("export")
+    time.sleep(4)
+    path = os.path.join(SUPPORT, "quests.json")
+    n = json.load(open(path)).get("count", 0) if os.path.exists(path) else 0
+    if n != len(QUEST_FIXTURE):
+        raise SystemExit(f"STOP: expected {len(QUEST_FIXTURE)} quests, export says {n}")
+    print(f"quest fixture ready: {n} active quests")
+
 def cmd_find(substr):
     oid, name, where = resolve(fresh_inventory(), substr)
     print(f"{oid}\t{name}\t{where}")
@@ -148,6 +182,8 @@ def main(argv):
     cmd, rest = argv[1], argv[2:]
     if cmd == "reload":
         cmd_reload(*rest)
+    elif cmd == "quests":
+        cmd_quests(*rest)
     elif cmd == "find":
         cmd_find(*rest)
     elif cmd == "twiddle":
