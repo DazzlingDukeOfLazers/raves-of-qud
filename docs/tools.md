@@ -368,3 +368,23 @@ per-leaf nodes in highvisor's gametree (`equipment_doll_image`, `equipment_filte
 
 First run on the Equipment tab: **image 75.6, frame 15.9, composite 17.2** — i.e. the sprites, not the
 chrome, are what still differs, which the whole-frame number (4.5) completely hid.
+
+### parity.py: two metrics beyond mean-abs-diff (2026-08-05)
+
+`ink_color` and `geometry` join `image` / `frame` / `composite`.
+
+A single masked mean-abs-diff answers "is the text the right colour", "is the sprite the
+right size" and "do these pixels match" all at once, and so answers none of them clearly.
+The two new kinds split the question:
+
+| kind | mask | number |
+|---|---|---|
+| `ink_color` | ink | mean channel distance between each app's OWN mean ink colour — position ignored |
+| `geometry` | ink | mean of \|dx\|,\|dy\|,\|dw\|,\|dh\| between the ink boxes, in px — colour ignored |
+
+So a leaf reading ~0 on `ink_color` and badly on `geometry` says *right paint, wrong place* —
+which is the sentence you actually want out of a scoreboard. Both report
+`"present in one app only"` rather than a flattering 0 when one side draws nothing.
+
+**Gotcha fixed at the same time:** `ink_mask` with `inset: 0` sliced `cell[0:-0]`, i.e. NOTHING,
+so any leaf written that way silently scored a perfect 0.00. Inset 0 now means the whole rect.

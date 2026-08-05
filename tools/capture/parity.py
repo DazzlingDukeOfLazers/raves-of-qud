@@ -15,6 +15,14 @@ So parity is scored per LEAF: a named region with a kind that says what to compa
   image      only the sprite ink inside a cell — the frame is masked out
   frame      only the chrome lines — the sprite interior is masked out
   composite  the whole cell, both together (what the eye sees)
+  ink_color  the MEAN COLOUR of the ink, position ignored — isolates palette
+  geometry   the ink BBOX only, colour ignored — isolates size and placement
+
+The last two exist because "is the text the right colour" and "is the sprite the
+right size" are different questions from "do these pixels match", and a single
+masked mean-abs-diff answers all three at once and so answers none of them
+clearly. A leaf that scores 0 on ink_color and badly on geometry says "right
+paint, wrong place" — which is the sentence you actually want.
 
 Each leaf reports mean abs diff over the compared pixels, the ink bounding box in
 both apps, and coverage, so a change can be judged on the thing it touched.
@@ -81,9 +89,43 @@ def ink_mask(cell, inset, thr):
     than the sprite.
     """
     m = np.zeros(cell.shape[:2], bool)
+    if inset <= 0:
+        # inset 0 means "the whole rect" -- cell[0:-0] slices to NOTHING, which silently
+        # reported every such leaf as empty (and therefore as a perfect 0.00 score)
+        return cell.mean(axis=2) > thr
     inner = cell[inset:-inset, inset:-inset].mean(axis=2) > thr
     m[inset:-inset, inset:-inset] = inner
     return m
+
+
+def mean_ink_color(cell, mask):
+    """Average colour of the masked pixels, or None when nothing is lit."""
+    if not mask.any():
+        return None
+    return cell[mask].mean(axis=0)
+
+
+def score_ink_color(qc, rc, qm, rm):
+    """Colour only. Each side averages ITS OWN ink, so a sprite that sits a few
+    pixels off still compares its paint rather than its position."""
+    a, b = mean_ink_color(qc, qm), mean_ink_color(rc, rm)
+    if a is None and b is None:
+        return 0.0, "both empty"
+    if a is None or b is None:
+        return 255.0, "present in one app only"
+    return float(np.abs(a - b).mean()), None
+
+
+def score_geometry(qm, rm):
+    """Size and placement only, in pixels: mean |dx|,|dy|,|dw|,|dh| of the ink boxes."""
+    a, b = bbox(qm), bbox(rm)
+    if a is None and b is None:
+        return 0.0, "both empty"
+    if a is None or b is None:
+        present = a or b
+        # absent entirely: penalise by the size of what the other app draws
+        return float((present[2] + present[3]) / 2.0), "present in one app only"
+    return float(np.mean([abs(x - y) for x, y in zip(a, b)])), None
 
 
 def leaf_mask(cell, leaf, defaults):
@@ -92,7 +134,7 @@ def leaf_mask(cell, leaf, defaults):
     thr = leaf.get("threshold", defaults.get("threshold", 60))
     if kind == "frame":
         return frame_mask(cell, inset)
-    if kind == "image":
+    if kind in ("image", "ink_color", "geometry"):
         return ink_mask(cell, inset, thr)
     return np.ones(cell.shape[:2], bool)          # composite: everything
 
@@ -114,6 +156,17 @@ def score_leaf(q, r, leaf, defaults):
     # must still be penalised for the pixels the other app paints
     qm = leaf_mask(qc, leaf, defaults)
     rm = leaf_mask(rc, leaf, defaults)
+    kind = leaf.get("kind", "composite")
+    if kind in ("ink_color", "geometry"):
+        diff, note = (score_ink_color(qc, rc, qm, rm) if kind == "ink_color"
+                      else score_geometry(qm, rm))
+        row = dict(name=leaf["name"], kind=kind, diff=round(diff, 2),
+                   pixels=int(qm.sum() + rm.sum()),
+                   qud_bbox=bbox(qm), raves_bbox=bbox(rm),
+                   qud_px=int(qm.sum()), raves_px=int(rm.sum()))
+        if note:
+            row["note"] = note
+        return row
     m = qm | rm
     if not m.any():
         return dict(name=leaf["name"], kind=leaf.get("kind", "composite"),

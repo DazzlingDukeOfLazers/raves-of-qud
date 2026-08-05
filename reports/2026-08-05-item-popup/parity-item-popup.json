@@ -1,0 +1,69 @@
+{
+ "screen": "item interaction popup (EquipmentAPI.TwiddleObject)",
+ "note": "Reference: the cloth robe's menu, raised on both apps by the same bridge command. Qud's popup carries a HEADER above the command list -- the item's tile, its name with badges, and a notched divider -- which Raves does not draw yet. Rects are QUD'S: the reference defines the target, so a leaf that scores badly here is measuring the gap rather than a misalignment. Popup box: Qud x825-1079 y334-714; Raves x837-1082 y421-649 (shorter, because it has no header).",
+ "defaults": {
+  "inset": 4,
+  "threshold": 60
+ },
+ "leaves": [
+  {
+   "name": "popup_image_frame",
+   "kind": "frame",
+   "rect": [
+    825,
+    334,
+    255,
+    152
+   ],
+   "inset": 12,
+   "note": "the framed header block above the commands: top border y334, divider y485"
+  },
+  {
+   "name": "popup_frame_text_content",
+   "kind": "composite",
+   "rect": [
+    880,
+    443,
+    160,
+    20
+   ],
+   "note": "the item name line inside that block -- 'cloth robe [AV]1 [DV]0'"
+  },
+  {
+   "name": "popup_frame_text_color",
+   "kind": "ink_color",
+   "rect": [
+    880,
+    443,
+    160,
+    20
+   ],
+   "inset": 0,
+   "note": "same line, palette only: badge blue plus the name greys"
+  },
+  {
+   "name": "popup_image_geometry",
+   "kind": "geometry",
+   "rect": [
+    905,
+    355,
+    100,
+    80
+   ],
+   "inset": 0,
+   "note": "the item tile's size and placement (Qud: 42x54 ink at x939 y369)"
+  },
+  {
+   "name": "popup_image_color",
+   "kind": "ink_color",
+   "rect": [
+    905,
+    355,
+    100,
+    80
+   ],
+   "inset": 0,
+   "note": "the item tile's two-tone"
+  }
+ ]
+}
