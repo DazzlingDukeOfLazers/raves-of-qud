@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using XRL.UI;
+using XRL.UI.Framework;   // APIDispatch — Qud runs accepts on the game thread
 using XRL.World;
 using XRL.World.Skills;   // PowerEntry / PowerEntryRequirement
 
@@ -91,8 +92,23 @@ namespace RavesOfQud
                     }
                     else
                     {
-                        SkillsAndPowersScreen.SelectNode(node, p);
+                        // QUD'S OWN accept path, verbatim (SkillsAndPowersLine.Accept):
+                        // SelectNode uses the SYNCHRONOUS Popup.ShowYesNo, which must run
+                        // on the GAME thread via APIDispatch — calling it straight from a
+                        // uiQueue task deadlocks its modal wait, and the purchase then
+                        // completed even when the player answered No.
                         System.Console.WriteLine("[raves] skills select " + node.Name);
+                        APIDispatch.RunAndWaitAsync(delegate
+                        {
+                            try { SkillsAndPowersScreen.SelectNode(node, p); }
+                            catch (Exception se) { System.Console.WriteLine("[raves] SelectNode: " + se.Message); }
+                        }).ContinueWith(delegate
+                        {
+                            var g2 = GameManager.Instance;
+                            if (g2 != null && g2.uiQueue != null)
+                                g2.uiQueue.queueTask(() => { ReExport(); }, 0);
+                        });
+                        return;
                     }
                     Bridge.PumpSyncContext(4);
                     ReExport();

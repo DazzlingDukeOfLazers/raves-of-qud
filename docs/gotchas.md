@@ -117,6 +117,10 @@ add a one-liner (symptom → rule).
   Qud parked on Keybinds. The uiback handler now pumps Unity's SynchronizationContext (private `Exec()`,
   reflection) after invoking Exit so the close chain resolves unfocused; macOS stops draining those
   continuations for a backgrounded window even with `runInBackground=true` (turns + uiQueue keep running).
+- **Qud APIs that raise a SYNCHRONOUS popup (`Popup.ShowYesNo`, `SelectNode`) must run through
+  `APIDispatch.RunAndWaitAsync`, not straight from a uiQueue task** — the modal wait deadlocks and
+  the call proceeds as if confirmed (a skill purchase went through on "No"). Mirror whatever wrapper
+  Qud's own caller uses; here `SkillsAndPowersLine.Accept()` showed the way.
 - **Answering a mirrored popup must target the ANNOUNCED instance.** Qud pools popup copies
   (`UIManager.popupMessages`, a private static Queue); a RELEASED copy stays visible with a non-null
   callback, so `FindObjectsByType` scans pick pooled ghosts and answers vanish into them. PopupBridge

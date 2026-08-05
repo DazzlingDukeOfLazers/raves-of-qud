@@ -58,7 +58,13 @@ always visible in the bar).
    category (Qud's XAxis model), click selects. Verified live: collapse 40→30 rows, buy Acrobatics
    164→89 SP with the confirm answered in Raves, then a save reload restored the character. NOTE:
    the pane is canvas-drawn (no per-row Controls), so mouse events are routed from the screen's
-   modal root — a full-rect child's own `_gui_input` never fires under it.
+   modal root — a full-rect child's own `_gui_input` never fires under it. MOUSE MODEL mirrors
+   `SkillsAndPowersLine` exactly: the `[+]/[-]` expander toggles a category; a BODY click toggles it
+   too when the skill is already learned, and otherwise accepts (Qud's buy confirm protects
+   misclicks). **Accepts MUST run through `APIDispatch.RunAndWaitAsync`** like Qud's own `Accept()`
+   does — `SelectNode` uses the SYNCHRONOUS `Popup.ShowYesNo`, and calling it straight from a uiQueue
+   task deadlocked the modal wait so the purchase completed EVEN WHEN THE PLAYER ANSWERED NO.
+   Verified after the fix: decline leaves SP untouched, accept spends correctly.
 4. **Quests** → 5. **Reputation** → 6. **Journal** — read-only lists/tables.
 7. **Equipment** — richer layout (paper-doll slots + item tiles).
 8. **Tinkering** — most complex (bits, recipes, modes).

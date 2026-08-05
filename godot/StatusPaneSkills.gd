@@ -253,13 +253,29 @@ func handle_mouse(e: InputEvent) -> void:
 		if e.button_index == MOUSE_BUTTON_WHEEL_UP:
 			_scroll = maxf(0.0, _scroll - ROW_H * 2)
 			_content.queue_redraw()
-		elif e.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			return
+		if e.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			_scroll = clampf(_scroll + ROW_H * 2, 0.0, maxf(0.0, _rows.size() * ROW_H - LIST_H))
 			_content.queue_redraw()
-		elif e.button_index == MOUSE_BUTTON_LEFT:
-			var idx := int(floor((e.position.y - LIST_Y + _scroll) / ROW_H))
-			if e.position.x >= LIST_X and e.position.x <= LIST_X + LIST_W \
-					and idx >= 0 and idx < _rows.size():
-				_sel = idx
-				_content.queue_redraw()
-				_refresh_detail()
+			return
+		if e.button_index != MOUSE_BUTTON_LEFT:
+			return
+		if e.position.x < LIST_X or e.position.x > LIST_X + LIST_W \
+				or e.position.y < LIST_Y or e.position.y > LIST_Y + LIST_H:
+			return
+		var idx := int(floor((e.position.y - LIST_Y + _scroll) / ROW_H))
+		if idx < 0 or idx >= _rows.size():
+			return
+		_sel = idx
+		_content.queue_redraw()
+		_refresh_detail()
+		# Qud's own mouse model (SkillsAndPowersLine): the [+]/[-] expander toggles the
+		# category; a BODY click toggles it too when the skill is already LEARNED, and
+		# otherwise accepts (which opens Qud's buy confirm — misclicks are protected).
+		var n: Dictionary = _rows[idx]
+		var is_skill := str(n.get("kind", "")) == "skill"
+		var on_expander: bool = e.position.x >= LIST_X + 14 and e.position.x <= LIST_X + 50
+		if is_skill and (on_expander or str(n.get("learned", "")) == "Learned"):
+			_send("toggle")
+		elif not on_expander:
+			_send("accept")
