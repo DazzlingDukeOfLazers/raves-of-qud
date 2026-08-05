@@ -499,6 +499,15 @@ namespace RavesOfQud
                     PopupBridge.HandleCommand(f);
                     return;
                 }
+                if (name == "glyphs")
+                {
+                    // Force a re-extract of Qud's input-glyph font (EnsureExported skips when the
+                    // files are already there, which is unhelpful while tuning the packing).
+                    var gmg = GameManager.Instance;
+                    if (gmg != null && gmg.uiQueue != null)
+                        gmg.uiQueue.queueTask(() => { try { GlyphExporter.Export(); } catch { } }, 0);
+                    return;
+                }
                 if (name == "picker")
                 {
                     // Answer Qud's mirrored item picker (pick a row / toggle a category / cancel).
@@ -877,6 +886,7 @@ namespace RavesOfQud
                                 TitleExporter.ExportNamedSprite("leftrightarrow", "nav_arrow.png");        // back/forward chevron
                                 TitleExporter.ExportNamedSprite("polat-center-divider-knob", "deco_knob.png"); // the sub-text ornament
                                 if (!_clocksExported && TitleExporter.ExportTimeClocks()) _clocksExported = true;  // day/night sky discs (resident once a HUD has existed)
+                                GlyphExporter.EnsureExported();  // Qud's PUA input-glyph font, as a BMFont for Raves
                                 Server.Log("[export] re-exported (menu path) chargen chrome");
                             }
                             catch (Exception e) { try { Server.Log("export error: " + e.Message); } catch { } }

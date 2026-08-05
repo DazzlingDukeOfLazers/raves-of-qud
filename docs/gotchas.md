@@ -453,9 +453,23 @@ closed set of things that are wrong, not the open set of things that are fine.
 - **Qud emits input glyphs as PRIVATE USE AREA codepoints**, drawn from its own icon font:
   `U+E80A` navigate (kbd), `U+E90A` navigate (pad), `U+E816` Ctrl, `U+E818` Alt, `U+E802` Shift,
   `U+E809` LMB, `U+E814` RMB. Source Code Pro has nothing at U+E8xx, so every one rendered as a
-  tofu `?` -- the picker footer read `[?] navigate`. `QudText.GLYPHS` substitutes Qud's own
-  non-glyph words (its `mapGlyphs:false` path writes "Ctrl"/"Shift"/"LMB"), applied in `cp437()`
-  so ANY mirrored text gets it, not just the picker. **This is legibility, not pixel parity** --
-  1:1 means extracting Qud's icon font and registering U+E8xx as a Godot fallback.
-- **STILL OPEN on the picker:** panel geometry has not been measured against Qud, and the icon
-  font above is unextracted. Content and behaviour are verified; pixel parity is its own round.
+  tofu `?` -- the picker footer read `[?] navigate`. `mod/GlyphExporter.cs` now EXTRACTS the real
+  font (sweeping all of U+E000..U+F8FF, 66 glyphs) into a BMFont in `<support>/glyphs/`, and
+  `UiFont` loads it as a Godot **fallback** -- so no call site changes and any mirrored string
+  carrying one renders the true icon. `QudText.GLYPHS` keeps the word substitutes for when the
+  export hasn't run yet, and stands down once the font is present.
+  Three traps, each of which produced a plausible-looking wrong result:
+  - **A character's glyph may live in a DIFFERENT font's atlas.** `characterLookupTable` also
+    carries characters served by FALLBACKS; read the rect out of the table's own font and you
+    sample a stranger's texture. `TMP_TextElement.textAsset` names the real owner. U+E80A came out
+    as a `#` plus half its neighbour until this was fixed.
+  - **The source fonts are rasterised at different point sizes** (201 and 120 here). A bitmap font
+    has ONE nominal size, so glyphs must be resampled onto a common scale or they render at wildly
+    different sizes next to each other. The Blit's UV window is the SOURCE rect; the RT's dimensions
+    are the DESTINATION -- tying them together silently crops instead of scaling.
+  - **BMFont channel fields say what each channel HOLDS** (0=glyph, 1=outline, 2=both, 3=zero,
+    4=one). Our page is white with coverage in alpha => `alphaChnl=0 redChnl=4 greenChnl=4
+    blueChnl=4`. Declaring `alphaChnl=1` renders every glyph as a SOLID BLOCK -- it looks like a
+    broken atlas but is a broken *description* of a perfectly good one.
+- **STILL OPEN on the picker:** panel geometry has not been measured against Qud. Content and
+  behaviour are verified; pixel parity is its own round.

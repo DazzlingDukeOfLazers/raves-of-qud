@@ -190,7 +190,11 @@ static func cp437(s: String) -> String:
 	for code in CP437:
 		if out.find(String.chr(code)) >= 0:
 			out = out.replace(String.chr(code), CP437[code])
-	for g in GLYPHS:
-		if out.find(String.chr(g)) >= 0:
-			out = out.replace(String.chr(g), GLYPHS[g])
+	# Only substitute when we DON'T have Qud's real glyph font. Once the mod has extracted it,
+	# UiFont loads it as a fallback and the codepoints render as the actual keycap icons — rewriting
+	# them to words here would consume them before the font ever got a chance.
+	if UiFont.qud_glyph_font() == null:
+		for g in GLYPHS:
+			if out.find(String.chr(g)) >= 0:
+				out = out.replace(String.chr(g), GLYPHS[g])
 	return out
