@@ -117,6 +117,11 @@ add a one-liner (symptom → rule).
   Qud parked on Keybinds. The uiback handler now pumps Unity's SynchronizationContext (private `Exec()`,
   reflection) after invoking Exit so the close chain resolves unfocused; macOS stops draining those
   continuations for a backgrounded window even with `runInBackground=true` (turns + uiQueue keep running).
+- **Answering a mirrored popup must target the ANNOUNCED instance.** Qud pools popup copies
+  (`UIManager.popupMessages`, a private static Queue); a RELEASED copy stays visible with a non-null
+  callback, so `FindObjectsByType` scans pick pooled ghosts and answers vanish into them. PopupBridge
+  holds the instance it announced and excludes anything in the free pool. Also pump the sync context
+  after answering (`Bridge.PumpSyncContext`) or an unfocused Qud won't resume the awaiting chain.
 - **A Control Mapping remap only works in Raves via `QudBinds.gd`** — Raves' in-game keys are hardcoded;
   the custom-bind fallback (end of Main's key chain) routes unclaimed combos to Qud's command executor.
   Movement keys the `match` just handled MUST bail before the fallback or they double-send. Bare digits

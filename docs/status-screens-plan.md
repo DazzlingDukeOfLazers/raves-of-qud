@@ -98,9 +98,16 @@ sits ABOVE the CRT, so the status-screens scrim formula rendered too dark — fi
 flat value instead); landed (18,51,50) vs Qud (17,52,51). FLICKER FIX: async popups never block the
 turn thread, so Main's "any snapshot hides the popup" rule made mirrors flicker (show → hide →
 re-announce) — the watcher's active:false is now the only dismissal channel (Esc always escapes a
-stranded overlay locally). STILL OPEN: answers to ASYNC popups (ShowYesNoAsync/PickOptionAsync =
-copyWindow class) do NOT round-trip from Raves — same root as the AskString limitation; answer
-those by clicking IN QUD for now. Also fixed: popup hotkey answers no longer leak into MainFrame's status-tab keys (_input vs
+stranded overlay locally). ASYNC ANSWERS FIXED (2026-08-04): the copyWindow class (ShowYesNoAsync / PickOptionAsync /
+AskString) now round-trips. Two causes: (a) answers re-scanned for the popup and could hand the
+answer to a different instance — the watcher now HOLDS the exact instance it announced and answers
+that; (b) UIManager pools popup copies in a private static Queue and a RELEASED copy still looks
+"live" (visible + non-null callback), so scans picked pooled ghosts — candidates in the free pool
+are now excluded. Input submit uses Qud's own OnInputSubmit. Every answer pumps the sync context
+(Bridge.PumpSyncContext) so the awaiting chain resumes on an UNFOCUSED Qud. Verified live with Qud
+never focused: yes/no No dismissed Qud; Yes advanced to the async PickOption picker; option 0 picked
+and applied defaults; golden restore + a fresh rebind both round-tripped. NOTE: PickOptionAsync
+defaults to AllowEscape=false, so Esc doing nothing on that picker is QUD'S behaviour, not a bug. Also fixed: popup hotkey answers no longer leak into MainFrame's status-tab keys (_input vs
 set_input_as_handled), and popup row rebuilds remove old children immediately (queue_free lingers a
 frame and poisons same-frame re-shows).
 

@@ -28,6 +28,24 @@ namespace RavesOfQud
         private static BridgeServer _server;
         private static readonly object _gate = new object();
 
+        /// <summary>
+        /// Drain Unity's SynchronizationContext by hand (private Exec(), reflection).
+        /// macOS stops pumping posted continuations for an UNFOCUSED window even with
+        /// runInBackground=true — async chains (popup callbacks, screen closes, keymap
+        /// loads) then stall until the next focus. MAIN THREAD ONLY (uiQueue tasks are).
+        /// </summary>
+        public static void PumpSyncContext(int n)
+        {
+            try
+            {
+                var sc = System.Threading.SynchronizationContext.Current;
+                var exec = sc?.GetType().GetMethod("Exec",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                for (int i = 0; i < n && exec != null; i++) exec.Invoke(sc, null);
+            }
+            catch (Exception e) { System.Console.WriteLine("[raves] sync pump: " + e.Message); }
+        }
+
         public static BridgeServer Server
         {
             get
@@ -565,6 +583,7 @@ namespace RavesOfQud
                 }
                 if (name == "rebind")
                 {
+                    // (see KeybindApplier; PumpSyncContext below keeps unfocused async flows moving)
                     // Raves' Control Mapping edits (KeybindApplier mirrors Qud's own
                     // KeybindsScreen flows; confirm/conflict popups mirror back to
                     // Raves through the popup bridge). action: set|remove|defaults|golden.
@@ -646,16 +665,8 @@ namespace RavesOfQud
                                             // with runInBackground=true (turns + uiQueue keep running —
                                             // only these continuations stall, leaving the screen up and
                                             // TURNS BLOCKED until the next focus). We're ON the main
-                                            // thread here: pump the context's private Exec() a few times
-                                            // so the whole close chain resolves right now.
-                                            try
-                                            {
-                                                var sc = System.Threading.SynchronizationContext.Current;
-                                                var exec = sc?.GetType().GetMethod("Exec",
-                                                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                                                for (int pi = 0; pi < 8 && exec != null; pi++) exec.Invoke(sc, null);
-                                            }
-                                            catch (Exception pex) { System.Console.WriteLine("[raves] uiback pump: " + pex.Message); }
+                                            // thread here: pump the context so the close resolves now.
+                                            PumpSyncContext(8);
                                             System.Console.WriteLine("[raves] uiback: " + wnd.GetType().Name + " cancel/exit invoked");
                                             return;
                                         }
