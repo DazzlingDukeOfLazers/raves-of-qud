@@ -162,6 +162,13 @@ const CP437 := {
 	9: "○", 10: "◙", 11: "♂", 12: "♀", 13: "♪", 14: "♫", 15: "☼",
 	16: "►", 17: "◄", 18: "↕", 19: "‼", 20: "¶", 21: "§", 22: "▬", 23: "↨",
 	24: "↑", 25: "↓", 26: "→", 27: "←", 28: "∟", 29: "↔", 30: "▲", 31: "▼",
+	# CP437's HIGH range reaches us as the same byte reinterpreted as Latin-1, so Qud's step
+	# bullet (0xF9) arrives as "ù" and renders as a literal u-grave in Source Code Pro. The quest
+	# log is full of them. Only the glyphs Qud actually uses as symbols are mapped — a blanket
+	# high-range translation would mangle real accented text.
+	0xF9: "∙",   # CP437 249 — bullet operator: quest step markers
+	0xFA: "·",   # CP437 250 — middle dot
+	0xFB: "√",   # CP437 251 — the tick on a COMPLETED quest step
 }
 
 ## Qud's INPUT GLYPHS, which it emits as Private Use Area codepoints and draws from its own icon

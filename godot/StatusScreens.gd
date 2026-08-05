@@ -53,6 +53,7 @@ var _palette := {}
 var _icons := {}             # "<id>_on"/"<id>_off" -> Texture2D
 var _bar: Control
 var _pane_host: Control
+var _frame: Control = null   # the screen chrome layer; repainted on tab change
 var _log_scroll: ScrollContainer
 var _log_box: VBoxContainer
 var _search: LineEdit
@@ -71,6 +72,8 @@ var _attr_pane: Control = null
 var _skills_pane: Control = null
 var _skills_mtime := 0
 var _inv_pane: Control = null
+var _quests_pane: Control = null
+var _quests_mtime := 0
 var _inv_mtime := 0
 var _char_mtime := 0
 var _pane_pal_empty := true
@@ -166,12 +169,16 @@ void fragment() {
 	frame.position = Vector2.ZERO
 	frame.size = Vector2(1920, 1080)
 	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_frame = frame
 	frame.draw.connect(func():
 		for seg in [[158.0, 204.0], [213.0, 581.0], [1338.0, 1705.0], [1714.0, 1760.0]]:
 			frame.draw_rect(Rect2(seg[0], 197.0, seg[1] - seg[0] + 1.0, 1.0), S_RULE)
 		frame.draw_rect(Rect2(166.0, 227.0, 1.0, 712.0), S_RULE)
 		frame.draw_rect(Rect2(1753.0, 228.0, 1.0, 711.0), S_RULE)
-		_draw_cyber_hint(frame))
+		# EQUIPMENT ONLY. The Ctrl+Tab cybernetics hint belongs to the paper doll; drawn
+		# unconditionally it printed over the first row of every other tab's content.
+		if _tab == "equipment":
+			_draw_cyber_hint(frame))
 	_root.add_child(frame)
 
 	# bottom rule + search + hint
@@ -363,6 +370,8 @@ func _tab_at(x: float) -> int:
 func _set_tab(id: String) -> void:
 	_tab = id
 	_bar.queue_redraw()
+	if _frame != null:
+		_frame.queue_redraw()   # the chrome draws tab-dependent bits (the cybernetics hint)
 	_log_scroll.visible = (id == "messagelog")
 	if _cursor != null:
 		_cursor.visible = (id == "messagelog")
@@ -374,6 +383,8 @@ func _set_tab(id: String) -> void:
 		_skills_pane.visible = (id == "skills")
 	if _inv_pane != null:
 		_inv_pane.visible = (id == "equipment")
+	if _quests_pane != null:
+		_quests_pane.visible = (id == "quests")
 	if id == "attributes":
 		_request_export()
 		_load_character()
@@ -383,6 +394,9 @@ func _set_tab(id: String) -> void:
 	if id == "equipment":
 		_request_export()
 		_load_inventory()
+	if id == "quests":
+		_request_export()
+		_load_quests()
 	_build_hints()
 	if visible:
 		UiState.set_scene("status_" + _tab)
@@ -497,6 +511,34 @@ func _load_skills(force := false) -> void:
 	get_tree().create_timer(1.2).timeout.connect(func():
 		if visible and _tab == "skills":
 			_load_skills())
+
+
+## (Re)build the Quests tab's list from quests.json.
+func _load_quests(force := false) -> void:
+	var path := InputModel.support_dir().path_join("quests.json")
+	if not FileAccess.file_exists(path):
+		return
+	var mt := FileAccess.get_modified_time(path)
+	if not force and _quests_pane != null and mt == _quests_mtime \
+			and not (_pane_pal_empty and not _palette.is_empty()):
+		return
+	var f := FileAccess.open(path, FileAccess.READ)
+	if f == null:
+		return
+	var txt := f.get_as_text()
+	f.close()
+	var data: Variant = JSON.parse_string(txt)
+	if not (data is Dictionary):
+		return
+	_quests_mtime = mt
+	if _quests_pane == null:
+		_quests_pane = load("res://StatusPaneQuests.gd").new()
+		_quests_pane.bridge_cb = func(msg: Dictionary): _send_bridge(msg)
+		_quests_pane.reload_cb = func(): _load_quests(true)
+		_root.add_child(_quests_pane)
+	_pane_pal_empty = _palette.is_empty()
+	_quests_pane.setup(data, _palette)
+	_quests_pane.visible = (_tab == "quests")
 
 ## (Re)build the Equipment tab's inventory pane from inventory.json.
 func _load_inventory(force := false) -> void:

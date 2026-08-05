@@ -147,6 +147,13 @@ def cmd_quests(save=DEFAULT_SAVE):
         print(f"granting {quest!r} (giver {giver})")
         Bridge().send("startquest", quest=quest, giver=giver)
         time.sleep(2.5)
+    # DISMISS THE POPUPS. Starting a quest raises "You have received a new quest" (and a step
+    # completion) as blocking modals, and Qud swallows EVERY subsequent input while one is up --
+    # so the next `hv goto` silently no-ops and reads exactly like a broken recipe. It cost a
+    # detour here: the status-screen opener looked broken when it was merely blocked.
+    for _ in range(6):
+        Bridge().send("popup", **{"do": "button", "command": "Accept"})
+        time.sleep(0.8)
     Bridge().send("export")
     time.sleep(4)
     path = os.path.join(SUPPORT, "quests.json")

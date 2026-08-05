@@ -499,6 +499,36 @@ namespace RavesOfQud
                     PopupBridge.HandleCommand(f);
                     return;
                 }
+                if (name == "statusscreen")
+                {
+                    // Open Qud's status screens at a TAB INDEX, first-party.
+                    // 0 skills, 1 attributes, 2 equipment, 3 tinkering, 4 journal, 5 quests,
+                    // 6 reputation, 7 message log -- the order the tab strip shows.
+                    // WHY: the harness opened this by clicking the HUD's person icon at a fixed
+                    // coordinate, which is fragile (it silently no-ops after a save load) and left
+                    // every status-tab recipe depending on a pixel. This calls the screen's own
+                    // static opener instead.
+                    f.TryGetValue("tab", out string tabStr);
+                    int tab;
+                    if (!int.TryParse(tabStr, out tab))
+                    {
+                        double td;
+                        tab = double.TryParse(tabStr, System.Globalization.NumberStyles.Any,
+                            System.Globalization.CultureInfo.InvariantCulture, out td) ? (int)td : 0;
+                    }
+                    var gmt = GameManager.Instance;
+                    if (gmt != null && gmt.uiQueue != null)
+                        gmt.uiQueue.queueTask(() =>
+                        {
+                            try
+                            {
+                                Qud.UI.StatusScreensScreen.show(tab, The.Player);
+                                Server.Log("statusscreen: opened tab " + tab);
+                            }
+                            catch (Exception e) { try { Server.Log("statusscreen failed: " + e.Message); } catch { } }
+                        }, 0);
+                    return;
+                }
                 if (name == "savegame")
                 {
                     // FIXTURE AFFORDANCE -- and NOT the "save as a new game" it looks like.
