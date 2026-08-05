@@ -271,3 +271,20 @@ BLUR REGRESSES TO THE MEAN, so a soft tile scores better against a mismatched re
 one does. Treat per-band means as a coarse guide only; for tile work compare crops and ink boxes.
 Qud's doll ink is 47x48 (nearly square) vs our 32x36, so Qud is NOT drawing a 2:3 tile scaled — it
 renders these from a larger, wider source. That remains the open item.
+
+
+## Equipment paper doll — the sprite path (2026-08-05) — SOLVED for tiles+tint
+
+`EquipmentLine` renders each slot with `go.RenderForUI("Equipment")` (and `GreyOutForUI()` for
+covered/unusable slots) — a DIFFERENT render context from the `"Inventory"` one the list uses. The
+exporter now passes the context per use, and the doll's tiles/colours come from "Equipment".
+
+That single change fixed the accents outright: the context returns the codes Qud actually paints —
+armor `W` (gold 200,184,57), torch `r` (red 156,65,41), boots `w` (pale) — where "Inventory" had
+returned the item's own palette. Measured after: main (140,123,83) vs Qud (141,124,84) and the
+accents match EXACTLY. Doll band 5.72 -> **5.01**, full frame 5.22 -> **4.55**.
+
+STILL OPEN (size only): our ink is 32x36 vs Qud's 47x48 — Qud draws these bigger than a 2:3 tile in
+the 55x62 slot. Next: check whether EquipmentLine's UIThreeColorProperties image uses a fixed
+preferred size / different sprite scale, rather than guessing draw rects (two guesses regressed).
+Remember blur regresses to the mean: compare ink boxes, not band averages, for this.

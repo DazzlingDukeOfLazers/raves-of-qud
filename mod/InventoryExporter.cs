@@ -36,12 +36,12 @@ namespace RavesOfQud
             catch (Exception e) { System.Console.WriteLine("[raves] inventory export failed: " + e.Message); }
         }
 
-        private static void WriteTile(JsonWriter j, GameObject go)
+        private static void WriteTile(JsonWriter j, GameObject go, string context = "Inventory")
         {
             try
             {
                 // RenderForUI returns a RenderEvent (fields, not the Renderable accessors)
-                var r = go.RenderForUI("Inventory");
+                var r = go.RenderForUI(context);
                 if (r == null) return;
                 string tile = r._Tile;
                 if (string.IsNullOrEmpty(tile)) return;
@@ -120,7 +120,10 @@ namespace RavesOfQud
                         if (eq != null)
                         {
                             try { j.Member("item", eq.DisplayName ?? ""); } catch { }
-                            WriteTile(j, eq);
+                            // the PAPER DOLL uses Qud's "Equipment" render context
+                            // (EquipmentLine: RenderForUI("Equipment")) — a different tile
+                            // and colours than the "Inventory" context the list uses
+                            WriteTile(j, eq, "Equipment");
                         }
                         j.EndObject();
                     }
