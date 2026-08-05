@@ -69,7 +69,10 @@ applies it through Qud's own `ReplaceCommandBindingIndex`/`InitializeInputManage
 (conflict + confirm popups mirror back through the popup bridge); Delete clears (Qud confirm
 mirrored); [+] = Qud's RestoreDefaults flow. GOLDEN COPY: before the first Raves-side edit the mod
 snapshots `bindings.golden.json` + `keymap.golden.json` (support dir; reference committed at
-`reports/2026-08-04-status-screens/bindings.golden.json`); bridge `rebind action=golden` restores it
+`reports/2026-08-04-status-screens/bindings.golden.json`); `rebind action=regolden` RE-SNAPSHOTS it
+from the current bindings (confirmed in-app — the auto-snapshot only ever fires once, so a keymap
+tuned since then needs an explicit refresh; both actions are rows in the user-mode RAVES section);
+bridge `rebind action=golden` restores it
 via LoadCurrentKeymap — full set→remove→golden-restore loop verified live. Esc closes both sides (`uiback`
 `KeybindsScreen.Exit()` special-case + a SynchronizationContext pump so the async close chain — which
 macOS stops draining for an unfocused window even with runInBackground — resolves without a focus;

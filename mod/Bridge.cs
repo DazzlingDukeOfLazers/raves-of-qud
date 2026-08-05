@@ -600,6 +600,7 @@ namespace RavesOfQud
                         case "remove":   _ = KeybindApplier.Remove(rbId, rbSlot); break;
                         case "defaults": _ = KeybindApplier.Defaults(); break;
                         case "golden":   _ = KeybindApplier.RestoreGolden(); break;
+                        case "regolden": _ = KeybindApplier.ReGolden(); break;
                         default:         _ = KeybindApplier.Apply(rbId, rbSlot, rbKey,
                                              rbC == "1", rbS == "1", rbA == "1"); break;
                     }

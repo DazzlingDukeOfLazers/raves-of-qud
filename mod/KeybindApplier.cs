@@ -36,6 +36,33 @@ namespace RavesOfQud
             }
         }
 
+        /// Re-snapshot the golden copy from the CURRENT bindings (overwrites both files).
+        /// The auto-snapshot only ever fires once — before the first Raves-side edit — so
+        /// a keymap the player has since tuned needs an explicit refresh to become the
+        /// restore point. Confirmed in-app, because it discards the previous golden.
+        public static async Task ReGolden()
+        {
+            try
+            {
+                await The.UiContext;
+                if (await Popup.ShowYesNoAsync("Replace the golden control mapping with your CURRENT bindings?")
+                    != DialogResult.Yes)
+                    return;
+                CommandBindingManager.SaveCurrentKeymap();   // make sure the file is current first
+                BindingsExporter.ReExport();
+                Directory.CreateDirectory(Root);
+                string cur = Path.Combine(Root, "bindings.json");
+                string g = Path.Combine(Root, "bindings.golden.json");
+                if (File.Exists(cur)) File.Copy(cur, g, true);
+                string km = CommandBindingManager.GetCurrentKeymapPath();
+                string kg = Path.Combine(Root, "keymap.golden.json");
+                if (File.Exists(km)) File.Copy(km, kg, true);
+                System.Console.WriteLine("[raves] golden copy refreshed from current bindings");
+                await Popup.ShowAsync("Golden control mapping updated.");
+            }
+            catch (Exception e) { System.Console.WriteLine("[raves] regolden error: " + e.Message); }
+        }
+
         public static void EnsureGolden()
         {
             try

@@ -462,9 +462,11 @@ func _relayout() -> void:
 		_blocks.append({"y": y, "cat": _cats.size(), "title": "[-] RAVES", "plain": true})
 		y += HEADER_H
 		_blocks[_blocks.size() - 1]["rows_y0"] = y
-		_rows.append({"y": y, "h": ROW_H, "id": "", "action": "golden",
-			"lines": ["Restore golden control mapping"], "binds": ["", "", "", ""]})
-		y += ROW_H
+		for act in [["golden", "Restore golden control mapping"],
+				["regolden", "Save current bindings as golden"]]:
+			_rows.append({"y": y, "h": ROW_H, "id": "", "action": act[0],
+				"lines": [act[1]], "binds": ["", "", "", ""]})
+			y += ROW_H
 		_blocks[_blocks.size() - 1]["rows_y1"] = y
 		y += SECTION_GAP
 	_content_h = y
