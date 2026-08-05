@@ -144,8 +144,19 @@ def check_one(b, bp, _retry=True):
                                              else "retried once")
             return r
         return {"bp": bp, "pass": False, "reasons": ["checker_stage.json never updated (old mod build?)"]}
-    with open(STAGE) as f:
-        stage = json.load(f)
+    # The mod's WriteAllText truncates then writes — the mtime bumps on the
+    # truncate, so a read can land on an EMPTY file (fired once at furniture
+    # 317/748 and killed the category). Retry briefly; the write is millisecond.
+    stage = None
+    for _ in range(20):
+        try:
+            with open(STAGE) as f:
+                stage = json.load(f)
+            break
+        except (ValueError, OSError):
+            time.sleep(0.1)
+    if stage is None:
+        return {"bp": bp, "pass": False, "reasons": ["checker_stage.json unreadable (write race)"]}
 
     reasons, warns = [], []
     if stage.get("bp") != bp:
