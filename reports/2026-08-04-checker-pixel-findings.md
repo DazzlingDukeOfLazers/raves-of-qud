@@ -58,7 +58,9 @@ handler REPLACES the tile per frame (blinking switch). Adopting event tiles
 unconditionally would make every wire tile frame-tracked, which collides with
 the client-side animation architecture (monosludge/engulfed decode work).
 DECISION NEEDED (with the Mac): per-frame wire tiles vs a client-side switch
-fixture. ~2 elements; also triage `Sign` (29.3 — variant divergence?) and the
-wormhole/platform/turbine WARN band (animated).
+fixture. Daylight-guarded final list of true furniture FAILs (7): Switch,
+TempleSwitch, Unicomputer (62.2 — blinking computer, likely same class),
+SolidHighTechInstallation, Starship 1 Platform N/S, Sign (29.4 — variant
+divergence?). Everything else in furniture: 711 PASS / 15 WARN / 12 KNOWN.
 
 *Delete sections as addressed (repo ticket lifecycle).*
