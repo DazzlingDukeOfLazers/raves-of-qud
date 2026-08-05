@@ -62,7 +62,7 @@ const BOX_H := 62.0
 # present in the inventory, measured off the reference — 44x38 cells from x620,
 # 58px pitch, on y178. Qud draws a fixed per-category ICON; we stand in with the
 # category's first item tile (recorded deviation) until those icons are extracted.
-const FILT_X := 620.0
+const FILT_X := 560.0   # ALL cell; category cells then start at 618 (measured borders)
 const FILT_Y := 178.0
 const FILT_W := 44.0
 const FILT_H := 38.0

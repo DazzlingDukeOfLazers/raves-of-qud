@@ -107,6 +107,15 @@ always visible in the bar).
    MATCHED-STATE capture from the live save; the earlier caveat is retired. Matched diffs:
    full frame 5.19, paper doll 5.59, inventory list 7.94, filter strip 12.92, header 15.83 —
    the strip and header are the real remaining work.
+   STRIP ALIGNED (2026-08-04): cell borders measured off the matched reference — ALL at x560, category
+   cells from x618 on a 58px pitch, 44 wide — and Raves' borders now land within 1px (559/617/675 vs
+   Qud's 618/676). The band diff ROSE (12.9 -> 15.4) even so, which means the geometry is right and the
+   CONTENT per cell differs: prime suspect is ORDER — the exporter sorts categories alphabetically for
+   the list, while Qud's `filterBarCategories` is built in INVENTORY-ENCOUNTER order, so icon N in the
+   strip isn't the same category. Fix: export the strip order separately from the list order.
+   HEADER: the "header band" diff was measuring the wrong thing — the bbox y220..254 that looked 43px
+   too narrow includes the list's `|5 lbs.|` category-weight column underneath, not just the
+   `$32 | 45/285 lbs.` line. Re-measure the header alone before touching it again.
    **(superseded) earlier note:** re-shooting `equipment_qud.png` on the current save failed —
    Qud's status screens ignore OS-synthesized keys (the modern-UI law), the bridge
    `command CmdEquipment` doesn't open them either, and a hover-click on Qud's character chrome icon
