@@ -199,24 +199,25 @@ func _opaque_rect(tex: Texture2D) -> Rect2:
 	_opaque_cache[key] = rect
 	return rect
 
-func _draw_cell_frame(r: Rect2, col: Color) -> void:
+func _draw_cell_frame(r: Rect2, col: Color, knob := true) -> void:
 	var x := r.position.x
 	var y := r.position.y
 	var w := r.size.x
 	var h := r.size.y
-	# box edges, broken at the two ornamented corners
-	_static.draw_rect(Rect2(x + 9, y, w - 9, 2), col)          # top (gap at TL)
-	_static.draw_rect(Rect2(x, y + h - 2, w - 9, 2), col)      # bottom (gap at BR)
-	_static.draw_rect(Rect2(x, y + 9, 2, h - 9), col)          # left (gap at TL)
-	_static.draw_rect(Rect2(x + w - 2, y, 2, h - 9), col)      # right (gap at BR)
-	# top-left loop: 7x7 outline + stem + bar
+	# FULL edges — the corner ornaments sit ON the frame and CONNECT to both lines
+	# (an earlier pass broke the edges at those corners, leaving the loops floating)
+	_static.draw_rect(Rect2(x, y, w, 2), col)
+	_static.draw_rect(Rect2(x, y + h - 2, w, 2), col)
+	_static.draw_rect(Rect2(x, y, 2, h), col)
+	_static.draw_rect(Rect2(x + w - 2, y, 2, h), col)
+	# top-left loop: 7x7 outline + stem + bar, joined to the top and left edges
 	_static.draw_rect(Rect2(x, y, 7, 2), col)
 	_static.draw_rect(Rect2(x, y, 2, 7), col)
 	_static.draw_rect(Rect2(x + 5, y, 2, 7), col)
 	_static.draw_rect(Rect2(x, y + 5, 11, 2), col)
 	_static.draw_rect(Rect2(x + 5, y + 7, 2, 2), col)
 	_static.draw_rect(Rect2(x, y + 9, 7, 2), col)
-	# bottom-right loop, mirrored
+	# bottom-right loop, mirrored and likewise joined
 	var bx := x + w - 7
 	var by := y + h - 11
 	_static.draw_rect(Rect2(bx, by, 7, 2), col)
@@ -225,6 +226,10 @@ func _draw_cell_frame(r: Rect2, col: Color) -> void:
 	_static.draw_rect(Rect2(bx, by + 4, 2, 7), col)
 	_static.draw_rect(Rect2(bx + 5, by + 4, 2, 7), col)
 	_static.draw_rect(Rect2(bx, by + 9, 7, 2), col)
+	# the small teal square straddling the BOTTOM line — filter cells only; Qud's
+	# paper-doll slots use this same frame WITHOUT it
+	if knob:
+		_static.draw_rect(Rect2(x + w * 0.5 - 2, y + h - 4, 5, 5), C_HOVER)
 
 ## Qud's category filter strip: the ALL cell then one per category, each showing
 ## that category's first item as its icon. Selecting a filter is a later slice —
@@ -312,7 +317,7 @@ func _draw_doll() -> void:
 	for label in DOLL:
 		var cell: Array = DOLL[label]
 		var pos := Vector2(cell[0], cell[1])
-		_static.draw_rect(Rect2(pos, Vector2(BOX_W, BOX_H)), C_BOX, false, 1.0)
+		_draw_cell_frame(Rect2(pos, Vector2(BOX_W, BOX_H)), C_BOX, false)
 		var sl: Variant = by_label.get(label)
 		if sl != null:
 			var tile := str(sl.get("tile", ""))

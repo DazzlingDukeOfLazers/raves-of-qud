@@ -143,13 +143,16 @@ namespace RavesOfQud
             // nothing like the alphabetical category order the list itself uses.
             try
             {
-                var flat = new List<KeyValuePair<string, string>>();   // sortName -> category
-                foreach (var kv in cats)
-                    foreach (GameObject go in kv.Value)
+                var flat = new List<KeyValuePair<string, string>>();   // name -> category
+                var invOrder = p.Inventory;
+                if (invOrder != null)
+                    foreach (GameObject go in invOrder.GetObjectsDirect())
                     {
-                        string sn = "";
-                        try { sn = (go.DisplayNameOnlyStripped ?? "").ToLowerInvariant(); } catch { }
-                        flat.Add(new KeyValuePair<string, string>(sn, kv.Key));
+                        if (go == null) continue;
+                        string c2 = "Miscellaneous", n2 = "";
+                        try { c2 = go.GetInventoryCategory() ?? c2; } catch { }
+                        try { n2 = (go.DisplayNameOnlyStripped ?? "").ToLowerInvariant(); } catch { }
+                        flat.Add(new KeyValuePair<string, string>(n2, c2));
                     }
                 // EQUIPPED items count too: Qud's filter list is built from the screen's
                 // whole object list, which includes what's on the body — so a category
@@ -173,7 +176,10 @@ namespace RavesOfQud
                         }
                 }
                 catch { }
-                flat.Sort((a, b) => string.CompareOrdinal(a.Key, b.Key));
+                // NOT sorted: Qud's filter bar follows the inventory's own object order
+                // (first appearance while walking the pack), which is why its strip reads
+                // Water Containers, Light Sources, Melee Weapons, Tools… rather than any
+                // alphabetical sequence. Sorting by name produced a different order.
                 var seen = new List<string>();
                 foreach (var kv in flat)
                     if (!seen.Contains(kv.Value)) seen.Add(kv.Value);

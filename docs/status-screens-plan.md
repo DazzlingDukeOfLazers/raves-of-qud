@@ -394,3 +394,24 @@ diff is the same sampler-rounding as everywhere else.
 
 RECOMMENDATION: treat the filter strip as done. Score its leaves on cell geometry, frame, order,
 hover and select (all matched) rather than on icon pixel means.
+
+
+## Equipment frames + strip order — Daniel's corrections (2026-08-05)
+
+Four things I had wrong, all confirmed by eye before measurement agreed:
+
+1. **Teal knob.** Qud's filter cells carry a small teal square straddling the BOTTOM line. It was
+   sitting in the mask dump I took (rows 215-218) and I read past it. Added, centred on the bottom
+   edge in the hover teal.
+2. **Corner ornaments must CONNECT.** I had been BREAKING the box edges where the loops sit, leaving
+   them floating; in Qud the loops join both lines. Edges are now drawn full with the ornaments over
+   them.
+3. **Paper-doll slots use the SAME frame**, larger and WITHOUT the knob — they were plain 1px
+   rectangles. `_draw_cell_frame(rect, col, knob=false)` now draws them; doll_frame leaves 13.4 ->
+   12.3.
+4. **Strip order is the inventory's OWN object order**, not a name sort: Qud reads Water Containers,
+   Light Sources, Melee Weapons, Tools… i.e. first appearance while walking the pack. My earlier
+   sortString reading produced Tools, Scrap, Melee Weapons, Water Containers. Removing the sort makes
+   Raves match exactly.
+
+Frame leaves 14.17 -> 14.14 mean, composite 17.00 -> 16.65.
