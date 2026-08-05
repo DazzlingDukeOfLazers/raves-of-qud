@@ -345,3 +345,18 @@ different rounding than our NEAREST sampling does, so individual pixels differ e
 palette, box and position all agree. Closing that would mean replicating Qud's sampler — worth doing
 only if the eye can see it; the crops now read as the same widget. Treat the doll as done for parity
 purposes and score the leaves on box+palette agreement rather than per-pixel mean.
+
+
+## Filter cell hover (2026-08-05)
+
+Captured Qud's own hover by moving the cursor onto a filter cell and diffing that cell against the
+reference: Qud brightens the WHOLE frame from (51,80,91) to (65,106,115) — ~396 px, delta 4.12, no
+fill or icon change. Ported: `_filt_hover` tracks the cell under the cursor from motion events
+(routed through the screen's modal root like the clicks) and the frame draws in `C_HOVER`;
+selection gold still wins over hover.
+
+That capture also caught a colour bug it was masking: our base frame was `_iv8(70,96,100)` where
+Qud's is (51,80,91) — too bright all along. Fixed with the same measurement.
+
+Verified live: Raves' hover delta 4.05 with tone (62,101,110) over 408 px, against Qud's 4.12 /
+(65,106,115) / 396 px. Frame leaves 15.36 -> **14.17** mean.

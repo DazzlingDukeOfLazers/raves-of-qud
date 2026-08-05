@@ -41,7 +41,8 @@ static func _iv8(r8: int, g8: int, b8: int) -> Color:
 var C_DIM := _iv8(108, 133, 129)
 var C_SEL := _iv8(23, 59, 60)
 var C_GOLD := _iv8(200, 184, 57)
-var C_BOX := _iv8(70, 96, 100)
+var C_BOX := _iv8(51, 80, 91)      # MEASURED: Qud's cell frame base (was too bright)
+var C_HOVER := _iv8(65, 106, 115)  # MEASURED: Qud brightens the whole frame on hover
 var C_LABEL := _iv8(120, 146, 141)
 
 # Qud's paper-doll grid: label -> [column x, row y]. Columns/rows measured off
@@ -77,6 +78,7 @@ var _scroll := 0.0
 var _collapsed := {}        # category name -> true when collapsed (Raves-side view state)
 var _enabled := {}          # filter strip: enabled category names; EMPTY means "*All"
 var _filt_rects: Array = [] # [[Rect2, category-or-empty], …] rebuilt with the strip
+var _filt_hover := -1       # index into _filt_rects under the cursor (-1 = none)
 var _clip: Control
 var _content: Control
 var _static: Control
@@ -209,7 +211,10 @@ func _draw_filter_strip() -> void:
 	var x := FILT_X
 	# the ALL cell — gold-framed while no category filter is enabled (Qud's "*All")
 	var all_rect := Rect2(Vector2(x, FILT_Y), Vector2(FILT_W, FILT_H))
-	_draw_cell_frame(all_rect, C_GOLD if _enabled.is_empty() else C_BOX)
+	_filt_rects.append([all_rect, ""])   # placeholder replaced below; keeps index 0 stable
+	_filt_rects.pop_back()
+	_draw_cell_frame(all_rect, C_GOLD if _enabled.is_empty() else (
+		C_HOVER if _filt_hover == 0 else C_BOX))
 	_filt_rects.append([all_rect, ""])
 	var aw := _font.get_string_size("ALL", HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
 	_static.draw_string(_font, Vector2(x + (FILT_W - aw) * 0.5, FILT_Y + 25), "ALL",
@@ -234,7 +239,8 @@ func _draw_filter_strip() -> void:
 	for cat in strip:
 		var cname := str(cat.get("name", ""))
 		var rect := Rect2(Vector2(x, FILT_Y), Vector2(FILT_W, FILT_H))
-		_draw_cell_frame(rect, C_GOLD if _enabled.has(cname) else C_BOX)
+		_draw_cell_frame(rect, C_GOLD if _enabled.has(cname) else (
+			C_HOVER if _filt_hover == _filt_rects.size() else C_BOX))
 		_filt_rects.append([rect, cname])
 		# QUD'S OWN filter icon (FilterBarCategoryButton.categoryImageMap), painted in
 		# the fixed two-tone that button uses; falls back to the category's first item.
@@ -452,6 +458,17 @@ func _move(d: int) -> void:
 	_content.queue_redraw()
 
 func handle_mouse(e: InputEvent) -> void:
+	if e is InputEventMouseMotion:
+		# Qud brightens a filter cell's frame while the cursor is over it
+		var was := _filt_hover
+		_filt_hover = -1
+		for i in _filt_rects.size():
+			if (_filt_rects[i][0] as Rect2).has_point(e.position):
+				_filt_hover = i
+				break
+		if _filt_hover != was:
+			_static.queue_redraw()
+		return
 	if not (e is InputEventMouseButton and e.pressed):
 		return
 	if e.button_index == MOUSE_BUTTON_WHEEL_UP:
