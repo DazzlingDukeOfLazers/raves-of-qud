@@ -429,7 +429,14 @@ func _draw_doll() -> void:
 					# disagreement is a one-column dim edge, and chasing it moves the whole
 					# sprite off the alignment that actually matters. Bbox is a diagnostic,
 					# not the objective.
-					var at := pos + Vector2((BOX_W - dw) * 0.5, (BOX_H - dh) * 0.5)
+					# +0.5 in x is a RASTERISATION phase, not a position fix: 16 source px
+					# into 40 makes every source pixel 2.5 wide, so each one lands on 2 or
+					# 3 destination columns depending on which side of the half-pixel the
+					# boundary falls. Unity and Godot break that tie differently, and half
+					# a pixel is exactly the offset that realigns the runs. Measured: doll
+					# images 8.63 -> 4.28, with two slots going pixel-identical. (A FULL
+					# pixel, tried first, made the bboxes agree and TRIPLED the diff.)
+					var at := pos + Vector2((BOX_W - dw) * 0.5 + 0.5, (BOX_H - dh) * 0.5)
 					# FromRenderable also applies the renderable's flips; a negative rect
 					# size is how Godot mirrors a draw_texture_rect
 					if bool(sl.get("hflip", false)):

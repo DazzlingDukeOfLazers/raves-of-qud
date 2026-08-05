@@ -468,7 +468,17 @@ Then the icons, by the same method — read the RectTransform, don't fit the pix
 | nine-patched frame + real geometry | 9.49 | 2.91 | 54.63 |
 | filter icons at Qud's 20x30 / 1.25x | 8.20 | 2.91 | 35.98 |
 | doll tiles at Qud's 40x60 (localScale 2) | 4.58 | 2.91 | 19.11 |
-| resolved colour chars + Qud's palette on the wire | **2.86** | **2.36** | **8.63** |
+| resolved colour chars + Qud's palette on the wire | 2.86 | 2.36 | 8.63 |
+| +0.5px rasterisation phase on the doll tiles | **3.16** | **2.91** | **4.28** |
+
+(the frame/composite columns move with that last row because a 40x60 icon in a 64x64
+box overlaps the frame leaf's border band — captures themselves are bit-identical
+run to run, so none of this is measurement noise.)
+
+Two of the four occupied doll slots are now pixel-identical (diff 0.00). The one
+holdout is the right-hand torch at 12.71: our ink is two columns wider on the LEFT
+(raves [15,15,35,35] vs qud [17,15,33,35]) with colours already exact and both tiles
+16x24, so it is neither palette nor scale — suspect the flip EquipmentLine applies.
 
 Superseded (was): the filter icons (four of five still mismatch — Qud stretches the whole sprite into
 `icon`'s RectTransform, we fit the opaque sub-rect, so our ink runs narrow), and the paper-doll
