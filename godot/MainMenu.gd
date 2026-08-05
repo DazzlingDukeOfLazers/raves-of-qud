@@ -120,6 +120,12 @@ var _quit_opts: Array = []     # [{lbl, act}] for the dialog
 
 func _ready() -> void:
 	name = "MainMenu"
+	# Report the scene FIRST: this scene is also where the in-game lifecycle watch
+	# lands when a game ends (MainFrame -> change_scene). Without this, UiState kept
+	# the last in-game scene and its 2s heartbeat rewrote that STALE value forever —
+	# `hv state` then reported e.g. status_skills while Raves sat on the title, and
+	# driving landed clicks on the menu.
+	UiState.set_scene("title")
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	theme = UiFont.make_theme(get_viewport())
 	if Settings.one_to_one():

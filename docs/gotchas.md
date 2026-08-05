@@ -117,6 +117,12 @@ add a one-liner (symptom → rule).
   Qud parked on Keybinds. The uiback handler now pumps Unity's SynchronizationContext (private `Exec()`,
   reflection) after invoking Exit so the close chain resolves unfocused; macOS stops draining those
   continuations for a backgrounded window even with `runInBackground=true` (turns + uiQueue keep running).
+- **Every scene must REPORT itself on load, not just on transitions.** `UiState` rewrites its file
+  every 2s as a freshness heartbeat, so a scene that never calls `set_scene` republishes the PREVIOUS
+  scene forever — `hv state` then reads fresh-but-wrong (it saw `status_skills` while Raves sat on
+  the title after the lifecycle bounce, and driving clicked into the menu). `MainMenu._ready` now
+  reports `title`, `set_scene` clears any popup (a modal can't survive a scene change), and the
+  heartbeat sanity-checks the live scene root before republishing.
 - **Qud APIs that raise a SYNCHRONOUS popup (`Popup.ShowYesNo`, `SelectNode`) must run through
   `APIDispatch.RunAndWaitAsync`, not straight from a uiQueue task** — the modal wait deadlocks and
   the call proceeds as if confirmed (a skill purchase went through on "No"). Mirror whatever wrapper
