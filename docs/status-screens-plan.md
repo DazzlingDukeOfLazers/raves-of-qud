@@ -213,3 +213,13 @@ frame and poisons same-frame re-shows).
 3. Mod exporter (if needed) → JSON in the support dir, re-export on bridge command.
 4. Build the pane; capture-diff both apps to the 2–5 mean-diff family.
 5. Commit + push (author guard) per converged screen; Daniel eyes-on rounds.
+
+
+## Equipment filter strip — icon tint finding (2026-08-04)
+
+The two-tone already matches Qud to 1/255 (Qud 141,124,84 / 128,91,41; ours 140,123,83 / 127,91,40),
+so tint was never the problem. The real gap is INK COVERAGE: Qud's per-cell icon ink spans ~18x23
+where ours spans ~13x13 — we draw a sprite with a smaller opaque area, not a mis-tinted one. Two size
+attempts (26x26, then an aspect-correct 18x27) both scored WORSE (11.53 -> 11.89 / 11.61) and were
+reverted. NEXT: chase WHICH sprite each cell receives (the category-to-icon pairing under Qud's
+ordering), not its size or colour. Strip stands at **11.53**, full frame **4.52**.
