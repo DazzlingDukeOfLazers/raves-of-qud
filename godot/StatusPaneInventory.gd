@@ -187,9 +187,13 @@ func _draw_filter_strip() -> void:
 	for c in cats:
 		by_name[str(c.get("name", ""))] = c
 	var strip: Array = []
-	for n in order:
-		if by_name.has(str(n)):
-			strip.append(by_name[str(n)])
+	for ent in order:
+		var nm := str(ent.get("name", "")) if ent is Dictionary else str(ent)
+		var cell: Dictionary = (by_name[nm] as Dictionary).duplicate() if by_name.has(nm) else {"name": nm}
+		# an equipped-only category (Clothes) has no list entry — take Qud's icon
+		if ent is Dictionary and str(ent.get("icon", "")) != "":
+			cell["icon"] = str(ent["icon"])
+		strip.append(cell)
 	if strip.is_empty():
 		strip = cats
 	for cat in strip:

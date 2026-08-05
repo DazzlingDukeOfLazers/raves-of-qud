@@ -143,12 +143,52 @@ namespace RavesOfQud
                         try { sn = (go.DisplayNameOnlyStripped ?? "").ToLowerInvariant(); } catch { }
                         flat.Add(new KeyValuePair<string, string>(sn, kv.Key));
                     }
+                // EQUIPPED items count too: Qud's filter list is built from the screen's
+                // whole object list, which includes what's on the body — so a category
+                // only worn (armour, a wielded blade) still gets a strip cell, and its
+                // item name participates in the first-appearance ordering.
+                try
+                {
+                    var body2 = p.Body;
+                    if (body2 != null)
+                        foreach (BodyPart bp in body2.GetParts())
+                        {
+                            GameObject eq = null;
+                            try { eq = bp.Equipped; } catch { }
+                            if (eq == null) continue;
+                            string ec = "Miscellaneous", en = "";
+                            try { ec = eq.GetInventoryCategory() ?? ec; } catch { }
+                            try { en = (eq.DisplayNameOnlyStripped ?? "").ToLowerInvariant(); } catch { }
+                            bool dup = false;
+                            foreach (var f2 in flat) if (f2.Key == en && f2.Value == ec) { dup = true; break; }
+                            if (!dup) flat.Add(new KeyValuePair<string, string>(en, ec));
+                        }
+                }
+                catch { }
                 flat.Sort((a, b) => string.CompareOrdinal(a.Key, b.Key));
                 var seen = new List<string>();
                 foreach (var kv in flat)
                     if (!seen.Contains(kv.Value)) seen.Add(kv.Value);
+                // objects, not bare names: a category can be EQUIPPED-ONLY (e.g. Clothes)
+                // and so have no list entry to borrow an icon from
                 j.Name("filterOrder").BeginArray();
-                foreach (string n in seen) j.Value(n);
+                foreach (string n in seen)
+                {
+                    j.BeginObject();
+                    j.Member("name", n);
+                    try
+                    {
+                        string ic;
+                        if (Qud.UI.FilterBarCategoryButton.categoryImageMap.TryGetValue(n, out ic)
+                            && !string.IsNullOrEmpty(ic))
+                        {
+                            TileExporter.Ensure(ic);
+                            j.Member("icon", ic);
+                        }
+                    }
+                    catch { }
+                    j.EndObject();
+                }
                 j.EndArray();
             }
             catch (Exception e) { System.Console.WriteLine("[raves] filter order: " + e.Message); }
