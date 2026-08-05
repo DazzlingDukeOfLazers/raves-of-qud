@@ -484,3 +484,27 @@ Superseded (was): the filter icons (four of five still mismatch — Qud stretche
 `icon`'s RectTransform, we fit the opaque sub-rect, so our ink runs narrow), and the paper-doll
 tile COLOURS (geometry now matches exactly — doll_image[0] bbox is [15,14,35,36] in both apps —
 but the ink still differs by ~70, so it is tint or the wrong render context, not placement).
+
+### Equipment residuals, 2026-08-05 (second pass)
+
+Fixed this round: the filter strip now draws Qud's LIVE per-button colours (its state is not
+derivable from outside), and the strip is BOUNDED by Qud's paging hotkeys -- a "Q" badge at x590
+and an "E" at x1310, both 20x27 at y184, between which Qud fits the ALL cell plus eleven
+categories. Raves had been drawing every category it had, straight over where the E belongs.
+
+Still open, both found by walking the outer_frame leaf's error to its worst columns:
+
+  - **the rule at y197** — Qud runs a 1px line in the cell teal from x158 to the Q badge's tab
+    (x581-589, 9x14) and again from x1338 to x1760. Raves draws neither segment.
+  - **"[Ctrl+Tab] show cybernetics"** — a hint line under that rule, absent in Raves.
+
+Declared at the practical limit and NOT worth further chasing:
+
+  - `doll_image[1]` (the torch) at 12.71 — about 39 differing pixels in the cell, all 1px edges
+    from the 16->40 (2.5x) scaling tie-break. I modelled two candidate samplings in Python
+    against Qud's pixels and both scored FAR worse (568-666 mismatches) than what we already
+    render (39), i.e. the model was not even faithful to our own draw. Without reproducing
+    Unity's rasteriser exactly there is nothing to fit.
+  - `list_item` / `list_cat` — their diff is dominated by the live PLAYFIELD showing through
+    Qud's scrim behind the text, which differs every run. The glyphs themselves land within 1-2px.
+    Read these two as noisy; judge list typography from the token positions, not the leaf score.

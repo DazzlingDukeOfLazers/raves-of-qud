@@ -124,6 +124,16 @@ const FILT_Y := 177.0
 const FILT_W := 46.0
 const FILT_H := 41.0   # measured: cell rows 177..217
 const FILT_PITCH := 58.0
+# Qud's strip is BOUNDED and flanked by its paging hotkeys: a "Q" badge at x590 and an
+# "E" badge at x1310, both 20x27 at y184, filled in the same teal as the cells' knob
+# with a green letter. Between them it fits the ALL cell plus ELEVEN categories --
+# 618 + 12*58 = 1314, which is exactly where the E sits, so a thirteenth cell would
+# land on top of it. Raves drew every category it had and did precisely that.
+const FILT_MAX_CELLS := 12          # the ALL cell + 11 categories
+const FILT_BADGE := Vector2(20, 27)
+const FILT_BADGE_Y := 184.0
+const FILT_BADGE_QX := 590.0
+const FILT_BADGE_EX := 1310.0
 
 var _data := {}
 var _palette := {}
@@ -345,6 +355,13 @@ func _draw_cell_frame_fallback(r: Rect2, col: Color, knob := true) -> void:
 	if knob:
 		_static.draw_rect(Rect2(x + w * 0.5 - 2, y + h - 4, 5, 5), C_HOVER)
 
+## One of the strip's paging hotkey badges: a filled teal box with a green letter.
+func _draw_filt_badge(x: float, letter: String) -> void:
+	_static.draw_rect(Rect2(Vector2(x, FILT_BADGE_Y), FILT_BADGE), C_HOVER)
+	var lw := _font.get_string_size(letter, HORIZONTAL_ALIGNMENT_LEFT, -1, 18).x
+	_static.draw_string(_font, Vector2(x + (FILT_BADGE.x - lw) * 0.5, FILT_BADGE_Y + 21),
+		letter, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, _tiles.color_of("g", Color(0.1, 0.5, 0.2)))
+
 ## Qud's LIVE colour for a filter cell, when the export carries one.
 ##
 ## Preferred over deriving it, because the derivation is not derivable: LateUpdate
@@ -392,6 +409,9 @@ func _draw_filter_strip() -> void:
 	x += FILT_PITCH
 	# strip order is QUD'S (filterOrder: category of the alphabetically-first item),
 	# which differs from the list's alphabetical category order
+	# the paging hotkeys that bound the strip
+	_draw_filt_badge(FILT_BADGE_QX, "Q")
+	_draw_filt_badge(FILT_BADGE_EX, "E")
 	var order: Array = _data.get("filterOrder", [])
 	var by_name := {}
 	for c in cats:
@@ -412,6 +432,8 @@ func _draw_filter_strip() -> void:
 	if strip.is_empty():
 		strip = cats
 	for cat in strip:
+		if _filt_rects.size() >= FILT_MAX_CELLS:
+			break            # the rest are on Qud's other page (see FILT_MAX_CELLS)
 		var cname := str(cat.get("name", ""))
 		var rect := Rect2(Vector2(x, FILT_Y), Vector2(FILT_W, FILT_H))
 		var live: Variant = _filt_live(str(cat.get("color", "")))
