@@ -3,9 +3,7 @@
   "bp": "ActivePlant",
   "pass": true,
   "reasons": [],
-  "warns": [
-   "wire tile != blueprint tile 'assets_content_textures_tiles_tile-9-4'"
-  ],
+  "warns": [],
   "stage": {
    "bp": "ActivePlant",
    "ok": true,
@@ -25,7 +23,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\ActivePlant_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.88,
+   "mean_abs_diff": 1.89,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -62,7 +60,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Aloe_Fugues_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.74,
+   "mean_abs_diff": 1.8,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -134,7 +132,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Aloe_Pyra_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.78,
+   "mean_abs_diff": 1.8,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -208,7 +206,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Asphodel_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.75,
+   "mean_abs_diff": 1.76,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -245,7 +243,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Asphodelyte_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.74,
+   "mean_abs_diff": 1.7,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -282,7 +280,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Banana_Tree_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.68,
+   "mean_abs_diff": 1.7,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -298,7 +296,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'terrain_bending-gjaus-1'"
+   "wire tile != blueprint tile 'terrain_bending-gjaus-2'"
   ],
   "stage": {
    "bp": "Bending Gjaus",
@@ -307,7 +305,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Terrain/bending-gjaus-1.png",
+   "tile": "Terrain/bending-gjaus-2.png",
    "color": "&W",
    "detail": "g",
    "name": "bending gjaus"
@@ -319,7 +317,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Bending_Gjaus_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 2.34,
+   "mean_abs_diff": 2.24,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -335,7 +333,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'terrain_sw_coral_ball_4'"
+   "wire tile != blueprint tile 'terrain_sw_coral_ball_3'"
   ],
   "stage": {
    "bp": "Bop Sponge",
@@ -344,7 +342,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Terrain/sw_coral_ball_4.bmp",
+   "tile": "Terrain/sw_coral_ball_3.bmp",
    "color": "&B",
    "detail": "",
    "name": "bop sponge"
@@ -356,7 +354,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Bop_Sponge_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.45,
+   "mean_abs_diff": 1.83,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -393,7 +391,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Brinestalk_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.52,
+   "mean_abs_diff": 1.55,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -430,7 +428,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Bush_Golem_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.7,
+   "mean_abs_diff": 1.77,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -446,7 +444,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'terrain_sw_chavvah_branch_floor_6'"
+   "wire tile != blueprint tile 'terrain_sw_chavvah_branch_floor_1'"
   ],
   "stage": {
    "bp": "Chavvah Branch",
@@ -455,7 +453,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Terrain/sw_chavvah_branch_floor_6.bmp",
+   "tile": "Terrain/sw_chavvah_branch_floor_1.bmp",
    "color": "&m",
    "detail": "y",
    "name": "crystalline branch"
@@ -467,7 +465,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Chavvah_Branch_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.45,
+   "mean_abs_diff": 1.47,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -483,8 +481,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'terrain_sw_chavvah_chime_double_1'",
-   "no capture pair \u2014 congruence skipped"
+   "wire tile != blueprint tile 'terrain_sw_chavvah_chime_double_1'"
   ],
   "stage": {
    "bp": "Chavvah Chime Left",
@@ -501,10 +498,11 @@
   "wire_objs": 1,
   "wire_hex": "b1c9c3",
   "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Chavvah_Chime_Left_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Chavvah_Chime_Left_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.71,
+   "mean_abs_diff": 2.0,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -519,7 +517,9 @@
   "bp": "Chavvah Chime Right",
   "pass": true,
   "reasons": [],
-  "warns": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_sw_chavvah_chime_double_2'"
+  ],
   "stage": {
    "bp": "Chavvah Chime Right",
    "ok": true,
@@ -539,7 +539,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Chavvah_Chime_Right_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.53,
+   "mean_abs_diff": 1.57,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -555,7 +555,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'terrain_sw_chavvah_leaves_dense_1'"
+   "wire tile != blueprint tile 'terrain_sw_chavvah_leaves_dense_3'"
   ],
   "stage": {
    "bp": "Chavvah Dense Leaves",
@@ -564,7 +564,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Terrain/sw_chavvah_leaves_dense_1.bmp",
+   "tile": "Terrain/sw_chavvah_leaves_dense_3.bmp",
    "color": "&y",
    "detail": "y",
    "name": "dense crystal leaves"
@@ -576,7 +576,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Chavvah_Dense_Leaves_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.4,
+   "mean_abs_diff": 1.58,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -592,7 +592,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'terrain_sw_chavvah_leaves_sparse_2'"
+   "wire tile != blueprint tile 'terrain_sw_chavvah_leaves_sparse_4'"
   ],
   "stage": {
    "bp": "Chavvah Sparse Leaves",
@@ -601,7 +601,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Terrain/sw_chavvah_leaves_sparse_2.bmp",
+   "tile": "Terrain/sw_chavvah_leaves_sparse_4.bmp",
    "color": "&y",
    "detail": "y",
    "name": "sparse crystal leaves"
@@ -613,7 +613,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Chavvah_Sparse_Leaves_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.22,
+   "mean_abs_diff": 1.46,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -629,7 +629,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'terrain_sw_chavvah_branch_floor_3'"
+   "wire tile != blueprint tile 'terrain_sw_chavvah_branch_floor_4'"
   ],
   "stage": {
    "bp": "Chavvah Taproot Floor",
@@ -638,7 +638,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Terrain/sw_chavvah_branch_floor_3.bmp",
+   "tile": "Terrain/sw_chavvah_branch_floor_4.bmp",
    "color": "&m",
    "detail": "y",
    "name": "crystalline taproot"
@@ -650,7 +650,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Chavvah_Taproot_Floor_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.41,
+   "mean_abs_diff": 1.36,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -666,7 +666,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_pottedplant_ornate_2'"
+   "wire tile != blueprint tile 'creatures_sw_glowpad'"
   ],
   "stage": {
    "bp": "Chiliad Creature Consortium",
@@ -675,7 +675,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_pottedplant_ornate_2.bmp",
+   "tile": "Creatures/sw_glowpad.bmp",
    "color": "&G",
    "detail": "w",
    "name": "Consortium =creatureRegionNoun="
@@ -687,7 +687,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Chiliad_Creature_Consortium_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.78,
+   "mean_abs_diff": 1.77,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -724,7 +724,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Chiliad_Creature_Flowers_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.74,
+   "mean_abs_diff": 1.79,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -761,7 +761,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Chiliad_Creature_Roots_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.73,
+   "mean_abs_diff": 1.74,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -798,7 +798,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Chiliad_Creature_Succulents_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.74,
+   "mean_abs_diff": 1.75,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -835,7 +835,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Chiliad_Creature_Trees_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.78,
+   "mean_abs_diff": 1.74,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -872,7 +872,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Chiliad_Creature_Vines_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.74,
+   "mean_abs_diff": 1.73,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -888,7 +888,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'terrain_chiliad-dogthorn-2'"
+   "wire tile != blueprint tile 'terrain_chiliad-dogthorn-1'"
   ],
   "stage": {
    "bp": "Chiliad Dogthorn Tree",
@@ -897,7 +897,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Terrain/chiliad-dogthorn-2.png",
+   "tile": "Terrain/chiliad-dogthorn-1.png",
    "color": "&G",
    "detail": "w",
    "name": "dogthorn tree"
@@ -909,7 +909,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Chiliad_Dogthorn_Tree_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.62,
+   "mean_abs_diff": 1.61,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -925,8 +925,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'terrain_chiliad-starapple'",
-   "no capture pair \u2014 congruence skipped"
+   "wire tile != blueprint tile 'terrain_chiliad-starapple'"
   ],
   "stage": {
    "bp": "Chiliad Starapple Tree",
@@ -943,10 +942,11 @@
   "wire_objs": 1,
   "wire_hex": "009403",
   "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Chiliad_Starapple_Tree_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Chiliad_Starapple_Tree_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.63,
+   "mean_abs_diff": 1.6,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -961,7 +961,9 @@
   "bp": "Chiliad Watervine",
   "pass": true,
   "reasons": [],
-  "warns": [],
+  "warns": [
+   "wire tile != blueprint tile 'terrain_chiliad-watervine-2'"
+  ],
   "stage": {
    "bp": "Chiliad Watervine",
    "ok": true,
@@ -969,7 +971,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Terrain/chiliad-watervine-1.png",
+   "tile": "Terrain/chiliad-watervine-2.png",
    "color": "&K",
    "detail": "K",
    "name": "watervine"
@@ -981,7 +983,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Chiliad_Watervine_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.56,
+   "mean_abs_diff": 1.64,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -997,7 +999,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'terrain_chiliad-witchwood-1'"
+   "wire tile != blueprint tile 'terrain_chiliad-witchwood-2'"
   ],
   "stage": {
    "bp": "Chiliad Witchwood Tree",
@@ -1006,7 +1008,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Terrain/chiliad-witchwood-1.png",
+   "tile": "Terrain/chiliad-witchwood-2.png",
    "color": "&W",
    "detail": "w",
    "name": "witchwood tree"
@@ -1018,7 +1020,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Chiliad_Witchwood_Tree_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.68,
+   "mean_abs_diff": 1.55,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1055,7 +1057,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Clue_BloodyWatervine_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.78,
+   "mean_abs_diff": 1.76,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1108,7 +1110,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'terrain_sw_reef_both_odd_1'"
+   "wire tile != blueprint tile 'terrain_sw_reef_both_odd_3'"
   ],
   "stage": {
    "bp": "Coral and Palladium Strut",
@@ -1117,7 +1119,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Terrain/sw_reef_both_odd_1.bmp",
+   "tile": "Terrain/sw_reef_both_odd_3.bmp",
    "color": "&r",
    "detail": "r",
    "name": "palladium strut with coral growth"
@@ -1129,7 +1131,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Coral_and_Palladium_Strut_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.63,
+   "mean_abs_diff": 1.62,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1145,7 +1147,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'terrain_sw_reef_both_even_2'"
+   "wire tile != blueprint tile 'terrain_sw_reef_both_even_3'"
   ],
   "stage": {
    "bp": "Coral and Palladium Strut A",
@@ -1154,7 +1156,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Terrain/sw_reef_both_even_2.bmp",
+   "tile": "Terrain/sw_reef_both_even_3.bmp",
    "color": "&r",
    "detail": "r",
    "name": "palladium strut with coral growth"
@@ -1166,7 +1168,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Coral_and_Palladium_Strut_A_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.36,
+   "mean_abs_diff": 1.5,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1182,7 +1184,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'terrain_sw_reef_both_odd_4'"
+   "wire tile != blueprint tile 'terrain_sw_reef_both_odd_2'"
   ],
   "stage": {
    "bp": "Coral and Palladium Strut B",
@@ -1191,7 +1193,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Terrain/sw_reef_both_odd_4.bmp",
+   "tile": "Terrain/sw_reef_both_odd_2.bmp",
    "color": "&r",
    "detail": "r",
    "name": "palladium strut with coral growth"
@@ -1203,7 +1205,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Coral_and_Palladium_Strut_B_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.77,
+   "mean_abs_diff": 1.57,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1219,7 +1221,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'terrain_sw_reef_organic_even_2'"
+   "wire tile != blueprint tile 'terrain_sw_reef_organic_odd_3'"
   ],
   "stage": {
    "bp": "Coral Polyp",
@@ -1228,7 +1230,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Terrain/sw_reef_organic_even_2.bmp",
+   "tile": "Terrain/sw_reef_organic_odd_3.bmp",
    "color": "&r",
    "detail": "r",
    "name": "coral polyp"
@@ -1240,7 +1242,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Coral_Polyp_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.41,
+   "mean_abs_diff": 1.39,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1256,8 +1258,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'terrain_sw_reef_organic_even_3'",
-   "no capture pair \u2014 congruence skipped"
+   "wire tile != blueprint tile 'terrain_sw_reef_organic_even_4'"
   ],
   "stage": {
    "bp": "Coral Polyp A",
@@ -1266,7 +1267,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Terrain/sw_reef_organic_even_3.bmp",
+   "tile": "Terrain/sw_reef_organic_even_4.bmp",
    "color": "&r",
    "detail": "r",
    "name": "coral polyp"
@@ -1274,10 +1275,11 @@
   "wire_objs": 1,
   "wire_hex": "a64a2e",
   "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Coral_Polyp_A_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Coral_Polyp_A_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.35,
+   "mean_abs_diff": 1.37,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1300,7 +1302,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Terrain/sw_reef_organic_odd_4.bmp",
+   "tile": "Terrain/sw_reef_organic_odd_3.bmp",
    "color": "&r",
    "detail": "r",
    "name": "coral polyp"
@@ -1312,7 +1314,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Coral_Polyp_B_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.47,
+   "mean_abs_diff": 1.38,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1386,7 +1388,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Crystal_Chime_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.88,
+   "mean_abs_diff": 1.89,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1423,7 +1425,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Crystalline_Radicle_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.58,
+   "mean_abs_diff": 1.6,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1497,7 +1499,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\CrystalWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.12,
+   "mean_abs_diff": 1.15,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1534,7 +1536,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Dicalyptus_Tree_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.85,
+   "mean_abs_diff": 1.86,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1571,7 +1573,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Dogthorn_Tree_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.78,
+   "mean_abs_diff": 1.8,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1608,7 +1610,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Dogthorn_Tree2_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 0.96,
+   "mean_abs_diff": 0.98,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1645,7 +1647,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Dreadroot_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.4,
+   "mean_abs_diff": 1.42,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1682,7 +1684,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Dreamcrungle_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.74,
+   "mean_abs_diff": 1.77,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1719,7 +1721,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Dreamer_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.4,
+   "mean_abs_diff": 1.35,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1756,7 +1758,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Dyvvrach_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.51,
+   "mean_abs_diff": 1.53,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1793,7 +1795,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Eel_Grass_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.57,
+   "mean_abs_diff": 1.59,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1830,7 +1832,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Elder_Lagroot_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.13,
+   "mean_abs_diff": 1.16,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1867,7 +1869,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Euclid_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.73,
+   "mean_abs_diff": 1.74,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1883,7 +1885,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'terrain_sw_coral_ball_2'"
+   "wire tile != blueprint tile 'terrain_sw_coral_ball_4'"
   ],
   "stage": {
    "bp": "Farm Bop Sponge",
@@ -1892,7 +1894,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Terrain/sw_coral_ball_2.bmp",
+   "tile": "Terrain/sw_coral_ball_4.bmp",
    "color": "&b",
    "detail": "",
    "name": "bop sponge"
@@ -1904,7 +1906,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Farm_Bop_Sponge_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.58,
+   "mean_abs_diff": 1.48,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1941,7 +1943,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Feral_Lah_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.59,
+   "mean_abs_diff": 1.58,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1978,7 +1980,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Feral_Lah_Pod_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.45,
+   "mean_abs_diff": 1.44,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -2015,7 +2017,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Finger_Coral_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.42,
+   "mean_abs_diff": 1.39,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -2052,7 +2054,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Flower_Golem_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.73,
+   "mean_abs_diff": 1.77,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -2089,7 +2091,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Flowers_Cherub_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.74,
+   "mean_abs_diff": 1.73,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -2105,7 +2107,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'terrain_sw_fracti2'"
+   "wire tile != blueprint tile 'terrain_sw_fracti7'"
   ],
   "stage": {
    "bp": "Fracti",
@@ -2114,7 +2116,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Terrain/sw_fracti2.bmp",
+   "tile": "Terrain/sw_fracti7.bmp",
    "color": "&g",
    "detail": "y",
    "name": "fractus"
@@ -2126,7 +2128,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Fracti_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 2.53,
+   "mean_abs_diff": 2.25,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -2163,7 +2165,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Fracti2_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 2.23,
+   "mean_abs_diff": 2.25,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -2179,7 +2181,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'terrain_sw_fracti3'"
+   "wire tile != blueprint tile 'terrain_sw_fracti8'"
   ],
   "stage": {
    "bp": "Fracti3",
@@ -2188,7 +2190,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Terrain/sw_fracti3.bmp",
+   "tile": "Terrain/sw_fracti8.bmp",
    "color": "&g",
    "detail": "w",
    "name": "fractus"
@@ -2200,7 +2202,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Fracti3_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 2.38,
+   "mean_abs_diff": 2.48,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -2237,7 +2239,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Fractus_Golem_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.74,
+   "mean_abs_diff": 1.76,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -2253,7 +2255,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'terrain_sw_fattree2'"
+   "wire tile != blueprint tile 'terrain_sw_fattree1'"
   ],
   "stage": {
    "bp": "Glitchwood Tree",
@@ -2262,7 +2264,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Terrain/sw_fattree2.bmp",
+   "tile": "terrain/sw_fattree1.bmp",
    "color": "&y",
    "detail": "K",
    "name": "glitchwood tree"
@@ -2274,7 +2276,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Glitchwood_Tree_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.67,
+   "mean_abs_diff": 1.77,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -2327,7 +2329,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'assets_content_textures_tiles_sw_watervine3'"
+   "wire tile != blueprint tile 'assets_content_textures_tiles_sw_watervine1'"
   ],
   "stage": {
    "bp": "Gnawed Watervine",
@@ -2336,7 +2338,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Assets_Content_Textures_Tiles_sw_watervine3.bmp",
+   "tile": "Assets_Content_Textures_Tiles_sw_watervine1.bmp",
    "color": "&K",
    "detail": "K",
    "name": "gnawed watervine"
@@ -2348,7 +2350,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Gnawed_Watervine_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.58,
+   "mean_abs_diff": 1.71,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -2385,7 +2387,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Gorged_Growth_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.48,
+   "mean_abs_diff": 7.46,
    "pct_hot": 8.5,
    "band": "PASS",
    "white_px": [
@@ -2422,7 +2424,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Grave_Moss_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 13.28,
+   "mean_abs_diff": 13.33,
    "pct_hot": 9.3,
    "band": "WARN",
    "white_px": [
@@ -2475,7 +2477,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'terrain_sw_tree_banana_3'"
+   "wire tile != blueprint tile 'terrain_sw_tree_banana_1'"
   ],
   "stage": {
    "bp": "Holographic Banana Tree",
@@ -2484,7 +2486,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Terrain/sw_tree_banana_3.bmp",
+   "tile": "Terrain/sw_tree_banana_1.bmp",
    "color": "&r",
    "detail": "W",
    "name": "banana tree"
@@ -2496,7 +2498,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Holographic_Banana_Tree_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 6.34,
+   "mean_abs_diff": 1.67,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -2557,7 +2559,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 4,
+   "cleared": 3,
    "tile": "Terrain/sw_bigtree1.bmp",
    "color": "&g",
    "detail": "w",
@@ -2607,7 +2609,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Holographic_Dogthorn_Tree_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.76,
+   "mean_abs_diff": 1.83,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -2644,7 +2646,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Holographic_Ivory_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.15,
+   "mean_abs_diff": 1.18,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -2660,7 +2662,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'terrain_sw_mangrove2'"
+   "wire tile != blueprint tile 'terrain_sw_mangrove1'"
   ],
   "stage": {
    "bp": "Holographic Shimscale Mangrove Tree",
@@ -2669,7 +2671,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Terrain/sw_mangrove2.bmp",
+   "tile": "Terrain/sw_mangrove1.bmp",
    "color": "&w",
    "detail": "w",
    "name": "shimscale mangrove tree"
@@ -2681,7 +2683,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Holographic_Shimscale_Mangrove_Tree_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.57,
+   "mean_abs_diff": 1.63,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -2718,7 +2720,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Holographic_Star_Palm_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.68,
+   "mean_abs_diff": 1.69,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -2755,7 +2757,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Holographic_Swarmshade_Tree_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.77,
+   "mean_abs_diff": 1.78,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -2792,7 +2794,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Holographic_Ziv_Bough_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.4,
+   "mean_abs_diff": 1.42,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -2808,7 +2810,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'terrain_sw_tree_bulbs_1'"
+   "wire tile != blueprint tile 'terrain_sw_tree_bulbs_2'"
   ],
   "stage": {
    "bp": "Icosahedar",
@@ -2817,7 +2819,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Terrain/sw_tree_bulbs_1.bmp",
+   "tile": "Terrain/sw_tree_bulbs_2.bmp",
    "color": "&W",
    "detail": "y",
    "name": "icosahedar"
@@ -2829,7 +2831,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Icosahedar_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.59,
+   "mean_abs_diff": 1.64,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -2903,7 +2905,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Jilted_Lover_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.82,
+   "mean_abs_diff": 1.8,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -2940,7 +2942,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Lagroot_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.16,
+   "mean_abs_diff": 1.15,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -2966,18 +2968,18 @@
    "y": 12,
    "cleared": 1,
    "tile": "Terrain/sw_lahbloom.bmp",
-   "color": "&r",
-   "detail": "W",
+   "color": "&W",
+   "detail": "w",
    "name": "lahbloom"
   },
   "wire_objs": 1,
-  "wire_hex": "a64a2e",
+  "wire_hex": "cfc041",
   "shots": {
    "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Lahbloom_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Lahbloom_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.34,
+   "mean_abs_diff": 1.33,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -2985,7 +2987,7 @@
     0
    ],
    "dominant_delta": 0,
-   "wire_delta": 150
+   "wire_delta": 191
   }
  },
  {
@@ -3014,7 +3016,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Leafless_Dogthorn_Tree_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 0.97,
+   "mean_abs_diff": 0.96,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -3051,7 +3053,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Livid_Creeper_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.71,
+   "mean_abs_diff": 1.72,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -3088,7 +3090,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Lurking_Beth_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.12,
+   "mean_abs_diff": 1.15,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -3112,7 +3114,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 6,
+   "cleared": 7,
    "tile": "Creatures/sw_cherub_flower_mechanical.bmp",
    "color": "&C",
    "detail": "W",
@@ -3125,7 +3127,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Mechanical_Flowers_Cherub_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.71,
+   "mean_abs_diff": 1.72,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -3162,7 +3164,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Mechanical_Roots_Cherub_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.73,
+   "mean_abs_diff": 1.72,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -3236,7 +3238,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Mechanical_Trees_Cherub_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.75,
+   "mean_abs_diff": 1.78,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -3273,7 +3275,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Mechanical_Vines_Cherub_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.78,
+   "mean_abs_diff": 1.76,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -3310,7 +3312,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Miryam_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.55,
+   "mean_abs_diff": 1.53,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -3347,7 +3349,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Moon-and-Sun_Shade_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.5,
+   "mean_abs_diff": 1.52,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -3384,7 +3386,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\MutatedBush_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.73,
+   "mean_abs_diff": 1.74,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -3421,7 +3423,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\MutatedFlower_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.75,
+   "mean_abs_diff": 1.76,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -3491,7 +3493,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\MutatedRoots_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.74,
+   "mean_abs_diff": 1.73,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -3526,7 +3528,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\MutatedSucculent_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.73,
+   "mean_abs_diff": 1.74,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -3561,7 +3563,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\MutatedTree_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.75,
+   "mean_abs_diff": 1.78,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -3596,7 +3598,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\MutatedVine_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.77,
+   "mean_abs_diff": 1.76,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -3612,7 +3614,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'terrain_sw_tree_crystal_1'"
+   "wire tile != blueprint tile 'terrain_sw_tree_crystal_2'"
   ],
   "stage": {
    "bp": "n-Ary Tree",
@@ -3621,19 +3623,19 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Terrain/sw_tree_crystal_1.bmp",
-   "color": "&m",
+   "tile": "Terrain/sw_tree_crystal_2.bmp",
+   "color": "&M",
    "detail": "y",
    "name": "n-ary tree"
   },
   "wire_objs": 1,
-  "wire_hex": "b154cf",
+  "wire_hex": "da5bd6",
   "shots": {
    "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\n-Ary_Tree_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\n-Ary_Tree_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.65,
+   "mean_abs_diff": 1.49,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -3641,7 +3643,7 @@
     0
    ],
    "dominant_delta": 0,
-   "wire_delta": 161
+   "wire_delta": 202
   }
  },
  {
@@ -3686,7 +3688,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'terrain_finger-root-2'"
+   "wire tile != blueprint tile 'terrain_finger-root-3'"
   ],
   "stage": {
    "bp": "Nails of Jy",
@@ -3695,7 +3697,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Terrain/finger-root-2.png",
+   "tile": "Terrain/finger-root-3.png",
    "color": "&r",
    "detail": "R",
    "name": "nails of Jy"
@@ -3707,7 +3709,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Nails_of_Jy_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.18,
+   "mean_abs_diff": 1.27,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -3723,7 +3725,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'terrain_sw_tree_fuzzy_2'"
+   "wire tile != blueprint tile 'terrain_sw_tree_fuzzy_1'"
   ],
   "stage": {
    "bp": "Nimbus Beam",
@@ -3732,7 +3734,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Terrain/sw_tree_fuzzy_2.bmp",
+   "tile": "Terrain/sw_tree_fuzzy_1.bmp",
    "color": "&g",
    "detail": "w",
    "name": "nimbus beam"
@@ -3744,7 +3746,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Nimbus_Beam_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 2.11,
+   "mean_abs_diff": 2.15,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -3781,7 +3783,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Noisegrass_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.24,
+   "mean_abs_diff": 1.23,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -3818,7 +3820,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\OasisGlowpad_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 4.63,
+   "mean_abs_diff": 4.61,
    "pct_hot": 3.3,
    "band": "PASS",
    "white_px": [
@@ -3855,7 +3857,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Ornate_Potted_Plant_1_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.78,
+   "mean_abs_diff": 1.79,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -3892,7 +3894,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Ornate_Potted_Plant_2_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.79,
+   "mean_abs_diff": 1.77,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -3929,7 +3931,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Ornate_Potted_Plant_3_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.73,
+   "mean_abs_diff": 1.71,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -3966,7 +3968,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Ornate_Potted_Plant_4_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.6,
+   "mean_abs_diff": 1.65,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -4003,7 +4005,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Plant_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.84,
+   "mean_abs_diff": 1.85,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -4040,7 +4042,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Plant_Turret_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.75,
+   "mean_abs_diff": 1.74,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -4077,7 +4079,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\PlasticTree_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.4,
+   "mean_abs_diff": 1.42,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -4114,7 +4116,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\PolypCache_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.38,
+   "mean_abs_diff": 1.33,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -4151,7 +4153,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Prickler_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.39,
+   "mean_abs_diff": 1.36,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -4188,7 +4190,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Psychal_Rhythm_Rock_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.44,
+   "mean_abs_diff": 1.43,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -4262,7 +4264,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Red_Death_Dacca_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.91,
+   "mean_abs_diff": 1.92,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -4278,7 +4280,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'terrain_ring-moss-1'"
+   "wire tile != blueprint tile 'terrain_ring-moss-2'"
   ],
   "stage": {
    "bp": "Ring of Moss",
@@ -4287,7 +4289,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Terrain/ring-moss-1.png",
+   "tile": "Terrain/ring-moss-2.png",
    "color": "&g",
    "detail": "w",
    "name": "ring of moss"
@@ -4299,7 +4301,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Ring_of_Moss_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.86,
+   "mean_abs_diff": 1.81,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -4373,7 +4375,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Roots_Cherub_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.72,
+   "mean_abs_diff": 1.76,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -4410,7 +4412,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Santalalotze_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.72,
+   "mean_abs_diff": 1.77,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -4484,7 +4486,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\SapientMutatedFlower_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.73,
+   "mean_abs_diff": 1.76,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -4519,7 +4521,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\SapientMutatedSucculent_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.74,
+   "mean_abs_diff": 1.72,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -4554,7 +4556,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\SapientMutatedTree_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.76,
+   "mean_abs_diff": 1.78,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -4589,7 +4591,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\SapientMutatedVine_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.74,
+   "mean_abs_diff": 1.77,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -4626,7 +4628,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Seed-Spitting_Vine_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.73,
+   "mean_abs_diff": 1.75,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -4663,7 +4665,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Shimscale_Mangrove_Tree_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.54,
+   "mean_abs_diff": 1.55,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -4700,7 +4702,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Shimscale_Mangrove_Tree_blue_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.6,
+   "mean_abs_diff": 1.64,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -4753,7 +4755,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'creatures_sw_weeds1'"
+   "wire tile != blueprint tile 'creatures_sw_weeds2'"
   ],
   "stage": {
    "bp": "Slime Grass",
@@ -4762,7 +4764,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Creatures/sw_weeds1.bmp",
+   "tile": "Creatures/sw_weeds2.bmp",
    "color": "&w",
    "detail": "g",
    "name": "scumgrass"
@@ -4774,7 +4776,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Slime_Grass_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.31,
+   "mean_abs_diff": 1.35,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -4811,7 +4813,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\SmallHexCrystal_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 2.4,
+   "mean_abs_diff": 2.38,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -4885,7 +4887,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\SolidTree_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.87,
+   "mean_abs_diff": 1.85,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -4959,7 +4961,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Sprouting_Orb_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.16,
+   "mean_abs_diff": 1.14,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -4975,7 +4977,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'terrain_star-orchid-lily-3'"
+   "wire tile != blueprint tile 'terrain_star-orchid-lily-2'"
   ],
   "stage": {
    "bp": "Star Orchid Lily",
@@ -4984,7 +4986,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Terrain/star-orchid-lily-3.png",
+   "tile": "Terrain/star-orchid-lily-2.png",
    "color": "&g",
    "detail": "M",
    "name": "star orchid lily"
@@ -4996,7 +4998,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Star_Orchid_Lily_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.89,
+   "mean_abs_diff": 2.06,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -5033,7 +5035,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Star_Palm_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.7,
+   "mean_abs_diff": 1.67,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -5107,7 +5109,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Starapple_Farm_Tree_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 2.16,
+   "mean_abs_diff": 2.15,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -5131,18 +5133,18 @@
    "y": 12,
    "cleared": 1,
    "tile": "Terrain/sw_starappletree.bmp",
-   "color": "&R",
-   "detail": "R",
+   "color": "&g",
+   "detail": "K",
    "name": "starapple tree"
   },
   "wire_objs": 1,
-  "wire_hex": "d74200",
+  "wire_hex": "009403",
   "shots": {
    "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Starapple_Tree_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Starapple_Tree_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 2.18,
+   "mean_abs_diff": 2.12,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -5150,7 +5152,7 @@
     0
    ],
    "dominant_delta": 0,
-   "wire_delta": 199
+   "wire_delta": 100
   }
  },
  {
@@ -5166,18 +5168,18 @@
    "y": 12,
    "cleared": 1,
    "tile": "Terrain/sw_starappletree.bmp",
-   "color": "&R",
-   "detail": "R",
+   "color": "&g",
+   "detail": "K",
    "name": "starapple tree"
   },
   "wire_objs": 1,
-  "wire_hex": "d74200",
+  "wire_hex": "009403",
   "shots": {
    "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Starapple_Tree_Barathrumite_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Starapple_Tree_Barathrumite_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 2.14,
+   "mean_abs_diff": 2.16,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -5185,7 +5187,7 @@
     0
    ],
    "dominant_delta": 0,
-   "wire_delta": 199
+   "wire_delta": 100
   }
  },
  {
@@ -5212,7 +5214,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Starapple_Tree_Ripe_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 2.18,
+   "mean_abs_diff": 2.16,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -5249,7 +5251,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Starship_Ornate_Potted_Plant_2_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.77,
+   "mean_abs_diff": 1.78,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -5302,7 +5304,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'assets_content_textures_tiles_sw_watervine2'"
+   "wire tile != blueprint tile 'assets_content_textures_tiles_sw_watervine3'"
   ],
   "stage": {
    "bp": "Stillvine",
@@ -5311,7 +5313,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Assets_Content_Textures_Tiles_sw_watervine2.bmp",
+   "tile": "Assets_Content_Textures_Tiles_sw_watervine3.bmp",
    "color": "&K",
    "detail": "C",
    "name": "stillvine"
@@ -5323,7 +5325,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Stillvine_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.75,
+   "mean_abs_diff": 1.54,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -5360,7 +5362,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Succulent_Golem_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.77,
+   "mean_abs_diff": 1.76,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -5397,7 +5399,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Succulents_Cherub_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.74,
+   "mean_abs_diff": 1.77,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -5434,7 +5436,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Sunflower_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.92,
+   "mean_abs_diff": 1.94,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -5450,7 +5452,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'terrain_sw_fattree1'"
+   "wire tile != blueprint tile 'terrain_sw_fattree2'"
   ],
   "stage": {
    "bp": "Swarmshade Tree",
@@ -5459,7 +5461,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Terrain/sw_fattree1.bmp",
+   "tile": "Terrain/sw_fattree2.bmp",
    "color": "&g",
    "detail": "w",
    "name": "swarmshade tree"
@@ -5471,7 +5473,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Swarmshade_Tree_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.81,
+   "mean_abs_diff": 1.66,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -5508,7 +5510,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Swarmshade_Tree_blue_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.67,
+   "mean_abs_diff": 1.65,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -5545,7 +5547,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Tammuz_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.51,
+   "mean_abs_diff": 1.52,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -5582,7 +5584,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\TauSoft_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.7,
+   "mean_abs_diff": 1.74,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -5620,7 +5622,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Thicksalt_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.51,
+   "mean_abs_diff": 1.52,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -5731,7 +5733,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Tillifergaewicz_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.73,
+   "mean_abs_diff": 1.71,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -5747,7 +5749,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'creatures_sw_anemone_7'"
+   "wire tile != blueprint tile 'creatures_sw_anemone_8'"
   ],
   "stage": {
    "bp": "Tongue Tyrant",
@@ -5756,7 +5758,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Creatures/sw_anemone_7.bmp",
+   "tile": "Creatures/sw_anemone_8.bmp",
    "color": "&m",
    "detail": "m",
    "name": "tongue tyrant"
@@ -5768,7 +5770,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Tongue_Tyrant_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.76,
+   "mean_abs_diff": 1.74,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -5805,7 +5807,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Tree_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.84,
+   "mean_abs_diff": 1.87,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -5842,7 +5844,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Tree_Golem_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.74,
+   "mean_abs_diff": 1.76,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -5879,7 +5881,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Trees_Cherub_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.74,
+   "mean_abs_diff": 1.72,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -5895,7 +5897,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'terrain_sw_sponge_tube_2'"
+   "wire tile != blueprint tile 'terrain_sw_sponge_tube_1'"
   ],
   "stage": {
    "bp": "Tunnel Sponge",
@@ -5904,7 +5906,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Terrain/sw_sponge_tube_2.bmp",
+   "tile": "Terrain/sw_sponge_tube_1.bmp",
    "color": "&W",
    "detail": "r",
    "name": "tunnel sponge"
@@ -5916,7 +5918,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Tunnel_Sponge_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.35,
+   "mean_abs_diff": 1.42,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -5953,7 +5955,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Tzedech_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.55,
+   "mean_abs_diff": 1.58,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -5981,7 +5983,7 @@
    "tile": "creatures/sw_glowpad.bmp",
    "color": "&m",
    "detail": "g",
-   "name": "{{M|Adeggefrond, legendary glowpad}}"
+   "name": "{{M|Feltzmaseoak, legendary glowpad}}"
   },
   "wire_objs": 1,
   "wire_hex": "b154cf",
@@ -5990,7 +5992,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Uplifted_Glowpad_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.53,
+   "mean_abs_diff": 7.57,
    "pct_hot": 20.5,
    "band": "PASS",
    "white_px": [
@@ -6006,7 +6008,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'terrain_sw_urberry_bush_1'"
+   "wire tile != blueprint tile 'terrain_sw_urberry_bush_2'"
   ],
   "stage": {
    "bp": "Urberry Bush",
@@ -6015,7 +6017,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Terrain/sw_urberry_bush_1.bmp",
+   "tile": "Terrain/sw_urberry_bush_2.bmp",
    "color": "&G",
    "detail": "k",
    "name": "urberry bush"
@@ -6027,7 +6029,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Urberry_Bush_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.88,
+   "mean_abs_diff": 1.36,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -6064,7 +6066,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Vantabloom_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 2.03,
+   "mean_abs_diff": 2.05,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -6117,7 +6119,8 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'creatures_sw_golem_vine'"
+   "wire tile != blueprint tile 'creatures_sw_golem_vine'",
+   "no capture pair \u2014 congruence skipped"
   ],
   "stage": {
    "bp": "Vine Golem",
@@ -6134,7 +6137,6 @@
   "wire_objs": 1,
   "wire_hex": "b1c9c3",
   "shots": {
-   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Vine_Golem_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Vine_Golem_raves.png"
   },
   "congruence": {
@@ -6153,9 +6155,7 @@
   "bp": "Vines Cherub",
   "pass": true,
   "reasons": [],
-  "warns": [
-   "wire tile != blueprint tile 'creatures_sw_cherub_vine'"
-  ],
+  "warns": [],
   "stage": {
    "bp": "Vines Cherub",
    "ok": true,
@@ -6175,7 +6175,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Vines_Cherub_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.72,
+   "mean_abs_diff": 1.76,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -6191,7 +6191,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'assets_content_textures_tiles_sw_watervine1'"
+   "wire tile != blueprint tile 'assets_content_textures_tiles_sw_watervine2'"
   ],
   "stage": {
    "bp": "Watervine",
@@ -6200,7 +6200,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Assets_Content_Textures_Tiles_sw_watervine1.bmp",
+   "tile": "Assets_Content_Textures_Tiles_sw_watervine2.bmp",
    "color": "&K",
    "detail": "K",
    "name": "watervine"
@@ -6212,7 +6212,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Watervine_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.72,
+   "mean_abs_diff": 1.75,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -6228,7 +6228,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'assets_content_textures_tiles_sw_watervine1'"
+   "wire tile != blueprint tile 'assets_content_textures_tiles_sw_watervine3'"
   ],
   "stage": {
    "bp": "Watervine Barathrumite",
@@ -6237,7 +6237,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Assets_Content_Textures_Tiles_sw_watervine1.bmp",
+   "tile": "Assets_Content_Textures_Tiles_sw_watervine3.bmp",
    "color": "&K",
    "detail": "K",
    "name": "watervine"
@@ -6249,7 +6249,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Watervine_Barathrumite_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.69,
+   "mean_abs_diff": 1.58,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -6286,7 +6286,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Wheel_of_Qv_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.48,
+   "mean_abs_diff": 1.5,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -6302,7 +6302,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'terrain_sw_talltree2'"
+   "wire tile != blueprint tile 'terrain_sw_talltree1'"
   ],
   "stage": {
    "bp": "Witchwood Tree",
@@ -6311,7 +6311,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Terrain/sw_talltree2.bmp",
+   "tile": "Terrain/sw_talltree1.bmp",
    "color": "&W",
    "detail": "w",
    "name": "witchwood tree"
@@ -6323,7 +6323,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Witchwood_Tree_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.61,
+   "mean_abs_diff": 1.64,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -6339,7 +6339,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'terrain_yempuris-phi-1'"
+   "wire tile != blueprint tile 'terrain_yempuris-phi-3'"
   ],
   "stage": {
    "bp": "Yempuris",
@@ -6348,7 +6348,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Terrain/yempuris-phi-1.png",
+   "tile": "Terrain/yempuris-phi-3.png",
    "color": "&g",
    "detail": "m",
    "name": "yempuris phi"
@@ -6360,7 +6360,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Yempuris_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.45,
+   "mean_abs_diff": 1.47,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -6376,7 +6376,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'terrain_yempuris-phi-3'"
+   "wire tile != blueprint tile 'terrain_yempuris-phi-2'"
   ],
   "stage": {
    "bp": "Yempuris Spread",
@@ -6385,7 +6385,7 @@
    "x": 40,
    "y": 12,
    "cleared": 2,
-   "tile": "Terrain/yempuris-phi-3.png",
+   "tile": "Terrain/yempuris-phi-2.png",
    "color": "&g",
    "detail": "m",
    "name": "yempuris phi"
@@ -6397,7 +6397,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Yempuris_Spread_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.44,
+   "mean_abs_diff": 1.6,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -6471,7 +6471,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Young_Ivory_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.16,
+   "mean_abs_diff": 1.13,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -6497,18 +6497,18 @@
    "y": 12,
    "cleared": 1,
    "tile": "Terrain/sw_wheat_1.bmp",
-   "color": "&W",
-   "detail": "W",
+   "color": "&w",
+   "detail": "k",
    "name": "yuckwheat"
   },
   "wire_objs": 1,
-  "wire_hex": "cfc041",
+  "wire_hex": "98875f",
   "shots": {
    "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Yuckwheat_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Yuckwheat_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.35,
+   "mean_abs_diff": 1.4,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -6516,7 +6516,7 @@
     0
    ],
    "dominant_delta": 0,
-   "wire_delta": 191
+   "wire_delta": 136
   }
  },
  {
@@ -6524,7 +6524,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'terrain_sw_wheat_3'"
+   "wire tile != blueprint tile 'terrain_sw_wheat_2'"
   ],
   "stage": {
    "bp": "Yuckwheat Barathrumite",
@@ -6533,7 +6533,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Terrain/sw_wheat_3.bmp",
+   "tile": "Terrain/sw_wheat_2.bmp",
    "color": "&W",
    "detail": "W",
    "name": "yuckwheat"
@@ -6545,7 +6545,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Yuckwheat_Barathrumite_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.28,
+   "mean_abs_diff": 1.32,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -6582,7 +6582,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Yurl_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.71,
+   "mean_abs_diff": 1.73,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -6598,7 +6598,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'terrain_sw_warp_wood_2'"
+   "wire tile != blueprint tile 'terrain_sw_warp_wood_1'"
   ],
   "stage": {
    "bp": "Ziv Bough",
@@ -6607,7 +6607,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Terrain/sw_warp_wood_2.bmp",
+   "tile": "Terrain/sw_warp_wood_1.bmp",
    "color": "&g",
    "detail": "w",
    "name": "ziv bough"
@@ -6619,7 +6619,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Ziv_Bough_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.39,
+   "mean_abs_diff": 1.41,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -6635,7 +6635,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'terrain_sw_warp_wood_2'"
+   "wire tile != blueprint tile 'terrain_sw_warp_wood_1'"
   ],
   "stage": {
    "bp": "Ziv Bough_blue",
@@ -6644,7 +6644,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Terrain/sw_warp_wood_2.bmp",
+   "tile": "Terrain/sw_warp_wood_1.bmp",
    "color": "&G",
    "detail": "w",
    "name": "ziv bough"
@@ -6656,7 +6656,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Ziv_Bough_blue_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.46,
+   "mean_abs_diff": 1.45,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
