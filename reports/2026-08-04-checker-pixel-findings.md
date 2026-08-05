@@ -67,4 +67,25 @@ TempleSwitch, Unicomputer (62.2 — blinking computer, likely same class),
 SolidHighTechInstallation, Starship 1 Platform N/S, Sign (29.4 — variant
 divergence?). Everything else in furniture: 711 PASS / 15 WARN / 12 KNOWN.
 
+## 7. Singles triage (2026-08-05)
+
+- **CaverCorpse / CaverCorpse2 — REPRODUCIBLE export bug (the real one).**
+  XML: `Tile=sw_bones_4, ColorString=&M, TileColor=&M` (magenta — matches
+  Qud's pink render). The export captured `color: &y` and a different bones
+  variant: something in the `Bones` base (part behavior at creation) mutates
+  ColorString while Qud's tile draw follows the &M path, and the tile variant
+  re-rolls. Probes: FAIL 30.0 → WARN 22.7 — consistently off. NEXT FIX:
+  reflect the Bones part (same method as EpistemicDisguise/ConveyorPad).
+- **Fire Ant Queen — one-off staging interference, not a render bug.** The
+  baseline pair caught her mid-BURROW: Qud's frame shows the staircase tile
+  she left behind. Re-probe: PASS 1.72 clean. Watch for recurrence; if it
+  repeats, clear Burrowing goals in ObjectChecker.Pacify.
+- **Sign — intermittent variant divergence.** FAILed one run (29.4), PASSed
+  the baseline: Qud and the wire roll RandomTile sign variants independently
+  per staging. Variant determinism is a small follow-up (export the variant
+  Qud actually drew — likely falls out of the Bones-part fix pattern).
+- Furniture's four baseline FAILs (Phasic Screw, PistonPressElement,
+  Platform, Powered Telescope) are the section-6 animation / tile-replacement
+  class — Phasic Screw's evidence shows literal phase bands.
+
 *Delete sections as addressed (repo ticket lifecycle).*
