@@ -388,3 +388,30 @@ which is the sentence you actually want out of a scoreboard. Both report
 
 **Gotcha fixed at the same time:** `ink_mask` with `inset: 0` sliced `cell[0:-0]`, i.e. NOTHING,
 so any leaf written that way silently scored a perfect 0.00. Inset 0 now means the whole rect.
+
+### fixture.py: never carry an id across a reload (2026-08-05)
+
+`tools/capture/fixture.py` drives the parity fixture state. It exists because object ids are
+**not stable across a save reload**, and every hand-rolled test snippet in this repo was reading
+an id, reloading, and then acting on it. Demonstrated in one command pair: the cloth robe is id
+554, reload, and the same robe is 550 — 554 now belongs to something else. That is how a run
+asking for the robe's interaction menu raised the WRENCH's, and how several capture runs ended up
+scoring two screens with no popup on them.
+
+```bash
+python3 tools/capture/fixture.py reload          # reload, then BLOCK for a fresh export
+python3 tools/capture/fixture.py find robe       # id, name, and whether it is in the pack or worn
+python3 tools/capture/fixture.py twiddle robe    # raise Qud's item menu for it, and verify it came up
+python3 tools/capture/fixture.py state           # what both apps think they are showing
+```
+
+Three things it makes impossible rather than merely discouraged:
+
+- **A stale read.** Every command re-exports and waits for `inventory.json`'s mtime to actually
+  advance before resolving anything, so an id can only come from a file written after the last
+  event that could have invalidated it.
+- **Missing an item that moved.** Tests equip and drop things, so an item migrates between the
+  pack and the body mid-session; a lookup that only walks `categories` starts throwing partway
+  through. `find` walks both and says which one it found.
+- **A silent wrong pick.** Two waterskins is a real case. Ambiguity is an ERROR listing the
+  candidates, not a first-match guess.

@@ -105,6 +105,10 @@ python3 tools/capture/tile.py Tiles_sw_floor_brickb3.bmp   # also: --list water
 python3 tools/capture/control.py move N 5    # cam <1-7> · shot -> shot.png · export (re-export data)
 python3 tools/capture/control.py onboard devices   # drive the onboarding UI with NO Qud running
 
+# FIXTURE state for parity work — reload + resolve objects by NAME, never by a carried id
+python3 tools/capture/fixture.py reload      # · find robe · twiddle robe · state
+# (ids are NOT stable across a save reload; see docs/tools.md)
+
 # Option PRESETS — save/load a whole options set for deterministic test state (see docs/tools.md)
 python3 tools/capture/presets.py list        # · load compass-fullinfo
 ```
