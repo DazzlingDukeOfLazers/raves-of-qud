@@ -377,3 +377,20 @@ Fixed by fitting each tile's OPAQUE box to the icon area (`draw_texture_rect_reg
 Residual image diff (~60-78) is the same non-integer-scale rounding as the doll: same sprite, same
 palette, same box, different sampler. `filter_image[0]` is the ALL cell — Qud draws TEXT there
 (20x8) where we draw text too but at a different size; that one is a font-metrics item, not an icon.
+
+
+## Filter icons — aspect fit (2026-08-05), and where this stops being worth it
+
+Forcing every icon into a fixed 16x15 stretched wide/short art, so the fit now PRESERVES the source
+aspect inside a 20x15 area. Cells measure 12-18 x 15 against Qud's 15-20 x 8-15; diffs are flat
+(~62-77 mean ~67, unchanged).
+
+`filter_image[0]` (Tools) is the outlier: Qud renders 20x8 — WIDER and much SHORTER than any
+aspect-preserving fit of `Tiles/sw_box.bmp` can produce (we get 18x15). So Qud is not fitting the
+sprite we think it is: either its `sw_box` art differs from our extracted copy, or the filter bar
+crops/anchors rather than fits. Worth one decompile of `FilterBarCategoryButton.icon`'s RectTransform
+if this ever matters visually — at 15px per icon it currently does not, and the remaining per-pixel
+diff is the same sampler-rounding as everywhere else.
+
+RECOMMENDATION: treat the filter strip as done. Score its leaves on cell geometry, frame, order,
+hover and select (all matched) rather than on icon pixel means.

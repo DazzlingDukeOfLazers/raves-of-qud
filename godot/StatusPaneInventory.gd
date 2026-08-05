@@ -291,8 +291,16 @@ func _draw_filter_strip() -> void:
 				# source art — Scrap's bit11 is a few opaque pixels yet still fills —
 				# while drawing the whole 16x24 tile left small sprites small (9x8).
 				# Fit each tile's OPAQUE box to the icon area instead.
+				# ...but PRESERVE ASPECT while fitting: Qud's Tools box renders 20x8 (wide
+				# and short) where a forced 16x15 stretched it square. Fit the opaque box
+				# inside a 20x15 area, centred.
+				var src := _opaque_rect(tex)
+				var sc := minf(20.0 / maxf(1.0, src.size.x), 15.0 / maxf(1.0, src.size.y))
+				var dw := src.size.x * sc
+				var dh := src.size.y * sc
 				_static.draw_texture_rect_region(tex,
-					Rect2(Vector2(x + 15, FILT_Y + 13), Vector2(16, 15)), _opaque_rect(tex))
+					Rect2(Vector2(x + 13 + (20.0 - dw) * 0.5, FILT_Y + 13 + (15.0 - dh) * 0.5),
+						Vector2(dw, dh)), src)
 		x += FILT_PITCH
 
 ## Qud's body-slot grid. Slots it doesn't recognise are ignored — the doll is a
