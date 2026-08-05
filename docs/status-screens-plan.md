@@ -99,7 +99,15 @@ always visible in the bar).
    `FilterBarCategoryButton.categoryImageMap` (Light Sources -> sw_torch_lit, Armor -> sw_leather_armor,
    …) and the strip paints them in that button's fixed two-tone (0.596,0.529,0.372 / 0.545,0.4,0.18),
    falling back to the category's first item tile for an unmapped category.
-   **RECAPTURE BLOCKED (2026-08-04):** re-shooting `equipment_qud.png` on the current save failed —
+   **RECAPTURE SOLVED (2026-08-04):** the opener is the ordinary TURN-THREAD command path —
+   bridge `command CmdEquipment` (likewise CmdSkills / CmdCharacter / …) opens Qud's status screens
+   at that tab and works UNFOCUSED. `StatusScreensScreen.show()` hangs from both a uiQueue task and
+   a `UiContext.Post` (its `NavigationController.SuspendContextWhile` waits on the gameplay input
+   context the turn thread owns), so don't call it directly. `equipment_qud.png` is now a
+   MATCHED-STATE capture from the live save; the earlier caveat is retired. Matched diffs:
+   full frame 5.19, paper doll 5.59, inventory list 7.94, filter strip 12.92, header 15.83 —
+   the strip and header are the real remaining work.
+   **(superseded) earlier note:** re-shooting `equipment_qud.png` on the current save failed —
    Qud's status screens ignore OS-synthesized keys (the modern-UI law), the bridge
    `command CmdEquipment` doesn't open them either, and a hover-click on Qud's character chrome icon
    didn't land. Qud's heartbeat ALSO reports `StatusScreensScreen` while the playfield is actually

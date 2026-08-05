@@ -604,43 +604,51 @@ namespace RavesOfQud
                 }
                 if (name == "statusscreen")
                 {
-                    // Open QUD'S OWN status screens at a tab index (StatusScreensScreen.show,
-                    // the same call its chrome icon makes). Qud's modern screens ignore
-                    // OS-synthesized keys, so this is the only reliable opener for driving
-                    // reference captures — tab order matches the carousel:
+                    // SOLVED, and NOT the way this command does it: the reliable opener is the
+                    // ordinary TURN-THREAD command path — `command CmdEquipment` (CmdSkills,
+                    // CmdCharacter, …) opens Qud's status screens at that tab, because the turn
+                    // thread is what Qud's own keypress path uses. Calling
+                    // StatusScreensScreen.show() directly hangs from BOTH a uiQueue task and a
+                    // UiContext.Post: its NavigationController.SuspendContextWhile waits on the
+                    // gameplay input context, which is exactly what the turn thread owns.
+                    // Kept for the tab INDEX it documents; prefer the command path.
+                    // Tab order matches the carousel:
                     // 0 skills · 1 attributes · 2 equipment · 3 tinkering · 4 journal ·
                     // 5 quests · 6 reputation · 7 message log.
                     f.TryGetValue("tab", out string ssTab);
                     int.TryParse(ssTab, out int ssIdx);
-                    var ssGm = GameManager.Instance;
-                    if (ssGm != null && ssGm.uiQueue != null)
-                        ssGm.uiQueue.queueTask(() =>
+                    // NOT uiQueue: post straight to Qud's UI SynchronizationContext, so the
+                    // call runs on Unity's own update pump like a real button click. Calling
+                    // show() from inside a uiQueue task re-entered NavigationController's
+                    // SuspendContextWhile and the task hung forever (never completed, never
+                    // faulted). Post() is thread-safe, so this goes from the socket thread.
+                    try
+                    {
+                        var ssCtx = GameManager.Instance != null
+                            ? GameManager.Instance.uiSynchronizationContext : null;
+                        if (ssCtx == null) { System.Console.WriteLine("[raves] statusscreen: no ui context"); return; }
+                        ssCtx.Post(delegate
                         {
                             try
                             {
                                 GameObject who = XRL.The.Player;
                                 if (who == null) { System.Console.WriteLine("[raves] statusscreen: no player"); return; }
-                                // the singleton is created lazily — without this, show() faults
                                 try { Qud.UI.StatusScreensScreen.prewarm(); } catch { }
-                                // OBSERVE the task: fire-and-forget hid a faulting show() behind a
-                                // "success" log last round
-                                var ssTask = Qud.UI.StatusScreensScreen.show(ssIdx, who);
-                                ssTask.ContinueWith(t =>
+                                var t = Qud.UI.StatusScreensScreen.show(ssIdx, who);
+                                t.ContinueWith(tt =>
                                 {
-                                    if (t.IsFaulted)
+                                    if (tt.IsFaulted)
                                         System.Console.WriteLine("[raves] statusscreen FAULT: "
-                                            + (t.Exception != null ? t.Exception.GetBaseException().Message : "?"));
+                                            + (tt.Exception != null ? tt.Exception.GetBaseException().Message : "?"));
                                     else
                                         System.Console.WriteLine("[raves] statusscreen closed (tab " + ssIdx + ")");
                                 });
-                                // show() awaits The.UiContext, so its continuation needs the sync
-                                // context drained ACROSS frames — one pump isn't enough. Self-requeue
-                                // a short pump train (~1s) so the view comes up even unfocused.
-                                PumpTrain(20);
-                                System.Console.WriteLine("[raves] statusscreen requested tab " + ssIdx);
+                                System.Console.WriteLine("[raves] statusscreen posted tab " + ssIdx);
                             }
                             catch (Exception ex) { System.Console.WriteLine("[raves] statusscreen: " + ex.Message); }
-                        }, 0);
+                        }, null);
+                    }
+                    catch (Exception ex) { System.Console.WriteLine("[raves] statusscreen post: " + ex.Message); }
                     return;
                 }
                 if (name == "skill")
