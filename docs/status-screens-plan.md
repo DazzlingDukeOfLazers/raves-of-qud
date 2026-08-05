@@ -47,7 +47,12 @@ always visible in the bar).
 
 1. **Shared frame + Message Log** — no mod work; validates the frame, scrim, tab bar.
 2. **Attributes & Powers** — reference already studied; stats mostly present.
-3. **Skills** — flat read-only tree.
+3. **Skills** — DONE (2026-08-04, **4.83 mean-diff**): `SkillsExporter.cs` → `skills.json` carries
+   QUD'S OWN row markup (`SPNode.ModernUIText` for powers; `SkillsAndPowersLine.setData`'s left/right
+   strings for categories) so `StatusPaneSkills.gd` has NO colour/cost logic — it lays strings out and
+   resolves `{{…}}` through the palette. New `QudText.runs()` renders markup as canvas draw runs (a
+   RichTextLabel per row is far too many nodes at ~140 rows). Category column is RIGHT-aligned at
+   x1135. Learning a skill = later interactivity pass ([Space] Accept drawn, inert).
 4. **Quests** → 5. **Reputation** → 6. **Journal** — read-only lists/tables.
 7. **Equipment** — richer layout (paper-doll slots + item tiles).
 8. **Tinkering** — most complex (bits, recipes, modes).

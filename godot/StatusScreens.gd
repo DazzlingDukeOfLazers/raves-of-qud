@@ -68,6 +68,8 @@ var _seeded := false
 # character sheet (Attributes & Powers): mod CharacterExporter -> character.json;
 # we request a fresh export on open via our own bridge peer (Records pattern)
 var _attr_pane: Control = null
+var _skills_pane: Control = null
+var _skills_mtime := 0
 var _char_mtime := 0
 var _pane_pal_empty := true
 var _portrait_tex: Texture2D = null   # live player tile — also the attributes tab's icon
@@ -302,9 +304,14 @@ func _set_tab(id: String) -> void:
 		_refresh_log()
 	if _attr_pane != null:
 		_attr_pane.visible = (id == "attributes")
+	if _skills_pane != null:
+		_skills_pane.visible = (id == "skills")
 	if id == "attributes":
 		_request_export()
 		_load_character()
+	if id == "skills":
+		_request_export()
+		_load_skills()
 	_build_hints()
 	if visible:
 		UiState.set_scene("status_" + _tab)
@@ -372,6 +379,35 @@ func _load_character() -> void:
 		if visible and _tab == "attributes":
 			_load_character())
 
+## (Re)build the Skills pane from skills.json when it changes (same guards as the
+## character sheet: mtime, plus a rebuild once the palette lands).
+func _load_skills() -> void:
+	var path := InputModel.support_dir().path_join("skills.json")
+	if not FileAccess.file_exists(path):
+		return
+	var mt := FileAccess.get_modified_time(path)
+	if _skills_pane != null and mt == _skills_mtime and not (_pane_pal_empty and not _palette.is_empty()):
+		return
+	var f := FileAccess.open(path, FileAccess.READ)
+	if f == null:
+		return
+	var txt := f.get_as_text()
+	if txt.length() > 0 and txt.unicode_at(0) == 0xFEFF:
+		txt = txt.substr(1)
+	var data: Variant = JSON.parse_string(txt)
+	if not (data is Dictionary):
+		return
+	_skills_mtime = mt
+	if _skills_pane == null:
+		_skills_pane = load("res://StatusPaneSkills.gd").new()
+		_root.add_child(_skills_pane)
+	_pane_pal_empty = _palette.is_empty()
+	_skills_pane.setup(data, _palette)
+	_skills_pane.visible = (_tab == "skills")
+	get_tree().create_timer(1.2).timeout.connect(func():
+		if visible and _tab == "skills":
+			_load_skills())
+
 # ── open / close / input ───────────────────────────────────────────────────────
 
 func open(tab := "") -> void:
@@ -394,6 +430,10 @@ func _unhandled_input(e: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 	if e is InputEventKey and e.pressed and not e.echo:
+		if _tab == "skills" and _skills_pane != null and _skills_pane.has_method("handle_key") \
+				and _skills_pane.handle_key(e):
+			get_viewport().set_input_as_handled()
+			return
 		match e.keycode:
 			KEY_7, KEY_KP_7:
 				_step_tab(-1); get_viewport().set_input_as_handled()
