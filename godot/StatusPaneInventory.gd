@@ -175,6 +175,30 @@ func _draw_static() -> void:
 ## interlocking loop motif (measured off the reference — a 7x7 loop, a 2px stem and a
 ## bar, with the box edge broken where the ornament sits). Same family as the frames
 ## on the Attributes pane.
+## The texture's opaque bounding box (cached): what Qud scales to fill an icon slot.
+var _opaque_cache := {}
+
+func _opaque_rect(tex: Texture2D) -> Rect2:
+	var key := tex.get_rid().get_id()
+	if _opaque_cache.has(key):
+		return _opaque_cache[key]
+	var rect := Rect2(Vector2.ZERO, tex.get_size())
+	var img := tex.get_image()
+	if img != null:
+		var x0 := img.get_width()
+		var y0 := img.get_height()
+		var x1 := -1
+		var y1 := -1
+		for yy in img.get_height():
+			for xx in img.get_width():
+				if img.get_pixel(xx, yy).a > 0.0:
+					x0 = mini(x0, xx); y0 = mini(y0, yy)
+					x1 = maxi(x1, xx); y1 = maxi(y1, yy)
+		if x1 >= x0 and y1 >= y0:
+			rect = Rect2(x0, y0, x1 - x0 + 1, y1 - y0 + 1)
+	_opaque_cache[key] = rect
+	return rect
+
 func _draw_cell_frame(r: Rect2, col: Color) -> void:
 	var x := r.position.x
 	var y := r.position.y
@@ -261,15 +285,14 @@ func _draw_filter_strip() -> void:
 				# which read as a tint difference in the band average even though the
 				# two-tone itself already matched to 1/255.
 				# MEASURED and left alone: the two-tone already matches Qud to 1/255
-				# (141,124,84 / 128,91,41 vs our 140,123,83 / 127,91,40), so "tint" was
-				# never the problem. What differs is INK COVERAGE — Qud's icon ink spans
-				# ~18x23 in a cell where ours spans ~13x13, i.e. we're drawing a sprite
-				# whose opaque area is smaller, not one tinted differently. Enlarging the
-				# draw rect (26x26, then an aspect-correct 18x27) made the band WORSE
-				# (11.53 -> 11.89 / 11.61), so the sprite itself differs per cell — chase
-				# WHICH sprite each cell gets, not its size or colour.
-				_static.draw_texture_rect(tex,
-					Rect2(Vector2(x + 13, FILT_Y + 6), Vector2(18, 26)), false)
+				# The two-tone matches Qud to 1/255, so tint was never the issue. What
+				# differed is SIZE NORMALISATION: measured with the ornaments excluded
+				# (parity inset 13), Qud's icons are ~16x15 in EVERY cell regardless of
+				# source art — Scrap's bit11 is a few opaque pixels yet still fills —
+				# while drawing the whole 16x24 tile left small sprites small (9x8).
+				# Fit each tile's OPAQUE box to the icon area instead.
+				_static.draw_texture_rect_region(tex,
+					Rect2(Vector2(x + 15, FILT_Y + 13), Vector2(16, 15)), _opaque_rect(tex))
 		x += FILT_PITCH
 
 ## Qud's body-slot grid. Slots it doesn't recognise are ignored — the doll is a

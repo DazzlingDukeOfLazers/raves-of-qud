@@ -360,3 +360,20 @@ Qud's is (51,80,91) — too bright all along. Fixed with the same measurement.
 
 Verified live: Raves' hover delta 4.05 with tone (62,101,110) over 408 px, against Qud's 4.12 /
 (65,106,115) / 396 px. Frame leaves 15.36 -> **14.17** mean.
+
+
+## Filter cell icons (2026-08-05)
+
+The `filter_image` leaf was reporting identical bboxes in both apps because inset 6 let the cell's
+CORNER ORNAMENTS (which reach ~11px inside) into the "icon" mask — it was measuring chrome. With
+`inset: 13` in the spec the real comparison appeared: Qud renders every category icon at ~16x15
+REGARDLESS of source art (Scrap's `bit11` is a handful of opaque pixels and still fills the slot),
+while we drew the whole 16x24 tile, leaving small sprites small (9x8).
+
+Fixed by fitting each tile's OPAQUE box to the icon area (`draw_texture_rect_region` +
+`_opaque_rect`, cached per texture). Every cell now measures 16x15 against Qud's 15-18x15, and
+`filter_image[1]` (the tiny bit sprite) went 81.6 -> 64.0.
+
+Residual image diff (~60-78) is the same non-integer-scale rounding as the doll: same sprite, same
+palette, same box, different sampler. `filter_image[0]` is the ALL cell — Qud draws TEXT there
+(20x8) where we draw text too but at a different size; that one is a font-metrics item, not an icon.
