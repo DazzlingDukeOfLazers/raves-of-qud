@@ -1,6 +1,10 @@
 # Checker pixel-pass findings — first full scored sweep (PC, 2026-08-04)
 
-All seven categories complete: walls 222/1/0 (PASS/WARN/FAIL), plants 178/1/1,
+**BASELINE (2026-08-05, daylight-guarded, all fixes applied): 2482/2483 scored —
+2432 PASS (98.0%) / 30 WARN / 6 FAIL / 14 KNOWN. Wire 2483/2483.** The 6 FAILs:
+the Switch class (4, section 6) + one food + one creature single.
+
+Original first-sweep numbers below for the record. All seven categories complete: walls 222/1/0 (PASS/WARN/FAIL), plants 178/1/1,
 liquids 74/1/2, furniture 688/28/22, food 270/0/0, implants 0/31/45,
 creatures 864/10/9 — pixel-scored 2492 elements, 93.7% PASS. Wire-level:
 everything PASS. Cell-crop pairs for every flagged element are committed under
