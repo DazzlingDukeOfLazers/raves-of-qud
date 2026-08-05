@@ -499,6 +499,12 @@ namespace RavesOfQud
                     PopupBridge.HandleCommand(f);
                     return;
                 }
+                if (name == "picker")
+                {
+                    // Answer Qud's mirrored item picker (pick a row / toggle a category / cancel).
+                    PickerBridge.HandleCommand(f);
+                    return;
+                }
                 if (name == "move")
                 {
                     f.TryGetValue("dir", out string dir);

@@ -194,7 +194,30 @@ namespace RavesOfQud
             catch (Exception e) { System.Console.WriteLine("[raves] inventory export failed: " + e.Message); }
         }
 
-        private static void WriteTile(JsonWriter j, GameObject go, string context = "Inventory",
+        /// <summary>Qud's own 18-colour palette as a "palette" member. Shared with the picker mirror
+        /// (PickerBridge) so every screen resolves colour chars from the SAME table the game ships —
+        /// the client's fallback approximates 'w' as a dark orange where Qud's is a khaki.</summary>
+        internal static void WritePalette(JsonWriter j)
+        {
+            try
+            {
+                j.Name("palette").BeginObject();
+                foreach (char pch in "rRgGbBcCmMwWoOyYkK")
+                {
+                    try
+                    {
+                        UnityEngine.Color pc = ConsoleLib.Console.ColorUtility.colorFromChar(pch);
+                        j.Member(pch.ToString(), string.Format("#{0:x2}{1:x2}{2:x2}",
+                            (int)(pc.r * 255f), (int)(pc.g * 255f), (int)(pc.b * 255f)));
+                    }
+                    catch { }
+                }
+                j.EndObject();
+            }
+            catch { }
+        }
+
+        internal static void WriteTile(JsonWriter j, GameObject go, string context = "Inventory",
             bool grey = false)
         {
             try
@@ -258,22 +281,7 @@ namespace RavesOfQud
             // render before one has arrived — and the client's fallback table is only an
             // approximation ('w' there is a dark orange; Qud's is a khaki). That single
             // wrong entry was repainting every equipped item on the paper doll.
-            try
-            {
-                j.Name("palette").BeginObject();
-                foreach (char pch in "rRgGbBcCmMwWoOyYkK")
-                {
-                    try
-                    {
-                        UnityEngine.Color pc = ConsoleLib.Console.ColorUtility.colorFromChar(pch);
-                        j.Member(pch.ToString(), string.Format("#{0:x2}{1:x2}{2:x2}",
-                            (int)(pc.r * 255f), (int)(pc.g * 255f), (int)(pc.b * 255f)));
-                    }
-                    catch { }
-                }
-                j.EndObject();
-            }
-            catch { }
+            WritePalette(j);
             // header, Qud's own strings (InventoryAndEquipmentStatusScreen.UpdateViewFromData)
             try { j.Member("drams", p.GetFreeDrams()); } catch { }
             try { j.Member("carried", p.GetCarriedWeight()); } catch { }

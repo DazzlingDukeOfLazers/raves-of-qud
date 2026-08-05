@@ -428,5 +428,19 @@ closed set of things that are wrong, not the open set of things that are fine.
   opens. Use `"%d" % int(v)` when a number is going back over the wire as a key. The mod parses
   leniently now AND logs a bad id, because a silent `return` on a parse failure is
   indistinguishable from a click that never happened.
-- **The equip picker is a SCREEN, not a popup**, so it does not come back over the popup mirror --
-  Qud shows it and Raves shows nothing. Mirroring it is its own piece of work.
+- **The equip picker is a SCREEN, not a popup**, so it does not come back over the popup mirror.
+  `ShowBodypartEquipUI` -> `PickItem.ShowPicker` -> `Qud.UI.PickGameObjectScreen.show()`, which
+  never touches `getWindow("PopupMessage")`. MIRRORED NOW by `mod/PickerBridge.cs` +
+  `godot/PickerOverlay.gd` on its own `"picker"` frame type. Three things that only came out by
+  reading the live screen rather than modelling it:
+  - `PickGameObjectLine.setData` writes the hotkey AFTER its `go == null` branch closes, so
+    CATEGORY rows are lettered too (`a) [+] Armor`) -- those letters are the keyboard collapse.
+  - The opening selection is `itemScrollerController.selectedPosition`, which lands on the first
+    ITEM (not the leading category) and re-clamps after every collapse. Export it; don't re-derive it.
+  - `GameObject.GetWeight()` returns a **double**, not an int.
+  Selection round-trips as a row INDEX into `listItems` and Qud's own `HandleSelectItem` applies
+  it, so "category toggles / item picks" cannot drift from the game.
+- **STILL OPEN on the picker:** Qud's footer is a real menu bar (`yieldMenuOptions` -> `[Esc] Close
+  Menu`, `[7] sort: list/by class`, `[Space] Select`); Raves draws a plain "Esc to cancel" and does
+  not offer the sort toggle. Panel geometry has not been measured against Qud either -- this pass
+  was function + content parity, not pixel parity.

@@ -106,7 +106,7 @@ namespace RavesOfQud
         /// change, so a viewer that connects — or a rebuilt Raves that reconnects — WHILE a modal is up
         /// would otherwise never learn of it (the turn thread is blocked, so no snapshot flows either).
         /// Flag a one-shot re-broadcast of the current popup on the next poll.</summary>
-        public static void OnClientConnect() { _resend = true; }
+        public static void OnClientConnect() { _resend = true; PickerBridge.OnClientConnect(); }
 
         /// <summary>Idempotent — starts the UI-thread watcher if it isn't already running. Called from the
         /// per-turn / per-frame ticks so a game load (or a torn-down + rebuilt uiQueue) re-arms it.</summary>
@@ -146,6 +146,11 @@ namespace RavesOfQud
 
             bool resend = _resend;   // one-shot: a client just connected — re-broadcast the live popup
             _resend = false;
+
+            // The item PICKER rides on this same watcher: it is a separate Qud SCREEN, but it blocks the
+            // turn thread exactly like a popup does, so the UI-thread pump is the only place either can be
+            // read. Poll it FIRST — a picker can be up with no popup, and vice versa; they are independent.
+            try { PickerBridge.Poll(server); } catch (Exception e) { Log("picker poll: " + e.Message); }
 
             PopupMessage pm = FindVisiblePopup(false);
             // Believed-active but not found? FORCE the full scan before declaring a

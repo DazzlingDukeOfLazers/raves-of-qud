@@ -7,6 +7,7 @@ class_name BridgeClient
 
 signal snapshot(data: Dictionary)
 signal popup(data: Dictionary)   # a Qud modal mirrored from the mod ({"type":"popup", active:…})
+signal picker(data: Dictionary)  # Qud's PickGameObjectScreen mirrored ({"type":"picker", active:…})
 signal connected   # fires each time the bridge (re)connects
 
 const HOST := "127.0.0.1"
@@ -74,6 +75,7 @@ func _drain() -> void:
 	# so they're bucketed separately and emitted after the snapshot (popup wins if both arrive together).
 	var latest: Variant = null
 	var latest_popup: Variant = null
+	var latest_picker: Variant = null
 	var dropped := 0
 	while _buf.size() >= 4:
 		var frame_len := (_buf[0] << 24) | (_buf[1] << 16) | (_buf[2] << 8) | _buf[3]
@@ -88,6 +90,8 @@ func _drain() -> void:
 		if typeof(data) == TYPE_DICTIONARY:
 			if data.get("type", "") == "popup":
 				latest_popup = data
+			elif data.get("type", "") == "picker":
+				latest_picker = data
 			else:
 				if latest != null:
 					dropped += 1
@@ -98,6 +102,8 @@ func _drain() -> void:
 		snapshot.emit(latest)
 	if latest_popup != null:
 		popup.emit(latest_popup)
+	if latest_picker != null:
+		picker.emit(latest_picker)
 
 ## Send a command to Qud, e.g. send_command("move", {"dir": "N"}).
 func send_command(name: String, extra: Dictionary = {}) -> void:

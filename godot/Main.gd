@@ -39,6 +39,7 @@ var client: BridgeClient
 var _wish_layer: CanvasLayer    # Ctrl+Shift+W wish prompt overlay (built lazily), sends "wish" to Qud
 var _wish_edit: LineEdit
 var _popup: PopupOverlay        # mirrors Qud modal popups forwarded by the mod (own file)
+var _item_picker: PickerOverlay # mirrors Qud's PickGameObjectScreen (empty-slot equip picker)
 var overlay_check: Callable = Callable()   # MainFrame: "is a frame overlay (status/controlmap) open?"
 var _binds := QudBinds.new()    # the player's Qud keybindings — custom-remap fallback routing
 var _palette := {}              # latest Qud colour map (code -> hex) from snapshots, for popup markup
@@ -178,6 +179,7 @@ func _ready() -> void:
 	add_child(client)
 	client.snapshot.connect(_on_snapshot)
 	client.popup.connect(_on_popup)
+	client.picker.connect(_on_picker)
 	client.connected.connect(_on_bridge_connected)
 
 	_sky_grade = load("res://SkyGrade.gd").new()   # day/night atmosphere: WorldEnvironment + grade + sun/moon
@@ -215,6 +217,14 @@ func _ready() -> void:
 		client.send_command("popup", payload)
 		if str(payload.get("action", "")) == "option":
 			popup_option.emit(str(payload.get("text", ""))))
+
+	# Item picker (its own file): Qud's PickGameObjectScreen — what an EMPTY paper-doll slot
+	# raises. It is a screen, not a PopupMessage, so it arrives on its own channel.
+	_item_picker = PickerOverlay.new()
+	add_child(_item_picker)
+	_item_picker.closed.connect(func(): popup_closed.emit())
+	_item_picker.answered.connect(func(payload: Dictionary):
+		client.send_command("picker", payload))
 
 	_load_settings()   # restore camera heading/mode/zoom/depth/window before the UI reads them
 	_build_mode_label()
@@ -320,6 +330,17 @@ func _on_popup(data: Dictionary) -> void:
 		_popup.show_popup(data, _palette)
 	else:
 		_popup.hide_popup()
+
+## Qud's item picker, mirrored. Same blocking story as a popup — the turn thread is parked inside
+## PickGameObjectScreen.show(), so this channel is the only word we get that it opened. The viewer's
+## row choice goes back as a "picker" command and Qud's own HandleSelectItem applies it.
+func _on_picker(data: Dictionary) -> void:
+	if _item_picker == null:
+		return
+	if bool(data.get("active", false)):
+		_item_picker.show_picker(data, _palette)
+	else:
+		_item_picker.hide_picker()
 
 func _on_snapshot(data: Dictionary) -> void:
 	# Cache the colour map so popup markup renders with the same palette. Do NOT
@@ -1121,6 +1142,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				KEY_KP_4, KEY_KP_6, KEY_KP_7, KEY_KP_9, KEY_KP_1, KEY_KP_3]:
 			return
 		if not (_popup != null and _popup.visible) \
+				and not (_item_picker != null and _item_picker.visible) \
 				and not (overlay_check.is_valid() and bool(overlay_check.call())):
 			var qcmd: String = _binds.match_event(event)
 			if qcmd != "":
