@@ -63,9 +63,9 @@ const BOX_H := 62.0
 # 58px pitch, on y178. Qud draws a fixed per-category ICON; we stand in with the
 # category's first item tile (recorded deviation) until those icons are extracted.
 const FILT_X := 560.0   # ALL cell; category cells then start at 618 (measured borders)
-const FILT_Y := 178.0
-const FILT_W := 44.0
-const FILT_H := 38.0
+const FILT_Y := 177.0
+const FILT_W := 50.0   # measured: cell cols 618..667
+const FILT_H := 41.0   # measured: cell rows 177..217
 const FILT_PITCH := 58.0
 
 var _data := {}
@@ -165,6 +165,37 @@ func _draw_static() -> void:
 	var w := _font.get_string_size(QudText.strip(hdr), HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
 	_draw_markup(_static, hdr, Vector2(ITEM_W_EDGE - w, 232))
 
+## Qud's filter cell: a 2px box whose TOP-LEFT and BOTTOM-RIGHT corners carry the
+## interlocking loop motif (measured off the reference — a 7x7 loop, a 2px stem and a
+## bar, with the box edge broken where the ornament sits). Same family as the frames
+## on the Attributes pane.
+func _draw_cell_frame(r: Rect2, col: Color) -> void:
+	var x := r.position.x
+	var y := r.position.y
+	var w := r.size.x
+	var h := r.size.y
+	# box edges, broken at the two ornamented corners
+	_static.draw_rect(Rect2(x + 9, y, w - 9, 2), col)          # top (gap at TL)
+	_static.draw_rect(Rect2(x, y + h - 2, w - 9, 2), col)      # bottom (gap at BR)
+	_static.draw_rect(Rect2(x, y + 9, 2, h - 9), col)          # left (gap at TL)
+	_static.draw_rect(Rect2(x + w - 2, y, 2, h - 9), col)      # right (gap at BR)
+	# top-left loop: 7x7 outline + stem + bar
+	_static.draw_rect(Rect2(x, y, 7, 2), col)
+	_static.draw_rect(Rect2(x, y, 2, 7), col)
+	_static.draw_rect(Rect2(x + 5, y, 2, 7), col)
+	_static.draw_rect(Rect2(x, y + 5, 11, 2), col)
+	_static.draw_rect(Rect2(x + 5, y + 7, 2, 2), col)
+	_static.draw_rect(Rect2(x, y + 9, 7, 2), col)
+	# bottom-right loop, mirrored
+	var bx := x + w - 7
+	var by := y + h - 11
+	_static.draw_rect(Rect2(bx, by, 7, 2), col)
+	_static.draw_rect(Rect2(bx, by + 2, 2, 2), col)
+	_static.draw_rect(Rect2(bx - 4, by + 4, 11, 2), col)
+	_static.draw_rect(Rect2(bx, by + 4, 2, 7), col)
+	_static.draw_rect(Rect2(bx + 5, by + 4, 2, 7), col)
+	_static.draw_rect(Rect2(bx, by + 9, 7, 2), col)
+
 ## Qud's category filter strip: the ALL cell then one per category, each showing
 ## that category's first item as its icon. Selecting a filter is a later slice —
 ## this draws the strip Qud shows above the panes.
@@ -174,7 +205,7 @@ func _draw_filter_strip() -> void:
 	var x := FILT_X
 	# the ALL cell — gold-framed while no category filter is enabled (Qud's "*All")
 	var all_rect := Rect2(Vector2(x, FILT_Y), Vector2(FILT_W, FILT_H))
-	_static.draw_rect(all_rect, C_GOLD if _enabled.is_empty() else C_BOX, false, 1.0)
+	_draw_cell_frame(all_rect, C_GOLD if _enabled.is_empty() else C_BOX)
 	_filt_rects.append([all_rect, ""])
 	var aw := _font.get_string_size("ALL", HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
 	_static.draw_string(_font, Vector2(x + (FILT_W - aw) * 0.5, FILT_Y + 25), "ALL",
@@ -199,7 +230,7 @@ func _draw_filter_strip() -> void:
 	for cat in strip:
 		var cname := str(cat.get("name", ""))
 		var rect := Rect2(Vector2(x, FILT_Y), Vector2(FILT_W, FILT_H))
-		_static.draw_rect(rect, C_GOLD if _enabled.has(cname) else C_BOX, false, 1.0)
+		_draw_cell_frame(rect, C_GOLD if _enabled.has(cname) else C_BOX)
 		_filt_rects.append([rect, cname])
 		# QUD'S OWN filter icon (FilterBarCategoryButton.categoryImageMap), painted in
 		# the fixed two-tone that button uses; falls back to the category's first item.
