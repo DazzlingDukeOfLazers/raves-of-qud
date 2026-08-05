@@ -61,6 +61,7 @@ var _title: RichTextLabel
 var _scroll: ScrollContainer
 var _list: VBoxContainer
 var _foot: HFlowContainer
+var _foot_abs: Control        # absolute placement using Qud's own laid-out boxes
 var _menu: Array = []           # the footer bar's entries, as Qud yielded them
 
 # Same measured dialog chrome as PopupOverlay (see its notes: +6/channel above the dark
@@ -172,15 +173,17 @@ func _build() -> void:
 	vb.add_child(fm)
 	_foot = HFlowContainer.new()
 	_foot.alignment = FlowContainer.ALIGNMENT_CENTER
-	# 15px between entries. Qud's laid-out boxes ABUT (gap 0) but each carries 15px of internal left
-	# padding, and that padding is counted when its bar decides where to wrap: at panel 412 the bar is
-	# 400 wide and "sort"(236.2) + "Select"(149.8) = 386 fits — yet Qud breaks them — while 236.2 + 15 +
-	# 149.8 = 401 does NOT, and at panel 510.8 the same pair shares a line. 15 is the only value that
-	# reproduces BOTH observed states. Two states is a fit, not a proof: a third bar width should
-	# confirm it before this is trusted as the rule.
 	_foot.add_theme_constant_override("h_separation", 0)
 	_foot.add_theme_constant_override("v_separation", 0)
 	fm.add_child(_foot)
+	# Absolute placement layer, used whenever Qud ships its laid-out boxes (the normal case). Qud's
+	# bar is a FlowLayoutGroup wrapping on "running + item > width" using ITS OWN measurement of each
+	# label — which a different text rasteriser cannot reproduce, so any spacing constant we picked
+	# would only ever match by luck. Place at Qud's offsets instead and the break points are its own.
+	_foot_abs = Control.new()
+	_foot_abs.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_foot_abs.visible = false
+	fm.add_child(_foot_abs)
 
 	vb.add_child(_gap(BOT_PAD))
 
@@ -290,6 +293,20 @@ func _build_menu() -> void:
 	for c in _foot.get_children():
 		_foot.remove_child(c)
 		c.queue_free()
+	for c in _foot_abs.get_children():
+		_foot_abs.remove_child(c)
+		c.queue_free()
+
+	# Did Qud ship its laid-out boxes? Then mirror them exactly; otherwise fall back to our own flow.
+	var have_rects := not _menu.is_empty()
+	for m in _menu:
+		if not m.has("lx"):
+			have_rects = false
+			break
+	_foot_abs.visible = have_rects
+	_foot.visible = not have_rects
+	var host: Control = _foot_abs if have_rects else _foot
+
 	for i in _menu.size():
 		var m: Dictionary = _menu[i]
 		var lbl := _mk_rt()
@@ -300,15 +317,26 @@ func _build_menu() -> void:
 		# collapses the label to nothing and the footer disappears entirely.
 		lbl.add_theme_constant_override("line_separation", int(FOOT_LINE_H) - 27)
 		lbl.text = QudText.to_bbcode(str(m.get("text", "")), _palette)
-		if bool(m.get("disabled", false)):
-			_foot.add_child(lbl)
-			continue
-		lbl.mouse_filter = Control.MOUSE_FILTER_STOP
-		var idx := i
-		lbl.gui_input.connect(func(e: InputEvent):
-			if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
-				_activate_menu(idx))
-		_foot.add_child(lbl)
+		if have_rects:
+			# Qud's KeyMenuOption box carries 15px of internal left padding before its text
+			# (HorizontalLayoutGroup padL=15, read off the live component).
+			lbl.position = Vector2(float(m.get("lx", 0)) + 15.0, float(m.get("ly", 0)))
+			lbl.size = Vector2(maxf(0.0, float(m.get("lw", 0)) - 15.0), float(m.get("lh", FOOT_LINE_H)))
+		if not bool(m.get("disabled", false)):
+			lbl.mouse_filter = Control.MOUSE_FILTER_STOP
+			var idx := i
+			lbl.gui_input.connect(func(e: InputEvent):
+				if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+					_activate_menu(idx))
+		host.add_child(lbl)
+
+	# The bar's HEIGHT comes from Qud too, so the panel follows Qud's line count rather than ours --
+	# the two disagreed by exactly one 22px line, which was most of the panel-height residual.
+	if have_rects:
+		var bh := 0.0
+		for m in _menu:
+			bh = maxf(bh, float(m.get("ly", 0)) + float(m.get("lh", FOOT_LINE_H)))
+		_foot_abs.custom_minimum_size = Vector2(0, bh)
 
 func _activate_menu(i: int) -> void:
 	if i < 0 or i >= _menu.size():
@@ -371,6 +399,21 @@ func _hotkey_cell(r: Dictionary) -> RichTextLabel:
 			("   " if bool(r.get("indent", false)) else ""), C_GOLD.to_html(false), kd]
 	return hk
 
+
+## Integer height for row `i` such that the running total tracks Qud's fractional one.
+##
+## A category row is 20.12px. Godot lays out on whole pixels, so giving every such row a 21px
+## minimum accumulated ~0.9px of error per row and made the list — and therefore the whole panel —
+## several px too tall. Taking the difference of the ROUNDED CUMULATIVE edges instead keeps each row
+## within a pixel of Qud's AND makes the sum of any prefix match, which is what the panel height and
+## the scroll-into-view maths both depend on.
+func _row_px(i: int) -> float:
+	var before := 0.0
+	for k in i:
+		before += ROW_H_CAT if bool(_rows[k].get("cat", false)) else ROW_H_ITEM
+	var here: float = ROW_H_CAT if bool(_rows[i].get("cat", false)) else ROW_H_ITEM
+	return roundf(before + here) - roundf(before)
+
 func _build_rows() -> void:
 	for c in _list.get_children():
 		_list.remove_child(c)
@@ -379,7 +422,7 @@ func _build_rows() -> void:
 		var r: Dictionary = _rows[i]
 		var cat := bool(r.get("cat", false))
 		var row := PanelContainer.new()
-		row.custom_minimum_size = Vector2(0, ROW_H_CAT if cat else ROW_H_ITEM)
+		row.custom_minimum_size = Vector2(0, _row_px(i))
 		row.mouse_filter = Control.MOUSE_FILTER_STOP
 		# FIXED COLUMNS, separation 0 — Qud's row is a run of fixed-width cells, so each element's
 		# offset is the sum of the ones before it (caret 15, hotkey 24/48, icon 20, spacer 2). Letting
@@ -471,8 +514,8 @@ func _scroll_into_view() -> void:
 	# category crossed.
 	var top := 0.0
 	for i in _sel:
-		top += ROW_H_CAT if bool(_rows[i].get("cat", false)) else ROW_H_ITEM
-	var h: float = ROW_H_CAT if bool(_rows[_sel].get("cat", false)) else ROW_H_ITEM
+		top += _row_px(i)
+	var h := _row_px(_sel)
 	var view := _scroll.size.y
 	if top < _scroll.scroll_vertical:
 		_scroll.scroll_vertical = int(top)

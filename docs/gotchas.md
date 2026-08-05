@@ -491,9 +491,18 @@ closed set of things that are wrong, not the open set of things that are fine.
   Category and an Item child with only one **active** (filter on `activeInHierarchy` or you read a
   font size off a hidden variant), and the panel is **content-driven, not fixed** — it looked fixed
   until a second picker was probed.
-- **STILL OPEN:** the footer's WRAP rule. Qud breaks "sort" and "Select" onto separate lines at
-  panel width 412 even though they fit, and shares a line at 510.8; a ~15px inter-entry allowance
-  explains both, but setting it in Raves changed nothing because Raves' text measures narrower.
-  That band is also awkward to measure: Qud's bar gains and loses the context-dependent
-  `[Space] Select` between frames, so a single-frame height comparison of the footer is unreliable
-  — which is most of the -16.
+- **The footer's WRAP is MIRRORED, not recomputed.** Qud's bar is a `FlowLayoutGroup` (read off the
+  live component, not guessed) whose wrap test is `running + item > containerWidth` with a trailing
+  `SpacingX` — so where it breaks depends on how **Qud** measures each label. Raves runs a different
+  text rasteriser and measures them narrower, so no spacing constant we picked could ever match
+  except by luck: 15px was consistent with two observed states and changed nothing when applied.
+  The mod now ships each entry's LAID-OUT box (`lx/ly/lw/lh`, relative to the bar) and Raves places
+  them absolutely, so the line breaks are Qud's by construction. Panel-height residual went
+  **-16 -> +7** on the same fixture.
+  The trap that cost a cycle: `GetComponentsInChildren` includes the component's OWN node, and the
+  bar is called **"KeyMenuOptionBar"** — a `StartsWith("KeyMenuOption")` filter swallowed it, shifted
+  every entry's rect by one, and gave entry 0 the whole 400x66 bar. The footer rendered as one
+  overlapping line. Match the option prefabs exactly (`"KeyMenuOption"` / `"KeyMenuOption(Clone)"`).
+- **STILL OPEN:** a **+7px** panel-height residual in the LIST band (dx +1, dy -3, dw -2, dh +7).
+  Distributing the fractional 20.12 row height across rounded cumulative edges (`_row_px`) did not
+  move it, so it is not simple per-row rounding.

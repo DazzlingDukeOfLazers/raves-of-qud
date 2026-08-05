@@ -158,6 +158,38 @@ namespace RavesOfQud
                     if (tmp.font != null)
                         sb.Append(",\"face\":\"").Append(Esc(tmp.font.name)).Append('"');
                 }
+                // EVERY component type on the node. The layout RULE lives in these (a layout group's
+                // spacing/padding, a LayoutElement's preferred width, a custom flow behaviour) — and
+                // guessing a wrap constant from where things landed is exactly the inference this
+                // probe exists to avoid.
+                sb.Append(",\"comp\":[");
+                bool firstC = true;
+                foreach (var c in t.GetComponents<Component>())
+                {
+                    if (c == null || c is RectTransform) continue;
+                    if (!firstC) sb.Append(',');
+                    firstC = false;
+                    sb.Append('"').Append(Esc(c.GetType().Name)).Append('"');
+                }
+                sb.Append(']');
+                var lg = t.GetComponent<UnityEngine.UI.HorizontalOrVerticalLayoutGroup>();
+                if (lg != null)
+                    sb.Append(",\"layout\":{\"spacing\":").Append(F(lg.spacing))
+                      .Append(",\"padL\":").Append(lg.padding.left).Append(",\"padR\":").Append(lg.padding.right)
+                      .Append(",\"padT\":").Append(lg.padding.top).Append(",\"padB\":").Append(lg.padding.bottom)
+                      .Append(",\"align\":\"").Append(Esc(lg.childAlignment.ToString())).Append("\"}");
+                var gl = t.GetComponent<UnityEngine.UI.GridLayoutGroup>();
+                if (gl != null)
+                    sb.Append(",\"grid\":{\"cell\":[").Append(F(gl.cellSize.x)).Append(',').Append(F(gl.cellSize.y))
+                      .Append("],\"spacing\":[").Append(F(gl.spacing.x)).Append(',').Append(F(gl.spacing.y))
+                      .Append("],\"constraint\":\"").Append(Esc(gl.constraint.ToString()))
+                      .Append("\",\"count\":").Append(gl.constraintCount).Append('}');
+                var le = t.GetComponent<UnityEngine.UI.LayoutElement>();
+                if (le != null)
+                    sb.Append(",\"le\":{\"min\":").Append(F(le.minWidth))
+                      .Append(",\"pref\":").Append(F(le.preferredWidth))
+                      .Append(",\"flex\":").Append(F(le.flexibleWidth)).Append('}');
+
                 var img = t.GetComponent<Image>();
                 if (img != null)
                 {

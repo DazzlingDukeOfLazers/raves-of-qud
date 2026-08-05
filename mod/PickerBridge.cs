@@ -116,6 +116,49 @@ namespace RavesOfQud
             return sb.ToString();
         }
 
+
+        private static readonly UnityEngine.Vector3[] _corners = new UnityEngine.Vector3[4];
+
+        /// <summary>Screen rect of a RectTransform, TOP-LEFT origin — the space `hv shot` captures in.</summary>
+        private static bool ScreenRect(UnityEngine.RectTransform rt, out float x, out float y, out float w, out float h)
+        {
+            x = y = w = h = 0f;
+            if (rt == null) return false;
+            rt.GetWorldCorners(_corners);
+            float xmin = _corners[0].x, xmax = _corners[0].x, ymin = _corners[0].y, ymax = _corners[0].y;
+            for (int i = 1; i < 4; i++)
+            {
+                if (_corners[i].x < xmin) xmin = _corners[i].x;
+                if (_corners[i].x > xmax) xmax = _corners[i].x;
+                if (_corners[i].y < ymin) ymin = _corners[i].y;
+                if (_corners[i].y > ymax) ymax = _corners[i].y;
+            }
+            x = xmin; y = UnityEngine.Screen.height - ymax; w = xmax - xmin; h = ymax - ymin;
+            return w > 0f && h > 0f;
+        }
+
+        /// <summary>The footer bar's laid-out option boxes, in hierarchy order.</summary>
+        private static List<UnityEngine.RectTransform> BarOptions(PickGameObjectScreen sc)
+        {
+            var outp = new List<UnityEngine.RectTransform>();
+            try
+            {
+                if (sc.hotkeyBar == null) return outp;
+                foreach (var rt in sc.hotkeyBar.GetComponentsInChildren<UnityEngine.RectTransform>(false))
+                {
+                    if (rt == null) continue;
+                    // The BAR'S OWN node is called "KeyMenuOptionBar", and GetComponentsInChildren
+                    // includes it — a StartsWith("KeyMenuOption") test swallows it and shifts every
+                    // entry's rect by one, so entry 0 gets the whole 400x66 bar and the last gets
+                    // nothing. Match the option prefabs exactly.
+                    if (rt.name == "KeyMenuOption" || rt.name.StartsWith("KeyMenuOption(Clone)"))
+                        outp.Add(rt);
+                }
+            }
+            catch { }
+            return outp;
+        }
+
         private static string Frame(PickGameObjectScreen sc)
         {
             var j = new JsonWriter();
@@ -168,6 +211,20 @@ namespace RavesOfQud
             // not a fixed list we could hardcode. MenuOption.getMenuText() is Qud's own renderer
             // ("[{{W|key}}] description"), and TOGGLE_SORT's description is rewritten with the
             // current sort mode on every show, so reading it here keeps "sort: list/by class" honest.
+            var barOpts = BarOptions(sc);
+            float barX = 0f, barY = 0f, barW = 0f, barH = 0f;
+            bool barRectOk = false;
+            try
+            {
+                if (sc.hotkeyBar != null)
+                    barRectOk = ScreenRect(sc.hotkeyBar.transform as UnityEngine.RectTransform,
+                        out barX, out barY, out barW, out barH);
+            }
+            catch { }
+            if (barRectOk)
+                j.Member("barW", ((int)System.Math.Round(barW)).ToString())
+                 .Member("barH", ((int)System.Math.Round(barH)).ToString());
+
             j.Name("menu").BeginArray();
             int mi = 0;
             try
@@ -176,7 +233,22 @@ namespace RavesOfQud
                 {
                     if (el == null) continue;
                     var mo = el as XRL.UI.Framework.MenuOption;
-                    j.BeginObject().Member("i", mi++).Member("id", el.Id ?? "");
+                    int myIdx = mi++;
+                    j.BeginObject().Member("i", myIdx).Member("id", el.Id ?? "");
+                    // QUD'S OWN LINE BREAKS. The bar is a FlowLayoutGroup whose wrap test is
+                    // "runningWidth + itemWidth > containerWidth", so it depends on how wide QUD
+                    // measures each label — which Raves, on a different text rasteriser, cannot
+                    // reproduce. Recomputing the wrap there would drift; shipping the laid-out
+                    // boxes makes Raves' footer break exactly where Qud's does, by construction.
+                    if (myIdx < barOpts.Count && barRectOk)
+                    {
+                        float ox, oy, ow, oh;
+                        if (ScreenRect(barOpts[myIdx], out ox, out oy, out ow, out oh))
+                            j.Member("lx", ((int)System.Math.Round(ox - barX)).ToString())
+                             .Member("ly", ((int)System.Math.Round(oy - barY)).ToString())
+                             .Member("lw", ((int)System.Math.Round(ow)).ToString())
+                             .Member("lh", ((int)System.Math.Round(oh)).ToString());
+                    }
                     try { j.Member("text", mo != null ? (mo.getMenuText() ?? "") : (el.Description ?? "")); }
                     catch { j.Member("text", el.Description ?? ""); }
                     if (mo != null)
