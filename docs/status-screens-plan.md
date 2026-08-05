@@ -77,9 +77,14 @@ always visible in the bar).
    The earlier "blank pane" was a STALE BUILD, not a code fault — instrumentation showed setup/rows/
    draw all firing correctly on a rebuild (lesson: verify the running build before debugging the
    code). Hotkey letters match Qud's spread exactly on this character, including the d/e/q/s skips.
-   OPEN: (1) worn armour exports as `{{b|♦}}1 {{K|⇥}}0` — `GameObject.DisplayName` returns only the
-   AV/DV badges for it, so "cloth robe" is missing; find the right name accessor. (2) The PAPER DOLL
-   (left half: body slots) is the next slice. (3) Header sits ~2px off (13.3 in that band).
+   PAPER DOLL DONE (**4.98** in that region; full frame **4.76**): Qud's fixed 14-slot grid — 55x62
+   boxes on columns x{283,373,463,553,643} and rows y{246,366,486,606,726}, each drawing its equipped
+   item's tile with the label centred beneath and Qud's `*` on the primary limb. Body parts come from
+   Qud's own `Body.GetParts()` (name/type/Primary/Equipped-or-DefaultBehavior); part names arrive
+   LOWERCASE, so the cell label is rebuilt from TYPE + side ("hand"+left -> "Left Hand", "back" ->
+   "Worn on Back"). OPEN: (1) worn armour exports as `{{b|♦}}1 {{K|⇥}}0` — `GameObject.DisplayName`
+   returns only the AV/DV badges for it, so the noun is missing; find the right name accessor.
+   (2) Header sits ~2px off. (3) The category filter strip along the top is not ported yet.
 8. **Tinkering** — most complex (bits, recipes, modes).
 
 Interactivity (buy mutation, equip, tinker, quest tracking) follows the menus-V3 law:

@@ -14,8 +14,11 @@ extends Control
 ## (item name x909 too, after a 16px tile), category weight |n lbs.| right-aligned
 ## at x1673, item weight [n lbs.] right-aligned at x1753, header at x1753.
 ##
-## The PAPER DOLL (left half: body slots) is the next slice — this round is the
-## inventory list the user asked for.
+## The PAPER DOLL (left half) draws Qud's fixed slot grid: 55x62 boxes on columns
+## x{283,373,463,553,643} and rows y{246,366,486,606,726} (measured off the same
+## capture), each showing its equipped item's tile with the slot label centred
+## beneath. Body parts come from Qud's own body tree; the grid is keyed by part
+## type/name, and a primary limb gets Qud's "*" marker.
 
 const ROW_H := 26.0
 const LIST_X := 855.0
@@ -38,6 +41,22 @@ static func _iv8(r8: int, g8: int, b8: int) -> Color:
 var C_DIM := _iv8(108, 133, 129)
 var C_SEL := _iv8(23, 59, 60)
 var C_GOLD := _iv8(200, 184, 57)
+var C_BOX := _iv8(70, 96, 100)
+var C_LABEL := _iv8(120, 146, 141)
+
+# Qud's paper-doll grid: label -> [column x, row y]. Columns/rows measured off
+# equipment_qud.png (55x62 boxes, 90px column pitch, 120px row pitch).
+const DOLL := {
+	"Face": [463, 246], "Floating Nearby": [643, 246],
+	"Worn on Hands": [283, 366], "Head": [463, 366],
+	"Left Hand": [283, 486], "Left Arm": [373, 486], "Body": [463, 486],
+	"Right Arm": [553, 486], "Right Hand": [643, 486],
+	"Worn on Back": [463, 606],
+	"Thrown Weapon": [283, 726], "Feet": [463, 726],
+	"Left Missile Weapon": [553, 726], "Right Missile Weapon": [643, 726],
+}
+const BOX_W := 55.0
+const BOX_H := 62.0
 
 var _data := {}
 var _palette := {}
@@ -119,11 +138,87 @@ func _letter(i: int) -> String:
 func _draw_static() -> void:
 	if _data.is_empty():
 		return
+	_draw_doll()
 	# header: "{{B|$drams}} | {{C|carried{{K|/max}} lbs.}}" — Qud's own strings
 	var hdr := "{{B|$%d}} {{K|│}} {{C|%d{{K|/%d}} lbs.}}" % [int(_data.get("drams", 0)),
 		int(_data.get("carried", 0)), int(_data.get("maxCarried", 0))]
 	var w := _font.get_string_size(QudText.strip(hdr), HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
 	_draw_markup(_static, hdr, Vector2(ITEM_W_EDGE - w, 232))
+
+## Qud's body-slot grid. Slots it doesn't recognise are ignored — the doll is a
+## FIXED layout in Qud too (extra parts show in the list, not the doll).
+func _draw_doll() -> void:
+	var by_label := {}
+	for sl in _data.get("slots", []):
+		by_label[_doll_label(sl)] = sl
+	for label in DOLL:
+		var cell: Array = DOLL[label]
+		var pos := Vector2(cell[0], cell[1])
+		_static.draw_rect(Rect2(pos, Vector2(BOX_W, BOX_H)), C_BOX, false, 1.0)
+		var sl: Variant = by_label.get(label)
+		if sl != null:
+			var tile := str(sl.get("tile", ""))
+			if tile != "":
+				var tex: Texture2D = _tiles.texture(tile,
+					_tiles.color_of(str(sl.get("color", "")), Color.WHITE),
+					_tiles.color_of(str(sl.get("detail", "")), Color.WHITE))
+				if tex != null:
+					_static.draw_texture_rect(tex,
+						Rect2(pos + Vector2(14, 12), Vector2(26, 39)), false)
+			if bool(sl.get("primary", false)):
+				_static.draw_string(_font, pos + Vector2(-8, BOX_H + 14), "*",
+					HORIZONTAL_ALIGNMENT_LEFT, -1, 14, C_GOLD)
+		# label, centred under the box and wrapped like Qud ("Worn on / Hands")
+		var lines := _wrap_label(label)
+		for i in lines.size():
+			var w := _font.get_string_size(lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
+			_static.draw_string(_font, pos + Vector2((BOX_W - w) * 0.5, BOX_H + 16 + i * 15),
+				lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, 14, C_LABEL)
+
+## Map an exported body part to its doll cell label. Qud's part names come through
+## LOWERCASE ("left hand", "worn on back"), so match case-insensitively and rebuild
+## the grid label from the part TYPE plus its side.
+func _doll_label(sl: Dictionary) -> String:
+	var n := str(sl.get("name", "")).strip_edges().to_lower()
+	var t := str(sl.get("type", "")).strip_edges().to_lower()
+	var side := ""
+	if n.begins_with("left"):
+		side = "Left "
+	elif n.begins_with("right"):
+		side = "Right "
+	match t:
+		"hand":            return side + "Hand"
+		"arm":             return side + "Arm"
+		"missile weapon":  return side + "Missile Weapon"
+		"hands":           return "Worn on Hands"
+		"back":            return "Worn on Back"
+		"body":            return "Body"
+		"head":            return "Head"
+		"face":            return "Face"
+		"feet":            return "Feet"
+		"floating nearby": return "Floating Nearby"
+		"thrown weapon":   return "Thrown Weapon"
+	# fall back to the part's own name, title-cased to match the grid keys
+	var out := ""
+	for w in n.split(" "):
+		out += (w.capitalize() if out == "" else " " + w.capitalize())
+	return out
+
+func _wrap_label(s: String) -> Array:
+	if _font.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x <= BOX_W + 26:
+		return [s]
+	var out: Array = []
+	var cur := ""
+	for w in s.split(" "):
+		var cand := w if cur == "" else cur + " " + w
+		if _font.get_string_size(cand, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x <= BOX_W + 26 or cur == "":
+			cur = cand
+		else:
+			out.append(cur)
+			cur = w
+	if cur != "":
+		out.append(cur)
+	return out
 
 func _draw_rows() -> void:
 	var off := -_scroll

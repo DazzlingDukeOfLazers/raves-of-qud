@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using XRL.World;
+using XRL.World.Anatomy;   // BodyPart (the paper doll)
 
 namespace RavesOfQud
 {
@@ -80,6 +81,35 @@ namespace RavesOfQud
                     }
             }
             catch (Exception e) { System.Console.WriteLine("[raves] inventory scan: " + e.Message); }
+
+            // BODY PARTS (the paper doll): Qud's own body tree — each part's name,
+            // type and whatever is equipped there (EquipmentLine renders the same set).
+            j.Name("slots").BeginArray();
+            try
+            {
+                var body = p.Body;
+                if (body != null)
+                    foreach (BodyPart bp in body.GetParts())
+                    {
+                        if (bp == null) continue;
+                        j.BeginObject();
+                        try { j.Member("name", bp.Name ?? ""); } catch { }
+                        try { j.Member("type", bp.Type ?? ""); } catch { }
+                        try { j.Member("desc", bp.GetOrdinalName() ?? ""); } catch { }
+                        try { j.Member("primary", bp.Primary); } catch { }
+                        GameObject eq = null;
+                        try { eq = bp.Equipped; } catch { }
+                        if (eq == null) { try { eq = bp.DefaultBehavior; } catch { } }
+                        if (eq != null)
+                        {
+                            try { j.Member("item", eq.DisplayName ?? ""); } catch { }
+                            WriteTile(j, eq);
+                        }
+                        j.EndObject();
+                    }
+            }
+            catch (Exception e) { System.Console.WriteLine("[raves] body scan: " + e.Message); }
+            j.EndArray();
 
             var names = new List<string>(cats.Keys);
             names.Sort(StringComparer.OrdinalIgnoreCase);
