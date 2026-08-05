@@ -409,3 +409,10 @@ closed set of things that are wrong, not the open set of things that are fine.
   Escape during a test therefore closes the screen too if the popup has already gone, and every
   later click lands on the Holodeck instead -- which reads exactly like "clicks stopped working".
   Cancel a popup over the bridge (`popup / action:button / btn:Cancel`) when scripting.
+- **The equipment screen's X axis switches PANE; it does not toggle a category.**
+  `InventoryAndEquipmentStatusScreen` builds `horizNav.contexts = [paperdoll (or equipment
+  list), inventory]`, so Left/Right moves between the doll and the list while Up/Down moves
+  within whichever holds focus, and a category expands on Accept. Raves had Left/Right toggling
+  the category, borrowed from the skills tree -- plausible, and not what Qud does.
+- Qud's `PaperdollScroller` scrolls the WHOLE body, so every slot is selectable, empty ones
+  included; do not skip to the filled ones.

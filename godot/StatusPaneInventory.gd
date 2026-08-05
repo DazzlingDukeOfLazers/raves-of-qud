@@ -153,6 +153,13 @@ var _doll_rects: Array = []
 # keyed by the slot's object ID, not an index: _doll_rects is rebuilt DURING the draw
 # that reads the hover, so an index into it is half-stale exactly when it is used
 var _doll_hover_id := ""
+# Which pane the keyboard is in. Qud's model, from the screen's own setup:
+#   horizNav.contexts = [ paperdoll (or equipment list), inventory ]
+# so the X axis SWITCHES PANE and the Y axis moves within whichever holds focus.
+# (We had Left/Right toggling a category, borrowed from the skills tree -- Qud does
+# that on Accept, and spends X on the pane switch.)
+var _in_doll := false
+var _doll_sel := 0
 var _clip: Control
 var _content: Control
 var _static: Control
@@ -496,7 +503,13 @@ func _draw_doll() -> void:
 		var sl: Variant = by_label.get(label)
 		# hover brightens the whole frame, as it does on the filter strip
 		var sid := str(sl.get("id", "")) if sl != null else ""
-		_draw_cell_frame(box, C_HOVER if (sid != "" and sid == _doll_hover_id) else C_BOX, false)
+		# focus and hover both brighten the frame. Qud's filter cells use #4A757E for
+		# "focused" (FilterBarCategoryButton.LateUpdate) and C_HOVER is that colour, so
+		# this is the consistent choice -- but it is REASONED, not measured: Qud's
+		# equipment screen would not reopen to be photographed while this went in.
+		var focused: bool = _in_doll and str(DOLL.keys()[_doll_sel]) == str(label)
+		_draw_cell_frame(box, C_HOVER if (focused or (sid != "" and sid == _doll_hover_id)) \
+			else C_BOX, false)
 		if sid != "":
 			_doll_rects.append([box, sid, bool(sl.get("greyed", false))])
 		if sl != null:
@@ -695,16 +708,29 @@ func _draw_tile(r: Dictionary, pos: Vector2) -> void:
 func handle_key(e: InputEventKey) -> bool:
 	if _rows.is_empty():
 		return false
+	if _in_doll:
+		match e.keycode:
+			KEY_UP, KEY_KP_8:   _doll_move(-1)
+			KEY_DOWN, KEY_KP_2: _doll_move(1)
+			KEY_RIGHT, KEY_KP_6: _in_doll = false
+			KEY_ENTER, KEY_KP_ENTER, KEY_SPACE: _doll_activate()
+			KEY_ESCAPE:         return false          # let the screen close
+			_:                  return false
+		_static.queue_redraw()
+		return true
 	match e.keycode:
 		KEY_UP, KEY_KP_8:   _move(-1)
 		KEY_DOWN, KEY_KP_2: _move(1)
 		KEY_PAGEUP:         _move(-12)
 		KEY_PAGEDOWN:       _move(12)
-		KEY_LEFT, KEY_KP_4, KEY_RIGHT, KEY_KP_6:
-			_toggle_category()
+		KEY_LEFT, KEY_KP_4:
+			_in_doll = true          # X axis switches pane, Qud's horizNav model
+		KEY_RIGHT, KEY_KP_6:
+			_in_doll = false
 		KEY_ENTER, KEY_KP_ENTER, KEY_SPACE:
 			_activate()
 		_:                  return false
+	_static.queue_redraw()
 	return true
 
 ## Accept the selected row: a category folds, an ITEM opens Qud's interaction popup.
@@ -733,6 +759,25 @@ func _send_invaction(id: String, mode: String) -> void:
 	if mode != "":
 		msg["mode"] = mode
 	bridge_cb.call(msg)
+
+## Step through the doll's slots in the order they are declared, which is the order
+## they read on screen. Every slot is selectable, empty ones included -- Qud's
+## PaperdollScroller scrolls the whole body, not just the filled parts.
+func _doll_move(d: int) -> void:
+	var n := DOLL.size()
+	if n > 0:
+		_doll_sel = posmod(_doll_sel + d, n)
+
+## Act on the selected slot, exactly as a click on it would.
+func _doll_activate() -> void:
+	var labels := DOLL.keys()
+	if _doll_sel < 0 or _doll_sel >= labels.size():
+		return
+	var want := str(labels[_doll_sel])
+	for sl in _data.get("slots", []):
+		if _doll_label(sl) == want and str(sl.get("id", "")) != "":
+			_send_invaction(str(sl["id"]), "look" if bool(sl.get("greyed", false)) else "")
+			return
 
 ## Collapse/expand the selected category (an item row toggles its own category),
 ## mirroring the skills tree's model. View state only — Qud keeps its own per-screen.
