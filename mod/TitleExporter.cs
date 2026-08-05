@@ -441,6 +441,23 @@ namespace RavesOfQud
             return s.Replace(' ', '_');
         }
 
+        /// Dump an arbitrary sprite into the TILES dir under `fileName`, so the client's
+        /// normal tile pipeline can load it by name. Used for images that have no name to
+        /// ship: a popup's context sprite comes off an atlas with an empty sprite.name AND
+        /// an empty texture.name, so there is no handle to send -- the pixels are the only
+        /// identity available.
+        public static bool ExportSpriteToTiles(Sprite sp, string fileName)
+        {
+            try
+            {
+                if (sp == null || sp.texture == null) return false;
+                Directory.CreateDirectory(TileExporter.Dir);
+                WriteSprite(sp, Path.Combine(TileExporter.Dir, fileName));
+                return true;
+            }
+            catch (Exception e) { System.Console.WriteLine("[raves] sprite dump: " + e.Message); return false; }
+        }
+
         private static void WriteSprite(Sprite sp, string dest)
         {
             if (sp == null || sp.texture == null) return;

@@ -31,6 +31,41 @@ var _root: Control
 var _title: RichTextLabel
 var _msg: RichTextLabel
 var _opt_box: VBoxContainer
+# The CONTEXT HEADER Qud puts above the command list: the subject's tile and its name,
+# closed off by a divider (PopupMessage's contextImage / contextText / contextFrame).
+# MEASURED off the item menu: panel x840-1079 (240 wide), top line y334, tile box 48x72
+# centred on the panel at y360, name ink y447-458, divider y485.
+var _ctx_box: VBoxContainer
+var _ctx_img: Control
+var _ctx_text: RichTextLabel
+var _ctx_tex: Texture2D = null
+var _ctx_tiles: RefCounted = null
+const CTX_IMG := Vector2(48, 72)   # Qud's contextImage RectTransform, read off a live one
+# Everything else in the header, MEASURED off Qud's own popup as offsets from the top
+# LINE (not from the panel, whose padding differs): tile box +26 (its ink then lands at
+# +35, the sprite's opaque box starting 3 rows in), the name's ink at +113, the divider
+# at +151, and the first command's ink 22 below that. Driving the block off the line
+# keeps it independent of container layout timing -- the first attempt read
+# _ctx_box.size.y during the panel's draw, which is still stale on the show frame, and
+# put the divider straight through the name.
+const CTX_TILE_TOP := 26.0
+const CTX_NAME_INK := 113.0
+const CTX_DIVIDER := 151.0
+const CTX_OPT_GAP := 22.0
+# How far a RichTextLabel's first ink sits below its own top at this size -- MEASURED
+# (the name landed 25px low on a -4 guess), not derived, because it is the label's
+# internal leading plus the [center] block's, which Godot does not expose.
+const CTX_NAME_SIZE := 16
+var _ctx_name_runs: Array = []
+
+## Qud's own contextText.color, scaled to land its RENDERED ink. Same concession as the
+## inventory list's small text: at this size the glyphs are thin enough that
+## rasterisation decides the result and Godot's reaches brighter than Unity's -- measured
+## mean ink (94.7,123.7,120.1) against ours (115.7,143.2,139.9). The markup-coloured runs
+## (the AV/DV badges) are left alone; those already match to the pixel.
+func _ctx_name_color(ctx: Dictionary) -> Color:
+	var c := Color(str(ctx.get("textColor", "#a8c2bb")))
+	return Color(c.r * 0.819, c.g * 0.863, c.b * 0.859)
 var _edit: LineEdit
 var _btn_row: HBoxContainer
 
@@ -121,6 +156,24 @@ func _build() -> void:
 	_msg = _mk_rt()
 	vb.add_child(_msg)
 
+	# context header, above the commands (Qud's order: image, then name, then divider)
+	# ONE fixed-height block: the tile is drawn into it and the name is a child placed
+	# by hand, so both land on Qud's offsets regardless of when the container settles.
+	_ctx_box = VBoxContainer.new()
+	_ctx_box.visible = false
+	vb.add_child(_ctx_box)
+	_ctx_img = Control.new()
+	_ctx_img.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_ctx_img.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_ctx_img.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_ctx_img.draw.connect(_draw_ctx_img)
+	_ctx_box.add_child(_ctx_img)
+	_ctx_text = _mk_rt()
+	_ctx_text.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_ctx_text.add_theme_color_override("default_color", C_PALE)
+	_ctx_text.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_ctx_img.add_child(_ctx_text)
+
 	_opt_box = VBoxContainer.new()
 	_opt_box.add_theme_constant_override("separation", 2)
 	vb.add_child(_opt_box)
@@ -175,6 +228,16 @@ func _draw_chrome() -> void:
 	_panel.draw_rect(Rect2(r1, ly - 4, 2, 10), C_TOPLINE)       # ╟
 	_panel.draw_rect(Rect2(c0 - 2, ly, 2, 10), C_TOPLINE)       # ╖ centre down-ticks
 	_panel.draw_rect(Rect2(c1, ly, 2, 10), C_TOPLINE)           # ╓
+	# The context block is closed off by its own full-width divider, notched like the top
+	# line (Qud: top line y334, divider y485 -- both segmented the same way).
+	if _ctx_box.visible:
+		var dy := ly + CTX_DIVIDER
+		for seg in [[0.0, l0], [l1, c0], [c1, r0], [r1, w]]:
+			_panel.draw_rect(Rect2(seg[0], dy, seg[1] - seg[0], 2), C_TOPLINE)
+		_panel.draw_rect(Rect2(l0 - 2, dy - 4, 2, 10), C_TOPLINE)
+		_panel.draw_rect(Rect2(r1, dy - 4, 2, 10), C_TOPLINE)
+		_panel.draw_rect(Rect2(c0 - 2, dy, 2, 10), C_TOPLINE)
+		_panel.draw_rect(Rect2(c1, dy, 2, 10), C_TOPLINE)
 	if _title.visible:
 		# ─┤ Title ├─ edge assemblies at the title row's mid-height
 		var ty := 28.0 + _title.get_combined_minimum_size().y * 0.5
@@ -202,6 +265,90 @@ func _draw_chrome() -> void:
 		_panel.draw_rect(Rect2(b1 + 2, by - 7, 2, 14), C_BOTLINE)
 	else:
 		_panel.draw_rect(Rect2(0, by, w, 1), C_BOTLINE)
+
+## Build the header from the mod's `context` block. The mod ships RESOLVED rgba for the
+## two tones (UIThreeColorProperties.Foreground/Detail), so there is no palette lookup
+## here -- and it ships the tile as PIXELS under a per-popup filename, because the sprite
+## comes off an atlas with no name of its own to send.
+func _apply_context(ctx: Dictionary) -> void:
+	_ctx_tex = null
+	if ctx.is_empty():
+		_ctx_box.visible = false
+		return
+	var tile := str(ctx.get("tile", ""))
+	if tile != "":
+		if _ctx_tiles == null:
+			_ctx_tiles = load("res://QudTiles.gd").new()
+		_ctx_tiles.tiles_dir = InputModel.support_dir().path_join("tiles")
+		_ctx_tex = _ctx_tiles.texture(tile,
+			Color(str(ctx.get("fg", "#ffffff"))), Color(str(ctx.get("dt", "#ffffff"))))
+	_ctx_img.visible = _ctx_tex != null
+	# Prefer the palette the POPUP carries: a popup can be the first thing drawn after
+	# connecting, before any snapshot has delivered one, and the client's fallback table
+	# disagrees with Qud (the status screens hit this too). Without it the AV/DV badges
+	# lose their markup colours and the whole line renders in one flat tone.
+	var pal: Dictionary = ctx.get("palette", {})
+	if pal.is_empty():
+		pal = _palette
+	elif _palette.is_empty():
+		_palette = pal
+	var txt := str(ctx.get("text", ""))
+	_ctx_name_runs = QudText.runs(txt, pal, _ctx_name_color(ctx)) if txt != "" else []
+	_ctx_text.visible = false   # the name is DRAWN now, not laid out (see _draw_ctx_img)
+	_ctx_box.visible = _ctx_tex != null or not _ctx_name_runs.is_empty()
+	if _ctx_box.visible:
+		# reserve exactly the room Qud's header occupies: down to the divider, plus the
+		# gap it leaves before the first command (minus the VBox separation that follows)
+		_ctx_img.custom_minimum_size = Vector2(CTX_IMG.x,
+			CTX_DIVIDER + CTX_OPT_GAP - CTX_TILE_TOP - 12.0)
+	_ctx_img.queue_redraw()
+
+## The context tile: Qud stretches the whole 16x24 sprite into a 48x72 box (3x, its
+## RectTransform read off a live popup), so no aspect fitting and no opaque-box games --
+## the same law as the filter bar and the paper doll, at a third size.
+func _draw_ctx_img() -> void:
+	var top := _ctx_top_local()
+	if _ctx_tex != null:
+		# centred on the PANEL, which is what Qud centres on (its tile box lands dead on
+		# the panel's midline), at the block-local y that puts the ink on Qud's +35
+		var x := (_ctx_img.size.x - CTX_IMG.x) * 0.5
+		_ctx_img.draw_texture_rect(_ctx_tex, Rect2(Vector2(x, top), CTX_IMG), false)
+	# The NAME is drawn here too, in the SAME pass and off the SAME `top`. It used to be
+	# a RichTextLabel positioned from a deferred callback, which re-read that offset at a
+	# different moment -- when the layout shifted in between, the tile landed right and
+	# the name did not, intermittently. One pass, one reading, no drift. Drawing it also
+	# retires the guessed label leading: the baseline is the font's own ascent.
+	if _ctx_name_runs.is_empty():
+		return
+	var f := _ctx_font()
+	if f == null:
+		return
+	var total := 0.0
+	for run in _ctx_name_runs:
+		total += f.get_string_size(run[0], HORIZONTAL_ALIGNMENT_LEFT, -1, CTX_NAME_SIZE).x
+	var px := (_ctx_img.size.x - total) * 0.5
+	# -5: CTX_NAME_INK is where Qud's INK starts, and a baseline of ink_top + ascent
+	# lands the cap 5px low, ascent being taller than the cap height. Measured against
+	# Qud's own band (+113..+124) rather than derived from font metrics Godot rounds.
+	var baseline := top + (CTX_NAME_INK - CTX_TILE_TOP) + f.get_ascent(CTX_NAME_SIZE) - 5.0
+	for run in _ctx_name_runs:
+		var txt: String = run[0]
+		_ctx_img.draw_string(f, Vector2(px, baseline), txt,
+			HORIZONTAL_ALIGNMENT_LEFT, -1, CTX_NAME_SIZE, run[1])
+		px += f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, CTX_NAME_SIZE).x
+
+func _ctx_font() -> Font:
+	if _ctx_img == null:
+		return null
+	return _ctx_img.get_theme_default_font()
+
+## Local y of the tile box inside the block: the block starts at the panel's content
+## margin, the offsets are quoted from the top LINE, so convert once here.
+func _ctx_top_local() -> float:
+	return CTX_TILE_TOP - (_ctx_img.global_position.y - _panel.global_position.y - _line_y())
+
+func _line_y() -> float:
+	return 4.0 if _banner else (16.0 if _title.visible else 8.0)
 
 func _mk_rt() -> RichTextLabel:
 	var rt := RichTextLabel.new()
@@ -243,6 +390,7 @@ func show_popup(data: Dictionary, palette: Dictionary) -> void:
 	_buttons = data.get("buttons", [])
 	_options = data.get("options", [])
 	var is_input := bool(data.get("input", false))
+	_apply_context(data.get("context", {}))
 
 	var title_markup := str(data.get("title", "")).strip_edges()
 	_title.visible = title_markup != ""

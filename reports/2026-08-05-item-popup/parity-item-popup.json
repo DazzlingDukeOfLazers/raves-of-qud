@@ -1,6 +1,6 @@
 {
  "screen": "item interaction popup (EquipmentAPI.TwiddleObject)",
- "note": "Reference: the cloth robe's menu, raised on both apps by the same bridge command. Qud's popup carries a HEADER above the command list -- the item's tile, its name with badges, and a notched divider -- which Raves does not draw yet. Rects are QUD'S: the reference defines the target, so a leaf that scores badly here is measuring the gap rather than a misalignment. Popup box: Qud x825-1079 y334-714; Raves x837-1082 y421-649 (shorter, because it has no header).",
+ "note": "Reference: the cloth robe's menu, raised on both apps by the same bridge command with the robe in the pack. The five header leaves are quoted RELATIVE to each app's own popup top line (see `anchor`), because they are about the header's CONTENT -- with absolute rects they also silently scored the popup's PLACEMENT, and Raves' popup sits a constant 16px lower, which made a pixel-accurate header read as broken. That offset is now its own leaf, popup_placement.",
  "defaults": {
   "inset": 4,
   "threshold": 60
@@ -11,7 +11,7 @@
    "kind": "frame",
    "rect": [
     825,
-    334,
+    0,
     255,
     152
    ],
@@ -23,7 +23,7 @@
    "kind": "composite",
    "rect": [
     880,
-    443,
+    109,
     160,
     20
    ],
@@ -34,7 +34,7 @@
    "kind": "ink_color",
    "rect": [
     880,
-    443,
+    109,
     160,
     20
    ],
@@ -46,7 +46,7 @@
    "kind": "geometry",
    "rect": [
     905,
-    355,
+    21,
     100,
     80
    ],
@@ -58,12 +58,42 @@
    "kind": "ink_color",
    "rect": [
     905,
-    355,
+    21,
     100,
     80
    ],
    "inset": 0,
    "note": "the item tile's two-tone"
+  },
+  {
+   "name": "popup_placement",
+   "kind": "geometry",
+   "anchored": false,
+   "rect": [
+    820,
+    320,
+    280,
+    60
+   ],
+   "inset": 0,
+   "note": "the popup's own top-line placement, absolute: Raves sits 16px low (constant across a 5- and a 7-option menu)"
   }
- ]
+ ],
+ "anchor": {
+  "rgb": [
+   53,
+   90,
+   98
+  ],
+  "band": [
+   200,
+   980
+  ],
+  "x": [
+   700,
+   1250
+  ],
+  "min": 100,
+  "tol": 25
+ }
 }

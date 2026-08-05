@@ -64,6 +64,36 @@ def load_spec(path):
     return spec, leaves
 
 
+def anchor_row(img, spec):
+    """First row in a band where `rgb` appears at least `min` times across `x`.
+
+    Lets a leaf be quoted RELATIVE to a landmark each app draws for itself -- for a
+    popup, its own top line. Without this, a leaf about the header's CONTENT also
+    silently scores the popup's PLACEMENT, and a constant 16px offset makes a
+    pixel-perfect header look broken.
+    """
+    rgb = np.array(spec["rgb"])
+    x0, x1 = spec.get("x", [0, img.shape[1]])
+    y0, y1 = spec.get("band", [0, img.shape[0]])
+    need = spec.get("min", 100)
+    m = (np.abs(img[:, x0:x1].astype(int) - rgb).max(axis=2) < spec.get("tol", 25))
+    for y in range(y0, min(y1, img.shape[0])):
+        if m[y].sum() >= need:
+            return y
+    return None
+
+
+def resolve_rect(leaf, img, spec):
+    """A leaf's rect, with y taken relative to the anchor row when one is declared."""
+    rect = list(leaf["rect"])
+    a = leaf.get("anchor") or spec.get("anchor")
+    if a and leaf.get("anchored", True) and ("anchor" in leaf or "anchor" in spec):
+        y = anchor_row(img, a)
+        if y is not None:
+            rect[1] = y + rect[1]
+    return rect
+
+
 def crop(img, rect):
     x, y, w, h = rect
     return img[y:y + h, x:x + w]
@@ -149,9 +179,10 @@ def bbox(mask):
 
 # ------------------------------------------------------------------- scoring
 
-def score_leaf(q, r, leaf, defaults):
-    qc = crop(q, leaf["rect"]).astype(float)
-    rc = crop(r, leaf["rect"]).astype(float)
+def score_leaf(q, r, leaf, defaults, spec=None):
+    spec = spec or {}
+    qc = crop(q, resolve_rect(leaf, q, spec)).astype(float)
+    rc = crop(r, resolve_rect(leaf, r, spec)).astype(float)
     # compare on the UNION of both masks: a sprite that is too small in one app
     # must still be penalised for the pixels the other app paints
     qm = leaf_mask(qc, leaf, defaults)
@@ -183,7 +214,7 @@ def cmd_score(spec_path, qud_path, raves_path, only=None, as_json=False):
     q = np.asarray(Image.open(qud_path).convert("RGB"))
     r = np.asarray(Image.open(raves_path).convert("RGB"))
     defaults = spec.get("defaults", {})
-    rows = [score_leaf(q, r, lf, defaults) for lf in leaves
+    rows = [score_leaf(q, r, lf, defaults, spec) for lf in leaves
             if only is None or lf["name"].startswith(only)]
     if as_json:
         print(json.dumps({"screen": spec.get("screen"), "leaves": rows}, indent=1))
@@ -209,7 +240,7 @@ def cmd_bounds(spec_path, img_path, only=None):
     for lf in leaves:
         if only and not lf["name"].startswith(only):
             continue
-        cell = crop(a, lf["rect"]).astype(float)
+        cell = crop(a, resolve_rect(lf, a, spec)).astype(float)
         m = leaf_mask(cell, lf, defaults)
         print("%-26s %-9s bbox %s  px %d" %
               (lf["name"], lf.get("kind", "composite"), bbox(m), int(m.sum())))
@@ -221,7 +252,7 @@ def cmd_mask(spec_path, img_path, leaf_name, out_path):
     defaults = spec.get("defaults", {})
     for lf in leaves:
         if lf["name"] == leaf_name:
-            cell = crop(a, lf["rect"]).astype(float)
+            cell = crop(a, resolve_rect(lf, a, spec)).astype(float)
             m = leaf_mask(cell, lf, defaults)
             out = cell.copy()
             out[~m] = [40, 0, 0]                  # masked-out pixels go dark red

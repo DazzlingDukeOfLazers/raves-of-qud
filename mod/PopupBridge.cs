@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Collections.Generic;
 using ConsoleLib.Console;   // Location2D not needed; kept minimal
 using Qud.UI;               // PopupMessage, QudMenuItem, QudTextMenuController, UITextSkin, ControlledTMPInputField
@@ -176,7 +177,21 @@ namespace RavesOfQud
             string title = pm.Title != null ? pm.Title.text : "";
             string inputDefault = input ? (pm.inputBox.text ?? "") : "";
 
-            string sig = Sig(message, title, buttons, options, input, inputDefault);
+            // The CONTEXT belongs in the signature. Two items' menus carry identical
+            // options and an identical message, differing only in the header -- without
+            // this, opening a second item's menu would look like "same popup, already
+            // sent" and Raves would keep showing the first item's tile and name.
+            string ctxSig = "";
+            try
+            {
+                if (pm.contextText != null && pm.contextText.gameObject.activeSelf)
+                    ctxSig = pm.contextText.text ?? "";
+                var tc0 = pm.contextImage != null ? pm.contextImage.threeColorTile : null;
+                if (tc0 != null && tc0.image != null && tc0.image.sprite != null)
+                    ctxSig += SEP + tc0.image.sprite.name + SEP + Hex(tc0.Foreground) + Hex(tc0.Detail);
+            }
+            catch { }
+            string sig = Sig(message, title, buttons, options, input, inputDefault) + SEP + ctxSig;
             _announcedPm = pm;   // answers target the instance Raves is looking at
             if (_active && sig == _sig && !resend) return;   // same popup, same content — Raves already has it
             _active = true;
@@ -194,8 +209,95 @@ namespace RavesOfQud
             j.Member("kind", input ? "input" : (options != null && options.Count > 0 ? "menu" : "message"));
             WriteItems(j, "buttons", buttons);
             WriteItems(j, "options", options);
+            WriteContext(j, pm);
             j.EndObject();
             Publish(server, j.ToString());
+        }
+
+        /// The popup's CONTEXT HEADER -- the framed block Qud puts above the command
+        /// list, holding the subject's tile and its name (an item menu shows the item).
+        /// ShowPopup takes contextRender/contextTitle as PARAMETERS, so there is nothing
+        /// to read on the instance; the live components are the source of truth:
+        /// contextImage.threeColorTile (sprite + already-resolved Foreground/Detail/
+        /// Background) and contextText. Shipping resolved RGBA means the client needs no
+        /// palette lookup for this at all.
+        private static void WriteContext(JsonWriter j, Qud.UI.PopupMessage pm)
+        {
+            try
+            {
+                if (pm.contextContainer == null || !pm.contextContainer.activeSelf) return;
+                j.Name("context").BeginObject();
+                try { j.Member("frame", pm.contextFrame != null && pm.contextFrame.activeSelf); } catch { }
+                try
+                {
+                    if (pm.contextText != null && pm.contextText.gameObject.activeSelf)
+                    {
+                        j.Member("text", pm.contextText.text ?? "");
+                        // the label's own colour, for the runs the markup does not paint
+                        j.Member("textColor", Hex(pm.contextText.color));
+                    }
+                }
+                catch { }
+                try
+                {
+                    var disp = pm.contextImage;
+                    var tc = disp != null ? disp.threeColorTile : null;
+                    if (tc != null && tc.gameObject.activeSelf && tc.image != null && tc.image.sprite != null)
+                    {
+                        // No name to ship: this sprite comes off an atlas with an empty
+                        // sprite.name AND texture.name, so its PIXELS are the only identity
+                        // it has. Dump them into the tiles dir under a per-popup filename --
+                        // per-popup because the client caches tile textures by NAME, so a
+                        // stable name would serve the previous item's art forever.
+                        string tile = "__popup_ctx_" + _id + ".png";
+                        foreach (string old in Directory.GetFiles(TileExporter.Dir, "__popup_ctx_*.png"))
+                        {
+                            try { if (Path.GetFileName(old) != tile) File.Delete(old); } catch { }
+                        }
+                        if (TitleExporter.ExportSpriteToTiles(tc.image.sprite, tile))
+                            j.Member("tile", tile);
+                        j.Member("fg", Hex(tc.Foreground));
+                        j.Member("dt", Hex(tc.Detail));
+                        if (tc.Background.a > 0.01f) j.Member("bg", Hex(tc.Background));
+                        // one-time: the draw box, so the client sizes it from Qud rather
+                        // than from a measured guess
+                        var rt = tc.image.rectTransform;
+                        System.Console.WriteLine("[raves] popup context sprite.name='" + tile
+                            + "' tex='" + (tc.image.sprite.texture != null ? tc.image.sprite.texture.name : "null")
+                            + "' spriteRect=" + tc.image.sprite.rect
+                            + " mat='" + (tc.image.material != null ? tc.image.material.name : "null") + "'");
+                        System.Console.WriteLine("[raves] popup context tile '" + tile + "' rect " + rt.rect
+                            + " scale " + rt.localScale + " preserveAspect " + tc.image.preserveAspect);
+                    }
+                }
+                catch (Exception ie) { System.Console.WriteLine("[raves] popup context image: " + ie.Message); }
+                // Qud's palette rides along: a popup can be the FIRST thing Raves draws
+                // after connecting, before any zone snapshot has delivered one, and then
+                // its markup ({{b|}} badges and the like) silently falls back to the
+                // client's approximate table -- the same trap the status screens hit.
+                try
+                {
+                    j.Name("palette").BeginObject();
+                    foreach (char pch in "rRgGbBcCmMwWoOyYkK")
+                    {
+                        try
+                        {
+                            UnityEngine.Color pc = ConsoleLib.Console.ColorUtility.colorFromChar(pch);
+                            j.Member(pch.ToString(), Hex(pc));
+                        }
+                        catch { }
+                    }
+                    j.EndObject();
+                }
+                catch { }
+                j.EndObject();
+            }
+            catch (Exception e) { System.Console.WriteLine("[raves] popup context: " + e.Message); }
+        }
+
+        private static string Hex(UnityEngine.Color c)
+        {
+            return string.Format("#{0:x2}{1:x2}{2:x2}", (int)(c.r * 255f), (int)(c.g * 255f), (int)(c.b * 255f));
         }
 
         private static void WriteItems(JsonWriter j, string name, List<QudMenuItem> items)

@@ -320,3 +320,30 @@ add a one-liner (symptom → rule).
   `popup_closed` -> `StatusScreens._refresh_after_popup`.
 - A `LineEdit` left at the default focus mode holds focus and eats the ACCEPT key. The tell is
   that ARROWS still work: a LineEdit passes up/down through and swallows only what it uses.
+
+## The popup context header (the "image frame")
+
+- Qud's popup header is `PopupMessage`'s `contextImage` / `contextText` / `contextFrame`.
+  `contextRender` and `contextTitle` are ShowPopup PARAMETERS, not stored fields, so there is
+  nothing to read on the instance -- the live components are the source of truth.
+  `contextImage.threeColorTile` gives the sprite plus already-RESOLVED Foreground/Detail, so the
+  client needs no palette lookup for the tile at all.
+- **That sprite has no name to ship.** Both `sprite.name` and `texture.name` come back empty (it
+  is an atlas sub-sprite), so its PIXELS are its only identity: the mod dumps them into the tiles
+  dir under a per-popup filename. Per-popup because the client caches tile textures by NAME -- a
+  stable name would serve the previous item's art forever.
+- Geometry, all measured as offsets from the popup's TOP LINE (not the panel, whose padding
+  differs): tile box +26 at 48x72 (Qud's RectTransform, 3x the 16x24 sprite), name ink +113,
+  divider +151, first command's ink 22 below that. Panel 240 wide; the tile centres on it.
+- **Draw the header's tile and its name in the SAME pass.** They were a drawn texture plus a
+  RichTextLabel positioned from a deferred callback -- two readings of the same offset at two
+  different moments. When the layout shifted between them the tile landed right and the name did
+  not, INTERMITTENTLY: the identical build measured +113 one run and +89 the next, and the drift
+  looked like state churn for hours. One pass, one reading. It also retires a guessed label
+  leading in favour of the font's own ascent (less 5px: ascent overshoots the cap height).
+- **A re-announce dedupe means a reconnecting client gets NOTHING.** `PopupBridge` skips the
+  announce while `_active && sig == _sig`, so if Raves restarts while a Qud popup is open, Qud
+  has the modal and Raves shows an empty screen forever. There is a `resend` flag that is not
+  wired to a fresh client connection. Workaround until it is: dismiss and re-raise in Qud.
+- `tools/build_macos.sh` reports `✓ built + signed` even when a script has a PARSE ERROR. Read
+  the `--check-only` output; a green build is not evidence the scripts are sound.
