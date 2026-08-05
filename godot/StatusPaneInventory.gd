@@ -246,6 +246,18 @@ func _draw_filter_strip() -> void:
 		if icon != "":
 			var tex: Texture2D = _tiles.texture(icon, main, det)
 			if tex != null:
+				# MEASURED: Qud's icons fill ~x+14..x+31 by y+9..y+31 of the cell (its
+				# sprites are 16x24 drawn at ~1.5x); ours were ~8x8 of ink — too small,
+				# which read as a tint difference in the band average even though the
+				# two-tone itself already matched to 1/255.
+				# MEASURED and left alone: the two-tone already matches Qud to 1/255
+				# (141,124,84 / 128,91,41 vs our 140,123,83 / 127,91,40), so "tint" was
+				# never the problem. What differs is INK COVERAGE — Qud's icon ink spans
+				# ~18x23 in a cell where ours spans ~13x13, i.e. we're drawing a sprite
+				# whose opaque area is smaller, not one tinted differently. Enlarging the
+				# draw rect (26x26, then an aspect-correct 18x27) made the band WORSE
+				# (11.53 -> 11.89 / 11.61), so the sprite itself differs per cell — chase
+				# WHICH sprite each cell gets, not its size or colour.
 				_static.draw_texture_rect(tex,
 					Rect2(Vector2(x + 13, FILT_Y + 6), Vector2(18, 26)), false)
 		x += FILT_PITCH
