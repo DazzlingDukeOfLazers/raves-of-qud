@@ -109,8 +109,12 @@ always visible in the bar).
    3 tinkering, 4 journal, 5 quests, 6 reputation, 7 message log) and logs success — BUT THE SCREEN
    STILL DOESN'T APPEAR: `show()` is async (`SuspendContextWhile` -> `showScreen` -> `await
    The.UiContext`) and a one-shot `PumpSyncContext` after the call isn't enough; it likely needs
-   pumping across several frames, or must be invoked with the NavigationController idle. NEXT:
-   drive the pump from the per-frame tick until the view is up, then verify with a REAL signature.
+   pumping across several frames, or must be invoked with the NavigationController idle. DIAGNOSED, still unopened: the sync pump is a NO-OP on this build (IL2CPP strips
+   `UnitySynchronizationContext.Exec`; see gotchas), and `show()`'s task never completes or faults —
+   so the hang is re-entrancy, not starvation: we call `show()` from INSIDE a uiQueue task while it
+   wants `NavigationController.SuspendContextWhile`. NEXT LEAD: invoke it from a non-uiQueue path
+   (a one-shot MonoBehaviour Update hook, or whatever Qud's own chrome button uses) rather than
+   pumping anything.
    **Verification gotcha (cost a bad reference):** (17,52,51) is BOTH the status-screen scrim and
    Qud's ground colour, so "scrim coverage" reported 96% on a plain playfield. Check the tab-bar
    strip at (740,137) = (136,165,144) or a paper-doll box border at (486,247) = (51,80,91) instead.

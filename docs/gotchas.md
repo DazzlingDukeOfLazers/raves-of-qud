@@ -123,6 +123,14 @@ add a one-liner (symptom → rule).
   the title after the lifecycle bounce, and driving clicked into the menu). `MainMenu._ready` now
   reports `title`, `set_scene` clears any popup (a modal can't survive a scene change), and the
   heartbeat sanity-checks the live scene root before republishing.
+- **The reflection "sync pump" DOES NOT WORK on this build — retract any fix credited to it.**
+  `Bridge.PumpSyncContext` looks up `Exec()` on the sync context by reflection. Qud's context is a
+  `UnitySynchronizationContext`, which *does* declare a non-public `Exec()` in the assembly — but at
+  RUNTIME `GetMethod("Exec", NonPublic|Instance)` returns null (IL2CPP strips non-public metadata on
+  the Mac build; the mod logs "no Exec on UnitySynchronizationContext"). It was also pumping
+  `SynchronizationContext.Current`, which is null inside a uiQueue task, so it was a double no-op.
+  The `uiback` KeybindsScreen close that this pump was credited with is therefore explained by the
+  nav-cancel rung, not the pump. Don't reach for it again; find a first-party path instead.
 - **Qud APIs that raise a SYNCHRONOUS popup (`Popup.ShowYesNo`, `SelectNode`) must run through
   `APIDispatch.RunAndWaitAsync`, not straight from a uiQueue task** — the modal wait deadlocks and
   the call proceeds as if confirmed (a skill purchase went through on "No"). Mirror whatever wrapper

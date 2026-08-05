@@ -34,13 +34,34 @@ namespace RavesOfQud
         /// runInBackground=true — async chains (popup callbacks, screen closes, keymap
         /// loads) then stall until the next focus. MAIN THREAD ONLY (uiQueue tasks are).
         /// </summary>
+        /// Pump the sync context ACROSS frames: each uiQueue task drains it once and
+        /// re-queues itself. Async Qud UI (StatusScreensScreen.show) resolves over
+        /// several frames, so a single drain leaves it half-started.
+        public static void PumpTrain(int frames)
+        {
+            if (frames <= 0) return;
+            var gm = GameManager.Instance;
+            if (gm == null || gm.uiQueue == null) return;
+            gm.uiQueue.queueTask(() =>
+            {
+                PumpSyncContext(2);
+                PumpTrain(frames - 1);
+            }, 0);
+        }
+
         public static void PumpSyncContext(int n)
         {
             try
             {
-                var sc = System.Threading.SynchronizationContext.Current;
+                // QUD'S context, not SynchronizationContext.Current: inside a uiQueue task
+                // Current can be null, so the old pump silently did nothing (an async
+                // StatusScreensScreen.show() then hung forever with no fault logged).
+                var sc = GameManager.Instance != null ? GameManager.Instance.uiSynchronizationContext : null;
+                if (sc == null) sc = System.Threading.SynchronizationContext.Current;
                 var exec = sc?.GetType().GetMethod("Exec",
                     System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                if (exec == null && sc != null)
+                    System.Console.WriteLine("[raves] sync pump: no Exec on " + sc.GetType().Name);
                 for (int i = 0; i < n && exec != null; i++) exec.Invoke(sc, null);
             }
             catch (Exception e) { System.Console.WriteLine("[raves] sync pump: " + e.Message); }
@@ -599,9 +620,24 @@ namespace RavesOfQud
                             {
                                 GameObject who = XRL.The.Player;
                                 if (who == null) { System.Console.WriteLine("[raves] statusscreen: no player"); return; }
-                                _ = Qud.UI.StatusScreensScreen.show(ssIdx, who);
-                                PumpSyncContext(6);
-                                System.Console.WriteLine("[raves] statusscreen opened at tab " + ssIdx);
+                                // the singleton is created lazily — without this, show() faults
+                                try { Qud.UI.StatusScreensScreen.prewarm(); } catch { }
+                                // OBSERVE the task: fire-and-forget hid a faulting show() behind a
+                                // "success" log last round
+                                var ssTask = Qud.UI.StatusScreensScreen.show(ssIdx, who);
+                                ssTask.ContinueWith(t =>
+                                {
+                                    if (t.IsFaulted)
+                                        System.Console.WriteLine("[raves] statusscreen FAULT: "
+                                            + (t.Exception != null ? t.Exception.GetBaseException().Message : "?"));
+                                    else
+                                        System.Console.WriteLine("[raves] statusscreen closed (tab " + ssIdx + ")");
+                                });
+                                // show() awaits The.UiContext, so its continuation needs the sync
+                                // context drained ACROSS frames — one pump isn't enough. Self-requeue
+                                // a short pump train (~1s) so the view comes up even unfocused.
+                                PumpTrain(20);
+                                System.Console.WriteLine("[raves] statusscreen requested tab " + ssIdx);
                             }
                             catch (Exception ex) { System.Console.WriteLine("[raves] statusscreen: " + ex.Message); }
                         }, 0);
