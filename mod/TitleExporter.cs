@@ -458,7 +458,7 @@ namespace RavesOfQud
             catch (Exception e) { System.Console.WriteLine("[raves] sprite dump: " + e.Message); return false; }
         }
 
-        private static void WriteSprite(Sprite sp, string dest)
+        internal static void WriteSprite(Sprite sp, string dest)
         {
             if (sp == null || sp.texture == null) return;
             WriteRegion(sp.texture, sp.textureRect, dest);

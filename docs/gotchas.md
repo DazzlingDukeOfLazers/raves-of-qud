@@ -471,5 +471,29 @@ closed set of things that are wrong, not the open set of things that are fine.
     4=one). Our page is white with coverage in alpha => `alphaChnl=0 redChnl=4 greenChnl=4
     blueChnl=4`. Declaring `alphaChnl=1` renders every glyph as a SOLID BLOCK -- it looks like a
     broken atlas but is a broken *description* of a perfectly good one.
-- **STILL OPEN on the picker:** panel geometry has not been measured against Qud. Content and
-  behaviour are verified; pixel parity is its own round.
+- **Picker geometry is MEASURED, from Qud's live RectTransforms** (`mod/UiProbe.cs` -> `hv`
+  `uiprobe`), not from screenshots. The whole model is in `PickerOverlay`'s constants; the height
+  rule `21 + 5 + listH + 21 + footH + 6` reproduces Qud's panel to **0.00px** in every content
+  state measured, and the panel is centred on screen in both axes. Residual against a synchronised
+  capture: **dx +1, dw -2, dy +8, dh -16**.
+  What the probe corrected that a screenshot would not have:
+  - The title is **left-aligned in a tab at the panel's top-left** (panel+16, flush with the top
+    edge), not centred as we had it.
+  - Item rows are **30px** (they carry a 20x30 icon); category rows are **20.12px**. We had one
+    height for both.
+  - The chrome is **sprites**: a 9-slice `polat-char-frame-border` (border l6/b6/r6/t21) plus a
+    two-piece mirrored `polat-frame-reverse-top-header-filler` divider — not the popup dialog's
+    drawn notch-and-tick lines, which is what we were incorrectly reusing.
+  - Row columns are FIXED cells: caret 15, hotkey 24 (**48 when indented** — `setData` prefixes
+    three spaces), icon 20, spacer 2, so text lands at +61 / +85 / +39.
+  Three traps in the probe data itself: pooled rows keep **stale TEXT** on their TMP components
+  (geometry is sound, strings are not — classify rows by structure), a `Modes` node holds both a
+  Category and an Item child with only one **active** (filter on `activeInHierarchy` or you read a
+  font size off a hidden variant), and the panel is **content-driven, not fixed** — it looked fixed
+  until a second picker was probed.
+- **STILL OPEN:** the footer's WRAP rule. Qud breaks "sort" and "Select" onto separate lines at
+  panel width 412 even though they fit, and shares a line at 510.8; a ~15px inter-entry allowance
+  explains both, but setting it in Raves changed nothing because Raves' text measures narrower.
+  That band is also awkward to measure: Qud's bar gains and loses the context-dependent
+  `[Space] Select` between frames, so a single-frame height comparison of the footer is unreliable
+  — which is most of the -16.

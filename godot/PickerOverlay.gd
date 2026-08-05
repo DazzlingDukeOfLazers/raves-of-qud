@@ -19,10 +19,34 @@ extends CanvasLayer
 signal answered(payload: Dictionary)
 signal closed
 
-const ROW_H := 26.0
-const ICON := Vector2(16, 24)      # Qud's picker line icon box
-const HOTKEY_W := 40.0
-const MAX_H_FRAC := 0.72           # never taller than this share of the viewport
+# QUD'S OWN LAYOUT MODEL, read off the live RectTransforms with `hv`/the mod's UiProbe across three
+# content states (left-hand picker, thrown-weapon picker, and the same list re-sorted). See
+# docs/decisions/1to1-measurement-and-layout.md: reproduce the MODEL, not the pixels. The vertical
+# rule below reconstructs Qud's panel height to 0.00px in every state measured.
+#
+#   panel  centred on screen both axes; h = TITLE_H + 5 + listH + GAP_LIST_FOOT + footH + BOT_PAD
+#   title  panel+TITLE_X, at the panel's TOP EDGE, LEFT-aligned (Qud does not centre it)
+#   list   panel+LIST_INSET, panel top + 26; footer panel+FOOT_INSET, 21 below the list
+const TITLE_H := 21.0
+const TITLE_X := 16.0
+const GAP_TITLE_LIST := 5.0
+const LIST_INSET := 11.0
+const GAP_LIST_FOOT := 21.0
+const FOOT_INSET := 6.0
+const FOOT_LINE_H := 22.0
+const BOT_PAD := 6.0
+const PANEL_MIN_W := 412.0         # Qud clamps here; wider lists grow to contentW + 37
+const PANEL_W_SLACK := 37.0
+
+# Row model. An item row is TALLER than a category row because it carries a 20x30 icon.
+const ROW_H_ITEM := 30.0
+const ROW_H_CAT := 20.12
+const CARET_W := 15.0
+const HOTKEY_W := 24.0
+const HOTKEY_W_INDENT := 48.0      # setData prefixes 3 spaces to an indented row's hotkey
+const ICON := Vector2(20, 30)
+const SPACER_W := 2.0
+const FONT_PX := 16                # every text on this screen is 16px in Qud, title included
 
 var _palette := {}
 var _rows: Array = []              # the mod's row dicts, in Qud's order
@@ -86,43 +110,85 @@ func _build() -> void:
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_root.add_child(center)
 
+	# The panel carries NO uniform stylebox inset: Qud insets each band differently (title 16,
+	# list 11, footer 6) and the title sits flush with the panel's top edge, so a single content
+	# margin can't express it. Zero margins, and each band takes its own MarginContainer.
 	_panel = PanelContainer.new()
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = C_PANEL
-	sb.content_margin_left = 25
-	sb.content_margin_right = 25
-	sb.content_margin_top = 24
-	sb.content_margin_bottom = 6
 	_panel.add_theme_stylebox_override("panel", sb)
-	_panel.custom_minimum_size = Vector2(520, 0)
 	_panel.draw.connect(_draw_chrome)
 	center.add_child(_panel)
 
+	# Qud's panel border is a 9-SLICE SPRITE ("polat-char-frame-border", border l6/b6/r6/t21),
+	# not the drawn notch-and-tick assembly the popup dialog uses. PanelContainer lays every child
+	# out to fill, so this goes in first and the content VBox stacks on top of it.
+	var frame := NinePatchRect.new()
+	var ftex := _chrome_tex("picker_frame.png")
+	if ftex != null:
+		frame.texture = ftex
+		frame.patch_margin_left = 6
+		frame.patch_margin_right = 6
+		frame.patch_margin_bottom = 6
+		frame.patch_margin_top = 21
+		frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		frame.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		_panel.add_child(frame)
+
 	var vb := VBoxContainer.new()
-	vb.add_theme_constant_override("separation", 8)
+	vb.add_theme_constant_override("separation", 0)
 	_panel.add_child(vb)
 
+	var tm := MarginContainer.new()
+	tm.add_theme_constant_override("margin_left", int(TITLE_X))
+	tm.custom_minimum_size = Vector2(0, TITLE_H)
+	vb.add_child(tm)
 	_title = _mk_rt()
 	_title.autowrap_mode = TextServer.AUTOWRAP_OFF
-	vb.add_child(_title)
+	_title.add_theme_font_size_override("normal_font_size", FONT_PX)
+	tm.add_child(_title)
 
+	vb.add_child(_gap(GAP_TITLE_LIST))
+
+	var lm := MarginContainer.new()
+	lm.add_theme_constant_override("margin_left", int(LIST_INSET))
+	lm.add_theme_constant_override("margin_right", int(LIST_INSET))
+	vb.add_child(lm)
 	_scroll = ScrollContainer.new()
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	vb.add_child(_scroll)
+	lm.add_child(_scroll)
 	_list = VBoxContainer.new()
 	_list.add_theme_constant_override("separation", 0)
-	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_scroll.add_child(_list)
 
+	vb.add_child(_gap(GAP_LIST_FOOT))
+
 	# Qud's footer is a MENU BAR, not a caption: it wraps across as many centred lines as it
-	# needs ("[Esc] Close Menu  [↕] navigate" / "[7] sort: list/by class" / "[Space] Select").
-	# HFlowContainer reproduces that wrap; each entry is its own clickable label.
+	# needs ("[Esc] Close Menu  [nav] navigate" / "[7] sort: list/by class" / "[Space] Select"),
+	# on a 22px line pitch. HFlowContainer reproduces that wrap.
+	var fm := MarginContainer.new()
+	fm.add_theme_constant_override("margin_left", int(FOOT_INSET))
+	fm.add_theme_constant_override("margin_right", int(FOOT_INSET))
+	vb.add_child(fm)
 	_foot = HFlowContainer.new()
 	_foot.alignment = FlowContainer.ALIGNMENT_CENTER
-	_foot.add_theme_constant_override("h_separation", 18)
-	_foot.add_theme_constant_override("v_separation", 2)
-	vb.add_child(_foot)
+	# 15px between entries. Qud's laid-out boxes ABUT (gap 0) but each carries 15px of internal left
+	# padding, and that padding is counted when its bar decides where to wrap: at panel 412 the bar is
+	# 400 wide and "sort"(236.2) + "Select"(149.8) = 386 fits — yet Qud breaks them — while 236.2 + 15 +
+	# 149.8 = 401 does NOT, and at panel 510.8 the same pair shares a line. 15 is the only value that
+	# reproduces BOTH observed states. Two states is a fit, not a proof: a third bar width should
+	# confirm it before this is trusted as the rule.
+	_foot.add_theme_constant_override("h_separation", 0)
+	_foot.add_theme_constant_override("v_separation", 0)
+	fm.add_child(_foot)
+
+	vb.add_child(_gap(BOT_PAD))
+
+func _gap(h: float) -> Control:
+	var c := Control.new()
+	c.custom_minimum_size = Vector2(0, h)
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return c
 
 func _mk_rt() -> RichTextLabel:
 	var rt := RichTextLabel.new()
@@ -137,31 +203,38 @@ func _mk_rt() -> RichTextLabel:
 ## The dialog frame: notched top line, ─┤ title ├─ edge assemblies, plain bottom line under the
 ## footer. Same assembly as PopupOverlay's titled form.
 func _draw_chrome() -> void:
+	# The frame itself is the NinePatchRect child. What is left to draw is what Qud draws with two
+	# more Images, both measured off the live screen:
+	#   - a SOLID #052a29 tab behind the title, panel+16, 21 tall, sized to the title text
+	#   - the list/footer divider: TWO mirrored halves of one 12x16 sprite, each (panelW-12)/2 wide,
+	#     meeting exactly at the panel centre, 5px under the list
 	var w := _panel.size.x
-	var h := _panel.size.y
-	var ly := 16.0
-	var cx := w * 0.5
-	var side := minf(71.0, w * 0.32)
-	var l0 := cx - side - 3.0
-	var l1 := cx - side + 3.0
-	var c0 := cx - 5.0
-	var c1 := cx + 5.0
-	var r0 := cx + side - 3.0
-	var r1 := cx + side + 3.0
-	for seg in [[0.0, l0], [l1, c0], [c1, r0], [r1, w]]:
-		_panel.draw_rect(Rect2(seg[0], ly, seg[1] - seg[0], 2), C_TOPLINE)
-	_panel.draw_rect(Rect2(l0 - 2, ly - 4, 2, 10), C_TOPLINE)
-	_panel.draw_rect(Rect2(r1, ly - 4, 2, 10), C_TOPLINE)
-	_panel.draw_rect(Rect2(c0 - 2, ly, 2, 10), C_TOPLINE)
-	_panel.draw_rect(Rect2(c1, ly, 2, 10), C_TOPLINE)
 	if _title.visible:
-		var ty := 28.0 + _title.get_combined_minimum_size().y * 0.5
-		_panel.draw_rect(Rect2(0, ty - 1, 10, 2), C_BOTLINE)
-		_panel.draw_rect(Rect2(10, ty - 8, 2, 16), C_BOTLINE)
-		_panel.draw_rect(Rect2(w - 12, ty - 8, 2, 16), C_BOTLINE)
-		_panel.draw_rect(Rect2(w - 10, ty - 1, 10, 2), C_BOTLINE)
-	var by := h - 6.0 - _foot.get_combined_minimum_size().y - 4.0
-	_panel.draw_rect(Rect2(0, by, w, 1), C_BOTLINE)
+		var tw := _title.get_combined_minimum_size().x + 16.0
+		_panel.draw_rect(Rect2(TITLE_X, 0, tw, TITLE_H), Color8(5, 42, 41))
+	var dtex := _chrome_tex("picker_divider.png")
+	if dtex != null and _scroll != null:
+		var dy := _scroll.position.y + _scroll.size.y + 5.0
+		var half := (w - FOOT_INSET * 2.0) * 0.5
+		_panel.draw_texture_rect(dtex, Rect2(FOOT_INSET, dy, half, 16), false)
+		# the right half is the same sprite mirrored, which is why it can meet the centre seamlessly
+		_panel.draw_texture_rect(dtex, Rect2(FOOT_INSET + half * 2.0, dy, -half, 16), false)
+
+## A chrome sprite the mod extracted from the live screen, cached. Missing is not an error — the
+## export runs when a picker has been open at least once, and the panel still reads fine without it.
+static var _chrome_cache := {}
+
+func _chrome_tex(fname: String) -> Texture2D:
+	if _chrome_cache.has(fname):
+		return _chrome_cache[fname]
+	var path := InputModel.support_dir().path_join("tiles").path_join(fname)
+	var tex: Texture2D = null
+	if FileAccess.file_exists(path):
+		var img := Image.new()
+		if img.load(path) == OK:
+			tex = ImageTexture.create_from_image(img)
+	_chrome_cache[fname] = tex
+	return tex
 
 # --- show / hide -------------------------------------------------------------------------------
 
@@ -185,16 +258,28 @@ func show_picker(data: Dictionary, palette: Dictionary) -> void:
 	var t := str(data.get("title", "")).strip_edges()
 	_title.visible = t != ""
 	if _title.visible:
-		_title.text = "[center][color=#%s]%s[/color][/center]" % [
+		# LEFT-aligned. Qud puts the title in a little tab at the panel's top-left, not centred —
+		# measured at panel+16 in every state.
+		_title.text = "[color=#%s]%s[/color]" % [
 			C_GOLD.to_html(false), QudText.to_bbcode(t, _palette)]
 	_menu = data.get("menu", [])
 	_build_menu()
 
 	_build_rows()
 	_highlight()
-	# Cap the panel so a 40-item picker scrolls instead of growing off-screen.
+
+	# Qud sizes the list to its CONTENT (sum of row heights) — no scrolling in any state measured.
+	# Keep a viewport cap anyway so a pathologically long list can't grow off-screen; when it bites,
+	# ours scrolls where Qud's would have been taller, and that difference is worth knowing about.
 	var vh := float(get_viewport().get_visible_rect().size.y)
-	_scroll.custom_minimum_size = Vector2(0, minf(_rows.size() * ROW_H, vh * MAX_H_FRAC))
+	# Take the list height from the rows AS LAID OUT, not from a parallel sum of the constants:
+	# Godot rounds a 20.12 minimum in its own way, so a hand-summed 341.32 disagreed with the real
+	# content by a few px and the last row was clipped behind the divider.
+	var content_h := _list.get_combined_minimum_size().y
+	var listh := minf(content_h, vh - (TITLE_H + GAP_TITLE_LIST + GAP_LIST_FOOT + BOT_PAD + 120.0))
+	_scroll.custom_minimum_size = Vector2(0, listh)
+	# Width: Qud clamps to PANEL_MIN_W and otherwise grows to the widest row + slack.
+	_panel.custom_minimum_size = Vector2(PANEL_MIN_W, 0)
 	visible = true
 	# Report it the same way popups do, so `hv state` / `hv assert` can see the picker is up.
 	UiState.set_popup("itempicker")
@@ -209,6 +294,11 @@ func _build_menu() -> void:
 		var m: Dictionary = _menu[i]
 		var lbl := _mk_rt()
 		lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
+		lbl.add_theme_font_size_override("normal_font_size", FONT_PX)
+		# Qud's bar runs on a 22px line pitch; a RichTextLabel's natural line box at 16px is ~27,
+		# which stretched the whole panel. Shrink the LINE BOX -- clearing fit_content instead
+		# collapses the label to nothing and the footer disappears entirely.
+		lbl.add_theme_constant_override("line_separation", int(FOOT_LINE_H) - 27)
 		lbl.text = QudText.to_bbcode(str(m.get("text", "")), _palette)
 		if bool(m.get("disabled", false)):
 			_foot.add_child(lbl)
@@ -271,9 +361,12 @@ func hide_picker() -> void:
 func _hotkey_cell(r: Dictionary) -> RichTextLabel:
 	var hk := _mk_rt()
 	hk.autowrap_mode = TextServer.AUTOWRAP_OFF
-	hk.custom_minimum_size = Vector2(HOTKEY_W, 0)
+	hk.custom_minimum_size = Vector2(HOTKEY_W_INDENT if bool(r.get("indent", false)) else HOTKEY_W, 0)
+	hk.add_theme_font_size_override("normal_font_size", FONT_PX)
 	var kd := str(r.get("hk", ""))
 	if kd != "":
+		# Qud prefixes 3 spaces to an INDENTED row's hotkey — that is what widens the cell from
+		# 24 to 48 and pushes the icon/text columns right, so it belongs in the text, not a margin.
 		hk.text = "%s[color=#%s]%s)[/color]" % [
 			("   " if bool(r.get("indent", false)) else ""), C_GOLD.to_html(false), kd]
 	return hk
@@ -284,21 +377,34 @@ func _build_rows() -> void:
 		c.queue_free()
 	for i in _rows.size():
 		var r: Dictionary = _rows[i]
+		var cat := bool(r.get("cat", false))
 		var row := PanelContainer.new()
-		row.custom_minimum_size = Vector2(0, ROW_H)
+		row.custom_minimum_size = Vector2(0, ROW_H_CAT if cat else ROW_H_ITEM)
 		row.mouse_filter = Control.MOUSE_FILTER_STOP
+		# FIXED COLUMNS, separation 0 — Qud's row is a run of fixed-width cells, so each element's
+		# offset is the sum of the ones before it (caret 15, hotkey 24/48, icon 20, spacer 2). Letting
+		# an HBox space them naturally is what put our text and weight in the wrong columns.
 		var hb := HBoxContainer.new()
-		hb.add_theme_constant_override("separation", 6)
+		hb.add_theme_constant_override("separation", 0)
 		hb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row.add_child(hb)
 
+		# Qud marks the highlighted row with a gold ">" in a 15px gutter, left of the hotkey.
+		var caret := _mk_rt()
+		caret.autowrap_mode = TextServer.AUTOWRAP_OFF
+		caret.custom_minimum_size = Vector2(CARET_W, 0)
+		caret.add_theme_font_size_override("normal_font_size", FONT_PX)
+		hb.add_child(caret)
+
 		hb.add_child(_hotkey_cell(r))
 
-		if bool(r.get("cat", false)):
+		if cat:
 			var crt := _mk_rt()
 			crt.autowrap_mode = TextServer.AUTOWRAP_OFF
 			crt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			# Qud: "[" + (collapsed ? "+" : "-") + "] {{K|name}}"
+			crt.add_theme_font_size_override("normal_font_size", FONT_PX)
+			# Qud: "[" + (collapsed ? "+" : "-") + "] {{K|name}}" — the expander marker is part of
+			# the text, not a separate widget (the prefab's Expander object is inactive).
 			crt.text = "[color=#%s][%s] %s[/color]" % [C_DIM.to_html(false),
 				("+" if bool(r.get("collapsed", false)) else "-"), str(r.get("name", ""))]
 			hb.add_child(crt)
@@ -313,25 +419,25 @@ func _build_rows() -> void:
 					icon.draw_texture_rect(tex, Rect2(Vector2.ZERO, ICON), false))
 			hb.add_child(icon)
 
+			var sp := Control.new()
+			sp.custom_minimum_size = Vector2(SPACER_W, 0)
+			sp.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			hb.add_child(sp)
+
 			var nm := _mk_rt()
 			nm.autowrap_mode = TextServer.AUTOWRAP_OFF
 			nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			nm.add_theme_font_size_override("normal_font_size", FONT_PX)
 			nm.text = QudText.to_bbcode(str(r.get("name", "")), _palette)
 			hb.add_child(nm)
 
+			# Qud right-floats the weight to the ROW's right edge.
 			var wt := _mk_rt()
 			wt.autowrap_mode = TextServer.AUTOWRAP_OFF
-			wt.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-			wt.text = "[color=#%s]%s#[/color]" % [C_DIM.to_html(false), str(r.get("weight", ""))]
+			wt.add_theme_font_size_override("normal_font_size", FONT_PX)
+			wt.text = "[right][color=#%s]%s#[/color][/right]" % [
+				C_DIM.to_html(false), str(r.get("weight", ""))]
 			hb.add_child(wt)
-
-		# Qud marks the highlighted row with a gold ">" in the left gutter, outside the hotkey
-		# column — drawn per row so the caret can't drift out of step with the selection bar.
-		var caret := _mk_rt()
-		caret.autowrap_mode = TextServer.AUTOWRAP_OFF
-		caret.custom_minimum_size = Vector2(14, 0)
-		hb.add_child(caret)
-		hb.move_child(caret, 0)
 
 		var idx := i
 		row.gui_input.connect(func(e: InputEvent):
@@ -360,12 +466,18 @@ func _highlight() -> void:
 func _scroll_into_view() -> void:
 	if _scroll == null or _rows.is_empty():
 		return
-	var top := _sel * ROW_H
+	# Rows are two different heights (item 30 / category 20.12), so the selected row's top is the
+	# SUM of the ones above it — a single pitch would drift further down the list with every
+	# category crossed.
+	var top := 0.0
+	for i in _sel:
+		top += ROW_H_CAT if bool(_rows[i].get("cat", false)) else ROW_H_ITEM
+	var h: float = ROW_H_CAT if bool(_rows[_sel].get("cat", false)) else ROW_H_ITEM
 	var view := _scroll.size.y
 	if top < _scroll.scroll_vertical:
 		_scroll.scroll_vertical = int(top)
-	elif top + ROW_H > _scroll.scroll_vertical + view:
-		_scroll.scroll_vertical = int(top + ROW_H - view)
+	elif top + h > _scroll.scroll_vertical + view:
+		_scroll.scroll_vertical = int(top + h - view)
 
 # --- input -------------------------------------------------------------------------------------
 

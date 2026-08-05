@@ -499,6 +499,20 @@ namespace RavesOfQud
                     PopupBridge.HandleCommand(f);
                     return;
                 }
+                if (name == "uiprobe")
+                {
+                    // Dump a live Qud screen's RectTransform layout for a parity pass.
+                    f.TryGetValue("target", out string probeTarget);
+                    var gmp = GameManager.Instance;
+                    if (gmp != null && gmp.uiQueue != null)
+                        gmp.uiQueue.queueTask(() =>
+                        {
+                            try { string tg = string.IsNullOrEmpty(probeTarget) ? "picker" : probeTarget;
+                                  UiProbe.Dump(tg); UiProbe.ExportChrome(tg); }
+                            catch { }
+                        }, 0);
+                    return;
+                }
                 if (name == "glyphs")
                 {
                     // Force a re-extract of Qud's input-glyph font (EnsureExported skips when the
@@ -884,6 +898,11 @@ namespace RavesOfQud
                                 TitleExporter.ExportNamedSprite("tiny-frame-h", "card_frame.png");         // the game-mode card's dotted frame
                                 TitleExporter.ExportNamedSprite("polat-locator-big", "sel_frame.png");     // the selected-card frame (corner brackets)
                                 TitleExporter.ExportNamedSprite("leftrightarrow", "nav_arrow.png");        // back/forward chevron
+                                // Picker chrome, named off its live Image components (UiProbe): the panel
+                                // border is a 9-slice sprite and the list/footer divider is TWO mirrored
+                                // halves meeting at the panel centre -- not the popup's drawn notch lines.
+                                TitleExporter.ExportNamedSprite("polat-char-frame-border", "picker_frame.png");
+                                TitleExporter.ExportNamedSprite("polat-frame-reverse-top-header-filler", "picker_divider.png");
                                 TitleExporter.ExportNamedSprite("polat-center-divider-knob", "deco_knob.png"); // the sub-text ornament
                                 if (!_clocksExported && TitleExporter.ExportTimeClocks()) _clocksExported = true;  // day/night sky discs (resident once a HUD has existed)
                                 GlyphExporter.EnsureExported();  // Qud's PUA input-glyph font, as a BMFont for Raves
