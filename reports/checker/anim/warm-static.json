@@ -11,35 +11,14 @@
    "ok": true,
    "qud": {
     "frames": 12,
-    "states": 1,
-    "duty": [
-     1.0
-    ],
-    "class": "static"
-   },
-   "raves": {
-    "frames": 11,
     "states": 4,
     "duty": [
-     0.36,
-     0.27,
-     0.18,
-     0.18
+     0.25,
+     0.25,
+     0.25,
+     0.25
     ],
     "class": "discrete"
-   },
-   "agree": false
-  },
-  {
-   "bp": "DilutedWarmStaticPuddle",
-   "ok": true,
-   "qud": {
-    "frames": 11,
-    "states": 1,
-    "duty": [
-     1.0
-    ],
-    "class": "static"
    },
    "raves": {
     "frames": 12,
@@ -52,8 +31,35 @@
     ],
     "class": "discrete"
    },
-   "agree": false
+   "agree": true
+  },
+  {
+   "bp": "DilutedWarmStaticPuddle",
+   "ok": true,
+   "qud": {
+    "frames": 11,
+    "states": 4,
+    "duty": [
+     0.27,
+     0.27,
+     0.27,
+     0.18
+    ],
+    "class": "discrete"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 4,
+    "duty": [
+     0.58,
+     0.25,
+     0.08,
+     0.08
+    ],
+    "class": "discrete"
+   },
+   "agree": true
   }
  ],
- "when": "2026-08-05 11:18"
+ "when": "2026-08-05 12:54"
 }

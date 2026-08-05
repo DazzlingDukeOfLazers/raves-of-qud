@@ -1,13 +1,16 @@
 {
  "fixture": "switch-blink",
  "frames": 12,
- "expect_states": null,
+ "expect_states": [
+  1,
+  1
+ ],
  "measured": [
   {
    "bp": "Switch",
    "ok": true,
    "qud": {
-    "frames": 12,
+    "frames": 10,
     "states": 1,
     "duty": [
      1.0
@@ -28,7 +31,7 @@
    "bp": "DisabledSwitch",
    "ok": true,
    "qud": {
-    "frames": 12,
+    "frames": 10,
     "states": 1,
     "duty": [
      1.0
@@ -46,5 +49,5 @@
    "agree": true
   }
  ],
- "when": "2026-08-05 10:19"
+ "when": "2026-08-05 12:58"
 }

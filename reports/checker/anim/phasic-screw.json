@@ -10,28 +10,33 @@
    "bp": "Phasic Screw",
    "ok": true,
    "qud": {
-    "frames": 11,
-    "states": 1,
-    "duty": [
-     1.0
-    ],
-    "class": "static"
-   },
-   "raves": {
     "frames": 12,
     "states": 6,
     "duty": [
-     0.42,
+     0.25,
+     0.25,
      0.17,
      0.17,
-     0.08,
      0.08,
      0.08
     ],
     "class": "discrete"
    },
-   "agree": false
+   "raves": {
+    "frames": 12,
+    "states": 6,
+    "duty": [
+     0.25,
+     0.25,
+     0.17,
+     0.17,
+     0.08,
+     0.08
+    ],
+    "class": "discrete"
+   },
+   "agree": true
   }
  ],
- "when": "2026-08-05 11:16"
+ "when": "2026-08-05 12:52"
 }

@@ -2,8 +2,8 @@
  "fixture": "machine-tubing",
  "frames": 12,
  "expect_states": [
-  8,
-  12
+  1,
+  2
  ],
  "measured": [
   {
@@ -49,5 +49,5 @@
    "agree": true
   }
  ],
- "when": "2026-08-05 11:19"
+ "when": "2026-08-05 12:56"
 }

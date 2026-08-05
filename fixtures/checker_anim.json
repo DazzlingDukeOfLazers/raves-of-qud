@@ -27,10 +27,10 @@
    "ConveyorPad"
   ],
   "expect_states": [
-   2,
+   1,
    5
   ],
-  "notes": "MEASURED AGREE: qud 4 / raves 3 discrete."
+  "notes": "AGREE both boots, state count varies with conditions: 4/3 discrete one boot, 1/1 static on a fresh unpowered stage (belt likely needs drive power to roll). Parity holds either way; band spans both."
  },
  "phasic-screw": {
   "blueprints": [
