@@ -1,6 +1,6 @@
 # Object Checker — plants
 
-181/181 PASS  (2026-08-05 13:18)  pixel: 166 PASS / 6 WARN / 8 FAIL / 1 KNOWN
+181/181 PASS  (2026-08-05 16:40)  pixel: 172 PASS / 0 WARN / 8 FAIL / 1 KNOWN
 
 | element | verdict | px | notes |
 |---|---|---|---|
@@ -19,7 +19,7 @@
 | Chavvah Branch | PASS | PASS 3.9/2% | wire tile != blueprint tile 'terrain_sw_chavvah_branch_floor_6' |
 | Chavvah Chime Left | PASS | FAIL 78.2/77% | wire tile != blueprint tile 'terrain_sw_chavvah_chime_double_1' |
 | Chavvah Chime Right | PASS | FAIL 89.4/83% | wire tile != blueprint tile 'terrain_sw_chavvah_chime_double_2' |
-| Chavvah Dense Leaves | PASS | WARN 16.3/8% | wire tile != blueprint tile 'terrain_sw_chavvah_leaves_dense_4' |
+| Chavvah Dense Leaves | PASS | PASS 16.3/8% | wire tile != blueprint tile 'terrain_sw_chavvah_leaves_dense_4' |
 | Chavvah Sparse Leaves | PASS | PASS 5.0/2% | wire tile != blueprint tile 'terrain_sw_chavvah_leaves_sparse_1' |
 | Chavvah Taproot Floor | PASS | PASS 3.7/2% | wire tile != blueprint tile 'terrain_sw_chavvah_branch_floor_2' |
 | Chiliad Creature Consortium | PASS | PASS 6.2/7% | wire tile != blueprint tile 'items_sw_pottedplant_ornate_2' |
@@ -60,7 +60,7 @@
 | Feral Lah Pod | PASS | PASS 5.5/4% | wire tile != blueprint tile 'creatures_sw_tumbling_pod' |
 | Finger Coral | PASS | PASS 3.9/4% | wire tile != blueprint tile 'terrain_sw_coral_branching_3' |
 | Flower Golem | PASS | PASS 10.1/6% | wire tile != blueprint tile 'creatures_sw_golem_flower' |
-| Flowers Cherub | PASS | WARN 16.2/8% | wire tile != blueprint tile 'creatures_sw_cherub_flower' |
+| Flowers Cherub | PASS | PASS 16.2/8% | wire tile != blueprint tile 'creatures_sw_cherub_flower' |
 | Fracti | PASS | PASS 7.8/10% | wire tile != blueprint tile 'terrain_sw_fracti5' |
 | Fracti2 | PASS | PASS 6.7/9% | wire tile != blueprint tile 'terrain_sw_fracti3' |
 | Fracti3 | PASS | PASS 6.3/9% | wire tile != blueprint tile 'terrain_sw_fracti8' |
@@ -69,7 +69,7 @@
 | Glowpad | PASS | PASS 4.2/3% | wire tile != blueprint tile 'creatures_sw_glowpad' |
 | Gnawed Watervine | PASS | PASS 5.1/4% | wire tile != blueprint tile 'assets_content_textures_tiles_sw_watervine2' |
 | Gorged Growth | PASS | PASS 7.5/8% | wire tile != blueprint tile 'creatures_sw_moss_monster' |
-| Grave Moss | PASS | WARN 13.3/9% | wire tile != blueprint tile 'creatures_sw_moss_3' |
+| Grave Moss | PASS | PASS 13.3/9% | wire tile != blueprint tile 'creatures_sw_moss_3' |
 | Haddas | PASS | PASS 5.0/6% | wire tile != blueprint tile 'terrain_sw_bigtree1' |
 | Holographic Banana Tree | PASS | PASS 4.4/5% | wire tile != blueprint tile 'terrain_sw_tree_banana_1' |
 | Holographic Beth | PASS | PASS 1.6/1% | wire tile != blueprint tile 'creatures_sw_lurking_beth' |
@@ -122,7 +122,7 @@
 | Red Death Dacca | PASS | PASS 1.9/0% | wire tile != blueprint tile 'creatures_sw_dacca'; no capture pair — congruence skipped |
 | Ring of Moss | PASS | PASS 4.3/6% |  |
 | Root Golem | PASS | PASS 10.6/6% | wire tile != blueprint tile 'creatures_sw_golem_root' |
-| Roots Cherub | PASS | WARN 16.2/8% | wire tile != blueprint tile 'creatures_sw_cherub_root' |
+| Roots Cherub | PASS | PASS 16.2/8% | wire tile != blueprint tile 'creatures_sw_cherub_root' |
 | Santalalotze | PASS | PASS 10.3/27% | wire tile != blueprint tile 'creatures_sw_santalalotze' |
 | SapientMutatedBush | PASS | PASS 5.9/7% | wire tile != blueprint tile 'assets_content_textures_creatures_sw_farmer' |
 | SapientMutatedFlower | PASS | PASS 1.8/0% | wire tile != blueprint tile 'assets_content_textures_creatures_sw_farmer'; no capture pair — congruence skipped |
@@ -150,7 +150,7 @@
 | Starship Ornate Potted Plant 3 | PASS | PASS 7.1/7% | wire tile != blueprint tile 'items_sw_pottedplant_ornate_3' |
 | Stillvine | PASS | PASS 9.1/6% | wire tile != blueprint tile 'assets_content_textures_tiles_sw_watervine3' |
 | Succulent Golem | PASS | PASS 10.1/6% | wire tile != blueprint tile 'creatures_sw_golem_succulent' |
-| Succulents Cherub | PASS | WARN 16.3/8% | wire tile != blueprint tile 'creatures_sw_cherub_succulent' |
+| Succulents Cherub | PASS | PASS 16.3/8% | wire tile != blueprint tile 'creatures_sw_cherub_succulent' |
 | Sunflower | PASS | PASS 6.9/6% | wire tile != blueprint tile 'terrain_sw_tree_circle_1' |
 | Swarmshade Tree | PASS | PASS 5.5/6% | wire tile != blueprint tile 'terrain_sw_fattree1' |
 | Swarmshade Tree_blue | PASS | PASS 6.8/6% | wire tile != blueprint tile 'terrain_sw_fattree2' |
@@ -171,7 +171,7 @@
 | Vantabloom | PASS | PASS 2.1/0% | wire tile != blueprint tile 'creatures_sw_vantabloom' |
 | Vantabud | PASS | PASS 1.4/0% | wire tile != blueprint tile 'creatures_sw_vantabud' |
 | Vine Golem | PASS | PASS 11.5/7% | wire tile != blueprint tile 'creatures_sw_golem_vine' |
-| Vines Cherub | PASS | WARN 17.5/8% | wire tile != blueprint tile 'creatures_sw_cherub_vine' |
+| Vines Cherub | PASS | PASS 17.5/8% | wire tile != blueprint tile 'creatures_sw_cherub_vine' |
 | Watervine | PASS | PASS 5.2/4% | wire tile != blueprint tile 'assets_content_textures_tiles_sw_watervine2' |
 | Watervine Barathrumite | PASS | PASS 4.2/3% | wire tile != blueprint tile 'assets_content_textures_tiles_sw_watervine3' |
 | Wheel of Qv | PASS | PASS 6.5/4% | wire tile != blueprint tile 'terrain_extrasolar-vine-1' |

@@ -151,18 +151,19 @@ walls 97/114/18, plants 166/6/8, liquids 76/2/1, furniture 649/37/47,
 food 275/0/0, implants 77/0/0, creatures 322/45/528 — overall 67.0% PASS.
 Items are essentially perfect; the drops are structured, not noise:
 
-- **Creatures (528 FAIL): the two-tone rule.** Evidence (CherubimSpawn1B):
-  Qud renders the creature WHITE-main with the detail colour carrying the
-  identity (gold mane); Raves tints the main with ColorString (solid gold).
-  The Mac decoded this same principle for the avatar ('white main + data
-  detail') and the paper doll (Qud's 'Equipment' render context). The stage
-  context's creature tint rule needs the same reflection — one rule, ~500
-  elements. NEXT.
-- **Walls (114 WARN): threshold recalibration.** Bright colours amplify small
-  offsets; visually-congruent pairs (AgateWall) now sit at mean 12-20 vs the
-  dark-era PASS bar of 12. Recalibrate PASS/WARN bands from the bright
-  distribution once the creature rule lands (bands recompute from stored
-  means, no re-sweep).
+- **Creatures (528 FAIL): WITHDRAWN — there is no two-tone rule.** The cherub
+  evidence was SPAWNER TIMING (CherubimSpawn replaces itself between the two
+  captures; real cherubs are &Y white natively) and the mass failures were
+  POPUP POLLUTION: Raves renders mirrored Qud popups as overlays covering the
+  playfield, and an undismissed creature-triggered message sat over the stage
+  cell for most of the leg (dromad-class crops scored against popup text).
+  Glowfish et al confirm creature tints are faithful. shots_for now clears
+  the viewer's reported popup before capturing; creatures re-ran guarded.
+- **Walls: RE-BANDED (bright calibration).** Anchored on eyeballed pairs
+  (congruent at mean 19 and 25; real divergence at 36.8 and 47), bands are now
+  PASS<=26 / WARN<=34. Walls: 213/11/5 — the 5 true FAILs are the
+  StarshipGeometric family (Qud renders a GOLD FRAME Raves lacks — evidence
+  committed) and HangarWall. One wall-family ticket.
 - Furniture 47 + walls 18 + plants 8: triage after the two big levers above.
 - MID-RUN INCIDENT, fixed: the merged stack/dock op applied a MAC-layout rect
   via window_rect.json (y=-1269) and silently rescaled the viewer mid-sweep

@@ -969,7 +969,7 @@
   "congruence": {
    "mean_abs_diff": 24.22,
    "pct_hot": 11.1,
-   "band": "WARN",
+   "band": "PASS",
    "white_px": [
     2,
     390
@@ -1226,7 +1226,7 @@
   "congruence": {
    "mean_abs_diff": 13.1,
    "pct_hot": 6.0,
-   "band": "WARN",
+   "band": "PASS",
    "white_px": [
     14,
     720

@@ -1,6 +1,6 @@
 # Object Checker — liquids
 
-79/79 PASS  (2026-08-05 13:22)  pixel: 76 PASS / 2 WARN / 1 FAIL
+79/79 PASS  (2026-08-05 16:40)  pixel: 78 PASS / 0 WARN / 1 FAIL
 
 | element | verdict | px | notes |
 |---|---|---|---|
@@ -30,14 +30,14 @@
 | DamnedPool | PASS | PASS 3.5/4% | wire tile != blueprint tile 'liquids_water_puddle_2' |
 | DeepBrackishPool | PASS | PASS 6.1/6% |  |
 | DeepFreshWaterPool | PASS | PASS 9.8/6% | wire tile != blueprint tile 'liquids_water_deep-00000000' |
-| DilutedWarmStaticPuddle | PASS | WARN 24.2/11% | wire tile != blueprint tile 'liquids_static_pure_deep_1-00000000' |
+| DilutedWarmStaticPuddle | PASS | PASS 24.2/11% | wire tile != blueprint tile 'liquids_static_pure_deep_1-00000000' |
 | FreshWaterPool | PASS | PASS 3.0/4% | wire tile != blueprint tile 'liquids_water_puddle_1' |
 | FreshWaterPool300 | PASS | PASS 3.0/4% | wire tile != blueprint tile 'liquids_water_puddle_4' |
 | FreshWaterPool500 | PASS | PASS 4.5/6% | wire tile != blueprint tile 'liquids_water_deep-00000000' |
 | FreshWaterPuddle | PASS | PASS 3.0/4% | wire tile != blueprint tile 'liquids_water_puddle_2' |
 | GelPool | PASS | PASS 5.8/4% | wire tile != blueprint tile 'liquids_water_puddle_1' |
 | GooPool | PASS | PASS 8.6/4% |  |
-| GooPuddle | PASS | WARN 13.1/6% | wire tile != blueprint tile 'liquids_splotchy_deep-00000000' |
+| GooPuddle | PASS | PASS 13.1/6% | wire tile != blueprint tile 'liquids_splotchy_deep-00000000' |
 | HoneyPool | PASS | PASS 5.1/5% | wire tile != blueprint tile 'liquids_water_puddle_3' |
 | HoneyPuddle | PASS | PASS 8.0/8% | wire tile != blueprint tile 'liquids_gunk_deep-00000000' |
 | InkDrop | PASS | PASS 8.7/5% |  |

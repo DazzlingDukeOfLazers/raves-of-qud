@@ -27,11 +27,14 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 GEOMETRY = os.path.join(REPO, "fixtures", "checker_geometry.json")
 
-# Metric thresholds, from the menu-parity scoreboard's families: the converged
-# screens live at mean 2-5; a busted cell (wrong art, missing element) lands
-# way above. Generous to start — tighten as real sweep data accumulates.
-PASS_MEAN = 12.0
-WARN_MEAN = 25.0
+# Metric thresholds — BRIGHT-WORLD calibration (2026-08-05). The dark-era bands
+# (12/25) were tuned while the murdered DaylightWidget kept both apps ghost-dim;
+# true daylight amplifies every small offset. Anchored on eyeballed pairs:
+# congruent walls sit at mean 19 (InnerSultanWall) and 25 (ColumbariumWall);
+# real divergence starts ~36.8 (StarshipGeometricWallGrey — Qud renders a gold
+# frame Raves lacks) and 47 (HangarWall). Items still score 2-10.
+PASS_MEAN = 26.0
+WARN_MEAN = 34.0
 SAMPLE_W, SAMPLE_H = 32, 48   # common grid both crops are resampled to (16x24 aspect)
 
 
