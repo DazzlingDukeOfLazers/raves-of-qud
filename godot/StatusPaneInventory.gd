@@ -636,8 +636,33 @@ func handle_key(e: InputEventKey) -> bool:
 		KEY_PAGEDOWN:       _move(12)
 		KEY_LEFT, KEY_KP_4, KEY_RIGHT, KEY_KP_6:
 			_toggle_category()
+		KEY_ENTER, KEY_KP_ENTER, KEY_SPACE:
+			_activate()
 		_:                  return false
 	return true
+
+## Accept the selected row: a category folds, an ITEM opens Qud's interaction popup.
+##
+## Nothing here builds a menu. Qud's screen answers a selection with
+## EquipmentAPI.TwiddleObject, which raises the option list, applies the choice and runs
+## any follow-on prompts itself -- and our popup mirror already forwards Qud's modals to
+## Raves. So we ask Qud to twiddle and the real menu arrives over that channel, with the
+## right verbs for the item and the right side effects. Reloading afterwards catches what
+## the action changed (an item eaten, equipped, dropped).
+func _activate() -> void:
+	if _rows.is_empty() or _sel >= _rows.size():
+		return
+	var r: Dictionary = _rows[_sel]
+	if str(r.get("kind", "")) == "cat":
+		_toggle_category()
+		return
+	var id := str(r.get("id", ""))
+	if id == "" or not bridge_cb.is_valid():
+		return
+	bridge_cb.call({"type": "command", "name": "invaction", "id": id})
+	if reload_cb.is_valid():
+		for delay in [0.6, 1.5, 3.0, 5.0]:
+			get_tree().create_timer(delay).timeout.connect(func(): reload_cb.call())
 
 ## Collapse/expand the selected category (an item row toggles its own category),
 ## mirroring the skills tree's model. View state only — Qud keeps its own per-screen.
@@ -711,5 +736,5 @@ func handle_mouse(e: InputEvent) -> void:
 		return
 	_sel = idx
 	_content.queue_redraw()
-	if str(_rows[idx]["kind"]) == "cat":
-		_toggle_category()
+	# a click accepts the row, exactly as Enter does (Qud's list does the same)
+	_activate()

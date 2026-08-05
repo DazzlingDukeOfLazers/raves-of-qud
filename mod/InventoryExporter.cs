@@ -2,6 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using Qud.API;             // EquipmentAPI.TwiddleObject — Qud's own item menu
+using XRL.UI;              // InventoryAction
+using XRL.UI.Framework;    // APIDispatch — Qud runs the twiddle on the game thread
 using XRL.World;
 using XRL.World.Anatomy;   // BodyPart (the paper doll)
 
@@ -28,6 +31,91 @@ namespace RavesOfQud
                 string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
                 return Path.Combine(home, "Library", "Application Support", "RavesOfQud");
             }
+        }
+
+        /// Raves picked an item: run QUD'S OWN interaction popup for it.
+        ///
+        /// This deliberately does not reimplement the menu. Qud's screen does
+        ///     await APIDispatch.RunAndWaitAsync(() =>
+        ///         EquipmentAPI.TwiddleObject(The.Player, go, ref bDone, out action))
+        /// and TwiddleObject raises the option list, applies the choice, and runs every
+        /// follow-on prompt itself. Because our popup mirror already forwards Qud's
+        /// modals to Raves (option lists included, async ones too), driving Qud's own
+        /// flow gets the whole menu -- correct verbs, correct order, correct side
+        /// effects -- for free. Same reasoning as the Skills tab's SelectNode.
+        ///
+        /// MUST go through APIDispatch: TwiddleObject blocks on a synchronous popup, and
+        /// calling it straight from a uiQueue task deadlocks that wait (the bug that let
+        /// a skill purchase complete even when the player answered No).
+        public static void Twiddle(string id)
+        {
+            var gm = GameManager.Instance;
+            if (gm == null || gm.uiQueue == null) return;
+            gm.uiQueue.queueTask(() =>
+            {
+                try
+                {
+                    GameObject p = XRL.The.Player;
+                    if (p == null) return;
+                    GameObject target = FindById(p, id);
+                    if (target == null)
+                    {
+                        System.Console.WriteLine("[raves] twiddle: no object with id " + id);
+                        return;
+                    }
+                    System.Console.WriteLine("[raves] twiddle " + target.DisplayNameOnlyStripped);
+                    bool bDone = false;
+                    InventoryAction action = null;
+                    APIDispatch.RunAndWaitAsync(delegate
+                    {
+                        try { EquipmentAPI.TwiddleObject(p, target, ref bDone, out action); }
+                        catch (Exception te) { System.Console.WriteLine("[raves] TwiddleObject: " + te.Message); }
+                    }).ContinueWith(delegate
+                    {
+                        var g2 = GameManager.Instance;
+                        if (g2 != null && g2.uiQueue != null)
+                            g2.uiQueue.queueTask(() =>
+                            {
+                                // "Mod" hands off to the tinkering screen, which Raves has
+                                // no tab for yet -- say so rather than silently doing nothing
+                                if (action != null && action.Command == "Mod")
+                                    System.Console.WriteLine("[raves] twiddle chose Mod (tinkering screen not mirrored yet)");
+                                ReExport();
+                            }, 0);
+                    });
+                }
+                catch (Exception e) { System.Console.WriteLine("[raves] twiddle error: " + e.Message); }
+            }, 0);
+        }
+
+        /// Look an object up by the id the export shipped (go.IDIfAssigned): the pack
+        /// first, then the body, so an equipped item can be twiddled from the doll too.
+        private static GameObject FindById(GameObject p, string id)
+        {
+            if (string.IsNullOrEmpty(id)) return null;
+            try
+            {
+                var inv = p.Inventory;
+                if (inv != null)
+                    foreach (GameObject go in inv.GetObjectsDirect())
+                        if (go != null && go.ID == id) return go;
+            }
+            catch { }
+            try
+            {
+                var body = p.Body;
+                if (body != null)
+                    foreach (BodyPart bp in body.GetParts())
+                    {
+                        GameObject eq = null;
+                        try { eq = bp.Equipped; } catch { }
+                        if (eq != null && eq.ID == id) return eq;
+                        try { eq = bp.Cybernetics; } catch { }
+                        if (eq != null && eq.ID == id) return eq;
+                    }
+            }
+            catch { }
+            return null;
         }
 
         public static void ReExport()
@@ -185,6 +273,7 @@ namespace RavesOfQud
                         if (eq != null)
                         {
                             try { j.Member("item", eq.DisplayName ?? ""); } catch { }
+                            try { j.Member("id", eq.ID ?? ""); } catch { }
                             if (greyed) j.Member("greyed", true);
                             // the PAPER DOLL uses Qud's "Equipment" render context
                             // (EquipmentLine: RenderForUI("Equipment")) — a different tile
@@ -349,7 +438,12 @@ namespace RavesOfQud
                     try { if (QudText_LooksNameless(nm)) nm = go.Blueprint ?? nm; } catch { }
                     j.Member("name", nm);
                     try { j.Member("weight", go.Weight); } catch { }
-                    try { j.Member("id", go.IDIfAssigned ?? ""); } catch { }
+                    // go.ID, not IDIfAssigned: the latter is null until something has
+                    // caused Qud to assign one, and 13 of 14 items in a normal pack have
+                    // never been asked -- so every row shipped without a handle and the
+                    // interaction popup could not be opened for any of them. ID just
+                    // persists the object's existing BaseID; it invents no identity.
+                    try { j.Member("id", go.ID ?? ""); } catch { }
                     WriteTile(j, go);
                     j.EndObject();
                 }

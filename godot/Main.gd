@@ -3,6 +3,9 @@ extends Node3D
 ## Emitted every snapshot with the raw Qud data, so a host (MainFrame) can drive its status bar /
 ## panels off the same stream the Holodeck renders — no second bridge connection needed.
 signal snapshot(data: Dictionary)
+## Re-broadcast of PopupOverlay.closed so the frame's screens can refresh (see
+## StatusScreens._refresh_after_popup).
+signal popup_closed
 signal popup_option(text: String)   # a mirrored menu popup's picked option (plain text)
 
 ## Wires the bridge client to the renderer, drives the camera, and maps input to
@@ -207,6 +210,7 @@ func _ready() -> void:
 	# forwarded by the mod, and ships the viewer's answer back so Qud's blocked turn thread unblocks.
 	_popup = PopupOverlay.new()
 	add_child(_popup)
+	_popup.closed.connect(func(): popup_closed.emit())
 	_popup.answered.connect(func(payload: Dictionary):
 		client.send_command("popup", payload)
 		if str(payload.get("action", "")) == "option":

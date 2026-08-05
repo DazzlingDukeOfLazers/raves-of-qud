@@ -1222,6 +1222,11 @@ func _connect_holodeck() -> void:
 	# opens its KeybindsScreen from the same answer). BOTH modes — user mode gets
 	# the extra RAVES section (golden restore) that 1:1 hides.
 	# stripped option text keeps its hotkey prefix ("[c] Control Mapping") — match the tail
+	# A modal just left the screen -- whatever is behind it may now be stale (an item
+	# action lands when the viewer ANSWERS, not when the menu opened).
+	_holo.connect("popup_closed", func():
+		if _status != null and _status.visible and _status.has_method("_refresh_after_popup"):
+			_status._refresh_after_popup())
 	_holo.connect("popup_option", func(text: String):
 		if _controlmap != null \
 				and text.strip_edges().to_lower().ends_with("control mapping"):

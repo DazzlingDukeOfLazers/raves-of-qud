@@ -291,3 +291,32 @@ add a one-liner (symptom → rule).
 - **Sample a colour down a whole COLUMN, not off one row.** "b)" is two glyphs: it gave n=2 and a
   reading 16 off the truth, which sent one round of fitting the wrong way. The same column over all
   rows gives n>300 and a stable answer.
+
+## The item interaction popup: drive QUD'S menu, don't build one
+
+- `InventoryAndEquipmentStatusScreen.HandleSelectItem` answers a selection with
+  `EquipmentAPI.TwiddleObject` (namespace **Qud.API**) inside `APIDispatch.RunAndWaitAsync`.
+  TwiddleObject raises the option list, applies the choice and runs every follow-on prompt
+  itself -- and our popup mirror already forwards Qud's modals. So the whole menu, with the
+  right verbs per item and the right side effects, costs one bridge command. Same reasoning as
+  the Skills tab's SelectNode, and the same hard requirement: it MUST go through APIDispatch,
+  or the synchronous popup it blocks on deadlocks.
+- **Export `go.ID`, not `go.IDIfAssigned`.** IDIfAssigned is null until something has caused Qud
+  to assign one -- 13 of 14 items in a normal pack had never been asked, so every row shipped
+  without a handle. `ID` just persists the object's existing BaseID; it invents no identity.
+- **A modal's own hotkeys live in the row TEXT** ("[d] drop", "[E] Equip (manual)"), not in
+  `QudMenuItem.hotkey`, which is empty for menu items. Scanning only the field matched nothing
+  and every letter escaped the modal to the app underneath -- pressing "l" for look toggled the
+  font ruler behind the popup. Case matters: "[e] equip (auto)" and "[E] Equip (manual)" are
+  different rows, so the shift state has to agree.
+- **A re-announced popup must not reset what the viewer has done to it.** The watcher re-sends
+  with a fresh id; rebuilding on that threw away an option list's SELECTION, so the bar moved on
+  Down and sprang back a second later -- which reads exactly like "arrows do nothing". The same
+  bug had already been fixed once for half-typed input; the guard is now content-based and covers
+  both.
+- **Refresh a screen when the popup CLOSES, not when it opens.** An item action lands when the
+  viewer answers, which can be many seconds later; timers started at open had all expired, and
+  the list still showed an item that had just been dropped. `PopupOverlay.closed` -> Main's
+  `popup_closed` -> `StatusScreens._refresh_after_popup`.
+- A `LineEdit` left at the default focus mode holds focus and eats the ACCEPT key. The tell is
+  that ARROWS still work: a LineEdit passes up/down through and swallows only what it uses.

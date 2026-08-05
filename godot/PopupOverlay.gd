@@ -12,7 +12,11 @@ extends CanvasLayer
 ##   {"action":"option","index":<i>}        pick option i from a PickOption list
 ##   {"action":"input","text":<s>}          submit AskString text
 
-signal answered(payload: Dictionary)
+signal answered
+## Emitted whenever the modal leaves the screen -- answered here, or dismissed by Qud.
+## Screens behind it use this to refresh: an item action only lands when the viewer
+## ANSWERS, so that is the moment their data is stale, not when the menu opened.
+signal closed(payload: Dictionary)
 
 var _palette := {}
 var _cur_id := -1             # id of the popup currently shown (or last answered) — dedupes resends
@@ -223,11 +227,16 @@ func show_popup(data: Dictionary, palette: Dictionary) -> void:
 	# user's half-typed input instead of rebuilding — the reset-while-typing bug
 	var content_sig := "%s|%s|%s|%s|%s" % [str(data.get("message", "")), str(data.get("title", "")),
 		str(data.get("buttons", [])), str(data.get("options", [])), str(data.get("input", false))]
-	if content_sig == _content_sig and bool(data.get("input", false)) and _edit != null and _edit.text != "":
+	if content_sig == _content_sig and visible:
+		# Same popup, new id (the watcher re-announced it). Rebuilding here throws away
+		# what the viewer has done to it: it used to reset half-typed input, and it also
+		# reset an option list's SELECTION -- pressing Down moved the bar and then it
+		# sprang back to the first row a second later, which reads as "arrows do nothing".
+		# Adopt the id and keep the state.
 		_cur_id = id
-		visible = true
-		UiState.set_popup("input")
-		_edit.grab_focus()
+		if bool(data.get("input", false)) and _edit != null:
+			UiState.set_popup("input")
+			_edit.grab_focus()
 		return
 	_content_sig = content_sig
 	_cur_id = id
@@ -376,7 +385,7 @@ func _input(event: InputEvent) -> void:
 			KEY_ENTER, KEY_KP_ENTER, KEY_SPACE: _answer_option(_sel)
 			KEY_ESCAPE: _cancel()
 			_:
-				if not _try_button_hotkey(kc):
+				if not _try_option_hotkey(event) and not _try_button_hotkey(kc):
 					return          # let unrelated keys through (nothing else should, but be safe)
 	else:
 		match kc:
@@ -396,6 +405,37 @@ func _input(event: InputEvent) -> void:
 				if not _try_button_hotkey(kc):
 					return
 	get_viewport().set_input_as_handled()
+
+## Pick an option by its own hotkey. An item menu's rows read "[d] drop", "[E] Equip
+## (manual)" -- and the letter is in the row TEXT, not in QudMenuItem.hotkey, so scanning
+## the hotkey field alone matched nothing and every letter escaped the modal to the app
+## underneath (pressing "l" for look toggled Raves' font ruler behind the popup).
+##
+## CASE MATTERS: Qud gives one item "[e] equip (auto)" and the next "[E] Equip (manual)",
+## so the shift state has to agree with the bracketed letter's case.
+func _try_option_hotkey(event: InputEventKey) -> bool:
+	if _options.is_empty():
+		return false
+	var kc: int = event.keycode
+	if kc < KEY_A or kc > KEY_Z:
+		return false
+	var upper: bool = event.shift_pressed
+	var want: String = char(kc) if upper else char(kc).to_lower()
+	for i in _options.size():
+		var txt := QudText.strip(str(_options[i].get("text", ""))).strip_edges()
+		# also honour the field when Qud does populate it
+		for tok in str(_options[i].get("hotkey", "")).split(","):
+			if tok.strip_edges() == want:
+				_sel = i
+				_answer_option(i)
+				return true
+		if txt.length() >= 3 and txt[0] == "[":
+			var close := txt.find("]")
+			if close == 2 and txt.substr(1, 1) == want:
+				_sel = i
+				_answer_option(i)
+				return true
+	return false
 
 ## Map a letter key to a bottom button whose hotkey lists that letter (e.g. Y → the "Yes" button).
 func _try_button_hotkey(kc: int) -> bool:
@@ -448,8 +488,11 @@ func _finish(payload: Dictionary) -> void:
 ## Called on `active:false` and on any normal snapshot (a snapshot can only publish once Qud's turn thread
 ## has unblocked — i.e. the popup is gone) so a coalesced-away dismissal can't strand the overlay.
 func hide_popup() -> void:
+	var was := visible
 	if visible:
 		visible = false
 		_edit.release_focus()
 	UiState.clear_popup()
 	_cur_id = -1
+	if was:
+		closed.emit()

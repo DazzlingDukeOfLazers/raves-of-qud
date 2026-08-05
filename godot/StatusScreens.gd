@@ -168,6 +168,11 @@ void fragment() {
 	_search.position = Vector2(205, 950)
 	_search.size = Vector2(150, 24)
 	_search.placeholder_text = "<search>"
+	# FOCUS_CLICK, and released on every open: with the default focus mode this field
+	# holds focus and eats the ACCEPT key, so Enter/Space never reach the pane. The
+	# giveaway is that arrows still work -- a LineEdit passes up/down through and
+	# swallows only what it uses. Same law as the Holodeck's FOCUS_NONE rule.
+	_search.focus_mode = Control.FOCUS_CLICK
 	_search.add_theme_font_size_override("font_size", 14)
 	_search.add_theme_color_override("font_color", S_HINT)
 	_search.add_theme_color_override("font_placeholder_color", S_INACTIVE)
@@ -479,12 +484,26 @@ func open(tab := "") -> void:
 		_tab = tab
 	visible = true
 	_hover_tab = -1
+	if _search != null:
+		_search.release_focus()
 	_set_tab(_tab)
 
 func close() -> void:
 	visible = false
 	UiState.set_scene("in_game")
 	closed.emit()
+
+## An item action finishes when the viewer ANSWERS the popup, which can be seconds
+## after it opened -- so the pane reloads on popup CLOSE. Firing timers from the moment
+## the menu opened (the first attempt) meant they had all expired before the choice was
+## made, and the list still showed an item that had just been dropped.
+func _refresh_after_popup() -> void:
+	if not visible:
+		return
+	if _tab == "equipment":
+		_load_inventory(true)
+	elif _tab == "skills":
+		_load_skills(true)
 
 func _unhandled_input(e: InputEvent) -> void:
 	if not visible:

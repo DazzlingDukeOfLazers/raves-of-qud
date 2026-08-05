@@ -651,6 +651,15 @@ namespace RavesOfQud
                     catch (Exception ex) { System.Console.WriteLine("[raves] statusscreen post: " + ex.Message); }
                     return;
                 }
+                if (name == "invaction")
+                {
+                    // Raves' Equipment tab: open Qud's own item interaction popup for
+                    // the selected object. The menu itself mirrors back over the popup
+                    // channel -- nothing here builds one.
+                    f.TryGetValue("id", out string invId);
+                    InventoryExporter.Twiddle(invId);
+                    return;
+                }
                 if (name == "skill")
                 {
                     // Raves' Skills tab: accept a row (Qud's own SelectNode purchase
