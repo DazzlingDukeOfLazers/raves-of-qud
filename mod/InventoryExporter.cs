@@ -207,6 +207,27 @@ namespace RavesOfQud
             }
             catch (Exception e) { System.Console.WriteLine("[raves] filter order: " + e.Message); }
 
+            // WHICH filters are currently ON. Qud persists the enabled set with the
+            // save, so the strip comes back olive on the same categories after a
+            // restart — without this, Raves always drew "ALL" and its cell colours
+            // could never match. Read it off the live buttons rather than the
+            // FilterBar, since several screens own a bar and the button is the thing
+            // that actually paints (FilterBarCategoryButton.categoryEnabled).
+            try
+            {
+                j.Name("enabledFilters").BeginArray();
+                var btns = UnityEngine.Resources.FindObjectsOfTypeAll<Qud.UI.FilterBarCategoryButton>();
+                if (btns != null)
+                    foreach (var b in btns)
+                    {
+                        if (b == null || !b.categoryEnabled) continue;
+                        if (string.IsNullOrEmpty(b.category)) continue;
+                        j.Value(b.category);
+                    }
+                j.EndArray();
+            }
+            catch (Exception e) { System.Console.WriteLine("[raves] enabled filters: " + e.Message); }
+
             var names = new List<string>(cats.Keys);
             names.Sort(StringComparer.OrdinalIgnoreCase);
             j.Name("categories").BeginArray();

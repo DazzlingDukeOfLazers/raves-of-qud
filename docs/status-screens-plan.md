@@ -442,3 +442,25 @@ NEXT, and do it this way rather than guessing again: EXTRACT the real sprite. Ad
 `TitleExporter.ExportNamedSprite` like the other chrome, then draw it as a Godot `NinePatchRect` (or
 `draw_texture_rect_region` per slice) so the corners are Qud's own pixels and only the middles
 stretch. That also removes the doll-vs-filter duplication — same sprite, two sizes.
+
+### Equipment frames — DONE (2026-08-05)
+
+Extracted `polat-category-frame` from a live `FilterBarCategoryButton` and nine-patched it in
+`StatusPaneInventory._draw_cell_frame` (corners 1:1, edges stretched, centre skipped). Validated
+the patch in Python against Qud's pixels BEFORE porting: 99.3% border-band agreement at the
+native 46x41 and 99.1% stretched to the doll's 64x64, with the only mismatches being item art
+that leaks into the band.
+
+Measured effect (tools/capture/parity.py, reports/2026-08-04-status-screens):
+
+| pass | frame | composite |
+|---|---|---|
+| hand-drawn motif | 13.87 | 16.91 |
+| nine-patched sprite | 4.56 | 11.90 |
+| + real cell geometry (64x64 doll, 46-wide filter) | 4.13 | 11.31 |
+| + strip origin 618 and Qud's colour law | **2.91** | **9.49** |
+
+Still open: the filter icons (four of five still mismatch — Qud stretches the whole sprite into
+`icon`'s RectTransform, we fit the opaque sub-rect, so our ink runs narrow), and the paper-doll
+tile COLOURS (geometry now matches exactly — doll_image[0] bbox is [15,14,35,36] in both apps —
+but the ink still differs by ~70, so it is tint or the wrong render context, not placement).

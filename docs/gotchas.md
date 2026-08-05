@@ -183,3 +183,35 @@ add a one-liner (symptom → rule).
 - [ ] `dotnet build mod/…csproj` first (catches API drift). Deploy = copy `.cs` + **full Qud restart**.
       Client-only `.gd` changes need no restart.
 - [ ] Run the author guard before every push: `git log --all --format='%ae' | grep -i allspice` (must be empty).
+
+## Equipment tab: the cell frame is a real sprite, and the strip starts where you think it doesn't
+
+- **The bracketed cell frame is Qud's own sprite, `polat-category-frame`** — 46x41 with Unity
+  9-slice borders (left 12, bottom 11, right 13, top 12). `FilterBarCategoryButton.background`
+  holds it, assigned in the PREFAB, so the name is invisible in the decompiled source; read it
+  off a live instance (`TitleExporter.ExportCellFrame`). Hand-drawing the motif from a bitmap
+  spec scored WORSE than the previous approximation; nine-slicing the real sprite took the frame
+  leaves from ~14 to ~2.9. **Extract the sprite; don't redraw the art.**
+- **The filter cells are drawn at the sprite's NATIVE 46x41** (58px pitch, 12px gap). The paper
+  doll's boxes are the SAME sprite stretched to 64x64 — one design, two sizes, which is exactly
+  what a nine-patch is for.
+- **The paper-doll boxes are 64x64 at x{274,364,454,544,634}**, not the 55x62 at x+9 that eyeballing
+  the lit area gives. Find a grid by scanning the capture for the frame's own long runs, then
+  remember the runs BREAK at the two ornamented corners (top starts 9 late, bottom ends 9 early) —
+  a naive "longest run" reads 9px short and lands you on the interior.
+- **The strip's first cell is the "*All" button at x618**; categories start at 676. There is no
+  cell at 560. Getting this wrong shifts the whole strip one pitch and silently compares every
+  category icon against its NEIGHBOUR's — the frames still score well, so only the image leaves
+  betray it.
+- **Filter-cell colour is `FilterBarCategoryButton.LateUpdate`, verbatim:** enabled+focused
+  `#FFFFFF`, enabled `#858951` (an olive, NOT gold), focused `#4A757E`, otherwise `#134F4E`.
+  The catch: that method only writes `background.color` when the state CHANGES, so a button
+  nobody has ever toggled keeps its PREFAB colour (~(51,80,91) on screen) and matches none of
+  the four. Don't "fix" that to #134F4E.
+- **Qud persists the enabled filter set with the save** (it survives a full restart), and the
+  no-filter button reports as the category `"*All"`. Export it (`enabledFilters`) and strip
+  `"*All"` on the client, or the list filters against a category no item has and renders empty.
+- The teal stub on a filter cell's bottom line is **not in the sprite** — Qud paints it over the
+  frame, filter cells only, at cell-relative (21,38), 4x3.
+- When measuring the ink inside one of these cells, **inset past the corner motif (14px)**. At
+  inset 6 the motif is inside the mask and every cell reports the same full-region bbox.

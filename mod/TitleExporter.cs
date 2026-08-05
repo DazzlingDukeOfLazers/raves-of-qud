@@ -149,6 +149,44 @@ namespace RavesOfQud
 
         /// Find a loaded UI Sprite by exact name and write it to <c>Dir/destFile</c> (like the title
         /// art). MAIN-THREAD ONLY. Reads the player's own install; never bundled.
+        /// Export the CELL FRAME sprite Qud's filter bar draws (FilterBarCategoryButton's
+        /// `background` Image). The sprite is assigned in the prefab, so its name is only
+        /// discoverable from a live instance — read it here, log it, and dump the texture
+        /// so Raves can nine-slice Qud's own pixels instead of hand-drawing the motif.
+        /// MAIN-THREAD ONLY (graphics readback).
+        public static bool ExportCellFrame()
+        {
+            try
+            {
+                var btns = Resources.FindObjectsOfTypeAll<Qud.UI.FilterBarCategoryButton>();
+                if (btns == null || btns.Length == 0)
+                {
+                    System.Console.WriteLine("[raves] cell frame: no FilterBarCategoryButton loaded");
+                    return false;
+                }
+                foreach (var b in btns)
+                {
+                    var img = b != null ? b.background : null;
+                    var sp = img != null ? img.sprite : null;
+                    if (sp == null) continue;
+                    System.Console.WriteLine("[raves] cell frame sprite = '" + sp.name
+                        + "' rect " + sp.rect + " border " + sp.border);
+                    WriteSprite(sp, Path.Combine(Dir, "cell_frame.png"));
+                    // Unity's 9-slice borders (l,b,r,t) — the client needs these to know
+                    // which pixels are corner and which stretch
+                    File.WriteAllText(Path.Combine(Dir, "cell_frame.json"),
+                        "{\"name\":\"" + sp.name + "\",\"w\":" + (int)sp.rect.width
+                        + ",\"h\":" + (int)sp.rect.height
+                        + ",\"left\":" + (int)sp.border.x + ",\"bottom\":" + (int)sp.border.y
+                        + ",\"right\":" + (int)sp.border.z + ",\"top\":" + (int)sp.border.w + "}");
+                    return true;
+                }
+                System.Console.WriteLine("[raves] cell frame: buttons found but no background sprite");
+                return false;
+            }
+            catch (Exception e) { System.Console.WriteLine("[raves] cell frame export failed: " + e.Message); return false; }
+        }
+
         public static void ExportNamedSprite(string spriteName, string destFile)
         {
             try

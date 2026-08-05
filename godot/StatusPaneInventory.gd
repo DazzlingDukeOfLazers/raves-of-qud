@@ -14,9 +14,9 @@ extends Control
 ## (item name x909 too, after a 16px tile), category weight |n lbs.| right-aligned
 ## at x1673, item weight [n lbs.] right-aligned at x1753, header at x1753.
 ##
-## The PAPER DOLL (left half) draws Qud's fixed slot grid: 55x62 boxes on columns
-## x{283,373,463,553,643} and rows y{246,366,486,606,726} (measured off the same
-## capture), each showing its equipped item's tile with the slot label centred
+## The PAPER DOLL (left half) draws Qud's fixed slot grid: 64x64 boxes on columns
+## x{274,364,454,544,634} and rows y{246,366,486,606,726} (measured by locating the
+## frame's own runs in the capture), each showing its equipped item's tile centred
 ## beneath. Body parts come from Qud's own body tree; the grid is keyed by part
 ## type/name, and a primary limb gets Qud's "*" marker.
 
@@ -41,31 +41,50 @@ static func _iv8(r8: int, g8: int, b8: int) -> Color:
 var C_DIM := _iv8(108, 133, 129)
 var C_SEL := _iv8(23, 59, 60)
 var C_GOLD := _iv8(200, 184, 57)
-var C_BOX := _iv8(51, 80, 91)      # MEASURED: Qud's cell frame base (was too bright)
-var C_HOVER := _iv8(65, 106, 115)  # MEASURED: Qud brightens the whole frame on hover
+# FILTER-CELL STATES, straight out of Qud's FilterBarCategoryButton.LateUpdate:
+#   enabled + focused -> #FFFFFF   enabled -> #858951   focused -> #4A757E
+# and otherwise the frame keeps the PREFAB colour, because that LateUpdate only
+# writes background.color when the state CHANGES — a button nobody has touched is
+# never assigned one of the four. That untouched colour is what C_BOX measures.
+var C_BOX := _iv8(51, 80, 91)      # MEASURED: the untouched/prefab frame colour
+var C_HOVER := _iv8(65, 106, 115)  # #4A757E — nav-focused (what the mouse gives)
+var C_FILT_ON := _iv8(122, 126, 71)     # #858951 — category filter ENABLED
+var C_FILT_ON_SEL := Color8(255, 255, 255)  # enabled AND focused
+# The "*All" cell HAS been toggled (the save ships with it on), so unlike the
+# untouched category buttons it does carry an explicit colour: #134F4E when off.
+var C_ALL_OFF := _iv8(19, 79, 78)
 var C_LABEL := _iv8(120, 146, 141)
 
-# Qud's paper-doll grid: label -> [column x, row y]. Columns/rows measured off
-# equipment_qud.png (55x62 boxes, 90px column pitch, 120px row pitch).
+# Qud's paper-doll grid: label -> [column x, row y]. Found by scanning the capture
+# for the frame's own long runs rather than eyeballing the lit area: the boxes are
+# 64x64 on a 90px column / 120px row pitch, nine columns LEFT of where the earlier
+# by-eye numbers put them (the old 55x62 at x+9 measured the interior, not the box).
 const DOLL := {
-	"Face": [463, 246], "Floating Nearby": [643, 246],
-	"Worn on Hands": [283, 366], "Head": [463, 366],
-	"Left Hand": [283, 486], "Left Arm": [373, 486], "Body": [463, 486],
-	"Right Arm": [553, 486], "Right Hand": [643, 486],
-	"Worn on Back": [463, 606],
-	"Thrown Weapon": [283, 726], "Feet": [463, 726],
-	"Left Missile Weapon": [553, 726], "Right Missile Weapon": [643, 726],
+	"Face": [454, 246], "Floating Nearby": [634, 246],
+	"Worn on Hands": [274, 366], "Head": [454, 366],
+	"Left Hand": [274, 486], "Left Arm": [364, 486], "Body": [454, 486],
+	"Right Arm": [544, 486], "Right Hand": [634, 486],
+	"Worn on Back": [454, 606],
+	"Thrown Weapon": [274, 726], "Feet": [454, 726],
+	"Left Missile Weapon": [544, 726], "Right Missile Weapon": [634, 726],
 }
-const BOX_W := 55.0
-const BOX_H := 62.0
+const BOX_W := 64.0
+const BOX_H := 64.0
 
 # Category FILTER STRIP (Qud's FilterBar): "*All" plus one cell per category
 # present in the inventory, measured off the reference — 44x38 cells from x620,
 # 58px pitch, on y178. Qud draws a fixed per-category ICON; we stand in with the
 # category's first item tile (recorded deviation) until those icons are extracted.
-const FILT_X := 560.0   # ALL cell; category cells then start at 618 (measured borders)
+# The strip's FIRST cell is the "*All" button and it sits at 618 — categories then
+# run 676, 734, 792, ... Found by scanning the capture for 46-wide ink groups; the
+# old 560 put a cell where Qud draws none and shifted the whole strip one pitch left,
+# so every category icon was being compared against its neighbour's.
+const FILT_X := 618.0
 const FILT_Y := 177.0
-const FILT_W := 50.0   # measured: cell cols 618..667
+# 46 wide because Qud draws polat-category-frame at its NATIVE size here — the
+# sprite is 46x41, and the cell is the sprite (the doll's 64x64 boxes are the same
+# sprite stretched). Pitch 58 leaves a 12px gap between cells.
+const FILT_W := 46.0
 const FILT_H := 41.0   # measured: cell rows 177..217
 const FILT_PITCH := 58.0
 
@@ -115,6 +134,16 @@ func _ready() -> void:
 func setup(data: Dictionary, palette: Dictionary) -> void:
 	_data = data
 	_palette = palette
+	# Qud persists the enabled filter set with the save, so adopt ITS set rather than
+	# starting from "*All" — otherwise the strip's colours can never match a save that
+	# was left with a category filtered on.
+	if data.has("enabledFilters"):
+		_enabled.clear()
+		for n in data["enabledFilters"]:
+			# "*All" is Qud's name for the no-category-filter button; carrying it into
+			# the set would filter the list against a category no item has, emptying it
+			_enabled[str(n)] = true
+		_enabled.erase("*All")
 	if not palette.is_empty():
 		_tiles.palette = palette
 	_tiles.tiles_dir = InputModel.support_dir().path_join("tiles")
@@ -199,37 +228,84 @@ func _opaque_rect(tex: Texture2D) -> Rect2:
 	_opaque_cache[key] = rect
 	return rect
 
+## Qud's OWN frame sprite, nine-sliced. The mod exports `polat-category-frame`
+## (46x41, Unity 9-slice borders l12 b11 r13 t12) to title/cell_frame.png, so the
+## corners are Qud's pixels and only the middles stretch — which is how one design
+## serves both the 50x41 filter cells and the 55x62 doll slots. Falls back to the
+## hand-drawn motif if the sprite hasn't been exported yet.
+const FRAME_BORDER := {"left": 12, "bottom": 11, "right": 13, "top": 12}
+var _frame_tex: Texture2D = null
+var _frame_tried := false
+
+func _frame_texture() -> Texture2D:
+	if _frame_tried:
+		return _frame_tex
+	_frame_tried = true
+	var path := InputModel.support_dir().path_join("title").path_join("cell_frame.png")
+	if FileAccess.file_exists(path):
+		var img := Image.new()
+		if img.load(path) == 0:
+			_frame_tex = ImageTexture.create_from_image(QudChrome.brighten(img))
+	return _frame_tex
+
+## Draw the sprite as a nine-patch by hand: corners 1:1, edges stretched along one
+## axis, centre skipped (the cell interior stays transparent).
 func _draw_cell_frame(r: Rect2, col: Color, knob := true) -> void:
+	# The teal stub on the bottom line is NOT part of the sprite (its alpha mask has
+	# nothing there) — Qud paints it over the frame, and only on the filter cells;
+	# the paper-doll boxes use the same sprite without it. Measured at cell-relative
+	# (21,38), 4x3, in C_HOVER's teal on every category cell.
+	if knob:
+		_static.draw_rect(Rect2(r.position + Vector2(21, 38), Vector2(4, 3)), C_HOVER)
+	var tex := _frame_texture()
+	if tex == null:
+		_draw_cell_frame_fallback(r, col, knob)
+		return
+	var tw := tex.get_width()
+	var th := tex.get_height()
+	var l: int = FRAME_BORDER["left"]
+	var rr: int = FRAME_BORDER["right"]
+	var t: int = FRAME_BORDER["top"]
+	var bo: int = FRAME_BORDER["bottom"]
 	var x := r.position.x
 	var y := r.position.y
 	var w := r.size.x
 	var h := r.size.y
-	# FULL edges — the corner ornaments sit ON the frame and CONNECT to both lines
-	# (an earlier pass broke the edges at those corners, leaving the loops floating)
+	var mid_w := maxf(0.0, w - l - rr)
+	var mid_h := maxf(0.0, h - t - bo)
+	var src_mid_w := maxf(1.0, tw - l - rr)
+	var src_mid_h := maxf(1.0, th - t - bo)
+	# corners
+	_static.draw_texture_rect_region(tex, Rect2(x, y, l, t), Rect2(0, 0, l, t), col)
+	_static.draw_texture_rect_region(tex, Rect2(x + w - rr, y, rr, t), Rect2(tw - rr, 0, rr, t), col)
+	_static.draw_texture_rect_region(tex, Rect2(x, y + h - bo, l, bo), Rect2(0, th - bo, l, bo), col)
+	_static.draw_texture_rect_region(tex, Rect2(x + w - rr, y + h - bo, rr, bo),
+		Rect2(tw - rr, th - bo, rr, bo), col)
+	# edges — THESE are the runs that stretch
+	_static.draw_texture_rect_region(tex, Rect2(x + l, y, mid_w, t), Rect2(l, 0, src_mid_w, t), col)
+	_static.draw_texture_rect_region(tex, Rect2(x + l, y + h - bo, mid_w, bo),
+		Rect2(l, th - bo, src_mid_w, bo), col)
+	_static.draw_texture_rect_region(tex, Rect2(x, y + t, l, mid_h), Rect2(0, t, l, src_mid_h), col)
+	_static.draw_texture_rect_region(tex, Rect2(x + w - rr, y + t, rr, mid_h),
+		Rect2(tw - rr, t, rr, src_mid_h), col)
+
+func _draw_cell_frame_fallback(r: Rect2, col: Color, knob := true) -> void:
+	var x := r.position.x
+	var y := r.position.y
+	var w := r.size.x
+	var h := r.size.y
 	_static.draw_rect(Rect2(x, y, w, 2), col)
 	_static.draw_rect(Rect2(x, y + h - 2, w, 2), col)
 	_static.draw_rect(Rect2(x, y, 2, h), col)
 	_static.draw_rect(Rect2(x + w - 2, y, 2, h), col)
-	# top-left loop: 7x7 outline + stem + bar, joined to the top and left edges
-	_static.draw_rect(Rect2(x, y, 7, 2), col)
-	_static.draw_rect(Rect2(x, y, 2, 7), col)
-	_static.draw_rect(Rect2(x + 5, y, 2, 7), col)
-	_static.draw_rect(Rect2(x, y + 5, 11, 2), col)
-	_static.draw_rect(Rect2(x + 5, y + 7, 2, 2), col)
-	_static.draw_rect(Rect2(x, y + 9, 7, 2), col)
-	# bottom-right loop, mirrored and likewise joined
-	var bx := x + w - 7
-	var by := y + h - 11
-	_static.draw_rect(Rect2(bx, by, 7, 2), col)
-	_static.draw_rect(Rect2(bx, by + 2, 2, 2), col)
-	_static.draw_rect(Rect2(bx - 4, by + 4, 11, 2), col)
-	_static.draw_rect(Rect2(bx, by + 4, 2, 7), col)
-	_static.draw_rect(Rect2(bx + 5, by + 4, 2, 7), col)
-	_static.draw_rect(Rect2(bx, by + 9, 7, 2), col)
-	# the small teal square straddling the BOTTOM line — filter cells only; Qud's
-	# paper-doll slots use this same frame WITHOUT it
 	if knob:
 		_static.draw_rect(Rect2(x + w * 0.5 - 2, y + h - 4, 5, 5), C_HOVER)
+
+## The four-way state colour, Qud's law verbatim.
+func _filt_color(on: bool, focused: bool) -> Color:
+	if on:
+		return C_FILT_ON_SEL if focused else C_FILT_ON
+	return C_HOVER if focused else C_BOX
 
 ## Qud's category filter strip: the ALL cell then one per category, each showing
 ## that category's first item as its icon. Selecting a filter is a later slice —
@@ -242,8 +318,10 @@ func _draw_filter_strip() -> void:
 	var all_rect := Rect2(Vector2(x, FILT_Y), Vector2(FILT_W, FILT_H))
 	_filt_rects.append([all_rect, ""])   # placeholder replaced below; keeps index 0 stable
 	_filt_rects.pop_back()
-	_draw_cell_frame(all_rect, C_GOLD if _enabled.is_empty() else (
-		C_HOVER if _filt_hover == 0 else C_BOX))
+	if _enabled.is_empty():
+		_draw_cell_frame(all_rect, _filt_color(true, _filt_hover == 0))
+	else:
+		_draw_cell_frame(all_rect, C_HOVER if _filt_hover == 0 else C_ALL_OFF)
 	_filt_rects.append([all_rect, ""])
 	var aw := _font.get_string_size("ALL", HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
 	_static.draw_string(_font, Vector2(x + (FILT_W - aw) * 0.5, FILT_Y + 25), "ALL",
@@ -268,8 +346,7 @@ func _draw_filter_strip() -> void:
 	for cat in strip:
 		var cname := str(cat.get("name", ""))
 		var rect := Rect2(Vector2(x, FILT_Y), Vector2(FILT_W, FILT_H))
-		_draw_cell_frame(rect, C_GOLD if _enabled.has(cname) else (
-			C_HOVER if _filt_hover == _filt_rects.size() else C_BOX))
+		_draw_cell_frame(rect, _filt_color(_enabled.has(cname), _filt_hover == _filt_rects.size()))
 		_filt_rects.append([rect, cname])
 		# QUD'S OWN filter icon (FilterBarCategoryButton.categoryImageMap), painted in
 		# the fixed two-tone that button uses; falls back to the category's first item.
@@ -347,7 +424,7 @@ func _draw_doll() -> void:
 					# with the boxes aligned. Matching exactly would mean replicating
 					# Qud's sampler, not adjusting this rect.
 					_static.draw_texture_rect(tex,
-						Rect2(pos + Vector2(3, 1), Vector2(49, 66)), false)
+						Rect2(pos + Vector2(12, 1), Vector2(49, 66)), false)
 			if bool(sl.get("primary", false)):
 				_static.draw_string(_font, pos + Vector2(-8, BOX_H + 14), "*",
 					HORIZONTAL_ALIGNMENT_LEFT, -1, 14, C_GOLD)

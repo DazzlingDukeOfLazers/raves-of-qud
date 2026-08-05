@@ -850,6 +850,7 @@ namespace RavesOfQud
                                 BindingsExporter.ReExport();    // control-mapping data
                                 SkillsExporter.ReExport();      // skills & powers tree
                                 InventoryExporter.ReExport();   // inventory (Equipment tab)
+                                TitleExporter.ExportCellFrame();     // Qud's own 9-slice cell frame
                                 TitleExporter.ExportChargenEmblem();                        // resident even at the menu
                                 TitleExporter.ExportNamedSprite("tiny-frame-h", "card_frame.png");         // the game-mode card's dotted frame
                                 TitleExporter.ExportNamedSprite("polat-locator-big", "sel_frame.png");     // the selected-card frame (corner brackets)
