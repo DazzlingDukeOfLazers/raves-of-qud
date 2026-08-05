@@ -581,6 +581,32 @@ namespace RavesOfQud
                     if (!string.IsNullOrEmpty(lsid)) LoadSave.Request(lsid);
                     return;
                 }
+                if (name == "statusscreen")
+                {
+                    // Open QUD'S OWN status screens at a tab index (StatusScreensScreen.show,
+                    // the same call its chrome icon makes). Qud's modern screens ignore
+                    // OS-synthesized keys, so this is the only reliable opener for driving
+                    // reference captures — tab order matches the carousel:
+                    // 0 skills · 1 attributes · 2 equipment · 3 tinkering · 4 journal ·
+                    // 5 quests · 6 reputation · 7 message log.
+                    f.TryGetValue("tab", out string ssTab);
+                    int.TryParse(ssTab, out int ssIdx);
+                    var ssGm = GameManager.Instance;
+                    if (ssGm != null && ssGm.uiQueue != null)
+                        ssGm.uiQueue.queueTask(() =>
+                        {
+                            try
+                            {
+                                GameObject who = XRL.The.Player;
+                                if (who == null) { System.Console.WriteLine("[raves] statusscreen: no player"); return; }
+                                _ = Qud.UI.StatusScreensScreen.show(ssIdx, who);
+                                PumpSyncContext(6);
+                                System.Console.WriteLine("[raves] statusscreen opened at tab " + ssIdx);
+                            }
+                            catch (Exception ex) { System.Console.WriteLine("[raves] statusscreen: " + ex.Message); }
+                        }, 0);
+                    return;
+                }
                 if (name == "skill")
                 {
                     // Raves' Skills tab: accept a row (Qud's own SelectNode purchase

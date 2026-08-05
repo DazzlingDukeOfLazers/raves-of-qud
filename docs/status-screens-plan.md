@@ -104,9 +104,16 @@ always visible in the bar).
    `command CmdEquipment` doesn't open them either, and a hover-click on Qud's character chrome icon
    didn't land. Qud's heartbeat ALSO reports `StatusScreensScreen` while the playfield is actually
    showing (its `_ActiveGameView` goes stale — the same class of bug fixed on the Raves side), so
-   `hv state` can't be trusted here; verify with pixels. NEXT: add a first-party mod command that
-   calls `StatusScreensScreen.Show()` and selects a tab (the "missing capability -> fix the tool"
-   rule) — that also gives `hv goto qud status_*` real recipes.
+   `hv state` can't be trusted here; verify with pixels. The mod command EXISTS now — bridge `statusscreen {tab:N}` calls Qud's own
+   `StatusScreensScreen.show(index, player)` (tab order: 0 skills, 1 attributes, 2 equipment,
+   3 tinkering, 4 journal, 5 quests, 6 reputation, 7 message log) and logs success — BUT THE SCREEN
+   STILL DOESN'T APPEAR: `show()` is async (`SuspendContextWhile` -> `showScreen` -> `await
+   The.UiContext`) and a one-shot `PumpSyncContext` after the call isn't enough; it likely needs
+   pumping across several frames, or must be invoked with the NavigationController idle. NEXT:
+   drive the pump from the per-frame tick until the view is up, then verify with a REAL signature.
+   **Verification gotcha (cost a bad reference):** (17,52,51) is BOTH the status-screen scrim and
+   Qud's ground colour, so "scrim coverage" reported 96% on a plain playfield. Check the tab-bar
+   strip at (740,137) = (136,165,144) or a paper-doll box border at (486,247) = (51,80,91) instead.
    **MEASUREMENT CAVEAT for this tab:** `equipment_qud.png` was captured on a DIFFERENT inventory
    (cloth robe / canteen) than the live save, so per-region diffs here include real CONTENT
    differences — only geometry/structure comparisons are meaningful until a matched-state reference
