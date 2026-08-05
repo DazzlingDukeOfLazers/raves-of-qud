@@ -172,6 +172,24 @@ namespace RavesOfQud
                     System.Console.WriteLine("[raves] cell frame sprite = '" + sp.name
                         + "' rect " + sp.rect + " border " + sp.border);
                     WriteSprite(sp, Path.Combine(Dir, "cell_frame.png"));
+                    // ALSO log how the button lays out its ICON. Five sample bboxes were
+                    // not enough to identify the transform (no single scale fits, and every
+                    // one is exactly 15 tall, which smells like clipping) — so read the
+                    // RectTransform and the Image's own settings instead of curve-fitting.
+                    try
+                    {
+                        var ic = b.icon != null ? b.icon.image : null;
+                        if (ic != null)
+                        {
+                            var rt = ic.rectTransform;
+                            System.Console.WriteLine("[raves] icon '" + b.category + "' rect " + rt.rect
+                                + " anchorMin " + rt.anchorMin + " anchorMax " + rt.anchorMax
+                                + " pivot " + rt.pivot + " scale " + rt.localScale
+                                + " preserveAspect " + ic.preserveAspect + " type " + ic.type
+                                + " sprite " + (ic.sprite != null ? ic.sprite.name + " " + ic.sprite.rect : "null"));
+                        }
+                    }
+                    catch (Exception ie) { System.Console.WriteLine("[raves] icon probe: " + ie.Message); }
                     // Unity's 9-slice borders (l,b,r,t) — the client needs these to know
                     // which pixels are corner and which stretch
                     File.WriteAllText(Path.Combine(Dir, "cell_frame.json"),

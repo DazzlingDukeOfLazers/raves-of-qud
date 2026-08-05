@@ -215,3 +215,11 @@ add a one-liner (symptom → rule).
   frame, filter cells only, at cell-relative (21,38), 4x3.
 - When measuring the ink inside one of these cells, **inset past the corner motif (14px)**. At
   inset 6 the motif is inside the mask and every cell reports the same full-region bbox.
+- **Icon sizing: read the RectTransform, don't fit the bboxes.** `FilterBarCategoryButton.icon`'s
+  image is a 20x30 rect, centred (anchors+pivot 0.5), `preserveAspect FALSE`, `type Simple`, over
+  a 16x24 sprite — i.e. Qud stretches the WHOLE tile 1.25x and never looks at the opaque sub-rect.
+  Three successive attempts to normalise by the opaque box failed in opposite directions (small art
+  too big, wide art too narrow). The "every icon is exactly 15 tall" observation that motivated them
+  was an artefact of the ink threshold: an icon's dim rows land in the same 20-60 band as the scrim,
+  so the measured bbox is the bright CORE, not the sprite. Fixing it took the filter icons from
+  ~51 mean diff to ~4.
