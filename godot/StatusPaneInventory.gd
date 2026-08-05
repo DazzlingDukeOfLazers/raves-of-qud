@@ -345,7 +345,20 @@ func _draw_cell_frame_fallback(r: Rect2, col: Color, knob := true) -> void:
 	if knob:
 		_static.draw_rect(Rect2(x + w * 0.5 - 2, y + h - 4, 5, 5), C_HOVER)
 
-## The four-way state colour, Qud's law verbatim.
+## Qud's LIVE colour for a filter cell, when the export carries one.
+##
+## Preferred over deriving it, because the derivation is not derivable: LateUpdate
+## paints the four states only ON CHANGE, so a button nobody ever toggled keeps its
+## prefab colour and one that has been keeps #134F4E -- which of those a given cell
+## shows depends on the save's whole interaction history. Modelling that produced a
+## strip where every cell was ~8 off and the enabled one was on the wrong index.
+func _filt_live(hex: String) -> Variant:
+	if hex == "":
+		return null
+	return Color(hex)
+
+## The four-way state colour, Qud's law verbatim (fallback when no live colour rides
+## along -- an older mod build, or a screen whose buttons are not loaded).
 func _filt_color(on: bool, focused: bool) -> Color:
 	if on:
 		return C_FILT_ON_SEL if focused else C_FILT_ON
@@ -362,10 +375,16 @@ func _draw_filter_strip() -> void:
 	var all_rect := Rect2(Vector2(x, FILT_Y), Vector2(FILT_W, FILT_H))
 	_filt_rects.append([all_rect, ""])   # placeholder replaced below; keeps index 0 stable
 	_filt_rects.pop_back()
-	if _enabled.is_empty():
-		_draw_cell_frame(all_rect, _filt_color(true, _filt_hover == 0))
+	# Qud's OWN colour for this cell when the export carries it (see _filt_live).
+	var all_live: Variant = _filt_live(str(_data.get("allColor", "")))
+	if _filt_hover == 0:
+		_draw_cell_frame(all_rect, C_HOVER)
+	elif all_live != null:
+		_draw_cell_frame(all_rect, all_live)
+	elif _enabled.is_empty():
+		_draw_cell_frame(all_rect, _filt_color(true, false))
 	else:
-		_draw_cell_frame(all_rect, C_HOVER if _filt_hover == 0 else C_ALL_OFF)
+		_draw_cell_frame(all_rect, C_ALL_OFF)
 	_filt_rects.append([all_rect, ""])
 	var aw := _font.get_string_size("ALL", HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
 	_static.draw_string(_font, Vector2(x + (FILT_W - aw) * 0.5, FILT_Y + 25), "ALL",
@@ -384,13 +403,24 @@ func _draw_filter_strip() -> void:
 		# an equipped-only category (Clothes) has no list entry — take Qud's icon
 		if ent is Dictionary and str(ent.get("icon", "")) != "":
 			cell["icon"] = str(ent["icon"])
+		# ...and its LIVE frame colour, which likewise rides on the filterOrder entry:
+		# `cell` is copied from the category list, which has no such field, so without
+		# this the strip silently kept deriving the colour it was meant to stop deriving
+		if ent is Dictionary and str(ent.get("color", "")) != "":
+			cell["color"] = str(ent["color"])
 		strip.append(cell)
 	if strip.is_empty():
 		strip = cats
 	for cat in strip:
 		var cname := str(cat.get("name", ""))
 		var rect := Rect2(Vector2(x, FILT_Y), Vector2(FILT_W, FILT_H))
-		_draw_cell_frame(rect, _filt_color(_enabled.has(cname), _filt_hover == _filt_rects.size()))
+		var live: Variant = _filt_live(str(cat.get("color", "")))
+		if _filt_hover == _filt_rects.size():
+			_draw_cell_frame(rect, C_HOVER)          # hover is ours to render, live or not
+		elif live != null:
+			_draw_cell_frame(rect, live)
+		else:
+			_draw_cell_frame(rect, _filt_color(_enabled.has(cname), false))
 		_filt_rects.append([rect, cname])
 		# QUD'S OWN filter icon (FilterBarCategoryButton.categoryImageMap), painted in
 		# the fixed two-tone that button uses; falls back to the category's first item.

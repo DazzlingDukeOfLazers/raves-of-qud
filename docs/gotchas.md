@@ -381,3 +381,17 @@ enumerated anywhere.
 
 **The general shape:** an allow-list you must remember to extend is a trap. State it as the small
 closed set of things that are wrong, not the open set of things that are fine.
+- **Ship the filter strip's LIVE colours; its state is not derivable.**
+  `FilterBarCategoryButton.LateUpdate` paints `background` from four states, but only ON CHANGE,
+  so a button nobody has ever toggled keeps its PREFAB colour while one that has been toggled
+  keeps `#134F4E`. Which of those a given cell shows depends on the save's whole interaction
+  history -- unknowable from outside. Modelling it left every cell ~8 off and put the enabled
+  one on the wrong index. The mod now reads `background.color` per category (plus the "*All"
+  button's) and the client draws exactly that, falling back to the four-state law only when no
+  live colour rides along. Hover stays client-side, since that is ours to render.
+  Caveat: the colours are only readable while Qud's equipment screen is OPEN -- its buttons are
+  inactive otherwise, and the export correctly omits them rather than shipping stale ones.
+- When merging two export lists into one view, **copy every field you need, not the first one you
+  noticed**: the strip took its icon from `filterOrder` and its base object from `categories`, so
+  a colour added to `filterOrder` was silently dropped and the cell kept deriving what it was
+  meant to stop deriving.

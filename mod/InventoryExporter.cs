@@ -335,11 +335,34 @@ namespace RavesOfQud
                     if (!seen.Contains(kv.Value)) seen.Add(kv.Value);
                 // objects, not bare names: a category can be EQUIPPED-ONLY (e.g. Clothes)
                 // and so have no list entry to borrow an icon from
+                // The strip's LIVE colours, per category. FilterBarCategoryButton.LateUpdate
+                // paints `background` from four states -- enabled+focused #FFFFFF, enabled
+                // #858951, focused #4A757E, else #134F4E -- but ONLY when the state changes,
+                // so a button nobody has ever toggled keeps its prefab colour instead. That
+                // is unmodellable from outside: whether a cell is #134F4E or prefab depends
+                // on the save's whole interaction history. Read what each button IS.
+                var filterColors = new Dictionary<string, string>();
+                try
+                {
+                    foreach (var fb in UnityEngine.Resources.FindObjectsOfTypeAll<Qud.UI.FilterBarCategoryButton>())
+                    {
+                        if (fb == null || fb.background == null) continue;
+                        if (!fb.gameObject.activeInHierarchy) continue;   // pooled copies lie
+                        if (string.IsNullOrEmpty(fb.category)) continue;
+                        var c = fb.background.color;
+                        filterColors[fb.category] = string.Format("#{0:x2}{1:x2}{2:x2}",
+                            (int)(c.r * 255f), (int)(c.g * 255f), (int)(c.b * 255f));
+                    }
+                }
+                catch (Exception fe) { System.Console.WriteLine("[raves] filter colours: " + fe.Message); }
+
                 j.Name("filterOrder").BeginArray();
                 foreach (string n in seen)
                 {
                     j.BeginObject();
                     j.Member("name", n);
+                    string fcol;
+                    if (filterColors.TryGetValue(n, out fcol)) j.Member("color", fcol);
                     try
                     {
                         string ic;
@@ -354,6 +377,13 @@ namespace RavesOfQud
                     j.EndObject();
                 }
                 j.EndArray();
+                // and the "*All" cell, which is a FilterBarCategoryButton like any other
+                try
+                {
+                    string allCol;
+                    if (filterColors.TryGetValue("*All", out allCol)) j.Member("allColor", allCol);
+                }
+                catch { }
             }
             catch (Exception e) { System.Console.WriteLine("[raves] filter order: " + e.Message); }
 
