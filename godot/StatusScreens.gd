@@ -315,7 +315,16 @@ func _draw_cyber_hint(c: CanvasItem) -> void:
 	c.draw_string(f, Vector2(199.0, 233.0), "[", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, S_GOLD)
 	# the keycap: outline only, the label inset
 	c.draw_rect(Rect2(207.0, 220.0, 20.0, 15.0), S_GOLD, false, 1.0)
-	c.draw_string(f, Vector2(209.0, 231.0), "Ctrl", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, S_GOLD)
+	# The keycap label is CONDENSED, not small: Qud fits 17x11 of ink in a 20-wide box,
+	# where our font at the size that gives 11px of height wants ~26. Shrinking the size
+	# instead (10 -> 7px tall) made it squat and ran the "l" into the border. Draw at a
+	# height-correct size and SQUEEZE horizontally to Qud's measured 17.
+	var cap := 16
+	var capw := f.get_string_size("Ctrl", HORIZONTAL_ALIGNMENT_LEFT, -1, cap).x
+	if capw > 0.0:
+		c.draw_set_transform(Vector2(209.0, 232.0), 0.0, Vector2(17.0 / capw, 1.0))
+		c.draw_string(f, Vector2.ZERO, "Ctrl", HORIZONTAL_ALIGNMENT_LEFT, -1, cap, S_GOLD)
+		c.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	c.draw_string(f, Vector2(229.0, 233.0), "+Tab]", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, S_GOLD)
 	c.draw_string(f, Vector2(278.0, 233.0), "show cybernetics",
 		HORIZONTAL_ALIGNMENT_LEFT, -1, 14, S_HINT)

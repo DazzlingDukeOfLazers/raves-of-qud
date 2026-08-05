@@ -530,4 +530,10 @@ error compounds along the line.
 
 outer_frame 4.55 -> 2.80; screen composite 3.19, frame 2.34.
 
-Still open here: our "Ctrl" label slightly overflows its keycap box.
+The "Ctrl" label reads as an overflow but is the opposite: Qud fits 17x11 of ink in that
+20-wide box, i.e. a CONDENSED label, while our font at the size that gives 11px of height wants
+~26 wide. Shrinking the point size instead (10 -> 7px tall) made it squat and ran the "l" into
+the border. It is now drawn at a height-correct size and squeezed horizontally to Qud's measured
+17: 16x10 against 17x11, within a pixel each way. Residual: the squeeze merges strokes that
+Qud's genuinely-condensed keycap font keeps separate -- a font difference, not a geometry one,
+and not worth chasing with a transform.
