@@ -1,754 +1,751 @@
 # Object Checker — furniture
 
-748/748 PASS  (2026-08-03 15:16)
+745/745 PASS  (2026-08-04 18:10)  pixel: 688 PASS / 28 WARN / 22 FAIL
 
-| element | verdict | notes |
-|---|---|---|
-| AgolgotShrine | PASS | wire tile != blueprint tile 'furniture_nephilim_statue_agolgot' |
-| Air Well | PASS | wire tile != blueprint tile 'items_sw_airwell' |
-| Alchemist Table | PASS | wire tile != blueprint tile 'items_sw_alchemist_table' |
-| Anvil | PASS | wire tile != blueprint tile 'items_sw_anvil' |
-| AppleSign1 | PASS | wire tile != blueprint tile 'items_sw_sign_apple' |
-| AppleSign2 | PASS | wire tile != blueprint tile 'items_sw_sign_apple' |
-| AppleSign3 | PASS |  |
-| Archon Hologram | PASS | wire tile != blueprint tile 'assets_content_textures_walls2_walls_resheph_1_0-00000000' |
-| Archway | PASS | wire tile != blueprint tile 'tiles_sw_arch' |
-| Argyve Multicabinet | PASS | wire tile != blueprint tile 'items_sw_multi_cabinet_2' |
-| ArgyveSign | PASS | wire tile != blueprint tile 'items_sw_sign_datadisc' |
-| Ark Core 1 | PASS | wire tile != blueprint tile 'furniture_arkcore-1' |
-| Ark Core 2 | PASS | wire tile != blueprint tile 'furniture_arkcore-2' |
-| Ark Core 3 | PASS | wire tile != blueprint tile 'furniture_arkcore-3' |
-| Ark Core 4 | PASS | wire tile != blueprint tile 'furniture_arkcore-4' |
-| Armchair | PASS | wire tile != blueprint tile 'items_sw_chair_arm' |
-| Armor Rack | PASS | wire tile != blueprint tile 'items_sw_weapons_rack' |
-| ArmorSign1 | PASS | wire tile != blueprint tile 'items_sw_sign_body' |
-| ArmorSign2 | PASS |  |
-| ArmorSign3 | PASS |  |
-| Barathrum Hologram | PASS | wire tile != blueprint tile 'creatures_young-barathrum' |
-| Barathrum Table | PASS | wire tile != blueprint tile 'items_sw_table1' |
-| BarathrumBookshelf | PASS | wire tile != blueprint tile 'items_sw_bookshelf2' |
-| Barathrumite Hyperbiotic Chair | PASS | wire tile != blueprint tile 'items_sw_chair_hyperbiotic' |
-| Bed | PASS | wire tile != blueprint tile 'items_sw_bed' |
-| Bed Golem | PASS | wire tile != blueprint tile 'creatures_sw_golem_bed' |
-| Bedger | PASS | wire tile != blueprint tile 'items_sw_bed_bear' |
-| Bedroll | PASS | wire tile != blueprint tile 'items_sw_bedroll' |
-| BeltCurtains | PASS | wire tile != blueprint tile 'tiles2_sw_belt_curtains' |
-| Bench | PASS | wire tile != blueprint tile 'items_sw_bench' |
-| BethsaidaShrine | PASS | wire tile != blueprint tile 'furniture_nephilim_statue_bethsaida' |
-| BeyLahChest | PASS | wire tile != blueprint tile 'assets_content_textures_tiles_sw_chest' |
-| BeyLahOven | PASS | wire tile != blueprint tile 'items_sw_oven' |
-| BlackMarbleWalkway | PASS | wire tile != blueprint tile 'tiles_sw_floor_brickb1' |
-| Blue Security Door | PASS | wire tile != blueprint tile 'terrain_sw_securitydoor' |
-| Book Table | PASS | wire tile != blueprint tile 'items_sw_table_low_drawers' |
-| Bookshelf | PASS | wire tile != blueprint tile 'items_sw_bookshelf2' |
-| BookSign1 | PASS | wire tile != blueprint tile 'items_sw_sign_book' |
-| BookSign2 | PASS |  |
-| BookSign3 | PASS |  |
-| BootSign1 | PASS | wire tile != blueprint tile 'items_sw_sign_boot' |
-| BootSign2 | PASS |  |
-| BootSign3 | PASS |  |
-| BottleSign1 | PASS | wire tile != blueprint tile 'items_sw_honey_sign' |
-| BottleSign2 | PASS |  |
-| BottleSign3 | PASS |  |
-| Brain Sculpture | PASS | wire tile != blueprint tile 'items_sw_brain_sculpture' |
-| Brazier | PASS | wire tile != blueprint tile 'items_sw_firepan' |
-| BrickWalkway | PASS | wire tile != blueprint tile 'tiles_sw_floor_brickb2' |
-| Bridge | PASS | wire tile != blueprint tile 'tiles_sw_floor_brickb1' |
-| Brightsheol Gate E | PASS | wire tile != blueprint tile 'tiles2_sw_lifegate_e' |
-| Brightsheol Gate W | PASS | wire tile != blueprint tile 'tiles2_sw_lifegate_w' |
-| BrineBridge | PASS | wire tile != blueprint tile 'tiles_sw_floor_brickb4' |
-| Brinestalk Gate | PASS | wire tile != blueprint tile 'items_sw_fence_gates_2_open' |
-| Broadcast Power Station | PASS | wire tile != blueprint tile 'items_sw_broadcast_station' |
-| Broken Industrial Fan | PASS | wire tile != blueprint tile 'tiles2_sw_fan_3' |
-| Bubblething | PASS | wire tile != blueprint tile 'items_sw_bubblething' |
-| Bust of K4K5 | PASS | wire tile != blueprint tile 'items_sw_bust1' |
-| Bust of Mehmet I | PASS | wire tile != blueprint tile 'items_sw_bust2' |
-| Cage | PASS | wire tile != blueprint tile 'furniture_sw_cage' |
-| Candelabra | PASS | wire tile != blueprint tile 'items_sw_candelabra2' |
-| Canvas Folding Chair | PASS | wire tile != blueprint tile 'items_sw_chair_canvas' |
-| CatacombLight | PASS | wire tile != blueprint tile 'tiles_sw_torch_nofire' |
-| Catacombs Exit Teleporter | PASS | wire tile != blueprint tile 'items_sw_teleporter_pad' |
-| Chair | PASS | wire tile != blueprint tile 'items_sw_chair' |
-| Chair Golem | PASS | wire tile != blueprint tile 'creatures_sw_golem_chair' |
-| Chairbear | PASS | wire tile != blueprint tile 'items_sw_chair_bear' |
-| Chalkboard | PASS | wire tile != blueprint tile 'items_sw_monster_whiteboard' |
-| ChavvahOven | PASS | wire tile != blueprint tile 'items_sw_oven' |
-| ChefOven | PASS |  |
-| Chest | PASS | wire tile != blueprint tile 'assets_content_textures_tiles_sw_chest' |
-| Chest1 | PASS |  |
-| Chest2 | PASS |  |
-| Chest3 | PASS |  |
-| Chest4 | PASS |  |
-| Chest5 | PASS |  |
-| Chest6 | PASS |  |
-| Chest7 | PASS |  |
-| Chest8 | PASS |  |
-| ChestBronzeIngots | PASS |  |
-| ChestIsner | PASS |  |
-| ChestMinorRazed | PASS |  |
-| Chiliad Basket | PASS | wire tile != blueprint tile 'furniture_chiliad-basket' |
-| Chiliad Chest | PASS | wire tile != blueprint tile 'furniture_chiliad-chest' |
-| Chiliad Floor Cusion | PASS | wire tile != blueprint tile 'furniture_chiliad-floor-cushion' |
-| Chiliad Oven | PASS | wire tile != blueprint tile 'furniture_chiliad-oven' |
-| Chiliad Table | PASS | wire tile != blueprint tile 'furniture_chiliad-table' |
-| Chiliad Torchpost | PASS | wire tile != blueprint tile 'furniture_chiliad-torchpost' |
-| Chiliad Unlit Torchpost | PASS |  |
-| Chiliad Village Monument Orb | PASS | wire tile != blueprint tile 'furniture_chiliad-monument-2' |
-| Chiliad Village Monument Post | PASS | wire tile != blueprint tile 'furniture_chiliad-monument-1' |
-| Circumcestral Eater Monument | PASS | wire tile != blueprint tile 'furniture_eater-monument-6' |
-| CircumcestralEaterMonumentWithPiping | PASS | wire tile != blueprint tile 'furniture_eater-monument-14' |
-| CloakSign1 | PASS | wire tile != blueprint tile 'items_sw_sign_cloak' |
-| CloakSign2 | PASS |  |
-| CloakSign3 | PASS |  |
-| Clockthing | PASS | wire tile != blueprint tile 'items_sw_clockthing' |
-| Clockthing_QGirl | PASS |  |
-| Clue_VillageStores | PASS | wire tile != blueprint tile 'assets_content_textures_tiles_sw_chest' |
-| ConveyorDrive | PASS | wire tile != blueprint tile 'items_sw_gears2' |
-| ConveyorPad | PASS |  |
-| ConveyorPadE | PASS |  |
-| ConveyorPadN | PASS |  |
-| ConveyorPadS | PASS |  |
-| ConveyorPadW | PASS |  |
-| Crematory Liquid-Cooled Unicomputer | PASS | wire tile != blueprint tile 'items_sw_computer' |
-| CrematoryConveyorPad | PASS |  |
-| CrematoryConveyorPadE | PASS |  |
-| CrematoryConveyorPadN | PASS |  |
-| CrematoryConveyorPadS | PASS |  |
-| CrematoryConveyorPadW | PASS |  |
-| CrematoryMachineRoomBookshelf | PASS | wire tile != blueprint tile 'items_sw_bookshelf2' |
-| Crib | PASS | wire tile != blueprint tile 'items_sw_crib' |
-| Crypt Door | PASS | wire tile != blueprint tile 'items_sw_door_filigree' |
-| Crypt Double Door N | PASS | wire tile != blueprint tile 'items_sw_door_filigree_top' |
-| Crypt Double Door S | PASS | wire tile != blueprint tile 'items_sw_door_filigree_bottom' |
-| Crypt Exit Teleporter | PASS | wire tile != blueprint tile 'items_sw_teleporter_pad' |
-| CyanMarbleWalkway | PASS | wire tile != blueprint tile 'tiles_sw_floor_brickb3' |
-| CyberneticsRack | PASS | wire tile != blueprint tile 'tiles_sw_shelf' |
-| CyberneticsStationRack | PASS |  |
-| CyberneticsTerminal2 | PASS | wire tile != blueprint tile 'terrain_sw_cyberterminal' |
-| Dagasha's Crucifix | PASS | wire tile != blueprint tile 'furniture_chiliad-dagasha-crucifix' |
-| Death Gate E | PASS | wire tile != blueprint tile 'tiles2_sw_deathgate_e' |
-| Death Gate W | PASS | wire tile != blueprint tile 'tiles2_sw_deathgate_w' |
-| Desk | PASS | wire tile != blueprint tile 'items_sw_table_desk' |
-| DisabledSwitch | PASS | wire tile != blueprint tile 'terrain_sw_switch' |
-| DiscSign1 | PASS | wire tile != blueprint tile 'items_sw_sign_datadisc' |
-| DiscSign2 | PASS |  |
-| DiscSign3 | PASS |  |
-| Display Breadboard | PASS | wire tile != blueprint tile 'items_sw_breadboard' |
-| Dock Door N | PASS | wire tile != blueprint tile 'tiles_sw_door2_metal_top' |
-| Dock Door S | PASS | odd tilecolor 'y'; wire tile != blueprint tile 'tiles_sw_door2_metal_bottom' |
-| Door | PASS | odd tilecolor 'y'; wire tile != blueprint tile 'tiles_sw_door_basic' |
-| Door Golem | PASS | wire tile != blueprint tile 'creatures_sw_golem_door' |
-| DoorSwitch | PASS | wire tile != blueprint tile 'terrain_sw_switch2' |
-| Door_GritGateRank1 | PASS | wire tile != blueprint tile 'tiles_sw_door_basic' |
-| Door_GritGateRank2 | PASS |  |
-| Double Door | PASS |  |
-| Double Door E | PASS | wire tile != blueprint tile 'tiles_sw_door2_basic_right' |
-| Double Door N | PASS | wire tile != blueprint tile 'tiles_sw_door2_basic_top' |
-| Double Door S | PASS | wire tile != blueprint tile 'tiles_sw_door2_basic_bottom' |
-| Double Door W | PASS | wire tile != blueprint tile 'tiles_sw_door2_basic_left' |
-| Double Metal Door E | PASS | wire tile != blueprint tile 'tiles_sw_door2_metal_right' |
-| Double Metal Door N | PASS | wire tile != blueprint tile 'tiles_sw_door2_metal_top' |
-| Double Metal Door S | PASS | wire tile != blueprint tile 'tiles_sw_door2_metal_bottom' |
-| Double Metal Door W | PASS | wire tile != blueprint tile 'tiles_sw_door2_metal_left' |
-| Double Striped Door E | PASS | wire tile != blueprint tile 'tiles_sw_door2_striped_right' |
-| Double Striped Door N | PASS | wire tile != blueprint tile 'tiles_sw_door2_striped_top' |
-| Double Striped Door S | PASS | wire tile != blueprint tile 'tiles_sw_door2_striped_bottom' |
-| Double Striped Door W | PASS | wire tile != blueprint tile 'tiles_sw_door2_striped_left' |
-| Double Wavy Door E | PASS | wire tile != blueprint tile 'tiles_sw_door2_wavy_right' |
-| Double Wavy Door N | PASS | wire tile != blueprint tile 'tiles_sw_door2_wavy_top' |
-| Double Wavy Door S | PASS | wire tile != blueprint tile 'tiles_sw_door2_wavy_bottom' |
-| Double Wavy Door W | PASS | wire tile != blueprint tile 'tiles_sw_door2_wavy_left' |
-| Double Windowed Door | PASS | wire tile != blueprint tile 'tiles_sw_door_basic' |
-| Double Windowed Door E | PASS | wire tile != blueprint tile 'tiles_sw_door2_window_right' |
-| Double Windowed Door N | PASS | wire tile != blueprint tile 'tiles_sw_door2_window_top' |
-| Double Windowed Door S | PASS | wire tile != blueprint tile 'tiles_sw_door2_window_bottom' |
-| Double Windowed Door W | PASS | wire tile != blueprint tile 'tiles_sw_door2_window_left' |
-| Dresser | PASS | wire tile != blueprint tile 'items_sw_dresser' |
-| E Marble Dais | PASS | wire tile != blueprint tile 'items_sw_dais_e' |
-| E1 Marble Dais | PASS | wire tile != blueprint tile 'items_sw_dais_east1' |
-| E2 Marble Dais | PASS | wire tile != blueprint tile 'items_sw_dais_east2' |
-| E3 Marble Dais | PASS | wire tile != blueprint tile 'items_sw_dais_east3' |
-| Earth Gate E | PASS | wire tile != blueprint tile 'furniture_earth-gate-right' |
-| Earth Gate W | PASS | wire tile != blueprint tile 'furniture_earth-gate-left' |
-| Eater Chimes | PASS | wire tile != blueprint tile 'furniture_eater-chimes' |
-| Eater Floor Clock N | PASS | wire tile != blueprint tile 'furniture_floor-clock-n' |
-| Eater Floor Clock NE | PASS | wire tile != blueprint tile 'furniture_floor-clock-ne' |
-| Eater Floor Clock NW | PASS | wire tile != blueprint tile 'furniture_floor-clock-nw' |
-| Eater Floor Clock S | PASS | wire tile != blueprint tile 'furniture_floor-clock-s' |
-| Eater Floor Clock SE | PASS | wire tile != blueprint tile 'furniture_floor-clock-se' |
-| Eater Floor Clock SW | PASS | wire tile != blueprint tile 'furniture_floor-clock-sw' |
-| Eater Globe | PASS | wire tile != blueprint tile 'furniture_eater-globe' |
-| Eater Globe with Piping | PASS |  |
-| Eater Hookah | PASS | wire tile != blueprint tile 'furniture_eater-hookah' |
-| Eater Mounted Monument | PASS | wire tile != blueprint tile 'furniture_eater-diagonal-monument-3' |
-| Eater Sign 1 | PASS | wire tile != blueprint tile 'furniture_eater-sign-shard' |
-| Eater Sign 2 | PASS | wire tile != blueprint tile 'furniture_eater-sign-script-1' |
-| Eater Sign 3 | PASS | wire tile != blueprint tile 'furniture_eater-sign-arrow' |
-| Eater Thurible | PASS | wire tile != blueprint tile 'furniture_eater-thrurible' |
-| EaterGreatMachineShrine C | PASS | wire tile != blueprint tile 'furniture_great-machine-shrine-c' |
-| EaterGreatMachineShrine E | PASS | wire tile != blueprint tile 'furniture_great-machine-shrine-e' |
-| EaterGreatMachineShrine N | PASS | wire tile != blueprint tile 'furniture_great-machine-shrine-n' |
-| EaterGreatMachineShrine NW | PASS | wire tile != blueprint tile 'furniture_great-machine-shrine-nw' |
-| EaterGreatMachineShrine S | PASS | wire tile != blueprint tile 'furniture_great-machine-shrine-s' |
-| EaterGreatMachineShrine SW | PASS | wire tile != blueprint tile 'furniture_great-machine-shrine-sw' |
-| EaterGreatMachineShrine W | PASS | wire tile != blueprint tile 'furniture_great-machine-shrine-w' |
-| Electric Generator | PASS | wire tile != blueprint tile 'furniture_generator' |
-| Electrothing | PASS | wire tile != blueprint tile 'items_sw_electrothing' |
-| ElevatorSwitch | PASS | wire tile != blueprint tile 'terrain_sw_switch' |
-| Ergomax Chair | PASS | wire tile != blueprint tile 'items_sw_chair_ergo' |
-| Exit Teleporter | PASS | wire tile != blueprint tile 'items_sw_teleporter_pad' |
-| EzraOven | PASS | wire tile != blueprint tile 'items_sw_oven' |
-| EzraSign | PASS | wire tile != blueprint tile 'items_sw_sign_west' |
-| FactoryArm | PASS | wire tile != blueprint tile 'creatures_robot_arm' |
-| Floor Cushion | PASS | wire tile != blueprint tile 'items_sw_cushion2' |
-| Fluent Lock | PASS | wire tile != blueprint tile 'furniture_fluent-lock-1' |
-| Fluxthing | PASS | wire tile != blueprint tile 'items_sw_fluxthing' |
-| Folding Cot | PASS |  |
-| Food Processor | PASS |  |
-| FoodSign1 | PASS |  |
-| FoodSign2 | PASS |  |
-| FoodSign3 | PASS |  |
-| Force Projector | PASS |  |
-| Forge | PASS |  |
-| FossilizedRemains | PASS |  |
-| Four-Poster Bed | PASS |  |
-| Full-Scale Recompositer | PASS |  |
-| Full-Spectrum Techlight | PASS |  |
-| Fused Security Door | PASS |  |
-| Fusion Power Station | PASS |  |
-| Fusion Pumping Station | PASS |  |
-| Gas Burner | PASS |  |
-| Gate | PASS |  |
-| Glass Door | PASS |  |
-| Glass Door E | PASS |  |
-| Glass Door W | PASS |  |
-| Glass Furnace | PASS |  |
-| Glass Printer | PASS |  |
-| GlassDoorE_GritGateRank2 | PASS |  |
-| GlassDoorW_GritGateRank2 | PASS |  |
-| GlassHydraulicPipe | PASS |  |
-| Globe | PASS | wire tile != blueprint tile 'items_sw_globe' |
-| GloveSign1 | PASS | wire tile != blueprint tile 'items_sw_sign_glove' |
-| GloveSign2 | PASS |  |
-| GloveSign3 | PASS |  |
-| Golem Mound | PASS | wire tile != blueprint tile 'creatures_sw_golem_mound' |
-| GolemInteriorGlassHydraulicPipe | PASS | wire tile != blueprint tile 'assets_content_textures_tiles_sw_pipe_still_intact_' |
-| GrabberArm | PASS | wire tile != blueprint tile 'creatures_robot_arm' |
-| Gravchair | PASS | wire tile != blueprint tile 'items_sw_chair_grav' |
-| Green Security Door | PASS | wire tile != blueprint tile 'terrain_sw_securitydoor' |
-| GrenadeSign1 | PASS | wire tile != blueprint tile 'items_sw_sign_bombs' |
-| GrenadeSign2 | PASS |  |
-| GrenadeSign3 | PASS |  |
-| GreyMarbleWalkway | PASS | wire tile != blueprint tile 'tiles_sw_floor_brickb2' |
-| Grid Quantum Rippler | PASS | wire tile != blueprint tile 'items_sw_quantum_rippler_inactive' |
-| GridNormCore1 | PASS | wire tile != blueprint tile 'items_sw_diamond_thing' |
-| GridNormCore2 | PASS |  |
-| GridNormCore3 | PASS |  |
-| Grit Gate Metal Table | PASS |  |
-| Grit Gate Sleek Table | PASS |  |
-| Grit Gate Table | PASS |  |
-| GritGateBed | PASS |  |
-| GritGateBookshelf | PASS |  |
-| GritGateBookshelf_Kitchen | PASS |  |
-| GritGateBroadcastPowerStation | PASS |  |
-| GritGateCanvasFoldingChair | PASS |  |
-| GritGateChair | PASS |  |
-| GritGateChairbear | PASS |  |
-| GritGateChromeBeacon | PASS |  |
-| GritGateForceProjector | PASS | wire tile != blueprint tile 'items_sw_forceprojector' |
-| GritGateForceProjector_Rank0 | PASS |  |
-| GritGateForceProjector_Rank1 | PASS |  |
-| GritGateForceProjector_Rank2 | PASS |  |
-| GritGateFusionPowerStation | PASS | wire tile != blueprint tile 'items_sw_fusion_power_station' |
-| GritGateFusionPumpingStation | PASS | wire tile != blueprint tile 'items_sw_fusion_pumping_station' |
-| GritGateGlassHydraulicPipe | PASS | wire tile != blueprint tile 'assets_content_textures_tiles_sw_pipe_still_intact_' |
-| GritGateHeavyPowerLine | PASS | wire tile != blueprint tile 'assets_content_textures_tiles_sw_wire_' |
-| GritGateHydraulicIrrigator | PASS | wire tile != blueprint tile 'items_sw_hydraulic_irrigator_1' |
-| GritGateHyperbioticBed | PASS | wire tile != blueprint tile 'items_sw_bed_hyperbiotic' |
-| GritGateHyperbioticChair | PASS | wire tile != blueprint tile 'items_sw_chair_hyperbiotic' |
-| GritgateLocker | PASS | wire tile != blueprint tile 'assets_content_textures_tiles_sw_chest' |
-| GritGateMedicalBed | PASS | wire tile != blueprint tile 'items_sw_bed_medical' |
-| GritGateMedicalChair | PASS | wire tile != blueprint tile 'items_sw_chair_med' |
-| GritGateOven | PASS | wire tile != blueprint tile 'items_sw_oven' |
-| GritGatePowerLine | PASS | wire tile != blueprint tile 'assets_content_textures_tiles_sw_wire_' |
-| GritGateWorkChair | PASS | wire tile != blueprint tile 'items_sw_chair_work' |
-| Gun Rack | PASS | wire tile != blueprint tile 'items_sw_weapons_rack' |
-| GunSign1 | PASS | wire tile != blueprint tile 'items_sw_sign_gun' |
-| GunSign2 | PASS |  |
-| GunSign3 | PASS |  |
-| GunsmithTable | PASS | wire tile != blueprint tile 'items_sw_table1' |
-| Half Candelabra | PASS | wire tile != blueprint tile 'items_sw_candelabra1' |
-| Hammered Dulcimer | PASS | wire tile != blueprint tile 'items_sw_dulcimer' |
-| Hammock | PASS | wire tile != blueprint tile 'items_sw_shawl' |
-| Harp | PASS | wire tile != blueprint tile 'items_sw_harp' |
-| HatSign1 | PASS | wire tile != blueprint tile 'items_sw_sign_hat' |
-| HatSign2 | PASS |  |
-| HatSign3 | PASS |  |
-| HeavyPowerLine | PASS | wire tile != blueprint tile 'assets_content_textures_tiles_sw_wire_' |
-| HighTechInstallation | PASS |  |
-| hologram of Shekhinah | PASS | wire tile != blueprint tile 'items_sw_shekhinah_hologram' |
-| HologramCircle | PASS | wire tile != blueprint tile 'furniture_hologram-circle' |
-| Hookah | PASS | wire tile != blueprint tile 'items_sw_hookah' |
-| HookahSign1 | PASS | wire tile != blueprint tile 'items_sw_hookah_sign' |
-| HookahSign2 | PASS |  |
-| HookahSign3 | PASS |  |
-| Hydraulic Bubblething | PASS | wire tile != blueprint tile 'items_sw_bubblething' |
-| Hydraulic Irrigator | PASS | wire tile != blueprint tile 'items_sw_hydraulic_irrigator_1' |
-| Hydraulic Press | PASS | wire tile != blueprint tile 'items_sw_hydraulic_press' |
-| Hydraulic Ring Gate 1 | PASS | wire tile != blueprint tile 'items_sw_ring_gate_1_off' |
-| Hydraulic Ring Gate 2 | PASS | wire tile != blueprint tile 'items_sw_ring_gate_2_off' |
-| Hydraulic Ring Gate 3 | PASS | wire tile != blueprint tile 'items_sw_ring_gate_3_off' |
-| Hydraulic Turbine | PASS |  |
-| HydroponBookshelf | PASS |  |
-| Hyperbiotic Bed | PASS |  |
-| Hyperbiotic Chair | PASS |  |
-| ImplantSign1 | PASS |  |
-| ImplantSign2 | PASS |  |
-| ImplantSign3 | PASS |  |
-| Induction Charging Station | PASS |  |
-| Industrial Fan | PASS |  |
-| Industrial Fan North | PASS |  |
-| Industrial Fan South | PASS |  |
-| Infested Starship Platform N | PASS |  |
-| Infested Starship Platform S | PASS |  |
-| Infrastructure Golem | PASS |  |
-| Inner Tomb Techlight1 | PASS | wire tile != blueprint tile 'items_sw_light_tomb_1' |
-| Inner Tomb Techlight2 | PASS | wire tile != blueprint tile 'items_sw_light_tomb_2' |
-| Inner Tomb Techlight3 | PASS | wire tile != blueprint tile 'items_sw_light_tomb_3' |
-| Inner Tomb Techlight4 | PASS | wire tile != blueprint tile 'items_sw_light_tomb_4' |
-| Inner Tomb Techlight5 | PASS | wire tile != blueprint tile 'items_sw_light_tomb_5' |
-| Inner Tomb Techlight6 | PASS | wire tile != blueprint tile 'items_sw_light_tomb_6' |
-| InnerCryptDoor1 | PASS | wire tile != blueprint tile 'items_sw_door_filigree' |
-| InnerCryptDoor2 | PASS |  |
-| InnerCryptDoor3 | PASS |  |
-| InnerCryptDoor4 | PASS |  |
-| InnerCryptDoor5 | PASS |  |
-| InnerCryptDoor6 | PASS |  |
-| Iron Gate | PASS | wire tile != blueprint tile 'items_sw_fence_gates_2_open' |
-| Iron Maiden | PASS | wire tile != blueprint tile 'items_sw_iron_maiden' |
-| Iron Maiden Golem | PASS | wire tile != blueprint tile 'creatures_sw_golem_iron_maiden' |
-| ishelf1 | PASS | wire tile != blueprint tile 'items_sw_bookshelf1' |
-| ishelf2 | PASS |  |
-| ishelf3 | PASS | wire tile != blueprint tile 'items_sw_bookshelf3' |
-| ishelf4 | PASS |  |
-| JewelSign1 | PASS | wire tile != blueprint tile 'items_sw_sign_jeweler' |
-| JewelSign2 | PASS | wire tile != blueprint tile 'items_sw_sign_jeweler' |
-| JewelSign3 | PASS |  |
-| Joppa Bookshelf | PASS | wire tile != blueprint tile 'items_sw_bookshelf2' |
-| JoppaMillSign | PASS | wire tile != blueprint tile 'items_sw_sign_pepper' |
-| JoppaNorthSign | PASS | wire tile != blueprint tile 'items_sw_sign_graveyard' |
-| JoppaOven | PASS | wire tile != blueprint tile 'items_sw_oven' |
-| JoppaReshephShrine | PASS | wire tile != blueprint tile 'terrain_sw_resheph_sultanstatue' |
-| JoppaSultanShrine | PASS | wire tile != blueprint tile 'terrain_sw_sultanstatue_8' |
-| Kah's Conveyor | PASS | wire tile != blueprint tile 'furniture_chiliad-kah-conveyor' |
-| Kiln | PASS | wire tile != blueprint tile 'items_sw_kiln' |
-| Klanq Alchemist Table | PASS | wire tile != blueprint tile 'items_sw_alchemist_table' |
-| Klanq Table | PASS | wire tile != blueprint tile 'items_sw_table1' |
-| Kline | PASS | wire tile != blueprint tile 'items_sw_cot' |
-| Kyakukya Monument 1 | PASS | wire tile != blueprint tile 'terrain_sw_monument3' |
-| Kyakukya Monument 2 | PASS | wire tile != blueprint tile 'terrain_sw_monument3' |
-| KyakukyaOven | PASS | wire tile != blueprint tile 'items_sw_oven' |
-| Lathe | PASS | wire tile != blueprint tile 'items_sw_lathe' |
-| Left Spindle Ribbon | PASS | wire tile != blueprint tile 'furniture_left-spindle-ribbon' |
-| Left Spindle Ribbon Top | PASS | wire tile != blueprint tile 'furniture_left-spindle-ribbon-top' |
-| Left Spindle Support | PASS | wire tile != blueprint tile 'furniture_left-spindle-support' |
-| Left Spindle Support Top | PASS | wire tile != blueprint tile 'furniture_left-spindle-support-top' |
-| Life Gate E | PASS | odd color '&W '; wire tile != blueprint tile 'tiles2_sw_lifegate_e' |
-| Life Gate W | PASS | odd color '&W '; wire tile != blueprint tile 'tiles2_sw_lifegate_w' |
-| Light Sculpture | PASS | wire tile != blueprint tile 'items_sw_art_hologram_1' |
-| Liquid-Cooled Unicomputer | PASS | wire tile != blueprint tile 'items_sw_computer' |
-| LiquidSign1 | PASS | wire tile != blueprint tile 'items_sw_sign_liquid' |
-| LiquidSign2 | PASS | wire tile != blueprint tile 'items_sw_sign_liquid' |
-| LiquidSign3 | PASS |  |
-| Locker | PASS | wire tile != blueprint tile 'assets_content_textures_tiles_sw_chest' |
-| Locker2 | PASS | wire tile != blueprint tile 'assets_content_textures_tiles_sw_chest' |
-| Loudspeaker | PASS | wire tile != blueprint tile 'items_sw_box_grill' |
-| Low Table | PASS | wire tile != blueprint tile 'items_sw_table_low' |
-| Mannequin | PASS | wire tile != blueprint tile 'items_sw_mannequin' |
-| Marble Dais | PASS |  |
-| MarbleWalkway | PASS | wire tile != blueprint tile 'tiles_sw_floor_brickb4' |
-| Massage Chair | PASS | wire tile != blueprint tile 'items_sw_chair_message' |
-| Mechanical Golem | PASS |  |
-| Mechanimist Tombstone | PASS | wire tile != blueprint tile 'terrain_sw_tombstone_4' |
-| MechPilotSeat | PASS | wire tile != blueprint tile 'furniture_sw_golem_interior_chair' |
-| Medical Bed | PASS | wire tile != blueprint tile 'items_sw_bed_medical' |
-| Medical Chair | PASS | wire tile != blueprint tile 'items_sw_chair_med' |
-| MedLocker | PASS | wire tile != blueprint tile 'items_sw_medlocker' |
-| Melted Pad | PASS | wire tile != blueprint tile 'items_sw_overgrown_telepad' |
-| Melted Reliquary | PASS | wire tile != blueprint tile 'items_sw_reliquary_melted' |
-| MerchantBookshelf | PASS | wire tile != blueprint tile 'items_sw_bookshelf2' |
-| Metal Chest1 | PASS | wire tile != blueprint tile 'assets_content_textures_tiles_sw_chest' |
-| Metal Chest2 | PASS | wire tile != blueprint tile 'assets_content_textures_tiles_sw_chest' |
-| Metal Chest3 | PASS |  |
-| Metal Chest4 | PASS |  |
-| Metal Chest5 | PASS |  |
-| Metal Chest6 | PASS |  |
-| Metal Chest7 | PASS |  |
-| Metal Chest8 | PASS |  |
-| Metal Door | PASS | wire tile != blueprint tile 'tiles_sw_door_metal' |
-| Metal Table | PASS | wire tile != blueprint tile 'items_sw_table_metal' |
-| Metal Workbench | PASS | wire tile != blueprint tile 'items_sw_table_metal_full' |
-| MetalDoor_GritGateRank0 | PASS | wire tile != blueprint tile 'tiles_sw_door_metal' |
-| MetalDoor_GritGateRank1 | PASS | wire tile != blueprint tile 'tiles_sw_door_metal' |
-| MetalDoor_GritGateRank2 | PASS |  |
-| MetalDoubleDoorE_GritGateRank0 | PASS | wire tile != blueprint tile 'tiles_sw_door2_metal_right' |
-| MetalDoubleDoorE_GritGateRank1 | PASS | wire tile != blueprint tile 'tiles_sw_door2_metal_right' |
-| MetalDoubleDoorE_GritGateRank2 | PASS |  |
-| MetalDoubleDoorW_GritGateRank0 | PASS | wire tile != blueprint tile 'tiles_sw_door2_metal_left' |
-| MetalDoubleDoorW_GritGateRank1 | PASS | wire tile != blueprint tile 'tiles_sw_door2_metal_left' |
-| MetalDoubleDoorW_GritGateRank2 | PASS |  |
-| MetalWalkway | PASS | wire tile != blueprint tile 'tiles_sw_floor_brickb3' |
-| Millstone | PASS | wire tile != blueprint tile 'items_sw_millstone_1' |
-| MopangoOven | PASS | wire tile != blueprint tile 'items_sw_oven' |
-| Moted Lamp | PASS | wire tile != blueprint tile 'furniture_moted-lamp' |
-| MountedFurniture | PASS |  |
-| MountedFurniture | PASS |  |
-| Mover Chair | PASS | wire tile != blueprint tile 'furniture_eater-chair-double' |
-| Mover Chair Flipped | PASS | wire tile != blueprint tile 'furniture_eater-chair-double' |
-| Mover Chute Bottom Opening L | PASS | wire tile != blueprint tile 'terrain_mover-chute-bottom-opening-l' |
-| Mover Chute Bottom Opening R | PASS | wire tile != blueprint tile 'terrain_mover-chute-bottom-opening-r' |
-| Mover Chute L | PASS | wire tile != blueprint tile 'terrain_mover-chute-l' |
-| Mover Chute R | PASS | wire tile != blueprint tile 'terrain_mover-chute-r' |
-| Mover Chute Top Opening L | PASS | wire tile != blueprint tile 'terrain_mover-chute-top-opening-l' |
-| Mover Chute Top Opening R | PASS | wire tile != blueprint tile 'terrain_mover-chute-top-opening-r' |
-| Mover Couch C | PASS | wire tile != blueprint tile 'furniture_eater-couch-c' |
-| Mover Couch L | PASS | wire tile != blueprint tile 'furniture_eater-couch-l' |
-| Mover Couch R | PASS | wire tile != blueprint tile 'furniture_eater-couch-r' |
-| Multicabinet | PASS | wire tile != blueprint tile 'items_sw_multi_cabinet_2' |
-| Mushroom Case | PASS | wire tile != blueprint tile 'items_sw_mushroom_case' |
-| N Marble Dais | PASS | wire tile != blueprint tile 'items_sw_dais_n' |
-| Nacham's Loom | PASS | wire tile != blueprint tile 'furniture_chiliad-nacham-loom' |
-| NE Marble Dais | PASS | wire tile != blueprint tile 'items_sw_dais_ne' |
-| NephilimShrine | PASS |  |
-| NormCore | PASS | wire tile != blueprint tile 'items_sw_diamond_thing' |
-| NormCore1 | PASS | wire tile != blueprint tile 'items_sw_diamond_thing' |
-| NormCore2 | PASS |  |
-| NormCore3 | PASS |  |
-| NuntuBookshelf | PASS | wire tile != blueprint tile 'items_sw_bookshelf1' |
-| NuntuBookshelf2 | PASS | wire tile != blueprint tile 'items_sw_bookshelf3' |
-| NuntuChest | PASS | wire tile != blueprint tile 'assets_content_textures_tiles_sw_chest' |
-| NuntuTable | PASS | wire tile != blueprint tile 'items_sw_table3' |
-| NW Marble Dais | PASS | wire tile != blueprint tile 'items_sw_dais_nw' |
-| Octagonal Table | PASS | wire tile != blueprint tile 'items_sw_table_cylinder' |
-| Ornate Bench | PASS | wire tile != blueprint tile 'items_sw_chair_ornate_1' |
-| Ornate Chair | PASS | wire tile != blueprint tile 'items_sw_chair_ornate_2' |
-| Ornate Table | PASS | wire tile != blueprint tile 'items_sw_table_ornate_1' |
-| Orrery | PASS | wire tile != blueprint tile 'items_sw_orrery' |
-| Oven | PASS | wire tile != blueprint tile 'items_sw_oven' |
-| Painted Column L | PASS | wire tile != blueprint tile 'items_sw_column_splattered' |
-| Painted Column R | PASS | wire tile != blueprint tile 'items_sw_column_splattered' |
-| Painting | PASS | wire tile != blueprint tile 'items_sw_painting_2' |
-| PepperSign1 | PASS | wire tile != blueprint tile 'items_sw_sign_pepper' |
-| PepperSign2 | PASS | wire tile != blueprint tile 'items_sw_sign_pepper' |
-| PepperSign3 | PASS |  |
-| Period1SultanShrine | PASS | wire tile != blueprint tile 'terrain_sw_sultanstatue_7' |
-| Period2SultanShrine | PASS | wire tile != blueprint tile 'terrain_sw_sultanstatue_3' |
-| Period3SultanShrine | PASS | wire tile != blueprint tile 'terrain_sw_sultanstatue_10' |
-| Period4SultanShrine | PASS | wire tile != blueprint tile 'terrain_sw_sultanstatue_rare_4' |
-| Period5SultanShrine | PASS | wire tile != blueprint tile 'terrain_sw_sultanstatue_8' |
-| Period6SultanShrine | PASS | wire tile != blueprint tile 'terrain_sw_resheph_sultanstatue' |
-| Phasic Screw | PASS | wire tile != blueprint tile 'furniture_phasic-screw-1' |
-| PigSign | PASS | wire tile != blueprint tile 'items_sw_sign_pig' |
-| PistonPressElement | PASS |  |
-| Platform | PASS | wire tile != blueprint tile 'items_sw_platform_chrome' |
-| Powered Orrery | PASS | wire tile != blueprint tile 'items_sw_orrery' |
-| Powered Telescope | PASS | wire tile != blueprint tile 'items_sw_microscope' |
-| Powerless Bubblething | PASS | wire tile != blueprint tile 'items_sw_bubblething' |
-| Powerless Electrothing | PASS | wire tile != blueprint tile 'items_sw_electrothing' |
-| Powerless Fluxthing | PASS | wire tile != blueprint tile 'items_sw_fluxthing' |
-| Powerless Loudspeaker | PASS | wire tile != blueprint tile 'items_sw_box_grill' |
-| Powerless Unicomputer | PASS | wire tile != blueprint tile 'items_sw_computer' |
-| PowerLine | PASS | wire tile != blueprint tile 'assets_content_textures_tiles_sw_wire_' |
-| Preserved Food Basket | PASS | wire tile != blueprint tile 'items_sw_basket' |
-| PreserveSign1 | PASS | wire tile != blueprint tile 'items_sw_sign_bottle' |
-| PreserveSign2 | PASS | wire tile != blueprint tile 'items_sw_sign_bottle' |
-| PreserveSign3 | PASS |  |
-| Psiamp Sarcophagus | PASS | wire tile != blueprint tile 'items_sw_psiamp_sarcophagus' |
-| Purple Security Door | PASS | wire tile != blueprint tile 'terrain_sw_securitydoor' |
-| QasShrine | PASS | wire tile != blueprint tile 'furniture_nephilim_statue_qas' |
-| QonShrine | PASS | wire tile != blueprint tile 'furniture_nephilim_statue_qon' |
-| Quantum Rippler | PASS | wire tile != blueprint tile 'items_sw_quantum_rippler_inactive' |
-| RachelsTombstone | PASS | wire tile != blueprint tile 'terrain_sw_tombstone_2' |
-| Random Marble Statue | PASS | wire tile != blueprint tile 'creatures_sw_crypt_ferret' |
-| Random Statue | PASS | wire tile != blueprint tile 'terrain_tile_tombstone1' |
-| Random Stone Statue | PASS | wire tile != blueprint tile 'creatures_sw_tortoise' |
-| Rare Chest1 | PASS | wire tile != blueprint tile 'assets_content_textures_tiles_sw_chest' |
-| Rare Chest2 | PASS | wire tile != blueprint tile 'assets_content_textures_tiles_sw_chest' |
-| Rare Chest3 | PASS |  |
-| Rare Chest4 | PASS |  |
-| Rare Chest5 | PASS |  |
-| Rare Chest6 | PASS |  |
-| Rare Chest7 | PASS |  |
-| Rare Chest8 | PASS |  |
-| RareChest | PASS |  |
-| Rebekah Hologram | PASS | wire tile != blueprint tile 'creatures_rebekah' |
-| Reclamation Cist | PASS | wire tile != blueprint tile 'items_sw_iron_maiden' |
-| Recoming Nook Door | PASS | wire tile != blueprint tile 'items_sw_door_filigree' |
-| Recoming Reliquary | PASS | wire tile != blueprint tile 'items_sw_reliquary' |
-| Rectangular Bells | PASS | wire tile != blueprint tile 'items_sw_glockenspiel' |
-| Red Security Door | PASS | wire tile != blueprint tile 'terrain_sw_securitydoor' |
-| Redrock Bookshelf | PASS | wire tile != blueprint tile 'items_sw_bookshelf1' |
-| Redrock Metal Workbench | PASS | wire tile != blueprint tile 'items_sw_table_metal_full' |
-| Regen Tank | PASS | wire tile != blueprint tile 'items_sw_regen_tank' |
-| RelicChest | PASS | wire tile != blueprint tile 'assets_content_textures_tiles_sw_chest' |
-| Reliquary | PASS | wire tile != blueprint tile 'items_sw_reliquary' |
-| RermadonShrine | PASS | wire tile != blueprint tile 'furniture_nephilim_statue_rermadon' |
-| Reshaping Nook | PASS | wire tile != blueprint tile 'furniture_sw_reshaping_nook' |
-| Reshaping Pad | PASS | wire tile != blueprint tile 'furniture_sw_reshaping_pad' |
-| Resheph Hologram | PASS | wire tile != blueprint tile 'creatures_resheph' |
-| Resheph2 | PASS | wire tile != blueprint tile 'creatures_resheph' |
-| ReshephsCrypt | PASS | wire tile != blueprint tile 'terrain_tile_tombstone1' |
-| RewardChestJunk | PASS | wire tile != blueprint tile 'assets_content_textures_tiles_sw_chest' |
-| Right Spindle Ribbon | PASS | wire tile != blueprint tile 'furniture_right-spindle-ribbon' |
-| Right Spindle Ribbon Top | PASS | wire tile != blueprint tile 'furniture_right-spindle-ribbon-top' |
-| Right Spindle Support | PASS | wire tile != blueprint tile 'furniture_right-spindle-support' |
-| Right Spindle Support Top | PASS | odd color '&W '; wire tile != blueprint tile 'furniture_right-spindle-support-top' |
-| Ring Gate 1 | PASS | odd color '&W '; wire tile != blueprint tile 'items_sw_ring_gate_1_off' |
-| Ring Gate 2 | PASS | wire tile != blueprint tile 'items_sw_ring_gate_2_off' |
-| Ring Gate 3 | PASS | wire tile != blueprint tile 'items_sw_ring_gate_3_off' |
-| Rock Tumbler | PASS | wire tile != blueprint tile 'items_sw_rock_tumbler' |
-| Ruined Ring Gate | PASS | wire tile != blueprint tile 'items_sw_ring_gate_ruined_3' |
-| RuinedNephilimShrime | PASS | wire tile != blueprint tile 'furniture_nephilim_statue_ruined' |
-| RustLocker | PASS | wire tile != blueprint tile 'assets_content_textures_tiles_sw_chest' |
-| S1 Marble Dais | PASS | wire tile != blueprint tile 'items_sw_dais_south1' |
-| S2 Marble Dais | PASS | wire tile != blueprint tile 'items_sw_dais_south2' |
-| Sarcophagus | PASS | wire tile != blueprint tile 'items_sw_tomb_opened' |
-| Sconce | PASS |  |
-| Scrapable Deposit Box 6 | PASS | wire tile != blueprint tile 'items_sw_deposit_box' |
-| Scrapasan | PASS | wire tile != blueprint tile 'items_sw_chair_scrapasan' |
-| ScrapChest | PASS | wire tile != blueprint tile 'assets_content_textures_tiles_sw_chest' |
-| SE Marble Dais | PASS | wire tile != blueprint tile 'items_sw_dais_se' |
-| Security Door | PASS | wire tile != blueprint tile 'terrain_sw_securitydoor' |
-| Sewing Machine | PASS | wire tile != blueprint tile 'items_sw_sewing_machine' |
-| Sheva Bell | PASS | wire tile != blueprint tile 'furniture_eater-bell' |
-| ShevaBrazier | PASS | wire tile != blueprint tile 'furniture_techlamp6' |
-| ShevaBrazierGreen | PASS |  |
-| ShevaHydraulicPipe Black | PASS | wire tile != blueprint tile 'assets_content_textures_furniture_eater-pipe_still_intact_' |
-| ShevaHydraulicPipe Blue | PASS |  |
-| ShevaHydraulicPipe Cyan | PASS |  |
-| ShevaHydraulicPipe Green | PASS |  |
-| ShugruithShrine | PASS | wire tile != blueprint tile 'furniture_nephilim_statue_shugruith' |
-| Sign | PASS |  |
-| SixshrewSign | PASS | wire tile != blueprint tile 'items_sw_sign_goods' |
-| Sleek Table | PASS | wire tile != blueprint tile 'items_sw_table_sleek' |
-| Sofa | PASS | wire tile != blueprint tile 'items_sw_sofa_l' |
-| Sofa C | PASS | wire tile != blueprint tile 'items_sw_couch_c' |
-| Sofa L | PASS | wire tile != blueprint tile 'items_sw_couch_l' |
-| Sofa R | PASS | wire tile != blueprint tile 'items_sw_couch_r' |
-| Solar Condenser | PASS | wire tile != blueprint tile 'items_sw_solar_condenser' |
-| Solar Power Station | PASS | wire tile != blueprint tile 'items_sw_solar_power_station' |
-| Solar Pumping Station | PASS | wire tile != blueprint tile 'items_sw_solar_pumping_station' |
-| Solar Still | PASS | wire tile != blueprint tile 'items_sw_solar_still' |
-| SolidHighTechInstallation | PASS |  |
-| Spindle Ribbon | PASS | wire tile != blueprint tile 'furniture_spindle-ribbon' |
-| Spindle Ribbon Top | PASS | wire tile != blueprint tile 'furniture_spindle-ribbon-top' |
-| Star Carousel Art Sculpture 1 | PASS | wire tile != blueprint tile 'furniture_star-carousel-art-1' |
-| Star Carousel Art Sculpture 2 | PASS | wire tile != blueprint tile 'furniture_star-carousel-art-2' |
-| Star Carousel Art Sculpture 3 | PASS | wire tile != blueprint tile 'furniture_star-carousel-art-3' |
-| Star Carousel Display Case | PASS | wire tile != blueprint tile 'furniture_star-carousel-display-case' |
-| Star Carousel Display Case FS | PASS |  |
-| Star Carousel Passenger Console 1 | PASS | wire tile != blueprint tile 'furniture_star-carousel-passenger-console-1' |
-| Star Carousel Passenger Console 2 | PASS | wire tile != blueprint tile 'furniture_star-carousel-passenger-console-2' |
-| Star Carousel Passenger Seat | PASS | wire tile != blueprint tile 'furniture_star-carousel-passenger-seat' |
-| Star Carousel Pilot Console | PASS | wire tile != blueprint tile 'furniture_star-carousel-pilot-console-n' |
-| Star Carousel Pilot Console N | PASS |  |
-| Star Carousel Pilot Console S | PASS | wire tile != blueprint tile 'furniture_star-carousel-pilot-console-s' |
-| Star Carousel Pilot Seat | PASS | wire tile != blueprint tile 'furniture_star-carousel-pilot-seat' |
-| Star Carousel Power Core | PASS | wire tile != blueprint tile 'furniture_star-carousel-power-core' |
-| Star Carousel Star Chart C | PASS | wire tile != blueprint tile 'furniture_star-carousel-star-chart-c' |
-| Star Carousel Star Chart L | PASS | wire tile != blueprint tile 'furniture_star-carousel-star-chart-l' |
-| Star Carousel Star Chart R | PASS | wire tile != blueprint tile 'furniture_star-carousel-star-chart-r' |
-| Star Carousel Table | PASS | wire tile != blueprint tile 'furniture_star-carousel-table' |
-| Star Orchid Temple Gate N | PASS | wire tile != blueprint tile 'furniture_orchid-gate-n' |
-| Star Orchid Temple Gate S | PASS | wire tile != blueprint tile 'furniture_orchid-gate-s' |
-| Star Orchid Temple Gate SE | PASS | wire tile != blueprint tile 'furniture_orchid-gate-se' |
-| Star Orchid Temple Gate SW | PASS | wire tile != blueprint tile 'furniture_orchid-gate-sw' |
-| Star Orchid Temple Projector | PASS | wire tile != blueprint tile 'furniture_orchid-projector' |
-| Starmchair | PASS | wire tile != blueprint tile 'items_sw_starfish_chair' |
-| Starshiib Hologram | PASS | wire tile != blueprint tile 'creatures_chiliad-starshiib' |
-| Starship 1 Platform N | PASS | wire tile != blueprint tile 'furniture_dock-platform-n' |
-| Starship 1 Platform S | PASS | wire tile != blueprint tile 'furniture_dock-platform-s' |
-| Starship Copilot Console | PASS | wire tile != blueprint tile 'furniture_starship-1-pilot-console' |
-| Starship Double Metal Door N | PASS | wire tile != blueprint tile 'tiles_sw_door2_metal_top' |
-| Starship Double Metal Door S | PASS | wire tile != blueprint tile 'tiles_sw_door2_metal_bottom' |
-| Starship Metal Door | PASS | wire tile != blueprint tile 'tiles_sw_door_metal' |
-| Starship Pilot Console | PASS | wire tile != blueprint tile 'furniture_starship-1-pilot-console' |
-| Starship1 Cargo Crate | PASS | wire tile != blueprint tile 'furniture_starship-1-viewer' |
-| Starship1 Comms | PASS | wire tile != blueprint tile 'furniture_starship-1-comms' |
-| Starship1 Copilot Seat | PASS | wire tile != blueprint tile 'furniture_starship-1-pilot-seat' |
-| Starship1 Floor Cushion | PASS | wire tile != blueprint tile 'furniture_starship-floor-cushion' |
-| Starship1 Passenger Seat | PASS | wire tile != blueprint tile 'furniture_starship-1-passenger-seat' |
-| Starship1 Pilot Seat | PASS | wire tile != blueprint tile 'furniture_starship-1-pilot-seat' |
-| Starship1 Power Core | PASS | wire tile != blueprint tile 'furniture_starship-1-power-core' |
-| Starship1 Status Panel | PASS | wire tile != blueprint tile 'furniture_starship-1-status-panel' |
-| Starship1 Tree Sculpture | PASS | wire tile != blueprint tile 'furniture_starship-1-tree-sculpture' |
-| Starship1 Wooden Chair | PASS | wire tile != blueprint tile 'furniture_starship-wooden-chair' |
-| Starship1 Wooden Table | PASS | wire tile != blueprint tile 'furniture_starship-wooden-table' |
-| StarshipBed E | PASS | wire tile != blueprint tile 'walls2_starship-1-wallbed-e' |
-| StarshipBed W | PASS | wire tile != blueprint tile 'walls2_starship-1-wallbed-w' |
-| StarshipBookshelf E | PASS | wire tile != blueprint tile 'walls2_starship-1-wallbookshelf-e' |
-| StarshipBookshelf W | PASS | wire tile != blueprint tile 'walls2_starship-1-wallbookshelf-w' |
-| StiltOven | PASS | wire tile != blueprint tile 'items_sw_oven' |
-| StiltWell | PASS | wire tile != blueprint tile 'items_sw_well' |
-| Stool | PASS | wire tile != blueprint tile 'items_sw_stool' |
-| Striped Door | PASS | wire tile != blueprint tile 'tiles_sw_door_striped' |
-| SultanReliquaryE | PASS | wire tile != blueprint tile 'items_sw_sultan_reliquary_e' |
-| SultanReliquaryEPeriod1 | PASS |  |
-| SultanReliquaryEPeriod2 | PASS |  |
-| SultanReliquaryEPeriod3 | PASS |  |
-| SultanReliquaryEPeriod4 | PASS |  |
-| SultanReliquaryEPeriod5 | PASS |  |
-| SultanReliquaryEPeriod6 | PASS |  |
-| SultanReliquaryW | PASS | wire tile != blueprint tile 'items_sw_sultan_reliquary_w' |
-| SultanReliquaryWPeriod1 | PASS |  |
-| SultanReliquaryWPeriod2 | PASS |  |
-| SultanReliquaryWPeriod3 | PASS |  |
-| SultanReliquaryWPeriod4 | PASS |  |
-| SultanReliquaryWPeriod5 | PASS |  |
-| SultanReliquaryWPeriod6 | PASS |  |
-| SultanSarcophagusE | PASS | wire tile != blueprint tile 'items_sw_sultan_sarcophagus_closed_e' |
-| SultanSarcophagusEPeriod1 | PASS |  |
-| SultanSarcophagusEPeriod2 | PASS |  |
-| SultanSarcophagusEPeriod3 | PASS |  |
-| SultanSarcophagusEPeriod4 | PASS |  |
-| SultanSarcophagusEPeriod5 | PASS |  |
-| SultanSarcophagusEPeriod6 | PASS |  |
-| SultanSarcophagusW | PASS | wire tile != blueprint tile 'items_sw_sultan_sarcophagus_closed_w' |
-| SultanSarcophagusWPeriod1 | PASS |  |
-| SultanSarcophagusWPeriod2 | PASS |  |
-| SultanSarcophagusWPeriod3 | PASS |  |
-| SultanSarcophagusWPeriod4 | PASS |  |
-| SultanSarcophagusWPeriod5 | PASS |  |
-| SultanSarcophagusWPeriod6 | PASS |  |
-| SultanShrine | PASS | wire tile != blueprint tile 'terrain_sw_resheph_sultanstatue' |
-| Sunken Room Stairs | PASS | wire tile != blueprint tile 'tiles_sw_floor_brick1' |
-| Sunken Room Stairs E | PASS | wire tile != blueprint tile 'tiles2_sw_sunken_room_stairs_e' |
-| Sunken Room Stairs N | PASS | wire tile != blueprint tile 'tiles2_sw_sunken_room_stairs_n' |
-| Sunken Room Stairs NE | PASS | wire tile != blueprint tile 'tiles2_sw_sunken_room_stairs_ne' |
-| Sunken Room Stairs NW | PASS | wire tile != blueprint tile 'tiles2_sw_sunken_room_stairs_nw' |
-| Sunken Room Stairs S | PASS | wire tile != blueprint tile 'tiles2_sw_sunken_room_stairs_s' |
-| Sunken Room Stairs SE | PASS | wire tile != blueprint tile 'tiles2_sw_sunken_room_stairs_se' |
-| Sunken Room Stairs SW | PASS | wire tile != blueprint tile 'tiles2_sw_sunken_room_stairs_sw' |
-| Sunken Room Stairs W | PASS | wire tile != blueprint tile 'tiles2_sw_sunken_room_stairs_w' |
-| SW Marble Dais | PASS | wire tile != blueprint tile 'items_sw_dais_sw' |
-| Switch | PASS | wire tile != blueprint tile 'terrain_sw_switch' |
-| Table | PASS | wire tile != blueprint tile 'items_sw_table3' |
-| Table Golem | PASS | wire tile != blueprint tile 'creatures_sw_golem_table' |
-| Tall Brazier | PASS | wire tile != blueprint tile 'items_sw_lamp' |
-| TamSign | PASS | wire tile != blueprint tile 'items_sw_sign_goods' |
-| Techlight1 | PASS | wire tile != blueprint tile 'items_sw_hitech_lightsource1' |
-| Techlight2 | PASS | wire tile != blueprint tile 'items_sw_hitech_lightsource2' |
-| Techlight3 | PASS | wire tile != blueprint tile 'items_sw_hitech_lightsource3' |
-| Telescope | PASS | wire tile != blueprint tile 'items_sw_microscope' |
-| TempleSwitch | PASS | wire tile != blueprint tile 'terrain_sw_switch' |
-| Throne | PASS | wire tile != blueprint tile 'items_sw_chair_throne' |
-| Tinted Glass Door E | PASS | wire tile != blueprint tile 'tiles2_sw_gate_glass_e_closed' |
-| Tinted Glass Door W | PASS | wire tile != blueprint tile 'tiles2_sw_gate_glass_w_closed' |
-| Tomb Techlight1 | PASS | wire tile != blueprint tile 'items_sw_light_tomb_1' |
-| Tomb Techlight2 | PASS | wire tile != blueprint tile 'items_sw_light_tomb_2' |
-| Tomb Techlight3 | PASS | wire tile != blueprint tile 'items_sw_light_tomb_3' |
-| Tomb Techlight4 | PASS | wire tile != blueprint tile 'items_sw_light_tomb_4' |
-| Tomb Techlight5 | PASS | wire tile != blueprint tile 'items_sw_light_tomb_5' |
-| Tomb Techlight6 | PASS | wire tile != blueprint tile 'items_sw_light_tomb_6' |
-| Tombstone | PASS | wire tile != blueprint tile 'terrain_sw_tombstone_4' |
-| Torchpost | PASS | wire tile != blueprint tile 'tiles_sw_torch_nofire' |
-| Torture Chair | PASS | wire tile != blueprint tile 'items_sw_torture_chair' |
-| TrembleEntranceWormhole | PASS |  |
-| TrembleExitWormhole | PASS |  |
-| Troll Door | PASS |  |
-| Troll Door 1 | PASS |  |
-| Troll Door 2 | PASS |  |
-| Troll Door 3 | PASS |  |
-| TutorialChest1 | PASS | wire tile != blueprint tile 'assets_content_textures_tiles_sw_chest' |
-| TutorialFusionPumpingStation | PASS | wire tile != blueprint tile 'items_sw_fusion_pumping_station' |
-| Underground Air Well | PASS | wire tile != blueprint tile 'items_sw_airwell' |
-| UndergroundBookshelf | PASS | wire tile != blueprint tile 'items_sw_bookshelf1' |
-| UndergroundMerchantBookshelf | PASS |  |
-| Unfinished Sculpture | PASS | wire tile != blueprint tile 'items_sw_unfinished_sculpture_1' |
-| Unicomputer | PASS | wire tile != blueprint tile 'items_sw_computer' |
-| Unimax Wood Carving | PASS | wire tile != blueprint tile 'creatures_sw_unimax' |
-| Universal Charging Station | PASS | wire tile != blueprint tile 'items_sw_universal_station' |
-| Unlit Torchpost | PASS | wire tile != blueprint tile 'tiles_sw_torch_nofire' |
-| Unpowered Gas Burner | PASS | wire tile != blueprint tile 'items_sw_titrator' |
-| Va'am's Blower | PASS | wire tile != blueprint tile 'furniture_chiliad-vaam-blower-1' |
-| VehicleConsole N | PASS | wire tile != blueprint tile 'furniture_sw_golem_interior_screen_n' |
-| VehicleConsole N | PASS |  |
-| VehicleConsole S | PASS | wire tile != blueprint tile 'furniture_sw_golem_interior_screen_s' |
-| VehicleConsole S | PASS |  |
-| VehicleGolemPassengerSeat | PASS | wire tile != blueprint tile 'furniture_sw_golem_interior_chair' |
-| VehicleGolemSeat | PASS |  |
-| Village Bookshelf | PASS | wire tile != blueprint tile 'items_sw_bookshelf3' |
-| Village Hologram 1 | PASS | wire tile != blueprint tile 'items_sw_hologram1' |
-| Village Hologram 2 | PASS | wire tile != blueprint tile 'items_sw_hologram2' |
-| Village Monument | PASS | wire tile != blueprint tile 'terrain_sw_monument1' |
-| Village Monument Amphora | PASS | wire tile != blueprint tile 'terrain_sw_monument2' |
-| Village Monument Birdhouse | PASS | wire tile != blueprint tile 'terrain_sw_monument3' |
-| Village Monument Diptych | PASS | wire tile != blueprint tile 'terrain_sw_monument4' |
-| Village Monument Monolith | PASS | wire tile != blueprint tile 'terrain_sw_monument6' |
-| Village Monument Obelisk | PASS | wire tile != blueprint tile 'terrain_sw_monument1' |
-| Village Monument Orb | PASS | wire tile != blueprint tile 'terrain_sw_monument8' |
-| Village Monument Sculpture | PASS | wire tile != blueprint tile 'terrain_sw_monument7' |
-| Village Monument Stele | PASS | wire tile != blueprint tile 'terrain_sw_monument5' |
-| W Marble Dais | PASS | wire tile != blueprint tile 'items_sw_dais_w' |
-| W1 Marble Dais | PASS | wire tile != blueprint tile 'items_sw_dais_west1' |
-| W2 Marble Dais | PASS | wire tile != blueprint tile 'items_sw_dais_west2' |
-| W3 Marble Dais | PASS | wire tile != blueprint tile 'items_sw_dais_west3' |
-| Walkway | PASS | wire tile != blueprint tile 'tiles_sw_floor_brickb4' |
-| WanderStopper Tinted Glass Door E | PASS | wire tile != blueprint tile 'tiles2_sw_gate_glass_e_closed' |
-| WanderStopper Tinted Glass Door W | PASS | wire tile != blueprint tile 'tiles2_sw_gate_glass_w_closed' |
-| Waterbed | PASS | wire tile != blueprint tile 'items_sw_bed_water' |
-| Wavy Door | PASS | wire tile != blueprint tile 'tiles_sw_door_wavy' |
-| Weapon Rack | PASS | wire tile != blueprint tile 'items_sw_weapons_rack' |
-| WedgeChest1 | PASS | wire tile != blueprint tile 'assets_content_textures_tiles_sw_chest' |
-| WedgeChest2 | PASS |  |
-| WedgeChest3 | PASS |  |
-| WedgeChest4 | PASS |  |
-| WedgeChest5 | PASS |  |
-| WedgeChest6 | PASS |  |
-| Windowed Door | PASS | wire tile != blueprint tile 'tiles_sw_door_window' |
-| WineSign1 | PASS | wire tile != blueprint tile 'items_sw_sign_wine' |
-| WineSign2 | PASS |  |
-| WineSign3 | PASS |  |
-| Wire Extruder | PASS | wire tile != blueprint tile 'furniture_wire_extruder' |
-| WiredDoor_GritGateRank1 | PASS | wire tile != blueprint tile 'tiles_sw_door_basic' |
-| WiredDoor_GritGateRank2 | PASS |  |
-| WiredMetalDoubleDoorE_GritGateRank0 | PASS | wire tile != blueprint tile 'tiles_sw_door2_metal_right' |
-| WiredMetalDoubleDoorE_GritGateRank1 | PASS |  |
-| WiredMetalDoubleDoorE_GritGateRank2 | PASS |  |
-| WiredMetalDoubleDoorW_GritGateRank0 | PASS | wire tile != blueprint tile 'tiles_sw_door2_metal_left' |
-| WiredMetalDoubleDoorW_GritGateRank1 | PASS |  |
-| WiredMetalDoubleDoorW_GritGateRank2 | PASS |  |
-| Wood-Carved Bed | PASS | wire tile != blueprint tile 'furniture_wood-carved-bed' |
-| Wood-Carved Bookshelf | PASS | wire tile != blueprint tile 'furniture_wood-carved-bookshelf' |
-| Wood-Carved Chair | PASS | wire tile != blueprint tile 'furniture_wood-carved-chair' |
-| Wood-Carved Clothespress | PASS | wire tile != blueprint tile 'furniture_wood-carved-dresser' |
-| Wood-Carved Table | PASS | wire tile != blueprint tile 'furniture_wood-carved-table' |
-| Wooden Water Wheel | PASS | wire tile != blueprint tile 'items_sw_waterwheel_1' |
-| Wooden Wind Turbine | PASS | wire tile != blueprint tile 'items_sw_windmill_1' |
-| WoodenMechanicalTransmission | PASS | wire tile != blueprint tile 'assets_content_textures_tiles_sw_axle_1_' |
-| Work Chair | PASS | wire tile != blueprint tile 'items_sw_chair_work' |
-| Workbench | PASS | wire tile != blueprint tile 'assets_content_textures_tiles_sw_table' |
-| Wormhole | PASS |  |
-| Woven Basket | PASS | wire tile != blueprint tile 'items_sw_basket' |
-| Yd Regen Tank | PASS | wire tile != blueprint tile 'items_sw_regen_tank' |
-| Yd Village Monument 1 | PASS | wire tile != blueprint tile 'terrain_sw_monument4' |
-| Yd Village Monument 2 | PASS |  |
-| YdColumbariumSign | PASS | wire tile != blueprint tile 'items_sw_sign_urn' |
-| YdFreeholdBookshelf | PASS | wire tile != blueprint tile 'items_sw_bookshelf3' |
-| YdFreeholdFusionPowerStation | PASS | wire tile != blueprint tile 'items_sw_fusion_power_station' |
-| YdFreeholdFusionPumpingStation | PASS | wire tile != blueprint tile 'items_sw_fusion_pumping_station' |
-| YdFreeholdGlassHydraulicPipe1 | PASS | wire tile != blueprint tile 'assets_content_textures_tiles_sw_pipe_still_intact_' |
-| YdFreeholdGlassHydraulicPipe2 | PASS |  |
-| YdFreeholdOven | PASS | wire tile != blueprint tile 'items_sw_oven' |
-| YdKitchenSign | PASS | wire tile != blueprint tile 'items_sw_sign_pepper' |
-| YdLibrarySign | PASS | wire tile != blueprint tile 'items_sw_sign_book' |
-| YdLivingQuartersSign | PASS | wire tile != blueprint tile 'items_sw_sign_living_quarters' |
-| YdManyEyesSign | PASS | wire tile != blueprint tile 'items_sw_eye_sign' |
-| YdMarketSign | PASS | wire tile != blueprint tile 'items_sw_sign_goods' |
-| YdMedicalSign | PASS | wire tile != blueprint tile 'items_sw_sign_medical' |
-| YdSalonSign | PASS | wire tile != blueprint tile 'items_sw_hookah_sign' |
-| YdWorkshopSign | PASS | wire tile != blueprint tile 'items_sw_sign_gear' |
-| Yellow Security Door | PASS | wire tile != blueprint tile 'terrain_sw_securitydoor' |
-| YlaSign | PASS | wire tile != blueprint tile 'items_sw_sign_datadisc' |
-| YurlChest | PASS | wire tile != blueprint tile 'assets_content_textures_tiles_sw_chest' |
-| YurlSign | PASS | wire tile != blueprint tile 'items_sw_sign_sword' |
+| element | verdict | px | notes |
+|---|---|---|---|
+| AgolgotShrine | PASS | PASS 5.5/4% | wire tile != blueprint tile 'furniture_nephilim_statue_agolgot' |
+| Air Well | PASS | PASS 7.9/4% | wire tile != blueprint tile 'items_sw_airwell' |
+| Alchemist Table | PASS | PASS 5.7/4% | wire tile != blueprint tile 'items_sw_alchemist_table' |
+| Anvil | PASS | PASS 3.4/1% | wire tile != blueprint tile 'items_sw_anvil' |
+| AppleSign1 | PASS | PASS 3.6/3% | wire tile != blueprint tile 'items_sw_sign_apple' |
+| AppleSign2 | PASS | PASS 3.6/3% | wire tile != blueprint tile 'items_sw_sign_apple' |
+| AppleSign3 | PASS | PASS 3.6/3% |  |
+| Archon Hologram | PASS | WARN 12.2/8% | wire tile != blueprint tile 'assets_content_textures_walls2_walls_resheph_1_0-00000000' |
+| Archway | PASS | PASS 5.6/3% | wire tile != blueprint tile 'tiles_sw_arch' |
+| Argyve Multicabinet | PASS | PASS 7.7/6% | wire tile != blueprint tile 'items_sw_multi_cabinet_2' |
+| ArgyveSign | PASS | PASS 3.8/4% | wire tile != blueprint tile 'items_sw_sign_datadisc' |
+| Ark Core 1 | PASS | PASS 6.2/4% | wire tile != blueprint tile 'furniture_arkcore-1' |
+| Ark Core 2 | PASS | PASS 4.4/3% | wire tile != blueprint tile 'furniture_arkcore-2' |
+| Ark Core 3 | PASS |  | wire tile != blueprint tile 'furniture_arkcore-3'; no capture pair — congruence skipped |
+| Ark Core 4 | PASS | PASS 5.9/4% |  |
+| Armchair | PASS | PASS 2.7/1% | wire tile != blueprint tile 'items_sw_chair_arm' |
+| Armor Rack | PASS | PASS 3.1/2% | wire tile != blueprint tile 'items_sw_weapons_rack' |
+| ArmorSign1 | PASS | PASS 3.8/4% | wire tile != blueprint tile 'items_sw_sign_body' |
+| ArmorSign2 | PASS | PASS 3.9/4% | wire tile != blueprint tile 'items_sw_sign_body' |
+| ArmorSign3 | PASS | PASS 3.8/4% |  |
+| Barathrum Hologram | PASS | PASS 4.1/2% | wire tile != blueprint tile 'creatures_young-barathrum' |
+| Barathrum Table | PASS | PASS 3.0/2% | wire tile != blueprint tile 'items_sw_table3' |
+| BarathrumBookshelf | PASS | PASS 6.4/6% | wire tile != blueprint tile 'items_sw_bookshelf3' |
+| Barathrumite Hyperbiotic Chair | PASS | PASS 5.1/2% | wire tile != blueprint tile 'items_sw_chair_hyperbiotic' |
+| Bed | PASS | PASS 5.8/4% | wire tile != blueprint tile 'items_sw_bed' |
+| Bed Golem | PASS | PASS 6.9/3% | wire tile != blueprint tile 'creatures_sw_golem_bed' |
+| Bedger | PASS | PASS 5.0/4% | wire tile != blueprint tile 'items_sw_bed_bear' |
+| Bedroll | PASS |  | wire tile != blueprint tile 'items_sw_bedroll'; no capture pair — congruence skipped |
+| BeltCurtains | PASS | PASS 8.4/4% |  |
+| Bench | PASS | PASS 2.6/1% | wire tile != blueprint tile 'items_sw_bench' |
+| BethsaidaShrine | PASS | PASS 6.0/5% | wire tile != blueprint tile 'furniture_nephilim_statue_bethsaida' |
+| BeyLahChest | PASS | PASS 3.7/2% | wire tile != blueprint tile 'assets_content_textures_tiles_sw_chest' |
+| BeyLahOven | PASS | PASS 5.7/5% | wire tile != blueprint tile 'items_sw_oven' |
+| BlackMarbleWalkway | PASS | PASS 3.9/4% | wire tile != blueprint tile 'tiles_sw_floor_brickb3' |
+| Blue Security Door | PASS | PASS 7.3/3% | wire tile != blueprint tile 'terrain_sw_securitydoor' |
+| Book Table | PASS | PASS 5.1/4% | wire tile != blueprint tile 'items_sw_table_low_drawers' |
+| Bookshelf | PASS | PASS 6.0/6% | wire tile != blueprint tile 'items_sw_bookshelf3' |
+| BookSign1 | PASS | PASS 4.0/4% | wire tile != blueprint tile 'items_sw_sign_book' |
+| BookSign2 | PASS | PASS 4.0/4% | wire tile != blueprint tile 'items_sw_sign_book' |
+| BookSign3 | PASS | PASS 4.1/4% |  |
+| BootSign1 | PASS | PASS 4.0/4% | wire tile != blueprint tile 'items_sw_sign_boot' |
+| BootSign2 | PASS | PASS 3.9/4% | wire tile != blueprint tile 'items_sw_sign_boot' |
+| BootSign3 | PASS | PASS 4.0/4% |  |
+| BottleSign1 | PASS | PASS 3.6/3% | wire tile != blueprint tile 'items_sw_honey_sign' |
+| BottleSign2 | PASS | PASS 3.5/3% | wire tile != blueprint tile 'items_sw_honey_sign' |
+| BottleSign3 | PASS | PASS 3.6/3% |  |
+| Brain Sculpture | PASS | PASS 3.2/2% | wire tile != blueprint tile 'items_sw_brain_sculpture' |
+| Brazier | PASS | PASS 10.1/7% | wire tile != blueprint tile 'items_sw_firepan' |
+| BrickWalkway | PASS | PASS 3.3/3% | wire tile != blueprint tile 'tiles_sw_floor_brickb4' |
+| Bridge | PASS | PASS 3.3/3% | wire tile != blueprint tile 'tiles_sw_floor_brickb4' |
+| Brightsheol Gate E | PASS | PASS 10.3/8% | wire tile != blueprint tile 'tiles2_sw_lifegate_e' |
+| Brightsheol Gate W | PASS | PASS 10.7/8% | wire tile != blueprint tile 'tiles2_sw_lifegate_w' |
+| BrineBridge | PASS | PASS 3.8/3% | wire tile != blueprint tile 'tiles_sw_floor_brickb4' |
+| Brinestalk Gate | PASS | PASS 5.8/5% | wire tile != blueprint tile 'items_sw_fence_gates_2_open' |
+| Broadcast Power Station | PASS | PASS 9.6/4% | wire tile != blueprint tile 'items_sw_broadcast_station' |
+| Broken Industrial Fan | PASS | PASS 6.6/4% | wire tile != blueprint tile 'tiles2_sw_fan_3' |
+| Bubblething | PASS | PASS 5.1/3% | wire tile != blueprint tile 'items_sw_bubblething' |
+| Bust of K4K5 | PASS | PASS 5.5/3% | wire tile != blueprint tile 'items_sw_bust1' |
+| Bust of Mehmet I | PASS | PASS 5.6/3% | wire tile != blueprint tile 'items_sw_bust2' |
+| Cage | PASS | PASS 9.0/5% | wire tile != blueprint tile 'furniture_sw_cage' |
+| Candelabra | PASS | PASS 3.6/3% | wire tile != blueprint tile 'items_sw_candelabra2' |
+| Canvas Folding Chair | PASS | PASS 2.4/1% | wire tile != blueprint tile 'items_sw_chair_canvas' |
+| CatacombLight | PASS | WARN 13.5/15% | wire tile != blueprint tile 'tiles_sw_torch_nofire' |
+| Catacombs Exit Teleporter | PASS | PASS 8.1/6% | wire tile != blueprint tile 'items_sw_teleporter_pad' |
+| Chair | PASS | PASS 2.6/1% | wire tile != blueprint tile 'items_sw_chair' |
+| Chair Golem | PASS | PASS 6.0/2% | wire tile != blueprint tile 'creatures_sw_golem_chair' |
+| Chairbear | PASS | PASS 5.1/4% | wire tile != blueprint tile 'items_sw_chair_bear' |
+| Chalkboard | PASS | PASS 5.5/4% | wire tile != blueprint tile 'items_sw_monster_whiteboard' |
+| ChavvahOven | PASS | PASS 7.0/5% | wire tile != blueprint tile 'items_sw_oven' |
+| ChefOven | PASS | PASS 5.6/5% | wire tile != blueprint tile 'items_sw_oven' |
+| Chest | PASS | PASS 3.8/2% | wire tile != blueprint tile 'assets_content_textures_tiles_sw_chest' |
+| Chest1 | PASS | PASS 3.7/2% | wire tile != blueprint tile 'assets_content_textures_tiles_sw_chest' |
+| Chest2 | PASS | PASS 3.7/2% |  |
+| Chest3 | PASS | PASS 3.7/2% |  |
+| Chest4 | PASS |  | no capture pair — congruence skipped |
+| Chest5 | PASS | PASS 3.7/2% |  |
+| Chest6 | PASS | PASS 3.7/2% |  |
+| Chest7 | PASS | PASS 3.8/2% |  |
+| Chest8 | PASS | PASS 3.7/2% |  |
+| ChestBronzeIngots | PASS | PASS 3.7/2% |  |
+| ChestIsner | PASS | PASS 3.9/2% |  |
+| ChestMinorRazed | PASS | PASS 3.7/2% |  |
+| Chiliad Basket | PASS | PASS 2.7/2% | wire tile != blueprint tile 'furniture_chiliad-basket' |
+| Chiliad Chest | PASS | PASS 3.5/2% | wire tile != blueprint tile 'furniture_chiliad-chest' |
+| Chiliad Floor Cusion | PASS | PASS 2.7/1% | wire tile != blueprint tile 'furniture_chiliad-floor-cushion' |
+| Chiliad Oven | PASS | PASS 5.7/5% | wire tile != blueprint tile 'furniture_chiliad-oven' |
+| Chiliad Table | PASS | PASS 2.3/1% | wire tile != blueprint tile 'furniture_chiliad-table' |
+| Chiliad Torchpost | PASS | WARN 16.5/18% | wire tile != blueprint tile 'furniture_chiliad-torchpost' |
+| Chiliad Unlit Torchpost | PASS | PASS 1.4/0% | wire tile != blueprint tile 'furniture_chiliad-torchpost' |
+| Chiliad Village Monument Orb | PASS | PASS 6.3/4% | wire tile != blueprint tile 'furniture_chiliad-monument-2' |
+| Chiliad Village Monument Post | PASS | PASS 4.6/2% | wire tile != blueprint tile 'furniture_chiliad-monument-1' |
+| Circumcestral Eater Monument | PASS | PASS 6.2/5% | wire tile != blueprint tile 'furniture_eater-monument-3' |
+| CircumcestralEaterMonumentWithPiping | PASS | PASS 6.9/5% | wire tile != blueprint tile 'furniture_eater-monument-10' |
+| CloakSign1 | PASS | PASS 3.8/4% | wire tile != blueprint tile 'items_sw_sign_cloak' |
+| CloakSign2 | PASS | PASS 3.8/4% | wire tile != blueprint tile 'items_sw_sign_cloak' |
+| CloakSign3 | PASS | PASS 3.7/4% |  |
+| Clockthing | PASS | PASS 5.1/3% | wire tile != blueprint tile 'items_sw_clockthing' |
+| Clockthing_QGirl | PASS | PASS 5.3/3% | wire tile != blueprint tile 'items_sw_clockthing' |
+| Clue_VillageStores | PASS | PASS 3.8/2% | wire tile != blueprint tile 'assets_content_textures_tiles_sw_chest' |
+| ConveyorDrive | PASS | PASS 7.0/4% | wire tile != blueprint tile 'items_sw_gears2' |
+| ConveyorPad | PASS | FAIL 118.2/78% |  |
+| ConveyorPadE | PASS | FAIL 118.3/78% |  |
+| ConveyorPadN | PASS | FAIL 118.2/78% |  |
+| ConveyorPadS | PASS | FAIL 118.2/78% |  |
+| ConveyorPadW | PASS | FAIL 118.3/78% |  |
+| Crematory Liquid-Cooled Unicomputer | PASS | FAIL 59.9/42% | wire tile != blueprint tile 'items_sw_computer' |
+| CrematoryConveyorPad | PASS | FAIL 118.4/78% |  |
+| CrematoryConveyorPadE | PASS | FAIL 118.3/78% |  |
+| CrematoryConveyorPadN | PASS | FAIL 118.2/78% |  |
+| CrematoryConveyorPadS | PASS | FAIL 118.3/78% |  |
+| CrematoryConveyorPadW | PASS | FAIL 118.3/78% |  |
+| CrematoryMachineRoomBookshelf | PASS | PASS 6.8/6% | wire tile != blueprint tile 'items_sw_bookshelf1' |
+| Crib | PASS | PASS 2.3/1% | wire tile != blueprint tile 'items_sw_crib' |
+| Crypt Door | PASS | PASS 4.6/2% | wire tile != blueprint tile 'items_sw_door_filigree' |
+| Crypt Double Door N | PASS | PASS 7.2/4% | wire tile != blueprint tile 'items_sw_door_filigree_top' |
+| Crypt Double Door S | PASS | PASS 7.2/4% | wire tile != blueprint tile 'items_sw_door_filigree_bottom' |
+| Crypt Exit Teleporter | PASS | PASS 8.1/6% | wire tile != blueprint tile 'items_sw_teleporter_pad' |
+| CyanMarbleWalkway | PASS | PASS 5.6/4% | wire tile != blueprint tile 'tiles_sw_floor_brickb3' |
+| CyberneticsRack | PASS | PASS 3.8/2% | wire tile != blueprint tile 'tiles_sw_shelf' |
+| CyberneticsStationRack | PASS | PASS 3.3/2% | wire tile != blueprint tile 'tiles_sw_shelf' |
+| CyberneticsTerminal2 | PASS | PASS 11.7/7% | wire tile != blueprint tile 'terrain_sw_cyberterminal' |
+| Dagasha's Crucifix | PASS | PASS 4.0/2% | wire tile != blueprint tile 'furniture_chiliad-dagasha-crucifix' |
+| Death Gate E | PASS | PASS 10.0/7% | wire tile != blueprint tile 'tiles2_sw_deathgate_e' |
+| Death Gate W | PASS | PASS 10.5/8% | wire tile != blueprint tile 'tiles2_sw_deathgate_w' |
+| Desk | PASS | PASS 3.1/2% | wire tile != blueprint tile 'items_sw_table_desk' |
+| DisabledSwitch | PASS | FAIL 116.7/77% | wire tile != blueprint tile 'terrain_sw_switch' |
+| DiscSign1 | PASS | PASS 3.8/4% | wire tile != blueprint tile 'items_sw_sign_datadisc' |
+| DiscSign2 | PASS | PASS 3.7/4% | wire tile != blueprint tile 'items_sw_sign_datadisc' |
+| DiscSign3 | PASS | PASS 3.8/4% |  |
+| Display Breadboard | PASS | PASS 9.0/5% | wire tile != blueprint tile 'items_sw_breadboard' |
+| Dock Door N | PASS | WARN 15.0/6% | wire tile != blueprint tile 'tiles_sw_door2_metal_top' |
+| Dock Door S | PASS | WARN 14.9/6% | wire tile != blueprint tile 'tiles_sw_door2_metal_bottom' |
+| Door | PASS | PASS 9.4/5% | odd tilecolor 'y'; wire tile != blueprint tile 'tiles_sw_door_basic' |
+| Door Golem | PASS | PASS 4.7/2% | odd tilecolor 'y'; wire tile != blueprint tile 'creatures_sw_golem_door' |
+| DoorSwitch | PASS | FAIL 113.5/75% | wire tile != blueprint tile 'terrain_sw_switch2' |
+| Door_GritGateRank1 | PASS | PASS 8.8/5% | wire tile != blueprint tile 'tiles_sw_door_basic' |
+| Door_GritGateRank2 | PASS | PASS 8.8/5% | wire tile != blueprint tile 'tiles_sw_door_basic' |
+| Double Door | PASS | PASS 9.5/5% |  |
+| Double Door E | PASS | PASS 9.3/4% | wire tile != blueprint tile 'tiles_sw_door2_basic_right' |
+| Double Door N | PASS | WARN 13.4/7% | wire tile != blueprint tile 'tiles_sw_door2_basic_top' |
+| Double Door S | PASS | WARN 13.4/7% | wire tile != blueprint tile 'tiles_sw_door2_basic_bottom' |
+| Double Door W | PASS | PASS 9.3/4% | wire tile != blueprint tile 'tiles_sw_door2_basic_left' |
+| Double Metal Door E | PASS | PASS 10.8/7% | wire tile != blueprint tile 'tiles_sw_door2_metal_right' |
+| Double Metal Door N | PASS | PASS 11.1/6% | wire tile != blueprint tile 'tiles_sw_door2_metal_top' |
+| Double Metal Door S | PASS | PASS 11.2/6% | wire tile != blueprint tile 'tiles_sw_door2_metal_bottom' |
+| Double Metal Door W | PASS | PASS 8.3/5% | wire tile != blueprint tile 'tiles_sw_door2_metal_left' |
+| Double Striped Door E | PASS | PASS 8.4/4% | wire tile != blueprint tile 'tiles_sw_door2_striped_right' |
+| Double Striped Door N | PASS | PASS 10.6/6% | wire tile != blueprint tile 'tiles_sw_door2_striped_top' |
+| Double Striped Door S | PASS | PASS 10.6/6% | wire tile != blueprint tile 'tiles_sw_door2_striped_bottom' |
+| Double Striped Door W | PASS | PASS 5.4/2% | wire tile != blueprint tile 'tiles_sw_door2_striped_left' |
+| Double Wavy Door E | PASS | PASS 6.3/4% | wire tile != blueprint tile 'tiles_sw_door2_wavy_right' |
+| Double Wavy Door N | PASS | PASS 8.9/6% | wire tile != blueprint tile 'tiles_sw_door2_wavy_top' |
+| Double Wavy Door S | PASS | PASS 9.0/6% | wire tile != blueprint tile 'tiles_sw_door2_wavy_bottom' |
+| Double Wavy Door W | PASS | PASS 6.5/4% | wire tile != blueprint tile 'tiles_sw_door2_wavy_left' |
+| Double Windowed Door | PASS | PASS 9.5/5% | wire tile != blueprint tile 'tiles_sw_door_basic' |
+| Double Windowed Door E | PASS | PASS 10.2/5% | wire tile != blueprint tile 'tiles_sw_door2_window_right' |
+| Double Windowed Door N | PASS | WARN 13.6/7% | wire tile != blueprint tile 'tiles_sw_door2_window_top' |
+| Double Windowed Door S | PASS | WARN 13.6/7% | wire tile != blueprint tile 'tiles_sw_door2_window_bottom' |
+| Double Windowed Door W | PASS | PASS 10.2/5% | wire tile != blueprint tile 'tiles_sw_door2_window_left' |
+| Dresser | PASS | PASS 3.9/3% | wire tile != blueprint tile 'items_sw_dresser' |
+| E Marble Dais | PASS | WARN 17.5/12% | wire tile != blueprint tile 'items_sw_dais_e' |
+| E1 Marble Dais | PASS | WARN 17.9/14% | wire tile != blueprint tile 'items_sw_dais_east1' |
+| E2 Marble Dais | PASS | WARN 18.3/13% | wire tile != blueprint tile 'items_sw_dais_east2' |
+| E3 Marble Dais | PASS | WARN 18.8/13% | wire tile != blueprint tile 'items_sw_dais_east3' |
+| Earth Gate E | PASS | PASS 10.3/8% | wire tile != blueprint tile 'furniture_earth-gate-right' |
+| Earth Gate W | PASS | PASS 10.2/8% | wire tile != blueprint tile 'furniture_earth-gate-left' |
+| Eater Chimes | PASS | PASS 4.1/3% | wire tile != blueprint tile 'furniture_eater-chimes' |
+| Eater Floor Clock N | PASS | PASS 4.5/3% | wire tile != blueprint tile 'furniture_floor-clock-n' |
+| Eater Floor Clock NE | PASS | PASS 4.2/3% | wire tile != blueprint tile 'furniture_floor-clock-ne' |
+| Eater Floor Clock NW | PASS | PASS 4.3/3% | wire tile != blueprint tile 'furniture_floor-clock-nw' |
+| Eater Floor Clock S | PASS | PASS 4.4/3% | wire tile != blueprint tile 'furniture_floor-clock-s' |
+| Eater Floor Clock SE | PASS | PASS 4.4/3% | wire tile != blueprint tile 'furniture_floor-clock-se' |
+| Eater Floor Clock SW | PASS | PASS 3.8/2% | wire tile != blueprint tile 'furniture_floor-clock-sw' |
+| Eater Globe | PASS | PASS 3.9/2% | wire tile != blueprint tile 'furniture_eater-globe' |
+| Eater Globe with Piping | PASS | PASS 3.6/2% | wire tile != blueprint tile 'furniture_eater-globe' |
+| Eater Hookah | PASS | PASS 4.1/2% | wire tile != blueprint tile 'furniture_eater-hookah' |
+| Eater Mounted Monument | PASS | PASS 3.5/2% | wire tile != blueprint tile 'furniture_eater-diagonal-monument-1' |
+| Eater Sign 1 | PASS | PASS 5.2/4% | wire tile != blueprint tile 'furniture_eater-sign-shard' |
+| Eater Sign 2 | PASS | WARN 22.2/40% | wire tile != blueprint tile 'furniture_eater-sign-script-1' |
+| Eater Sign 3 | PASS | PASS 4.8/3% | wire tile != blueprint tile 'furniture_eater-sign-arrow' |
+| Eater Thurible | PASS | PASS 2.7/1% | wire tile != blueprint tile 'furniture_eater-thrurible' |
+| EaterGreatMachineShrine C | PASS | PASS 5.9/3% | wire tile != blueprint tile 'furniture_great-machine-shrine-c' |
+| EaterGreatMachineShrine E | PASS | PASS 5.7/3% | wire tile != blueprint tile 'furniture_great-machine-shrine-e' |
+| EaterGreatMachineShrine N | PASS |  | wire tile != blueprint tile 'furniture_great-machine-shrine-n'; no capture pair — congruence skipped |
+| EaterGreatMachineShrine NW | PASS | PASS 4.8/2% |  |
+| EaterGreatMachineShrine S | PASS | PASS 6.0/2% | wire tile != blueprint tile 'furniture_great-machine-shrine-s' |
+| EaterGreatMachineShrine SW | PASS | PASS 5.6/2% | wire tile != blueprint tile 'furniture_great-machine-shrine-sw' |
+| EaterGreatMachineShrine W | PASS | PASS 8.4/4% | wire tile != blueprint tile 'furniture_great-machine-shrine-w' |
+| Electric Generator | PASS | PASS 6.7/6% | wire tile != blueprint tile 'furniture_generator' |
+| Electrothing | PASS | FAIL 29.9/31% | wire tile != blueprint tile 'items_sw_electrothing' |
+| ElevatorSwitch | PASS | FAIL 116.6/77% | wire tile != blueprint tile 'terrain_sw_switch' |
+| Ergomax Chair | PASS | PASS 4.6/2% | wire tile != blueprint tile 'items_sw_chair_ergo' |
+| Exit Teleporter | PASS | PASS 8.1/6% | wire tile != blueprint tile 'items_sw_teleporter_pad' |
+| EzraOven | PASS | PASS 5.6/5% | wire tile != blueprint tile 'items_sw_oven' |
+| EzraSign | PASS | PASS 3.7/4% | wire tile != blueprint tile 'items_sw_sign_west' |
+| FactoryArm | PASS | PASS 5.2/4% | wire tile != blueprint tile 'creatures_robot_arm' |
+| Floor Cushion | PASS | PASS 2.6/1% | wire tile != blueprint tile 'items_sw_cushion2' |
+| Fluent Lock | PASS | WARN 18.3/21% | wire tile != blueprint tile 'furniture_fluent-lock-1' |
+| Fluxthing | PASS | PASS 4.6/3% | wire tile != blueprint tile 'items_sw_fluxthing' |
+| Folding Cot | PASS | PASS 5.3/3% | wire tile != blueprint tile 'items_sw_folding_cot' |
+| Food Processor | PASS | PASS 5.3/3% | wire tile != blueprint tile 'items_sw_universal_station' |
+| FoodSign1 | PASS | PASS 3.8/4% | wire tile != blueprint tile 'items_sw_sign_pepper' |
+| FoodSign2 | PASS | PASS 3.7/4% | wire tile != blueprint tile 'items_sw_sign_pepper' |
+| FoodSign3 | PASS | PASS 3.8/4% |  |
+| Force Projector | PASS | WARN 15.2/9% | wire tile != blueprint tile 'items_sw_forceprojector' |
+| Forge | PASS | PASS 5.8/5% | wire tile != blueprint tile 'items_sw_forge' |
+| FossilizedRemains | PASS | PASS 3.2/1% | wire tile != blueprint tile 'items_sw_bones_5' |
+| Four-Poster Bed | PASS | PASS 5.7/5% | wire tile != blueprint tile 'items_sw_bed_four' |
+| Full-Scale Recompositer | PASS | PASS 3.4/1% | wire tile != blueprint tile 'items_sw_teleporter_pad' |
+| Full-Spectrum Techlight | PASS | PASS 3.3/2% | wire tile != blueprint tile 'items_sw_light_tomb_5' |
+| Fused Security Door | PASS | WARN 12.3/6% | wire tile != blueprint tile 'items_sw_fused_door' |
+| Fusion Power Station | PASS | PASS 6.8/5% | wire tile != blueprint tile 'items_sw_fusion_power_station' |
+| Fusion Pumping Station | PASS | WARN 14.1/11% | wire tile != blueprint tile 'items_sw_fusion_pumping_station' |
+| Gas Burner | PASS | PASS 4.3/3% | wire tile != blueprint tile 'items_sw_titrator' |
+| Gate | PASS | PASS 5.6/5% | wire tile != blueprint tile 'items_sw_fence_gates_2_open' |
+| Glass Door | PASS | PASS 8.4/5% | wire tile != blueprint tile 'tiles_sw_door_basic' |
+| Glass Door E | PASS | PASS 8.0/4% | wire tile != blueprint tile 'tiles2_sw_gate_glass_e_closed' |
+| Glass Door W | PASS | PASS 5.9/3% | wire tile != blueprint tile 'tiles2_sw_gate_glass_w_closed' |
+| Glass Furnace | PASS | WARN 12.1/6% | wire tile != blueprint tile 'items_sw_glass_furnace' |
+| Glass Printer | PASS | PASS 7.2/3% | wire tile != blueprint tile 'items_sw_glass_cube' |
+| GlassDoorE_GritGateRank2 | PASS | PASS 8.0/4% | wire tile != blueprint tile 'tiles2_sw_gate_glass_e_closed' |
+| GlassDoorW_GritGateRank2 | PASS | PASS 5.8/3% | wire tile != blueprint tile 'tiles2_sw_gate_glass_w_closed' |
+| GlassHydraulicPipe | PASS | PASS 1.2/0% | wire tile != blueprint tile 'assets_content_textures_tiles_sw_pipe_still_intact_' |
+| Globe | PASS | PASS 4.7/4% | wire tile != blueprint tile 'items_sw_globe' |
+| GloveSign1 | PASS | PASS 3.9/4% | wire tile != blueprint tile 'items_sw_sign_glove' |
+| GloveSign2 | PASS | PASS 3.9/4% | wire tile != blueprint tile 'items_sw_sign_glove' |
+| GloveSign3 | PASS | PASS 4.0/4% |  |
+| Golem Mound | PASS | PASS 5.7/2% | wire tile != blueprint tile 'creatures_sw_golem_mound' |
+| GolemInteriorGlassHydraulicPipe | PASS | PASS 1.2/0% | wire tile != blueprint tile 'assets_content_textures_tiles_sw_pipe_still_intact_' |
+| GrabberArm | PASS | WARN 20.1/35% | wire tile != blueprint tile 'creatures_robot_arm' |
+| Gravchair | PASS | PASS 4.8/3% | wire tile != blueprint tile 'items_sw_chair_grav' |
+| Green Security Door | PASS | PASS 7.3/3% | wire tile != blueprint tile 'terrain_sw_securitydoor' |
+| GrenadeSign1 | PASS | PASS 3.8/4% | wire tile != blueprint tile 'items_sw_sign_bombs' |
+| GrenadeSign2 | PASS | PASS 3.8/4% | wire tile != blueprint tile 'items_sw_sign_bombs' |
+| GrenadeSign3 | PASS | PASS 3.8/4% |  |
+| GreyMarbleWalkway | PASS | PASS 8.0/4% | wire tile != blueprint tile 'tiles_sw_floor_brickb2' |
+| Grid Quantum Rippler | PASS | WARN 12.9/12% | wire tile != blueprint tile 'items_sw_quantum_rippler_inactive' |
+| GridNormCore1 | PASS | PASS 10.3/4% | wire tile != blueprint tile 'items_sw_diamond_thing' |
+| GridNormCore2 | PASS | PASS 2.0/0% | wire tile != blueprint tile 'items_sw_diamond_thing' |
+| GridNormCore3 | PASS | PASS 2.0/0% |  |
+| Grit Gate Metal Table | PASS | PASS 2.8/1% | wire tile != blueprint tile 'items_sw_table_metal' |
+| Grit Gate Sleek Table | PASS | PASS 2.9/1% | wire tile != blueprint tile 'items_sw_table_sleek' |
+| Grit Gate Table | PASS | PASS 3.2/2% | wire tile != blueprint tile 'items_sw_table2' |
+| GritGateBed | PASS | PASS 5.8/4% | wire tile != blueprint tile 'items_sw_bed' |
+| GritGateBookshelf | PASS | PASS 6.7/6% | wire tile != blueprint tile 'items_sw_bookshelf1' |
+| GritGateBookshelf_Kitchen | PASS | PASS 6.7/6% | wire tile != blueprint tile 'items_sw_bookshelf2' |
+| GritGateBroadcastPowerStation | PASS | PASS 9.6/4% | wire tile != blueprint tile 'items_sw_broadcast_station' |
+| GritGateCanvasFoldingChair | PASS | PASS 2.4/1% | wire tile != blueprint tile 'items_sw_chair_canvas' |
+| GritGateChair | PASS | PASS 2.6/1% | wire tile != blueprint tile 'items_sw_chair' |
+| GritGateChairbear | PASS | PASS 5.0/4% | wire tile != blueprint tile 'items_sw_chair_bear' |
+| GritGateChromeBeacon | PASS | PASS 3.5/2% | wire tile != blueprint tile 'items_sw_scanningmodule' |
+| GritGateForceProjector | PASS | FAIL 36.0/24% | wire tile != blueprint tile 'items_sw_forceprojector' |
+| GritGateForceProjector_Rank0 | PASS | WARN 15.3/9% | wire tile != blueprint tile 'items_sw_forceprojector' |
+| GritGateForceProjector_Rank1 | PASS | WARN 15.3/9% |  |
+| GritGateForceProjector_Rank2 | PASS | WARN 15.4/9% |  |
+| GritGateFusionPowerStation | PASS | PASS 6.8/5% | wire tile != blueprint tile 'items_sw_fusion_power_station' |
+| GritGateFusionPumpingStation | PASS | PASS 7.9/6% | wire tile != blueprint tile 'items_sw_fusion_pumping_station' |
+| GritGateGlassHydraulicPipe | PASS | PASS 1.2/0% | wire tile != blueprint tile 'assets_content_textures_tiles_sw_pipe_still_intact_' |
+| GritGateHeavyPowerLine | PASS | PASS 1.1/0% | wire tile != blueprint tile 'assets_content_textures_tiles_sw_wire_' |
+| GritGateHydraulicIrrigator | PASS | PASS 2.9/2% | wire tile != blueprint tile 'items_sw_hydraulic_irrigator_1' |
+| GritGateHyperbioticBed | PASS | PASS 7.4/4% | wire tile != blueprint tile 'items_sw_bed_hyperbiotic' |
+| GritGateHyperbioticChair | PASS | PASS 5.1/2% | wire tile != blueprint tile 'items_sw_chair_hyperbiotic' |
+| GritgateLocker | PASS | PASS 3.8/2% | wire tile != blueprint tile 'assets_content_textures_tiles_sw_chest' |
+| GritGateMedicalBed | PASS | PASS 4.0/2% | wire tile != blueprint tile 'items_sw_bed_medical' |
+| GritGateMedicalChair | PASS | PASS 3.0/1% | wire tile != blueprint tile 'items_sw_chair_med' |
+| GritGateOven | PASS | PASS 2.5/1% | wire tile != blueprint tile 'items_sw_oven' |
+| GritGatePowerLine | PASS | PASS 1.2/0% | wire tile != blueprint tile 'assets_content_textures_tiles_sw_wire_' |
+| GritGateWorkChair | PASS | PASS 1.7/0% | wire tile != blueprint tile 'items_sw_chair_work' |
+| Gun Rack | PASS | PASS 3.1/2% | wire tile != blueprint tile 'items_sw_weapons_rack' |
+| GunSign1 | PASS | PASS 3.7/3% | wire tile != blueprint tile 'items_sw_sign_gun' |
+| GunSign2 | PASS | PASS 3.6/3% | wire tile != blueprint tile 'items_sw_sign_gun' |
+| GunSign3 | PASS | PASS 3.6/3% |  |
+| GunsmithTable | PASS | PASS 3.2/2% | wire tile != blueprint tile 'items_sw_table2' |
+| Half Candelabra | PASS | WARN 12.3/16% | wire tile != blueprint tile 'items_sw_candelabra1' |
+| Hammered Dulcimer | PASS | PASS 3.5/2% | wire tile != blueprint tile 'items_sw_dulcimer' |
+| Hammock | PASS | PASS 3.9/1% | wire tile != blueprint tile 'items_sw_shawl' |
+| Harp | PASS | PASS 5.6/4% | wire tile != blueprint tile 'items_sw_harp' |
+| HatSign1 | PASS | PASS 4.0/4% | wire tile != blueprint tile 'items_sw_sign_hat' |
+| HatSign2 | PASS | PASS 3.9/4% | wire tile != blueprint tile 'items_sw_sign_hat' |
+| HatSign3 | PASS | PASS 3.9/4% |  |
+| HeavyPowerLine | PASS | PASS 1.1/0% | wire tile != blueprint tile 'assets_content_textures_tiles_sw_wire_' |
+| HighTechInstallation | PASS | FAIL 35.6/30% |  |
+| hologram of Shekhinah | PASS | PASS 3.4/3% | wire tile != blueprint tile 'items_sw_shekhinah_hologram' |
+| HologramCircle | PASS | PASS 1.7/1% | wire tile != blueprint tile 'furniture_hologram-circle' |
+| Hookah | PASS | PASS 4.5/4% | wire tile != blueprint tile 'items_sw_hookah' |
+| HookahSign1 | PASS | PASS 3.6/4% | wire tile != blueprint tile 'items_sw_hookah_sign' |
+| HookahSign2 | PASS | PASS 3.6/4% | wire tile != blueprint tile 'items_sw_hookah_sign' |
+| HookahSign3 | PASS | PASS 3.7/4% |  |
+| Hydraulic Bubblething | PASS | PASS 5.2/3% | wire tile != blueprint tile 'items_sw_bubblething' |
+| Hydraulic Irrigator | PASS | PASS 2.9/2% | wire tile != blueprint tile 'items_sw_hydraulic_irrigator_1' |
+| Hydraulic Press | PASS | PASS 8.5/7% | wire tile != blueprint tile 'items_sw_hydraulic_press' |
+| Hydraulic Ring Gate 1 | PASS | PASS 6.8/4% | wire tile != blueprint tile 'items_sw_ring_gate_1_off' |
+| Hydraulic Ring Gate 2 | PASS | PASS 6.2/3% | wire tile != blueprint tile 'items_sw_ring_gate_2_off' |
+| Hydraulic Ring Gate 3 | PASS | FAIL 28.0/34% | wire tile != blueprint tile 'items_sw_ring_gate_3_off' |
+| Hydraulic Turbine | PASS | PASS 6.7/5% | wire tile != blueprint tile 'items_sw_thermoelectric_turbine' |
+| HydroponBookshelf | PASS | PASS 6.8/6% | wire tile != blueprint tile 'items_sw_bookshelf1' |
+| Hyperbiotic Bed | PASS | PASS 7.3/4% | wire tile != blueprint tile 'items_sw_bed_hyperbiotic' |
+| Hyperbiotic Chair | PASS | PASS 5.1/2% | wire tile != blueprint tile 'items_sw_chair_hyperbiotic' |
+| ImplantSign1 | PASS | PASS 3.8/4% | wire tile != blueprint tile 'items_sw_sign_gutsmonger' |
+| ImplantSign2 | PASS | PASS 3.8/4% | wire tile != blueprint tile 'items_sw_sign_gutsmonger' |
+| ImplantSign3 | PASS | PASS 3.8/4% |  |
+| Induction Charging Station | PASS | PASS 3.4/2% | wire tile != blueprint tile 'items_sw_induction_station' |
+| Industrial Fan | PASS | PASS 6.7/4% | wire tile != blueprint tile 'tiles2_sw_fan_3' |
+| Industrial Fan North | PASS | PASS 6.7/4% | wire tile != blueprint tile 'tiles2_sw_fan_3' |
+| Industrial Fan South | PASS | PASS 6.6/4% |  |
+| Infested Starship Platform N | PASS | FAIL 25.0/9% | wire tile != blueprint tile 'furniture_dock-platform-n' |
+| Infested Starship Platform S | PASS | FAIL 25.3/8% | wire tile != blueprint tile 'furniture_dock-platform-s' |
+| Infrastructure Golem | PASS | PASS 9.2/4% | wire tile != blueprint tile 'creatures_sw_golem_infrastructure' |
+| Inner Tomb Techlight1 | PASS | PASS 3.4/2% | wire tile != blueprint tile 'items_sw_light_tomb_1' |
+| Inner Tomb Techlight2 | PASS | PASS 3.1/1% | wire tile != blueprint tile 'items_sw_light_tomb_2' |
+| Inner Tomb Techlight3 | PASS | PASS 9.0/13% | wire tile != blueprint tile 'items_sw_light_tomb_3' |
+| Inner Tomb Techlight4 | PASS | PASS 2.9/2% | wire tile != blueprint tile 'items_sw_light_tomb_4' |
+| Inner Tomb Techlight5 | PASS | PASS 3.3/2% | wire tile != blueprint tile 'items_sw_light_tomb_5' |
+| Inner Tomb Techlight6 | PASS | PASS 4.8/2% | wire tile != blueprint tile 'items_sw_light_tomb_6' |
+| InnerCryptDoor1 | PASS | PASS 4.6/2% | wire tile != blueprint tile 'items_sw_door_filigree' |
+| InnerCryptDoor2 | PASS | PASS 10.2/6% | wire tile != blueprint tile 'items_sw_door_filigree' |
+| InnerCryptDoor3 | PASS | PASS 6.5/6% |  |
+| InnerCryptDoor4 | PASS | PASS 6.6/6% |  |
+| InnerCryptDoor5 | PASS | WARN 12.4/6% |  |
+| InnerCryptDoor6 | PASS | PASS 8.4/4% |  |
+| Iron Gate | PASS | PASS 7.8/4% | wire tile != blueprint tile 'items_sw_fence_gates_2_open' |
+| Iron Maiden | PASS | PASS 3.4/1% | wire tile != blueprint tile 'items_sw_iron_maiden' |
+| Iron Maiden Golem | PASS | PASS 6.1/2% | wire tile != blueprint tile 'creatures_sw_golem_iron_maiden' |
+| ishelf1 | PASS | PASS 6.8/6% | wire tile != blueprint tile 'items_sw_bookshelf2' |
+| ishelf2 | PASS | PASS 6.7/6% | wire tile != blueprint tile 'items_sw_bookshelf2' |
+| ishelf3 | PASS | PASS 6.8/6% | wire tile != blueprint tile 'items_sw_bookshelf1' |
+| ishelf4 | PASS | PASS 6.8/6% | wire tile != blueprint tile 'items_sw_bookshelf1' |
+| JewelSign1 | PASS | PASS 4.0/4% | wire tile != blueprint tile 'items_sw_sign_jeweler' |
+| JewelSign2 | PASS | PASS 4.0/4% | wire tile != blueprint tile 'items_sw_sign_jeweler' |
+| JewelSign3 | PASS | PASS 4.0/4% |  |
+| Joppa Bookshelf | PASS | PASS 6.4/6% | wire tile != blueprint tile 'items_sw_bookshelf3' |
+| JoppaMillSign | PASS | PASS 3.7/4% | wire tile != blueprint tile 'items_sw_sign_pepper' |
+| JoppaNorthSign | PASS | PASS 3.9/4% | wire tile != blueprint tile 'items_sw_sign_graveyard' |
+| JoppaOven | PASS | PASS 5.6/5% | wire tile != blueprint tile 'items_sw_oven' |
+| JoppaReshephShrine | PASS | PASS 4.9/4% | wire tile != blueprint tile 'terrain_sw_resheph_sultanstatue' |
+| JoppaSultanShrine | PASS | PASS 5.6/4% | wire tile != blueprint tile 'terrain_sw_sultanstatue_rare_1' |
+| Kah's Conveyor | PASS | PASS 4.1/3% | wire tile != blueprint tile 'furniture_chiliad-kah-conveyor' |
+| Kiln | PASS | PASS 5.5/5% | wire tile != blueprint tile 'items_sw_kiln' |
+| Klanq Alchemist Table | PASS | PASS 1.1/0% | wire tile != blueprint tile 'items_sw_alchemist_table' |
+| Klanq Table | PASS | PASS 1.1/0% | wire tile != blueprint tile 'items_sw_table4' |
+| Kline | PASS | PASS 3.1/2% | wire tile != blueprint tile 'items_sw_cot' |
+| Kyakukya Monument 1 | PASS | PASS 7.4/6% | wire tile != blueprint tile 'terrain_sw_monument3' |
+| Kyakukya Monument 2 | PASS | PASS 7.4/6% | wire tile != blueprint tile 'terrain_sw_monument3' |
+| KyakukyaOven | PASS | PASS 5.6/5% | wire tile != blueprint tile 'items_sw_oven' |
+| Lathe | PASS | PASS 4.2/2% | wire tile != blueprint tile 'items_sw_lathe' |
+| Left Spindle Ribbon | PASS | PASS 7.2/5% | wire tile != blueprint tile 'furniture_left-spindle-ribbon' |
+| Left Spindle Ribbon Top | PASS | PASS 7.2/5% | wire tile != blueprint tile 'furniture_left-spindle-ribbon-top' |
+| Left Spindle Support | PASS | PASS 5.0/3% | wire tile != blueprint tile 'furniture_left-spindle-support' |
+| Left Spindle Support Top | PASS | PASS 5.3/4% | wire tile != blueprint tile 'furniture_left-spindle-support-top' |
+| Life Gate E | PASS | PASS 10.3/8% | odd color '&W '; wire tile != blueprint tile 'tiles2_sw_lifegate_e' |
+| Life Gate W | PASS | PASS 10.8/8% | odd color '&W '; wire tile != blueprint tile 'tiles2_sw_lifegate_w' |
+| Light Sculpture | PASS | WARN 17.3/20% | wire tile != blueprint tile 'items_sw_art_hologram_1' |
+| Liquid-Cooled Unicomputer | PASS | PASS 7.8/4% | wire tile != blueprint tile 'items_sw_computer' |
+| LiquidSign1 | PASS | PASS 3.7/4% | wire tile != blueprint tile 'items_sw_sign_liquid' |
+| LiquidSign2 | PASS | PASS 3.8/4% | wire tile != blueprint tile 'items_sw_sign_liquid' |
+| LiquidSign3 | PASS | PASS 3.7/4% |  |
+| Locker | PASS | PASS 3.8/2% | wire tile != blueprint tile 'assets_content_textures_tiles_sw_chest' |
+| Locker2 | PASS | PASS 3.8/2% | wire tile != blueprint tile 'assets_content_textures_tiles_sw_chest' |
+| Loudspeaker | PASS | FAIL 37.0/42% | wire tile != blueprint tile 'items_sw_box_grill' |
+| Low Table | PASS | PASS 3.4/2% | wire tile != blueprint tile 'items_sw_table_low' |
+| Mannequin | PASS | PASS 4.4/2% | wire tile != blueprint tile 'items_sw_mannequin' |
+| Marble Dais | PASS | FAIL 135.8/100% |  |
+| MarbleWalkway | PASS | PASS 3.6/4% | wire tile != blueprint tile 'tiles_sw_floor_brickb1' |
+| Massage Chair | PASS | PASS 2.0/0% | wire tile != blueprint tile 'items_sw_chair_message' |
+| Mechanical Golem | PASS | WARN 23.0/29% |  |
+| Mechanimist Tombstone | PASS | PASS 3.6/1% | wire tile != blueprint tile 'terrain_sw_tombstone_2' |
+| MechPilotSeat | PASS | PASS 6.0/3% | wire tile != blueprint tile 'furniture_sw_golem_interior_chair' |
+| Medical Bed | PASS | PASS 4.0/2% | wire tile != blueprint tile 'items_sw_bed_medical' |
+| Medical Chair | PASS | PASS 3.0/1% | wire tile != blueprint tile 'items_sw_chair_med' |
+| MedLocker | PASS | PASS 3.0/1% | wire tile != blueprint tile 'items_sw_medlocker' |
+| Melted Pad | PASS | PASS 5.1/5% | wire tile != blueprint tile 'items_sw_overgrown_telepad' |
+| Melted Reliquary | PASS | PASS 6.1/3% | wire tile != blueprint tile 'items_sw_reliquary_melted' |
+| MerchantBookshelf | PASS | PASS 6.0/6% | wire tile != blueprint tile 'items_sw_bookshelf1' |
+| Metal Chest1 | PASS | PASS 3.8/2% | wire tile != blueprint tile 'assets_content_textures_tiles_sw_chest' |
+| Metal Chest2 | PASS | PASS 3.8/2% | wire tile != blueprint tile 'assets_content_textures_tiles_sw_chest' |
+| Metal Chest3 | PASS | PASS 3.8/2% |  |
+| Metal Chest4 | PASS | PASS 3.8/2% |  |
+| Metal Chest5 | PASS | PASS 3.8/2% |  |
+| Metal Chest6 | PASS | PASS 3.9/2% |  |
+| Metal Chest7 | PASS | PASS 3.8/2% |  |
+| Metal Chest8 | PASS | PASS 3.8/2% |  |
+| Metal Door | PASS | PASS 10.7/7% | wire tile != blueprint tile 'tiles_sw_door_metal' |
+| Metal Table | PASS | PASS 3.0/2% | wire tile != blueprint tile 'items_sw_table_metal_full' |
+| Metal Workbench | PASS | PASS 3.0/2% | wire tile != blueprint tile 'items_sw_table_metal_full' |
+| MetalDoor_GritGateRank0 | PASS | PASS 10.7/7% | wire tile != blueprint tile 'tiles_sw_door_metal' |
+| MetalDoor_GritGateRank1 | PASS | PASS 10.7/7% | wire tile != blueprint tile 'tiles_sw_door_metal' |
+| MetalDoor_GritGateRank2 | PASS | PASS 10.7/7% |  |
+| MetalDoubleDoorE_GritGateRank0 | PASS | PASS 10.0/7% | wire tile != blueprint tile 'tiles_sw_door2_metal_right' |
+| MetalDoubleDoorE_GritGateRank1 | PASS | PASS 9.9/7% | wire tile != blueprint tile 'tiles_sw_door2_metal_right' |
+| MetalDoubleDoorE_GritGateRank2 | PASS | PASS 10.0/7% |  |
+| MetalDoubleDoorW_GritGateRank0 | PASS | PASS 7.8/5% | wire tile != blueprint tile 'tiles_sw_door2_metal_left' |
+| MetalDoubleDoorW_GritGateRank1 | PASS | PASS 7.8/5% | wire tile != blueprint tile 'tiles_sw_door2_metal_left' |
+| MetalDoubleDoorW_GritGateRank2 | PASS | PASS 7.8/5% |  |
+| MetalWalkway | PASS | PASS 1.8/0% | wire tile != blueprint tile 'tiles_sw_floor_brickb2' |
+| Millstone | PASS | PASS 1.7/0% | wire tile != blueprint tile 'items_sw_millstone_1' |
+| MopangoOven | PASS | PASS 1.8/0% | wire tile != blueprint tile 'items_sw_oven' |
+| Moted Lamp | PASS | PASS 2.3/1% | wire tile != blueprint tile 'furniture_moted-lamp' |
+| MountedFurniture | PASS | PASS 5.2/0% |  |
+| Mover Chair | PASS | PASS 1.4/0% | wire tile != blueprint tile 'furniture_eater-chair-double' |
+| Mover Chair Flipped | PASS | PASS 1.4/0% | wire tile != blueprint tile 'furniture_eater-chair-double' |
+| Mover Chute Bottom Opening L | PASS | PASS 1.4/0% | wire tile != blueprint tile 'terrain_mover-chute-bottom-opening-l' |
+| Mover Chute Bottom Opening R | PASS | PASS 1.2/0% | wire tile != blueprint tile 'terrain_mover-chute-bottom-opening-r' |
+| Mover Chute L | PASS | PASS 1.1/0% | wire tile != blueprint tile 'terrain_mover-chute-l' |
+| Mover Chute R | PASS | PASS 1.1/0% | wire tile != blueprint tile 'terrain_mover-chute-r' |
+| Mover Chute Top Opening L | PASS | PASS 1.4/0% | wire tile != blueprint tile 'terrain_mover-chute-top-opening-l' |
+| Mover Chute Top Opening R | PASS | PASS 1.2/0% | wire tile != blueprint tile 'terrain_mover-chute-top-opening-r' |
+| Mover Couch C | PASS | PASS 1.2/0% | wire tile != blueprint tile 'furniture_eater-couch-c' |
+| Mover Couch L | PASS | PASS 1.2/0% | wire tile != blueprint tile 'furniture_eater-couch-l' |
+| Mover Couch R | PASS | PASS 1.3/0% | wire tile != blueprint tile 'furniture_eater-couch-r' |
+| Multicabinet | PASS | PASS 2.1/0% | wire tile != blueprint tile 'items_sw_multi_cabinet_1' |
+| Mushroom Case | PASS | PASS 1.2/0% | wire tile != blueprint tile 'items_sw_mushroom_case' |
+| N Marble Dais | PASS | PASS 1.4/0% | wire tile != blueprint tile 'items_sw_dais_n' |
+| Nacham's Loom | PASS | PASS 1.9/0% | wire tile != blueprint tile 'furniture_chiliad-nacham-loom' |
+| NE Marble Dais | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_dais_ne' |
+| NephilimShrine | PASS | PASS 5.1/0% |  |
+| NormCore | PASS | PASS 1.7/0% | wire tile != blueprint tile 'items_sw_diamond_thing' |
+| NormCore1 | PASS | PASS 1.7/0% | wire tile != blueprint tile 'items_sw_diamond_thing' |
+| NormCore2 | PASS | PASS 1.8/0% |  |
+| NormCore3 | PASS | PASS 1.9/0% |  |
+| NuntuBookshelf | PASS | PASS 2.1/0% | wire tile != blueprint tile 'items_sw_bookshelf3' |
+| NuntuBookshelf2 | PASS | PASS 2.1/0% | wire tile != blueprint tile 'items_sw_bookshelf1' |
+| NuntuChest | PASS | PASS 1.1/0% | wire tile != blueprint tile 'assets_content_textures_tiles_sw_chest' |
+| NuntuTable | PASS | PASS 1.3/0% | wire tile != blueprint tile 'items_sw_table1' |
+| NW Marble Dais | PASS | PASS 1.4/0% | wire tile != blueprint tile 'items_sw_dais_nw' |
+| Octagonal Table | PASS | PASS 1.4/0% | wire tile != blueprint tile 'items_sw_table_cylinder' |
+| Ornate Bench | PASS | PASS 1.4/0% | wire tile != blueprint tile 'items_sw_chair_ornate_1' |
+| Ornate Chair | PASS | PASS 1.4/0% | wire tile != blueprint tile 'items_sw_chair_ornate_2' |
+| Ornate Table | PASS | PASS 1.3/0% | wire tile != blueprint tile 'items_sw_table_ornate_1' |
+| Orrery | PASS | PASS 1.4/0% | wire tile != blueprint tile 'items_sw_orrery' |
+| Oven | PASS | PASS 1.8/0% | wire tile != blueprint tile 'items_sw_oven' |
+| Painted Column L | PASS | PASS 1.6/0% | wire tile != blueprint tile 'items_sw_column_splattered' |
+| Painted Column R | PASS | PASS 1.6/0% | wire tile != blueprint tile 'items_sw_column_splattered' |
+| Painting | PASS | PASS 1.4/0% | wire tile != blueprint tile 'items_sw_painting_2' |
+| PepperSign1 | PASS | PASS 1.1/0% | wire tile != blueprint tile 'items_sw_sign_pepper' |
+| PepperSign2 | PASS | PASS 1.1/0% | wire tile != blueprint tile 'items_sw_sign_pepper' |
+| PepperSign3 | PASS | PASS 1.1/0% |  |
+| Period1SultanShrine | PASS | PASS 1.4/0% | wire tile != blueprint tile 'terrain_sw_sultanstatue_rare_2' |
+| Period2SultanShrine | PASS | PASS 1.3/0% | wire tile != blueprint tile 'terrain_sw_sultanstatue_1' |
+| Period3SultanShrine | PASS | PASS 1.4/0% | wire tile != blueprint tile 'terrain_sw_sultanstatue_11' |
+| Period4SultanShrine | PASS | PASS 1.4/0% | wire tile != blueprint tile 'terrain_sw_sultanstatue_4' |
+| Period5SultanShrine | PASS | PASS 1.4/0% | wire tile != blueprint tile 'terrain_sw_sultanstatue_rare_1' |
+| Period6SultanShrine | PASS | PASS 1.4/0% | wire tile != blueprint tile 'terrain_sw_resheph_sultanstatue' |
+| Phasic Screw | PASS | PASS 6.4/0% | wire tile != blueprint tile 'furniture_phasic-screw-1' |
+| PigSign | PASS | PASS 1.0/0% | wire tile != blueprint tile 'items_sw_sign_pig' |
+| PistonPressElement | PASS | PASS 8.3/0% |  |
+| Platform | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_platform_chrome' |
+| Powered Orrery | PASS | PASS 1.4/0% | wire tile != blueprint tile 'items_sw_orrery' |
+| Powered Telescope | PASS | PASS 4.0/0% | wire tile != blueprint tile 'items_sw_microscope' |
+| Powerless Bubblething | PASS | PASS 1.3/0% | wire tile != blueprint tile 'items_sw_bubblething' |
+| Powerless Electrothing | PASS | PASS 1.3/0% | wire tile != blueprint tile 'items_sw_electrothing' |
+| Powerless Fluxthing | PASS | PASS 1.2/0% | wire tile != blueprint tile 'items_sw_fluxthing' |
+| Powerless Loudspeaker | PASS | PASS 2.1/0% | wire tile != blueprint tile 'items_sw_box_grill' |
+| Powerless Unicomputer | PASS | PASS 1.6/0% | wire tile != blueprint tile 'items_sw_computer' |
+| PowerLine | PASS | PASS 1.1/0% | wire tile != blueprint tile 'assets_content_textures_tiles_sw_wire_' |
+| Preserved Food Basket | PASS | PASS 1.1/0% | wire tile != blueprint tile 'items_sw_basket' |
+| PreserveSign1 | PASS | PASS 1.1/0% | wire tile != blueprint tile 'items_sw_sign_bottle' |
+| PreserveSign2 | PASS | PASS 1.1/0% | wire tile != blueprint tile 'items_sw_sign_bottle' |
+| PreserveSign3 | PASS | PASS 1.1/0% |  |
+| Psiamp Sarcophagus | PASS | PASS 1.5/0% | wire tile != blueprint tile 'items_sw_psiamp_sarcophagus' |
+| Purple Security Door | PASS | PASS 1.6/0% | wire tile != blueprint tile 'terrain_sw_securitydoor' |
+| QasShrine | PASS | PASS 1.6/0% | wire tile != blueprint tile 'furniture_nephilim_statue_qas' |
+| QonShrine | PASS | PASS 1.8/0% | wire tile != blueprint tile 'furniture_nephilim_statue_qon' |
+| Quantum Rippler | PASS | PASS 3.0/0% | wire tile != blueprint tile 'items_sw_quantum_rippler_inactive' |
+| RachelsTombstone | PASS | PASS 1.4/0% | wire tile != blueprint tile 'terrain_sw_tombstone_4' |
+| Random Marble Statue | PASS | PASS 1.3/0% | wire tile != blueprint tile 'creatures_sw_moth' |
+| Random Statue | PASS | PASS 1.5/0% | wire tile != blueprint tile 'terrain_tile_tombstone1' |
+| Random Stone Statue | PASS | PASS 1.4/0% | wire tile != blueprint tile 'creatures_sw_rifle_turret' |
+| Rare Chest1 | PASS | PASS 1.2/0% | wire tile != blueprint tile 'assets_content_textures_tiles_sw_chest' |
+| Rare Chest2 | PASS | PASS 1.1/0% | wire tile != blueprint tile 'assets_content_textures_tiles_sw_chest' |
+| Rare Chest3 | PASS | PASS 1.2/0% |  |
+| Rare Chest4 | PASS | PASS 1.1/0% |  |
+| Rare Chest5 | PASS | PASS 1.1/0% |  |
+| Rare Chest6 | PASS | PASS 1.1/0% |  |
+| Rare Chest7 | PASS |  | no capture pair — congruence skipped |
+| Rare Chest8 | PASS | PASS 1.2/0% |  |
+| RareChest | PASS | PASS 1.2/0% |  |
+| Rebekah Hologram | PASS | PASS 1.4/0% | wire tile != blueprint tile 'creatures_rebekah' |
+| Reclamation Cist | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_iron_maiden' |
+| Recoming Nook Door | PASS | PASS 1.4/0% | wire tile != blueprint tile 'items_sw_door_filigree' |
+| Recoming Reliquary | PASS | PASS 1.4/0% | wire tile != blueprint tile 'items_sw_reliquary' |
+| Rectangular Bells | PASS | PASS 1.3/0% | wire tile != blueprint tile 'items_sw_glockenspiel' |
+| Red Security Door | PASS | PASS 1.6/0% | wire tile != blueprint tile 'terrain_sw_securitydoor' |
+| Redrock Bookshelf | PASS | PASS 2.1/0% | wire tile != blueprint tile 'items_sw_bookshelf2' |
+| Redrock Metal Workbench | PASS | PASS 1.4/0% | wire tile != blueprint tile 'items_sw_table_metal_full' |
+| Regen Tank | PASS | PASS 7.7/4% | wire tile != blueprint tile 'items_sw_regen_tank' |
+| RelicChest | PASS | PASS 1.2/0% | wire tile != blueprint tile 'assets_content_textures_tiles_sw_chest' |
+| Reliquary | PASS | PASS 1.4/0% | wire tile != blueprint tile 'items_sw_reliquary' |
+| RermadonShrine | PASS | PASS 1.6/0% | wire tile != blueprint tile 'furniture_nephilim_statue_rermadon' |
+| Reshaping Nook | PASS | PASS 1.7/0% | wire tile != blueprint tile 'furniture_sw_reshaping_nook' |
+| Reshaping Pad | PASS | PASS 1.6/0% | wire tile != blueprint tile 'furniture_sw_reshaping_pad' |
+| Resheph Hologram | PASS | PASS 1.3/0% | wire tile != blueprint tile 'creatures_resheph' |
+| Resheph2 | PASS | PASS 1.3/0% | wire tile != blueprint tile 'creatures_resheph' |
+| ReshephsCrypt | PASS | PASS 1.5/0% | wire tile != blueprint tile 'terrain_tile_tombstone1' |
+| RewardChestJunk | PASS | PASS 1.2/0% | wire tile != blueprint tile 'assets_content_textures_tiles_sw_chest' |
+| Right Spindle Ribbon | PASS | PASS 1.4/0% | wire tile != blueprint tile 'furniture_right-spindle-ribbon' |
+| Right Spindle Ribbon Top | PASS | PASS 1.4/0% | wire tile != blueprint tile 'furniture_right-spindle-ribbon-top' |
+| Right Spindle Support | PASS | PASS 1.4/0% | wire tile != blueprint tile 'furniture_right-spindle-support' |
+| Right Spindle Support Top | PASS | PASS 1.4/0% | wire tile != blueprint tile 'furniture_right-spindle-support-top' |
+| Ring Gate 1 | PASS | PASS 1.7/0% | odd color '&W '; wire tile != blueprint tile 'items_sw_ring_gate_1_off' |
+| Ring Gate 2 | PASS | PASS 1.6/0% | odd color '&W '; wire tile != blueprint tile 'items_sw_ring_gate_2_off' |
+| Ring Gate 3 | PASS | PASS 1.6/0% | wire tile != blueprint tile 'items_sw_ring_gate_3_off' |
+| Rock Tumbler | PASS | PASS 1.6/0% | wire tile != blueprint tile 'items_sw_rock_tumbler' |
+| Ruined Ring Gate | PASS | PASS 1.4/0% | wire tile != blueprint tile 'items_sw_ring_gate_ruined_3' |
+| RuinedNephilimShrime | PASS | PASS 1.1/0% | wire tile != blueprint tile 'furniture_nephilim_statue_ruined' |
+| RustLocker | PASS | PASS 1.2/0% | wire tile != blueprint tile 'assets_content_textures_tiles_sw_chest' |
+| S1 Marble Dais | PASS | PASS 1.8/0% | wire tile != blueprint tile 'items_sw_dais_south1' |
+| S2 Marble Dais | PASS | PASS 2.3/0% | wire tile != blueprint tile 'items_sw_dais_south2' |
+| Sarcophagus | PASS | PASS 1.8/0% | wire tile != blueprint tile 'items_sw_tomb_opened' |
+| Sconce | PASS | PASS 6.6/7% |  |
+| Scrapable Deposit Box 6 | PASS | PASS 1.5/0% | wire tile != blueprint tile 'items_sw_deposit_box' |
+| Scrapasan | PASS | PASS 1.5/0% | wire tile != blueprint tile 'items_sw_chair_scrapasan' |
+| ScrapChest | PASS | PASS 1.2/0% | wire tile != blueprint tile 'assets_content_textures_tiles_sw_chest' |
+| SE Marble Dais | PASS | PASS 2.3/0% | wire tile != blueprint tile 'items_sw_dais_se' |
+| Security Door | PASS | PASS 1.6/0% | wire tile != blueprint tile 'terrain_sw_securitydoor' |
+| Sewing Machine | PASS | PASS 1.2/0% | wire tile != blueprint tile 'items_sw_sewing_machine' |
+| Sheva Bell | PASS | PASS 1.3/0% | wire tile != blueprint tile 'furniture_eater-bell' |
+| ShevaBrazier | PASS | PASS 11.8/8% | wire tile != blueprint tile 'furniture_techlamp6' |
+| ShevaBrazierGreen | PASS | PASS 10.7/9% | wire tile != blueprint tile 'furniture_techlamp6' |
+| ShevaHydraulicPipe Black | PASS | PASS 1.4/0% | wire tile != blueprint tile 'assets_content_textures_furniture_eater-pipe_still_intact_' |
+| ShevaHydraulicPipe Blue | PASS | PASS 1.9/0% | wire tile != blueprint tile 'assets_content_textures_furniture_eater-pipe_still_intact_' |
+| ShevaHydraulicPipe Cyan | PASS | PASS 3.0/0% |  |
+| ShevaHydraulicPipe Green | PASS | PASS 1.1/0% |  |
+| ShugruithShrine | PASS | PASS 1.5/0% | wire tile != blueprint tile 'furniture_nephilim_statue_shugruith' |
+| Sign | PASS | PASS 4.5/0% |  |
+| SixshrewSign | PASS | PASS 1.1/0% | wire tile != blueprint tile 'items_sw_sign_goods' |
+| Sleek Table | PASS | PASS 1.3/0% | wire tile != blueprint tile 'items_sw_table_sleek' |
+| Sofa | PASS | PASS 1.4/0% | wire tile != blueprint tile 'items_sw_sofa_l' |
+| Sofa C | PASS | PASS 1.8/0% | wire tile != blueprint tile 'items_sw_couch_c' |
+| Sofa L | PASS | PASS 1.5/0% | wire tile != blueprint tile 'items_sw_couch_l' |
+| Sofa R | PASS | PASS 1.5/0% | wire tile != blueprint tile 'items_sw_couch_r' |
+| Solar Condenser | PASS | PASS 1.4/0% | wire tile != blueprint tile 'items_sw_solar_condenser' |
+| Solar Power Station | PASS | PASS 1.6/0% | wire tile != blueprint tile 'items_sw_solar_power_station' |
+| Solar Pumping Station | PASS | PASS 2.2/0% | wire tile != blueprint tile 'items_sw_solar_pumping_station' |
+| Solar Still | PASS |  | wire tile != blueprint tile 'items_sw_solar_still'; no capture pair — congruence skipped |
+| SolidHighTechInstallation | PASS | PASS 5.2/0% |  |
+| Spindle Ribbon | PASS | PASS 1.6/0% | wire tile != blueprint tile 'furniture_spindle-ribbon' |
+| Spindle Ribbon Top | PASS | PASS 1.6/0% | wire tile != blueprint tile 'furniture_spindle-ribbon-top' |
+| Star Carousel Art Sculpture 1 | PASS | PASS 1.4/0% | wire tile != blueprint tile 'furniture_star-carousel-art-1' |
+| Star Carousel Art Sculpture 2 | PASS | PASS 1.4/0% | wire tile != blueprint tile 'furniture_star-carousel-art-2' |
+| Star Carousel Art Sculpture 3 | PASS | PASS 1.2/0% | wire tile != blueprint tile 'furniture_star-carousel-art-3' |
+| Star Carousel Display Case | PASS | PASS 1.9/0% | wire tile != blueprint tile 'furniture_star-carousel-display-case' |
+| Star Carousel Display Case FS | PASS | PASS 1.9/0% | wire tile != blueprint tile 'furniture_star-carousel-display-case' |
+| Star Carousel Passenger Console 1 | PASS | PASS 1.3/0% | wire tile != blueprint tile 'furniture_star-carousel-passenger-console-1' |
+| Star Carousel Passenger Console 2 | PASS | PASS 1.4/0% | wire tile != blueprint tile 'furniture_star-carousel-passenger-console-2' |
+| Star Carousel Passenger Seat | PASS | PASS 1.2/0% | wire tile != blueprint tile 'furniture_star-carousel-passenger-seat' |
+| Star Carousel Pilot Console | PASS | PASS 1.1/0% | wire tile != blueprint tile 'furniture_star-carousel-pilot-console-n' |
+| Star Carousel Pilot Console N | PASS | PASS 1.1/0% | wire tile != blueprint tile 'furniture_star-carousel-pilot-console-n' |
+| Star Carousel Pilot Console S | PASS | PASS 1.1/0% | wire tile != blueprint tile 'furniture_star-carousel-pilot-console-s' |
+| Star Carousel Pilot Seat | PASS | PASS 1.4/0% | wire tile != blueprint tile 'furniture_star-carousel-pilot-seat' |
+| Star Carousel Power Core | PASS | PASS 1.9/0% | wire tile != blueprint tile 'furniture_star-carousel-power-core' |
+| Star Carousel Star Chart C | PASS | PASS 1.6/0% | wire tile != blueprint tile 'furniture_star-carousel-star-chart-c' |
+| Star Carousel Star Chart L | PASS | PASS 3.6/0% | wire tile != blueprint tile 'furniture_star-carousel-star-chart-l' |
+| Star Carousel Star Chart R | PASS | PASS 1.4/0% | wire tile != blueprint tile 'furniture_star-carousel-star-chart-r' |
+| Star Carousel Table | PASS | PASS 1.4/0% | wire tile != blueprint tile 'furniture_star-carousel-table' |
+| Star Orchid Temple Gate N | PASS | PASS 1.7/0% | wire tile != blueprint tile 'furniture_orchid-gate-n' |
+| Star Orchid Temple Gate S | PASS | PASS 2.1/0% | wire tile != blueprint tile 'furniture_orchid-gate-s' |
+| Star Orchid Temple Gate SE | PASS | PASS 1.2/0% | wire tile != blueprint tile 'furniture_orchid-gate-se' |
+| Star Orchid Temple Gate SW | PASS | PASS 1.6/0% | wire tile != blueprint tile 'furniture_orchid-gate-sw' |
+| Star Orchid Temple Projector | PASS | PASS 1.3/0% | wire tile != blueprint tile 'furniture_orchid-projector' |
+| Starmchair | PASS | PASS 1.3/0% | wire tile != blueprint tile 'items_sw_starfish_chair' |
+| Starshiib Hologram | PASS | PASS 1.5/0% | wire tile != blueprint tile 'creatures_chiliad-starshiib' |
+| Starship 1 Platform N | PASS | PASS 1.7/0% | wire tile != blueprint tile 'furniture_dock-platform-n' |
+| Starship 1 Platform S | PASS | PASS 1.5/0% | wire tile != blueprint tile 'furniture_dock-platform-s' |
+| Starship Copilot Console | PASS | PASS 1.4/0% | wire tile != blueprint tile 'furniture_starship-1-pilot-console' |
+| Starship Double Metal Door N | PASS | PASS 1.4/0% | wire tile != blueprint tile 'tiles_sw_door2_metal_top' |
+| Starship Double Metal Door S | PASS | PASS 1.4/0% | wire tile != blueprint tile 'tiles_sw_door2_metal_bottom' |
+| Starship Metal Door | PASS | PASS 1.5/0% | wire tile != blueprint tile 'tiles_sw_door_metal' |
+| Starship Pilot Console | PASS | PASS 1.4/0% | wire tile != blueprint tile 'furniture_starship-1-pilot-console' |
+| Starship1 Cargo Crate | PASS | PASS 1.2/0% | wire tile != blueprint tile 'furniture_starship-1-viewer' |
+| Starship1 Comms | PASS | PASS 1.5/0% | wire tile != blueprint tile 'furniture_starship-1-comms' |
+| Starship1 Copilot Seat | PASS | PASS 1.3/0% | wire tile != blueprint tile 'furniture_starship-1-pilot-seat' |
+| Starship1 Floor Cushion | PASS | PASS 1.2/0% | wire tile != blueprint tile 'furniture_starship-floor-cushion' |
+| Starship1 Passenger Seat | PASS | PASS 1.3/0% | wire tile != blueprint tile 'furniture_starship-1-passenger-seat' |
+| Starship1 Pilot Seat | PASS | PASS 1.3/0% | wire tile != blueprint tile 'furniture_starship-1-pilot-seat' |
+| Starship1 Power Core | PASS | PASS 1.2/0% | wire tile != blueprint tile 'furniture_starship-1-power-core' |
+| Starship1 Status Panel | PASS | PASS 1.4/0% | wire tile != blueprint tile 'furniture_starship-1-status-panel' |
+| Starship1 Tree Sculpture | PASS | PASS 1.3/0% | wire tile != blueprint tile 'furniture_starship-1-tree-sculpture' |
+| Starship1 Wooden Chair | PASS | PASS 1.2/0% | wire tile != blueprint tile 'furniture_starship-wooden-chair' |
+| Starship1 Wooden Table | PASS | PASS 1.2/0% | wire tile != blueprint tile 'furniture_starship-wooden-table' |
+| StarshipBed E | PASS | PASS 1.6/0% | wire tile != blueprint tile 'walls2_starship-1-wallbed-e' |
+| StarshipBed W | PASS | PASS 1.4/0% | wire tile != blueprint tile 'walls2_starship-1-wallbed-w' |
+| StarshipBookshelf E | PASS | PASS 1.7/0% | wire tile != blueprint tile 'walls2_starship-1-wallbookshelf-e' |
+| StarshipBookshelf W | PASS | PASS 1.6/0% | wire tile != blueprint tile 'walls2_starship-1-wallbookshelf-w' |
+| StiltOven | PASS | PASS 1.8/0% | wire tile != blueprint tile 'items_sw_oven' |
+| StiltWell | PASS | PASS 2.6/0% | wire tile != blueprint tile 'items_sw_well' |
+| Stool | PASS | PASS 1.1/0% | wire tile != blueprint tile 'items_sw_stool_low' |
+| Striped Door | PASS | PASS 1.2/0% | wire tile != blueprint tile 'tiles_sw_door_striped' |
+| SultanReliquaryE | PASS | PASS 1.4/0% | wire tile != blueprint tile 'items_sw_sultan_reliquary_e' |
+| SultanReliquaryEPeriod1 | PASS | PASS 1.4/0% | wire tile != blueprint tile 'items_sw_sultan_reliquary_e' |
+| SultanReliquaryEPeriod2 | PASS | PASS 1.4/0% |  |
+| SultanReliquaryEPeriod3 | PASS | PASS 1.4/0% |  |
+| SultanReliquaryEPeriod4 | PASS | PASS 1.3/0% |  |
+| SultanReliquaryEPeriod5 | PASS | PASS 1.4/0% |  |
+| SultanReliquaryEPeriod6 | PASS | PASS 1.4/0% |  |
+| SultanReliquaryW | PASS | PASS 1.4/0% | wire tile != blueprint tile 'items_sw_sultan_reliquary_w' |
+| SultanReliquaryWPeriod1 | PASS | PASS 1.4/0% | wire tile != blueprint tile 'items_sw_sultan_reliquary_w' |
+| SultanReliquaryWPeriod2 | PASS | PASS 1.4/0% |  |
+| SultanReliquaryWPeriod3 | PASS | PASS 1.4/0% |  |
+| SultanReliquaryWPeriod4 | PASS | PASS 1.4/0% |  |
+| SultanReliquaryWPeriod5 | PASS | PASS 1.4/0% |  |
+| SultanReliquaryWPeriod6 | PASS | PASS 1.4/0% |  |
+| SultanSarcophagusE | PASS | PASS 1.5/0% | wire tile != blueprint tile 'items_sw_sultan_sarcophagus_closed_e' |
+| SultanSarcophagusEPeriod1 | PASS | PASS 1.5/0% | wire tile != blueprint tile 'items_sw_sultan_sarcophagus_closed_e' |
+| SultanSarcophagusEPeriod2 | PASS | PASS 1.4/0% |  |
+| SultanSarcophagusEPeriod3 | PASS | PASS 1.5/0% |  |
+| SultanSarcophagusEPeriod4 | PASS | PASS 1.5/0% |  |
+| SultanSarcophagusEPeriod5 | PASS | PASS 1.4/0% |  |
+| SultanSarcophagusEPeriod6 | PASS | PASS 1.5/0% |  |
+| SultanSarcophagusW | PASS | PASS 1.2/0% | wire tile != blueprint tile 'items_sw_sultan_sarcophagus_closed_w' |
+| SultanSarcophagusWPeriod1 | PASS | PASS 1.1/0% | wire tile != blueprint tile 'items_sw_sultan_sarcophagus_closed_w' |
+| SultanSarcophagusWPeriod2 | PASS | PASS 1.2/0% |  |
+| SultanSarcophagusWPeriod3 | PASS | PASS 1.2/0% |  |
+| SultanSarcophagusWPeriod4 | PASS | PASS 1.2/0% |  |
+| SultanSarcophagusWPeriod5 | PASS | PASS 1.2/0% |  |
+| SultanSarcophagusWPeriod6 | PASS | PASS 1.2/0% |  |
+| SultanShrine | PASS | PASS 1.4/0% | wire tile != blueprint tile 'terrain_sw_sultanstatue_11' |
+| Sunken Room Stairs | PASS | PASS 2.2/0% | wire tile != blueprint tile 'tiles_sw_floor_brick1' |
+| Sunken Room Stairs E | PASS | PASS 1.1/0% | wire tile != blueprint tile 'tiles2_sw_sunken_room_stairs_e' |
+| Sunken Room Stairs N | PASS | PASS 1.5/0% | wire tile != blueprint tile 'tiles2_sw_sunken_room_stairs_n' |
+| Sunken Room Stairs NE | PASS | PASS 1.5/0% | wire tile != blueprint tile 'tiles2_sw_sunken_room_stairs_ne' |
+| Sunken Room Stairs NW | PASS | PASS 1.7/0% | wire tile != blueprint tile 'tiles2_sw_sunken_room_stairs_nw' |
+| Sunken Room Stairs S | PASS | PASS 1.1/0% | wire tile != blueprint tile 'tiles2_sw_sunken_room_stairs_s' |
+| Sunken Room Stairs SE | PASS | PASS 1.1/0% | wire tile != blueprint tile 'tiles2_sw_sunken_room_stairs_se' |
+| Sunken Room Stairs SW | PASS | PASS 1.2/0% | wire tile != blueprint tile 'tiles2_sw_sunken_room_stairs_sw' |
+| Sunken Room Stairs W | PASS | PASS 1.1/0% | wire tile != blueprint tile 'tiles2_sw_sunken_room_stairs_w' |
+| SW Marble Dais | PASS | PASS 2.3/0% | wire tile != blueprint tile 'items_sw_dais_sw' |
+| Switch | PASS | PASS 1.2/0% | wire tile != blueprint tile 'terrain_sw_switch' |
+| Table | PASS | PASS 1.3/0% | wire tile != blueprint tile 'items_sw_table1' |
+| Table Golem | PASS | PASS 1.4/0% | wire tile != blueprint tile 'creatures_sw_golem_table' |
+| Tall Brazier | PASS | PASS 7.9/6% | wire tile != blueprint tile 'items_sw_lamp' |
+| TamSign | PASS | PASS 1.0/0% | wire tile != blueprint tile 'items_sw_sign_goods' |
+| Techlight1 | PASS | PASS 2.2/1% | wire tile != blueprint tile 'items_sw_hitech_lightsource1' |
+| Techlight2 | PASS | PASS 4.1/3% | wire tile != blueprint tile 'items_sw_hitech_lightsource2' |
+| Techlight3 | PASS | PASS 2.5/1% | wire tile != blueprint tile 'items_sw_hitech_lightsource3' |
+| Telescope | PASS | PASS 1.4/0% | wire tile != blueprint tile 'items_sw_microscope' |
+| TempleSwitch | PASS | PASS 1.1/0% | wire tile != blueprint tile 'terrain_sw_switch' |
+| Throne | PASS | PASS 1.5/0% | wire tile != blueprint tile 'items_sw_chair_throne' |
+| Tinted Glass Door E | PASS | PASS 1.6/0% | wire tile != blueprint tile 'tiles2_sw_gate_glass_e_closed' |
+| Tinted Glass Door W | PASS | PASS 1.3/0% | wire tile != blueprint tile 'tiles2_sw_gate_glass_w_closed' |
+| Tomb Techlight1 | PASS | PASS 3.4/2% | wire tile != blueprint tile 'items_sw_light_tomb_1' |
+| Tomb Techlight2 | PASS | PASS 2.9/1% | wire tile != blueprint tile 'items_sw_light_tomb_2' |
+| Tomb Techlight3 | PASS | PASS 3.9/2% | wire tile != blueprint tile 'items_sw_light_tomb_3' |
+| Tomb Techlight4 | PASS | PASS 3.4/2% | wire tile != blueprint tile 'items_sw_light_tomb_4' |
+| Tomb Techlight5 | PASS | PASS 3.4/2% | wire tile != blueprint tile 'items_sw_light_tomb_5' |
+| Tomb Techlight6 | PASS | PASS 6.8/5% | wire tile != blueprint tile 'items_sw_light_tomb_6' |
+| Tombstone | PASS | PASS 1.3/0% | wire tile != blueprint tile 'terrain_sw_tombstone_2' |
+| Torchpost | PASS | PASS 11.7/15% | wire tile != blueprint tile 'tiles_sw_torch_nofire' |
+| Torture Chair | PASS | PASS 1.5/0% | wire tile != blueprint tile 'items_sw_torture_chair' |
+| TrembleEntranceWormhole | PASS | PASS 4.1/0% |  |
+| TrembleExitWormhole | PASS | PASS 4.3/0% |  |
+| Troll Door | PASS | PASS 1.6/0% | wire tile != blueprint tile 'terrain_sw_securitydoor' |
+| Troll Door 1 | PASS | PASS 1.6/0% | wire tile != blueprint tile 'terrain_sw_securitydoor' |
+| Troll Door 2 | PASS | PASS 1.6/0% |  |
+| Troll Door 3 | PASS | PASS 1.6/0% |  |
+| TutorialChest1 | PASS | PASS 1.2/0% | wire tile != blueprint tile 'assets_content_textures_tiles_sw_chest' |
+| TutorialFusionPumpingStation | PASS | PASS 2.4/0% | wire tile != blueprint tile 'items_sw_fusion_pumping_station' |
+| Underground Air Well | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_airwell' |
+| UndergroundBookshelf | PASS | PASS 2.1/0% | wire tile != blueprint tile 'items_sw_bookshelf1' |
+| UndergroundMerchantBookshelf | PASS | PASS 2.1/0% | wire tile != blueprint tile 'items_sw_bookshelf3' |
+| Unfinished Sculpture | PASS | PASS 1.7/0% | wire tile != blueprint tile 'items_sw_unfinished_sculpture_1' |
+| Unicomputer | PASS | PASS 1.6/0% | wire tile != blueprint tile 'items_sw_computer' |
+| Unimax Wood Carving | PASS | PASS 1.4/0% | wire tile != blueprint tile 'creatures_sw_unimax' |
+| Universal Charging Station | PASS | PASS 1.4/0% | wire tile != blueprint tile 'items_sw_universal_station' |
+| Unlit Torchpost | PASS | PASS 1.0/0% | wire tile != blueprint tile 'tiles_sw_torch_nofire' |
+| Unpowered Gas Burner | PASS | PASS 1.6/0% | wire tile != blueprint tile 'items_sw_titrator' |
+| Va'am's Blower | PASS | PASS 4.5/0% | wire tile != blueprint tile 'furniture_chiliad-vaam-blower-1' |
+| VehicleConsole N | PASS | PASS 1.5/0% | wire tile != blueprint tile 'furniture_sw_golem_interior_screen_n' |
+| VehicleConsole S | PASS | PASS 1.6/0% | wire tile != blueprint tile 'furniture_sw_golem_interior_screen_s' |
+| VehicleGolemPassengerSeat | PASS | PASS 1.5/0% | wire tile != blueprint tile 'furniture_sw_golem_interior_chair' |
+| VehicleGolemSeat | PASS | PASS 1.5/0% | wire tile != blueprint tile 'furniture_sw_golem_interior_chair' |
+| Village Bookshelf | PASS | PASS 2.1/0% | wire tile != blueprint tile 'items_sw_bookshelf1' |
+| Village Hologram 1 | PASS | PASS 1.3/0% | wire tile != blueprint tile 'items_sw_hologram1' |
+| Village Hologram 2 | PASS | PASS 1.3/0% | wire tile != blueprint tile 'items_sw_hologram2' |
+| Village Monument | PASS |  | wire tile != blueprint tile 'terrain_sw_monument1'; no capture pair — congruence skipped |
+| Village Monument Amphora | PASS | PASS 1.7/0% |  |
+| Village Monument Birdhouse | PASS | PASS 1.8/0% | wire tile != blueprint tile 'terrain_sw_monument3' |
+| Village Monument Diptych | PASS | PASS 1.7/0% | wire tile != blueprint tile 'terrain_sw_monument4' |
+| Village Monument Monolith | PASS | PASS 1.5/0% | wire tile != blueprint tile 'terrain_sw_monument6' |
+| Village Monument Obelisk | PASS | PASS 1.5/0% | wire tile != blueprint tile 'terrain_sw_monument1' |
+| Village Monument Orb | PASS | PASS 1.8/0% | wire tile != blueprint tile 'terrain_sw_monument8' |
+| Village Monument Sculpture | PASS | PASS 1.7/0% | wire tile != blueprint tile 'terrain_sw_monument7' |
+| Village Monument Stele | PASS | PASS 1.9/0% | wire tile != blueprint tile 'terrain_sw_monument5' |
+| W Marble Dais | PASS | PASS 1.2/0% | wire tile != blueprint tile 'items_sw_dais_w' |
+| W1 Marble Dais | PASS | PASS 2.2/0% | wire tile != blueprint tile 'items_sw_dais_west1' |
+| W2 Marble Dais | PASS | PASS 1.5/0% | wire tile != blueprint tile 'items_sw_dais_west2' |
+| W3 Marble Dais | PASS | PASS 1.5/0% | wire tile != blueprint tile 'items_sw_dais_west3' |
+| Walkway | PASS | PASS 1.6/0% | wire tile != blueprint tile 'tiles_sw_floor_brickb4' |
+| WanderStopper Tinted Glass Door E | PASS | PASS 1.6/0% | wire tile != blueprint tile 'tiles2_sw_gate_glass_e_closed' |
+| WanderStopper Tinted Glass Door W | PASS | PASS 1.3/0% | wire tile != blueprint tile 'tiles2_sw_gate_glass_w_closed' |
+| Waterbed | PASS | PASS 1.6/0% | wire tile != blueprint tile 'items_sw_bed_water' |
+| Wavy Door | PASS | PASS 1.2/0% | wire tile != blueprint tile 'tiles_sw_door_wavy' |
+| Weapon Rack | PASS | PASS 1.4/0% | wire tile != blueprint tile 'items_sw_weapons_rack' |
+| WedgeChest1 | PASS | PASS 1.2/0% | wire tile != blueprint tile 'assets_content_textures_tiles_sw_chest' |
+| WedgeChest2 | PASS | PASS 1.1/0% | wire tile != blueprint tile 'assets_content_textures_tiles_sw_chest' |
+| WedgeChest3 | PASS | PASS 1.2/0% |  |
+| WedgeChest4 | PASS | PASS 1.1/0% |  |
+| WedgeChest5 | PASS | PASS 1.2/0% |  |
+| WedgeChest6 | PASS | PASS 1.2/0% |  |
+| Windowed Door | PASS | PASS 1.5/0% | wire tile != blueprint tile 'tiles_sw_door_window' |
+| WineSign1 | PASS | PASS 1.0/0% | wire tile != blueprint tile 'items_sw_sign_wine' |
+| WineSign2 | PASS | PASS 1.0/0% | wire tile != blueprint tile 'items_sw_sign_wine' |
+| WineSign3 | PASS | PASS 1.1/0% |  |
+| Wire Extruder | PASS | PASS 5.8/0% | wire tile != blueprint tile 'furniture_wire_extruder' |
+| WiredDoor_GritGateRank1 | PASS | PASS 1.3/0% | wire tile != blueprint tile 'tiles_sw_door_basic' |
+| WiredDoor_GritGateRank2 | PASS | PASS 1.3/0% | wire tile != blueprint tile 'tiles_sw_door_basic' |
+| WiredMetalDoubleDoorE_GritGateRank0 | PASS | PASS 1.6/0% | wire tile != blueprint tile 'tiles_sw_door2_metal_right' |
+| WiredMetalDoubleDoorE_GritGateRank1 | PASS | PASS 1.6/0% | wire tile != blueprint tile 'tiles_sw_door2_metal_right' |
+| WiredMetalDoubleDoorE_GritGateRank2 | PASS | PASS 1.6/0% |  |
+| WiredMetalDoubleDoorW_GritGateRank0 | PASS | PASS 1.8/0% | wire tile != blueprint tile 'tiles_sw_door2_metal_left' |
+| WiredMetalDoubleDoorW_GritGateRank1 | PASS | PASS 1.7/0% | wire tile != blueprint tile 'tiles_sw_door2_metal_left' |
+| WiredMetalDoubleDoorW_GritGateRank2 | PASS | PASS 1.7/0% |  |
+| Wood-Carved Bed | PASS | PASS 1.7/0% | wire tile != blueprint tile 'furniture_wood-carved-bed' |
+| Wood-Carved Bookshelf | PASS | PASS 1.6/0% | wire tile != blueprint tile 'furniture_wood-carved-bookshelf' |
+| Wood-Carved Chair | PASS | PASS 1.2/0% | wire tile != blueprint tile 'furniture_wood-carved-chair' |
+| Wood-Carved Clothespress | PASS | PASS 1.7/0% | wire tile != blueprint tile 'furniture_wood-carved-dresser' |
+| Wood-Carved Table | PASS | PASS 1.2/0% | wire tile != blueprint tile 'furniture_wood-carved-table' |
+| Wooden Water Wheel | PASS | PASS 4.2/0% | wire tile != blueprint tile 'items_sw_waterwheel_1' |
+| Wooden Wind Turbine | PASS | PASS 1.2/0% | wire tile != blueprint tile 'items_sw_windmill_1' |
+| WoodenMechanicalTransmission | PASS | PASS 1.0/0% | wire tile != blueprint tile 'assets_content_textures_tiles_sw_axle_1_' |
+| Work Chair | PASS | PASS 1.2/0% | wire tile != blueprint tile 'items_sw_chair_work' |
+| Workbench | PASS | PASS 1.3/0% | wire tile != blueprint tile 'assets_content_textures_tiles_sw_table' |
+| Wormhole | PASS | PASS 7.1/0% |  |
+| Woven Basket | PASS | PASS 1.0/0% | wire tile != blueprint tile 'items_sw_basket' |
+| Yd Regen Tank | PASS | PASS 7.7/4% | wire tile != blueprint tile 'items_sw_regen_tank' |
+| Yd Village Monument 1 | PASS | PASS 1.7/0% | wire tile != blueprint tile 'terrain_sw_monument4' |
+| Yd Village Monument 2 | PASS | PASS 1.7/0% | wire tile != blueprint tile 'terrain_sw_monument4' |
+| YdColumbariumSign | PASS | PASS 1.1/0% | wire tile != blueprint tile 'items_sw_sign_urn' |
+| YdFreeholdBookshelf | PASS | PASS 2.1/0% | wire tile != blueprint tile 'items_sw_bookshelf1' |
+| YdFreeholdFusionPowerStation | PASS | PASS 2.1/0% | wire tile != blueprint tile 'items_sw_fusion_power_station' |
+| YdFreeholdFusionPumpingStation | PASS | PASS 2.2/0% | wire tile != blueprint tile 'items_sw_fusion_pumping_station' |
+| YdFreeholdGlassHydraulicPipe1 | PASS | PASS 1.1/0% | wire tile != blueprint tile 'assets_content_textures_tiles_sw_pipe_still_intact_' |
+| YdFreeholdGlassHydraulicPipe2 | PASS | PASS 1.1/0% | wire tile != blueprint tile 'assets_content_textures_tiles_sw_pipe_still_intact_' |
+| YdFreeholdOven | PASS | PASS 1.8/0% | wire tile != blueprint tile 'items_sw_oven' |
+| YdKitchenSign | PASS | PASS 1.0/0% | wire tile != blueprint tile 'items_sw_sign_pepper' |
+| YdLibrarySign | PASS | PASS 1.0/0% | wire tile != blueprint tile 'items_sw_sign_book' |
+| YdLivingQuartersSign | PASS | PASS 1.1/0% | wire tile != blueprint tile 'items_sw_sign_living_quarters' |
+| YdManyEyesSign | PASS | PASS 1.1/0% | wire tile != blueprint tile 'items_sw_eye_sign' |
+| YdMarketSign | PASS | PASS 1.1/0% | wire tile != blueprint tile 'items_sw_sign_goods' |
+| YdMedicalSign | PASS | PASS 1.1/0% | wire tile != blueprint tile 'items_sw_sign_medical' |
+| YdSalonSign | PASS | PASS 1.0/0% | wire tile != blueprint tile 'items_sw_hookah_sign' |
+| YdWorkshopSign | PASS | PASS 1.1/0% | wire tile != blueprint tile 'items_sw_sign_gear' |
+| Yellow Security Door | PASS | PASS 1.6/0% | wire tile != blueprint tile 'terrain_sw_securitydoor' |
+| YlaSign | PASS | PASS 1.1/0% | wire tile != blueprint tile 'items_sw_sign_datadisc' |
+| YurlChest | PASS | PASS 1.2/0% | wire tile != blueprint tile 'assets_content_textures_tiles_sw_chest' |
+| YurlSign | PASS | PASS 1.1/0% | wire tile != blueprint tile 'items_sw_sign_sword' |

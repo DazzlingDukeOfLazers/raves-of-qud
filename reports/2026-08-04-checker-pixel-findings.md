@@ -1,9 +1,11 @@
 # Checker pixel-pass findings — first full scored sweep (PC, 2026-08-04)
 
-Six categories complete (creatures rerunning): walls 222/1/0 (PASS/WARN/FAIL),
-plants 178/1/1, liquids 74/1/2, furniture 688/28/22, food 270/0/0,
-implants 0/31/45. Wire-level: everything PASS. The pixel failures collapse
-into four families:
+All seven categories complete: walls 222/1/0 (PASS/WARN/FAIL), plants 178/1/1,
+liquids 74/1/2, furniture 688/28/22, food 270/0/0, implants 0/31/45,
+creatures 864/10/9 — pixel-scored 2492 elements, 93.7% PASS. Wire-level:
+everything PASS. Cell-crop pairs for every flagged element are committed under
+`reports/checker/evidence/<cat>/` (full frames are scratch, gitignored). The
+failures collapse into four families (+ creature singles):
 
 ## 1. Implants render a DIFFERENT TILE in Qud vs the wire (whole category)
 
@@ -36,5 +38,12 @@ animation phases (~1.5s between the two captures). These route to the
 animation-fixture pass (`docs/pc-test-rig.md` rung 4), not single-frame
 congruence — consider auto-tagging elements whose re-check score varies
 run-to-run as "animated" in the report.
+
+## 5. Creature singles (9 FAIL / 10 WARN of 896)
+
+Jilted Lover, Livid Creeper, Madpole, HumanApothecary, Gyre Wight of Qon,
+Ehalcodon, Gyrohumor, Conservator Special, Dawnglider. The names read as
+animated/glowing/flying — likely rung-4 fixtures or drift-off-cell (fliers bob).
+Triage individually from the evidence crops.
 
 *Delete sections as addressed (repo ticket lifecycle).*

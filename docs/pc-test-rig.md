@@ -98,16 +98,23 @@ What the earlier "blockers" actually were (all resolved):
   `shots_for` now focuses Qud for its capture; the golden save is re-archived
   at High Salt Sun (midday) so every boot starts in good light.
 
+**2026-08-04 night: the first FULL scored sweep is done — 2492 elements
+pixel-scored, 93.7% PASS**, failures collapsed into four families + 9 creature
+singles (`reports/2026-08-04-checker-pixel-findings.md`; evidence crops
+committed per flagged element). Along the way: `checker.py zoom` (uiQueue only
+drains focused — same root as the frozen buffer; run it, then `calibrate`),
+pixel-exact calibration rects (grid-quantized rects poisoned sparse sprites —
+furniture went 301 FAILs → 22), reconnect/truncated-capture/periodic-flush
+hardening in the sweep loop.
+
 Still open (quality, not correctness):
-- **Qud stage zoom**: the bridge `zoom` command didn't change the stage
-  (uiQueue ZoomIn/ZoomOut appear to no-op here) — tiles are ~14px, so the Qud
-  cell rect is small (24×16) and wall means cluster tightly (~8). A bigger
-  stage = sharper discrimination. Investigate GameManager zoom vs the stage
-  scale option, focused.
 - `wire_delta` (dominant-vs-palette) needs ambient-tint awareness before it's
   a real check — raw palette RGB vs the tinted render reads ~136 on a PASS.
 - Per-app calibration clip fracs (0.58 Qud / 0.48 Raves) are layout constants —
   re-measure if either window layout changes.
+- Multi-cell blueprints (Marble Dais, TauSoft) need a staging rule before their
+  scores mean anything; the mod-server reset under connection churn deserves a
+  server-side fix (the sweep's reconnect lane papers over it).
 
 ## Rung 4 — animation fixtures (the decoded-program list)
 
