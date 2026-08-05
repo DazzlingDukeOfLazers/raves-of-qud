@@ -36,7 +36,8 @@ var _panel: PanelContainer
 var _title: RichTextLabel
 var _scroll: ScrollContainer
 var _list: VBoxContainer
-var _foot: RichTextLabel
+var _foot: HFlowContainer
+var _menu: Array = []           # the footer bar's entries, as Qud yielded them
 
 # Same measured dialog chrome as PopupOverlay (see its notes: +6/channel above the dark
 # knee, fitted against captures). Kept as its own copy rather than reaching across --
@@ -114,9 +115,13 @@ func _build() -> void:
 	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_scroll.add_child(_list)
 
-	_foot = _mk_rt()
-	_foot.autowrap_mode = TextServer.AUTOWRAP_OFF
-	_foot.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	# Qud's footer is a MENU BAR, not a caption: it wraps across as many centred lines as it
+	# needs ("[Esc] Close Menu  [↕] navigate" / "[7] sort: list/by class" / "[Space] Select").
+	# HFlowContainer reproduces that wrap; each entry is its own clickable label.
+	_foot = HFlowContainer.new()
+	_foot.alignment = FlowContainer.ALIGNMENT_CENTER
+	_foot.add_theme_constant_override("h_separation", 18)
+	_foot.add_theme_constant_override("v_separation", 2)
 	vb.add_child(_foot)
 
 func _mk_rt() -> RichTextLabel:
@@ -182,8 +187,8 @@ func show_picker(data: Dictionary, palette: Dictionary) -> void:
 	if _title.visible:
 		_title.text = "[center][color=#%s]%s[/color][/center]" % [
 			C_GOLD.to_html(false), QudText.to_bbcode(t, _palette)]
-	_foot.text = "[color=#%s]Esc[/color] [color=#%s]to cancel[/color]" % [
-		C_GOLD.to_html(false), C_BTN_html()]
+	_menu = data.get("menu", [])
+	_build_menu()
 
 	_build_rows()
 	_highlight()
@@ -194,14 +199,68 @@ func show_picker(data: Dictionary, palette: Dictionary) -> void:
 	# Report it the same way popups do, so `hv state` / `hv assert` can see the picker is up.
 	UiState.set_popup("itempicker")
 
-func C_BTN_html() -> String:
-	return _cq(100, 140, 135).to_html(false)
+## The footer bar. Each entry is Qud's own rendered text ("[{{W|Esc}}] Close Menu"), so the
+## markup carries its own colours; a DISABLED entry ("navigate") is a legend and stays inert.
+func _build_menu() -> void:
+	for c in _foot.get_children():
+		_foot.remove_child(c)
+		c.queue_free()
+	for i in _menu.size():
+		var m: Dictionary = _menu[i]
+		var lbl := _mk_rt()
+		lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
+		lbl.text = QudText.to_bbcode(str(m.get("text", "")), _palette)
+		if bool(m.get("disabled", false)):
+			_foot.add_child(lbl)
+			continue
+		lbl.mouse_filter = Control.MOUSE_FILTER_STOP
+		var idx := i
+		lbl.gui_input.connect(func(e: InputEvent):
+			if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+				_activate_menu(idx))
+		_foot.add_child(lbl)
+
+func _activate_menu(i: int) -> void:
+	if i < 0 or i >= _menu.size():
+		return
+	var m: Dictionary = _menu[i]
+	if bool(m.get("disabled", false)):
+		return
+	# Cancel is Qud's own bar entry, but it routes to the same sc.Cancel() our Esc already uses;
+	# keep the one path so a click and a keypress can't diverge.
+	if str(m.get("id", "")) == "Cancel":
+		_answer({"do": "cancel"})
+		return
+	_answer({"do": "menu", "row": int(m.get("i", i)), "id": str(m.get("id", ""))})
+
+## A bar entry whose announced key description matches this event, or -1. Qud resolves those
+## descriptions through ControlManager, so they arrive as whatever the player has bound ("7",
+## "Space", "Esc") — match the printable ones by character and name the few special keys.
+func _menu_for_key(k: InputEventKey) -> int:
+	var ch := char(k.unicode).to_lower()
+	var named := ""
+	match k.keycode:
+		KEY_SPACE: named = "space"
+		KEY_ESCAPE: named = "esc"
+		KEY_ENTER, KEY_KP_ENTER: named = "enter"
+		KEY_TAB: named = "tab"
+	for i in _menu.size():
+		var m: Dictionary = _menu[i]
+		if bool(m.get("disabled", false)):
+			continue
+		var kd := str(m.get("key", "")).strip_edges().to_lower()
+		if kd == "":
+			continue
+		if kd == named or (ch != "" and kd == ch):
+			return i
+	return -1
 
 func hide_picker() -> void:
 	if not visible:
 		return
 	visible = false
 	_rows = []
+	_menu = []
 	_sel = 0
 	UiState.clear_popup()
 	closed.emit()
@@ -349,6 +408,12 @@ func _input(event: InputEvent) -> void:
 				_pick(i)
 				get_viewport().set_input_as_handled()
 				return
+	# Then the footer bar's own keys (Qud binds the sort toggle to "Page Left" -> [7]). Rows win
+	# the tie: their quick-keys are the primary interaction and the bar's are the exception.
+	var mi := _menu_for_key(k)
+	if mi >= 0:
+		_activate_menu(mi)
+		get_viewport().set_input_as_handled()
 
 func _move(d: int) -> void:
 	if _rows.is_empty():

@@ -101,6 +101,18 @@ namespace RavesOfQud
                 }
                 catch { }
             }
+            // The footer bar too: toggling sort rewrites TOGGLE_SORT's label ("sort: list/by class"),
+            // and the active navigation context can add or drop entries without the rows changing.
+            try
+            {
+                foreach (var el in sc.yieldMenuOptions())
+                {
+                    var mo = el as XRL.UI.Framework.MenuOption;
+                    sb.Append('M').Append(mo != null ? mo.getMenuText() : (el != null ? el.Description : ""))
+                      .Append('\u001F');
+                }
+            }
+            catch { }
             return sb.ToString();
         }
 
@@ -149,6 +161,36 @@ namespace RavesOfQud
                 j.EndObject();
             }
             j.EndArray();
+
+            // The footer MENU BAR, straight off the live screen. Qud builds it from
+            // yieldMenuOptions() -- defaults, plus style-specific entries (take all / store), plus
+            // whatever the ACTIVE navigation context contributes ("[Space] Select") -- so the bar is
+            // not a fixed list we could hardcode. MenuOption.getMenuText() is Qud's own renderer
+            // ("[{{W|key}}] description"), and TOGGLE_SORT's description is rewritten with the
+            // current sort mode on every show, so reading it here keeps "sort: list/by class" honest.
+            j.Name("menu").BeginArray();
+            int mi = 0;
+            try
+            {
+                foreach (var el in sc.yieldMenuOptions())
+                {
+                    if (el == null) continue;
+                    var mo = el as XRL.UI.Framework.MenuOption;
+                    j.BeginObject().Member("i", mi++).Member("id", el.Id ?? "");
+                    try { j.Member("text", mo != null ? (mo.getMenuText() ?? "") : (el.Description ?? "")); }
+                    catch { j.Member("text", el.Description ?? ""); }
+                    if (mo != null)
+                    {
+                        try { j.Member("key", mo.getKeyDescription() ?? ""); } catch { }
+                        // `navigate` ships disabled: it is a LEGEND, not something to activate.
+                        if (mo.disabled) j.Member("disabled", true);
+                    }
+                    j.EndObject();
+                }
+            }
+            catch (Exception e) { Log("picker menu: " + e.Message); }
+            j.EndArray();
+
             // The picker's own palette, so Raves resolves colour chars the same way the rest of the UI does.
             try { InventoryExporter.WritePalette(j); } catch { }
             j.EndObject();
@@ -161,11 +203,13 @@ namespace RavesOfQud
             catch (Exception e) { Log("picker publish: " + e.Message); }
         }
 
-        /// <summary>ANY THREAD. Answer the mirrored picker: {"name":"picker","do":"select","row":N} or
-        /// {"do":"cancel"}. Marshalled onto the uiQueue because the turn thread is parked inside show().</summary>
+        /// <summary>ANY THREAD. Answer the mirrored picker: {"do":"select","row":N} picks a list row,
+        /// {"do":"menu","row":N,"id":"..."} activates a footer bar entry, {"do":"cancel"} closes.
+        /// Marshalled onto the uiQueue because the turn thread is parked inside show().</summary>
         public static void HandleCommand(Dictionary<string, string> f)
         {
             f.TryGetValue("do", out string what);
+            f.TryGetValue("id", out string wantId);
             f.TryGetValue("row", out string rowStr);
             int row;
             // JSON numbers can arrive as "3.0"; parse leniently rather than silently doing nothing.
@@ -190,6 +234,7 @@ namespace RavesOfQud
                     { Log("picker cmd: screen changed since announce; ignoring"); return; }
 
                     if (what == "cancel") { sc.Cancel(); return; }
+                    if (what == "menu") { ActivateMenu(sc, row, wantId); return; }
                     if (what != "select") { Log("picker cmd: unknown do=" + what); return; }
                     if (row < 0 || row >= sc.listItems.Count)
                     { Log("picker cmd: row " + row + " out of range (" + sc.listItems.Count + ")"); return; }
@@ -200,6 +245,33 @@ namespace RavesOfQud
                 }
                 catch (Exception e) { Log("picker cmd: " + e.Message); }
             }, 0);
+        }
+
+        /// <summary>UI THREAD. Activate a footer bar entry by its announced position.
+        ///
+        /// It has to be the INSTANCE Qud yielded, not a lookalike: HandleMenuOption dispatches on
+        /// REFERENCE equality (<c>element == TAKE_ALL</c>, <c>== TOGGLE_SORT</c>), so a freshly
+        /// constructed MenuOption with the right Id would fall through every branch and do nothing.
+        /// Re-enumerating yieldMenuOptions() returns the same stored objects, so the nth one is the
+        /// one the viewer saw — and we check the Id still matches before firing, because the bar can
+        /// gain or lose a context entry between the announce and the click.</summary>
+        private static void ActivateMenu(PickGameObjectScreen sc, int idx, string wantId)
+        {
+            if (idx < 0) { Log("picker menu: bad index " + idx); return; }
+            int i = 0;
+            foreach (var el in sc.yieldMenuOptions())
+            {
+                if (i++ != idx) continue;
+                if (el == null) { Log("picker menu: null option at " + idx); return; }
+                string got = el.Id ?? "";
+                if (!string.IsNullOrEmpty(wantId) && got != wantId)
+                { Log("picker menu: bar shifted (" + idx + " is '" + got + "', wanted '" + wantId + "')"); return; }
+                var mo = el as XRL.UI.Framework.MenuOption;
+                if (mo != null && mo.disabled) { Log("picker menu: '" + got + "' is a legend, not an action"); return; }
+                sc.HandleMenuOption(el);
+                return;
+            }
+            Log("picker menu: index " + idx + " past the end of the bar (" + i + ")");
         }
     }
 }

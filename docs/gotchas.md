@@ -440,7 +440,22 @@ closed set of things that are wrong, not the open set of things that are fine.
   - `GameObject.GetWeight()` returns a **double**, not an int.
   Selection round-trips as a row INDEX into `listItems` and Qud's own `HandleSelectItem` applies
   it, so "category toggles / item picks" cannot drift from the game.
-- **STILL OPEN on the picker:** Qud's footer is a real menu bar (`yieldMenuOptions` -> `[Esc] Close
-  Menu`, `[7] sort: list/by class`, `[Space] Select`); Raves draws a plain "Esc to cancel" and does
-  not offer the sort toggle. Panel geometry has not been measured against Qud either -- this pass
-  was function + content parity, not pixel parity.
+- **The picker's footer is a MENU BAR, and it is not a fixed list.** `yieldMenuOptions()` = the
+  defaults, plus style-specific entries (take all / store), plus whatever the ACTIVE navigation
+  context contributes -- so `[Space] Select` is present only while a `PickGameObjectLine.Context`
+  is active and legitimately disappears otherwise. Export it live; don't hardcode it. Two more
+  traps: `MenuOption.getMenuText()` is Qud's own renderer (`"[{{W|key}}] " + Description`), and
+  `TOGGLE_SORT.Description` is REWRITTEN with the current sort mode on every show, so reading the
+  object once and caching it would freeze "sort: list/by class" on a stale half.
+  Activating an entry has to pass the INSTANCE Qud yielded: `HandleMenuOption` dispatches on
+  REFERENCE equality (`element == TAKE_ALL`), so a rebuilt MenuOption with the right Id falls
+  through every branch and silently does nothing.
+- **Qud emits input glyphs as PRIVATE USE AREA codepoints**, drawn from its own icon font:
+  `U+E80A` navigate (kbd), `U+E90A` navigate (pad), `U+E816` Ctrl, `U+E818` Alt, `U+E802` Shift,
+  `U+E809` LMB, `U+E814` RMB. Source Code Pro has nothing at U+E8xx, so every one rendered as a
+  tofu `?` -- the picker footer read `[?] navigate`. `QudText.GLYPHS` substitutes Qud's own
+  non-glyph words (its `mapGlyphs:false` path writes "Ctrl"/"Shift"/"LMB"), applied in `cp437()`
+  so ANY mirrored text gets it, not just the picker. **This is legibility, not pixel parity** --
+  1:1 means extracting Qud's icon font and registering U+E8xx as a Godot fallback.
+- **STILL OPEN on the picker:** panel geometry has not been measured against Qud, and the icon
+  font above is unextracted. Content and behaviour are verified; pixel parity is its own round.

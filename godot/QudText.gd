@@ -164,9 +164,33 @@ const CP437 := {
 	24: "↑", 25: "↓", 26: "→", 27: "←", 28: "∟", 29: "↔", 30: "▲", 31: "▼",
 }
 
+## Qud's INPUT GLYPHS, which it emits as Private Use Area codepoints and draws from its own icon
+## font (ControlManager.getCommandInputDescription, and the Ctrl/Alt/Shift/LMB/RMB replacements
+## further down that file). Raves renders with Source Code Pro, which has nothing at U+E8xx, so
+## every one of these came out as a tofu "?" — "[?] navigate" in the picker's footer bar.
+##
+## The substitutes are Qud's OWN words for the same keys: its non-glyph path (mapGlyphs:false)
+## writes "Ctrl", "Alt", "Shift", "LMB", "RMB" and only swaps in the icons for the modern UI. The
+## two navigation entries have no text form anywhere in Qud, so they get a plain description.
+##
+## 1:1 NOTE: this is a legibility fallback, not pixel parity. Matching Qud exactly means extracting
+## its icon font and registering the U+E8xx range as a Godot fallback — worth doing, its own job.
+const GLYPHS := {
+	0xE80A: "Arrows",   # NavigationXYAxis, keyboard
+	0xE90A: "Stick",    # NavigationXYAxis, gamepad
+	0xE816: "Ctrl",
+	0xE818: "Alt",
+	0xE802: "Shift",
+	0xE809: "LMB",
+	0xE814: "RMB",
+}
+
 static func cp437(s: String) -> String:
 	var out := s
 	for code in CP437:
 		if out.find(String.chr(code)) >= 0:
 			out = out.replace(String.chr(code), CP437[code])
+	for g in GLYPHS:
+		if out.find(String.chr(g)) >= 0:
+			out = out.replace(String.chr(g), GLYPHS[g])
 	return out
