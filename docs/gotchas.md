@@ -341,9 +341,18 @@ add a one-liner (symptom → rule).
   not, INTERMITTENTLY: the identical build measured +113 one run and +89 the next, and the drift
   looked like state churn for hours. One pass, one reading. It also retires a guessed label
   leading in favour of the font's own ascent (less 5px: ascent overshoots the cap height).
-- **A re-announce dedupe means a reconnecting client gets NOTHING.** `PopupBridge` skips the
-  announce while `_active && sig == _sig`, so if Raves restarts while a Qud popup is open, Qud
-  has the modal and Raves shows an empty screen forever. There is a `resend` flag that is not
-  wired to a fresh client connection. Workaround until it is: dismiss and re-raise in Qud.
+- **The reconnect resend WORKS** -- an earlier note here said it did not, and that was wrong.
+  `BridgeServer` fires `OnConnect` per accepted client and `PopupBridge.OnClientConnect` sets a
+  one-shot `_resend` that overrides the signature dedupe, so a client that restarts while a popup
+  is open does get it re-announced. The "Raves shows no popup" cases that prompted the wrong
+  diagnosis were a popup that had actually been dismissed in Qud (Esc closed the status screen
+  underneath it), plus stale item ids after a save reload.
+- **...but every connect forces a full re-announce, and there are a LOT of connects.** highvisor's
+  state poller opens and drops a bridge connection about twice a second, and each one set
+  `_resend`. With a context header that meant a GPU texture readback, a PNG write and a delete at
+  2Hz forever -- and a fresh popup id each time, which is what kept resetting the client's menu
+  selection. The context sprite is now cached against the popup's signature and only re-dumped
+  when the popup actually changes. **A per-connect hook is not a per-CLIENT hook**: anything that
+  polls the bridge trips it.
 - `tools/build_macos.sh` reports `✓ built + signed` even when a script has a PARSE ERROR. Read
   the `--check-only` output; a green build is not evidence the scripts are sound.

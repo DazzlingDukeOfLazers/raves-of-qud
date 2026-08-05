@@ -209,7 +209,7 @@ namespace RavesOfQud
             j.Member("kind", input ? "input" : (options != null && options.Count > 0 ? "menu" : "message"));
             WriteItems(j, "buttons", buttons);
             WriteItems(j, "options", options);
-            WriteContext(j, pm);
+            WriteContext(j, pm, sig);
             j.EndObject();
             Publish(server, j.ToString());
         }
@@ -221,7 +221,17 @@ namespace RavesOfQud
         /// contextImage.threeColorTile (sprite + already-resolved Foreground/Detail/
         /// Background) and contextText. Shipping resolved RGBA means the client needs no
         /// palette lookup for this at all.
-        private static void WriteContext(JsonWriter j, Qud.UI.PopupMessage pm)
+        // Last context sprite we actually dumped, and under what popup signature. A
+        // RESEND re-runs this whole block, and a resend happens on EVERY client connect
+        // -- including highvisor's state poller, which connects and drops about twice a
+        // second. Without this cache that meant a GPU texture readback, a PNG write and
+        // a file delete at 2Hz forever, plus a fresh popup id each time (which is what
+        // kept resetting the client's menu selection).
+        private static string _ctxSig = "";
+        private static string _ctxFile = "";
+        private static int _ctxSeq;
+
+        private static void WriteContext(JsonWriter j, Qud.UI.PopupMessage pm, string sig)
         {
             try
             {
@@ -249,25 +259,33 @@ namespace RavesOfQud
                         // it has. Dump them into the tiles dir under a per-popup filename --
                         // per-popup because the client caches tile textures by NAME, so a
                         // stable name would serve the previous item's art forever.
-                        string tile = "__popup_ctx_" + _id + ".png";
-                        foreach (string old in Directory.GetFiles(TileExporter.Dir, "__popup_ctx_*.png"))
+                        // Re-dump ONLY when the popup itself changed. The filename still
+                        // varies per dump (the client caches tile textures by name), it
+                        // just stops varying per announce.
+                        string tile = _ctxFile;
+                        bool have = sig == _ctxSig && !string.IsNullOrEmpty(tile)
+                                    && File.Exists(Path.Combine(TileExporter.Dir, tile));
+                        if (!have)
                         {
-                            try { if (Path.GetFileName(old) != tile) File.Delete(old); } catch { }
+                            tile = "__popup_ctx_" + (++_ctxSeq) + ".png";
+                            if (TitleExporter.ExportSpriteToTiles(tc.image.sprite, tile))
+                            {
+                                foreach (string old in Directory.GetFiles(TileExporter.Dir, "__popup_ctx_*.png"))
+                                {
+                                    try { if (Path.GetFileName(old) != tile) File.Delete(old); } catch { }
+                                }
+                                _ctxSig = sig;
+                                _ctxFile = tile;
+                                have = true;
+                            }
                         }
-                        if (TitleExporter.ExportSpriteToTiles(tc.image.sprite, tile))
-                            j.Member("tile", tile);
+                        if (have) j.Member("tile", tile);
                         j.Member("fg", Hex(tc.Foreground));
                         j.Member("dt", Hex(tc.Detail));
                         if (tc.Background.a > 0.01f) j.Member("bg", Hex(tc.Background));
                         // one-time: the draw box, so the client sizes it from Qud rather
                         // than from a measured guess
                         var rt = tc.image.rectTransform;
-                        System.Console.WriteLine("[raves] popup context sprite.name='" + tile
-                            + "' tex='" + (tc.image.sprite.texture != null ? tc.image.sprite.texture.name : "null")
-                            + "' spriteRect=" + tc.image.sprite.rect
-                            + " mat='" + (tc.image.material != null ? tc.image.material.name : "null") + "'");
-                        System.Console.WriteLine("[raves] popup context tile '" + tile + "' rect " + rt.rect
-                            + " scale " + rt.localScale + " preserveAspect " + tc.image.preserveAspect);
                     }
                 }
                 catch (Exception ie) { System.Console.WriteLine("[raves] popup context image: " + ie.Message); }
