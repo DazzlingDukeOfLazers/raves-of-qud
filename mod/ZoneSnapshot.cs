@@ -263,6 +263,33 @@ namespace RavesOfQud
             return t.ToLowerInvariant();
         }
 
+        /// <summary>
+        /// LAST-RESORT art resolution through the REAL per-object render-event
+        /// pipeline (seed like Cell.Render, then ComponentRender runs every
+        /// part/effect Render(E) handler). Some parts compute art only there —
+        /// ConveyorPad builds "Tiles/sw_conveyor_[dir]_[frame]" and carries no
+        /// static tile. ONLY called for tile-less objects: tiled ones (holograms,
+        /// animated liquids) keep the curated colour exports — their handlers
+        /// mutate colours per frame and must not leak onto the wire.
+        /// </summary>
+        private static void EventArt(GameObject go, Render r, ref string tile, ref string glyph)
+        {
+            try
+            {
+                var ev = new RenderEvent();
+                ev.Lit = LightLevel.Light;   // full visibility so handlers resolve colours
+                ev.RenderString = r.RenderString;
+                ev.ColorString = string.IsNullOrEmpty(r.TileColor) ? r.ColorString : r.TileColor;
+                ev.DetailColor = r.DetailColor;
+                ev.Tile = r.Tile;
+                ev.HighestLayer = r.RenderLayer;
+                go.ComponentRender(ev);
+                if (!string.IsNullOrEmpty(ev.Tile)) tile = ev.Tile;
+                if (string.IsNullOrEmpty(glyph) && !string.IsNullOrEmpty(ev.RenderString)) glyph = ev.RenderString;
+            }
+            catch { }
+        }
+
         private sealed class Ground
         {
             public string Tile, Color, Detail, Glyph;
@@ -1024,6 +1051,11 @@ namespace RavesOfQud
                         bool painted;
                         string tile = ResolvedTile(go, r, out painted);
                         string glyph = ResolvedGlyph(r);
+                        // Tile-less objects may compute art ONLY inside the render-event
+                        // pipeline (ConveyorPad builds its frame tile there; the wire
+                        // shipped a dark "-" and Raves drew bare floor). Adopt event art
+                        // as a last resort — tiled objects keep the curated exports.
+                        if (tile.Length == 0) EventArt(go, r, ref tile, ref glyph);
                         if (glyph.Length == 0 && tile.Length == 0) continue;
 
                         if (tile.Length > 0) TileExporter.Ensure(tile); // export-on-sight, cached

@@ -17,13 +17,16 @@ NOT what Qud's renderer chooses for cybernetics on the floor. Fix belongs in
 items — "reflect, don't guess") — not in the Godot client.
 **Root cause: the `EpistemicDisguise` EFFECT substitutes the unknown-sample's art at render time for unexamined artifacts; the mod's getTile() bypass missed it. ZoneSnapshot now mirrors the substitution. Re-sweep: 76 PASS / 0 WARN / 0 FAIL.**
 
-## 2. Conveyor pads (+Crematory variants, DisabledSwitch): uniform ~118 mean / 78% hot
+## 2. ~~Conveyor pads + DisabledSwitch~~ FIXED 2026-08-04 (all ~1.5 PASS)
 
-All ten pad orientations identical scores — systematic, likely an unrendered /
-differently-rendered animated surface in Raves (conveyor belt animation).
-Includes `DisabledSwitch` (116.7). One renderer gap, ~12 elements.
+Root cause: these blueprints carry NO static tile — ConveyorPad.Render(E)
+computes `Tiles/sw_conveyor_<dir>_<frame>` inside the render-event pipeline,
+which getTile() bypasses; the wire shipped a dark glyph and Raves drew bare
+floor. ZoneSnapshot now runs ComponentRender as last-resort art resolution
+for tile-less objects (EventArt). ConveyorPad 118.2→1.52, DisabledSwitch
+116.7→1.50, Crematory variants ~1.51 — all PASS.
 
-## 3. Multi-cell / oversized sprites mis-crop: Marble Dais (135.8/100%), TauSoft (89.6/100%)
+## 3. Multi-cell / oversized sprites mis-crop — now KNOWN-listed (fixtures/checker_known.json)
 
 100% hot = the stage-cell crop catches entirely different content — these
 blueprints occupy >1 cell or anchor their sprite off the stage cell. The

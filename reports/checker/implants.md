@@ -1,59 +1,59 @@
 # Object Checker — implants
 
-77/77 PASS  (2026-08-04 20:17)  pixel: 76 PASS / 0 WARN / 0 FAIL
+77/77 PASS  (2026-08-04 20:41)  pixel: 75 PASS / 0 WARN / 0 FAIL
 
 | element | verdict | px | notes |
 |---|---|---|---|
 | AirCurrentMicrosensor | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_aircurrent' |
-| AnchorSpikes | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_cyber_anchor_spikes' |
+| AnchorSpikes | PASS | PASS 2.0/0% | wire tile != blueprint tile 'items_sw_cyber_anchor_spikes' |
 | AnomalyFumigator | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_cyber_anomaly_fumigator' |
 | BeautifulVisage | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_beautiful' |
-| BiodynamicPowerPlant | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_cyber_biodynamic_power_plant' |
+| BiodynamicPowerPlant | PASS | PASS 2.0/0% | wire tile != blueprint tile 'items_sw_cyber_biodynamic_power_plant' |
 | BiologicalIndexer | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_scanningmodule' |
 | BionicArm | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_bionicarm' |
 | BionicHands | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_bionichands' |
-| BionicHeart | PASS | PASS 2.0/0% | wire tile != blueprint tile 'items_sw_bionicheart' |
+| BionicHeart | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_bionicheart' |
 | BionicLiver | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_cyberliver' |
 | CarbideHandBones | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_carbidehand' |
 | CathedraBlackOpal | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_cathedra' |
 | CathedraRuby | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_cathedra' |
 | CathedraSapphire | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_cathedra' |
 | CathedraWhiteOpal | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_cathedra' |
-| CherubicVisage | PASS | PASS 2.0/0% | wire tile != blueprint tile 'items_sw_cherubic' |
-| CommunicationsInterlock | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_comminterlock' |
+| CherubicVisage | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_cherubic' |
+| CommunicationsInterlock | PASS | PASS 2.0/0% | wire tile != blueprint tile 'items_sw_comminterlock' |
 | CrysteelHandBones | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_carbidehand' |
 | CustomVisage | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_custom' |
 | DermalInsulation | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_dermalinsulation' |
-| DermalPlating | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_dermalplating' |
+| DermalPlating | PASS | PASS 2.0/0% | wire tile != blueprint tile 'items_sw_dermalplating' |
 | DopamineSynth | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_dopamine' |
 | ElectromagneticSensor | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_electromagsensor' |
 | EquipmentRack | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_cyber_equipment_rack' |
 | FireSuppressionSystem | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_cyber_fire_suppression_system' |
-| ForceModulator | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_comminterlock' |
+| ForceModulator | PASS | PASS 2.0/0% | wire tile != blueprint tile 'items_sw_comminterlock' |
 | FulleriteHandBones | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_carbidehand' |
 | GiantHands | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_gianthands' |
 | GraftedMirrorArm | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_implant_grafted_mirror_arm' |
 | GroundingShunts | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_grounding_shunts' |
 | GunRack | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_gunrack' |
 | HighFidelityMatterRecompositer | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_cyber_high_fidelity_matter_recompositer' |
-| HighGradeDermalInsulation | PASS | PASS 2.0/0% | wire tile != blueprint tile 'items_sw_highgrade' |
+| HighGradeDermalInsulation | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_highgrade' |
 | HolographicVisage | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_implant_holographic_visage' |
 | HyperElasticAnkleTendons | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_hypertendons' |
 | InflatableAxons | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_axions' |
-| IntravenousPort | PASS | PASS 2.0/0% | wire tile != blueprint tile 'items_sw_intravenous' |
+| IntravenousPort | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_intravenous' |
 | MagneticCore | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_magnetic_core' |
 | MatterRecompositer | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_matter' |
 | MedassistModule | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_cyber_medassist_module' |
 | MicromanipulatorArray | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_cyber_micromanipulator_array' |
-| MotorizedTreads | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_treads' |
-| NavigationSystem | PASS | PASS 2.0/0% | wire tile != blueprint tile 'items_sw_cyber_navigation_system' |
-| NightVision | PASS | PASS 2.0/0% | wire tile != blueprint tile 'items_night_vision_implant' |
+| MotorizedTreads | PASS | PASS 2.0/0% | wire tile != blueprint tile 'items_sw_treads' |
+| NavigationSystem | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_cyber_navigation_system' |
+| NightVision | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_night_vision_implant' |
 | NocturnalApex | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_nocturnal' |
 | OnboardRecoiler | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_cyber_onboard_recoiler' |
 | OpticalMultiscanner | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_multiscanner' |
 | PalladiumElectrodeposits | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_electrodeposits' |
 | ParabolicMuscularSubroutine | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_parabolic' |
-| PenetratingRadar | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_cyber_penetrating_radar' |
+| PenetratingRadar | PASS | PASS 2.0/0% | wire tile != blueprint tile 'items_sw_cyber_penetrating_radar' |
 | Pentaceps | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_pentacips' |
 | Phase-Adaptive Scope | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_implant_phase_adaptive_scope' |
 | PhaseHarmonicModulator | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_cyber_phase_harmonic_modulator' |
@@ -68,16 +68,16 @@
 | SecurityInterlock | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_security' |
 | SingleSkillsoft1 | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_skillsoft' |
 | SingleSkillsoft2 | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_skillsoft' |
-| SingleSkillsoft3 | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_skillsoft' |
-| SkinGlitter1 | PASS |  | wire tile != blueprint tile 'items_sw_skin_glitter'; no capture pair — congruence skipped |
+| SingleSkillsoft3 | PASS |  | wire tile != blueprint tile 'items_sw_skillsoft'; no capture pair — congruence skipped |
+| SkinGlitter1 | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_skin_glitter' |
 | SkinGlitter2 | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_skin_glitter' |
 | SocialCoprocessor | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_social_coprocessor' |
 | StabilizerArmLocks | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_armlocks' |
-| StasisEntangler | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_implant_stasis_entangler' |
+| StasisEntangler | PASS | PASS 2.0/0% | wire tile != blueprint tile 'items_implant_stasis_entangler' |
 | StasisProjector | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_stasis_projector' |
 | TechnologicalIndexer | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_scanningmodule' |
 | TibularHydrojets | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_tibular_hydrojets' |
 | TranslucentSkin | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_transparent' |
-| TransparentSkin | PASS | PASS 2.0/0% | wire tile != blueprint tile 'items_sw_transparent' |
-| TreeSkillsoft | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_skillsoft' |
+| TransparentSkin | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_transparent' |
+| TreeSkillsoft | PASS |  | wire tile != blueprint tile 'items_sw_skillsoft'; no capture pair — congruence skipped |
 | UltraElasticAnkleTendons | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_ultratendons' |

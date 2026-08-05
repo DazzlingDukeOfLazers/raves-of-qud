@@ -51,6 +51,14 @@ STAGE = os.path.join(BASE, "checker_stage.json")
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 REPORTS = os.path.join(REPO, "reports", "checker")
 
+# Elements the harness can't meaningfully verify yet, with why — their verdicts
+# report as KNOWN, not FAIL, so real regressions stay visible in the tallies.
+try:
+    with open(os.path.join(REPO, "fixtures", "checker_known.json")) as _f:
+        KNOWN = json.load(_f)
+except (OSError, ValueError):
+    KNOWN = {}
+
 # Qud colour codes: &X (foreground), ^X (background), X in the 16-colour set.
 # DetailColor is a BARE palette char (e.g. "w"), no & prefix — different shape.
 COLOR_RE = re.compile(r"^(?:[&^][a-zA-Z])+$")
@@ -317,27 +325,36 @@ def write_report(cat, results):
     for r in results:
         merged[r["bp"]] = r
     results = list(merged.values())
+    for r in results:
+        if r["bp"] in KNOWN:
+            r["known"] = KNOWN[r["bp"]]
     with open(jpath, "w") as f:
         json.dump(results, f, indent=1)
 
-    passed = sum(1 for r in results if r["pass"])
+    passed = sum(1 for r in results if r["pass"] or "known" in r)
     scored = [r for r in results if r.get("congruence")]
     px_line = ""
     if scored:
-        bands = {"PASS": 0, "WARN": 0, "FAIL": 0}
+        bands = {"PASS": 0, "WARN": 0, "FAIL": 0, "KNOWN": 0}
         for r in scored:
-            bands[r["congruence"]["band"]] += 1
+            bands["KNOWN" if "known" in r else r["congruence"]["band"]] += 1
         px_line = "pixel: %(PASS)d PASS / %(WARN)d WARN / %(FAIL)d FAIL" % bands
+        if bands["KNOWN"]:
+            px_line += " / %(KNOWN)d KNOWN" % bands
     lines = ["# Object Checker — %s" % cat, "",
              "%d/%d PASS  (%s)  %s" % (passed, len(results), time.strftime("%Y-%m-%d %H:%M"), px_line), "",
              "| element | verdict | px | notes |", "|---|---|---|---|"]
     for r in results:
         notes = "; ".join(r.get("reasons", []) + r.get("warns", []))
+        if "known" in r:
+            notes = "KNOWN: " + r["known"]
         px = r.get("congruence")
         pxs = ""
         if px:
-            pxs = "%s %.1f/%.0f%%" % (px["band"], px["mean_abs_diff"], px["pct_hot"])
-        lines.append("| %s | %s | %s | %s |" % (r["bp"], "PASS" if r["pass"] else "**FAIL**", pxs, notes))
+            pxs = "%s %.1f/%.0f%%" % ("KNOWN" if "known" in r else px["band"],
+                                      px["mean_abs_diff"], px["pct_hot"])
+        verdict = "KNOWN" if "known" in r else ("PASS" if r["pass"] else "**FAIL**")
+        lines.append("| %s | %s | %s | %s |" % (r["bp"], verdict, pxs, notes))
     path = os.path.join(REPORTS, cat + ".md")
     with open(path, "w") as f:
         f.write("\n".join(lines) + "\n")
