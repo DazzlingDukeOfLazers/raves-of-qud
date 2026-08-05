@@ -114,9 +114,14 @@ namespace RavesOfQud
                         try { j.Member("type", bp.Type ?? ""); } catch { }
                         try { j.Member("desc", bp.GetOrdinalName() ?? ""); } catch { }
                         try { j.Member("primary", bp.Primary); } catch { }
+                        // EQUIPPED ONLY — EquipmentLine renders bp.Equipped (plus
+                        // Cybernetics), never DefaultBehavior, so a natural weapon like a
+                        // mutant claw shows NO tile in Qud's doll. Our DefaultBehavior
+                        // fallback drew a claw in a slot Qud leaves empty (parity leaf
+                        // doll_image[4]: Qud ink 1x3, ours 39x35).
                         GameObject eq = null;
                         try { eq = bp.Equipped; } catch { }
-                        if (eq == null) { try { eq = bp.DefaultBehavior; } catch { } }
+                        if (eq == null) { try { eq = bp.Cybernetics; } catch { } }
                         if (eq != null)
                         {
                             try { j.Member("item", eq.DisplayName ?? ""); } catch { }

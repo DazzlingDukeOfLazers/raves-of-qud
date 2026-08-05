@@ -312,3 +312,21 @@ Qud ink 43x44 (body) / 43x39 (feet) vs ours 32x36 / 32x28 — ours IS smaller by
 is real and the earlier 48x48 attempt was probably closer than its (noisy) band score suggested.
 Standing on `Rect2(slot + (10,4), 36x54)`; re-run the comparison under the fixed protocol before
 changing it again.
+
+
+## Equipment doll images — sized from the parity harness (2026-08-05)
+
+With `parity.py`'s frame-masked bounds the sizing became arithmetic instead of guesswork: Qud's
+sprite ink is 43x44 at (6,12) in the 55x62 slot where our 36x54 rect produced 32x36 at (12,13), so
+the draw rect is now **48x66 at slot+(3,1)**. Ink boxes now agree: [0] 42x44 vs Qud 43x44, [1] 42x41
+vs 43x41 — position identical, width within 1px.
+
+Also fixed via leaf `doll_image[4]`: Qud showed ~nothing in Left Hand (ink 1x3) while we drew a
+39x35 claw. `EquipmentLine` renders `bp.Equipped` (plus `Cybernetics`), NEVER `DefaultBehavior`, so
+natural weapons get no doll tile. Our fallback is removed; that leaf now reads `None` like Qud's.
+
+STILL OPEN — the sprites themselves: image leaves remain 70-108 even with boxes aligned, and [2]/[3]
+differ in ink HEIGHT (33 vs 39, 30 vs 36), so the remaining gap is the ART/shading rather than
+placement: either a different tile variant per context or our two-tone mapping vs Qud's three-colour
+shader. Next: dump one slot's mask from both apps and compare shapes directly (the ASCII-mask trick),
+not the mean.
