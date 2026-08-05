@@ -415,3 +415,30 @@ Four things I had wrong, all confirmed by eye before measurement agreed:
    Raves match exactly.
 
 Frame leaves 14.17 -> 14.14 mean, composite 17.00 -> 16.65.
+
+
+## The frame is a NINE-SLICE — spec recorded, my reading of it scored worse (2026-08-05)
+
+Daniel: the frame is one design that stretches — "extra pixels in the middle of the lines to make it
+taller/wider or fewer to make it shorter/thinner" — and it is a sprite Raves has loaded before (see
+`TitleExporter.ExportNamedSprite`, which already extracts `tiny-frame-h` -> card_frame.png and
+`polat-locator-big` -> sel_frame.png). His corner spec, verbatim (upper-left; the lower-right is the
+same rotated 180 deg, and the motif is symmetric about the lower-left/upper-right diagonal):
+
+    111101...1
+    1001010...01
+    1001010...01
+    1111110...01
+    00010...01
+    10...01
+
+I implemented that as a procedural nine-slice (fixed 6x6 corners at 2px per unit, stretched straight
+runs) and it scored WORSE than the current hand-drawn frame: frame leaves 14.14 -> 15.72, composite
+16.65 -> 18.00. Reverted. So my reading of the bitmap is wrong somewhere — most likely the gap
+position or the unit size (the capture's lines are 2px, but the loop may be 1px units with a 2px
+edge).
+
+NEXT, and do it this way rather than guessing again: EXTRACT the real sprite. Add it to
+`TitleExporter.ExportNamedSprite` like the other chrome, then draw it as a Godot `NinePatchRect` (or
+`draw_texture_rect_region` per slice) so the corners are Qud's own pixels and only the middles
+stretch. That also removes the doll-vs-filter duplication — same sprite, two sizes.
