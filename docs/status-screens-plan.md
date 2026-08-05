@@ -92,7 +92,11 @@ always visible in the bar).
    (44x38 cells from x620, 58px pitch, y178: an ALL cell then one per category present, mirroring
    `filterBarCategories`) — DEVIATION: Qud draws fixed per-category icons inside a bracketed frame;
    we stand in with each category's first item tile in a plain box until those icons are extracted.
-   OPEN: (1) header sits ~2px off. (2) filter cells are cosmetic — selecting one doesn't filter yet.
+   FILTER SELECTION WIRED: clicking a cell toggles that category in/out of an enabled set (Qud's
+   `enabledCategories` model — multi-select), ALL clears it, and an empty set means "*All"; the active
+   cells are gold-framed and the list + hotkey letters rebuild. Verified live: 341 rows of content ->
+   Food only, then Food+Meds, then ALL back to 341. OPEN: (1) header sits ~2px off. (2) Qud's fixed
+   per-category filter ICONS are still stood in with each category's first item tile.
 8. **Tinkering** — most complex (bits, recipes, modes).
 
 Interactivity (buy mutation, equip, tinker, quest tracking) follows the menus-V3 law:

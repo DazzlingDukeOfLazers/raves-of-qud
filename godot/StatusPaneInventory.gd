@@ -75,6 +75,8 @@ var _rows: Array = []       # flattened: {kind, name, weight, tile…, letter}
 var _sel := 0
 var _scroll := 0.0
 var _collapsed := {}        # category name -> true when collapsed (Raves-side view state)
+var _enabled := {}          # filter strip: enabled category names; EMPTY means "*All"
+var _filt_rects: Array = [] # [[Rect2, category-or-empty], …] rebuilt with the strip
 var _clip: Control
 var _content: Control
 var _static: Control
@@ -120,6 +122,8 @@ func _relayout() -> void:
 	var li := 0
 	for cat in _data.get("categories", []):
 		var cname := str(cat.get("name", ""))
+		if not _enabled.is_empty() and not _enabled.has(cname):
+			continue                      # filtered out by the strip
 		var collapsed: bool = bool(_collapsed.get(cname, false))
 		_rows.append({"kind": "cat", "name": cname, "weight": int(cat.get("weight", 0)),
 			"count": int(cat.get("count", 0)), "collapsed": collapsed, "letter": _letter(li)})
@@ -161,15 +165,21 @@ func _draw_static() -> void:
 ## this draws the strip Qud shows above the panes.
 func _draw_filter_strip() -> void:
 	var cats: Array = _data.get("categories", [])
+	_filt_rects.clear()
 	var x := FILT_X
-	# the ALL cell (Qud frames the active filter in gold)
-	_static.draw_rect(Rect2(Vector2(x, FILT_Y), Vector2(FILT_W, FILT_H)), C_GOLD, false, 1.0)
+	# the ALL cell — gold-framed while no category filter is enabled (Qud's "*All")
+	var all_rect := Rect2(Vector2(x, FILT_Y), Vector2(FILT_W, FILT_H))
+	_static.draw_rect(all_rect, C_GOLD if _enabled.is_empty() else C_BOX, false, 1.0)
+	_filt_rects.append([all_rect, ""])
 	var aw := _font.get_string_size("ALL", HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
 	_static.draw_string(_font, Vector2(x + (FILT_W - aw) * 0.5, FILT_Y + 25), "ALL",
-		HORIZONTAL_ALIGNMENT_LEFT, -1, 14, C_GOLD)
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 14, C_GOLD if _enabled.is_empty() else C_LABEL)
 	x += FILT_PITCH
 	for cat in cats:
-		_static.draw_rect(Rect2(Vector2(x, FILT_Y), Vector2(FILT_W, FILT_H)), C_BOX, false, 1.0)
+		var cname := str(cat.get("name", ""))
+		var rect := Rect2(Vector2(x, FILT_Y), Vector2(FILT_W, FILT_H))
+		_static.draw_rect(rect, C_GOLD if _enabled.has(cname) else C_BOX, false, 1.0)
+		_filt_rects.append([rect, cname])
 		var items: Array = cat.get("items", [])
 		if items.size() > 0:
 			var it: Dictionary = items[0]
@@ -358,6 +368,22 @@ func handle_mouse(e: InputEvent) -> void:
 		return
 	if e.button_index != MOUSE_BUTTON_LEFT:
 		return
+	# filter strip first: ALL clears the filter, a category toggles in/out of the
+	# enabled set (Qud's enabledCategories); an empty set means "*All"
+	for entry in _filt_rects:
+		if (entry[0] as Rect2).has_point(e.position):
+			var cname := str(entry[1])
+			if cname == "":
+				_enabled.clear()
+			elif _enabled.has(cname):
+				_enabled.erase(cname)
+			else:
+				_enabled[cname] = true
+			_sel = 0
+			_scroll = 0.0
+			_relayout()
+			_static.queue_redraw()
+			return
 	if e.position.x < LIST_X or e.position.x > LIST_X + LIST_W \
 			or e.position.y < LIST_Y or e.position.y > LIST_Y + LIST_H:
 		return
