@@ -251,6 +251,21 @@ def shots_for(bp, cat="single"):
         pair["qud"] = os.path.join(outdir, _safe(bp) + "_qud.png")
         shutil.copyfile(control.QUD_SHOT, pair["qud"])
     time.sleep(0.8)   # let the viewer apply the snapshot it just received
+    # POPUP GUARD: Raves mirrors Qud popups as overlays COVERING the playfield —
+    # a creature-triggered message (dromad caravan et al.) that nobody dismissed
+    # sat over the stage cell for most of a creatures leg and 474 crops scored
+    # against popup text. The viewer reports its popup state; clear before capture.
+    try:
+        st = json.load(open(os.path.join(BASE, "raves_state.json")))
+        if st.get("popup"):
+            pb = control.Bridge()
+            for _ in range(3):
+                pb.send("popup", action="cancel")
+                time.sleep(0.6)
+            pb.close()
+            time.sleep(0.8)
+    except (OSError, ValueError):
+        pass
     if _fresh_capture("raves", control.godot_shot, control.SHOT):
         pair["raves"] = os.path.join(outdir, _safe(bp) + "_raves.png")
         shutil.copyfile(control.SHOT, pair["raves"])
