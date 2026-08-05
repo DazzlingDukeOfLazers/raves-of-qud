@@ -267,6 +267,25 @@ def score_pair(r, pair):
     return r
 
 
+def ensure_daylight(b):
+    """Advance the clock into full day before pixel work. Sweeps themselves
+    advance time (~1 turn per element), so long scored runs drift into dusk
+    and the two apps' dimming inflates every diff (a night rerun of furniture
+    read 653/40/28 vs 703/20/11 in daylight). Day: segments 3250-10000; aim
+    for the middle so a category can't cross dusk mid-run."""
+    for _ in range(1500):               # ≤ ~1.5 game-hours of waits per pass
+        b.send("wait")
+        try:
+            snap = b.read_snapshot(timeout=15)
+        except (OSError, ConnectionError):
+            return                       # reconnect lane will pick it up
+        t = snap.get("time") or {}
+        seg = t.get("segment")
+        if seg is None or 4200 <= seg <= 8800:
+            return
+    return
+
+
 def calibrate():
     """Two-frame differential calibration (congruence.py docstring): a full-tile
     wall frame vs an EMPTY-stage frame — the diff is the whole sprite, i.e. the
@@ -422,6 +441,8 @@ def main(argv):
         if names is None:
             sys.exit("unknown category %r (try: checker.py list)" % cat)
         names = names[start:start + limit if limit else None]
+        if "--diff" in argv:
+            ensure_daylight(b)
         results = []
         for i, bp in enumerate(names):
             # The mod's server intermittently RESETS the long-lived sweep
