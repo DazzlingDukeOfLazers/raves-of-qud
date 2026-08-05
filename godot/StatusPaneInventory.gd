@@ -276,9 +276,14 @@ func _draw_doll() -> void:
 		if sl != null:
 			var tile := str(sl.get("tile", ""))
 			if tile != "":
+				# MEASURED: Qud paints doll items in the SAME fixed two-tone as the filter
+				# bar — main (141,124,84 as rendered) with the item's own DETAIL colour as
+				# the accent (armor gold 200,184,57 / torch red 156,65,41 / boots pale
+				# 168,194,187). We were drawing each item's own main colour, which read as
+				# a completely different palette.
 				var tex: Texture2D = _tiles.texture(tile,
-					_tiles.color_of(str(sl.get("color", "")), Color.WHITE),
-					_tiles.color_of(str(sl.get("detail", "")), Color.WHITE))
+					Color(0.596, 0.529, 0.372),
+					_tiles.color_of(str(sl.get("detail", "")), Color(0.545, 0.4, 0.18)))
 				if tex != null:
 					# MEASURED, not guessed: Qud's equipped-item ink spans ~47x48 inside the
 					# 55x62 slot (bark armor 47x48, torch 47x45, boots 47x43) where ours

@@ -236,3 +236,20 @@ short of Qud's, which suggests Qud renders these at a larger source scale rather
 Numbers after the change: doll band 5.59 -> 5.63 (flat), FULL FRAME 4.52 -> 5.20. That full-frame
 jump is NOT explained by the doll region alone and was not investigated — re-measure with a fresh
 matched reference before drawing conclusions from it.
+
+
+## Equipment paper doll — tint (2026-08-04)
+
+Measured, both apps, same slots. Qud paints doll items in a FIXED two-tone: main (141,124,84) — the
+same tan as the filter bar — plus an accent (armor gold 200,184,57 / torch red 156,65,41 / boots pale
+168,194,187). Raves was drawing each item's OWN main colour (142,91,24 / 169,169,169), a completely
+different palette.
+
+FIXED (main): the doll now draws with the filter-bar tan and our main tone measures (140,123,83) vs
+Qud's (141,124,84).
+
+STILL OPEN (accent): our accent comes from the item's detail code and renders (255,203,0) where Qud
+shows (200,184,57) — brighter and more saturated, so the accent is NOT a straight palette lookup;
+find what EquipmentLine feeds the third colour. Also STILL OPEN: source scale — our ink is 41x32 vs
+Qud's 47x48, so Qud renders these sprites from a larger source, not a stretched 16x24 tile.
+Doll band is flat at ~5.6 through both changes because shape/scale mismatch dominates the average.
