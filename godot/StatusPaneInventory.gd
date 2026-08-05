@@ -145,6 +145,14 @@ var _collapsed := {}        # category name -> true when collapsed (Raves-side v
 var _enabled := {}          # filter strip: enabled category names; EMPTY means "*All"
 var _filt_rects: Array = [] # [[Rect2, category-or-empty], …] rebuilt with the strip
 var _filt_hover := -1       # index into _filt_rects under the cursor (-1 = none)
+# Doll slots are clickable like list rows: [[Rect2, id, greyed], …], rebuilt each draw.
+# Qud's EquipmentLine.HandleSelectItem splits on WHAT is in the slot -- an Equipped item
+# gets the full TwiddleObject menu, a DefaultBehavior one (the greyed natural weapon)
+# gets a Look instead -- so the slot has to carry which it is.
+var _doll_rects: Array = []
+# keyed by the slot's object ID, not an index: _doll_rects is rebuilt DURING the draw
+# that reads the hover, so an index into it is half-stale exactly when it is used
+var _doll_hover_id := ""
 var _clip: Control
 var _content: Control
 var _static: Control
@@ -477,14 +485,20 @@ func _draw_filter_strip() -> void:
 ## Qud's body-slot grid. Slots it doesn't recognise are ignored — the doll is a
 ## FIXED layout in Qud too (extra parts show in the list, not the doll).
 func _draw_doll() -> void:
+	_doll_rects.clear()
 	var by_label := {}
 	for sl in _data.get("slots", []):
 		by_label[_doll_label(sl)] = sl
 	for label in DOLL:
 		var cell: Array = DOLL[label]
 		var pos := Vector2(cell[0], cell[1])
-		_draw_cell_frame(Rect2(pos, Vector2(BOX_W, BOX_H)), C_BOX, false)
+		var box := Rect2(pos, Vector2(BOX_W, BOX_H))
 		var sl: Variant = by_label.get(label)
+		# hover brightens the whole frame, as it does on the filter strip
+		var sid := str(sl.get("id", "")) if sl != null else ""
+		_draw_cell_frame(box, C_HOVER if (sid != "" and sid == _doll_hover_id) else C_BOX, false)
+		if sid != "":
+			_doll_rects.append([box, sid, bool(sl.get("greyed", false))])
 		if sl != null:
 			var tile := str(sl.get("tile", ""))
 			if tile != "":
@@ -708,13 +722,17 @@ func _activate() -> void:
 	if str(r.get("kind", "")) == "cat":
 		_toggle_category()
 		return
-	var id := str(r.get("id", ""))
+	_send_invaction(str(r.get("id", "")), "")
+
+## Ask Qud to act on an object: its interaction menu, or a Look for the greyed
+## natural-weapon slots Qud will not twiddle.
+func _send_invaction(id: String, mode: String) -> void:
 	if id == "" or not bridge_cb.is_valid():
 		return
-	bridge_cb.call({"type": "command", "name": "invaction", "id": id})
-	if reload_cb.is_valid():
-		for delay in [0.6, 1.5, 3.0, 5.0]:
-			get_tree().create_timer(delay).timeout.connect(func(): reload_cb.call())
+	var msg := {"type": "command", "name": "invaction", "id": id}
+	if mode != "":
+		msg["mode"] = mode
+	bridge_cb.call(msg)
 
 ## Collapse/expand the selected category (an item row toggles its own category),
 ## mirroring the skills tree's model. View state only — Qud keeps its own per-screen.
@@ -742,6 +760,15 @@ func _move(d: int) -> void:
 
 func handle_mouse(e: InputEvent) -> void:
 	if e is InputEventMouseMotion:
+		# doll slots highlight on hover too
+		var was_doll := _doll_hover_id
+		_doll_hover_id = ""
+		for d in _doll_rects:
+			if (d[0] as Rect2).has_point(e.position):
+				_doll_hover_id = str(d[1])
+				break
+		if _doll_hover_id != was_doll:
+			_static.queue_redraw()
 		# Qud brightens a filter cell's frame while the cursor is over it
 		var was := _filt_hover
 		_filt_hover = -1
@@ -764,6 +791,12 @@ func handle_mouse(e: InputEvent) -> void:
 		return
 	if e.button_index != MOUSE_BUTTON_LEFT:
 		return
+	# a doll slot: Qud opens the same interaction menu for an EQUIPPED item, and a plain
+	# Look for a greyed DefaultBehavior one (EquipmentLine.HandleSelectItem)
+	for d in _doll_rects:
+		if (d[0] as Rect2).has_point(e.position):
+			_send_invaction(str(d[1]), "look" if bool(d[2]) else "")
+			return
 	# filter strip first: ALL clears the filter, a category toggles in/out of the
 	# enabled set (Qud's enabledCategories); an empty set means "*All"
 	for entry in _filt_rects:

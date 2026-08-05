@@ -395,3 +395,17 @@ closed set of things that are wrong, not the open set of things that are fine.
   noticed**: the strip took its icon from `filterOrder` and its base object from `categories`, so
   a colour added to `filterOrder` was silently dropped and the cell kept deriving what it was
   meant to stop deriving.
+- **A doll slot is clickable, and WHICH object is in it decides what a click does.**
+  `EquipmentLine.HandleSelectItem` twiddles an `Equipped` item but only LOOKS at a
+  `DefaultBehavior` one -- so a click on the greyed natural weapon must not offer to drop a body
+  part. The export marks those slots `greyed`, the client sends `mode:"look"`, and the mod runs
+  `InventoryActionEvent.Check(obj, player, obj, "Look")`.
+- `FindById` has to walk `DefaultBehavior` as well as `Equipped`/`Cybernetics`, or every click on
+  a natural weapon comes back "no object with id".
+- Hover state on a redrawn grid must key on something STABLE (here the slot's object id), not an
+  index into the rect list -- that list is rebuilt during the very draw that reads the hover, so
+  an index is half-stale exactly when it is used.
+- **Escape closes the equipment tab when no popup is up.** Dismissing a mirrored popup with
+  Escape during a test therefore closes the screen too if the popup has already gone, and every
+  later click lands on the Holodeck instead -- which reads exactly like "clicks stopped working".
+  Cancel a popup over the bridge (`popup / action:button / btn:Cancel`) when scripting.

@@ -47,7 +47,7 @@ namespace RavesOfQud
         /// MUST go through APIDispatch: TwiddleObject blocks on a synchronous popup, and
         /// calling it straight from a uiQueue task deadlocks that wait (the bug that let
         /// a skill purchase complete even when the player answered No).
-        public static void Twiddle(string id)
+        public static void Twiddle(string id, string mode = null)
         {
             var gm = GameManager.Instance;
             if (gm == null || gm.uiQueue == null) return;
@@ -61,6 +61,20 @@ namespace RavesOfQud
                     if (target == null)
                     {
                         System.Console.WriteLine("[raves] twiddle: no object with id " + id);
+                        return;
+                    }
+                    if (mode == "look")
+                    {
+                        // What EquipmentLine.HandleSelectItem does for a slot holding only a
+                        // DefaultBehavior (a natural weapon): Qud will not twiddle those, it
+                        // looks at them. Mirroring the split keeps a click on the greyed claw
+                        // from offering to drop a body part.
+                        System.Console.WriteLine("[raves] look " + target.DisplayNameOnlyStripped);
+                        APIDispatch.RunAndWaitAsync(delegate
+                        {
+                            try { InventoryActionEvent.Check(target, p, target, "Look"); }
+                            catch (Exception le) { System.Console.WriteLine("[raves] Look: " + le.Message); }
+                        });
                         return;
                     }
                     System.Console.WriteLine("[raves] twiddle " + target.DisplayNameOnlyStripped);
@@ -111,6 +125,11 @@ namespace RavesOfQud
                         try { eq = bp.Equipped; } catch { }
                         if (eq != null && eq.ID == id) return eq;
                         try { eq = bp.Cybernetics; } catch { }
+                        if (eq != null && eq.ID == id) return eq;
+                        // DefaultBehavior too: a natural weapon is what the doll shows in
+                        // that slot (greyed), so it is clickable and must be resolvable --
+                        // without this the claw's id came back "no object with id".
+                        try { eq = bp.DefaultBehavior; } catch { }
                         if (eq != null && eq.ID == id) return eq;
                     }
             }

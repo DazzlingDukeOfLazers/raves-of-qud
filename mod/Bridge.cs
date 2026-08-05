@@ -657,7 +657,8 @@ namespace RavesOfQud
                     // the selected object. The menu itself mirrors back over the popup
                     // channel -- nothing here builds one.
                     f.TryGetValue("id", out string invId);
-                    InventoryExporter.Twiddle(invId);
+                    f.TryGetValue("mode", out string invMode);
+                    InventoryExporter.Twiddle(invId, invMode);
                     return;
                 }
                 if (name == "skill")
