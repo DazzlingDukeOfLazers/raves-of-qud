@@ -1,9 +1,17 @@
 {
  "Chiliad Creature Newly Sentient Beings": "NREs on bare staging (procedural-history creature; needs world context) — reports/2026-08-03-checker-chiliad-npe.md",
  "Marble Dais": "multi-cell sprite: the stage-cell crop catches a fraction; needs a multi-cell staging rule",
- "E_Marble_Dais": "multi-cell sprite (dais family)",
- "E1_Marble_Dais": "multi-cell sprite (dais family)",
- "E2_Marble_Dais": "multi-cell sprite (dais family)",
- "E3_Marble_Dais": "multi-cell sprite (dais family)",
+ "E Marble Dais": "multi-cell sprite (dais family)",
+ "E1 Marble Dais": "multi-cell sprite (dais family)",
+ "E2 Marble Dais": "multi-cell sprite (dais family)",
+ "E3 Marble Dais": "multi-cell sprite (dais family)",
+ "W Marble Dais": "multi-cell sprite (dais family)",
+ "W1 Marble Dais": "multi-cell sprite (dais family)",
+ "W2 Marble Dais": "multi-cell sprite (dais family)",
+ "W3 Marble Dais": "multi-cell sprite (dais family)",
+ "N Marble Dais": "multi-cell sprite (dais family)",
+ "S Marble Dais": "multi-cell sprite (dais family)",
+ "S1 Marble Dais": "multi-cell sprite (dais family)",
+ "S2 Marble Dais": "multi-cell sprite (dais family)",
  "TauSoft": "oversized/off-anchor sprite: 100% hot crop — needs the multi-cell staging rule"
 }

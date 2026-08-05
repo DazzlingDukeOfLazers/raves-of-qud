@@ -49,4 +49,16 @@ Ehalcodon, Gyrohumor, Conservator Special, Dawnglider. The names read as
 animated/glowing/flying — likely rung-4 fixtures or drift-off-cell (fliers bob).
 Triage individually from the evidence crops.
 
+## 6. Switch / TempleSwitch: render-event TILE REPLACEMENT (open — design fork)
+
+Post-EventArt furniture re-sweep: `Switch` and `TempleSwitch` still show the
+pre-fix conveyor signature (~117 mean / 78%% hot = bare floor in Raves). They
+DO carry a static tile, so the tile-less EventArt gate skips them — but Qud's
+handler REPLACES the tile per frame (blinking switch). Adopting event tiles
+unconditionally would make every wire tile frame-tracked, which collides with
+the client-side animation architecture (monosludge/engulfed decode work).
+DECISION NEEDED (with the Mac): per-frame wire tiles vs a client-side switch
+fixture. ~2 elements; also triage `Sign` (29.3 — variant divergence?) and the
+wormhole/platform/turbine WARN band (animated).
+
 *Delete sections as addressed (repo ticket lifecycle).*

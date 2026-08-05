@@ -323,6 +323,12 @@ def write_report(cat, results):
         except ValueError:
             pass
     for r in results:
+        # A wire-only pass must never DELETE pixel data: keep the previous
+        # entry's congruence when the fresh result carries none (a stray
+        # wire-only rerun once wiped a category's 745 scores this way).
+        old = merged.get(r["bp"])
+        if old and old.get("congruence") and not r.get("congruence"):
+            r = dict(r, congruence=old["congruence"])
         merged[r["bp"]] = r
     results = list(merged.values())
     for r in results:
