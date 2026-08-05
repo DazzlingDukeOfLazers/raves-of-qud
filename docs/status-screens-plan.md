@@ -330,3 +330,18 @@ differ in ink HEIGHT (33 vs 39, 30 vs 36), so the remaining gap is the ART/shadi
 placement: either a different tile variant per context or our two-tone mapping vs Qud's three-colour
 shader. Next: dump one slot's mask from both apps and compare shapes directly (the ASCII-mask trick),
 not the mean.
+
+
+## Doll art — same sprite, non-integer scale (2026-08-05) — practical limit reached
+
+Mask comparison (ASCII dump, both apps, Body slot) shows the SAME sprite, not different art: the
+features simply sit 2-4px apart. Deriving the rect from the tile instead of the rendered ink settles
+why — `Items_sw_armor1.bmp` is 16x24 with a 14x16 OPAQUE box at (1,4), and Qud's 43x44 ink implies
+**3.071x horizontal, 2.750x vertical**, i.e. a 49x66 rect at slot+(2.9,1.0). That is now the drawn
+rect, and the ink boxes match Qud EXACTLY ([6,12,43,44] both sides; [6,15,43,41] for the torch).
+
+The residual image diff (~70-88) is Qud's NON-INTEGER scaling: it lands source rows/columns on a
+different rounding than our NEAREST sampling does, so individual pixels differ even though the sprite,
+palette, box and position all agree. Closing that would mean replicating Qud's sampler — worth doing
+only if the eye can see it; the crops now read as the same widget. Treat the doll as done for parity
+purposes and score the leaves on box+palette agreement rather than per-pixel mean.

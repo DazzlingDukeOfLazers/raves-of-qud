@@ -297,9 +297,15 @@ func _draw_doll() -> void:
 					# guesses were driven by numbers that included the cell border):
 					# Qud's sprite ink is 43x44 at (6,12) in the 55x62 slot where a
 					# 36x54 rect gave us 32x36 at (12,13) — so scale 1.34x wide, 1.22x
-					# tall and shift the origin to put the ink where Qud's sits.
+					# tall and shift the origin to put the ink where Qud's sits. CONFIRMED
+					# from the tile itself: sw_armor1 is 16x24 with a 14x16 opaque box at
+					# (1,4), and Qud's 43x44 ink implies 3.071x / 2.750x -> a 49x66 rect at
+					# slot+(2.9,1.0). Qud therefore scales NON-INTEGER; with NEAREST we
+					# round differently, which is why features still sit 2-4px off even
+					# with the boxes aligned. Matching exactly would mean replicating
+					# Qud's sampler, not adjusting this rect.
 					_static.draw_texture_rect(tex,
-						Rect2(pos + Vector2(3, 1), Vector2(48, 66)), false)
+						Rect2(pos + Vector2(3, 1), Vector2(49, 66)), false)
 			if bool(sl.get("primary", false)):
 				_static.draw_string(_font, pos + Vector2(-8, BOX_H + 14), "*",
 					HORIZONTAL_ALIGNMENT_LEFT, -1, 14, C_GOLD)
