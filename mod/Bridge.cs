@@ -892,6 +892,7 @@ namespace RavesOfQud
                                 CharacterExporter.ReExport();   // live sheet data for the status screens
                                 BindingsExporter.ReExport();    // control-mapping data
                                 SkillsExporter.ReExport();      // skills & powers tree
+                                QuestsExporter.ReExport();     // active quest log (Quests tab)
                                 InventoryExporter.ReExport();   // inventory (Equipment tab)
                                 TitleExporter.ExportCellFrame();     // Qud's own 9-slice cell frame
                                 TitleExporter.ExportChargenEmblem();                        // resident even at the menu

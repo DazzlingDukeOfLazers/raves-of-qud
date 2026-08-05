@@ -106,6 +106,23 @@ namespace RavesOfQud
                     var sc = Qud.UI.PickGameObjectScreen.instance;
                     return (sc != null && sc.Visible) ? sc.gameObject : null;
                 }
+                // Prefer the object carrying a COMPONENT of that name — i.e. the screen itself.
+                // Matching GameObject names first resolves "Quests" to whichever row prefab happens
+                // to be called "#0 QuestsScrollerLine", and you dump one row instead of the screen.
+                foreach (var mb in UnityEngine.Object.FindObjectsOfType<MonoBehaviour>())
+                {
+                    if (mb == null || !mb.isActiveAndEnabled) continue;
+                    if (mb.GetComponent<RectTransform>() == null) continue;
+                    if (string.Equals(mb.GetType().Name, target, StringComparison.OrdinalIgnoreCase))
+                        return mb.gameObject;
+                }
+                foreach (var mb in UnityEngine.Object.FindObjectsOfType<MonoBehaviour>())
+                {
+                    if (mb == null || !mb.isActiveAndEnabled) continue;
+                    if (mb.GetComponent<RectTransform>() == null) continue;
+                    if (mb.GetType().Name.IndexOf(target, StringComparison.OrdinalIgnoreCase) >= 0)
+                        return mb.gameObject;
+                }
                 foreach (var go in UnityEngine.Object.FindObjectsOfType<GameObject>())
                 {
                     if (go == null || !go.activeInHierarchy) continue;
