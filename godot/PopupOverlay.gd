@@ -85,7 +85,7 @@ func _build() -> void:
 	st.content_margin_top = 24
 	st.content_margin_bottom = 6
 	_panel.add_theme_stylebox_override("panel", st)
-	_panel.custom_minimum_size = Vector2(288, 0)
+	_panel.custom_minimum_size = Vector2(160, 0)   # Qud sizes to content (titled picker = 221)
 	_panel.draw.connect(_draw_chrome)
 	center.add_child(_panel)
 
@@ -94,6 +94,7 @@ func _build() -> void:
 	_panel.add_child(vb)
 
 	_title = _mk_rt()
+	_title.autowrap_mode = TextServer.AUTOWRAP_OFF   # the title's natural width drives the panel
 	vb.add_child(_title)
 	_msg = _mk_rt()
 	vb.add_child(_msg)
@@ -126,19 +127,37 @@ func _build() -> void:
 	_btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	vb.add_child(_btn_row)
 
-## The Qud dialog frame: inset top line with a centred gap (the title's home) and
-## the bottom line running THROUGH the button row's gap, both with short stops.
+## The Qud dialog frame, measured off sysmenu_qud.png + the titled "Selected Bind
+## Set" picker: the top line is FULL WIDTH with a 10px centre notch (down-ticks at
+## its edges) and 6px side notches at ±w/3.1 (outward ticks) — not one big gap.
+## A TITLE gets its own row under the line (gold, centred), flanked by ─┤ ├─
+## assemblies at the panel edges; the line drops to +16 to make room. The bottom
+## line runs through the button row's gap with stops.
 func _draw_chrome() -> void:
 	var w := _panel.size.x
 	var h := _panel.size.y
-	# top line at +8, 2px, with Qud's centred notch (title placement: later round)
-	var gap_w := minf(160.0, w - 60.0)
-	var g0 := (w - gap_w) * 0.5
-	var g1 := (w + gap_w) * 0.5
-	_panel.draw_rect(Rect2(0, 8, g0 - 4, 2), C_TOPLINE)
-	_panel.draw_rect(Rect2(g1 + 4, 8, w - g1 - 4, 2), C_TOPLINE)
-	_panel.draw_rect(Rect2(g0 - 4, 2, 2, 14), C_TOPLINE)   # ┤ stop
-	_panel.draw_rect(Rect2(g1 + 2, 2, 2, 14), C_TOPLINE)   # ├ stop
+	var ly := 16.0 if _title.visible else 8.0
+	var cx := w * 0.5
+	var side := w / 3.1
+	var l0 := cx - side - 3.0
+	var l1 := cx - side + 3.0
+	var c0 := cx - 5.0
+	var c1 := cx + 5.0
+	var r0 := cx + side - 3.0
+	var r1 := cx + side + 3.0
+	for seg in [[0.0, l0], [l1, c0], [c1, r0], [r1, w]]:
+		_panel.draw_rect(Rect2(seg[0], ly, seg[1] - seg[0], 2), C_TOPLINE)
+	_panel.draw_rect(Rect2(l0 - 2, ly - 4, 2, 10), C_TOPLINE)   # ╢ outward side ticks
+	_panel.draw_rect(Rect2(r1, ly - 4, 2, 10), C_TOPLINE)       # ╟
+	_panel.draw_rect(Rect2(c0 - 2, ly, 2, 10), C_TOPLINE)       # ╖ centre down-ticks
+	_panel.draw_rect(Rect2(c1, ly, 2, 10), C_TOPLINE)           # ╓
+	if _title.visible:
+		# ─┤ Title ├─ edge assemblies at the title row's mid-height
+		var ty := 28.0 + _title.get_combined_minimum_size().y * 0.5
+		_panel.draw_rect(Rect2(0, ty - 1, 10, 2), C_BOTLINE)
+		_panel.draw_rect(Rect2(10, ty - 8, 2, 16), C_BOTLINE)
+		_panel.draw_rect(Rect2(w - 12, ty - 8, 2, 16), C_BOTLINE)
+		_panel.draw_rect(Rect2(w - 10, ty - 1, 10, 2), C_BOTLINE)
 	# bottom line through the button row (or plain, 14 up, when there are no buttons).
 	# Use MINIMUM sizes — the actual rects aren't laid out yet on the show frame.
 	var by := h - 14.0
@@ -166,7 +185,7 @@ func _mk_rt() -> RichTextLabel:
 	rt.fit_content = true
 	rt.scroll_active = false
 	rt.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	rt.custom_minimum_size = Vector2(238, 0)
+	rt.custom_minimum_size = Vector2(120, 0)   # content-driven width; _msg widens itself when visible
 	rt.add_theme_font_size_override("normal_font_size", 16)
 	rt.add_theme_color_override("default_color", C_PALE)
 	return rt
@@ -199,7 +218,14 @@ func show_popup(data: Dictionary, palette: Dictionary) -> void:
 	var title_markup := str(data.get("title", "")).strip_edges()
 	_title.visible = title_markup != ""
 	if _title.visible:
-		_title.text = "[b]%s[/b]" % QudText.to_bbcode(title_markup, _palette)
+		# Qud renders dialog titles centred in GOLD (palette 'W') on their own row
+		# under the top line — unmarked title text inherits the gold; any {{...}}
+		# markup inside still wins
+		var goldhex := String(_palette.get("W", "#cfc041"))
+		if not goldhex.begins_with("#"):
+			goldhex = "#" + goldhex
+		_title.text = "[center][color=%s]%s[/color][/center]" % [goldhex,
+			QudText.to_bbcode(title_markup, _palette)]
 	var msg_raw := str(data.get("message", ""))
 	# menus ship an EMPTY body ("{{y|}}") — hide it or it pads the panel to msg width
 	_msg.visible = QudText.strip(msg_raw).strip_edges() != ""

@@ -85,8 +85,14 @@ the screen now opens from the mirrored menu in both modes). Residual diff lives 
 line (64,106,115) running through the button row's gap, 26px selection bar (23,59,60) with gold ">",
 option/hotkey/disabled colours straight from Qud's own {{...}} markup via QudText.to_bbcode (the
 palette ships in snapshots; Qud's 'W' is the gold #cfc041). Same +6 capture-fit compensation as the
-control-mapping screen. Menu + yes/no verified live side-by-side; title-in-notch placement = later
-round. Also fixed: popup hotkey answers no longer leak into MainFrame's status-tab keys (_input vs
+control-mapping screen. Menu + yes/no verified live side-by-side. TITLED dialogs (2026-08-04, off the
+"Selected Bind Set" picker): the top line is FULL WIDTH with a 10px centre notch (down-ticks) and 6px
+side notches at ±w/3.1 (outward ticks) — not one big gap; a title gets its own row beneath (gold 'W',
+centred, natural width drives the panel) flanked by ─┤ ├─ edge assemblies; the line drops to +16.
+Verified 213px vs Qud's 221 on the same popup. NOTE: Qud's plain yes/no confirms are a WIDE
+TRANSPARENT BANNER (lines + text over the dimmed game, no boxed panel) — a later fidelity round;
+and answers to ASYNC popups (ShowYesNoAsync/PickOptionAsync = copyWindow class) do NOT round-trip
+from Raves yet — same root as the known AskString limitation. Also fixed: popup hotkey answers no longer leak into MainFrame's status-tab keys (_input vs
 set_input_as_handled), and popup row rebuilds remove old children immediately (queue_free lingers a
 frame and poisons same-frame re-shows).
 
