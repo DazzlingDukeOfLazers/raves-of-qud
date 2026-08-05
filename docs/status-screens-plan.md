@@ -66,7 +66,18 @@ always visible in the bar).
    task deadlocked the modal wait so the purchase completed EVEN WHEN THE PLAYER ANSWERED NO.
    Verified after the fix: decline leaves SP untouched, accept spends correctly.
 4. **Quests** → 5. **Reputation** → 6. **Journal** — read-only lists/tables.
-7. **Equipment** — richer layout (paper-doll slots + item tiles).
+7. **Equipment** — IN PROGRESS (2026-08-04). Exporter DONE and verified live:
+   `InventoryExporter.cs` → `inventory.json` mirrors `InventoryAndEquipmentStatusScreen` +
+   `InventoryLine` — items grouped by Qud's `GetInventoryCategory()`, row label = `go.DisplayName`
+   (markup intact), item weight `[n lbs.]`, category weight `|n lbs.|`, header `${GetFreeDrams()}` +
+   `carried/max` (verified $32, 45/285 against the reference). NOTE: `RenderForUI` returns a
+   RenderEvent — read its `_Tile`/`ColorString`/`DetailColor` FIELDS, not the Renderable accessors.
+   `StatusPaneInventory.gd` is wired into the tab but RENDERS BLANK (tab bar, scrim and hints are
+   right; the list area is empty) — same symptom class as the skills pane's first pass, unresolved:
+   instrument `_load_inventory`/`setup` next session, prime suspect is a runtime error in
+   `_relayout` (the `row.merge(it)` over a JSON Variant) killing the draw. The PAPER DOLL (left half:
+   body slots) is a separate slice after that; hotkey letters currently skip d/e/q/s, measured off
+   the reference and still to be confirmed against Qud's HotkeySpread.
 8. **Tinkering** — most complex (bits, recipes, modes).
 
 Interactivity (buy mutation, equip, tinker, quest tracking) follows the menus-V3 law:

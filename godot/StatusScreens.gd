@@ -70,6 +70,8 @@ var _seeded := false
 var _attr_pane: Control = null
 var _skills_pane: Control = null
 var _skills_mtime := 0
+var _inv_pane: Control = null
+var _inv_mtime := 0
 var _char_mtime := 0
 var _pane_pal_empty := true
 var _portrait_tex: Texture2D = null   # live player tile — also the attributes tab's icon
@@ -92,7 +94,10 @@ func _ready() -> void:
 	_root.gui_input.connect(func(e: InputEvent):
 		if _tab == "skills" and _skills_pane != null and _skills_pane.visible \
 				and _skills_pane.has_method("handle_mouse"):
-			_skills_pane.handle_mouse(e))
+			_skills_pane.handle_mouse(e)
+		elif _tab == "equipment" and _inv_pane != null and _inv_pane.visible \
+				and _inv_pane.has_method("handle_mouse"):
+			_inv_pane.handle_mouse(e))
 	_root.theme = UiFont.make_theme(get_viewport())    # CanvasLayer theme-root trap
 	add_child(_root)
 	for t in TABS:
@@ -310,12 +315,17 @@ func _set_tab(id: String) -> void:
 		_attr_pane.visible = (id == "attributes")
 	if _skills_pane != null:
 		_skills_pane.visible = (id == "skills")
+	if _inv_pane != null:
+		_inv_pane.visible = (id == "equipment")
 	if id == "attributes":
 		_request_export()
 		_load_character()
 	if id == "skills":
 		_request_export()
 		_load_skills()
+	if id == "equipment":
+		_request_export()
+		_load_inventory()
 	_build_hints()
 	if visible:
 		UiState.set_scene("status_" + _tab)
@@ -431,6 +441,37 @@ func _load_skills(force := false) -> void:
 		if visible and _tab == "skills":
 			_load_skills())
 
+## (Re)build the Equipment tab's inventory pane from inventory.json.
+func _load_inventory(force := false) -> void:
+	var path := InputModel.support_dir().path_join("inventory.json")
+	if not FileAccess.file_exists(path):
+		return
+	var mt := FileAccess.get_modified_time(path)
+	if not force and _inv_pane != null and mt == _inv_mtime \
+			and not (_pane_pal_empty and not _palette.is_empty()):
+		return
+	var f := FileAccess.open(path, FileAccess.READ)
+	if f == null:
+		return
+	var txt := f.get_as_text()
+	if txt.length() > 0 and txt.unicode_at(0) == 0xFEFF:
+		txt = txt.substr(1)
+	var data: Variant = JSON.parse_string(txt)
+	if not (data is Dictionary):
+		return
+	_inv_mtime = mt
+	if _inv_pane == null:
+		_inv_pane = load("res://StatusPaneInventory.gd").new()
+		_inv_pane.bridge_cb = func(msg: Dictionary): _send_bridge(msg)
+		_inv_pane.reload_cb = func(): _load_inventory(true)
+		_root.add_child(_inv_pane)
+	_pane_pal_empty = _palette.is_empty()
+	_inv_pane.setup(data, _palette)
+	_inv_pane.visible = (_tab == "equipment")
+	get_tree().create_timer(1.2).timeout.connect(func():
+		if visible and _tab == "equipment":
+			_load_inventory())
+
 # ── open / close / input ───────────────────────────────────────────────────────
 
 func open(tab := "") -> void:
@@ -455,6 +496,10 @@ func _unhandled_input(e: InputEvent) -> void:
 	if e is InputEventKey and e.pressed and not e.echo:
 		if _tab == "skills" and _skills_pane != null and _skills_pane.has_method("handle_key") \
 				and _skills_pane.handle_key(e):
+			get_viewport().set_input_as_handled()
+			return
+		if _tab == "equipment" and _inv_pane != null and _inv_pane.has_method("handle_key") \
+				and _inv_pane.handle_key(e):
 			get_viewport().set_input_as_handled()
 			return
 		match e.keycode:
