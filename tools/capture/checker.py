@@ -471,6 +471,8 @@ def main(argv):
                                           "  px:%s mean=%s" % (px["band"], px["mean_abs_diff"]) if px else ""))
             if (i + 1) % 50 == 0:
                 write_report(cat, results)   # crash insurance: merge-flush every 50
+            if "--diff" in argv and (i + 1) % 100 == 0:
+                ensure_daylight(b)           # big categories cross dusk mid-run
         b.close()
         print("report:", write_report(cat, results))
     else:
