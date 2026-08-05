@@ -460,7 +460,17 @@ Measured effect (tools/capture/parity.py, reports/2026-08-04-status-screens):
 | + real cell geometry (64x64 doll, 46-wide filter) | 4.13 | 11.31 |
 | + strip origin 618 and Qud's colour law | **2.91** | **9.49** |
 
-Still open: the filter icons (four of five still mismatch — Qud stretches the whole sprite into
+Then the icons, by the same method — read the RectTransform, don't fit the pixels:
+
+| pass | composite | frame | image |
+|---|---|---|---|
+| start of the round | 16.91 | 13.87 | 69.17 |
+| nine-patched frame + real geometry | 9.49 | 2.91 | 54.63 |
+| filter icons at Qud's 20x30 / 1.25x | 8.20 | 2.91 | 35.98 |
+| doll tiles at Qud's 40x60 (localScale 2) | 4.58 | 2.91 | 19.11 |
+| resolved colour chars + Qud's palette on the wire | **2.86** | **2.36** | **8.63** |
+
+Superseded (was): the filter icons (four of five still mismatch — Qud stretches the whole sprite into
 `icon`'s RectTransform, we fit the opaque sub-rect, so our ink runs narrow), and the paper-doll
 tile COLOURS (geometry now matches exactly — doll_image[0] bbox is [15,14,35,36] in both apps —
 but the ink still differs by ~70, so it is tint or the wrong render context, not placement).

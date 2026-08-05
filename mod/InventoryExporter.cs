@@ -48,6 +48,20 @@ namespace RavesOfQud
                 TileExporter.Ensure(tile);
                 j.Member("tile", tile).Member("color", r.ColorString ?? "")
                  .Member("detail", r.DetailColor ?? "");
+                // THE colours Qud actually paints with: UIThreeColorProperties.FromRenderable
+                // uses getColorChars() -- which resolves TileColor over ColorString -- not the
+                // raw ColorString we were sending. Exporting the resolved chars removes the
+                // client's guess entirely. Flips matter too (FromRenderable sets them).
+                try
+                {
+                    var cc = r.getColorChars();
+                    j.Member("fg", cc.foreground.ToString())
+                     .Member("dt", cc.detail.ToString())
+                     .Member("bg", cc.background == 'k' ? "" : cc.background.ToString());
+                }
+                catch { }
+                try { if (r.getHFlip()) j.Member("hflip", true); } catch { }
+                try { if (r.getVFlip()) j.Member("vflip", true); } catch { }
             }
             catch { }
         }
@@ -77,6 +91,27 @@ namespace RavesOfQud
 
             var j = new JsonWriter();
             j.BeginObject();
+            // QUD'S REAL PALETTE, shipped with the screen data. It normally rides on a
+            // zone snapshot, but the status panes are built from these files and can
+            // render before one has arrived — and the client's fallback table is only an
+            // approximation ('w' there is a dark orange; Qud's is a khaki). That single
+            // wrong entry was repainting every equipped item on the paper doll.
+            try
+            {
+                j.Name("palette").BeginObject();
+                foreach (char pch in "rRgGbBcCmMwWoOyYkK")
+                {
+                    try
+                    {
+                        UnityEngine.Color pc = ConsoleLib.Console.ColorUtility.colorFromChar(pch);
+                        j.Member(pch.ToString(), string.Format("#{0:x2}{1:x2}{2:x2}",
+                            (int)(pc.r * 255f), (int)(pc.g * 255f), (int)(pc.b * 255f)));
+                    }
+                    catch { }
+                }
+                j.EndObject();
+            }
+            catch { }
             // header, Qud's own strings (InventoryAndEquipmentStatusScreen.UpdateViewFromData)
             try { j.Member("drams", p.GetFreeDrams()); } catch { }
             try { j.Member("carried", p.GetCarriedWeight()); } catch { }

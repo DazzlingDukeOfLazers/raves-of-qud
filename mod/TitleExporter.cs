@@ -190,6 +190,26 @@ namespace RavesOfQud
                         }
                     }
                     catch (Exception ie) { System.Console.WriteLine("[raves] icon probe: " + ie.Message); }
+                    // and the PAPER DOLL's tile, same question (EquipmentLine.icon)
+                    try
+                    {
+                        var lines = Resources.FindObjectsOfTypeAll<Qud.UI.EquipmentLine>();
+                        if (lines != null)
+                            foreach (var el in lines)
+                            {
+                                var ei = el != null && el.icon != null ? el.icon.image : null;
+                                if (ei == null) continue;
+                                var ert = ei.rectTransform;
+                                System.Console.WriteLine("[raves] doll icon rect " + ert.rect
+                                    + " anchorMin " + ert.anchorMin + " anchorMax " + ert.anchorMax
+                                    + " pivot " + ert.pivot + " scale " + ert.localScale
+                                    + " preserveAspect " + ei.preserveAspect + " type " + ei.type
+                                    + " sprite " + (ei.sprite != null ? ei.sprite.rect.ToString() : "null")
+                                    + " frames " + (el.frames != null ? el.frames.Length : -1));
+                                break;
+                            }
+                    }
+                    catch (Exception de) { System.Console.WriteLine("[raves] doll probe: " + de.Message); }
                     // Unity's 9-slice borders (l,b,r,t) — the client needs these to know
                     // which pixels are corner and which stretch
                     File.WriteAllText(Path.Combine(Dir, "cell_frame.json"),

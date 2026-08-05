@@ -133,7 +133,14 @@ func _ready() -> void:
 
 func setup(data: Dictionary, palette: Dictionary) -> void:
 	_data = data
-	_palette = palette
+	# Prefer the palette the EXPORT carries: it is Qud's own colorFromChar table and is
+	# always present, whereas the snapshot-fed one can still be empty here — and the
+	# client's built-in fallback disagrees with Qud on 'w' (a dark orange where Qud has
+	# a khaki), which was enough to repaint every item on the paper doll.
+	var pal := palette
+	if pal.is_empty():
+		pal = data.get("palette", {})
+	_palette = pal
 	# Qud persists the enabled filter set with the save, so adopt ITS set rather than
 	# starting from "*All" — otherwise the strip's colours can never match a save that
 	# was left with a category filtered on.
@@ -144,8 +151,8 @@ func setup(data: Dictionary, palette: Dictionary) -> void:
 			# the set would filter the list against a category no item has, emptying it
 			_enabled[str(n)] = true
 		_enabled.erase("*All")
-	if not palette.is_empty():
-		_tiles.palette = palette
+	if not pal.is_empty():
+		_tiles.palette = pal
 	_tiles.tiles_dir = InputModel.support_dir().path_join("tiles")
 	_relayout()
 	_static.queue_redraw()
@@ -392,32 +399,43 @@ func _draw_doll() -> void:
 		if sl != null:
 			var tile := str(sl.get("tile", ""))
 			if tile != "":
-				# MEASURED: Qud paints doll items in the SAME fixed two-tone as the filter
-				# bar — main (141,124,84 as rendered) with the item's own DETAIL colour as
-				# the accent (armor gold 200,184,57 / torch red 156,65,41 / boots pale
-				# 168,194,187). We were drawing each item's own main colour, which read as
-				# a completely different palette.
+				# The doll uses the ITEM'S OWN two-tone, not the filter bar's fixed one:
+				# EquipmentLine calls icon.FromRenderable(RenderForUI("Equipment")), and
+				# FromRenderable does SetColors(colorFromChar(foreground),
+				# colorFromChar(detail), background). The earlier "same fixed two-tone as
+				# the filter bar" reading came from band averages taken while the sprite
+				# was still the wrong SIZE — with the geometry wrong, any palette can be
+				# made to look closer.
+				# Prefer the RESOLVED chars the mod now sends ("fg"/"dt", straight out of
+				# getColorChars()) over the raw ColorString: ColorString loses to TileColor
+				# when an object sets one, so deriving the tone client-side was guesswork
+				# that came out right for some items and wrong for others.
+				var fg := str(sl.get("fg", ""))
+				var dt := str(sl.get("dt", ""))
 				var tex: Texture2D = _tiles.texture(tile,
-					Color(0.596, 0.529, 0.372),
-					_tiles.color_of(str(sl.get("detail", "")), Color(0.545, 0.4, 0.18)))
+					_tiles.color_of(fg if fg != "" else str(sl.get("color", "")), Color.WHITE),
+					_tiles.color_of(dt if dt != "" else str(sl.get("detail", "")),
+						Color(0.545, 0.4, 0.18)))
 				if tex != null:
-					# MEASURED, not guessed: Qud's equipped-item ink spans ~47x48 inside the
-					# 55x62 slot (bark armor 47x48, torch 47x45, boots 47x43) where ours
-					# spanned 22x25 — the sprite nearly fills the cell rather than sitting
-					# small in the middle.
-					# Sized from tools/capture/parity.py's frame-masked bounds (the earlier
-					# guesses were driven by numbers that included the cell border):
-					# Qud's sprite ink is 43x44 at (6,12) in the 55x62 slot where a
-					# 36x54 rect gave us 32x36 at (12,13) — so scale 1.34x wide, 1.22x
-					# tall and shift the origin to put the ink where Qud's sits. CONFIRMED
-					# from the tile itself: sw_armor1 is 16x24 with a 14x16 opaque box at
-					# (1,4), and Qud's 43x44 ink implies 3.071x / 2.750x -> a 49x66 rect at
-					# slot+(2.9,1.0). Qud therefore scales NON-INTEGER; with NEAREST we
-					# round differently, which is why features still sit 2-4px off even
-					# with the boxes aligned. Matching exactly would mean replicating
-					# Qud's sampler, not adjusting this rect.
-					_static.draw_texture_rect(tex,
-						Rect2(pos + Vector2(12, 1), Vector2(49, 66)), false)
+					# GROUND TRUTH from a live EquipmentLine: icon.image's RectTransform is
+					# 20x30 centred (anchors+pivot 0.5) with localScale 2, preserveAspect
+					# FALSE — so the whole 16x24 tile is drawn at 40x60, centred in the
+					# 64x64 slot. Same law as the filter bar, only twice the size; every
+					# earlier number here was fitted to ink measurements instead.
+					var dw := 40.0
+					var dh := 60.0
+					# Centred, full stop. A +1 nudge in x makes the ink BBOXES line up with
+					# Qud's exactly and yet triples the pixel diff (16 -> 52): the bbox
+					# disagreement is a one-column dim edge, and chasing it moves the whole
+					# sprite off the alignment that actually matters. Bbox is a diagnostic,
+					# not the objective.
+					var at := pos + Vector2((BOX_W - dw) * 0.5, (BOX_H - dh) * 0.5)
+					# FromRenderable also applies the renderable's flips; a negative rect
+					# size is how Godot mirrors a draw_texture_rect
+					if bool(sl.get("hflip", false)):
+						at.x += dw
+						dw = -dw
+					_static.draw_texture_rect(tex, Rect2(at, Vector2(dw, dh)), false)
 			if bool(sl.get("primary", false)):
 				_static.draw_string(_font, pos + Vector2(-8, BOX_H + 14), "*",
 					HORIZONTAL_ALIGNMENT_LEFT, -1, 14, C_GOLD)

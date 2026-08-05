@@ -223,3 +223,18 @@ add a one-liner (symptom → rule).
   was an artefact of the ink threshold: an icon's dim rows land in the same 20-60 band as the scrim,
   so the measured bbox is the bright CORE, not the sprite. Fixing it took the filter icons from
   ~51 mean diff to ~4.
+- **The client's fallback colour table is not Qud's palette, and one wrong entry repaints a
+  whole screen.** `QudTiles.COLORS['w']` is a dark orange (0.60,0.40,0.10); Qud's real
+  `colorFromChar('w')` is the khaki `#98875f` — the very value `FilterBarCategoryButton` hardcodes
+  for its icons. Qud's palette normally rides on a ZONE SNAPSHOT, so a status pane built straight
+  from an export file can render before one arrives and silently fall back. That looked exactly
+  like run-to-run measurement noise (the same build scored 8.63 and 17.54 on the doll images).
+  The export files now carry the palette themselves. **If a screen's colours are intermittently
+  wrong, suspect the palette hasn't arrived before you suspect the capture.**
+- **Colours belong on the wire, resolved.** `UIThreeColorProperties.FromRenderable` paints with
+  `getColorChars()`, which resolves TileColor over ColorString — so exporting the raw ColorString
+  and deriving client-side is a guess that comes out right for some items and wrong for others.
+  The mod now exports the resolved `fg`/`dt`/`bg` chars (and the flips FromRenderable applies).
+- **A matching ink BBOX is not the objective.** Nudging the doll tile +1px in x made every bbox
+  line up with Qud's exactly and TRIPLED the pixel diff (16 -> 52): the bbox disagreement was a
+  one-column dim edge. Score on pixels; read bboxes as a diagnostic only.
