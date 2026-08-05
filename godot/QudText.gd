@@ -10,6 +10,7 @@ extends RefCounted
 ## Render markup as Godot BBCode ([color=#hex]…[/color]), escaping stray '[' so text can't be read as
 ## BBCode. Unknown codes fall back to white.
 static func to_bbcode(s: String, palette: Dictionary) -> String:
+	s = cp437(s)
 	var out := ""
 	var i := 0
 	var n := s.length()
@@ -87,6 +88,7 @@ static func _hex(code: String, palette: Dictionary) -> String:
 ## NB: written without lambdas on purpose — GDScript closures capture by VALUE, so a
 ## `flush` lambda appends the string as it was when the lambda was created (empty).
 static func runs(s: String, palette: Dictionary, default_color := Color(1, 1, 1)) -> Array:
+	s = cp437(s)
 	var out: Array = []
 	var stack: Array = []            # active {{ }} colours, innermost last
 	var amp_col: Color = default_color
@@ -150,3 +152,21 @@ static func color_of_code(code: String, palette: Dictionary, default_color := Co
 	if h == "":
 		return default_color
 	return Color(h if h.begins_with("#") else "#" + h)
+
+
+## Qud stores its badge glyphs as raw CP437 CONTROL bytes (AV = 0x04 diamond, DV =
+## 0x09 circle, damage = 0x03 heart, …) — a modern font renders those as nothing, so
+## "cloth robe ♦1 ○0" arrived as "cloth robe 1 0". Map them to the real characters.
+const CP437 := {
+	1: "☺", 2: "☻", 3: "♥", 4: "♦", 5: "♣", 6: "♠", 7: "•", 8: "◘",
+	9: "○", 10: "◙", 11: "♂", 12: "♀", 13: "♪", 14: "♫", 15: "☼",
+	16: "►", 17: "◄", 18: "↕", 19: "‼", 20: "¶", 21: "§", 22: "▬", 23: "↨",
+	24: "↑", 25: "↓", 26: "→", 27: "←", 28: "∟", 29: "↔", 30: "▲", 31: "▼",
+}
+
+static func cp437(s: String) -> String:
+	var out := s
+	for code in CP437:
+		if out.find(String.chr(code)) >= 0:
+			out = out.replace(String.chr(code), CP437[code])
+	return out

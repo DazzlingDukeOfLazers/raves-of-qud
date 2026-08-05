@@ -82,9 +82,17 @@ always visible in the bar).
    item's tile with the label centred beneath and Qud's `*` on the primary limb. Body parts come from
    Qud's own `Body.GetParts()` (name/type/Primary/Equipped-or-DefaultBehavior); part names arrive
    LOWERCASE, so the cell label is rebuilt from TYPE + side ("hand"+left -> "Left Hand", "back" ->
-   "Worn on Back"). OPEN: (1) worn armour exports as `{{b|♦}}1 {{K|⇥}}0` — `GameObject.DisplayName`
-   returns only the AV/DV badges for it, so the noun is missing; find the right name accessor.
-   (2) Header sits ~2px off. (3) The category filter strip along the top is not ported yet.
+   "Worn on Back"). ITEM NAMES FIXED: `DisplayName` is `GetDisplayNameEvent` over `Render.DisplayName ?? Blueprint`,
+   and for some worn items that base comes back empty so only the AV/DV badges arrive — the exporter
+   now detects a nameless result (markup/punctuation only, <2 letters) and falls back to
+   `GetDisplayName(int.MaxValue)`, then `DisplayNameOnly`, then the blueprint. BADGES FIXED globally:
+   Qud stores them as raw CP437 CONTROL bytes (AV 0x04 ♦, DV 0x09 ○, damage 0x03 ♥), which render as
+   nothing in a modern font — `QudText.cp437()` maps 0x01-0x1F and runs in BOTH `runs()` and
+   `to_bbcode()`, so every pane benefits ("cloth robe ♦1 ○0" now matches Qud). FILTER STRIP ported
+   (44x38 cells from x620, 58px pitch, y178: an ALL cell then one per category present, mirroring
+   `filterBarCategories`) — DEVIATION: Qud draws fixed per-category icons inside a bracketed frame;
+   we stand in with each category's first item tile in a plain box until those icons are extracted.
+   OPEN: (1) header sits ~2px off. (2) filter cells are cosmetic — selecting one doesn't filter yet.
 8. **Tinkering** — most complex (bits, recipes, modes).
 
 Interactivity (buy mutation, equip, tinker, quest tracking) follows the menus-V3 law:

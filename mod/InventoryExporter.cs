@@ -52,6 +52,23 @@ namespace RavesOfQud
             catch { }
         }
 
+        /// True when a display name carries no actual NOUN — only markup, badges and
+        /// punctuation (the worn-armour case: "{{b|<0x04>}}1 {{K|\t}}0").
+        private static bool QudText_LooksNameless(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return true;
+            bool depth = false;
+            int letters = 0;
+            for (int i = 0; i < s.Length; i++)
+            {
+                if (i + 1 < s.Length && s[i] == '{' && s[i + 1] == '{') { depth = true; i++; continue; }
+                if (s[i] == '|' && depth) { depth = false; continue; }
+                if (i + 1 < s.Length && s[i] == '}' && s[i + 1] == '}') { i++; continue; }
+                if (!depth && char.IsLetter(s[i])) letters++;
+            }
+            return letters < 2;
+        }
+
         private static void Export()
         {
             GameObject p = null;
@@ -132,7 +149,31 @@ namespace RavesOfQud
                 foreach (GameObject go in items)
                 {
                     j.BeginObject();
-                    try { j.Member("name", go.DisplayName ?? ""); } catch { }
+                    // DisplayName = GetDisplayNameEvent over (Render.DisplayName ?? Blueprint):
+                    // for some worn items that base is empty and only the AV/DV badges come
+                    // back, so fall back to the explicit full overload, then the short name.
+                    string nm = "";
+                    try { nm = go.DisplayName ?? ""; } catch { }
+                    try
+                    {
+                        if (QudText_LooksNameless(nm))
+                        {
+                            string alt = go.GetDisplayName(int.MaxValue);
+                            if (!QudText_LooksNameless(alt)) nm = alt;
+                        }
+                    }
+                    catch { }
+                    try
+                    {
+                        if (QudText_LooksNameless(nm))
+                        {
+                            string alt2 = go.DisplayNameOnly;
+                            if (!QudText_LooksNameless(alt2)) nm = alt2;
+                        }
+                    }
+                    catch { }
+                    try { if (QudText_LooksNameless(nm)) nm = go.Blueprint ?? nm; } catch { }
+                    j.Member("name", nm);
                     try { j.Member("weight", go.Weight); } catch { }
                     try { j.Member("id", go.IDIfAssigned ?? ""); } catch { }
                     WriteTile(j, go);

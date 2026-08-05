@@ -58,6 +58,16 @@ const DOLL := {
 const BOX_W := 55.0
 const BOX_H := 62.0
 
+# Category FILTER STRIP (Qud's FilterBar): "*All" plus one cell per category
+# present in the inventory, measured off the reference — 44x38 cells from x620,
+# 58px pitch, on y178. Qud draws a fixed per-category ICON; we stand in with the
+# category's first item tile (recorded deviation) until those icons are extracted.
+const FILT_X := 620.0
+const FILT_Y := 178.0
+const FILT_W := 44.0
+const FILT_H := 38.0
+const FILT_PITCH := 58.0
+
 var _data := {}
 var _palette := {}
 var _tiles: RefCounted = null
@@ -139,11 +149,39 @@ func _draw_static() -> void:
 	if _data.is_empty():
 		return
 	_draw_doll()
+	_draw_filter_strip()
 	# header: "{{B|$drams}} | {{C|carried{{K|/max}} lbs.}}" — Qud's own strings
 	var hdr := "{{B|$%d}} {{K|│}} {{C|%d{{K|/%d}} lbs.}}" % [int(_data.get("drams", 0)),
 		int(_data.get("carried", 0)), int(_data.get("maxCarried", 0))]
 	var w := _font.get_string_size(QudText.strip(hdr), HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
 	_draw_markup(_static, hdr, Vector2(ITEM_W_EDGE - w, 232))
+
+## Qud's category filter strip: the ALL cell then one per category, each showing
+## that category's first item as its icon. Selecting a filter is a later slice —
+## this draws the strip Qud shows above the panes.
+func _draw_filter_strip() -> void:
+	var cats: Array = _data.get("categories", [])
+	var x := FILT_X
+	# the ALL cell (Qud frames the active filter in gold)
+	_static.draw_rect(Rect2(Vector2(x, FILT_Y), Vector2(FILT_W, FILT_H)), C_GOLD, false, 1.0)
+	var aw := _font.get_string_size("ALL", HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
+	_static.draw_string(_font, Vector2(x + (FILT_W - aw) * 0.5, FILT_Y + 25), "ALL",
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 14, C_GOLD)
+	x += FILT_PITCH
+	for cat in cats:
+		_static.draw_rect(Rect2(Vector2(x, FILT_Y), Vector2(FILT_W, FILT_H)), C_BOX, false, 1.0)
+		var items: Array = cat.get("items", [])
+		if items.size() > 0:
+			var it: Dictionary = items[0]
+			var tile := str(it.get("tile", ""))
+			if tile != "":
+				var tex: Texture2D = _tiles.texture(tile,
+					_tiles.color_of(str(it.get("color", "")), Color.WHITE),
+					_tiles.color_of(str(it.get("detail", "")), Color.WHITE))
+				if tex != null:
+					_static.draw_texture_rect(tex,
+						Rect2(Vector2(x + 13, FILT_Y + 6), Vector2(18, 26)), false)
+		x += FILT_PITCH
 
 ## Qud's body-slot grid. Slots it doesn't recognise are ignored — the doll is a
 ## FIXED layout in Qud too (extra parts show in the list, not the doll).
