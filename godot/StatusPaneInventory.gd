@@ -72,6 +72,25 @@ var C_LABEL := _iv8(120, 146, 141)
 # short (it rendered (51,79,97) against Qud's (52,83,102)), whereas Raves grades
 # Qud's raw source the same way Qud does.
 var C_CAT := Color8(59, 93, 113)
+# An ITEM row, read off the same live InventoryLine: `text` (the name's unmarked runs)
+# and `hotkeyText` are both RGBA(0.690, 0.780, 0.760), and `itemWeightText` is the SAME
+# colour as the category row, (59,93,113).
+#
+# Those are the values Qud sets -- but unlike every other colour on this screen they are
+# not what to DRAW, because at ITEM_FONT the glyph stems are thin enough that anti-
+# aliasing, not the colour, decides the result, and Godot's rasteriser reaches nearer to
+# full colour than Qud's. The proof is Qud itself: the item weight and the category name
+# carry the identical (59,93,113), yet the category renders (52,83,102) at ROW_FONT and
+# the weight only (40,67,81) at ITEM_FONT. So these two are FITTED to land Qud's rendered
+# ink, the same concession already made for the 2.5x sprite phase; the ROW_FONT colours
+# above stay Qud's literal values, which match exactly.
+var C_ITEM := Color8(147, 171, 166)     # renders as Qud's (137,162,157)
+var C_ITEM_W := Color8(46, 74, 89)      # (59,93,113) at ITEM_FONT -> (40,67,81)
+# The hotkey column carries the same (176,199,194) as the name but renders DIMMER
+# still -- (128,153,149) against the name's (137,162,157) -- because ")" is thinner than
+# a letter, so it needs its own fit. Sampled down the whole column (n>300) rather than
+# off one row: "b)" alone gives two pixels and any conclusion from that is noise.
+var C_HOTKEY := Color8(139, 164, 160)
 
 # Qud's paper-doll grid: label -> [column x, row y]. Found by scanning the capture
 # for the frame's own long runs rather than eyeballing the lit area: the boxes are
@@ -544,7 +563,7 @@ func _draw_rows() -> void:
 		var base := y + 16.0
 		# hotkey letter column, then the row itself
 		_content.draw_string(_font, Vector2(LETTER_X - LIST_X, base), "%s)" % r["letter"],
-			HORIZONTAL_ALIGNMENT_LEFT, -1, ITEM_FONT, C_DIM)
+			HORIZONTAL_ALIGNMENT_LEFT, -1, ITEM_FONT, C_HOTKEY)
 		if str(r["kind"]) == "cat":
 			# MEASURED: Qud's '[' starts at x880 (the bracket group runs 880..899), so the
 			# gap after "a)" is real. At NAME_X-40 (869) our '[' landed ON the ')'.
@@ -574,14 +593,18 @@ func _draw_rows() -> void:
 			var iw := "[%d lbs.]" % int(r.get("weight", 0))
 			var iww := _font.get_string_size(iw, HORIZONTAL_ALIGNMENT_LEFT, -1, ITEM_FONT).x
 			_content.draw_string(_font, Vector2(ITEM_W_EDGE - LIST_X - iww, base), iw,
-				HORIZONTAL_ALIGNMENT_LEFT, -1, ITEM_FONT, C_DIM)
+				HORIZONTAL_ALIGNMENT_LEFT, -1, ITEM_FONT, C_ITEM_W)
 
 func _draw_markup(target: CanvasItem, s: String, pos: Vector2) -> void:
 	_draw_markup_sized(target, s, pos, ITEM_FONT)
 
+## The colour an unmarked run of an item name falls back to (InventoryLine.text).
+func _item_default() -> Color:
+	return C_ITEM
+
 func _draw_markup_sized(target: CanvasItem, s: String, pos: Vector2, size: int) -> void:
 	var x := pos.x
-	for run in QudText.runs(s, _palette, C_DIM):
+	for run in QudText.runs(s, _palette, _item_default()):
 		var txt: String = run[0]
 		if txt == "":
 			continue

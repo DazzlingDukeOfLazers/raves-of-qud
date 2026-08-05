@@ -277,3 +277,17 @@ add a one-liner (symptom → rule).
 - **A leaf that does not span the row cannot score the row.** `list_cat` was 420px wide and
   stopped at x1275, so the weight column at x1578-1673 was never in it -- changes there moved
   no number at all.
+- **Item rows: `text` and `hotkeyText` are RGBA(0.690, 0.780, 0.760); `itemWeightText` is the
+  SAME (59,93,113) as the whole category row.** Read off the live InventoryLine, like the rest.
+- **...but for the ITEM_FONT text those are not the values to DRAW.** At 16px the glyph stems are
+  thin enough that anti-aliasing decides the result, and Godot's rasteriser reaches nearer to full
+  colour than Qud's. Qud proves it against itself: the item weight and the category name carry the
+  identical (59,93,113), yet the category renders (52,83,102) at ROW_FONT and the weight only
+  (40,67,81) at ITEM_FONT. So the three ITEM_FONT colours are FITTED to land Qud's rendered ink
+  (name (147,171,166), weight (46,74,89), hotkey (139,164,160)) while every ROW_FONT colour stays
+  Qud's literal value, which matches exactly. Same concession as the 2.5x sprite phase.
+- Even at one size the fit is per-element: the hotkey and the name carry the same source colour and
+  still render 9 apart, because ")" is thinner than a letter.
+- **Sample a colour down a whole COLUMN, not off one row.** "b)" is two glyphs: it gave n=2 and a
+  reading 16 off the truth, which sent one round of fitting the wrong way. The same column over all
+  rows gives n>300 and a stable answer.

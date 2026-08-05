@@ -248,6 +248,11 @@ namespace RavesOfQud
                                         ? il.categoryWeightText.color.ToString() : "null")
                                     + " | hotkey " + (il.hotkeyText != null
                                         ? il.hotkeyText.color.ToString() : "null"));
+                                System.Console.WriteLine("[raves] item row colours: text "
+                                    + (il.text != null ? il.text.color.ToString() : "null")
+                                    + " | itemWeight " + (il.itemWeightText != null
+                                        ? il.itemWeightText.color.ToString() : "null")
+                                    + " | text content '" + (il.text != null ? il.text.text : "") + "'");
                                 if (!string.IsNullOrEmpty(cl.text)) break;
                             }
                     }
