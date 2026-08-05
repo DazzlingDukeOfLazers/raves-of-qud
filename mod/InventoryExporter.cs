@@ -145,6 +145,19 @@ namespace RavesOfQud
                 foreach (GameObject go in items) { try { catWeight += go.Weight; } catch { } }
                 j.BeginObject();
                 j.Member("name", cat).Member("weight", catWeight).Member("count", items.Count);
+                // Qud's OWN filter-bar icon for this category (FilterBarCategoryButton's
+                // static categoryImageMap) plus the fixed two-tone it paints them with.
+                try
+                {
+                    string icon;
+                    if (Qud.UI.FilterBarCategoryButton.categoryImageMap.TryGetValue(cat, out icon)
+                        && !string.IsNullOrEmpty(icon))
+                    {
+                        TileExporter.Ensure(icon);
+                        j.Member("icon", icon);
+                    }
+                }
+                catch { }
                 j.Name("items").BeginArray();
                 foreach (GameObject go in items)
                 {

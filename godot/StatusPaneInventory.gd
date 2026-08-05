@@ -157,6 +157,11 @@ func _draw_static() -> void:
 	# header: "{{B|$drams}} | {{C|carried{{K|/max}} lbs.}}" — Qud's own strings
 	var hdr := "{{B|$%d}} {{K|│}} {{C|%d{{K|/%d}} lbs.}}" % [int(_data.get("drams", 0)),
 		int(_data.get("carried", 0)), int(_data.get("maxCarried", 0))]
+	# Right-aligned on Qud's edge at the pane's body size. MEASURED, unresolved: Qud's
+	# block spans x1548..1753 (205px) and y220..249 while ours renders 160px wide at
+	# 16px; drawing it at 20px matches the left edge but the glyphs still don't line
+	# up (band diff 13.3 -> 16.0), so the size alone isn't the difference — likely a
+	# different face/tracking for this header. Left at the better-scoring form.
 	var w := _font.get_string_size(QudText.strip(hdr), HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
 	_draw_markup(_static, hdr, Vector2(ITEM_W_EDGE - w, 232))
 
@@ -180,17 +185,22 @@ func _draw_filter_strip() -> void:
 		var rect := Rect2(Vector2(x, FILT_Y), Vector2(FILT_W, FILT_H))
 		_static.draw_rect(rect, C_GOLD if _enabled.has(cname) else C_BOX, false, 1.0)
 		_filt_rects.append([rect, cname])
+		# QUD'S OWN filter icon (FilterBarCategoryButton.categoryImageMap), painted in
+		# the fixed two-tone that button uses; falls back to the category's first item.
+		var icon := str(cat.get("icon", ""))
+		var main := Color(0.596, 0.529, 0.372)
+		var det := Color(0.545, 0.4, 0.18)
 		var items: Array = cat.get("items", [])
-		if items.size() > 0:
+		if icon == "" and items.size() > 0:
 			var it: Dictionary = items[0]
-			var tile := str(it.get("tile", ""))
-			if tile != "":
-				var tex: Texture2D = _tiles.texture(tile,
-					_tiles.color_of(str(it.get("color", "")), Color.WHITE),
-					_tiles.color_of(str(it.get("detail", "")), Color.WHITE))
-				if tex != null:
-					_static.draw_texture_rect(tex,
-						Rect2(Vector2(x + 13, FILT_Y + 6), Vector2(18, 26)), false)
+			icon = str(it.get("tile", ""))
+			main = _tiles.color_of(str(it.get("color", "")), Color.WHITE)
+			det = _tiles.color_of(str(it.get("detail", "")), Color.WHITE)
+		if icon != "":
+			var tex: Texture2D = _tiles.texture(icon, main, det)
+			if tex != null:
+				_static.draw_texture_rect(tex,
+					Rect2(Vector2(x + 13, FILT_Y + 6), Vector2(18, 26)), false)
 		x += FILT_PITCH
 
 ## Qud's body-slot grid. Slots it doesn't recognise are ignored — the doll is a
@@ -298,13 +308,16 @@ func _draw_rows() -> void:
 				HORIZONTAL_ALIGNMENT_LEFT, -1, 16, C_DIM)
 
 func _draw_markup(target: CanvasItem, s: String, pos: Vector2) -> void:
+	_draw_markup_sized(target, s, pos, 16)
+
+func _draw_markup_sized(target: CanvasItem, s: String, pos: Vector2, size: int) -> void:
 	var x := pos.x
 	for run in QudText.runs(s, _palette, C_DIM):
 		var txt: String = run[0]
 		if txt == "":
 			continue
-		target.draw_string(_font, Vector2(x, pos.y), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, run[1])
-		x += _font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
+		target.draw_string(_font, Vector2(x, pos.y), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, size, run[1])
+		x += _font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
 
 func _draw_tile(r: Dictionary, pos: Vector2) -> void:
 	var tile := str(r.get("tile", ""))

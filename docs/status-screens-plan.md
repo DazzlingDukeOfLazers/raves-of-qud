@@ -95,8 +95,17 @@ always visible in the bar).
    FILTER SELECTION WIRED: clicking a cell toggles that category in/out of an enabled set (Qud's
    `enabledCategories` model — multi-select), ALL clears it, and an empty set means "*All"; the active
    cells are gold-framed and the list + hotkey letters rebuild. Verified live: 341 rows of content ->
-   Food only, then Food+Meds, then ALL back to 341. OPEN: (1) header sits ~2px off. (2) Qud's fixed
-   per-category filter ICONS are still stood in with each category's first item tile.
+   Food only, then Food+Meds, then ALL back to 341. CATEGORY ICONS are now QUD'S OWN: the exporter reads
+   `FilterBarCategoryButton.categoryImageMap` (Light Sources -> sw_torch_lit, Armor -> sw_leather_armor,
+   …) and the strip paints them in that button's fixed two-tone (0.596,0.529,0.372 / 0.545,0.4,0.18),
+   falling back to the category's first item tile for an unmapped category.
+   **MEASUREMENT CAVEAT for this tab:** `equipment_qud.png` was captured on a DIFFERENT inventory
+   (cloth robe / canteen) than the live save, so per-region diffs here include real CONTENT
+   differences — only geometry/structure comparisons are meaningful until a matched-state reference
+   is recaptured. OPEN: the header block still doesn't line up — Qud's spans x1548..1753 (205px) and
+   y220..249 where ours renders 160px at 16px; drawing at 20px matched the left edge but WORSENED the
+   glyph diff (13.3 -> 16.0), so it is a different face/tracking, not just size. Left at the
+   better-scoring 16px form.
 8. **Tinkering** — most complex (bits, recipes, modes).
 
 Interactivity (buy mutation, equip, tinker, quest tracking) follows the menus-V3 law:
