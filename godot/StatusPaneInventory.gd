@@ -280,8 +280,12 @@ func _draw_doll() -> void:
 					_tiles.color_of(str(sl.get("color", "")), Color.WHITE),
 					_tiles.color_of(str(sl.get("detail", "")), Color.WHITE))
 				if tex != null:
+					# MEASURED, not guessed: Qud's equipped-item ink spans ~47x48 inside the
+					# 55x62 slot (bark armor 47x48, torch 47x45, boots 47x43) where ours
+					# spanned 22x25 — the sprite nearly fills the cell rather than sitting
+					# small in the middle.
 					_static.draw_texture_rect(tex,
-						Rect2(pos + Vector2(14, 12), Vector2(26, 39)), false)
+						Rect2(pos + Vector2(4, 6), Vector2(47, 50)), false)
 			if bool(sl.get("primary", false)):
 				_static.draw_string(_font, pos + Vector2(-8, BOX_H + 14), "*",
 					HORIZONTAL_ALIGNMENT_LEFT, -1, 14, C_GOLD)

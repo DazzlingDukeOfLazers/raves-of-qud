@@ -223,3 +223,16 @@ where ours spans ~13x13 — we draw a sprite with a smaller opaque area, not a m
 attempts (26x26, then an aspect-correct 18x27) both scored WORSE (11.53 -> 11.89 / 11.61) and were
 reverted. NEXT: chase WHICH sprite each cell receives (the category-to-icon pairing under Qud's
 ordering), not its size or colour. Strip stands at **11.53**, full frame **4.52**.
+
+
+## Equipment paper doll — item tile size (2026-08-04)
+
+Daniel: "Qud's doll images look ~20% bigger." Measured: Qud's equipped-item INK spans ~47x48 inside
+the 55x62 slot (bark armor 47x48, torch 47x45, boots 47x43) where ours spanned 22x25 — more than
+DOUBLE, not 20%. The draw rect is now 47x50 at slot+(4,6); our ink measures 41x32, closer but still
+short of Qud's, which suggests Qud renders these at a larger source scale rather than stretching the
+16x24 tile (our sprite runs out of opaque rows before filling the box).
+
+Numbers after the change: doll band 5.59 -> 5.63 (flat), FULL FRAME 4.52 -> 5.20. That full-frame
+jump is NOT explained by the doll region alone and was not investigated — re-measure with a fresh
+matched reference before drawing conclusions from it.
