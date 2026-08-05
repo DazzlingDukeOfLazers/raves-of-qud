@@ -128,6 +128,31 @@ namespace RavesOfQud
             catch (Exception e) { System.Console.WriteLine("[raves] body scan: " + e.Message); }
             j.EndArray();
 
+            // FILTER-STRIP ORDER, Qud's way: its item list is sorted by sortString (the
+            // item's stripped lowercase DISPLAY NAME, globally — not by category), and
+            // filterBarCategories collects each category on FIRST APPEARANCE in that list.
+            // So the strip order is "category of the alphabetically-first item", which is
+            // nothing like the alphabetical category order the list itself uses.
+            try
+            {
+                var flat = new List<KeyValuePair<string, string>>();   // sortName -> category
+                foreach (var kv in cats)
+                    foreach (GameObject go in kv.Value)
+                    {
+                        string sn = "";
+                        try { sn = (go.DisplayNameOnlyStripped ?? "").ToLowerInvariant(); } catch { }
+                        flat.Add(new KeyValuePair<string, string>(sn, kv.Key));
+                    }
+                flat.Sort((a, b) => string.CompareOrdinal(a.Key, b.Key));
+                var seen = new List<string>();
+                foreach (var kv in flat)
+                    if (!seen.Contains(kv.Value)) seen.Add(kv.Value);
+                j.Name("filterOrder").BeginArray();
+                foreach (string n in seen) j.Value(n);
+                j.EndArray();
+            }
+            catch (Exception e) { System.Console.WriteLine("[raves] filter order: " + e.Message); }
+
             var names = new List<string>(cats.Keys);
             names.Sort(StringComparer.OrdinalIgnoreCase);
             j.Name("categories").BeginArray();

@@ -180,7 +180,19 @@ func _draw_filter_strip() -> void:
 	_static.draw_string(_font, Vector2(x + (FILT_W - aw) * 0.5, FILT_Y + 25), "ALL",
 		HORIZONTAL_ALIGNMENT_LEFT, -1, 14, C_GOLD if _enabled.is_empty() else C_LABEL)
 	x += FILT_PITCH
-	for cat in cats:
+	# strip order is QUD'S (filterOrder: category of the alphabetically-first item),
+	# which differs from the list's alphabetical category order
+	var order: Array = _data.get("filterOrder", [])
+	var by_name := {}
+	for c in cats:
+		by_name[str(c.get("name", ""))] = c
+	var strip: Array = []
+	for n in order:
+		if by_name.has(str(n)):
+			strip.append(by_name[str(n)])
+	if strip.is_empty():
+		strip = cats
+	for cat in strip:
 		var cname := str(cat.get("name", ""))
 		var rect := Rect2(Vector2(x, FILT_Y), Vector2(FILT_W, FILT_H))
 		_static.draw_rect(rect, C_GOLD if _enabled.has(cname) else C_BOX, false, 1.0)
