@@ -72,12 +72,14 @@ always visible in the bar).
    (markup intact), item weight `[n lbs.]`, category weight `|n lbs.|`, header `${GetFreeDrams()}` +
    `carried/max` (verified $32, 45/285 against the reference). NOTE: `RenderForUI` returns a
    RenderEvent — read its `_Tile`/`ColorString`/`DetailColor` FIELDS, not the Renderable accessors.
-   `StatusPaneInventory.gd` is wired into the tab but RENDERS BLANK (tab bar, scrim and hints are
-   right; the list area is empty) — same symptom class as the skills pane's first pass, unresolved:
-   instrument `_load_inventory`/`setup` next session, prime suspect is a runtime error in
-   `_relayout` (the `row.merge(it)` over a JSON Variant) killing the draw. The PAPER DOLL (left half:
-   body slots) is a separate slice after that; hotkey letters currently skip d/e/q/s, measured off
-   the reference and still to be confirmed against Qud's HotkeySpread.
+   `StatusPaneInventory.gd` RENDERS (list area **7.49 mean-diff**): letters, category rows with
+   `[-]`/`[+]` + `|n lbs.|`, item tiles + names + `[n lbs.]`, and the `$drams | carried/max` header.
+   The earlier "blank pane" was a STALE BUILD, not a code fault — instrumentation showed setup/rows/
+   draw all firing correctly on a rebuild (lesson: verify the running build before debugging the
+   code). Hotkey letters match Qud's spread exactly on this character, including the d/e/q/s skips.
+   OPEN: (1) worn armour exports as `{{b|♦}}1 {{K|⇥}}0` — `GameObject.DisplayName` returns only the
+   AV/DV badges for it, so "cloth robe" is missing; find the right name accessor. (2) The PAPER DOLL
+   (left half: body slots) is the next slice. (3) Header sits ~2px off (13.3 in that band).
 8. **Tinkering** — most complex (bits, recipes, modes).
 
 Interactivity (buy mutation, equip, tinker, quest tracking) follows the menus-V3 law:

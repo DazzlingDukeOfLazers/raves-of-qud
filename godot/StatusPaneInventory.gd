@@ -19,7 +19,7 @@ extends Control
 
 const ROW_H := 26.0
 const LIST_X := 855.0
-const LIST_Y := 240.0
+const LIST_Y := 235.0   # first row top lands on Qud's y240 with the +16 baseline
 const LIST_W := 910.0
 const LIST_H := 660.0
 const LETTER_X := 861.0
@@ -123,7 +123,7 @@ func _draw_static() -> void:
 	var hdr := "{{B|$%d}} {{K|│}} {{C|%d{{K|/%d}} lbs.}}" % [int(_data.get("drams", 0)),
 		int(_data.get("carried", 0)), int(_data.get("maxCarried", 0))]
 	var w := _font.get_string_size(QudText.strip(hdr), HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
-	_draw_markup(_static, hdr, Vector2(ITEM_W_EDGE - w, 234))
+	_draw_markup(_static, hdr, Vector2(ITEM_W_EDGE - w, 232))
 
 func _draw_rows() -> void:
 	var off := -_scroll
