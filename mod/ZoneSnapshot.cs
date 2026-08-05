@@ -998,6 +998,24 @@ namespace RavesOfQud
                         // Qud never draws Visible=false (widgets, hidden objects) — don't ship them.
                         if (!r.Visible) continue;
 
+                        // UNEXAMINED ARTIFACTS draw as their unknown-SAMPLE's art, not their
+                        // own: the EpistemicDisguise EFFECT substitutes the sample's tile,
+                        // colours and layer into the render event at draw time, which the
+                        // getTile()/Render-part reads below bypass entirely. Mirror the
+                        // substitution (visibility stays the real object's). Found by the
+                        // checker's pixel pass — all 76 cybernetics diverged category-wide
+                        // (reports/2026-08-04-checker-pixel-findings.md §1).
+                        try
+                        {
+                            var disguise = go.GetEffect<XRL.World.Effects.EpistemicDisguise>();
+                            if (disguise != null && disguise.Sample != null)
+                            {
+                                Render sr = disguise.Sample.GetPart<Render>();
+                                if (sr != null) r = sr;
+                            }
+                        }
+                        catch { }
+
                         // Drawable = has ART or a GLYPH. Requiring RenderString
                         // silently dropped every tile-only object: RenderString is
                         // just the ASCII fallback, and in tile mode Qud draws from

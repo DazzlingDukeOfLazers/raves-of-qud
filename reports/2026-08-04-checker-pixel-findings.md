@@ -7,7 +7,7 @@ everything PASS. Cell-crop pairs for every flagged element are committed under
 `reports/checker/evidence/<cat>/` (full frames are scratch, gitignored). The
 failures collapse into four families (+ creature singles):
 
-## 1. Implants render a DIFFERENT TILE in Qud vs the wire (whole category)
+## 1. ~~Implants render a DIFFERENT TILE~~ FIXED 2026-08-04 (76/76 pixel PASS)
 
 Every cybernetic scores WARN/FAIL. Eyeballed `AirCurrentMicrosensor`: Qud's own
 ground render is a small blue pile sprite; Raves draws the wire's tile — the
@@ -15,7 +15,7 @@ item's full device art (orange+blue). The mod's snapshot carries a tile that is
 NOT what Qud's renderer chooses for cybernetics on the floor. Fix belongs in
 `ZoneSnapshot`'s tile choice (reflect how Qud picks ground art for takeable
 items — "reflect, don't guess") — not in the Godot client.
-**All 76 flagged implants are one bug.**
+**Root cause: the `EpistemicDisguise` EFFECT substitutes the unknown-sample's art at render time for unexamined artifacts; the mod's getTile() bypass missed it. ZoneSnapshot now mirrors the substitution. Re-sweep: 76 PASS / 0 WARN / 0 FAIL.**
 
 ## 2. Conveyor pads (+Crematory variants, DisabledSwitch): uniform ~118 mean / 78% hot
 
