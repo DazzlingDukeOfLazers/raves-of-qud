@@ -4,7 +4,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat1'"
+   "wire tile != blueprint tile 'items_sw_splat3'"
   ],
   "stage": {
    "bp": "Albino ape corpse",
@@ -13,7 +13,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat1.bmp",
+   "tile": "Items/sw_splat3.bmp",
    "color": "&Y",
    "detail": "w",
    "name": "{{Y|albino ape}} corpse"
@@ -25,8 +25,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Albino_ape_corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.62,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.55,
+   "pct_hot": 2.1,
    "band": "PASS",
    "white_px": [
     0,
@@ -62,12 +62,12 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Albino_Ape_Heart_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.43,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.19,
+   "pct_hot": 0.9,
    "band": "PASS",
    "white_px": [
     0,
-    0
+    110
    ],
    "dominant_delta": 0,
    "wire_delta": 150
@@ -99,8 +99,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Amaranthine_Dust_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.55,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 3.74,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -115,7 +115,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat3'"
+   "wire tile != blueprint tile 'items_sw_splat2'"
   ],
   "stage": {
    "bp": "Ancient Corpse",
@@ -124,7 +124,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat3.bmp",
+   "tile": "Items/sw_splat2.bmp",
    "color": "&y",
    "detail": "Y",
    "name": "mummified corpse"
@@ -136,8 +136,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Ancient_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.57,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 3.7,
+   "pct_hot": 1.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -152,7 +152,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat3'"
+   "wire tile != blueprint tile 'items_sw_splat2'"
   ],
   "stage": {
    "bp": "Animal Corpse",
@@ -161,7 +161,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat3.bmp",
+   "tile": "Items/sw_splat2.bmp",
    "color": "&w",
    "detail": "w",
    "name": "[Corpse]"
@@ -173,8 +173,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Animal_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.58,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.05,
+   "pct_hot": 1.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -210,8 +210,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Arsplice_Seed_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.11,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.61,
+   "pct_hot": 1.1,
    "band": "PASS",
    "white_px": [
     0,
@@ -225,7 +225,9 @@
   "bp": "Arthropod Corpse",
   "pass": true,
   "reasons": [],
-  "warns": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat4'"
+  ],
   "stage": {
    "bp": "Arthropod Corpse",
    "ok": true,
@@ -233,7 +235,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat3.bmp",
+   "tile": "Items/sw_splat4.bmp",
    "color": "&w",
    "detail": "w",
    "name": "[Corpse]"
@@ -245,8 +247,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Arthropod_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.57,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.42,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -282,8 +284,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Baboon_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.56,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.58,
+   "pct_hot": 2.1,
    "band": "PASS",
    "white_px": [
     0,
@@ -319,8 +321,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Banana_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.22,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.48,
+   "pct_hot": 0.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -335,7 +337,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat1'"
+   "wire tile != blueprint tile 'items_sw_splat4'"
   ],
   "stage": {
    "bp": "Barkbiter Corpse",
@@ -344,7 +346,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat1.bmp",
+   "tile": "Items/sw_splat4.bmp",
    "color": "&w",
    "detail": "w",
    "name": "barkbiter corpse"
@@ -356,8 +358,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Barkbiter_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.63,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.45,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -393,8 +395,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Barkbiter_Jerky_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.38,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.63,
+   "pct_hot": 2.2,
    "band": "PASS",
    "white_px": [
     0,
@@ -408,9 +410,7 @@
   "bp": "Bat Corpse",
   "pass": true,
   "reasons": [],
-  "warns": [
-   "wire tile != blueprint tile 'items_sw_splat2'"
-  ],
+  "warns": [],
   "stage": {
    "bp": "Bat Corpse",
    "ok": true,
@@ -418,7 +418,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat2.bmp",
+   "tile": "Items/sw_splat4.bmp",
    "color": "&w",
    "detail": "w",
    "name": "bat corpse"
@@ -430,8 +430,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Bat_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.61,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.42,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -446,7 +446,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat2'"
+   "wire tile != blueprint tile 'items_sw_splat1'"
   ],
   "stage": {
    "bp": "Bear Corpse",
@@ -455,7 +455,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat2.bmp",
+   "tile": "Items/sw_splat1.bmp",
    "color": "&w",
    "detail": "w",
    "name": "bear corpse"
@@ -467,8 +467,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Bear_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.62,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.79,
+   "pct_hot": 0.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -504,8 +504,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Bear_Jerky_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.37,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.57,
+   "pct_hot": 2.2,
    "band": "PASS",
    "white_px": [
     0,
@@ -541,8 +541,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Beetle_Jerky_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.31,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.93,
+   "pct_hot": 1.2,
    "band": "PASS",
    "white_px": [
     0,
@@ -578,8 +578,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Black_Puma_Haunch_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.27,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.64,
+   "pct_hot": 0.7,
    "band": "PASS",
    "white_px": [
     0,
@@ -594,7 +594,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat1'"
+   "wire tile != blueprint tile 'items_sw_splat4'"
   ],
   "stage": {
    "bp": "Bloated Pearlfrog Corpse",
@@ -603,7 +603,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat1.bmp",
+   "tile": "Items/sw_splat4.bmp",
    "color": "&w",
    "detail": "w",
    "name": "bloated pearlfrog corpse"
@@ -615,8 +615,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Bloated_Pearlfrog_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.62,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.37,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -631,7 +631,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat1'"
+   "wire tile != blueprint tile 'items_sw_splat4'"
   ],
   "stage": {
    "bp": "Boar Corpse",
@@ -640,7 +640,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat1.bmp",
+   "tile": "Items/sw_splat4.bmp",
    "color": "&w",
    "detail": "w",
    "name": "boar corpse"
@@ -652,8 +652,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Boar_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.61,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.39,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -689,8 +689,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Boar_Jerky_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.26,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.75,
+   "pct_hot": 0.7,
    "band": "PASS",
    "white_px": [
     0,
@@ -726,12 +726,12 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Bone_Worm_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.34,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 4.06,
+   "pct_hot": 1.7,
    "band": "PASS",
    "white_px": [
     0,
-    0
+    132
    ],
    "dominant_delta": 0,
    "wire_delta": 239
@@ -763,8 +763,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Bop_Cheek_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.44,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.7,
+   "pct_hot": 0.7,
    "band": "PASS",
    "white_px": [
     0,
@@ -779,7 +779,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_bouquet_3'"
+   "wire tile != blueprint tile 'items_sw_bouquet_4'"
   ],
   "stage": {
    "bp": "Bouquet",
@@ -788,27 +788,27 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_bouquet_3.bmp",
-   "color": "&R",
+   "tile": "Items/sw_bouquet_4.bmp",
+   "color": "&m",
    "detail": "G",
    "name": "bouquet of flowers"
   },
   "wire_objs": 1,
-  "wire_hex": "d74200",
+  "wire_hex": "b154cf",
   "shots": {
    "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Bouquet_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Bouquet_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.15,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.13,
+   "pct_hot": 1.0,
    "band": "PASS",
    "white_px": [
     0,
     0
    ],
    "dominant_delta": 0,
-   "wire_delta": 199
+   "wire_delta": 161
   }
  },
  {
@@ -837,8 +837,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Bundle_of_Noisegrass_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.25,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.77,
+   "pct_hot": 0.5,
    "band": "PASS",
    "white_px": [
     0,
@@ -874,8 +874,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Canned_Have-It-All_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.53,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 3.82,
+   "pct_hot": 1.7,
    "band": "PASS",
    "white_px": [
     0,
@@ -890,7 +890,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat1'"
+   "wire tile != blueprint tile 'items_sw_splat4'"
   ],
   "stage": {
    "bp": "Cave Spider Corpse",
@@ -899,7 +899,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat1.bmp",
+   "tile": "Items/sw_splat4.bmp",
    "color": "&w",
    "detail": "w",
    "name": "cave spider corpse"
@@ -911,8 +911,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Cave_Spider_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.61,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.42,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -927,7 +927,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_bones_4'"
+   "wire tile != blueprint tile 'items_sw_bones_8'"
   ],
   "stage": {
    "bp": "CaverCorpse",
@@ -936,7 +936,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_bones_4.bmp",
+   "tile": "Items/sw_bones_8.bmp",
    "color": "&y",
    "detail": "",
    "name": "{{Y|ancient bones}}"
@@ -948,8 +948,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\CaverCorpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 5.82,
-   "pct_hot": 3.4,
+   "mean_abs_diff": 3.44,
+   "pct_hot": 1.7,
    "band": "PASS",
    "white_px": [
     0,
@@ -964,7 +964,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_bones_7'"
+   "wire tile != blueprint tile 'items_sw_bones_4'"
   ],
   "stage": {
    "bp": "CaverCorpse2",
@@ -973,27 +973,27 @@
    "x": 40,
    "y": 12,
    "cleared": 7,
-   "tile": "Items/sw_bones_7.bmp",
-   "color": "&Y",
+   "tile": "Items/sw_bones_4.bmp",
+   "color": "&y",
    "detail": "",
    "name": "{{Y|ancient bones}}"
   },
   "wire_objs": 1,
-  "wire_hex": "ffffff",
+  "wire_hex": "b1c9c3",
   "shots": {
    "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\CaverCorpse2_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\CaverCorpse2_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 4.87,
-   "pct_hot": 2.7,
+   "mean_abs_diff": 4.79,
+   "pct_hot": 2.5,
    "band": "PASS",
    "white_px": [
     0,
     0
    ],
    "dominant_delta": 0,
-   "wire_delta": 239
+   "wire_delta": 161
   }
  },
  {
@@ -1001,7 +1001,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat4'"
+   "wire tile != blueprint tile 'items_sw_splat1'"
   ],
   "stage": {
    "bp": "Charred Corpse",
@@ -1010,7 +1010,7 @@
    "x": 40,
    "y": 12,
    "cleared": 7,
-   "tile": "Items/sw_splat4.bmp",
+   "tile": "Items/sw_splat1.bmp",
    "color": "&K",
    "detail": "y",
    "name": "charred corpse"
@@ -1022,7 +1022,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Charred_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.64,
+   "mean_abs_diff": 1.67,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1059,8 +1059,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Charred_Goatfolk_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.63,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.07,
+   "pct_hot": 1.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -1074,7 +1074,9 @@
   "bp": "Chitinous Puma Corpse",
   "pass": true,
   "reasons": [],
-  "warns": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat4'"
+  ],
   "stage": {
    "bp": "Chitinous Puma Corpse",
    "ok": true,
@@ -1094,8 +1096,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Chitinous_Puma_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.62,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.43,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -1131,7 +1133,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Clue_SeveredTongue_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.17,
+   "mean_abs_diff": 1.05,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1168,8 +1170,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Clue_YuckwheatChaff_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.19,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.12,
+   "pct_hot": 1.6,
    "band": "PASS",
    "white_px": [
     0,
@@ -1205,8 +1207,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Clump_of_Grave_Moss_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.74,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 3.03,
+   "pct_hot": 1.4,
    "band": "PASS",
    "white_px": [
     0,
@@ -1242,12 +1244,12 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Compacted_Bone_Matter_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.16,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.34,
+   "pct_hot": 0.7,
    "band": "PASS",
    "white_px": [
     0,
-    0
+    158
    ],
    "dominant_delta": 0,
    "wire_delta": 239
@@ -1279,12 +1281,12 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Compacted_Bone_Meal_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.53,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 4.18,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
-    0
+    130
    ],
    "dominant_delta": 0,
    "wire_delta": 239
@@ -1295,7 +1297,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat2'"
+   "wire tile != blueprint tile 'items_sw_splat3'"
   ],
   "stage": {
    "bp": "ConfusionBreatherCorpse",
@@ -1304,7 +1306,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat2.bmp",
+   "tile": "Items/sw_splat3.bmp",
    "color": "&w",
    "detail": "w",
    "name": "mazebeard corpse"
@@ -1316,8 +1318,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\ConfusionBreatherCorpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.62,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.58,
+   "pct_hot": 2.1,
    "band": "PASS",
    "white_px": [
     0,
@@ -1353,8 +1355,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\ConfusionBreatherGland_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.37,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.92,
+   "pct_hot": 1.7,
    "band": "PASS",
    "white_px": [
     0,
@@ -1390,8 +1392,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\ConfusionBreatherGlandPaste_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.54,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 3.68,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -1427,8 +1429,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Congealed_Blaze_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.43,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 4.68,
+   "pct_hot": 2.5,
    "band": "PASS",
    "white_px": [
     0,
@@ -1464,8 +1466,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Congealed_Hulk_Honey_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.43,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 4.63,
+   "pct_hot": 2.5,
    "band": "PASS",
    "white_px": [
     0,
@@ -1499,8 +1501,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Congealed_Love_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.46,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 4.76,
+   "pct_hot": 2.5,
    "band": "PASS",
    "white_px": [
     0,
@@ -1534,8 +1536,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Congealed_Rubbergum_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.44,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 4.87,
+   "pct_hot": 2.5,
    "band": "PASS",
    "white_px": [
     0,
@@ -1569,12 +1571,12 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Congealed_Salve_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.48,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 5.21,
+   "pct_hot": 2.5,
    "band": "PASS",
    "white_px": [
     0,
-    0
+    66
    ],
    "dominant_delta": 0,
    "wire_delta": 161
@@ -1604,8 +1606,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Congealed_Shade_Oil_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.41,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 4.45,
+   "pct_hot": 2.1,
    "band": "PASS",
    "white_px": [
     0,
@@ -1639,8 +1641,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Congealed_Skulk_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.44,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 4.63,
+   "pct_hot": 2.5,
    "band": "PASS",
    "white_px": [
     0,
@@ -1676,8 +1678,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.65,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.41,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -1692,7 +1694,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat1'"
+   "wire tile != blueprint tile 'items_sw_splat2'"
   ],
   "stage": {
    "bp": "CorrosiveBreatherCorpse",
@@ -1701,7 +1703,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat1.bmp",
+   "tile": "Items/sw_splat2.bmp",
    "color": "&w",
    "detail": "w",
    "name": "tartbeard corpse"
@@ -1713,8 +1715,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\CorrosiveBreatherCorpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.62,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.05,
+   "pct_hot": 1.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -1750,8 +1752,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\CorrosiveBreatherGland_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.38,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.81,
+   "pct_hot": 1.7,
    "band": "PASS",
    "white_px": [
     0,
@@ -1787,8 +1789,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\CorrosiveBreatherGlandPaste_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.53,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 3.57,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -1803,7 +1805,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat1'"
+   "wire tile != blueprint tile 'items_sw_splat4'"
   ],
   "stage": {
    "bp": "Crab Corpse",
@@ -1812,7 +1814,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat1.bmp",
+   "tile": "Items/sw_splat4.bmp",
    "color": "&w",
    "detail": "w",
    "name": "[Corpse]"
@@ -1824,8 +1826,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Crab_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.6,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.42,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -1861,8 +1863,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Crab_Jerky_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.3,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.03,
+   "pct_hot": 1.2,
    "band": "PASS",
    "white_px": [
     0,
@@ -1876,7 +1878,9 @@
   "bp": "Croc Corpse",
   "pass": true,
   "reasons": [],
-  "warns": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat3'"
+  ],
   "stage": {
    "bp": "Croc Corpse",
    "ok": true,
@@ -1884,7 +1888,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat1.bmp",
+   "tile": "Items/sw_splat3.bmp",
    "color": "&w",
    "detail": "w",
    "name": "{{g|croc}} corpse"
@@ -1896,8 +1900,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Croc_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.58,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.55,
+   "pct_hot": 2.1,
    "band": "PASS",
    "white_px": [
     0,
@@ -1933,8 +1937,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Croc_Jerky_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.29,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.75,
+   "pct_hot": 0.7,
    "band": "PASS",
    "white_px": [
     0,
@@ -1970,8 +1974,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Crushed_Grave_Moss_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.61,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 3.06,
+   "pct_hot": 1.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -2007,8 +2011,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Crusty_Loaf_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.45,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.09,
+   "pct_hot": 1.0,
    "band": "PASS",
    "white_px": [
     0,
@@ -2044,8 +2048,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Cryptic_Girshling_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.57,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.55,
+   "pct_hot": 2.1,
    "band": "PASS",
    "white_px": [
     0,
@@ -2060,7 +2064,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'terrain_sw_flowers_crystal_2'"
+   "wire tile != blueprint tile 'terrain_sw_flowers_crystal_1'"
   ],
   "stage": {
    "bp": "Crystal Flowers",
@@ -2069,7 +2073,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Terrain/sw_flowers_crystal_2.bmp",
+   "tile": "Terrain/sw_flowers_crystal_1.bmp",
    "color": "&C",
    "detail": "C",
    "name": "crystal flowers"
@@ -2081,8 +2085,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Crystal_Flowers_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.06,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.82,
+   "pct_hot": 1.2,
    "band": "PASS",
    "white_px": [
     0,
@@ -2118,8 +2122,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Crystal_of_Eve_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.27,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.57,
+   "pct_hot": 0.9,
    "band": "PASS",
    "white_px": [
     0,
@@ -2155,8 +2159,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Cured_Dawnglider_Tail_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.41,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 3.49,
+   "pct_hot": 1.7,
    "band": "PASS",
    "white_px": [
     0,
@@ -2171,7 +2175,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat1'"
+   "wire tile != blueprint tile 'items_sw_splat2'"
   ],
   "stage": {
    "bp": "Dawnglider Corpse",
@@ -2180,7 +2184,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat1.bmp",
+   "tile": "Items/sw_splat2.bmp",
    "color": "&w",
    "detail": "w",
    "name": "dawnglider corpse"
@@ -2192,8 +2196,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Dawnglider_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.61,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.05,
+   "pct_hot": 1.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -2227,8 +2231,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Dawnglider_Tail_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.42,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.97,
+   "pct_hot": 1.7,
    "band": "PASS",
    "white_px": [
     0,
@@ -2264,8 +2268,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Defanged_Girshling_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.59,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.56,
+   "pct_hot": 2.1,
    "band": "PASS",
    "white_px": [
     0,
@@ -2301,8 +2305,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Dog_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.62,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.02,
+   "pct_hot": 1.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -2338,8 +2342,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Dreadroot_Tuber_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.23,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.86,
+   "pct_hot": 0.7,
    "band": "PASS",
    "white_px": [
     0,
@@ -2375,8 +2379,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Dream_Smoke_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.17,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 3.85,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -2412,8 +2416,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Dried_Lah_Petals_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.33,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.06,
+   "pct_hot": 1.4,
    "band": "PASS",
    "white_px": [
     0,
@@ -2449,8 +2453,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Dried_Vanta_Petals_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.36,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.25,
+   "pct_hot": 0.7,
    "band": "PASS",
    "white_px": [
     0,
@@ -2465,7 +2469,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat4'"
+   "wire tile != blueprint tile 'items_sw_splat2'"
   ],
   "stage": {
    "bp": "Dromad Corpse",
@@ -2474,7 +2478,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat4.bmp",
+   "tile": "Items/sw_splat2.bmp",
    "color": "&w",
    "detail": "w",
    "name": "dromad corpse"
@@ -2486,8 +2490,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Dromad_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.63,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.05,
+   "pct_hot": 1.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -2523,8 +2527,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Drop_of_Nectar_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.42,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 4.17,
+   "pct_hot": 2.5,
    "band": "PASS",
    "white_px": [
     0,
@@ -2538,7 +2542,9 @@
   "bp": "Earthworm Corpse",
   "pass": true,
   "reasons": [],
-  "warns": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat3'"
+  ],
   "stage": {
    "bp": "Earthworm Corpse",
    "ok": true,
@@ -2546,7 +2552,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat4.bmp",
+   "tile": "Items/sw_splat3.bmp",
    "color": "&w",
    "detail": "w",
    "name": "earthworm corpse"
@@ -2558,8 +2564,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Earthworm_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.61,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.58,
+   "pct_hot": 2.1,
    "band": "PASS",
    "white_px": [
     0,
@@ -2595,8 +2601,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Ekuemekiyyen_Greens_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.37,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.74,
+   "pct_hot": 1.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -2610,9 +2616,7 @@
   "bp": "ElderConfusionBreatherCorpse",
   "pass": true,
   "reasons": [],
-  "warns": [
-   "wire tile != blueprint tile 'items_sw_splat3'"
-  ],
+  "warns": [],
   "stage": {
    "bp": "ElderConfusionBreatherCorpse",
    "ok": true,
@@ -2632,8 +2636,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\ElderConfusionBreatherCorpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.55,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.55,
+   "pct_hot": 2.1,
    "band": "PASS",
    "white_px": [
     0,
@@ -2669,8 +2673,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\ElderConfusionBreatherGland_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.38,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 3.26,
+   "pct_hot": 1.7,
    "band": "PASS",
    "white_px": [
     0,
@@ -2706,8 +2710,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\ElderConfusionBreatherGlandPaste_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.54,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 3.78,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -2722,7 +2726,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat2'"
+   "wire tile != blueprint tile 'items_sw_splat3'"
   ],
   "stage": {
    "bp": "ElderCorrosiveBreatherCorpse",
@@ -2731,7 +2735,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat2.bmp",
+   "tile": "Items/sw_splat3.bmp",
    "color": "&w",
    "detail": "w",
    "name": "elder tartbeard corpse"
@@ -2743,8 +2747,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\ElderCorrosiveBreatherCorpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.61,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.55,
+   "pct_hot": 2.1,
    "band": "PASS",
    "white_px": [
     0,
@@ -2780,8 +2784,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\ElderCorrosiveBreatherGland_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.37,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.94,
+   "pct_hot": 1.7,
    "band": "PASS",
    "white_px": [
     0,
@@ -2817,8 +2821,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\ElderCorrosiveBreatherGlandPaste_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.55,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 3.67,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -2833,7 +2837,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat2'"
+   "wire tile != blueprint tile 'items_sw_splat4'"
   ],
   "stage": {
    "bp": "ElderFireBreatherCorpse",
@@ -2842,7 +2846,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat2.bmp",
+   "tile": "Items/sw_splat4.bmp",
    "color": "&w",
    "detail": "w",
    "name": "elder flamebeard corpse"
@@ -2854,8 +2858,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\ElderFireBreatherCorpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.6,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.4,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -2891,8 +2895,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\ElderFireBreatherGland_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.39,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 3.22,
+   "pct_hot": 1.7,
    "band": "PASS",
    "white_px": [
     0,
@@ -2928,8 +2932,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\ElderFireBreatherGlandPaste_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.56,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 3.79,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -2965,8 +2969,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\ElderIceBreatherCorpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.62,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.41,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -3002,8 +3006,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\ElderIceBreatherGland_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.43,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 3.81,
+   "pct_hot": 1.7,
    "band": "PASS",
    "white_px": [
     0,
@@ -3039,8 +3043,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\ElderIceBreatherGlandPaste_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.54,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 3.97,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -3055,7 +3059,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat2'"
+   "wire tile != blueprint tile 'items_sw_splat3'"
   ],
   "stage": {
    "bp": "ElderNormalityBreatherCorpse",
@@ -3064,7 +3068,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat2.bmp",
+   "tile": "Items/sw_splat3.bmp",
    "color": "&w",
    "detail": "w",
    "name": "elder nullbeard corpse"
@@ -3076,8 +3080,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\ElderNormalityBreatherCorpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.66,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.56,
+   "pct_hot": 2.1,
    "band": "PASS",
    "white_px": [
     0,
@@ -3113,8 +3117,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\ElderNormalityBreatherGland_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.35,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.59,
+   "pct_hot": 0.9,
    "band": "PASS",
    "white_px": [
     0,
@@ -3150,8 +3154,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\ElderNormalityBreatherGlandPaste_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.55,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 3.46,
+   "pct_hot": 1.4,
    "band": "PASS",
    "white_px": [
     0,
@@ -3166,7 +3170,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat4'"
+   "wire tile != blueprint tile 'items_sw_splat2'"
   ],
   "stage": {
    "bp": "ElderPoisonBreatherCorpse",
@@ -3175,7 +3179,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat4.bmp",
+   "tile": "Items/sw_splat2.bmp",
    "color": "&w",
    "detail": "w",
    "name": "elder gallbeard corpse"
@@ -3187,8 +3191,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\ElderPoisonBreatherCorpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.61,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.07,
+   "pct_hot": 1.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -3224,8 +3228,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\ElderPoisonBreatherGland_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.39,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.94,
+   "pct_hot": 1.7,
    "band": "PASS",
    "white_px": [
     0,
@@ -3261,8 +3265,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\ElderPoisonBreatherGlandPaste_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.56,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 3.65,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -3277,7 +3281,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat1'"
+   "wire tile != blueprint tile 'items_sw_splat3'"
   ],
   "stage": {
    "bp": "ElderSleepBreatherCorpse",
@@ -3286,7 +3290,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat1.bmp",
+   "tile": "Items/sw_splat3.bmp",
    "color": "&w",
    "detail": "w",
    "name": "elder dreambeard corpse"
@@ -3298,8 +3302,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\ElderSleepBreatherCorpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.63,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.57,
+   "pct_hot": 2.1,
    "band": "PASS",
    "white_px": [
     0,
@@ -3335,8 +3339,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\ElderSleepBreatherGland_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.36,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 3.59,
+   "pct_hot": 1.7,
    "band": "PASS",
    "white_px": [
     0,
@@ -3372,8 +3376,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\ElderSleepBreatherGlandPaste_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.54,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 3.95,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -3409,8 +3413,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\ElderStunBreatherCorpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.64,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.43,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -3446,8 +3450,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\ElderStunBreatherGland_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.36,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 3.78,
+   "pct_hot": 1.7,
    "band": "PASS",
    "white_px": [
     0,
@@ -3483,8 +3487,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\ElderStunBreatherGlandPaste_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.53,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 4.04,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -3499,7 +3503,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat3'"
+   "wire tile != blueprint tile 'items_sw_splat1'"
   ],
   "stage": {
    "bp": "Electric Snail Corpse",
@@ -3508,7 +3512,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat3.bmp",
+   "tile": "Items/sw_splat1.bmp",
    "color": "&w",
    "detail": "w",
    "name": "electric snail corpse"
@@ -3520,8 +3524,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Electric_Snail_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.61,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.81,
+   "pct_hot": 0.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -3536,7 +3540,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat4'"
+   "wire tile != blueprint tile 'items_sw_splat2'"
   ],
   "stage": {
    "bp": "Electrofuge Corpse",
@@ -3545,7 +3549,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat4.bmp",
+   "tile": "Items/sw_splat2.bmp",
    "color": "&W",
    "detail": "w",
    "name": "electrofuge corpse"
@@ -3557,8 +3561,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Electrofuge_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.63,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.06,
+   "pct_hot": 1.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -3573,7 +3577,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat1'"
+   "wire tile != blueprint tile 'items_sw_splat4'"
   ],
   "stage": {
    "bp": "Enigma Snail Corpse",
@@ -3582,7 +3586,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat1.bmp",
+   "tile": "Items/sw_splat4.bmp",
    "color": "&w",
    "detail": "w",
    "name": "enigma snail corpse"
@@ -3594,8 +3598,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Enigma_Snail_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.64,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.42,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -3609,9 +3613,7 @@
   "bp": "Equimax Corpse",
   "pass": true,
   "reasons": [],
-  "warns": [
-   "wire tile != blueprint tile 'items_sw_splat1'"
-  ],
+  "warns": [],
   "stage": {
    "bp": "Equimax Corpse",
    "ok": true,
@@ -3619,7 +3621,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat1.bmp",
+   "tile": "Items/sw_splat2.bmp",
    "color": "&w",
    "detail": "w",
    "name": "equimax corpse"
@@ -3631,8 +3633,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Equimax_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.62,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.06,
+   "pct_hot": 1.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -3668,8 +3670,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\ExileCorpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.59,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.94,
+   "pct_hot": 1.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -3683,9 +3685,7 @@
   "bp": "Eyeless Crab Corpse",
   "pass": true,
   "reasons": [],
-  "warns": [
-   "wire tile != blueprint tile 'items_sw_splat4'"
-  ],
+  "warns": [],
   "stage": {
    "bp": "Eyeless Crab Corpse",
    "ok": true,
@@ -3693,7 +3693,7 @@
    "x": 40,
    "y": 12,
    "cleared": 4,
-   "tile": "Items/sw_splat4.bmp",
+   "tile": "Items/sw_splat2.bmp",
    "color": "&Y",
    "detail": "w",
    "name": "eyeless crab corpse"
@@ -3705,8 +3705,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Eyeless_Crab_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.6,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.06,
+   "pct_hot": 1.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -3742,12 +3742,12 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Eyeless_Crab_Legs_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.45,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.94,
+   "pct_hot": 0.9,
    "band": "PASS",
    "white_px": [
     0,
-    0
+    170
    ],
    "dominant_delta": 0,
    "wire_delta": 239
@@ -3757,9 +3757,7 @@
   "bp": "Eyeless King Crab Corpse",
   "pass": true,
   "reasons": [],
-  "warns": [
-   "wire tile != blueprint tile 'items_sw_splat1'"
-  ],
+  "warns": [],
   "stage": {
    "bp": "Eyeless King Crab Corpse",
    "ok": true,
@@ -3767,7 +3765,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat1.bmp",
+   "tile": "Items/sw_splat2.bmp",
    "color": "&y",
    "detail": "Y",
    "name": "eyeless king crab corpse"
@@ -3779,8 +3777,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Eyeless_King_Crab_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.61,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.38,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -3814,12 +3812,12 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Eyeless_King_Crab_Legs_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.44,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 3.01,
+   "pct_hot": 0.9,
    "band": "PASS",
    "white_px": [
     0,
-    0
+    170
    ],
    "dominant_delta": 0,
    "wire_delta": 239
@@ -3851,8 +3849,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Fermented_Tongue_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.36,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.66,
+   "pct_hot": 0.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -3888,8 +3886,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Fermented_Yondercane_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.22,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.38,
+   "pct_hot": 1.7,
    "band": "PASS",
    "white_px": [
     0,
@@ -3925,8 +3923,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Fermented_Yuckwheat_Stem_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.24,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.78,
+   "pct_hot": 1.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -3941,7 +3939,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat4'"
+   "wire tile != blueprint tile 'items_sw_splat1'"
   ],
   "stage": {
    "bp": "Fire ant corpse",
@@ -3950,7 +3948,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat4.bmp",
+   "tile": "Items/sw_splat1.bmp",
    "color": "&R",
    "detail": "w",
    "name": "{{r|fire ant}} corpse"
@@ -3962,8 +3960,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Fire_ant_corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.6,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.8,
+   "pct_hot": 0.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -3999,8 +3997,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Fire_Ant_Gaster_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.13,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.31,
+   "pct_hot": 0.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -4036,8 +4034,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Fire_Ant_Gaster_Paste_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.55,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 3.79,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -4052,7 +4050,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat2'"
+   "wire tile != blueprint tile 'items_sw_splat4'"
   ],
   "stage": {
    "bp": "Fire Snout Corpse",
@@ -4061,7 +4059,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat2.bmp",
+   "tile": "Items/sw_splat4.bmp",
    "color": "&r",
    "detail": "w",
    "name": "fire snout corpse"
@@ -4073,8 +4071,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Fire_Snout_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.62,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.41,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -4089,7 +4087,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat3'"
+   "wire tile != blueprint tile 'items_sw_splat2'"
   ],
   "stage": {
    "bp": "FireBreatherCorpse",
@@ -4098,7 +4096,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat3.bmp",
+   "tile": "Items/sw_splat2.bmp",
    "color": "&w",
    "detail": "w",
    "name": "flamebeard corpse"
@@ -4110,8 +4108,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\FireBreatherCorpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.61,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.06,
+   "pct_hot": 1.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -4147,8 +4145,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\FireBreatherGland_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.39,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 3.02,
+   "pct_hot": 1.7,
    "band": "PASS",
    "white_px": [
     0,
@@ -4184,8 +4182,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\FireBreatherGlandPaste_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.55,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 3.69,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -4200,7 +4198,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat2'"
+   "wire tile != blueprint tile 'items_sw_splat1'"
   ],
   "stage": {
    "bp": "Fish Corpse",
@@ -4209,7 +4207,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat2.bmp",
+   "tile": "Items/sw_splat1.bmp",
    "color": "&w",
    "detail": "w",
    "name": "[Corpse]"
@@ -4221,8 +4219,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Fish_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.64,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.83,
+   "pct_hot": 0.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -4258,12 +4256,12 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Fish_Jerky_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.26,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.3,
+   "pct_hot": 0.7,
    "band": "PASS",
    "white_px": [
     0,
-    0
+    210
    ],
    "dominant_delta": 0,
    "wire_delta": 136
@@ -4274,7 +4272,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat1'"
+   "wire tile != blueprint tile 'items_sw_splat3'"
   ],
   "stage": {
    "bp": "Flayed Goatfolk Corpse",
@@ -4283,7 +4281,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat1.bmp",
+   "tile": "Items/sw_splat3.bmp",
    "color": "&R",
    "detail": "w",
    "name": "flayed goatfolk corpse"
@@ -4295,8 +4293,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Flayed_Goatfolk_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.61,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.56,
+   "pct_hot": 2.1,
    "band": "PASS",
    "white_px": [
     0,
@@ -4311,7 +4309,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'terrain_sw_flowers_bunched_2'"
+   "wire tile != blueprint tile 'terrain_sw_flowers_bunched_3'"
   ],
   "stage": {
    "bp": "Flowers",
@@ -4320,27 +4318,27 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Terrain/sw_flowers_bunched_2.bmp",
-   "color": "&W",
-   "detail": "r",
+   "tile": "Terrain/sw_flowers_bunched_3.bmp",
+   "color": "&r",
+   "detail": "R",
    "name": "flowers"
   },
   "wire_objs": 1,
-  "wire_hex": "cfc041",
+  "wire_hex": "a64a2e",
   "shots": {
    "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Flowers_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Flowers_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.39,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.3,
+   "pct_hot": 0.4,
    "band": "PASS",
    "white_px": [
     0,
     0
    ],
    "dominant_delta": 0,
-   "wire_delta": 191
+   "wire_delta": 150
   }
  },
  {
@@ -4369,8 +4367,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Food_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.41,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.97,
+   "pct_hot": 1.0,
    "band": "PASS",
    "white_px": [
     0,
@@ -4406,8 +4404,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Food_Cube_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.24,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.72,
+   "pct_hot": 0.9,
    "band": "PASS",
    "white_px": [
     0,
@@ -4443,8 +4441,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Freeze-Dried_Hoarshrooms_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.21,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 6.1,
+   "pct_hot": 3.1,
    "band": "PASS",
    "white_px": [
     0,
@@ -4459,7 +4457,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat3'"
+   "wire tile != blueprint tile 'items_sw_splat4'"
   ],
   "stage": {
    "bp": "Fresh Corpse",
@@ -4468,7 +4466,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat3.bmp",
+   "tile": "Items/sw_splat4.bmp",
    "color": "&r",
    "detail": "w",
    "name": "fresh corpse"
@@ -4480,8 +4478,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Fresh_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.56,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.42,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -4517,8 +4515,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Frog_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.63,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.85,
+   "pct_hot": 0.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -4554,8 +4552,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Frog_Jerky_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.3,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.0,
+   "pct_hot": 1.2,
    "band": "PASS",
    "white_px": [
     0,
@@ -4591,8 +4589,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\FungusFace_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.41,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.87,
+   "pct_hot": 1.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -4628,8 +4626,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\FungusHead_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.42,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.93,
+   "pct_hot": 1.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -4663,8 +4661,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\FungusLimb_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.42,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.9,
+   "pct_hot": 1.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -4698,8 +4696,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\GenericFace_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.4,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.05,
+   "pct_hot": 1.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -4733,8 +4731,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\GenericHead_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.42,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.04,
+   "pct_hot": 1.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -4768,8 +4766,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\GenericLimb_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.44,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.0,
+   "pct_hot": 1.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -4784,7 +4782,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat3'"
+   "wire tile != blueprint tile 'items_sw_splat2'"
   ],
   "stage": {
    "bp": "Ghost Perch Corpse",
@@ -4793,7 +4791,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat3.bmp",
+   "tile": "Items/sw_splat2.bmp",
    "color": "&m",
    "detail": "w",
    "name": "ghost perch corpse"
@@ -4805,8 +4803,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Ghost_Perch_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.59,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.05,
+   "pct_hot": 1.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -4821,7 +4819,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat1'"
+   "wire tile != blueprint tile 'items_sw_splat3'"
   ],
   "stage": {
    "bp": "Giant Beetle Corpse",
@@ -4830,7 +4828,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat1.bmp",
+   "tile": "Items/sw_splat3.bmp",
    "color": "&w",
    "detail": "w",
    "name": "giant beetle corpse"
@@ -4842,8 +4840,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Giant_Beetle_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.64,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.53,
+   "pct_hot": 2.1,
    "band": "PASS",
    "white_px": [
     0,
@@ -4857,7 +4855,9 @@
   "bp": "Giant Centipede Corpse",
   "pass": true,
   "reasons": [],
-  "warns": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat3'"
+  ],
   "stage": {
    "bp": "Giant Centipede Corpse",
    "ok": true,
@@ -4865,7 +4865,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat4.bmp",
+   "tile": "Items/sw_splat3.bmp",
    "color": "&w",
    "detail": "w",
    "name": "giant centipede corpse"
@@ -4877,8 +4877,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Giant_Centipede_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.64,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.58,
+   "pct_hot": 2.1,
    "band": "PASS",
    "white_px": [
     0,
@@ -4892,9 +4892,7 @@
   "bp": "Giant Dragonfly Corpse",
   "pass": true,
   "reasons": [],
-  "warns": [
-   "wire tile != blueprint tile 'items_sw_splat3'"
-  ],
+  "warns": [],
   "stage": {
    "bp": "Giant Dragonfly Corpse",
    "ok": true,
@@ -4914,8 +4912,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Giant_Dragonfly_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.6,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.59,
+   "pct_hot": 2.1,
    "band": "PASS",
    "white_px": [
     0,
@@ -4929,7 +4927,9 @@
   "bp": "Gibbon Corpse",
   "pass": true,
   "reasons": [],
-  "warns": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat4'"
+  ],
   "stage": {
    "bp": "Gibbon Corpse",
    "ok": true,
@@ -4949,8 +4949,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Gibbon_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.63,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.43,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -4965,7 +4965,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat1'"
+   "wire tile != blueprint tile 'items_sw_splat4'"
   ],
   "stage": {
    "bp": "Girshling Corpse",
@@ -4974,7 +4974,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat1.bmp",
+   "tile": "Items/sw_splat4.bmp",
    "color": "&m",
    "detail": "w",
    "name": "{{m|girshling}} corpse"
@@ -4986,8 +4986,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Girshling_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.6,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.41,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -5002,7 +5002,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat2'"
+   "wire tile != blueprint tile 'items_sw_splat3'"
   ],
   "stage": {
    "bp": "Glowfish Corpse",
@@ -5011,7 +5011,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat2.bmp",
+   "tile": "Items/sw_splat3.bmp",
    "color": "&m",
    "detail": "w",
    "name": "glowfish corpse"
@@ -5023,8 +5023,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Glowfish_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.63,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.57,
+   "pct_hot": 2.1,
    "band": "PASS",
    "white_px": [
     0,
@@ -5039,7 +5039,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat3'"
+   "wire tile != blueprint tile 'items_sw_splat2'"
   ],
   "stage": {
    "bp": "Glowmoth Corpse",
@@ -5048,7 +5048,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat3.bmp",
+   "tile": "Items/sw_splat2.bmp",
    "color": "&G",
    "detail": "w",
    "name": "glowmoth corpse"
@@ -5060,8 +5060,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Glowmoth_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.55,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.04,
+   "pct_hot": 1.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -5083,7 +5083,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat2.bmp",
+   "tile": "Items/sw_splat3.bmp",
    "color": "&w",
    "detail": "w",
    "name": "goat corpse"
@@ -5095,8 +5095,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Goat_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.61,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.57,
+   "pct_hot": 2.1,
    "band": "PASS",
    "white_px": [
     0,
@@ -5132,8 +5132,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Goat_Jerky_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.24,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.75,
+   "pct_hot": 0.7,
    "band": "PASS",
    "white_px": [
     0,
@@ -5147,9 +5147,7 @@
   "bp": "Goatfolk Corpse",
   "pass": true,
   "reasons": [],
-  "warns": [
-   "wire tile != blueprint tile 'items_sw_splat3'"
-  ],
+  "warns": [],
   "stage": {
    "bp": "Goatfolk Corpse",
    "ok": true,
@@ -5169,8 +5167,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Goatfolk_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.59,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.57,
+   "pct_hot": 2.1,
    "band": "PASS",
    "white_px": [
     0,
@@ -5206,8 +5204,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Godshroom_Cap_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.6,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.55,
+   "pct_hot": 1.7,
    "band": "PASS",
    "white_px": [
     0,
@@ -5243,8 +5241,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Great_Saltback_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.65,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.07,
+   "pct_hot": 1.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -5259,7 +5257,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat3'"
+   "wire tile != blueprint tile 'items_sw_splat1'"
   ],
   "stage": {
    "bp": "Greater Voider Corpse",
@@ -5268,7 +5266,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat3.bmp",
+   "tile": "Items/sw_splat1.bmp",
    "color": "&w",
    "detail": "w",
    "name": "greater voider corpse"
@@ -5280,8 +5278,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Greater_Voider_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.56,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.8,
+   "pct_hot": 0.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -5315,8 +5313,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Hindren_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.6,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.06,
+   "pct_hot": 1.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -5352,12 +5350,12 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Hoarshroom_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.4,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 6.53,
+   "pct_hot": 3.0,
    "band": "PASS",
    "white_px": [
-    0,
-    0
+    6,
+    282
    ],
    "dominant_delta": 0,
    "wire_delta": 159
@@ -5368,7 +5366,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat3'"
+   "wire tile != blueprint tile 'items_sw_splat4'"
   ],
   "stage": {
    "bp": "Horned Chameleon Corpse",
@@ -5377,7 +5375,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat3.bmp",
+   "tile": "Items/sw_splat4.bmp",
    "color": "&w",
    "detail": "w",
    "name": "horned chameleon corpse"
@@ -5389,8 +5387,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Horned_Chameleon_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.57,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.4,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -5405,7 +5403,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat4'"
+   "wire tile != blueprint tile 'items_sw_splat2'"
   ],
   "stage": {
    "bp": "Human Corpse",
@@ -5414,7 +5412,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat4.bmp",
+   "tile": "Items/sw_splat2.bmp",
    "color": "&y",
    "detail": "w",
    "name": "human corpse"
@@ -5426,8 +5424,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Human_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.65,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.04,
+   "pct_hot": 1.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -5441,9 +5439,7 @@
   "bp": "Humanoid Corpse",
   "pass": true,
   "reasons": [],
-  "warns": [
-   "wire tile != blueprint tile 'items_sw_splat2'"
-  ],
+  "warns": [],
   "stage": {
    "bp": "Humanoid Corpse",
    "ok": true,
@@ -5451,7 +5447,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat2.bmp",
+   "tile": "Items/sw_splat4.bmp",
    "color": "&w",
    "detail": "w",
    "name": "[Corpse]"
@@ -5463,8 +5459,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Humanoid_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.55,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.4,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -5500,8 +5496,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Humble_Pie_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.57,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 3.55,
+   "pct_hot": 2.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -5537,8 +5533,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Hunk_of_Cheese_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.1,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.48,
+   "pct_hot": 0.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -5553,7 +5549,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat2'"
+   "wire tile != blueprint tile 'items_sw_splat4'"
   ],
   "stage": {
    "bp": "Ice frog corpse",
@@ -5562,7 +5558,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat2.bmp",
+   "tile": "Items/sw_splat4.bmp",
    "color": "&C",
    "detail": "w",
    "name": "{{C|ice frog}} corpse"
@@ -5574,8 +5570,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Ice_frog_corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.62,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.45,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -5590,8 +5586,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat1'",
-   "no capture pair \u2014 congruence skipped"
+   "wire tile != blueprint tile 'items_sw_splat1'"
   ],
   "stage": {
    "bp": "IceBreatherCorpse",
@@ -5608,11 +5603,12 @@
   "wire_objs": 1,
   "wire_hex": "98875f",
   "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\IceBreatherCorpse_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\IceBreatherCorpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.58,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.8,
+   "pct_hot": 0.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -5626,7 +5622,9 @@
   "bp": "IceBreatherGland",
   "pass": true,
   "reasons": [],
-  "warns": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_breather_gland'"
+  ],
   "stage": {
    "bp": "IceBreatherGland",
    "ok": true,
@@ -5646,8 +5644,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\IceBreatherGland_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.39,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 3.37,
+   "pct_hot": 1.7,
    "band": "PASS",
    "white_px": [
     0,
@@ -5683,8 +5681,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\IceBreatherGlandPaste_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.56,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 3.87,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -5720,8 +5718,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Jerky_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.32,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.0,
+   "pct_hot": 1.2,
    "band": "PASS",
    "white_px": [
     0,
@@ -5736,7 +5734,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat1'"
+   "wire tile != blueprint tile 'items_sw_splat4'"
   ],
   "stage": {
    "bp": "JoppaCorpse",
@@ -5745,7 +5743,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat1.bmp",
+   "tile": "Items/sw_splat4.bmp",
    "color": "&r",
    "detail": "Y",
    "name": "{{Y|human remains}}"
@@ -5757,8 +5755,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\JoppaCorpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.62,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.98,
+   "pct_hot": 3.1,
    "band": "PASS",
    "white_px": [
     0,
@@ -5794,8 +5792,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Jumble_of_Tongues_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.77,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 3.8,
+   "pct_hot": 2.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -5810,7 +5808,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat4'"
+   "wire tile != blueprint tile 'items_sw_splat2'"
   ],
   "stage": {
    "bp": "Kaleidoslug Corpse",
@@ -5819,7 +5817,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat4.bmp",
+   "tile": "Items/sw_splat2.bmp",
    "color": "&w",
    "detail": "w",
    "name": "kaleidoslug corpse"
@@ -5831,8 +5829,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Kaleidoslug_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.63,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.99,
+   "pct_hot": 1.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -5847,7 +5845,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat2'"
+   "wire tile != blueprint tile 'items_sw_splat1'"
   ],
   "stage": {
    "bp": "Knollworm Corpse",
@@ -5856,7 +5854,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat2.bmp",
+   "tile": "Items/sw_splat1.bmp",
    "color": "&y",
    "detail": "w",
    "name": "knollworm corpse"
@@ -5868,8 +5866,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Knollworm_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.63,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.78,
+   "pct_hot": 0.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -5905,8 +5903,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Lagroot_Tuber_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.24,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.59,
+   "pct_hot": 1.2,
    "band": "PASS",
    "white_px": [
     0,
@@ -5942,8 +5940,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Lah_Petals_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.33,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.28,
+   "pct_hot": 1.4,
    "band": "PASS",
    "white_px": [
     0,
@@ -5979,8 +5977,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Leech_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.61,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.4,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -6016,8 +6014,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Lignin_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.51,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 3.83,
+   "pct_hot": 2.0,
    "band": "PASS",
    "white_px": [
     0,
@@ -6053,8 +6051,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Lover_s_Blossom_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.08,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.5,
+   "pct_hot": 0.5,
    "band": "PASS",
    "white_px": [
     0,
@@ -6069,7 +6067,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat2'"
+   "wire tile != blueprint tile 'items_sw_splat1'"
   ],
   "stage": {
    "bp": "Madpole Corpse",
@@ -6078,7 +6076,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat2.bmp",
+   "tile": "Items/sw_splat1.bmp",
    "color": "&w",
    "detail": "w",
    "name": "madpole corpse"
@@ -6090,8 +6088,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Madpole_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.63,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.79,
+   "pct_hot": 0.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -6106,7 +6104,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat4'"
+   "wire tile != blueprint tile 'items_sw_splat3'"
   ],
   "stage": {
    "bp": "Mangled Corpse",
@@ -6115,7 +6113,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat4.bmp",
+   "tile": "Items/sw_splat3.bmp",
    "color": "&r",
    "detail": "w",
    "name": "mangled corpse"
@@ -6127,8 +6125,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Mangled_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.64,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.59,
+   "pct_hot": 2.1,
    "band": "PASS",
    "white_px": [
     0,
@@ -6164,8 +6162,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Mashed_Lag_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.44,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 6.28,
+   "pct_hot": 3.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -6179,7 +6177,9 @@
   "bp": "Memory Eater Corpse",
   "pass": true,
   "reasons": [],
-  "warns": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat2'"
+  ],
   "stage": {
    "bp": "Memory Eater Corpse",
    "ok": true,
@@ -6187,7 +6187,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat4.bmp",
+   "tile": "Items/sw_splat2.bmp",
    "color": "&y",
    "detail": "w",
    "name": "memory eater corpse"
@@ -6199,8 +6199,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Memory_Eater_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.62,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.01,
+   "pct_hot": 1.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -6215,7 +6215,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat4'"
+   "wire tile != blueprint tile 'items_sw_splat1'"
   ],
   "stage": {
    "bp": "Mimic Corpse",
@@ -6224,7 +6224,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat4.bmp",
+   "tile": "Items/sw_splat1.bmp",
    "color": "&w",
    "detail": "w",
    "name": "mimic corpse"
@@ -6236,8 +6236,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Mimic_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.65,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.8,
+   "pct_hot": 0.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -6273,12 +6273,12 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Mirror_Dust_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.52,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 4.24,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
-    0
+    130
    ],
    "dominant_delta": 0,
    "wire_delta": 239
@@ -6310,12 +6310,12 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Mirror_Shard_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.29,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.65,
+   "pct_hot": 0.3,
    "band": "PASS",
    "white_px": [
     0,
-    0
+    80
    ],
    "dominant_delta": 0,
    "wire_delta": 239
@@ -6326,7 +6326,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat2'"
+   "wire tile != blueprint tile 'items_sw_splat4'"
   ],
   "stage": {
    "bp": "Moldering Corpse",
@@ -6335,7 +6335,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat2.bmp",
+   "tile": "Items/sw_splat4.bmp",
    "color": "&w",
    "detail": "B",
    "name": "moldering corpse"
@@ -6347,8 +6347,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Moldering_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.62,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 3.25,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -6363,7 +6363,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat4'"
+   "wire tile != blueprint tile 'items_sw_splat1'"
   ],
   "stage": {
    "bp": "Mopango Corpse",
@@ -6372,7 +6372,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat4.bmp",
+   "tile": "Items/sw_splat1.bmp",
    "color": "&w",
    "detail": "w",
    "name": "mopango corpse"
@@ -6384,8 +6384,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Mopango_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.66,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.84,
+   "pct_hot": 0.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -6421,8 +6421,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Mushroom_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.45,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.93,
+   "pct_hot": 1.0,
    "band": "PASS",
    "white_px": [
     0,
@@ -6444,7 +6444,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat4.bmp",
+   "tile": "Items/sw_splat1.bmp",
    "color": "&w",
    "detail": "w",
    "name": "nullbeard corpse"
@@ -6456,8 +6456,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\NormalityBreatherCorpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.62,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.81,
+   "pct_hot": 0.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -6493,8 +6493,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\NormalityBreatherGland_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.39,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 4.04,
+   "pct_hot": 1.7,
    "band": "PASS",
    "white_px": [
     0,
@@ -6530,8 +6530,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\NormalityBreatherGlandPaste_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.53,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 4.19,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -6546,7 +6546,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat3'"
+   "wire tile != blueprint tile 'items_sw_splat1'"
   ],
   "stage": {
    "bp": "Ogre ape corpse",
@@ -6555,7 +6555,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat3.bmp",
+   "tile": "Items/sw_splat1.bmp",
    "color": "&W",
    "detail": "w",
    "name": "{{W|ogre ape corpse}}"
@@ -6567,8 +6567,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Ogre_ape_corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.56,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.79,
+   "pct_hot": 0.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -6604,8 +6604,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Ogre_Ape_Heart_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.43,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.94,
+   "pct_hot": 0.9,
    "band": "PASS",
    "white_px": [
     0,
@@ -6641,8 +6641,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Organ_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.11,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.51,
+   "pct_hot": 0.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -6678,12 +6678,12 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Phase_Silk_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.41,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 4.35,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
-    0
+    178
    ],
    "dominant_delta": 0,
    "wire_delta": 239
@@ -6715,8 +6715,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Pickled_Mushrooms_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.21,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 5.82,
+   "pct_hot": 3.1,
    "band": "PASS",
    "white_px": [
     0,
@@ -6731,7 +6731,8 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_pickles'"
+   "wire tile != blueprint tile 'items_sw_pickles'",
+   "no capture pair \u2014 congruence skipped"
   ],
   "stage": {
    "bp": "Pickles",
@@ -6748,7 +6749,6 @@
   "wire_objs": 1,
   "wire_hex": "b1c9c3",
   "shots": {
-   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Pickles_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Pickles_raves.png"
   },
   "congruence": {
@@ -6768,7 +6768,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat4'"
+   "no capture pair \u2014 congruence skipped"
   ],
   "stage": {
    "bp": "Pig Corpse",
@@ -6777,7 +6777,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat4.bmp",
+   "tile": "Items/sw_splat3.bmp",
    "color": "&r",
    "detail": "w",
    "name": "pig corpse"
@@ -6785,7 +6785,6 @@
   "wire_objs": 1,
   "wire_hex": "a64a2e",
   "shots": {
-   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Pig_Corpse_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Pig_Corpse_raves.png"
   },
   "congruence": {
@@ -6804,9 +6803,7 @@
   "bp": "PlantFace",
   "pass": true,
   "reasons": [],
-  "warns": [
-   "wire tile != blueprint tile 'items_sw_limb_organic'"
-  ],
+  "warns": [],
   "stage": {
    "bp": "PlantFace",
    "ok": true,
@@ -6826,8 +6823,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\PlantFace_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.43,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.66,
+   "pct_hot": 1.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -6841,9 +6838,7 @@
   "bp": "PlantHead",
   "pass": true,
   "reasons": [],
-  "warns": [
-   "wire tile != blueprint tile 'items_sw_limb_organic'"
-  ],
+  "warns": [],
   "stage": {
    "bp": "PlantHead",
    "ok": true,
@@ -6863,8 +6858,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\PlantHead_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.41,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.66,
+   "pct_hot": 1.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -6898,8 +6893,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\PlantLimb_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.43,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.63,
+   "pct_hot": 1.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -6914,7 +6909,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat3'"
+   "wire tile != blueprint tile 'items_sw_splat2'"
   ],
   "stage": {
    "bp": "Plasmatic Girshling Corpse",
@@ -6923,7 +6918,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat3.bmp",
+   "tile": "Items/sw_splat2.bmp",
    "color": "&m",
    "detail": "w",
    "name": "{{m|girshling}} corpse"
@@ -6935,8 +6930,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Plasmatic_Girshling_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.57,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.04,
+   "pct_hot": 1.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -6972,8 +6967,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Plump_Mushroom_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.38,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 5.2,
+   "pct_hot": 3.0,
    "band": "PASS",
    "white_px": [
     0,
@@ -6988,8 +6983,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat4'",
-   "no capture pair \u2014 congruence skipped"
+   "wire tile != blueprint tile 'items_sw_splat3'"
   ],
   "stage": {
    "bp": "PoisonBreatherCorpse",
@@ -6998,7 +6992,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat4.bmp",
+   "tile": "Items/sw_splat3.bmp",
    "color": "&w",
    "detail": "w",
    "name": "gallbeard corpse"
@@ -7006,11 +7000,12 @@
   "wire_objs": 1,
   "wire_hex": "98875f",
   "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\PoisonBreatherCorpse_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\PoisonBreatherCorpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 3.32,
-   "pct_hot": 3.2,
+   "mean_abs_diff": 2.57,
+   "pct_hot": 2.1,
    "band": "PASS",
    "white_px": [
     0,
@@ -7024,7 +7019,9 @@
   "bp": "PoisonBreatherGland",
   "pass": true,
   "reasons": [],
-  "warns": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_breather_gland'"
+  ],
   "stage": {
    "bp": "PoisonBreatherGland",
    "ok": true,
@@ -7044,8 +7041,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\PoisonBreatherGland_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.37,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.82,
+   "pct_hot": 1.7,
    "band": "PASS",
    "white_px": [
     0,
@@ -7081,8 +7078,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\PoisonBreatherGlandPaste_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.54,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 3.56,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -7118,8 +7115,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Preservable_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.41,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.94,
+   "pct_hot": 1.2,
    "band": "PASS",
    "white_px": [
     0,
@@ -7155,8 +7152,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Psychal_Gland_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.31,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.66,
+   "pct_hot": 1.7,
    "band": "PASS",
    "white_px": [
     0,
@@ -7192,8 +7189,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Psychal_Gland_Paste_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.55,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 3.95,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -7208,7 +7205,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat1'"
+   "wire tile != blueprint tile 'items_sw_splat4'"
   ],
   "stage": {
    "bp": "Quartz Baboon Corpse",
@@ -7217,7 +7214,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat1.bmp",
+   "tile": "Items/sw_splat4.bmp",
    "color": "&w",
    "detail": "w",
    "name": "quartz baboon corpse"
@@ -7229,8 +7226,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Quartz_Baboon_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.61,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.4,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -7266,8 +7263,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Qudzu_Stem_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.09,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.58,
+   "pct_hot": 0.7,
    "band": "PASS",
    "white_px": [
     0,
@@ -7282,7 +7279,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat4'"
+   "wire tile != blueprint tile 'items_sw_splat2'"
   ],
   "stage": {
    "bp": "quillipede corpse",
@@ -7291,7 +7288,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat4.bmp",
+   "tile": "Items/sw_splat2.bmp",
    "color": "&w",
    "detail": "w",
    "name": "quillipede corpse"
@@ -7303,8 +7300,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\quillipede_corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.63,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.05,
+   "pct_hot": 1.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -7319,7 +7316,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat1'"
+   "wire tile != blueprint tile 'items_sw_splat3'"
   ],
   "stage": {
    "bp": "Rank Girshling Corpse",
@@ -7328,7 +7325,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat1.bmp",
+   "tile": "Items/sw_splat3.bmp",
    "color": "&m",
    "detail": "w",
    "name": "{{m|girshling}} corpse"
@@ -7340,8 +7337,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Rank_Girshling_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.63,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.56,
+   "pct_hot": 2.1,
    "band": "PASS",
    "white_px": [
     0,
@@ -7377,8 +7374,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Raw_Barkbiter_Meat_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.48,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.6,
+   "pct_hot": 2.5,
    "band": "PASS",
    "white_px": [
     0,
@@ -7414,8 +7411,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Raw_Bear_Meat_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.46,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.59,
+   "pct_hot": 2.5,
    "band": "PASS",
    "white_px": [
     0,
@@ -7449,8 +7446,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Raw_Beetle_Meat_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.48,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 5.11,
+   "pct_hot": 2.5,
    "band": "PASS",
    "white_px": [
     0,
@@ -7465,7 +7462,8 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_rawmeat2'"
+   "wire tile != blueprint tile 'items_sw_rawmeat2'",
+   "no capture pair \u2014 congruence skipped"
   ],
   "stage": {
    "bp": "Raw Boar Meat",
@@ -7482,7 +7480,6 @@
   "wire_objs": 1,
   "wire_hex": "a64a2e",
   "shots": {
-   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Raw_Boar_Meat_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Raw_Boar_Meat_raves.png"
   },
   "congruence": {
@@ -7501,9 +7498,7 @@
   "bp": "Raw Croc Meat",
   "pass": true,
   "reasons": [],
-  "warns": [
-   "wire tile != blueprint tile 'items_sw_rawmeat3'"
-  ],
+  "warns": [],
   "stage": {
    "bp": "Raw Croc Meat",
    "ok": true,
@@ -7523,8 +7518,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Raw_Croc_Meat_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.91,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.5,
+   "pct_hot": 2.2,
    "band": "PASS",
    "white_px": [
     0,
@@ -7560,8 +7555,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Raw_Fish_Meat_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.44,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.58,
+   "pct_hot": 2.5,
    "band": "PASS",
    "white_px": [
     0,
@@ -7597,8 +7592,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Raw_Frog_Meat_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.46,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.65,
+   "pct_hot": 2.5,
    "band": "PASS",
    "white_px": [
     0,
@@ -7634,8 +7629,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Raw_Goat_Meat_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.56,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.87,
+   "pct_hot": 1.2,
    "band": "PASS",
    "white_px": [
     0,
@@ -7669,8 +7664,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Raw_Meat_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.45,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.63,
+   "pct_hot": 2.5,
    "band": "PASS",
    "white_px": [
     0,
@@ -7704,8 +7699,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Raw_Pig_Meat_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.53,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.85,
+   "pct_hot": 1.2,
    "band": "PASS",
    "white_px": [
     0,
@@ -7741,8 +7736,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Raw_Scorpiock_Meat_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.89,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.56,
+   "pct_hot": 2.2,
    "band": "PASS",
    "white_px": [
     0,
@@ -7778,8 +7773,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Raw_Worm_Meat_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.92,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.52,
+   "pct_hot": 2.2,
    "band": "PASS",
    "white_px": [
     0,
@@ -7794,7 +7789,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat4'"
+   "wire tile != blueprint tile 'items_sw_splat2'"
   ],
   "stage": {
    "bp": "Ray Cat Corpse",
@@ -7803,7 +7798,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat4.bmp",
+   "tile": "Items/sw_splat2.bmp",
    "color": "&w",
    "detail": "w",
    "name": "ray cat corpse"
@@ -7815,8 +7810,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Ray_Cat_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.62,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.03,
+   "pct_hot": 1.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -7852,8 +7847,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Rhinox_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.63,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.43,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -7889,7 +7884,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Ripe_Cucumber_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.19,
+   "mean_abs_diff": 1.02,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -7926,8 +7921,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Rubber_Tree_Seed_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.27,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.71,
+   "pct_hot": 0.7,
    "band": "PASS",
    "white_px": [
     0,
@@ -7942,7 +7937,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat4'"
+   "wire tile != blueprint tile 'items_sw_splat3'"
   ],
   "stage": {
    "bp": "Rustacean Corpse",
@@ -7951,7 +7946,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat4.bmp",
+   "tile": "Items/sw_splat3.bmp",
    "color": "&r",
    "detail": "w",
    "name": "rustacean corpse"
@@ -7963,8 +7958,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Rustacean_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.63,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.55,
+   "pct_hot": 2.1,
    "band": "PASS",
    "white_px": [
     0,
@@ -7979,7 +7974,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat3'"
+   "wire tile != blueprint tile 'items_sw_splat1'"
   ],
   "stage": {
    "bp": "Salamander Corpse",
@@ -7988,7 +7983,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat3.bmp",
+   "tile": "Items/sw_splat1.bmp",
    "color": "&w",
    "detail": "w",
    "name": "salamander corpse"
@@ -8000,8 +7995,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Salamander_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.56,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.79,
+   "pct_hot": 0.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -8037,12 +8032,12 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Salthopper_Chip_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.42,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 3.31,
+   "pct_hot": 1.2,
    "band": "PASS",
    "white_px": [
     0,
-    0
+    204
    ],
    "dominant_delta": 0,
    "wire_delta": 239
@@ -8053,7 +8048,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat2'"
+   "wire tile != blueprint tile 'items_sw_splat4'"
   ],
   "stage": {
    "bp": "Salthopper Corpse",
@@ -8062,7 +8057,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat2.bmp",
+   "tile": "Items/sw_splat4.bmp",
    "color": "&w",
    "detail": "w",
    "name": "salthopper corpse"
@@ -8074,8 +8069,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Salthopper_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.63,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.41,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -8111,8 +8106,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Saltwurm_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.56,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.55,
+   "pct_hot": 2.1,
    "band": "PASS",
    "white_px": [
     0,
@@ -8148,8 +8143,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Sated_Dreamcrungle_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.3,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.26,
+   "pct_hot": 0.4,
    "band": "PASS",
    "white_px": [
     0,
@@ -8163,9 +8158,7 @@
   "bp": "Scaled Reptile Corpse",
   "pass": true,
   "reasons": [],
-  "warns": [
-   "wire tile != blueprint tile 'items_sw_splat2'"
-  ],
+  "warns": [],
   "stage": {
    "bp": "Scaled Reptile Corpse",
    "ok": true,
@@ -8173,7 +8166,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat2.bmp",
+   "tile": "Items/sw_splat3.bmp",
    "color": "&w",
    "detail": "w",
    "name": "[Corpse]"
@@ -8185,8 +8178,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Scaled_Reptile_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.63,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.55,
+   "pct_hot": 2.1,
    "band": "PASS",
    "white_px": [
     0,
@@ -8201,7 +8194,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat4'"
+   "wire tile != blueprint tile 'items_sw_splat3'"
   ],
   "stage": {
    "bp": "Scorpiock Corpse",
@@ -8210,7 +8203,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat4.bmp",
+   "tile": "Items/sw_splat3.bmp",
    "color": "&w",
    "detail": "w",
    "name": "scorpiock corpse"
@@ -8222,8 +8215,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Scorpiock_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.63,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.55,
+   "pct_hot": 2.1,
    "band": "PASS",
    "white_px": [
     0,
@@ -8259,8 +8252,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Scorpiock_Jerky_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.31,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.0,
+   "pct_hot": 1.2,
    "band": "PASS",
    "white_px": [
     0,
@@ -8275,7 +8268,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat2'"
+   "wire tile != blueprint tile 'items_sw_splat4'"
   ],
   "stage": {
    "bp": "Seedsprout Worm Corpse",
@@ -8284,7 +8277,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat2.bmp",
+   "tile": "Items/sw_splat4.bmp",
    "color": "&w",
    "detail": "w",
    "name": "seedsprout worm corpse"
@@ -8296,8 +8289,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Seedsprout_Worm_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.63,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.47,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -8312,7 +8305,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat4'"
+   "wire tile != blueprint tile 'items_sw_splat2'"
   ],
   "stage": {
    "bp": "SegmentedMirthworm_Corpse",
@@ -8321,7 +8314,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat4.bmp",
+   "tile": "Items/sw_splat2.bmp",
    "color": "&w",
    "detail": "w",
    "name": "segmented mirthworm corpse"
@@ -8333,8 +8326,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\SegmentedMirthworm_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.62,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.03,
+   "pct_hot": 1.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -8349,6 +8342,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
+   "wire tile != blueprint tile 'items_sw_splat2'",
    "no capture pair \u2014 congruence skipped"
   ],
   "stage": {
@@ -8361,7 +8355,7 @@
    "tile": "Items/sw_splat2.bmp",
    "color": "&r",
    "detail": "w",
-   "name": "{{r|{{r|bloody}} flattened remains}}"
+   "name": "flattened remains"
   },
   "wire_objs": 1,
   "wire_hex": "a64a2e",
@@ -8380,8 +8374,8 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 9,
-   "tile": "Items/sw_splat2.bmp",
+   "cleared": 8,
+   "tile": "Items/sw_splat4.bmp",
    "color": "&w",
    "detail": "w",
    "name": "dreambeard corpse"
@@ -8393,8 +8387,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\SleepBreatherCorpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.63,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.41,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -8417,7 +8411,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 2,
+   "cleared": 1,
    "tile": "Items/sw_breather_gland.bmp",
    "color": "&w",
    "detail": "y",
@@ -8430,8 +8424,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\SleepBreatherGland_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.4,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 3.3,
+   "pct_hot": 1.7,
    "band": "PASS",
    "white_px": [
     0,
@@ -8467,8 +8461,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\SleepBreatherGlandPaste_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.54,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 3.95,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -8483,7 +8477,8 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_sliced_bop_cheek'"
+   "wire tile != blueprint tile 'items_sw_sliced_bop_cheek'",
+   "no capture pair \u2014 congruence skipped"
   ],
   "stage": {
    "bp": "Sliced Bop Cheek",
@@ -8500,7 +8495,6 @@
   "wire_objs": 1,
   "wire_hex": "0096ff",
   "shots": {
-   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Sliced_Bop_Cheek_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Sliced_Bop_Cheek_raves.png"
   },
   "congruence": {
@@ -8519,9 +8513,7 @@
   "bp": "SlogCorpse",
   "pass": true,
   "reasons": [],
-  "warns": [
-   "wire tile != blueprint tile 'items_sw_splat1'"
-  ],
+  "warns": [],
   "stage": {
    "bp": "SlogCorpse",
    "ok": true,
@@ -8541,8 +8533,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\SlogCorpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.63,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.82,
+   "pct_hot": 0.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -8556,9 +8548,7 @@
   "bp": "Small Animal Corpse",
   "pass": true,
   "reasons": [],
-  "warns": [
-   "wire tile != blueprint tile 'items_sw_splat1'"
-  ],
+  "warns": [],
   "stage": {
    "bp": "Small Animal Corpse",
    "ok": true,
@@ -8578,8 +8568,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Small_Animal_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.63,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.81,
+   "pct_hot": 0.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -8615,8 +8605,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Smoldered_Mushroom_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.04,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.8,
+   "pct_hot": 0.4,
    "band": "PASS",
    "white_px": [
     0,
@@ -8652,8 +8642,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Snack_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.44,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.99,
+   "pct_hot": 1.0,
    "band": "PASS",
    "white_px": [
     0,
@@ -8668,7 +8658,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat3'"
+   "wire tile != blueprint tile 'items_sw_splat4'"
   ],
   "stage": {
    "bp": "Snail Corpse",
@@ -8677,7 +8667,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat3.bmp",
+   "tile": "Items/sw_splat4.bmp",
    "color": "&w",
    "detail": "w",
    "name": "[Corpse]"
@@ -8689,8 +8679,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Snail_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.57,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.47,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -8705,7 +8695,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat1'"
+   "wire tile != blueprint tile 'items_sw_splat3'"
   ],
   "stage": {
    "bp": "Snailmother Corpse",
@@ -8714,7 +8704,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat1.bmp",
+   "tile": "Items/sw_splat3.bmp",
    "color": "&w",
    "detail": "w",
    "name": "snailmother corpse"
@@ -8726,8 +8716,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Snailmother_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.61,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.55,
+   "pct_hot": 2.1,
    "band": "PASS",
    "white_px": [
     0,
@@ -8742,8 +8732,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat2'",
-   "no capture pair \u2014 congruence skipped"
+   "wire tile != blueprint tile 'items_sw_splat1'"
   ],
   "stage": {
    "bp": "Snapjaw Corpse",
@@ -8752,7 +8741,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat2.bmp",
+   "tile": "Items/sw_splat1.bmp",
    "color": "&w",
    "detail": "w",
    "name": "snapjaw corpse"
@@ -8760,11 +8749,12 @@
   "wire_objs": 1,
   "wire_hex": "98875f",
   "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Snapjaw_Corpse_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Snapjaw_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.64,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.74,
+   "pct_hot": 0.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -8778,7 +8768,9 @@
   "bp": "Soul Curd",
   "pass": true,
   "reasons": [],
-  "warns": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_sparktick_plasma'"
+  ],
   "stage": {
    "bp": "Soul Curd",
    "ok": true,
@@ -8798,8 +8790,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Soul_Curd_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.44,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 4.42,
+   "pct_hot": 2.5,
    "band": "PASS",
    "white_px": [
     0,
@@ -8835,8 +8827,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Spark_Tick_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.58,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.57,
+   "pct_hot": 2.1,
    "band": "PASS",
    "white_px": [
     0,
@@ -8850,7 +8842,9 @@
   "bp": "Spark Tick Plasma",
   "pass": true,
   "reasons": [],
-  "warns": [],
+  "warns": [
+   "no capture pair \u2014 congruence skipped"
+  ],
   "stage": {
    "bp": "Spark Tick Plasma",
    "ok": true,
@@ -8866,7 +8860,6 @@
   "wire_objs": 1,
   "wire_hex": "b1c9c3",
   "shots": {
-   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Spark_Tick_Plasma_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Spark_Tick_Plasma_raves.png"
   },
   "congruence": {
@@ -8885,9 +8878,7 @@
   "bp": "Spark Tick Scutum",
   "pass": true,
   "reasons": [],
-  "warns": [
-   "wire tile != blueprint tile 'items_sw_sparktick_scutum'"
-  ],
+  "warns": [],
   "stage": {
    "bp": "Spark Tick Scutum",
    "ok": true,
@@ -8907,8 +8898,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Spark_Tick_Scutum_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.35,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.78,
+   "pct_hot": 1.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -8944,8 +8935,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Spine_Fruit_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.44,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.35,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -8981,8 +8972,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Spine_Fruit_Jam_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.49,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 4.15,
+   "pct_hot": 2.0,
    "band": "PASS",
    "white_px": [
     0,
@@ -8997,7 +8988,8 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_apple'"
+   "wire tile != blueprint tile 'items_sw_apple'",
+   "no capture pair \u2014 congruence skipped"
   ],
   "stage": {
    "bp": "Starapple",
@@ -9014,8 +9006,7 @@
   "wire_objs": 1,
   "wire_hex": "d74200",
   "shots": {
-   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Starapple_qud.png",
-   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Starapple_raves.png"
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Starapple_qud.png"
   },
   "congruence": {
    "mean_abs_diff": 1.39,
@@ -9053,8 +9044,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Starapple_Preserves_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.52,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 3.84,
+   "pct_hot": 2.0,
    "band": "PASS",
    "white_px": [
     0,
@@ -9068,9 +9059,7 @@
   "bp": "Starch",
   "pass": true,
   "reasons": [],
-  "warns": [
-   "wire tile != blueprint tile 'items_sw_jam'"
-  ],
+  "warns": [],
   "stage": {
    "bp": "Starch",
    "ok": true,
@@ -9090,8 +9079,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Starch_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.53,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 3.67,
+   "pct_hot": 2.0,
    "band": "PASS",
    "white_px": [
     0,
@@ -9114,7 +9103,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 2,
+   "cleared": 1,
    "tile": "Items/sw_splat4.bmp",
    "color": "&w",
    "detail": "w",
@@ -9127,8 +9116,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\StunBreatherCorpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.63,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.45,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -9164,8 +9153,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\StunBreatherGland_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.35,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 3.42,
+   "pct_hot": 1.7,
    "band": "PASS",
    "white_px": [
     0,
@@ -9201,8 +9190,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\StunBreatherGlandPaste_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.56,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 3.85,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -9217,7 +9206,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat2'"
+   "wire tile != blueprint tile 'items_sw_splat4'"
   ],
   "stage": {
    "bp": "Sultan Croc Corpse",
@@ -9226,7 +9215,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat2.bmp",
+   "tile": "Items/sw_splat4.bmp",
    "color": "&w",
    "detail": "w",
    "name": "sultan {{g|croc}} corpse"
@@ -9238,8 +9227,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Sultan_Croc_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.6,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.41,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -9275,8 +9264,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Sun-Dried_Banana_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.54,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.81,
+   "pct_hot": 0.9,
    "band": "PASS",
    "white_px": [
     0,
@@ -9290,7 +9279,9 @@
   "bp": "Svardym Corpse",
   "pass": true,
   "reasons": [],
-  "warns": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_splat2'"
+  ],
   "stage": {
    "bp": "Svardym Corpse",
    "ok": true,
@@ -9310,8 +9301,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Svardym_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.61,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.05,
+   "pct_hot": 1.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -9347,8 +9338,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Taco_Suprema_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.6,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 4.93,
+   "pct_hot": 2.2,
    "band": "PASS",
    "white_px": [
     0,
@@ -9363,7 +9354,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_bones_3'"
+   "wire tile != blueprint tile 'items_sw_bones_5'"
   ],
   "stage": {
    "bp": "TarBones",
@@ -9372,7 +9363,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_bones_3.bmp",
+   "tile": "Items/sw_bones_5.bmp",
    "color": "&Y",
    "detail": "Y",
    "name": "{{K|tar-encrusted bones}}"
@@ -9384,7 +9375,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\TarBones_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.65,
+   "mean_abs_diff": 1.23,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -9421,8 +9412,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Tongue_Twist_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.37,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.31,
+   "pct_hot": 1.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -9437,7 +9428,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat1'"
+   "wire tile != blueprint tile 'items_sw_splat3'"
   ],
   "stage": {
    "bp": "Troll Corpse",
@@ -9446,7 +9437,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat1.bmp",
+   "tile": "Items/sw_splat3.bmp",
    "color": "&w",
    "detail": "w",
    "name": "troll corpse"
@@ -9458,8 +9449,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Troll_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.6,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.58,
+   "pct_hot": 2.1,
    "band": "PASS",
    "white_px": [
     0,
@@ -9495,8 +9486,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Unimax_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.62,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.79,
+   "pct_hot": 0.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -9532,8 +9523,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Urberry_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.23,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.5,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -9548,7 +9539,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat3'"
+   "wire tile != blueprint tile 'items_sw_splat2'"
   ],
   "stage": {
    "bp": "Urchin Belcher Corpse",
@@ -9557,7 +9548,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat3.bmp",
+   "tile": "Items/sw_splat2.bmp",
    "color": "&w",
    "detail": "w",
    "name": "urchin belcher corpse"
@@ -9569,8 +9560,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Urchin_Belcher_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.53,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.07,
+   "pct_hot": 1.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -9606,8 +9597,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Urshiib_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.62,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.77,
+   "pct_hot": 0.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -9643,8 +9634,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Vanta_Petals_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.36,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.21,
+   "pct_hot": 0.7,
    "band": "PASS",
    "white_px": [
     0,
@@ -9680,8 +9671,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Vinewafer_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.18,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.78,
+   "pct_hot": 0.9,
    "band": "PASS",
    "white_px": [
     0,
@@ -9717,8 +9708,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Vinewafer_Sheaf_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.55,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.57,
+   "pct_hot": 2.1,
    "band": "PASS",
    "white_px": [
     0,
@@ -9733,7 +9724,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat1'"
+   "wire tile != blueprint tile 'items_sw_splat2'"
   ],
   "stage": {
    "bp": "Voider Corpse",
@@ -9742,7 +9733,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat1.bmp",
+   "tile": "Items/sw_splat2.bmp",
    "color": "&w",
    "detail": "w",
    "name": "voider corpse"
@@ -9754,8 +9745,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Voider_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.6,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.08,
+   "pct_hot": 1.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -9791,8 +9782,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Voider_Gland_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.36,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.82,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -9828,8 +9819,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Voider_Gland_Paste_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.54,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 3.72,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -9865,8 +9856,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Wild_Rice_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.12,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.58,
+   "pct_hot": 0.9,
    "band": "PASS",
    "white_px": [
     0,
@@ -9881,7 +9872,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat4'"
+   "wire tile != blueprint tile 'items_sw_splat3'"
   ],
   "stage": {
    "bp": "Winged Arthropod Corpse",
@@ -9890,7 +9881,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat4.bmp",
+   "tile": "Items/sw_splat3.bmp",
    "color": "&w",
    "detail": "w",
    "name": "[Corpse]"
@@ -9902,8 +9893,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Winged_Arthropod_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.63,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.56,
+   "pct_hot": 2.1,
    "band": "PASS",
    "white_px": [
     0,
@@ -9939,8 +9930,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Witchwood_Bark_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.31,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.33,
+   "pct_hot": 1.2,
    "band": "PASS",
    "white_px": [
     0,
@@ -9955,7 +9946,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat3'"
+   "wire tile != blueprint tile 'items_sw_splat1'"
   ],
   "stage": {
    "bp": "Woodsprog Corpse",
@@ -9964,7 +9955,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat3.bmp",
+   "tile": "Items/sw_splat1.bmp",
    "color": "&w",
    "detail": "w",
    "name": "woodsprog corpse"
@@ -9976,8 +9967,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Woodsprog_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.57,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.8,
+   "pct_hot": 0.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -9992,7 +9983,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_splat1'"
+   "wire tile != blueprint tile 'items_sw_splat4'"
   ],
   "stage": {
    "bp": "Worm Corpse",
@@ -10001,7 +9992,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Items/sw_splat1.bmp",
+   "tile": "Items/sw_splat4.bmp",
    "color": "&w",
    "detail": "w",
    "name": "[Corpse]"
@@ -10013,8 +10004,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Worm_Corpse_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.63,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.45,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -10050,8 +10041,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Worm_Jerky_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.37,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.61,
+   "pct_hot": 2.2,
    "band": "PASS",
    "white_px": [
     0,
@@ -10087,8 +10078,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Yondercane_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.26,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 3.09,
+   "pct_hot": 1.7,
    "band": "PASS",
    "white_px": [
     0,
@@ -10124,8 +10115,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\food\\Yuckwheat_Stem_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.2,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 2.83,
+   "pct_hot": 1.6,
    "band": "PASS",
    "white_px": [
     0,

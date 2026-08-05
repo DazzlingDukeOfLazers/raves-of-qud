@@ -25,7 +25,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\AirCurrentMicrosensor_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.95,
+   "mean_abs_diff": 1.18,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -62,7 +62,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\AnchorSpikes_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.94,
+   "mean_abs_diff": 1.19,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -99,7 +99,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\AnomalyFumigator_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.92,
+   "mean_abs_diff": 1.18,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -136,7 +136,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\BeautifulVisage_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.93,
+   "mean_abs_diff": 1.2,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -173,7 +173,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\BiodynamicPowerPlant_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.95,
+   "mean_abs_diff": 1.15,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -210,7 +210,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\BiologicalIndexer_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.94,
+   "mean_abs_diff": 1.15,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -247,7 +247,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\BionicArm_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.95,
+   "mean_abs_diff": 1.13,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -284,7 +284,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\BionicHands_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.98,
+   "mean_abs_diff": 1.19,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -321,7 +321,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\BionicHeart_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.92,
+   "mean_abs_diff": 1.17,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -358,7 +358,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\BionicLiver_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.94,
+   "mean_abs_diff": 1.13,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -395,7 +395,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\CarbideHandBones_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.91,
+   "mean_abs_diff": 1.13,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -432,7 +432,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\CathedraBlackOpal_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.95,
+   "mean_abs_diff": 1.19,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -469,7 +469,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\CathedraRuby_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.96,
+   "mean_abs_diff": 1.21,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -506,7 +506,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\CathedraSapphire_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.91,
+   "mean_abs_diff": 1.18,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -543,7 +543,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\CathedraWhiteOpal_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.94,
+   "mean_abs_diff": 1.15,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -580,7 +580,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\CherubicVisage_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.94,
+   "mean_abs_diff": 1.16,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -617,7 +617,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\CommunicationsInterlock_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.97,
+   "mean_abs_diff": 1.18,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -633,8 +633,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_carbidehand'",
-   "no capture pair \u2014 congruence skipped"
+   "wire tile != blueprint tile 'items_sw_carbidehand'"
   ],
   "stage": {
    "bp": "CrysteelHandBones",
@@ -651,10 +650,11 @@
   "wire_objs": 1,
   "wire_hex": "77bfcf",
   "shots": {
-   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\CrysteelHandBones_qud.png"
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\CrysteelHandBones_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\CrysteelHandBones_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.95,
+   "mean_abs_diff": 1.16,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -691,7 +691,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\CustomVisage_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.93,
+   "mean_abs_diff": 1.15,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -728,7 +728,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\DermalInsulation_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.96,
+   "mean_abs_diff": 1.17,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -765,7 +765,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\DermalPlating_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.96,
+   "mean_abs_diff": 1.13,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -802,7 +802,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\DopamineSynth_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.95,
+   "mean_abs_diff": 1.16,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -839,7 +839,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\ElectromagneticSensor_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.94,
+   "mean_abs_diff": 1.18,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -876,7 +876,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\EquipmentRack_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.93,
+   "mean_abs_diff": 1.16,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -913,7 +913,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\FireSuppressionSystem_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.94,
+   "mean_abs_diff": 1.16,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -950,7 +950,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\ForceModulator_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.97,
+   "mean_abs_diff": 1.14,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -987,7 +987,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\FulleriteHandBones_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.93,
+   "mean_abs_diff": 1.15,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1024,7 +1024,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\GiantHands_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.95,
+   "mean_abs_diff": 1.12,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1061,7 +1061,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\GraftedMirrorArm_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.9,
+   "mean_abs_diff": 1.18,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1098,7 +1098,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\GroundingShunts_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.96,
+   "mean_abs_diff": 1.17,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1135,7 +1135,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\GunRack_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.92,
+   "mean_abs_diff": 1.21,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1172,7 +1172,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\HighFidelityMatterRecompositer_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.93,
+   "mean_abs_diff": 1.15,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1209,7 +1209,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\HighGradeDermalInsulation_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.94,
+   "mean_abs_diff": 1.19,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1246,7 +1246,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\HolographicVisage_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.96,
+   "mean_abs_diff": 1.18,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1283,7 +1283,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\HyperElasticAnkleTendons_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.97,
+   "mean_abs_diff": 1.17,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1320,7 +1320,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\InflatableAxons_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.95,
+   "mean_abs_diff": 1.17,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1357,7 +1357,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\IntravenousPort_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.93,
+   "mean_abs_diff": 1.18,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1394,7 +1394,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\MagneticCore_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.96,
+   "mean_abs_diff": 1.15,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1431,7 +1431,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\MatterRecompositer_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.94,
+   "mean_abs_diff": 1.18,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1468,7 +1468,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\MedassistModule_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.93,
+   "mean_abs_diff": 1.15,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1505,7 +1505,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\MicromanipulatorArray_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.96,
+   "mean_abs_diff": 1.17,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1542,7 +1542,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\MotorizedTreads_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.92,
+   "mean_abs_diff": 1.2,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1579,7 +1579,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\NavigationSystem_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.96,
+   "mean_abs_diff": 1.2,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1616,7 +1616,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\NightVision_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.97,
+   "mean_abs_diff": 1.13,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1653,7 +1653,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\NocturnalApex_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.93,
+   "mean_abs_diff": 1.15,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1690,7 +1690,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\OnboardRecoiler_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.93,
+   "mean_abs_diff": 1.17,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1727,7 +1727,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\OpticalMultiscanner_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.95,
+   "mean_abs_diff": 1.17,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1764,7 +1764,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\PalladiumElectrodeposits_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.94,
+   "mean_abs_diff": 1.16,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1801,7 +1801,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\ParabolicMuscularSubroutine_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.95,
+   "mean_abs_diff": 1.19,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1838,7 +1838,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\PenetratingRadar_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.94,
+   "mean_abs_diff": 1.2,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1875,7 +1875,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\Pentaceps_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.96,
+   "mean_abs_diff": 1.2,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1912,7 +1912,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\Phase-Adaptive_Scope_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.94,
+   "mean_abs_diff": 1.16,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1949,7 +1949,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\PhaseHarmonicModulator_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.94,
+   "mean_abs_diff": 1.22,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -1986,7 +1986,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\PneumaticPistons_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.96,
+   "mean_abs_diff": 1.14,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -2023,7 +2023,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\PrecisionForceLathe_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.95,
+   "mean_abs_diff": 1.14,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -2039,7 +2039,8 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_flexors'"
+   "wire tile != blueprint tile 'items_sw_flexors'",
+   "no capture pair \u2014 congruence skipped"
   ],
   "stage": {
    "bp": "RapidReleaseFingerFlexors",
@@ -2056,8 +2057,7 @@
   "wire_objs": 1,
   "wire_hex": "77bfcf",
   "shots": {
-   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\RapidReleaseFingerFlexors_qud.png",
-   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\RapidReleaseFingerFlexors_raves.png"
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\RapidReleaseFingerFlexors_qud.png"
   },
   "congruence": {
    "mean_abs_diff": 1.95,
@@ -2097,7 +2097,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\ReactiveCranialPlating_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.95,
+   "mean_abs_diff": 1.19,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -2134,7 +2134,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\ReactiveTraumaPlate_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.95,
+   "mean_abs_diff": 1.17,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -2171,7 +2171,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\Schemasoft2_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.95,
+   "mean_abs_diff": 1.23,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -2208,7 +2208,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\Schemasoft3_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.93,
+   "mean_abs_diff": 1.17,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -2245,7 +2245,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\Schemasoft4_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.96,
+   "mean_abs_diff": 1.21,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -2282,7 +2282,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\SecurityInterlock_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.92,
+   "mean_abs_diff": 1.16,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -2319,7 +2319,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\SingleSkillsoft1_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.97,
+   "mean_abs_diff": 1.17,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -2356,7 +2356,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\SingleSkillsoft2_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.94,
+   "mean_abs_diff": 1.13,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -2393,7 +2393,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\SingleSkillsoft3_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.92,
+   "mean_abs_diff": 1.2,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -2430,7 +2430,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\SkinGlitter1_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.94,
+   "mean_abs_diff": 1.17,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -2467,7 +2467,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\SkinGlitter2_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 2.0,
+   "mean_abs_diff": 1.16,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -2483,7 +2483,8 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_social_coprocessor'"
+   "wire tile != blueprint tile 'items_sw_social_coprocessor'",
+   "no capture pair \u2014 congruence skipped"
   ],
   "stage": {
    "bp": "SocialCoprocessor",
@@ -2500,7 +2501,6 @@
   "wire_objs": 1,
   "wire_hex": "77bfcf",
   "shots": {
-   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\SocialCoprocessor_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\SocialCoprocessor_raves.png"
   },
   "congruence": {
@@ -2541,7 +2541,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\StabilizerArmLocks_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.96,
+   "mean_abs_diff": 1.19,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -2578,7 +2578,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\StasisEntangler_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.95,
+   "mean_abs_diff": 1.17,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -2615,7 +2615,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\StasisProjector_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.98,
+   "mean_abs_diff": 1.14,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -2652,7 +2652,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\TechnologicalIndexer_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.94,
+   "mean_abs_diff": 1.14,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -2689,7 +2689,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\TibularHydrojets_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.93,
+   "mean_abs_diff": 1.2,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -2726,7 +2726,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\TranslucentSkin_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.92,
+   "mean_abs_diff": 1.14,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -2763,7 +2763,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\TransparentSkin_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.91,
+   "mean_abs_diff": 1.17,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -2779,7 +2779,8 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_skillsoft'"
+   "wire tile != blueprint tile 'items_sw_skillsoft'",
+   "no capture pair \u2014 congruence skipped"
   ],
   "stage": {
    "bp": "TreeSkillsoft",
@@ -2796,7 +2797,6 @@
   "wire_objs": 1,
   "wire_hex": "77bfcf",
   "shots": {
-   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\TreeSkillsoft_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\TreeSkillsoft_raves.png"
   },
   "congruence": {
@@ -2837,7 +2837,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\UltraElasticAnkleTendons_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.92,
+   "mean_abs_diff": 1.16,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [

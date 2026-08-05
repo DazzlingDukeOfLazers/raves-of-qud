@@ -144,4 +144,32 @@ re-baseline will shift absolute numbers.
   unlock injected input into Qud ("You toggle Butcher Corpses off") — plain
   verify+retry stays, AttachThreadInput is the clean path if ever needed.
 
+## 11. FIRST-LIGHT BASELINE (2026-08-05, true daylight) — the next stratum
+
+With the DaylightWidget fix, the first bright-world sweep re-scored everything:
+walls 97/114/18, plants 166/6/8, liquids 76/2/1, furniture 649/37/47,
+food 275/0/0, implants 77/0/0, creatures 322/45/528 — overall 67.0% PASS.
+Items are essentially perfect; the drops are structured, not noise:
+
+- **Creatures (528 FAIL): the two-tone rule.** Evidence (CherubimSpawn1B):
+  Qud renders the creature WHITE-main with the detail colour carrying the
+  identity (gold mane); Raves tints the main with ColorString (solid gold).
+  The Mac decoded this same principle for the avatar ('white main + data
+  detail') and the paper doll (Qud's 'Equipment' render context). The stage
+  context's creature tint rule needs the same reflection — one rule, ~500
+  elements. NEXT.
+- **Walls (114 WARN): threshold recalibration.** Bright colours amplify small
+  offsets; visually-congruent pairs (AgateWall) now sit at mean 12-20 vs the
+  dark-era PASS bar of 12. Recalibrate PASS/WARN bands from the bright
+  distribution once the creature rule lands (bands recompute from stored
+  means, no re-sweep).
+- Furniture 47 + walls 18 + plants 8: triage after the two big levers above.
+- MID-RUN INCIDENT, fixed: the merged stack/dock op applied a MAC-layout rect
+  via window_rect.json (y=-1269) and silently rescaled the viewer mid-sweep
+  (557 phantom furniture FAILs). The viewer now rejects off-screen
+  placements; the poisoned categories were re-swept clean.
+
+Dark-era baselines remain in git history as valid dark-parity records; THIS
+is the canonical baseline lineage going forward.
+
 *Delete sections as addressed (repo ticket lifecycle).*
