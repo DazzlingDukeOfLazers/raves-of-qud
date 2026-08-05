@@ -503,6 +503,11 @@ func _draw_doll() -> void:
 		var sl: Variant = by_label.get(label)
 		# hover brightens the whole frame, as it does on the filter strip
 		var sid := str(sl.get("id", "")) if sl != null else ""
+		# "%d", not str(): the export's part id is a JSON NUMBER, which Godot parses as a
+		# FLOAT -- str() then yields "188.0", the mod's int.TryParse rejects it, and the
+		# equip picker silently never opens. Cost an hour; the value looked right in
+		# every print that mattered because only the string form is wrong.
+		var part := ("%d" % int(sl.get("part", -1))) if sl != null and sl.has("part") else ""
 		# focus and hover both brighten the frame. Qud's filter cells use #4A757E for
 		# "focused" (FilterBarCategoryButton.LateUpdate) and C_HOVER is that colour, so
 		# this is the consistent choice -- but it is REASONED, not measured: Qud's
@@ -510,8 +515,12 @@ func _draw_doll() -> void:
 		var focused: bool = _in_doll and str(DOLL.keys()[_doll_sel]) == str(label)
 		_draw_cell_frame(box, C_HOVER if (focused or (sid != "" and sid == _doll_hover_id)) \
 			else C_BOX, false)
-		if sid != "":
-			_doll_rects.append([box, sid, bool(sl.get("greyed", false))])
+		# EVERY slot is clickable, empty ones included -- an empty slot opens Qud's
+		# "what fits here" picker, which is addressed by BODY PART, not by item
+		if part != "" or sid != "":
+			_doll_rects.append([box, sid, bool(sl.get("greyed", false)) if sl != null else false, part])
+
+
 		if sl != null:
 			var tile := str(sl.get("tile", ""))
 			if tile != "":
@@ -775,9 +784,26 @@ func _doll_activate() -> void:
 		return
 	var want := str(labels[_doll_sel])
 	for sl in _data.get("slots", []):
-		if _doll_label(sl) == want and str(sl.get("id", "")) != "":
-			_send_invaction(str(sl["id"]), "look" if bool(sl.get("greyed", false)) else "")
+		if _doll_label(sl) == want:
+			_activate_slot(str(sl.get("id", "")), bool(sl.get("greyed", false)),
+				str(sl.get("part", "")), false)
 			return
+
+## The one place the slot rules live (InventoryAndEquipmentStatusScreen.HandleSelectItem):
+## an EQUIPPED item twiddles; anything else opens the body part's equip picker; and a
+## RIGHT click on a slot holding only a natural weapon looks at it instead.
+func _activate_slot(id: String, greyed: bool, part: String, right: bool) -> void:
+	if id != "" and not greyed:
+		_send_invaction(id, "")
+	elif right and greyed and id != "":
+		_send_invaction(id, "look")
+	elif part != "":
+		_send_equip(part)
+
+func _send_equip(part: String) -> void:
+	if part == "" or not bridge_cb.is_valid():
+		return
+	bridge_cb.call({"type": "command", "name": "invaction", "mode": "equip", "part": part})
 
 ## Collapse/expand the selected category (an item row toggles its own category),
 ## mirroring the skills tree's model. View state only — Qud keeps its own per-screen.
@@ -834,13 +860,23 @@ func handle_mouse(e: InputEvent) -> void:
 		_scroll = clampf(_scroll + ROW_H * 2, 0.0, maxf(0.0, _rows.size() * ROW_H - LIST_H))
 		_content.queue_redraw()
 		return
+	if e.button_index == MOUSE_BUTTON_RIGHT:
+		for d in _doll_rects:
+			if (d[0] as Rect2).has_point(e.position):
+				_activate_slot(str(d[1]), bool(d[2]), str(d[3]), true)
+				return
+		return
 	if e.button_index != MOUSE_BUTTON_LEFT:
 		return
-	# a doll slot: Qud opens the same interaction menu for an EQUIPPED item, and a plain
-	# Look for a greyed DefaultBehavior one (EquipmentLine.HandleSelectItem)
+	# A doll slot, following HandleSelectItem exactly:
+	#   equipped            -> the item's interaction menu
+	#   otherwise           -> Qud's equip picker for that body part ("what fits here"),
+	#                          which is ALSO what a left click on a greyed natural-weapon
+	#                          slot does -- Look is the RIGHT-click case, not the left one
+
 	for d in _doll_rects:
 		if (d[0] as Rect2).has_point(e.position):
-			_send_invaction(str(d[1]), "look" if bool(d[2]) else "")
+			_activate_slot(str(d[1]), bool(d[2]), str(d[3]), false)
 			return
 	# filter strip first: ALL clears the filter, a category toggles in/out of the
 	# enabled set (Qud's enabledCategories); an empty set means "*All"

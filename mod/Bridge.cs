@@ -658,7 +658,11 @@ namespace RavesOfQud
                     // channel -- nothing here builds one.
                     f.TryGetValue("id", out string invId);
                     f.TryGetValue("mode", out string invMode);
-                    InventoryExporter.Twiddle(invId, invMode);
+                    f.TryGetValue("part", out string invPart);
+                    if (invMode == "equip")
+                        InventoryExporter.EquipPicker(invPart);
+                    else
+                        InventoryExporter.Twiddle(invId, invMode);
                     return;
                 }
                 if (name == "skill")

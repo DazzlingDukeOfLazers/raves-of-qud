@@ -416,3 +416,17 @@ closed set of things that are wrong, not the open set of things that are fine.
   the category, borrowed from the skills tree -- plausible, and not what Qud does.
 - Qud's `PaperdollScroller` scrolls the WHOLE body, so every slot is selectable, empty ones
   included; do not skip to the filled ones.
+- **An empty doll slot opens Qud's "what fits here" picker.**
+  `HandleSelectItem`'s tail is `else if (!IsRightClick() || bodyPart.DefaultBehavior == null)
+  EquipmentScreen.ShowBodypartEquipUI(GO, bodyPart)` -- so a LEFT click on an empty slot, and on a
+  greyed natural-weapon slot, opens the equip picker; Look is the RIGHT-click case only. (An
+  earlier pass here had left-click doing Look on greyed slots, which is the right action bound to
+  the wrong button.) It is addressed by `BodyPart.ID` -- an empty slot has no object to name --
+  and resolved with `Body.GetPartByID`, which also has to be searched by `FindById`.
+- **JSON numbers reach GDScript as FLOATS.** The part id exported as `188` arrives as `188.0`, so
+  `str()` yields `"188.0"`, the mod's `int.TryParse` rejects it, and the picker silently never
+  opens. Use `"%d" % int(v)` when a number is going back over the wire as a key. The mod parses
+  leniently now AND logs a bad id, because a silent `return` on a parse failure is
+  indistinguishable from a click that never happened.
+- **The equip picker is a SCREEN, not a popup**, so it does not come back over the popup mirror --
+  Qud shows it and Raves shows nothing. Mirroring it is its own piece of work.

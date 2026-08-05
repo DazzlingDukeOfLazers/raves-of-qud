@@ -47,6 +47,57 @@ namespace RavesOfQud
         /// MUST go through APIDispatch: TwiddleObject blocks on a synchronous popup, and
         /// calling it straight from a uiQueue task deadlocks that wait (the bug that let
         /// a skill purchase complete even when the player answered No).
+        /// Qud's "what fits here" picker for a body part -- EquipmentScreen.ShowBodypartEquipUI,
+        /// which is what InventoryAndEquipmentStatusScreen.HandleSelectItem runs for a slot with
+        /// nothing equipped in it (and for a greyed natural-weapon slot on a LEFT click; only a
+        /// right-click looks at those). Addressed by BodyPart.ID, since an empty slot has no
+        /// object to name.
+        public static void EquipPicker(string partId)
+        {
+            var gm = GameManager.Instance;
+            if (gm == null || gm.uiQueue == null) return;
+            gm.uiQueue.queueTask(() =>
+            {
+                try
+                {
+                    GameObject p = XRL.The.Player;
+                    if (p == null || p.Body == null) return;
+                    // lenient, and LOUD: a bare TryParse returning silently is how a
+                    // client sending "188.0" (a JSON number round-tripped through a
+                    // float) looked exactly like a click that never happened
+                    int pid;
+                    if (!int.TryParse(partId, out pid))
+                    {
+                        double dpid;
+                        if (double.TryParse(partId, out dpid)) pid = (int)dpid;
+                        else
+                        {
+                            System.Console.WriteLine("[raves] equip picker: bad part id " + (partId ?? "null"));
+                            return;
+                        }
+                    }
+                    BodyPart part = p.Body.GetPartByID(pid);
+                    if (part == null)
+                    {
+                        System.Console.WriteLine("[raves] equip picker: no body part " + partId);
+                        return;
+                    }
+                    System.Console.WriteLine("[raves] equip picker for " + (part.Name ?? "?"));
+                    APIDispatch.RunAndWaitAsync(delegate
+                    {
+                        try { XRL.UI.EquipmentScreen.ShowBodypartEquipUI(p, part); }
+                        catch (Exception ee) { System.Console.WriteLine("[raves] ShowBodypartEquipUI: " + ee.Message); }
+                    }).ContinueWith(delegate
+                    {
+                        var g2 = GameManager.Instance;
+                        if (g2 != null && g2.uiQueue != null)
+                            g2.uiQueue.queueTask(() => { ReExport(); }, 0);
+                    });
+                }
+                catch (Exception e) { System.Console.WriteLine("[raves] equip picker error: " + e.Message); }
+            }, 0);
+        }
+
         public static void Twiddle(string id, string mode = null)
         {
             var gm = GameManager.Instance;
@@ -256,6 +307,10 @@ namespace RavesOfQud
                     {
                         if (bp == null) continue;
                         j.BeginObject();
+                        // the PART's own id, on every slot including the empty ones: an empty
+                        // slot has no object to name, and Qud's equip picker is addressed by
+                        // body part, not by item
+                        try { j.Member("part", bp.ID); } catch { }
                         try { j.Member("name", bp.Name ?? ""); } catch { }
                         try { j.Member("type", bp.Type ?? ""); } catch { }
                         try { j.Member("desc", bp.GetOrdinalName() ?? ""); } catch { }
