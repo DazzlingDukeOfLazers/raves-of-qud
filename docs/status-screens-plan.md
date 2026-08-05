@@ -99,6 +99,14 @@ always visible in the bar).
    `FilterBarCategoryButton.categoryImageMap` (Light Sources -> sw_torch_lit, Armor -> sw_leather_armor,
    …) and the strip paints them in that button's fixed two-tone (0.596,0.529,0.372 / 0.545,0.4,0.18),
    falling back to the category's first item tile for an unmapped category.
+   **RECAPTURE BLOCKED (2026-08-04):** re-shooting `equipment_qud.png` on the current save failed —
+   Qud's status screens ignore OS-synthesized keys (the modern-UI law), the bridge
+   `command CmdEquipment` doesn't open them either, and a hover-click on Qud's character chrome icon
+   didn't land. Qud's heartbeat ALSO reports `StatusScreensScreen` while the playfield is actually
+   showing (its `_ActiveGameView` goes stale — the same class of bug fixed on the Raves side), so
+   `hv state` can't be trusted here; verify with pixels. NEXT: add a first-party mod command that
+   calls `StatusScreensScreen.Show()` and selects a tab (the "missing capability -> fix the tool"
+   rule) — that also gives `hv goto qud status_*` real recipes.
    **MEASUREMENT CAVEAT for this tab:** `equipment_qud.png` was captured on a DIFFERENT inventory
    (cloth robe / canteen) than the live save, so per-region diffs here include real CONTENT
    differences — only geometry/structure comparisons are meaningful until a matched-state reference
