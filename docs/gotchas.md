@@ -356,3 +356,28 @@ add a one-liner (symptom → rule).
   polls the bridge trips it.
 - `tools/build_macos.sh` reports `✓ built + signed` even when a script has a PARSE ERROR. Read
   the `--check-only` output; a green build is not evidence the scripts are sound.
+
+## UiState's heartbeat: name the GAMEPLAY scenes, never the allowed menus
+
+`UiState._heartbeat` re-checks the live scene root and corrects the report when it cannot be
+true -- the guard that stops a crashed Raves pinning highvisor's tree to a screen we already
+left. It used to do that with an ALLOW-LIST: correct to "title" unless the scene is one of
+title / chargen* / quit_dialog / records / options / mods.
+
+Every menu screen added afterwards was therefore silently reverted two seconds after it opened.
+`LoadGameScreen` was one. It reported `loadgame` correctly, the heartbeat undid it, and the
+consequences ran a long way downhill:
+
+  - highvisor believed Raves was on the TITLE while it was showing the save picker
+  - so `goto in_game` clicked for a "Continue" that is not on the picker, and failed
+  - so did every retry, identically, because nothing moved -- only a restart appeared to help
+  - and the title recipe could not back out either, because its self-heal list had the same
+    omission (mods/options/records/quit_dialog, no loadgame)
+
+That is the intermittent `restart -> goto -> assert` failure chased for most of a session, and
+it was never a race. The check now names the handful of GAMEPLAY scenes that genuinely cannot
+coexist with a MainMenu root (`in_game`, `status_*`), so a new screen works without being
+enumerated anywhere.
+
+**The general shape:** an allow-list you must remember to extend is a trap. State it as the small
+closed set of things that are wrong, not the open set of things that are fine.

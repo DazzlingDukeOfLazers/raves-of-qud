@@ -43,15 +43,28 @@ func _ready() -> void:
 func _path() -> String:
 	return OS.get_environment("HOME").path_join("Library/Application Support/RavesOfQud/raves_state.json")
 
-## Heartbeat + change writer. The scene string is only as good as its reporter, so
-## the heartbeat ALSO sanity-checks the live scene root: if we claim an in-game /
-## status scene but the tree's current scene is the main menu, correct the report
-## rather than republishing a stale value every 2s.
+## Scenes that CANNOT be true while the main menu is the live scene root. The
+## heartbeat corrects those to "title" so a crashed or stale reporter can't pin
+## highvisor's tree to a screen we already left.
+##
+## This is deliberately a list of GAMEPLAY scenes, not a list of allowed menus. It
+## used to be the other way round -- correct unless the scene is one of
+## title/chargen*/quit_dialog/records/options/mods -- and every menu screen added
+## afterwards was silently reverted to "title" two seconds after it opened.
+## LoadGameScreen was one: it reported "loadgame" correctly, the heartbeat undid it,
+## and so highvisor drove title-menu recipes at a save picker, clicked for a
+## "Continue" that wasn't on screen, and failed identically on every retry until a
+## restart. An allow-list you must remember to extend is a trap; this direction only
+## names the handful of scenes the check actually exists for.
+const GAMEPLAY_SCENES := ["in_game"]
+
+func _is_gameplay_scene(scene: String) -> bool:
+	return scene in GAMEPLAY_SCENES or scene.begins_with("status_")
+
+## Heartbeat + change writer.
 func _heartbeat() -> void:
 	var root := get_tree().current_scene if get_tree() != null else null
-	if root != null and root.name == "MainMenu" and _scene != "title" \
-			and not _scene.begins_with("chargen") and _scene != "quit_dialog" \
-			and _scene != "records" and _scene != "options" and _scene != "mods":
+	if root != null and root.name == "MainMenu" and _is_gameplay_scene(_scene):
 		_scene = "title"
 		_popup = ""
 	_write()
