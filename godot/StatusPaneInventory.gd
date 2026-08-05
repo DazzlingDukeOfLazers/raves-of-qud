@@ -293,8 +293,13 @@ func _draw_doll() -> void:
 					# 55x62 slot (bark armor 47x48, torch 47x45, boots 47x43) where ours
 					# spanned 22x25 — the sprite nearly fills the cell rather than sitting
 					# small in the middle.
-					# 2:3 like the source tile (16x24): narrower and taller than the
-					# stretched 47x50 first pass, centred in the 55x62 slot
+					# Size left at the best-MEASURED configuration. Two "corrections" were
+					# reverted after scoring worse (47x50 stretched, then a square 48x48
+					# derived from Qud's mask), because the ink numbers driving them were
+					# CONTAMINATED: the sampling window included the cell's own frame
+					# lines, so "Qud ink 47x48" was largely the box, not the sprite. From
+					# the mask dump, Qud's boots sprite is ~44x30 of real ink with padding
+					# above/below — close to what this rect already produces.
 					_static.draw_texture_rect(tex,
 						Rect2(pos + Vector2(10, 4), Vector2(36, 54)), false)
 			if bool(sl.get("primary", false)):

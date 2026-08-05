@@ -288,3 +288,27 @@ STILL OPEN (size only): our ink is 32x36 vs Qud's 47x48 — Qud draws these bigg
 the 55x62 slot. Next: check whether EquipmentLine's UIThreeColorProperties image uses a fixed
 preferred size / different sprite scale, rather than guessing draw rects (two guesses regressed).
 Remember blur regresses to the mean: compare ink boxes, not band averages, for this.
+
+
+## Equipment doll size — measurement was contaminated (2026-08-05)
+
+Chasing the doll sprite size, two changes were made and BOTH reverted after scoring worse
+(47x50 stretched: full 4.52 -> 5.20; square 48x48 from the mask: doll 5.01 -> 5.73). Cause: the
+"ink box" helper sampled `cell+2 .. cell+53/60`, which INCLUDES the cell's own 2px frame lines — so
+"Qud's ink is 47x48" was mostly measuring the box, not the sprite. The mask dump shows Qud's boots
+sprite is ~44x30 of actual ink sitting with vertical padding inside its slot.
+
+**THE BAND METRIC IS NOISY BETWEEN RUNS.** After reverting to the exact configuration that measured
+doll 5.01 / full 4.55, the SAME code measured 5.72 / 5.22 on a fresh capture. Nothing changed but the
+run — the live playfield behind the scrim (and side-panel/ability-bar state) differs per launch, and
+that moves the average by ~0.7, which is larger than most of the deltas chased this session. Several
+earlier "this change regressed it" conclusions are therefore unsafe; only changes with a clear
+mechanism (render context, NEAREST filter, frame motif) should be trusted from those numbers.
+Protocol fix for next session: capture Qud AND Raves back-to-back in the same state, or diff only the
+sub-region under test with the playfield masked out.
+
+With a frame-free sampler (inset 6px, so the cell border is excluded) the sprite comparison is:
+Qud ink 43x44 (body) / 43x39 (feet) vs ours 32x36 / 32x28 — ours IS smaller by ~1.3x, so the size gap
+is real and the earlier 48x48 attempt was probably closer than its (noisy) band score suggested.
+Standing on `Rect2(slot + (10,4), 36x54)`; re-run the comparison under the fixed protocol before
+changing it again.
