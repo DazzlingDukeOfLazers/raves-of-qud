@@ -223,7 +223,17 @@ def score(qud_png, raves_png, geom, wire_color_hex=None):
             "white_px": [wa, wb], "dominant_delta": dom_delta, "wire_delta": wire_delta}
 
 
-# ---------------------------------------------------------------- contact crops
+# ---------------------------------------------------------------- animation states
+
+def state_fingerprint(path, rect):
+    """A stable fingerprint of the stage-cell crop for distinct-STATE counting
+    (rung 4): resample to the common grid, quantize hard (//32) so AA/dither
+    noise doesn't mint phantom states, hash. Animation frames differ by whole
+    colour bands, which survives the quantize; single-pixel shimmer doesn't."""
+    import hashlib
+    px = _sample(path, rect)
+    q = bytes(v // 32 for p in px for v in p)
+    return hashlib.md5(q).hexdigest()[:12]
 
 def save_crop(src_png, rect, out_png, scale=4):
     """Write the crop (nearest-upscaled) as a small PNG — the contact-sheet cell."""

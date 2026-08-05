@@ -1,0 +1,33 @@
+{
+ "_doc": "Rung-4 animation fixtures (docs/pc-test-rig.md): each names blueprints to stage and the expected distinct-state band [min,max] PER APP over a 12-frame jittered burst. Bands are MEASURED (2026-08-05 first baseline) except where noted aspirational: a band the Raves side currently fails documents the porting target. `checker.py anim <fixture>` measures; classes: static(1) / discrete / continuous(>=75% frames unique).",
+ "warm-static": {
+  "blueprints": ["WarmStaticPuddle", "DilutedWarmStaticPuddle"],
+  "expect_states": [2, 5],
+  "notes": "MEASURED AGREE: qud 4 / raves 3-4 discrete. The recurring pixel-pass WARN/FAILs are pure phase mismatch — the animation itself is congruent. Candidate for anim-aware banding in the scored sweep."
+ },
+ "machine-tubing": {
+  "blueprints": ["MachineWallHotTubing", "MachineWallColdTubing"],
+  "expect_states": [8, 12],
+  "notes": "ASPIRATIONAL: qud 11 continuous, raves 1 STATIC — Raves does not animate the coolant tubing at all. Renderer gap; the walls-category WARNs are this."
+ },
+ "conveyor": {
+  "blueprints": ["ConveyorPad"],
+  "expect_states": [2, 5],
+  "notes": "MEASURED AGREE: qud 4 / raves 3 discrete."
+ },
+ "phasic-screw": {
+  "blueprints": ["Phasic Screw"],
+  "expect_states": [3, 7],
+  "notes": "ASPIRATIONAL: qud 5 discrete (phase bands), raves 1 STATIC — no phase flicker ported. Renderer gap."
+ },
+ "switch-blink": {
+  "blueprints": ["Switch", "DisabledSwitch"],
+  "expect_states": [1, 1],
+  "notes": "MEASURED AGREE at 1/1: an UNPOWERED switch does not blink. The furniture pixel FAILs for Switch are therefore a STATIC art difference, not animation — re-triage against the evidence crops (findings section 6 revised)."
+ },
+ "campfire": {
+  "blueprints": ["Campfire"],
+  "expect_states": [8, 12],
+  "notes": "MEASURED AGREE: qud 11 / raves 12 continuous. The sanity case."
+ }
+}

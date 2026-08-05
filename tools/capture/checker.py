@@ -297,6 +297,123 @@ def ensure_daylight(b):
     return
 
 
+# Deterministic JITTER (seconds between burst frames): primes-ish, never ~0.5s
+# multiples — a fixed cadence phase-locks against the animation clock and reads
+# a two-state blinker as one state (the measured playbook's first rule).
+ANIM_JITTER = [0.37, 0.61, 0.83, 0.47, 0.73, 0.97, 0.41, 0.67, 0.91, 0.59, 0.79, 0.43]
+
+
+def anim_measure(b, bp, frames=12):
+    """Stage `bp`, then burst-capture EACH app at jittered cadence and count
+    distinct stage-cell states + duty. Bursts are per-app (Qud needs focus to
+    recomposite on Windows; Raves' capture is focus-free) and not frame-synced —
+    the comparison is STATISTICS: state count and dominant-state duty."""
+    r = check_one(b, bp)
+    if not r["pass"]:
+        return {"bp": bp, "ok": False, "reasons": r["reasons"]}
+    geom = congruence.load_geometry()
+    out = {"bp": bp, "ok": True}
+    for app, capture, src, rect in (
+            ("qud", control.qud_shot, control.QUD_SHOT, geom["qud"]),
+            ("raves", control.godot_shot, control.SHOT, geom["raves"])):
+        if plat.IS_WIN:
+            # Each app gets FOCUS for its own burst: Qud's map only recomposites
+            # focused, and Godot's animation clock freezes unfocused (first
+            # campfire run: qud 9 states, raves 1 — the fire was frozen).
+            try:
+                plat.activate("CavesOfQud" if app == "qud" else "Raves of Qud")
+                time.sleep(0.6)
+            except Exception:
+                pass
+        states = {}          # fingerprint -> count
+        first_crop = {}      # fingerprint -> saved crop path
+        outdir = os.path.join(REPORTS, "anim", _safe(bp))
+        os.makedirs(outdir, exist_ok=True)
+        for i in range(frames):
+            if not capture():
+                continue
+            fp = congruence.state_fingerprint(src, rect)
+            states[fp] = states.get(fp, 0) + 1
+            if fp not in first_crop:
+                p = os.path.join(outdir, "%s_state%d.png" % (app, len(first_crop)))
+                try:
+                    congruence.save_crop(src, rect, p, scale=2 if app == "raves" else 1)
+                    first_crop[fp] = p
+                except Exception:
+                    first_crop[fp] = ""
+            time.sleep(ANIM_JITTER[i % len(ANIM_JITTER)])
+        n = sum(states.values())
+        duty = sorted((round(c / float(n), 2) for c in states.values()), reverse=True) if n else []
+        out[app] = {"frames": n, "states": len(states), "duty": duty,
+                    "class": _anim_class(len(states), n)}
+    a, b_ = out.get("qud", {}), out.get("raves", {})
+    # Agreement is by BEHAVIOUR CLASS, not exact counts: continuous animations
+    # (fire) make nearly every jittered frame unique, so 11-vs-12 states is the
+    # same behaviour; discrete blinkers must also land within one state of each
+    # other so a two-state blink can't pass against a four-state cycle.
+    out["agree"] = (a.get("class") == b_.get("class")
+                    and (a.get("class") != "discrete"
+                         or abs(a.get("states", 0) - b_.get("states", 0)) <= 1))
+    return out
+
+
+def _anim_class(states, frames):
+    if frames == 0:
+        return "none"
+    if states <= 1:
+        return "static"
+    if states >= max(4, int(frames * 0.75)):
+        return "continuous"
+    return "discrete"
+
+
+def anim_fixture(name, frames=12):
+    """Run a named fixture (fixtures/checker_anim.json) or a bare blueprint."""
+    try:
+        with open(os.path.join(REPO, "fixtures", "checker_anim.json")) as f:
+            fixtures = json.load(f)
+    except (OSError, ValueError):
+        fixtures = {}
+    fx = fixtures.get(name)
+    bps = fx["blueprints"] if fx else [name]
+    expect = (fx or {}).get("expect_states")
+    b = control.Bridge()
+    results = []
+    for bp in bps:
+        # Each burst idles the bridge ~40s and the server's churn-reset drops
+        # it (same class as the sweep's reconnect lane) — retry with a fresh
+        # connection once per blueprint.
+        try:
+            m = anim_measure(b, bp, frames)
+        except (ConnectionError, OSError):
+            try:
+                b.close()
+            except OSError:
+                pass
+            time.sleep(1.0)
+            b = control.Bridge()
+            m = anim_measure(b, bp, frames)
+        results.append(m)
+        if m.get("ok"):
+            q, rv = m["qud"], m["raves"]
+            verdict = "AGREE" if m["agree"] else "DISAGREE"
+            if expect:
+                inband = expect[0] <= q["states"] <= expect[1] and expect[0] <= rv["states"] <= expect[1]
+                verdict += " in-band" if inband else " OUT-OF-BAND"
+            print("%-28s qud %d(%s) | raves %d(%s) -> %s"
+                  % (bp, q["states"], q["class"], rv["states"], rv["class"], verdict))
+        else:
+            print("%-28s STAGE FAILED: %s" % (bp, m.get("reasons")))
+    b.close()
+    outdir = os.path.join(REPORTS, "anim")
+    os.makedirs(outdir, exist_ok=True)
+    path = os.path.join(outdir, _safe(name) + ".json")
+    with open(path, "w") as f:
+        json.dump({"fixture": name, "frames": frames, "expect_states": expect,
+                   "measured": results, "when": time.strftime("%Y-%m-%d %H:%M")}, f, indent=1)
+    print("report:", path)
+
+
 def calibrate():
     """Two-frame differential calibration (congruence.py docstring): a full-tile
     wall frame vs an EMPTY-stage frame — the diff is the whole sprite, i.e. the
@@ -425,6 +542,13 @@ def main(argv):
         b.read_snapshot(timeout=15)
         b.close()
         print("zoom: clamped to max-in minus 2 (rerun `checker.py calibrate` now)")
+    elif cmd == "anim":
+        # anim <fixture-or-blueprint> [--frames N] — rung 4's measured playbook
+        if len(argv) < 2:
+            sys.exit("usage: checker.py anim <fixture|Blueprint> [--frames N]")
+        fr = int(argv[argv.index("--frames") + 1]) if "--frames" in argv else 12
+        name = " ".join(a for a in argv[1:] if not a.startswith("--") and not a.isdigit())
+        anim_fixture(name, fr)
     elif cmd == "calibrate":
         calibrate()
     elif cmd == "one":

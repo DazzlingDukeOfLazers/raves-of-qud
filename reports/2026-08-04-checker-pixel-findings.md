@@ -92,4 +92,24 @@ divergence?). Everything else in furniture: 711 PASS / 15 WARN / 12 KNOWN.
   Platform, Powered Telescope) are the section-6 animation / tile-replacement
   class — Phasic Screw's evidence shows literal phase bands.
 
+## 8. Rung-4 first animation baseline (2026-08-05) — two real gaps, two exonerations
+
+Measured with `checker.py anim` (12-frame jittered bursts, distinct-state counts
+per app, behaviour-class agreement; fixtures/checker_anim.json holds the bands):
+
+- **MachineWall*Tubing: qud 11-state continuous, raves 1-state STATIC** — the
+  coolant animation is not ported. Real renderer gap (the walls WARNs).
+- **Phasic Screw: qud 5-state discrete, raves STATIC** — phase flicker missing.
+- Warm-static liquids: 4-vs-4/3 discrete, AGREE — their recurring pixel
+  WARN/FAILs are pure capture-phase mismatch; the animation is congruent.
+- Switch/DisabledSwitch: 1-vs-1 static — an UNPOWERED switch doesn't blink, so
+  the section-6 'blink' theory is wrong for the pixel FAILs: those are a static
+  art difference. Re-triage Switch/TempleSwitch/Unicomputer from evidence crops.
+- Campfire sanity: 11-vs-12 continuous, AGREE. ConveyorPad: 4-vs-3, AGREE.
+
+Also fixed en route: Godot's animation clock freezes unfocused on Windows (the
+anim burst focuses each app for its own capture), and plat_win.activate no
+longer SW_RESTOREs un-minimized windows (it shrank the borderless viewer to its
+pre-size default — the same class as highvisor's UIA quirks).
+
 *Delete sections as addressed (repo ticket lifecycle).*

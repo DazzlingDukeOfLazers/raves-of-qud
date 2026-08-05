@@ -279,12 +279,16 @@ def bounds(app):
 
 
 def activate(app):
-    """Bring an app's main window to the foreground (also refreshes its render)."""
+    """Bring an app's main window to the foreground (also refreshes its render).
+    SW_RESTORE only when MINIMIZED: on a normal window it re-applies the stale
+    'restore size', which shrank the borderless 1:1 viewer from 3232x1878 to its
+    tiny pre-size default the first time the anim burst focused it."""
     best = _largest(app)
     if best is None:
         return
     hwnd = best[1]
-    _user32.ShowWindow(hwnd, _SW_RESTORE)
+    if _user32.IsIconic(hwnd):
+        _user32.ShowWindow(hwnd, _SW_RESTORE)
     _user32.BringWindowToTop(hwnd)
     _user32.SetForegroundWindow(hwnd)
 

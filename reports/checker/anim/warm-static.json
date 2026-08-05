@@ -1,0 +1,61 @@
+{
+ "fixture": "warm-static",
+ "frames": 12,
+ "expect_states": null,
+ "measured": [
+  {
+   "bp": "WarmStaticPuddle",
+   "ok": true,
+   "qud": {
+    "frames": 12,
+    "states": 4,
+    "duty": [
+     0.42,
+     0.25,
+     0.25,
+     0.08
+    ],
+    "class": "discrete"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 4,
+    "duty": [
+     0.33,
+     0.33,
+     0.25,
+     0.08
+    ],
+    "class": "discrete"
+   },
+   "agree": true
+  },
+  {
+   "bp": "DilutedWarmStaticPuddle",
+   "ok": true,
+   "qud": {
+    "frames": 11,
+    "states": 4,
+    "duty": [
+     0.45,
+     0.27,
+     0.18,
+     0.09
+    ],
+    "class": "discrete"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 3,
+    "duty": [
+     0.42,
+     0.33,
+     0.25
+    ],
+    "class": "discrete"
+   },
+   "agree": true
+  }
+ ],
+ "when": "2026-08-05 10:17"
+}

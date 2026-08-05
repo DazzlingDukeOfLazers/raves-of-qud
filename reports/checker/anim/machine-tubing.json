@@ -1,0 +1,70 @@
+{
+ "fixture": "machine-tubing",
+ "frames": 12,
+ "expect_states": null,
+ "measured": [
+  {
+   "bp": "MachineWallHotTubing",
+   "ok": true,
+   "qud": {
+    "frames": 11,
+    "states": 11,
+    "duty": [
+     0.09,
+     0.09,
+     0.09,
+     0.09,
+     0.09,
+     0.09,
+     0.09,
+     0.09,
+     0.09,
+     0.09,
+     0.09
+    ],
+    "class": "continuous"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 1,
+    "duty": [
+     1.0
+    ],
+    "class": "static"
+   },
+   "agree": false
+  },
+  {
+   "bp": "MachineWallColdTubing",
+   "ok": true,
+   "qud": {
+    "frames": 11,
+    "states": 11,
+    "duty": [
+     0.09,
+     0.09,
+     0.09,
+     0.09,
+     0.09,
+     0.09,
+     0.09,
+     0.09,
+     0.09,
+     0.09,
+     0.09
+    ],
+    "class": "continuous"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 1,
+    "duty": [
+     1.0
+    ],
+    "class": "static"
+   },
+   "agree": false
+  }
+ ],
+ "when": "2026-08-05 10:18"
+}
