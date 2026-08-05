@@ -596,7 +596,9 @@ func _group_wall_cells(cells: Array, offset: Vector2i, wall_types: Dictionary, w
 			var tile := _canon_wall_tile(String(obj.get("tile", "")))
 			var main_c := _pick_color_string(obj)   # compound beats tilecolor (the shared rule)
 			var detail_c := String(obj.get("detail", ""))
-			var bg := _parse_bg(String(obj.get("color", "")))
+			# Gap-fill bg comes from TILECOLOR's ^X (tile-mode truth) — never from
+			# ColorString, whose ^ is glyph-mode (see _wall_bg_color's history).
+			var bg := _parse_bg(String(obj.get("tilecolor", "")))
 			var key := "%s|%s|%s|%s" % [tile, main_c, detail_c, bg]
 			if not wall_types.has(key):
 				wall_types[key] = {"cells": {}, "tile": tile, "main": main_c, "detail": detail_c, "bg": bg}
@@ -2154,6 +2156,9 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 	if skip_creatures and _is_creature(obj):
 		return
 	var tile := String(obj.get("tile", ""))
+	# Per-object gap-fill bg: the ^X of TILECOLOR (Starship walls fill gold '^W',
+	# HangarWall bright '^Y'; metal walls carry no TileColor ^ and keep world bg).
+	_wall_bg = _parse_bg(String(obj.get("tilecolor", "")))
 
 	# No tile even after asking the object what it would DRAW means Qud draws
 	# nothing: DaylightWidget, ZoneMusic, CheckpointWidget, Landmark* — zone
@@ -2192,9 +2197,15 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 	# A filed FILL verdict applies to the tile's texture everywhere it draws (the fill axis is
 	# independent of shape): fill-holes turns the water wheel's see-through slats opaque in the
 	# FLAT path too — Qud shows them solid, and the old 3D panel path was the only place the
-	# verdict used to reach. Unfiled tiles keep Fill.NONE (transparent as-loaded).
+	# verdict used to reach. Unfiled tiles keep Fill.NONE (transparent as-loaded) —
+	# EXCEPT an occluding wall whose TILECOLOR carries a ^X background: Qud fills
+	# its gaps with that colour (Starship family '^W' gold frames, HangarWall
+	# '^Y'; checker evidence StarshipGeometricWallGrey_goldframe_*). Plain walls
+	# keep transparent gaps — their Qud render shows the terrain through, and
+	# 213 bright-baseline walls pass on exactly that behaviour.
+	var wall_fill := Fill.ALL if (_wall_bg != "" and bool(obj.get("occluding", false))) else Fill.NONE
 	var tex := _colored_tex_rgb(tile, _obj_main(obj), _obj_detail(obj), _color_key(obj),
-		_fill_for(tile, Fill.NONE))
+		_fill_for(tile, wall_fill))
 
 	# A filed verdict overrides everything below it. This is how facts that are not
 	# in Qud's data get in: nothing in `sw_waterwheel_1` says the wheel runs
@@ -2449,9 +2460,15 @@ func _parse_bg(color: String) -> String:
 	return ""
 
 func _wall_bg_color() -> Color:
-	# Qud fills transparent gaps with the world/cell background (dark green), NOT the
-	# object's ^X. The ^X-derived colour was flooding e.g. metal walls cyan; the cyan
-	# actually belongs to the detail pixels (the border), handled by the recolor.
+	# Gap fill = the ^X component of TILECOLOR when present, else the world bg.
+	# BOTH prior measurements were right and are reconciled by WHICH FIELD the ^
+	# came from: metal walls flooded cyan because the old code read COLORSTRING's
+	# '^R' (glyph-mode noise — their TileColor '&y' has no ^), while the Starship
+	# family genuinely fills gold — TileColor '&y^W' — and Qud paints it
+	# (checker evidence: StarshipGeometricWallGrey_goldframe_*). ColorString
+	# compounds stay glyph-only, exactly like the salt-puddle measurement.
+	if _wall_bg != "":
+		return _qud_color("&" + _wall_bg)
 	return _world_bg
 
 func _rebuild_walls(wall_types: Dictionary) -> void:
@@ -3222,7 +3239,10 @@ func _colored_tex(tile: String, main_c: String, detail_c: String, fill := Fill.N
 func _colored_tex_rgb(tile: String, main: Color, detail: Color, ckey: String, fill := Fill.NONE) -> ImageTexture:
 	if tile.is_empty() or _tiles_dir.is_empty():
 		return null
-	var key := "%s|%s|%d" % [tile, ckey, fill]
+	# _wall_bg keys the FILL colour (gap pixels paint _wall_bg_color()), so it
+	# must key the cache too — a gold-fill Starship texture must not be served
+	# for a world-fill wall that shares tile+colours.
+	var key := "%s|%s|%d|%s" % [tile, ckey, fill, _wall_bg]
 	if _tex_cache.has(key):
 		return _tex_cache[key]
 	var mask := _mask(tile)

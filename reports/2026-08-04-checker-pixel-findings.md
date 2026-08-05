@@ -159,11 +159,17 @@ Items are essentially perfect; the drops are structured, not noise:
   cell for most of the leg (dromad-class crops scored against popup text).
   Glowfish et al confirm creature tints are faithful. shots_for now clears
   the viewer's reported popup before capturing; creatures re-ran guarded.
-- **Walls: RE-BANDED (bright calibration).** Anchored on eyeballed pairs
-  (congruent at mean 19 and 25; real divergence at 36.8 and 47), bands are now
-  PASS<=26 / WARN<=34. Walls: 213/11/5 — the 5 true FAILs are the
-  StarshipGeometric family (Qud renders a GOLD FRAME Raves lacks — evidence
-  committed) and HangarWall. One wall-family ticket.
+- **Walls: RE-BANDED + the gold-frame family FIXED (2026-08-05).** Bands
+  PASS<=26 / WARN<=34 (anchored on eyeballed pairs). The Starship fix was a
+  RULE, reflected from the XML: gap fill = the ^X component of TILECOLOR when
+  present (Starship '&y^W' gold, HangarWall '&y^Y'), else world bg — which
+  reconciles BOTH prior measurements (metal walls flooded cyan off
+  COLORSTRING's ^R, glyph-mode noise; the salt puddle's compound stays
+  glyph-only). Flat-mode occluding walls with a ^ TileColor now fill.
+  Starship family 31-47 -> 10-12 PASS; walls certify 224/0/5. The 5
+  remaining (Stasisfield, HangarWall-intermittent, Cryochamber, Resheph,
+  YdFreehold pipes) behave run-to-run variable — animated-tail candidates
+  for the rung-4 fixture list.
 - Furniture 47 + walls 18 + plants 8: triage after the two big levers above.
 - MID-RUN INCIDENT, fixed: the merged stack/dock op applied a MAC-layout rect
   via window_rect.json (y=-1269) and silently rescaled the viewer mid-sweep
