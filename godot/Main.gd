@@ -318,14 +318,16 @@ func _on_popup(data: Dictionary) -> void:
 		_popup.hide_popup()
 
 func _on_snapshot(data: Dictionary) -> void:
-	# A snapshot can only publish once Qud's turn thread has unblocked — i.e. any popup is already gone —
-	# so treat every snapshot as authoritative "no popup", closing the overlay even if a dismissal frame
-	# was coalesced away. Also cache the colour map so popup markup renders with the same palette.
+	# Cache the colour map so popup markup renders with the same palette. Do NOT
+	# hide the popup here: ASYNC popups (ShowYesNoAsync / PickOptionAsync) never
+	# block the turn thread, so snapshots keep flowing while they're up — the old
+	# "snapshot == no popup" rule made the mirror FLICKER (show → snapshot-hide →
+	# re-announce, forever). The watcher's active:false is the dismissal channel
+	# (it force-rescans before declaring one), and a stranded overlay is always
+	# escapable — Esc answers Cancel and hides locally.
 	var pal: Dictionary = data.get("palette", {})
 	if not pal.is_empty():
 		_palette = pal
-	if _popup != null:
-		_popup.hide_popup()
 	# Route the render through the store: draw the live zone plus any remembered
 	# neighbours (same stratum) the player has visited, placed by global offset.
 	Profiler.add_us("server", int(data.get("serverUs", 0)))

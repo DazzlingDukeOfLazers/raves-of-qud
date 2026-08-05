@@ -89,10 +89,18 @@ control-mapping screen. Menu + yes/no verified live side-by-side. TITLED dialogs
 "Selected Bind Set" picker): the top line is FULL WIDTH with a 10px centre notch (down-ticks) and 6px
 side notches at ±w/3.1 (outward ticks) — not one big gap; a title gets its own row beneath (gold 'W',
 centred, natural width drives the panel) flanked by ─┤ ├─ edge assemblies; the line drops to +16.
-Verified 213px vs Qud's 221 on the same popup. NOTE: Qud's plain yes/no confirms are a WIDE
-TRANSPARENT BANNER (lines + text over the dimmed game, no boxed panel) — a later fidelity round;
-and answers to ASYNC popups (ShowYesNoAsync/PickOptionAsync = copyWindow class) do NOT round-trip
-from Raves yet — same root as the known AskString limitation. Also fixed: popup hotkey answers no longer leak into MainFrame's status-tab keys (_input vs
+Verified 213px vs Qud's 221 on the same popup. BANNER MODE (2026-08-04): plain messages/confirms
+render as Qud's wide strip — it measured OPAQUE (6,37,37), not transparent (strip 673x76 for a
+one-line confirm): top line at +4 with the same notches, message width drives the strip (wraps at
+1240), button row in the bottom line with the gold-family "> " keyboard cursor (Left/Right move,
+Space/Enter answer) and 34px spacing. Backdrop = flat _cq(17,52,51) at 0.88 alpha (the popup layer
+sits ABOVE the CRT, so the status-screens scrim formula rendered too dark — fit to the measured
+flat value instead); landed (18,51,50) vs Qud (17,52,51). FLICKER FIX: async popups never block the
+turn thread, so Main's "any snapshot hides the popup" rule made mirrors flicker (show → hide →
+re-announce) — the watcher's active:false is now the only dismissal channel (Esc always escapes a
+stranded overlay locally). STILL OPEN: answers to ASYNC popups (ShowYesNoAsync/PickOptionAsync =
+copyWindow class) do NOT round-trip from Raves — same root as the AskString limitation; answer
+those by clicking IN QUD for now. Also fixed: popup hotkey answers no longer leak into MainFrame's status-tab keys (_input vs
 set_input_as_handled), and popup row rebuilds remove old children immediately (queue_free lingers a
 frame and poisons same-frame re-shows).
 

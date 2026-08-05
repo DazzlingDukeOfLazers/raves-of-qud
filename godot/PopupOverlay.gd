@@ -20,6 +20,7 @@ var _content_sig := ""        # content fingerprint — a flap re-announce must 
 var _buttons: Array = []      # [{text,command,hotkey}] — the bottom button row
 var _options: Array = []      # [{text,command}] — PickOption items (empty for a plain message)
 var _sel := 0                 # highlighted option index (menu mode)
+var _bsel := 0                # keyboard-selected BUTTON (message/confirm mode)
 var _built := false
 
 var _root: Control
@@ -54,6 +55,9 @@ var C_PALE := _cq(168, 194, 187)
 var C_BTN := _cq(100, 140, 135)
 
 var _panel: PanelContainer
+var _sb_box: StyleBoxFlat
+var _sb_banner: StyleBoxFlat
+var _banner := false         # wide-strip mode (plain message / yes-no confirms)
 
 func _build() -> void:
 	if _built:
@@ -65,8 +69,14 @@ func _build() -> void:
 	_root.theme = UiFont.make_theme(get_viewport())      # dodge the CanvasLayer tiny-font trap
 	add_child(_root)
 
+	# Qud's popup backdrop reads as a near-flat (17,52,51) teal with faint field
+	# detail. This layer (130) sits ABOVE the CRT, so the status-screens scrim
+	# formula doesn't transfer (it was fitted on pre-CRT input and rendered too
+	# dark here) — a high-alpha flat teal lands on the measured value instead.
 	var dim := ColorRect.new()
-	dim.color = Color(0, 0, 0, 0.5)
+	var dc := _cq(17, 52, 51)
+	dc.a = 0.88
+	dim.color = dc
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	dim.mouse_filter = Control.MOUSE_FILTER_STOP
 	_root.add_child(dim)
@@ -76,15 +86,23 @@ func _build() -> void:
 	_root.add_child(center)
 
 	_panel = PanelContainer.new()
-	var st := StyleBoxFlat.new()
-	st.bg_color = C_PANEL
-	# measured insets: 25 l/r · 24 top (first row at +26 incl the +8 line) · 6 bottom
-	# (the button row sits ON the bottom line; see _draw_chrome)
-	st.content_margin_left = 25
-	st.content_margin_right = 25
-	st.content_margin_top = 24
-	st.content_margin_bottom = 6
-	_panel.add_theme_stylebox_override("panel", st)
+	# BOXED style (menus / inputs): measured insets 25 l/r · 24 top · 6 bottom
+	_sb_box = StyleBoxFlat.new()
+	_sb_box.bg_color = C_PANEL
+	_sb_box.content_margin_left = 25
+	_sb_box.content_margin_right = 25
+	_sb_box.content_margin_top = 24
+	_sb_box.content_margin_bottom = 6
+	# BANNER style (plain messages / yes-no): Qud's wide strip — same opaque fill,
+	# tighter top (line at +4, text at +24) — measured off the defaults confirm
+	# (strip 673x76 for a one-line message)
+	_sb_banner = StyleBoxFlat.new()
+	_sb_banner.bg_color = C_PANEL
+	_sb_banner.content_margin_left = 25
+	_sb_banner.content_margin_right = 25
+	_sb_banner.content_margin_top = 20
+	_sb_banner.content_margin_bottom = 6
+	_panel.add_theme_stylebox_override("panel", _sb_box)
 	_panel.custom_minimum_size = Vector2(160, 0)   # Qud sizes to content (titled picker = 221)
 	_panel.draw.connect(_draw_chrome)
 	center.add_child(_panel)
@@ -123,7 +141,7 @@ func _build() -> void:
 	vb.add_child(_edit)
 
 	_btn_row = HBoxContainer.new()
-	_btn_row.add_theme_constant_override("separation", 18)
+	_btn_row.add_theme_constant_override("separation", 34)
 	_btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	vb.add_child(_btn_row)
 
@@ -136,9 +154,11 @@ func _build() -> void:
 func _draw_chrome() -> void:
 	var w := _panel.size.x
 	var h := _panel.size.y
-	var ly := 16.0 if _title.visible else 8.0
+	var ly := 4.0 if _banner else (16.0 if _title.visible else 8.0)
 	var cx := w * 0.5
-	var side := w / 3.1
+	# side notches sit at ±71 on both recently-measured popups (picker AND the wide
+	# banner); the sysmenu's ±92 tracked w/3.1 — use the fixed offset, clamped in
+	var side := minf(71.0, w * 0.32)
 	var l0 := cx - side - 3.0
 	var l1 := cx - side + 3.0
 	var c0 := cx - 5.0
@@ -229,8 +249,18 @@ func show_popup(data: Dictionary, palette: Dictionary) -> void:
 	var msg_raw := str(data.get("message", ""))
 	# menus ship an EMPTY body ("{{y|}}") — hide it or it pads the panel to msg width
 	_msg.visible = QudText.strip(msg_raw).strip_edges() != ""
-	_msg.custom_minimum_size = Vector2(430, 0)
 	_msg.text = QudText.to_bbcode(msg_raw, _palette)
+	# BANNER mode (Qud's wide strip) for plain messages / confirms — no options, no
+	# input. The message's natural width drives the strip, capped so long text wraps.
+	_banner = _options.is_empty() and not is_input
+	_panel.add_theme_stylebox_override("panel", _sb_banner if _banner else _sb_box)
+	if _banner and _msg.visible:
+		var f := _root.get_theme_font("font", "Label")
+		var natural := f.get_string_size(QudText.strip(msg_raw),
+			HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
+		_msg.custom_minimum_size = Vector2(minf(natural + 4.0, 1240.0), 0)
+	else:
+		_msg.custom_minimum_size = Vector2(430, 0)
 
 	_build_options()
 	_build_buttons()
@@ -257,11 +287,10 @@ func _build_buttons() -> void:
 		c.queue_free()             # poison get_children() on a same-frame re-show
 	for b in _buttons:
 		var bt := Button.new()
-		bt.text = QudText.strip(str(b.get("text", "")))
+		bt.set_meta("base", QudText.strip(str(b.get("text", ""))))
 		bt.focus_mode = Control.FOCUS_NONE
 		bt.flat = true
 		bt.add_theme_font_size_override("font_size", 16)
-		bt.add_theme_color_override("font_color", C_BTN)
 		bt.add_theme_color_override("font_hover_color", C_PALE)
 		bt.add_theme_color_override("font_pressed_color", C_PALE)
 		var empty := StyleBoxEmpty.new()
@@ -270,7 +299,24 @@ func _build_buttons() -> void:
 		var cmd := str(b.get("command", ""))
 		bt.pressed.connect(func(): _answer_button(cmd))
 		_btn_row.add_child(bt)
+	_bsel = 0
+	_refresh_btn_sel()
 	_panel.queue_redraw()   # the bottom line's gap tracks the button row
+
+## Qud marks the keyboard-selected button with a "> " cursor (Left/Right move it,
+## Space/Enter answer it).
+func _refresh_btn_sel() -> void:
+	var kids := _btn_row.get_children()
+	for i in kids.size():
+		var bt: Button = kids[i]
+		var base := str(bt.get_meta("base", bt.text))
+		if i == _bsel and kids.size() > 1:
+			bt.text = "> " + base
+			bt.add_theme_color_override("font_color", C_PALE)
+		else:
+			bt.text = base
+			bt.add_theme_color_override("font_color", C_BTN)
+	_panel.queue_redraw()
 
 ## Option rows keep QUD'S OWN colours ({{W|[k]}} hotkeys etc.) via to_bbcode; the
 ## selected row gets Qud's 26px bar + gold ">" cursor.
@@ -334,7 +380,17 @@ func _input(event: InputEvent) -> void:
 					return          # let unrelated keys through (nothing else should, but be safe)
 	else:
 		match kc:
-			KEY_ENTER, KEY_KP_ENTER, KEY_SPACE: _answer_token("Accept")
+			KEY_LEFT, KEY_KP_4:
+				_bsel = maxi(0, _bsel - 1)
+				_refresh_btn_sel()
+			KEY_RIGHT, KEY_KP_6:
+				_bsel = mini(maxi(0, _buttons.size() - 1), _bsel + 1)
+				_refresh_btn_sel()
+			KEY_ENTER, KEY_KP_ENTER, KEY_SPACE:
+				if _bsel < _buttons.size():
+					_answer_button(str(_buttons[_bsel].get("command", "")))
+				else:
+					_answer_token("Accept")
 			KEY_ESCAPE: _answer_token("Cancel")
 			_:
 				if not _try_button_hotkey(kc):
