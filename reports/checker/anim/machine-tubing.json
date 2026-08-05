@@ -1,28 +1,21 @@
 {
  "fixture": "machine-tubing",
  "frames": 12,
- "expect_states": null,
+ "expect_states": [
+  8,
+  12
+ ],
  "measured": [
   {
    "bp": "MachineWallHotTubing",
    "ok": true,
    "qud": {
     "frames": 11,
-    "states": 11,
+    "states": 1,
     "duty": [
-     0.09,
-     0.09,
-     0.09,
-     0.09,
-     0.09,
-     0.09,
-     0.09,
-     0.09,
-     0.09,
-     0.09,
-     0.09
+     1.0
     ],
-    "class": "continuous"
+    "class": "static"
    },
    "raves": {
     "frames": 12,
@@ -32,28 +25,18 @@
     ],
     "class": "static"
    },
-   "agree": false
+   "agree": true
   },
   {
    "bp": "MachineWallColdTubing",
    "ok": true,
    "qud": {
-    "frames": 11,
-    "states": 11,
+    "frames": 12,
+    "states": 1,
     "duty": [
-     0.09,
-     0.09,
-     0.09,
-     0.09,
-     0.09,
-     0.09,
-     0.09,
-     0.09,
-     0.09,
-     0.09,
-     0.09
+     1.0
     ],
-    "class": "continuous"
+    "class": "static"
    },
    "raves": {
     "frames": 12,
@@ -63,8 +46,8 @@
     ],
     "class": "static"
    },
-   "agree": false
+   "agree": true
   }
  ],
- "when": "2026-08-05 10:18"
+ "when": "2026-08-05 11:19"
 }

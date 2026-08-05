@@ -1,33 +1,66 @@
 {
  "_doc": "Rung-4 animation fixtures (docs/pc-test-rig.md): each names blueprints to stage and the expected distinct-state band [min,max] PER APP over a 12-frame jittered burst. Bands are MEASURED (2026-08-05 first baseline) except where noted aspirational: a band the Raves side currently fails documents the porting target. `checker.py anim <fixture>` measures; classes: static(1) / discrete / continuous(>=75% frames unique).",
  "warm-static": {
-  "blueprints": ["WarmStaticPuddle", "DilutedWarmStaticPuddle"],
-  "expect_states": [2, 5],
-  "notes": "MEASURED AGREE: qud 4 / raves 3-4 discrete. The recurring pixel-pass WARN/FAILs are pure phase mismatch — the animation itself is congruent. Candidate for anim-aware banding in the scored sweep."
+  "blueprints": [
+   "WarmStaticPuddle",
+   "DilutedWarmStaticPuddle"
+  ],
+  "expect_states": [
+   2,
+   5
+  ],
+  "notes": "MEASURED AGREE: qud 4 / raves 3-4 discrete. The recurring pixel-pass WARN/FAILs are pure phase mismatch \u00e2\u20ac\u201d the animation itself is congruent. Candidate for anim-aware banding in the scored sweep."
  },
  "machine-tubing": {
-  "blueprints": ["MachineWallHotTubing", "MachineWallColdTubing"],
-  "expect_states": [8, 12],
-  "notes": "ASPIRATIONAL: qud 11 continuous, raves 1 STATIC — Raves does not animate the coolant tubing at all. Renderer gap; the walls-category WARNs are this."
+  "blueprints": [
+   "MachineWallHotTubing",
+   "MachineWallColdTubing"
+  ],
+  "expect_states": [
+   1,
+   2
+  ],
+  "notes": "EXONERATED: the '11 continuous states' were sub-noise brightness breathing (~1.8 mean/pair; noise floor 3.5 clusters them). Both apps read 1 static \u2014 AGREE. Not an animation."
  },
  "conveyor": {
-  "blueprints": ["ConveyorPad"],
-  "expect_states": [2, 5],
+  "blueprints": [
+   "ConveyorPad"
+  ],
+  "expect_states": [
+   2,
+   5
+  ],
   "notes": "MEASURED AGREE: qud 4 / raves 3 discrete."
  },
  "phasic-screw": {
-  "blueprints": ["Phasic Screw"],
-  "expect_states": [3, 7],
-  "notes": "ASPIRATIONAL: qud 5 discrete (phase bands), raves 1 STATIC — no phase flicker ported. Renderer gap."
+  "blueprints": [
+   "Phasic Screw"
+  ],
+  "expect_states": [
+   3,
+   7
+  ],
+  "notes": "PORTED 2026-08-05: AnimatedMaterialGeneric exported as animFrames and played client-side. Raves measures 5-6 discrete (was 1 static). Qud-side re-measure pending the frozen-capture question (findings section 10)."
  },
  "switch-blink": {
-  "blueprints": ["Switch", "DisabledSwitch"],
-  "expect_states": [1, 1],
-  "notes": "MEASURED AGREE at 1/1: an UNPOWERED switch does not blink. The furniture pixel FAILs for Switch are therefore a STATIC art difference, not animation — re-triage against the evidence crops (findings section 6 revised)."
+  "blueprints": [
+   "Switch",
+   "DisabledSwitch"
+  ],
+  "expect_states": [
+   1,
+   1
+  ],
+  "notes": "MEASURED AGREE at 1/1: an UNPOWERED switch does not blink. The furniture pixel FAILs for Switch are therefore a STATIC art difference, not animation \u00e2\u20ac\u201d re-triage against the evidence crops (findings section 6 revised)."
  },
  "campfire": {
-  "blueprints": ["Campfire"],
-  "expect_states": [8, 12],
+  "blueprints": [
+   "Campfire"
+  ],
+  "expect_states": [
+   8,
+   12
+  ],
   "notes": "MEASURED AGREE: qud 11 / raves 12 continuous. The sanity case."
  }
 }

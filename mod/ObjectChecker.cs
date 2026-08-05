@@ -47,6 +47,7 @@ namespace RavesOfQud
             int cx = zone.Width / 2;
             int cy = zone.Height / 2;
             int cleared = ClearZone(zone, player);
+            EnsureDaylight(zone);   // heal zones whose widget an older clear obliterated
 
             GameObject obj;
             try { obj = GameObjectFactory.Factory.CreateObject(bp); }
@@ -79,8 +80,15 @@ namespace RavesOfQud
             return WriteResult(bp, true, null, obj, cx, cy, cleared);
         }
 
-        /// Remove every object in the zone except the player. Obliterate after
+        /// Remove every DRAWN object in the zone except the player. Obliterate after
         /// RemoveObject (the PlayerBecome retire pattern) so nothing lingers in pools.
+        ///
+        /// SPARE the invisible bookkeeping widgets (Render.Visible false):
+        /// obliterating DaylightWidget killed the zone's time-of-day light — every
+        /// cell shipped light=None(1), BOTH apps rendered the ghost-dark look (so
+        /// pixel parity still passed, dark-on-dark, masking it for days), and the
+        /// 1:1 client never registered animations on the "unlit" stage. This is
+        /// the plan's own "widgets-excluded" rule, learned the hard way.
         private static int ClearZone(Zone zone, GameObject player)
         {
             int n = 0;
@@ -91,7 +99,16 @@ namespace RavesOfQud
                     if (c == null) continue;
                     var doomed = new List<GameObject>();
                     foreach (GameObject go in c.GetObjects())
-                        if (go != null && go != player) doomed.Add(go);
+                    {
+                        if (go == null || go == player) continue;
+                        try
+                        {
+                            Render gr = go.GetPart<Render>();
+                            if (gr == null || !gr.Visible) continue;   // bookkeeping widget
+                        }
+                        catch { }
+                        doomed.Add(go);
+                    }
                     foreach (GameObject go in doomed)
                     {
                         try { c.RemoveObject(go); go.Obliterate(); n++; } catch { }
@@ -116,6 +133,31 @@ namespace RavesOfQud
                 brain.WandersRandomly = false;
                 try { brain.Goals.Clear(); } catch { }
                 try { brain.AdjustFeeling(player, 100); } catch { }
+            }
+            catch { }
+        }
+
+        /// The DaylightWidget radiates the surface zone's time-of-day light during
+        /// BeforeRenderEvent. Older ClearZone passes obliterated it (see above);
+        /// zones saved in that state stay dark forever — re-seed one if missing.
+        private static void EnsureDaylight(Zone zone)
+        {
+            try
+            {
+                for (int y = 0; y < zone.Height; y++)
+                    for (int x = 0; x < zone.Width; x++)
+                    {
+                        Cell cc = zone.GetCell(x, y);
+                        if (cc == null) continue;
+                        foreach (GameObject go in cc.GetObjects())
+                            if (go != null && go.Blueprint == "DaylightWidget") return;
+                    }
+                GameObject w = GameObjectFactory.Factory.CreateObject("DaylightWidget");
+                if (w != null)
+                {
+                    Cell home = zone.GetCell(0, 0);
+                    if (home != null) home.AddObject(w);
+                }
             }
             catch { }
         }

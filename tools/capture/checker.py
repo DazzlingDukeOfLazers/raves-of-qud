@@ -292,7 +292,7 @@ def ensure_daylight(b):
             return                       # reconnect lane will pick it up
         t = snap.get("time") or {}
         seg = t.get("segment")
-        if seg is None or 4200 <= seg <= 8800:
+        if seg is None or 5000 <= seg <= 8800:
             return
     return
 
@@ -325,24 +325,30 @@ def anim_measure(b, bp, frames=12):
                 time.sleep(0.6)
             except Exception:
                 pass
-        states = {}          # fingerprint -> count
-        first_crop = {}      # fingerprint -> saved crop path
+        reps = []            # [{sample, count}] — clustered states (noise-floor rule)
         outdir = os.path.join(REPORTS, "anim", _safe(bp))
         os.makedirs(outdir, exist_ok=True)
         for i in range(frames):
             if not capture():
                 continue
-            fp = congruence.state_fingerprint(src, rect)
-            states[fp] = states.get(fp, 0) + 1
-            if fp not in first_crop:
-                p = os.path.join(outdir, "%s_state%d.png" % (app, len(first_crop)))
+            sample = congruence.state_sample(src, rect)
+            hit = None
+            for rep in reps:
+                if congruence.state_match(sample, rep["sample"]):
+                    hit = rep
+                    break
+            if hit is not None:
+                hit["count"] += 1
+            else:
+                p = os.path.join(outdir, "%s_state%d.png" % (app, len(reps)))
                 try:
                     congruence.save_crop(src, rect, p, scale=2 if app == "raves" else 1)
-                    first_crop[fp] = p
                 except Exception:
-                    first_crop[fp] = ""
+                    p = ""
+                reps.append({"sample": sample, "count": 1})
             time.sleep(ANIM_JITTER[i % len(ANIM_JITTER)])
-        n = sum(states.values())
+        n = sum(rep["count"] for rep in reps)
+        states = {i: rep["count"] for i, rep in enumerate(reps)}
         duty = sorted((round(c / float(n), 2) for c in states.values()), reverse=True) if n else []
         out[app] = {"frames": n, "states": len(states), "duty": duty,
                     "class": _anim_class(len(states), n)}
@@ -378,6 +384,7 @@ def anim_fixture(name, frames=12):
     bps = fx["blueprints"] if fx else [name]
     expect = (fx or {}).get("expect_states")
     b = control.Bridge()
+    ensure_daylight(b)   # a dark cell renders the GHOST path — no anim registry
     results = []
     for bp in bps:
         # Each burst idles the bridge ~40s and the server's churn-reset drops

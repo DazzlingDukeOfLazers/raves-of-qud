@@ -1,35 +1,27 @@
 {
  "fixture": "campfire",
  "frames": 12,
- "expect_states": null,
+ "expect_states": [
+  8,
+  12
+ ],
  "measured": [
   {
    "bp": "Campfire",
    "ok": true,
    "qud": {
     "frames": 11,
-    "states": 11,
+    "states": 1,
     "duty": [
-     0.09,
-     0.09,
-     0.09,
-     0.09,
-     0.09,
-     0.09,
-     0.09,
-     0.09,
-     0.09,
-     0.09,
-     0.09
+     1.0
     ],
-    "class": "continuous"
+    "class": "static"
    },
    "raves": {
     "frames": 12,
-    "states": 12,
+    "states": 11,
     "duty": [
-     0.08,
-     0.08,
+     0.17,
      0.08,
      0.08,
      0.08,
@@ -43,8 +35,8 @@
     ],
     "class": "continuous"
    },
-   "agree": true
+   "agree": false
   }
  ],
- "when": "2026-08-05 10:13"
+ "when": "2026-08-05 11:17"
 }

@@ -225,15 +225,28 @@ def score(qud_png, raves_png, geom, wire_color_hex=None):
 
 # ---------------------------------------------------------------- animation states
 
-def state_fingerprint(path, rect):
-    """A stable fingerprint of the stage-cell crop for distinct-STATE counting
-    (rung 4): resample to the common grid, quantize hard (//32) so AA/dither
-    noise doesn't mint phantom states, hash. Animation frames differ by whole
-    colour bands, which survives the quantize; single-pixel shimmer doesn't."""
-    import hashlib
-    px = _sample(path, rect)
-    q = bytes(v // 32 for p in px for v in p)
-    return hashlib.md5(q).hexdigest()[:12]
+# Two frames whose mean |Δ| is below this are the SAME state: sub-noise
+# brightness breathing (LightSource flicker measured ~1.8 on the tubing walls,
+# uniformly, across every frame pair) must not mint states; real discrete
+# animation (Phasic Screw) measures 4.4-8.2 between its frames.
+STATE_NOISE_FLOOR = 3.5
+
+
+def state_sample(path, rect):
+    """The resampled crop for state clustering (rung 4)."""
+    return _sample(path, rect)
+
+
+def state_match(a, b):
+    """True when two samples are the same animation state (noise-floor rule)."""
+    n = min(len(a), len(b))
+    if n == 0:
+        return True
+    tot = 0
+    for i in range(n):
+        pa, pb = a[i], b[i]
+        tot += abs(pa[0] - pb[0]) + abs(pa[1] - pb[1]) + abs(pa[2] - pb[2])
+    return (tot / (3.0 * n)) < STATE_NOISE_FLOOR
 
 def save_crop(src_png, rect, out_png, scale=4):
     """Write the crop (nearest-upscaled) as a small PNG — the contact-sheet cell."""

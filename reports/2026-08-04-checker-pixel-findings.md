@@ -112,4 +112,36 @@ anim burst focuses each app for its own capture), and plat_win.activate no
 longer SW_RESTOREs un-minimized windows (it shrank the borderless viewer to its
 pre-size default — the same class as highvisor's UIA quirks).
 
+## 9. THE DAYLIGHT WIDGET (2026-08-05) — root cause of every "dim zone" symptom
+
+ObjectChecker.ClearZone was obliterating the invisible DaylightWidget with the
+rest of the zone, so BeforeRenderEvent radiated NO time-of-day light: every
+cell shipped light=None(1), BOTH apps rendered ghost-dark (pixel parity kept
+passing — dark compared against dark — masking it for days), and the 1:1
+client never registered ANIMATIONS on the "unlit" stage. Fixed: ClearZone
+spares Render.Visible=false bookkeeping objects (the plan's own
+"widgets-excluded" rule) and Check re-seeds a missing widget to heal zones
+damaged by older clears. Verified: stage light 1 -> 200, the zone renders in
+true daylight for the first time since slice 2. NOTE: all committed pixel
+baselines were measured dark-on-dark — still valid parity, but a bright-world
+re-baseline will shift absolute numbers.
+
+## 10. Phasic Screw port DONE (raves side verified); tubing exonerated; qud bursts open
+
+- AnimatedMaterialGeneric is now exported ("animFrames" spec: len|frame=tile|...)
+  and played by the client's frames program on the shared 60fps clock. Measured
+  on the live viewer: raves 5-6 discrete states (was 1 static) — matching Qud's
+  own 4-6. The port covers ANY AnimatedMaterialGeneric element generically.
+- The tubing walls were EXONERATED: their "11 continuous states" were sub-noise
+  brightness breathing (~1.8 mean between every frame pair vs the Phasic
+  Screw's real 4.4-8.2). The measurement now clusters states over a 3.5
+  noise floor; tubing reads 1-vs-1 AGREE. Fixture bands updated.
+- OPEN: this boot's QUD bursts read everything static (a staged campfire's
+  cell diffs 0.8 over 2s even focused) — Qud's mid-turn presentation isn't
+  reaching ScreenCapture this session; cause undetermined (no exceptions in
+  Player.log). Re-measure the qud side on a fresh boot before trusting
+  qud-side anim numbers from this one. Also REVERTED: the ALT-tap foreground
+  unlock injected input into Qud ("You toggle Butcher Corpses off") — plain
+  verify+retry stays, AttachThreadInput is the clean path if ever needed.
+
 *Delete sections as addressed (repo ticket lifecycle).*

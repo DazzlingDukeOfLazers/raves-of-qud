@@ -3638,6 +3638,24 @@ func _register_anim(win: Dictionary, cx: int, cy: int) -> void:
 					nodes.append(_overlay_quad(texl, cx, cy, y_over, flip))
 			if not nodes.is_empty():
 				_anim_items.append({"kind": "cycle", "nodes": nodes})
+	# AnimatedMaterialGeneric (data-driven tile cycler — Phasic Screw's helix):
+	# the wire ships the part's spec "len|frame=tile|..."; exactly one frame's
+	# tile is visible at a time, keyed to the shared 60fps Qud clock.
+	var af := String(win.get("animFrames", ""))
+	if af != "":
+		var fparts := af.split("|")
+		var alen := maxi(int(fparts[0]), 1)
+		var sched: Array = []
+		for fi in range(1, fparts.size()):
+			var kv := fparts[fi].split("=")
+			if kv.size() != 2:
+				continue
+			var ftex := _colored_tex_rgb(String(kv[1]), _obj_main(win), _obj_detail(win),
+				"anim~f" + String(kv[1]) + "~" + _color_key(win), _fill_for(String(kv[1]), Fill.NONE))
+			if ftex != null:
+				sched.append({"f": int(kv[0]), "node": _overlay_quad(ftex, cx, cy, y_over, flip)})
+		if sched.size() > 1:
+			_anim_items.append({"kind": "frames", "len": alen, "sched": sched})
 	# Gas swirl (Qud's Gas.Render): a 4-tile cycle — Tiles2/gas_0..3.png at 15 frames
 	# (250ms) per step, in the gas type's colour. Always exactly one frame visible, so
 	# the overlay fully replaces the steady base (which shows frame 0).
@@ -3769,6 +3787,20 @@ func _animate_1to1() -> void:
 					var nn := nodes[i] as MeshInstance3D
 					if is_instance_valid(nn):
 						nn.visible = i == idx
+		elif kind == "frames":
+			# AnimatedMaterialGeneric: the schedule maps a frame threshold to a
+			# tile; the ACTIVE entry is the last whose threshold <= the part's
+			# clock (Qud frames, part-length cycle).
+			var ff := int(ms * 0.06) % int(it["len"])
+			var sched: Array = it["sched"]
+			var active := 0
+			for si in sched.size():
+				if ff >= int(sched[si]["f"]):
+					active = si
+			for si in sched.size():
+				var fn := sched[si]["node"] as MeshInstance3D
+				if is_instance_valid(fn):
+					fn.visible = si == active
 		elif kind == "cholo":
 			var chn: Array = it["nodes"]
 			if chn.size() == 4:

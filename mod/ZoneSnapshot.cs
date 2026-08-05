@@ -1321,6 +1321,30 @@ namespace RavesOfQud
                              .Member("engDetail", engDetail ?? "");
                         if (animCHolo)
                             j.Member("animCHolo", true);
+                        // AnimatedMaterialGeneric (Phasic Screw's 6-tile helix, and any other
+                        // data-driven tile cycler): the part swaps Render.Tile inside its own
+                        // Render(E) per Qud frame, invisible to the static reads above. Ship the
+                        // SPEC — "len|frame=tile|frame=tile|..." — and let the client play it.
+                        // (ColorString/DetailColor frame variants exist on the part too; not yet
+                        // shipped — add alongside when an element needs them.)
+                        try
+                        {
+                            var amg = go.GetPart<XRL.World.Parts.AnimatedMaterialGeneric>();
+                            if (amg != null && !string.IsNullOrEmpty(amg.TileAnimationFrames))
+                            {
+                                var sbf = new System.Text.StringBuilder();
+                                sbf.Append(amg.AnimationLength);
+                                foreach (string kv in amg.TileAnimationFrames.Split(','))
+                                {
+                                    string t = kv.Trim();
+                                    sbf.Append('|').Append(t);
+                                    int eq = t.IndexOf('=');
+                                    if (eq > 0) TileExporter.Ensure(t.Substring(eq + 1));
+                                }
+                                j.Member("animFrames", sbf.ToString());
+                            }
+                        }
+                        catch { }
                         // Qud's Swimming effect: an aquatic-limited creature (eel, glowfish) renders
                         // over its supporting liquid's BACKGROUND colour. Ask the liquid itself
                         // (RenderBackgroundPrimary/Secondary on a scratch event — water prepends "^b";
