@@ -52,7 +52,13 @@ always visible in the bar).
    strings for categories) so `StatusPaneSkills.gd` has NO colour/cost logic — it lays strings out and
    resolves `{{…}}` through the palette. New `QudText.runs()` renders markup as canvas draw runs (a
    RichTextLabel per row is far too many nodes at ~140 rows). Category column is RIGHT-aligned at
-   x1135. Learning a skill = later interactivity pass ([Space] Accept drawn, inert).
+   x1135. INTERACTIVE (2026-08-04): Space accepts a row → `SkillsAndPowersScreen.SelectNode` (Qud's
+   OWN purchase flow, so its "Are you sure you want to buy X for N sp?" / "already have that" /
+   "not enough SP" popups mirror to Raves and the answer round-trips), Left/Right collapse/expand a
+   category (Qud's XAxis model), click selects. Verified live: collapse 40→30 rows, buy Acrobatics
+   164→89 SP with the confirm answered in Raves, then a save reload restored the character. NOTE:
+   the pane is canvas-drawn (no per-row Controls), so mouse events are routed from the screen's
+   modal root — a full-rect child's own `_gui_input` never fires under it.
 4. **Quests** → 5. **Reputation** → 6. **Journal** — read-only lists/tables.
 7. **Equipment** — richer layout (paper-doll slots + item tiles).
 8. **Tinkering** — most complex (bits, recipes, modes).

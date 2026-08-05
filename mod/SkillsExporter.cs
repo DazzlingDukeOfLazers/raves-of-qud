@@ -63,6 +63,44 @@ namespace RavesOfQud
             return sb.ToString();
         }
 
+        /// Raves picked a row: run QUD'S OWN accept (SkillsAndPowersScreen.SelectNode —
+        /// it owns the whole purchase flow, including the "purchase the required skill?"
+        /// / "already have that" / "not enough SP" popups, which mirror to Raves), or
+        /// toggle a category's expand state (SkillsAndPowersLine.XAxis / ExpanderClicked).
+        /// Runs on the UI thread; re-exports after so Raves sees the new state.
+        public static void Select(int index, string mode)
+        {
+            var gm = GameManager.Instance;
+            if (gm == null || gm.uiQueue == null) return;
+            gm.uiQueue.queueTask(() =>
+            {
+                try
+                {
+                    GameObject p = XRL.The.Player;
+                    if (p == null) return;
+                    List<SPNode> nodes = SkillsAndPowersScreen.Nodes;
+                    if (nodes == null || index < 0 || index >= nodes.Count) return;
+                    SPNode node = nodes[index];
+                    if (node == null) return;
+                    if (mode == "toggle")
+                    {
+                        // a power row toggles ITS CATEGORY, like Qud's XAxis does
+                        SPNode target = node.Skill != null ? node : node.ParentNode;
+                        if (target != null) target.Expand = !target.Expand;
+                        System.Console.WriteLine("[raves] skills toggle " + (target != null ? target.Name : "?"));
+                    }
+                    else
+                    {
+                        SkillsAndPowersScreen.SelectNode(node, p);
+                        System.Console.WriteLine("[raves] skills select " + node.Name);
+                    }
+                    Bridge.PumpSyncContext(4);
+                    ReExport();
+                }
+                catch (Exception e) { System.Console.WriteLine("[raves] skills select error: " + e.Message); }
+            }, 0);
+        }
+
         private static void Export()
         {
             GameObject p = null;
@@ -91,10 +129,12 @@ namespace RavesOfQud
             j.EndObject();
 
             j.Name("nodes").BeginArray();
-            foreach (SPNode node in nodes)
+            for (int ni = 0; ni < nodes.Count; ni++)
             {
+                SPNode node = nodes[ni];
                 if (node == null) continue;
                 j.BeginObject();
+                j.Member("idx", ni);   // index in QUD'S list — what a select/toggle sends back
                 bool isSkill = node.Skill != null;
                 j.Member("kind", isSkill ? "skill" : "power");
                 try { j.Member("name", node.Name ?? ""); } catch { }

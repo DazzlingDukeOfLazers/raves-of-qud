@@ -12,8 +12,11 @@ extends Control
 ## x268 (name) with the right column at x934; detail pane icon at (1409,280) 112x150,
 ## title + learned banner centred ~x1465, description from (1218,562).
 ##
-## Interactivity (learning a skill) follows the menus-V3 law: parity first, then the
-## action over the bridge — the [Space] Accept hint is drawn but inert for now.
+## INTERACTIVE (2026-08-04): Space accepts a row and Left/Right collapse/expand a
+## category — Qud's own model (Accept -> SkillsAndPowersScreen.SelectNode, which owns
+## the purchase flow and its popups; the X axis toggles Expand). Both ride the bridge
+## `skill` command with the node's index in QUD'S list, and the pane reloads from the
+## re-exported skills.json.
 
 const ROW_H := 24.0
 const LIST_X := 190.0
@@ -46,6 +49,8 @@ var _detail_learned: RichTextLabel
 var _detail_desc: RichTextLabel
 var _detail_req: RichTextLabel
 var _font: Font
+var bridge_cb: Callable = Callable()   # StatusScreens: send a bridge command
+var reload_cb: Callable = Callable()   # StatusScreens: re-read skills.json
 
 func _ready() -> void:
 	name = "SkillsPane"
@@ -211,8 +216,25 @@ func handle_key(e: InputEventKey) -> bool:
 		KEY_DOWN, KEY_KP_2: _move(1)
 		KEY_PAGEUP:         _move(-12)
 		KEY_PAGEDOWN:       _move(12)
+		KEY_SPACE, KEY_ENTER, KEY_KP_ENTER:
+			_send("accept")
+		KEY_LEFT, KEY_KP_4, KEY_RIGHT, KEY_KP_6:
+			_send("toggle")
 		_:                  return false
 	return true
+
+## Fire Qud's own accept / expand for the selected row, then poll for the refresh
+## (an accept may raise a mirrored popup first, so retry a few times).
+func _send(mode: String) -> void:
+	if _rows.is_empty() or _sel >= _rows.size():
+		return
+	var idx := int(_rows[_sel].get("idx", -1))
+	if idx < 0:
+		return
+	if reload_cb.is_valid():
+		bridge_cb.call({"type": "command", "name": "skill", "index": str(idx), "mode": mode})
+		for delay in [0.6, 1.5, 3.0, 5.0]:
+			get_tree().create_timer(delay).timeout.connect(func(): reload_cb.call())
 
 func _move(d: int) -> void:
 	_sel = clampi(_sel + d, 0, _rows.size() - 1)
@@ -224,7 +246,9 @@ func _move(d: int) -> void:
 	_content.queue_redraw()
 	_refresh_detail()
 
-func _gui_input(e: InputEvent) -> void:
+## Mouse comes from StatusScreens' modal root (a canvas-drawn pane has no per-row
+## Controls to hit-test, and the root's STOP filter owns the events).
+func handle_mouse(e: InputEvent) -> void:
 	if e is InputEventMouseButton and e.pressed:
 		if e.button_index == MOUSE_BUTTON_WHEEL_UP:
 			_scroll = maxf(0.0, _scroll - ROW_H * 2)

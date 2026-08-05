@@ -581,6 +581,16 @@ namespace RavesOfQud
                     if (!string.IsNullOrEmpty(lsid)) LoadSave.Request(lsid);
                     return;
                 }
+                if (name == "skill")
+                {
+                    // Raves' Skills tab: accept a row (Qud's own SelectNode purchase
+                    // flow, popups included) or toggle a category's expand state.
+                    f.TryGetValue("index", out string skIdx);
+                    f.TryGetValue("mode", out string skMode);
+                    int.TryParse(skIdx, out int skI);
+                    SkillsExporter.Select(skI, skMode ?? "accept");
+                    return;
+                }
                 if (name == "rebind")
                 {
                     // (see KeybindApplier; PumpSyncContext below keeps unfocused async flows moving)

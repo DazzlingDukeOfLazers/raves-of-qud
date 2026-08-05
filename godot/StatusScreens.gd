@@ -89,6 +89,10 @@ func _ready() -> void:
 	_root = Control.new()
 	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_root.mouse_filter = Control.MOUSE_FILTER_STOP     # modal while shown
+	_root.gui_input.connect(func(e: InputEvent):
+		if _tab == "skills" and _skills_pane != null and _skills_pane.visible \
+				and _skills_pane.has_method("handle_mouse"):
+			_skills_pane.handle_mouse(e))
 	_root.theme = UiFont.make_theme(get_viewport())    # CanvasLayer theme-root trap
 	add_child(_root)
 	for t in TABS:
@@ -316,6 +320,22 @@ func _set_tab(id: String) -> void:
 	if visible:
 		UiState.set_scene("status_" + _tab)
 
+## Send any bridge command from this screen's own peer (fire-and-forget).
+func _send_bridge(msg: Dictionary) -> void:
+	_peer.poll()
+	if _peer.get_status() != StreamPeerTCP.STATUS_CONNECTED:
+		_peer.connect_to_host(BridgeClient.host(), BridgeClient.port())
+		return
+	var payload := JSON.stringify(msg).to_utf8_buffer()
+	var frame := PackedByteArray()
+	var n := payload.size()
+	frame.append((n >> 24) & 0xFF)
+	frame.append((n >> 16) & 0xFF)
+	frame.append((n >> 8) & 0xFF)
+	frame.append(n & 0xFF)
+	frame.append_array(payload)
+	_peer.put_data(frame)
+
 ## Ask the mod for a fresh data export (character.json etc.); fire-and-forget.
 func _request_export() -> void:
 	_peer.poll()
@@ -381,12 +401,13 @@ func _load_character() -> void:
 
 ## (Re)build the Skills pane from skills.json when it changes (same guards as the
 ## character sheet: mtime, plus a rebuild once the palette lands).
-func _load_skills() -> void:
+func _load_skills(force := false) -> void:
 	var path := InputModel.support_dir().path_join("skills.json")
 	if not FileAccess.file_exists(path):
 		return
 	var mt := FileAccess.get_modified_time(path)
-	if _skills_pane != null and mt == _skills_mtime and not (_pane_pal_empty and not _palette.is_empty()):
+	if not force and _skills_pane != null and mt == _skills_mtime \
+			and not (_pane_pal_empty and not _palette.is_empty()):
 		return
 	var f := FileAccess.open(path, FileAccess.READ)
 	if f == null:
@@ -400,6 +421,8 @@ func _load_skills() -> void:
 	_skills_mtime = mt
 	if _skills_pane == null:
 		_skills_pane = load("res://StatusPaneSkills.gd").new()
+		_skills_pane.bridge_cb = func(msg: Dictionary): _send_bridge(msg)
+		_skills_pane.reload_cb = func(): _load_skills(true)
 		_root.add_child(_skills_pane)
 	_pane_pal_empty = _palette.is_empty()
 	_skills_pane.setup(data, _palette)
