@@ -178,8 +178,14 @@ namespace RavesOfQud
             sb.Append("\"name\":\"").Append(Esc(name)).Append('"');
             sb.Append('}');
 
+            // ATOMIC write (temp + replace): WriteAllText truncates in place, and
+            // the driver's mtime poll can read the empty in-between (it killed a
+            // 748-element run at 317). Replace/Move is atomic on NTFS.
             string path = Path.GetFullPath(Path.Combine(TileExporter.Dir, "..", "checker_stage.json"));
-            File.WriteAllText(path, sb.ToString());
+            string tmp = path + ".tmp";
+            File.WriteAllText(tmp, sb.ToString());
+            try { if (File.Exists(path)) File.Delete(path); } catch { }
+            File.Move(tmp, path);
             return ok ? ("staged '" + bp + "' at (" + cx + "," + cy + "), cleared " + cleared)
                       : ("check FAILED for '" + bp + "': " + error);
         }
