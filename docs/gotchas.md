@@ -261,3 +261,19 @@ add a one-liner (symptom → rule).
   left-anchored rather than centred. We had them at 13x19.
 - **Glyph ink starts are not advances.** Comparing "where does the ink of `[` begin" between apps
   measures the left bearing, not the layout; only same-character runs give a real advance.
+- **A category row is ONE colour for all three of its parts, and it lives on the PREFAB.**
+  `InventoryLine` does `categoryLabel.SetText(categoryName)` with no markup, so nothing in the
+  source tells you the colour -- read it off a live instance like a RectTransform.
+  `categoryLabel`, `categoryExpandLabel` and `categoryWeightText` are all
+  `RGBA(0.231, 0.365, 0.443)` at alpha 1, which grades to (52,83,102) on screen. Our `{{c|}}`
+  cyan rendered (56,154,176). Sampling the capture alone cannot tell you this: a sample cannot
+  separate a dim colour from a bright one at low alpha, and the probe reports alpha directly.
+- **Draw Qud's raw source colour; do not push it through `_iv8` first.** The helper's flat +6
+  landed the category label at (51,79,97) against Qud's (52,83,102), while drawing Qud's own
+  (59,93,113) matched exactly -- Raves grades Qud's source the same way Qud does.
+- The category weight column is part of the category ROW's style: same colour AND same size as
+  its name (ink 20px tall, 96px wide), not the item size. Right-aligning it on CAT_W_EDGE lands
+  the ink 7px short, because the trailing `|` carries a right bearing.
+- **A leaf that does not span the row cannot score the row.** `list_cat` was 420px wide and
+  stopped at x1275, so the weight column at x1578-1673 was never in it -- changes there moved
+  no number at all.

@@ -228,6 +228,30 @@ namespace RavesOfQud
                             }
                     }
                     catch (Exception le) { System.Console.WriteLine("[raves] list probe: " + le.Message); }
+                    // The CATEGORY label's colour. InventoryLine just does
+                    // categoryLabel.SetText(categoryName) with no markup, so the colour
+                    // lives on the prefab's text component -- read it, don't eyeball a
+                    // swatch off the capture (which cannot tell colour from alpha).
+                    try
+                    {
+                        var ils2 = Resources.FindObjectsOfTypeAll<Qud.UI.InventoryLine>();
+                        if (ils2 != null)
+                            foreach (var il in ils2)
+                            {
+                                if (il == null || il.categoryLabel == null) continue;
+                                var cl = il.categoryLabel;
+                                System.Console.WriteLine("[raves] category label colour " + cl.color
+                                    + " alpha " + cl.color.a + " text '" + cl.text + "'"
+                                    + " | expand " + (il.categoryExpandLabel != null
+                                        ? il.categoryExpandLabel.color.ToString() : "null")
+                                    + " | weight " + (il.categoryWeightText != null
+                                        ? il.categoryWeightText.color.ToString() : "null")
+                                    + " | hotkey " + (il.hotkeyText != null
+                                        ? il.hotkeyText.color.ToString() : "null"));
+                                if (!string.IsNullOrEmpty(cl.text)) break;
+                            }
+                    }
+                    catch (Exception ce) { System.Console.WriteLine("[raves] category colour probe: " + ce.Message); }
                     // Unity's 9-slice borders (l,b,r,t) — the client needs these to know
                     // which pixels are corner and which stretch
                     File.WriteAllText(Path.Combine(Dir, "cell_frame.json"),

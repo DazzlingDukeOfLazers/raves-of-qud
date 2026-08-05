@@ -62,6 +62,16 @@ var C_FILT_ON_SEL := Color8(255, 255, 255)  # enabled AND focused
 # untouched category buttons it does carry an explicit colour: #134F4E when off.
 var C_ALL_OFF := _iv8(19, 79, 78)
 var C_LABEL := _iv8(120, 146, 141)
+# A CATEGORY row is ONE colour for all three of its parts. Read off a live InventoryLine
+# rather than sampled from a capture (a sample cannot separate colour from alpha):
+# categoryLabel, categoryExpandLabel and categoryWeightText are all
+# RGBA(0.231, 0.365, 0.443) at alpha 1 -- Qud sets no markup on them, the colour lives on
+# the prefab. That grades to (52,83,102) on screen, where our "{{c|}}" cyan rendered
+# (56,154,176): far too bright and too saturated.
+# Drawn as QUD'S OWN value, not through _iv8: the helper's flat +6 lands this one
+# short (it rendered (51,79,97) against Qud's (52,83,102)), whereas Raves grades
+# Qud's raw source the same way Qud does.
+var C_CAT := Color8(59, 93, 113)
 
 # Qud's paper-doll grid: label -> [column x, row y]. Found by scanning the capture
 # for the frame's own long runs rather than eyeballing the lit area: the boxes are
@@ -539,15 +549,22 @@ func _draw_rows() -> void:
 			# MEASURED: Qud's '[' starts at x880 (the bracket group runs 880..899), so the
 			# gap after "a)" is real. At NAME_X-40 (869) our '[' landed ON the ')'.
 			_content.draw_string(_font, Vector2(NAME_X - LIST_X - 34, base),
-				"[+]" if bool(r["collapsed"]) else "[-]", HORIZONTAL_ALIGNMENT_LEFT, -1, ROW_FONT, C_DIM)
+				"[+]" if bool(r["collapsed"]) else "[-]",
+				HORIZONTAL_ALIGNMENT_LEFT, -1, ROW_FONT, C_CAT)
 			# MEASURED: a category name's first glyph starts at x920 in Qud (item names
 			# start at 928, after the icon) -- NAME_X alone was fitted to the item rows.
-			_draw_markup_sized(_content, "{{c|%s}}" % r["name"],
-				Vector2(918.0 - LIST_X, base), ROW_FONT)
+			# no markup: Qud passes the raw category name and lets the prefab colour it
+			_content.draw_string(_font, Vector2(918.0 - LIST_X, base), str(r["name"]),
+				HORIZONTAL_ALIGNMENT_LEFT, -1, ROW_FONT, C_CAT)
 			var cw := "|%d lbs.|" % int(r["weight"])
-			var cww := _font.get_string_size(cw, HORIZONTAL_ALIGNMENT_LEFT, -1, ITEM_FONT).x
-			_content.draw_string(_font, Vector2(CAT_W_EDGE - LIST_X - cww, base), cw,
-				HORIZONTAL_ALIGNMENT_LEFT, -1, ITEM_FONT, C_DIM)
+			# the weight column is part of the CATEGORY row's style -- same colour and the
+			# same size as its name (measured: Qud's ink is 20px tall and 96px wide here,
+			# where ITEM_FONT gave us 16 and 69)
+			var cww := _font.get_string_size(cw, HORIZONTAL_ALIGNMENT_LEFT, -1, ROW_FONT).x
+			# +7: right-aligning on CAT_W_EDGE puts the ink edge at 1666 because the
+			# trailing '|' carries a right bearing; Qud's ink reaches 1673
+			_content.draw_string(_font, Vector2(CAT_W_EDGE + 7.0 - LIST_X - cww, base), cw,
+				HORIZONTAL_ALIGNMENT_LEFT, -1, ROW_FONT, C_CAT)
 		else:
 			# MEASURED in Qud: the row icon spans x905..925, so its 20-wide box starts at
 			# 905 and is centred on the row (30 tall over a 26px row -- it overflows a
