@@ -28,6 +28,45 @@ namespace RavesOfQud
         private static BridgeServer _server;
         private static readonly object _gate = new object();
 
+        /// <summary>
+        /// Drain Unity's SynchronizationContext by hand (private Exec(), reflection).
+        /// macOS stops pumping posted continuations for an UNFOCUSED window even with
+        /// runInBackground=true — async chains (popup callbacks, screen closes, keymap
+        /// loads) then stall until the next focus. MAIN THREAD ONLY (uiQueue tasks are).
+        /// </summary>
+        /// Pump the sync context ACROSS frames: each uiQueue task drains it once and
+        /// re-queues itself. Async Qud UI (StatusScreensScreen.show) resolves over
+        /// several frames, so a single drain leaves it half-started.
+        public static void PumpTrain(int frames)
+        {
+            if (frames <= 0) return;
+            var gm = GameManager.Instance;
+            if (gm == null || gm.uiQueue == null) return;
+            gm.uiQueue.queueTask(() =>
+            {
+                PumpSyncContext(2);
+                PumpTrain(frames - 1);
+            }, 0);
+        }
+
+        public static void PumpSyncContext(int n)
+        {
+            try
+            {
+                // QUD'S context, not SynchronizationContext.Current: inside a uiQueue task
+                // Current can be null, so the old pump silently did nothing (an async
+                // StatusScreensScreen.show() then hung forever with no fault logged).
+                var sc = GameManager.Instance != null ? GameManager.Instance.uiSynchronizationContext : null;
+                if (sc == null) sc = System.Threading.SynchronizationContext.Current;
+                var exec = sc?.GetType().GetMethod("Exec",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                if (exec == null && sc != null)
+                    System.Console.WriteLine("[raves] sync pump: no Exec on " + sc.GetType().Name);
+                for (int i = 0; i < n && exec != null; i++) exec.Invoke(sc, null);
+            }
+            catch (Exception e) { System.Console.WriteLine("[raves] sync pump: " + e.Message); }
+        }
+
         public static BridgeServer Server
         {
             get
@@ -563,6 +602,90 @@ namespace RavesOfQud
                     if (!string.IsNullOrEmpty(lsid)) LoadSave.Request(lsid);
                     return;
                 }
+                if (name == "statusscreen")
+                {
+                    // SOLVED, and NOT the way this command does it: the reliable opener is the
+                    // ordinary TURN-THREAD command path — `command CmdEquipment` (CmdSkills,
+                    // CmdCharacter, …) opens Qud's status screens at that tab, because the turn
+                    // thread is what Qud's own keypress path uses. Calling
+                    // StatusScreensScreen.show() directly hangs from BOTH a uiQueue task and a
+                    // UiContext.Post: its NavigationController.SuspendContextWhile waits on the
+                    // gameplay input context, which is exactly what the turn thread owns.
+                    // Kept for the tab INDEX it documents; prefer the command path.
+                    // Tab order matches the carousel:
+                    // 0 skills · 1 attributes · 2 equipment · 3 tinkering · 4 journal ·
+                    // 5 quests · 6 reputation · 7 message log.
+                    f.TryGetValue("tab", out string ssTab);
+                    int.TryParse(ssTab, out int ssIdx);
+                    // NOT uiQueue: post straight to Qud's UI SynchronizationContext, so the
+                    // call runs on Unity's own update pump like a real button click. Calling
+                    // show() from inside a uiQueue task re-entered NavigationController's
+                    // SuspendContextWhile and the task hung forever (never completed, never
+                    // faulted). Post() is thread-safe, so this goes from the socket thread.
+                    try
+                    {
+                        var ssCtx = GameManager.Instance != null
+                            ? GameManager.Instance.uiSynchronizationContext : null;
+                        if (ssCtx == null) { System.Console.WriteLine("[raves] statusscreen: no ui context"); return; }
+                        ssCtx.Post(delegate
+                        {
+                            try
+                            {
+                                GameObject who = XRL.The.Player;
+                                if (who == null) { System.Console.WriteLine("[raves] statusscreen: no player"); return; }
+                                try { Qud.UI.StatusScreensScreen.prewarm(); } catch { }
+                                var t = Qud.UI.StatusScreensScreen.show(ssIdx, who);
+                                t.ContinueWith(tt =>
+                                {
+                                    if (tt.IsFaulted)
+                                        System.Console.WriteLine("[raves] statusscreen FAULT: "
+                                            + (tt.Exception != null ? tt.Exception.GetBaseException().Message : "?"));
+                                    else
+                                        System.Console.WriteLine("[raves] statusscreen closed (tab " + ssIdx + ")");
+                                });
+                                System.Console.WriteLine("[raves] statusscreen posted tab " + ssIdx);
+                            }
+                            catch (Exception ex) { System.Console.WriteLine("[raves] statusscreen: " + ex.Message); }
+                        }, null);
+                    }
+                    catch (Exception ex) { System.Console.WriteLine("[raves] statusscreen post: " + ex.Message); }
+                    return;
+                }
+                if (name == "skill")
+                {
+                    // Raves' Skills tab: accept a row (Qud's own SelectNode purchase
+                    // flow, popups included) or toggle a category's expand state.
+                    f.TryGetValue("index", out string skIdx);
+                    f.TryGetValue("mode", out string skMode);
+                    int.TryParse(skIdx, out int skI);
+                    SkillsExporter.Select(skI, skMode ?? "accept");
+                    return;
+                }
+                if (name == "rebind")
+                {
+                    // (see KeybindApplier; PumpSyncContext below keeps unfocused async flows moving)
+                    // Raves' Control Mapping edits (KeybindApplier mirrors Qud's own
+                    // KeybindsScreen flows; confirm/conflict popups mirror back to
+                    // Raves through the popup bridge). action: set|remove|defaults|golden.
+                    f.TryGetValue("action", out string rbAct);
+                    f.TryGetValue("id", out string rbId);
+                    f.TryGetValue("slot", out string rbSlotS);
+                    int.TryParse(rbSlotS, out int rbSlot);
+                    f.TryGetValue("key", out string rbKey);
+                    f.TryGetValue("ctrl", out string rbC);
+                    f.TryGetValue("shift", out string rbS);
+                    f.TryGetValue("alt", out string rbA);
+                    switch (rbAct)
+                    {
+                        case "remove":   _ = KeybindApplier.Remove(rbId, rbSlot); break;
+                        case "defaults": _ = KeybindApplier.Defaults(); break;
+                        case "golden":   _ = KeybindApplier.RestoreGolden(); break;
+                        case "regolden": _ = KeybindApplier.ReGolden(); break;
+                        default:         _ = KeybindApplier.Apply(rbId, rbSlot, rbKey,
+                                             rbC == "1", rbS == "1", rbA == "1"); break;
+                    }
+                    return;
+                }
                 if (name == "uiback")
                 {
                     // First-party "press Escape" for Qud's MODERN menu screens (Records/
@@ -594,6 +717,20 @@ namespace RavesOfQud
                                     if (wnd != null)
                                     {
                                         var mi = wnd.GetType().GetMethod("OnCancel", System.Type.EmptyTypes);
+                                        // StatusScreensScreen: go straight to the unguarded Exit() — its
+                                        // OnCancel/OnCloseButton no-op when the nav context died (seen
+                                        // after a mutation-buy popup left the screen un-Escapable even
+                                        // for the KEYBOARD; Exit() always tears it down).
+                                        // KeybindsScreen: same story — the inherited OnCancel() is a no-op;
+                                        // its real close is Exit() (CancelButton handler; completes the
+                                        // completionSource so KeybindsMenu() resumes and Hide()s).
+                                        if (wnd.GetType().Name == "StatusScreensScreen"
+                                            || wnd.GetType().Name == "KeybindsScreen")
+                                        {
+                                            var exi = wnd.GetType().GetMethod("Exit", System.Type.EmptyTypes);
+                                            if (exi != null) mi = exi;
+                                        }
+                                        if (mi == null) mi = wnd.GetType().GetMethod("Exit", System.Type.EmptyTypes);
                                         if (mi != null)
                                         {
                                             mi.Invoke(wnd, null);
@@ -602,7 +739,16 @@ namespace RavesOfQud
                                             // dirty — at an idle title screen that's NEVER. Kick it, or
                                             // _ActiveGameView (our scene report) stays stale forever.
                                             ConsoleLib.Console.TextConsole.BufferUpdated = true;
-                                            System.Console.WriteLine("[raves] uiback: " + wnd.GetType().Name + ".OnCancel()");
+                                            // UNFOCUSED Qud: async void Exit() completes its await chain
+                                            // (completionSource -> KeybindsMenu resume -> Hide -> the
+                                            // system-menu handler) through Unity's SynchronizationContext,
+                                            // which macOS stops draining for a backgrounded window even
+                                            // with runInBackground=true (turns + uiQueue keep running —
+                                            // only these continuations stall, leaving the screen up and
+                                            // TURNS BLOCKED until the next focus). We're ON the main
+                                            // thread here: pump the context so the close resolves now.
+                                            PumpSyncContext(8);
+                                            System.Console.WriteLine("[raves] uiback: " + wnd.GetType().Name + " cancel/exit invoked");
                                             return;
                                         }
                                     }
@@ -701,6 +847,10 @@ namespace RavesOfQud
                                 RecordsExporter.ReExport();
                                 ChargenExporter.ReExport();
                                 CharacterExporter.ReExport();   // live sheet data for the status screens
+                                BindingsExporter.ReExport();    // control-mapping data
+                                SkillsExporter.ReExport();      // skills & powers tree
+                                InventoryExporter.ReExport();   // inventory (Equipment tab)
+                                TitleExporter.ExportCellFrame();     // Qud's own 9-slice cell frame
                                 TitleExporter.ExportChargenEmblem();                        // resident even at the menu
                                 TitleExporter.ExportNamedSprite("tiny-frame-h", "card_frame.png");         // the game-mode card's dotted frame
                                 TitleExporter.ExportNamedSprite("polat-locator-big", "sel_frame.png");     // the selected-card frame (corner brackets)

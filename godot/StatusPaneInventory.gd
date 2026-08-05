@@ -1,0 +1,615 @@
+extends Control
+
+## INVENTORY — the right half of Qud's Equipment tab, 1:1.
+##
+## Data: mod InventoryExporter -> inventory.json (categories from Qud's own
+## GetInventoryCategory, row labels straight from GameObject.DisplayName with its
+## markup, weights and the ${drams} / carried/max header exactly as
+## InventoryAndEquipmentStatusScreen builds them). Like the other panes this file
+## holds no colour or formatting logic — it lays strings out and resolves {{…}}
+## through the palette.
+##
+## Geometry measured off reports/2026-08-04-status-screens/equipment_qud.png:
+## rows start y240 with a ~26px pitch, hotkey letter at x861, category label x909
+## (item name x909 too, after a 16px tile), category weight |n lbs.| right-aligned
+## at x1673, item weight [n lbs.] right-aligned at x1753, header at x1753.
+##
+## The PAPER DOLL (left half) draws Qud's fixed slot grid: 64x64 boxes on columns
+## x{274,364,454,544,634} and rows y{246,366,486,606,726} (measured by locating the
+## frame's own runs in the capture), each showing its equipped item's tile centred
+## beneath. Body parts come from Qud's own body tree; the grid is keyed by part
+## type/name, and a primary limb gets Qud's "*" marker.
+
+const ROW_H := 26.0
+const LIST_X := 855.0
+const LIST_Y := 235.0   # first row top lands on Qud's y240 with the +16 baseline
+const LIST_W := 910.0
+const LIST_H := 660.0
+const LETTER_X := 861.0
+const NAME_X := 909.0
+const CAT_W_EDGE := 1673.0
+const ITEM_W_EDGE := 1753.0
+
+# Qud reserves these letters for commands, so the inventory spread skips them
+# (measured off the reference: a,b,c,f,g,… — d/e/q/s never appear).
+const RESERVED := ["d", "e", "q", "s"]
+const LETTERS := "abcdefghijklmnopqrstuvwxyz0123456789"
+
+static func _iv8(r8: int, g8: int, b8: int) -> Color:
+	return Color8(r8 if r8 <= 20 else r8 + 6, g8 if g8 <= 20 else g8 + 6, b8 if b8 <= 20 else b8 + 6)
+
+var C_DIM := _iv8(108, 133, 129)
+var C_SEL := _iv8(23, 59, 60)
+var C_GOLD := _iv8(200, 184, 57)
+# FILTER-CELL STATES, straight out of Qud's FilterBarCategoryButton.LateUpdate:
+#   enabled + focused -> #FFFFFF   enabled -> #858951   focused -> #4A757E
+# and otherwise the frame keeps the PREFAB colour, because that LateUpdate only
+# writes background.color when the state CHANGES — a button nobody has touched is
+# never assigned one of the four. That untouched colour is what C_BOX measures.
+var C_BOX := _iv8(51, 80, 91)      # MEASURED: the untouched/prefab frame colour
+var C_HOVER := _iv8(65, 106, 115)  # #4A757E — nav-focused (what the mouse gives)
+var C_FILT_ON := _iv8(122, 126, 71)     # #858951 — category filter ENABLED
+var C_FILT_ON_SEL := Color8(255, 255, 255)  # enabled AND focused
+# The "*All" cell HAS been toggled (the save ships with it on), so unlike the
+# untouched category buttons it does carry an explicit colour: #134F4E when off.
+var C_ALL_OFF := _iv8(19, 79, 78)
+var C_LABEL := _iv8(120, 146, 141)
+
+# Qud's paper-doll grid: label -> [column x, row y]. Found by scanning the capture
+# for the frame's own long runs rather than eyeballing the lit area: the boxes are
+# 64x64 on a 90px column / 120px row pitch, nine columns LEFT of where the earlier
+# by-eye numbers put them (the old 55x62 at x+9 measured the interior, not the box).
+const DOLL := {
+	"Face": [454, 246], "Floating Nearby": [634, 246],
+	"Worn on Hands": [274, 366], "Head": [454, 366],
+	"Left Hand": [274, 486], "Left Arm": [364, 486], "Body": [454, 486],
+	"Right Arm": [544, 486], "Right Hand": [634, 486],
+	"Worn on Back": [454, 606],
+	"Thrown Weapon": [274, 726], "Feet": [454, 726],
+	"Left Missile Weapon": [544, 726], "Right Missile Weapon": [634, 726],
+}
+const BOX_W := 64.0
+const BOX_H := 64.0
+
+# Category FILTER STRIP (Qud's FilterBar): "*All" plus one cell per category
+# present in the inventory, measured off the reference — 44x38 cells from x620,
+# 58px pitch, on y178. Qud draws a fixed per-category ICON; we stand in with the
+# category's first item tile (recorded deviation) until those icons are extracted.
+# The strip's FIRST cell is the "*All" button and it sits at 618 — categories then
+# run 676, 734, 792, ... Found by scanning the capture for 46-wide ink groups; the
+# old 560 put a cell where Qud draws none and shifted the whole strip one pitch left,
+# so every category icon was being compared against its neighbour's.
+const FILT_X := 618.0
+const FILT_Y := 177.0
+# 46 wide because Qud draws polat-category-frame at its NATIVE size here — the
+# sprite is 46x41, and the cell is the sprite (the doll's 64x64 boxes are the same
+# sprite stretched). Pitch 58 leaves a 12px gap between cells.
+const FILT_W := 46.0
+const FILT_H := 41.0   # measured: cell rows 177..217
+const FILT_PITCH := 58.0
+
+var _data := {}
+var _palette := {}
+var _tiles: RefCounted = null
+var _rows: Array = []       # flattened: {kind, name, weight, tile…, letter}
+var _sel := 0
+var _scroll := 0.0
+var _collapsed := {}        # category name -> true when collapsed (Raves-side view state)
+var _enabled := {}          # filter strip: enabled category names; EMPTY means "*All"
+var _filt_rects: Array = [] # [[Rect2, category-or-empty], …] rebuilt with the strip
+var _filt_hover := -1       # index into _filt_rects under the cursor (-1 = none)
+var _clip: Control
+var _content: Control
+var _static: Control
+var _font: Font
+var bridge_cb: Callable = Callable()
+var reload_cb: Callable = Callable()
+
+func _ready() -> void:
+	name = "InventoryPane"
+	set_anchors_preset(Control.PRESET_FULL_RECT)
+	mouse_filter = Control.MOUSE_FILTER_STOP
+	_tiles = load("res://QudTiles.gd").new()
+	_font = get_theme_font("font", "Label")
+	_static = Control.new()
+	_static.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_static.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# NEAREST or every tile this pane draws (doll items, filter icons) comes out
+	# LINEAR-smeared — draw_* inherits the drawing Control's texture_filter.
+	_static.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_static.draw.connect(_draw_static)
+	add_child(_static)
+	_clip = Control.new()
+	_clip.position = Vector2(LIST_X, LIST_Y)
+	_clip.size = Vector2(LIST_W, LIST_H)
+	_clip.clip_contents = true
+	_clip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_clip)
+	_content = Control.new()
+	_content.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_content.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_content.draw.connect(_draw_rows)
+	_clip.add_child(_content)
+
+func setup(data: Dictionary, palette: Dictionary) -> void:
+	_data = data
+	_palette = palette
+	# Qud persists the enabled filter set with the save, so adopt ITS set rather than
+	# starting from "*All" — otherwise the strip's colours can never match a save that
+	# was left with a category filtered on.
+	if data.has("enabledFilters"):
+		_enabled.clear()
+		for n in data["enabledFilters"]:
+			# "*All" is Qud's name for the no-category-filter button; carrying it into
+			# the set would filter the list against a category no item has, emptying it
+			_enabled[str(n)] = true
+		_enabled.erase("*All")
+	if not palette.is_empty():
+		_tiles.palette = palette
+	_tiles.tiles_dir = InputModel.support_dir().path_join("tiles")
+	_relayout()
+	_static.queue_redraw()
+
+## Flatten categories+items into rows and assign Qud's hotkey spread (skipping the
+## letters Qud reserves for commands).
+func _relayout() -> void:
+	_rows.clear()
+	var li := 0
+	for cat in _data.get("categories", []):
+		var cname := str(cat.get("name", ""))
+		if not _enabled.is_empty() and not _enabled.has(cname):
+			continue                      # filtered out by the strip
+		var collapsed: bool = bool(_collapsed.get(cname, false))
+		_rows.append({"kind": "cat", "name": cname, "weight": int(cat.get("weight", 0)),
+			"count": int(cat.get("count", 0)), "collapsed": collapsed, "letter": _letter(li)})
+		li += 1
+		if collapsed:
+			continue
+		for it in cat.get("items", []):
+			var row := {"kind": "item", "letter": _letter(li)}
+			row.merge(it)
+			_rows.append(row)
+			li += 1
+	_sel = clampi(_sel, 0, maxi(0, _rows.size() - 1))
+	_content.size = Vector2(LIST_W, maxf(LIST_H, _rows.size() * ROW_H + 8.0))
+	_content.queue_redraw()
+
+func _letter(i: int) -> String:
+	var n := 0
+	for c in LETTERS:
+		if c in RESERVED:
+			continue
+		if n == i:
+			return c
+		n += 1
+	return " "
+
+func _draw_static() -> void:
+	if _data.is_empty():
+		return
+	_draw_doll()
+	_draw_filter_strip()
+	# header: "{{B|$drams}} | {{C|carried{{K|/max}} lbs.}}" — Qud's own strings
+	var hdr := "{{B|$%d}} {{K|│}} {{C|%d{{K|/%d}} lbs.}}" % [int(_data.get("drams", 0)),
+		int(_data.get("carried", 0)), int(_data.get("maxCarried", 0))]
+	# Right-aligned on Qud's edge at the pane's body size. MEASURED, unresolved: Qud's
+	# block spans x1548..1753 (205px) and y220..249 while ours renders 160px wide at
+	# 16px; drawing it at 20px matches the left edge but the glyphs still don't line
+	# up (band diff 13.3 -> 16.0), so the size alone isn't the difference — likely a
+	# different face/tracking for this header. Left at the better-scoring form.
+	var w := _font.get_string_size(QudText.strip(hdr), HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
+	_draw_markup(_static, hdr, Vector2(ITEM_W_EDGE - w, 232))
+
+## Qud's filter cell: a 2px box whose TOP-LEFT and BOTTOM-RIGHT corners carry the
+## interlocking loop motif (measured off the reference — a 7x7 loop, a 2px stem and a
+## bar, with the box edge broken where the ornament sits). Same family as the frames
+## on the Attributes pane.
+## The texture's opaque bounding box (cached): what Qud scales to fill an icon slot.
+var _opaque_cache := {}
+
+func _opaque_rect(tex: Texture2D) -> Rect2:
+	var key := tex.get_rid().get_id()
+	if _opaque_cache.has(key):
+		return _opaque_cache[key]
+	var rect := Rect2(Vector2.ZERO, tex.get_size())
+	var img := tex.get_image()
+	if img != null:
+		var x0 := img.get_width()
+		var y0 := img.get_height()
+		var x1 := -1
+		var y1 := -1
+		for yy in img.get_height():
+			for xx in img.get_width():
+				if img.get_pixel(xx, yy).a > 0.0:
+					x0 = mini(x0, xx); y0 = mini(y0, yy)
+					x1 = maxi(x1, xx); y1 = maxi(y1, yy)
+		if x1 >= x0 and y1 >= y0:
+			rect = Rect2(x0, y0, x1 - x0 + 1, y1 - y0 + 1)
+	_opaque_cache[key] = rect
+	return rect
+
+## Qud's OWN frame sprite, nine-sliced. The mod exports `polat-category-frame`
+## (46x41, Unity 9-slice borders l12 b11 r13 t12) to title/cell_frame.png, so the
+## corners are Qud's pixels and only the middles stretch — which is how one design
+## serves both the 50x41 filter cells and the 55x62 doll slots. Falls back to the
+## hand-drawn motif if the sprite hasn't been exported yet.
+const FRAME_BORDER := {"left": 12, "bottom": 11, "right": 13, "top": 12}
+var _frame_tex: Texture2D = null
+var _frame_tried := false
+
+func _frame_texture() -> Texture2D:
+	if _frame_tried:
+		return _frame_tex
+	_frame_tried = true
+	var path := InputModel.support_dir().path_join("title").path_join("cell_frame.png")
+	if FileAccess.file_exists(path):
+		var img := Image.new()
+		if img.load(path) == 0:
+			_frame_tex = ImageTexture.create_from_image(QudChrome.brighten(img))
+	return _frame_tex
+
+## Draw the sprite as a nine-patch by hand: corners 1:1, edges stretched along one
+## axis, centre skipped (the cell interior stays transparent).
+func _draw_cell_frame(r: Rect2, col: Color, knob := true) -> void:
+	# The teal stub on the bottom line is NOT part of the sprite (its alpha mask has
+	# nothing there) — Qud paints it over the frame, and only on the filter cells;
+	# the paper-doll boxes use the same sprite without it. Measured at cell-relative
+	# (21,38), 4x3, in C_HOVER's teal on every category cell.
+	if knob:
+		_static.draw_rect(Rect2(r.position + Vector2(21, 38), Vector2(4, 3)), C_HOVER)
+	var tex := _frame_texture()
+	if tex == null:
+		_draw_cell_frame_fallback(r, col, knob)
+		return
+	var tw := tex.get_width()
+	var th := tex.get_height()
+	var l: int = FRAME_BORDER["left"]
+	var rr: int = FRAME_BORDER["right"]
+	var t: int = FRAME_BORDER["top"]
+	var bo: int = FRAME_BORDER["bottom"]
+	var x := r.position.x
+	var y := r.position.y
+	var w := r.size.x
+	var h := r.size.y
+	var mid_w := maxf(0.0, w - l - rr)
+	var mid_h := maxf(0.0, h - t - bo)
+	var src_mid_w := maxf(1.0, tw - l - rr)
+	var src_mid_h := maxf(1.0, th - t - bo)
+	# corners
+	_static.draw_texture_rect_region(tex, Rect2(x, y, l, t), Rect2(0, 0, l, t), col)
+	_static.draw_texture_rect_region(tex, Rect2(x + w - rr, y, rr, t), Rect2(tw - rr, 0, rr, t), col)
+	_static.draw_texture_rect_region(tex, Rect2(x, y + h - bo, l, bo), Rect2(0, th - bo, l, bo), col)
+	_static.draw_texture_rect_region(tex, Rect2(x + w - rr, y + h - bo, rr, bo),
+		Rect2(tw - rr, th - bo, rr, bo), col)
+	# edges — THESE are the runs that stretch
+	_static.draw_texture_rect_region(tex, Rect2(x + l, y, mid_w, t), Rect2(l, 0, src_mid_w, t), col)
+	_static.draw_texture_rect_region(tex, Rect2(x + l, y + h - bo, mid_w, bo),
+		Rect2(l, th - bo, src_mid_w, bo), col)
+	_static.draw_texture_rect_region(tex, Rect2(x, y + t, l, mid_h), Rect2(0, t, l, src_mid_h), col)
+	_static.draw_texture_rect_region(tex, Rect2(x + w - rr, y + t, rr, mid_h),
+		Rect2(tw - rr, t, rr, src_mid_h), col)
+
+func _draw_cell_frame_fallback(r: Rect2, col: Color, knob := true) -> void:
+	var x := r.position.x
+	var y := r.position.y
+	var w := r.size.x
+	var h := r.size.y
+	_static.draw_rect(Rect2(x, y, w, 2), col)
+	_static.draw_rect(Rect2(x, y + h - 2, w, 2), col)
+	_static.draw_rect(Rect2(x, y, 2, h), col)
+	_static.draw_rect(Rect2(x + w - 2, y, 2, h), col)
+	if knob:
+		_static.draw_rect(Rect2(x + w * 0.5 - 2, y + h - 4, 5, 5), C_HOVER)
+
+## The four-way state colour, Qud's law verbatim.
+func _filt_color(on: bool, focused: bool) -> Color:
+	if on:
+		return C_FILT_ON_SEL if focused else C_FILT_ON
+	return C_HOVER if focused else C_BOX
+
+## Qud's category filter strip: the ALL cell then one per category, each showing
+## that category's first item as its icon. Selecting a filter is a later slice —
+## this draws the strip Qud shows above the panes.
+func _draw_filter_strip() -> void:
+	var cats: Array = _data.get("categories", [])
+	_filt_rects.clear()
+	var x := FILT_X
+	# the ALL cell — gold-framed while no category filter is enabled (Qud's "*All")
+	var all_rect := Rect2(Vector2(x, FILT_Y), Vector2(FILT_W, FILT_H))
+	_filt_rects.append([all_rect, ""])   # placeholder replaced below; keeps index 0 stable
+	_filt_rects.pop_back()
+	if _enabled.is_empty():
+		_draw_cell_frame(all_rect, _filt_color(true, _filt_hover == 0))
+	else:
+		_draw_cell_frame(all_rect, C_HOVER if _filt_hover == 0 else C_ALL_OFF)
+	_filt_rects.append([all_rect, ""])
+	var aw := _font.get_string_size("ALL", HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
+	_static.draw_string(_font, Vector2(x + (FILT_W - aw) * 0.5, FILT_Y + 25), "ALL",
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 14, C_GOLD if _enabled.is_empty() else C_LABEL)
+	x += FILT_PITCH
+	# strip order is QUD'S (filterOrder: category of the alphabetically-first item),
+	# which differs from the list's alphabetical category order
+	var order: Array = _data.get("filterOrder", [])
+	var by_name := {}
+	for c in cats:
+		by_name[str(c.get("name", ""))] = c
+	var strip: Array = []
+	for ent in order:
+		var nm := str(ent.get("name", "")) if ent is Dictionary else str(ent)
+		var cell: Dictionary = (by_name[nm] as Dictionary).duplicate() if by_name.has(nm) else {"name": nm}
+		# an equipped-only category (Clothes) has no list entry — take Qud's icon
+		if ent is Dictionary and str(ent.get("icon", "")) != "":
+			cell["icon"] = str(ent["icon"])
+		strip.append(cell)
+	if strip.is_empty():
+		strip = cats
+	for cat in strip:
+		var cname := str(cat.get("name", ""))
+		var rect := Rect2(Vector2(x, FILT_Y), Vector2(FILT_W, FILT_H))
+		_draw_cell_frame(rect, _filt_color(_enabled.has(cname), _filt_hover == _filt_rects.size()))
+		_filt_rects.append([rect, cname])
+		# QUD'S OWN filter icon (FilterBarCategoryButton.categoryImageMap), painted in
+		# the fixed two-tone that button uses; falls back to the category's first item.
+		var icon := str(cat.get("icon", ""))
+		var main := Color(0.596, 0.529, 0.372)
+		var det := Color(0.545, 0.4, 0.18)
+		var items: Array = cat.get("items", [])
+		if icon == "" and items.size() > 0:
+			var it: Dictionary = items[0]
+			icon = str(it.get("tile", ""))
+			main = _tiles.color_of(str(it.get("color", "")), Color.WHITE)
+			det = _tiles.color_of(str(it.get("detail", "")), Color.WHITE)
+		if icon != "":
+			var tex: Texture2D = _tiles.texture(icon, main, det)
+			if tex != null:
+				# GROUND TRUTH, read off a live FilterBarCategoryButton rather than
+				# fitted to sample bboxes: icon.image's RectTransform is 20x30, centred
+				# (anchors and pivot all 0.5), preserveAspect FALSE, type Simple, over a
+				# 16x24 sprite. So Qud stretches the WHOLE tile 1.25x -- it never looks
+				# at the opaque sub-rect, which is why normalising to the opaque box (the
+				# previous three attempts here) made small art too big and wide art too
+				# narrow. The earlier "every icon is exactly 15 tall" that motivated
+				# those attempts was an artefact of the ink threshold: the icon's dimmer
+				# rows sit in the same 20-60 band as the scrim behind the cell.
+				var iw := 20.0
+				var ih := 30.0
+				_static.draw_texture_rect(tex,
+					Rect2(Vector2(x + (FILT_W - iw) * 0.5, FILT_Y + (FILT_H - ih) * 0.5),
+						Vector2(iw, ih)), false)
+		x += FILT_PITCH
+
+## Qud's body-slot grid. Slots it doesn't recognise are ignored — the doll is a
+## FIXED layout in Qud too (extra parts show in the list, not the doll).
+func _draw_doll() -> void:
+	var by_label := {}
+	for sl in _data.get("slots", []):
+		by_label[_doll_label(sl)] = sl
+	for label in DOLL:
+		var cell: Array = DOLL[label]
+		var pos := Vector2(cell[0], cell[1])
+		_draw_cell_frame(Rect2(pos, Vector2(BOX_W, BOX_H)), C_BOX, false)
+		var sl: Variant = by_label.get(label)
+		if sl != null:
+			var tile := str(sl.get("tile", ""))
+			if tile != "":
+				# MEASURED: Qud paints doll items in the SAME fixed two-tone as the filter
+				# bar — main (141,124,84 as rendered) with the item's own DETAIL colour as
+				# the accent (armor gold 200,184,57 / torch red 156,65,41 / boots pale
+				# 168,194,187). We were drawing each item's own main colour, which read as
+				# a completely different palette.
+				var tex: Texture2D = _tiles.texture(tile,
+					Color(0.596, 0.529, 0.372),
+					_tiles.color_of(str(sl.get("detail", "")), Color(0.545, 0.4, 0.18)))
+				if tex != null:
+					# MEASURED, not guessed: Qud's equipped-item ink spans ~47x48 inside the
+					# 55x62 slot (bark armor 47x48, torch 47x45, boots 47x43) where ours
+					# spanned 22x25 — the sprite nearly fills the cell rather than sitting
+					# small in the middle.
+					# Sized from tools/capture/parity.py's frame-masked bounds (the earlier
+					# guesses were driven by numbers that included the cell border):
+					# Qud's sprite ink is 43x44 at (6,12) in the 55x62 slot where a
+					# 36x54 rect gave us 32x36 at (12,13) — so scale 1.34x wide, 1.22x
+					# tall and shift the origin to put the ink where Qud's sits. CONFIRMED
+					# from the tile itself: sw_armor1 is 16x24 with a 14x16 opaque box at
+					# (1,4), and Qud's 43x44 ink implies 3.071x / 2.750x -> a 49x66 rect at
+					# slot+(2.9,1.0). Qud therefore scales NON-INTEGER; with NEAREST we
+					# round differently, which is why features still sit 2-4px off even
+					# with the boxes aligned. Matching exactly would mean replicating
+					# Qud's sampler, not adjusting this rect.
+					_static.draw_texture_rect(tex,
+						Rect2(pos + Vector2(12, 1), Vector2(49, 66)), false)
+			if bool(sl.get("primary", false)):
+				_static.draw_string(_font, pos + Vector2(-8, BOX_H + 14), "*",
+					HORIZONTAL_ALIGNMENT_LEFT, -1, 14, C_GOLD)
+		# label, centred under the box and wrapped like Qud ("Worn on / Hands")
+		var lines := _wrap_label(label)
+		for i in lines.size():
+			var w := _font.get_string_size(lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
+			_static.draw_string(_font, pos + Vector2((BOX_W - w) * 0.5, BOX_H + 16 + i * 15),
+				lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, 14, C_LABEL)
+
+## Map an exported body part to its doll cell label. Qud's part names come through
+## LOWERCASE ("left hand", "worn on back"), so match case-insensitively and rebuild
+## the grid label from the part TYPE plus its side.
+func _doll_label(sl: Dictionary) -> String:
+	var n := str(sl.get("name", "")).strip_edges().to_lower()
+	var t := str(sl.get("type", "")).strip_edges().to_lower()
+	var side := ""
+	if n.begins_with("left"):
+		side = "Left "
+	elif n.begins_with("right"):
+		side = "Right "
+	match t:
+		"hand":            return side + "Hand"
+		"arm":             return side + "Arm"
+		"missile weapon":  return side + "Missile Weapon"
+		"hands":           return "Worn on Hands"
+		"back":            return "Worn on Back"
+		"body":            return "Body"
+		"head":            return "Head"
+		"face":            return "Face"
+		"feet":            return "Feet"
+		"floating nearby": return "Floating Nearby"
+		"thrown weapon":   return "Thrown Weapon"
+	# fall back to the part's own name, title-cased to match the grid keys
+	var out := ""
+	for w in n.split(" "):
+		out += (w.capitalize() if out == "" else " " + w.capitalize())
+	return out
+
+func _wrap_label(s: String) -> Array:
+	if _font.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x <= BOX_W + 26:
+		return [s]
+	var out: Array = []
+	var cur := ""
+	for w in s.split(" "):
+		var cand := w if cur == "" else cur + " " + w
+		if _font.get_string_size(cand, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x <= BOX_W + 26 or cur == "":
+			cur = cand
+		else:
+			out.append(cur)
+			cur = w
+	if cur != "":
+		out.append(cur)
+	return out
+
+func _draw_rows() -> void:
+	var off := -_scroll
+	for i in _rows.size():
+		var r: Dictionary = _rows[i]
+		var y: float = i * ROW_H + off
+		if y + ROW_H < 0 or y > LIST_H:
+			continue
+		if i == _sel:
+			_content.draw_rect(Rect2(0, y, LIST_W - 4, ROW_H - 2), C_SEL)
+		var base := y + 16.0
+		# hotkey letter column, then the row itself
+		_content.draw_string(_font, Vector2(LETTER_X - LIST_X, base), "%s)" % r["letter"],
+			HORIZONTAL_ALIGNMENT_LEFT, -1, 16, C_DIM)
+		if str(r["kind"]) == "cat":
+			_content.draw_string(_font, Vector2(NAME_X - LIST_X - 40, base),
+				"[+]" if bool(r["collapsed"]) else "[-]", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, C_DIM)
+			_draw_markup(_content, "{{c|%s}}" % r["name"], Vector2(NAME_X - LIST_X, base))
+			var cw := "|%d lbs.|" % int(r["weight"])
+			var cww := _font.get_string_size(cw, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
+			_content.draw_string(_font, Vector2(CAT_W_EDGE - LIST_X - cww, base), cw,
+				HORIZONTAL_ALIGNMENT_LEFT, -1, 16, C_DIM)
+		else:
+			_draw_tile(r, Vector2(NAME_X - LIST_X - 2, y + 3))
+			_draw_markup(_content, str(r.get("name", "")), Vector2(NAME_X - LIST_X + 16, base))
+			var iw := "[%d lbs.]" % int(r.get("weight", 0))
+			var iww := _font.get_string_size(iw, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
+			_content.draw_string(_font, Vector2(ITEM_W_EDGE - LIST_X - iww, base), iw,
+				HORIZONTAL_ALIGNMENT_LEFT, -1, 16, C_DIM)
+
+func _draw_markup(target: CanvasItem, s: String, pos: Vector2) -> void:
+	_draw_markup_sized(target, s, pos, 16)
+
+func _draw_markup_sized(target: CanvasItem, s: String, pos: Vector2, size: int) -> void:
+	var x := pos.x
+	for run in QudText.runs(s, _palette, C_DIM):
+		var txt: String = run[0]
+		if txt == "":
+			continue
+		target.draw_string(_font, Vector2(x, pos.y), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, size, run[1])
+		x += _font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+
+func _draw_tile(r: Dictionary, pos: Vector2) -> void:
+	var tile := str(r.get("tile", ""))
+	if tile == "":
+		return
+	var tex: Texture2D = _tiles.texture(tile,
+		_tiles.color_of(str(r.get("color", "")), Color.WHITE),
+		_tiles.color_of(str(r.get("detail", "")), Color.WHITE))
+	if tex != null:
+		_content.draw_texture_rect(tex, Rect2(pos, Vector2(13, 19)), false)
+
+# ── input ──────────────────────────────────────────────────────────────────────
+
+func handle_key(e: InputEventKey) -> bool:
+	if _rows.is_empty():
+		return false
+	match e.keycode:
+		KEY_UP, KEY_KP_8:   _move(-1)
+		KEY_DOWN, KEY_KP_2: _move(1)
+		KEY_PAGEUP:         _move(-12)
+		KEY_PAGEDOWN:       _move(12)
+		KEY_LEFT, KEY_KP_4, KEY_RIGHT, KEY_KP_6:
+			_toggle_category()
+		_:                  return false
+	return true
+
+## Collapse/expand the selected category (an item row toggles its own category),
+## mirroring the skills tree's model. View state only — Qud keeps its own per-screen.
+func _toggle_category() -> void:
+	if _rows.is_empty():
+		return
+	var i := _sel
+	while i > 0 and str(_rows[i]["kind"]) != "cat":
+		i -= 1
+	if str(_rows[i]["kind"]) != "cat":
+		return
+	var cname := str(_rows[i]["name"])
+	_collapsed[cname] = not bool(_collapsed.get(cname, false))
+	_sel = i
+	_relayout()
+
+func _move(d: int) -> void:
+	_sel = clampi(_sel + d, 0, _rows.size() - 1)
+	var top := _sel * ROW_H - _scroll
+	if top < 0:
+		_scroll = _sel * ROW_H
+	elif top + ROW_H > LIST_H:
+		_scroll = _sel * ROW_H + ROW_H - LIST_H
+	_content.queue_redraw()
+
+func handle_mouse(e: InputEvent) -> void:
+	if e is InputEventMouseMotion:
+		# Qud brightens a filter cell's frame while the cursor is over it
+		var was := _filt_hover
+		_filt_hover = -1
+		for i in _filt_rects.size():
+			if (_filt_rects[i][0] as Rect2).has_point(e.position):
+				_filt_hover = i
+				break
+		if _filt_hover != was:
+			_static.queue_redraw()
+		return
+	if not (e is InputEventMouseButton and e.pressed):
+		return
+	if e.button_index == MOUSE_BUTTON_WHEEL_UP:
+		_scroll = maxf(0.0, _scroll - ROW_H * 2)
+		_content.queue_redraw()
+		return
+	if e.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+		_scroll = clampf(_scroll + ROW_H * 2, 0.0, maxf(0.0, _rows.size() * ROW_H - LIST_H))
+		_content.queue_redraw()
+		return
+	if e.button_index != MOUSE_BUTTON_LEFT:
+		return
+	# filter strip first: ALL clears the filter, a category toggles in/out of the
+	# enabled set (Qud's enabledCategories); an empty set means "*All"
+	for entry in _filt_rects:
+		if (entry[0] as Rect2).has_point(e.position):
+			var cname := str(entry[1])
+			if cname == "":
+				_enabled.clear()
+			elif _enabled.has(cname):
+				_enabled.erase(cname)
+			else:
+				_enabled[cname] = true
+			_sel = 0
+			_scroll = 0.0
+			_relayout()
+			_static.queue_redraw()
+			return
+	if e.position.x < LIST_X or e.position.x > LIST_X + LIST_W \
+			or e.position.y < LIST_Y or e.position.y > LIST_Y + LIST_H:
+		return
+	var idx := int(floor((e.position.y - LIST_Y + _scroll) / ROW_H))
+	if idx < 0 or idx >= _rows.size():
+		return
+	_sel = idx
+	_content.queue_redraw()
+	if str(_rows[idx]["kind"]) == "cat":
+		_toggle_category()

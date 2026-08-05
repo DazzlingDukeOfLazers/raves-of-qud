@@ -50,6 +50,9 @@ const SECTION_OF := {"STR": "main", "AGI": "main", "TOU": "main", "INT": "main",
 	"QN": "sec", "MS": "sec", "AV": "sec", "DV": "sec", "MA": "sec",
 	"AR": "res", "ER": "res", "CR": "res", "HR": "res"}
 
+func has_portrait() -> bool:
+	return _portrait != null
+
 func setup(data: Dictionary, palette: Dictionary, portrait: Texture2D) -> void:
 	_data = data
 	_palette = palette
@@ -66,8 +69,8 @@ func _build() -> void:
 	if _portrait != null:
 		var pr := TextureRect.new()
 		pr.texture = _portrait
-		pr.position = Vector2(160, 166)
-		pr.size = Vector2(40, 60)
+		pr.position = Vector2(162, 172)
+		pr.size = Vector2(24, 36)   # Qud: the 16x24 tile at 1.5x (measured off content)
 		pr.flip_h = true   # Qud's sheet portrait faces left (the sprite-facing rule)
 		pr.stretch_mode = TextureRect.STRETCH_SCALE
 		pr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -284,6 +287,25 @@ func _select_mut(idx: int) -> void:
 	_detail_labels.clear()
 	var m: Dictionary = muts[idx]
 	var cx := 1539.0   # detail column centre
+	# the mutation's icon, 16x24 at 3.5x above the title. Qud rules a line straight
+	# through its middle — deliberately OMITTED here (Daniel's call).
+	var mtile := str(m.get("iconTile", ""))
+	if mtile != "":
+		var it := TextureRect.new()
+		var tiles: RefCounted = load("res://QudTiles.gd").new()
+		tiles.tiles_dir = InputModel.support_dir().path_join("tiles")
+		if not _palette.is_empty():
+			tiles.palette = _palette
+		it.texture = tiles.texture(mtile,
+			tiles.color_of(str(m.get("iconColor", "")), Color.WHITE),
+			tiles.color_of(str(m.get("iconDetail", "")), Color.WHITE))
+		it.position = Vector2(1496, 187)
+		it.size = Vector2(64, 96)   # Qud: the 16x24 tile at 4x, centred on x1528 (measured)
+		it.stretch_mode = TextureRect.STRETCH_SCALE
+		it.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		it.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(it)
+		_detail_labels.append(it)
 	var title := _center_label(str(m.get("name", "?")), cx, 278, C_MUT_TITLE, 22)
 	var mtype := _center_label("[%s Mutation]" % str(m.get("type", "?")), cx, 304, C_MUT_TYPE, 16)
 	var rank := _center_label("RANK %d/%d" % [int(m.get("level", 0)), int(m.get("maxLevel", 10))],

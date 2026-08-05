@@ -3,6 +3,7 @@ extends Node3D
 ## Emitted every snapshot with the raw Qud data, so a host (MainFrame) can drive its status bar /
 ## panels off the same stream the Holodeck renders — no second bridge connection needed.
 signal snapshot(data: Dictionary)
+signal popup_option(text: String)   # a mirrored menu popup's picked option (plain text)
 
 ## Wires the bridge client to the renderer, drives the camera, and maps input to
 ## Qud movement commands. Built in code so the scene file stays a single node.
@@ -35,6 +36,8 @@ var client: BridgeClient
 var _wish_layer: CanvasLayer    # Ctrl+Shift+W wish prompt overlay (built lazily), sends "wish" to Qud
 var _wish_edit: LineEdit
 var _popup: PopupOverlay        # mirrors Qud modal popups forwarded by the mod (own file)
+var overlay_check: Callable = Callable()   # MainFrame: "is a frame overlay (status/controlmap) open?"
+var _binds := QudBinds.new()    # the player's Qud keybindings — custom-remap fallback routing
 var _palette := {}              # latest Qud colour map (code -> hex) from snapshots, for popup markup
 var _char_creator: CharacterCreator
 var renderer: ZoneRenderer
@@ -198,11 +201,16 @@ func _ready() -> void:
 	add_child(_picker)
 	_picker.setup(_cam_rig, client)
 
+	_binds.setup(_support_dir())   # custom-keybind fallback map (reloads on export change)
+
 	# Popup overlay (its own file): mirrors Qud modals (message / yes-no / option list / text prompt)
 	# forwarded by the mod, and ships the viewer's answer back so Qud's blocked turn thread unblocks.
 	_popup = PopupOverlay.new()
 	add_child(_popup)
-	_popup.answered.connect(func(payload: Dictionary): client.send_command("popup", payload))
+	_popup.answered.connect(func(payload: Dictionary):
+		client.send_command("popup", payload)
+		if str(payload.get("action", "")) == "option":
+			popup_option.emit(str(payload.get("text", ""))))
 
 	_load_settings()   # restore camera heading/mode/zoom/depth/window before the UI reads them
 	_build_mode_label()
@@ -310,14 +318,16 @@ func _on_popup(data: Dictionary) -> void:
 		_popup.hide_popup()
 
 func _on_snapshot(data: Dictionary) -> void:
-	# A snapshot can only publish once Qud's turn thread has unblocked — i.e. any popup is already gone —
-	# so treat every snapshot as authoritative "no popup", closing the overlay even if a dismissal frame
-	# was coalesced away. Also cache the colour map so popup markup renders with the same palette.
+	# Cache the colour map so popup markup renders with the same palette. Do NOT
+	# hide the popup here: ASYNC popups (ShowYesNoAsync / PickOptionAsync) never
+	# block the turn thread, so snapshots keep flowing while they're up — the old
+	# "snapshot == no popup" rule made the mirror FLICKER (show → snapshot-hide →
+	# re-announce, forever). The watcher's active:false is the dismissal channel
+	# (it force-rescans before declaring one), and a stranded overlay is always
+	# escapable — Esc answers Cancel and hides locally.
 	var pal: Dictionary = data.get("palette", {})
 	if not pal.is_empty():
 		_palette = pal
-	if _popup != null:
-		_popup.hide_popup()
 	# Route the render through the store: draw the live zone plus any remembered
 	# neighbours (same stratum) the player has visited, placed by global offset.
 	Profiler.add_us("server", int(data.get("serverUs", 0)))
@@ -1023,12 +1033,27 @@ func _unhandled_input(event: InputEvent) -> void:
 		if _cam_rig._mode != CamMode.KEYBOARD and event.keycode == KEY_D:
 			client.send_command("command", {"command": "CmdMoveD"}); return
 		if event.keycode == KEY_ESCAPE:
-			# close the camera/debug menu and any selection, but KEEP the current camera
+			# close the camera/debug menu and any selection, but KEEP the current camera.
+			# With nothing to dismiss, 1:1 Esc = Qud's own binding (CmdSystemMenu,
+			# Commands.xml): the system-menu POPUP opens in Qud and mirrors back into
+			# Raves through the popup bridge — picking Save and Quit / Options there
+			# round-trips like any popup.
+			# NB .visible on the debug menu is useless — the NODE stays visible, only
+			# its internal panel toggles (is_open() reads that). Same trap generally.
+			var had_ui: bool = (inspector != null and inspector.selected_tile() != null) \
+				or (_dbg_menu != null and _dbg_menu.is_open()) \
+				or (_char_creator != null and _char_creator.visible)
 			_dismiss_selection()
 			if _dbg_menu != null:
 				_dbg_menu.close()
 			if _char_creator != null:
 				_char_creator.visible = false
+			# a MainFrame overlay (status screens / control mapping) owns Esc for its
+			# own close — Main runs FIRST in _unhandled_input (later sibling), so
+			# without this check Esc would ALSO pop Qud's system menu underneath
+			var overlay_open: bool = overlay_check.is_valid() and bool(overlay_check.call())
+			if not had_ui and _one_to_one and not overlay_open:
+				client.send_command("command", {"command": "CmdSystemMenu"})
 			return
 		if event.keycode == KEY_I:
 			_inspect(); return
@@ -1083,6 +1108,19 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_KP_9: client.send_command("move", {"dir": "NE"})
 			KEY_KP_1: client.send_command("move", {"dir": "SW"})
 			KEY_KP_3: client.send_command("move", {"dir": "SE"})
+		# LAST fallback: the player's own Qud keybindings (Control Mapping remaps).
+		# Qud stores a remap fine but Raves' hardcoded keys never consulted it, so a
+		# custom bind ("{" = Move east) died at our seam. Raves handlers above keep
+		# precedence (movement keys just moved — bail before double-sending); any
+		# unclaimed combo that matches a binding runs Qud's own command.
+		if event.keycode in [KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_KP_8, KEY_KP_2,
+				KEY_KP_4, KEY_KP_6, KEY_KP_7, KEY_KP_9, KEY_KP_1, KEY_KP_3]:
+			return
+		if not (_popup != null and _popup.visible) \
+				and not (overlay_check.is_valid() and bool(overlay_check.call())):
+			var qcmd: String = _binds.match_event(event)
+			if qcmd != "":
+				client.send_command("command", {"command": qcmd})
 	elif event is InputEventMouseButton:
 		match event.button_index:
 			MOUSE_BUTTON_LEFT:

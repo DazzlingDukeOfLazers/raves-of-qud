@@ -363,3 +363,33 @@ frame to avoid a 1-frame flip). See the header comment in `godot/Main.gd`.
 
 `tools/tiletool/` — an AssetsTools.NET C# inspector used once to reverse how tiles are packed in
 the Unity atlases. Kept for reference; not needed for normal work.
+
+
+## `tools/capture/parity.py` — region-scoped parity scoring
+
+Whole-frame and per-band mean-diff cannot adjudicate small UI changes: the live playfield behind a
+status screen's scrim differs every run and moves the average by ~0.7 between IDENTICAL builds, which
+is larger than most real deltas. It also rewards blur (a soft tile regresses to the mean) and, if the
+sampling window includes a cell's own border, "sprite ink" ends up measuring the box.
+
+`parity.py` scores per LEAF instead — a named region plus a kind that says what to compare:
+
+| kind | compares |
+|---|---|
+| `image` | sprite ink only; the chrome band is masked out |
+| `frame` | chrome only; the interior is masked out |
+| `composite` | the whole cell — what the eye sees |
+
+```bash
+python3 tools/capture/parity.py score reports/<date>/parity-equipment.json qud.png raves.png
+python3 tools/capture/parity.py bounds reports/<date>/parity-equipment.json raves.png --leaf doll_image
+python3 tools/capture/parity.py mask  reports/<date>/parity-equipment.json raves.png doll_image[0] /tmp/m.png
+```
+
+Each row reports the masked mean diff, the ink bbox in BOTH apps and the pixel counts, so a change is
+judged on the thing it touched. Regions live in JSON (`reports/<date>/parity-<screen>.json`) with a
+`grid` shorthand for repeated cells, so a new screen is a data edit. The leaf names match the
+per-leaf nodes in highvisor's gametree (`equipment_doll_image`, `equipment_filter_frame`, …).
+
+First run on the Equipment tab: **image 75.6, frame 15.9, composite 17.2** — i.e. the sprites, not the
+chrome, are what still differs, which the whole-frame number (4.5) completely hid.

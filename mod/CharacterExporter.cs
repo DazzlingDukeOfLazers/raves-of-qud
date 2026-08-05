@@ -107,6 +107,19 @@ namespace RavesOfQud
             try { geno = p.GetGenotype() ?? ""; } catch { }
             try { sub = p.GetStringProperty("Subtype") ?? ""; } catch { }
             j.Member("title", (geno + " " + sub).Trim());
+            // the portrait tile, self-contained (no snapshot dependency): path + detail
+            // colour code; TileExporter queues the art if it isn't on disk yet
+            try
+            {
+                var r = p.GetPart<XRL.World.Parts.Render>();
+                if (r != null)
+                {
+                    string tile = r.Tile ?? "";
+                    if (tile.Length > 0) TileExporter.Ensure(tile);
+                    j.Member("tile", tile).Member("detail", r.DetailColor ?? "");
+                }
+            }
+            catch { }
             j.Member("level", Stat(p, "Level"));
             try { j.Member("hp", p.hitpoints).Member("hpMax", p.baseHitpoints); } catch { }
             j.Member("xp", Stat(p, "XP"));
@@ -175,6 +188,25 @@ namespace RavesOfQud
                         try { j.Member("showLevel", m.ShouldShowLevel()); } catch { }   // Qud's own (n)-suffix rule
                         try { j.Member("type", m.GetMutationType() ?? ""); } catch { }
                         try { j.Member("desc", m.GetDescription() ?? ""); } catch { }
+                        try
+                        {
+                            var ic = m.GetIcon();
+                            if (ic != null)
+                            {
+                                string mtile = ic.getTile();
+                                if (!string.IsNullOrEmpty(mtile))
+                                {
+                                    TileExporter.Ensure(mtile);
+                                    string mcol = ic.getTileColor();
+                                    if (string.IsNullOrEmpty(mcol)) mcol = ic.getColorString();
+                                    char mdc = ic.getDetailColor();
+                                    j.Member("iconTile", mtile)
+                                     .Member("iconColor", mcol ?? "")
+                                     .Member("iconDetail", mdc == '\0' ? "" : mdc.ToString());
+                                }
+                            }
+                        }
+                        catch { }
                         try { j.Member("levelText", m.GetLevelText(m.Level) ?? ""); } catch { }
                         try { if (m.Level < m.GetMaxLevel()) j.Member("nextText", m.GetLevelText(m.Level + 1) ?? ""); } catch { }
                         j.EndObject();

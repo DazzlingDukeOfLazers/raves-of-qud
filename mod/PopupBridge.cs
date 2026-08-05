@@ -34,6 +34,11 @@ namespace RavesOfQud
         private static int _lastPollMs;
         private static PopupMessage _pm;        // cached visible popup — checked cheaply each poll (Visible)
         private static int _lastScanMs;         // throttles the scene scan that finds a fresh popup
+        // The exact instance whose content was last ANNOUNCED to Raves. Answers target
+        // THIS instance: async copies (NewPopupMessageAsync/copyWindow — ShowYesNoAsync,
+        // PickOptionAsync, AskString) can vanish from FindObjectsByType by answer-time,
+        // and a re-scan then hits a decoy singleton — the injected answer went nowhere.
+        private static PopupMessage _announcedPm;
 
         private static void Log(string s) { try { Bridge.Server?.Log(s); } catch { } }
 
@@ -54,11 +59,35 @@ namespace RavesOfQud
             catch { return false; }
         }
 
+        /// UIManager pools its popup COPIES in a private static Queue (copyWindow dequeues,
+        /// releaseCopy enqueues). A RELEASED copy can still look "live" — visible with a
+        /// non-null callback — so a plain scan picks pooled ghosts, and answers vanished
+        /// into them (the copyWindow class: ShowYesNoAsync / PickOptionAsync / AskString).
+        /// The IN-USE popup is the one that is NOT in the free pool.
+        private static bool InFreePool(PopupMessage w)
+        {
+            try
+            {
+                var f = typeof(UIManager).GetField("popupMessages",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+                var q = f?.GetValue(null) as System.Collections.IEnumerable;
+                if (q == null) return false;
+                foreach (object o in q) if (ReferenceEquals(o, w)) return true;
+            }
+            catch { }
+            return false;
+        }
+
         private static PopupMessage FindVisiblePopup(bool force)
         {
-            if (IsLive(_pm)) return _pm;
+            if (IsLive(_pm) && !InFreePool(_pm)) return _pm;
             _pm = null;
-            try { var s = UIManager.getWindow("PopupMessage") as PopupMessage; if (IsLive(s)) return _pm = s; } catch { }
+            try
+            {
+                var s = UIManager.getWindow("PopupMessage") as PopupMessage;
+                if (IsLive(s) && !InFreePool(s)) return _pm = s;
+            }
+            catch { }
             int now = Environment.TickCount;
             if (!force && now - _lastScanMs < 120) return null;   // dynamic-copy scan: ~8 Hz when idle
             _lastScanMs = now;
@@ -66,7 +95,7 @@ namespace RavesOfQud
             {
                 var all = UnityEngine.Object.FindObjectsByType<PopupMessage>(FindObjectsSortMode.None);
                 for (int i = 0; i < all.Length; i++)
-                    if (IsLive(all[i])) return _pm = all[i];
+                    if (IsLive(all[i]) && !InFreePool(all[i])) return _pm = all[i];
             }
             catch { }
             return null;
@@ -118,6 +147,12 @@ namespace RavesOfQud
             _resend = false;
 
             PopupMessage pm = FindVisiblePopup(false);
+            // Believed-active but not found? FORCE the full scan before declaring a
+            // dismissal: the cheap path rate-limits the dynamic-copy scan (~8 Hz), so a
+            // one-poll IsLive hiccup on an AskString COPY published a false
+            // active:false + a fresh-id reshow — which reset the text the user was
+            // typing in Raves ("kept resetting as I tried to type QUIT").
+            if (pm == null && _active) pm = FindVisiblePopup(true);
             bool active = pm != null;
 
             if (!active)
@@ -126,6 +161,7 @@ namespace RavesOfQud
                 {
                     _active = false;
                     _sig = "";
+                    _announcedPm = null;
                     var jc = new JsonWriter();
                     jc.BeginObject().Member("type", Protocol.TypePopup).Member("active", false).Member("id", ++_id).EndObject();
                     Publish(server, jc.ToString());
@@ -141,6 +177,7 @@ namespace RavesOfQud
             string inputDefault = input ? (pm.inputBox.text ?? "") : "";
 
             string sig = Sig(message, title, buttons, options, input, inputDefault);
+            _announcedPm = pm;   // answers target the instance Raves is looking at
             if (_active && sig == _sig && !resend) return;   // same popup, same content — Raves already has it
             _active = true;
             _sig = sig;
@@ -208,8 +245,16 @@ namespace RavesOfQud
             {
                 try
                 {
-                    PopupMessage pm = FindVisiblePopup(true);
-                    if (pm == null) return;
+                    // Target the ANNOUNCED instance first — async copies (ShowYesNoAsync /
+                    // PickOptionAsync / AskString via copyWindow) can vanish from a re-scan
+                    // by answer-time, which used to hand the answer to a decoy singleton.
+                    PopupMessage pm = _announcedPm;
+                    bool held = false;
+                    try { held = pm != null && pm.Visible; } catch { pm = null; }
+                    if (!held) pm = FindVisiblePopup(true);
+                    if (pm == null) { Log("[popup] answer: no target"); return; }
+                    Log("[popup] answer -> " + action + " held=" + held + " live=" + IsLive(pm)
+                        + " inst=" + pm.GetInstanceID());
                     List<QudMenuItem> buttons = pm.controller != null ? pm.controller.bottomContextOptions : null;
                     List<QudMenuItem> options = pm.controller != null ? pm.controller.menuData : null;
 
@@ -217,25 +262,26 @@ namespace RavesOfQud
                     {
                         if (int.TryParse(indexStr, out int idx) && options != null && idx >= 0 && idx < options.Count)
                             pm.OnSelect(options[idx]);
-                        return;
                     }
-                    if (action == "input")
+                    else if (action == "input")
                     {
-                        // KNOWN LIMITATION: AskString (and other NewPopupMessageAsync/copyWindow popups) live
-                        // in a per-popup COPY that FindObjectsByType stops returning by answer-time — only a
-                        // decoy singleton is found — so injecting the text + submitting here targets the
-                        // wrong instance and doesn't reach Qud. The input popup still RENDERS in Raves and is
-                        // answerable in Qud's own window; submitting it FROM Raves is not wired yet. Singleton
-                        // popups (message / yes-no / option-menu) are unaffected and fully round-trip.
+                        // Qud's own submit path (OnInputSubmit -> OnSelect on the Submit/
+                        // Accept button) — with the HELD copy this now reaches AskString too.
                         if (pm.inputBox != null) pm.inputBox.text = text ?? "";
-                        QudMenuItem acc = FindButton(buttons, "keep", "Accept", "Submit");
-                        pm.OnActivateCommand(acc);
-                        return;
+                        pm.OnInputSubmit(text ?? "");
                     }
-                    // "button" / "cancel": dismiss with the matching bottom button (or a fabricated one).
-                    QudMenuItem chosen = FindByCommand(buttons, btn);
-                    if (string.IsNullOrEmpty(chosen.command)) chosen = new QudMenuItem { command = btn ?? "Accept", text = btn ?? "" };
-                    pm.OnActivateCommand(chosen);
+                    else
+                    {
+                        // "button" / "cancel": dismiss with the matching bottom button (or a fabricated one).
+                        QudMenuItem chosen = FindByCommand(buttons, btn);
+                        if (string.IsNullOrEmpty(chosen.command)) chosen = new QudMenuItem { command = btn ?? "Accept", text = btn ?? "" };
+                        pm.OnActivateCommand(chosen);
+                    }
+                    // The answered callback usually completes a TaskCompletionSource whose
+                    // awaiting chain resumes through Unity's SynchronizationContext — which
+                    // macOS stops draining for an UNFOCUSED window. Pump it so the follow-on
+                    // (next popup, screen close, keymap load…) happens now, not on next focus.
+                    Bridge.PumpSyncContext(8);
                 }
                 catch (Exception e) { Log("popup cmd: " + e.Message); }
             }, 0);

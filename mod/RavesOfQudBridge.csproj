@@ -39,6 +39,7 @@
   -->
   <ItemGroup>
     <Reference Include="$(CoQManaged)/Assembly-CSharp.dll" Private="false" />
+    <Reference Include="$(CoQManaged)/Unity.InputSystem.dll" Private="false" />
     <Reference Include="$(CoQManaged)/UnityEngine.CoreModule.dll" Private="false" />
     <Reference Include="$(CoQManaged)/UnityEngine.dll" Private="false" />
     <Reference Include="$(CoQManaged)/UnityEngine.ImageConversionModule.dll" Private="false" />

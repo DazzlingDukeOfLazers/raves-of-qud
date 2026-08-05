@@ -1,0 +1,193 @@
+{
+ "screen": "status_equipment",
+ "note": "Leaf regions for the Equipment tab. Cells are Qud's own geometry, measured off equipment_qud.png: paper-doll slots 55x62 on columns x{283,373,463,553,643} / rows y{246,366,486,606,726}; filter cells 50x41 from x618 on a 58px pitch at y177. inset 6 skips the 2px chrome plus its corner ornaments so `image` leaves see sprite ink only.",
+ "defaults": {
+  "inset": 6,
+  "threshold": 60
+ },
+ "leaves": [
+  {
+   "name": "doll_image",
+   "kind": "image",
+   "grid": {
+    "w": 64,
+    "h": 64,
+    "cells": [
+     [
+      454,
+      486
+     ],
+     [
+      634,
+      486
+     ],
+     [
+      454,
+      726
+     ],
+     [
+      274,
+      726
+     ],
+     [
+      274,
+      486
+     ]
+    ]
+   },
+   "inset": 14
+  },
+  {
+   "name": "doll_frame",
+   "kind": "frame",
+   "grid": {
+    "w": 64,
+    "h": 64,
+    "cells": [
+     [
+      454,
+      486
+     ],
+     [
+      634,
+      486
+     ],
+     [
+      454,
+      726
+     ],
+     [
+      274,
+      726
+     ],
+     [
+      274,
+      486
+     ]
+    ]
+   }
+  },
+  {
+   "name": "doll_cell",
+   "kind": "composite",
+   "grid": {
+    "w": 64,
+    "h": 64,
+    "cells": [
+     [
+      454,
+      486
+     ],
+     [
+      634,
+      486
+     ],
+     [
+      454,
+      726
+     ],
+     [
+      274,
+      726
+     ],
+     [
+      274,
+      486
+     ]
+    ]
+   }
+  },
+  {
+   "name": "filter_image",
+   "kind": "image",
+   "grid": {
+    "w": 46,
+    "h": 41,
+    "cells": [
+     [
+      676,
+      177
+     ],
+     [
+      734,
+      177
+     ],
+     [
+      792,
+      177
+     ],
+     [
+      850,
+      177
+     ],
+     [
+      908,
+      177
+     ]
+    ]
+   },
+   "inset": 13,
+   "note": "inset 13: the cell's corner-loop ornaments reach ~11px inside, so a smaller inset measures CHROME, not the icon"
+  },
+  {
+   "name": "filter_frame",
+   "kind": "frame",
+   "grid": {
+    "w": 46,
+    "h": 41,
+    "cells": [
+     [
+      676,
+      177
+     ],
+     [
+      734,
+      177
+     ],
+     [
+      792,
+      177
+     ],
+     [
+      850,
+      177
+     ],
+     [
+      908,
+      177
+     ]
+    ]
+   }
+  },
+  {
+   "name": "filter_cell",
+   "kind": "composite",
+   "grid": {
+    "w": 46,
+    "h": 41,
+    "cells": [
+     [
+      676,
+      177
+     ],
+     [
+      734,
+      177
+     ],
+     [
+      792,
+      177
+     ],
+     [
+      850,
+      177
+     ],
+     [
+      908,
+      177
+     ]
+    ]
+   }
+  }
+ ]
+}

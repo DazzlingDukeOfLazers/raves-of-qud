@@ -68,8 +68,13 @@ var _seeded := false
 # character sheet (Attributes & Powers): mod CharacterExporter -> character.json;
 # we request a fresh export on open via our own bridge peer (Records pattern)
 var _attr_pane: Control = null
+var _skills_pane: Control = null
+var _skills_mtime := 0
+var _inv_pane: Control = null
+var _inv_mtime := 0
 var _char_mtime := 0
 var _pane_pal_empty := true
+var _portrait_tex: Texture2D = null   # live player tile — also the attributes tab's icon
 var _peer := StreamPeerTCP.new()
 var _tiles: RefCounted = null
 var _last_player := {}
@@ -86,6 +91,13 @@ func _ready() -> void:
 	_root = Control.new()
 	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_root.mouse_filter = Control.MOUSE_FILTER_STOP     # modal while shown
+	_root.gui_input.connect(func(e: InputEvent):
+		if _tab == "skills" and _skills_pane != null and _skills_pane.visible \
+				and _skills_pane.has_method("handle_mouse"):
+			_skills_pane.handle_mouse(e)
+		elif _tab == "equipment" and _inv_pane != null and _inv_pane.visible \
+				and _inv_pane.has_method("handle_mouse"):
+			_inv_pane.handle_mouse(e))
 	_root.theme = UiFont.make_theme(get_viewport())    # CanvasLayer theme-root trap
 	add_child(_root)
 	for t in TABS:
@@ -126,6 +138,9 @@ void fragment() {
 	_bar.position = Vector2(0, BAR_Y)
 	_bar.size = Vector2(1920, BAR_H)
 	_bar.mouse_filter = Control.MOUSE_FILTER_STOP
+	# NEAREST for everything the bar draws — the live tab icon scales 1.5x, and the
+	# default LINEAR filter smears it soft/dim next to the crisp NEAREST portrait
+	_bar.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_bar.draw.connect(_draw_bar)
 	_bar.gui_input.connect(_bar_input)
 	_root.add_child(_bar)
@@ -230,10 +245,24 @@ func _draw_bar() -> void:
 		var cx0: int = CELL_X[i]
 		var cw: int = CELL_X[i + 1] - cx0
 		var icon: Texture2D = _icons.get("%s_%s" % [t["id"], "on" if active else "off"])
+		var live: bool = (t["id"] == "attributes" and _portrait_tex != null)
 		var tw := f.get_string_size(t["name"], HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
-		var iw := (icon.get_width() + 10.0) if icon != null else 0.0
+		var iw := 0.0
+		if live:
+			iw = 24.0 + 10.0
+		elif icon != null:
+			iw = icon.get_width() + 10.0
 		var x := cx0 + (cw - (iw + tw)) * 0.5
-		if icon != null:
+		if live:
+			# Qud's Attributes tab icon IS the character sprite, same 24x36 as the
+			# sheet portrait, facing left. Flip via TRANSFORM so the 1.5x NEAREST
+			# duplicate-columns land like the portrait's flip_h (scale THEN mirror —
+			# a pre-flipped image mirrors first and doubles the other side: derpy).
+			_bar.draw_set_transform(Vector2(x + 24.0, 10.0), 0.0, Vector2(-1, 1))
+			_bar.draw_texture_rect(_portrait_tex, Rect2(0, 0, 24, 36), false,
+				Color.WHITE if active else Color(0.5, 0.62, 0.66))
+			_bar.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		elif icon != null:
 			_bar.draw_texture(icon, Vector2(x, (BAR_H - icon.get_height()) * 0.5 + 1))
 		_bar.draw_string(f, Vector2(x + iw, 36), t["name"],
 			HORIZONTAL_ALIGNMENT_LEFT, -1, 16, S_ACTIVE if active else S_INACTIVE)
@@ -284,12 +313,38 @@ func _set_tab(id: String) -> void:
 		_refresh_log()
 	if _attr_pane != null:
 		_attr_pane.visible = (id == "attributes")
+	if _skills_pane != null:
+		_skills_pane.visible = (id == "skills")
+	if _inv_pane != null:
+		_inv_pane.visible = (id == "equipment")
 	if id == "attributes":
 		_request_export()
 		_load_character()
+	if id == "skills":
+		_request_export()
+		_load_skills()
+	if id == "equipment":
+		_request_export()
+		_load_inventory()
 	_build_hints()
 	if visible:
 		UiState.set_scene("status_" + _tab)
+
+## Send any bridge command from this screen's own peer (fire-and-forget).
+func _send_bridge(msg: Dictionary) -> void:
+	_peer.poll()
+	if _peer.get_status() != StreamPeerTCP.STATUS_CONNECTED:
+		_peer.connect_to_host(BridgeClient.host(), BridgeClient.port())
+		return
+	var payload := JSON.stringify(msg).to_utf8_buffer()
+	var frame := PackedByteArray()
+	var n := payload.size()
+	frame.append((n >> 24) & 0xFF)
+	frame.append((n >> 16) & 0xFF)
+	frame.append((n >> 8) & 0xFF)
+	frame.append(n & 0xFF)
+	frame.append_array(payload)
+	_peer.put_data(frame)
 
 ## Ask the mod for a fresh data export (character.json etc.); fire-and-forget.
 func _request_export() -> void:
@@ -315,7 +370,10 @@ func _load_character() -> void:
 	var mt := FileAccess.get_modified_time(path)
 	# rebuild despite an unchanged file if the pane was built before the palette
 	# arrived (an early open rendered every colour code white)
-	if _attr_pane != null and mt == _char_mtime and not (_pane_pal_empty and not _palette.is_empty()):
+	var pane_missing_portrait: bool = _attr_pane != null and _attr_pane.has_method("has_portrait") \
+		and not _attr_pane.has_portrait() and not _last_player.is_empty()
+	if _attr_pane != null and mt == _char_mtime \
+			and not (_pane_pal_empty and not _palette.is_empty()) and not pane_missing_portrait:
 		return
 	var f := FileAccess.open(path, FileAccess.READ)
 	if f == null:
@@ -331,12 +389,18 @@ func _load_character() -> void:
 		_attr_pane = load("res://StatusPaneAttributes.gd").new()
 		_root.add_child(_attr_pane)
 	# the player portrait: white tile + detail colour, like the frame's avatar
+	# portrait straight from character.json (tile + detail code) — snapshots proved
+	# an unreliable source (they only flow on turns/connect; a menu-opened pane raced)
 	var tex: Texture2D = null
-	if not _last_player.is_empty() and _tiles_dir != "":
-		_tiles.tiles_dir = _tiles_dir
-		_tiles.palette = _palette if not _palette.is_empty() else _tiles.palette
-		tex = _tiles.texture(String(_last_player.get("tile", "")), Color.WHITE,
-			_tiles.detail_color(_last_player))
+	var tile := String(data.get("tile", ""))
+	if tile != "":
+		_tiles.tiles_dir = InputModel.support_dir().path_join("tiles")
+		if not _palette.is_empty():
+			_tiles.palette = _palette
+		tex = _tiles.texture(tile, Color.WHITE, _tiles.color_of(String(data.get("detail", "")), Color.WHITE))
+	_portrait_tex = tex
+	if _bar != null:
+		_bar.queue_redraw()   # the attributes tab icon IS the live portrait
 	_pane_pal_empty = _palette.is_empty()
 	_attr_pane.setup(data, _palette, tex)
 	_attr_pane.visible = (_tab == "attributes")
@@ -344,6 +408,69 @@ func _load_character() -> void:
 	get_tree().create_timer(1.2).timeout.connect(func():
 		if visible and _tab == "attributes":
 			_load_character())
+
+## (Re)build the Skills pane from skills.json when it changes (same guards as the
+## character sheet: mtime, plus a rebuild once the palette lands).
+func _load_skills(force := false) -> void:
+	var path := InputModel.support_dir().path_join("skills.json")
+	if not FileAccess.file_exists(path):
+		return
+	var mt := FileAccess.get_modified_time(path)
+	if not force and _skills_pane != null and mt == _skills_mtime \
+			and not (_pane_pal_empty and not _palette.is_empty()):
+		return
+	var f := FileAccess.open(path, FileAccess.READ)
+	if f == null:
+		return
+	var txt := f.get_as_text()
+	if txt.length() > 0 and txt.unicode_at(0) == 0xFEFF:
+		txt = txt.substr(1)
+	var data: Variant = JSON.parse_string(txt)
+	if not (data is Dictionary):
+		return
+	_skills_mtime = mt
+	if _skills_pane == null:
+		_skills_pane = load("res://StatusPaneSkills.gd").new()
+		_skills_pane.bridge_cb = func(msg: Dictionary): _send_bridge(msg)
+		_skills_pane.reload_cb = func(): _load_skills(true)
+		_root.add_child(_skills_pane)
+	_pane_pal_empty = _palette.is_empty()
+	_skills_pane.setup(data, _palette)
+	_skills_pane.visible = (_tab == "skills")
+	get_tree().create_timer(1.2).timeout.connect(func():
+		if visible and _tab == "skills":
+			_load_skills())
+
+## (Re)build the Equipment tab's inventory pane from inventory.json.
+func _load_inventory(force := false) -> void:
+	var path := InputModel.support_dir().path_join("inventory.json")
+	if not FileAccess.file_exists(path):
+		return
+	var mt := FileAccess.get_modified_time(path)
+	if not force and _inv_pane != null and mt == _inv_mtime \
+			and not (_pane_pal_empty and not _palette.is_empty()):
+		return
+	var f := FileAccess.open(path, FileAccess.READ)
+	if f == null:
+		return
+	var txt := f.get_as_text()
+	if txt.length() > 0 and txt.unicode_at(0) == 0xFEFF:
+		txt = txt.substr(1)
+	var data: Variant = JSON.parse_string(txt)
+	if not (data is Dictionary):
+		return
+	_inv_mtime = mt
+	if _inv_pane == null:
+		_inv_pane = load("res://StatusPaneInventory.gd").new()
+		_inv_pane.bridge_cb = func(msg: Dictionary): _send_bridge(msg)
+		_inv_pane.reload_cb = func(): _load_inventory(true)
+		_root.add_child(_inv_pane)
+	_pane_pal_empty = _palette.is_empty()
+	_inv_pane.setup(data, _palette)
+	_inv_pane.visible = (_tab == "equipment")
+	get_tree().create_timer(1.2).timeout.connect(func():
+		if visible and _tab == "equipment":
+			_load_inventory())
 
 # ── open / close / input ───────────────────────────────────────────────────────
 
@@ -367,6 +494,14 @@ func _unhandled_input(e: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 	if e is InputEventKey and e.pressed and not e.echo:
+		if _tab == "skills" and _skills_pane != null and _skills_pane.has_method("handle_key") \
+				and _skills_pane.handle_key(e):
+			get_viewport().set_input_as_handled()
+			return
+		if _tab == "equipment" and _inv_pane != null and _inv_pane.has_method("handle_key") \
+				and _inv_pane.handle_key(e):
+			get_viewport().set_input_as_handled()
+			return
 		match e.keycode:
 			KEY_7, KEY_KP_7:
 				_step_tab(-1); get_viewport().set_input_as_handled()

@@ -97,6 +97,7 @@ var _l_exp: Label
 var _bar_exp: ProgressBar
 var _msglog: Control        # the Message log view (MessageLog.gd)
 var _status: CanvasLayer    # the 8-tab status screens overlay (StatusScreens.gd, V4; layer 90)
+var _controlmap: CanvasLayer   # the Control Mapping screen (ControlMappingScreen.gd, V4; layer 90)
 var _nearby: Control        # the Nearby objects view (NearbyObjects.gd)
 var _minimap: Control       # the Minimap view (MinimapView.gd)
 var _effects: Control       # the Active effects view (ActiveEffects.gd)
@@ -168,11 +169,24 @@ func _ready() -> void:
 	_panels = [_minimap, _nearby, _msglog, _effects, _target, _context, _command].filter(
 		func(p): return p != null)
 	_apply_full_info()                   # init the toggle label + push the default (perceived) to views
+	# Follow the GAME's lifecycle: when a once-live game ends (Save and Quit / death /
+	# Qud closing), return to Raves' title like Qud returns to its own. Polls the mod
+	# heartbeat; 3 consecutive non-live reads (~3s) debounce load transitions.
+	var lt := Timer.new()
+	lt.wait_time = 1.0
+	lt.timeout.connect(_poll_game_lifecycle)
+	add_child(lt)
+	lt.start()
 	# The 8-tab status screens (V4): created hidden NOW so its message-log history
 	# accumulates from the very first snapshot; F2 toggles it. Fed via _panels.
 	_status = load("res://StatusScreens.gd").new()
 	add_child(_status)
 	_panels.append(_status)
+	# Control Mapping (V4): opened by picking "Control Mapping" in the mirrored
+	# system-menu popup (see _connect_holodeck's popup_option hook); Esc inside
+	# closes it AND uibacks Qud off its KeybindsScreen.
+	_controlmap = load("res://ControlMappingScreen.gd").new()
+	add_child(_controlmap)
 	_add_crt_overlay()                   # Qud's CRT terminal look, on top of the chrome + 3D
 
 	# Resume (Continue / New Game with the bridge up): MainMenu set this so we AUTO-CONNECT the data
@@ -196,13 +210,46 @@ func _on_resize() -> void:
 func _input(e: InputEvent) -> void:
 	if e is InputEventKey and e.pressed and not e.echo and e.keycode == KEY_F12:
 		_shot()
-	# F2: the 8-tab status screens (1:1 mirror; placeholder opener until per-tab keys land)
-	if e is InputEventKey and e.pressed and not e.echo and e.keycode == KEY_F2 \
-			and _status != null and Settings.one_to_one():
-		if _status.visible:
-			_status.close()
-		else:
-			_status.open()
+	# Qud's OWN status-screen keys (Commands.xml defaults): k=skills, x/Tab=attributes,
+	# e=equipment (i, inventory, lands there too — the carousel has no Inventory tab),
+	# n=tinkering, j=journal, q=quests, Ctrl+F=reputation. Only from gameplay (the
+	# overlay's per-tab layer owns letters while open, like Qud's Adventure layer).
+	# F2 stays as the hv-recipe toggle. 1:1-only; consumed so the camera/inspector
+	# bindings underneath never double-fire.
+	# a modal popup may have consumed this key in ITS _input (set_input_as_handled
+	# only stops _unhandled_input, not other _input callbacks) — answering "No"
+	# with N must not ALSO open the Tinkering tab
+	if e is InputEventKey and e.pressed and not e.echo and _status != null \
+			and Settings.one_to_one() and not e.alt_pressed \
+			and not get_viewport().is_input_handled():
+		var ctrl: bool = e.ctrl_pressed or e.meta_pressed
+		if e.keycode == KEY_F and ctrl and not e.shift_pressed:
+			if not _status.visible:
+				_status.open("reputation")
+			get_viewport().set_input_as_handled()
+			return
+		if not ctrl and not e.shift_pressed:
+			if e.keycode == KEY_F2:
+				_toggle_status()
+				get_viewport().set_input_as_handled()
+				return
+			if not _status.visible and STATUS_TAB_KEYS.has(e.keycode):
+				_status.open(STATUS_TAB_KEYS[e.keycode])
+				get_viewport().set_input_as_handled()
+				return
+
+# Qud's Commands.xml default binds -> our tab ids (see the handler above)
+const STATUS_TAB_KEYS := {KEY_K: "skills", KEY_X: "attributes", KEY_TAB: "attributes",
+	KEY_E: "equipment", KEY_I: "equipment", KEY_N: "tinkering", KEY_J: "journal",
+	KEY_Q: "quests"}
+
+func _toggle_status() -> void:
+	if _status == null or not Settings.one_to_one():
+		return
+	if _status.visible:
+		_status.close()
+	else:
+		_status.open()
 
 # ── helpers ────────────────────────────────────────────────────────────────
 
@@ -756,6 +803,22 @@ func _row_vitals_menu() -> Control:
 		cell.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		# The up/down nav icons are LIVE (Qud's climb commands); the rest stay cosmetic.
 		# Plain Controls with gui_input — no Button, so nothing grabs focus from the arrows.
+		if key == "system":
+			# the hamburger opens Qud's system menu (checkpoints / options / save & quit)
+			# — CmdSystemMenu over the bridge; the popup mirrors back, same as Esc
+			cell.mouse_filter = Control.MOUSE_FILTER_STOP
+			cell.tooltip_text = "System menu (checkpoints, options, save and quit) — Esc"
+			cell.gui_input.connect(func(e: InputEvent) -> void:
+				if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+					if _holo != null:
+						_holo.request_command("CmdSystemMenu"))
+		if key == "char":
+			# the person icon opens the 8-tab status screens — Qud's own opener
+			cell.mouse_filter = Control.MOUSE_FILTER_STOP
+			cell.tooltip_text = "Character / status screens — x or F2"
+			cell.gui_input.connect(func(e: InputEvent) -> void:
+				if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+					_toggle_status())
 		if key == "up" or key == "down":
 			var stair_up: bool = key == "up"
 			cell.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -856,8 +919,11 @@ func _report_overflow() -> void:
 func _on_one_to_one_changed(on: bool) -> void:
 	_set_panels_one_to_one(on)
 	_apply_layout_mode(on)
-	Settings.set_value("mode", "1to1" if on else "user")
-	Settings.save()
+	# a --one-to-one LOCKED run isn't a user choice — persisting it made every later
+	# UNFLAGGED launch come up 1:1 too (the lock leaked into settings.json)
+	if not Settings.one_to_one_only:
+		Settings.set_value("mode", "1to1" if on else "user")
+		Settings.save()
 
 func _set_panels_one_to_one(on: bool) -> void:
 	for p in _panels:
@@ -1152,6 +1218,18 @@ func _connect_holodeck() -> void:
 	_holo.render_3d = false                     # DATA ONLY — no 3D build/render at all
 	_holo.connect("snapshot", _apply_stats)     # feeds status bar + panels off the same stream
 	_holo.connect("one_to_one_changed", _on_one_to_one_changed)  # camera flips → sync panels + persist
+	# a system-menu pick of "Control Mapping" mirrors into Raves' own screen (Qud
+	# opens its KeybindsScreen from the same answer). BOTH modes — user mode gets
+	# the extra RAVES section (golden restore) that 1:1 hides.
+	# stripped option text keeps its hotkey prefix ("[c] Control Mapping") — match the tail
+	_holo.connect("popup_option", func(text: String):
+		if _controlmap != null \
+				and text.strip_edges().to_lower().ends_with("control mapping"):
+			_controlmap.open())
+	# while a frame overlay is open, Main's Esc must not ALSO pop Qud's system menu
+	_holo.overlay_check = func() -> bool:
+		return (_status != null and _status.visible) \
+			or (_controlmap != null and _controlmap.visible)
 	add_child(_holo)                            # ROOT viewport → 3D renders full-window BEHIND the chrome
 	_render_btn.disabled = false
 	UiState.set_scene("in_game")                # highvisor state report: the gameplay frame is up
@@ -1176,6 +1254,31 @@ func _enable_viewport() -> void:
 
 ## Update the status bar from one snapshot's `stats` block (and `time` for day/night). Missing
 ## fields fall back to "—" so a partial/older mod never shows stale numbers.
+# ── game-lifecycle watch: leave the viewer when the game ends ────────────────
+var _seen_live := false
+var _dead_reads := 0
+
+func _poll_game_lifecycle() -> void:
+	var path := InputModel.support_dir().path_join("bridge_status.txt")
+	var live := false
+	if FileAccess.file_exists(path):
+		var age := Time.get_unix_time_from_system() - float(FileAccess.get_modified_time(path))
+		if age <= 3.0:
+			var f := FileAccess.open(path, FileAccess.READ)
+			if f != null:
+				live = f.get_as_text().strip_edges() == "live"
+	if live:
+		_seen_live = true
+		_dead_reads = 0
+		return
+	if not _seen_live:
+		return           # never had a game this session — the connect flow owns startup
+	_dead_reads += 1
+	if _dead_reads >= 3:
+		# the game is gone (saved-and-quit, died, or Qud closed) — mirror Qud's
+		# return to the title. MainMenu's _ready reports scene=title itself.
+		get_tree().change_scene_to_file("res://MainMenu.tscn")
+
 func _apply_stats(data: Dictionary) -> void:
 	var s: Dictionary = data.get("stats", {})
 	_report_overflow.call_deferred()   # after this snapshot's text lands + a layout pass

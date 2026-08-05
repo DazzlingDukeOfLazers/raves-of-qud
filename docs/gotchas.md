@@ -99,6 +99,56 @@ add a one-liner (symptom → rule).
   NEGATIVE `CanvasLayer` so it tints only the 3D, not the chrome.
 - **The exported app writes NO `godot.log` / crash report** (ad-hoc signed). Trace via a file under
   `InputModel.support_dir()` (`~/Library/Application Support/RavesOfQud`), or run the dev editor.
+- **Per-screen colour compensation differs.** `QudChrome.q8` (×1.13, Records-fitted) OVERSHOOTS on the
+  Control Mapping screen — capture-fitting its solids gave `captured ≈ drawn − 6` above the dark knee
+  (`ControlMappingScreen._cm8`, +6/channel). Fit each new screen from its OWN solid fills (border/bg),
+  not glyph edges, before trusting either curve. Also: Qud's "letterspaced" headers are NOT tracked —
+  they're the SEMIBOLD face at a bigger size (SCP advance = 0.6×size explains every measured pitch).
+- **Main's Esc handler runs before overlay screens** (`_unhandled_input` is reverse tree order; the
+  Holodeck is the LAST child). Frame overlays (status screens, control mapping) must be reflected in
+  `Main.overlay_check` or 1:1 Esc ALSO fires `CmdSystemMenu` at Qud underneath the overlay's own close.
+- **Qud modal answers: mirror menu picks by TEXT, not index.** `PopupOverlay` rides the picked option's
+  stripped text along in the answer payload (`popup_option` signal); the text keeps its hotkey prefix —
+  match `ends_with("control mapping")`, not equality.
+- **`KeybindsScreen` needs the `uiback` Exit() special-case** (inherited `OnCancel` is a no-op, same as
+  `StatusScreensScreen`), and its `async void Exit()` only COMPLETES while Qud's main loop runs — an
+  unfocused Qud stays on the screen until next activation (the heartbeat scene flips then, not before).
+  Worse: while it (or any modal screen) is up, TURNS ARE BLOCKED — "my remapped key does nothing" was
+  Qud parked on Keybinds. The uiback handler now pumps Unity's SynchronizationContext (private `Exec()`,
+  reflection) after invoking Exit so the close chain resolves unfocused; macOS stops draining those
+  continuations for a backgrounded window even with `runInBackground=true` (turns + uiQueue keep running).
+- **Every scene must REPORT itself on load, not just on transitions.** `UiState` rewrites its file
+  every 2s as a freshness heartbeat, so a scene that never calls `set_scene` republishes the PREVIOUS
+  scene forever — `hv state` then reads fresh-but-wrong (it saw `status_skills` while Raves sat on
+  the title after the lifecycle bounce, and driving clicked into the menu). `MainMenu._ready` now
+  reports `title`, `set_scene` clears any popup (a modal can't survive a scene change), and the
+  heartbeat sanity-checks the live scene root before republishing.
+- **The reflection "sync pump" DOES NOT WORK on this build — retract any fix credited to it.**
+  `Bridge.PumpSyncContext` looks up `Exec()` on the sync context by reflection. Qud's context is a
+  `UnitySynchronizationContext`, which *does* declare a non-public `Exec()` in the assembly — but at
+  RUNTIME `GetMethod("Exec", NonPublic|Instance)` returns null (IL2CPP strips non-public metadata on
+  the Mac build; the mod logs "no Exec on UnitySynchronizationContext"). It was also pumping
+  `SynchronizationContext.Current`, which is null inside a uiQueue task, so it was a double no-op.
+  The `uiback` KeybindsScreen close that this pump was credited with is therefore explained by the
+  nav-cancel rung, not the pump. Don't reach for it again; find a first-party path instead.
+- **Qud APIs that raise a SYNCHRONOUS popup (`Popup.ShowYesNo`, `SelectNode`) must run through
+  `APIDispatch.RunAndWaitAsync`, not straight from a uiQueue task** — the modal wait deadlocks and
+  the call proceeds as if confirmed (a skill purchase went through on "No"). Mirror whatever wrapper
+  Qud's own caller uses; here `SkillsAndPowersLine.Accept()` showed the way.
+- **Answering a mirrored popup must target the ANNOUNCED instance.** Qud pools popup copies
+  (`UIManager.popupMessages`, a private static Queue); a RELEASED copy stays visible with a non-null
+  callback, so `FindObjectsByType` scans pick pooled ghosts and answers vanish into them. PopupBridge
+  holds the instance it announced and excludes anything in the free pool. Also pump the sync context
+  after answering (`Bridge.PumpSyncContext`) or an unfocused Qud won't resume the awaiting chain.
+- **A Control Mapping remap only works in Raves via `QudBinds.gd`** — Raves' in-game keys are hardcoded;
+  the custom-bind fallback (end of Main's key chain) routes unclaimed combos to Qud's command executor.
+  Movement keys the `match` just handled MUST bail before the fallback or they double-send. Bare digits
+  in Qud's display strings are ambiguous (numpad7 renders "7") — match both keycodes.
+- **`hv restart raves` relaunches via the `raves_solo` launcher = `--one-to-one` LOCKED** (highvisor
+  apps.py profile) — every restarted instance is 1:1 regardless of settings. User-mode testing needs the
+  `raves_user` launcher (no flag, in ~/.config/highvisor/launch.json). The lock used to leak into
+  settings.json via `_on_one_to_one_changed` persisting it (making unflagged launches come up 1:1 too) —
+  now guarded; `UiState` reports the EFFECTIVE mode (`Settings.one_to_one()`), not the stored value.
 
 ---
 
@@ -133,3 +183,43 @@ add a one-liner (symptom → rule).
 - [ ] `dotnet build mod/…csproj` first (catches API drift). Deploy = copy `.cs` + **full Qud restart**.
       Client-only `.gd` changes need no restart.
 - [ ] Run the author guard before every push: `git log --all --format='%ae' | grep -i allspice` (must be empty).
+
+## Equipment tab: the cell frame is a real sprite, and the strip starts where you think it doesn't
+
+- **The bracketed cell frame is Qud's own sprite, `polat-category-frame`** — 46x41 with Unity
+  9-slice borders (left 12, bottom 11, right 13, top 12). `FilterBarCategoryButton.background`
+  holds it, assigned in the PREFAB, so the name is invisible in the decompiled source; read it
+  off a live instance (`TitleExporter.ExportCellFrame`). Hand-drawing the motif from a bitmap
+  spec scored WORSE than the previous approximation; nine-slicing the real sprite took the frame
+  leaves from ~14 to ~2.9. **Extract the sprite; don't redraw the art.**
+- **The filter cells are drawn at the sprite's NATIVE 46x41** (58px pitch, 12px gap). The paper
+  doll's boxes are the SAME sprite stretched to 64x64 — one design, two sizes, which is exactly
+  what a nine-patch is for.
+- **The paper-doll boxes are 64x64 at x{274,364,454,544,634}**, not the 55x62 at x+9 that eyeballing
+  the lit area gives. Find a grid by scanning the capture for the frame's own long runs, then
+  remember the runs BREAK at the two ornamented corners (top starts 9 late, bottom ends 9 early) —
+  a naive "longest run" reads 9px short and lands you on the interior.
+- **The strip's first cell is the "*All" button at x618**; categories start at 676. There is no
+  cell at 560. Getting this wrong shifts the whole strip one pitch and silently compares every
+  category icon against its NEIGHBOUR's — the frames still score well, so only the image leaves
+  betray it.
+- **Filter-cell colour is `FilterBarCategoryButton.LateUpdate`, verbatim:** enabled+focused
+  `#FFFFFF`, enabled `#858951` (an olive, NOT gold), focused `#4A757E`, otherwise `#134F4E`.
+  The catch: that method only writes `background.color` when the state CHANGES, so a button
+  nobody has ever toggled keeps its PREFAB colour (~(51,80,91) on screen) and matches none of
+  the four. Don't "fix" that to #134F4E.
+- **Qud persists the enabled filter set with the save** (it survives a full restart), and the
+  no-filter button reports as the category `"*All"`. Export it (`enabledFilters`) and strip
+  `"*All"` on the client, or the list filters against a category no item has and renders empty.
+- The teal stub on a filter cell's bottom line is **not in the sprite** — Qud paints it over the
+  frame, filter cells only, at cell-relative (21,38), 4x3.
+- When measuring the ink inside one of these cells, **inset past the corner motif (14px)**. At
+  inset 6 the motif is inside the mask and every cell reports the same full-region bbox.
+- **Icon sizing: read the RectTransform, don't fit the bboxes.** `FilterBarCategoryButton.icon`'s
+  image is a 20x30 rect, centred (anchors+pivot 0.5), `preserveAspect FALSE`, `type Simple`, over
+  a 16x24 sprite — i.e. Qud stretches the WHOLE tile 1.25x and never looks at the opaque sub-rect.
+  Three successive attempts to normalise by the opaque box failed in opposite directions (small art
+  too big, wide art too narrow). The "every icon is exactly 15 tall" observation that motivated them
+  was an artefact of the ink threshold: an icon's dim rows land in the same 20-60 band as the scrim,
+  so the measured bbox is the bright CORE, not the sprite. Fixing it took the filter icons from
+  ~51 mean diff to ~4.
