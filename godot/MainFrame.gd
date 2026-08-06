@@ -956,6 +956,10 @@ func _add_crt_overlay() -> void:
 	var rect := ColorRect.new()
 	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Post-processing, not an element: on layer 100 this rect is the paint-order TOPMOST control
+	# over the whole window, so without the pass-through every feedback hit-test resolved to it —
+	# labels collapsed to "MainFrame" and the playfield handoff to the tile inspector broke.
+	rect.set_meta("feedback_pass", true)
 	# Scanlines and vignette are independent 1:1-test effects; the overlay shows if either is on.
 	var scan := bool(Settings.get_value("fx_scanlines", false))
 	var vig := bool(Settings.get_value("fx_vignette", false))

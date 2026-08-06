@@ -136,6 +136,7 @@ var _tiles_dir := ""
 
 func _init() -> void:
 	layer = 90                                   # above chrome+3D, under the CRT (100)
+	name = "StatusScreens"
 	visible = false
 
 func _ready() -> void:
@@ -188,6 +189,7 @@ void fragment() {
 	scrim.material = mat
 	scrim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	scrim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	scrim.set_meta("feedback_pass", true)   # full-window chrome — never the element feedback means
 	_root.add_child(scrim)
 
 	# opaque tab-bar strip + tabs + keycap clusters (one draw pass)
@@ -242,6 +244,7 @@ void fragment() {
 		# unconditionally it printed over the first row of every other tab's content.
 		if _tab == "equipment":
 			_draw_cyber_hint(frame))
+	frame.set_meta("feedback_pass", true)
 	_root.add_child(frame)
 
 	# bottom rule + search + hint
@@ -254,6 +257,7 @@ void fragment() {
 		# magnifier
 		bottom.draw_arc(Vector2(185, 24), 6, 0, TAU, 12, S_HINT, 1.5)
 		bottom.draw_line(Vector2(190, 29), Vector2(196, 35), S_HINT, 1.5))
+	bottom.set_meta("feedback_pass", true)
 	_root.add_child(bottom)
 	_search = LineEdit.new()
 	_search.position = Vector2(205, 950)
@@ -536,6 +540,7 @@ func _load_character() -> void:
 	_char_mtime = mt
 	if _attr_pane == null:
 		_attr_pane = load("res://StatusPaneAttributes.gd").new()
+		_attr_pane.name = "AttributesPane"
 		_root.add_child(_attr_pane)
 	# the player portrait: white tile + detail colour, like the frame's avatar
 	# portrait straight from character.json (tile + detail code) — snapshots proved
@@ -580,6 +585,7 @@ func _load_skills(force := false) -> void:
 	_skills_mtime = mt
 	if _skills_pane == null:
 		_skills_pane = load("res://StatusPaneSkills.gd").new()
+		_skills_pane.name = "SkillsPane"
 		_skills_pane.bridge_cb = func(msg: Dictionary): _send_bridge(msg)
 		_skills_pane.reload_cb = func(): _load_skills(true)
 		_root.add_child(_skills_pane)
@@ -614,6 +620,7 @@ func _load_tinkering(force := false) -> void:
 	_tnk_mtime = mt
 	if _tnk_pane == null:
 		_tnk_pane = load("res://StatusPaneTinkering.gd").new()
+		_tnk_pane.name = "TinkeringPane"
 		_tnk_pane.bridge_cb = func(msg: Dictionary): _send_bridge(msg)
 		_tnk_pane.reload_cb = func(): _load_tinkering(true)
 		_root.add_child(_tnk_pane)
@@ -641,6 +648,7 @@ func _load_journal(force := false) -> void:
 	_jrn_mtime = mt
 	if _jrn_pane == null:
 		_jrn_pane = load("res://StatusPaneJournal.gd").new()
+		_jrn_pane.name = "JournalPane"
 		_jrn_pane.bridge_cb = func(msg: Dictionary): _send_bridge(msg)
 		_jrn_pane.reload_cb = func(): _load_journal(true)
 		_root.add_child(_jrn_pane)
@@ -668,6 +676,7 @@ func _load_factions(force := false) -> void:
 	_fact_mtime = mt
 	if _fact_pane == null:
 		_fact_pane = load("res://StatusPaneFactions.gd").new()
+		_fact_pane.name = "ReputationPane"
 		_fact_pane.bridge_cb = func(msg: Dictionary): _send_bridge(msg)
 		_fact_pane.reload_cb = func(): _load_factions(true)
 		_root.add_child(_fact_pane)
@@ -695,6 +704,7 @@ func _load_quests(force := false) -> void:
 	_quests_mtime = mt
 	if _quests_pane == null:
 		_quests_pane = load("res://StatusPaneQuests.gd").new()
+		_quests_pane.name = "QuestsPane"
 		_quests_pane.bridge_cb = func(msg: Dictionary): _send_bridge(msg)
 		_quests_pane.reload_cb = func(): _load_quests(true)
 		_root.add_child(_quests_pane)
@@ -723,6 +733,7 @@ func _load_inventory(force := false) -> void:
 	_inv_mtime = mt
 	if _inv_pane == null:
 		_inv_pane = load("res://StatusPaneInventory.gd").new()
+		_inv_pane.name = "EquipmentPane"
 		_inv_pane.bridge_cb = func(msg: Dictionary): _send_bridge(msg)
 		_inv_pane.reload_cb = func(): _load_inventory(true)
 		_root.add_child(_inv_pane)

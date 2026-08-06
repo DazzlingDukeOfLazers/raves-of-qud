@@ -97,27 +97,54 @@ func claims(p: Vector2) -> bool:
 
 # --- element resolution --------------------------------------------------------------------------
 
-## The deepest visible Control containing the point. By hand, because the built-in picker skips
-## MOUSE_FILTER_IGNORE nodes and most display leaves here ignore the mouse.
+## The TOPMOST visible Control containing the point — by paint order, not tree depth. By hand,
+## because the built-in picker skips MOUSE_FILTER_IGNORE nodes and most display leaves here ignore
+## the mouse. Paint order matters because whole screens ride CanvasLayers: the status screens draw
+## on layer 90 over MainFrame's layer-0 chrome, but MainFrame's tree is DEEPER, so a deepest-wins
+## walk named the chrome BEHIND the status screen — and when the deepest thing behind was the play
+## hole, its feedback_skip silently handed the whole gesture to the tile inspector.
+##
+## Ordering: higher CanvasLayer wins; within a layer, later document order wins (later siblings
+## draw on top, and a child draws over its parent — which also preserves the old deepest-wins
+## behaviour for lineal chains). z_index and top_level are not modelled.
 func _deepest_control_at(p: Vector2) -> Control:
 	var best: Control = null
-	var best_depth := -1
+	var best_layer := -2147483648
+	var best_order := -1
+	var order := 0
 	var stack: Array = [[get_tree().root, 0]]
+	# document-order walk: push children reversed so the stack pops them first-to-last
 	while not stack.is_empty():
 		var top: Array = stack.pop_back()
 		var node: Node = top[0]
-		var depth: int = top[1]
+		var layer: int = top[1]
 		if node == self:
 			continue   # never name our own form
+		if node is CanvasLayer:
+			# A hidden LAYER hides its subtree, but its child Controls still answer
+			# is_visible_in_tree() true (a CanvasLayer is not a CanvasItem ancestor for that
+			# check) — without this, a CLOSED status screen would shadow the whole window.
+			if not (node as CanvasLayer).visible:
+				continue
+			layer = (node as CanvasLayer).layer
+		order += 1
 		var c := node as Control
 		if c != null:
 			if not c.is_visible_in_tree():
 				continue
-			if c.get_global_rect().has_point(p) and depth >= best_depth:
-				best = c
-				best_depth = depth
-		for ch in node.get_children():
-			stack.push_back([ch, depth + 1])
+			# "feedback_pass": full-window chrome hosts (a screen's scrim, its rule-drawing frame)
+			# paint late and would shadow every real element under them; they are never what the
+			# user means, so they are transparent to the hit test (their subtree still walks).
+			if not c.has_meta("feedback_pass"):
+				var contains := c.get_global_rect().has_point(p)
+				var on_top := layer > best_layer or (layer == best_layer and order > best_order)
+				if contains and on_top:
+					best = c
+					best_layer = layer
+					best_order = order
+		var kids := node.get_children()
+		for i in range(kids.size() - 1, -1, -1):
+			stack.push_back([kids[i], layer])
 	return best
 
 ## A node's human name: its hand-given scene-tree name, else its own text, else its class.
