@@ -518,7 +518,10 @@ func _draw_doll() -> void:
 		# EVERY slot is clickable, empty ones included -- an empty slot opens Qud's
 		# "what fits here" picker, which is addressed by BODY PART, not by item
 		if part != "" or sid != "":
-			_doll_rects.append([box, sid, bool(sl.get("greyed", false)) if sl != null else false, part])
+			# the 5th field is the slot's DISPLAY label ("Left Hand") — the feedback provider names
+			# slots with it; d[3] stays the numeric part id the equip picker is addressed by
+			_doll_rects.append([box, sid, bool(sl.get("greyed", false)) if sl != null else false, part,
+				str(label)])
 
 
 		if sl != null:
@@ -838,8 +841,9 @@ func feedback_element_at(p: Vector2) -> Dictionary:
 		return {}
 	for d in _doll_rects:
 		if (d[0] as Rect2).has_point(p):
-			return {"label": "paper doll · " + str(d[3]), "rect": d[0],
-				"action": "slot: " + str(d[3])}
+			var slot_name := str(d[4]) if d.size() > 4 else str(d[3])
+			return {"label": "paper doll · " + slot_name, "rect": d[0],
+				"action": "equip slot: " + slot_name}
 	for entry in _filt_rects:
 		if (entry[0] as Rect2).has_point(p):
 			var nm := str(entry[1])

@@ -430,16 +430,16 @@ func _bar_input(e: InputEvent) -> void:
 ## FEEDBACK PROVIDER for the tab bar (drawn in one pass — no per-tab nodes). "tab · Equipment"
 ## with the cell's own rect, using the same CELL_X math the click handler uses.
 func feedback_element_at(p: Vector2) -> Dictionary:
-	if _bar == null or not _bar.is_visible_in_tree():
-		return {}
-	var r := _bar.get_global_rect()
-	if not r.has_point(p):
-		return {}
-	var i := _tab_at(p.x)
-	if i >= 0:
-		return {"label": "tab · " + str(TABS[i]["name"]),
-			"rect": Rect2(CELL_X[i], r.position.y, CELL_X[i + 1] - CELL_X[i], r.size.y),
-			"action": "switch to the " + str(TABS[i]["name"]) + " tab"}
+	# The TAB branch is bar-gated; the pane delegation is NOT. The first cut gated the whole
+	# function on the bar's rect, so every click outside the tab strip returned {} before the
+	# delegation could run — the paper doll never had a chance.
+	if _bar != null and _bar.is_visible_in_tree() and _bar.get_global_rect().has_point(p):
+		var i := _tab_at(p.x)
+		if i >= 0:
+			var r := _bar.get_global_rect()
+			return {"label": "tab · " + str(TABS[i]["name"]),
+				"rect": Rect2(CELL_X[i], r.position.y, CELL_X[i + 1] - CELL_X[i], r.size.y),
+				"action": "switch to the " + str(TABS[i]["name"]) + " tab"}
 	# DELEGATE to the visible pane: the panes are owner-drawn and late overlays keep them out of
 	# the hit's ancestor chain, but THIS layer is always in it — so it forwards. Any pane that
 	# implements the contract gets interior resolution for free.
