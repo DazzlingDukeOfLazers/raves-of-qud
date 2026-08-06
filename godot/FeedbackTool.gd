@@ -30,6 +30,8 @@ var _target_label := ""            # human name shown in the form + record
 var _target_pos := Vector2.ZERO
 var _target_rect := Rect2()        # the element's on-screen rect (the thumbnail's crop)
 var _thumb: ImageTexture = null    # a crop of the LAST DRAWN FRAME around the element
+var _target_image := ""            # the element's image name (icon file / texture resource)
+var _target_action := ""           # what the element does — its (or an ancestor's) tooltip
 var _edit: TextEdit = null
 var _prev_focus: Control = null
 
@@ -95,6 +97,21 @@ func _input(event: InputEvent) -> void:
 					elem = n2
 				break
 			n2 = n2.get_parent()
+	# Still a bare class name (an icon-only element, no text anywhere)? Its ACTION is its best name:
+	# the tooltip on it or a near ancestor — "Go up (stairs) — s" beats "TextureRect".
+	if leaf == hit.get_class():
+		var n3: Node = hit
+		for _k in 4:
+			if n3 == null:
+				break
+			var c3 := n3 as Control
+			if c3 != null and c3.tooltip_text.strip_edges() != "":
+				leaf = c3.tooltip_text.strip_edges().left(32)
+				elem = c3
+				break
+			n3 = n3.get_parent()
+	_target_image = _elem_image(elem)
+	_target_action = _elem_action(elem)
 	_target_pos = mb.position
 	_target_path = String(elem.get_path())
 	_target_label = _display_label(elem, leaf)
@@ -194,6 +211,44 @@ func _subtree_text(n: Node) -> String:
 	return ""
 
 
+## The element's IMAGE name: the first textured node in its subtree, by the "feedback_image" meta
+## (runtime-loaded textures carry no resource_path) or the resource's own basename.
+func _elem_image(n: Node) -> String:
+	var q: Array = [n]
+	var seen := 0
+	while not q.is_empty() and seen < 48:
+		var cur: Node = q.pop_front()
+		seen += 1
+		if cur.has_meta("feedback_image"):
+			return str(cur.get_meta("feedback_image"))
+		var tex: Texture2D = null
+		if cur is TextureRect:
+			tex = (cur as TextureRect).texture
+		elif cur is TextureButton:
+			tex = (cur as TextureButton).texture_normal
+		elif cur is BaseButton and cur is Button and (cur as Button).icon != null:
+			tex = (cur as Button).icon
+		if tex != null and tex.resource_path != "":
+			return tex.resource_path.get_file().get_basename()
+		for ch in cur.get_children():
+			q.push_back(ch)
+	return ""
+
+
+## The element's ACTION: the tooltip on it or a near ancestor — the strongest statement of what the
+## thing DOES that the tree can offer without a registry.
+func _elem_action(n: Node) -> String:
+	var cur: Node = n
+	for _i in 4:
+		if cur == null:
+			return ""
+		var c := cur as Control
+		if c != null and c.tooltip_text.strip_edges() != "":
+			return c.tooltip_text.strip_edges()
+		cur = cur.get_parent()
+	return ""
+
+
 ## A crop of the last drawn frame around the element, padded a little for context.
 func _grab_thumb(rect: Rect2) -> ImageTexture:
 	var img := get_viewport().get_texture().get_image()
@@ -226,7 +281,10 @@ func _display_label(c: Control, leaf_override := "") -> String:
 	var n: Node = c
 	if leaf_override != "":
 		parts.append(leaf_override)
-		n = c.get_parent()
+		# start the walk AT the element (not its parent): a hand-named cell ("NavUp") is the most
+		# specific ancestor there is — but skip it when it IS the leaf, or Continue reads twice.
+		if _node_label(c) == leaf_override:
+			n = c.get_parent()
 	while n != null and not (n is Viewport) and parts.size() < 2:
 		var l := _node_label(n)
 		var generic := String(n.name).begins_with("@") and l == n.get_class()
@@ -285,6 +343,18 @@ func _open_form() -> void:
 	elem.add_theme_color_override("font_color", QudChrome.q8(67, 131, 164))   # header blue
 	elem.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(elem)
+
+	if _target_image != "" or _target_action != "":
+		var det := Label.new()
+		var bits: Array[String] = []
+		if _target_image != "":
+			bits.append("image: " + _target_image)
+		if _target_action != "":
+			bits.append("action: " + _target_action)
+		det.text = "  ·  ".join(bits)
+		det.add_theme_color_override("font_color", QudChrome.q8(96, 156, 170))
+		det.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		v.add_child(det)
 
 	# The element itself, cropped from the frame the user was looking at. Small elements draw 2x so
 	# an ability cell is readable; anything is capped so a full-panel click cannot swallow the form.
@@ -359,6 +429,10 @@ func _append_record(text: String) -> void:
 			int(_target_rect.size.x), int(_target_rect.size.y)],
 		"text": text,
 	}
+	if _target_image != "":
+		rec["image"] = _target_image
+	if _target_action != "":
+		rec["action"] = _target_action
 	# The crop rides along as a PNG — the note plus the pixels it was about, ready for the same
 	# server submission later. Named by the record's timestamp so the pair is self-associating.
 	if _thumb != null:

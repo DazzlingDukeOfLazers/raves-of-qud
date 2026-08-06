@@ -876,8 +876,26 @@ func _row_vitals_menu() -> Control:
 	var slot := int(round(nbpx * 2.05))            # ~43px pitch (screen), matching Qud (calibrated)
 	var ihh := int(round(nbpx * 1.6))
 	var iscale := nbpx / 26.0                       # native icon px → render size (consistent, keeps aspect)
+	# Every cell carries the ACTION as its tooltip (the live ones already did; the cosmetic ones name
+	# Qud's action honestly) — hover UX, and the feedback tool harvests it as the element's action.
+	var nav_actions := {
+		"system": "System menu (checkpoints, options, save and quit) — Esc",
+		"wlock": "Window lock (Qud) — not wired yet",
+		"map": "World map (Qud) — not wired yet",
+		"find": "Finder (Qud) — not wired yet",
+		"look": "Look (Qud) — not wired yet",
+		"rest": "Rest (Qud) — not wired yet",
+		"char": "Character / status screens — x or F2",
+		"poi": "Points of interest (Qud) — not wired yet",
+		"explore": "Auto-explore (Qud) — not wired yet",
+		"down": "Go down (stairs) — d",
+		"up": "Go up (stairs) — s",
+	}
 	for key in ["system", "wlock", "map", "find", "look", "rest", "char", "poi", "explore", "down", "up"]:
 		var cell := Control.new()
+		# Hand-named per action so feedback reads "NavUp", never "TextureRect".
+		cell.name = "Nav" + str(key).capitalize()
+		cell.tooltip_text = nav_actions.get(key, "")
 		cell.custom_minimum_size = Vector2(slot, ihh)
 		cell.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		# The up/down nav icons are LIVE (Qud's climb commands); the rest stay cosmetic.
@@ -908,6 +926,9 @@ func _row_vitals_menu() -> Control:
 		var tex := _load_nav_icon(key)
 		var ic := TextureRect.new()
 		ic.texture = tex
+		# Runtime-loaded textures carry no resource_path, so the image's NAME rides as meta for the
+		# feedback tool ("nav_up", the extracted file's basename).
+		ic.set_meta("feedback_image", "nav_%s" % key)
 		ic.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		ic.stretch_mode = TextureRect.STRETCH_SCALE
 		ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
