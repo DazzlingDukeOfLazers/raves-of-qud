@@ -791,3 +791,27 @@ Two checks worth repeating before calling an icon wrong:
   out animation frames as the cause. Without that, "the icon differs" reads as a tile bug.
 - **The differing PAIRS, not the mean.** Colours swapping positions means placement; colours
   changing value means palette or sprite.
+
+### Small-text rasterisation: three levers, none of them help
+
+The ability bar's gutter is its largest remaining share (26%), and inside it the keycap hint row is
+42% at mean 28. The cause is that Qud's 5-8px text reaches FULL coverage — its "Tab" peaks at
+(182,164,5) — where ours peaks around (155,140,7): at that size our grey antialiasing spreads each
+stem over two partial pixels and never fills one.
+
+Every available lever was measured, on the hint row alone:
+
+| | "Tab" peak | hint row mean |
+|---|---|---|
+| regular, antialiased (kept) | (155,140,7) | **28.20** |
+| antialiasing off | (182,164,5) ✓ | 30.61 |
+| bold face | (182,164,5) ✓ | 29.20 |
+
+Both of the last two get the peak exactly right and make the picture WORSE, because Qud's glyphs
+have full-coverage cores AND soft edges — hard edges everywhere, or thicker strokes everywhere,
+differ from that more than under-filled ones do. (App-wide MSDF and unhinted rendering were measured
+and rejected earlier for the same reason.)
+
+So the number is not a defect to close: at 5-8px, per-pixel agreement between two rasterisers is
+mostly luck, and the honest move is to leave the lever that measures best rather than the one whose
+peak matches.
