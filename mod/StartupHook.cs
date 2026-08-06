@@ -45,6 +45,70 @@ namespace RavesOfQud
 
         private static System.Threading.Thread _heartbeat;
 
+        // ---- main-thread UI sampler (the heartbeat thread must not touch Unity) ----
+        // Qud's modern menu screens (Modding Toolkit, Mod Manager, Workshop Uploader,
+        // Histographicnomicon, Waveform generator …) are Qud.UI.WindowBase singletons; the
+        // legacy view field stays "MainMenu" for all of them, so the heartbeat alone can't
+        // tell them apart. Once a second we marshal ONE sample through GameManager.uiQueue
+        // (the mod's standard main-thread hop) that records the current visible window's
+        // type name; the heartbeat folds it into `scene` while no game is live. Reflection
+        // keeps this compile-proof across Qud versions — a missing member just degrades to
+        // the old behaviour.
+        private static volatile string _uiWindow = "";
+        private static volatile string _uiScene = "";
+        private static long _uiSampleTs;
+        private static volatile bool _uiSamplePending;
+
+        private static void SampleUiOnMainThread()
+        {
+            try
+            {
+                string win = "";
+                var umType = Type.GetType("Qud.UI.UIManager, Assembly-CSharp");
+                object um = umType != null ? umType.GetField("instance").GetValue(null) : null;
+                if (um != null)
+                {
+                    var cw = umType.GetField("_currentWindow",
+                        System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public
+                        | System.Reflection.BindingFlags.NonPublic)?.GetValue(um);
+                    if (cw != null)
+                    {
+                        var visProp = cw.GetType().GetProperty("Visible",
+                            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public
+                            | System.Reflection.BindingFlags.NonPublic);
+                        bool vis = visProp != null && visProp.GetValue(cw, null) is bool b && b;
+                        if (vis) win = cw.GetType().Name;
+                    }
+                }
+                // Some toolkit screens are SingletonWindowBase windows that never become
+                // UIManager._currentWindow (verified live: Workshop Uploader, Blueprint
+                // Browser, Histographicnomicon, Waveform generator) — probe them directly.
+                // instance is a static on the SingletonWindowBase<T> generic base.
+                if (win == "")
+                {
+                    foreach (var tn in new[] { "SteamWorkshopUploaderView", "BrowseBlueprintsView",
+                                               "HistoryTestView", "WaveformTestView" })
+                    {
+                        var t = Type.GetType(tn + ", Assembly-CSharp");
+                        var instF = t?.BaseType?.GetField("instance",
+                            System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public
+                            | System.Reflection.BindingFlags.NonPublic);
+                        object inst = instF != null ? instF.GetValue(null) : null;
+                        if (inst == null) continue;
+                        var vp = inst.GetType().GetProperty("Visible",
+                            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public
+                            | System.Reflection.BindingFlags.NonPublic);
+                        if (vp != null && vp.GetValue(inst, null) is bool v && v) { win = tn; break; }
+                    }
+                }
+                _uiWindow = win;
+                _uiScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+                _uiSampleTs = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            }
+            catch { /* sampler must never take down the UI thread */ }
+            finally { _uiSamplePending = false; }
+        }
+
         /// Background heartbeat: write bridge_status.txt ("live" while a game is running, else "menu")
         /// once a second, regardless of focus / idle / turn state. Raves' menu polls the file's
         /// freshness + content to detect "Qud up" and "game live" ROBUSTLY — the lightweight menu
@@ -76,11 +140,33 @@ namespace RavesOfQud
                         string view = "";
                         try { view = GameManager.Instance != null ? (GameManager.Instance._ActiveGameView ?? "") : ""; }
                         catch { }
+                        // Ask the main thread for a fresh window sample (at most one in flight).
+                        try
+                        {
+                            var gm = GameManager.Instance;
+                            if (!_uiSamplePending && gm != null && gm.uiQueue != null)
+                            {
+                                _uiSamplePending = true;
+                                gm.uiQueue.queueTask(SampleUiOnMainThread, 0);
+                            }
+                        }
+                        catch { _uiSamplePending = false; }
                         string scene = live && (view == "Stage" || view == "") ? "play" : view;
+                        // Menu-land: a visible Qud.UI window is the most specific screen name
+                        // (e.g. ModToolkit, ModManagerUI, SteamWorkshopUploaderView) — it wins
+                        // over the stuck "MainMenu" view. In-game, `scene` stays "play".
+                        string win = _uiWindow;
+                        long uiAge = _uiSampleTs > 0
+                            ? DateTimeOffset.UtcNow.ToUnixTimeSeconds() - _uiSampleTs : -1;
+                        if (!live && win != "" && uiAge >= 0 && uiAge <= 5) scene = win;
                         bool popup = view.IndexOf("Popup", StringComparison.OrdinalIgnoreCase) >= 0;
                         System.IO.File.WriteAllText(statePath,
                             "{\"scene\":\"" + scene.Replace("\"", "'") + "\",\"live\":" + (live ? "true" : "false")
                             + (popup ? ",\"popup\":\"" + view.Replace("\"", "'") + "\"" : "")
+                            + ",\"view\":\"" + view.Replace("\"", "'") + "\""
+                            + ",\"window\":\"" + win.Replace("\"", "'") + "\""
+                            + ",\"unity_scene\":\"" + _uiScene.Replace("\"", "'") + "\""
+                            + ",\"ui_age\":" + uiAge
                             + ",\"ts\":" + DateTimeOffset.UtcNow.ToUnixTimeSeconds() + "}");
                     }
                     catch { /* transient IO — retry next tick */ }
