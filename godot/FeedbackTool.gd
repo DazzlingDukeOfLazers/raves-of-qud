@@ -28,6 +28,8 @@ var _form: Control = null          # the open form, null when closed
 var _target_path := ""             # full raw node path of the clicked element
 var _target_label := ""            # human name shown in the form + record
 var _target_pos := Vector2.ZERO
+var _target_rect := Rect2()        # the element's on-screen rect (the thumbnail's crop)
+var _thumb: ImageTexture = null    # a crop of the LAST DRAWN FRAME around the element
 var _edit: TextEdit = null
 var _prev_focus: Control = null
 
@@ -74,9 +76,32 @@ func _input(event: InputEvent) -> void:
 			hit = up
 			break
 		up = up.get_parent()
+	# RESOLUTION: an anonymous, textless hit (the ability cell's icon, a decorated container) says
+	# nothing on its own — but the CELL it lives in does. Walk up a few levels looking for the first
+	# subtree that carries text ("Sprint [off] <1>"), and let that node be the element: its text is
+	# the leaf label and its rect is what the thumbnail crops. Clicking Sprint's icon then reads
+	# "Sprint", not "TextureRect".
+	var elem: Control = hit
+	var leaf := _node_label(hit)
+	if leaf == hit.get_class():
+		var n2: Node = hit
+		for _j in 3:
+			if n2 == null:
+				break
+			var t := _subtree_text(n2)
+			if t != "":
+				leaf = t
+				if n2 is Control:
+					elem = n2
+				break
+			n2 = n2.get_parent()
 	_target_pos = mb.position
-	_target_path = String(hit.get_path())
-	_target_label = _display_label(hit)
+	_target_path = String(elem.get_path())
+	_target_label = _display_label(elem, leaf)
+	_target_rect = elem.get_global_rect()
+	# The viewport texture is the last DRAWN frame — the form is not in it yet, so grabbing here
+	# (before _open_form adds nodes) is what makes the thumbnail show the element, not the dialog.
+	_thumb = _grab_thumb(_target_rect)
 	_open_form()
 	get_viewport().set_input_as_handled()
 
@@ -147,6 +172,40 @@ func _deepest_control_at(p: Vector2) -> Control:
 			stack.push_back([kids[i], layer])
 	return best
 
+## The first TEXT anywhere in a node's subtree — a cell's caption, whatever leaf carries it.
+## Breadth-first and bounded, so a click on a huge container cannot walk the world.
+func _subtree_text(n: Node) -> String:
+	var q: Array = [n]
+	var seen := 0
+	while not q.is_empty() and seen < 48:
+		var cur: Node = q.pop_front()
+		seen += 1
+		var c := cur as Control
+		if c != null and not c.is_visible_in_tree():
+			continue
+		if cur is Button and (cur as Button).text.strip_edges() != "":
+			return (cur as Button).text.strip_edges().left(24)
+		if cur is Label and (cur as Label).text.strip_edges() != "":
+			return (cur as Label).text.strip_edges().left(24)
+		if cur is RichTextLabel and (cur as RichTextLabel).get_parsed_text().strip_edges() != "":
+			return (cur as RichTextLabel).get_parsed_text().strip_edges().left(24)
+		for ch in cur.get_children():
+			q.push_back(ch)
+	return ""
+
+
+## A crop of the last drawn frame around the element, padded a little for context.
+func _grab_thumb(rect: Rect2) -> ImageTexture:
+	var img := get_viewport().get_texture().get_image()
+	if img == null:
+		return null
+	var r := rect.grow(6).intersection(Rect2(Vector2.ZERO, Vector2(img.get_width(), img.get_height())))
+	if r.size.x < 4.0 or r.size.y < 4.0:
+		return null
+	img = img.get_region(Rect2i(int(r.position.x), int(r.position.y), int(r.size.x), int(r.size.y)))
+	return ImageTexture.create_from_image(img)
+
+
 ## A node's human name: its hand-given scene-tree name, else its own text, else its class.
 func _node_label(n: Node) -> String:
 	var nm := String(n.name)
@@ -162,9 +221,12 @@ func _node_label(n: Node) -> String:
 
 ## "scene · parent · leaf", keeping only names that say something (skip bare class names of
 ## anonymous containers on the way up, keep at most the last two meaningful ancestors).
-func _display_label(c: Control) -> String:
+func _display_label(c: Control, leaf_override := "") -> String:
 	var parts: Array[String] = []
 	var n: Node = c
+	if leaf_override != "":
+		parts.append(leaf_override)
+		n = c.get_parent()
 	while n != null and not (n is Viewport) and parts.size() < 2:
 		var l := _node_label(n)
 		var generic := String(n.name).begins_with("@") and l == n.get_class()
@@ -224,6 +286,22 @@ func _open_form() -> void:
 	elem.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(elem)
 
+	# The element itself, cropped from the frame the user was looking at. Small elements draw 2x so
+	# an ability cell is readable; anything is capped so a full-panel click cannot swallow the form.
+	if _thumb != null:
+		var shot := TextureRect.new()
+		shot.texture = _thumb
+		shot.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		shot.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		shot.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		var tsz := _thumb.get_size()
+		var scale := 2.0 if (tsz.x <= 266.0 and tsz.y <= 70.0) else 1.0
+		var w2 := minf(tsz.x * scale, 532.0)
+		var h2 := minf(tsz.y * scale, 150.0)
+		shot.custom_minimum_size = Vector2(w2, h2)
+		shot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		v.add_child(shot)
+
 	_edit = TextEdit.new()
 	_edit.custom_minimum_size = Vector2(0, 120)
 	_edit.placeholder_text = "What should be different about this element?"
@@ -277,8 +355,19 @@ func _append_record(text: String) -> void:
 		"element": _target_label,
 		"path": _target_path,
 		"pos": [int(_target_pos.x), int(_target_pos.y)],
+		"rect": [int(_target_rect.position.x), int(_target_rect.position.y),
+			int(_target_rect.size.x), int(_target_rect.size.y)],
 		"text": text,
 	}
+	# The crop rides along as a PNG — the note plus the pixels it was about, ready for the same
+	# server submission later. Named by the record's timestamp so the pair is self-associating.
+	if _thumb != null:
+		var dir := InputModel.support_dir().path_join("feedback")
+		DirAccess.make_dir_recursive_absolute(dir)
+		var fname := String(rec["ts"]).replace(":", "-") + ".png"
+		var img := _thumb.get_image()
+		if img != null and img.save_png(dir.path_join(fname)) == OK:
+			rec["shot"] = "feedback/" + fname
 	var path := InputModel.support_dir().path_join(FILE_NAME)
 	var f: FileAccess
 	if FileAccess.file_exists(path):
