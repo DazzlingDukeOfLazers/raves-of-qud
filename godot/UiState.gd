@@ -13,6 +13,10 @@ extends Node
 var _scene := "title"
 var _popup := ""     # popup kind while one is up (message / yesno / menu / input)
 
+## The current scene, for tools that annotate with it (FeedbackTool).
+func scene() -> String:
+	return _scene
+
 func set_scene(scene: String) -> void:
 	if scene == _scene:
 		return

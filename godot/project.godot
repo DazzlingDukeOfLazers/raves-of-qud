@@ -27,6 +27,7 @@ Brand="*res://Brand.gd"
 Settings="*res://Settings.gd"
 QudLauncher="*res://QudLauncher.gd"
 UiState="*res://UiState.gd"
+FeedbackTool="*res://FeedbackTool.gd"
 
 [display]
 

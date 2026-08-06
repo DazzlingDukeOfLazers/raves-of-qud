@@ -1306,6 +1306,9 @@ func _holodeck_cell() -> Control:
 	# The HOLE — a transparent Control the full-window 3D shows through. No stylebox (so nothing is
 	# drawn over the 3D), mouse IGNORE (so clicks fall through to Main's inspector).
 	_holo_hole = Control.new()
+	# Cmd+Right-click on the playfield is the TILE INSPECTOR's gesture; FeedbackTool skips any
+	# element carrying this meta so the two do not fight over the click.
+	_holo_hole.set_meta("feedback_skip", true)
 	_holo_hole.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_holo_hole.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_holo_hole.size_flags_vertical = Control.SIZE_EXPAND_FILL
