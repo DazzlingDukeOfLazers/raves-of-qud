@@ -1,3 +1,4 @@
+using System.Collections.Generic;   // the minimap's palette/index build
 using XRL;
 using XRL.Rules;          // Directions.GetUITextArrowForDirection — the nearby list's arrows
 using XRL.UI;             // ObjectFinder — Qud's own nearby-items list
@@ -704,6 +705,78 @@ namespace RavesOfQud
             j.EndArray();
         }
 
+        /// JSON-safe alphabet for the minimap's per-cell palette index (64 entries; Qud's own palette
+        /// is ~10 colours, so this never runs out in practice). Avoids '"' and '\\' by construction.
+        private const string MinimapAlphabet =
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+        /// Qud's OWN minimap colours, per cell, via <c>Cell.RefreshMinimapColor()</c> +
+        /// <c>Cell.minimapCacheColor</c> — the exact values <c>ActionManager.UpdateMinimap</c> pushes
+        /// into <c>GameManager.minimapColors</c>.
+        ///
+        /// Computing them here rather than re-deriving in Raves matters because the precedence chain
+        /// is subtle and entirely Qud's: player cell wins outright; unexplored is (0,0,0,32); the base
+        /// is lit ? (0,0,0,164) : (0,0,0,128); then stairs (violet) > visible+lit Combat holder
+        /// (red hostile / green not) > Chest (dark yellow) > LiquidVolume (dark blue) > wall (grey) >
+        /// Door (canary) > a MinimapColor property/tag. Every colour carries ALPHA, so the panel
+        /// background shows through — the map is a wash over the chrome, not opaque pixels.
+        ///
+        /// NOTE (2026-08-06): Qud's OWN minimap window currently renders EMPTY in-zone — its texture
+        /// is never filled because ActionManager.UpdateMinimap early-returns. Verified three ways
+        /// (option set live, Qud's own toolbar button, a clean restart with the option on): the window
+        /// draws its dotted frame and zone-name header and nothing else. These colours are still
+        /// Qud's own model, so Raves renders what Qud computes.
+        ///
+        /// Shipped as a palette + one index char per cell (~2KB for an 80x25 zone) rather than 2000
+        /// hex strings.
+        private static void WriteMinimap(JsonWriter j, GameObject player)
+        {
+            j.Name("minimap").BeginObject();
+            try
+            {
+                Zone z = The.ActiveZone;
+                if (z != null)
+                {
+                    var palette = new List<string>();
+                    var seen = new Dictionary<string, int>();
+                    var sb = new System.Text.StringBuilder(z.Width * z.Height);
+                    for (int y = 0; y < z.Height; y++)
+                    {
+                        for (int x = 0; x < z.Width; x++)
+                        {
+                            string key = "00000000";
+                            try
+                            {
+                                var c = z.GetCell(x, y);
+                                if (c != null)
+                                {
+                                    c.RefreshMinimapColor();
+                                    var mc = c.minimapCacheColor;
+                                    key = mc.r.ToString("x2") + mc.g.ToString("x2")
+                                        + mc.b.ToString("x2") + mc.a.ToString("x2");
+                                }
+                            }
+                            catch { }
+                            int idx;
+                            if (!seen.TryGetValue(key, out idx))
+                            {
+                                if (palette.Count >= MinimapAlphabet.Length) idx = 0;   // never in practice
+                                else { idx = palette.Count; seen[key] = idx; palette.Add(key); }
+                            }
+                            sb.Append(MinimapAlphabet[idx]);
+                        }
+                    }
+                    j.Member("width", z.Width).Member("height", z.Height);
+                    j.Name("palette").BeginArray();
+                    foreach (var p in palette) j.Value(p);
+                    j.EndArray();
+                    j.Member("cells", sb.ToString());
+                }
+            }
+            catch { }
+            j.EndObject();
+        }
+
         /// Write an object's render fields for a panel icon: the FULL (known) tile from the raw Render
         /// part, PLUS a perceived override (see WritePerceivedOverride). The client shows the perceived
         /// icon by default and the full one under the global "Full info" toggle.
@@ -975,6 +1048,7 @@ namespace RavesOfQud
             WriteContext(j, player);    // contextual command menu (missile Fire/Reload) for the frame
             WriteCommandBar(j, player);  // activated abilities for the row-5 command bar
             WriteNearby(j, player);     // Qud's own nearby-objects rows for the side panel
+            WriteMinimap(j, player);    // Qud's own per-cell minimap colours for the side panel
             WriteMessages(j);           // recent message-log lines for the frame Message log
 
             // Refresh the Visibility AND Light maps before reading them: both are RENDER-FRAME

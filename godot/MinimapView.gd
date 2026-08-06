@@ -30,13 +30,7 @@ var _last_data := {}   # last snapshot, so a mode toggle re-renders without wait
 
 func _ready() -> void:
 	_tiles = load("res://QudTiles.gd").new()
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = QudPalette.CHROME
-	sb.set_border_width_all(1)
-	sb.border_color = Color(1, 1, 1, 0.12)
-	sb.set_corner_radius_all(3)
-	sb.set_content_margin_all(6)
-	add_theme_stylebox_override("panel", sb)
+	_apply_panel_box()
 
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 4)
@@ -110,12 +104,106 @@ func set_one_to_one(on: bool) -> void:
 		if _title != null:
 			_title.text = "Minimap"
 		_refresh_toggle()
+	# the heading is Qud's dim grey-teal at the log's 0.76x body, as on the two panels below
+	if _title != null:
+		if on:
+			_title.add_theme_font_size_override("font_size",
+				int(round(UiFont.px(get_viewport(), "body") * LOG_FONT_FRAC_1TO1)))
+			_title.add_theme_color_override("font_color", TITLE_COLOR_1TO1)
+		else:
+			_title.add_theme_font_size_override("font_size", UiFont.px(get_viewport(), "title"))
+			_title.remove_theme_color_override("font_color")
+	_apply_panel_box()
+	queue_redraw()
 	_rerender()
+
+## 1:1: Qud's OWN minimap, from the mod's `minimap` block (Cell.RefreshMinimapColor per cell).
+##
+## Geometry is Qud's: its texture is 80x50 for a 25-row zone — EACH ZONE ROW WRITES TWO TEXTURE
+## ROWS (ActionManager.UpdateMinimap: `(24 - i) * 2` and `+ 1`), which also flips the map so row 0
+## is at the bottom. Point-filtered. Reproducing the doubling rather than stretching a 80x25 image
+## keeps the two textures directly comparable if Qud's own ever renders.
+##
+## Colours carry ALPHA (unexplored 32, unlit 128, lit 164, features 230) so the panel background
+## washes through — this is a translucent overlay, not opaque pixels.
+func _render_qud_minimap(mm: Dictionary) -> bool:
+	var w := int(mm.get("width", 0))
+	var h := int(mm.get("height", 0))
+	var cells := String(mm.get("cells", ""))
+	var pal: Array = mm.get("palette", [])
+	if w <= 0 or h <= 0 or cells.length() < w * h or pal.is_empty():
+		return false
+	var cols: Array[Color] = []
+	for p in pal:
+		var s := String(p)
+		if s.length() < 8:
+			cols.append(Color(0, 0, 0, 0))
+			continue
+		cols.append(Color8(("0x" + s.substr(0, 2)).hex_to_int(), ("0x" + s.substr(2, 2)).hex_to_int(),
+			("0x" + s.substr(4, 2)).hex_to_int(), ("0x" + s.substr(6, 2)).hex_to_int()))
+	var img := Image.create(w, h * 2, false, Image.FORMAT_RGBA8)
+	for y in h:
+		for x in w:
+			var idx := QUD_MM_ALPHABET.find(cells[y * w + x])
+			var c: Color = cols[idx] if idx >= 0 and idx < cols.size() else Color(0, 0, 0, 0)
+			var ty := (h - 1 - y) * 2      # Qud's (24 - i) * 2 — the map is bottom-up
+			img.set_pixel(x, ty, c)
+			img.set_pixel(x, ty + 1, c)
+	if _tex != null and _tex.get_width() == w and _tex.get_height() == h * 2:
+		_tex.update(img)
+	else:
+		_tex = ImageTexture.create_from_image(img)
+		_rect.texture = _tex
+	return true
+
+const QUD_MM_ALPHABET := "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+
+# ── 1:1 chrome, shared with the two panels below it so the sidebar reads as one column ──────────
+const LOG_FONT_FRAC_1TO1 := 0.76
+const TITLE_COLOR_1TO1 := Color8(59, 89, 107)
+const SEP_MARGIN_1TO1 := 20
+## Qud's movable-window backdrop: a dot every 16px, one shade off the panel fill (measured
+## (19,23,26) against the (17,33,38) chrome).
+const DOT_PITCH_1TO1 := 16
+var DOT_COLOR_1TO1 := QudChrome.q8(19, 23, 26)
+var SEP_OUTER := QudChrome.q8(68, 99, 112)
+var SEP_CENTER := QudChrome.q8(30, 57, 72)
+
+func _apply_panel_box() -> void:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = QudChrome.q8(17, 33, 38) if _one_to_one else QudPalette.CHROME
+	sb.content_margin_left = SEP_MARGIN_1TO1 if _one_to_one else 6
+	sb.content_margin_right = 6
+	sb.content_margin_top = 0 if _one_to_one else 6
+	sb.content_margin_bottom = 6
+	if not _one_to_one:
+		sb.set_border_width_all(1)
+		sb.border_color = Color(1, 1, 1, 0.12)
+		sb.set_corner_radius_all(3)
+	add_theme_stylebox_override("panel", sb)
+
+## 1:1 only: the ||| grab-bar (continuing the log's, centre column 2px wide — see MessageLog) and
+## Qud's dotted window backdrop behind the map.
+func _draw() -> void:
+	if not _one_to_one:
+		return
+	var h := size.y
+	for y in range(0, int(h), DOT_PITCH_1TO1):
+		for x in range(SEP_MARGIN_1TO1, int(size.x), DOT_PITCH_1TO1):
+			draw_rect(Rect2(x, y, 1, 1), DOT_COLOR_1TO1)
+	draw_rect(Rect2(2, 0, 1, h), SEP_OUTER)
+	draw_rect(Rect2(6, 0, 2, h), SEP_CENTER)
+	draw_rect(Rect2(11, 0, 1, h), SEP_OUTER)
 
 func _rerender() -> void:
 	var data := _last_data
 	if data.is_empty():
 		return
+	# 1:1 renders QUD's map when the mod ships it; anything else falls back to the QoL map below.
+	if _one_to_one:
+		var mm: Variant = data.get("minimap", null)
+		if mm is Dictionary and _render_qud_minimap(mm):
+			return
 	var z: Dictionary = data.get("zone", {})
 	var w := int(z.get("width", 0))
 	var h := int(z.get("height", 0))
