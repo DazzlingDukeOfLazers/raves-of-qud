@@ -707,6 +707,17 @@ func _refresh_after_popup() -> void:
 	elif _tab == "skills":
 		_load_skills(true)
 
+## TAB IS EATEN BY GODOT'S FOCUS TRAVERSAL (ui_focus_next) before _unhandled_input ever runs, so
+## Qud's Ctrl+Tab mode toggle never reached the Tinkering pane. Same class as the Holodeck click
+## trap already in gotchas.md: anything competing with built-in GUI handling belongs in _input.
+func _input(e: InputEvent) -> void:
+	if not visible or _tab != "tinkering":
+		return
+	if e is InputEventKey and e.pressed and not e.echo and e.keycode == KEY_TAB \
+			and (e.ctrl_pressed or e.meta_pressed):
+		if _tnk_pane != null and _tnk_pane.has_method("handle_key") and _tnk_pane.handle_key(e):
+			get_viewport().set_input_as_handled()
+
 func _unhandled_input(e: InputEvent) -> void:
 	if not visible:
 		return
@@ -725,6 +736,10 @@ func _unhandled_input(e: InputEvent) -> void:
 			return
 		if _tab == "journal" and _jrn_pane != null and _jrn_pane.has_method("handle_key") \
 				and _jrn_pane.handle_key(e):
+			get_viewport().set_input_as_handled()
+			return
+		if _tab == "tinkering" and _tnk_pane != null and _tnk_pane.has_method("handle_key") \
+				and _tnk_pane.handle_key(e):
 			get_viewport().set_input_as_handled()
 			return
 		match e.keycode:

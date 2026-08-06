@@ -5,7 +5,8 @@ using XRL;                  // The
 using XRL.World;            // GameObject, BitLocker, BitType, BitCost, ModifyBitCostEvent
 using XRL.World.Parts;      // TinkerItem
 using XRL.World.Parts.Skill;// Tinkering (the SKILL, not a plain part)
-using XRL.World.Tinkering;  // TinkerData
+using XRL.World.Capabilities; // Tier.Constrain
+using XRL.World.Tinkering;  // TinkerData, ItemModding, BitType, BitCost
 
 namespace RavesOfQud
 {
@@ -24,10 +25,13 @@ namespace RavesOfQud
     /// Bits come from the player's BitLocker over BitType.BitOrder, with each type's colour and
     /// description — the same source UpdateBitlocker walks.
     ///
-    /// NOT MIRRORED YET: the MODIFICATIONS mode (CurrentCategory 1). Its rows are per-ITEM — the
-    /// cost depends on the object being modified (its slots used, tech tier) and the list is the
-    /// applicable items in your inventory — so it is a genuinely different view, not a filter of
-    /// this one. Deferred like the Quests/Journal map panels.
+    /// MODIFICATIONS mode (CurrentCategory 1) is exported too, as its own tree. Its shape is the
+    /// inverse of build mode: a category row per MOD RECIPE, and beneath it one row per item in
+    /// your inventory or equipment that the mod can be applied to. The applicability test is Qud's
+    /// pair — <c>data.CanMod(ItemModding.ModKey(obj))</c> and
+    /// <c>ItemModding.ModificationApplicable(data.PartName, obj, player)</c>, over understood
+    /// objects only — and the cost is PER ITEM: TierBits[recipe tier] + TierBits[the object's slots
+    /// used - NoCostMods + tech tier], then ModifyBitCostEvent against THE OBJECT (not the player).
     /// </summary>
     public static class TinkeringExporter
     {
@@ -85,6 +89,12 @@ namespace RavesOfQud
             }
             j.EndArray();
 
+            // ---- MODIFICATIONS: a mod recipe, then the items it applies to
+            j.Name("mods").BeginArray();
+            try { WriteMods(j); }
+            catch (Exception e) { System.Console.WriteLine("[raves] mods: " + e.Message); }
+            j.EndArray();
+
             // ---- the bit locker
             j.Name("bits").BeginArray();
             try
@@ -119,6 +129,73 @@ namespace RavesOfQud
 
             j.EndObject();
             File.WriteAllText(Path_, j.ToString());
+        }
+
+        /// Mod recipes with their applicable objects, as UpdateViewFromData's CurrentCategory==1
+        /// branch builds them.
+        private static void WriteMods(JsonWriter j)
+        {
+            var player = The.Player;
+            if (player == null) return;
+
+            var mods = new List<TinkerData>();
+            foreach (var d in TinkerData.KnownRecipes)
+                if (d != null && d.Type == "Mod") mods.Add(d);
+            if (mods.Count == 0) return;
+
+            // Collect candidates from the pack AND what's worn/wielded — Qud walks both.
+            var objs = new List<GameObject>();
+            System.Action<GameObject> collect = o => { if (o != null) objs.Add(o); };
+            try { player.Inventory?.ForeachObject(collect); } catch { }
+            try { player.Body?.ForeachEquippedObject(collect); } catch { }
+
+            foreach (var d in mods)
+            {
+                j.BeginObject().Member("name", d.DisplayName ?? "").Member("tier", d.Tier);
+                j.Name("items").BeginArray();
+                int n = 0;
+                foreach (var o in objs)
+                {
+                    string key = null;
+                    try { key = ItemModding.ModKey(o); } catch { }
+                    if (string.IsNullOrEmpty(key)) continue;
+                    try { if (!o.Understood()) continue; } catch { continue; }
+                    try
+                    {
+                        if (!d.CanMod(key)) continue;
+                        if (!ItemModding.ModificationApplicable(d.PartName, o, player)) continue;
+                    }
+                    catch { continue; }
+                    n++;
+                    j.BeginObject()
+                     .Member("name", o.DisplayName ?? "")
+                     .Member("cost", ModCostFor(d, o))
+                     .EndObject();
+                }
+                j.EndArray();
+                j.Member("count", n);
+                // setData's own string when a mod has nothing to apply to.
+                if (n == 0) j.Member("empty", "<no applicable items>");
+                j.EndObject();
+            }
+        }
+
+        /// TinkeringLineData.cost, mode 1 — PER ITEM, and the event runs against the OBJECT.
+        private static string ModCostFor(TinkerData d, GameObject o)
+        {
+            try
+            {
+                int a = Tier.Constrain(d.Tier);
+                int b = Tier.Constrain(o.GetModificationSlotsUsed()
+                    - o.GetIntProperty("NoCostMods") + o.GetTechTier());
+                var cost = new BitCost();
+                cost.Clear();
+                cost.Increment(BitType.TierBits[a]);
+                cost.Increment(BitType.TierBits[b]);
+                ModifyBitCostEvent.Process(o, cost, "Mod");
+                return cost.ToString() ?? "";
+            }
+            catch { return ""; }
         }
 
         /// TinkeringLineData.cost, mode 0 — including the player's cost modifiers.

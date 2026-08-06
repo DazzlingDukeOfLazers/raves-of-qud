@@ -21,6 +21,7 @@ Commands
   reload [<save>]        reload the fixture save, then wait for a fresh export
   quests                 reload + grant the standard quest fixture (2 real quests)
   journal                reload + add map notes across 3 categories (Journal grouping)
+  tinker                 reload + learn build/mod recipes and stock bits (Tinkering)
   find <substr>          resolve one object by name -> id, kind, where it lives
   twiddle <substr>       raise Qud's item interaction popup for it, and verify
   state                  what both apps think they are showing
@@ -29,6 +30,7 @@ Examples
   fixture.py reload
   fixture.py quests
   fixture.py journal
+  fixture.py tinker
   fixture.py find robe
   fixture.py twiddle robe
 """
@@ -187,6 +189,29 @@ def cmd_journal(save=DEFAULT_SAVE):
     print(f"journal fixture ready: {n} location notes in {len(cats)} categories ({', '.join(cats)})")
 
 
+
+def cmd_tinker(save=DEFAULT_SAVE):
+    """Reload and give the character schematics + bits, so both Tinkering views have content.
+
+    Every golden save knows zero recipes and holds zero bits, which left the build list on its
+    empty state and the modifications view with nothing at all. The recipes come from Qud's own
+    master list, so their costs are real.
+    """
+    cmd_reload(save)
+    Bridge().send("tinkerfixture")
+    time.sleep(3)
+    Bridge().send("export")
+    time.sleep(4)
+    path = os.path.join(SUPPORT, "tinkering.json")
+    d = json.load(open(path)) if os.path.exists(path) else {}
+    builds = d.get("recipeCount", 0)
+    mods = len(d.get("mods", []))
+    bits = sum(b.get("count", 0) for b in d.get("bits", []))
+    if not builds and not mods:
+        raise SystemExit("STOP: no recipes learned -- the fixture did not take")
+    print(f"tinker fixture ready: {builds} build recipes, {mods} mods, {bits} bits")
+
+
 def cmd_find(substr):
     oid, name, where = resolve(fresh_inventory(), substr)
     print(f"{oid}\t{name}\t{where}")
@@ -218,6 +243,8 @@ def main(argv):
         cmd_quests(*rest)
     elif cmd == "journal":
         cmd_journal(*rest)
+    elif cmd == "tinker":
+        cmd_tinker(*rest)
     elif cmd == "find":
         cmd_find(*rest)
     elif cmd == "twiddle":

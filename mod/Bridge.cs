@@ -585,6 +585,44 @@ namespace RavesOfQud
                         }, 0);
                     return;
                 }
+                if (name == "tinkerfixture")
+                {
+                    // FIXTURE AFFORDANCE, like startquest/journalfixture. Every golden save knows
+                    // ZERO schematics and holds ZERO bits, so both Tinkering views had nothing to
+                    // render. This learns a few of Qud's OWN recipes (from the master
+                    // TinkerData._TinkerRecipes list, so they are real ones with real costs) and
+                    // stocks the bit locker.
+                    var gmt2 = GameManager.Instance;
+                    if (gmt2 != null && gmt2.uiQueue != null)
+                        gmt2.uiQueue.queueTask(() =>
+                        {
+                            try
+                            {
+                                int builds = 0, mods = 0;
+                                // TinkerRecipes (the PROPERTY), not _TinkerRecipes (the backing
+                                // field): the master list is built lazily on first access, so the
+                                // raw field is empty and the fixture silently learned nothing.
+                                foreach (var d in XRL.World.Tinkering.TinkerData.TinkerRecipes)
+                                {
+                                    if (d == null) continue;
+                                    if (XRL.World.Tinkering.TinkerData.KnownRecipes.Contains(d)) continue;
+                                    if (d.Type == "Build" && builds < 4)
+                                    { XRL.World.Tinkering.TinkerData.KnownRecipes.Add(d); builds++; }
+                                    else if (d.Type == "Mod" && mods < 4)
+                                    { XRL.World.Tinkering.TinkerData.KnownRecipes.Add(d); mods++; }
+                                    if (builds >= 4 && mods >= 4) break;
+                                }
+                                var pl = The.Player;
+                                var lk = pl != null ? pl.RequirePart<XRL.World.Parts.BitLocker>() : null;
+                                if (lk != null) lk.AddAllBits(5);
+                                TinkeringExporter.ReExport();
+                                Server.Log("tinkerfixture: learned " + builds + " build + " + mods
+                                    + " mod recipes, +5 of every bit");
+                            }
+                            catch (Exception e) { try { Server.Log("tinkerfixture failed: " + e.Message); } catch { } }
+                        }, 0);
+                    return;
+                }
                 if (name == "journalfixture")
                 {
                     // FIXTURE AFFORDANCE, like startquest. The Journal's grouping tabs are empty on
