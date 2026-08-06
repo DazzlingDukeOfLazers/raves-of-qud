@@ -515,6 +515,18 @@ def stage_zoom():
     b.close()
 
 
+def _raves_in_game():
+    """The viewer's own word that it's showing the PLAYFIELD. A capture
+    succeeding proves nothing — menus capture fine, and a half-failed attach
+    left the viewer on a text screen for a whole certification slice (150
+    furniture elements scored against menu text, uniform ~40-127 means)."""
+    try:
+        with open(os.path.join(BASE, "raves_state.json")) as f:
+            return json.load(f).get("scene") == "in_game"
+    except (OSError, ValueError):
+        return False
+
+
 def reboot_rig(b=None):
     """Reload the golden save and re-arm the whole rig. Returns a fresh Bridge.
 
@@ -577,7 +589,9 @@ def reboot_rig(b=None):
         time.sleep(1)
         _hv("key", "--focus", "Raves", "space")
         time.sleep(4 + attempt * 2)
-        if control.godot_shot():
+        # BOTH tests: capture works AND the viewer says in_game — a menu
+        # screen captures successfully and poisoned a certification slice.
+        if control.godot_shot() and _raves_in_game():
             break
         print("reboot_rig: viewer attach attempt %d failed; retrying" % (attempt + 1))
     else:
@@ -791,6 +805,16 @@ def main(argv):
                                 "warns": []})
                 print("[%d/%d] %-40s SKIPPED (wedged rig)" % (start + i + 1, start + len(names), bp))
                 continue
+            # MENU-DRIFT GUARD: the viewer can fall out of the game mid-run
+            # (it did, unprompted, between two certification categories) and
+            # every capture after that scores against menu text. One file
+            # read per element; reboot and restage the moment it happens.
+            if ("--shots" in argv or "--diff" in argv) and not _raves_in_game():
+                print("=== raves fell out of the game; rig reboot + restage")
+                b = reboot_rig(b)
+                if "--diff" in argv:
+                    ensure_daylight(b)
+                r = check_one(b, bp)
             if "--shots" in argv or "--diff" in argv:
                 r["shots"] = shots_for(bp, cat)
             if "--diff" in argv:
