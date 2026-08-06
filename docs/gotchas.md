@@ -680,6 +680,18 @@ top rule, both verticals, the bottom rule and the corner stub — while `S_KEYCA
 pane's `C_LINE` had both independently arrived at the right value. Journal's header ticks were drawn
 in the pane's dim TEXT colour instead of the rule colour.
 
-**Open:** `QudChrome.q8()`'s compensation overshoots slightly at this level — asking for
-(68,99,111) renders (68,101,114). Nudging one call site would be fitting the shader's error, so the
-constants state Qud's true colour and the ~2-3/255 residual stays visible here.
+`QudChrome.q8()` is now **measured, not modelled** — see below — so asking for Qud's colour lands on
+it: all three rules and both journal ticks render (68,99,111), exactly Qud's.
+
+## The canvas curve is a SAG, not a gain — measure it, don't model it
+
+Raves' 2D canvas does not scale colours; it sags in the middle and lifts near black. Measured on a
+65-step ramp drawn through the pipeline itself: 96 renders 85 (-11, the worst point), while 8
+renders 10 (+2) and both ends are exact. The old compensation was a flat ×1.13 above 20, which is
+right around 68 and 3 out by 111 — that was the status rules' residual, and it would have been a
+per-call-site fudge to "fix" locally.
+
+`QudChrome.INV` is the inverted ramp: `INV[target]` is what to DRAW so the captured pixel lands on
+`target`, within 0.5 for all 256. All three channels measured identically, so one table serves.
+The re-measurement recipe is in QudChrome.gd's header. Beyond the rules it moved everything that
+goes through `q8`/`brighten` — the picker's interior diff against Qud fell from mean 9.46 to 5.49.
