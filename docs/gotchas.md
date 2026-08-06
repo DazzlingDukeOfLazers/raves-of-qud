@@ -567,6 +567,45 @@ closed set of things that are wrong, not the open set of things that are fine.
   bar is called **"KeyMenuOptionBar"** — a `StartsWith("KeyMenuOption")` filter swallowed it, shifted
   every entry's rect by one, and gave entry 0 the whole 400x66 bar. The footer rendered as one
   overlapping line. Match the option prefabs exactly (`"KeyMenuOption"` / `"KeyMenuOption(Clone)"`).
-- **STILL OPEN:** a **+7px** panel-height residual in the LIST band (dx +1, dy -3, dw -2, dh +7).
-  Distributing the fractional 20.12 row height across rounded cumulative edges (`_row_px`) did not
-  move it, so it is not simple per-row rounding.
+- **The +7px residual: CLOSED.** It was never rounding — it was two container defaults.
+  **(a)** Qud's category rows are 20.12px, but a 16px `RichTextLabel` reports a **21px minimum** and
+  a *Container* takes `max(own, content)`, so every category row came out 21 and the list ran
+  11 x 0.88 = 9.7px long. The row is a plain **`Panel`** now (same `"panel"` stylebox, no child
+  layout), so it is exactly the height Qud draws and the label overflows into `clip_contents`.
+  `line_separation` cannot fix this — it spaces lines *within* a label, so a single-line label keeps
+  its full ascent+descent minimum regardless.
+  **(b)** `yieldMenuOptions()` can yield an option the footer bar has not instantiated (the
+  context-dependent `[Space] Select` is yielded while only three `KeyMenuOption` prefabs exist).
+  Demanding a laid-out box for *every* entry threw the absolute layout back to our own flow, which
+  wrapped to two lines against Qud's three — the last 24px. Any box is enough; entries without one
+  are skipped, and the band takes the **bar's own height** (66) rather than the extent of its boxes
+  (44). Final: panel `754/325/412/430` vs Qud's `754/324.84/412/430.32`.
+
+## The picker's chrome: two solid rects, no frame
+
+`polat-char-frame-border` is on the picker's Background node, but **none of that sprite's border
+reaches the glass** — measured on the live screen there is no edge line on any side. Qud paints
+only: the Background rect inset by its own `VerticalLayoutGroup` padding (L/R/B 6, **T 21**), plus a
+solid tab behind the title. The 6px edges and the whole 21px title band are transparent, and the
+dimmed world shows through them. Drawing the extracted sprite as a 9-slice invented a light border
+and a full-width title BAR, and covered the tab.
+
+- The tab's width is a **text measurement** (`Title` = 8px padding + text + 8px), so the mod ships
+  `tabW`/`tabH` — same reason the footer ships its laid-out boxes.
+- **No selection bar.** Every `InventoryItemScrollerLine`'s background Image is `#ffffff00` — alpha
+  zero, selected row included. The selection is the caret: `SelectionCaret` is `#cfc041ff` on the
+  selected line and `#7f7f7f00` on every other.
+- Chrome that needs independent per-side insets must be **drawn**, not added as child Controls: a
+  `PanelContainer` re-fits every child to its own rect and throws the offsets away.
+
+### Godot container defaults that bit here
+
+- A **`ScrollContainer` stretches its child to the viewport only when the child has `SIZE_EXPAND`** —
+  plain `SIZE_FILL` gets the child's own minimum width. That used to come free from the rows'
+  content; the moment the rows stopped reporting a content width the list collapsed to **zero wide**
+  and drew nothing, while the panel height stayed correct.
+- A **negative-width `Rect2` does not flip in Godot 4** — it simply does not rasterise. The
+  divider's mirrored right half was missing entirely; draw from a pre-flipped copy.
+- `Control.position` is relative to the **immediate parent**. Reading `_scroll.position` (inside a
+  MarginContainer) as if it were panel-relative put the divider 26px high, straight through the last
+  row of the list.
