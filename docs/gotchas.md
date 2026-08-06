@@ -815,3 +815,33 @@ and rejected earlier for the same reason.)
 So the number is not a defect to close: at 5-8px, per-pixel agreement between two rasterisers is
 mostly luck, and the honest move is to leave the lever that measures best rather than the one whose
 peak matches.
+
+## Measurement pass: the top status bars (NOT yet fixed)
+
+The in-game top chrome (y0..92) scores **5.98** against Qud — the worst-matching surface left in the
+1:1 frame, an order above the message log (0.63) and the playfield (0.17). Measured, not fixed:
+
+| band | mean | share |
+|---|---|---|
+| y 20..46 (row 1 content) | 8.90 | 42% |
+| EXP row | 5.47 | 22% |
+| HP row | 5.28 | 19% |
+| y 0..20 | 4.28 | 16% |
+
+| column | mean | share |
+|---|---|---|
+| right (1400..1920) | 9.38 | 43% |
+| left (0..300) | 8.18 | 21% |
+| mid-left | 4.12 | 22% |
+
+It is **group placement**, not glyphs or colour. The content matches closely when zoomed — same
+text, same icons — but the groups sit in different columns:
+
+    left group    QUD x 20..299    ours x 1..237     (starts 19 left, ends 62 short)
+    middle group  QUD x 300..899   ours x 481..848
+    right group   QUD x 1700..1900 ours x 1770..1918
+
+So the top bar packs its groups on a different rule than Qud's. Read Qud's own layout before
+touching it — the probe reaches the HUD (`uiprobe target=AbilityBar` works; the status bar will
+answer to the same resolver), and this session's ability-bar work is the cautionary tale for
+adjusting one group at a time against a container that redistributes the rest.
