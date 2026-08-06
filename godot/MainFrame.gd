@@ -130,6 +130,8 @@ var ROW_BG_1TO1 := QudChrome.q8(19, 23, 26)   # Qud's continuous chrome-strip ba
 ## for both strips and the two ended up swapped against Qud at the extremes -- our top band wore the
 ## panel fill and our bottom band wore the strip fill, each the other's colour.
 var ROW_BG_BOTTOM_1TO1 := QudChrome.q8(15, 16, 17)
+## Qud's chrome band height at each end: its letterbox runs 90..989 in a 1080 window.
+const CHROME_H_1TO1 := 90.0
 var _status_strip: PanelContainer  # row 1 — its fill is Qud's strip colour in 1:1, panel fill in user mode
 var _dev_bar: Control              # holodeck cell's Connect/Turn-on-viewport strip (hidden in 1:1)
 const SIDEBAR_FRAC_1TO1 := 0.15     # visual side column: 288px + the 12px split handle = Qud's 300 total   # Qud's MINIMUM message-log width ≈ 15.3% (293px at 1920 — matches a Qud
@@ -1008,10 +1010,20 @@ func _layout_row_bgs() -> void:
 	_bottom_bg.visible = on
 	if not on:
 		return
+	# QUD'S BOUNDARY, not our row stack's. Qud's chrome is exactly 90px at each end -- its letterbox
+	# starts at y=90 and resumes at y=990 -- while our rows come out 93 (row0 41 + sep 4 + row1 44 +
+	# sep 4), so tying the strips to the split's rect painted 3px of chrome over what Qud leaves as
+	# letterbox, at both ends.
+	#
+	# We cannot simply shrink the rows: their vitals content is SHRINK_CENTER, so taking 3px off a
+	# row moves the HP and EXP bars, and those already land on Qud's rows. The strip is a BACKGROUND,
+	# so its extent is free to state Qud's boundary directly; the 3px it no longer covers falls
+	# through to the 3D letterbox behind, which is the colour Qud has there anyway.
 	var r := _row_split.get_rect()          # rows VBox is full-rect at (0,0), so this is in MainFrame coords
+	var top_h := minf(CHROME_H_1TO1, maxf(0.0, r.position.y))
 	_top_bg.position = Vector2.ZERO
-	_top_bg.size = Vector2(size.x, maxf(0.0, r.position.y))
-	var hole_bottom := r.position.y + r.size.y
+	_top_bg.size = Vector2(size.x, top_h)
+	var hole_bottom := maxf(r.position.y + r.size.y, size.y - CHROME_H_1TO1)
 	_bottom_bg.position = Vector2(0, hole_bottom)
 	_bottom_bg.size = Vector2(size.x, maxf(0.0, size.y - hole_bottom))
 
