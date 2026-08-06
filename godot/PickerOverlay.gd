@@ -42,13 +42,13 @@ const PANEL_W_SLACK := 37.0
 const ROW_H_ITEM := 30.0
 const ROW_H_CAT := 20.12
 const CARET_W := 15.0
+const CARET_H := 15.0              # the SelectionCaret sprite is square, centred in the row
 const HOTKEY_W := 24.0
 const HOTKEY_W_INDENT := 48.0      # setData prefixes 3 spaces to an indented row's hotkey
 const ICON := Vector2(20, 30)
 const SPACER_W := 2.0
 const PAD_SIDE := 6.0              # Background's VerticalLayoutGroup padL/padR/padB (padT is TITLE_H)
 const TAB_PAD := 8.0               # the Title row's two Padding elements, one either side
-const ROW_PAD_L := 4.0             # the row's left inset (was the sel-bar stylebox's content margin)
 const FONT_PX := 16                # every text on this screen is 16px in Qud, title included
 
 var _palette := {}
@@ -490,16 +490,30 @@ func _build_rows() -> void:
 		hb.add_theme_constant_override("separation", 0)
 		hb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		hb.set_anchors_preset(Control.PRESET_FULL_RECT)
-		# The 4px used to come from the sel-bar stylebox's content_margin_left; a Panel's stylebox
-		# is decoration only, so that inset has to be real geometry now.
-		hb.offset_left = ROW_PAD_L
 		row.add_child(hb)
 
-		# Qud marks the highlighted row with a gold ">" in a 15px gutter, left of the hotkey.
-		var caret := _mk_rt()
-		caret.autowrap_mode = TextServer.AUTOWRAP_OFF
+		# Qud marks the highlighted row with its SelectionCaret: the 15x15 "leftrightarrow" sprite
+		# tinted #cfc041ff, in a 15px gutter left of the hotkey, centred in the row. It is the only
+		# selection cue the picker has (every row background is alpha zero), and a ">" glyph only
+		# approximated it -- the sprite is a filled chevron with its own anti-aliased edge.
+		var caret := Control.new()
 		caret.custom_minimum_size = Vector2(CARET_W, 0)
-		caret.add_theme_font_size_override("normal_font_size", FONT_PX)
+		caret.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		caret.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		var ctex := _chrome_tex("picker_caret.png")
+		caret.draw.connect(func():
+			if not bool(caret.get_meta("sel", false)):
+				return
+			var cy := roundf((caret.size.y - CARET_H) * 0.5)
+			if ctex != null:
+				caret.draw_texture_rect(ctex, Rect2(0.0, cy, CARET_W, CARET_H), false, C_GOLD)
+			else:
+				# The sprite only exists once a picker has been open with the mod's chrome export
+				# run; without a cue there is no selection at all, so fall back to the glyph.
+				var f := caret.get_theme_default_font()
+				if f != null:
+					caret.draw_string(f, Vector2(0.0, cy + CARET_H), ">",
+						HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_PX, C_GOLD))
 		hb.add_child(caret)
 
 		hb.add_child(_hotkey_cell(r))
@@ -556,8 +570,9 @@ func _highlight() -> void:
 	var kids := _list.get_children()
 	for i in mini(kids.size(), _rows.size()):
 		var row: Panel = kids[i]
-		var caret: RichTextLabel = row.get_child(0).get_child(0)
-		caret.text = "[color=#%s]>[/color]" % C_GOLD.to_html(false) if i == _sel else ""
+		var caret := row.get_child(0).get_child(0) as Control
+		caret.set_meta("sel", i == _sel)
+		caret.queue_redraw()
 		# NO SELECTION BAR. Every InventoryItemScrollerLine's background Image is #ffffff00 on the
 		# live screen -- alpha zero, selected row included. Qud marks the selection with the gold
 		# caret alone (SelectionCaret is #cfc041ff on the selected line and #7f7f7f00 on the rest),

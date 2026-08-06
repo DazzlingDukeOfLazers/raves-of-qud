@@ -81,6 +81,10 @@ namespace RavesOfQud
                     string dest = null;
                     if (nm == "polat-char-frame-border") dest = "picker_frame.png";
                     else if (nm == "polat-frame-reverse-top-header-filler") dest = "picker_divider.png";
+                    // The SELECTION CARET. Qud's picker has no highlight bar -- every row background
+                    // is #ffffff00 -- so this 15x15 sprite, tinted #cfc041ff on the selected line and
+                    // #7f7f7f00 on every other, IS the selection. A ">" glyph stood in for it.
+                    else if (nm == "leftrightarrow") dest = "picker_caret.png";
                     if (dest == null) continue;
                     TitleExporter.WriteSprite(img.sprite, Path.Combine(TileExporter.Dir, dest));
                     // The 9-SLICE BORDER, without which the client has to guess where to cut the
