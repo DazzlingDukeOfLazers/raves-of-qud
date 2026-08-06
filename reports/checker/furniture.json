@@ -6499,8 +6499,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'furniture_eater-sign-shard'",
-   "no capture pair \u2014 congruence skipped"
+   "wire tile != blueprint tile 'furniture_eater-sign-shard'"
   ],
   "stage": {
    "bp": "Eater Sign 1",
@@ -6517,12 +6516,13 @@
   "wire_objs": 1,
   "wire_hex": "cfc041",
   "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\Eater_Sign_1_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\Eater_Sign_1_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 44.75,
-   "pct_hot": 38.9,
-   "band": "FAIL",
+   "mean_abs_diff": 6.52,
+   "pct_hot": 5.7,
+   "band": "PASS",
    "white_px": [
     0,
     0
@@ -6535,7 +6535,10 @@
   "bp": "Eater Sign 2",
   "pass": true,
   "reasons": [],
-  "warns": [],
+  "warns": [
+   "wire tile != blueprint tile 'furniture_eater-sign-script-1'",
+   "no capture pair \u2014 congruence skipped"
+  ],
   "stage": {
    "bp": "Eater Sign 2",
    "ok": true,
@@ -6551,7 +6554,6 @@
   "wire_objs": 1,
   "wire_hex": "cfc041",
   "shots": {
-   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\Eater_Sign_2_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\Eater_Sign_2_raves.png"
   },
   "congruence": {
@@ -6592,8 +6594,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\Eater_Sign_3_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 4.71,
-   "pct_hot": 3.3,
+   "mean_abs_diff": 6.3,
+   "pct_hot": 5.4,
    "band": "PASS",
    "white_px": [
     0,
@@ -26475,7 +26477,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\Wormhole_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 38.15,
+   "mean_abs_diff": 35.77,
    "pct_hot": 46.9,
    "band": "FAIL",
    "white_px": [

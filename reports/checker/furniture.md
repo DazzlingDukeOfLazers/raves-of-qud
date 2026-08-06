@@ -1,6 +1,6 @@
 # Object Checker — furniture
 
-745/745 PASS  (2026-08-05 23:43)  pixel: 718 PASS / 3 WARN / 8 FAIL / 12 KNOWN / 4 ANIM
+745/745 PASS  (2026-08-06 00:27)  pixel: 719 PASS / 3 WARN / 6 FAIL / 12 KNOWN / 5 ANIM
 
 | element | verdict | px | notes |
 |---|---|---|---|
@@ -181,9 +181,9 @@
 | Eater Globe with Piping | PASS | PASS 3.5/2% | wire tile != blueprint tile 'furniture_eater-globe' |
 | Eater Hookah | PASS | PASS 4.0/2% | wire tile != blueprint tile 'furniture_eater-hookah' |
 | Eater Mounted Monument | PASS | PASS 2.4/1% | wire tile != blueprint tile 'furniture_eater-diagonal-monument-4' |
-| Eater Sign 1 | PASS | FAIL 44.8/39% | wire tile != blueprint tile 'furniture_eater-sign-shard'; no capture pair — congruence skipped |
-| Eater Sign 2 | PASS | PASS 4.8/3% |  |
-| Eater Sign 3 | PASS | PASS 4.7/3% | wire tile != blueprint tile 'furniture_eater-sign-arrow' |
+| Eater Sign 1 | PASS | PASS 6.5/6% | wire tile != blueprint tile 'furniture_eater-sign-shard' |
+| Eater Sign 2 | PASS | PASS 4.8/3% | wire tile != blueprint tile 'furniture_eater-sign-script-1'; no capture pair — congruence skipped |
+| Eater Sign 3 | PASS | PASS 6.3/5% | wire tile != blueprint tile 'furniture_eater-sign-arrow' |
 | Eater Thurible | PASS | PASS 2.5/1% | wire tile != blueprint tile 'furniture_eater-thrurible' |
 | EaterGreatMachineShrine C | PASS | PASS 6.0/3% | wire tile != blueprint tile 'furniture_great-machine-shrine-c' |
 | EaterGreatMachineShrine E | PASS | PASS 5.9/3% | wire tile != blueprint tile 'furniture_great-machine-shrine-e' |
@@ -725,7 +725,7 @@
 | WoodenMechanicalTransmission | PASS | PASS 1.4/0% | wire tile != blueprint tile 'assets_content_textures_tiles_sw_axle_1_' |
 | Work Chair | PASS | PASS 1.6/0% | wire tile != blueprint tile 'items_sw_chair_work' |
 | Workbench | PASS | PASS 2.2/1% | wire tile != blueprint tile 'assets_content_textures_tiles_sw_table' |
-| Wormhole | PASS | FAIL 38.1/47% |  |
+| Wormhole | PASS | ANIM 35.8/47% | anim-verified (state agreement); single-frame diff is phase |
 | Woven Basket | PASS | PASS 2.6/2% | wire tile != blueprint tile 'items_sw_basket' |
 | Yd Regen Tank | PASS | PASS 7.7/4% | wire tile != blueprint tile 'items_sw_regen_tank' |
 | Yd Village Monument 1 | PASS | PASS 6.6/5% | wire tile != blueprint tile 'terrain_sw_monument4' |

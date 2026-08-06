@@ -3273,11 +3273,18 @@ func _colored_tex_rgb(tile: String, main: Color, detail: Color, ckey: String, fi
 		var tw := mask.get_width()
 		var th := mask.get_height()
 		var timg := Image.create(tw, th, false, Image.FORMAT_RGBA8)
+		# A ^X in the object's TileColor is the glyph cell's BACKGROUND (the
+		# Wormhole's "&B^k" draws on a black field, not the world teal) —
+		# composite fg over it opaquely; without one, luminance becomes alpha.
+		var tbg := _wall_bg_color() if _wall_bg != "" else Color(0, 0, 0, 0)
 		for ty in th:
 			for tx in tw:
 				var tp := mask.get_pixel(tx, ty)
 				var tlum := (tp.r + tp.g + tp.b) / 3.0
-				timg.set_pixel(tx, ty, Color(main.r, main.g, main.b, tlum * tp.a))
+				if _wall_bg != "":
+					timg.set_pixel(tx, ty, Color(tbg.lerp(main, tlum * tp.a), 1.0))
+				else:
+					timg.set_pixel(tx, ty, Color(main.r, main.g, main.b, tlum * tp.a))
 		var ttex := ImageTexture.create_from_image(timg)
 		_tex_cache[key] = ttex
 		return ttex
@@ -3725,6 +3732,59 @@ func _register_anim(win: Dictionary, cx: int, cy: int) -> void:
 			sched.append({"f": int(kv[0]), "node": node})
 		if sched.size() > 1:
 			_anim_items.append({"kind": "frames", "len": alen, "sched": sched})
+	# Wormhole shimmer: Qud re-rolls a RANDOM colour+glyph combo on every
+	# repaint (Wormhole.Render — no cycle to schedule). The wire ships the
+	# combo tables "period|glyphcodes|colors"; prebuild every combo's Text
+	# tile (each on its own ^X background) and re-roll on our own cadence.
+	var ash := String(win.get("animShimmer", ""))
+	if ash != "":
+		var sparts := ash.split("|")
+		if sparts.size() == 3:
+			var speriod := maxi(int(sparts[0]), 6)
+			var snodes: Array = []
+			var saved_bg := _wall_bg
+			for code in sparts[1].split(","):
+				for scol in sparts[2].split(","):
+					var stile := "Text/%d.bmp" % int(code)
+					_wall_bg = _parse_bg(String(scol))
+					var smain := _qud_color(String(scol))
+					var stex := _colored_tex_rgb(stile, smain, smain,
+						"anim~W" + String(code) + String(scol), Fill.NONE)
+					if stex != null:
+						snodes.append(_overlay_quad(stex, cx, cy, y_over, false))
+			_wall_bg = saved_bg
+			if snodes.size() > 1:
+				_anim_items.append({"kind": "shimmer", "nodes": snodes,
+					"period": speriod, "last": -1, "cur": 0})
+	# HologramMaterial weighted shimmer: "period|col~det~weight|..." — the
+	# part's clock RANDOM-WALKS (FrameOffset += Random(0,20) every render),
+	# so its palette is a distribution, not a cycle: mostly the steady mode
+	# (which the wire's base colours already carry), with brief flashes of
+	# the early entries (Eater Sign's &W blink). Re-roll by weight.
+	var ah := String(win.get("animHolo", ""))
+	if ah != "":
+		var hparts := ah.split("|")
+		if hparts.size() > 2:
+			var hperiod := maxi(int(hparts[0]), 6)
+			var hnodes: Array = []
+			var hweights: Array = []
+			var htotal := 0
+			for hi in range(1, hparts.size()):
+				var hkv := hparts[hi].split("~")
+				if hkv.size() != 3:
+					continue
+				var hmain := _qud_color(String(hkv[0]))
+				var hdet: Color = _qud_color("&" + String(hkv[1])) if hkv[1] != "" else _obj_detail(win)
+				var htex := _colored_tex_rgb(tile, hmain, hdet,
+					"anim~H" + String(hkv[0]) + String(hkv[1]) + "~" + _color_key(win), _fill_for(tile, Fill.NONE))
+				if htex != null:
+					hnodes.append(_overlay_quad(htex, cx, cy, y_over, flip))
+					var hwt := maxi(int(hkv[2]), 1)
+					hweights.append(hwt)
+					htotal += hwt
+			if hnodes.size() > 1:
+				_anim_items.append({"kind": "holo", "nodes": hnodes, "weights": hweights,
+					"total": htotal, "period": hperiod, "last": -1, "cur": 0})
 	# Gas swirl (Qud's Gas.Render): a 4-tile cycle — Tiles2/gas_0..3.png at 15 frames
 	# (250ms) per step, in the gas type's colour. Always exactly one frame visible, so
 	# the overlay fully replaces the steady base (which shows frame 0).
@@ -3871,6 +3931,37 @@ func _animate_1to1() -> void:
 				var fn := sched[si]["node"] as MeshInstance3D
 				if fn != null and is_instance_valid(fn):
 					fn.visible = si == active
+		elif kind == "shimmer":
+			# Wormhole: pick a RANDOM combo each period (repeats allowed —
+			# Qud's own re-roll can land on the same face twice).
+			var sstep := int(ms * 0.06 / float(it["period"]))
+			if sstep != int(it["last"]):
+				it["last"] = sstep
+				it["cur"] = randi() % (it["nodes"] as Array).size()
+			var snodes: Array = it["nodes"]
+			for si in snodes.size():
+				var sn := snodes[si] as MeshInstance3D
+				if is_instance_valid(sn):
+					sn.visible = si == int(it["cur"])
+		elif kind == "holo":
+			# HologramMaterial: weighted re-roll each period (the steady mode
+			# dominates; flashes carry their measured share of the 200-space).
+			var hstep := int(ms * 0.06 / float(it["period"]))
+			if hstep != int(it["last"]):
+				it["last"] = hstep
+				var hr := randi() % int(it["total"])
+				var hws: Array = it["weights"]
+				var hacc := 0
+				for wi in hws.size():
+					hacc += int(hws[wi])
+					if hr < hacc:
+						it["cur"] = wi
+						break
+			var hn: Array = it["nodes"]
+			for ni in hn.size():
+				var hnn := hn[ni] as MeshInstance3D
+				if is_instance_valid(hnn):
+					hnn.visible = ni == int(it["cur"])
 		elif kind == "cholo":
 			var chn: Array = it["nodes"]
 			if chn.size() == 4:

@@ -205,10 +205,22 @@ is phase); KNOWN = unverifiable (spawners, multi-cell); FAIL = attributed.
   swaps the whole tile). Covers the Force Projector detail-colour cycle
   (r/R/y) too. All 8 members re-measure AGREE; Phasic Screw regression
   AGREE 5/5 on the new format.
-  Reclassified out of the family: Eater Sign 1 is a HologramMaterial
-  colour cycler (W/w — the "steady last entry" export rule measurably
-  wrong for it), and Wormhole animates inside its own Wormhole part
-  (glyph-mode, 7-state) — both still open, own tickets.
+  ~~Eater Sign / Wormhole~~ BOTH PORTED (2026-08-06 small hours):
+  - Wormhole: Render(E) re-rolls a RANDOM colour (5 on ^k) x glyph
+    (Text 9/233/21/15) combo per repaint — a shimmer, not a cycle. New
+    wire member animShimmer ships the combo tables; the client
+    prebuilds every combo (each on its ^X background — the Text-tile
+    branch now honours bg fill) and re-rolls every ~400ms. Measures
+    AGREE continuous (7-9 states) both apps; pixel is phase (ANIM).
+  - HologramMaterial is a WEIGHTED SHIMMER, not a cycle: FrameOffset +=
+    Random(0,20) EVERY render, so its 200-space clock random-walks. The
+    steady-last-entry export is the distribution's MODE (~94-96%) —
+    right for soft palettes, wrong for Eater Sign's &W/&w contrast. New
+    member animHolo ships exact combo weights; the client re-rolls by
+    weight. Verified with a 60-frame burst (4%-duty flashes are
+    invisible to 12-frame bursts — expected hits 0.5): qud 3 / raves 2
+    discrete AGREE; pixel 45 -> 6.5 PASS.
+  Furniture stands at 719 PASS / 6 FAIL (Switch fork x5 + water wheel).
 - Creature programs: Gyre Wight of Qas (8!), Sleeping Plated Chromeling (6),
   Ogre Ape (6 vs 2 partial), Livid Creeper-as-creature (3), Bloated
   Pearlfrog (2), Ehalcodon (2)

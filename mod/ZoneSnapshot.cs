@@ -1526,6 +1526,67 @@ namespace RavesOfQud
                         // frame; EventArt ships it, and the ~104 divergence was the
                         // discarded event COLOURS, not motion.)
                         if (animSched != null) j.Member("animSched", animSched);
+                        // HologramMaterial is a WEIGHTED SHIMMER, not a cycle: its
+                        // clock is num = (CurrentFrame + FrameOffset) % 200 with
+                        // index = num/count clamped to the last entry — and
+                        // FrameOffset += Random(0,20) EVERY render, so num random-walks
+                        // the whole 200-space. Distribution: each colour index i covers
+                        // num in [i*count, (i+1)*count) except the last, which owns the
+                        // clamp zone (~94% for 4 entries). The old steady-last export is
+                        // that distribution's mode — right for palettes whose flashes
+                        // cluster against the noise floor ("&C,&b,&c,&B"), measurably
+                        // wrong for high-contrast ones (Eater Sign "&W,&w,&W,&w": qud 3
+                        // states, raves static). Ship the exact combo weights.
+                        // (The rare FlickerFrame glyph blip — 1-in-200 — is skipped.)
+                        try
+                        {
+                            var hms = go.GetPart<HologramMaterial>();
+                            if (hms != null && !string.IsNullOrEmpty(hms.ColorStrings))
+                            {
+                                string[] hcols = hms.ColorStrings.Split(',');
+                                string[] hdets = (hms.DetailColors ?? "").Split(',');
+                                bool hasDet = hdets.Length > 0 && hdets[0].Length > 0;
+                                var hw = new System.Collections.Generic.Dictionary<string, int>();
+                                var horder = new System.Collections.Generic.List<string>();
+                                for (int num = 0; num < 200; num++)
+                                {
+                                    int ci = num / hcols.Length; if (ci >= hcols.Length) ci = hcols.Length - 1;
+                                    string hc = hcols[ci].Trim();
+                                    string hd = "";
+                                    if (hasDet)
+                                    {
+                                        int di = num / hdets.Length; if (di >= hdets.Length) di = hdets.Length - 1;
+                                        hd = hdets[di].Trim();
+                                    }
+                                    string combo = hc + "~" + hd;
+                                    if (!hw.ContainsKey(combo)) { hw[combo] = 0; horder.Add(combo); }
+                                    hw[combo]++;
+                                }
+                                if (horder.Count > 1)
+                                {
+                                    var hsb = new System.Text.StringBuilder();
+                                    hsb.Append(24);   // ~400ms re-roll, like the wormhole
+                                    foreach (string combo in horder)
+                                        hsb.Append('|').Append(combo).Append('~').Append(hw[combo]);
+                                    j.Member("animHolo", hsb.ToString());
+                                }
+                            }
+                        }
+                        catch { }
+                        // Wormhole: Render(E) re-rolls a RANDOM colour (5 on ^k) and a
+                        // RANDOM glyph (Text codes 9/233/21/15) on every repaint — a
+                        // shimmer, not a cycle (measured 7 discrete states). Ship the
+                        // combo tables; the client re-rolls on its own cadence.
+                        try
+                        {
+                            if (go.GetPart<XRL.World.Parts.Wormhole>() != null)
+                            {
+                                foreach (int wc in new int[] { 9, 233, 21, 15 })
+                                    TileExporter.Ensure("Text/" + wc + ".bmp");
+                                j.Member("animShimmer", "24|9,233,21,15|&B^k,&R^k,&C^k,&W^k,&K^k");
+                            }
+                        }
+                        catch { }
                         // Qud's Swimming effect: an aquatic-limited creature (eel, glowfish) renders
                         // over its supporting liquid's BACKGROUND colour. Ask the liquid itself
                         // (RenderBackgroundPrimary/Secondary on a scratch event — water prepends "^b";
