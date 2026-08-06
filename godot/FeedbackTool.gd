@@ -34,6 +34,15 @@ var _target_image := ""            # the element's image name (icon file / textu
 var _target_action := ""           # what the element does — its (or an ancestor's) tooltip
 var _edit: TextEdit = null
 var _prev_focus: Control = null
+var _providers: Array = []         # registered feedback_element_at providers (owner-drawn panes)
+
+
+## Owner-drawn panes register here (they cannot be found by walking up from a hit: late
+## full-window overlays shadow them out of the ancestor chain entirely). Providers self-gate
+## on visibility by returning {} when their surface is not showing.
+func register_provider(n: Node) -> void:
+	if not _providers.has(n):
+		_providers.append(n)
 
 func _ready() -> void:
 	layer = 120   # above game popups (PopupOverlay) — feedback can be ABOUT a popup
@@ -110,12 +119,33 @@ func _input(event: InputEvent) -> void:
 				elem = c3
 				break
 			n3 = n3.get_parent()
+	# OWNER-DRAWN panes see none of this: one Control paints their whole surface, so the walk can
+	# only name the pane. A node in the hit chain that implements feedback_element_at(point) knows
+	# its own internal geometry (it drew it) and answers with the element the point is really on —
+	# a paper-doll slot, an inventory row, a tab cell. First non-empty answer wins.
+	var prov_action := ""
+	var prov_rect := Rect2()
+	var prov: Node = hit
+	for _p in 8:
+		if prov == null:
+			break
+		if prov.has_method("feedback_element_at"):
+			var pd: Dictionary = prov.feedback_element_at(mb.position)
+			if not pd.is_empty():
+				leaf = str(pd.get("label", leaf))
+				if prov is Control:
+					elem = prov
+				if pd.has("rect"):
+					prov_rect = pd["rect"]
+				prov_action = str(pd.get("action", ""))
+				break
+		prov = prov.get_parent()
 	_target_image = _elem_image(elem)
-	_target_action = _elem_action(elem)
+	_target_action = prov_action if prov_action != "" else _elem_action(elem)
 	_target_pos = mb.position
 	_target_path = String(elem.get_path())
 	_target_label = _display_label(elem, leaf)
-	_target_rect = elem.get_global_rect()
+	_target_rect = prov_rect if prov_rect.size.x > 0.0 else elem.get_global_rect()
 	# The viewport texture is the last DRAWN frame — the form is not in it yet, so grabbing here
 	# (before _open_form adds nodes) is what makes the thumbnail show the element, not the dialog.
 	_thumb = _grab_thumb(_target_rect)

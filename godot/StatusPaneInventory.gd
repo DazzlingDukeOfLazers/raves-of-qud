@@ -829,6 +829,33 @@ func _move(d: int) -> void:
 		_scroll = _sel * ROW_H + ROW_H - LIST_H
 	_content.queue_redraw()
 
+## FEEDBACK PROVIDER (FeedbackTool.feedback_element_at contract). This pane is owner-drawn — one
+## Control paints the doll, the filter strip and every list row — so the feedback hit-test cannot
+## see inside it. But the pane already keeps the geometry it drew (_doll_rects, _filt_rects, the
+## row pitch), so it answers directly: the same rects handle_mouse clicks against, as element names.
+func feedback_element_at(p: Vector2) -> Dictionary:
+	if not is_visible_in_tree():
+		return {}
+	for d in _doll_rects:
+		if (d[0] as Rect2).has_point(p):
+			return {"label": "paper doll · " + str(d[3]), "rect": d[0],
+				"action": "slot: " + str(d[3])}
+	for entry in _filt_rects:
+		if (entry[0] as Rect2).has_point(p):
+			var nm := str(entry[1])
+			return {"label": "filter · " + (nm if nm != "" else "All"), "rect": entry[0],
+				"action": "toggle the category filter"}
+	if p.x >= LIST_X and p.x <= LIST_X + LIST_W and p.y >= LIST_Y and p.y <= LIST_Y + LIST_H:
+		var idx := int((p.y - LIST_Y + _scroll) / ROW_H)
+		if idx >= 0 and idx < _rows.size():
+			var r: Dictionary = _rows[idx]
+			var kind := "category" if str(r.get("kind", "")) == "cat" else "item"
+			var label := kind + " · " + str(r.get("name", r.get("letter", "?")))
+			return {"label": label,
+				"rect": Rect2(LIST_X, LIST_Y + idx * ROW_H - _scroll, LIST_W, ROW_H)}
+	return {}
+
+
 func handle_mouse(e: InputEvent) -> void:
 	if e is InputEventMouseMotion:
 		# doll slots highlight on hover too

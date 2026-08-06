@@ -140,7 +140,6 @@ func _init() -> void:
 	visible = false
 
 func _ready() -> void:
-	name = "StatusScreens"
 	_tiles = load("res://QudTiles.gd").new()
 	_peer.connect_to_host(BridgeClient.host(), BridgeClient.port())
 	_root = Control.new()
@@ -427,6 +426,28 @@ func _bar_input(e: InputEvent) -> void:
 		var i := _tab_at(e.position.x)
 		if i >= 0:
 			_set_tab(TABS[i]["id"])
+
+## FEEDBACK PROVIDER for the tab bar (drawn in one pass — no per-tab nodes). "tab · Equipment"
+## with the cell's own rect, using the same CELL_X math the click handler uses.
+func feedback_element_at(p: Vector2) -> Dictionary:
+	if _bar == null or not _bar.is_visible_in_tree():
+		return {}
+	var r := _bar.get_global_rect()
+	if not r.has_point(p):
+		return {}
+	var i := _tab_at(p.x)
+	if i >= 0:
+		return {"label": "tab · " + str(TABS[i]["name"]),
+			"rect": Rect2(CELL_X[i], r.position.y, CELL_X[i + 1] - CELL_X[i], r.size.y),
+			"action": "switch to the " + str(TABS[i]["name"]) + " tab"}
+	# DELEGATE to the visible pane: the panes are owner-drawn and late overlays keep them out of
+	# the hit's ancestor chain, but THIS layer is always in it — so it forwards. Any pane that
+	# implements the contract gets interior resolution for free.
+	for pane in [_inv_pane, _attr_pane, _skills_pane, _quests_pane, _fact_pane, _jrn_pane, _tnk_pane]:
+		if pane != null and pane.visible and pane.has_method("feedback_element_at"):
+			return pane.feedback_element_at(p)
+	return {}
+
 
 func _tab_at(x: float) -> int:
 	for i in TABS.size():
