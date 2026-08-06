@@ -890,3 +890,20 @@ the owner-drawn surface** and place it with a measured offset (`NearbyObjects.TI
 Read the surface's real origin once with a `global_position` print rather than deriving it from
 font metrics — the panel origin (93) and list origin (120) took one throwaway build and ended the
 guessing.
+
+## A hidden `CanvasLayer` still feeds its children INPUT
+
+`CanvasLayer.visible = false` stops DRAWING, not processing, and `is_visible_in_tree()` on a child
+Control does not see through the layer (a CanvasLayer is not a CanvasItem ancestor for that check).
+So a "closed" overlay hosted in a hidden CanvasLayer keeps running `_unhandled_input`.
+
+Cost, twice now: the feedback tool's paint-order hit test named elements inside closed screens until
+it got an explicit layer-visibility guard, and the in-game Options overlay went on eating `ui_cancel`
+after closing — Esc stopped opening the system menu entirely, which reads as "Esc is broken", nowhere
+near the overlay that is actually swallowing it.
+
+Two fixes, pick by lifetime: screens that live for the session guard their own handlers
+(`if not visible: return`, as `ControlMappingScreen` does — it IS the CanvasLayer, so its `visible`
+is the real one); screens built per open **free the host on close** (`queue_free()` + null the ref,
+as `MainFrame._close_options_overlay` and `MainMenu._close_overlay` do). The second also re-reads
+config on each open, which is usually what you want anyway.

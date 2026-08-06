@@ -105,6 +105,7 @@ var _bar_exp: ProgressBar
 var _msglog: Control        # the Message log view (MessageLog.gd)
 var _status: CanvasLayer    # the 8-tab status screens overlay (StatusScreens.gd, V4; layer 90)
 var _controlmap: CanvasLayer   # the Control Mapping screen (ControlMappingScreen.gd, V4; layer 90)
+var _options: CanvasLayer      # Raves' own Options, as an IN-GAME overlay (OptionsScreen.gd; layer 90)
 var _nearby: Control        # the Nearby objects view (NearbyObjects.gd)
 var _minimap: Control       # the Minimap view (MinimapView.gd)
 var _effects: Control       # the Active effects view (ActiveEffects.gd)
@@ -970,6 +971,46 @@ func _send_stair(up: bool) -> void:
 	if _holo != null:
 		_holo.request_command("CmdMoveU" if up else "CmdMoveD")
 
+## Raves' own Options, as an IN-GAME overlay — the sibling of the Control Mapping screen above.
+##
+## Qud's Options is a SCREEN (ModernOptionsMenu), not a PopupMessage, so the popup mirror has
+## nothing to render: picking "Options" in the mirrored system menu answered Qud, Qud opened its own
+## options over its window, and the Raves player was left looking at an unchanged game. (Not a
+## regression — MainMenu was always the only opener; in-game simply had no destination.)
+##
+## BUILT PER OPEN AND FREED ON CLOSE, which is MainMenu's pattern for the same screen and is load
+## bearing here for two reasons. It re-reads options.json each time (Qud's side may have changed
+## under us), and — the one that bit — a merely-HIDDEN host keeps feeding its children input: a
+## CanvasLayer's `visible` stops drawing, not processing, and `is_visible_in_tree()` does not see
+## through it, so the closed screen's `_unhandled_input` went on eating Esc and the system menu
+## never opened again. Same trap as the feedback tool's hidden-layer hit test.
+func _open_options_overlay() -> void:
+	if _options != null:
+		return
+	var scr: Variant = load("res://OptionsScreen.gd")
+	if scr == null:
+		return
+	_options = CanvasLayer.new()
+	_options.name = "OptionsOverlay"
+	_options.layer = 90            # the status-screen / control-mapping band, under the CRT
+	var scn: Control = scr.new()
+	scn.closed.connect(_close_options_overlay)
+	_options.add_child(scn)
+	add_child(_options)
+	UiState.set_scene("options")
+
+## Esc inside the overlay closes it AND walks Qud back off the ModernOptionsMenu it opened from the
+## same answer — the control-mapping screen syncs its KeybindsScreen the same way, and leaving Qud
+## parked on a screen the player can't see is how the two apps drift apart.
+func _close_options_overlay() -> void:
+	if _options == null:
+		return
+	_options.queue_free()
+	_options = null
+	UiState.set_scene("in_game")
+	if _holo != null:
+		_holo.request_uiback()
+
 ## The two panels whose 1:1 visibility follows Qud's overlay options (Qud's own toggle
 ## buttons persist the same ids, so the pair stays congruent). Safe to call any time.
 func _refresh_overlay_panels() -> void:
@@ -1423,13 +1464,16 @@ func _connect_holodeck() -> void:
 		if _status != null and _status.visible and _status.has_method("_refresh_after_popup"):
 			_status._refresh_after_popup())
 	_holo.connect("popup_option", func(text: String):
-		if _controlmap != null \
-				and text.strip_edges().to_lower().ends_with("control mapping"):
-			_controlmap.open())
+		var pick := text.strip_edges().to_lower()
+		if _controlmap != null and pick.ends_with("control mapping"):
+			_controlmap.open()
+		elif pick.ends_with("options"):
+			_open_options_overlay())
 	# while a frame overlay is open, Main's Esc must not ALSO pop Qud's system menu
 	_holo.overlay_check = func() -> bool:
 		return (_status != null and _status.visible) \
-			or (_controlmap != null and _controlmap.visible)
+			or (_controlmap != null and _controlmap.visible) \
+			or _options != null            # freed on close, so existing == open
 	add_child(_holo)                            # ROOT viewport → 3D renders full-window BEHIND the chrome
 	_render_btn.disabled = false
 	UiState.set_scene("in_game")                # highvisor state report: the gameplay frame is up

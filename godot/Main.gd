@@ -612,6 +612,13 @@ func request_setoption(id: String, value: String) -> void:
 	if client != null:
 		client.send_command("setoption", {"id": id, "value": value})
 
+## Back Qud out of its current MODERN screen (options/keybinds/records…). Those screens ignore every
+## OS-synthesized key, so this first-party command is the only way out — the in-game Options and
+## Control Mapping overlays use it to keep Qud in step when they close.
+func request_uiback() -> void:
+	if client != null:
+		client.send_command("uiback")
+
 ## Invoke an inventory action (e.g. ReplaceSocketCell — "change the battery") on a specific equipped
 ## weapon, identified by its Qud GameObject id. Runs on Qud's main thread mod-side.
 func request_item_action(item_id: String, action: String) -> void:
