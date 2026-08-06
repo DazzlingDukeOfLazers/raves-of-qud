@@ -1,6 +1,6 @@
 # Object Checker — creatures
 
-896/896 PASS  (2026-08-05 21:54)  pixel: 877 PASS / 3 WARN / 9 FAIL / 7 KNOWN
+896/896 PASS  (2026-08-06 02:16)  pixel: 879 PASS / 3 WARN / 5 FAIL / 7 KNOWN / 2 ANIM
 
 | element | verdict | px | notes |
 |---|---|---|---|
@@ -71,7 +71,7 @@
 | Black Jel | PASS | PASS 18.6/15% | wire tile != blueprint tile 'creatures_sw_amoeba' |
 | Blast Cannon Tinker | PASS | PASS 1.0/0% | wire tile != blueprint tile 'creatures_sw_turret_tinker' |
 | Bloated Leech | PASS | PASS 16.5/12% | wire tile != blueprint tile 'creatures_sw_bloatedleech' |
-| Bloated Pearlfrog | PASS | FAIL 100.3/99% | wire tile != blueprint tile 'creatures_sw_giant_frog' |
+| Bloated Pearlfrog | PASS | PASS 8.2/4% |  |
 | Blue Jel | PASS | PASS 23.5/22% | wire tile != blueprint tile 'creatures_sw_amoeba' |
 | Boar | PASS | PASS 3.0/2% | wire tile != blueprint tile 'creatures_sw_boar' |
 | Bone Worm | PASS | PASS 1.0/0% | wire tile != blueprint tile 'creatures_sw_sprouting_worm' |
@@ -256,7 +256,7 @@
 | DromadTrader_Village0 | PASS | PASS 3.5/2% |  |
 | Drowsing Urchin | PASS | PASS 3.0/2% | wire tile != blueprint tile 'creatures_sw_urchin' |
 | Ego Sap | PASS | PASS 18.3/15% | wire tile != blueprint tile 'creatures_sw_bat2' |
-| Ehalcodon | PASS | FAIL 39.1/35% | wire tile != blueprint tile 'creatures_nephilim_ehalcodon' |
+| Ehalcodon | PASS | ANIM 42.8/37% | anim-verified (state agreement); single-frame diff is phase |
 | Eigenturret Tinker | PASS | PASS 4.3/2% | wire tile != blueprint tile 'creatures_sw_turret_tinker' |
 | Elder Breather | PASS | PASS 5.7/5% | wire tile != blueprint tile 'creatures_sw_elder_breather' |
 | ElderBob | PASS | PASS 2.8/2% | wire tile != blueprint tile 'creatures_npc-irudad' |
@@ -379,7 +379,7 @@
 | Gyre Wight Apotheote | PASS | PASS 6.7/11% | wire tile != blueprint tile 'creatures_sw_glowwight_apotheote' |
 | Gyre Wight of Agolgot | PASS | PASS 3.9/2% | wire tile != blueprint tile 'creatures_wight_agolgot' |
 | Gyre Wight of Bethsaida | PASS | PASS 3.2/2% | wire tile != blueprint tile 'creatures_wight_bethsaida' |
-| Gyre Wight of Qas | PASS | FAIL 34.7/24% | wire tile != blueprint tile 'creatures_wight_qas' |
+| Gyre Wight of Qas | PASS | FAIL 36.2/25% | wire tile != blueprint tile 'creatures_wight_qas' |
 | Gyre Wight of Qon | PASS | PASS 9.9/10% | wire tile != blueprint tile 'creatures_wight_qon' |
 | Gyre Wight of Rermadon | PASS | PASS 23.0/29% | wire tile != blueprint tile 'creatures_wight_rermadon' |
 | Gyre Wight of Shug'ruith | PASS | PASS 2.7/1% | wire tile != blueprint tile 'creatures_wight_shugruith' |
@@ -479,7 +479,7 @@
 | Life Sap | PASS | PASS 1.0/0% | wire tile != blueprint tile 'creatures_sw_bat2' |
 | Liihart | PASS | PASS 2.6/1% | wire tile != blueprint tile 'creatures_sw_hindren_6' |
 | Lithofex | PASS | PASS 19.2/15% | wire tile != blueprint tile 'creatures_sw_basilisk' |
-| Livid Creeper | PASS | FAIL 52.8/61% | wire tile != blueprint tile 'creatures_sw_livid_creeper' |
+| Livid Creeper | PASS | FAIL 53.1/61% | wire tile != blueprint tile 'creatures_sw_livid_creeper' |
 | LoudSixDayZealot | PASS | PASS 19.4/19% | wire tile != blueprint tile 'creatures_caste_13' |
 | Low-Light Laser Turret Tinker | PASS | PASS 1.0/0% | wire tile != blueprint tile 'creatures_sw_turret_tinker' |
 | Lulihart | PASS | PASS 3.7/2% | wire tile != blueprint tile 'creatures_sw_lulihart' |
@@ -598,7 +598,7 @@
 | OasisGlowpad | PASS | PASS 2.5/1% | wire tile != blueprint tile 'creatures_sw_glowpad' |
 | Oboroqoru | PASS | PASS 6.8/3% | wire tile != blueprint tile 'creatures_sw_oboroqoru' |
 | Oddity Golem | PASS | PASS 6.1/2% | wire tile != blueprint tile 'creatures_sw_golem_oddity' |
-| Ogre Ape | PASS | FAIL 93.8/99% | wire tile != blueprint tile 'creatures_ogre-ape' |
+| Ogre Ape | PASS | PASS 7.0/5% | wire tile != blueprint tile 'creatures_ogre-ape' |
 | Ooze Golem | PASS | PASS 7.1/4% | wire tile != blueprint tile 'creatures_sw_golem_ooze' |
 | Oozes Cherub | PASS | PASS 7.9/4% | wire tile != blueprint tile 'creatures_sw_cherub_ooze' |
 | Otho | PASS | PASS 6.1/2% | wire tile != blueprint tile 'creatures_sw_bearman4' |
@@ -708,7 +708,7 @@
 | SkybearClone | PASS | PASS 6.7/3% | wire tile != blueprint tile 'creatures_sw_skybear' |
 | SleepBreather | PASS | PASS 3.6/3% | wire tile != blueprint tile 'creatures_sw_breather' |
 | Sleeping Chromeling | PASS | PASS 3.2/2% | wire tile != blueprint tile 'creatures_sw_chromeling' |
-| Sleeping Plated Chromeling | PASS | FAIL 36.2/19% | wire tile != blueprint tile 'creatures_sw_plated_chromeling'; no capture pair — congruence skipped |
+| Sleeping Plated Chromeling | PASS | ANIM 85.2/88% | anim-verified (state agreement); single-frame diff is phase |
 | Sleeping Waydroid | PASS | PASS 3.3/2% |  |
 | Slug Golem | PASS | PASS 6.2/3% | wire tile != blueprint tile 'creatures_sw_golem_slug' |
 | Slugsnout | PASS | PASS 17.2/14% | wire tile != blueprint tile 'creatures_sw_boar' |

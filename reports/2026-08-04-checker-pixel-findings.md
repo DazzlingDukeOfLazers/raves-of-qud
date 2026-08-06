@@ -189,7 +189,7 @@ is phase); KNOWN = unverifiable (spawners, multi-cell); FAIL = attributed.
 **PORT BACKLOG — real animation gaps, with measured targets (qud states):**
 - Stasisfield shimmer (3), ReshephWall2 blink (2)
 - Chavvah Chime L+R — continuous swing (11)
-- Wormhole swirl (7), Wooden Water Wheel (6 vs raves 3 — partial port)
+- Wormhole swirl (7) — since ported (see below)
 - Mechanical Succulents Cherub (3)
 - ~~POWERED-DEVICE BLINK FAMILY~~ PORTED (2026-08-05 late). Mechanism:
   AnimatedMaterialGenericAlternate — an EMPTY subclass of
@@ -221,9 +221,27 @@ is phase); KNOWN = unverifiable (spawners, multi-cell); FAIL = attributed.
     invisible to 12-frame bursts — expected hits 0.5): qud 3 / raves 2
     discrete AGREE; pixel 45 -> 6.5 PASS.
   Furniture stands at 719 PASS / 6 FAIL (Switch fork x5 + water wheel).
-- Creature programs: Gyre Wight of Qas (8!), Sleeping Plated Chromeling (6),
-  Ogre Ape (6 vs 2 partial), Livid Creeper-as-creature (3), Bloated
-  Pearlfrog (2), Ehalcodon (2)
+- ~~Creature programs~~ RESOLVED (2026-08-06). Clean re-measurement first:
+  Gyre Wight (was "8"), Ogre Ape ("6v2") and Livid Creeper ("3") were
+  CONTAMINATION GHOSTS — static-AGREE on a fresh boot (Ogre Ape pixel 7.0
+  PASS; Gyre Wight 36 / Livid Creeper 53 are now STATIC-divergence
+  tickets, not animation). The real programs are Qud's STATUS FLASHES —
+  deterministic windows on the shared 60-frame clock (Flying swaps in
+  Tiles2/status_flying.bmp frames 5-14 via RenderEffectIndicator, Asleep
+  floods ^c behind the art on 11-24, a charging sticky tongue draws "*"
+  &M on 36-44). Ported GENERICALLY: AnimFrameSweep forces
+  XRLCore.CurrentFrame through a full second, renders each frame through
+  ComponentRender (effects AND mutations dispatch there), double-passes
+  to drop RandomCosmetic flicker, and ships the diff as animSched. The
+  client force-fills entries whose colour carries ^X (a bg-only flash
+  otherwise renders identical to the base — the chromeling stayed
+  static until that fix). Verified: Chromeling 2/2 AGREE, Ehalcodon 2/3
+  AGREE (both ANIM-banded), Pearlfrog consistent-static (tongue charge
+  is state-timing), pixel 8.2 PASS.
+- ~~Wooden Water Wheel~~ ALREADY FIXED by the AnimatedMaterialGeneric
+  port: its animator is a 3-frame AMG gated RequiresOperationalActivePart
+  ="HydroTurbine" (blueprint line the first read truncated); the "6 vs 3"
+  was contaminated data. Clean: 3/3 AGREE, pixel 9.0 PASS.
 - ~~CONVEYOR FRAME-SYNC~~ FIXED (2026-08-05 night) — and the theory was
   wrong twice over. Measured: Qud's idle belt is FROZEN (the 150ms advance
   runs inside Render(E), which only fires on map REPAINTS; the idle prompt

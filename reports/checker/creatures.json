@@ -2472,9 +2472,7 @@
   "bp": "Bloated Pearlfrog",
   "pass": true,
   "reasons": [],
-  "warns": [
-   "wire tile != blueprint tile 'creatures_sw_giant_frog'"
-  ],
+  "warns": [],
   "stage": {
    "bp": "Bloated Pearlfrog",
    "ok": true,
@@ -2494,14 +2492,14 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Bloated_Pearlfrog_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 100.35,
-   "pct_hot": 99.4,
-   "band": "FAIL",
+   "mean_abs_diff": 8.16,
+   "pct_hot": 4.4,
+   "band": "PASS",
    "white_px": [
-    0,
-    370
+    21,
+    373
    ],
-   "dominant_delta": 128,
+   "dominant_delta": 0,
    "wire_delta": 239
   }
  },
@@ -9294,16 +9292,14 @@
   "bp": "Ehalcodon",
   "pass": true,
   "reasons": [],
-  "warns": [
-   "wire tile != blueprint tile 'creatures_nephilim_ehalcodon'"
-  ],
+  "warns": [],
   "stage": {
    "bp": "Ehalcodon",
    "ok": true,
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 3,
+   "cleared": 1,
    "tile": "Creatures/nephilim_ehalcodon.png",
    "color": "&m",
    "detail": "Y",
@@ -9316,12 +9312,12 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Ehalcodon_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 39.08,
-   "pct_hot": 35.4,
+   "mean_abs_diff": 42.76,
+   "pct_hot": 37.2,
    "band": "FAIL",
    "white_px": [
     17,
-    207
+    205
    ],
    "dominant_delta": 0,
    "wire_delta": 161
@@ -13841,8 +13837,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Gyre_Wight_of_Qas_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 34.72,
-   "pct_hot": 23.6,
+   "mean_abs_diff": 36.19,
+   "pct_hot": 25.3,
    "band": "FAIL",
    "white_px": [
     0,
@@ -17513,8 +17509,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Livid_Creeper_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 52.77,
-   "pct_hot": 60.6,
+   "mean_abs_diff": 53.06,
+   "pct_hot": 60.8,
    "band": "FAIL",
    "white_px": [
     0,
@@ -21896,14 +21892,14 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Ogre_Ape_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 93.85,
-   "pct_hot": 99.4,
-   "band": "FAIL",
+   "mean_abs_diff": 7.05,
+   "pct_hot": 4.9,
+   "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 128,
+   "dominant_delta": 0,
    "wire_delta": 191
   }
  },
@@ -25934,10 +25930,7 @@
   "bp": "Sleeping Plated Chromeling",
   "pass": true,
   "reasons": [],
-  "warns": [
-   "wire tile != blueprint tile 'creatures_sw_plated_chromeling'",
-   "no capture pair \u2014 congruence skipped"
-  ],
+  "warns": [],
   "stage": {
    "bp": "Sleeping Plated Chromeling",
    "ok": true,
@@ -25953,17 +25946,18 @@
   "wire_objs": 1,
   "wire_hex": "77bfcf",
   "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Sleeping_Plated_Chromeling_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Sleeping_Plated_Chromeling_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 36.16,
-   "pct_hot": 19.2,
+   "mean_abs_diff": 85.19,
+   "pct_hot": 88.3,
    "band": "FAIL",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 0,
+   "dominant_delta": 128,
    "wire_delta": 159
   }
  },

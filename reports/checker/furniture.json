@@ -26272,37 +26272,35 @@
   "bp": "Wooden Water Wheel",
   "pass": true,
   "reasons": [],
-  "warns": [
-   "wire tile != blueprint tile 'items_sw_waterwheel_1'"
-  ],
+  "warns": [],
   "stage": {
    "bp": "Wooden Water Wheel",
    "ok": true,
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 1,
+   "cleared": 3,
    "tile": "Items/sw_waterwheel_1.bmp",
    "color": "&w",
    "detail": "y",
    "name": "{{B|{{B|wet}} bizarre contraption}}"
   },
-  "wire_objs": 1,
+  "wire_objs": 2,
   "wire_hex": "98875f",
   "shots": {
    "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\Wooden_Water_Wheel_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\Wooden_Water_Wheel_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 56.82,
-   "pct_hot": 69.0,
-   "band": "FAIL",
+   "mean_abs_diff": 9.0,
+   "pct_hot": 8.0,
+   "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 128,
-   "wire_delta": 15
+   "dominant_delta": 0,
+   "wire_delta": 136
   }
  },
  {

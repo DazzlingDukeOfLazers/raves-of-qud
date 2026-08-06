@@ -1,0 +1,33 @@
+{
+ "fixture": "Wooden Water Wheel",
+ "frames": 12,
+ "expect_states": null,
+ "measured": [
+  {
+   "bp": "Wooden Water Wheel",
+   "ok": true,
+   "qud": {
+    "frames": 12,
+    "states": 3,
+    "duty": [
+     0.42,
+     0.33,
+     0.25
+    ],
+    "class": "discrete"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 3,
+    "duty": [
+     0.42,
+     0.33,
+     0.25
+    ],
+    "class": "discrete"
+   },
+   "agree": true
+  }
+ ],
+ "when": "2026-08-06 01:51"
+}

@@ -1,0 +1,31 @@
+{
+ "fixture": "Sleeping Plated Chromeling",
+ "frames": 12,
+ "expect_states": null,
+ "measured": [
+  {
+   "bp": "Sleeping Plated Chromeling",
+   "ok": true,
+   "qud": {
+    "frames": 12,
+    "states": 2,
+    "duty": [
+     0.58,
+     0.42
+    ],
+    "class": "discrete"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 2,
+    "duty": [
+     0.75,
+     0.25
+    ],
+    "class": "discrete"
+   },
+   "agree": true
+  }
+ ],
+ "when": "2026-08-06 02:14"
+}

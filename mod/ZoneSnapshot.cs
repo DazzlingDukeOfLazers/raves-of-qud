@@ -335,6 +335,89 @@ namespace RavesOfQud
         }
 
         /// <summary>
+        /// CREATURE STATUS FLASHES, measured generically: Qud's indicators are
+        /// deterministic windows on the shared 60-frame clock — Flying swaps in
+        /// Tiles2/status_flying.bmp on frames 5-14 (RenderEffectIndicator),
+        /// Asleep draws "z" &amp;C^c on 11-24, a charging sticky tongue "*" &amp;M on
+        /// 36-44 — all dispatched through ComponentRender (effects and mutations
+        /// both register for RenderEvent). Rather than porting each effect,
+        /// FORCE the clock through a full second and DIFF what comes back.
+        /// Two passes, keeping only frames both agree on: anything
+        /// RandomCosmetic-driven disagrees with itself and drops to base.
+        /// Returns an animSched spec, or null when nothing flashes.
+        /// </summary>
+        private static string AnimFrameSweep(GameObject go, Render r)
+        {
+            int savedF = XRL.Core.XRLCore.CurrentFrame;
+            int savedFL = XRL.Core.XRLCore.CurrentFrameLong;
+            try
+            {
+                string[] pass1 = new string[60];
+                string[] pass2 = new string[60];
+                for (int p = 0; p < 2; p++)
+                {
+                    string[] arr = p == 0 ? pass1 : pass2;
+                    for (int f = 0; f < 60; f++)
+                    {
+                        XRL.Core.XRLCore.CurrentFrame = f;
+                        XRL.Core.XRLCore.CurrentFrameLong = f * 16;
+                        var ev = new RenderEvent();
+                        ev.Lit = LightLevel.Light;
+                        ev.RenderString = r.RenderString;
+                        ev.ColorString = string.IsNullOrEmpty(r.TileColor) ? r.ColorString : r.TileColor;
+                        ev.DetailColor = r.DetailColor;
+                        ev.Tile = r.Tile;
+                        ev.HighestLayer = r.RenderLayer;
+                        go.ComponentRender(ev);
+                        string tileOut = ev.Tile ?? "";
+                        // glyph indicators null the tile: same Text/<code> rule as
+                        // the main glyph-mode export
+                        if (tileOut.Length == 0 && !string.IsNullOrEmpty(ev.RenderString))
+                            tileOut = "Text/" + (int)ev.RenderString[0] + ".bmp";
+                        arr[f] = tileOut + ";" + (ev.ColorString ?? "") + ";" + (ev.DetailColor ?? "");
+                    }
+                }
+                // Per-axis base blanking: an axis equal to the object's own export
+                // emits empty, so the client falls back to the base art/colours.
+                string baseTile = string.IsNullOrEmpty(r.Tile)
+                    ? (string.IsNullOrEmpty(r.RenderString) ? "" : "Text/" + (int)r.RenderString[0] + ".bmp")
+                    : r.Tile;
+                string baseColor = (string.IsNullOrEmpty(r.TileColor) ? r.ColorString : r.TileColor) ?? "";
+                string baseDetail = r.DetailColor ?? "";
+                var sb = new System.Text.StringBuilder();
+                sb.Append(60);
+                string prev = null;
+                int distinct = 0;
+                for (int f = 0; f < 60; f++)
+                {
+                    string entry = ";;";
+                    if (pass1[f] == pass2[f])   // random flicker disagrees -> base
+                    {
+                        string[] ax = pass1[f].Split(';');
+                        string t = ax.Length > 0 && ax[0] != baseTile ? ax[0] : "";
+                        string c = ax.Length > 1 && ax[1] != baseColor ? ax[1] : "";
+                        string d = ax.Length > 2 && ax[2] != baseDetail ? ax[2] : "";
+                        if (t.Length > 0) TileExporter.Ensure(t);
+                        entry = t + ";" + c + ";" + d;
+                    }
+                    if (entry != prev)
+                    {
+                        sb.Append('|').Append(f).Append('=').Append(entry);
+                        prev = entry;
+                        distinct++;
+                    }
+                }
+                return distinct > 1 ? sb.ToString() : null;
+            }
+            catch { return null; }
+            finally
+            {
+                XRL.Core.XRLCore.CurrentFrame = savedF;
+                XRL.Core.XRLCore.CurrentFrameLong = savedFL;
+            }
+        }
+
+        /// <summary>
         /// Colours straight off the painted ConsoleChar: already RESOLVED to RGB,
         /// so the client needs no palette lookup and no &amp;X^Y parsing for these.
         /// Also carries Qud's own sprite flipping.
@@ -1525,6 +1608,18 @@ namespace RavesOfQud
                         // frame the last repaint left. The 1:1 baseline is that static
                         // frame; EventArt ships it, and the ~104 divergence was the
                         // discarded event COLOURS, not motion.)
+                        // Creature status flashes (Flying's arrow tile, Asleep's "z",
+                        // a charging tongue's "*"): measured generically off the
+                        // 60-frame clock — see AnimFrameSweep. Creatures only: the
+                        // sweep re-renders 120 times, and furniture's animators are
+                        // already ported part-by-part (a conveyor would also step
+                        // its belt 120 frames as a side effect).
+                        try
+                        {
+                            if (animSched == null && go.IsCreature)
+                                animSched = AnimFrameSweep(go, r);
+                        }
+                        catch { }
                         if (animSched != null) j.Member("animSched", animSched);
                         // HologramMaterial is a WEIGHTED SHIMMER, not a cycle: its
                         // clock is num = (CurrentFrame + FrameOffset) % 200 with

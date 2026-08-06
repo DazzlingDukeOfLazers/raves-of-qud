@@ -3724,9 +3724,18 @@ func _register_anim(win: Dictionary, cx: int, cy: int) -> void:
 				var stile := String(axes[0]) if axes[0] != "" else tile
 				var smain := _qud_color(String(axes[1])) if axes[1] != "" else _obj_main(win)
 				var sdet: Color = _qud_color("&" + String(axes[2])) if axes[2] != "" else _obj_detail(win)
-				var sfill: int = Fill.ALL if (axes[0] != "" and String(axes[0]) != tile) else Fill.NONE
+				# An entry colour's ^X is that FRAME's cell background (Asleep
+				# floods ^c behind the art) — swap _wall_bg for this build, and
+				# force the fill on: with Fill.NONE the background never paints
+				# and a bg-only flash renders identical to the base (measured:
+				# the sleeping chromeling stayed static).
+				var kept_bg := _wall_bg
+				if axes[1] != "":
+					_wall_bg = _parse_bg(String(axes[1]))
+				var sfill: int = Fill.ALL if ((axes[0] != "" and String(axes[0]) != tile) or _wall_bg != "") else Fill.NONE
 				var ftex := _colored_tex_rgb(stile, smain, sdet,
 					"anim~S" + String(kv[1]) + "~" + _color_key(win), _fill_for(stile, sfill))
+				_wall_bg = kept_bg
 				if ftex != null:
 					node = _overlay_quad(ftex, cx, cy, y_over, flip)
 			sched.append({"f": int(kv[0]), "node": node})

@@ -1,6 +1,6 @@
 # Object Checker — furniture
 
-745/745 PASS  (2026-08-06 00:27)  pixel: 719 PASS / 3 WARN / 6 FAIL / 12 KNOWN / 5 ANIM
+745/745 PASS  (2026-08-06 01:51)  pixel: 720 PASS / 3 WARN / 5 FAIL / 12 KNOWN / 5 ANIM
 
 | element | verdict | px | notes |
 |---|---|---|---|
@@ -720,7 +720,7 @@
 | Wood-Carved Chair | PASS | PASS 2.2/1% | wire tile != blueprint tile 'furniture_wood-carved-chair' |
 | Wood-Carved Clothespress | PASS | PASS 4.0/3% | wire tile != blueprint tile 'furniture_wood-carved-dresser' |
 | Wood-Carved Table | PASS | PASS 2.1/1% | wire tile != blueprint tile 'furniture_wood-carved-table' |
-| Wooden Water Wheel | PASS | FAIL 56.8/69% | wire tile != blueprint tile 'items_sw_waterwheel_1' |
+| Wooden Water Wheel | PASS | PASS 9.0/8% |  |
 | Wooden Wind Turbine | PASS | PASS 5.0/3% | wire tile != blueprint tile 'items_sw_windmill_1' |
 | WoodenMechanicalTransmission | PASS | PASS 1.4/0% | wire tile != blueprint tile 'assets_content_textures_tiles_sw_axle_1_' |
 | Work Chair | PASS | PASS 1.6/0% | wire tile != blueprint tile 'items_sw_chair_work' |
