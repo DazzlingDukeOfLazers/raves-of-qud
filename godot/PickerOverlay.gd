@@ -46,6 +46,8 @@ const HOTKEY_W := 24.0
 const HOTKEY_W_INDENT := 48.0      # setData prefixes 3 spaces to an indented row's hotkey
 const ICON := Vector2(20, 30)
 const SPACER_W := 2.0
+const PAD_SIDE := 6.0              # Background's VerticalLayoutGroup padL/padR/padB (padT is TITLE_H)
+const TAB_PAD := 8.0               # the Title row's two Padding elements, one either side
 const ROW_PAD_L := 4.0             # the row's left inset (was the sel-bar stylebox's content margin)
 const FONT_PX := 16                # every text on this screen is 16px in Qud, title included
 
@@ -64,6 +66,7 @@ var _list: VBoxContainer
 var _foot: HFlowContainer
 var _foot_abs: Control        # absolute placement using Qud's own laid-out boxes
 var _bar_h := 0.0             # Qud's KeyMenuOptionBar height, as shipped in the frame
+var _tab_w := 0.0             # Qud's title-tab width, likewise
 var _menu: Array = []           # the footer bar's entries, as Qud yielded them
 
 # Same measured dialog chrome as PopupOverlay (see its notes: +6/channel above the dark
@@ -76,7 +79,6 @@ static func _cq(r8: int, g8: int, b8: int) -> Color:
 var C_PANEL := _cq(6, 37, 37)
 var C_TOPLINE := _cq(53, 90, 98)
 var C_BOTLINE := _cq(64, 106, 115)
-var C_SELBAR := _cq(23, 59, 60)
 var C_GOLD := _cq(200, 184, 57)
 var C_PALE := _cq(168, 194, 187)
 var C_DIM := _cq(59, 93, 113)       # Qud's {{K|...}} category grey, as used on the inventory pane
@@ -117,26 +119,20 @@ func _build() -> void:
 	# list 11, footer 6) and the title sits flush with the panel's top edge, so a single content
 	# margin can't express it. Zero margins, and each band takes its own MarginContainer.
 	_panel = PanelContainer.new()
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = C_PANEL
-	_panel.add_theme_stylebox_override("panel", sb)
+	# NO stylebox fill on the panel itself. Qud's Background is a VerticalLayoutGroup with padding
+	# L6 R6 T21 B6, and it paints only INSIDE that padding: the 6px edges and the whole 21px title
+	# band are transparent, with the dimmed world showing through everywhere except the title tab.
+	# A full-rect fill covered the band, which is what made Raves look like it had a title BAR where
+	# Qud has a little tab.
+	_panel.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
 	_panel.draw.connect(_draw_chrome)
 	center.add_child(_panel)
 
-	# Qud's panel border is a 9-SLICE SPRITE ("polat-char-frame-border", border l6/b6/r6/t21),
-	# not the drawn notch-and-tick assembly the popup dialog uses. PanelContainer lays every child
-	# out to fill, so this goes in first and the content VBox stacks on top of it.
-	var frame := NinePatchRect.new()
-	var ftex := _chrome_tex("picker_frame.png")
-	if ftex != null:
-		frame.texture = ftex
-		frame.patch_margin_left = 6
-		frame.patch_margin_right = 6
-		frame.patch_margin_bottom = 6
-		frame.patch_margin_top = 21
-		frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		frame.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		_panel.add_child(frame)
+	# NO frame sprite. Qud's Background carries "polat-char-frame-border", but measuring the live
+	# screen shows none of that sprite's light border reaching the glass: the panel is a plain fill
+	# from the padding inwards, with no edge line on any side. Drawing the extracted sprite as a
+	# 9-slice painted a 6px light border and a 21px light top band that Qud simply does not have,
+	# and it covered the title tab. The body fill below is the whole of Qud's picker chrome.
 
 	var vb := VBoxContainer.new()
 	vb.add_theme_constant_override("separation", 0)
@@ -213,22 +209,37 @@ func _mk_rt() -> RichTextLabel:
 ## The dialog frame: notched top line, ─┤ title ├─ edge assemblies, plain bottom line under the
 ## footer. Same assembly as PopupOverlay's titled form.
 func _draw_chrome() -> void:
-	# The frame itself is the NinePatchRect child. What is left to draw is what Qud draws with two
-	# more Images, both measured off the live screen:
-	#   - a SOLID #052a29 tab behind the title, panel+16, 21 tall, sized to the title text
+	# THE WHOLE OF QUD'S PICKER CHROME, measured off the live screen. It is not a framed dialog --
+	# it is two solid rects and a divider:
+	#   - the BODY: the panel rect inset by Qud's layout padding (L/R/B 6, T 21). The 21px title
+	#     band and the 6px edges stay transparent, so the dimmed world shows through them.
+	#   - a SOLID tab behind the title, panel+16, 21 tall, sized to Qud's own measurement of the text
 	#   - the list/footer divider: TWO mirrored halves of one 12x16 sprite, each (panelW-12)/2 wide,
 	#     meeting exactly at the panel centre, 5px under the list
+	# Drawn here rather than as child Controls because PanelContainer re-fits every child to its own
+	# rect, which would throw away the four independent insets.
 	var w := _panel.size.x
+	_panel.draw_rect(Rect2(PAD_SIDE, TITLE_H, w - PAD_SIDE * 2.0,
+		_panel.size.y - TITLE_H - PAD_SIDE), C_PANEL)
 	if _title.visible:
-		var tw := _title.get_combined_minimum_size().x + 16.0
-		_panel.draw_rect(Rect2(TITLE_X, 0, tw, TITLE_H), Color8(5, 42, 41))
+		# Qud's own tab width when the frame carries it (it is a text measurement, and ours differs);
+		# our text width + 2x8 padding only as a fallback.
+		var tw := _tab_w if _tab_w > 0.0 else _title.get_combined_minimum_size().x + TAB_PAD * 2.0
+		_panel.draw_rect(Rect2(TITLE_X, 0, tw, TITLE_H), C_PANEL)
 	var dtex := _chrome_tex("picker_divider.png")
 	if dtex != null and _scroll != null:
-		var dy := _scroll.position.y + _scroll.size.y + 5.0
+		# PANEL-RELATIVE. `_scroll.position` is relative to the MarginContainer it sits in, so using
+		# it directly lost the title band and its gap (21 + 5) and drew the divider 26px high --
+		# straight through the last row of the list. Measured against Qud: divider at panel+385 here.
+		var dy := _scroll.global_position.y - _panel.global_position.y + _scroll.size.y + 5.0
 		var half := (w - FOOT_INSET * 2.0) * 0.5
 		_panel.draw_texture_rect(dtex, Rect2(FOOT_INSET, dy, half, 16), false)
-		# the right half is the same sprite mirrored, which is why it can meet the centre seamlessly
-		_panel.draw_texture_rect(dtex, Rect2(FOOT_INSET + half * 2.0, dy, -half, 16), false)
+		# The right half is the same sprite mirrored, which is why it can meet the centre seamlessly.
+		# Drawn from a pre-flipped copy: a negative-width Rect2 does not flip in Godot 4, it simply
+		# does not rasterise, so the right half of the divider was missing entirely.
+		var mtex := _chrome_tex_mirrored("picker_divider.png")
+		if mtex != null:
+			_panel.draw_texture_rect(mtex, Rect2(FOOT_INSET + half, dy, half, 16), false)
 
 ## A chrome sprite the mod extracted from the live screen, cached. Missing is not an error — the
 ## export runs when a picker has been open at least once, and the panel still reads fine without it.
@@ -244,6 +255,20 @@ func _chrome_tex(fname: String) -> Texture2D:
 		if img.load(path) == OK:
 			tex = ImageTexture.create_from_image(img)
 	_chrome_cache[fname] = tex
+	return tex
+
+## The same sprite flipped horizontally, cached alongside the original.
+func _chrome_tex_mirrored(fname: String) -> Texture2D:
+	var key := fname + "#mirror"
+	if _chrome_cache.has(key):
+		return _chrome_cache[key]
+	var tex: Texture2D = null
+	var src := _chrome_tex(fname)
+	if src != null:
+		var img := src.get_image()
+		img.flip_x()
+		tex = ImageTexture.create_from_image(img)
+	_chrome_cache[key] = tex
 	return tex
 
 # --- show / hide -------------------------------------------------------------------------------
@@ -262,6 +287,7 @@ func show_picker(data: Dictionary, palette: Dictionary) -> void:
 	_cur_id = int(data.get("id", -1))
 	# The mod ships the rect numbers as strings; float() takes either.
 	_bar_h = float(data.get("barH", 0))
+	_tab_w = float(data.get("tabW", 0))
 	# Adopt QUD'S highlighted row rather than starting at zero. Its opening selection lands on
 	# the first ITEM (not the leading category), and it re-clamps after every collapse — copying
 	# the exported index keeps us honest through both without reimplementing either rule.
@@ -532,12 +558,11 @@ func _highlight() -> void:
 		var row: Panel = kids[i]
 		var caret: RichTextLabel = row.get_child(0).get_child(0)
 		caret.text = "[color=#%s]>[/color]" % C_GOLD.to_html(false) if i == _sel else ""
-		if i == _sel:
-			var sb := StyleBoxFlat.new()
-			sb.bg_color = C_SELBAR
-			row.add_theme_stylebox_override("panel", sb)
-		else:
-			row.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+		# NO SELECTION BAR. Every InventoryItemScrollerLine's background Image is #ffffff00 on the
+		# live screen -- alpha zero, selected row included. Qud marks the selection with the gold
+		# caret alone (SelectionCaret is #cfc041ff on the selected line and #7f7f7f00 on the rest),
+		# so a filled bar was ours, not Qud's.
+		row.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
 	_scroll_into_view()
 
 func _scroll_into_view() -> void:

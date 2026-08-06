@@ -225,6 +225,25 @@ namespace RavesOfQud
                 j.Member("barW", ((int)System.Math.Round(barW)).ToString())
                  .Member("barH", ((int)System.Math.Round(barH)).ToString());
 
+            // The TITLE TAB. Qud's title is not a caption on a full-width bar: the "Title" node is
+            // its own solid Image sized to the text plus 8px of padding either side (a
+            // HorizontalLayoutGroup + ContentSizeFitter), and everything right of it in that 21px
+            // band is left transparent -- the dimmed world shows through. Ship Qud's width because
+            // it is a text MEASUREMENT, and Raves rasterises text differently; guessing it from our
+            // own metrics is the same mistake the footer wrap made.
+            try
+            {
+                if (sc.titleText != null && sc.titleText.transform.parent != null)
+                {
+                    float tx, ty, tw, th;
+                    if (ScreenRect(sc.titleText.transform.parent as UnityEngine.RectTransform,
+                            out tx, out ty, out tw, out th))
+                        j.Member("tabW", ((int)System.Math.Round(tw)).ToString())
+                         .Member("tabH", ((int)System.Math.Round(th)).ToString());
+                }
+            }
+            catch { }
+
             j.Name("menu").BeginArray();
             int mi = 0;
             try
