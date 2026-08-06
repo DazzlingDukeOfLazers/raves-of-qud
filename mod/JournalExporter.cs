@@ -24,10 +24,12 @@ namespace RavesOfQud
     /// per-village zone lookups (Joppa -> the cell holding TerrainJoppa, and so on). Not exported
     /// yet, so the map centres only for map notes.
     ///
-    /// NOT MIRRORED YET: the per-tab CATEGORY grouping. Categories come from
-    /// currentInfo.CategoryFor(entry), a delegate on the screen's own categoryInfos — screen state
-    /// we can't see from here — so entries are exported flat, in Qud's order, per tab. Same call as
-    /// the Quests map: the list first, the grouping as its own piece of work.
+    /// CATEGORIES are exported too. currentInfo.CategoryFor is a delegate on the screen's
+    /// categoryInfos, but the delegates themselves are PURE FUNCTIONS OF THE ENTRY —
+    /// ObservationCategory is entry.LearnedFrom, LocationCategory is a map note's Category,
+    /// Sultan/Village are HistoryAPI.GetEntityName of their id — so no screen state is needed and
+    /// the earlier "we can't see this from here" was too pessimistic. Only tabs 0-3 group;
+    /// Chronology sets UsesCategories=false explicitly.
     /// </summary>
     public static class JournalExporter
     {
@@ -61,6 +63,15 @@ namespace RavesOfQud
                 catch { j.Member("name", tab); }
                 // Only these two tabs show the world map (categoryInfos' UsesMap).
                 j.Member("usesMap", tab == "Locations" || tab == "Village Histories");
+                // …and only these four GROUP (UsesCategories); Chronology opts out explicitly.
+                bool cats = tab == "Locations" || tab == "Gossip and Lore"
+                    || tab == "Sultan Histories" || tab == "Village Histories";
+                j.Member("usesCategories", cats);
+                // SortCategoriesAZ — set on every grouping tab EXCEPT Sultan Histories, which keeps
+                // its natural (chronological) order.
+                j.Member("sortAZ", cats && tab != "Sultan Histories");
+                // Sultans get a different header form: "{{W|HISTORY OF <NAME>}}".
+                j.Member("sultanHeaders", tab == "Sultan Histories");
                 int n = 0;
                 j.Name("entries").BeginArray();
                 try
@@ -71,6 +82,7 @@ namespace RavesOfQud
                         n++;
                         j.BeginObject();
                         WriteEntry(j, e);
+                        if (cats) j.Member("category", CategoryFor(tab, e));
                         j.EndObject();
                     }
                 }
@@ -88,6 +100,35 @@ namespace RavesOfQud
             MapExporter.WritePlayerPos(j);
             j.EndObject();
             File.WriteAllText(Path_, j.ToString());
+        }
+
+        /// The screen's own CategoryFor delegates, which are pure functions of the entry.
+        private static string CategoryFor(string tab, IBaseJournalEntry e)
+        {
+            try
+            {
+                if (tab == "Gossip and Lore")
+                    return string.IsNullOrEmpty(e.LearnedFrom) ? "Unknown" : e.LearnedFrom;
+                if (tab == "Locations")
+                {
+                    var mn = e as JournalMapNote;
+                    return (mn != null && !string.IsNullOrEmpty(mn.Category)) ? mn.Category : "Unknown";
+                }
+                if (tab == "Sultan Histories")
+                {
+                    var sn = e as JournalSultanNote;
+                    if (sn == null) return "Unknown";
+                    return HistoryAPI.GetEntityName(sn.SultanID) ?? "Unknown";
+                }
+                if (tab == "Village Histories")
+                {
+                    var vn = e as JournalVillageNote;
+                    if (vn == null) return "Unknown";
+                    return HistoryAPI.GetEntityName(vn.VillageID) ?? "Unknown";
+                }
+            }
+            catch { }
+            return "Unknown";
         }
 
         private static void WriteEntry(JsonWriter j, IBaseJournalEntry e)

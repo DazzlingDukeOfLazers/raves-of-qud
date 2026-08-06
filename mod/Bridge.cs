@@ -585,6 +585,35 @@ namespace RavesOfQud
                         }, 0);
                     return;
                 }
+                if (name == "journalfixture")
+                {
+                    // FIXTURE AFFORDANCE, like startquest. The Journal's grouping tabs are empty on
+                    // every golden save, so the category rendering had nothing to render. AddMapNote
+                    // sets exactly the field LocationCategory groups on, so a handful of notes across
+                    // a few categories exercises it with REAL entries through Qud's own API.
+                    var gmj = GameManager.Instance;
+                    if (gmj != null && gmj.uiQueue != null)
+                        gmj.uiQueue.queueTask(() =>
+                        {
+                            try
+                            {
+                                string zid = The.Player?.CurrentZone?.ZoneID;
+                                if (string.IsNullOrEmpty(zid)) { Server.Log("journalfixture: no zone"); return; }
+                                Qud.API.JournalAPI.AddMapNote(zid, "A watervine farm worked by Joppa's villagers.",
+                                    "Settlements", null, null, true, false, -1L, true);
+                                Qud.API.JournalAPI.AddMapNote(zid, "Brackish water pools thick with salt.",
+                                    "Natural Features", null, null, true, false, -1L, true);
+                                Qud.API.JournalAPI.AddMapNote(zid, "A rusted hulk half-buried in the marsh.",
+                                    "Ruins", null, null, true, false, -1L, true);
+                                Qud.API.JournalAPI.AddMapNote(zid, "Sun-bleached bones in a shallow midden.",
+                                    "Ruins", null, null, true, false, -1L, true);
+                                JournalExporter.ReExport();
+                                Server.Log("journalfixture: added 4 map notes across 3 categories");
+                            }
+                            catch (Exception e) { try { Server.Log("journalfixture failed: " + e.Message); } catch { } }
+                        }, 0);
+                    return;
+                }
                 if (name == "startquest")
                 {
                     // FIXTURE AFFORDANCE, not gameplay. Building the Quests tab needs a save that

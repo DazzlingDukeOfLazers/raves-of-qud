@@ -20,6 +20,7 @@ IndexError halfway through a session. `find` walks both.
 Commands
   reload [<save>]        reload the fixture save, then wait for a fresh export
   quests                 reload + grant the standard quest fixture (2 real quests)
+  journal                reload + add map notes across 3 categories (Journal grouping)
   find <substr>          resolve one object by name -> id, kind, where it lives
   twiddle <substr>       raise Qud's item interaction popup for it, and verify
   state                  what both apps think they are showing
@@ -27,6 +28,7 @@ Commands
 Examples
   fixture.py reload
   fixture.py quests
+  fixture.py journal
   fixture.py find robe
   fixture.py twiddle robe
 """
@@ -162,6 +164,29 @@ def cmd_quests(save=DEFAULT_SAVE):
         raise SystemExit(f"STOP: expected {len(QUEST_FIXTURE)} quests, export says {n}")
     print(f"quest fixture ready: {n} active quests")
 
+
+def cmd_journal(save=DEFAULT_SAVE):
+    """Reload and seed the Journal's Locations tab with map notes across several categories.
+
+    Every golden save has an empty Journal apart from Chronology, and Chronology is the one tab
+    that does NOT group -- so the category rendering had nothing to exercise it. These go in
+    through Qud's own JournalAPI.AddMapNote, so they are real entries with a real Category.
+    """
+    cmd_reload(save)
+    Bridge().send("journalfixture")
+    time.sleep(3)
+    Bridge().send("export")
+    time.sleep(4)
+    path = os.path.join(SUPPORT, "journal.json")
+    tabs = json.load(open(path)).get("tabs", []) if os.path.exists(path) else []
+    loc = next((t for t in tabs if t.get("id") == "Locations"), {})
+    n = loc.get("count", 0)
+    if not n:
+        raise SystemExit("STOP: Locations still empty -- the fixture did not take")
+    cats = sorted({e.get("category", "?") for e in loc.get("entries", [])})
+    print(f"journal fixture ready: {n} location notes in {len(cats)} categories ({', '.join(cats)})")
+
+
 def cmd_find(substr):
     oid, name, where = resolve(fresh_inventory(), substr)
     print(f"{oid}\t{name}\t{where}")
@@ -191,6 +216,8 @@ def main(argv):
         cmd_reload(*rest)
     elif cmd == "quests":
         cmd_quests(*rest)
+    elif cmd == "journal":
+        cmd_journal(*rest)
     elif cmd == "find":
         cmd_find(*rest)
     elif cmd == "twiddle":

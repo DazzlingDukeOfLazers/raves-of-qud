@@ -136,11 +136,14 @@ func _draw_all() -> void:
 		# Qud's empty state is a real ROW, header-styled, with the same dotted leader.
 		_draw_header_row(str(tab.get("empty", "No entries found.")), y, true)
 		return
-	for i in entries.size():
-		if y > LIST_Y + LIST_H:
-			break
-		var h := _draw_entry(entries[i], y, i == _sel)
-		y += h + ROW_GAP
+	if bool(tab.get("usesCategories", false)):
+		y = _draw_grouped(tab, entries, y)
+	else:
+		for i in entries.size():
+			if y > LIST_Y + LIST_H:
+				break
+			var h := _draw_entry(entries[i], y, i == _sel)
+			y += h + ROW_GAP
 
 ## A header-styled row (empty state / recipe name), with the leader running to the list's right.
 func _draw_header_row(s: String, y: float, caret: bool) -> void:
@@ -186,9 +189,18 @@ func _draw_entry(e: Dictionary, y: float, selected: bool) -> float:
 	return _body([pre + body], y)
 
 ## Draw wrapped markup lines into the list column; returns the height used.
+##
+## An entry's text carries REAL NEWLINES ("…in the marsh.\nnear Joppa\nLast visited on…") and Qud
+## renders them as separate lines. Splitting on them here is not cosmetic: _wrap only breaks on
+## spaces, so a surviving \n reaches QudText.cp437, which maps 0x0A to "◙" and prints a glyph in
+## the middle of the sentence. Same trap as the quest bodies.
 func _body(lines: Array, y: float) -> float:
 	var used := 0.0
+	var flat := []
 	for raw in lines:
+		for part in str(raw).split("\n"):
+			flat.append(part)
+	for raw in flat:
 		for seg in _wrap(str(raw), LIST_W - ROW_TEXT_DX - 40.0):
 			_draw_markup(seg, Vector2(LIST_X + ROW_TEXT_DX + 32.0, y + used + 14.0), BODY_FONT)
 			used += 18.0
@@ -277,3 +289,39 @@ func _draw_map(tab: Dictionary) -> void:
 		var py := oy + (float(entries[_sel].get("my", 0)) + 0.5) * MAP_CELL_H * MAP_ZOOM
 		if clip.has_point(Vector2(px, py)):
 			_content.draw_rect(Rect2(px - 5.0, py - 5.0, 10.0, 10.0), C_GOLD, false, 2.0)
+
+
+## Grouped rendering for the tabs whose CategoryInfo sets UsesCategories.
+##
+## Qud builds a dictionary keyed by CategoryFor(entry), optionally sorts the KEYS A-Z
+## (SortCategoriesAZ — every grouping tab but Sultan Histories, which keeps its natural order),
+## and emits a category row followed by its entries. Sultans get a different header form.
+func _draw_grouped(tab: Dictionary, entries: Array, y: float) -> float:
+	var order := PackedStringArray()
+	var groups := {}
+	for e in entries:
+		var c := str(e.get("category", "Unknown"))
+		if not groups.has(c):
+			groups[c] = []
+			order.append(c)
+		groups[c].append(e)
+	if bool(tab.get("sortAZ", false)):
+		var keys := Array(order)
+		keys.sort()
+		order = PackedStringArray(keys)
+
+	var sultan := bool(tab.get("sultanHeaders", false))
+	var idx := 0
+	for c in order:
+		if y > LIST_Y + LIST_H:
+			break
+		var head := ("HISTORY OF " + c.to_upper()) if sultan else c
+		_draw_header_row("[-] " + head, y, idx == _sel)
+		y += 30.0
+		for e in groups[c]:
+			if y > LIST_Y + LIST_H:
+				break
+			idx += 1
+			y += _draw_entry(e, y, idx == _sel) + ROW_GAP
+		idx += 1
+	return y
