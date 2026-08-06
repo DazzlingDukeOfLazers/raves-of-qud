@@ -76,23 +76,11 @@ static func qud_glyph_font() -> FontFile:
 ## property of the loaded resource, and load() hands back a shared instance — mutating it in place
 ## would push the fallback onto every other user of that .ttf, and re-appending on each make_theme
 ## call would grow the list without bound.
-## Qud renders its UI text through TextMeshPro's SDF atlas (the probe reports the face as
-## "SourceCodePro-Regular SDF"), and it shows in the coverage: on the same string at the same size
-## Qud spreads ink over 1155 pixels at mean coverage 28.3 where we used 1084 at 31.5 -- softer edges,
-## same peak. Godot's own MSDF path is the like-for-like: distance-field glyphs rather than
-## hinted-and-snapped rasterisation.
-static func _sdf(f: Font) -> Font:
-	var ff := f as FontFile
-	if ff != null:
-		ff.hinting = TextServer.HINTING_NONE
-	return f
-
-
 static func _with_qud_glyphs(base: Font) -> Font:
 	var g := qud_glyph_font()
 	if g == null or base == null:
 		return base
-	var dup: Font = _sdf(base.duplicate())
+	var dup: Font = base.duplicate()
 	var fb := dup.fallbacks.duplicate()
 	fb.append(g)
 	dup.fallbacks = fb
