@@ -29,6 +29,11 @@ USAGE (Qud running + bridge mod, in-game)
   checker.py one Dresser --diff       # + crop the stage cell and pixel-score the pair
   checker.py sweep walls --diff       # pixel-scored category sweep (slow: ~2 frames/element)
   checker.py sweep creatures --start 100 --limit 50   # resumable slices
+  checker.py sweep creatures --reload-every 100       # zone-rot guard cadence (default 150;
+                                      # 0 disables — staging corrupts the world over time:
+                                      # qudzu spreads, pacified creatures wander; reboot_rig)
+  checker.py reboot                   # manual full rig re-arm (golden reload + viewer
+                                      # re-attach + zoom + calibrate)
 
 Output: reports/checker/<cat>.md (human) + <cat>.json (machine, re-runnable
 diff base). Pure stdlib, per the repo rule.
@@ -478,6 +483,92 @@ def calibrate():
     print("previews:", outdir, "(eyeball cell_qud/cell_raves — both should be the Wax Block)")
 
 
+GOLDEN_SAVE = "Tygashwuraq"   # the rig's golden save (saves.py `golden` alias)
+
+
+def _hv(*args, **kw):
+    """Highvisor CLI — rig process control (loadsave restarts Qud, launch/key
+    drive the viewer). Installed as a module; same CLI on both rig machines."""
+    import subprocess
+    return subprocess.run([sys.executable, "-m", "highvisor.cli"] + list(args),
+                          capture_output=True, text=True,
+                          timeout=kw.get("timeout", 180))
+
+
+def stage_zoom():
+    """Deterministic stage zoom for the pixel pass: clamp to max-in, back off
+    2 quarter-steps. Qud must be FOCUSED — its uiQueue (which ZoomIn/Out
+    marshal through) never drains unfocused on Windows, the same root as
+    the frozen-map-buffer capture fix. Rerun `calibrate` after this."""
+    if plat.IS_WIN:
+        plat.activate("CavesOfQud")
+        time.sleep(0.8)
+    b = control.Bridge()
+    for _ in range(14):
+        b.send("zoom", dir="in")
+        time.sleep(0.35)
+    for _ in range(2):
+        b.send("zoom", dir="out")
+        time.sleep(0.35)
+    b.send("wait")
+    b.read_snapshot(timeout=15)
+    b.close()
+
+
+def reboot_rig(b=None):
+    """Reload the golden save and re-arm the whole rig. Returns a fresh Bridge.
+
+    Long staging sessions ROT THE ZONE: qudzu vines into neighbouring cells,
+    pacified creatures wander off the stage cell, ambient encounters brawl in
+    the margins (found when a "static divergence" triage turned out to be
+    contaminated cells — the 89-element clean-boot re-probe; findings §12).
+    A golden reload is the only reset that guarantees a clean world, and it
+    invalidates everything the boot sequence set up: popups re-stack, godmode
+    resets, the VIEWER doesn't survive the Qud restart (its zone state goes
+    stale), Qud's zoom snaps back, and the stage-cell geometry can shift.
+    So: reload, re-cancel, re-wish, relaunch, re-attach, re-zoom, re-calibrate.
+    """
+    if b is not None:
+        try:
+            b.close()
+        except OSError:
+            pass
+    r = _hv("loadsave", GOLDEN_SAVE, timeout=300)
+    if r.returncode != 0:
+        raise RuntimeError("reboot_rig: loadsave failed: %s" % (r.stderr or r.stdout))
+    # The bridge only listens once a game is loaded — poll it back up.
+    deadline = time.time() + 180
+    while True:
+        time.sleep(5)
+        try:
+            b = control.Bridge()
+            break
+        except OSError:
+            if time.time() > deadline:
+                raise RuntimeError("reboot_rig: bridge never came back after loadsave")
+    for _ in range(4):                       # boot popups stack; cancel through them
+        b.send("popup", action="cancel")
+        time.sleep(0.6)
+    b.send("wish", text="godmode")           # resets on every load
+    time.sleep(1.0)
+    # Fresh viewer: kill by window title (no binary-name coupling), relaunch,
+    # attach via keyboard — activate, Down, Space = main menu Continue.
+    if plat.IS_WIN:
+        import subprocess
+        subprocess.run('taskkill /F /FI "WINDOWTITLE eq Raves of Qud*"',
+                       shell=True, capture_output=True)
+        time.sleep(2)
+    _hv("launch", "raves_solo")
+    time.sleep(12)
+    _hv("key", "--focus", "Raves", "Down")
+    time.sleep(1)
+    _hv("key", "--focus", "Raves", "space")
+    time.sleep(4)
+    stage_zoom()
+    calibrate()
+    return control.Bridge()
+
+
 def _anim_verified():
     """bp -> agree?  from the LATEST rung-4 measurements (reports/checker/anim).
     An element whose burst measurement AGREEs (same behaviour class both apps)
@@ -583,24 +674,11 @@ def main(argv):
         for k in cat:
             print("%-10s %d" % (k, len(cat[k])))
     elif cmd == "zoom":
-        # Deterministic stage zoom for the pixel pass: clamp to max-in, back off
-        # 2 quarter-steps. Qud must be FOCUSED — its uiQueue (which ZoomIn/Out
-        # marshal through) never drains unfocused on Windows, the same root as
-        # the frozen-map-buffer capture fix. Rerun `calibrate` after this.
-        if plat.IS_WIN:
-            plat.activate("CavesOfQud")
-            time.sleep(0.8)
-        b = control.Bridge()
-        for _ in range(14):
-            b.send("zoom", dir="in")
-            time.sleep(0.35)
-        for _ in range(2):
-            b.send("zoom", dir="out")
-            time.sleep(0.35)
-        b.send("wait")
-        b.read_snapshot(timeout=15)
-        b.close()
+        stage_zoom()
         print("zoom: clamped to max-in minus 2 (rerun `checker.py calibrate` now)")
+    elif cmd == "reboot":
+        reboot_rig().close()
+        print("rig rebooted: golden save reloaded, viewer re-attached, recalibrated")
     elif cmd == "anim":
         # anim <fixture-or-blueprint> [--frames N] — rung 4's measured playbook
         if len(argv) < 2:
@@ -630,6 +708,10 @@ def main(argv):
         cat = argv[1]
         start = int(argv[argv.index("--start") + 1]) if "--start" in argv else 0
         limit = int(argv[argv.index("--limit") + 1]) if "--limit" in argv else None
+        # ZONE-ROT GUARD: reload the golden save every N staged elements
+        # (0 disables). Staging slowly corrupts the world — see reboot_rig.
+        reload_every = (int(argv[argv.index("--reload-every") + 1])
+                        if "--reload-every" in argv else 150)
         b = control.Bridge()
         names = refresh_catalog(b).get(cat)
         if names is None:
@@ -639,6 +721,13 @@ def main(argv):
             ensure_daylight(b)
         results = []
         for i, bp in enumerate(names):
+            if reload_every and i and i % reload_every == 0:
+                write_report(cat, results)   # flush first: reboot can abort on calib failure
+                print("=== rig reboot at %d/%d (zone-rot guard, every %d)"
+                      % (start + i, start + len(names), reload_every))
+                b = reboot_rig(b)
+                if "--diff" in argv:
+                    ensure_daylight(b)
             # The mod's server intermittently RESETS the long-lived sweep
             # connection during scored runs (the per-element qud_shot bridges
             # add ~2 connect/disconnect cycles each; after ~25 elements the
