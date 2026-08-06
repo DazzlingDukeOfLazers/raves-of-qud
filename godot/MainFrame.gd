@@ -881,16 +881,22 @@ func _row_vitals_menu() -> Control:
 	var nav_actions := {
 		"system": "System menu (checkpoints, options, save and quit) — Esc",
 		"wlock": "Window lock (Qud) — not wired yet",
-		"map": "World map (Qud) — not wired yet",
-		"find": "Finder (Qud) — not wired yet",
+		"map": "Toggle the minimap overlay (Qud's Overlay Minimap option)",
+		"find": "Toggle the nearby objects overlay (Qud's Overlay Nearby Objects option)",
 		"look": "Look (Qud) — not wired yet",
-		"rest": "Rest (Qud) — not wired yet",
+		"rest": "Wait (opens Qud's wait menu)",
 		"char": "Character / status screens — x or F2",
-		"poi": "Points of interest (Qud) — not wired yet",
-		"explore": "Auto-explore (Qud) — not wired yet",
+		"poi": "Move to point of interest",
+		"explore": "Autoexplore",
 		"down": "Go down (stairs) — d",
 		"up": "Go up (stairs) — s",
 	}
+	# LIVE cells beyond the hand-wired ones below: plain Qud commands (the popup any of them
+	# opens mirrors back over the popup bridge), and the two overlay TOGGLES, which flip Qud's
+	# own options — the same ones Qud's buttons save — so both apps stay congruent.
+	var nav_cmds := {"explore": "CmdAutoExplore", "poi": "CmdMoveToPointOfInterest",
+		"rest": "CmdWaitMenu"}
+	var nav_toggles := {"map": "OptionOverlayMinimap", "find": "OptionOverlayNearbyObjects"}
 	for key in ["system", "wlock", "map", "find", "look", "rest", "char", "poi", "explore", "down", "up"]:
 		var cell := Control.new()
 		# Hand-named per action so feedback reads "NavUp", never "TextureRect".
@@ -923,6 +929,19 @@ func _row_vitals_menu() -> Control:
 			cell.gui_input.connect(func(e: InputEvent) -> void:
 				if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
 					_send_stair(stair_up))
+		if nav_cmds.has(key):
+			var qcmd: String = nav_cmds[key]
+			cell.mouse_filter = Control.MOUSE_FILTER_STOP
+			cell.gui_input.connect(func(e: InputEvent) -> void:
+				if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+					if _holo != null:
+						_holo.request_command(qcmd))
+		if nav_toggles.has(key):
+			var oid: String = nav_toggles[key]
+			cell.mouse_filter = Control.MOUSE_FILTER_STOP
+			cell.gui_input.connect(func(e: InputEvent) -> void:
+				if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+					_toggle_qud_overlay(oid))
 		var tex := _load_nav_icon(key)
 		var ic := TextureRect.new()
 		ic.texture = tex
@@ -950,6 +969,29 @@ func _row_vitals_menu() -> Control:
 func _send_stair(up: bool) -> void:
 	if _holo != null:
 		_holo.request_command("CmdMoveU" if up else "CmdMoveD")
+
+## The two panels whose 1:1 visibility follows Qud's overlay options (Qud's own toggle
+## buttons persist the same ids, so the pair stays congruent). Safe to call any time.
+func _refresh_overlay_panels() -> void:
+	var on := Settings.one_to_one()
+	if _minimap != null:
+		_minimap.visible = (not on) or _qud_option_on("OptionOverlayMinimap")
+	if _nearby != null:
+		_nearby.visible = (not on) or _qud_option_on("OptionOverlayNearbyObjects")
+
+## A nav toggle: flip the Qud option, flip the panel NOW (optimistic — the click must feel
+## instant), then re-sync from the re-exported options.json once the mod has written it
+## (setoption runs on Qud's uiQueue; the export lands within ~a second).
+func _toggle_qud_overlay(id: String) -> void:
+	var want := not _qud_option_on(id)
+	if _holo != null:
+		_holo.request_setoption(id, "Yes" if want else "No")
+	if Settings.one_to_one():
+		if id == "OptionOverlayMinimap" and _minimap != null:
+			_minimap.visible = want
+		if id == "OptionOverlayNearbyObjects" and _nearby != null:
+			_nearby.visible = want
+	get_tree().create_timer(1.5).timeout.connect(_refresh_overlay_panels)
 
 func _toggle_full_info() -> void:
 	_full_info = not _full_info
@@ -1200,14 +1242,12 @@ func _apply_panel_sizing(on: bool) -> void:
 	if _minimap != null:
 		# Qud's minimap is a short landscape strip; the QoL one reserved a tall box with dead space.
 		_minimap.custom_minimum_size = Vector2(0, 150 if on else 220)
-		# 1:1: honour Qud's "Show minimap" option — hidden when off. User mode always shows it.
-		_minimap.visible = (not on) or _qud_option_on("OptionOverlayMinimap")
 	if _nearby != null:
 		# 1:1: size to content (no dead gap) — the panel itself fits its rows via set_one_to_one.
 		# User: expand to share the leftover height with the log.
 		_nearby.size_flags_vertical = Control.SIZE_SHRINK_BEGIN if on else Control.SIZE_EXPAND_FILL
-		# 1:1: honour Qud's "Show nearby objects list" option — hidden when off.
-		_nearby.visible = (not on) or _qud_option_on("OptionOverlayNearbyObjects")
+	# 1:1: honour Qud's overlay options for both panels — hidden when off. User mode always shows.
+	_refresh_overlay_panels()
 	if _msglog != null:
 		_msglog.size_flags_vertical = Control.SIZE_EXPAND_FILL   # always the space-filler; dominant in 1:1
 	# Row 4 (Active effects | Target | Context menu). Qud keeps this a thin single-line strip; the QoL
@@ -1295,6 +1335,10 @@ func _row_main() -> Control:
 	side.add_child(_nearby)
 	side.add_child(_msglog)
 	split.add_child(side)
+	# the overlay-option visibility rule ran in _apply_layout_mode BEFORE these panels
+	# existed — without this, a panel whose Qud option is off still shows until the next
+	# layout pass (resize/mode flip), which on a quiet run never comes
+	_refresh_overlay_panels.call_deferred()
 	return split
 
 ## The Holodeck cell: the existing 3D scene (Main.tscn), rendered FULL-WINDOW into the root viewport

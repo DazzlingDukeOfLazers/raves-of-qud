@@ -606,6 +606,12 @@ func request_command(cmd: String) -> void:
 	if client != null:
 		client.send_command("command", {"command": cmd})
 
+## Write a Qud option (Options.SetOption + re-export, mod-side on the uiQueue) — the nav
+## overlay toggles use this to flip the same option ids Qud's own buttons persist.
+func request_setoption(id: String, value: String) -> void:
+	if client != null:
+		client.send_command("setoption", {"id": id, "value": value})
+
 ## Invoke an inventory action (e.g. ReplaceSocketCell — "change the battery") on a specific equipped
 ## weapon, identified by its Qud GameObject id. Runs on Qud's main thread mod-side.
 func request_item_action(item_id: String, action: String) -> void:
