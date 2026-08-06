@@ -653,7 +653,14 @@ dashes we drew. Off the live element:
 The right tick is NOT flush with the text: the icon sits between them, and that 16px is part of the
 header's geometry even while we do not draw the icons themselves.
 
-**Open — a TMP text metric.** Qud's Header element measures **143.04** for "Locations" where our
-Source Code Pro at 24 measures ~130, so the right tick lands ~14px early. Same class as the picker's
-title tab: a width only Qud can measure, and the fix is to ship it (`tabW`-style) rather than fit a
-per-character fudge to one sample.
+**The header is TRACKED, and the mod ships the width.** Qud measures "Locations" at 143.04 where
+Source Code Pro's nominal 0.6em advance at 24px gives 129.6. One sample cannot tell per-character
+tracking from a fixed pad — they disagree on every other string — so the mod asks the live component
+instead: `TMP_Text.GetPreferredValues(s)` measures any string with the element's own font, size and
+spacing *without disturbing what it is showing*, so all seven sub-tabs are measured off the one
+header Qud has laid out. Cached per visit to the tab, shipped as `hdrW` per tab.
+
+With all seven in hand the model is unambiguous — `width = 16.079 * len - 1.66` reproduces every one
+to 0.01px, so it is **tracking at 0.67em**, not padding. Raves takes its glyph pitch straight from
+the shipped width (`hdrW / len`), which needs no constant and survives a Qud restyle. Drawing the
+string in one call had every glyph after the first sitting ~1.7px per character left of Qud's.

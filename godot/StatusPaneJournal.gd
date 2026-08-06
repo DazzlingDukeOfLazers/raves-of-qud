@@ -114,9 +114,16 @@ func _draw_all() -> void:
 
 	# --- header: the current tab's display name, with Qud's rule ends either side
 	var name := str(tab.get("name", ""))
-	_content.draw_string(_font, Vector2(HDR_X, HDR_Y + 22.0), name,
-		HORIZONTAL_ALIGNMENT_LEFT, -1, HDR_FONT, C_HDR)
-	var nw := _font.get_string_size(name, HORIZONTAL_ALIGNMENT_LEFT, -1, HDR_FONT).x
+	_draw_header_text(name, tab)
+	# QUD'S OWN WIDTH when the frame carries it. Qud measures "Locations" at 143.04 where our
+	# Source Code Pro at 24 measures 129.6 -- the extra 13.44 is either per-character tracking or a
+	# fixed pad, and a single sample cannot tell those apart (they disagree on every other string).
+	# So the mod asks the live TMP component to measure each sub-tab's header and ships the answer,
+	# the same bargain as the picker's title tab. Ours is the fallback for a session where the
+	# Journal tab has not been opened in Qud yet.
+	var nw: float = float(tab.get("hdrW", 0.0))
+	if nw <= 0.0:
+		nw = _font.get_string_size(name, HORIZONTAL_ALIGNMENT_LEFT, -1, HDR_FONT).x
 	# BRACKETS, not rule ends: Qud closes the header block with two 1px VERTICAL ticks, one at each
 	# edge (JournalHeader/Image (2) at x=170.5, y=189.7, 1x16, and its twin at the block's right
 	# edge, 347.5 = 170.5 + the block's 177.04). We were drawing 16px HORIZONTAL dashes there, which
@@ -160,6 +167,26 @@ func _draw_all() -> void:
 				break
 			var h := _draw_entry(entries[i], y, i == _sel)
 			y += h + ROW_GAP
+
+## The sub-tab name, laid out on QUD'S pitch.
+##
+## Qud tracks this header wider than the font's own advance: fitting its measurements of all seven
+## sub-tab names gives 16.079px per character at font 24, where Source Code Pro's nominal 0.6em
+## advance is 14.4. Drawing the string in one call put every glyph after the first progressively
+## left of Qud's, ~1.7px per character. Since the mod ships Qud's width for THIS name, the pitch
+## comes straight out of it -- no tracking constant to carry, and it stays right if Qud restyles.
+func _draw_header_text(name: String, tab: Dictionary) -> void:
+	var w: float = float(tab.get("hdrW", 0.0))
+	var n := name.length()
+	if w <= 0.0 or n == 0:
+		_content.draw_string(_font, Vector2(HDR_X, HDR_Y + 22.0), name,
+			HORIZONTAL_ALIGNMENT_LEFT, -1, HDR_FONT, C_HDR)
+		return
+	var pitch := w / float(n)
+	for i in n:
+		_content.draw_string(_font, Vector2(HDR_X + pitch * float(i), HDR_Y + 22.0), name[i],
+			HORIZONTAL_ALIGNMENT_LEFT, -1, HDR_FONT, C_HDR)
+
 
 ## A header-styled row (empty state / recipe name), with the leader running to the list's right.
 func _draw_header_row(s: String, y: float, caret: bool) -> void:

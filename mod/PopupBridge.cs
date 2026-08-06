@@ -146,6 +146,48 @@ namespace RavesOfQud
         /// status_tinkering` could never pass for Qud -- only for Raves.</summary>
         public static string StatusTab = "";
 
+        /// <summary>Journal SUB-TAB header widths, keyed by the header string, measured by Qud's own
+        /// TMP component.
+        ///
+        /// The journal header block is closed by a 1px tick whose x is the text's laid-out width --
+        /// and Qud measures "Locations" at 143.04 where Source Code Pro's 24px advance gives 129.6.
+        /// The extra 13.44 is either per-character tracking or a fixed pad; ONE sample cannot tell
+        /// those apart, and they disagree for every other string. So do not model it: ask the live
+        /// component. TMP_Text.GetPreferredValues(s) measures any string with the element's own font,
+        /// size and spacing WITHOUT disturbing what it is showing, so all seven sub-tabs can be
+        /// measured off the one header Qud has laid out.
+        ///
+        /// Filled once per visit to the Journal tab (the metrics cannot change while it is up) and
+        /// dropped on the way out, so a font/scale change is re-measured next time.</summary>
+        public static readonly System.Collections.Generic.Dictionary<string, float> JournalHeaderW
+            = new System.Collections.Generic.Dictionary<string, float>();
+
+        /// UI THREAD.
+        private static void PollJournalHeader()
+        {
+            try
+            {
+                if (StatusTab != "Journal") { JournalHeaderW.Clear(); return; }
+                if (JournalHeaderW.Count > 0) return;          // already measured this visit
+                var jr = UnityEngine.Object.FindObjectOfType<Qud.UI.JournalStatusScreen>();
+                if (jr == null) return;
+                var t = jr.transform.Find("JournalHeader/Header");
+                if (t == null) return;
+                var tmp = t.GetComponent<TMPro.TextMeshProUGUI>();
+                if (tmp == null) return;
+                foreach (var tab in JournalExporter.Tabs)
+                {
+                    if (string.IsNullOrEmpty(tab)) continue;
+                    string nm;
+                    try { nm = XRL.UI.JournalScreen.GetTabDisplayName(tab) ?? tab; }
+                    catch { nm = tab; }
+                    if (JournalHeaderW.ContainsKey(nm)) continue;
+                    JournalHeaderW[nm] = tmp.GetPreferredValues(nm).x;
+                }
+            }
+            catch { }
+        }
+
         /// UI THREAD. Cheap: two field reads and a name.
         private static void PollStatusTab()
         {
@@ -172,6 +214,7 @@ namespace RavesOfQud
             // BEFORE the client gate: the tab report goes to a FILE that highvisor reads, so it has
             // to keep working when no Raves is attached.
             PollStatusTab();
+            PollJournalHeader();
 
             BridgeServer server = Bridge.Server;
             if (server == null || server.ClientCount == 0) return;

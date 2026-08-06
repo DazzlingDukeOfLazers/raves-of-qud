@@ -34,7 +34,8 @@ namespace RavesOfQud
     public static class JournalExporter
     {
         // JournalScreen's tab constants, in the order the screen shows them.
-        private static readonly string[] Tabs =
+        // internal: PopupBridge measures each of these headers with Qud's own TMP component.
+        internal static readonly string[] Tabs =
         {
             "Locations", "Chronology", "Gossip and Lore", "Sultan Histories",
             "Village Histories", "General Notes", "Recipes",
@@ -59,8 +60,23 @@ namespace RavesOfQud
             {
                 j.BeginObject();
                 j.Member("id", tab);
-                try { j.Member("name", JournalScreen.GetTabDisplayName(tab) ?? tab); }
-                catch { j.Member("name", tab); }
+                string disp = tab;
+                try { disp = JournalScreen.GetTabDisplayName(tab) ?? tab; } catch { }
+                j.Member("name", disp);
+                // The header's LAID-OUT width, measured by the screen's own TMP component (see
+                // PopupBridge.JournalHeaderW). The 1px tick that closes the header block sits at
+                // this width plus the icon slot, and Qud's metric is not ours: it measures
+                // "Locations" at 143.04 where Source Code Pro's 24px advance gives 129.6. Absent
+                // (the Journal tab has not been opened yet this session) it is omitted, and Raves
+                // falls back to its own measurement.
+                try
+                {
+                    float hw;
+                    if (PopupBridge.JournalHeaderW.TryGetValue(disp, out hw) && hw > 0f)
+                        j.Member("hdrW", hw.ToString("0.##",
+                            System.Globalization.CultureInfo.InvariantCulture));
+                }
+                catch { }
                 // Only these two tabs show the world map (categoryInfos' UsesMap).
                 j.Member("usesMap", tab == "Locations" || tab == "Village Histories");
                 // …and only these four GROUP (UsesCategories); Chronology opts out explicitly.
