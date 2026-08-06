@@ -908,6 +908,44 @@ namespace RavesOfQud
                     }
                     return;
                 }
+                if (name == "statustab")
+                {
+                    // FIRST-PARTY TAB SWITCH for the status screens. The gametree reached these
+                    // eight tabs by clicking a fixed coordinate on the tab bar, which missed often
+                    // enough that driving to a known tab took several retries and sometimes never
+                    // got there -- and a parity capture taken on the WRONG TAB is worse than none.
+                    // StatusScreensScreen.SetPage(i) is public and calls UpdateActiveScreen(), so it
+                    // is the whole switch. Named, not numbered, so callers do not encode Qud's tab
+                    // ordering; the names are Qud's own Screens[] transforms, the same ones the
+                    // heartbeat reports as `tab`.
+                    f.TryGetValue("tab", out string stTab);
+                    var stGm = GameManager.Instance;
+                    if (stGm != null && stGm.uiQueue != null)
+                        stGm.uiQueue.queueTask(() =>
+                        {
+                            try
+                            {
+                                var ss = Qud.UI.StatusScreensScreen.instance;
+                                if (ss == null || ss.Screens == null)
+                                { System.Console.WriteLine("[raves] statustab: status screens not up"); return; }
+                                int idx = -1;
+                                for (int i = 0; i < ss.Screens.Count; i++)
+                                {
+                                    var t = ss.Screens[i];
+                                    if (t != null && string.Equals(t.name, stTab ?? "",
+                                            StringComparison.OrdinalIgnoreCase))
+                                    { idx = i; break; }
+                                }
+                                if (idx < 0)
+                                { System.Console.WriteLine("[raves] statustab: no tab '" + stTab + "'"); return; }
+                                ss.SetPage(idx);
+                                System.Console.WriteLine("[raves] statustab -> " + stTab + " (" + idx + ")");
+                            }
+                            catch (Exception e)
+                            { System.Console.WriteLine("[raves] statustab: " + e.Message); }
+                        }, 0);
+                    return;
+                }
                 if (name == "uiback")
                 {
                     // First-party "press Escape" for Qud's MODERN menu screens (Records/
