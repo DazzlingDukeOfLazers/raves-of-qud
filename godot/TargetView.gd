@@ -1,5 +1,8 @@
 extends PanelContainer
 
+## Qud's row-3 face against our body size, measured off its strip.
+const ROW3_FONT_SCALE := 0.667
+
 ## Target view — its own scene in MainFrame's row-4 middle cell. Shows Qud's current combat target
 ## (the mod's `target` block, from XRL.UI.Sidebar.CurrentTarget).
 ##
@@ -116,6 +119,14 @@ var _title: Label
 var _one_to_one := false
 
 func set_one_to_one(on: bool) -> void:
+	# QUD'S ROW-3 TEXT IS SMALL. Measured off its strip: "ACTIVE EFFECTS:" spans 122px for 15
+	# characters (~8.1 each, a ~13.5px face) where ours ran 183px at the theme's body size (~21).
+	# That is also why row 3 came out 31 tall against Qud's 28 -- the row is sized by this text.
+	# A scaled THEME rather than per-label overrides: each of these strips has several labels.
+	if on:
+		theme = UiFont.scaled_theme(get_viewport(), ROW3_FONT_SCALE)
+	else:
+		theme = null
 	_one_to_one = on
 	if _title != null:
 		_title.visible = not on   # 1:1: title folds into the name row ("Target: [none]")
@@ -129,7 +140,10 @@ func set_one_to_one(on: bool) -> void:
 			f.set_border_width_all(0)
 			f.set_corner_radius_all(0)
 			f.content_margin_top = 2
-			f.content_margin_bottom = 2
+			# ZERO at the bottom, not 2. Row 3 is anchored to the ability bar above it, so its TOP
+			# moves with its height: padding above the text buys nothing (the row grows upward by the
+			# same amount), and only the bottom padding decides how far the text sits off the bar.
+			f.content_margin_bottom = 0
 		else:
 			f.bg_color = QudPalette.CHROME
 			f.set_border_width_all(1)

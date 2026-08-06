@@ -86,6 +86,15 @@ static func _with_qud_glyphs(base: Font) -> Font:
 	dup.fallbacks = fb
 	return dup
 
+## A copy of the app theme at a SCALED default size, for a subtree Qud draws smaller than we do.
+## Setting a font size on a Control affects only that Control, so a strip with several labels in it
+## needs a theme; this keeps the face (and the registered bold) and moves only the size.
+static func scaled_theme(vp: Viewport, scale: float) -> Theme:
+	var t := make_theme(vp)
+	t.default_font_size = maxi(1, int(round(px(vp, "body") * scale)))
+	return t
+
+
 static func make_theme(vp: Viewport) -> Theme:
 	var t := Theme.new()
 	# Source Code Pro is Qud's UI font (wiki Visual Style). Fall back to Atkinson if it's ever missing.
