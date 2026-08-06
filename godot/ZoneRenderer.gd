@@ -596,9 +596,14 @@ func _group_wall_cells(cells: Array, offset: Vector2i, wall_types: Dictionary, w
 			var tile := _canon_wall_tile(String(obj.get("tile", "")))
 			var main_c := _pick_color_string(obj)   # compound beats tilecolor (the shared rule)
 			var detail_c := String(obj.get("detail", ""))
-			# Gap-fill bg comes from TILECOLOR's ^X (tile-mode truth) — never from
-			# ColorString, whose ^ is glyph-mode (see _wall_bg_color's history).
-			var bg := _parse_bg(String(obj.get("tilecolor", "")))
+			# Gap-fill bg comes from the EFFECTIVE tile colour: TILECOLOR when
+			# set, else ColorString — exactly how Qud seeds its render event.
+			# (The old "never ColorString" rule held only because its counter-
+			# examples all HAD a TileColor, which masks ColorString entirely —
+			# the metal wall's '&c' vs its noisy ColorString '^R'. An object
+			# with NO TileColor really is painted from ColorString, ^ and all:
+			# the Jilted Lover's '&g^w' tan field.)
+			var bg := _parse_bg(_bg_source(obj))
 			var key := "%s|%s|%s|%s" % [tile, main_c, detail_c, bg]
 			if not wall_types.has(key):
 				wall_types[key] = {"cells": {}, "tile": tile, "main": main_c, "detail": detail_c, "bg": bg}
@@ -2156,9 +2161,10 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 	if skip_creatures and _is_creature(obj):
 		return
 	var tile := String(obj.get("tile", ""))
-	# Per-object gap-fill bg: the ^X of TILECOLOR (Starship walls fill gold '^W',
-	# HangarWall bright '^Y'; metal walls carry no TileColor ^ and keep world bg).
-	_wall_bg = _parse_bg(String(obj.get("tilecolor", "")))
+	# Per-object gap-fill bg: the ^X of the EFFECTIVE tile colour — TILECOLOR
+	# when set (Starship '^W' gold, HangarWall '^Y'), else ColorString (the
+	# creepers' '^w' tan lives there; Qud seeds its render event the same way).
+	_wall_bg = _parse_bg(_bg_source(obj))
 
 	# No tile means GLYPH MODE: Qud draws the RenderString in the console font
 	# (base blueprints like MountedFurniture render a pale '?', NephilimShrine
@@ -2213,12 +2219,15 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 	# independent of shape): fill-holes turns the water wheel's see-through slats opaque in the
 	# FLAT path too — Qud shows them solid, and the old 3D panel path was the only place the
 	# verdict used to reach. Unfiled tiles keep Fill.NONE (transparent as-loaded) —
-	# EXCEPT an occluding wall whose TILECOLOR carries a ^X background: Qud fills
-	# its gaps with that colour (Starship family '^W' gold frames, HangarWall
-	# '^Y'; checker evidence StarshipGeometricWallGrey_goldframe_*). Plain walls
-	# keep transparent gaps — their Qud render shows the terrain through, and
-	# 213 bright-baseline walls pass on exactly that behaviour.
-	var wall_fill := Fill.ALL if (_wall_bg != "" and bool(obj.get("occluding", false))) else Fill.NONE
+	# EXCEPT when TILECOLOR carries a ^X background: Qud paints that behind the
+	# art for EVERY object, wall or not (Starship '^W' gold frames, HangarWall
+	# '^Y', the creepers' '^w' tan field — Jilted Lover / Livid Creeper read
+	# 63/53 on a bare teal cell before this). The old occluding-only gate
+	# survived 391 ^ carriers because most are ^k/^K — the field colour itself,
+	# a visual no-op — or full-coverage art. Plain no-^ tiles keep transparent
+	# gaps: their Qud render shows the terrain through, and 213 bright-baseline
+	# walls pass on exactly that behaviour.
+	var wall_fill := Fill.ALL if _wall_bg != "" else Fill.NONE
 	var tex := _colored_tex_rgb(tile, _obj_main(obj), _obj_detail(obj), _color_key(obj),
 		_fill_for(tile, wall_fill))
 
@@ -2466,6 +2475,13 @@ func _seat(s: Sprite3D, tex: ImageTexture, tile: String, cx: int, cy: int, sink:
 	s.position = Vector3(cx, cy_center, cy)
 
 # --- greedy-meshed walls ----------------------------------------------------
+
+## The colour string whose ^X paints this object's cell background:
+## TileColor when set (it masks ColorString entirely in tile mode), else
+## ColorString — mirroring how Qud seeds RenderEvent.ColorString.
+func _bg_source(obj: Dictionary) -> String:
+	var tc := String(obj.get("tilecolor", ""))
+	return tc if tc != "" else String(obj.get("color", ""))
 
 func _parse_bg(color: String) -> String:
 	# "&r^w" -> "w"  (the background colour); "" if no ^ component. Qud's rule

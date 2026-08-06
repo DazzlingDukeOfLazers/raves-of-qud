@@ -2196,8 +2196,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\Cage_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 8.8,
-   "pct_hot": 4.9,
+   "mean_abs_diff": 11.81,
+   "pct_hot": 7.1,
    "band": "PASS",
    "white_px": [
     0,
@@ -7959,12 +7959,12 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\Glass_Door_E_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 8.0,
-   "pct_hot": 3.5,
+   "mean_abs_diff": 9.36,
+   "pct_hot": 5.0,
    "band": "PASS",
    "white_px": [
     13,
-    135
+    156
    ],
    "dominant_delta": 0,
    "wire_delta": 239
@@ -10398,9 +10398,7 @@
   "bp": "HologramCircle",
   "pass": true,
   "reasons": [],
-  "warns": [
-   "wire tile != blueprint tile 'furniture_hologram-circle'"
-  ],
+  "warns": [],
   "stage": {
    "bp": "HologramCircle",
    "ok": true,
@@ -10420,8 +10418,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\HologramCircle_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.68,
-   "pct_hot": 0.7,
+   "mean_abs_diff": 2.31,
+   "pct_hot": 1.4,
    "band": "PASS",
    "white_px": [
     0,
@@ -17678,12 +17676,12 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\Red_Security_Door_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.49,
-   "pct_hot": 3.1,
+   "mean_abs_diff": 13.28,
+   "pct_hot": 7.8,
    "band": "PASS",
    "white_px": [
     14,
-    233
+    238
    ],
    "dominant_delta": 0,
    "wire_delta": 239
@@ -21330,8 +21328,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\StarshipBed_W_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 6.29,
-   "pct_hot": 4.8,
+   "mean_abs_diff": 8.25,
+   "pct_hot": 6.6,
    "band": "PASS",
    "white_px": [
     0,
@@ -24697,9 +24695,7 @@
   "bp": "Village Monument",
   "pass": true,
   "reasons": [],
-  "warns": [
-   "wire tile != blueprint tile 'terrain_sw_monument1'"
-  ],
+  "warns": [],
   "stage": {
    "bp": "Village Monument",
    "ok": true,
@@ -24719,8 +24715,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\Village_Monument_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 4.28,
-   "pct_hot": 2.5,
+   "mean_abs_diff": 5.58,
+   "pct_hot": 3.8,
    "band": "PASS",
    "white_px": [
     0,

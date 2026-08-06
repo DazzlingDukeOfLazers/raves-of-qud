@@ -2673,8 +2673,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Granite_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 5.46,
-   "pct_hot": 4.5,
+   "mean_abs_diff": 7.78,
+   "pct_hot": 7.1,
    "band": "PASS",
    "white_px": [
     0,
@@ -4398,8 +4398,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\MetalWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.86,
-   "pct_hot": 8.5,
+   "mean_abs_diff": 13.66,
+   "pct_hot": 14.7,
    "band": "PASS",
    "white_px": [
     0,
@@ -6299,7 +6299,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 2,
+   "cleared": 0,
    "tile": "Assets_Content_Textures_Walls2_wall_sharp_geometry-00000000.png",
    "color": "&y^W",
    "detail": "k",
@@ -6312,8 +6312,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\StarshipGeometricWallGrey_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 11.09,
-   "pct_hot": 8.1,
+   "mean_abs_diff": 18.05,
+   "pct_hot": 13.5,
    "band": "PASS",
    "white_px": [
     0,
@@ -8025,12 +8025,12 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Wax_Block_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 10.27,
-   "pct_hot": 7.8,
+   "mean_abs_diff": 18.2,
+   "pct_hot": 12.2,
    "band": "PASS",
    "white_px": [
     47,
-    984
+    934
    ],
    "dominant_delta": 0,
    "wire_delta": 15

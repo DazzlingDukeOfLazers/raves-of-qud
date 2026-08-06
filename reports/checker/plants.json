@@ -1478,8 +1478,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'assets_content_textures_tiles_tile-9-4'",
-   "no capture pair \u2014 congruence skipped"
+   "wire tile != blueprint tile 'assets_content_textures_tiles_tile-9-4'"
   ],
   "stage": {
    "bp": "CrystalWall",
@@ -1496,11 +1495,12 @@
   "wire_objs": 1,
   "wire_hex": "155352",
   "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\CrystalWall_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\CrystalWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.15,
-   "pct_hot": 0.0,
+   "mean_abs_diff": 1.52,
+   "pct_hot": 0.9,
    "band": "PASS",
    "white_px": [
     0,
@@ -2586,7 +2586,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'terrain_sw_fattree2'"
+   "wire tile != blueprint tile 'terrain_sw_fattree1'"
   ],
   "stage": {
    "bp": "Holographic Dogthorn Tree",
@@ -2595,7 +2595,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Terrain/sw_fattree2.bmp",
+   "tile": "Terrain/sw_fattree1.bmp",
    "color": "&G",
    "detail": "w",
    "name": "dogthorn tree"
@@ -2607,9 +2607,9 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Holographic_Dogthorn_Tree_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 40.96,
-   "pct_hot": 43.4,
-   "band": "FAIL",
+   "mean_abs_diff": 5.86,
+   "pct_hot": 6.4,
+   "band": "PASS",
    "white_px": [
     0,
     0
@@ -2879,9 +2879,7 @@
   "bp": "Jilted Lover",
   "pass": true,
   "reasons": [],
-  "warns": [
-   "wire tile != blueprint tile 'assets_content_textures_creatures_sw_plant'"
-  ],
+  "warns": [],
   "stage": {
    "bp": "Jilted Lover",
    "ok": true,
@@ -2901,15 +2899,15 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Jilted_Lover_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 62.24,
-   "pct_hot": 72.9,
-   "band": "FAIL",
+   "mean_abs_diff": 7.41,
+   "pct_hot": 6.4,
+   "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 128,
-   "wire_delta": 100
+   "dominant_delta": 32,
+   "wire_delta": 144
   }
  },
  {
@@ -3049,15 +3047,15 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Livid_Creeper_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 74.27,
-   "pct_hot": 60.8,
-   "band": "FAIL",
+   "mean_abs_diff": 7.72,
+   "pct_hot": 6.6,
+   "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 224,
-   "wire_delta": 137
+   "dominant_delta": 32,
+   "wire_delta": 105
   }
  },
  {
@@ -4123,9 +4121,7 @@
   "bp": "Prickler",
   "pass": true,
   "reasons": [],
-  "warns": [
-   "wire tile != blueprint tile 'creatures_sw_prickler'"
-  ],
+  "warns": [],
   "stage": {
    "bp": "Prickler",
    "ok": true,
@@ -4145,14 +4141,14 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Prickler_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 16.68,
-   "pct_hot": 2.3,
+   "mean_abs_diff": 5.81,
+   "pct_hot": 5.2,
    "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 32,
+   "dominant_delta": 0,
    "wire_delta": 191
   }
  },

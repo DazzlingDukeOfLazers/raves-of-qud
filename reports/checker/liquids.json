@@ -2141,7 +2141,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\SaltPuddle_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 11.36,
+   "mean_abs_diff": 11.38,
    "pct_hot": 7.2,
    "band": "PASS",
    "white_px": [

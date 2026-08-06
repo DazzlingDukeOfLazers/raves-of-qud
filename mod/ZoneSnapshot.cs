@@ -1380,6 +1380,26 @@ namespace RavesOfQud
                             }
                         }
                         catch { }
+                        // IIconColorPart (HeroIconColor and kin): a render-time colour
+                        // override at priority 100 the static Render fields never see —
+                        // the Warleader mech ships '&c' while HeroMaker's part paints
+                        // '&M' every frame (found via the static-divergence hunt).
+                        try
+                        {
+                            foreach (var pp2 in go.PartsList)
+                            {
+                                var icp = pp2 as IIconColorPart;
+                                if (icp == null) continue;
+                                if (!string.IsNullOrEmpty(icp.TileForeground))
+                                {
+                                    colorOut = icp.TileForeground;
+                                    tileColorOut = icp.TileForeground;
+                                }
+                                if (!string.IsNullOrEmpty(icp.TileDetail)) detailOut = icp.TileDetail;
+                                if (!string.IsNullOrEmpty(icp.Background)) tileColorOut += icp.Background;
+                            }
+                        }
+                        catch { }
                         // SoupSludge (monosludges): a NON-hero sludge appends its component
                         // liquid's colour EVERY frame (SoupSludge.Render) — for a MONOsludge
                         // that IS the steady body colour (sugar -> gold). Heroes blink 240/240ms

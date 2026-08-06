@@ -277,15 +277,23 @@ CryochamberWallNE (the "white-vs-cyan frame") →4.1, star charts →3.4/3.9,
 HangarWall 47→12, the golems/turrets/installations all single digits.
 Sweeps now guard against this (`--reload-every`, default 150; reboot_rig).
 
-Surviving TRUE static divergences — four elements:
-- Jilted Lover (62, plants AND creatures stagings) — Raves floods a tan
-  background Qud doesn't draw
-- Panhumor (60) — humor family colour/art divergence (Humor/Gyrohumor sit
-  at 27/32 WARN, likely same rule)
-- Holographic Dogthorn Tree (41) — hologram palette handling
-- VehicleTemplarMech3_Warleader (37) — mech variant art
+~~Surviving TRUE static divergences~~ ALL SIX RESOLVED (2026-08-06):
+- Holographic Dogthorn (5.9), Panhumor (8.7), Gyre Wight (5.6): melted by
+  the animHolo / event-colour ports — no code needed.
+- VehicleTemplarMech3_Warleader 39 -> 12.3: HeroMaker attaches an
+  IIconColorPart (HeroIconColor, '&M' at priority 100) that repaints the
+  hero every frame; the static Render fields never see it. The export
+  now reads any IIconColorPart into the wire colours.
+- Jilted Lover 63 -> 7.4 and Livid Creeper 53 -> 7.7 (both stagings):
+  their '^w' tan background rides COLORSTRING with TileColor empty — and
+  the effective tile colour in Qud is TileColor-else-ColorString (how the
+  render event is seeded). The old "ColorString ^ is glyph noise" rule
+  held only because its counterexamples all HAD a TileColor masking it
+  (salt puddle regression still passes). Also: ^X backgrounds paint for
+  EVERY object, wall or not — the occluding-only gate survived 391
+  ^ carriers because most are ^k/^K, the field colour itself.
 
-Plus the documented Switch-family design fork (5 switches, ~116, s6) and
-conveyor frame-sync (10 pads, ~104, port backlog).
+Nothing unexplained remains. The only FAILs in the game are the 5-switch
+design fork (s6, awaiting the Mac call).
 
 *Delete sections as addressed (repo ticket lifecycle).*

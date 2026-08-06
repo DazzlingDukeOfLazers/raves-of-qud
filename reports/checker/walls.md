@@ -1,6 +1,6 @@
 # Object Checker — walls
 
-229/229 PASS  (2026-08-06 02:48)  pixel: 229 PASS / 0 WARN / 0 FAIL
+229/229 PASS  (2026-08-06 03:11)  pixel: 229 PASS / 0 WARN / 0 FAIL
 
 | element | verdict | px | notes |
 |---|---|---|---|
@@ -77,7 +77,7 @@
 | GolemInteriorWall | PASS | PASS 15.1/14% | wire tile != blueprint tile 'assets_content_textures_walls_wall_golem_interior-00000000' |
 | GolemInteriorWall Endcap | PASS | PASS 14.7/14% | wire tile != blueprint tile 'walls_wall_golem_interior-00010011' |
 | GolemInteriorWallwPiping | PASS | PASS 15.1/14% |  |
-| Granite | PASS | PASS 5.5/4% | wire tile != blueprint tile 'assets_content_textures_tiles_wall_rock-00000000' |
+| Granite | PASS | PASS 7.8/7% | wire tile != blueprint tile 'assets_content_textures_tiles_wall_rock-00000000' |
 | GritGate Mainframe Monitor 1 | PASS | PASS 11.5/6% | wire tile != blueprint tile 'assets_content_textures_tiles2_mainframe_monitor_1-00000000' |
 | GritGate Mainframe Monitor 2 | PASS | PASS 11.1/6% | wire tile != blueprint tile 'assets_content_textures_tiles2_mainframe_monitor_2-00000000' |
 | GritGate Mainframe Status Panel | PASS | PASS 11.5/6% | wire tile != blueprint tile 'assets_content_textures_tiles2_mainframe_status_panel-00000000' |
@@ -124,7 +124,7 @@
 | MechInteriorGlassWall | PASS | PASS 7.4/3% | wire tile != blueprint tile 'assets_content_textures_tiles2_glass_' |
 | MechInteriorWall | PASS | PASS 11.2/7% | wire tile != blueprint tile 'assets_content_textures_walls_wall_coolant_b-00000000' |
 | MechInteriorWall Endcap | PASS | PASS 10.8/7% | wire tile != blueprint tile 'walls_wall_coolant-00010011' |
-| MetalWall | PASS | PASS 7.9/8% | wire tile != blueprint tile 'assets_content_textures_tiles_wall_metal-00000000' |
+| MetalWall | PASS | PASS 13.7/15% | wire tile != blueprint tile 'assets_content_textures_tiles_wall_metal-00000000' |
 | MetalWallWithPipes | PASS | PASS 7.9/8% | wire tile != blueprint tile 'assets_content_textures_tiles_wall_metal-00000000' |
 | Mover Wall | PASS | PASS 15.2/14% | wire tile != blueprint tile 'assets_content_textures_walls_wall_golem_interior-00000000' |
 | MoverHalfWall | PASS | PASS 2.1/1% | wire tile != blueprint tile 'assets_content_textures_tiles2_half-wall_' |
@@ -176,7 +176,7 @@
 | StarshipGeometricWallBright | PASS | PASS 11.0/8% | wire tile != blueprint tile 'assets_content_textures_walls2_wall_sharp_geometry-00000000' |
 | StarshipGeometricWallBright Endcap | PASS | PASS 12.3/9% | wire tile != blueprint tile 'walls2_wall_sharp_geometry-00010011' |
 | StarshipGeometricWallCyan | PASS | PASS 10.1/8% |  |
-| StarshipGeometricWallGrey | PASS | PASS 11.1/8% | wire tile != blueprint tile 'assets_content_textures_walls2_wall_sharp_geometry-00000000' |
+| StarshipGeometricWallGrey | PASS | PASS 18.1/14% | wire tile != blueprint tile 'assets_content_textures_walls2_wall_sharp_geometry-00000000' |
 | Stasisfield | PASS | PASS 23.1/22% | wire tile != blueprint tile 'assets_content_textures_tiles_wall_mud-00000000' |
 | StationWall | PASS | PASS 7.0/3% | wire tile != blueprint tile 'assets_content_textures_tiles_wall_brick-00000000' |
 | StoneHalfWall | PASS | PASS 2.3/1% | wire tile != blueprint tile 'assets_content_textures_tiles2_half-wall_' |
@@ -223,7 +223,7 @@
 | WalltrapFungicide | PASS | PASS 6.0/3% |  |
 | WalltrapNormalityGas | PASS | PASS 7.6/3% |  |
 | WalltrapShock | PASS | PASS 4.5/3% |  |
-| Wax Block | PASS | PASS 10.3/8% | wire tile != blueprint tile 'assets_content_textures_tiles_wall_mud-00000000' |
+| Wax Block | PASS | PASS 18.2/12% | wire tile != blueprint tile 'assets_content_textures_tiles_wall_mud-00000000' |
 | WiredFulcrete | PASS | PASS 17.9/8% | wire tile != blueprint tile 'assets_content_textures_tiles_wall_mud-00000000' |
 | WiredPipeFulcrete | PASS | PASS 17.8/8% |  |
 | WoodFence | PASS | PASS 3.1/2% | wire tile != blueprint tile 'assets_content_textures_tiles_fence_' |

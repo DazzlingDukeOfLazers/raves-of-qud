@@ -1,6 +1,6 @@
 # Object Checker — furniture
 
-745/745 PASS  (2026-08-06 01:51)  pixel: 720 PASS / 3 WARN / 5 FAIL / 12 KNOWN / 5 ANIM
+745/745 PASS  (2026-08-06 03:11)  pixel: 720 PASS / 3 WARN / 5 FAIL / 12 KNOWN / 5 ANIM
 
 | element | verdict | px | notes |
 |---|---|---|---|
@@ -63,7 +63,7 @@
 | Bubblething | PASS | WARN 30.2/25% | wire tile != blueprint tile 'items_sw_bubblething' |
 | Bust of K4K5 | PASS | PASS 20.5/22% | wire tile != blueprint tile 'items_sw_bust1' |
 | Bust of Mehmet I | PASS | PASS 5.5/3% | wire tile != blueprint tile 'items_sw_bust2' |
-| Cage | PASS | PASS 8.8/5% | wire tile != blueprint tile 'furniture_sw_cage' |
+| Cage | PASS | PASS 11.8/7% | wire tile != blueprint tile 'furniture_sw_cage' |
 | Candelabra | PASS | PASS 3.5/3% | wire tile != blueprint tile 'items_sw_candelabra2' |
 | Canvas Folding Chair | PASS | PASS 2.4/1% | wire tile != blueprint tile 'items_sw_chair_canvas' |
 | CatacombLight | PASS | PASS 13.3/15% | wire tile != blueprint tile 'tiles_sw_torch_nofire' |
@@ -220,7 +220,7 @@
 | Gas Burner | PASS | PASS 4.1/3% | wire tile != blueprint tile 'items_sw_titrator' |
 | Gate | PASS | PASS 5.6/5% | wire tile != blueprint tile 'items_sw_fence_gates_2_open' |
 | Glass Door | PASS | PASS 8.6/5% | wire tile != blueprint tile 'tiles_sw_door_basic' |
-| Glass Door E | PASS | PASS 8.0/4% | wire tile != blueprint tile 'tiles2_sw_gate_glass_e_closed' |
+| Glass Door E | PASS | PASS 9.4/5% | wire tile != blueprint tile 'tiles2_sw_gate_glass_e_closed' |
 | Glass Door W | PASS | PASS 5.9/3% | wire tile != blueprint tile 'tiles2_sw_gate_glass_w_closed' |
 | Glass Furnace | PASS | PASS 11.9/6% |  |
 | Glass Printer | PASS | PASS 7.2/3% | wire tile != blueprint tile 'items_sw_glass_cube' |
@@ -287,7 +287,7 @@
 | HeavyPowerLine | PASS | PASS 1.0/0% | wire tile != blueprint tile 'assets_content_textures_tiles_sw_wire_' |
 | HighTechInstallation | PASS | PASS 11.4/14% |  |
 | hologram of Shekhinah | PASS | PASS 3.3/3% | wire tile != blueprint tile 'items_sw_shekhinah_hologram' |
-| HologramCircle | PASS | PASS 1.7/1% | wire tile != blueprint tile 'furniture_hologram-circle' |
+| HologramCircle | PASS | PASS 2.3/1% |  |
 | Hookah | PASS | PASS 4.4/4% | wire tile != blueprint tile 'items_sw_hookah' |
 | HookahSign1 | PASS | PASS 3.5/4% | wire tile != blueprint tile 'items_sw_hookah_sign' |
 | HookahSign2 | PASS | PASS 3.5/4% | wire tile != blueprint tile 'items_sw_hookah_sign' |
@@ -485,7 +485,7 @@
 | Recoming Nook Door | PASS | PASS 10.1/6% | wire tile != blueprint tile 'items_sw_door_filigree' |
 | Recoming Reliquary | PASS | PASS 5.8/3% | wire tile != blueprint tile 'items_sw_reliquary' |
 | Rectangular Bells | PASS | PASS 3.3/1% | wire tile != blueprint tile 'items_sw_glockenspiel' |
-| Red Security Door | PASS | PASS 7.5/3% | wire tile != blueprint tile 'terrain_sw_securitydoor' |
+| Red Security Door | PASS | PASS 13.3/8% | wire tile != blueprint tile 'terrain_sw_securitydoor' |
 | Redrock Bookshelf | PASS | PASS 6.0/6% | wire tile != blueprint tile 'items_sw_bookshelf1' |
 | Redrock Metal Workbench | PASS | PASS 2.9/2% | wire tile != blueprint tile 'items_sw_table_metal_full' |
 | Regen Tank | PASS | PASS 7.7/4% | wire tile != blueprint tile 'items_sw_regen_tank' |
@@ -584,7 +584,7 @@
 | Starship1 Wooden Chair | PASS | PASS 2.1/1% | wire tile != blueprint tile 'furniture_starship-wooden-chair' |
 | Starship1 Wooden Table | PASS | PASS 2.9/1% | wire tile != blueprint tile 'furniture_starship-wooden-table' |
 | StarshipBed E | PASS | PASS 9.2/8% | wire tile != blueprint tile 'walls2_starship-1-wallbed-e' |
-| StarshipBed W | PASS | PASS 6.3/5% | wire tile != blueprint tile 'walls2_starship-1-wallbed-w' |
+| StarshipBed W | PASS | PASS 8.2/7% | wire tile != blueprint tile 'walls2_starship-1-wallbed-w' |
 | StarshipBookshelf E | PASS | PASS 8.7/8% | wire tile != blueprint tile 'walls2_starship-1-wallbookshelf-e' |
 | StarshipBookshelf W | PASS | PASS 7.3/6% | wire tile != blueprint tile 'walls2_starship-1-wallbookshelf-w' |
 | StiltOven | PASS | PASS 8.4/5% | wire tile != blueprint tile 'items_sw_oven' |
@@ -677,7 +677,7 @@
 | Village Bookshelf | PASS | PASS 6.7/6% | wire tile != blueprint tile 'items_sw_bookshelf1' |
 | Village Hologram 1 | PASS | PASS 3.4/3% | wire tile != blueprint tile 'items_sw_hologram1' |
 | Village Hologram 2 | PASS | PASS 3.1/3% | wire tile != blueprint tile 'items_sw_hologram2' |
-| Village Monument | PASS | PASS 4.3/2% | wire tile != blueprint tile 'terrain_sw_monument1' |
+| Village Monument | PASS | PASS 5.6/4% |  |
 | Village Monument Amphora | PASS | PASS 5.0/4% | wire tile != blueprint tile 'terrain_sw_monument2' |
 | Village Monument Birdhouse | PASS | PASS 7.2/6% | wire tile != blueprint tile 'terrain_sw_monument3' |
 | Village Monument Diptych | PASS | PASS 6.7/5% | wire tile != blueprint tile 'terrain_sw_monument4' |

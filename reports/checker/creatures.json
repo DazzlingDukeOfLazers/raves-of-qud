@@ -13830,16 +13830,16 @@
    "detail": "c",
    "name": "gyre wight of Qas"
   },
-  "wire_objs": 1,
+  "wire_objs": 2,
   "wire_hex": "40a4b9",
   "shots": {
    "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Gyre_Wight_of_Qas_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Gyre_Wight_of_Qas_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 36.19,
-   "pct_hot": 25.3,
-   "band": "FAIL",
+   "mean_abs_diff": 5.64,
+   "pct_hot": 3.9,
+   "band": "PASS",
    "white_px": [
     0,
     0
@@ -16451,16 +16451,14 @@
   "bp": "Jilted Lover",
   "pass": true,
   "reasons": [],
-  "warns": [
-   "wire tile != blueprint tile 'assets_content_textures_creatures_sw_plant'"
-  ],
+  "warns": [],
   "stage": {
    "bp": "Jilted Lover",
    "ok": true,
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 3,
+   "cleared": 1,
    "tile": "Assets_Content_Textures_Creatures_sw_plant.bmp",
    "color": "&g^w",
    "detail": "R",
@@ -16473,15 +16471,15 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Jilted_Lover_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 62.23,
-   "pct_hot": 72.9,
-   "band": "FAIL",
+   "mean_abs_diff": 7.31,
+   "pct_hot": 6.4,
+   "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 128,
-   "wire_delta": 100
+   "dominant_delta": 32,
+   "wire_delta": 144
   }
  },
  {
@@ -17487,9 +17485,7 @@
   "bp": "Livid Creeper",
   "pass": true,
   "reasons": [],
-  "warns": [
-   "wire tile != blueprint tile 'creatures_sw_livid_creeper'"
-  ],
+  "warns": [],
   "stage": {
    "bp": "Livid Creeper",
    "ok": true,
@@ -17509,15 +17505,15 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Livid_Creeper_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 53.06,
-   "pct_hot": 60.8,
-   "band": "FAIL",
+   "mean_abs_diff": 7.81,
+   "pct_hot": 6.6,
+   "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 128,
-   "wire_delta": 137
+   "dominant_delta": 32,
+   "wire_delta": 105
   }
  },
  {
@@ -22056,8 +22052,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'creatures_sw_panhumor'",
-   "no capture pair \u2014 congruence skipped"
+   "wire tile != blueprint tile 'creatures_sw_panhumor'"
   ],
   "stage": {
    "bp": "Panhumor",
@@ -22065,7 +22060,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 2,
+   "cleared": 1,
    "tile": "Creatures/sw_panhumor.bmp",
    "color": "&y",
    "detail": "w",
@@ -22074,12 +22069,13 @@
   "wire_objs": 1,
   "wire_hex": "b1c9c3",
   "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Panhumor_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Panhumor_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 59.61,
-   "pct_hot": 58.7,
-   "band": "FAIL",
+   "mean_abs_diff": 8.65,
+   "pct_hot": 6.6,
+   "band": "PASS",
    "white_px": [
     0,
     0
@@ -31597,7 +31593,7 @@
    "tile": "Creatures/sw_templar_mech_big.bmp",
    "color": "&c",
    "detail": "r",
-   "name": "{{M|High Mecha Surelherine}}"
+   "name": "{{M|High Mecha Freecquec}}"
   },
   "wire_objs": 1,
   "wire_hex": "40a4b9",
@@ -31606,9 +31602,9 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\VehicleTemplarMech3_Warleader_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 36.64,
-   "pct_hot": 39.5,
-   "band": "FAIL",
+   "mean_abs_diff": 12.3,
+   "pct_hot": 8.4,
+   "band": "PASS",
    "white_px": [
     0,
     0
