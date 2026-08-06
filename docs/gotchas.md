@@ -70,6 +70,18 @@ add a one-liner (symptom → rule).
   inspector's `_pick_cell` marches back to the occupied cell; the direction picker wants the literal ground cell.
 
 ### Bridge / snapshots
+- **The mod's uiQueue does NOT drain while Qud's window is in the BACKGROUND.** Measured with a
+  `uiprobe` command: backgrounded it logged nothing at all; focused it ran instantly. So EVERY
+  uiQueue-marshalled command (`uiback`, `uiprobe`, `statusscreen`, the chrome exporters) is
+  accepted, queued, and silently deferred until focus returns. Comments in this repo claiming the
+  uiQueue keeps running unfocused are wrong -- what keeps running unfocused is the TURN thread.
+  highvisor's `_qud_bridge` now activates Qud and waits 2s before sending.
+- **`PumpSyncContext` never worked.** It looked up `UnitySynchronizationContext.Exec` with
+  `BindingFlags.NonPublic` only -- but `Exec()` is PUBLIC on that internal class, so the lookup
+  always failed and the pump was a no-op, faithfully logging "no Exec on
+  UnitySynchronizationContext" on every call while everything depending on it quietly stalled.
+  Fixed to `Public | NonPublic | Instance`. Qud's log is at
+  `~/Library/Logs/Freehold Games/CavesOfQud/Player.log` -- read it before theorising.
 - **Snapshots fire on:** EndTurn (throttled), a Raves-driven command (immediate), a zone change (immediate),
   and the no-turn reactive signature (`BuildSignature`, ~10 Hz, focused only). A change that's neither in the
   signature nor turn-based won't publish — set `Bridge.ForcePublishSoon` and flush it on a turn-thread event.

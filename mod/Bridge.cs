@@ -49,6 +49,33 @@ namespace RavesOfQud
             }, 0);
         }
 
+
+        /// <summary>UI THREAD. Pump Qud's synchronization context once per frame until the active
+        /// game view differs from <paramref name="was"/>, or <paramref name="tries"/> frames pass.
+        ///
+        /// Needed because an UNFOCUSED Qud stops draining those continuations promptly: a close
+        /// invoked over the bridge would be accepted and then simply not finish. Bounded so a view
+        /// that legitimately doesn't change can't leave us re-queueing forever.</summary>
+        private static void PumpUntilViewChanges(string was, int tries)
+        {
+            if (tries <= 0) return;
+            var gm = GameManager.Instance;
+            if (gm == null || gm.uiQueue == null) return;
+            gm.uiQueue.queueTask(() =>
+            {
+                try
+                {
+                    PumpSyncContext(4);
+                    ConsoleLib.Console.TextConsole.BufferUpdated = true;
+                    var g = GameManager.Instance;
+                    string now = g != null ? g._ActiveGameView : null;
+                    if (now != was) return;          // closed — stop
+                    PumpUntilViewChanges(was, tries - 1);
+                }
+                catch { }
+            }, 0);
+        }
+
         public static void PumpSyncContext(int n)
         {
             try
@@ -58,8 +85,14 @@ namespace RavesOfQud
                 // StatusScreensScreen.show() then hung forever with no fault logged).
                 var sc = GameManager.Instance != null ? GameManager.Instance.uiSynchronizationContext : null;
                 if (sc == null) sc = System.Threading.SynchronizationContext.Current;
+                // PUBLIC *and* NonPublic. UnityEngine.UnitySynchronizationContext.Exec() is a PUBLIC
+                // method on an internal class, and a NonPublic-only lookup never found it -- so this
+                // pump has been a silent no-op, faithfully logging "no Exec on
+                // UnitySynchronizationContext" on every call while everything that depended on it
+                // (closing a screen, resolving a popup) quietly failed whenever Qud was unfocused.
                 var exec = sc?.GetType().GetMethod("Exec",
-                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic
+                    | System.Reflection.BindingFlags.Instance);
                 if (exec == null && sc != null)
                     System.Console.WriteLine("[raves] sync pump: no Exec on " + sc.GetType().Name);
                 for (int i = 0; i < n && exec != null; i++) exec.Invoke(sc, null);
@@ -870,6 +903,17 @@ namespace RavesOfQud
                                             // TURNS BLOCKED until the next focus). We're ON the main
                                             // thread here: pump the context so the close resolves now.
                                             PumpSyncContext(8);
+                                            // ...and KEEP pumping across frames until the view really
+                                            // changes. Eight iterations in one task is enough while Qud
+                                            // is FOCUSED and hopelessly short when it isn't: backgrounded,
+                                            // Exit()'s async continuations need several frames to drain,
+                                            // so the screen stayed up, Qud stopped publishing snapshots,
+                                            // and Raves could never leave its title screen. That cascade
+                                            // reads as "the Raves goto is broken" and is nothing of the
+                                            // sort. Re-queueing YIELDS between pumps, which a tight loop
+                                            // on the main thread would not.
+                                            PumpUntilViewChanges(GameManager.Instance != null
+                                                ? GameManager.Instance._ActiveGameView : null, 40);
                                             System.Console.WriteLine("[raves] uiback: " + wnd.GetType().Name + " cancel/exit invoked");
                                             return;
                                         }
