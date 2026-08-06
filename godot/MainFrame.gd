@@ -142,7 +142,10 @@ const CHROME_H_1TO1 := 90.0
 var _status_strip: PanelContainer  # row 1 — its fill is Qud's strip colour in 1:1, panel fill in user mode
 var _menu_strip: PanelContainer    # row 2's icon cluster — same story: Qud's strip colour behind it
 var _dev_bar: Control              # holodeck cell's Connect/Turn-on-viewport strip (hidden in 1:1)
-const SIDEBAR_FRAC_1TO1 := 0.15     # visual side column: 288px + the 12px split handle = Qud's 300 total   # Qud's MINIMUM message-log width ≈ 15.3% (293px at 1920 — matches a Qud
+## Qud's log column, measured off its own separator rather than estimated: its rules stand at
+## x1623/1627/1628/1632 in a 1920 window, so the column is 297 wide. At 0.15 (288) ours sat 11px
+## right of Qud's, which showed up as the whole log panel being inset.
+const SIDEBAR_FRAC_1TO1 := 0.1557   # 299px at 1920 — puts our separator on Qud's 1623   # Qud's MINIMUM message-log width ≈ 15.3% (293px at 1920 — matches a Qud
                                    # log dragged to its minimum, which maximises the playfield)
 const SIDEBAR_W_USER := 320.0      # user-mode side-column min width (the original value)
 
@@ -1476,7 +1479,14 @@ func _check_mod_version(data: Dictionary) -> void:
 	_mod_status = status
 	match status:
 		1:
-			_msglog.set_notice("[color=#6fcf6f]✓ Raves mod v%d — up to date[/color]" % proto)
+			# NOT IN 1:1. "up to date" is our own reassurance and Qud has no line like it, so in the
+			# mirror mode it is just a message Qud's log does not contain -- it measured as the
+			# single largest band in the log panel (mean 14.23 against 0.26 elsewhere). The two
+			# WARNINGS below stay in both modes: a version mismatch is worth breaking parity for.
+			if Settings.one_to_one():
+				_msglog.set_notice("")
+			else:
+				_msglog.set_notice("[color=#6fcf6f]✓ Raves mod v%d — up to date[/color]" % proto)
 		2:
 			_msglog.set_notice("[color=#ff6a6a]⚠ Raves mod is out of date (v%d, need v%d) — restart Caves of Qud to load the latest mod[/color]" % [proto, MIN_MOD_PROTOCOL])
 		3:
