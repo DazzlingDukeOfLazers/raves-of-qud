@@ -441,13 +441,25 @@ def anim_fixture(name, frames=12):
     print("report:", path)
 
 
-def calibrate():
+def _cellish(rect):
+    """A Qud cell is strictly 2:3 (16x24 art). A calibration cluster that
+    isn't roughly that shape caught something else — the PLAYER moving
+    between the two differential frames merged the adjacent cell in and
+    produced a 67x55 rect that silently poisoned an entire certification
+    band (every capture cropped player+stage together, deterministically)."""
+    w, h = rect.get("w", 0), rect.get("h", 0)
+    return h > 0 and 0.55 < (float(w) / h) < 0.78
+
+
+def calibrate(_attempt=0):
     """Two-frame differential calibration (congruence.py docstring): a full-tile
     wall frame vs an EMPTY-stage frame — the diff is the whole sprite, i.e. the
     cell. (Wall-vs-wall failed: different walls share most of their pattern
     under the zone tint, so only the differing band clustered.) The empty frame
     stages a bogus blueprint: the zone clears, nothing lands, the verdict FAILS
-    by design. Writes fixtures/checker_geometry.json + crop previews to eyeball."""
+    by design. Writes fixtures/checker_geometry.json + crop previews to eyeball.
+    Rects are ASPECT-CHECKED (see _cellish) and the whole pass retries up to 3x
+    before poisoning the geometry file."""
     b = control.Bridge()
     caps = {}
     for tag, bp, must_pass in (("a", "Wax Block", True), ("c", "__calib_empty__", False)):
@@ -473,6 +485,13 @@ def calibrate():
     # panels start ≈48.6% of 3232. Re-measure if either layout changes.
     qrect = congruence.diff_cluster(caps["a"]["qud"], caps["c"]["qud"], search_frac=0.58)
     rrect = congruence.diff_cluster(caps["a"]["raves"], caps["c"]["raves"], search_frac=0.48)
+    if not (_cellish(qrect) and _cellish(rrect)):
+        if _attempt < 2:
+            print("calibrate: non-cell cluster q=%s r=%s — retrying" % (qrect, rrect))
+            time.sleep(2)
+            return calibrate(_attempt + 1)
+        raise RuntimeError("calibrate: non-cell clusters after 3 attempts (q=%s r=%s)"
+                           % (qrect, rrect))
     path = congruence.save_geometry(qrect, rrect)
     outdir = os.path.join(REPORTS, "shots", "calib")
     congruence.save_crop(caps["a"]["qud"], qrect, os.path.join(outdir, "cell_qud.png"))
