@@ -14,8 +14,9 @@ extends Control
 ## comes from CharTranslateBit (A B C D 1..8 under the AlphanumericBits option) -- NOT the colour
 ## char. The mod ships both, and this draws the label.
 ##
-## NOT HERE: the MODIFICATIONS mode. Its rows are per-ITEM (cost depends on the object being
-## modified) so it is a different view, not a filter -- deferred with the Quests/Journal maps.
+## BOTH MODES are here. Ctrl+Tab toggles, as Qud's own hint says. Modifications is the inverse
+## shape of build: a category row per MOD RECIPE, and beneath it every inventory/equipped item the
+## mod applies to, each with ITS OWN cost (the cost depends on the object being modified).
 
 const HINT_X := 192.1
 const HINT_Y := 222.0
@@ -45,6 +46,8 @@ var bridge_cb: Callable = Callable()
 var reload_cb: Callable = Callable()
 
 var _cats: Array = []
+var _mods: Array = []
+var _mode := 0          # 0 = build, 1 = modifications (Qud's CurrentCategory)
 var _bits: Array = []
 var _empty := ""
 var _palette := {}
@@ -70,6 +73,7 @@ func setup(data: Dictionary, palette: Dictionary) -> void:
 	if typeof(own) == TYPE_DICTIONARY and not own.is_empty():
 		_palette = own
 	_cats = data.get("categories", [])
+	_mods = data.get("mods", [])
 	_bits = data.get("bits", [])
 	_empty = str(data.get("empty", ""))
 	_sel = 0
@@ -139,3 +143,33 @@ func _draw_markup(s: String, pos: Vector2, px: int, stop_x := 0.0) -> void:
 		_content.draw_string(_font, Vector2(x, pos.y), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, px, run[1],
 			int(stop_x - x) if stop_x > 0.0 else -1)
 		x += _font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
+
+
+## MODIFICATIONS view: a row per mod recipe, then every item it can be applied to.
+func _draw_mods(y: float) -> void:
+	if _mods.is_empty():
+		_draw_cat_row("You don't have any modifications.", y, true)
+		return
+	for mi in _mods.size():
+		var m: Dictionary = _mods[mi]
+		_draw_cat_row("[-] %s [%d]" % [str(m.get("name", "")), int(m.get("count", 0))], y, mi == 0)
+		y += ROW_H
+		var items: Array = m.get("items", [])
+		if items.is_empty():
+			# setData's own string for a mod with nothing to apply to.
+			_draw_markup("    %s" % str(m.get("empty", "<no applicable items>")),
+				Vector2(CAT_X, y + 16.0), CAT_FONT)
+			y += ROW_H
+		for it in items:
+			# setData: "    " + modObject.DisplayName + " [" + costString + "]"
+			_draw_markup("    %s [%s]" % [str(it.get("name", "")), str(it.get("cost", ""))],
+				Vector2(CAT_X, y + 16.0), CAT_FONT)
+			y += ROW_H
+
+## Ctrl+Tab toggles build <-> modifications, which is what Qud's own hint advertises.
+func handle_key(e: InputEventKey) -> bool:
+	if e.keycode == KEY_TAB and (e.ctrl_pressed or e.meta_pressed):
+		_mode = 1 - _mode
+		_content.queue_redraw()
+		return true
+	return false
