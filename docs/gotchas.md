@@ -664,3 +664,22 @@ With all seven in hand the model is unambiguous — `width = 16.079 * len - 1.66
 to 0.01px, so it is **tracking at 0.67em**, not padding. Raves takes its glyph pitch straight from
 the shipped width (`hdrW / len`), which needs no constant and survives a Qud restyle. Drawing the
 string in one call had every glyph after the first sitting ~1.7px per character left of Qud's.
+
+### The header's "icons" are spacers
+
+`JournalHeader/Image (3)` and `Image (1)` are 16x16 with components **`[CanvasRenderer,
+LayoutElement]` and no `Image` component at all** — pure layout spacers whose names are prefab
+leftovers. There is nothing to extract or draw; only their 16px of space is real, and the closing
+tick sits past it.
+
+### One rule colour: #4d6e7a -> (68,99,111)
+
+Every 1px rule element on the status screens carries `#4d6e7a` (54 of them across the probes) and
+lands at **(68,99,111)** on the glass. The shared `S_RULE` targeted (60,84,92) — 12 too dark on the
+top rule, both verticals, the bottom rule and the corner stub — while `S_KEYCAP` and the attributes
+pane's `C_LINE` had both independently arrived at the right value. Journal's header ticks were drawn
+in the pane's dim TEXT colour instead of the rule colour.
+
+**Open:** `QudChrome.q8()`'s compensation overshoots slightly at this level — asking for
+(68,99,111) renders (68,101,114). Nudging one call site would be fitting the shader's error, so the
+constants state Qud's true colour and the ~2-3/255 residual stays visible here.

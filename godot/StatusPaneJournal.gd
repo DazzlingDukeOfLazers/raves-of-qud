@@ -52,6 +52,10 @@ const MAP_CELL_H := 24.0
 
 const C_TEXT := Color8(0xaf, 0xc6, 0xc1)
 const C_DIM := Color8(0x3b, 0x55, 0x5e)
+## The header's two closing ticks are RULES, not dim text: Qud's elements are #4d6e7a like every
+## other rule on these screens, landing at (68,99,111). Drawing them in the pane's C_DIM put them
+## at (52,75,83) -- a different colour from the frame rule they sit on.
+var C_TICK := QudChrome.q8(68, 99, 111)
 const C_GOLD := Color8(0xcf, 0xc0, 0x41)
 ## Qud's own, off the live element: JournalHeader/Header is #4383a4 at font 24 in
 ## SourceCodePro-Regular. Ours was a grey (#829ea8) and read as a different colour entirely.
@@ -128,12 +132,12 @@ func _draw_all() -> void:
 	# edge (JournalHeader/Image (2) at x=170.5, y=189.7, 1x16, and its twin at the block's right
 	# edge, 347.5 = 170.5 + the block's 177.04). We were drawing 16px HORIZONTAL dashes there, which
 	# is what left the journal's header row disagreeing with Qud's after the top rule matched.
-	_content.draw_rect(Rect2(HDR_TICK_X, HDR_TICK_Y, 1.0, HDR_TICK_H), C_DIM)
+	_content.draw_rect(Rect2(HDR_TICK_X, HDR_TICK_Y, 1.0, HDR_TICK_H), C_TICK)
 	# The right tick is not flush with the text: an ICON sits between them (JournalHeader's
 	# Image (1), 16x16 at 330.54, mirroring Image (3) on the left). We do not draw those icons yet,
 	# but their SPACE is part of the header's geometry -- without it the right tick came in 16px
 	# early and the block read as too narrow.
-	_content.draw_rect(Rect2(HDR_X + nw + HDR_ICON_W, HDR_TICK_Y, 1.0, HDR_TICK_H), C_DIM)
+	_content.draw_rect(Rect2(HDR_X + nw + HDR_ICON_W, HDR_TICK_Y, 1.0, HDR_TICK_H), C_TICK)
 
 	# --- the sub-tab strip, centred (Qud draws icons; these are labels for now)
 	var strip := PackedStringArray()

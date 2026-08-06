@@ -44,7 +44,12 @@ var S_KEYDIGIT := QudChrome.q8(30, 140, 60)
 var S_DIM_TEXT := QudChrome.q8(81, 111, 127)     # log default text
 var S_HINT := QudChrome.q8(167, 192, 186)
 var S_GOLD := QudChrome.q8(195, 180, 56)         # the > cursor
-var S_RULE := QudChrome.q8(60, 84, 92)
+## Qud's rule colour, on the glass. Every 1px rule element on these screens carries #4d6e7a (54 of
+## them across the probes) and lands at (68,99,111) after the CRT pass -- the same value the
+## attributes pane arrived at independently for its own spine (C_LINE). Ours targeted (60,84,92),
+## which is a good 12 too dark on every rule the shared frame draws: the top rule, both verticals,
+## the bottom rule and the corner stub.
+var S_RULE := QudChrome.q8(68, 99, 111)
 
 var _root: Control           # full-rect content root inside this layer
 ## Qud's vertical rules are PER TAB. They are not an outer frame at all: every one of them is an
