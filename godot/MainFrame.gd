@@ -88,7 +88,13 @@ var _sep3: Control
 const TOPBAR_SEP := 10           # within-group spacing (Qud's :: gaps are looser than our default 6)
 const TOPBAR_TRACKING := 1       # extra glyph spacing — Qud's top bar tracks looser than Source Code Pro
 const STAT_PITCH := 86           # Qud centres each stat on a uniform ~86px grid (not natural text width)
-const VITALS_BOX_H := 18         # Qud's HP/EXP bar box height — the bar fills the whole row, text on top
+## Qud's HP/EXP bar box height — the bar fills the whole row, text on top. NINETEEN, not 18:
+## measured off Qud's own rows, HP 47..65 and EXP 69..87 inclusive, with a 3px gap between them.
+## At 18 the pair came out 2px short overall, which pushed the EXP bar 1px high and left its last
+## two rows (86-87) showing chrome where Qud still has bar.
+const VITALS_BOX_H := 19
+const VITALS_TOP_PAD := 2        # row 1's top -> Qud's first bar row (45 -> 47)
+const VITALS_GAP := 3            # Qud's gap between the HP and EXP boxes (66..68)
 const VITALS_USER_INSET := 170   # user mode: inset the bar behind the label so green text stays readable
 const COL_VITALS_TRACK := Color8(19, 23, 26)   # Qud's empty-bar track (dark)
 var _l_hp: RichTextLabel   # HP line — RichText so only the current-HP number is health-tinted (like Qud)
@@ -417,6 +423,14 @@ func _bar(value: float, maxv: float, col: Color) -> ProgressBar:
 
 ## One vitals row (HP or LVL/EXP): the bar fills the box, the label + numbers drawn ON TOP (Qud's
 ## layout). 1:1 → bar spans the full box; user → bar inset behind the label (_apply_vitals_mode sets it).
+## A fixed-height spacer. A plain Control, so its minimum is its own and no child can inflate it.
+func _vspace(h: int) -> Control:
+	var c := Control.new()
+	c.custom_minimum_size = Vector2(0, h)
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return c
+
+
 func _vitals_row(lbl: Control, pb: ProgressBar) -> Control:
 	var row := Control.new()
 	row.custom_minimum_size = Vector2(0, VITALS_BOX_H)
@@ -427,11 +441,18 @@ func _vitals_row(lbl: Control, pb: ProgressBar) -> Control:
 	lbl.set_anchors_preset(Control.PRESET_FULL_RECT)
 	lbl.offset_left = 19                       # inset the text to ~x21, aligning with the avatar column (Qud)
 	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# TEXT ROW inside the box, measured off Qud: its glyphs start 4px below the box top on both
+	# lines (HP box 47..65 with text 51..62, EXP box 69..87 with text 73..86). Ours sat 4px low on
+	# the HP line and 2px low on the EXP line, so the nudges are per-widget rather than shared:
+	# both take the offset 1:1 (the Label's centring does NOT halve it -- measured, after assuming
+	# it would and overshooting by 2), but they started from different places: the HP line sat 4px
+	# low and the EXP line 2px.
 	if lbl is Label:
 		(lbl as Label).horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		(lbl as Label).vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		lbl.offset_top = -2.0                  # measured: the shift lands 1:1, not halved
 	elif lbl is RichTextLabel:
-		lbl.offset_top = 2.0                   # RichText has no vertical_alignment — nudge to centre in the box
+		lbl.offset_top = -2.0                  # taken literally: 4px up from where it sat
 	row.add_child(lbl)                         # added after the bar → renders on top
 	return row
 
@@ -752,15 +773,22 @@ func _row_vitals_menu() -> Control:
 	# mode it's inset behind the label (so the green text stays readable). No panel — the bar is the bg.
 	var vitals := VBoxContainer.new()
 	vitals.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	vitals.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	vitals.add_theme_constant_override("separation", 3)
+	# PLACED, not centred. Qud's bars occupy exact rows -- HP 47..65, EXP 69..87 -- and centring
+	# cannot reach them: with the block 41 tall in a 44 row, SHRINK_CENTER lands on 46, BEGIN on 45
+	# and END on 48. (It happened to land right while the boxes were a px short, which is why the
+	# height fix moved them.) So: align to the top and spell out Qud's two gaps as spacers, with the
+	# container's own separation off.
+	vitals.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	vitals.add_theme_constant_override("separation", 0)
 	vitals.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	# Qud's vitals text is ~15% smaller than our default body — sized to match (cap ~11px vs Qud's 11).
 	var vfs := int(round(UiFont.px(get_viewport(), "body") * 0.85))
+	vitals.add_child(_vspace(VITALS_TOP_PAD))
 	_l_hp = _hp_rich(vfs)
 	_bar_hp = _bar(0, 1, COL_HP)
 	vitals.add_child(_vitals_row(_l_hp, _bar_hp))
+	vitals.add_child(_vspace(VITALS_GAP))
 
 	_l_exp = _text("LVL: —   EXP: —", COL_EXP)
 	_l_exp.add_theme_font_size_override("font_size", vfs)
