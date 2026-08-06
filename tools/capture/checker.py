@@ -515,16 +515,37 @@ def stage_zoom():
     b.close()
 
 
+def _raves_state():
+    try:
+        with open(os.path.join(BASE, "raves_state.json")) as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+
+
 def _raves_in_game():
     """The viewer's own word that it's showing the PLAYFIELD. A capture
     succeeding proves nothing — menus capture fine, and a half-failed attach
     left the viewer on a text screen for a whole certification slice (150
     furniture elements scored against menu text, uniform ~40-127 means)."""
-    try:
-        with open(os.path.join(BASE, "raves_state.json")) as f:
-            return json.load(f).get("scene") == "in_game"
-    except (OSError, ValueError):
-        return False
+    return _raves_state().get("scene") == "in_game"
+
+
+def _raves_clear(b):
+    """In-game AND no modal overlay. A mirrored popup can DESYNC: Qud's side
+    is long dismissed while the viewer's overlay sticks (second certification
+    run: the S-Y furniture tail and 229 creatures scored against stuck dialog
+    text while scene read in_game). Cancel over the bridge first; report
+    whether the viewer actually came clear."""
+    st = _raves_state()
+    if st.get("scene") == "in_game" and not st.get("popup"):
+        return True
+    for _ in range(3):
+        b.send("popup", action="cancel")
+        time.sleep(0.6)
+    time.sleep(0.8)
+    st = _raves_state()
+    return st.get("scene") == "in_game" and not st.get("popup")
 
 
 def reboot_rig(b=None):
@@ -589,9 +610,10 @@ def reboot_rig(b=None):
         time.sleep(1)
         _hv("key", "--focus", "Raves", "space")
         time.sleep(4 + attempt * 2)
-        # BOTH tests: capture works AND the viewer says in_game — a menu
-        # screen captures successfully and poisoned a certification slice.
-        if control.godot_shot() and _raves_in_game():
+        # ALL three tests: capture works, the viewer says in_game, and no
+        # modal overlay — menus and stuck mirrored popups both capture
+        # "successfully" and each poisoned a certification slice.
+        if control.godot_shot() and _raves_in_game() and not _raves_state().get("popup"):
             break
         print("reboot_rig: viewer attach attempt %d failed; retrying" % (attempt + 1))
     else:
@@ -805,12 +827,13 @@ def main(argv):
                                 "warns": []})
                 print("[%d/%d] %-40s SKIPPED (wedged rig)" % (start + i + 1, start + len(names), bp))
                 continue
-            # MENU-DRIFT GUARD: the viewer can fall out of the game mid-run
-            # (it did, unprompted, between two certification categories) and
-            # every capture after that scores against menu text. One file
-            # read per element; reboot and restage the moment it happens.
-            if ("--shots" in argv or "--diff" in argv) and not _raves_in_game():
-                print("=== raves fell out of the game; rig reboot + restage")
+            # VIEWER-CLEAR GUARD: before every scored capture the viewer must
+            # be in-game with NO modal overlay. Menus and STUCK mirrored
+            # popups (a desynced overlay survives Qud-side cancels) each
+            # poisoned a certification slice. Cancel first; a viewer that
+            # won't come clear gets a full reboot, then the element restages.
+            if ("--shots" in argv or "--diff" in argv) and not _raves_clear(b):
+                print("=== raves not clear (menu/stuck overlay); rig reboot + restage")
                 b = reboot_rig(b)
                 if "--diff" in argv:
                     ensure_daylight(b)
