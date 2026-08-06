@@ -212,10 +212,17 @@ is phase); KNOWN = unverifiable (spawners, multi-cell); FAIL = attributed.
 - Creature programs: Gyre Wight of Qas (8!), Sleeping Plated Chromeling (6),
   Ogre Ape (6 vs 2 partial), Livid Creeper-as-creature (3), Bloated
   Pearlfrog (2), Ehalcodon (2)
-- CONVEYOR FRAME-SYNC: EventArt ships ONE wall-time frame; Qud draws its own
-  moment's frame — an unpowered static belt still mismatches (~100). Fix:
-  synthesize the ConveyorPad frame schedule as animFrames so the client
-  animates it (the part computes tiles procedurally).
+- ~~CONVEYOR FRAME-SYNC~~ FIXED (2026-08-05 night) — and the theory was
+  wrong twice over. Measured: Qud's idle belt is FROZEN (the 150ms advance
+  runs inside Render(E), which only fires on map REPAINTS; the idle prompt
+  doesn't repaint — 8 captures over 1.5s, zero structural change, while
+  export-path Render calls stepped the frame w_4→w_3→w_2). So the static
+  EventArt frame IS the right 1:1 baseline. The real divergence: the belt
+  bmps are opaque black+white two-tone art and ConveyorPad paints "&y" via
+  RenderEvent.ApplyColors at render time — EventArt resolved those colours
+  and threw them away, shipping the static "&K^k" instead (pale slab vs
+  dark slab, ~104). EventArt now hands back the event's applied colours.
+  All 10 pads: ~104 → 4.2 PASS.
 
 **STATIC-DIVERGENCE LIST, RE-MEASURED CLEAN (2026-08-05 late): mostly
 contamination.** The first triage list was read off a rotted zone — staging

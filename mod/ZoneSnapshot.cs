@@ -434,7 +434,8 @@ namespace RavesOfQud
         /// animated liquids) keep the curated colour exports — their handlers
         /// mutate colours per frame and must not leak onto the wire.
         /// </summary>
-        private static void EventArt(GameObject go, Render r, ref string tile, ref string glyph)
+        private static void EventArt(GameObject go, Render r, ref string tile, ref string glyph,
+                                     ref string evColor, ref string evDetail)
         {
             try
             {
@@ -448,6 +449,13 @@ namespace RavesOfQud
                 go.ComponentRender(ev);
                 if (!string.IsNullOrEmpty(ev.Tile)) tile = ev.Tile;
                 if (string.IsNullOrEmpty(glyph) && !string.IsNullOrEmpty(ev.RenderString)) glyph = ev.RenderString;
+                // Colours the handlers APPLIED (RenderEvent.ApplyColors runs — Lit=Light
+                // makes ColorsVisible true) were thrown away, which shipped the static
+                // part colours instead: ConveyorPad paints "&y" at render time over its
+                // opaque black-and-white belt art, so Qud showed a pale slab and Raves
+                // a dark one (~104 mean, all 10 pads). Hand them back.
+                evColor = ev.ColorString ?? "";
+                evDetail = ev.DetailColor ?? "";
             }
             catch { }
         }
@@ -1217,7 +1225,8 @@ namespace RavesOfQud
                         // pipeline (ConveyorPad builds its frame tile there; the wire
                         // shipped a dark "-" and Raves drew bare floor). Adopt event art
                         // as a last resort — tiled objects keep the curated exports.
-                        if (tile.Length == 0) EventArt(go, r, ref tile, ref glyph);
+                        string evColor = "", evDetail = "";
+                        if (tile.Length == 0) EventArt(go, r, ref tile, ref glyph, ref evColor, ref evDetail);
                         // GLYPH MODE: with no tile anywhere, Qud draws the sprite
                         // "Text/<charcode>.bmp" (Renderable.getTile does exactly
                         // this). Ship that sprite as the tile so the client renders
@@ -1235,6 +1244,10 @@ namespace RavesOfQud
                         string colorOut = r.ColorString ?? "";
                         string tileColorOut = r.TileColor ?? "";
                         string detailOut = r.DetailColor ?? "";
+                        // Event-art objects: the render event's APPLIED colours are the
+                        // truth (ConveyorPad's "&y"), not the static part fields.
+                        if (evColor.Length > 0) { colorOut = evColor; tileColorOut = evColor; }
+                        if (evDetail.Length > 0) detailOut = evDetail;
                         // HologramMaterial (holograms/projections) repaints the render colours
                         // EVERY frame from its cycle ("&C,&b,&c,&B" / "c,C,b,b"); the frame math
                         // clamps to the LAST entry ~92% of the time, so that IS the steady look
@@ -1497,16 +1510,22 @@ namespace RavesOfQud
                         // its own Render(E) per Qud frame, invisible to the static
                         // reads above. Evaluate its condition ladder NOW and ship the
                         // merged schedule (see AnimGenericSchedule).
+                        string animSched = null;
                         try
                         {
                             var amg = AnimGenericOf(go);
                             if (amg != null && AnimGenericActive(go, amg))
-                            {
-                                string spec = AnimGenericSchedule(go, r, amg);
-                                if (spec != null) j.Member("animSched", spec);
-                            }
+                                animSched = AnimGenericSchedule(go, r, amg);
                         }
                         catch { }
+                        // (ConveyorPad deliberately ships NO schedule: measured on the
+                        // rig, Qud's belt only steps on map REPAINTS — rate-limited to
+                        // 150ms of wall time inside Render(E) — and the idle prompt
+                        // doesn't repaint, so the staged belt sits frozen at whatever
+                        // frame the last repaint left. The 1:1 baseline is that static
+                        // frame; EventArt ships it, and the ~104 divergence was the
+                        // discarded event COLOURS, not motion.)
+                        if (animSched != null) j.Member("animSched", animSched);
                         // Qud's Swimming effect: an aquatic-limited creature (eel, glowfish) renders
                         // over its supporting liquid's BACKGROUND colour. Ask the liquid itself
                         // (RenderBackgroundPrimary/Secondary on a scratch event — water prepends "^b";

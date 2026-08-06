@@ -1,6 +1,6 @@
 # Object Checker — furniture
 
-745/745 PASS  (2026-08-05 22:45)  pixel: 708 PASS / 3 WARN / 18 FAIL / 12 KNOWN / 4 ANIM
+745/745 PASS  (2026-08-05 23:43)  pixel: 718 PASS / 3 WARN / 8 FAIL / 12 KNOWN / 4 ANIM
 
 | element | verdict | px | notes |
 |---|---|---|---|
@@ -104,17 +104,17 @@
 | Clockthing_QGirl | PASS | PASS 5.3/3% | wire tile != blueprint tile 'items_sw_clockthing' |
 | Clue_VillageStores | PASS | PASS 3.6/2% | wire tile != blueprint tile 'assets_content_textures_tiles_sw_chest' |
 | ConveyorDrive | PASS | PASS 6.8/4% | wire tile != blueprint tile 'items_sw_gears2' |
-| ConveyorPad | PASS | FAIL 104.0/78% |  |
-| ConveyorPadE | PASS | FAIL 104.1/78% |  |
-| ConveyorPadN | PASS | FAIL 104.0/78% |  |
-| ConveyorPadS | PASS | FAIL 104.0/78% | no capture pair — congruence skipped |
-| ConveyorPadW | PASS | FAIL 104.0/78% |  |
+| ConveyorPad | PASS | PASS 4.2/1% |  |
+| ConveyorPadE | PASS | PASS 4.3/1% |  |
+| ConveyorPadN | PASS | PASS 4.3/1% |  |
+| ConveyorPadS | PASS | PASS 4.2/1% |  |
+| ConveyorPadW | PASS | PASS 4.2/1% |  |
 | Crematory Liquid-Cooled Unicomputer | PASS | ANIM 59.9/42% | anim-verified (state agreement); single-frame diff is phase |
-| CrematoryConveyorPad | PASS | FAIL 104.0/78% |  |
-| CrematoryConveyorPadE | PASS | FAIL 104.1/78% | no capture pair — congruence skipped |
-| CrematoryConveyorPadN | PASS | FAIL 103.9/78% |  |
-| CrematoryConveyorPadS | PASS | FAIL 104.0/78% |  |
-| CrematoryConveyorPadW | PASS | FAIL 104.0/78% |  |
+| CrematoryConveyorPad | PASS | PASS 4.3/1% |  |
+| CrematoryConveyorPadE | PASS | PASS 4.3/1% |  |
+| CrematoryConveyorPadN | PASS | PASS 4.2/1% |  |
+| CrematoryConveyorPadS | PASS | PASS 4.2/1% |  |
+| CrematoryConveyorPadW | PASS | PASS 4.3/1% |  |
 | CrematoryMachineRoomBookshelf | PASS | PASS 6.3/6% | wire tile != blueprint tile 'items_sw_bookshelf3' |
 | Crib | PASS | PASS 2.2/1% | wire tile != blueprint tile 'items_sw_crib' |
 | Crypt Door | PASS | PASS 4.5/2% | wire tile != blueprint tile 'items_sw_door_filigree' |

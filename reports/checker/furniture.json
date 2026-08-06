@@ -3676,7 +3676,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 1,
+   "cleared": 0,
    "tile": "",
    "color": "&K^k",
    "detail": "",
@@ -3689,15 +3689,15 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\ConveyorPad_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 103.99,
-   "pct_hot": 78.1,
-   "band": "FAIL",
+   "mean_abs_diff": 4.25,
+   "pct_hot": 0.8,
+   "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 160,
-   "wire_delta": 5
+   "dominant_delta": 0,
+   "wire_delta": 155
   }
  },
  {
@@ -3724,15 +3724,15 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\ConveyorPadE_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 104.07,
-   "pct_hot": 78.1,
-   "band": "FAIL",
+   "mean_abs_diff": 4.32,
+   "pct_hot": 0.8,
+   "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 160,
-   "wire_delta": 5
+   "dominant_delta": 0,
+   "wire_delta": 155
   }
  },
  {
@@ -3759,24 +3759,22 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\ConveyorPadN_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 104.04,
-   "pct_hot": 78.1,
-   "band": "FAIL",
+   "mean_abs_diff": 4.27,
+   "pct_hot": 0.8,
+   "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 160,
-   "wire_delta": 5
+   "dominant_delta": 0,
+   "wire_delta": 155
   }
  },
  {
   "bp": "ConveyorPadS",
   "pass": true,
   "reasons": [],
-  "warns": [
-   "no capture pair \u2014 congruence skipped"
-  ],
+  "warns": [],
   "stage": {
    "bp": "ConveyorPadS",
    "ok": true,
@@ -3792,18 +3790,19 @@
   "wire_objs": 1,
   "wire_hex": "155352",
   "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\ConveyorPadS_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\ConveyorPadS_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 104.04,
-   "pct_hot": 78.1,
-   "band": "FAIL",
+   "mean_abs_diff": 4.2,
+   "pct_hot": 0.8,
+   "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 160,
-   "wire_delta": 5
+   "dominant_delta": 0,
+   "wire_delta": 155
   }
  },
  {
@@ -3830,15 +3829,15 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\ConveyorPadW_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 104.0,
-   "pct_hot": 78.1,
-   "band": "FAIL",
+   "mean_abs_diff": 4.25,
+   "pct_hot": 0.8,
+   "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 160,
-   "wire_delta": 5
+   "dominant_delta": 0,
+   "wire_delta": 155
   }
  },
  {
@@ -3900,24 +3899,22 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\CrematoryConveyorPad_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 104.03,
-   "pct_hot": 78.1,
-   "band": "FAIL",
+   "mean_abs_diff": 4.35,
+   "pct_hot": 0.8,
+   "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 160,
-   "wire_delta": 5
+   "dominant_delta": 0,
+   "wire_delta": 155
   }
  },
  {
   "bp": "CrematoryConveyorPadE",
   "pass": true,
   "reasons": [],
-  "warns": [
-   "no capture pair \u2014 congruence skipped"
-  ],
+  "warns": [],
   "stage": {
    "bp": "CrematoryConveyorPadE",
    "ok": true,
@@ -3933,18 +3930,19 @@
   "wire_objs": 1,
   "wire_hex": "155352",
   "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\CrematoryConveyorPadE_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\CrematoryConveyorPadE_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 104.09,
-   "pct_hot": 78.1,
-   "band": "FAIL",
+   "mean_abs_diff": 4.29,
+   "pct_hot": 0.8,
+   "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 160,
-   "wire_delta": 5
+   "dominant_delta": 0,
+   "wire_delta": 155
   }
  },
  {
@@ -3971,15 +3969,15 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\CrematoryConveyorPadN_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 103.91,
-   "pct_hot": 78.1,
-   "band": "FAIL",
+   "mean_abs_diff": 4.24,
+   "pct_hot": 0.8,
+   "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 160,
-   "wire_delta": 5
+   "dominant_delta": 0,
+   "wire_delta": 155
   }
  },
  {
@@ -4006,15 +4004,15 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\CrematoryConveyorPadS_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 104.03,
-   "pct_hot": 78.1,
-   "band": "FAIL",
+   "mean_abs_diff": 4.24,
+   "pct_hot": 0.8,
+   "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 160,
-   "wire_delta": 5
+   "dominant_delta": 0,
+   "wire_delta": 155
   }
  },
  {
@@ -4041,15 +4039,15 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\CrematoryConveyorPadW_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 103.99,
-   "pct_hot": 78.1,
-   "band": "FAIL",
+   "mean_abs_diff": 4.29,
+   "pct_hot": 0.8,
+   "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 160,
-   "wire_delta": 5
+   "dominant_delta": 0,
+   "wire_delta": 155
   }
  },
  {
