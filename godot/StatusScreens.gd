@@ -74,6 +74,8 @@ var _skills_mtime := 0
 var _inv_pane: Control = null
 var _quests_pane: Control = null
 var _quests_mtime := 0
+var _fact_pane: Control = null
+var _fact_mtime := 0
 var _inv_mtime := 0
 var _char_mtime := 0
 var _pane_pal_empty := true
@@ -100,7 +102,10 @@ func _ready() -> void:
 			_skills_pane.handle_mouse(e)
 		elif _tab == "equipment" and _inv_pane != null and _inv_pane.visible \
 				and _inv_pane.has_method("handle_mouse"):
-			_inv_pane.handle_mouse(e))
+			_inv_pane.handle_mouse(e)
+		elif _tab == "reputation" and _fact_pane != null and _fact_pane.visible \
+				and _fact_pane.has_method("handle_mouse"):
+			_fact_pane.handle_mouse(e))
 	_root.theme = UiFont.make_theme(get_viewport())    # CanvasLayer theme-root trap
 	add_child(_root)
 	for t in TABS:
@@ -385,6 +390,8 @@ func _set_tab(id: String) -> void:
 		_inv_pane.visible = (id == "equipment")
 	if _quests_pane != null:
 		_quests_pane.visible = (id == "quests")
+	if _fact_pane != null:
+		_fact_pane.visible = (id == "reputation")
 	if id == "attributes":
 		_request_export()
 		_load_character()
@@ -397,6 +404,9 @@ func _set_tab(id: String) -> void:
 	if id == "quests":
 		_request_export()
 		_load_quests()
+	if id == "reputation":
+		_request_export()
+		_load_factions()
 	_build_hints()
 	if visible:
 		UiState.set_scene("status_" + _tab)
@@ -512,6 +522,34 @@ func _load_skills(force := false) -> void:
 		if visible and _tab == "skills":
 			_load_skills())
 
+
+
+## (Re)build the Reputation tab's faction list from factions.json.
+func _load_factions(force := false) -> void:
+	var path := InputModel.support_dir().path_join("factions.json")
+	if not FileAccess.file_exists(path):
+		return
+	var mt := FileAccess.get_modified_time(path)
+	if not force and _fact_pane != null and mt == _fact_mtime \
+			and not (_pane_pal_empty and not _palette.is_empty()):
+		return
+	var f := FileAccess.open(path, FileAccess.READ)
+	if f == null:
+		return
+	var txt := f.get_as_text()
+	f.close()
+	var data: Variant = JSON.parse_string(txt)
+	if not (data is Dictionary):
+		return
+	_fact_mtime = mt
+	if _fact_pane == null:
+		_fact_pane = load("res://StatusPaneFactions.gd").new()
+		_fact_pane.bridge_cb = func(msg: Dictionary): _send_bridge(msg)
+		_fact_pane.reload_cb = func(): _load_factions(true)
+		_root.add_child(_fact_pane)
+	_pane_pal_empty = _palette.is_empty()
+	_fact_pane.setup(data, _palette)
+	_fact_pane.visible = (_tab == "reputation")
 
 ## (Re)build the Quests tab's list from quests.json.
 func _load_quests(force := false) -> void:
