@@ -29,13 +29,20 @@ const NAME_1TO1 := "#609caa"       # ability name — measured Color8(96,156,170
 const NUM_1TO1 := "#929393"        # <N> action number — measured Color8(146,147,147)
 var CELL_FRAME_1TO1 := QudChrome.q8(11, 148, 71)   # green selection box (Qud draws it on the first/selected cell)
 var CELL_FILL_1TO1 := QudChrome.q8(21, 23, 23)     # ...and the fill inside it
+var CELL_DIVIDER_1TO1 := QudChrome.q8(46, 75, 83)  # Qud's 1px Spacer between cells, measured
 
 # 1:1 PAGINATION (measured off Qud with 10+ abilities on sync-raves-and-qud): Qud packs
 # content-sized cells left-to-right and moves what doesn't fit onto further pages — the
 # left gutter becomes "ABILITIES / page N of M" with a green up/down stepper showing the
 # page number, and Ctrl+Tab / Ctrl+Shift+Tab flip pages. With one page, surplus width is
 # shared between the cells (plain HBox expand — the meta 4-ability spread).
-const GUTTER_W_1TO1 := 180                       # first cell's green frame starts x180
+## Qud's ButtonArea starts at 175. The 180 the green frame lands on is 175 + the button's padL of
+## 5 -- so the gutter states the real edge and the inset comes from the cell, as it does in Qud.
+const GUTTER_W_1TO1 := 175
+const CELL_PAD_L_1TO1 := 5       # AbilityBarButton padL (padR is 0)
+const CELL_SPACING_1TO1 := 10    # WorkableArea spacing: icon element -> text
+const ICON_W_1TO1 := 32          # TopHalf — the icon ELEMENT; the sprite is fitted inside it
+const ICON_H_1TO1 := 48
 const ABIL_CYAN := Color8(41, 130, 181)          # ABILITIES / page N of M text
 const PAGE_NUM := Color8(141, 124, 84)           # the stepper's page digit
 const PAGE_ARROW := Color8(11, 148, 71)          # stepper arrows — Qud's selection green
@@ -44,6 +51,7 @@ var _tiles: RefCounted       # shared tile recolouring for ability icons (set in
 var _rt: RichTextLabel       # user (QoL) layout: all abilities inline, left-packed
 var _cells: HBoxContainer    # 1:1 layout: one equal-width cell per ability, spread across the bar (Qud)
 var _row: HBoxContainer      # the bar's own row: gutter + cells. Its lead-in is what set the cells' x.
+var _bar_cells: Array[float] = []   # Qud's own laid-out cell widths, in bar order (snapshot barCells)
 var _cellwrap: ScrollContainer   # clips the cells: their min width must NOT inflate the chrome row
 var _abilities_btn: Button   # far-left: opens Qud's Abilities menu (the 'a' command)
 var _palette := {}
@@ -166,6 +174,9 @@ func set_snapshot(data: Dictionary) -> void:
 	_tiles.tiles_dir = String(data.get("tilesDir", _tiles.tiles_dir))
 	_ability_tex.clear()
 	_abilities = data.get("abilities", [])   # keep for the 1-9 hotkeys
+	_bar_cells.clear()
+	for w in String(data.get("barCells", "")).split(",", false):
+		_bar_cells.append(float(w))
 	if _one_to_one:
 		_render_cells(_abilities)
 	else:
@@ -260,11 +271,12 @@ func _render_cells(abilities: Array) -> void:
 	var page: Array = _pages[_page]
 	for j in page.size():
 		var i: int = page[j]
-		if j > 0:
-			_cells.add_child(VSeparator.new())   # divider between cells, like Qud
+		# No separator NODE: Qud's divider is a 1px Spacer INSIDE the button, so the cell's own width
+		# already covers it. A node between cells adds width Qud does not have.
 		# Qud frames the selected quick-slot with a green box; default selection is the first ability.
 		# Slots restart per page — the 1-9 keys always activate the VISIBLE cells.
-		_cells.add_child(_make_cell(abilities[i], icon_px, j + 1, j == 0))
+		var cw: float = _bar_cells[j] if j < _bar_cells.size() else 0.0
+		_cells.add_child(_make_cell(abilities[i], icon_px, j + 1, j == 0, cw))
 
 ## Greedy page fit, like Qud: pack content-sized cells until the next one would not fit
 ## in the bar (window minus the gutter), then start a new page. Cell width is estimated
@@ -282,7 +294,7 @@ func _paginate(abilities: Array) -> Array:
 		var a: Dictionary = abilities[i]
 		var txt := "%s%s%s" % [QudText.strip(String(a.get("name", ""))),
 			_state_plain(a), _hotkey_label(a, (cur.size() + 1))]
-		var wmin := 8.0 + round(ICON_PX_1TO1 * 16.0 / 24.0) + 6.0 \
+		var wmin := float(CELL_PAD_L_1TO1) + ICON_W_1TO1 + float(CELL_SPACING_1TO1) \
 			+ f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize).x
 		var need := wmin + (10.0 if cur.size() > 0 else 0.0)   # divider + separation
 		if cur.size() > 0 and used + need > avail:
@@ -364,7 +376,7 @@ func _update_gutter() -> void:
 ## hotkey label, both centred. The cell (an HBox) catches the click via gui_input; children IGNORE the
 ## mouse so it falls through. Nothing here takes keyboard focus, so the movement arrows are never
 ## swallowed (the "can't move after Make Camp" bug).
-func _make_cell(a: Dictionary, icon_px: int, slot: int, selected: bool) -> Control:
+func _make_cell(a: Dictionary, icon_px: int, slot: int, selected: bool, cell_w := 0.0) -> Control:
 	var cmd := String(a.get("command", ""))
 	var tex: Texture2D = _tiles.texture_for(a, true)
 	if cmd != "":
@@ -372,8 +384,37 @@ func _make_cell(a: Dictionary, icon_px: int, slot: int, selected: bool) -> Contr
 	# The click target + optional green selection frame is the outer PanelContainer; children ignore the
 	# mouse so the click falls through to it, and nothing here grabs keyboard focus (movement-arrow bug).
 	var frame := PanelContainer.new()
-	frame.size_flags_horizontal = Control.SIZE_EXPAND_FILL   # equal share of the bar width
+	# QUD'S WIDTH, not a share of the bar. Both apps size a cell to its content and share out the
+	# slack, but Godot splits leftover space equally between expanding children where Unity
+	# distributes it by flexible width -- so identical content lands on different widths and no
+	# padding or spacing can reconcile them. cell_w is Qud's own laid-out width for this cell.
+	if cell_w > 0.0:
+		frame.custom_minimum_size = Vector2(cell_w, 0)
+		frame.size_flags_horizontal = Control.SIZE_FILL
+	else:
+		frame.size_flags_horizontal = Control.SIZE_EXPAND_FILL   # no bar seen yet: share equally
 	frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	# The outer box PAINTS NOTHING: Qud's AbilityBarButton only pads (L5, R0) and the green box
+	# belongs to the WorkableArea inside it, which is why the frame reads at x180 in a cell at 175.
+	var obs := StyleBoxFlat.new()
+	obs.bg_color = Color(0, 0, 0, 0)
+	obs.set_border_width_all(0)
+	obs.set_corner_radius_all(0)
+	obs.content_margin_left = CELL_PAD_L_1TO1
+	obs.content_margin_right = 0
+	obs.content_margin_top = 0
+	obs.content_margin_bottom = 0
+	frame.add_theme_stylebox_override("panel", obs)
+	# Qud's 1px Spacer, drawn rather than laid out: it sits at the button's left edge OUTSIDE the
+	# padding (x+1.5 of a cell whose content starts at x+5), so a layout child would both consume
+	# width and land in the wrong place.
+	if slot > 1:
+		frame.draw.connect(func() -> void:
+			frame.draw_rect(Rect2(1.0, (frame.size.y - 42.0) * 0.5, 1.0, 42.0), CELL_DIVIDER_1TO1))
+	var work := PanelContainer.new()                          # Qud's WorkableArea
+	work.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	work.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	frame.add_child(work)
 	var fs := StyleBoxFlat.new()
 	# The SELECTED cell is filled, not just framed: Qud paints (21,23,23) inside the green box
 	# (measured x181..366, y1019..1078 -- the whole cell), a touch lighter than the bottom strip it
@@ -386,9 +427,9 @@ func _make_cell(a: Dictionary, icon_px: int, slot: int, selected: bool) -> Contr
 	# 10, not 4: with the lead-in gone the first cell started on Qud's x180 but ran to 355 against
 	# its 367 -- 12 narrow, i.e. 6 a side. The cells size to their content in both apps, so the
 	# difference is the padding around it.
-	fs.content_margin_left = 8
-	fs.content_margin_right = 8
-	frame.add_theme_stylebox_override("panel", fs)
+	fs.content_margin_left = 0
+	fs.content_margin_right = 0
+	work.add_theme_stylebox_override("panel", fs)
 	frame.tooltip_text = QudText.strip(String(a.get("name", "")))
 	frame.mouse_filter = Control.MOUSE_FILTER_STOP
 	frame.gui_input.connect(func(e: InputEvent) -> void:
@@ -420,15 +461,17 @@ func _make_cell(a: Dictionary, icon_px: int, slot: int, selected: bool) -> Contr
 	# once the icon element is exactly 32 wide and the text element exactly 100.81. Until the cell is
 	# rebuilt to that structure, these numbers are a set -- 6 with our widths puts the boundaries on
 	# Qud's columns, which is what the eye reads.
-	cell.add_theme_constant_override("separation", 6)
+	cell.add_theme_constant_override("separation", CELL_SPACING_1TO1)
 	cell.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	frame.add_child(cell)
+	work.add_child(cell)
 	if tex != null:
 		var ir := TextureRect.new()
 		ir.texture = tex
 		ir.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST   # crisp pixel-art, no blur
 		ir.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		ir.custom_minimum_size = Vector2(round(icon_px * 16.0 / 24.0), icon_px)
+		# Qud's TopHalf is a FIXED 32x48 element; the sprite is fitted inside it, which is why its ink
+		# reads 24 wide for a narrow tile and 43 for a wide one while the element never changes.
+		ir.custom_minimum_size = Vector2(ICON_W_1TO1, ICON_H_1TO1)
 		ir.mouse_filter = Control.MOUSE_FILTER_IGNORE   # click falls through to the cell
 		cell.add_child(ir)
 	# Name in Qud's muted teal, state + <N> quick-slot in light grey (measured off the command bar).

@@ -758,8 +758,13 @@ The three go together or not at all:
    a 1px divider inside each cell but the first (Qud's Spacer, (46,75,83) on the glass)
 3. `GUTTER_W_1TO1` = **175**, Qud's real ButtonArea x — the 180 the frame lands on is 175 + padL
 
-Each of those alone makes the bar worse, which is why it is still at 10.06 with the flat cell. They
-are all measured; what is left is doing them in one change and re-measuring.
+Each of those alone makes the bar WORSE (12.39 / 16.83 / 16.09 against a 10.06 baseline). Applied
+together they land: **9.04**, with the cell boundaries on Qud's own columns — 367, 537, 697 exactly,
+where the flat cell drifted to 695 and 853. The icon ink comes out 45x40 against Qud's 43x40.
+
+That is the shape of the whole lesson: a layout copied piecemeal from another engine reads as a
+series of regressions, because each constant you have not copied yet is compensating for the one you
+just did. Take the model whole, or leave it alone.
 
 **A model you cannot copy piecemeal.** Qud's spacing of 10 and its padL of 5 both make our bar
 worse (10.06 -> 14.78 and -> 15.07) because our cell's elements are not its elements: the spacing
