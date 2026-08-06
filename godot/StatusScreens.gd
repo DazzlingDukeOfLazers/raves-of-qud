@@ -47,6 +47,40 @@ var S_GOLD := QudChrome.q8(195, 180, 56)         # the > cursor
 var S_RULE := QudChrome.q8(60, 84, 92)
 
 var _root: Control           # full-rect content root inside this layer
+## Qud's vertical rules are PER TAB. They are not an outer frame at all: every one of them is an
+## element inside a tab's own subtree (Screens/<Tab>/.../Vertical Border), so the position, the
+## vertical extent AND whether a side is drawn at all change with the tab. Measured across all
+## eight -- three tabs draw none, tinkering draws only a left, attributes' right sits at 1745 while
+## journal's and quests' sit at 1748.
+##
+## Drawing one fixed pair (166 / 1753) put a full-height rule down the right of every tab. That pair
+## is the EQUIPMENT tab's, which is where it was measured; it was right on one tab in eight.
+##
+## Values are pixel-measured off Qud, one capture per tab, with the tab confirmed first-party
+## before each shot: [x, y_top, y_bottom]. Interior column dividers (attributes 816/834, journal
+## 952, quests 1021) belong to the panes, not here.
+## The top rule's centred gap, half-width, per tab -- and which tabs draw one at all. Measured the
+## same way as TAB_VRULES: equipment 581..1338, journal 726..1193, tinkering 842..1077, every one
+## centred on 959.5. The other five draw no top rule, and we were drawing the equipment tab's on all
+## eight.
+const TOP_CENTRE := 959.5
+const TAB_TOPGAP := {
+	"equipment":  378.5,
+	"journal":    233.5,
+	"tinkering":  117.5,
+}
+
+const TAB_VRULES := {
+	"attributes": [[173.0, 180.0, 938.0], [1745.0, 236.0, 938.0]],
+	"equipment":  [[166.0, 197.0, 938.0], [1753.0, 197.0, 938.0]],
+	"journal":    [[1748.0, 197.0, 938.0]],
+	"quests":     [[1748.0, 180.0, 938.0]],
+	"tinkering":  [[166.0, 197.0, 938.0]],
+	"messagelog": [],
+	"reputation": [],
+	"skills":     [],
+}
+
 var _tab := "messagelog"
 var _hover_tab := -1
 var _palette := {}
@@ -170,7 +204,7 @@ void fragment() {
 	# and the 189 was the filter strip crossing that row, not a line). MEASURED off Qud:
 	#   top    y197, in four segments -- 158-204, 213-581, 1338-1705, 1714-1760, the gaps
 	#          at 205-212 and 1706-1713 being notches and the long one the filter strip
-	#   left   x166, y227-938        right  x1753, y228-938
+	#   left/right: PER TAB, see TAB_VRULES -- they are not part of this frame at all
 	#   bottom y937, x158-1760       (the rule that was already here)
 	# The verticals start ~30px below the top line: that gap is the corner ornament's,
 	# and drawing through it would be worse than leaving it.
@@ -180,10 +214,18 @@ void fragment() {
 	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_frame = frame
 	frame.draw.connect(func():
-		for seg in [[158.0, 204.0], [213.0, 581.0], [1338.0, 1705.0], [1714.0, 1760.0]]:
-			frame.draw_rect(Rect2(seg[0], 197.0, seg[1] - seg[0] + 1.0, 1.0), S_RULE)
-		frame.draw_rect(Rect2(166.0, 227.0, 1.0, 712.0), S_RULE)
-		frame.draw_rect(Rect2(1753.0, 228.0, 1.0, 711.0), S_RULE)
+		# The top rule is per tab too, and it is a GAP, not a fixed set of segments: it runs
+		# 158-204 / 213 .. (centre - g) and (centre + g) .. 1705 / 1714-1760, where the gap is
+		# centred on 959.5 on every tab that has one and only its half-width g changes with the
+		# tab's header block. Five tabs draw no top rule at all.
+		var g: float = TAB_TOPGAP.get(_tab, -1.0)
+		if g > 0.0:
+			for seg in [[158.0, 204.0], [213.0, TOP_CENTRE - g],
+					[TOP_CENTRE + g, 1705.0], [1714.0, 1760.0]]:
+				frame.draw_rect(Rect2(seg[0], 197.0, seg[1] - seg[0] + 1.0, 1.0), S_RULE)
+		# The verticals belong to the TAB, not the frame -- see TAB_VRULES.
+		for r in TAB_VRULES.get(_tab, []):
+			frame.draw_rect(Rect2(r[0], r[1], 1.0, r[2] - r[1] + 1.0), S_RULE)
 		# EQUIPMENT ONLY. The Ctrl+Tab cybernetics hint belongs to the paper doll; drawn
 		# unconditionally it printed over the first row of every other tab's content.
 		if _tab == "equipment":

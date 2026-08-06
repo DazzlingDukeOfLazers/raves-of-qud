@@ -609,3 +609,30 @@ and a full-width title BAR, and covered the tab.
 - `Control.position` is relative to the **immediate parent**. Reading `_scroll.position` (inside a
   MarginContainer) as if it were panel-relative put the divider 26px high, straight through the last
   row of the list.
+
+## The status screens have no outer frame — every rule belongs to a TAB
+
+There is no frame around Qud's status screens. Each vertical rule is an element inside one tab's own
+subtree (`Screens/<Tab>/.../Vertical Border`), so its x, its vertical extent, and whether that side
+is drawn at all change with the tab. Measured across all eight:
+
+| tab | verticals | top rule |
+|---|---|---|
+| attributes | 173 (y180-938), 1745 (y236-938) | none |
+| equipment | 166, 1753 (both y197-938) | 158-204, 213-581, 1338-1705, 1714-1760 |
+| journal | 1748 (y197-938) | gap 726-1193 |
+| quests | 1748 (y180-938) | none |
+| tinkering | 166 (y197-938) | gap 842-1077 |
+| messagelog / reputation / skills | none | none |
+
+Raves drew one fixed pair (166 / 1753) plus one fixed set of top segments on every tab. That is the
+EQUIPMENT tab's chrome — where it was measured — so it was right on one tab in eight and painted a
+full-height rule down the right of the other seven.
+
+The top rule is a **centred gap**, not a segment list: `158-204 / 213..(959.5-g)` and
+`(959.5+g)..1705 / 1714-1760`, with only the half-width `g` changing (equipment 378.5, journal
+233.5, tinkering 117.5 — all three gaps centre on 959.5). Five tabs draw none.
+
+Interior column dividers (attributes 816/834, journal 952, quests 1021) belong to the panes, not to
+this chrome. **Open:** the journal tab's top rule is within a few px, not exact — Qud's left notch
+ends at 208 there rather than 204, and our gap edges measure 1-2px wide.
