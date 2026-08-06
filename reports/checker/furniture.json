@@ -3845,9 +3845,7 @@
   "bp": "Crematory Liquid-Cooled Unicomputer",
   "pass": true,
   "reasons": [],
-  "warns": [
-   "wire tile != blueprint tile 'items_sw_computer'"
-  ],
+  "warns": [],
   "stage": {
    "bp": "Crematory Liquid-Cooled Unicomputer",
    "ok": true,
@@ -3867,7 +3865,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\Crematory_Liquid-Cooled_Unicomputer_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 59.88,
+   "mean_abs_diff": 59.92,
    "pct_hot": 42.2,
    "band": "FAIL",
    "white_px": [
@@ -9283,9 +9281,9 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\GritGateForceProjector_Rank0_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 35.89,
-   "pct_hot": 23.8,
-   "band": "FAIL",
+   "mean_abs_diff": 15.19,
+   "pct_hot": 9.0,
+   "band": "PASS",
    "white_px": [
     0,
     0
@@ -9298,7 +9296,9 @@
   "bp": "GritGateForceProjector_Rank1",
   "pass": true,
   "reasons": [],
-  "warns": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_forceprojector'"
+  ],
   "stage": {
    "bp": "GritGateForceProjector_Rank1",
    "ok": true,
@@ -9318,8 +9318,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\GritGateForceProjector_Rank1_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 35.9,
-   "pct_hot": 23.8,
+   "mean_abs_diff": 49.46,
+   "pct_hot": 32.6,
    "band": "FAIL",
    "white_px": [
     0,
@@ -16325,9 +16325,9 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\PistonPressElement_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 59.66,
-   "pct_hot": 50.7,
-   "band": "FAIL",
+   "mean_abs_diff": 17.81,
+   "pct_hot": 23.5,
+   "band": "PASS",
    "white_px": [
     0,
     0
@@ -16436,11 +16436,11 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\Powered_Telescope_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 43.97,
-   "pct_hot": 24.0,
-   "band": "FAIL",
+   "mean_abs_diff": 7.84,
+   "pct_hot": 4.4,
+   "band": "PASS",
    "white_px": [
-    0,
+    6,
     204
    ],
    "dominant_delta": 0,
@@ -19460,7 +19460,9 @@
   "bp": "Solar Condenser",
   "pass": true,
   "reasons": [],
-  "warns": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_solar_condenser'"
+  ],
   "stage": {
    "bp": "Solar Condenser",
    "ok": true,
@@ -19480,7 +19482,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\Solar_Condenser_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 34.66,
+   "mean_abs_diff": 34.65,
    "pct_hot": 28.8,
    "band": "FAIL",
    "white_px": [
@@ -24216,9 +24218,7 @@
   "bp": "Unicomputer",
   "pass": true,
   "reasons": [],
-  "warns": [
-   "wire tile != blueprint tile 'items_sw_computer'"
-  ],
+  "warns": [],
   "stage": {
    "bp": "Unicomputer",
    "ok": true,
@@ -24238,9 +24238,9 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\Unicomputer_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 59.88,
-   "pct_hot": 42.2,
-   "band": "FAIL",
+   "mean_abs_diff": 1.54,
+   "pct_hot": 0.3,
+   "band": "PASS",
    "white_px": [
     0,
     0
@@ -25763,8 +25763,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'furniture_wire_extruder'",
-   "no capture pair \u2014 congruence skipped"
+   "wire tile != blueprint tile 'furniture_wire_extruder'"
   ],
   "stage": {
    "bp": "Wire Extruder",
@@ -25781,12 +25780,13 @@
   "wire_objs": 1,
   "wire_hex": "a64a2e",
   "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\Wire_Extruder_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\Wire_Extruder_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 46.23,
-   "pct_hot": 33.3,
-   "band": "FAIL",
+   "mean_abs_diff": 8.57,
+   "pct_hot": 4.7,
+   "band": "PASS",
    "white_px": [
     0,
     0

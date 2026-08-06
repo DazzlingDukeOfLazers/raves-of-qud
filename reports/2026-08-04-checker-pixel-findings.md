@@ -191,11 +191,24 @@ is phase); KNOWN = unverifiable (spawners, multi-cell); FAIL = attributed.
 - Chavvah Chime L+R — continuous swing (11)
 - Wormhole swirl (7), Wooden Water Wheel (6 vs raves 3 — partial port)
 - Mechanical Succulents Cherub (3)
-- POWERED-DEVICE BLINK FAMILY (2-state): PistonPressElement, Wire Extruder,
-  Powered Telescope, Solar Condenser, GritGateForceProjector Rank0/1,
-  Unicomputer + Crematory variant, Eater Sign 1 (3). NOT
-  AnimatedMaterialGeneric (Unicomputer XML carries no Animated part) —
-  mechanism needs reflection; likely a powered-status indicator.
+- ~~POWERED-DEVICE BLINK FAMILY~~ PORTED (2026-08-05 late). Mechanism:
+  AnimatedMaterialGenericAlternate — an EMPTY subclass of
+  AnimatedMaterialGeneric carrying the power-cut icon frames, gated on
+  RequiresAnyUnpoweredActivePart; GetPart<T> is exact-type so the old
+  export never saw it (it sits on HighTechInstallation, inherited by the
+  whole family). Export now: subclass-aware lookup, the part's full
+  condition ladder evaluated at export (private StatusOf via reflection),
+  all three frame axes (tile/colour/detail) merged into ONE schedule
+  "len|f=tile;color;detail|..." with thresholds pre-scaled by
+  SpeedMultiplier onto a plain 60fps clock. Client plays it with
+  replacement frames built OPAQUE (Fill.ALL masks the steady base — Qud
+  swaps the whole tile). Covers the Force Projector detail-colour cycle
+  (r/R/y) too. All 8 members re-measure AGREE; Phasic Screw regression
+  AGREE 5/5 on the new format.
+  Reclassified out of the family: Eater Sign 1 is a HologramMaterial
+  colour cycler (W/w — the "steady last entry" export rule measurably
+  wrong for it), and Wormhole animates inside its own Wormhole part
+  (glyph-mode, 7-state) — both still open, own tickets.
 - Creature programs: Gyre Wight of Qas (8!), Sleeping Plated Chromeling (6),
   Ogre Ape (6 vs 2 partial), Livid Creeper-as-creature (3), Bloated
   Pearlfrog (2), Ehalcodon (2)

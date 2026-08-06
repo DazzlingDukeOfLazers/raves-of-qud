@@ -1,0 +1,31 @@
+{
+ "fixture": "Wire Extruder",
+ "frames": 12,
+ "expect_states": null,
+ "measured": [
+  {
+   "bp": "Wire Extruder",
+   "ok": true,
+   "qud": {
+    "frames": 12,
+    "states": 2,
+    "duty": [
+     0.67,
+     0.33
+    ],
+    "class": "discrete"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 2,
+    "duty": [
+     0.67,
+     0.33
+    ],
+    "class": "discrete"
+   },
+   "agree": true
+  }
+ ],
+ "when": "2026-08-05 22:40"
+}

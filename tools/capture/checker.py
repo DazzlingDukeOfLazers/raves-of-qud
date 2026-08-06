@@ -576,7 +576,10 @@ def _anim_verified():
     phase, banded ANIM rather than FAIL. A measured DISAGREE stays FAIL."""
     import glob as _glob
     out = {}
-    for p in _glob.glob(os.path.join(REPORTS, "anim", "*.json")):
+    # oldest-first so the LATEST measurement of a bp wins the merge (a fresh
+    # single-fixture re-measure must beat a stale tail-sweep entry)
+    for p in sorted(_glob.glob(os.path.join(REPORTS, "anim", "*.json")),
+                    key=os.path.getmtime):
         try:
             d = json.load(open(p))
         except (OSError, ValueError):

@@ -1,6 +1,6 @@
 # Object Checker — furniture
 
-745/745 PASS  (2026-08-05 21:56)  pixel: 703 PASS / 3 WARN / 26 FAIL / 12 KNOWN / 1 ANIM
+745/745 PASS  (2026-08-05 22:45)  pixel: 708 PASS / 3 WARN / 18 FAIL / 12 KNOWN / 4 ANIM
 
 | element | verdict | px | notes |
 |---|---|---|---|
@@ -109,7 +109,7 @@
 | ConveyorPadN | PASS | FAIL 104.0/78% |  |
 | ConveyorPadS | PASS | FAIL 104.0/78% | no capture pair — congruence skipped |
 | ConveyorPadW | PASS | FAIL 104.0/78% |  |
-| Crematory Liquid-Cooled Unicomputer | PASS | FAIL 59.9/42% | wire tile != blueprint tile 'items_sw_computer' |
+| Crematory Liquid-Cooled Unicomputer | PASS | ANIM 59.9/42% | anim-verified (state agreement); single-frame diff is phase |
 | CrematoryConveyorPad | PASS | FAIL 104.0/78% |  |
 | CrematoryConveyorPadE | PASS | FAIL 104.1/78% | no capture pair — congruence skipped |
 | CrematoryConveyorPadN | PASS | FAIL 103.9/78% |  |
@@ -256,8 +256,8 @@
 | GritGateChairbear | PASS | PASS 5.0/4% | wire tile != blueprint tile 'items_sw_chair_bear' |
 | GritGateChromeBeacon | PASS | PASS 3.4/2% | wire tile != blueprint tile 'items_sw_scanningmodule' |
 | GritGateForceProjector | PASS | PASS 15.1/9% | wire tile != blueprint tile 'items_sw_forceprojector' |
-| GritGateForceProjector_Rank0 | PASS | FAIL 35.9/24% | wire tile != blueprint tile 'items_sw_forceprojector' |
-| GritGateForceProjector_Rank1 | PASS | FAIL 35.9/24% |  |
+| GritGateForceProjector_Rank0 | PASS | PASS 15.2/9% | wire tile != blueprint tile 'items_sw_forceprojector' |
+| GritGateForceProjector_Rank1 | PASS | ANIM 49.5/33% | wire tile != blueprint tile 'items_sw_forceprojector'; anim-verified (state agreement); single-frame diff is phase |
 | GritGateForceProjector_Rank2 | PASS | PASS 15.2/9% |  |
 | GritGateFusionPowerStation | PASS | PASS 6.7/5% | wire tile != blueprint tile 'items_sw_fusion_power_station' |
 | GritGateFusionPumpingStation | PASS | PASS 11.3/9% | wire tile != blueprint tile 'items_sw_fusion_pumping_station' |
@@ -448,10 +448,10 @@
 | Period6SultanShrine | PASS | PASS 4.8/4% | wire tile != blueprint tile 'terrain_sw_resheph_sultanstatue' |
 | Phasic Screw | PASS | ANIM 122.1/72% | wire tile != blueprint tile 'furniture_phasic-screw-1'; anim-verified (state agreement); single-frame diff is phase |
 | PigSign | PASS | PASS 3.7/4% | wire tile != blueprint tile 'items_sw_sign_pig' |
-| PistonPressElement | PASS | FAIL 59.7/51% |  |
+| PistonPressElement | PASS | PASS 17.8/24% |  |
 | Platform | PASS | PASS 24.3/8% | wire tile != blueprint tile 'items_sw_platform_chrome' |
 | Powered Orrery | PASS | PASS 4.8/4% | wire tile != blueprint tile 'items_sw_orrery' |
-| Powered Telescope | PASS | FAIL 44.0/24% | wire tile != blueprint tile 'items_sw_microscope' |
+| Powered Telescope | PASS | PASS 7.8/4% | wire tile != blueprint tile 'items_sw_microscope' |
 | Powerless Bubblething | PASS | PASS 5.1/3% | wire tile != blueprint tile 'items_sw_bubblething' |
 | Powerless Electrothing | PASS | PASS 3.9/2% | wire tile != blueprint tile 'items_sw_electrothing' |
 | Powerless Fluxthing | PASS | PASS 4.4/3% | wire tile != blueprint tile 'items_sw_fluxthing' |
@@ -534,7 +534,7 @@
 | Sofa C | PASS | PASS 3.6/4% | wire tile != blueprint tile 'items_sw_couch_c' |
 | Sofa L | PASS | PASS 2.6/3% | wire tile != blueprint tile 'items_sw_couch_l' |
 | Sofa R | PASS | PASS 2.5/3% | wire tile != blueprint tile 'items_sw_couch_r' |
-| Solar Condenser | PASS | FAIL 34.7/29% |  |
+| Solar Condenser | PASS | ANIM 34.6/29% | wire tile != blueprint tile 'items_sw_solar_condenser'; anim-verified (state agreement); single-frame diff is phase |
 | Solar Power Station | PASS | PASS 13.0/12% | wire tile != blueprint tile 'items_sw_solar_power_station' |
 | Solar Pumping Station | PASS | PASS 8.3/4% | wire tile != blueprint tile 'items_sw_solar_pumping_station' |
 | Solar Still | PASS | PASS 6.3/3% | wire tile != blueprint tile 'items_sw_solar_still' |
@@ -664,7 +664,7 @@
 | UndergroundBookshelf | PASS | PASS 6.6/6% | wire tile != blueprint tile 'items_sw_bookshelf2' |
 | UndergroundMerchantBookshelf | PASS | PASS 6.0/6% | wire tile != blueprint tile 'items_sw_bookshelf1' |
 | Unfinished Sculpture | PASS | PASS 8.8/5% | wire tile != blueprint tile 'items_sw_unfinished_sculpture_1' |
-| Unicomputer | PASS | FAIL 59.9/42% | wire tile != blueprint tile 'items_sw_computer' |
+| Unicomputer | PASS | PASS 1.5/0% |  |
 | Unimax Wood Carving | PASS | PASS 10.7/7% | wire tile != blueprint tile 'creatures_sw_unimax' |
 | Universal Charging Station | PASS | PASS 4.8/3% | wire tile != blueprint tile 'items_sw_universal_station' |
 | Unlit Torchpost | PASS | PASS 1.9/1% | wire tile != blueprint tile 'tiles_sw_torch_nofire' |
@@ -706,7 +706,7 @@
 | WineSign1 | PASS | PASS 3.6/4% | wire tile != blueprint tile 'items_sw_sign_wine' |
 | WineSign2 | PASS | PASS 3.6/4% | wire tile != blueprint tile 'items_sw_sign_wine' |
 | WineSign3 | PASS | PASS 3.7/4% |  |
-| Wire Extruder | PASS | FAIL 46.2/33% | wire tile != blueprint tile 'furniture_wire_extruder'; no capture pair — congruence skipped |
+| Wire Extruder | PASS | PASS 8.6/5% | wire tile != blueprint tile 'furniture_wire_extruder' |
 | WiredDoor_GritGateRank1 | PASS | PASS 8.6/5% |  |
 | WiredDoor_GritGateRank2 | PASS | PASS 8.6/5% |  |
 | WiredMetalDoubleDoorE_GritGateRank0 | PASS | PASS 9.9/7% | wire tile != blueprint tile 'tiles_sw_door2_metal_right' |

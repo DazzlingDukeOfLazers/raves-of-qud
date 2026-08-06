@@ -1,0 +1,31 @@
+{
+ "fixture": "Crematory Liquid-Cooled Unicomputer",
+ "frames": 12,
+ "expect_states": null,
+ "measured": [
+  {
+   "bp": "Crematory Liquid-Cooled Unicomputer",
+   "ok": true,
+   "qud": {
+    "frames": 10,
+    "states": 2,
+    "duty": [
+     0.7,
+     0.3
+    ],
+    "class": "discrete"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 2,
+    "duty": [
+     0.67,
+     0.33
+    ],
+    "class": "discrete"
+   },
+   "agree": true
+  }
+ ],
+ "when": "2026-08-05 22:42"
+}

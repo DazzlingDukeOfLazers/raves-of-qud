@@ -172,6 +172,168 @@ namespace RavesOfQud
             return r.RenderString ?? "";
         }
 
+        // ---- AnimatedMaterialGeneric (and subclasses) schedule export ------------
+        //
+        // The part is a data-driven cycler over three axes (tile / colour /
+        // detail-colour), gated by a condition ladder (unpowered active parts,
+        // events, effects, understood). AnimatedMaterialGenericAlternate — the
+        // powered-device blink family: Unicomputers, Wire Extruder, piston
+        // press, solar condenser — is an EMPTY subclass, and GetPart<T> matches
+        // exact type only, so the old export never saw it (checker measured the
+        // whole family 2-state in Qud, static in Raves).
+
+        /// <summary>First AnimatedMaterialGeneric-or-subclass on the object.</summary>
+        private static AnimatedMaterialGeneric AnimGenericOf(GameObject go)
+        {
+            foreach (var p in go.PartsList)
+                if (p is AnimatedMaterialGeneric amg) return amg;
+            return null;
+        }
+
+        /// <summary>The part's private StatusOf(IActivePart) — its Ignore* knobs
+        /// baked in — via reflection (one call site; safer than transcribing the
+        /// 14-argument GetActivePartStatus call).</summary>
+        private static object AnimStatusOf(AnimatedMaterialGeneric amg, IActivePart p)
+        {
+            try
+            {
+                var mi = typeof(AnimatedMaterialGeneric).GetMethod(
+                    "StatusOf",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance,
+                    null, new System.Type[] { typeof(IActivePart) }, null);
+                return mi == null ? null : mi.Invoke(amg, new object[] { p });
+            }
+            catch { return null; }
+        }
+
+        private static bool AnimStatusIs(AnimatedMaterialGeneric amg, IActivePart p, ActivePartStatus want)
+        {
+            object st = AnimStatusOf(amg, p);
+            return st != null && st.Equals(want);
+        }
+
+        /// <summary>Mirror of AnimatedMaterialGeneric.Render's condition ladder,
+        /// evaluated at export time (the stage is a steady world: an unpowered
+        /// device stays unpowered between the paired captures).</summary>
+        private static bool AnimGenericActive(GameObject go, AnimatedMaterialGeneric amg)
+        {
+            if (!string.IsNullOrEmpty(amg.RequiresOperationalActivePart)
+                && !AnimStatusIs(amg, go.GetPart(amg.RequiresOperationalActivePart) as IActivePart, ActivePartStatus.Operational))
+                return false;
+            if (!string.IsNullOrEmpty(amg.RequiresUnpoweredActivePart)
+                && !AnimStatusIs(amg, go.GetPart(amg.RequiresUnpoweredActivePart) as IActivePart, ActivePartStatus.Unpowered))
+                return false;
+            if (amg.RequiresAnyUnpoweredActivePart)
+            {
+                bool any = false;
+                foreach (var p in go.PartsList)
+                    if (p is IActivePart ap && AnimStatusIs(amg, ap, ActivePartStatus.Unpowered)) { any = true; break; }
+                if (!any) return false;
+            }
+            if (!string.IsNullOrEmpty(amg.RequiresEvent) && !go.FireEvent(amg.RequiresEvent))
+                return false;
+            if (!string.IsNullOrEmpty(amg.RequiresInverseEvent) && go.FireEvent(amg.RequiresInverseEvent))
+                return false;
+            if (!string.IsNullOrEmpty(amg.RequiresEffect) && !go.HasEffect(amg.RequiresEffect))
+                return false;
+            if (!string.IsNullOrEmpty(amg.RequiresInverseEffect) && go.HasEffect(amg.RequiresInverseEffect))
+                return false;
+            if (amg.MustBeUnderstood && !go.Understood())
+                return false;
+            return true;
+        }
+
+        /// <summary>"80=x,180=y" -> parallel time/value lists; false when the
+        /// spec is absent or one of Qud's own disable spellings.</summary>
+        private static bool AnimParseFrames(string spec,
+            out System.Collections.Generic.List<int> times,
+            out System.Collections.Generic.List<string> vals)
+        {
+            times = null; vals = null;
+            if (string.IsNullOrEmpty(spec) || spec == "0=default" || spec == "disable")
+                return false;
+            times = new System.Collections.Generic.List<int>();
+            vals = new System.Collections.Generic.List<string>();
+            foreach (string kv in spec.Split(','))
+            {
+                int eq = kv.IndexOf('=');
+                int t;
+                if (eq <= 0 || !int.TryParse(kv.Substring(0, eq).Trim(), out t)) continue;
+                times.Add(t);
+                vals.Add(kv.Substring(eq + 1).Trim());
+            }
+            return times.Count > 0;
+        }
+
+        /// <summary>Step function: the last value whose time &lt;= t (Qud's own
+        /// frame-selection rule); null before the first threshold.</summary>
+        private static string AnimStep(System.Collections.Generic.List<int> times,
+            System.Collections.Generic.List<string> vals, int t)
+        {
+            string v = null;
+            for (int i = 0; i < times.Count && t >= times[i]; i++) v = vals[i];
+            return v;
+        }
+
+        /// <summary>Resolve a colour-axis value the way Render(E) does.
+        /// "default"/null -> "" (the object's own colours, client-side).</summary>
+        private static string AnimColorVal(GameObject go, Render r, string v)
+        {
+            if (string.IsNullOrEmpty(v) || v == "default") return "";
+            if (v == "base") { try { return r.GetRenderColor() ?? ""; } catch { return ""; } }
+            if (v == "liquid") { try { return "&" + go.GetLiquidColor(); } catch { return ""; } }
+            return v;
+        }
+
+        /// <summary>
+        /// Merge the part's axes into ONE schedule the client can play:
+        /// "len|f=tile;color;detail|..." — thresholds pre-scaled from Qud's
+        /// SpeedMultiplier clock (GetCurrentFrameAtFPS(60, mult)) onto a plain
+        /// 60fps clock, so the client needs no multiplier. Empty fields mean
+        /// "the object's base art/colours". Null when nothing animates.
+        /// </summary>
+        private static string AnimGenericSchedule(GameObject go, Render r, AnimatedMaterialGeneric amg)
+        {
+            System.Collections.Generic.List<int> tT, cT, tcT, dT;
+            System.Collections.Generic.List<string> tV, cV, tcV, dV;
+            bool hasTile = AnimParseFrames(amg.TileAnimationFrames, out tT, out tV);
+            bool hasCol = AnimParseFrames(amg.ColorStringAnimationFrames, out cT, out cV);
+            bool hasTCol = AnimParseFrames(amg.TileColorAnimationFrames, out tcT, out tcV);
+            bool hasDet = AnimParseFrames(amg.DetailColorAnimationFrames, out dT, out dV);
+            // tiles mode: TileColor frames take precedence over ColorString frames
+            if (hasTCol) { hasCol = true; cT = tcT; cV = tcV; }
+            if (!hasTile && !hasCol && !hasDet) return null;
+
+            var marks = new System.Collections.Generic.SortedSet<int> { 0 };
+            if (hasTile) foreach (int t in tT) marks.Add(t);
+            if (hasCol) foreach (int t in cT) marks.Add(t);
+            if (hasDet) foreach (int t in dT) marks.Add(t);
+
+            float mult = amg.SpeedMultiplier > 0f ? amg.SpeedMultiplier : 1f;
+            // scaled-threshold -> entry; later thresholds win a rounding collision
+            var entries = new System.Collections.Generic.SortedDictionary<int, string>();
+            var distinct = new System.Collections.Generic.HashSet<string>();
+            foreach (int t in marks)
+            {
+                string tile = hasTile ? AnimStep(tT, tV, t) : null;
+                if (tile == "default" || tile == null) tile = "";
+                string col = hasCol ? AnimColorVal(go, r, AnimStep(cT, cV, t)) : "";
+                string det = hasDet ? AnimColorVal(go, r, AnimStep(dT, dV, t)) : "";
+                string entry = tile + ";" + col + ";" + det;
+                distinct.Add(entry);
+                if (tile.Length > 0) TileExporter.Ensure(tile);
+                entries[(int)System.Math.Round(t / mult)] = entry;
+            }
+            if (distinct.Count < 2) return null;   // conditions pass but nothing cycles
+
+            int len = (int)System.Math.Round(amg.AnimationLength / mult);
+            var sb = new System.Text.StringBuilder();
+            sb.Append(len < 1 ? 1 : len);
+            foreach (var kv in entries)
+                sb.Append('|').Append(kv.Key).Append('=').Append(kv.Value);
+            return sb.ToString();
+        }
+
         /// <summary>
         /// Colours straight off the painted ConsoleChar: already RESOLVED to RGB,
         /// so the client needs no palette lookup and no &amp;X^Y parsing for these.
@@ -1329,27 +1491,19 @@ namespace RavesOfQud
                              .Member("engDetail", engDetail ?? "");
                         if (animCHolo)
                             j.Member("animCHolo", true);
-                        // AnimatedMaterialGeneric (Phasic Screw's 6-tile helix, and any other
-                        // data-driven tile cycler): the part swaps Render.Tile inside its own
-                        // Render(E) per Qud frame, invisible to the static reads above. Ship the
-                        // SPEC — "len|frame=tile|frame=tile|..." — and let the client play it.
-                        // (ColorString/DetailColor frame variants exist on the part too; not yet
-                        // shipped — add alongside when an element needs them.)
+                        // AnimatedMaterialGeneric AND SUBCLASSES (Phasic Screw's 6-tile
+                        // helix; the Alternate powered-device blink family; the Force
+                        // Projector detail cycler): the part swaps tile/colours inside
+                        // its own Render(E) per Qud frame, invisible to the static
+                        // reads above. Evaluate its condition ladder NOW and ship the
+                        // merged schedule (see AnimGenericSchedule).
                         try
                         {
-                            var amg = go.GetPart<XRL.World.Parts.AnimatedMaterialGeneric>();
-                            if (amg != null && !string.IsNullOrEmpty(amg.TileAnimationFrames))
+                            var amg = AnimGenericOf(go);
+                            if (amg != null && AnimGenericActive(go, amg))
                             {
-                                var sbf = new System.Text.StringBuilder();
-                                sbf.Append(amg.AnimationLength);
-                                foreach (string kv in amg.TileAnimationFrames.Split(','))
-                                {
-                                    string t = kv.Trim();
-                                    sbf.Append('|').Append(t);
-                                    int eq = t.IndexOf('=');
-                                    if (eq > 0) TileExporter.Ensure(t.Substring(eq + 1));
-                                }
-                                j.Member("animFrames", sbf.ToString());
+                                string spec = AnimGenericSchedule(go, r, amg);
+                                if (spec != null) j.Member("animSched", spec);
                             }
                         }
                         catch { }
