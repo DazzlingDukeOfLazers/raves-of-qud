@@ -70,6 +70,14 @@ add a one-liner (symptom → rule).
   inspector's `_pick_cell` marches back to the occupied cell; the direction picker wants the literal ground cell.
 
 ### Bridge / snapshots
+- **The status screens' WORLD MAP is a texture Qud already built — export it, don't re-render it.**
+  MapScrollerController.RefreshMap walks all 80x25 cells of `JoppaWorld`, renders each through a
+  RenderEvent and blits its recoloured sprite into a **1280x600** texture (16x24 per cell), then the
+  UI draws that at **2x** inside a 724x744 viewport, scrolled to the target. Reproducing it means
+  reproducing Qud's whole world-map render -- terrain choice, per-cell colour, exploration state --
+  forever. `mapTexture` is private but `mapImage.sprite.texture` IS it, and it is CPU-readable
+  because RefreshMap builds it with `new Texture2D(...)`. It only exists once the screen has
+  RENDERED, so the export has to run with the screen live.
 - **The mod's uiQueue does NOT drain while Qud's window is in the BACKGROUND.** Measured with a
   `uiprobe` command: backgrounded it logged nothing at all; focused it ran instantly. So EVERY
   uiQueue-marshalled command (`uiback`, `uiprobe`, `statusscreen`, the chrome exporters) is

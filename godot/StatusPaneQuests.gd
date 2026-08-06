@@ -11,8 +11,10 @@ extends Control
 ##               rows are separated by 16px and each is as tall as its body
 ##   title       "[-] Name" / "[+] Name", with a DOTTED LEADER filling to the row's right edge
 ##
-## The MAP panel that occupies the right of Qud's tab is deliberately not here yet — this pass is
-## the list. Qud's own list is 815 wide of a 1603 pane, so the space is left rather than filled.
+## The MAP panel on the right is Qud's own rendered TEXTURE, exported by the mod (MapExporter) —
+## RefreshMap builds it by walking all 80x25 cells of JoppaWorld into a 1280x600 image, and
+## re-deriving that here would mean reproducing Qud's whole world-map render and keeping it in
+## step forever. Qud draws it at 2x inside a 724x744 viewport, scrolled to the quest pin.
 ##
 ## Content is Qud's too: the body lines come from QuestLog.GetLinesForQuest via QuestsExporter, so
 ## step order, completion glyphs and optional/failed wording are the game's, not ours.
@@ -37,6 +39,15 @@ const BODY_DY := 64.8
 const BODY_FONT := 16
 const ROW_GAP := 16.0
 
+# The map panel, measured off Qud's live RectTransforms.
+const MAP_X := 1021.5
+const MAP_Y := 177.0
+const MAP_W := 724.0
+const MAP_H := 744.0
+const MAP_ZOOM := 2.0       # the 1280x600 texture is drawn at 2560x1200
+const MAP_CELL_W := 16.0    # RefreshMap's per-cell blit, so a pin's (x,y) -> texture px
+const MAP_CELL_H := 24.0
+
 # Qud's own colours for this screen, straight off the live TMP components.
 const C_TITLE := Color8(0x82, 0x9e, 0xa8)
 const C_GIVER_LABEL := Color8(0x60, 0x91, 0xbc)
@@ -53,6 +64,9 @@ var _empty := ""
 var _palette := {}
 var _sel := 0
 var _rows: Array = []          # [{y, h, id}] laid out, for hit-testing and the caret
+var _pins: Array = []
+var _map: Texture2D = null
+var _map_tried := false
 
 func _init() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -64,6 +78,7 @@ func setup(data: Dictionary, palette: Dictionary) -> void:
 	if typeof(own) == TYPE_DICTIONARY and not own.is_empty():
 		_palette = own
 	_quests = data.get("quests", [])
+	_pins = data.get("pins", [])
 	_empty = str(data.get("empty", ""))
 	_sel = clampi(_sel, 0, maxi(0, _quests.size() - 1))
 	_build()
@@ -138,6 +153,7 @@ func _mk(px: int, col: Color) -> RichTextLabel:
 	return rt
 
 func _draw() -> void:
+	_draw_map()
 	for i in _rows.size():
 		var r: Dictionary = _rows[i]
 		# The gold caret marks the selected row (Qud draws its `leftrightarrow` sprite here).
@@ -153,3 +169,49 @@ func _draw() -> void:
 		while x < rx:
 			draw_rect(Rect2(x, ly, 2.0, 1.0), C_LEADER)
 			x += 6.0
+
+
+## Qud's world-map panel: its own rendered texture, drawn at 2x and scrolled so the quest pin is
+## centred (clamped to the map's edges — which is why Qud's own view sits against the bottom when
+## the only pin is Joppa, low on the map).
+func _draw_map() -> void:
+	if _map == null and not _map_tried:
+		_map_tried = true
+		var path := InputModel.support_dir().path_join("map").path_join("world_map.png")
+		if FileAccess.file_exists(path):
+			var img := Image.new()
+			if img.load(path) == OK:
+				_map = ImageTexture.create_from_image(img)
+	if _map == null:
+		return
+	var tw := _map.get_width() * MAP_ZOOM
+	var th := _map.get_height() * MAP_ZOOM
+	# centre on the first pin, then clamp so we never show past the map's edge
+	var cx := tw * 0.5
+	var cy := th * 0.5
+	if not _pins.is_empty():
+		cx = (float(_pins[0].get("x", 0)) + 0.5) * MAP_CELL_W * MAP_ZOOM
+		cy = (float(_pins[0].get("y", 0)) + 0.5) * MAP_CELL_H * MAP_ZOOM
+	var ox := clampf(MAP_X + MAP_W * 0.5 - cx, MAP_X + MAP_W - tw, MAP_X)
+	var oy := clampf(MAP_Y + MAP_H * 0.5 - cy, MAP_Y + MAP_H - th, MAP_Y)
+
+	# clip to the viewport: the texture is far larger than the panel
+	draw_set_transform(Vector2.ZERO)
+	var clip := Rect2(MAP_X, MAP_Y, MAP_W, MAP_H)
+	draw_rect(clip, Color8(4, 19, 18))      # RefreshMap's own backdrop colour
+	var prev_filter := texture_filter
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	# draw only the visible slice, so a 2560x1200 blit doesn't spill over the list
+	var src_x := (MAP_X - ox) / MAP_ZOOM
+	var src_y := (MAP_Y - oy) / MAP_ZOOM
+	var src := Rect2(src_x, src_y, MAP_W / MAP_ZOOM, MAP_H / MAP_ZOOM)
+	draw_texture_rect_region(_map, clip, src)
+	texture_filter = prev_filter
+
+	# the pins
+	for p in _pins:
+		var px := ox + (float(p.get("x", 0)) + 0.5) * MAP_CELL_W * MAP_ZOOM
+		var py := oy + (float(p.get("y", 0)) + 0.5) * MAP_CELL_H * MAP_ZOOM
+		if not clip.has_point(Vector2(px, py)):
+			continue
+		draw_rect(Rect2(px - 5.0, py - 5.0, 10.0, 10.0), C_CARET, false, 2.0)
