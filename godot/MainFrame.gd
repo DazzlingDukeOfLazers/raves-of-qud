@@ -124,7 +124,13 @@ var _bottom_bg: ColorRect
 ## way to the glass (19,23,26 drawn lands at 20,23,25; 15,16,17 lands at 15,17,17). Stating the
 ## target and letting QudChrome compensate is the point -- a var rather than a const only because a
 ## const cannot call a function.
-var ROW_BG_1TO1 := QudChrome.q8(19, 23, 26)   # Qud's continuous chrome-strip background
+var ROW_BG_1TO1 := QudChrome.q8(19, 23, 26)   # Qud's continuous chrome-strip background (TOP)
+## ...and the BOTTOM band is a different, darker fill. Measured: Qud runs (19,23,26) from the window
+## top down through the status strip, but below the command bar it is (15,16,17). We had one colour
+## for both strips and the two ended up swapped against Qud at the extremes -- our top band wore the
+## panel fill and our bottom band wore the strip fill, each the other's colour.
+var ROW_BG_BOTTOM_1TO1 := QudChrome.q8(15, 16, 17)
+var _status_strip: PanelContainer  # row 1 — its fill is Qud's strip colour in 1:1, panel fill in user mode
 var _dev_bar: Control              # holodeck cell's Connect/Turn-on-viewport strip (hidden in 1:1)
 const SIDEBAR_FRAC_1TO1 := 0.15     # visual side column: 288px + the 12px split handle = Qud's 300 total   # Qud's MINIMUM message-log width ≈ 15.3% (293px at 1920 — matches a Qud
                                    # log dragged to its minimum, which maximises the playfield)
@@ -156,6 +162,7 @@ func _ready() -> void:
 	# full-window playfield), filling the gaps the playfield used to show through. Positioned in _layout_row_bgs.
 	_top_bg = _make_row_bg()
 	_bottom_bg = _make_row_bg()
+	_bottom_bg.color = ROW_BG_BOTTOM_1TO1
 
 	var rows := VBoxContainer.new()
 	_rows_box = rows   # the overflow tripwire audits each row's minimum against the window
@@ -572,6 +579,7 @@ func _set_status_label(label: Label, word: String) -> void:
 
 func _row_status() -> Control:
 	var strip := _strip()
+	_status_strip = strip
 	# Trim the space below the bar: Qud's row 2 starts ~4px higher. The bar (and its vcentred avatar/text)
 	# stays put; only the strip's bottom shrinks, lifting row 2 to Qud's y.
 	var sstyle: StyleBoxFlat = _panel_style()
@@ -955,6 +963,13 @@ func _apply_layout_mode(on: bool) -> void:
 		else:
 			_side.custom_minimum_size = Vector2(SIDEBAR_W_USER, 0)
 			_row_split.split_offset = 900
+	# Row 1 carries Qud's STRIP colour in 1:1, not the panel fill: Qud's top band is continuous with
+	# the strip background behind it, and painting the panel fill there put our darkest chrome where
+	# Qud has its lightest.
+	if _status_strip != null:
+		var sb := _panel_style(ROW_BG_1TO1 if on else COL_PANEL)
+		sb.content_margin_bottom = 1
+		_status_strip.add_theme_stylebox_override("panel", sb)
 	_apply_panel_sizing(on)
 	_push_play_inset(on)
 	_apply_vitals_mode(on)
