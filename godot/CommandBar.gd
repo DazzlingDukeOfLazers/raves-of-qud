@@ -19,7 +19,12 @@ const CD := "#e08a4a"        # cooling-down amber
 
 # 1:1 (measured off Qud's command bar): the ability icon is ~40px tall, the name text is a muted teal
 # and the <N> quick-slot number a light grey; a green frame boxes each ability cell.
-const ICON_PX_1TO1 := 40
+## The BOX we give the ability icon. Its rendered INK came out 34 tall against Qud's 40 -- the
+## sprite is fitted into the box with KEEP_ASPECT_CENTERED and the box's own aspect, not the
+## nominal size, decides the scale. 47 lands the ink at 38 against Qud's 40 and is the LIMIT: at 50
+## the box turns wide enough that the sprite fits by WIDTH instead of height, and a wide icon like
+## Make Camp collapses from 45 to 25 across (bar mean 10.06 -> 16.90). Measured, not derived.
+const ICON_PX_1TO1 := 47
 const NAME_1TO1 := "#609caa"       # ability name — measured Color8(96,156,170)
 const NUM_1TO1 := "#929393"        # <N> action number — measured Color8(146,147,147)
 var CELL_FRAME_1TO1 := QudChrome.q8(11, 148, 71)   # green selection box (Qud draws it on the first/selected cell)
@@ -381,8 +386,8 @@ func _make_cell(a: Dictionary, icon_px: int, slot: int, selected: bool) -> Contr
 	# 10, not 4: with the lead-in gone the first cell started on Qud's x180 but ran to 355 against
 	# its 367 -- 12 narrow, i.e. 6 a side. The cells size to their content in both apps, so the
 	# difference is the padding around it.
-	fs.content_margin_left = 10
-	fs.content_margin_right = 10
+	fs.content_margin_left = 8
+	fs.content_margin_right = 8
 	frame.add_theme_stylebox_override("panel", fs)
 	frame.tooltip_text = QudText.strip(String(a.get("name", "")))
 	frame.mouse_filter = Control.MOUSE_FILTER_STOP
