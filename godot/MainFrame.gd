@@ -615,6 +615,7 @@ func _set_status_label(label: Label, word: String) -> void:
 func _row_status() -> Control:
 	var strip := _strip()
 	_status_strip = strip
+	strip.name = "StatusBar"
 	# Trim the space below the bar: Qud's row 2 starts ~4px higher. The bar (and its vcentred avatar/text)
 	# stays put; only the strip's bottom shrinks, lifting row 2 to Qud's y.
 	var sstyle: StyleBoxFlat = _panel_style()
@@ -1255,11 +1256,13 @@ func _row_main() -> Control:
 	side.add_theme_constant_override("separation", 4)
 	_side = side
 	_minimap = load("res://MinimapView.gd").new()    # the real Minimap view (its own file)
+	_minimap.name = "Minimap"
 	_minimap.custom_minimum_size = Vector2(0, 220)
 	_nearby = load("res://NearbyObjects.gd").new()   # the real Nearby objects view (its own file)
 	_nearby.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_nearby.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_msglog = load("res://MessageLog.gd").new()      # the real Message log view (its own file)
+	_msglog.name = "MessageLog"
 	_msglog.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_msglog.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_msglog.left_edge_drag.connect(_on_sidebar_drag)   # 1:1: the ||| grab-bar resizes the side column
@@ -1576,14 +1579,17 @@ func _row_context() -> Control:
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 6)
 	_effects = load("res://ActiveEffects.gd").new()   # the real Active effects view (its own file)
+	_effects.name = "ActiveEffects"
 	_effects.custom_minimum_size = Vector2(0, 90)
 	var eff: Control = _effects
 	eff.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_target = load("res://TargetView.gd").new()       # the real Target view (its own file)
+	_target.name = "TargetView"
 	_target.custom_minimum_size = Vector2(0, 90)
 	var tgt: Control = _target
 	tgt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_context = load("res://ContextMenu.gd").new()     # the real Context menu view (its own file)
+	_context.name = "ContextMenu"
 	_context.custom_minimum_size = Vector2(0, 104)    # room for the larger, Qud-sized weapon sprite on one row
 	_context.command_requested.connect(_on_context_command)   # fire/reload/[?] → the Holodeck's bridge
 	var ctx: Control = _context
@@ -1597,6 +1603,7 @@ func _row_context() -> Control:
 
 func _row_command() -> Control:
 	_command = load("res://CommandBar.gd").new()   # the real command bar (its own file)
+	_command.name = "CommandBar"
 	_command.command_requested.connect(_on_ability_command)   # ability click → activate (+ direction picker)
 	return _command
 
