@@ -516,9 +516,16 @@ def stage_zoom():
 
 
 def _raves_state():
+    """The viewer's state report — EMPTY when stale. UiState heartbeats every
+    2s; a ts older than 15s means the viewer is hung or dead, and its last
+    written state (usually a healthy 'in_game') must not be believed — a hung
+    viewer still serves frozen captures, which poisoned a certification band."""
     try:
         with open(os.path.join(BASE, "raves_state.json")) as f:
-            return json.load(f)
+            st = json.load(f)
+        if time.time() - st.get("ts", 0) > 15:
+            return {}
+        return st
     except (OSError, ValueError):
         return {}
 
@@ -592,35 +599,51 @@ def reboot_rig(b=None):
         time.sleep(0.6)
     b.send("wish", text="godmode")           # resets on every load
     time.sleep(1.0)
-    # Fresh viewer: kill by window title (no binary-name coupling), relaunch,
-    # attach via keyboard — activate, Down, Space = main menu Continue.
-    # VERIFY + RETRY: under sweep load Godot can outlive the fixed sleeps
-    # (the first certification run lost walls 151-229 to exactly that — the
-    # reboot's calibrate found no viewer). Success test = a raves capture
-    # works; up to 3 attach attempts with growing settle.
-    if plat.IS_WIN:
-        import subprocess
-        subprocess.run('taskkill /F /FI "WINDOWTITLE eq Raves of Qud*"',
-                       shell=True, capture_output=True)
-        time.sleep(2)
-    _hv("launch", "raves_solo")
-    for attempt in range(3):
-        time.sleep(12 + attempt * 8)
-        _hv("key", "--focus", "Raves", "Down")
-        time.sleep(1)
-        _hv("key", "--focus", "Raves", "space")
-        time.sleep(4 + attempt * 2)
-        # ALL three tests: capture works, the viewer says in_game, and no
-        # modal overlay — menus and stuck mirrored popups both capture
-        # "successfully" and each poisoned a certification slice.
-        if control.godot_shot() and _raves_in_game() and not _raves_state().get("popup"):
-            break
-        print("reboot_rig: viewer attach attempt %d failed; retrying" % (attempt + 1))
-    else:
-        raise RuntimeError("reboot_rig: viewer never came up after 3 attach attempts")
-    stage_zoom()
-    calibrate()
-    return control.Bridge()
+    # Fresh viewer, WHOLE-CYCLE retried: kill (and verify the process is
+    # actually GONE — a 600MB Godot outlives a 2s grace, and a relaunch
+    # against a dying instance produced most of the intermittent attach
+    # failures), launch, attach, zoom, calibrate. Any stage failing —
+    # including calibrate's sys.exit — restarts the cycle, because a
+    # single failed reboot used to abort an entire certification leg.
+    import subprocess
+    for cycle in range(3):
+        if plat.IS_WIN:
+            subprocess.run('taskkill /F /FI "WINDOWTITLE eq Raves of Qud*"',
+                           shell=True, capture_output=True)
+            deadline2 = time.time() + 15
+            while time.time() < deadline2:
+                chk = subprocess.run("tasklist", shell=True, capture_output=True, text=True)
+                if "Godot" not in (chk.stdout or ""):
+                    break
+                subprocess.run('taskkill /F /IM Godot_v4.7.1-stable_win64.exe',
+                               shell=True, capture_output=True)
+                time.sleep(2)
+        _hv("launch", "raves_solo")
+        attached = False
+        for attempt in range(3):
+            time.sleep(12 + attempt * 8)
+            _hv("key", "--focus", "Raves", "Down")
+            time.sleep(1)
+            _hv("key", "--focus", "Raves", "space")
+            time.sleep(4 + attempt * 2)
+            # ALL three tests: capture works, the viewer says in_game (with a
+            # FRESH heartbeat), and no modal overlay — menus, stuck mirrored
+            # popups and hung viewers all capture "successfully" and each
+            # poisoned a certification slice.
+            if control.godot_shot() and _raves_in_game() and not _raves_state().get("popup"):
+                attached = True
+                break
+            print("reboot_rig: viewer attach attempt %d failed; retrying" % (attempt + 1))
+        if not attached:
+            print("reboot_rig: attach cycle %d failed; full viewer recycle" % (cycle + 1))
+            continue
+        try:
+            stage_zoom()
+            calibrate()
+            return control.Bridge()
+        except (SystemExit, OSError, RuntimeError) as e:
+            print("reboot_rig: zoom/calibrate failed (%s); full viewer recycle" % e)
+    raise RuntimeError("reboot_rig: rig never came up after 3 full cycles")
 
 
 def _anim_verified():
