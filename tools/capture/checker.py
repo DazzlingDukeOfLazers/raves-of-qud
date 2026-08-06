@@ -539,20 +539,24 @@ def _raves_in_game():
 
 
 def _raves_clear(b):
-    """In-game AND no modal overlay. A mirrored popup can DESYNC: Qud's side
-    is long dismissed while the viewer's overlay sticks (second certification
-    run: the S-Y furniture tail and 229 creatures scored against stuck dialog
-    text while scene read in_game). Cancel over the bridge first; report
-    whether the viewer actually came clear."""
-    st = _raves_state()
-    if st.get("scene") == "in_game" and not st.get("popup"):
+    """In-game, no modal overlay, and the WIRE IS FLOWING. Three poisoning
+    modes, one test each: a menu screen (scene), a desynced mirrored popup
+    that survives Qud-side cancels (popup), and a dropped bridge connection
+    that leaves stale zones + stale dynamic creatures on screen while the UI
+    heartbeat stays perfectly healthy (snap_ts — the fifth certification run's
+    113-FAIL creatures band). During a sweep the stage ticks a turn per
+    element, so a snapshot older than 60s means the connection is dead."""
+    def ok(st):
+        return (st.get("scene") == "in_game" and not st.get("popup")
+                and time.time() - st.get("snap_ts", 0) < 60)
+    if ok(_raves_state()):
         return True
     for _ in range(3):
         b.send("popup", action="cancel")
         time.sleep(0.6)
-    time.sleep(0.8)
-    st = _raves_state()
-    return st.get("scene") == "in_game" and not st.get("popup")
+    b.send("wait")   # tick a turn: a live connection publishes a fresh snapshot
+    time.sleep(1.5)
+    return ok(_raves_state())
 
 
 def reboot_rig(b=None):

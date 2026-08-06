@@ -318,6 +318,11 @@ func _on_popup(data: Dictionary) -> void:
 		_popup.hide_popup()
 
 func _on_snapshot(data: Dictionary) -> void:
+	# Data-freshness beacon for the test rig: the UI heartbeat proves the
+	# VIEWER is alive, not that the WIRE is — a dropped bridge connection
+	# left stale zones (and stale dynamic creatures) on screen through a
+	# certification band while raves_state.json read perfectly healthy.
+	UiState.note_snapshot()
 	# Cache the colour map so popup markup renders with the same palette. Do NOT
 	# hide the popup here: ASYNC popups (ShowYesNoAsync / PickOptionAsync) never
 	# block the turn thread, so snapshots keep flowing while they're up — the old

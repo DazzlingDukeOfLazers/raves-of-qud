@@ -12,6 +12,12 @@ extends Node
 
 var _scene := "title"
 var _popup := ""     # popup kind while one is up (message / yesno / menu / input)
+var _snap_ts := 0    # unix time of the last APPLIED snapshot (0 = none yet):
+                     # proves the wire is flowing, not just that the UI is alive
+
+func note_snapshot() -> void:
+	_snap_ts = int(Time.get_unix_time_from_system())
+	# no _write(): snapshots can arrive every turn — the 2s heartbeat carries it
 
 func set_scene(scene: String) -> void:
 	if scene == _scene:
@@ -66,6 +72,8 @@ func _write() -> void:
 		"ts": int(Time.get_unix_time_from_system())}
 	if _popup != "":
 		d["popup"] = _popup
+	if _snap_ts > 0:
+		d["snap_ts"] = _snap_ts
 	var f := FileAccess.open(_path(), FileAccess.WRITE)
 	if f != null:
 		f.store_string(JSON.stringify(d))
