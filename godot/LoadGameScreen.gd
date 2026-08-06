@@ -259,6 +259,9 @@ func _build() -> void:
 	# the same luminance-weighted interlace as Records/Options (measured bg pairs
 	# (6,44,42)/(2,22,22); a flat 50% cut shreds glyphs)
 	var scan := ColorRect.new()
+	# transparent to the feedback hit test, like Options' scanlines — a late full-rect
+	# otherwise shadows every save row
+	scan.set_meta("feedback_pass", true)
 	scan.set_anchors_preset(Control.PRESET_FULL_RECT)
 	scan.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var sh := Shader.new()
@@ -324,6 +327,13 @@ func _dither_tex(ax: int, ay: int) -> ImageTexture:
 
 func _entry(sv: Dictionary, idx: int) -> Control:
 	var cell := Control.new()
+	# feedback identity: WHICH save this row is — name for the label, the full
+	# Primary.json identity (level/mode/location/save time/id) in the action so a
+	# report pins the exact save file, not just "a row on the picker"
+	cell.set_meta("feedback_label", "save · " + str(sv.get("name", "?")))
+	cell.set_meta("feedback_action", "load the save: %s — Level %d %s, %s, saved %s (id %s)" % [
+		str(sv.get("name", "?")), int(sv.get("level", 0)), str(sv.get("mode", "?")),
+		str(sv.get("loc", "?")), str(sv.get("saved", "?")), str(sv.get("id", "?"))])
 	cell.custom_minimum_size = Vector2(CELL_W, ROW_H)
 	cell.size = Vector2(CELL_W, ROW_H)
 	cell.mouse_filter = Control.MOUSE_FILTER_STOP

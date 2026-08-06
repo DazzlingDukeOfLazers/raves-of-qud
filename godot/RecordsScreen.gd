@@ -571,6 +571,8 @@ func _build_1to1() -> void:
 	# Qud renders this screen INTERLACED: odd rows at ~50% (measured bg pairs
 	# (6,44,42)/(2,22,22)) — a console-style scanline filter Mods doesn't have.
 	var scan := ColorRect.new()
+	# transparent to the feedback hit test — a late full-rect otherwise shadows the screen
+	scan.set_meta("feedback_pass", true)
 	scan.set_anchors_preset(Control.PRESET_FULL_RECT)
 	scan.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var sh := Shader.new()
