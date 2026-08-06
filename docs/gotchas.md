@@ -695,3 +695,19 @@ per-call-site fudge to "fix" locally.
 `target`, within 0.5 for all 256. All three channels measured identically, so one table serves.
 The re-measurement recipe is in QudChrome.gd's header. Beyond the rules it moved everything that
 goes through `q8`/`brighten` — the picker's interior diff against Qud fell from mean 9.46 to 5.49.
+
+### Not every draw path sags — verify per constant before compensating
+
+The canvas curve is real but it is NOT universal. Surveying the in-game chrome turned up 16
+constants stating a Qud-measured colour raw; compensating all of them would have been wrong, because
+two of them (`PAGE_NUM` 141,124,84 and `COL_HP_RED` 209,58,0) **already land exactly** without
+compensation — Qud and Raves both hold those values pixel-for-pixel today.
+
+So test each one against the live frames rather than pattern-matching the source:
+
+    QUD holds V  and  RAVES holds f(V)  and  RAVES holds no V   ->  it is a TARGET, wrap it in q8
+    QUD holds V  and  RAVES holds V                             ->  leave it alone
+
+On that test five needed it (`COL_HP_BAR_1TO1`, `COL_EXP_BAR_1TO1`, `CELL_FRAME_1TO1`, `SEP_OUTER`,
+`SEP_CENTER`), and the "unclear" ones simply had too few pixels on screen in that state to judge —
+which is an answer too: leave them until a state shows them.

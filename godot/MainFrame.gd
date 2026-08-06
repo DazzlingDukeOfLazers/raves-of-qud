@@ -25,8 +25,8 @@ const COL_EXP := Color("40a4b9")              # c — LVL/EXP bar (dark cyan)
 # User mode keeps the bright COL_HP / COL_EXP above.
 const COL_HP_1TO1 := Color(1, 1, 1)           # Qud: HP text white
 const COL_EXP_1TO1 := Color8(146, 169, 164)   # Qud: LVL/EXP text light grey
-const COL_HP_BAR_1TO1 := Color8(25, 89, 34)   # Qud: HP bar dark green (#195922)
-const COL_EXP_BAR_1TO1 := Color8(47, 80, 86)  # Qud: LVL/EXP bar muted teal (sampled with xp on the bar)
+var COL_HP_BAR_1TO1 := QudChrome.q8(25, 89, 34)   # Qud: HP bar dark green (#195922)
+var COL_EXP_BAR_1TO1 := QudChrome.q8(47, 80, 86)  # Qud: LVL/EXP bar muted teal (sampled with xp on the bar)
 # Qud colours the HP text by health % (GameObject.GetHPColor): >=100 white, 66-99 green, 33-65 gold,
 # 15-32 red, <15 dark red. RGB from Qud's palette (red sampled from a live low-HP capture).
 const COL_HP_GREEN := Color8(0, 193, 46)      # &G green (66-99%)
@@ -44,7 +44,7 @@ const COL_NAME := Color("b0b0b0")             # character name — neutral grey 
 # darker and greyer than ANY tile-palette colour — the 18-colour palette is for the game WORLD, not the
 # chrome. So the world/clear stays palette k (the play area samples to k), but the panels use that
 # near-black. (Earlier k-for-panels read too green; K #155352 read as a bright teal box.)
-const COL_PANEL := Color("0c0f10")            # UI near-black chrome fill (Qud's bars ≈ 11,14,15)
+var COL_PANEL := QudChrome.q8(15, 16, 17)    # UI near-black chrome fill — Qud's bars, re-measured
 const COL_BG := Color("0f3b3a")               # k — world/clear background ("Qud viridian")
 
 var _holo: Node             # the Main.tscn instance rendering full-window into the ROOT viewport (null until Connect)
@@ -120,7 +120,11 @@ var _side: VBoxContainer           # the row-3 side column (panels)
 # opaque rects sized to the strips above/below the play hole (row 3).
 var _top_bg: ColorRect
 var _bottom_bg: ColorRect
-const ROW_BG_1TO1 := Color8(19, 23, 26)   # Qud's continuous chrome-strip background
+## q8, not a bare Color8: these are TARGETS measured off Qud, and the canvas curve sags them on the
+## way to the glass (19,23,26 drawn lands at 20,23,25; 15,16,17 lands at 15,17,17). Stating the
+## target and letting QudChrome compensate is the point -- a var rather than a const only because a
+## const cannot call a function.
+var ROW_BG_1TO1 := QudChrome.q8(19, 23, 26)   # Qud's continuous chrome-strip background
 var _dev_bar: Control              # holodeck cell's Connect/Turn-on-viewport strip (hidden in 1:1)
 const SIDEBAR_FRAC_1TO1 := 0.15     # visual side column: 288px + the 12px split handle = Qud's 300 total   # Qud's MINIMUM message-log width ≈ 15.3% (293px at 1920 — matches a Qud
                                    # log dragged to its minimum, which maximises the playfield)

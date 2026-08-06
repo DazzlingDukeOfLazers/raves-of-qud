@@ -22,7 +22,7 @@ const CD := "#e08a4a"        # cooling-down amber
 const ICON_PX_1TO1 := 40
 const NAME_1TO1 := "#609caa"       # ability name — measured Color8(96,156,170)
 const NUM_1TO1 := "#929393"        # <N> action number — measured Color8(146,147,147)
-const CELL_FRAME_1TO1 := Color8(11, 148, 71)   # green selection box (Qud draws it on the first/selected cell)
+var CELL_FRAME_1TO1 := QudChrome.q8(11, 148, 71)   # green selection box (Qud draws it on the first/selected cell)
 
 # 1:1 PAGINATION (measured off Qud with 10+ abilities on sync-raves-and-qud): Qud packs
 # content-sized cells left-to-right and moves what doesn't fit onto further pages — the
