@@ -369,12 +369,18 @@ namespace RavesOfQud
                         ev.Tile = r.Tile;
                         ev.HighestLayer = r.RenderLayer;
                         go.ComponentRender(ev);
+                        // Stasisfield's ^m/^C wash lives in FinalRender, a separate
+                        // dispatch the compositor runs after Render — include it.
+                        go.FinalRender(ev);
                         string tileOut = ev.Tile ?? "";
                         // glyph indicators null the tile: same Text/<code> rule as
                         // the main glyph-mode export
                         if (tileOut.Length == 0 && !string.IsNullOrEmpty(ev.RenderString))
                             tileOut = "Text/" + (int)ev.RenderString[0] + ".bmp";
-                        arr[f] = tileOut + ";" + (ev.ColorString ?? "") + ";" + (ev.DetailColor ?? "");
+                        // BackgroundString rides the colour axis ("&C" + "^m") so the
+                        // client's ^X parse fills the frame's background
+                        arr[f] = tileOut + ";" + (ev.ColorString ?? "") + (ev.BackgroundString ?? "")
+                                 + ";" + (ev.DetailColor ?? "");
                     }
                 }
                 // Per-axis base blanking: an axis equal to the object's own export
@@ -1609,15 +1615,34 @@ namespace RavesOfQud
                         // frame; EventArt ships it, and the ~104 divergence was the
                         // discarded event COLOURS, not motion.)
                         // Creature status flashes (Flying's arrow tile, Asleep's "z",
-                        // a charging tongue's "*"): measured generically off the
-                        // 60-frame clock — see AnimFrameSweep. Creatures only: the
-                        // sweep re-renders 120 times, and furniture's animators are
-                        // already ported part-by-part (a conveyor would also step
-                        // its belt 120 frames as a side effect).
+                        // a charging tongue's "*") AND bespoke AnimatedMaterial*
+                        // parts (the Stasisfield's 4-window colour cycle): measured
+                        // generically off the 60-frame clock — see AnimFrameSweep.
+                        // Gated to creatures + bespoke animators: the sweep
+                        // re-renders 120 times, and the data-driven animators are
+                        // already ported part-by-part (a conveyor would step its
+                        // belt as a side effect).
                         try
                         {
-                            if (animSched == null && go.IsCreature)
+                            bool bespokeAnim = false;
+                            foreach (var bp in go.PartsList)
+                            {
+                                string bn = bp.GetType().Name;
+                                if (bn.StartsWith("AnimatedMaterial")
+                                    && bn != "AnimatedMaterialGeneric"
+                                    && bn != "AnimatedMaterialGenericAlternate")
+                                { bespokeAnim = true; break; }
+                            }
+                            if (animSched == null && (go.IsCreature || bespokeAnim))
+                            {
+                                // The stasis field's transient "Rushing" churn ends
+                                // itself within seconds (1-in-120 per render); settle
+                                // it so the sweep measures the steady cycle — the
+                                // 1:1 no-animation-baseline rule, like the holograms.
+                                var sfp = go.GetPart<AnimatedMaterialStasisfield>();
+                                if (sfp != null) sfp.Rushing = false;
                                 animSched = AnimFrameSweep(go, r);
+                            }
                         }
                         catch { }
                         if (animSched != null) j.Member("animSched", animSched);
@@ -1665,6 +1690,22 @@ namespace RavesOfQud
                                         hsb.Append('|').Append(combo).Append('~').Append(hw[combo]);
                                     j.Member("animHolo", hsb.ToString());
                                 }
+                            }
+                        }
+                        catch { }
+                        // PrefabImposter: a Unity particle prefab drawn over the cell
+                        // (the Chavvah chimes' TreeGlow moonlight wash). Not portable
+                        // through the tile pipeline — ship the prefab name and let
+                        // the client map known prefabs to bespoke effects.
+                        try
+                        {
+                            var pim = go.GetPart<PrefabImposter>();
+                            if (pim != null && !string.IsNullOrEmpty(pim.Prefab))
+                            {
+                                string pn = pim.Prefab;
+                                int psl = pn.LastIndexOf('/');
+                                if (psl >= 0) pn = pn.Substring(psl + 1);
+                                j.Member("imposter", pn);
                             }
                         }
                         catch { }

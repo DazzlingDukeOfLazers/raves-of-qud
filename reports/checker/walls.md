@@ -1,6 +1,6 @@
 # Object Checker — walls
 
-229/229 PASS  (2026-08-05 21:57)  pixel: 227 PASS / 0 WARN / 2 FAIL
+229/229 PASS  (2026-08-06 02:48)  pixel: 229 PASS / 0 WARN / 0 FAIL
 
 | element | verdict | px | notes |
 |---|---|---|---|
@@ -145,7 +145,7 @@
 | Quartzite | PASS | PASS 17.7/15% | wire tile != blueprint tile 'assets_content_textures_tiles_wall_crystal1-00000000'; no capture pair — congruence skipped |
 | Red Etz Trellis | PASS | PASS 2.3/2% |  |
 | ReshephWall1 | PASS | PASS 10.4/6% | wire tile != blueprint tile 'assets_content_textures_walls2_walls_resheph_1_0-00000000' |
-| ReshephWall2 | PASS | FAIL 53.0/55% | wire tile != blueprint tile 'assets_content_textures_walls2_walls_resheph_2-00000000' |
+| ReshephWall2 | PASS | PASS 17.3/11% | wire tile != blueprint tile 'assets_content_textures_walls2_walls_resheph_2-00000000' |
 | ReshephWall3 | PASS | PASS 13.2/7% | wire tile != blueprint tile 'assets_content_textures_walls2_walls_resheph_3-00000000' |
 | ReshephWall4 | PASS | PASS 9.5/5% | wire tile != blueprint tile 'assets_content_textures_walls2_walls_resheph_4_0-00000000' |
 | ReshephWall5 | PASS | PASS 11.1/6% | wire tile != blueprint tile 'assets_content_textures_walls2_walls_resheph_5_0-00000000' |
@@ -177,7 +177,7 @@
 | StarshipGeometricWallBright Endcap | PASS | PASS 12.3/9% | wire tile != blueprint tile 'walls2_wall_sharp_geometry-00010011' |
 | StarshipGeometricWallCyan | PASS | PASS 10.1/8% |  |
 | StarshipGeometricWallGrey | PASS | PASS 11.1/8% | wire tile != blueprint tile 'assets_content_textures_walls2_wall_sharp_geometry-00000000' |
-| Stasisfield | PASS | FAIL 51.8/100% | wire tile != blueprint tile 'assets_content_textures_tiles_wall_mud-00000000' |
+| Stasisfield | PASS | PASS 23.1/22% | wire tile != blueprint tile 'assets_content_textures_tiles_wall_mud-00000000' |
 | StationWall | PASS | PASS 7.0/3% | wire tile != blueprint tile 'assets_content_textures_tiles_wall_brick-00000000' |
 | StoneHalfWall | PASS | PASS 2.3/1% | wire tile != blueprint tile 'assets_content_textures_tiles2_half-wall_' |
 | SultanWall_Ornate_Period5 | PASS | PASS 8.0/9% | wire tile != blueprint tile 'assets_content_textures_walls_wall_sultan_columns_b-00000000' |

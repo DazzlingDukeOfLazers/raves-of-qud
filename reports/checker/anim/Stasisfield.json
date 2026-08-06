@@ -1,0 +1,35 @@
+{
+ "fixture": "Stasisfield",
+ "frames": 12,
+ "expect_states": null,
+ "measured": [
+  {
+   "bp": "Stasisfield",
+   "ok": true,
+   "qud": {
+    "frames": 12,
+    "states": 4,
+    "duty": [
+     0.5,
+     0.25,
+     0.17,
+     0.08
+    ],
+    "class": "discrete"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 4,
+    "duty": [
+     0.42,
+     0.25,
+     0.17,
+     0.17
+    ],
+    "class": "discrete"
+   },
+   "agree": true
+  }
+ ],
+ "when": "2026-08-06 02:30"
+}

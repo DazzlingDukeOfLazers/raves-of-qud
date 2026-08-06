@@ -5173,14 +5173,14 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\ReshephWall2_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 53.05,
-   "pct_hot": 54.7,
-   "band": "FAIL",
+   "mean_abs_diff": 17.31,
+   "pct_hot": 10.8,
+   "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 160,
+   "dominant_delta": 0,
    "wire_delta": 13
   }
  },
@@ -6349,9 +6349,9 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Stasisfield_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 51.77,
-   "pct_hot": 100.0,
-   "band": "FAIL",
+   "mean_abs_diff": 23.12,
+   "pct_hot": 22.1,
+   "band": "PASS",
    "white_px": [
     0,
     0

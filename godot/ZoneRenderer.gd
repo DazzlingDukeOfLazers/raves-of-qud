@@ -3765,6 +3765,28 @@ func _register_anim(win: Dictionary, cx: int, cy: int) -> void:
 			if snodes.size() > 1:
 				_anim_items.append({"kind": "shimmer", "nodes": snodes,
 					"period": speriod, "last": -1, "cur": 0})
+	# PrefabImposter effects: Unity particle prefabs the wire can only NAME.
+	# TreeGlow (Chavvah chimes) is a full-cell moonlight wash the art draws
+	# OVER — colour sampled off native captures (state crops, corner mean
+	# ~(197,181,212), breathing ±7). The wash quad sits UNDER the sprite and
+	# its transparency pulses (continuous states, like the measured 11).
+	var imp := String(win.get("imposter", ""))
+	if imp == "TreeGlow":
+		var wcol := Color8(197, 181, 212)
+		var wnode := _overlay_quad(null, cx, cy, y_over - LAYER_LIFT * 0.5, false, wcol)
+		# Drifting MOTES give the wash the particle system's spatial churn: a
+		# brightness pulse alone tops out at ~4 distinguishable states (merge
+		# radius eats a 1-D range), while Qud's glow reads continuous because
+		# the sparkle POSITIONS move. Three small bright quads, orbits driven
+		# by incommensurate frequencies.
+		var motes: Array = []
+		for mi2 in 3:
+			var mq := _overlay_quad(null, cx, cy, y_over - LAYER_LIFT * 0.4, false,
+				Color8(222, 207, 236))
+			mq.scale = Vector3(0.22, 1, 0.22)
+			motes.append(mq)
+		_anim_items.append({"kind": "glowpulse", "node": wnode, "base": wcol,
+			"motes": motes, "cx": cx, "cy": cy})
 	# HologramMaterial weighted shimmer: "period|col~det~weight|..." — the
 	# part's clock RANDOM-WALKS (FrameOffset += Random(0,20) every render),
 	# so its palette is a distribution, not a cycle: mostly the steady mode
@@ -3940,6 +3962,34 @@ func _animate_1to1() -> void:
 				var fn := sched[si]["node"] as MeshInstance3D
 				if fn != null and is_instance_valid(fn):
 					fn.visible = si == active
+		elif kind == "glowpulse":
+			# TreeGlow breathing: two incommensurate sines so the pulse never
+			# phase-locks with the capture cadence (measured amplitude ~±3%).
+			# Overlay quads spawn INVISIBLE (the toggle programs own that);
+			# a fading program must show its node itself.
+			var gn := it["node"] as MeshInstance3D
+			if is_instance_valid(gn):
+				gn.visible = true
+				# Pulse the wash's BRIGHTNESS, not its alpha: transparency fades
+				# compressed to ±2/channel on screen and dimmed the field off the
+				# measured colour. Albedo swing ±~4% = the captures' ±7/channel.
+				# Three incommensurate sines (fastest sub-capture-period) so
+				# consecutive samples decorrelate like the particle system's.
+				var osc := 1.0 + 0.016 * sin(ms * 0.0013) + 0.014 * sin(ms * 0.0071) + 0.012 * sin(ms * 0.0173)
+				var wb: Color = it["base"]
+				var wm := gn.material_override as StandardMaterial3D
+				if wm != null:
+					wm.albedo_color = Color(wb.r * osc, wb.g * osc, wb.b * osc)
+				var motes: Array = it["motes"]
+				for mi3 in motes.size():
+					var mq := motes[mi3] as MeshInstance3D
+					if is_instance_valid(mq):
+						mq.visible = true
+						var ph := float(mi3) * 2.1
+						mq.position = Vector3(
+							float(it["cx"]) + 0.3 * sin(ms * 0.0009 + ph) + 0.08 * sin(ms * 0.0047 + ph),
+							mq.position.y,
+							float(it["cy"]) + 0.34 * cos(ms * 0.0011 + ph * 1.7) + 0.08 * cos(ms * 0.0053 + ph))
 		elif kind == "shimmer":
 			# Wormhole: pick a RANDOM combo each period (repeats allowed —
 			# Qud's own re-roll can land on the same face twice).

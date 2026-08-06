@@ -504,15 +504,15 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Chavvah_Chime_Left_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 78.21,
-   "pct_hot": 76.9,
+   "mean_abs_diff": 39.14,
+   "pct_hot": 67.3,
    "band": "FAIL",
    "white_px": [
     23,
-    392
+    331
    ],
-   "dominant_delta": 128,
-   "wire_delta": 161
+   "dominant_delta": 64,
+   "wire_delta": 31
   }
  },
  {
@@ -541,7 +541,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Chavvah_Chime_Right_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 89.43,
+   "mean_abs_diff": 90.64,
    "pct_hot": 82.9,
    "band": "FAIL",
    "white_px": [
@@ -3186,7 +3186,7 @@
    "tile": "Creatures/sw_cherub_succulent_mechanical.bmp",
    "color": "&C",
    "detail": "W",
-   "name": "{{W|{{W|sappy}} mechanical fractus cherub}}"
+   "name": "mechanical fractus cherub"
   },
   "wire_objs": 1,
   "wire_hex": "77bfcf",
@@ -3195,9 +3195,9 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Mechanical_Succulents_Cherub_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 40.52,
-   "pct_hot": 44.3,
-   "band": "FAIL",
+   "mean_abs_diff": 10.43,
+   "pct_hot": 7.2,
+   "band": "PASS",
    "white_px": [
     0,
     0

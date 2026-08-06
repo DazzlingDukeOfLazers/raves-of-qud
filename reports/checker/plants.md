@@ -1,6 +1,6 @@
 # Object Checker — plants
 
-181/181 PASS  (2026-08-05 21:56)  pixel: 174 PASS / 0 WARN / 6 FAIL / 1 KNOWN
+181/181 PASS  (2026-08-06 02:48)  pixel: 175 PASS / 0 WARN / 3 FAIL / 1 KNOWN / 2 ANIM
 
 | element | verdict | px | notes |
 |---|---|---|---|
@@ -17,8 +17,8 @@
 | Brinestalk | PASS | PASS 4.0/4% | wire tile != blueprint tile 'assets_content_textures_tiles_tile-brinestalk' |
 | Bush Golem | PASS | PASS 8.8/4% | wire tile != blueprint tile 'creatures_sw_golem_bush' |
 | Chavvah Branch | PASS | PASS 3.9/2% | wire tile != blueprint tile 'terrain_sw_chavvah_branch_floor_6' |
-| Chavvah Chime Left | PASS | FAIL 78.2/77% | wire tile != blueprint tile 'terrain_sw_chavvah_chime_double_1' |
-| Chavvah Chime Right | PASS | FAIL 89.4/83% | wire tile != blueprint tile 'terrain_sw_chavvah_chime_double_2' |
+| Chavvah Chime Left | PASS | ANIM 39.1/67% | wire tile != blueprint tile 'terrain_sw_chavvah_chime_double_1'; anim-verified (state agreement); single-frame diff is phase |
+| Chavvah Chime Right | PASS | ANIM 90.6/83% | wire tile != blueprint tile 'terrain_sw_chavvah_chime_double_2'; anim-verified (state agreement); single-frame diff is phase |
 | Chavvah Dense Leaves | PASS | PASS 16.3/8% | wire tile != blueprint tile 'terrain_sw_chavvah_leaves_dense_4' |
 | Chavvah Sparse Leaves | PASS | PASS 5.0/2% | wire tile != blueprint tile 'terrain_sw_chavvah_leaves_sparse_1' |
 | Chavvah Taproot Floor | PASS | PASS 3.7/2% | wire tile != blueprint tile 'terrain_sw_chavvah_branch_floor_2' |
@@ -90,7 +90,7 @@
 | Lurking Beth | PASS | PASS 1.1/0% | wire tile != blueprint tile 'creatures_sw_lurking_beth'; no capture pair — congruence skipped |
 | Mechanical Flowers Cherub | PASS | PASS 10.5/7% |  |
 | Mechanical Roots Cherub | PASS | PASS 10.5/8% | wire tile != blueprint tile 'creatures_sw_cherub_root_mechanical' |
-| Mechanical Succulents Cherub | PASS | FAIL 40.5/44% | wire tile != blueprint tile 'creatures_sw_cherub_succulent_mechanical' |
+| Mechanical Succulents Cherub | PASS | PASS 10.4/7% | wire tile != blueprint tile 'creatures_sw_cherub_succulent_mechanical' |
 | Mechanical Trees Cherub | PASS | PASS 9.2/6% | wire tile != blueprint tile 'creatures_sw_cherub_tree_mechanical' |
 | Mechanical Vines Cherub | PASS | PASS 11.9/8% | wire tile != blueprint tile 'creatures_sw_cherub_vine_mechanical' |
 | Miryam | PASS | PASS 2.5/1% | wire tile != blueprint tile 'terrain_sw_chavvah_chime_6' |

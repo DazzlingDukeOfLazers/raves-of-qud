@@ -187,8 +187,21 @@ agreement + actual animation (verified by state agreement, single-frame diff
 is phase); KNOWN = unverifiable (spawners, multi-cell); FAIL = attributed.
 
 **PORT BACKLOG — real animation gaps, with measured targets (qud states):**
-- Stasisfield shimmer (3), ReshephWall2 blink (2)
-- Chavvah Chime L+R — continuous swing (11)
+- ~~Stasisfield / ReshephWall2 / Chavvah Chimes~~ ALL PORTED (2026-08-06):
+  Stasisfield = a bespoke AnimatedMaterialStasisfield 4-window cycle
+  (fg/detail in Render, the ^m/^C wash in FINALRENDER — the frame sweep
+  now dispatches both, gates on bespoke AnimatedMaterial* parts, and
+  settles the transient Rushing churn first). 4/4 AGREE, pixel 23 PASS.
+  ReshephWall2 = a slow AMG TileColorAnimationFrames ^bg cycler the AMG
+  port already ships. 2/2 AGREE, pixel 17 PASS. WALLS ARE 229/229 PASS.
+  The chimes' "11-state swing" is actually a PrefabImposter Unity
+  particle (TreeGlow): a full-cell lavender wash (sampled ~(197,181,212)
+  ±7) the art draws over. The wire ships the prefab name; the client
+  maps TreeGlow to an opaque wash quad UNDER the sprite with albedo
+  breathing + three drifting motes — the spatial churn matters: a pure
+  brightness pulse tops out at ~4 distinguishable states (state-merge
+  radius eats a 1-D range) while the particles read continuous. Both
+  chimes AGREE continuous; pixel is phase (ANIM band).
 - Wormhole swirl (7) — since ported (see below)
 - Mechanical Succulents Cherub (3)
 - ~~POWERED-DEVICE BLINK FAMILY~~ PORTED (2026-08-05 late). Mechanism:
