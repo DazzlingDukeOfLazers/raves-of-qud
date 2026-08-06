@@ -732,6 +732,22 @@ What it gives for the ability bar:
             TopHalf       32 x 48          the icon element
             Ability Text  100.81 x 25
 
+**...nor wholesale, without Qud's per-cell WIDTHS.** Rebuilding the cell to exactly that nesting --
+outer box padL 5 / padR 0, a WorkableArea carrying the green frame, a fixed 32x48 icon element,
+spacing 10, and the gutter moved to Qud's real 175 -- puts the frame on Qud's x180 and still scores
+WORSE (bar mean 10.06 -> 16.09), because the cells come out far too wide: 373 / 579 / 782 against
+Qud's 367 / 537 / 697.
+
+The reason is the leftover, not the model. Both apps size a cell to its content and then share out
+the slack, but Godot splits leftover space EQUALLY between expanding children while Unity's layout
+distributes it by flexible width -- so the same minimums land on different widths. Modelling the
+cell correctly makes our minimums *smaller* (5 of padding instead of 16), which leaves MORE slack to
+distribute and pushes every boundary right. The flat, over-padded cell was accidentally compensating.
+
+Closing this needs Qud's per-cell widths shipped over the bridge (192.96 / 167.76 / 159.36 / ...),
+the same bargain as the picker's `tabW` and the journal's `hdrW`: a number only Qud can compute,
+because it depends on its own text metrics AND its own distribution rule.
+
 **A model you cannot copy piecemeal.** Qud's spacing of 10 and its padL of 5 both make our bar
 worse (10.06 -> 14.78 and -> 15.07) because our cell's elements are not its elements: the spacing
 only lands right once the icon element is 32 wide and the text element 100.81. Our own set — icon
