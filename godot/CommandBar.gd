@@ -187,9 +187,19 @@ func set_snapshot(data: Dictionary) -> void:
 	_tiles.tiles_dir = String(data.get("tilesDir", _tiles.tiles_dir))
 	_ability_tex.clear()
 	_abilities = data.get("abilities", [])   # keep for the 1-9 hotkeys
+	# ROUNDED CUMULATIVE EDGES, not rounded widths. Qud's cell widths are fractional (192.96,
+	# 167.76, 159.36, ...) and rounding each one independently accumulates: the boundaries came out
+	# -1, +1, +2, +3, +3, +4, +5 along the bar. Taking the difference of rounded running totals
+	# keeps every EDGE within a pixel of Qud's, which is what the eye follows. (Same fix as the
+	# picker's row heights -- see PickerOverlay._row_px.)
 	_bar_cells.clear()
+	var cum := 0.0
+	var prev := 0.0
 	for w in String(data.get("barCells", "")).split(",", false):
-		_bar_cells.append(float(w))
+		cum += float(w)
+		var edge := roundf(cum)
+		_bar_cells.append(edge - prev)
+		prev = edge
 	if _one_to_one:
 		_render_cells(_abilities)
 	else:
