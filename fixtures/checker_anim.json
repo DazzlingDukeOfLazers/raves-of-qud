@@ -62,5 +62,79 @@
    12
   ],
   "notes": "MEASURED AGREE: qud 11 / raves 12 continuous. The sanity case."
+ },
+ "walls-tail": {
+  "blueprints": [
+   "Stasisfield",
+   "CryochamberWallNE",
+   "ReshephWall2",
+   "YdFreeholdCrysteelPlatedWallWithPipes",
+   "HangarWall"
+  ],
+  "expect_states": null,
+  "notes": "The bright-baseline walls FAIL tail \u2014 run-to-run variable scores (HangarWall probed PASS 12 then swept 47). Measure to classify."
+ },
+ "plants-tail": {
+  "blueprints": [
+   "Qudzu",
+   "Prickler",
+   "Chavvah Chime Right",
+   "Chavvah Chime Left",
+   "Livid Creeper",
+   "Jilted Lover",
+   "Holographic Dogthorn Tree",
+   "Mechanical Succulents Cherub"
+  ],
+  "expect_states": null,
+  "notes": "Plants FAIL tail (pricklers puff, holograms flicker, chimes swing?)."
+ },
+ "furniture-tail": {
+  "blueprints": [
+   "Wooden Water Wheel",
+   "Wormhole",
+   "PistonPressElement",
+   "Wire Extruder",
+   "Nacham's Loom",
+   "Powered Telescope",
+   "Solar Condenser",
+   "GritGateForceProjector_Rank0",
+   "GritGateForceProjector_Rank1",
+   "HighTechInstallation",
+   "SolidHighTechInstallation",
+   "Unicomputer",
+   "Crematory Liquid-Cooled Unicomputer",
+   "Star Carousel Star Chart C",
+   "Star Carousel Star Chart L",
+   "ScrapChest",
+   "Eater Sign 1",
+   "GritGateBed",
+   "Glass Door W",
+   "MountedFurniture",
+   "NephilimShrine"
+  ],
+  "expect_states": null,
+  "notes": "Furniture FAIL tail minus the Switch family (measured static \u2014 real art difference, findings s6) and the conveyors/phasic (already fixtured)."
+ },
+ "creatures-tail": {
+  "blueprints": [
+   "Bloated Pearlfrog",
+   "Ogre Ape",
+   "Spider Golem",
+   "Decarbonizer",
+   "Girshworm",
+   "Humor",
+   "Jilted Lover",
+   "Livid Creeper",
+   "Turret Tinker",
+   "Plant Turret",
+   "Pulsed Field Magnet",
+   "Ehalcodon",
+   "Gyre Wight of Qas",
+   "Sleeping Plated Chromeling",
+   "Slynth Wanderer",
+   "DelegateBears"
+  ],
+  "expect_states": null,
+  "notes": "Representative sample of the creatures FAIL tail (Cherubim spawners handled separately \u2014 they REPLACE themselves between captures; KNOWN)."
  }
 }

@@ -3463,7 +3463,8 @@
    ],
    "dominant_delta": 0,
    "wire_delta": 191
-  }
+  },
+  "known": "CherubimSpawner: replaces itself with the real cherub between the two captures \u2014 staging-timing, unverifiable by same-turn pair"
  },
  {
   "bp": "CherubimSpawn1B Special",
@@ -3498,7 +3499,8 @@
    ],
    "dominant_delta": 0,
    "wire_delta": 191
-  }
+  },
+  "known": "CherubimSpawner: replaces itself with the real cherub between the two captures \u2014 staging-timing, unverifiable by same-turn pair"
  },
  {
   "bp": "CherubimSpawn2A",
@@ -3572,7 +3574,8 @@
    ],
    "dominant_delta": 0,
    "wire_delta": 191
-  }
+  },
+  "known": "CherubimSpawner: replaces itself with the real cherub between the two captures \u2014 staging-timing, unverifiable by same-turn pair"
  },
  {
   "bp": "CherubimSpawn2B",
@@ -3609,7 +3612,8 @@
    ],
    "dominant_delta": 0,
    "wire_delta": 191
-  }
+  },
+  "known": "CherubimSpawner: replaces itself with the real cherub between the two captures \u2014 staging-timing, unverifiable by same-turn pair"
  },
  {
   "bp": "CherubimSpawn2B Special",
@@ -3718,7 +3722,8 @@
    ],
    "dominant_delta": 0,
    "wire_delta": 100
-  }
+  },
+  "known": "CherubimSpawner: replaces itself with the real cherub between the two captures \u2014 staging-timing, unverifiable by same-turn pair"
  },
  {
   "bp": "CherubimSpawn3B",
@@ -3977,7 +3982,8 @@
    ],
    "dominant_delta": 0,
    "wire_delta": 35
-  }
+  },
+  "known": "CherubimSpawner: replaces itself with the real cherub between the two captures \u2014 staging-timing, unverifiable by same-turn pair"
  },
  {
   "bp": "CherubimSpawn5A Special",

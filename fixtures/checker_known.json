@@ -1,5 +1,5 @@
 {
- "Chiliad Creature Newly Sentient Beings": "NREs on bare staging (procedural-history creature; needs world context) — reports/2026-08-03-checker-chiliad-npe.md",
+ "Chiliad Creature Newly Sentient Beings": "NREs on bare staging (procedural-history creature; needs world context) \u00e2\u20ac\u201d reports/2026-08-03-checker-chiliad-npe.md",
  "Marble Dais": "multi-cell sprite: the stage-cell crop catches a fraction; needs a multi-cell staging rule",
  "E Marble Dais": "multi-cell sprite (dais family)",
  "E1 Marble Dais": "multi-cell sprite (dais family)",
@@ -13,5 +13,11 @@
  "S Marble Dais": "multi-cell sprite (dais family)",
  "S1 Marble Dais": "multi-cell sprite (dais family)",
  "S2 Marble Dais": "multi-cell sprite (dais family)",
- "TauSoft": "oversized/off-anchor sprite: 100% hot crop — needs the multi-cell staging rule"
+ "TauSoft": "oversized/off-anchor sprite: 100% hot crop \u00e2\u20ac\u201d needs the multi-cell staging rule",
+ "CherubimSpawn1B": "CherubimSpawner: replaces itself with the real cherub between the two captures \u2014 staging-timing, unverifiable by same-turn pair",
+ "CherubimSpawn2A Special": "CherubimSpawner: replaces itself with the real cherub between the two captures \u2014 staging-timing, unverifiable by same-turn pair",
+ "CherubimSpawn2B": "CherubimSpawner: replaces itself with the real cherub between the two captures \u2014 staging-timing, unverifiable by same-turn pair",
+ "CherubimSpawn3A Special": "CherubimSpawner: replaces itself with the real cherub between the two captures \u2014 staging-timing, unverifiable by same-turn pair",
+ "CherubimSpawn5A": "CherubimSpawner: replaces itself with the real cherub between the two captures \u2014 staging-timing, unverifiable by same-turn pair",
+ "CherubimSpawn1B Special": "CherubimSpawner: replaces itself with the real cherub between the two captures \u2014 staging-timing, unverifiable by same-turn pair"
 }

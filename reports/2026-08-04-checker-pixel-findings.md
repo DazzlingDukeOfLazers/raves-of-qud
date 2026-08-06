@@ -179,4 +179,39 @@ Items are essentially perfect; the drops are structured, not noise:
 Dark-era baselines remain in git history as valid dark-parity records; THIS
 is the canonical baseline lineage going forward.
 
+## 12. THE ANIMATED TAIL, FULLY MEASURED (2026-08-05 evening)
+
+Every remaining FAIL was burst-measured (fixtures walls-tail / plants-tail /
+furniture-tail / creatures-tail). Reports now band four ways: ANIM =
+agreement + actual animation (verified by state agreement, single-frame diff
+is phase); KNOWN = unverifiable (spawners, multi-cell); FAIL = attributed.
+
+**PORT BACKLOG — real animation gaps, with measured targets (qud states):**
+- Stasisfield shimmer (3), ReshephWall2 blink (2)
+- Chavvah Chime L+R — continuous swing (11)
+- Wormhole swirl (7), Wooden Water Wheel (6 vs raves 3 — partial port)
+- Mechanical Succulents Cherub (3)
+- POWERED-DEVICE BLINK FAMILY (2-state): PistonPressElement, Wire Extruder,
+  Powered Telescope, Solar Condenser, GritGateForceProjector Rank0/1,
+  Unicomputer + Crematory variant, Eater Sign 1 (3). NOT
+  AnimatedMaterialGeneric (Unicomputer XML carries no Animated part) —
+  mechanism needs reflection; likely a powered-status indicator.
+- Creature programs: Gyre Wight of Qas (8!), Sleeping Plated Chromeling (6),
+  Ogre Ape (6 vs 2 partial), Livid Creeper-as-creature (3), Bloated
+  Pearlfrog (2), Ehalcodon (2)
+- CONVEYOR FRAME-SYNC: EventArt ships ONE wall-time frame; Qud draws its own
+  moment's frame — an unpowered static belt still mismatches (~100). Fix:
+  synthesize the ConveyorPad frame schedule as animFrames so the client
+  animates it (the part computes tiles procedurally).
+
+**STATIC-DIVERGENCE TRIAGE LIST — measured static both sides, pixel-FAIL:**
+Switch family (5, s6), HangarWall/Cryochamber/YdFreehold walls, Qudzu,
+Prickler, Holographic Dogthorn, Jilted Lover, plants' Livid Creeper stage,
+Humors, Spider/Swine golems, turrets, Pulsed Field Magnet, Slynth Wanderer,
+DelegateBears, star charts, ScrapChest, Nacham's Loom, HighTech
+installations, NephilimShrine, GritGateBed, Glass Door W, MountedFurniture.
+These are constant rendering differences — the next reflection hunt, likely
+a handful of shared rules (RandomTile variants, unexamined-artifact art on
+furniture, glow overlays).
+
 *Delete sections as addressed (repo ticket lifecycle).*

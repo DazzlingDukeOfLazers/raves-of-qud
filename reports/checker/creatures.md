@@ -1,6 +1,6 @@
 # Object Checker — creatures
 
-896/896 PASS  (2026-08-05 17:18)  pixel: 838 PASS / 15 WARN / 42 FAIL / 1 KNOWN
+896/896 PASS  (2026-08-05 20:12)  pixel: 836 PASS / 15 WARN / 38 FAIL / 7 KNOWN
 
 | element | verdict | px | notes |
 |---|---|---|---|
@@ -97,21 +97,21 @@
 | Chef | PASS | PASS 5.7/3% | wire tile != blueprint tile 'items_sw_kipper' |
 | CherubimSpawn1A | PASS | PASS 6.6/4% | wire tile != blueprint tile 'creatures_sw_cherub_equine' |
 | CherubimSpawn1A Special | PASS | PASS 6.6/4% | wire tile != blueprint tile 'creatures_sw_cherub_equine' |
-| CherubimSpawn1B | PASS | FAIL 40.2/38% |  |
-| CherubimSpawn1B Special | PASS | PASS 6.6/4% |  |
+| CherubimSpawn1B | KNOWN | KNOWN 40.2/38% | KNOWN: CherubimSpawner: replaces itself with the real cherub between the two captures — staging-timing, unverifiable by same-turn pair |
+| CherubimSpawn1B Special | KNOWN | KNOWN 6.6/4% | KNOWN: CherubimSpawner: replaces itself with the real cherub between the two captures — staging-timing, unverifiable by same-turn pair |
 | CherubimSpawn2A | PASS | PASS 5.9/4% | wire tile != blueprint tile 'creatures_sw_cherub_antelope' |
-| CherubimSpawn2A Special | PASS | FAIL 36.0/34% | wire tile != blueprint tile 'creatures_sw_cherub_antelope' |
-| CherubimSpawn2B | PASS | PASS 6.6/4% | wire tile != blueprint tile 'creatures_sw_cherub_insect' |
+| CherubimSpawn2A Special | KNOWN | KNOWN 36.0/34% | KNOWN: CherubimSpawner: replaces itself with the real cherub between the two captures — staging-timing, unverifiable by same-turn pair |
+| CherubimSpawn2B | KNOWN | KNOWN 6.6/4% | KNOWN: CherubimSpawner: replaces itself with the real cherub between the two captures — staging-timing, unverifiable by same-turn pair |
 | CherubimSpawn2B Special | PASS | PASS 6.6/4% | wire tile != blueprint tile 'creatures_sw_cherub_insect' |
 | CherubimSpawn3A | PASS | PASS 5.0/5% | wire tile != blueprint tile 'creatures_sw_cherub_tortoise' |
-| CherubimSpawn3A Special | PASS | FAIL 66.0/34% |  |
+| CherubimSpawn3A Special | KNOWN | KNOWN 66.0/34% | KNOWN: CherubimSpawner: replaces itself with the real cherub between the two captures — staging-timing, unverifiable by same-turn pair |
 | CherubimSpawn3B | PASS | PASS 6.8/5% | wire tile != blueprint tile 'creatures_sw_cherub_newly_sentient_being' |
 | CherubimSpawn3B Special | PASS | PASS 6.7/5% | wire tile != blueprint tile 'creatures_sw_cherub_newly_sentient_being' |
 | CherubimSpawn4A | PASS | PASS 5.4/4% | wire tile != blueprint tile 'creatures_sw_cherub_stranger_mechanical' |
 | CherubimSpawn4A Special | PASS | PASS 5.3/4% | wire tile != blueprint tile 'creatures_sw_cherub_stranger_mechanical' |
 | CherubimSpawn4B | PASS | PASS 5.7/6% | wire tile != blueprint tile 'creatures_sw_cherub_robot_mechanical' |
 | CherubimSpawn4B Special | PASS | PASS 5.7/6% | wire tile != blueprint tile 'creatures_sw_cherub_robot_mechanical' |
-| CherubimSpawn5A | PASS | FAIL 44.2/24% | wire tile != blueprint tile 'creatures_sw_cherub_fungus_mechanical' |
+| CherubimSpawn5A | KNOWN | KNOWN 44.2/24% | KNOWN: CherubimSpawner: replaces itself with the real cherub between the two captures — staging-timing, unverifiable by same-turn pair |
 | CherubimSpawn5A Special | PASS | WARN 27.1/38% | wire tile != blueprint tile 'creatures_sw_cherub_fungus_mechanical' |
 | CherubimSpawn5B | PASS | PASS 4.6/3% | wire tile != blueprint tile 'creatures_sw_cherub_bear_mechanical' |
 | CherubimSpawn5B Special | PASS | PASS 4.6/3% | wire tile != blueprint tile 'creatures_sw_cherub_bear_mechanical' |

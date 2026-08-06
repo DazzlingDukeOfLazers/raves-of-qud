@@ -1,6 +1,6 @@
 # Object Checker — furniture
 
-745/745 PASS  (2026-08-05 16:40)  pixel: 688 PASS / 8 WARN / 37 FAIL / 12 KNOWN
+745/745 PASS  (2026-08-05 20:12)  pixel: 688 PASS / 8 WARN / 36 FAIL / 12 KNOWN / 1 ANIM
 
 | element | verdict | px | notes |
 |---|---|---|---|
@@ -446,7 +446,7 @@
 | Period4SultanShrine | PASS | PASS 4.9/4% | wire tile != blueprint tile 'terrain_sw_sultanstatue_4' |
 | Period5SultanShrine | PASS | PASS 5.5/4% | wire tile != blueprint tile 'terrain_sw_sultanstatue_rare_1' |
 | Period6SultanShrine | PASS | PASS 4.8/4% | wire tile != blueprint tile 'terrain_sw_resheph_sultanstatue' |
-| Phasic Screw | PASS | FAIL 122.1/72% | wire tile != blueprint tile 'furniture_phasic-screw-1' |
+| Phasic Screw | PASS | ANIM 122.1/72% | wire tile != blueprint tile 'furniture_phasic-screw-1'; anim-verified (state agreement); single-frame diff is phase |
 | PigSign | PASS | PASS 3.7/4% | wire tile != blueprint tile 'items_sw_sign_pig' |
 | PistonPressElement | PASS | FAIL 59.7/51% |  |
 | Platform | PASS | PASS 24.3/8% | wire tile != blueprint tile 'items_sw_platform_chrome' |

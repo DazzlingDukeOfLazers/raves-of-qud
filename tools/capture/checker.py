@@ -478,6 +478,30 @@ def calibrate():
     print("previews:", outdir, "(eyeball cell_qud/cell_raves — both should be the Wax Block)")
 
 
+def _anim_verified():
+    """bp -> agree?  from the LATEST rung-4 measurements (reports/checker/anim).
+    An element whose burst measurement AGREEs (same behaviour class both apps)
+    is verified by STATE AGREEMENT — its single-frame pixel diff is capture
+    phase, banded ANIM rather than FAIL. A measured DISAGREE stays FAIL."""
+    import glob as _glob
+    out = {}
+    for p in _glob.glob(os.path.join(REPORTS, "anim", "*.json")):
+        try:
+            d = json.load(open(p))
+        except (OSError, ValueError):
+            continue
+        for m in d.get("measured", []):
+            if not m.get("ok"):
+                continue
+            # ANIM banding needs BOTH: agreement AND actual animation — a
+            # static-AGREE element that still pixel-fails (HangarWall at 47)
+            # is a genuine STATIC divergence, not phase noise.
+            animated = (m.get("qud", {}).get("class") not in (None, "static")
+                        or m.get("raves", {}).get("class") not in (None, "static"))
+            out[m["bp"]] = bool(m.get("agree")) and animated
+    return out
+
+
 def write_report(cat, results):
     """Write <cat>.md + .json, MERGING with the existing json by blueprint —
     so --start/--limit slices aggregate into one report instead of clobbering
@@ -508,14 +532,25 @@ def write_report(cat, results):
 
     passed = sum(1 for r in results if r["pass"] or "known" in r)
     scored = [r for r in results if r.get("congruence")]
+    anim = _anim_verified()
+
+    def _band(r):
+        if "known" in r:
+            return "KNOWN"
+        b = r["congruence"]["band"]
+        if b != "PASS" and anim.get(r["bp"]) is True:
+            return "ANIM"
+        return b
     px_line = ""
     if scored:
-        bands = {"PASS": 0, "WARN": 0, "FAIL": 0, "KNOWN": 0}
+        bands = {"PASS": 0, "WARN": 0, "FAIL": 0, "KNOWN": 0, "ANIM": 0}
         for r in scored:
-            bands["KNOWN" if "known" in r else r["congruence"]["band"]] += 1
+            bands[_band(r)] += 1
         px_line = "pixel: %(PASS)d PASS / %(WARN)d WARN / %(FAIL)d FAIL" % bands
         if bands["KNOWN"]:
             px_line += " / %(KNOWN)d KNOWN" % bands
+        if bands["ANIM"]:
+            px_line += " / %(ANIM)d ANIM" % bands
     lines = ["# Object Checker — %s" % cat, "",
              "%d/%d PASS  (%s)  %s" % (passed, len(results), time.strftime("%Y-%m-%d %H:%M"), px_line), "",
              "| element | verdict | px | notes |", "|---|---|---|---|"]
@@ -526,8 +561,10 @@ def write_report(cat, results):
         px = r.get("congruence")
         pxs = ""
         if px:
-            pxs = "%s %.1f/%.0f%%" % ("KNOWN" if "known" in r else px["band"],
-                                      px["mean_abs_diff"], px["pct_hot"])
+            eb = _band(r)
+            if eb == "ANIM":
+                notes = (notes + "; " if notes else "") + "anim-verified (state agreement); single-frame diff is phase"
+            pxs = "%s %.1f/%.0f%%" % (eb, px["mean_abs_diff"], px["pct_hot"])
         verdict = "KNOWN" if "known" in r else ("PASS" if r["pass"] else "**FAIL**")
         lines.append("| %s | %s | %s | %s |" % (r["bp"], verdict, pxs, notes))
     path = os.path.join(REPORTS, cat + ".md")

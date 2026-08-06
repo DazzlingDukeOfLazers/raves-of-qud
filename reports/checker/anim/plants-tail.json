@@ -1,0 +1,198 @@
+{
+ "fixture": "plants-tail",
+ "frames": 12,
+ "expect_states": null,
+ "measured": [
+  {
+   "bp": "Qudzu",
+   "ok": true,
+   "qud": {
+    "frames": 12,
+    "states": 1,
+    "duty": [
+     1.0
+    ],
+    "class": "static"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 1,
+    "duty": [
+     1.0
+    ],
+    "class": "static"
+   },
+   "agree": true
+  },
+  {
+   "bp": "Prickler",
+   "ok": true,
+   "qud": {
+    "frames": 12,
+    "states": 1,
+    "duty": [
+     1.0
+    ],
+    "class": "static"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 1,
+    "duty": [
+     1.0
+    ],
+    "class": "static"
+   },
+   "agree": true
+  },
+  {
+   "bp": "Chavvah Chime Right",
+   "ok": true,
+   "qud": {
+    "frames": 12,
+    "states": 11,
+    "duty": [
+     0.17,
+     0.08,
+     0.08,
+     0.08,
+     0.08,
+     0.08,
+     0.08,
+     0.08,
+     0.08,
+     0.08,
+     0.08
+    ],
+    "class": "continuous"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 1,
+    "duty": [
+     1.0
+    ],
+    "class": "static"
+   },
+   "agree": false
+  },
+  {
+   "bp": "Chavvah Chime Left",
+   "ok": true,
+   "qud": {
+    "frames": 12,
+    "states": 11,
+    "duty": [
+     0.17,
+     0.08,
+     0.08,
+     0.08,
+     0.08,
+     0.08,
+     0.08,
+     0.08,
+     0.08,
+     0.08,
+     0.08
+    ],
+    "class": "continuous"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 1,
+    "duty": [
+     1.0
+    ],
+    "class": "static"
+   },
+   "agree": false
+  },
+  {
+   "bp": "Livid Creeper",
+   "ok": true,
+   "qud": {
+    "frames": 12,
+    "states": 1,
+    "duty": [
+     1.0
+    ],
+    "class": "static"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 1,
+    "duty": [
+     1.0
+    ],
+    "class": "static"
+   },
+   "agree": true
+  },
+  {
+   "bp": "Jilted Lover",
+   "ok": true,
+   "qud": {
+    "frames": 12,
+    "states": 1,
+    "duty": [
+     1.0
+    ],
+    "class": "static"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 1,
+    "duty": [
+     1.0
+    ],
+    "class": "static"
+   },
+   "agree": true
+  },
+  {
+   "bp": "Holographic Dogthorn Tree",
+   "ok": true,
+   "qud": {
+    "frames": 12,
+    "states": 1,
+    "duty": [
+     1.0
+    ],
+    "class": "static"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 1,
+    "duty": [
+     1.0
+    ],
+    "class": "static"
+   },
+   "agree": true
+  },
+  {
+   "bp": "Mechanical Succulents Cherub",
+   "ok": true,
+   "qud": {
+    "frames": 11,
+    "states": 3,
+    "duty": [
+     0.82,
+     0.09,
+     0.09
+    ],
+    "class": "discrete"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 1,
+    "duty": [
+     1.0
+    ],
+    "class": "static"
+   },
+   "agree": false
+  }
+ ],
+ "when": "2026-08-05 19:52"
+}
