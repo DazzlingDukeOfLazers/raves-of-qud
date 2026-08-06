@@ -95,6 +95,7 @@ const STAT_PITCH := 86           # Qud centres each stat on a uniform ~86px grid
 const VITALS_BOX_H := 19
 const VITALS_TOP_PAD := 2        # row 1's top -> Qud's first bar row (45 -> 47)
 const VITALS_GAP := 3            # Qud's gap between the HP and EXP boxes (66..68)
+const ROW_GAP := 4               # the gap the TOP rows carry (the bottom rows carry none)
 const VITALS_USER_INSET := 170   # user mode: inset the bar behind the label so green text stays readable
 const COL_VITALS_TRACK := Color8(19, 23, 26)   # Qud's empty-bar track (dark)
 var _l_hp: RichTextLabel   # HP line — RichText so only the current-HP number is health-tinted (like Qud)
@@ -176,13 +177,19 @@ func _ready() -> void:
 	var rows := VBoxContainer.new()
 	_rows_box = rows   # the overflow tripwire audits each row's minimum against the window
 	rows.set_anchors_preset(Control.PRESET_FULL_RECT)
-	rows.add_theme_constant_override("separation", 4)
+	# GAPS ARE EXPLICIT, not one shared separation. Qud's bottom 90px is row 4 (the ability bar,
+	# 62 tall at y=1018) sitting flush under row 3 -- no gap at all -- while the top rows do have
+	# their 4px. One container separation cannot express both, and it was the 4px before the bar
+	# that held the cells 8px short and 8px low of Qud's.
+	rows.add_theme_constant_override("separation", 0)
 	add_child(rows)
 
 	rows.add_child(_row_status())        # 1: top status strip
+	rows.add_child(_vspace(ROW_GAP))
 	rows.add_child(_row_vitals_menu())   # 2: HP/EXP  |  top menu
+	rows.add_child(_vspace(ROW_GAP))
 	rows.add_child(_row_main())          # 3: Holodeck | side panels  (expands)
-	rows.add_child(_row_context())       # 4: effects | target | context menu
+	rows.add_child(_row_context())       # 4: effects | target | context menu — flush, as Qud has it
 	rows.add_child(_row_command())       # 5: command bar (abilities)
 
 	# The registry of sub-views (created inside the row builders above). _apply_stats feeds them all.

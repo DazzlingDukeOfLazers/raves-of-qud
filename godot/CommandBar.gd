@@ -176,7 +176,10 @@ func set_one_to_one(on: bool) -> void:
 	_gutter.visible = on
 	# Qud's ability bar is exactly 58px tall at 1920x1080 (measured; icons 40px within) — pin it so
 	# the play hole's bottom edge lands where Qud's does. User mode sizes to content as before.
-	custom_minimum_size = Vector2(0, 54) if on else Vector2(0, 0)   # 90px budget: 4+28+4+54
+	# 62, measured off Qud's own ability CELL (x180..367, y1018..1079) rather than off the bar's
+	# apparent edge -- the earlier 58/54 reading was short, which left our cells 44 tall against
+	# Qud's 62. Qud's bottom 90 is row3 990..1017 flush against the bar 1018..1079.
+	custom_minimum_size = Vector2(0, 62) if on else Vector2(0, 0)
 	# drop the rounded QoL box in 1:1 — the continuous bottom-strip chrome + the VSeparator dividers ARE
 	# Qud's look; the framed box floated on the playfield. Restore it in user mode.
 	var cur := get_theme_stylebox("panel")
@@ -186,11 +189,18 @@ func set_one_to_one(on: bool) -> void:
 			f.bg_color = Color(0, 0, 0, 0)
 			f.set_border_width_all(0)
 			f.set_corner_radius_all(0)
+			# ...and no vertical inset. The stylebox's 5px content margins are LAYOUT, not just
+			# decoration: they survived the transparent 1:1 box and kept the cells 10px shorter than
+			# the bar, so pinning the bar to Qud's 62 still left 52-tall cells against Qud's 62.
+			f.content_margin_top = 0
+			f.content_margin_bottom = 0
 		else:
 			f.bg_color = QudPalette.CHROME
 			f.set_border_width_all(1)
 			f.border_color = Color(1, 1, 1, 0.12)
 			f.set_corner_radius_all(3)
+			f.content_margin_top = 5
+			f.content_margin_bottom = 5
 		add_theme_stylebox_override("panel", f)
 	if not _last_data.is_empty():
 		set_snapshot(_last_data)
