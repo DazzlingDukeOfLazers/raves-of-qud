@@ -634,5 +634,26 @@ The top rule is a **centred gap**, not a segment list: `158-204 / 213..(959.5-g)
 233.5, tinkering 117.5 — all three gaps centre on 959.5). Five tabs draw none.
 
 Interior column dividers (attributes 816/834, journal 952, quests 1021) belong to the panes, not to
-this chrome. **Open:** the journal tab's top rule is within a few px, not exact — Qud's left notch
-ends at 208 there rather than 204, and our gap edges measure 1-2px wide.
+this chrome.
+
+The rule always RESUMES at 213; only its left end moves (204 on equipment and tinkering, 208 on
+journal), so the notch is 8px wide on two tabs and 4px on the third — not a fixed notch that shifts.
+
+## The journal header is bracketed, not ruled
+
+Two 1px VERTICAL ticks close the journal's header block, one at each edge — not the 16px horizontal
+dashes we drew. Off the live element:
+
+    Image (2)  x=170.50  1x16      the left tick
+    Image (3)  x=171.50  16x16     icon
+    Header     x=187.50  w=143.04  "Locations", font 24, #4383a4, SourceCodePro-Regular
+    Image (1)  x=330.54  16x16     icon
+    Image      x=346.54  1x16      the right tick
+
+The right tick is NOT flush with the text: the icon sits between them, and that 16px is part of the
+header's geometry even while we do not draw the icons themselves.
+
+**Open — a TMP text metric.** Qud's Header element measures **143.04** for "Locations" where our
+Source Code Pro at 24 measures ~130, so the right tick lands ~14px early. Same class as the picker's
+title tab: a width only Qud can measure, and the fix is to ship it (`tabW`-style) rather than fit a
+per-character fudge to one sample.

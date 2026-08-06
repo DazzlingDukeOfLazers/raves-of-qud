@@ -29,6 +29,12 @@ const LIST_W := 777.5
 const LIST_H := 671.0
 const CARET_DX := 1.1
 const CARET_DY := 18.2
+## The header block's two 1px vertical ticks. x/y/h are Qud's own (JournalHeader/Image (2)); the
+## right one rides the text width, as Qud's ContentSizeFitter does.
+const HDR_TICK_X := 170.5
+const HDR_TICK_Y := 189.7
+const HDR_TICK_H := 16.0
+const HDR_ICON_W := 16.0      # the header's flanking icon slots (Image (3) / Image (1))
 const ROW_TEXT_DX := 16.0     # header/body text sit 16 in from the row's left
 const ROW_FONT := 20          # header row (category / recipe name / the empty-state line)
 const BODY_FONT := 16
@@ -47,7 +53,9 @@ const MAP_CELL_H := 24.0
 const C_TEXT := Color8(0xaf, 0xc6, 0xc1)
 const C_DIM := Color8(0x3b, 0x55, 0x5e)
 const C_GOLD := Color8(0xcf, 0xc0, 0x41)
-const C_HDR := Color8(0x82, 0x9e, 0xa8)
+## Qud's own, off the live element: JournalHeader/Header is #4383a4 at font 24 in
+## SourceCodePro-Regular. Ours was a grey (#829ea8) and read as a different colour entirely.
+const C_HDR := Color8(0x43, 0x83, 0xa4)
 
 var bridge_cb: Callable = Callable()
 var reload_cb: Callable = Callable()
@@ -109,8 +117,16 @@ func _draw_all() -> void:
 	_content.draw_string(_font, Vector2(HDR_X, HDR_Y + 22.0), name,
 		HORIZONTAL_ALIGNMENT_LEFT, -1, HDR_FONT, C_HDR)
 	var nw := _font.get_string_size(name, HORIZONTAL_ALIGNMENT_LEFT, -1, HDR_FONT).x
-	_content.draw_rect(Rect2(HDR_X - 17.0, HDR_Y + 7.0, 16.0, 1.0), C_DIM)
-	_content.draw_rect(Rect2(HDR_X + nw + 4.0, HDR_Y + 7.0, 16.0, 1.0), C_DIM)
+	# BRACKETS, not rule ends: Qud closes the header block with two 1px VERTICAL ticks, one at each
+	# edge (JournalHeader/Image (2) at x=170.5, y=189.7, 1x16, and its twin at the block's right
+	# edge, 347.5 = 170.5 + the block's 177.04). We were drawing 16px HORIZONTAL dashes there, which
+	# is what left the journal's header row disagreeing with Qud's after the top rule matched.
+	_content.draw_rect(Rect2(HDR_TICK_X, HDR_TICK_Y, 1.0, HDR_TICK_H), C_DIM)
+	# The right tick is not flush with the text: an ICON sits between them (JournalHeader's
+	# Image (1), 16x16 at 330.54, mirroring Image (3) on the left). We do not draw those icons yet,
+	# but their SPACE is part of the header's geometry -- without it the right tick came in 16px
+	# early and the block read as too narrow.
+	_content.draw_rect(Rect2(HDR_X + nw + HDR_ICON_W, HDR_TICK_Y, 1.0, HDR_TICK_H), C_DIM)
 
 	# --- the sub-tab strip, centred (Qud draws icons; these are labels for now)
 	var strip := PackedStringArray()

@@ -64,6 +64,12 @@ var _root: Control           # full-rect content root inside this layer
 ## centred on 959.5. The other five draw no top rule, and we were drawing the equipment tab's on all
 ## eight.
 const TOP_CENTRE := 959.5
+## Where the top rule's LEFT segment stops. The rule RESUMES at 213 on every tab that draws one, so
+## it is only this end that moves: 204 on equipment and tinkering, 208 on journal. The notch is
+## therefore 8px wide on those two and 4px on the journal -- not a fixed notch that shifts.
+const TOP_LEFT_END := {"journal": 208.0}
+const TOP_LEFT_END_DEFAULT := 204.0
+const TOP_RESUME := 213.0
 const TAB_TOPGAP := {
 	"equipment":  378.5,
 	"journal":    233.5,
@@ -220,7 +226,8 @@ void fragment() {
 		# tab's header block. Five tabs draw no top rule at all.
 		var g: float = TAB_TOPGAP.get(_tab, -1.0)
 		if g > 0.0:
-			for seg in [[158.0, 204.0], [213.0, TOP_CENTRE - g],
+			var lend: float = TOP_LEFT_END.get(_tab, TOP_LEFT_END_DEFAULT)
+			for seg in [[158.0, lend], [TOP_RESUME, TOP_CENTRE - g],
 					[TOP_CENTRE + g, 1705.0], [1714.0, 1760.0]]:
 				frame.draw_rect(Rect2(seg[0], 197.0, seg[1] - seg[0] + 1.0, 1.0), S_RULE)
 		# The verticals belong to the TAB, not the frame -- see TAB_VRULES.
