@@ -302,6 +302,10 @@ func _populate_body() -> void:
 		var rrows: Array = []
 		for item in RAVES_ITEMS:
 			var rrow := _build_raves_setting(item)
+			# name for the feedback tool: the whole row IS this option (see FeedbackTool's
+			# feedback_label walk) — without it a click names the row's value widget instead
+			rrow.set_meta("feedback_label", "option · " + str(item.get("label", "")))
+			rrow.set_meta("feedback_action", "set the RAVES option: " + str(item.get("label", "")))
 			col.add_child(rrow)
 			rrows.append(_row_meta(rrow, str(item.get("label", "")),
 				str(item.get("label", "")) + " " + str(item.get("key", "")), false))
@@ -320,6 +324,9 @@ func _populate_body() -> void:
 		var rows: Array = []
 		for opt in cat.get("options", []):
 			var row := _qud_option_1to1(opt) if one else _build_qud_option(opt)
+			row.set_meta("feedback_label", "option · " + str(opt.get("label", "")))
+			row.set_meta("feedback_action", "set option: %s (%s category)" % [
+				str(opt.get("label", "")), str(cat.get("name", ""))])
 			col.add_child(row)
 			rows.append(_row_meta(row, str(opt.get("label", "")), _opt_hay(opt),
 				not bool(opt.get("visible", true))))
@@ -331,6 +338,7 @@ func _populate_body() -> void:
 
 func _section_header_node(name: String) -> Label:
 	var h := _label("[-]  " + name.to_upper(), CYAN, "title")
+	h.set_meta("feedback_label", "section · " + name)
 	_anchors[name] = h
 	return h
 
@@ -1046,6 +1054,9 @@ func _build_1to1() -> void:
 
 	# interlace LAST, over everything (Qud console-screen scanlines)
 	var scan := ColorRect.new()
+	# transparent to the feedback hit test — a full-rect drawn last otherwise shadows
+	# every element on the screen (same treatment as MainFrame's CRT rect)
+	scan.set_meta("feedback_pass", true)
 	scan.set_anchors_preset(Control.PRESET_FULL_RECT)
 	scan.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var sh := Shader.new()
@@ -1121,6 +1132,7 @@ func _options_nav_icon(ih: int) -> ImageTexture:
 ## fresh-open selection dither bar across the content width.
 func _section_header_1to1(name: String, selected: bool) -> Control:
 	var wrap := Control.new()
+	wrap.set_meta("feedback_label", "section · " + name)
 	wrap.custom_minimum_size = Vector2(0, 24)
 	if selected:
 		var hl := TextureRect.new()

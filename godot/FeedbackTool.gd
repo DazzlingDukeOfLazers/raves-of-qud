@@ -94,6 +94,21 @@ func _input(event: InputEvent) -> void:
 	# "Sprint", not "TextureRect".
 	var elem: Control = hit
 	var leaf := _node_label(hit)
+	# EXPLICIT NAMES FIRST: a builder that knows what a row IS stamps it with a feedback_label
+	# meta (Options rows: "option · Music volume"). The nearest carrier up the chain names the
+	# element and becomes it (label, rect, thumbnail) — the text harvest below never has to
+	# guess, so a row's VALUE label ("50") can't hijack its name. A provider further down still
+	# overrides: point-resolution inside one Control beats a whole-node name.
+	var nm: Node = hit
+	for _m in 6:
+		if nm == null:
+			break
+		if nm.has_meta("feedback_label"):
+			leaf = str(nm.get_meta("feedback_label"))
+			if nm is Control:
+				elem = nm
+			break
+		nm = nm.get_parent()
 	if leaf == hit.get_class():
 		var n2: Node = hit
 		for _j in 3:
@@ -272,6 +287,10 @@ func _elem_action(n: Node) -> String:
 	for _i in 4:
 		if cur == null:
 			return ""
+		# feedback_action meta beats tooltips: builders stamp it alongside feedback_label
+		# (tooltips would also pop on hover, which the Options screen doesn't want).
+		if cur.has_meta("feedback_action"):
+			return str(cur.get_meta("feedback_action"))
 		var c := cur as Control
 		if c != null and c.tooltip_text.strip_edges() != "":
 			return c.tooltip_text.strip_edges()
