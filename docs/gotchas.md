@@ -110,6 +110,18 @@ add a one-liner (symptom → rule).
   drained by Tick/TickRender.
 
 ### Godot / the frame
+- **A mirrored Qud MODAL eats Raves' own keys.** Qud's in-game system menu (Set Checkpoint /
+  Control Mapping / Save and Quit) comes over the popup mirror and PopupOverlay is modal, so while
+  it is up a Raves-local shortcut like the Tinkering Ctrl+Tab silently does nothing. Escape sent to
+  Raves RAISES that menu (it is Qud's own binding), so "press Escape then try the key" is a way to
+  create this, not clear it. Clear it with a popup answer over the bridge, then send the key.
+- **UNRESOLVED (2026-08-05): the status-screen openers are INTERMITTENT.** `n`/`j`/`q`/`e` opened
+  their tabs reliably at one point in a session and then stopped on a fresh launch of the SAME
+  build, with `hv goto raves status_*` failing its assert. Established: the keys DO reach the app
+  (an `_input` trace logged the right keycode and modifiers arriving), no modal was up, it is not a
+  settle-time issue (still failing after ~20s), not a focused-control issue (clicking the world
+  first did not help), and it affects EVERY tab, not one. Cause still unknown -- start from the
+  `_input` trace, which is the tool that settled the neighbouring bugs.
 - **Raves' Continue greys out when it cannot READ QUD'S SAVES DIR — and that looks like a bridge
   failure.** `_saves_exist()` lists `~/Library/Application Support/com.FreeholdGames.CavesOfQud/
   Synced/Saves`, i.e. ANOTHER APP'S container. macOS TCC grants are per code-signature and this app
