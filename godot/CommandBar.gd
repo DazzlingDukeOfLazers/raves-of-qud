@@ -38,6 +38,7 @@ const PAGE_ARROW := Color8(11, 148, 71)          # stepper arrows — Qud's sele
 var _tiles: RefCounted       # shared tile recolouring for ability icons (set in _ready)
 var _rt: RichTextLabel       # user (QoL) layout: all abilities inline, left-packed
 var _cells: HBoxContainer    # 1:1 layout: one equal-width cell per ability, spread across the bar (Qud)
+var _row: HBoxContainer      # the bar's own row: gutter + cells. Its lead-in is what set the cells' x.
 var _cellwrap: ScrollContainer   # clips the cells: their min width must NOT inflate the chrome row
 var _abilities_btn: Button   # far-left: opens Qud's Abilities menu (the 'a' command)
 var _palette := {}
@@ -67,6 +68,7 @@ func _ready() -> void:
 
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 10)
+	_row = h
 	add_child(h)
 
 	# Far-left: the Abilities menu (Qud's 'a' = CmdAbilities), sent over the bridge like any command.
@@ -194,6 +196,13 @@ func set_one_to_one(on: bool) -> void:
 			# the bar, so pinning the bar to Qud's 62 still left 52-tall cells against Qud's 62.
 			f.content_margin_top = 0
 			f.content_margin_bottom = 0
+			# ...and no lead-in on the left. GUTTER_W_1TO1 is already Qud's 180, but the bar's own
+			# 8px margin plus the row's 10px separation sat in front of it, so the first cell began
+			# at exactly 198 -- 18 short of Qud's 180 by construction, not by accident.
+			f.content_margin_left = 0
+			f.content_margin_right = 0
+		if _row != null:
+			_row.add_theme_constant_override("separation", 0 if on else 10)
 		else:
 			f.bg_color = QudPalette.CHROME
 			f.set_border_width_all(1)
@@ -369,8 +378,11 @@ func _make_cell(a: Dictionary, icon_px: int, slot: int, selected: bool) -> Contr
 	fs.set_corner_radius_all(0)                              # Qud's box is a sharp rectangle
 	fs.set_border_width_all(1 if selected else 0)
 	fs.border_color = CELL_FRAME_1TO1
-	fs.content_margin_left = 4
-	fs.content_margin_right = 4
+	# 10, not 4: with the lead-in gone the first cell started on Qud's x180 but ran to 355 against
+	# its 367 -- 12 narrow, i.e. 6 a side. The cells size to their content in both apps, so the
+	# difference is the padding around it.
+	fs.content_margin_left = 10
+	fs.content_margin_right = 10
 	frame.add_theme_stylebox_override("panel", fs)
 	frame.tooltip_text = QudText.strip(String(a.get("name", "")))
 	frame.mouse_filter = Control.MOUSE_FILTER_STOP
