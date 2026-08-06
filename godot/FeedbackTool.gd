@@ -80,6 +80,21 @@ func _input(event: InputEvent) -> void:
 	_open_form()
 	get_viewport().set_input_as_handled()
 
+## Would this point open the feedback form? TRUE when the deepest element under it is UI chrome,
+## FALSE over the playfield (feedback_skip) or nothing. Main's inspect gesture asks this before
+## consuming a Cmd+Right-click: the scene gets _input BEFORE autoloads, so without the handoff the
+## inspector claimed every such click window-wide and the form could never open in-game.
+func claims(p: Vector2) -> bool:
+	var hit := _deepest_control_at(p)
+	if hit == null:
+		return false
+	var n: Node = hit
+	while n != null:
+		if n.has_meta("feedback_skip"):
+			return false
+		n = n.get_parent()
+	return true
+
 # --- element resolution --------------------------------------------------------------------------
 
 ## The deepest visible Control containing the point. By hand, because the built-in picker skips

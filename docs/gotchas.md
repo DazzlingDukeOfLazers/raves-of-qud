@@ -845,3 +845,21 @@ So the top bar packs its groups on a different rule than Qud's. Read Qud's own l
 touching it — the probe reaches the HUD (`uiprobe target=AbilityBar` works; the status bar will
 answer to the same resolver), and this session's ability-bar work is the cautionary tale for
 adjusting one group at a time against a container that redistributes the rest.
+
+## The quit chain is a harness hazard: failed `goto title` attempts STACK
+
+`hv goto raves title` from in-game walks Qud's quit chain (CmdQuit → "are you sure" → "save
+first?"), and the mirrored confirms drain only while QUD is focused — a dismiss key sent to Raves
+queues the answer in Qud's uiQueue, which macOS stops draining for a backgrounded window. So the
+recipe can time out with the confirm still up, and EVERY RETRY QUEUES ANOTHER CmdQuit: each
+dismissed confirm lets the next raise a fresh one, which reads as "the popup won't close" (ten
+Escape+drain rounds, no visible progress).
+
+Getting unstuck: the confirm is a LEGACY console popup — synthesized keys don't land on it, but a
+`--hover` click on its own [Esc] Cancel does, and one cancel unwinds the whole stacked chain (the
+game never actually quit). To reach the title without the chain at all, `hv restart raves` is the
+clean lever.
+
+The real fix (open): the title recipe's dismiss steps need the focus dance built in — answer in
+Raves, then focus Qud so the uiQueue drains, then verify — and a guard against resending CmdQuit
+while a quit confirm is already up.

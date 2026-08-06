@@ -974,6 +974,11 @@ func _input(event: InputEvent) -> void:
 			_inspect()
 			get_viewport().set_input_as_handled()
 		elif event.button_index == MOUSE_BUTTON_RIGHT:
+			# Cmd+Right-click over UI CHROME belongs to the element-feedback form, and the scene
+			# sees _input before autoloads — consuming unconditionally here starved FeedbackTool
+			# of every such click in-game. Over the playfield claims() is false and we inspect.
+			if FeedbackTool.claims(event.position):
+				return
 			_inspect_and_capture()
 			get_viewport().set_input_as_handled()
 
