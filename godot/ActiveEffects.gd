@@ -68,7 +68,10 @@ func set_one_to_one(on: bool) -> void:
 			f.bg_color = Color(0, 0, 0, 0)
 			f.set_border_width_all(0)
 			f.set_corner_radius_all(0)
-			f.content_margin_top = 2
+			# 5, so the ink lands on Qud's row (1000..1009). This only works now that the text is
+			# small enough for the row's pinned 28 to be the binding height: while the CONTENT set
+			# the height, padding here just grew the row upward and the text never moved.
+			f.content_margin_top = 5
 			# ZERO at the bottom, not 2. Row 3 is anchored to the ability bar above it, so its TOP
 			# moves with its height: padding above the text buys nothing (the row grows upward by the
 			# same amount), and only the bottom padding decides how far the text sits off the bar.
