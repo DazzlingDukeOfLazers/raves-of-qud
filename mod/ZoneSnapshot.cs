@@ -727,6 +727,14 @@ namespace RavesOfQud
         /// cooldown/enabled state, and a state-appropriate icon (tile + colours, else glyph).
         private static void WriteCommandBar(JsonWriter j, GameObject player)
         {
+            // Qud's own laid-out cell widths, in bar order (see PopupBridge.BarCells). Empty until
+            // the UI thread has seen a live ability bar; Raves falls back to its own sizing then.
+            try
+            {
+                string cells = PopupBridge.BarCells ?? "";
+                if (cells.Length > 0) j.Member("barCells", cells);
+            }
+            catch { }
             j.Name("abilities").BeginArray();
             var aa = (player != null) ? player.GetPart<ActivatedAbilities>() : null;
             // One-shot diagnostic (logs to Player.log only when it changes): is the part present, and how

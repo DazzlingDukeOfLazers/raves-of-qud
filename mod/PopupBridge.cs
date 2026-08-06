@@ -188,6 +188,42 @@ namespace RavesOfQud
             catch { }
         }
 
+        /// <summary>The ability bar's per-cell WIDTHS, in bar order, as a CSV.
+        ///
+        /// Qud sizes each cell to its content and then shares out the slack, and Godot shares that
+        /// slack EQUALLY between expanding children where Unity distributes it by flexible width --
+        /// so the same content lands on different widths and no amount of matching padding or
+        /// spacing fixes it (rebuilding our cell to Qud's exact nesting made the bar worse, because
+        /// correct padding leaves MORE slack to spread). The widths are the only thing that carries
+        /// both its text metrics and its distribution rule, so ship them, like the picker's tabW and
+        /// the journal's hdrW.</summary>
+        public static string BarCells = "";
+
+        /// UI THREAD.
+        private static void PollBarCells()
+        {
+            try
+            {
+                var sb = new System.Text.StringBuilder();
+                foreach (var rt in UnityEngine.Object.FindObjectsOfType<UnityEngine.RectTransform>())
+                {
+                    if (rt == null || rt.name != "ButtonArea" || !rt.gameObject.activeInHierarchy) continue;
+                    for (int i = 0; i < rt.childCount; i++)
+                    {
+                        var c = rt.GetChild(i) as UnityEngine.RectTransform;
+                        if (c == null || !c.gameObject.activeInHierarchy) continue;
+                        if (!c.name.StartsWith("AbilityBarButton")) continue;
+                        if (sb.Length > 0) sb.Append(',');
+                        sb.Append(c.rect.width.ToString("0.##",
+                            System.Globalization.CultureInfo.InvariantCulture));
+                    }
+                    break;
+                }
+                BarCells = sb.ToString();
+            }
+            catch { }
+        }
+
         /// UI THREAD. Cheap: two field reads and a name.
         private static void PollStatusTab()
         {
@@ -215,6 +251,7 @@ namespace RavesOfQud
             // to keep working when no Raves is attached.
             PollStatusTab();
             PollJournalHeader();
+            PollBarCells();
 
             BridgeServer server = Bridge.Server;
             if (server == null || server.ClientCount == 0) return;

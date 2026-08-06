@@ -744,9 +744,22 @@ distributes it by flexible width -- so the same minimums land on different width
 cell correctly makes our minimums *smaller* (5 of padding instead of 16), which leaves MORE slack to
 distribute and pushes every boundary right. The flat, over-padded cell was accidentally compensating.
 
-Closing this needs Qud's per-cell widths shipped over the bridge (192.96 / 167.76 / 159.36 / ...),
-the same bargain as the picker's `tabW` and the journal's `hdrW`: a number only Qud can compute,
-because it depends on its own text metrics AND its own distribution rule.
+**The widths are now shipped** — `barCells` in the snapshot, e.g.
+`192.96,167.76,159.36,159.36,159.36,260.15,117.36,285.35,243.35`, read off the live
+AbilityBarButtons on the UI-thread watcher. The client does NOT use them yet, because pinning the
+widths alone still scores worse (10.06 -> 12.39): the widths are Qud's for the CELL, and our cell
+draws its green frame at its own edge where Qud insets it by padL 5, and our separator nodes add
+width its 1px in-cell Spacer does not.
+
+The three go together or not at all:
+
+1. `barCells` pinned per cell (`custom_minimum_size.x`, `SIZE_FILL` not `EXPAND`)
+2. the nested structure — outer box padL 5 / padR 0, the green frame on the inner WorkableArea,
+   a 1px divider inside each cell but the first (Qud's Spacer, (46,75,83) on the glass)
+3. `GUTTER_W_1TO1` = **175**, Qud's real ButtonArea x — the 180 the frame lands on is 175 + padL
+
+Each of those alone makes the bar worse, which is why it is still at 10.06 with the flat cell. They
+are all measured; what is left is doing them in one change and re-measuring.
 
 **A model you cannot copy piecemeal.** Qud's spacing of 10 and its padL of 5 both make our bar
 worse (10.06 -> 14.78 and -> 15.07) because our cell's elements are not its elements: the spacing
