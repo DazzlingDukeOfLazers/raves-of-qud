@@ -8,7 +8,14 @@ extends Control
 ##   recipes      DataScroller x=158.5 y=230 w=623; rows x=174.5 w=607
 ##                category text x=192.5 font 18, then padding 8 and a dotted leader to x=781
 ##   bits         BitsScroller x=1361.5 y=230 w=400; rows 20.1 tall
-##                swatch x=1361.5 +2.6 15x15 | label x=1384.5 font 16 | count x=1586.1 font 16
+##                swatch x=1361.5 +2.6 15x15 | label x=1384.5 font 16 | count RIGHT-aligned at 1745.5
+##
+## The COUNT is a right-aligned COLUMN, not a value trailing its label. Qud's Number box starts
+## where the label's box ends (1384.5 + 9.6*len -- these rows are monospace, confirmed on all
+## twelve: 201.61/21, 144.01/15, 124.80/13 ... every one exactly 9.600) and stretches with flex 1,
+## so every box ends at the SAME 1745.5 and its text is right-aligned there. Reading 201.61 as a
+## fixed label box and drawing the count at its end gave a ragged column jammed against the labels,
+## with the long ones ("A scrap power systems5") abutting the digits.
 ##
 ## The bit LABEL is Qud's: UpdateBitlocker composes "{{Color|<char> <Description>}}" where the char
 ## comes from CharTranslateBit (A B C D 1..8 under the AlphanumericBits option) -- NOT the colour
@@ -35,7 +42,7 @@ const BITS_W := 400.0
 const BIT_ROW_H := 20.1
 const SWATCH := 15.0
 const BIT_LABEL_X := 1384.5
-const BIT_COUNT_X := 1586.1
+const BIT_NUM_RIGHT := 1745.5      # every Number box ENDS here; the count is right-aligned to it
 const BIT_FONT := 16
 
 const C_TEXT := Color8(0xaf, 0xc6, 0xc1)
@@ -114,11 +121,20 @@ func _draw_all() -> void:
 		# front of every row that Qud doesn't have.
 		# BitType.Description CARRIES MARKUP ("{{R|scrap power systems}}"), so it has to go through
 		# the markup renderer — draw_string printed the braces verbatim.
+		# No clip: Qud's label box is sized to its own text, so it cannot reach the count column
+		# (the longest bit label is 22 chars = 211.2px, ending 150px clear of it).
 		_draw_markup("%s %s" % [str(b.get("label", "")), str(b.get("desc", ""))],
-			Vector2(BIT_LABEL_X, by + 15.0), BIT_FONT, BIT_COUNT_X - 6.0)
+			Vector2(BIT_LABEL_X, by + 15.0), BIT_FONT)
 		# int(): JSON numbers reach GDScript as FLOATS, so a bare str() renders "0.0".
-		_content.draw_string(_font, Vector2(BIT_COUNT_X, by + 15.0), "%d" % int(b.get("count", 0)),
-			HORIZONTAL_ALIGNMENT_LEFT, -1, BIT_FONT, C_TEXT)
+		#
+		# THE COUNT IS DIM, not body text. TinkeringBitsLine.setData colours it by the ACTIVE COST:
+		# "{{K|n}}" when there is no active cost or this bit costs nothing for the selected recipe,
+		# "{{G|n}}" when you hold enough for it, "{{R|n}}" when you do not. Raves has no recipe
+		# selection yet, so every row is the K branch -- which is what Qud draws in the same state.
+		# Rendered through the markup path so the colour comes from Qud's shipped palette.
+		var cnt := "%d" % int(b.get("count", 0))
+		var cw := _font.get_string_size(cnt, HORIZONTAL_ALIGNMENT_LEFT, -1, BIT_FONT).x
+		_draw_markup("{{K|%s}}" % cnt, Vector2(BIT_NUM_RIGHT - cw, by + 15.0), BIT_FONT)
 		by += BIT_ROW_H
 
 func _draw_cat_row(s: String, y: float, caret: bool) -> void:
