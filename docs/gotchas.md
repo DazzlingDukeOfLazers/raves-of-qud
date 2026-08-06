@@ -115,7 +115,18 @@ add a one-liner (symptom → rule).
   it is up a Raves-local shortcut like the Tinkering Ctrl+Tab silently does nothing. Escape sent to
   Raves RAISES that menu (it is Qud's own binding), so "press Escape then try the key" is a way to
   create this, not clear it. Clear it with a popup answer over the bridge, then send the key.
-- **UNRESOLVED (2026-08-05): the status-screen openers are INTERMITTENT.** `n`/`j`/`q`/`e` opened
+- **RESOLVED: the "intermittent" status-screen openers were a STUCK MODIFIER in the harness.**
+  `hv key` set the modifier as a flag on the key event and never released it, so after one
+  `ctrl+tab` macOS believed Control was held and every later key arrived modified — a plain `n`
+  reached Raves as Ctrl+N. Not intermittent at all: broken from the first combo onward, for every
+  key, and unfixed by relaunching the app because the stuck state is in the OS. Fixed in highvisor
+  (modifiers are pressed/released as real key events). *Recognise it by:* single keys stop working
+  right after you first send a combo.
+- **The instrument that found it: print what `_input` ACTUALLY receives.** Three separate bugs in
+  this area (this one, the missing `handle_key`, and a mirrored modal eating keys) were each
+  settled in one cycle by logging keycode/modifiers/visibility at the top of `_input`, after
+  several rounds of hypothesis-guessing got nowhere. Reach for it first.
+- **(historical) the openers once looked INTERMITTENT.** `n`/`j`/`q`/`e` opened
   their tabs reliably at one point in a session and then stopped on a fresh launch of the SAME
   build, with `hv goto raves status_*` failing its assert. Established: the keys DO reach the app
   (an `_input` trace logged the right keycode and modifiers arriving), no modal was up, it is not a

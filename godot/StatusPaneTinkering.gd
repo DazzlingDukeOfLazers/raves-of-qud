@@ -85,11 +85,13 @@ func _draw_all() -> void:
 		return
 	# Qud's own hint string, with the Ctrl keycap glyph it emits (U+E816 — the extracted icon
 	# font renders it; QudText falls back to the word when that font is missing).
-	_draw_markup("[{{W|+Tab}}] switch to modifications",
+	_draw_markup("[{{W|+Tab}}] switch to %s" % ("build" if _mode == 1 else "modifications"),
 		Vector2(HINT_X, HINT_Y + 13.0), HINT_FONT)
 
 	var y := LIST_Y
-	if _cats.is_empty():
+	if _mode == 1:
+		_draw_mods(y)
+	elif _cats.is_empty():
 		# Qud's empty state is a CATEGORY row: text + padding + the leader, with a caret.
 		_draw_cat_row(_empty, y, true)
 	else:
