@@ -10,7 +10,10 @@ const ROW3_FONT_SCALE := 0.667
 ## on each entry for future grouping/emphasis but isn't needed to get the colours right.
 
 const DIM := "#8a8f9a"    # dim grey for the duration + separators
-const LABEL_1TO1 := "[color=#3b596b]ACTIVE EFFECTS:[/color]"   # Qud's inline uppercase label
+## Qud's inline uppercase label. GREEN, measured off its strip at (70,130,106) on the glass -- ours
+## was a blue-grey (#3b596b -> (52,79,96)). The hex here is compensated for the canvas curve, so it
+## lands on Qud's value rather than 12 short of it.
+const LABEL_1TO1 := "[color=#508d75]ACTIVE EFFECTS:[/color]"
 
 var _rt: RichTextLabel
 var _palette := {}

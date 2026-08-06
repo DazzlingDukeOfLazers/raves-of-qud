@@ -14,6 +14,9 @@ const ROW3_FONT_SCALE := 0.667
 ## FULL (debug, via the top-menu toggle): adds the exact HP bar + numbers, and reveals the real icon.
 
 const DIM := "#8a8f9a"
+## Qud's K (#155352) -- what its row-3 strip text is drawn in. Measured on the glass at (21,73,72);
+## the compensated value comes back out as Qud's own palette entry, which is a good sign it is right.
+const K_1TO1 := "#155352"
 const HP_COL := Color(0.25, 0.80, 0.32)     # green, matching the player HP bar
 
 var _tiles: RefCounted                          # shared tile recolouring for the sprite column (set in _ready)
@@ -168,7 +171,7 @@ func _render() -> void:
 		_show_none()
 		return
 
-	var _pfx := "[color=#3b596b]TARGET:[/color] " if _one_to_one else ""
+	var _pfx := "[color=%s]TARGET:[/color] " % K_1TO1 if _one_to_one else ""
 	_rt_name.text = _pfx + QudText.to_bbcode(String(t.get("display", "")), _palette)
 
 	# Left column: the recoloured target sprite — perceived icon by default, real icon in full mode.
@@ -204,8 +207,9 @@ func _render() -> void:
 	_l_dir.visible = _l_dir.text != ""
 
 func _show_none() -> void:
-	var _pfx := "[color=#3b596b]TARGET:[/color] " if _one_to_one else ""
-	_rt_name.text = _pfx + "[color=%s][none][/color]" % DIM
+	var _pfx := "[color=%s]TARGET:[/color] " % K_1TO1 if _one_to_one else ""
+	# Qud renders both halves of this line in K -- the label and the value alike.
+	_rt_name.text = _pfx + "[color=%s][none][/color]" % (K_1TO1 if _one_to_one else DIM)
 	_sprite.visible = false
 	_rt_desc.visible = false
 	_hp_row.visible = false

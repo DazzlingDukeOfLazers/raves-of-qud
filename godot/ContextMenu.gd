@@ -14,6 +14,7 @@ const ROW3_FONT_SCALE := 0.667
 signal command_requested(payload: Dictionary)
 
 const DIM := "#8a8f9a"
+const K_1TO1 := "#155352"   # Qud's K — its row-3 strip text (measured (21,73,72) on the glass)
 const AMMO := "#ffd200"     # amber ammo count, like Qud's readout
 const KEY := "#ffd200"      # hotkey letter — UI yellow
 const LABEL := "#8fd3ff"    # action label — light blue
@@ -60,7 +61,10 @@ func _ready() -> void:
 ## box). Keeps the content margins. User mode restores the framed look.
 var _title: Label
 
+var _one_to_one := false
+
 func set_one_to_one(on: bool) -> void:
+	_one_to_one = on
 	# QUD'S ROW-3 TEXT IS SMALL. Measured off its strip: "ACTIVE EFFECTS:" spans 122px for 15
 	# characters (~8.1 each, a ~13.5px face) where ours ran 183px at the theme's body size (~21).
 	# That is also why row 3 came out 31 tall against Qud's 28 -- the row is sized by this text.
@@ -112,7 +116,8 @@ func _render() -> void:
 	var ctx: Dictionary = _last_data.get("context", {})
 	_rt.clear()
 	if String(ctx.get("kind", "none")) != "missile":
-		_rt.append_text("[color=%s]%s[/color]" % [DIM, String(ctx.get("text", "—"))])
+		_rt.append_text("[color=%s]%s[/color]"
+			% [K_1TO1 if _one_to_one else DIM, String(ctx.get("text", "—"))])
 		return
 
 	var acts: Array = ctx.get("actions", [])
