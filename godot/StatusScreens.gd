@@ -76,6 +76,8 @@ var _quests_pane: Control = null
 var _quests_mtime := 0
 var _fact_pane: Control = null
 var _fact_mtime := 0
+var _jrn_pane: Control = null
+var _jrn_mtime := 0
 var _inv_mtime := 0
 var _char_mtime := 0
 var _pane_pal_empty := true
@@ -392,6 +394,8 @@ func _set_tab(id: String) -> void:
 		_quests_pane.visible = (id == "quests")
 	if _fact_pane != null:
 		_fact_pane.visible = (id == "reputation")
+	if _jrn_pane != null:
+		_jrn_pane.visible = (id == "journal")
 	if id == "attributes":
 		_request_export()
 		_load_character()
@@ -407,6 +411,9 @@ func _set_tab(id: String) -> void:
 	if id == "reputation":
 		_request_export()
 		_load_factions()
+	if id == "journal":
+		_request_export()
+		_load_journal()
 	_build_hints()
 	if visible:
 		UiState.set_scene("status_" + _tab)
@@ -523,6 +530,34 @@ func _load_skills(force := false) -> void:
 			_load_skills())
 
 
+
+
+## (Re)build the Journal tab from journal.json.
+func _load_journal(force := false) -> void:
+	var path := InputModel.support_dir().path_join("journal.json")
+	if not FileAccess.file_exists(path):
+		return
+	var mt := FileAccess.get_modified_time(path)
+	if not force and _jrn_pane != null and mt == _jrn_mtime \
+			and not (_pane_pal_empty and not _palette.is_empty()):
+		return
+	var f := FileAccess.open(path, FileAccess.READ)
+	if f == null:
+		return
+	var txt := f.get_as_text()
+	f.close()
+	var data: Variant = JSON.parse_string(txt)
+	if not (data is Dictionary):
+		return
+	_jrn_mtime = mt
+	if _jrn_pane == null:
+		_jrn_pane = load("res://StatusPaneJournal.gd").new()
+		_jrn_pane.bridge_cb = func(msg: Dictionary): _send_bridge(msg)
+		_jrn_pane.reload_cb = func(): _load_journal(true)
+		_root.add_child(_jrn_pane)
+	_pane_pal_empty = _palette.is_empty()
+	_jrn_pane.setup(data, _palette)
+	_jrn_pane.visible = (_tab == "journal")
 
 ## (Re)build the Reputation tab's faction list from factions.json.
 func _load_factions(force := false) -> void:
@@ -651,6 +686,10 @@ func _unhandled_input(e: InputEvent) -> void:
 			return
 		if _tab == "equipment" and _inv_pane != null and _inv_pane.has_method("handle_key") \
 				and _inv_pane.handle_key(e):
+			get_viewport().set_input_as_handled()
+			return
+		if _tab == "journal" and _jrn_pane != null and _jrn_pane.has_method("handle_key") \
+				and _jrn_pane.handle_key(e):
 			get_viewport().set_input_as_handled()
 			return
 		match e.keycode:
