@@ -30,6 +30,7 @@ const NUM_1TO1 := "#929393"        # <N> action number — measured Color8(146,1
 var CELL_FRAME_1TO1 := QudChrome.q8(11, 148, 71)   # green selection box (Qud draws it on the first/selected cell)
 var CELL_FILL_1TO1 := QudChrome.q8(21, 23, 23)     # ...and the fill inside it
 var CELL_DIVIDER_1TO1 := QudChrome.q8(46, 75, 83)  # Qud's 1px Spacer between cells, measured
+var ABIL_KEY_COL := QudChrome.q8(205, 174, 4)      # the gold "A", measured on the glass
 
 # 1:1 PAGINATION (measured off Qud with 10+ abilities on sync-raves-and-qud): Qud packs
 # content-sized cells left-to-right and moves what doesn't fit onto further pages — the
@@ -40,6 +41,8 @@ var CELL_DIVIDER_1TO1 := QudChrome.q8(46, 75, 83)  # Qud's 1px Spacer between ce
 ## 5 -- so the gutter states the real edge and the inset comes from the cell, as it does in Qud.
 const GUTTER_W_1TO1 := 175
 const CELL_PAD_L_1TO1 := 5       # AbilityBarButton padL (padR is 0)
+const ABIL_KEY_X := 5.0          # the gold "A" — Qud's ability-menu hotkey letter
+const ABIL_KEY_BASE := 20.0      # baseline within the gutter (its ink sits y1023..1034)
 const CELL_SPACING_1TO1 := 10    # WorkableArea spacing: icon element -> text
 const ICON_W_1TO1 := 32          # TopHalf — the icon ELEMENT; the sprite is fitted inside it
 const ICON_H_1TO1 := 48
@@ -315,12 +318,19 @@ const HINT_GOLD := Color8(182, 164, 5)
 const HINT_GOLD_DIM := Color8(125, 114, 9)
 
 func _draw_gutter() -> void:
+	var f := get_theme_font("font", "Label")
+	# Qud's ability-menu hotkey letter, gold, hard against the bar's left edge (measured x5..13,
+	# y1023..1034, (205,174,4) on the glass). It is there whether or not the bar paginates -- ours
+	# drew nothing at all in that corner.
+	_gutter.draw_string(f, Vector2(ABIL_KEY_X, ABIL_KEY_BASE), "A",
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 16, ABIL_KEY_COL)
 	if _pages.size() <= 1:
 		return
-	var f := get_theme_font("font", "Label")
 	# keycap hints row at the very top: [Ctrl]+Tab   [Ctrl]+[Shift]+Tab
 	var hy := 2.0
-	var x := 64.0
+	# 31, Qud's own start for the hint row (it runs 31..154, clear of the 175 gutter edge). Ours
+	# began at 64 and ran to 199 -- past the gutter and into the first ability cell.
+	var x := 31.0
 	x = _draw_keycap(f, x, hy, 17.0, "Ctrl")
 	x = _draw_plus(f, x, hy)
 	x = _draw_hint_text(f, x, hy, "Tab")
@@ -331,7 +341,8 @@ func _draw_gutter() -> void:
 	x = _draw_plus(f, x, hy)
 	_draw_hint_text(f, x, hy, "Tab")
 	# green up/down stepper + the page digit
-	var cx := GUTTER_W_1TO1 - 14.0
+	# Qud's stepper ink runs 159..170; at -14 ours landed 154..167.
+	var cx := GUTTER_W_1TO1 - 10.0
 	var cy := _gutter.size.y * 0.5
 	_gutter.draw_colored_polygon(PackedVector2Array([
 		Vector2(cx - 7, cy - 10), Vector2(cx + 7, cy - 10), Vector2(cx, cy - 18)]), PAGE_ARROW)
