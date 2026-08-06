@@ -41,6 +41,8 @@ var ABIL_KEY_COL := QudChrome.q8(205, 174, 4)      # the gold "A", measured on t
 ## 5 -- so the gutter states the real edge and the inset comes from the cell, as it does in Qud.
 const GUTTER_W_1TO1 := 175
 const CELL_PAD_L_1TO1 := 5       # AbilityBarButton padL (padR is 0)
+const KEYCAP_W := 13.0           # Qud's hint keycaps, measured (13 x 9 at x64)
+const KEYCAP_H := 9.0
 const ABIL_KEY_X := 5.0          # the gold "A" — Qud's ability-menu hotkey letter
 const ABIL_KEY_BASE := 20.0      # baseline within the gutter (its ink sits y1023..1034)
 const CELL_SPACING_1TO1 := 10    # WorkableArea spacing: icon element -> text
@@ -327,45 +329,48 @@ func _draw_gutter() -> void:
 	if _pages.size() <= 1:
 		return
 	# keycap hints row at the very top: [Ctrl]+Tab   [Ctrl]+[Shift]+Tab
-	var hy := 2.0
-	# 31, Qud's own start for the hint row (it runs 31..154, clear of the 175 gutter edge). Ours
-	# began at 64 and ran to 199 -- past the gutter and into the first ability cell.
-	var x := 31.0
-	x = _draw_keycap(f, x, hy, 17.0, "Ctrl")
+	# Qud's row, element by element: keycaps 13 wide and 9 tall at x64, "+" on 3px steps, "Tab"
+	# ~15, ending by 154. Measured gold runs: 64-76, 79, 82-96, 103-115, 118, 121-133, 136, 140-148.
+	# (The 31..154 run this once chased is the ABILITIES text underneath, not the hints.) Ours was
+	# 17x11 on 7px steps and ran to 199 -- past the gutter, into the first cell.
+	var hy := 10.0
+	var x := 64.0
+	x = _draw_keycap(f, x, hy, KEYCAP_W, "Ctrl")
 	x = _draw_plus(f, x, hy)
 	x = _draw_hint_text(f, x, hy, "Tab")
 	x += 7.0
-	x = _draw_keycap(f, x, hy, 17.0, "Ctrl")
+	x = _draw_keycap(f, x, hy, KEYCAP_W, "Ctrl")
 	x = _draw_plus(f, x, hy)
-	x = _draw_keycap(f, x, hy, 18.0, "Shift")
+	x = _draw_keycap(f, x, hy, KEYCAP_W, "Shift")
 	x = _draw_plus(f, x, hy)
 	_draw_hint_text(f, x, hy, "Tab")
 	# green up/down stepper + the page digit
 	# Qud's stepper ink runs 159..170; at -14 ours landed 154..167.
 	var cx := GUTTER_W_1TO1 - 10.0
 	var cy := _gutter.size.y * 0.5
-	_gutter.draw_colored_polygon(PackedVector2Array([
-		Vector2(cx - 7, cy - 10), Vector2(cx + 7, cy - 10), Vector2(cx, cy - 18)]), PAGE_ARROW)
-	_gutter.draw_colored_polygon(PackedVector2Array([
-		Vector2(cx - 7, cy + 10), Vector2(cx + 7, cy + 10), Vector2(cx, cy + 18)]), PAGE_ARROW)
+	# CHEVRONS, not filled triangles: Qud's stepper is two open strokes.
+	_gutter.draw_polyline(PackedVector2Array([
+		Vector2(cx - 6, cy - 10), Vector2(cx, cy - 16), Vector2(cx + 6, cy - 10)]), PAGE_ARROW, 2.0)
+	_gutter.draw_polyline(PackedVector2Array([
+		Vector2(cx - 6, cy + 10), Vector2(cx, cy + 16), Vector2(cx + 6, cy + 10)]), PAGE_ARROW, 2.0)
 	_gutter.draw_string(f, Vector2(cx - 5, cy + 6), str(_page + 1),
 		HORIZONTAL_ALIGNMENT_LEFT, -1, 16, PAGE_NUM)
 
 ## One bordered keycap with a tiny centred label; returns the x after it.
 func _draw_keycap(f: Font, x: float, y: float, w: float, label: String) -> float:
-	_gutter.draw_rect(Rect2(x, y, w, 11), HINT_GOLD, false, 1.0)
-	var tw := f.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 6).x
-	_gutter.draw_string(f, Vector2(x + (w - tw) * 0.5, y + 7), label,
-		HORIZONTAL_ALIGNMENT_LEFT, -1, 6, HINT_GOLD_DIM)
+	_gutter.draw_rect(Rect2(x, y, w, KEYCAP_H), HINT_GOLD, false, 1.0)
+	var tw := f.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 5).x
+	_gutter.draw_string(f, Vector2(x + (w - tw) * 0.5, y + KEYCAP_H - 2.0), label,
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 5, HINT_GOLD_DIM)
 	return x + w
 
 func _draw_plus(f: Font, x: float, y: float) -> float:
-	_gutter.draw_string(f, Vector2(x + 1, y + 7), "+", HORIZONTAL_ALIGNMENT_LEFT, -1, 8, HINT_GOLD_DIM)
-	return x + 7.0
+	_gutter.draw_string(f, Vector2(x + 1, y + 7), "+", HORIZONTAL_ALIGNMENT_LEFT, -1, 7, HINT_GOLD_DIM)
+	return x + 3.0
 
 func _draw_hint_text(f: Font, x: float, y: float, txt: String) -> float:
-	_gutter.draw_string(f, Vector2(x, y + 8), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, HINT_GOLD)
-	return x + f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x
+	_gutter.draw_string(f, Vector2(x, y + 8), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, HINT_GOLD)
+	return x + f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
 
 func _flip_page(dir: int) -> void:
 	if _pages.size() <= 1:
