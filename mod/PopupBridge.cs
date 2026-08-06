@@ -133,6 +133,34 @@ namespace RavesOfQud
             catch { _pumping = false; }
         }
 
+        /// <summary>The status screens' ACTIVE TAB ("Tinkering", "Journal", "Quests", ...), cached
+        /// here for the heartbeat to report.
+        ///
+        /// The heartbeat runs on its own thread and may only touch plain fields, so it cannot walk
+        /// the screen itself: StatusScreensScreen.CurrentScreen is an int index into Screens, and
+        /// turning that into a name means reading a Transform, which is a Unity call. This watcher
+        /// is already on the UI thread at ~30Hz, so it does the read and leaves a string behind.
+        ///
+        /// Without this, highvisor can see "the status screens are open" but not WHICH tab, so no
+        /// gametree node below status_screens had a Qud detector and `hv assert --node
+        /// status_tinkering` could never pass for Qud -- only for Raves.</summary>
+        public static string StatusTab = "";
+
+        /// UI THREAD. Cheap: two field reads and a name.
+        private static void PollStatusTab()
+        {
+            try
+            {
+                var ss = Qud.UI.StatusScreensScreen.instance;
+                if (ss == null || ss.Screens == null || ss.Screens.Count == 0) { StatusTab = ""; return; }
+                int i = ss.CurrentScreen;
+                if (i < 0 || i >= ss.Screens.Count) { StatusTab = ""; return; }
+                var t = ss.Screens[i];
+                StatusTab = (t != null) ? (t.name ?? "") : "";
+            }
+            catch { StatusTab = ""; }
+        }
+
         /// UI THREAD. Detect the active PopupMessage, and publish a popup frame whenever its state changes
         /// (appeared / content changed / dismissed). Signature-gated so we send once per distinct state.
         private static void Poll()
@@ -140,6 +168,10 @@ namespace RavesOfQud
             int now = Environment.TickCount;
             if (now - _lastPollMs < 33) return;   // ~30 Hz is plenty; the check is cheap but not free
             _lastPollMs = now;
+
+            // BEFORE the client gate: the tab report goes to a FILE that highvisor reads, so it has
+            // to keep working when no Raves is attached.
+            PollStatusTab();
 
             BridgeServer server = Bridge.Server;
             if (server == null || server.ClientCount == 0) return;

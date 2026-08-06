@@ -82,9 +82,19 @@ namespace RavesOfQud
                         string scene = live && (view == "Stage" || view == "" || view == "MainMenu")
                             ? "play" : view;
                         bool popup = view.IndexOf("Popup", StringComparison.OrdinalIgnoreCase) >= 0;
+                        // WHICH status tab, when the status screens are the active view. Cached by
+                        // the UI-thread watcher: resolving it here would mean a Unity call off-thread.
+                        string tab = "";
+                        try
+                        {
+                            if (view.IndexOf("StatusScreens", StringComparison.OrdinalIgnoreCase) >= 0)
+                                tab = PopupBridge.StatusTab ?? "";
+                        }
+                        catch { }
                         System.IO.File.WriteAllText(statePath,
                             "{\"scene\":\"" + scene.Replace("\"", "'") + "\",\"live\":" + (live ? "true" : "false")
                             + (popup ? ",\"popup\":\"" + view.Replace("\"", "'") + "\"" : "")
+                            + (tab.Length > 0 ? ",\"tab\":\"" + tab.Replace("\"", "'") + "\"" : "")
                             + ",\"ts\":" + DateTimeOffset.UtcNow.ToUnixTimeSeconds() + "}");
                     }
                     catch { /* transient IO — retry next tick */ }
