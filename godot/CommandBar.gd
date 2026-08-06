@@ -41,6 +41,8 @@ var ABIL_KEY_COL := QudChrome.q8(205, 174, 4)      # the gold "A", measured on t
 ## 5 -- so the gutter states the real edge and the inset comes from the cell, as it does in Qud.
 const GUTTER_W_1TO1 := 175
 const CELL_PAD_L_1TO1 := 5       # AbilityBarButton padL (padR is 0)
+const GUTTER_FONT_1TO1 := 14     # ABILITIES / page line — Qud's, measured off their widths
+const GUTTER_TEXT_W_1TO1 := 155  # Qud's Hotbar Swapper — the box those two lines centre in
 const KEYCAP_W := 13.0           # Qud's hint keycaps, measured (13 x 9 at x64)
 const KEYCAP_H := 9.0
 const ABIL_KEY_X := 5.0          # the gold "A" — Qud's ability-menu hotkey letter
@@ -136,6 +138,10 @@ func _ready() -> void:
 	var gv := VBoxContainer.new()
 	_gutter_box = gv
 	gv.set_anchors_preset(Control.PRESET_FULL_RECT)
+	# Centred in 155, NOT in the gutter's 175: Qud's Hotbar Swapper is 155 wide and its ABILITIES
+	# and page lines centre inside that, which puts their ink at 39 and 31 (measured 39 and 31).
+	# Centring in the full gutter put both 10px right.
+	gv.offset_right = -(GUTTER_W_1TO1 - GUTTER_TEXT_W_1TO1)
 	gv.alignment = BoxContainer.ALIGNMENT_CENTER
 	gv.add_theme_constant_override("separation", 0)
 	gv.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -143,13 +149,15 @@ func _ready() -> void:
 	_gutter_title = Label.new()
 	_gutter_title.text = "ABILITIES"
 	_gutter_title.add_theme_color_override("font_color", ABIL_CYAN)
-	_gutter_title.add_theme_font_size_override("font_size", 16)
+	# 14, not 16: Qud's "ABILITIES" measures 76 wide where ours ran 86, and its page line 92 to our
+	# 104 -- the same 13% our other 1:1 text has been carrying.
+	_gutter_title.add_theme_font_size_override("font_size", GUTTER_FONT_1TO1)
 	_gutter_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_gutter_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	gv.add_child(_gutter_title)
 	_gutter_page = Label.new()
 	_gutter_page.add_theme_color_override("font_color", ABIL_CYAN)
-	_gutter_page.add_theme_font_size_override("font_size", 16)
+	_gutter_page.add_theme_font_size_override("font_size", GUTTER_FONT_1TO1)
 	_gutter_page.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_gutter_page.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_gutter_page.visible = false
@@ -385,7 +393,9 @@ func _update_gutter() -> void:
 	if _pages.size() > 1:
 		_gutter_page.text = "page %d of %d" % [_page + 1, _pages.size()]
 	if _gutter_box != null:
-		_gutter_box.offset_top = 13.0 if _pages.size() > 1 else 0.0   # room for the keycap hints
+		# 18: the block sits 6px low of where centring puts it -- Qud's ABILITIES ink is y1045..1055
+		# and ours was 1039..1049.
+		_gutter_box.offset_top = 18.0 if _pages.size() > 1 else 0.0   # room for the keycap hints
 	_gutter.queue_redraw()
 
 ## One ability as a centred, equal-share, clickable cell: a nearest-filtered tile icon + a name/state/
