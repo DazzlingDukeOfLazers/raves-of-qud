@@ -553,17 +553,27 @@ def reboot_rig(b=None):
     time.sleep(1.0)
     # Fresh viewer: kill by window title (no binary-name coupling), relaunch,
     # attach via keyboard — activate, Down, Space = main menu Continue.
+    # VERIFY + RETRY: under sweep load Godot can outlive the fixed sleeps
+    # (the first certification run lost walls 151-229 to exactly that — the
+    # reboot's calibrate found no viewer). Success test = a raves capture
+    # works; up to 3 attach attempts with growing settle.
     if plat.IS_WIN:
         import subprocess
         subprocess.run('taskkill /F /FI "WINDOWTITLE eq Raves of Qud*"',
                        shell=True, capture_output=True)
         time.sleep(2)
     _hv("launch", "raves_solo")
-    time.sleep(12)
-    _hv("key", "--focus", "Raves", "Down")
-    time.sleep(1)
-    _hv("key", "--focus", "Raves", "space")
-    time.sleep(4)
+    for attempt in range(3):
+        time.sleep(12 + attempt * 8)
+        _hv("key", "--focus", "Raves", "Down")
+        time.sleep(1)
+        _hv("key", "--focus", "Raves", "space")
+        time.sleep(4 + attempt * 2)
+        if control.godot_shot():
+            break
+        print("reboot_rig: viewer attach attempt %d failed; retrying" % (attempt + 1))
+    else:
+        raise RuntimeError("reboot_rig: viewer never came up after 3 attach attempts")
     stage_zoom()
     calibrate()
     return control.Bridge()
