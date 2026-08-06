@@ -628,9 +628,14 @@ func _refresh_enabled() -> void:
 		var enabled := true
 		if act == "continue":
 			# 1:1 Continue opens the save picker (reads Qud's saves off disk), so it
-			# enables exactly when Qud's would: saves exist. User-mode Continue still
-			# attaches to the RUNNING game, so it needs a live one.
-			enabled = _saves_exist() if Settings.one_to_one() else _game_live
+			# enables when Qud's would: saves exist. OR when a game is already LIVE on the
+			# bridge — because _saves_exist() reads ANOTHER APP'S container
+			# (~/Library/Application Support/com.FreeholdGames.CavesOfQud), and macOS can
+			# refuse that: TCC grants are per code-signature, and this app is ad-hoc re-signed
+			# on every build, so the permission silently lapses. When it does, DirAccess.open
+			# returns null, Continue greys out, and the app sits at the title looking like a
+			# BRIDGE failure when the bridge is fine. A live game is reason enough to continue.
+			enabled = (_saves_exist() or _game_live) if Settings.one_to_one() else _game_live
 		row["enabled"] = enabled
 		row["btn"].disabled = not enabled
 	if _sel < _rows.size() and not _rows[_sel]["enabled"]:
@@ -638,12 +643,19 @@ func _refresh_enabled() -> void:
 	_apply_selection()
 	_update_continue_hint()
 
+static var _saves_warned := false
+
 ## Any Qud save on disk? (Gates 1:1 Continue, like Qud's own.) Cheap: one dir listing.
 func _saves_exist() -> bool:
 	var root := OS.get_environment("HOME").path_join(
 		"Library/Application Support/com.FreeholdGames.CavesOfQud/Synced/Saves")
 	var d := DirAccess.open(root)
 	if d == null:
+		# Not "no saves" — we could not LOOK. Say so once; the caller falls back to _game_live.
+		if not _saves_warned:
+			_saves_warned = true
+			push_warning("Raves: cannot read Qud's saves dir (%s) — permission? " % root
+				+ "Continue will rely on a live bridge game instead.")
 		return false
 	for sub in d.get_directories():
 		if FileAccess.file_exists(root.path_join(sub).path_join("Primary.json")):

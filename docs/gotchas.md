@@ -110,6 +110,15 @@ add a one-liner (symptom → rule).
   drained by Tick/TickRender.
 
 ### Godot / the frame
+- **Raves' Continue greys out when it cannot READ QUD'S SAVES DIR — and that looks like a bridge
+  failure.** `_saves_exist()` lists `~/Library/Application Support/com.FreeholdGames.CavesOfQud/
+  Synced/Saves`, i.e. ANOTHER APP'S container. macOS TCC grants are per code-signature and this app
+  is ad-hoc re-signed on every build, so the permission lapses after enough rebuilds:
+  `DirAccess.open` returns null, 1:1 Continue disables, clicking and pressing Space do nothing, and
+  Raves sits at its title while the bridge is perfectly healthy. Continue now also enables on a
+  LIVE bridge game, and the failed listing warns once instead of silently reading as "no saves".
+  *Symptom to recognise:* Raves at the title, Qud in-game, `qud_state.json` fresh with
+  `live: true`, and NO "Raves bridge: connected" line in Raves' log.
 - **Mouse clicks over the Holodeck are eaten by the frame's container Controls** before `_unhandled_input`.
   Handle Holodeck mouse in **`Main._input`** (fires before GUI). Keyboard is fine in `_unhandled_input`
   (focus-less menu buttons don't swallow it). This bit the **inspector**: Ctrl/Cmd+click → `_inspect`
