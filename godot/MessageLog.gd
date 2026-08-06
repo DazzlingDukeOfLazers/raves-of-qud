@@ -152,10 +152,13 @@ func _draw() -> void:
 	if not _one_to_one:
 		return
 	var h := size.y
-	# crisp 1px columns (draw_rect on integer x, not a half-pixel draw_line, so the teal isn't dimmed)
+	# crisp integer columns (draw_rect on integer x, not a half-pixel draw_line, so the teal isn't
+	# dimmed). The CENTRE IS 2px WIDE and the right outer sits at +11 — measured off Qud's own bar
+	# (1623 / 1627-1628 / 1632 at 1080) while matching the Nearby objects panel above; the original
+	# 2/6/10 read the 2px centre as one column and pulled the right edge in with it.
 	draw_rect(Rect2(2, 0, 1, h), SEP_OUTER)
-	draw_rect(Rect2(6, 0, 1, h), SEP_CENTER)
-	draw_rect(Rect2(10, 0, 1, h), SEP_OUTER)
+	draw_rect(Rect2(6, 0, 2, h), SEP_CENTER)
+	draw_rect(Rect2(11, 0, 1, h), SEP_OUTER)
 
 func _apply_log_style() -> void:
 	var body := UiFont.px(get_viewport(), "body")

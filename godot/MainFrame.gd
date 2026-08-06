@@ -1326,6 +1326,7 @@ func _row_main() -> Control:
 	_nearby = load("res://NearbyObjects.gd").new()   # the real Nearby objects view (its own file)
 	_nearby.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_nearby.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_nearby.left_edge_drag.connect(_on_sidebar_drag)   # 1:1: its ||| bar continues the log's handle
 	_msglog = load("res://MessageLog.gd").new()      # the real Message log view (its own file)
 	_msglog.name = "MessageLog"
 	_msglog.size_flags_vertical = Control.SIZE_EXPAND_FILL

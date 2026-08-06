@@ -863,3 +863,30 @@ clean lever.
 The real fix (open): the title recipe's dismiss steps need the focus dance built in — answer in
 Raves, then focus Qud so the uiQueue drains, then verify — and a guard against resending CmdQuit
 while a quit confirm is already up.
+
+## The sidebar's ||| grab-bar: the centre column is TWO pixels wide
+
+Measured off a synced capture at 1080 — Qud's bar occupies x **1623 / 1627-1628 / 1632**, i.e.
+panel-relative offsets **2 (1px) / 6 (2px) / 11 (1px)**. Both `MessageLog.gd` and
+`NearbyObjects.gd` draw it, and both must agree or the sidebar edge visibly steps where the two
+panels meet.
+
+The first cut drew three 1px columns at 2/6/10: it read the 2px centre as one column and then
+pulled the right outer in with it. Cost: a 23.25 mean-diff band down the whole sidebar that read
+as "text antialiasing" until the columns were dumped pixel by pixel. Fixing it also took the
+already-shipped **message log from 0.63 to 0.161** — a panel that had been called done.
+
+**When a whole-panel diff won't come down, dump the actual pixel columns before blaming the
+rasteriser.** A 1px structural offset and glyph AA look identical in a mean.
+
+## `PanelContainer` CLAMPS `content_margin_top` at 0 — a negative margin does nothing
+
+Silently. Setting `-2` moved the content by exactly the distance to 0 and no further, and setting
+`-4` afterwards changed nothing at all (byte-identical capture) — which is what made it look like
+the edit had not been picked up rather than that the value was being floored.
+
+If 1:1 content has to sit ABOVE the panel's content origin, don't fight the margin: **draw it on
+the owner-drawn surface** and place it with a measured offset (`NearbyObjects.TITLE_BASE_1TO1`).
+Read the surface's real origin once with a `global_position` print rather than deriving it from
+font metrics — the panel origin (93) and list origin (120) took one throwaway build and ended the
+guessing.

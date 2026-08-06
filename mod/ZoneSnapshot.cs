@@ -1,4 +1,6 @@
 using XRL;
+using XRL.Rules;          // Directions.GetUITextArrowForDirection — the nearby list's arrows
+using XRL.UI;             // ObjectFinder — Qud's own nearby-items list
 using XRL.World;
 using XRL.World.Effects;
 using XRL.World.Parts;
@@ -649,6 +651,59 @@ namespace RavesOfQud
             }
         }
 
+        /// Qud's OWN nearby-objects list, straight off XRL.UI.ObjectFinder — the very rows
+        /// Qud.UI.NearbyItemsWindow draws. Re-deriving this client-side was never going to stay in
+        /// sync: the accept test is a seven-rule classifier chain (player, not-takeable, walls,
+        /// non-combat plantlife, pools, cosmetic, everything), three of those rules wired to live
+        /// options, evaluated last-match-wins, and only over objects that already pass
+        /// GameObject.ShouldShowInNearbyItemsList() — which for a SOLID cell defers to
+        /// CanInteractInCellWithSolid(player). That last clause is why an adjacent wall does not
+        /// appear in Qud's list even though the Walls rule is disabled by default.
+        ///
+        /// The finder only runs while Qud's own overlay is on (NearbyItemsWindow.ShowIfEnabled ->
+        /// StartupFinder; switching the option off calls ObjectFinder.Reset()), so an EMPTY array
+        /// here is the correct answer when the option is off — Raves hides the panel in that same
+        /// case. Row shape mirrors ObjectFinderLine.Data: icon + PrefixText (the direction arrow) +
+        /// Description (DisplayName) + RightText (the weight, takeable objects only).
+        private static void WriteNearby(JsonWriter j, GameObject player)
+        {
+            j.Name("nearby").BeginArray();
+            try
+            {
+                var finder = ObjectFinder.instance;
+                Cell pcell = player?.CurrentCell;
+                if (finder != null && pcell != null)
+                {
+                    foreach (var item in finder.peekItems())
+                    {
+                        var go = item.go;
+                        if (go == null) continue;
+                        // Resolve EVERYTHING before BeginObject: a throw between Begin and End
+                        // would leave the array malformed for the whole snapshot.
+                        string nm = "", dir = "", arrow = "";
+                        bool takeable = false;
+                        int weight = 0;
+                        try { nm = go.DisplayName ?? ""; } catch { }
+                        try { dir = pcell.GetDirectionFromCell(go.CurrentCell) ?? ""; } catch { }
+                        try { arrow = Directions.GetUITextArrowForDirection(dir) ?? ""; } catch { }
+                        try { takeable = go.IsTakeable(); } catch { }
+                        try { if (takeable) weight = go.Weight; } catch { }
+                        j.BeginObject()
+                            .Member("name", nm)      // DisplayName (markup kept — client colours it)
+                            .Member("dir", dir)
+                            .Member("arrow", arrow);
+                        // RightText is set ONLY when IsTakeable() — a non-takeable row has no
+                        // weight column at all, which is a visible layout difference, not a 0.
+                        if (takeable) j.Member("weight", weight);
+                        WriteObjectRender(j, go);    // never throws (own try/catch)
+                        j.EndObject();
+                    }
+                }
+            }
+            catch { }
+            j.EndArray();
+        }
+
         /// Write an object's render fields for a panel icon: the FULL (known) tile from the raw Render
         /// part, PLUS a perceived override (see WritePerceivedOverride). The client shows the perceived
         /// icon by default and the full one under the global "Full info" toggle.
@@ -919,6 +974,7 @@ namespace RavesOfQud
             WriteTarget(j, player);     // current combat target for the frame Target panel
             WriteContext(j, player);    // contextual command menu (missile Fire/Reload) for the frame
             WriteCommandBar(j, player);  // activated abilities for the row-5 command bar
+            WriteNearby(j, player);     // Qud's own nearby-objects rows for the side panel
             WriteMessages(j);           // recent message-log lines for the frame Message log
 
             // Refresh the Visibility AND Light maps before reading them: both are RENDER-FRAME
