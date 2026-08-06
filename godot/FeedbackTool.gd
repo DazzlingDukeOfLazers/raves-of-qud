@@ -405,21 +405,10 @@ func _open_form() -> void:
 		det.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		v.add_child(det)
 
-	# The element itself, cropped from the frame the user was looking at. Small elements draw 2x so
-	# an ability cell is readable; anything is capped so a full-panel click cannot swallow the form.
+	# The element itself, cropped from the frame the user was looking at, in a zoom/pan
+	# viewer: wheel zooms around the cursor, drag pans, [Fit]/[1:1] snap the view.
 	if _thumb != null:
-		var shot := TextureRect.new()
-		shot.texture = _thumb
-		shot.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		shot.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		shot.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		var tsz := _thumb.get_size()
-		var scale := 2.0 if (tsz.x <= 266.0 and tsz.y <= 70.0) else 1.0
-		var w2 := minf(tsz.x * scale, 532.0)
-		var h2 := minf(tsz.y * scale, 150.0)
-		shot.custom_minimum_size = Vector2(w2, h2)
-		shot.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		v.add_child(shot)
+		v.add_child(_make_shot_viewer())
 
 	_edit = TextEdit.new()
 	_edit.custom_minimum_size = Vector2(0, 120)
@@ -451,6 +440,73 @@ func _open_form() -> void:
 	# the miss easy to misread as a delivery problem rather than a focus one).
 	_edit.grab_focus.call_deferred()
 	UiState.set_popup("feedback")
+
+## The crop viewer: a clipped window onto the element image with zoom + pan. Wheel zooms
+## about the cursor (the texture point under it stays put), left-drag pans, and the two
+## buttons snap the classic views — Fit (contain, upscaling allowed so a tiny ability cell
+## reads) and 1:1 (one texture pixel per screen pixel). Buttons are FOCUS_NONE so keyboard
+## focus never leaves the note field; nearest filtering keeps zoomed pixels crisp.
+func _make_shot_viewer() -> Control:
+	var tsz := _thumb.get_size()
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 4)
+
+	var view := Control.new()
+	view.clip_contents = true
+	view.custom_minimum_size = Vector2(532, 200)
+	view.mouse_filter = Control.MOUSE_FILTER_STOP
+	var img := TextureRect.new()
+	img.texture = _thumb
+	img.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	img.stretch_mode = TextureRect.STRETCH_SCALE
+	img.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	img.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	view.add_child(img)
+
+	var st := {"scale": 1.0, "drag": false}
+	# scale to s, keeping the texture point tex_px under the viewport point at
+	var apply := func(s: float, tex_px: Vector2, at: Vector2) -> void:
+		st.scale = clampf(s, 0.1, 16.0)
+		img.size = tsz * st.scale
+		img.position = at - tex_px * st.scale
+	var vsize := func() -> Vector2:
+		return view.size if view.size.x > 0.0 else view.custom_minimum_size
+	var fit := func() -> void:
+		var vs: Vector2 = vsize.call()
+		apply.call(minf(vs.x / tsz.x, vs.y / tsz.y), tsz * 0.5, vs * 0.5)
+	var one := func() -> void:
+		apply.call(1.0, tsz * 0.5, vsize.call() * 0.5)
+
+	view.gui_input.connect(func(e: InputEvent) -> void:
+		if e is InputEventMouseButton:
+			var mb := e as InputEventMouseButton
+			if mb.pressed and mb.button_index == MOUSE_BUTTON_WHEEL_UP:
+				apply.call(st.scale * 1.25, (mb.position - img.position) / st.scale, mb.position)
+			elif mb.pressed and mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+				apply.call(st.scale / 1.25, (mb.position - img.position) / st.scale, mb.position)
+			elif mb.button_index == MOUSE_BUTTON_LEFT:
+				st.drag = mb.pressed
+		elif e is InputEventMouseMotion and st.drag:
+			img.position += (e as InputEventMouseMotion).relative)
+
+	var bar := HBoxContainer.new()
+	bar.alignment = BoxContainer.ALIGNMENT_END
+	bar.add_theme_constant_override("separation", 8)
+	var bfit := Button.new()
+	bfit.text = "Fit"
+	bfit.focus_mode = Control.FOCUS_NONE
+	bfit.pressed.connect(fit)
+	var b11 := Button.new()
+	b11.text = "1:1"
+	b11.focus_mode = Control.FOCUS_NONE
+	b11.pressed.connect(one)
+	bar.add_child(bfit)
+	bar.add_child(b11)
+	col.add_child(bar)
+	col.add_child(view)
+	# initial view = Fit, deferred so the container has laid the viewer out first
+	fit.call_deferred()
+	return col
 
 func _close(save: bool) -> void:
 	if save and _edit != null and _edit.text.strip_edges() != "":
