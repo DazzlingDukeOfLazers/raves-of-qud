@@ -1056,6 +1056,14 @@ namespace RavesOfQud
                         // shipped a dark "-" and Raves drew bare floor). Adopt event art
                         // as a last resort — tiled objects keep the curated exports.
                         if (tile.Length == 0) EventArt(go, r, ref tile, ref glyph);
+                        // GLYPH MODE: with no tile anywhere, Qud draws the sprite
+                        // "Text/<charcode>.bmp" (Renderable.getTile does exactly
+                        // this). Ship that sprite as the tile so the client renders
+                        // pixel-identical art — a font stand-in scored WARN ~30
+                        // (checker '?'/'Σ' probes; SCP's Σ has flat bars, Qud's
+                        // bitmap Σ diagonal strokes).
+                        if (tile.Length == 0 && glyph.Length > 0)
+                            tile = "Text/" + (int)glyph[0] + ".bmp";
                         if (glyph.Length == 0 && tile.Length == 0) continue;
 
                         if (tile.Length > 0) TileExporter.Ensure(tile); // export-on-sight, cached

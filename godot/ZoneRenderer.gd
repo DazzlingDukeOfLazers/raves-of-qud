@@ -2160,13 +2160,28 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 	# HangarWall bright '^Y'; metal walls carry no TileColor ^ and keep world bg).
 	_wall_bg = _parse_bg(String(obj.get("tilecolor", "")))
 
-	# No tile even after asking the object what it would DRAW means Qud draws
-	# nothing: DaylightWidget, ZoneMusic, CheckpointWidget, Landmark* — zone
-	# bookkeeping parked in real cells. We were painting them as colour dots.
-	# (A tile path whose PNG is merely missing still falls through to the glyph
-	# label below; that case is transient, since tiles export on sight.)
+	# No tile means GLYPH MODE: Qud draws the RenderString in the console font
+	# (base blueprints like MountedFurniture render a pale '?', NephilimShrine
+	# its sigil). The mod only ships tile-less objects that HAVE a glyph —
+	# invisible bookkeeping widgets (DaylightWidget, ZoneMusic, Landmark*) are
+	# filtered mod-side on Render.Visible, so "skip everything without a tile"
+	# now skipped real renders (checker: the '?' cluster drew a bare field).
 	if tile == "":
-		_note(cx, cy, idx, "skipped(no tile — not drawn by Qud)", 0.0)
+		var g := String(obj.get("glyph", ""))
+		if g == "":
+			_note(cx, cy, idx, "skipped(no tile, no glyph — not drawn by Qud)", 0.0)
+			return
+		var gl := _take_label()
+		gl.text = _cp437(g)
+		gl.modulate = _qud_color(String(obj.get("color", "")))
+		# Qud fills most of the cell with the glyph and seats it high (measured
+		# off the checker's '?'/'Σ' probes); default label size read ~2/3 scale
+		# and centred low.
+		gl.font_size = 88
+		gl.position = Vector3(cx, 0.5 + idx * LAYER_STEP, cy - 0.05)
+		gl.visible = true
+		_track(gl)
+		_note(cx, cy, idx, "label(glyph-mode — Qud draws RenderString)", gl.position.y)
 		return
 
 	# THE shared precedence rule (compound colour beats tilecolor) — this string ALSO keys
@@ -2414,7 +2429,8 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			_note(cx, cy, idx, "%s, fill=%s %dpx" % [kind, fname, gaps], s.position.y)
 	else:
 		var l := _take_label()
-		l.text = String(obj.get("glyph", "?"))
+		l.text = _cp437(String(obj.get("glyph", "?")))
+		l.font_size = 64   # pooled labels may carry the glyph path's 96
 		l.modulate = _qud_color(String(obj.get("color", "")))
 		l.position = Vector3(cx, 0.5 + idx * LAYER_STEP, cy)
 		l.visible = true
@@ -3248,6 +3264,23 @@ func _colored_tex_rgb(tile: String, main: Color, detail: Color, ckey: String, fi
 	var mask := _mask(tile)
 	if mask == null:
 		return null
+	# Text/<code>.bmp glyph sprites invert the tile convention: they're an
+	# OPAQUE black field with a white glyph, and Qud paints white = foreground
+	# colour, black = cell background. The dark/light=main/detail lerp painted
+	# the whole cell main-colour (checker: '?' probes jumped to ~113). Paint
+	# glyph pixels with MAIN and turn luminance into alpha instead.
+	if tile.begins_with("Text/"):
+		var tw := mask.get_width()
+		var th := mask.get_height()
+		var timg := Image.create(tw, th, false, Image.FORMAT_RGBA8)
+		for ty in th:
+			for tx in tw:
+				var tp := mask.get_pixel(tx, ty)
+				var tlum := (tp.r + tp.g + tp.b) / 3.0
+				timg.set_pixel(tx, ty, Color(main.r, main.g, main.b, tlum * tp.a))
+		var ttex := ImageTexture.create_from_image(timg)
+		_tex_cache[key] = ttex
+		return ttex
 	var inner = null
 	if fill == Fill.INTERIOR:
 		inner = _interior(tile)
@@ -3989,9 +4022,25 @@ func _take_label() -> Label3D:
 	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	l.pixel_size = 0.02
 	l.font_size = 64
+	# Qud's map glyphs: Source Code Pro, no outline (checker: the default
+	# Label3D outline read as a black ring Qud never draws).
+	l.font = load("res://fonts/SourceCodePro-Regular.ttf")
+	l.outline_size = 0
 	l.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	_spawn_parent().add_child(l)
 	return l
+
+# Qud RenderStrings are CODEPAGE-437 codes carried as raw chars (blueprint
+# RenderString="228" means Σ, the sigil the shrine draws; read as Unicode it's
+# "ä"). Map through the classic table; codes past 255 pass through untouched.
+const CP437 := " ☺☻♥♦♣♠•◘○◙♂♀♪♫☼►◄↕‼¶§▬↨↑↓→←∟↔▲▼ !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~⌂ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜ¢£¥₧ƒáíóúñÑªº¿⌐¬½¼¡«»░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■ "
+
+func _cp437(s: String) -> String:
+	var out := ""
+	for i in s.length():
+		var c := s.unicode_at(i)
+		out += CP437[c] if c < 256 else s[i]
+	return out
 
 # FALLBACK ONLY — hand-estimated, and measurably wrong: Qud's 'k' is #0f3b3a
 # (a dark teal, the colour of the world itself), NOT the near-black guessed here.
