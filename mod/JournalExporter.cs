@@ -20,6 +20,10 @@ namespace RavesOfQud
     /// the body from GetIngredients() + GetDescription(), so those are exported separately instead
     /// of flattened into one string.
     ///
+    /// A VILLAGE note also has a map target, but JournalLineData resolves it through a chain of
+    /// per-village zone lookups (Joppa -> the cell holding TerrainJoppa, and so on). Not exported
+    /// yet, so the map centres only for map notes.
+    ///
     /// NOT MIRRORED YET: the per-tab CATEGORY grouping. Categories come from
     /// currentInfo.CategoryFor(entry), a delegate on the screen's own categoryInfos — screen state
     /// we can't see from here — so entries are exported flat, in Qud's order, per tab. Same call as
@@ -55,6 +59,8 @@ namespace RavesOfQud
                 j.Member("id", tab);
                 try { j.Member("name", JournalScreen.GetTabDisplayName(tab) ?? tab); }
                 catch { j.Member("name", tab); }
+                // Only these two tabs show the world map (categoryInfos' UsesMap).
+                j.Member("usesMap", tab == "Locations" || tab == "Village Histories");
                 int n = 0;
                 j.Name("entries").BeginArray();
                 try
@@ -79,6 +85,7 @@ namespace RavesOfQud
                 j.EndObject();
             }
             j.EndArray();
+            MapExporter.WritePlayerPos(j);
             j.EndObject();
             File.WriteAllText(Path_, j.ToString());
         }
@@ -96,6 +103,9 @@ namespace RavesOfQud
             if (map != null)
             {
                 try { j.Member("tracked", map.Tracked); } catch { }
+                // JournalLineData.mapTarget for a map note is just its parasang coords; the map
+                // panel centres on this when the entry is selected.
+                try { j.Member("mx", map.ParasangX).Member("my", map.ParasangY); } catch { }
             }
 
             var rec = e as JournalRecipeNote;

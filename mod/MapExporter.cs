@@ -42,15 +42,51 @@ namespace RavesOfQud
             try { Bridge.Server?.Log("map: " + s); } catch { }
         }
 
-        /// <summary>UNITY MAIN THREAD, with the Quests screen live. Writes world_map.png.</summary>
-        public static void ExportQuestsMap()
+        /// <summary>UNITY MAIN THREAD, with a map-bearing screen live. Writes a PER-SCREEN PNG.
+        ///
+        /// NOT one shared file. The Quests and Journal screens own separate MapScrollerControllers
+        /// and their textures genuinely DIFFER: RefreshMap dims every cell that isn't in `highlights`,
+        /// Quests calls SetHighlights(the quest locations) so most of the world goes dark, and the
+        /// Journal calls SetHighlights(null) so nothing dims. Sharing one file drew the Quests'
+        /// dimmed map inside the Journal's panel — same world, wrong pixels.</summary>
+        /// <param name="which">"quests" or "journal" — WHICH screen's controller to read. Do not
+        /// pick by Visible: the status screens are tabs of one StatusScreensScreen, so the Quests
+        /// instance still reports visible while the Journal tab is the one on show, and a
+        /// first-visible-wins check wrote the Quests map twice and the Journal's never.</param>
+        public static void ExportWorldMap(string which)
         {
             try
             {
-                var quests = Qud.UI.QuestsStatusScreen.instance;
-                if (quests == null || !quests.Visible) { Log("quests screen not live"); return; }
-                var mc = quests.mapController;
-                if (mc == null || mc.mapImage == null || mc.mapImage.sprite == null)
+                MapScrollerController mc = null;
+                string dest = null;
+                bool wantJournal = !string.IsNullOrEmpty(which)
+                    && which.IndexOf("journal", StringComparison.OrdinalIgnoreCase) >= 0;
+                // FIND BY COMPONENT, not by `.instance`. JournalStatusScreen's singleton field is
+                // null here even though the screen exists — the probe already resolves these screens
+                // by component search for the same reason. Falling back to `.instance` alone wrote
+                // the Quests map twice and never the Journal's.
+                if (wantJournal)
+                {
+                    dest = "journal_map.png";
+                    try
+                    {
+                        var jrn = UnityEngine.Object.FindObjectOfType<Qud.UI.JournalStatusScreen>();
+                        if (jrn != null) mc = jrn.mapController;
+                    }
+                    catch { }
+                }
+                else
+                {
+                    dest = "quests_map.png";
+                    try
+                    {
+                        var quests = UnityEngine.Object.FindObjectOfType<Qud.UI.QuestsStatusScreen>();
+                        if (quests != null) mc = quests.mapController;
+                    }
+                    catch { }
+                }
+                if (mc == null) { Log("no map controller for '" + which + "'"); return; }
+                if (mc.mapImage == null || mc.mapImage.sprite == null)
                 { Log("no map image yet — has the screen rendered?"); return; }
                 var tex = mc.mapImage.sprite.texture;
                 if (tex == null) { Log("map sprite has no texture"); return; }
@@ -60,10 +96,32 @@ namespace RavesOfQud
                 try { png = tex.EncodeToPNG(); }
                 catch (Exception e) { Log("texture not readable: " + e.Message); return; }
                 if (png == null || png.Length == 0) { Log("empty PNG"); return; }
-                File.WriteAllBytes(Path.Combine(Dir, "world_map.png"), png);
-                Log(string.Format("wrote world_map.png ({0}x{1}, {2} bytes)", tex.width, tex.height, png.Length));
+                File.WriteAllBytes(Path.Combine(Dir, dest), png);
+                Log(string.Format("wrote {0} ({1}x{2}, {3} bytes)", dest, tex.width, tex.height, png.Length));
             }
             catch (Exception e) { Log("failed: " + e); }
+        }
+
+        /// <summary>The PLAYER's world-map cell, as the default view centre.
+        ///
+        /// With nothing selected, Qud's map is not sitting at the map's middle — it shows the
+        /// player's own region (Joppa's salt marsh for a Joppa start). Centring on the texture's
+        /// centre instead put Raves several parasangs away looking at forest.</summary>
+        public static void WritePlayerPos(JsonWriter j)
+        {
+            try
+            {
+                var p = The.Player;
+                if (p == null) return;
+                var z = p.CurrentZone;
+                if (z == null) return;
+                // A zone id carries its world-map parasang; ask the manager rather than parse it.
+                Location2D loc = null;
+                try { loc = ZoneManager.GetWorldMapLocationForZoneID(z.ZoneID); } catch { }
+                if (loc == null) return;
+                j.Name("player").BeginObject().Member("x", loc.X).Member("y", loc.Y).EndObject();
+            }
+            catch (Exception e) { Log("player pos: " + e.Message); }
         }
 
         /// <summary>Quest-giver pins, as UpdateViewFromData computes them. Safe off the UI thread —

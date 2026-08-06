@@ -67,6 +67,7 @@ var _rows: Array = []          # [{y, h, id}] laid out, for hit-testing and the 
 var _pins: Array = []
 var _map: Texture2D = null
 var _map_tried := false
+var _player_pos := Vector2(-1, -1)
 
 func _init() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -79,6 +80,9 @@ func setup(data: Dictionary, palette: Dictionary) -> void:
 		_palette = own
 	_quests = data.get("quests", [])
 	_pins = data.get("pins", [])
+	var pp: Dictionary = data.get("player", {})
+	_player_pos = Vector2(float(pp.get("x", 0)), float(pp.get("y", 0))) if not pp.is_empty() \
+		else Vector2(-1, -1)
 	_empty = str(data.get("empty", ""))
 	_sel = clampi(_sel, 0, maxi(0, _quests.size() - 1))
 	_build()
@@ -177,7 +181,7 @@ func _draw() -> void:
 func _draw_map() -> void:
 	if _map == null and not _map_tried:
 		_map_tried = true
-		var path := InputModel.support_dir().path_join("map").path_join("world_map.png")
+		var path := InputModel.support_dir().path_join("map").path_join("quests_map.png")
 		if FileAccess.file_exists(path):
 			var img := Image.new()
 			if img.load(path) == OK:
@@ -187,8 +191,13 @@ func _draw_map() -> void:
 	var tw := _map.get_width() * MAP_ZOOM
 	var th := _map.get_height() * MAP_ZOOM
 	# centre on the first pin, then clamp so we never show past the map's edge
+	# Default centre is the PLAYER's parasang, not the texture's middle — that is where Qud's
+	# map sits with nothing selected, and the middle put us several parasangs away.
 	var cx := tw * 0.5
 	var cy := th * 0.5
+	if _player_pos != Vector2(-1, -1):
+		cx = (_player_pos.x + 0.5) * MAP_CELL_W * MAP_ZOOM
+		cy = (_player_pos.y + 0.5) * MAP_CELL_H * MAP_ZOOM
 	if not _pins.is_empty():
 		cx = (float(_pins[0].get("x", 0)) + 0.5) * MAP_CELL_W * MAP_ZOOM
 		cy = (float(_pins[0].get("y", 0)) + 0.5) * MAP_CELL_H * MAP_ZOOM

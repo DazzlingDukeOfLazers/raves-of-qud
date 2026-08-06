@@ -95,8 +95,9 @@ namespace RavesOfQud
                 if (n == 0) Log("no known chrome sprites on '" + target + "'");
                 // The Quests screen also carries the world-map panel; grab its texture while the
                 // screen is live (it only exists once the screen has rendered).
-                if (target.IndexOf("Quest", StringComparison.OrdinalIgnoreCase) >= 0)
-                    MapExporter.ExportQuestsMap();
+                if (target.IndexOf("Quest", StringComparison.OrdinalIgnoreCase) >= 0
+                    || target.IndexOf("Journal", StringComparison.OrdinalIgnoreCase) >= 0)
+                    MapExporter.ExportWorldMap(target);
             }
             catch (Exception e) { Log("chrome export failed: " + e); }
         }

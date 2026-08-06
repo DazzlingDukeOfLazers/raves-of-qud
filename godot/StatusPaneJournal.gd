@@ -9,9 +9,12 @@ extends Control
 ##   row         caret x=175.6 +18.2 15x15 | header text x=190.5 font 20 with a dotted
 ##               leader filling right | body text x=190.5 below, font 16
 ##
-## Qud puts a WORLD MAP in the right half (x=952 w=793.5). Deferred, exactly as on the Quests
-## tab -- the list first. Qud's own list is 793.5 of a 1603 pane, so the space is left empty
-## rather than filled with something invented.
+## The WORLD MAP in the right half is Qud's own rendered texture, exported by the mod. It is the
+## JOURNAL'S OWN file, not the Quests pane's: RefreshMap dims every cell outside `highlights`, and
+## the Journal passes null (nothing dims) where Quests passes the quest locations (most of the world
+## goes dark). Same world, different pixels. Qud shows
+## it only on the tabs whose CategoryInfo sets UsesMap (Locations and Village Histories), which the
+## export carries per tab, and centres it on the SELECTED entry's target rather than pinning.
 ##
 ## The seven sub-tabs are Qud's (JournalScreen's STR_ constants, in screen order). Qud draws them
 ## as an ICON STRIP; this renders them as text labels for now -- navigable and honest, but not the
@@ -32,6 +35,15 @@ const BODY_FONT := 16
 const ROW_GAP := 6.0
 const STRIP_Y := 186.0        # the sub-tab strip, centred like Qud's icon row
 
+# The map panel, measured off Qud's live RectTransforms (Journal's is its own rect, not Quests').
+const MAP_X := 952.0
+const MAP_Y := 234.0
+const MAP_W := 793.5
+const MAP_H := 687.0
+const MAP_ZOOM := 2.0
+const MAP_CELL_W := 16.0
+const MAP_CELL_H := 24.0
+
 const C_TEXT := Color8(0xaf, 0xc6, 0xc1)
 const C_DIM := Color8(0x3b, 0x55, 0x5e)
 const C_GOLD := Color8(0xcf, 0xc0, 0x41)
@@ -47,6 +59,9 @@ var _scroll := 0.0
 var _palette := {}
 var _font: Font
 var _content: Control
+var _map: Texture2D = null
+var _map_tried := false
+var _player_pos := Vector2(-1, -1)
 
 func _init() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -68,6 +83,9 @@ func setup(data: Dictionary, palette: Dictionary) -> void:
 	if typeof(own) == TYPE_DICTIONARY and not own.is_empty():
 		_palette = own
 	_tabs = data.get("tabs", [])
+	var pp: Dictionary = data.get("player", {})
+	_player_pos = Vector2(float(pp.get("x", 0)), float(pp.get("y", 0))) if not pp.is_empty() \
+		else Vector2(-1, -1)
 	_tab = clampi(_tab, 0, maxi(0, _tabs.size() - 1))
 	_sel = 0
 	_scroll = 0.0
@@ -83,6 +101,8 @@ func _draw_all() -> void:
 	if _font == null or _tabs.is_empty():
 		return
 	var tab := _cur()
+	if bool(tab.get("usesMap", false)):
+		_draw_map(tab)
 
 	# --- header: the current tab's display name, with Qud's rule ends either side
 	var name := str(tab.get("name", ""))
@@ -211,3 +231,49 @@ func handle_key(e: InputEventKey) -> bool:
 	_scroll = 0.0
 	_content.queue_redraw()
 	return true
+
+
+## Qud's world map, drawn only on the tabs that use it. Centred on the SELECTED entry's target
+## when it has one (map notes carry parasang coords); otherwise the map's own middle. Clamped so
+## the view never runs past the edges.
+func _draw_map(tab: Dictionary) -> void:
+	if _map == null and not _map_tried:
+		_map_tried = true
+		var path := InputModel.support_dir().path_join("map").path_join("journal_map.png")
+		if FileAccess.file_exists(path):
+			var img := Image.new()
+			if img.load(path) == OK:
+				_map = ImageTexture.create_from_image(img)
+	if _map == null:
+		return
+	var tw := _map.get_width() * MAP_ZOOM
+	var th := _map.get_height() * MAP_ZOOM
+	# Default centre is the PLAYER's parasang, not the texture's middle — that is where Qud's
+	# map sits with nothing selected, and the middle put us several parasangs away.
+	var cx := tw * 0.5
+	var cy := th * 0.5
+	if _player_pos != Vector2(-1, -1):
+		cx = (_player_pos.x + 0.5) * MAP_CELL_W * MAP_ZOOM
+		cy = (_player_pos.y + 0.5) * MAP_CELL_H * MAP_ZOOM
+	var entries: Array = tab.get("entries", [])
+	if _sel >= 0 and _sel < entries.size() and entries[_sel].has("mx"):
+		cx = (float(entries[_sel].get("mx", 0)) + 0.5) * MAP_CELL_W * MAP_ZOOM
+		cy = (float(entries[_sel].get("my", 0)) + 0.5) * MAP_CELL_H * MAP_ZOOM
+	var ox := clampf(MAP_X + MAP_W * 0.5 - cx, MAP_X + MAP_W - tw, MAP_X)
+	var oy := clampf(MAP_Y + MAP_H * 0.5 - cy, MAP_Y + MAP_H - th, MAP_Y)
+
+	var clip := Rect2(MAP_X, MAP_Y, MAP_W, MAP_H)
+	_content.draw_rect(clip, Color8(4, 19, 18))   # RefreshMap's own backdrop
+	var prev := _content.texture_filter
+	_content.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	var src := Rect2((MAP_X - ox) / MAP_ZOOM, (MAP_Y - oy) / MAP_ZOOM,
+		MAP_W / MAP_ZOOM, MAP_H / MAP_ZOOM)
+	_content.draw_texture_rect_region(_map, clip, src)
+	_content.texture_filter = prev
+
+	# the selected entry's location, marked the way the Quests pane marks a pin
+	if _sel >= 0 and _sel < entries.size() and entries[_sel].has("mx"):
+		var px := ox + (float(entries[_sel].get("mx", 0)) + 0.5) * MAP_CELL_W * MAP_ZOOM
+		var py := oy + (float(entries[_sel].get("my", 0)) + 0.5) * MAP_CELL_H * MAP_ZOOM
+		if clip.has_point(Vector2(px, py)):
+			_content.draw_rect(Rect2(px - 5.0, py - 5.0, 10.0, 10.0), C_GOLD, false, 2.0)

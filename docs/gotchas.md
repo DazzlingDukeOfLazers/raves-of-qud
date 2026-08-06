@@ -70,6 +70,18 @@ add a one-liner (symptom → rule).
   inspector's `_pick_cell` marches back to the occupied cell; the direction picker wants the literal ground cell.
 
 ### Bridge / snapshots
+- **The Quests and Journal maps are DIFFERENT TEXTURES**, despite being the same world. RefreshMap
+  dims every cell outside `highlights`; Quests passes the quest locations (so most of the world goes
+  dark) and the Journal passes null (nothing dims). One shared file drew the Quests' dimmed map
+  inside the Journal's panel. Export per screen.
+- **Pick the screen by NAME, not by `Visible`, and find it by COMPONENT, not `.instance`.** The
+  status screens are tabs of one StatusScreensScreen, so the Quests instance still reports visible
+  while the Journal tab is showing — a first-visible-wins check wrote the Quests map twice and the
+  Journal's never. And `JournalStatusScreen.instance` is null even when the screen exists;
+  `FindObjectOfType` finds it.
+- **With nothing selected the map centres on the PLAYER's parasang**, not the texture's middle.
+  Defaulting to the middle put Raves several parasangs from Qud's view, looking at forest while Qud
+  showed Joppa's salt marsh.
 - **The status screens' WORLD MAP is a texture Qud already built — export it, don't re-render it.**
   MapScrollerController.RefreshMap walks all 80x25 cells of `JoppaWorld`, renders each through a
   RenderEvent and blits its recoloured sprite into a **1280x600** texture (16x24 per cell), then the

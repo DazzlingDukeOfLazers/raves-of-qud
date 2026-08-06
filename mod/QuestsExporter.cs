@@ -84,6 +84,7 @@ namespace RavesOfQud
             j.EndArray();
             // Quest-giver pins for the map panel, computed the way the screen does.
             MapExporter.WritePins(j);
+            MapExporter.WritePlayerPos(j);
             j.EndObject();
 
             File.WriteAllText(Path_, j.ToString());
