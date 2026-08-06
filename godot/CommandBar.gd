@@ -395,6 +395,9 @@ func _make_cell(a: Dictionary, icon_px: int, slot: int, selected: bool) -> Contr
 		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
 			_activate(cmd))
 	var cell := HBoxContainer.new()
+	# CENTRED, from Qud's own model: AbilityBarButton pads 5 and holds a WorkableArea whose layout is
+	# MiddleCenter with spacing 10. The button being UpperLeft misled an earlier attempt into
+	# left-aligning the CONTENT; it is the WorkableArea that positions it, and that centres.
 	cell.alignment = BoxContainer.ALIGNMENT_CENTER
 	cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	cell.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -403,6 +406,20 @@ func _make_cell(a: Dictionary, icon_px: int, slot: int, selected: bool) -> Contr
 	# centres its content, so the extra 6 is split between the two sides -- the text gained 3 toward
 	# Qud's column and the icons lost 3, and the bar scored 10.06 -> 10.49. Qud is not centring the
 	# same content; closing this needs its actual layout, not a wider gap.
+	# 6, and NOT Qud's 10, deliberately. Qud's own model for a cell (read off AbilityBarButton with
+	# the probe) is:
+	#
+	#     AbilityBarButton  w=159.36  padL=5, UpperLeft
+	#       Spacer          w=1                     <- the 1px divider between cells
+	#       WorkableArea    w=154.36  spacing 10, MiddleCenter
+	#         TopHalf       32 x 48                 <- the icon element
+	#         Ability Text  100.81 x 25
+	#
+	# Copying the 10 makes the bar WORSE (mean 10.06 -> 14.78), and so does copying padL=5 with
+	# UpperLeft (-> 15.07), because our cell's ELEMENTS are not Qud's: the spacing only lands right
+	# once the icon element is exactly 32 wide and the text element exactly 100.81. Until the cell is
+	# rebuilt to that structure, these numbers are a set -- 6 with our widths puts the boundaries on
+	# Qud's columns, which is what the eye reads.
 	cell.add_theme_constant_override("separation", 6)
 	cell.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	frame.add_child(cell)

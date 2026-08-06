@@ -711,3 +711,29 @@ So test each one against the live frames rather than pattern-matching the source
 On that test five needed it (`COL_HP_BAR_1TO1`, `COL_EXP_BAR_1TO1`, `CELL_FRAME_1TO1`, `SEP_OUTER`,
 `SEP_CENTER`), and the "unclear" ones simply had too few pixels on screen in that state to judge —
 which is an answer too: leave them until a state shows them.
+
+### The probe reaches the in-game HUD, not just screens
+
+`uiprobe target=AbilityBar` dumps Qud's whole bottom band while a game is live — the resolver
+matches a COMPONENT type, then a substring, then a GameObject name, and the HUD answers to all
+three. Two rounds of cell-geometry work were fitted by hand on the assumption it could not.
+
+What it gives for the ability bar:
+
+    AbilityBar        y=990    h=90        the whole bottom band
+     Top              y=992    h=25.64     3 areas of 636: effects x=1, target x=642, missile x=1283
+     AbilitySection   y=1017.64 h=62.36
+      Ability Hotbar
+       Hotbar Swapper x=20     w=155       the ABILITIES gutter
+       ButtonArea     x=175    w=1745      cells start at 175; the 180 we match is 175 + padL 5
+        AbilityBarButton  padL=5, UpperLeft, widths 192.96 / 167.76 / 159.36 / ...
+          Spacer          w=1              the 1px divider between cells
+          WorkableArea    spacing 10, MiddleCenter
+            TopHalf       32 x 48          the icon element
+            Ability Text  100.81 x 25
+
+**A model you cannot copy piecemeal.** Qud's spacing of 10 and its padL of 5 both make our bar
+worse (10.06 -> 14.78 and -> 15.07) because our cell's elements are not its elements: the spacing
+only lands right once the icon element is 32 wide and the text element 100.81. Our own set — icon
+box 47, padding 8, spacing 6, centred — puts the cell boundaries on Qud's columns, which is what
+reads. Matching Qud's numbers means rebuilding the cell to its structure first.
