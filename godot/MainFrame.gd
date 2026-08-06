@@ -140,6 +140,7 @@ var ROW_BG_BOTTOM_1TO1 := QudChrome.q8(15, 16, 17)
 ## Qud's chrome band height at each end: its letterbox runs 90..989 in a 1080 window.
 const CHROME_H_1TO1 := 90.0
 var _status_strip: PanelContainer  # row 1 — its fill is Qud's strip colour in 1:1, panel fill in user mode
+var _portrait_margin: MarginContainer  # the avatar's old-rule alignment margin — zeroed in 1:1
 var _menu_strip: PanelContainer    # row 2's icon cluster — same story: Qud's strip colour behind it
 var _dev_bar: Control              # holodeck cell's Connect/Turn-on-viewport strip (hidden in 1:1)
 ## Qud's log column, measured off its own separator rather than estimated: its rules stand at
@@ -638,8 +639,12 @@ func _row_status() -> Control:
 	_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	var pm := MarginContainer.new()
+	# This inner margin aligned the avatar to Qud's x20 UNDER THE OLD RULE (group at 0, strip margin
+	# 8, +13 here ≈ 20). The Qud-rule relayout places the group itself at x20, so in 1:1 the margin
+	# would double-count and push the avatar to 33 — it is zeroed there (_apply_layout_mode).
 	pm.add_theme_constant_override("margin_left", int(round(bpx * 0.62)))
 	pm.add_child(_portrait)
+	_portrait_margin = pm
 	_grp_left.add_child(pm)
 	_l_name = _text("—", COL_NAME, "caption")
 	_l_name.clip_text = false
@@ -734,25 +739,47 @@ func _relayout_topbar() -> void:
 	for g in [_grp_left, _grp_t, _grp_stats, _grp_right]:
 		g.size = g.get_combined_minimum_size()
 		g.position.y = (hh - g.size.y) * 0.5
+	# QUD'S OWN RULE, read off the live PlayerStatusBar with the probe (not fitted from captures,
+	# which is what the fixed-261 separator boxes below were). Its row 1 is ONE HorizontalLayoutGroup:
+	#
+	#     TopLeft  padL 16, padR 16, spacing 16, MiddleLeft
+	#       avatar(24) name | SEP | temp ∷ food ∷ weight | SEP | statblock | SEP | clock ∷ zone
+	#
+	# with fixed-width content and the three ||-----|| separators FLEXIBLE, splitting the leftover
+	# equally -- confirmed arithmetically: 1916 - 32 pad - 13x16 spacing - 1027.57 content = 648.43,
+	# and each sep lays out at exactly 648.43/3 = 216.14. The run starts at x20 (avatar) and ends at
+	# x1904 (zone's right edge, 1920 - padR 16). Fitted boxes can never track that: the sep width
+	# moves with the content widths, which move with the live stats.
+	if Settings.one_to_one():
+		var off := _topbar.get_global_rect().position.x
+		var x_left := 20.0 - off
+		var x_rend := 1904.0 - off
+		_grp_left.position.x = x_left
+		_grp_right.position.x = x_rend - _grp_right.size.x
+		var content := _grp_left.size.x + _grp_t.size.x + _grp_stats.size.x + _grp_right.size.x
+		var sepw := ((x_rend - x_left) - content - 6.0 * 16.0) / 3.0
+		_grp_t.position.x = x_left + _grp_left.size.x + 16.0 + sepw + 16.0
+		_grp_stats.position.x = _grp_t.position.x + _grp_t.size.x + 16.0 + sepw + 16.0
+		_sep_at(_sep1, _grp_left.position.x + _grp_left.size.x + 16.0, sepw)
+		_sep_at(_sep2, _grp_t.position.x + _grp_t.size.x + 16.0, sepw)
+		_sep_at(_sep3, _grp_stats.position.x + _grp_stats.size.x + 16.0, sepw)
+		return
 	_grp_left.position.x = 0.0
-	# Right cluster ends ~8px inside the bar's right edge, so its zone name lines up with Qud's.
+	# USER MODE keeps the fitted layout: right cluster ends ~8px inside the bar's right edge.
 	_grp_right.position.x = w - _grp_right.size.x - 8.0
 	# Split the leftover space between left and right into three equal gaps around T and stats.
 	var gap := (_grp_right.position.x - _grp_left.size.x - _grp_t.size.x - _grp_stats.size.x) / 3.0
 	_grp_t.position.x = _grp_left.size.x + gap
 	_grp_stats.position.x = _grp_t.position.x + _grp_t.size.x + gap
-	# Qud's name↔T-group separator is the same fixed-width box (||—————||) as the other two, centred in
-	# the gap — not a line stretched to fill it (which ran ~284px vs Qud's ~260).
 	_place_sep(_sep1, _grp_left, _grp_t, 8.0, 261.0, true)
-	# Qud's water$↔QN separator is the same fixed-width box (||—————||) as the one below, floating
-	# ~centred in the gap between the T-group and the stats (Qud caps at 778/1036, ~258px). Centre a
-	# fixed-width box in the gap rather than stretching it (which ran 20px wide).
 	_place_sep(_sep2, _grp_t, _grp_stats, 8.0, 261.0, true)
-	# Qud's stats↔disc separator is a fixed-width box (||—————||), not a line glued to the stats. Its
-	# right || is 16px left of the disc (aligned above); its left || is ~261px further left, at Qud's x
-	# (~1490). Anchor it to the aligned right end at Qud's box width so the left || matches Qud regardless
-	# of the stats group's width/position (which still sits ~20px left of Qud — a later leftward pass).
 	_place_sep(_sep3, _grp_stats, _grp_right, 16.0, 261.0)
+
+## A separator at an exact x and width — Qud's flexible-separator rule computes both.
+func _sep_at(sep: Control, x: float, w2: float) -> void:
+	sep.size = Vector2(maxf(2.0, w2), sep.get_combined_minimum_size().y)
+	sep.position = Vector2(x, (_topbar.size.y - sep.size.y) * 0.5)
+
 
 func _place_sep(sep: Control, lg: Control, rg: Control, rpad := 8.0, fixed_w := 0.0, centered := false) -> void:
 	var lend := lg.position.x + lg.size.x
@@ -1008,7 +1035,16 @@ func _apply_layout_mode(on: bool) -> void:
 	if _status_strip != null:
 		var sb := _panel_style(ROW_BG_1TO1 if on else COL_PANEL)
 		sb.content_margin_bottom = 1
+		if on:
+			# Qud's row-1 Background is a plain fill: no border, no rounding. The faint QoL box
+			# survived into 1:1 and its left edge was the stray ink at x=1.
+			sb.set_border_width_all(0)
+			sb.set_corner_radius_all(0)
 		_status_strip.add_theme_stylebox_override("panel", sb)
+	if _portrait_margin != null:
+		var bpx2 := UiFont.px(get_viewport(), "body")
+		_portrait_margin.add_theme_constant_override("margin_left",
+			0 if on else int(round(bpx2 * 0.62)))
 	_style_menu_strip(on)
 	_apply_panel_sizing(on)
 	_push_play_inset(on)
