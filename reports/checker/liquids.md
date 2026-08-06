@@ -1,6 +1,6 @@
 # Object Checker — liquids
 
-79/79 PASS  (2026-08-05 20:12)  pixel: 78 PASS / 0 WARN / 0 FAIL / 1 ANIM
+79/79 PASS  (2026-08-05 21:56)  pixel: 78 PASS / 0 WARN / 0 FAIL / 1 ANIM
 
 | element | verdict | px | notes |
 |---|---|---|---|
@@ -79,7 +79,7 @@
 | TarPool | PASS | PASS 1.3/0% | wire tile != blueprint tile 'liquids_water_puddle_2' |
 | UnctuousAlgalWaterPool | PASS | PASS 6.8/6% | wire tile != blueprint tile 'liquids_water_deep-00000000' |
 | VomitPool | PASS | PASS 3.0/4% | wire tile != blueprint tile 'liquids_water_puddle_4' |
-| WarmStaticPuddle | PASS | ANIM 47.6/22% | wire tile != blueprint tile 'liquids_static_pure_deep_1-00000000'; no capture pair — congruence skipped; anim-verified (state agreement); single-frame diff is phase |
+| WarmStaticPuddle | PASS | ANIM 37.8/18% | wire tile != blueprint tile 'liquids_static_pure_deep_1-00000000'; anim-verified (state agreement); single-frame diff is phase |
 | WaterPool | PASS | PASS 1.8/0% | no capture pair — congruence skipped |
 | WaxPool | PASS | PASS 6.0/4% |  |
 | WinePool | PASS | PASS 4.9/4% | wire tile != blueprint tile 'liquids_water_puddle_1' |

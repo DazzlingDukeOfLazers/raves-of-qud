@@ -1741,7 +1741,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 1,
+   "cleared": 0,
    "tile": "creatures/sw_barathrumite.bmp",
    "color": "&Y",
    "detail": "w",
@@ -1754,14 +1754,14 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Barathrumite_Tinker_Omonporch_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 77.41,
-   "pct_hot": 97.0,
-   "band": "FAIL",
+   "mean_abs_diff": 3.92,
+   "pct_hot": 1.4,
+   "band": "PASS",
    "white_px": [
-    0,
+    7,
     547
    ],
-   "dominant_delta": 160,
+   "dominant_delta": 0,
    "wire_delta": 239
   }
  },
@@ -8187,14 +8187,14 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Decarbonizer_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 86.44,
-   "pct_hot": 91.7,
-   "band": "FAIL",
+   "mean_abs_diff": 5.72,
+   "pct_hot": 4.6,
+   "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 192,
+   "dominant_delta": 0,
    "wire_delta": 137
   }
  },
@@ -8322,7 +8322,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 3,
+   "cleared": 1,
    "tile": "Assets_Content_Textures_Creatures_sw_farmer.bmp",
    "color": "&y",
    "detail": "w",
@@ -8335,14 +8335,14 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\DelegateBears_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 91.31,
-   "pct_hot": 88.5,
-   "band": "FAIL",
+   "mean_abs_diff": 3.5,
+   "pct_hot": 1.5,
+   "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 128,
+   "dominant_delta": 0,
    "wire_delta": 161
   }
  },
@@ -9515,7 +9515,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "no capture pair \u2014 congruence skipped"
+   "wire tile != blueprint tile 'creatures_sw_elder_breather'"
   ],
   "stage": {
    "bp": "ElderFireBreather",
@@ -9532,12 +9532,13 @@
   "wire_objs": 1,
   "wire_hex": "d74200",
   "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\ElderFireBreather_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\ElderFireBreather_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 46.05,
-   "pct_hot": 37.8,
-   "band": "FAIL",
+   "mean_abs_diff": 5.75,
+   "pct_hot": 4.8,
+   "band": "PASS",
    "white_px": [
     0,
     0
@@ -12166,7 +12167,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 2,
+   "cleared": 1,
    "tile": "Creatures/sw_girshworm.bmp",
    "color": "&m",
    "detail": "w",
@@ -12179,14 +12180,14 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Girshworm_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 59.14,
-   "pct_hot": 91.4,
-   "band": "FAIL",
+   "mean_abs_diff": 4.56,
+   "pct_hot": 2.9,
+   "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 160,
+   "dominant_delta": 0,
    "wire_delta": 161
   }
  },
@@ -12621,9 +12622,9 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Goatfolk_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 27.02,
-   "pct_hot": 33.0,
-   "band": "WARN",
+   "mean_abs_diff": 4.58,
+   "pct_hot": 3.1,
+   "band": "PASS",
    "white_px": [
     0,
     0
@@ -13102,14 +13103,14 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\GolgothaSlog_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 41.58,
-   "pct_hot": 51.4,
-   "band": "FAIL",
+   "mean_abs_diff": 9.71,
+   "pct_hot": 5.8,
+   "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 160,
+   "dominant_delta": 192,
    "wire_delta": 11
   }
  },
@@ -13192,8 +13193,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'creatures_sw_grand_newfather'",
-   "no capture pair \u2014 congruence skipped"
+   "wire tile != blueprint tile 'creatures_sw_grand_newfather'"
   ],
   "stage": {
    "bp": "Grand Newfather_Warleader",
@@ -13201,24 +13201,25 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 3,
+   "cleared": 1,
    "tile": "Creatures/sw_grand_newfather.bmp",
    "color": "&Y",
    "detail": "Y",
-   "name": "{{M|Grand Newfather Jaxephine}}"
+   "name": "{{M|Grand Newfather Guynaric}}"
   },
   "wire_objs": 1,
   "wire_hex": "ffffff",
   "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Grand_Newfather_Warleader_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Grand_Newfather_Warleader_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 77.3,
-   "pct_hot": 41.3,
-   "band": "FAIL",
+   "mean_abs_diff": 23.14,
+   "pct_hot": 23.3,
+   "band": "PASS",
    "white_px": [
     7,
-    0
+    246
    ],
    "dominant_delta": 0,
    "wire_delta": 239
@@ -13975,7 +13976,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 2,
+   "cleared": 5,
    "tile": "Creatures/sw_gyrohumor.bmp",
    "color": "&C",
    "detail": "w",
@@ -13988,9 +13989,9 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Gyrohumor_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 40.4,
-   "pct_hot": 37.2,
-   "band": "FAIL",
+   "mean_abs_diff": 31.69,
+   "pct_hot": 37.1,
+   "band": "WARN",
    "white_px": [
     0,
     0
@@ -15498,7 +15499,9 @@
   "bp": "HumanTinker6",
   "pass": true,
   "reasons": [],
-  "warns": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_caste_21'"
+  ],
   "stage": {
    "bp": "HumanTinker6",
    "ok": true,
@@ -15518,9 +15521,9 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\HumanTinker6_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 29.2,
-   "pct_hot": 26.7,
-   "band": "WARN",
+   "mean_abs_diff": 4.52,
+   "pct_hot": 3.4,
+   "band": "PASS",
    "white_px": [
     0,
     0
@@ -15651,23 +15654,23 @@
    "tile": "Creatures/sw_humor.bmp",
    "color": "&y",
    "detail": "w",
-   "name": "{{G|{{Y|salty}} {{G|acid-covered}} humor}}"
+   "name": "humor"
   },
-  "wire_objs": 1,
+  "wire_objs": 2,
   "wire_hex": "b1c9c3",
   "shots": {
    "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Humor_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Humor_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 59.71,
-   "pct_hot": 99.4,
-   "band": "FAIL",
+   "mean_abs_diff": 26.81,
+   "pct_hot": 27.1,
+   "band": "WARN",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 160,
+   "dominant_delta": 0,
    "wire_delta": 161
   }
  },
@@ -15795,7 +15798,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 2,
+   "cleared": 1,
    "tile": "Creatures/merchant-3.png",
    "color": "&K",
    "detail": "G",
@@ -15808,14 +15811,14 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\IchorMerchant_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 58.1,
-   "pct_hot": 90.0,
-   "band": "FAIL",
+   "mean_abs_diff": 1.43,
+   "pct_hot": 0.5,
+   "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 160,
+   "dominant_delta": 0,
    "wire_delta": 35
   }
  },
@@ -15906,7 +15909,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 1,
+   "cleared": 3,
    "tile": "Creatures/sw_golem_insect.png",
    "color": "&y",
    "detail": "w",
@@ -15919,9 +15922,9 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Insect_Golem_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 32.13,
-   "pct_hot": 49.8,
-   "band": "WARN",
+   "mean_abs_diff": 6.43,
+   "pct_hot": 3.1,
+   "band": "PASS",
    "white_px": [
     0,
     0
@@ -15943,7 +15946,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 2,
+   "cleared": 1,
    "tile": "Creatures/sw_cherub_insect.bmp",
    "color": "&Y",
    "detail": "y",
@@ -15956,11 +15959,11 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Insects_Cherub_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 67.74,
-   "pct_hot": 48.5,
-   "band": "FAIL",
+   "mean_abs_diff": 9.09,
+   "pct_hot": 4.4,
+   "band": "PASS",
    "white_px": [
-    0,
+    1,
     514
    ],
    "dominant_delta": 0,
@@ -16276,7 +16279,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 4,
+   "cleared": 1,
    "tile": "Creatures/Issachari_convert.bmp",
    "color": "&C",
    "detail": "R",
@@ -16289,9 +16292,9 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\IssachariConvert_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 50.5,
-   "pct_hot": 46.9,
-   "band": "FAIL",
+   "mean_abs_diff": 4.34,
+   "pct_hot": 2.5,
+   "band": "PASS",
    "white_px": [
     0,
     0
@@ -16313,22 +16316,22 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 6,
+   "cleared": 1,
    "tile": "Creatures\\sw_weird_fish.bmp",
    "color": "&m",
    "detail": "W",
    "name": "{{B|{{B|wet}} ixlthyxl}}"
   },
-  "wire_objs": 4,
+  "wire_objs": 1,
   "wire_hex": "b154cf",
   "shots": {
    "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Ixlthyxl_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Ixlthyxl_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 32.71,
-   "pct_hot": 37.6,
-   "band": "WARN",
+   "mean_abs_diff": 4.77,
+   "pct_hot": 2.7,
+   "band": "PASS",
    "white_px": [
     0,
     0
@@ -16461,7 +16464,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 5,
+   "cleared": 3,
    "tile": "Assets_Content_Textures_Creatures_sw_plant.bmp",
    "color": "&g^w",
    "detail": "R",
@@ -16474,7 +16477,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Jilted_Lover_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 62.29,
+   "mean_abs_diff": 62.23,
    "pct_hot": 72.9,
    "band": "FAIL",
    "white_px": [
@@ -16942,22 +16945,22 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 2,
+   "cleared": 1,
    "tile": "Creatures/sw_templar.bmp",
    "color": "&Y",
    "detail": "Y",
-   "name": "{{implanted|implanted}} Knight Templar"
+   "name": "Knight Templar"
   },
-  "wire_objs": 1,
+  "wire_objs": 2,
   "wire_hex": "ffffff",
   "shots": {
    "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Knight_Templar_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Knight_Templar_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 28.7,
-   "pct_hot": 24.0,
-   "band": "WARN",
+   "mean_abs_diff": 5.61,
+   "pct_hot": 4.1,
+   "band": "PASS",
    "white_px": [
     0,
     204
@@ -17645,7 +17648,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 2,
+   "cleared": 1,
    "tile": "Creatures/sw_madpole.bmp",
    "color": "&W",
    "detail": "w",
@@ -17658,9 +17661,9 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Madpole_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 28.68,
-   "pct_hot": 28.1,
-   "band": "WARN",
+   "mean_abs_diff": 5.41,
+   "pct_hot": 2.6,
+   "band": "PASS",
    "white_px": [
     0,
     0
@@ -17904,7 +17907,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 3,
+   "cleared": 5,
    "tile": "Creatures/sw_cherub_antelope_mechanical.bmp",
    "color": "&C",
    "detail": "W",
@@ -17917,14 +17920,14 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Mechanical_Antelopes_Cherub_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 53.6,
-   "pct_hot": 93.8,
-   "band": "FAIL",
+   "mean_abs_diff": 5.73,
+   "pct_hot": 3.5,
+   "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 160,
+   "dominant_delta": 0,
    "wire_delta": 159
   }
  },
@@ -18044,8 +18047,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'creatures_sw_cherub_baetyl_mechanical'",
-   "no capture pair \u2014 congruence skipped"
+   "wire tile != blueprint tile 'creatures_sw_cherub_baetyl_mechanical'"
   ],
   "stage": {
    "bp": "Mechanical Baetyls Cherub",
@@ -18053,21 +18055,22 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 1,
+   "cleared": 2,
    "tile": "Creatures/sw_cherub_baetyl_mechanical.bmp",
    "color": "&C",
    "detail": "W",
    "name": "mechanical baetyl cherub"
   },
-  "wire_objs": 1,
+  "wire_objs": 2,
   "wire_hex": "77bfcf",
   "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Mechanical_Baetyls_Cherub_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Mechanical_Baetyls_Cherub_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 41.42,
-   "pct_hot": 24.9,
-   "band": "FAIL",
+   "mean_abs_diff": 6.33,
+   "pct_hot": 4.0,
+   "band": "PASS",
    "white_px": [
     0,
     0
@@ -19261,7 +19264,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'creatures_sw_leering_stalker'"
+   "wire tile != blueprint tile 'creatures_wight_agolgot'"
   ],
   "stage": {
    "bp": "Mechanimist Convert",
@@ -19270,27 +19273,27 @@
    "x": 40,
    "y": 12,
    "cleared": 2,
-   "tile": "Creatures/sw_leering_stalker.bmp",
-   "color": "&R",
-   "detail": "R",
-   "name": "{{r|leering stalker}} and Mechanimist convert"
+   "tile": "Creatures/wight_agolgot.bmp",
+   "color": "&g",
+   "detail": "g",
+   "name": "gyre wight of Agolgot and Mechanimist convert"
   },
   "wire_objs": 1,
-  "wire_hex": "d74200",
+  "wire_hex": "009403",
   "shots": {
    "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Mechanimist_Convert_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Mechanimist_Convert_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 35.43,
-   "pct_hot": 32.1,
-   "band": "FAIL",
+   "mean_abs_diff": 3.93,
+   "pct_hot": 2.1,
+   "band": "PASS",
    "white_px": [
     0,
     0
    ],
    "dominant_delta": 0,
-   "wire_delta": 199
+   "wire_delta": 100
   }
  },
  {
@@ -21621,7 +21624,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 1,
+   "cleared": 2,
    "tile": "Creatures/sw_sightless_novice.bmp",
    "color": "&r",
    "detail": "W",
@@ -21634,12 +21637,12 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Novice_of_the_Sightless_Way_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 28.42,
-   "pct_hot": 30.7,
-   "band": "WARN",
+   "mean_abs_diff": 2.3,
+   "pct_hot": 1.9,
+   "band": "PASS",
    "white_px": [
     0,
-    102
+    0
    ],
    "dominant_delta": 0,
    "wire_delta": 150
@@ -21671,12 +21674,12 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Novice_of_the_Sightless_Way_2_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 29.91,
-   "pct_hot": 34.2,
-   "band": "WARN",
+   "mean_abs_diff": 2.32,
+   "pct_hot": 1.9,
+   "band": "PASS",
    "white_px": [
     0,
-    102
+    0
    ],
    "dominant_delta": 0,
    "wire_delta": 150
@@ -22057,7 +22060,8 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'creatures_sw_panhumor'"
+   "wire tile != blueprint tile 'creatures_sw_panhumor'",
+   "no capture pair \u2014 congruence skipped"
   ],
   "stage": {
    "bp": "Panhumor",
@@ -22065,16 +22069,15 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 1,
+   "cleared": 2,
    "tile": "Creatures/sw_panhumor.bmp",
    "color": "&y",
    "detail": "w",
    "name": "{{G|{{Y|salty}} {{G|acid-covered}} panhumor}}"
   },
-  "wire_objs": 2,
+  "wire_objs": 1,
   "wire_hex": "b1c9c3",
   "shots": {
-   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Panhumor_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Panhumor_raves.png"
   },
   "congruence": {
@@ -22102,7 +22105,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 3,
+   "cleared": 2,
    "tile": "Assets_Content_Textures_Creatures_sw_farmer.bmp",
    "color": "&y",
    "detail": "w",
@@ -22115,9 +22118,9 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Pariah_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 30.0,
-   "pct_hot": 32.6,
-   "band": "WARN",
+   "mean_abs_diff": 3.28,
+   "pct_hot": 2.1,
+   "band": "PASS",
    "white_px": [
     0,
     0
@@ -22176,7 +22179,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 0,
+   "cleared": 2,
    "tile": "Assets_Content_Textures_Creatures_sw_farmer.bmp",
    "color": "&y",
    "detail": "w",
@@ -22189,9 +22192,9 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Pariah_Still_Unique_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 38.93,
-   "pct_hot": 35.2,
-   "band": "FAIL",
+   "mean_abs_diff": 16.69,
+   "pct_hot": 18.1,
+   "band": "PASS",
    "white_px": [
     0,
     0
@@ -22594,9 +22597,9 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\PigFarmerConvert_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 55.74,
-   "pct_hot": 52.5,
-   "band": "FAIL",
+   "mean_abs_diff": 5.45,
+   "pct_hot": 3.3,
+   "band": "PASS",
    "white_px": [
     0,
     0
@@ -22647,8 +22650,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'assets_content_textures_creatures_sw_farmer'",
-   "no capture pair \u2014 congruence skipped"
+   "wire tile != blueprint tile 'assets_content_textures_creatures_sw_farmer'"
   ],
   "stage": {
    "bp": "Plant Turret",
@@ -22656,7 +22658,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 13,
+   "cleared": 1,
    "tile": "Assets_Content_Textures_Creatures_sw_farmer.bmp",
    "color": "&g",
    "detail": "w",
@@ -22665,12 +22667,13 @@
   "wire_objs": 1,
   "wire_hex": "009403",
   "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Plant_Turret_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Plant_Turret_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 36.05,
-   "pct_hot": 48.8,
-   "band": "FAIL",
+   "mean_abs_diff": 3.05,
+   "pct_hot": 3.6,
+   "band": "PASS",
    "white_px": [
     0,
     0
@@ -23319,7 +23322,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 4,
+   "cleared": 1,
    "tile": "Creatures/sw_pulsed_field_magnet.bmp",
    "color": "&W",
    "detail": "C",
@@ -23332,9 +23335,9 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Pulsed_Field_Magnet_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 35.54,
-   "pct_hot": 34.2,
-   "band": "FAIL",
+   "mean_abs_diff": 6.94,
+   "pct_hot": 4.6,
+   "band": "PASS",
    "white_px": [
     0,
     0
@@ -26173,14 +26176,14 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Slynth_Wanderer_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 98.56,
-   "pct_hot": 99.4,
-   "band": "FAIL",
+   "mean_abs_diff": 3.16,
+   "pct_hot": 3.4,
+   "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 128,
+   "dominant_delta": 0,
    "wire_delta": 100
   }
  },
@@ -27787,8 +27790,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'creatures_sw_golem_spider'",
-   "no capture pair \u2014 congruence skipped"
+   "wire tile != blueprint tile 'creatures_sw_golem_spider'"
   ],
   "stage": {
    "bp": "Spider Golem",
@@ -27805,12 +27807,13 @@
   "wire_objs": 1,
   "wire_hex": "b1c9c3",
   "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Spider_Golem_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Spider_Golem_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 87.68,
-   "pct_hot": 53.0,
-   "band": "FAIL",
+   "mean_abs_diff": 7.38,
+   "pct_hot": 3.6,
+   "band": "PASS",
    "white_px": [
     0,
     0
@@ -28488,8 +28491,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'creatures_sw_cherub_succulent'",
-   "no capture pair \u2014 congruence skipped"
+   "wire tile != blueprint tile 'creatures_sw_cherub_succulent'"
   ],
   "stage": {
    "bp": "Succulents Cherub",
@@ -28506,15 +28508,16 @@
   "wire_objs": 1,
   "wire_hex": "ffffff",
   "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Succulents_Cherub_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Succulents_Cherub_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 96.7,
-   "pct_hot": 45.2,
-   "band": "FAIL",
+   "mean_abs_diff": 12.67,
+   "pct_hot": 6.2,
+   "band": "PASS",
    "white_px": [
     17,
-    0
+    518
    ],
    "dominant_delta": 0,
    "wire_delta": 239
@@ -28803,9 +28806,9 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Swine_Cherub_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 31.66,
-   "pct_hot": 25.0,
-   "band": "WARN",
+   "mean_abs_diff": 9.91,
+   "pct_hot": 4.8,
+   "band": "PASS",
    "white_px": [
     13,
     734
@@ -28827,7 +28830,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 4,
+   "cleared": 1,
    "tile": "Creatures/sw_golem_swine.png",
    "color": "&y",
    "detail": "w",
@@ -28840,14 +28843,14 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Swine_Golem_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 54.27,
-   "pct_hot": 93.4,
-   "band": "FAIL",
+   "mean_abs_diff": 6.55,
+   "pct_hot": 2.9,
+   "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 96,
+   "dominant_delta": 0,
    "wire_delta": 13
   }
  },
@@ -29012,7 +29015,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 1,
+   "cleared": 2,
    "tile": "Creatures/sw_templar_squire.bmp",
    "color": "&Y",
    "detail": "Y",
@@ -29025,12 +29028,12 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Templar_Squire_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 49.44,
-   "pct_hot": 50.3,
-   "band": "FAIL",
+   "mean_abs_diff": 3.2,
+   "pct_hot": 2.7,
+   "band": "PASS",
    "white_px": [
     0,
-    108
+    116
    ],
    "dominant_delta": 0,
    "wire_delta": 239
@@ -30283,9 +30286,9 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Turret_Tinker_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 38.99,
-   "pct_hot": 31.7,
-   "band": "FAIL",
+   "mean_abs_diff": 2.07,
+   "pct_hot": 1.6,
+   "band": "PASS",
    "white_px": [
     0,
     0
@@ -30357,9 +30360,9 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\TutorialClockworkBeetlePariah_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 29.02,
-   "pct_hot": 37.2,
-   "band": "WARN",
+   "mean_abs_diff": 2.86,
+   "pct_hot": 1.4,
+   "band": "PASS",
    "white_px": [
     0,
     0
@@ -30505,9 +30508,9 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Two-Headed_Slugsnout_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 51.77,
-   "pct_hot": 55.0,
-   "band": "FAIL",
+   "mean_abs_diff": 2.57,
+   "pct_hot": 2.0,
+   "band": "PASS",
    "white_px": [
     0,
     0
@@ -30714,22 +30717,22 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 2,
+   "cleared": 1,
    "tile": "Creatures/sw_templar_leader.bmp",
    "color": "&Y",
    "detail": "Y",
-   "name": "{{M|{{implanted|implanted}} Bavis Hustirent, Knight Commander of the Holy Temple}}"
+   "name": "{{M|{{implanted|implanted}} Odolf Guyvriffrey, Knight Commander of the Holy Temple}}"
   },
-  "wire_objs": 2,
+  "wire_objs": 1,
   "wire_hex": "ffffff",
   "shots": {
    "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Uplifted_Knight_Commander_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Uplifted_Knight_Commander_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 32.49,
-   "pct_hot": 33.6,
-   "band": "WARN",
+   "mean_abs_diff": 24.17,
+   "pct_hot": 24.5,
+   "band": "PASS",
    "white_px": [
     0,
     271
@@ -31053,21 +31056,21 @@
    "detail": "y",
    "name": "urchin cherub"
   },
-  "wire_objs": 2,
+  "wire_objs": 1,
   "wire_hex": "ffffff",
   "shots": {
    "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Urchins_Cherub_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Urchins_Cherub_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 71.98,
-   "pct_hot": 95.1,
-   "band": "FAIL",
+   "mean_abs_diff": 6.88,
+   "pct_hot": 3.1,
+   "band": "PASS",
    "white_px": [
-    0,
+    2,
     316
    ],
-   "dominant_delta": 160,
+   "dominant_delta": 0,
    "wire_delta": 239
   }
  },
@@ -31171,9 +31174,9 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Urshiib_Golem_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 48.84,
-   "pct_hot": 52.6,
-   "band": "FAIL",
+   "mean_abs_diff": 9.45,
+   "pct_hot": 5.0,
+   "band": "PASS",
    "white_px": [
     0,
     0
@@ -31282,14 +31285,14 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\VehicleTemplarMech1_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 48.24,
-   "pct_hot": 74.5,
-   "band": "FAIL",
+   "mean_abs_diff": 6.23,
+   "pct_hot": 5.1,
+   "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 160,
+   "dominant_delta": 0,
    "wire_delta": 137
   }
  },
@@ -31478,14 +31481,16 @@
   "bp": "VehicleTemplarMech2_Unpiloted_EmptyCore",
   "pass": true,
   "reasons": [],
-  "warns": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_templar_mech_1'"
+  ],
   "stage": {
    "bp": "VehicleTemplarMech2_Unpiloted_EmptyCore",
    "ok": true,
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 2,
+   "cleared": 1,
    "tile": "Creatures/sw_templar_mech_1.bmp",
    "color": "&c",
    "detail": "r",
@@ -31498,9 +31503,9 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\VehicleTemplarMech2_Unpiloted_EmptyCore_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 33.24,
-   "pct_hot": 35.3,
-   "band": "WARN",
+   "mean_abs_diff": 4.7,
+   "pct_hot": 3.5,
+   "band": "PASS",
    "white_px": [
     0,
     0
@@ -31598,7 +31603,7 @@
    "tile": "Creatures/sw_templar_mech_big.bmp",
    "color": "&c",
    "detail": "r",
-   "name": "{{M|High Mecha Rightlynot}}"
+   "name": "{{M|High Mecha Surelherine}}"
   },
   "wire_objs": 1,
   "wire_hex": "40a4b9",
@@ -31607,7 +31612,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\VehicleTemplarMech3_Warleader_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 42.14,
+   "mean_abs_diff": 36.64,
    "pct_hot": 39.5,
    "band": "FAIL",
    "white_px": [
@@ -31718,12 +31723,12 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\creatures\\Vines_Cherub_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 31.4,
-   "pct_hot": 24.5,
-   "band": "WARN",
+   "mean_abs_diff": 11.42,
+   "pct_hot": 5.4,
+   "band": "PASS",
    "white_px": [
-    0,
-    0
+    6,
+    445
    ],
    "dominant_delta": 0,
    "wire_delta": 239

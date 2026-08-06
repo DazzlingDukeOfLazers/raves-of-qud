@@ -2607,8 +2607,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Holographic_Dogthorn_Tree_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 41.6,
-   "pct_hot": 45.4,
+   "mean_abs_diff": 40.96,
+   "pct_hot": 43.4,
    "band": "FAIL",
    "white_px": [
     0,
@@ -2901,14 +2901,14 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Jilted_Lover_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 87.48,
-   "pct_hot": 73.9,
+   "mean_abs_diff": 62.24,
+   "pct_hot": 72.9,
    "band": "FAIL",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 224,
+   "dominant_delta": 128,
    "wire_delta": 100
   }
  },
@@ -4145,14 +4145,14 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Prickler_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 92.12,
-   "pct_hot": 77.0,
-   "band": "FAIL",
+   "mean_abs_diff": 16.68,
+   "pct_hot": 2.3,
+   "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 224,
+   "dominant_delta": 32,
    "wire_delta": 191
   }
  },
@@ -4197,7 +4197,9 @@
   "bp": "Qudzu",
   "pass": true,
   "reasons": [],
-  "warns": [],
+  "warns": [
+   "wire tile != blueprint tile 'creatures_sw_qudzu'"
+  ],
   "stage": {
    "bp": "Qudzu",
    "ok": true,
@@ -4217,14 +4219,14 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\plants\\Qudzu_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 87.88,
-   "pct_hot": 73.7,
-   "band": "FAIL",
+   "mean_abs_diff": 4.05,
+   "pct_hot": 3.6,
+   "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 224,
+   "dominant_delta": 0,
    "wire_delta": 150
   }
  },

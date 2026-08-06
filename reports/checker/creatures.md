@@ -1,6 +1,6 @@
 # Object Checker — creatures
 
-896/896 PASS  (2026-08-05 20:12)  pixel: 836 PASS / 15 WARN / 38 FAIL / 7 KNOWN
+896/896 PASS  (2026-08-05 21:54)  pixel: 877 PASS / 3 WARN / 9 FAIL / 7 KNOWN
 
 | element | verdict | px | notes |
 |---|---|---|---|
@@ -51,7 +51,7 @@
 | Barathrumite Arconaut | PASS | PASS 3.9/1% | wire tile != blueprint tile 'creatures_sw_barathrumite' |
 | Barathrumite Arconaut Omonporch | PASS | PASS 3.9/1% |  |
 | Barathrumite Tinker | PASS | PASS 14.8/11% |  |
-| Barathrumite Tinker Omonporch | PASS | FAIL 77.4/97% |  |
+| Barathrumite Tinker Omonporch | PASS | PASS 3.9/1% |  |
 | BarathrumiteRobot | PASS | PASS 5.2/6% | wire tile != blueprint tile 'assets_content_textures_creatures_sw_farmer' |
 | Barkbiter | PASS | PASS 3.5/2% | wire tile != blueprint tile 'creatures_sw_angrybear' |
 | Bat | PASS | PASS 2.1/2% | wire tile != blueprint tile 'assets_content_textures_creatures_sw_bat' |
@@ -225,11 +225,11 @@
 | Dawnglider | PASS | PASS 3.3/2% | wire tile != blueprint tile 'creatures_sw_dawnglider' |
 | Dawnglider Golem | PASS | PASS 6.8/3% | wire tile != blueprint tile 'creatures_sw_golem_dawnglider' |
 | Dawning Ape | PASS | PASS 6.0/2% | wire tile != blueprint tile 'creatures_sw_dawning_ape' |
-| Decarbonizer | PASS | FAIL 86.4/92% | wire tile != blueprint tile 'creatures_sw_decarbonizer' |
+| Decarbonizer | PASS | PASS 5.7/5% | wire tile != blueprint tile 'creatures_sw_decarbonizer' |
 | Deep Slumberling | PASS | PASS 3.6/2% | wire tile != blueprint tile 'creatures_sw_deep_slumberling' |
 | Defanged Girshling | PASS | PASS 3.0/1% | wire tile != blueprint tile 'assets_content_textures_creatures_sw_solifuge' |
 | Delegate | PASS | PASS 7.1/4% | wire tile != blueprint tile 'assets_content_textures_creatures_sw_farmer' |
-| DelegateBears | PASS | FAIL 91.3/88% | wire tile != blueprint tile 'assets_content_textures_creatures_sw_farmer' |
+| DelegateBears | PASS | PASS 3.5/2% | wire tile != blueprint tile 'assets_content_textures_creatures_sw_farmer' |
 | Dervish of the Sightless Way | PASS | PASS 2.8/2% | wire tile != blueprint tile 'creatures_sw_dervish1' |
 | Diplomacy Droid | PASS | PASS 2.5/1% | wire tile != blueprint tile 'creatures_sw_diplomacy_droid' |
 | Disciple of the Sightless Way | PASS | PASS 3.3/2% | wire tile != blueprint tile 'creatures_sw_sightless_disciple' |
@@ -262,7 +262,7 @@
 | ElderBob | PASS | PASS 2.8/2% | wire tile != blueprint tile 'creatures_npc-irudad' |
 | ElderConfusionBreather | PASS | PASS 6.2/5% |  |
 | ElderCorrosiveBreather | PASS | PASS 4.6/5% | wire tile != blueprint tile 'creatures_sw_elder_breather' |
-| ElderFireBreather | PASS | FAIL 46.0/38% | no capture pair — congruence skipped |
+| ElderFireBreather | PASS | PASS 5.8/5% | wire tile != blueprint tile 'creatures_sw_elder_breather' |
 | ElderIceBreather | PASS | PASS 7.6/5% |  |
 | ElderNormalityBreather | PASS | PASS 3.1/1% |  |
 | ElderPoisonBreather | PASS | PASS 4.3/5% |  |
@@ -334,7 +334,7 @@
 | GiantAmoeba | PASS | PASS 3.3/4% | wire tile != blueprint tile 'creatures_sw_amoeba' |
 | GiantDragonfly | PASS | PASS 2.0/1% | wire tile != blueprint tile 'creatures_sw_giantdragonfly' |
 | Girshling | PASS | PASS 2.9/1% | wire tile != blueprint tile 'assets_content_textures_creatures_sw_solifuge' |
-| Girshworm | PASS | FAIL 59.1/91% | wire tile != blueprint tile 'creatures_sw_girshworm' |
+| Girshworm | PASS | PASS 4.6/3% | wire tile != blueprint tile 'creatures_sw_girshworm' |
 | Glittermensch | PASS | PASS 7.3/5% | wire tile != blueprint tile 'creatures_sw_glittermensch' |
 | Glittermensch Boulderer | PASS | PASS 21.2/18% | wire tile != blueprint tile 'creatures_glittermensch-boulderer' |
 | Glittermensch Brainer | PASS | PASS 24.9/22% |  |
@@ -346,7 +346,7 @@
 | Glowpad | PASS | PASS 2.3/1% | wire tile != blueprint tile 'creatures_sw_glowpad' |
 | Goat | PASS | PASS 3.2/2% | wire tile != blueprint tile 'assets_content_textures_creatures_sw_goat' |
 | Goat Golem | PASS | PASS 6.8/3% | wire tile != blueprint tile 'creatures_sw_golem_goat' |
-| Goatfolk | PASS | WARN 27.0/33% | wire tile != blueprint tile 'creatures_sw_goatfolk' |
+| Goatfolk | PASS | PASS 4.6/3% | wire tile != blueprint tile 'creatures_sw_goatfolk' |
 | Goatfolk Bully | PASS | PASS 16.1/16% | wire tile != blueprint tile 'creatures_sw_goatfolk' |
 | Goatfolk Golem | PASS | PASS 17.8/14% | wire tile != blueprint tile 'creatures_sw_golem_goatfolk' |
 | Goatfolk Hero 1 | PASS | PASS 7.0/5% | wire tile != blueprint tile 'creatures_sw_goatfolk_shaman2' |
@@ -359,10 +359,10 @@
 | GoatHerder | PASS | PASS 4.4/2% | wire tile != blueprint tile 'creatures_merchant-2' |
 | Godling | PASS | PASS 6.3/4% | wire tile != blueprint tile 'creatures_chiliad-godling' |
 | Goek | PASS | PASS 4.2/5% | wire tile != blueprint tile 'creatures_sw_yd_elder_svardym_1' |
-| GolgothaSlog | PASS | FAIL 41.6/51% | wire tile != blueprint tile 'creatures_sw_slog' |
+| GolgothaSlog | PASS | PASS 9.7/6% | wire tile != blueprint tile 'creatures_sw_slog' |
 | Gorged Growth | PASS | PASS 4.3/5% | wire tile != blueprint tile 'creatures_sw_moss_monster' |
 | Grand Newfather | PASS | PASS 19.8/17% | wire tile != blueprint tile 'creatures_sw_grand_newfather' |
-| Grand Newfather_Warleader | PASS | FAIL 77.3/41% | wire tile != blueprint tile 'creatures_sw_grand_newfather'; no capture pair — congruence skipped |
+| Grand Newfather_Warleader | PASS | PASS 23.1/23% | wire tile != blueprint tile 'creatures_sw_grand_newfather' |
 | Graverobber | PASS | PASS 8.3/9% |  |
 | Great Magma Crab | PASS | PASS 23.1/22% | wire tile != blueprint tile 'creatures_sw_magmacrab' |
 | Great Saltback | PASS | PASS 5.7/2% | wire tile != blueprint tile 'creatures_sw_tortoise' |
@@ -383,7 +383,7 @@
 | Gyre Wight of Qon | PASS | PASS 9.9/10% | wire tile != blueprint tile 'creatures_wight_qon' |
 | Gyre Wight of Rermadon | PASS | PASS 23.0/29% | wire tile != blueprint tile 'creatures_wight_rermadon' |
 | Gyre Wight of Shug'ruith | PASS | PASS 2.7/1% | wire tile != blueprint tile 'creatures_wight_shugruith' |
-| Gyrohumor | PASS | FAIL 40.4/37% | wire tile != blueprint tile 'creatures_sw_gyrohumor' |
+| Gyrohumor | PASS | WARN 31.7/37% | wire tile != blueprint tile 'creatures_sw_gyrohumor' |
 | Haberdasher | PASS | PASS 4.6/2% | wire tile != blueprint tile 'creatures_merchant-1' |
 | Haddas | PASS | PASS 3.2/3% | wire tile != blueprint tile 'terrain_sw_bigtree1' |
 | Hamilcrab | PASS | PASS 9.4/8% | wire tile != blueprint tile 'creatures_sw_magmacrab' |
@@ -425,19 +425,19 @@
 | HumanTinker3 | PASS | PASS 1.0/0% |  |
 | HumanTinker4 | PASS | PASS 4.5/3% |  |
 | HumanTinker5 | PASS | PASS 16.8/16% | wire tile != blueprint tile 'creatures_caste_21' |
-| HumanTinker6 | PASS | WARN 29.2/27% |  |
+| HumanTinker6 | PASS | PASS 4.5/3% | wire tile != blueprint tile 'creatures_caste_21' |
 | HumanTinker7 | PASS | PASS 4.5/3% |  |
 | HumanTinker8 | PASS | PASS 4.5/3% |  |
 | HumanTinker_Village0 | PASS | PASS 4.5/3% |  |
-| Humor | PASS | FAIL 59.7/99% | wire tile != blueprint tile 'creatures_sw_humor' |
+| Humor | PASS | WARN 26.8/27% | wire tile != blueprint tile 'creatures_sw_humor' |
 | Hyrkhound | PASS | PASS 2.9/2% | wire tile != blueprint tile 'creatures_sw_dog' |
 | Ice frog | PASS | PASS 5.8/3% | wire tile != blueprint tile 'creatures_sw_frog' |
 | IceBreather | PASS | PASS 5.0/3% | wire tile != blueprint tile 'creatures_sw_breather' |
-| IchorMerchant | PASS | FAIL 58.1/90% | wire tile != blueprint tile 'creatures_merchant-3' |
+| IchorMerchant | PASS | PASS 1.4/0% | wire tile != blueprint tile 'creatures_merchant-3' |
 | Ickslug | PASS | PASS 1.4/0% | wire tile != blueprint tile 'creatures_sw_slug' |
 | Infiltrator | PASS | PASS 16.0/13% | wire tile != blueprint tile 'creatures_sw_interdictor' |
-| Insect Golem | PASS | WARN 32.1/50% | wire tile != blueprint tile 'creatures_sw_golem_insect' |
-| Insects Cherub | PASS | FAIL 67.7/48% | wire tile != blueprint tile 'creatures_sw_cherub_insect' |
+| Insect Golem | PASS | PASS 6.4/3% | wire tile != blueprint tile 'creatures_sw_golem_insect' |
+| Insects Cherub | PASS | PASS 9.1/4% | wire tile != blueprint tile 'creatures_sw_cherub_insect' |
 | Intelligence Sap | PASS | PASS 1.4/0% | wire tile != blueprint tile 'creatures_sw_bat2' |
 | Interdictor | PASS | PASS 1.7/0% | wire tile != blueprint tile 'creatures_sw_interdictor' |
 | Irritable Palm | PASS | PASS 17.4/16% | wire tile != blueprint tile 'creatures_sw_palm' |
@@ -446,12 +446,12 @@
 | Iseppa | PASS | PASS 3.7/2% | wire tile != blueprint tile 'creatures_sw_bearman11' |
 | Issachari Raider | PASS | PASS 6.0/2% | wire tile != blueprint tile 'creatures_sw_raider1' |
 | Issachari Rifler | PASS | PASS 11.3/12% | wire tile != blueprint tile 'creatures_sw_raider2' |
-| IssachariConvert | PASS | FAIL 50.5/47% | wire tile != blueprint tile 'creatures_issachari_convert' |
-| Ixlthyxl | PASS | WARN 32.7/38% | wire tile != blueprint tile 'creatures_sw_weird_fish' |
+| IssachariConvert | PASS | PASS 4.3/2% | wire tile != blueprint tile 'creatures_issachari_convert' |
+| Ixlthyxl | PASS | PASS 4.8/3% | wire tile != blueprint tile 'creatures_sw_weird_fish' |
 | Jacobo | PASS | PASS 4.8/3% | wire tile != blueprint tile 'creatures_sw_bearman2' |
 | Jelly Golem | PASS | PASS 6.0/3% | wire tile != blueprint tile 'creatures_sw_golem_jelly' |
 | Jeweler | PASS | PASS 1.0/0% | wire tile != blueprint tile 'creatures_merchant-1' |
-| Jilted Lover | PASS | FAIL 62.3/73% | wire tile != blueprint tile 'assets_content_textures_creatures_sw_plant' |
+| Jilted Lover | PASS | FAIL 62.2/73% | wire tile != blueprint tile 'assets_content_textures_creatures_sw_plant' |
 | Joppa Ray Cat | PASS | PASS 4.2/2% | wire tile != blueprint tile 'creatures_sw_cat' |
 | JoppaFarmerConvert | PASS | PASS 5.3/3% | wire tile != blueprint tile 'creatures_farmer_convert' |
 | Juice Sap | PASS | PASS 2.2/1% | wire tile != blueprint tile 'creatures_sw_bat2' |
@@ -464,7 +464,7 @@
 | Kesehind | PASS | PASS 17.3/16% | wire tile != blueprint tile 'creatures_sw_hindren_3' |
 | Kipper | PASS | PASS 5.5/3% | wire tile != blueprint tile 'items_sw_kipper' |
 | Knight Commander of the Holy Temple | PASS | PASS 20.4/20% | wire tile != blueprint tile 'creatures_sw_templar_leader' |
-| Knight Templar | PASS | WARN 28.7/24% | wire tile != blueprint tile 'creatures_sw_templar' |
+| Knight Templar | PASS | PASS 5.6/4% | wire tile != blueprint tile 'creatures_sw_templar' |
 | Knollworm | PASS | PASS 18.5/29% | wire tile != blueprint tile 'creatures_sw_knollworm' |
 | Krka | PASS | PASS 2.9/4% | wire tile != blueprint tile 'creatures_sw_yd_svardym_2' |
 | Kyakukyan Convert | PASS | PASS 5.7/3% | wire tile != blueprint tile 'creatures_sw_frog' |
@@ -483,18 +483,18 @@
 | LoudSixDayZealot | PASS | PASS 19.4/19% | wire tile != blueprint tile 'creatures_caste_13' |
 | Low-Light Laser Turret Tinker | PASS | PASS 1.0/0% | wire tile != blueprint tile 'creatures_sw_turret_tinker' |
 | Lulihart | PASS | PASS 3.7/2% | wire tile != blueprint tile 'creatures_sw_lulihart' |
-| Madpole | PASS | WARN 28.7/28% | wire tile != blueprint tile 'creatures_sw_madpole' |
+| Madpole | PASS | PASS 5.4/3% | wire tile != blueprint tile 'creatures_sw_madpole' |
 | Mafeo | PASS | PASS 5.7/3% | wire tile != blueprint tile 'creatures_sw_bearman6' |
 | MafeoCopy | PASS | PASS 5.6/3% | wire tile != blueprint tile 'creatures_sw_bearman6' |
 | Mak | PASS | PASS 3.6/4% | wire tile != blueprint tile 'creatures_sw_yd_elder_svardym_2' |
 | Mamon | PASS | PASS 5.0/3% | wire tile != blueprint tile 'creatures_sw_goatfolk_shaman' |
 | Many Eyes | PASS | PASS 5.8/4% | wire tile != blueprint tile 'creatures_sw_galgal_1' |
 | Mayor Nuntu | PASS | PASS 6.5/3% | wire tile != blueprint tile 'creatures_sw_nuntu' |
-| Mechanical Antelopes Cherub | PASS | FAIL 53.6/94% | wire tile != blueprint tile 'creatures_sw_cherub_antelope_mechanical' |
+| Mechanical Antelopes Cherub | PASS | PASS 5.7/4% | wire tile != blueprint tile 'creatures_sw_cherub_antelope_mechanical' |
 | Mechanical Apes Cherub | PASS | PASS 7.2/5% | wire tile != blueprint tile 'creatures_sw_cherub_ape_mechanical' |
 | Mechanical Arachnids Cherub | PASS | PASS 17.9/16% | wire tile != blueprint tile 'creatures_sw_cherub_arachnid_mechanical' |
 | Mechanical Baboons Cherub | PASS | PASS 7.1/5% | wire tile != blueprint tile 'creatures_sw_cherub_baboon_mechanical' |
-| Mechanical Baetyls Cherub | PASS | FAIL 41.4/25% | wire tile != blueprint tile 'creatures_sw_cherub_baetyl_mechanical'; no capture pair — congruence skipped |
+| Mechanical Baetyls Cherub | PASS | PASS 6.3/4% | wire tile != blueprint tile 'creatures_sw_cherub_baetyl_mechanical' |
 | Mechanical Bears Cherub | PASS | PASS 7.4/5% |  |
 | Mechanical Birds Cherub | PASS | PASS 7.0/5% | wire tile != blueprint tile 'creatures_sw_cherub_bird_mechanical' |
 | Mechanical Cannibals Cherub | PASS | PASS 7.1/5% | wire tile != blueprint tile 'creatures_sw_cherub_cannibal_mechanical' |
@@ -527,7 +527,7 @@
 | Mechanimist | PASS | PASS 5.2/2% | wire tile != blueprint tile 'creatures_sw_mechanimist' |
 | Mechanimist Catechist | PASS | PASS 5.0/3% | wire tile != blueprint tile 'creatures_sw_preacher' |
 | Mechanimist Choraler | PASS | PASS 1.9/0% |  |
-| Mechanimist Convert | PASS | FAIL 35.4/32% | wire tile != blueprint tile 'creatures_sw_leering_stalker' |
+| Mechanimist Convert | PASS | PASS 3.9/2% | wire tile != blueprint tile 'creatures_wight_agolgot' |
 | Mechanimist Convert Librarian | PASS | PASS 4.3/2% | wire tile != blueprint tile 'creatures_merchant-1' |
 | Mechanimist Convert NoWander | PASS | PASS 5.5/6% | wire tile != blueprint tile 'creatures_albino-ape' |
 | Mechanimist Convert Pilgrim | PASS | PASS 10.0/12% | wire tile != blueprint tile 'creatures_caste_14' |
@@ -591,8 +591,8 @@
 | Nima Ruda | PASS | PASS 3.0/3% | wire tile != blueprint tile 'creatures_npc-nima-ruda' |
 | Normality Bot | PASS | PASS 4.1/2% | wire tile != blueprint tile 'creatures_sw_scrapbot' |
 | NormalityBreather | PASS | PASS 17.1/13% | wire tile != blueprint tile 'creatures_sw_breather' |
-| Novice of the Sightless Way | PASS | WARN 28.4/31% | wire tile != blueprint tile 'creatures_sw_sightless_novice' |
-| Novice of the Sightless Way 2 | PASS | WARN 29.9/34% | wire tile != blueprint tile 'creatures_sw_sightless_novice' |
+| Novice of the Sightless Way | PASS | PASS 2.3/2% | wire tile != blueprint tile 'creatures_sw_sightless_novice' |
+| Novice of the Sightless Way 2 | PASS | PASS 2.3/2% | wire tile != blueprint tile 'creatures_sw_sightless_novice' |
 | Novice of the Sightless Way 3 | PASS | PASS 7.3/8% | wire tile != blueprint tile 'creatures_sw_sightless_novice' |
 | NPC | PASS | PASS 7.1/4% | wire tile != blueprint tile 'assets_content_textures_creatures_sw_farmer' |
 | OasisGlowpad | PASS | PASS 2.5/1% | wire tile != blueprint tile 'creatures_sw_glowpad' |
@@ -603,10 +603,10 @@
 | Oozes Cherub | PASS | PASS 7.9/4% | wire tile != blueprint tile 'creatures_sw_cherub_ooze' |
 | Otho | PASS | PASS 6.1/2% | wire tile != blueprint tile 'creatures_sw_bearman4' |
 | OthoCopy | PASS | PASS 20.3/16% | wire tile != blueprint tile 'creatures_sw_bearman4' |
-| Panhumor | PASS | FAIL 59.6/59% | wire tile != blueprint tile 'creatures_sw_panhumor' |
-| Pariah | PASS | WARN 30.0/33% | wire tile != blueprint tile 'assets_content_textures_creatures_sw_farmer' |
+| Panhumor | PASS | FAIL 59.6/59% | wire tile != blueprint tile 'creatures_sw_panhumor'; no capture pair — congruence skipped |
+| Pariah | PASS | PASS 3.3/2% | wire tile != blueprint tile 'assets_content_textures_creatures_sw_farmer' |
 | Pariah Still | PASS | PASS 4.0/4% | wire tile != blueprint tile 'assets_content_textures_creatures_sw_farmer' |
-| Pariah Still Unique | PASS | FAIL 38.9/35% | wire tile != blueprint tile 'assets_content_textures_creatures_sw_farmer' |
+| Pariah Still Unique | PASS | PASS 16.7/18% | wire tile != blueprint tile 'assets_content_textures_creatures_sw_farmer' |
 | PariahKeh | PASS | PASS 3.8/3% | wire tile != blueprint tile 'creatures_sw_hindren_5' |
 | PaxKlanq | PASS | PASS 1.0/0% | wire tile != blueprint tile 'creatures_sw_pax_klanq' |
 | PaxKlanq2 | PASS | PASS 17.5/18% | wire tile != blueprint tile 'creatures_sw_pax_klanq' |
@@ -617,9 +617,9 @@
 | Phylactery Squire | PASS | PASS 4.1/3% | wire tile != blueprint tile 'creatures_sw_templar_squire' |
 | Pig | PASS | PASS 3.0/4% | wire tile != blueprint tile 'creatures_sw_boar2' |
 | PigFarmer | PASS | PASS 7.1/4% | wire tile != blueprint tile 'creatures_sw_farmer1' |
-| PigFarmerConvert | PASS | FAIL 55.7/52% | wire tile != blueprint tile 'creatures_farmer_convert' |
+| PigFarmerConvert | PASS | PASS 5.5/3% | wire tile != blueprint tile 'creatures_farmer_convert' |
 | Planished Godhed | PASS | PASS 19.2/20% | wire tile != blueprint tile 'creatures_godhed3' |
-| Plant Turret | PASS | FAIL 36.0/49% | wire tile != blueprint tile 'assets_content_textures_creatures_sw_farmer'; no capture pair — congruence skipped |
+| Plant Turret | PASS | PASS 3.0/4% | wire tile != blueprint tile 'assets_content_textures_creatures_sw_farmer' |
 | Plasma Jelly | PASS | PASS 24.7/18% |  |
 | Plasmatic Girshling | PASS | PASS 2.9/1% | wire tile != blueprint tile 'assets_content_textures_creatures_sw_solifuge' |
 | Plasmatic Girshling Cresh | PASS | PASS 5.8/6% | wire tile != blueprint tile 'items_sw_egg_sac' |
@@ -637,7 +637,7 @@
 | ProsperousHindrenTrader | PASS | PASS 18.6/18% | wire tile != blueprint tile 'creatures_sw_hindren_1' |
 | Psyberneticist | PASS | PASS 2.8/1% | wire tile != blueprint tile 'creatures_sw_psyber' |
 | PsychicSeekerHunter | PASS | PASS 8.2/19% | wire tile != blueprint tile 'creatures_sw_sightless_disciple' |
-| Pulsed Field Magnet | PASS | FAIL 35.5/34% | wire tile != blueprint tile 'creatures_sw_pulsed_field_magnet' |
+| Pulsed Field Magnet | PASS | PASS 6.9/5% | wire tile != blueprint tile 'creatures_sw_pulsed_field_magnet' |
 | Purple Jell | PASS | PASS 6.2/4% | wire tile != blueprint tile 'creatures_sw_amoeba' |
 | Q Girl | PASS | PASS 6.9/3% | wire tile != blueprint tile 'creatures_sw_bearman1' |
 | Qas | PASS | PASS 7.1/5% | wire tile != blueprint tile 'creatures_nephilim_qas' |
@@ -714,7 +714,7 @@
 | Slugsnout | PASS | PASS 17.2/14% | wire tile != blueprint tile 'creatures_sw_boar' |
 | Slumberling | PASS | PASS 12.6/14% | wire tile != blueprint tile 'creatures_sw_slumberling' |
 | Slynth Golem | PASS | PASS 7.0/3% | wire tile != blueprint tile 'creatures_sw_golem_slynth' |
-| Slynth Wanderer | PASS | FAIL 98.6/99% | wire tile != blueprint tile 'creatures_sw_slynth' |
+| Slynth Wanderer | PASS | PASS 3.2/3% | wire tile != blueprint tile 'creatures_sw_slynth' |
 | Snail Golem | PASS | PASS 9.3/5% | wire tile != blueprint tile 'creatures_sw_golem_snail' |
 | SnailFarmer | PASS | PASS 8.6/10% | wire tile != blueprint tile 'creatures_merchant-2' |
 | Snailmother | PASS | PASS 2.8/1% | wire tile != blueprint tile 'creatures_sw_snail' |
@@ -759,7 +759,7 @@
 | SoupSludgeSpawnerTier8 | PASS | PASS 18.9/14% |  |
 | Sparafucile | PASS | PASS 7.1/3% | wire tile != blueprint tile 'creatures_sw_bearman3' |
 | Spark Tick | PASS | PASS 2.5/1% | wire tile != blueprint tile 'creatures_sw_sparktick' |
-| Spider Golem | PASS | FAIL 87.7/53% | wire tile != blueprint tile 'creatures_sw_golem_spider'; no capture pair — congruence skipped |
+| Spider Golem | PASS | PASS 7.4/4% | wire tile != blueprint tile 'creatures_sw_golem_spider' |
 | Spitting Slug | PASS | PASS 2.6/2% |  |
 | Spoken Ionic | PASS | PASS 4.6/2% | wire tile != blueprint tile 'creatures_spoken-ionic' |
 | Star Kraken | PASS | PASS 5.5/3% | wire tile != blueprint tile 'creatures_sw_star_kraken' |
@@ -778,7 +778,7 @@
 | Strip Fly | PASS | PASS 3.6/2% | wire tile != blueprint tile 'creatures_sw_flybot' |
 | StunBreather | PASS | PASS 11.2/12% | wire tile != blueprint tile 'creatures_sw_breather' |
 | Succulent Golem | PASS | PASS 5.7/2% | wire tile != blueprint tile 'creatures_sw_golem_succulent' |
-| Succulents Cherub | PASS | FAIL 96.7/45% | wire tile != blueprint tile 'creatures_sw_cherub_succulent'; no capture pair — congruence skipped |
+| Succulents Cherub | PASS | PASS 12.7/6% | wire tile != blueprint tile 'creatures_sw_cherub_succulent' |
 | Sultan Croc | PASS | PASS 18.7/17% |  |
 | Svardym | PASS | PASS 4.8/5% | wire tile != blueprint tile 'creatures_sw_svardym_hatchling' |
 | Svardym Eld | PASS | PASS 17.9/16% | wire tile != blueprint tile 'creatures_sw_svardym_eld' |
@@ -786,13 +786,13 @@
 | Svardym Hatchling | PASS | PASS 2.8/3% | wire tile != blueprint tile 'creatures_sw_svardym_hatchling' |
 | Svardym Jut | PASS | PASS 3.4/4% | wire tile != blueprint tile 'creatures_sw_svardym_jut' |
 | Svardym Scrounge | PASS | PASS 10.7/14% | wire tile != blueprint tile 'creatures_sw_svardym_scrounge' |
-| Swine Cherub | PASS | WARN 31.7/25% | wire tile != blueprint tile 'creatures_sw_cherub_swine' |
-| Swine Golem | PASS | FAIL 54.3/93% | wire tile != blueprint tile 'creatures_sw_golem_swine' |
+| Swine Cherub | PASS | PASS 9.9/5% | wire tile != blueprint tile 'creatures_sw_cherub_swine' |
+| Swine Golem | PASS | PASS 6.5/3% | wire tile != blueprint tile 'creatures_sw_golem_swine' |
 | Tam | PASS | PASS 15.4/15% | wire tile != blueprint tile 'assets_content_textures_creatures_sw_dromad' |
 | TauNoLonger | PASS | PASS 2.1/2% | wire tile != blueprint tile 'creatures_sw_tau_body' |
 | TauWanderer | PASS | PASS 2.2/2% | wire tile != blueprint tile 'creatures_sw_tau_body' |
 | Templar | PASS | PASS 7.1/4% | wire tile != blueprint tile 'assets_content_textures_creatures_sw_farmer' |
-| Templar Squire | PASS | FAIL 49.4/50% | wire tile != blueprint tile 'creatures_sw_templar_squire' |
+| Templar Squire | PASS | PASS 3.2/3% | wire tile != blueprint tile 'creatures_sw_templar_squire' |
 | TemplarSquireBase | PASS | PASS 7.2/8% | wire tile != blueprint tile 'creatures_sw_templar_squire' |
 | Thah | PASS | PASS 3.5/3% | wire tile != blueprint tile 'creatures_sw_slynth' |
 | Thirst Thistle | PASS | PASS 8.3/4% | wire tile != blueprint tile 'creatures_sw_thirst_thistle' |
@@ -826,19 +826,19 @@
 | TrueKinNPC | PASS | PASS 9.9/8% | wire tile != blueprint tile 'assets_content_textures_creatures_sw_farmer' |
 | Tszappur | PASS | PASS 6.3/3% | wire tile != blueprint tile 'creatures_sw_stranger1' |
 | Turret Golem | PASS | PASS 16.8/12% | wire tile != blueprint tile 'creatures_sw_golem_turret' |
-| Turret Tinker | PASS | FAIL 39.0/32% | wire tile != blueprint tile 'creatures_sw_turret_tinker' |
+| Turret Tinker | PASS | PASS 2.1/2% | wire tile != blueprint tile 'creatures_sw_turret_tinker' |
 | TutorialBear | PASS | PASS 16.7/20% | wire tile != blueprint tile 'creatures_sw_angrybear' |
-| TutorialClockworkBeetlePariah | PASS | WARN 29.0/37% | wire tile != blueprint tile 'creatures_sw_beetle' |
+| TutorialClockworkBeetlePariah | PASS | PASS 2.9/1% | wire tile != blueprint tile 'creatures_sw_beetle' |
 | TutorialSnapjaw | PASS | PASS 1.0/0% | wire tile != blueprint tile 'assets_content_textures_creatures_sw_snapjaw' |
 | Twinning Lamprey | PASS | PASS 18.4/16% | wire tile != blueprint tile 'creatures_sw_lamprey' |
 | Two-Headed Boar | PASS | PASS 3.8/2% | wire tile != blueprint tile 'creatures_sw_twoheadedboar' |
-| Two-Headed Slugsnout | PASS | FAIL 51.8/55% | wire tile != blueprint tile 'creatures_sw_twoheadedboar' |
+| Two-Headed Slugsnout | PASS | PASS 2.6/2% | wire tile != blueprint tile 'creatures_sw_twoheadedboar' |
 | Une | PASS | PASS 3.8/2% | wire tile != blueprint tile 'creatures_sw_une' |
 | Unimax | PASS | PASS 6.4/3% | wire tile != blueprint tile 'creatures_sw_unimax' |
 | Unplanished Godhed | PASS | PASS 5.2/4% | wire tile != blueprint tile 'creatures_godhed1-unplanished' |
 | Uplifted Glowfish | PASS | PASS 8.7/27% | wire tile != blueprint tile 'creatures_sw_glowfish' |
 | Uplifted Glowpad | PASS | PASS 20.9/30% | wire tile != blueprint tile 'creatures_sw_glowpad' |
-| Uplifted Knight Commander | PASS | WARN 32.5/34% | wire tile != blueprint tile 'creatures_sw_templar_leader' |
+| Uplifted Knight Commander | PASS | PASS 24.2/24% | wire tile != blueprint tile 'creatures_sw_templar_leader' |
 | Uplifted Still Gyre Wight of Agolgot | PASS | PASS 18.5/33% | wire tile != blueprint tile 'creatures_wight_agolgot' |
 | Uplifted Still Gyre Wight of Bethsaida | PASS | PASS 6.6/19% | wire tile != blueprint tile 'creatures_wight_bethsaida' |
 | Uplifted Still Gyre Wight of Qas | PASS | PASS 7.8/24% | wire tile != blueprint tile 'creatures_wight_qas' |
@@ -847,25 +847,25 @@
 | Uplifted Still Gyre Wight of Shug'ruith | PASS | PASS 6.5/22% | wire tile != blueprint tile 'creatures_wight_shugruith' |
 | Urchin Belcher | PASS | PASS 4.6/2% | wire tile != blueprint tile 'creatures_sw_urchin_belcher' |
 | Urchin Golem | PASS | PASS 5.0/2% | wire tile != blueprint tile 'creatures_sw_golem_urchin' |
-| Urchins Cherub | PASS | FAIL 72.0/95% | wire tile != blueprint tile 'creatures_sw_cherub_urchin' |
+| Urchins Cherub | PASS | PASS 6.9/3% | wire tile != blueprint tile 'creatures_sw_cherub_urchin' |
 | Urn Porter | PASS | PASS 17.5/13% | wire tile != blueprint tile 'creatures_sw_urnduster' |
 | Urshiib | PASS | PASS 4.0/1% | wire tile != blueprint tile 'creatures_sw_barathrumite' |
-| Urshiib Golem | PASS | FAIL 48.8/53% | wire tile != blueprint tile 'creatures_sw_golem_urshiib' |
+| Urshiib Golem | PASS | PASS 9.4/5% | wire tile != blueprint tile 'creatures_sw_golem_urshiib' |
 | Vaam | PASS | PASS 5.7/3% | wire tile != blueprint tile 'creatures_sw_vaam' |
 | VehicleTemplarMech | PASS | PASS 5.0/4% | wire tile != blueprint tile 'assets_content_textures_creatures_sw_farmer' |
-| VehicleTemplarMech1 | PASS | FAIL 48.2/74% | wire tile != blueprint tile 'creatures_sw_templar_mech_2' |
+| VehicleTemplarMech1 | PASS | PASS 6.2/5% | wire tile != blueprint tile 'creatures_sw_templar_mech_2' |
 | VehicleTemplarMech1_Battle | PASS | PASS 19.4/19% | wire tile != blueprint tile 'creatures_sw_templar_mech_2' |
 | VehicleTemplarMech1_Unpiloted_EmptyCore | PASS | PASS 6.2/5% |  |
 | VehicleTemplarMech1_Unpiloted_LowCore | PASS | PASS 6.3/5% |  |
 | VehicleTemplarMech2 | PASS | PASS 4.7/4% | wire tile != blueprint tile 'creatures_sw_templar_mech_1' |
 | VehicleTemplarMech2_Battle | PASS | PASS 4.7/4% | wire tile != blueprint tile 'creatures_sw_templar_mech_1' |
-| VehicleTemplarMech2_Unpiloted_EmptyCore | PASS | WARN 33.2/35% |  |
+| VehicleTemplarMech2_Unpiloted_EmptyCore | PASS | PASS 4.7/4% | wire tile != blueprint tile 'creatures_sw_templar_mech_1' |
 | VehicleTemplarMech2_Unpiloted_LowCore | PASS | PASS 4.8/4% |  |
 | VehicleTemplarMech3 | PASS | PASS 6.6/5% | wire tile != blueprint tile 'creatures_sw_templar_mech_big' |
-| VehicleTemplarMech3_Warleader | PASS | FAIL 42.1/40% | wire tile != blueprint tile 'creatures_sw_templar_mech_big' |
+| VehicleTemplarMech3_Warleader | PASS | FAIL 36.6/40% | wire tile != blueprint tile 'creatures_sw_templar_mech_big' |
 | VillageZeroConvert | PASS | PASS 5.3/3% | wire tile != blueprint tile 'creatures_farmer_convert' |
 | Vine Golem | PASS | PASS 18.0/15% | wire tile != blueprint tile 'creatures_sw_golem_vine' |
-| Vines Cherub | PASS | WARN 31.4/24% | wire tile != blueprint tile 'creatures_sw_cherub_vine' |
+| Vines Cherub | PASS | PASS 11.4/5% | wire tile != blueprint tile 'creatures_sw_cherub_vine' |
 | Vintner | PASS | PASS 7.2/4% | wire tile != blueprint tile 'assets_content_textures_creatures_sw_farmer' |
 | Vivira | PASS | PASS 19.6/16% | wire tile != blueprint tile 'creatures_sw_chainlaser_emplacement' |
 | Voider | PASS | PASS 3.6/2% | wire tile != blueprint tile 'creatures_sw_voider' |

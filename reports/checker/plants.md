@@ -1,6 +1,6 @@
 # Object Checker — plants
 
-181/181 PASS  (2026-08-05 20:12)  pixel: 172 PASS / 0 WARN / 8 FAIL / 1 KNOWN
+181/181 PASS  (2026-08-05 21:56)  pixel: 174 PASS / 0 WARN / 6 FAIL / 1 KNOWN
 
 | element | verdict | px | notes |
 |---|---|---|---|
@@ -74,7 +74,7 @@
 | Holographic Banana Tree | PASS | PASS 4.4/5% | wire tile != blueprint tile 'terrain_sw_tree_banana_1' |
 | Holographic Beth | PASS | PASS 1.6/1% | wire tile != blueprint tile 'creatures_sw_lurking_beth' |
 | Holographic Dicalyptus Tree | PASS | PASS 5.0/6% | wire tile != blueprint tile 'terrain_sw_bigtree1' |
-| Holographic Dogthorn Tree | PASS | FAIL 41.6/45% | wire tile != blueprint tile 'terrain_sw_fattree2' |
+| Holographic Dogthorn Tree | PASS | FAIL 41.0/43% | wire tile != blueprint tile 'terrain_sw_fattree2' |
 | Holographic Ivory | PASS | PASS 1.6/1% | wire tile != blueprint tile 'creatures_sw_young_ivory' |
 | Holographic Shimscale Mangrove Tree | PASS | PASS 5.0/6% | wire tile != blueprint tile 'terrain_sw_mangrove2' |
 | Holographic Star Palm | PASS | PASS 4.7/5% | wire tile != blueprint tile 'creatures_sw_palm' |
@@ -82,7 +82,7 @@
 | Holographic Ziv Bough | PASS | PASS 1.4/0% | wire tile != blueprint tile 'terrain_sw_warp_wood_2'; no capture pair — congruence skipped |
 | Icosahedar | PASS | PASS 7.5/5% |  |
 | Irritable Palm | PASS | PASS 7.6/5% | wire tile != blueprint tile 'creatures_sw_palm' |
-| Jilted Lover | PASS | FAIL 87.5/74% | wire tile != blueprint tile 'assets_content_textures_creatures_sw_plant' |
+| Jilted Lover | PASS | FAIL 62.2/73% | wire tile != blueprint tile 'assets_content_textures_creatures_sw_plant' |
 | Lagroot | PASS | PASS 1.5/1% | wire tile != blueprint tile 'creatures_sw_lagroot' |
 | Lahbloom | PASS | PASS 7.2/6% | wire tile != blueprint tile 'terrain_sw_lahbloom' |
 | Leafless Dogthorn Tree | PASS | PASS 3.5/3% | wire tile != blueprint tile 'terrain_sw_fattree3' |
@@ -116,9 +116,9 @@
 | Plant Turret | PASS | PASS 5.3/7% | wire tile != blueprint tile 'assets_content_textures_creatures_sw_farmer' |
 | PlasticTree | PASS | PASS 3.8/4% | wire tile != blueprint tile 'items_sw_plastic_tree' |
 | PolypCache | PASS | PASS 9.1/5% | wire tile != blueprint tile 'terrain_sw_sunslag_bulb_odd' |
-| Prickler | PASS | FAIL 92.1/77% | wire tile != blueprint tile 'creatures_sw_prickler' |
+| Prickler | PASS | PASS 16.7/2% | wire tile != blueprint tile 'creatures_sw_prickler' |
 | Psychal Rhythm Rock | PASS | PASS 1.4/0% | wire tile != blueprint tile 'creatures_sw_crystal3'; no capture pair — congruence skipped |
-| Qudzu | PASS | FAIL 87.9/74% |  |
+| Qudzu | PASS | PASS 4.0/4% | wire tile != blueprint tile 'creatures_sw_qudzu' |
 | Red Death Dacca | PASS | PASS 1.9/0% | wire tile != blueprint tile 'creatures_sw_dacca'; no capture pair — congruence skipped |
 | Ring of Moss | PASS | PASS 4.3/6% |  |
 | Root Golem | PASS | PASS 10.6/6% | wire tile != blueprint tile 'creatures_sw_golem_root' |

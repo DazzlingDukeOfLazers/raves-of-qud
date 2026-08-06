@@ -204,14 +204,25 @@ is phase); KNOWN = unverifiable (spawners, multi-cell); FAIL = attributed.
   synthesize the ConveyorPad frame schedule as animFrames so the client
   animates it (the part computes tiles procedurally).
 
-**STATIC-DIVERGENCE TRIAGE LIST — measured static both sides, pixel-FAIL:**
-Switch family (5, s6), HangarWall/Cryochamber/YdFreehold walls, Qudzu,
-Prickler, Holographic Dogthorn, Jilted Lover, plants' Livid Creeper stage,
-Humors, Spider/Swine golems, turrets, Pulsed Field Magnet, Slynth Wanderer,
-DelegateBears, star charts, ScrapChest, Nacham's Loom, HighTech
-installations, NephilimShrine, GritGateBed, Glass Door W, MountedFurniture.
-These are constant rendering differences — the next reflection hunt, likely
-a handful of shared rules (RandomTile variants, unexamined-artifact art on
-furniture, glow overlays).
+**STATIC-DIVERGENCE LIST, RE-MEASURED CLEAN (2026-08-05 late): mostly
+contamination.** The first triage list was read off a rotted zone — staging
+sessions corrupt the world over time (qudzu vines across cells, pacified
+creatures wander off the stage cell, ambient encounters brawl; a stray
+CherubimSpawn variant even killed the player). An 88-element re-probe on a
+fresh golden boot dissolved almost all of it: Qudzu 88→4, ScrapChest 30→3.6,
+CryochamberWallNE (the "white-vs-cyan frame") →4.1, star charts →3.4/3.9,
+HangarWall 47→12, the golems/turrets/installations all single digits.
+Sweeps now guard against this (`--reload-every`, default 150; reboot_rig).
+
+Surviving TRUE static divergences — four elements:
+- Jilted Lover (62, plants AND creatures stagings) — Raves floods a tan
+  background Qud doesn't draw
+- Panhumor (60) — humor family colour/art divergence (Humor/Gyrohumor sit
+  at 27/32 WARN, likely same rule)
+- Holographic Dogthorn Tree (41) — hologram palette handling
+- VehicleTemplarMech3_Warleader (37) — mech variant art
+
+Plus the documented Switch-family design fork (5 switches, ~116, s6) and
+conveyor frame-sync (10 pads, ~104, port backlog).
 
 *Delete sections as addressed (repo ticket lifecycle).*

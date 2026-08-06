@@ -1387,14 +1387,16 @@
   "bp": "CryochamberWallNE",
   "pass": true,
   "reasons": [],
-  "warns": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_vent'"
+  ],
   "stage": {
    "bp": "CryochamberWallNE",
    "ok": true,
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 3,
+   "cleared": 1,
    "tile": "Items/sw_vent.bmp",
    "color": "^y&c",
    "detail": "y",
@@ -1407,14 +1409,14 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\CryochamberWallNE_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 56.03,
-   "pct_hot": 50.0,
-   "band": "FAIL",
+   "mean_abs_diff": 4.09,
+   "pct_hot": 3.1,
+   "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 128,
+   "dominant_delta": 0,
    "wire_delta": null
   }
  },
@@ -3018,8 +3020,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'assets_content_textures_walls2_wall_slash-00000000'",
-   "no capture pair \u2014 congruence skipped"
+   "wire tile != blueprint tile 'assets_content_textures_walls2_wall_slash-00000000'"
   ],
   "stage": {
    "bp": "HangarWall",
@@ -3036,18 +3037,19 @@
   "wire_objs": 1,
   "wire_hex": "ffffff",
   "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\HangarWall_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\HangarWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 47.38,
-   "pct_hot": 26.0,
-   "band": "FAIL",
+   "mean_abs_diff": 12.06,
+   "pct_hot": 8.3,
+   "band": "PASS",
    "white_px": [
     14,
-    0
+    236
    ],
-   "dominant_delta": 160,
-   "wire_delta": 239
+   "dominant_delta": 0,
+   "wire_delta": 79
   }
  },
  {
@@ -8341,26 +8343,26 @@
    "y": 12,
    "cleared": 1,
    "tile": "Assets_Content_Textures_Tiles_wall_metal-00000000.bmp",
-   "color": "&B^y",
+   "color": "&y^y",
    "detail": "y",
    "name": "{{graffitied|graffitied}} crysteel plate shear wall with piping"
   },
   "wire_objs": 1,
-  "wire_hex": "0096ff",
+  "wire_hex": "b1c9c3",
   "shots": {
    "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\YdFreeholdCrysteelPlatedWallWithPipes_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\YdFreeholdCrysteelPlatedWallWithPipes_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 79.68,
-   "pct_hot": 55.9,
-   "band": "FAIL",
+   "mean_abs_diff": 9.5,
+   "pct_hot": 4.5,
+   "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 192,
-   "wire_delta": 16
+   "dominant_delta": 0,
+   "wire_delta": 13
   }
  }
 ]

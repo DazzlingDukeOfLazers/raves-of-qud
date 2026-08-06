@@ -1,6 +1,6 @@
 # Object Checker — walls
 
-229/229 PASS  (2026-08-05 20:12)  pixel: 224 PASS / 0 WARN / 5 FAIL
+229/229 PASS  (2026-08-05 21:57)  pixel: 227 PASS / 0 WARN / 2 FAIL
 
 | element | verdict | px | notes |
 |---|---|---|---|
@@ -42,7 +42,7 @@
 | CryochamberPlaqueYempris | PASS | PASS 6.9/3% |  |
 | CryochamberWall | PASS | PASS 4.2/3% | wire tile != blueprint tile 'items_sw_vent' |
 | CryochamberWallBroken | PASS | PASS 4.1/3% | wire tile != blueprint tile 'items_sw_vent' |
-| CryochamberWallNE | PASS | FAIL 56.0/50% |  |
+| CryochamberWallNE | PASS | PASS 4.1/3% | wire tile != blueprint tile 'items_sw_vent' |
 | CryochamberWallNW | PASS | PASS 4.0/3% |  |
 | CryochamberWallSE | PASS | PASS 4.2/3% |  |
 | CryochamberWallSW | PASS | PASS 4.1/3% |  |
@@ -87,7 +87,7 @@
 | HalfWall | PASS | PASS 2.0/1% | wire tile != blueprint tile 'assets_content_textures_tiles2_half-wall_' |
 | HalfWall_Aquamarine | PASS | PASS 2.0/1% | wire tile != blueprint tile 'assets_content_textures_tiles2_half-wall_' |
 | Halite | PASS | PASS 16.6/8% | wire tile != blueprint tile 'assets_content_textures_tiles_wall_marble-00000000' |
-| HangarWall | PASS | FAIL 47.4/26% | wire tile != blueprint tile 'assets_content_textures_walls2_wall_slash-00000000'; no capture pair — congruence skipped |
+| HangarWall | PASS | PASS 12.1/8% | wire tile != blueprint tile 'assets_content_textures_walls2_wall_slash-00000000' |
 | HGlassWall | PASS | PASS 7.4/3% | wire tile != blueprint tile 'assets_content_textures_tiles2_glass_' |
 | HighCapacityWiredEbonFulcrete | PASS | PASS 8.8/5% | wire tile != blueprint tile 'assets_content_textures_tiles_wall_mud-00000000' |
 | HighCapacityWiredEbonFulcretePowerGenerator | PASS | PASS 8.8/5% | wire tile != blueprint tile 'assets_content_textures_tiles_wall_mud-00000000' |
@@ -232,4 +232,4 @@
 | WornWoodWall | PASS | PASS 7.1/7% | wire tile != blueprint tile 'assets_content_textures_walls_wall_wood_worn-00000000' |
 | WornWoodWall with Mask | PASS | PASS 11.0/7% | wire tile != blueprint tile 'assets_content_textures_walls_wall_wood_worn-00000000' |
 | Yd ColumbariumWall | PASS | PASS 7.8/4% | wire tile != blueprint tile 'assets_content_textures_walls_wall_filigree-00000000' |
-| YdFreeholdCrysteelPlatedWallWithPipes | PASS | FAIL 79.7/56% | wire tile != blueprint tile 'assets_content_textures_tiles_wall_metal-00000000' |
+| YdFreeholdCrysteelPlatedWallWithPipes | PASS | PASS 9.5/4% | wire tile != blueprint tile 'assets_content_textures_tiles_wall_metal-00000000' |

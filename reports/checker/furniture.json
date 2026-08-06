@@ -2085,7 +2085,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\Bubblething_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 30.28,
+   "mean_abs_diff": 30.25,
    "pct_hot": 25.1,
    "band": "WARN",
    "white_px": [
@@ -3689,8 +3689,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\ConveyorPad_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 97.59,
-   "pct_hot": 84.1,
+   "mean_abs_diff": 103.99,
+   "pct_hot": 78.1,
    "band": "FAIL",
    "white_px": [
     0,
@@ -3724,7 +3724,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\ConveyorPadE_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 104.03,
+   "mean_abs_diff": 104.07,
    "pct_hot": 78.1,
    "band": "FAIL",
    "white_px": [
@@ -3759,7 +3759,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\ConveyorPadN_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 104.05,
+   "mean_abs_diff": 104.04,
    "pct_hot": 78.1,
    "band": "FAIL",
    "white_px": [
@@ -3774,7 +3774,9 @@
   "bp": "ConveyorPadS",
   "pass": true,
   "reasons": [],
-  "warns": [],
+  "warns": [
+   "no capture pair \u2014 congruence skipped"
+  ],
   "stage": {
    "bp": "ConveyorPadS",
    "ok": true,
@@ -3790,7 +3792,6 @@
   "wire_objs": 1,
   "wire_hex": "155352",
   "shots": {
-   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\ConveyorPadS_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\ConveyorPadS_raves.png"
   },
   "congruence": {
@@ -3829,7 +3830,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\ConveyorPadW_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 104.08,
+   "mean_abs_diff": 104.0,
    "pct_hot": 78.1,
    "band": "FAIL",
    "white_px": [
@@ -3901,8 +3902,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\CrematoryConveyorPad_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 99.61,
-   "pct_hot": 85.0,
+   "mean_abs_diff": 104.03,
+   "pct_hot": 78.1,
    "band": "FAIL",
    "white_px": [
     0,
@@ -3916,7 +3917,9 @@
   "bp": "CrematoryConveyorPadE",
   "pass": true,
   "reasons": [],
-  "warns": [],
+  "warns": [
+   "no capture pair \u2014 congruence skipped"
+  ],
   "stage": {
    "bp": "CrematoryConveyorPadE",
    "ok": true,
@@ -3932,7 +3935,6 @@
   "wire_objs": 1,
   "wire_hex": "155352",
   "shots": {
-   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\CrematoryConveyorPadE_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\CrematoryConveyorPadE_raves.png"
   },
   "congruence": {
@@ -3971,7 +3973,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\CrematoryConveyorPadN_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 104.07,
+   "mean_abs_diff": 103.91,
    "pct_hot": 78.1,
    "band": "FAIL",
    "white_px": [
@@ -4006,7 +4008,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\CrematoryConveyorPadS_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 104.05,
+   "mean_abs_diff": 104.03,
    "pct_hot": 78.1,
    "band": "FAIL",
    "white_px": [
@@ -4041,7 +4043,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\CrematoryConveyorPadW_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 104.0,
+   "mean_abs_diff": 103.99,
    "pct_hot": 78.1,
    "band": "FAIL",
    "white_px": [
@@ -4596,7 +4598,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\DisabledSwitch_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 116.55,
+   "mean_abs_diff": 116.44,
    "pct_hot": 77.1,
    "band": "FAIL",
    "white_px": [
@@ -4929,7 +4931,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\DoorSwitch_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 113.29,
+   "mean_abs_diff": 113.17,
    "pct_hot": 75.0,
    "band": "FAIL",
    "white_px": [
@@ -6964,7 +6966,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\Electrothing_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 29.9,
+   "mean_abs_diff": 29.87,
    "pct_hot": 30.6,
    "band": "WARN",
    "white_px": [
@@ -7001,7 +7003,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\ElevatorSwitch_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 116.36,
+   "mean_abs_diff": 116.35,
    "pct_hot": 77.1,
    "band": "FAIL",
    "white_px": [
@@ -7848,9 +7850,9 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\Gas_Burner_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 31.64,
-   "pct_hot": 32.4,
-   "band": "WARN",
+   "mean_abs_diff": 4.12,
+   "pct_hot": 2.8,
+   "band": "PASS",
    "white_px": [
     0,
     0
@@ -7975,8 +7977,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'tiles2_sw_gate_glass_w_closed'",
-   "no capture pair \u2014 congruence skipped"
+   "wire tile != blueprint tile 'tiles2_sw_gate_glass_w_closed'"
   ],
   "stage": {
    "bp": "Glass Door W",
@@ -7993,15 +7994,16 @@
   "wire_objs": 1,
   "wire_hex": "ffffff",
   "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\Glass_Door_W_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\Glass_Door_W_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 55.24,
-   "pct_hot": 26.2,
-   "band": "FAIL",
+   "mean_abs_diff": 5.87,
+   "pct_hot": 2.6,
+   "band": "PASS",
    "white_px": [
     0,
-    0
+    194
    ],
    "dominant_delta": 0,
    "wire_delta": 239
@@ -8929,8 +8931,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_bed'",
-   "no capture pair \u2014 congruence skipped"
+   "wire tile != blueprint tile 'items_sw_bed'"
   ],
   "stage": {
    "bp": "GritGateBed",
@@ -8947,15 +8948,16 @@
   "wire_objs": 1,
   "wire_hex": "98875f",
   "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\GritGateBed_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\GritGateBed_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 82.45,
-   "pct_hot": 47.7,
-   "band": "FAIL",
+   "mean_abs_diff": 5.81,
+   "pct_hot": 3.9,
+   "band": "PASS",
    "white_px": [
     0,
-    0
+    376
    ],
    "dominant_delta": 0,
    "wire_delta": 136
@@ -10344,9 +10346,9 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\HighTechInstallation_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 34.83,
-   "pct_hot": 29.1,
-   "band": "FAIL",
+   "mean_abs_diff": 11.45,
+   "pct_hot": 13.6,
+   "band": "PASS",
    "white_px": [
     0,
     0
@@ -10786,9 +10788,9 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\Hydraulic_Ring_Gate_3_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 27.8,
-   "pct_hot": 33.8,
-   "band": "WARN",
+   "mean_abs_diff": 20.07,
+   "pct_hot": 16.0,
+   "band": "PASS",
    "white_px": [
     0,
     0
@@ -11169,7 +11171,10 @@
   "bp": "Industrial Fan South",
   "pass": true,
   "reasons": [],
-  "warns": [],
+  "warns": [
+   "wire tile != blueprint tile 'tiles2_sw_fan_3'",
+   "no capture pair \u2014 congruence skipped"
+  ],
   "stage": {
    "bp": "Industrial Fan South",
    "ok": true,
@@ -11185,7 +11190,6 @@
   "wire_objs": 1,
   "wire_hex": "40a4b9",
   "shots": {
-   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\Industrial_Fan_South_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\Industrial_Fan_South_raves.png"
   },
   "congruence": {
@@ -14593,9 +14597,9 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\MountedFurniture_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 34.8,
-   "pct_hot": 29.2,
-   "band": "FAIL",
+   "mean_abs_diff": 11.47,
+   "pct_hot": 13.6,
+   "band": "PASS",
    "white_px": [
     0,
     0
@@ -15147,9 +15151,9 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\Nacham_s_Loom_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 34.86,
-   "pct_hot": 32.6,
-   "band": "FAIL",
+   "mean_abs_diff": 8.5,
+   "pct_hot": 6.6,
+   "band": "PASS",
    "white_px": [
     0,
     0
@@ -15219,9 +15223,9 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\NephilimShrine_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 34.33,
-   "pct_hot": 32.0,
-   "band": "FAIL",
+   "mean_abs_diff": 13.9,
+   "pct_hot": 18.7,
+   "band": "PASS",
    "white_px": [
     0,
     0
@@ -18762,8 +18766,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'assets_content_textures_tiles_sw_chest'",
-   "no capture pair \u2014 congruence skipped"
+   "wire tile != blueprint tile 'assets_content_textures_tiles_sw_chest'"
   ],
   "stage": {
    "bp": "ScrapChest",
@@ -18780,12 +18783,13 @@
   "wire_objs": 1,
   "wire_hex": "98875f",
   "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\ScrapChest_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\ScrapChest_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 43.58,
-   "pct_hot": 34.0,
-   "band": "FAIL",
+   "mean_abs_diff": 3.59,
+   "pct_hot": 2.0,
+   "band": "PASS",
    "white_px": [
     0,
     0
@@ -19219,9 +19223,9 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\Sign_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 29.36,
-   "pct_hot": 28.3,
-   "band": "WARN",
+   "mean_abs_diff": 12.19,
+   "pct_hot": 18.5,
+   "band": "PASS",
    "white_px": [
     0,
     0
@@ -19420,8 +19424,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_couch_r'",
-   "no capture pair \u2014 congruence skipped"
+   "wire tile != blueprint tile 'items_sw_couch_r'"
   ],
   "stage": {
    "bp": "Sofa R",
@@ -19438,12 +19441,13 @@
   "wire_objs": 1,
   "wire_hex": "009403",
   "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\Sofa_R_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\Sofa_R_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 33.1,
-   "pct_hot": 30.7,
-   "band": "WARN",
+   "mean_abs_diff": 2.5,
+   "pct_hot": 2.6,
+   "band": "PASS",
    "white_px": [
     0,
     0
@@ -19609,7 +19613,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 2,
+   "cleared": 1,
    "tile": "",
    "color": "&y",
    "detail": "",
@@ -19622,9 +19626,9 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\SolidHighTechInstallation_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 34.83,
-   "pct_hot": 29.0,
-   "band": "FAIL",
+   "mean_abs_diff": 11.52,
+   "pct_hot": 13.7,
+   "band": "PASS",
    "white_px": [
     0,
     0
@@ -20214,9 +20218,9 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\Star_Carousel_Star_Chart_C_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 38.71,
-   "pct_hot": 32.5,
-   "band": "FAIL",
+   "mean_abs_diff": 3.4,
+   "pct_hot": 3.3,
+   "band": "PASS",
    "white_px": [
     0,
     0
@@ -20251,9 +20255,9 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\Star_Carousel_Star_Chart_L_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 53.24,
-   "pct_hot": 42.8,
-   "band": "FAIL",
+   "mean_abs_diff": 3.93,
+   "pct_hot": 3.8,
+   "band": "PASS",
    "white_px": [
     0,
     0
@@ -22984,7 +22988,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\Switch_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 116.39,
+   "mean_abs_diff": 116.46,
    "pct_hot": 77.1,
    "band": "FAIL",
    "white_px": [
@@ -24419,9 +24423,9 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\furniture\\Va_am_s_Blower_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 30.43,
-   "pct_hot": 28.8,
-   "band": "WARN",
+   "mean_abs_diff": 11.38,
+   "pct_hot": 8.5,
+   "band": "PASS",
    "white_px": [
     0,
     0

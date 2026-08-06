@@ -1,6 +1,6 @@
 # Object Checker — furniture
 
-745/745 PASS  (2026-08-05 20:12)  pixel: 688 PASS / 8 WARN / 36 FAIL / 12 KNOWN / 1 ANIM
+745/745 PASS  (2026-08-05 21:56)  pixel: 703 PASS / 3 WARN / 26 FAIL / 12 KNOWN / 1 ANIM
 
 | element | verdict | px | notes |
 |---|---|---|---|
@@ -60,7 +60,7 @@
 | Brinestalk Gate | PASS | PASS 5.5/5% | wire tile != blueprint tile 'items_sw_fence_gates_2_open' |
 | Broadcast Power Station | PASS | PASS 9.5/4% | wire tile != blueprint tile 'items_sw_broadcast_station' |
 | Broken Industrial Fan | PASS | PASS 22.2/23% | wire tile != blueprint tile 'tiles2_sw_fan_3' |
-| Bubblething | PASS | WARN 30.3/25% | wire tile != blueprint tile 'items_sw_bubblething' |
+| Bubblething | PASS | WARN 30.2/25% | wire tile != blueprint tile 'items_sw_bubblething' |
 | Bust of K4K5 | PASS | PASS 20.5/22% | wire tile != blueprint tile 'items_sw_bust1' |
 | Bust of Mehmet I | PASS | PASS 5.5/3% | wire tile != blueprint tile 'items_sw_bust2' |
 | Cage | PASS | PASS 8.8/5% | wire tile != blueprint tile 'furniture_sw_cage' |
@@ -104,15 +104,15 @@
 | Clockthing_QGirl | PASS | PASS 5.3/3% | wire tile != blueprint tile 'items_sw_clockthing' |
 | Clue_VillageStores | PASS | PASS 3.6/2% | wire tile != blueprint tile 'assets_content_textures_tiles_sw_chest' |
 | ConveyorDrive | PASS | PASS 6.8/4% | wire tile != blueprint tile 'items_sw_gears2' |
-| ConveyorPad | PASS | FAIL 97.6/84% |  |
-| ConveyorPadE | PASS | FAIL 104.0/78% |  |
+| ConveyorPad | PASS | FAIL 104.0/78% |  |
+| ConveyorPadE | PASS | FAIL 104.1/78% |  |
 | ConveyorPadN | PASS | FAIL 104.0/78% |  |
-| ConveyorPadS | PASS | FAIL 104.0/78% |  |
-| ConveyorPadW | PASS | FAIL 104.1/78% |  |
+| ConveyorPadS | PASS | FAIL 104.0/78% | no capture pair — congruence skipped |
+| ConveyorPadW | PASS | FAIL 104.0/78% |  |
 | Crematory Liquid-Cooled Unicomputer | PASS | FAIL 59.9/42% | wire tile != blueprint tile 'items_sw_computer' |
-| CrematoryConveyorPad | PASS | FAIL 99.6/85% |  |
-| CrematoryConveyorPadE | PASS | FAIL 104.1/78% |  |
-| CrematoryConveyorPadN | PASS | FAIL 104.1/78% |  |
+| CrematoryConveyorPad | PASS | FAIL 104.0/78% |  |
+| CrematoryConveyorPadE | PASS | FAIL 104.1/78% | no capture pair — congruence skipped |
+| CrematoryConveyorPadN | PASS | FAIL 103.9/78% |  |
 | CrematoryConveyorPadS | PASS | FAIL 104.0/78% |  |
 | CrematoryConveyorPadW | PASS | FAIL 104.0/78% |  |
 | CrematoryMachineRoomBookshelf | PASS | PASS 6.3/6% | wire tile != blueprint tile 'items_sw_bookshelf3' |
@@ -129,7 +129,7 @@
 | Death Gate E | PASS | PASS 9.8/7% | wire tile != blueprint tile 'tiles2_sw_deathgate_e' |
 | Death Gate W | PASS | PASS 10.3/8% | wire tile != blueprint tile 'tiles2_sw_deathgate_w' |
 | Desk | PASS | PASS 3.0/2% | wire tile != blueprint tile 'items_sw_table_desk' |
-| DisabledSwitch | PASS | FAIL 116.5/77% | wire tile != blueprint tile 'terrain_sw_switch' |
+| DisabledSwitch | PASS | FAIL 116.4/77% | wire tile != blueprint tile 'terrain_sw_switch' |
 | DiscSign1 | PASS | PASS 3.7/4% | wire tile != blueprint tile 'items_sw_sign_datadisc' |
 | DiscSign2 | PASS | PASS 3.7/4% | wire tile != blueprint tile 'items_sw_sign_datadisc' |
 | DiscSign3 | PASS | PASS 3.6/4% |  |
@@ -138,7 +138,7 @@
 | Dock Door S | PASS | PASS 14.8/6% | wire tile != blueprint tile 'tiles_sw_door2_metal_bottom' |
 | Door | PASS | PASS 9.3/5% | odd tilecolor 'y'; wire tile != blueprint tile 'tiles_sw_door_basic' |
 | Door Golem | PASS | PASS 4.5/2% | odd tilecolor 'y'; wire tile != blueprint tile 'creatures_sw_golem_door' |
-| DoorSwitch | PASS | FAIL 113.3/75% | wire tile != blueprint tile 'terrain_sw_switch2' |
+| DoorSwitch | PASS | FAIL 113.2/75% | wire tile != blueprint tile 'terrain_sw_switch2' |
 | Door_GritGateRank1 | PASS | PASS 8.6/5% | wire tile != blueprint tile 'tiles_sw_door_basic' |
 | Door_GritGateRank2 | PASS | PASS 8.6/5% | wire tile != blueprint tile 'tiles_sw_door_basic' |
 | Double Door | PASS | PASS 9.2/5% |  |
@@ -194,7 +194,7 @@
 | EaterGreatMachineShrine W | PASS | PASS 8.3/4% | wire tile != blueprint tile 'furniture_great-machine-shrine-w' |
 | Electric Generator | PASS | PASS 6.6/6% | wire tile != blueprint tile 'furniture_generator' |
 | Electrothing | PASS | WARN 29.9/31% | wire tile != blueprint tile 'items_sw_electrothing' |
-| ElevatorSwitch | PASS | FAIL 116.4/77% | wire tile != blueprint tile 'terrain_sw_switch' |
+| ElevatorSwitch | PASS | FAIL 116.3/77% | wire tile != blueprint tile 'terrain_sw_switch' |
 | Ergomax Chair | PASS | PASS 4.7/2% | wire tile != blueprint tile 'items_sw_chair_ergo' |
 | Exit Teleporter | PASS | PASS 8.0/6% | wire tile != blueprint tile 'items_sw_teleporter_pad' |
 | EzraOven | PASS | PASS 5.5/5% | wire tile != blueprint tile 'items_sw_oven' |
@@ -217,11 +217,11 @@
 | Fused Security Door | PASS | PASS 12.3/6% | wire tile != blueprint tile 'items_sw_fused_door' |
 | Fusion Power Station | PASS | PASS 6.7/5% | wire tile != blueprint tile 'items_sw_fusion_power_station' |
 | Fusion Pumping Station | PASS | PASS 13.9/11% | wire tile != blueprint tile 'items_sw_fusion_pumping_station' |
-| Gas Burner | PASS | WARN 31.6/32% | wire tile != blueprint tile 'items_sw_titrator' |
+| Gas Burner | PASS | PASS 4.1/3% | wire tile != blueprint tile 'items_sw_titrator' |
 | Gate | PASS | PASS 5.6/5% | wire tile != blueprint tile 'items_sw_fence_gates_2_open' |
 | Glass Door | PASS | PASS 8.6/5% | wire tile != blueprint tile 'tiles_sw_door_basic' |
 | Glass Door E | PASS | PASS 8.0/4% | wire tile != blueprint tile 'tiles2_sw_gate_glass_e_closed' |
-| Glass Door W | PASS | FAIL 55.2/26% | wire tile != blueprint tile 'tiles2_sw_gate_glass_w_closed'; no capture pair — congruence skipped |
+| Glass Door W | PASS | PASS 5.9/3% | wire tile != blueprint tile 'tiles2_sw_gate_glass_w_closed' |
 | Glass Furnace | PASS | PASS 11.9/6% |  |
 | Glass Printer | PASS | PASS 7.2/3% | wire tile != blueprint tile 'items_sw_glass_cube' |
 | GlassDoorE_GritGateRank2 | PASS | PASS 8.0/4% | wire tile != blueprint tile 'tiles2_sw_gate_glass_e_closed' |
@@ -247,7 +247,7 @@
 | Grit Gate Metal Table | PASS | PASS 2.9/2% | wire tile != blueprint tile 'items_sw_table_metal_full' |
 | Grit Gate Sleek Table | PASS | PASS 2.9/1% | wire tile != blueprint tile 'items_sw_table_sleek_full' |
 | Grit Gate Table | PASS | PASS 2.2/1% | wire tile != blueprint tile 'assets_content_textures_tiles_sw_table' |
-| GritGateBed | PASS | FAIL 82.5/48% | wire tile != blueprint tile 'items_sw_bed'; no capture pair — congruence skipped |
+| GritGateBed | PASS | PASS 5.8/4% | wire tile != blueprint tile 'items_sw_bed' |
 | GritGateBookshelf | PASS | PASS 6.6/6% |  |
 | GritGateBookshelf_Kitchen | PASS | PASS 6.3/6% | wire tile != blueprint tile 'items_sw_bookshelf3' |
 | GritGateBroadcastPowerStation | PASS | PASS 9.5/4% | wire tile != blueprint tile 'items_sw_broadcast_station' |
@@ -285,7 +285,7 @@
 | HatSign2 | PASS | PASS 3.8/4% | wire tile != blueprint tile 'items_sw_sign_hat' |
 | HatSign3 | PASS | PASS 3.9/4% |  |
 | HeavyPowerLine | PASS | PASS 1.0/0% | wire tile != blueprint tile 'assets_content_textures_tiles_sw_wire_' |
-| HighTechInstallation | PASS | FAIL 34.8/29% |  |
+| HighTechInstallation | PASS | PASS 11.4/14% |  |
 | hologram of Shekhinah | PASS | PASS 3.3/3% | wire tile != blueprint tile 'items_sw_shekhinah_hologram' |
 | HologramCircle | PASS | PASS 1.7/1% | wire tile != blueprint tile 'furniture_hologram-circle' |
 | Hookah | PASS | PASS 4.4/4% | wire tile != blueprint tile 'items_sw_hookah' |
@@ -297,7 +297,7 @@
 | Hydraulic Press | PASS | PASS 11.8/9% | wire tile != blueprint tile 'items_sw_hydraulic_press' |
 | Hydraulic Ring Gate 1 | PASS | PASS 23.1/18% | wire tile != blueprint tile 'items_sw_ring_gate_1_off' |
 | Hydraulic Ring Gate 2 | PASS | PASS 15.3/23% | wire tile != blueprint tile 'items_sw_ring_gate_2_off' |
-| Hydraulic Ring Gate 3 | PASS | WARN 27.8/34% | wire tile != blueprint tile 'items_sw_ring_gate_3_off' |
+| Hydraulic Ring Gate 3 | PASS | PASS 20.1/16% | wire tile != blueprint tile 'items_sw_ring_gate_3_off' |
 | Hydraulic Turbine | PASS | PASS 6.6/5% | wire tile != blueprint tile 'items_sw_thermoelectric_turbine' |
 | HydroponBookshelf | PASS | PASS 6.3/6% | wire tile != blueprint tile 'items_sw_bookshelf3' |
 | Hyperbiotic Bed | PASS | PASS 7.3/4% | wire tile != blueprint tile 'items_sw_bed_hyperbiotic' |
@@ -308,7 +308,7 @@
 | Induction Charging Station | PASS | PASS 3.3/2% | wire tile != blueprint tile 'items_sw_induction_station' |
 | Industrial Fan | PASS | PASS 22.0/17% | wire tile != blueprint tile 'tiles2_sw_fan_3' |
 | Industrial Fan North | PASS | PASS 6.5/4% | wire tile != blueprint tile 'tiles2_sw_fan_3' |
-| Industrial Fan South | PASS | WARN 28.1/22% |  |
+| Industrial Fan South | PASS | WARN 28.1/22% | wire tile != blueprint tile 'tiles2_sw_fan_3'; no capture pair — congruence skipped |
 | Infested Starship Platform N | PASS | PASS 24.9/9% | wire tile != blueprint tile 'furniture_dock-platform-n' |
 | Infested Starship Platform S | PASS | PASS 25.1/8% | wire tile != blueprint tile 'furniture_dock-platform-s' |
 | Infrastructure Golem | PASS | PASS 9.0/4% | wire tile != blueprint tile 'creatures_sw_golem_infrastructure' |
@@ -401,7 +401,7 @@
 | Millstone | PASS | PASS 6.7/4% | wire tile != blueprint tile 'items_sw_millstone_1' |
 | MopangoOven | PASS | PASS 9.9/5% | wire tile != blueprint tile 'items_sw_oven' |
 | Moted Lamp | PASS | PASS 2.3/1% | wire tile != blueprint tile 'furniture_moted-lamp' |
-| MountedFurniture | PASS | FAIL 34.8/29% |  |
+| MountedFurniture | PASS | PASS 11.5/14% |  |
 | Mover Chair | PASS | PASS 3.6/2% | wire tile != blueprint tile 'furniture_eater-chair-double' |
 | Mover Chair Flipped | PASS | PASS 4.0/3% |  |
 | Mover Chute Bottom Opening L | PASS | PASS 3.1/2% | wire tile != blueprint tile 'terrain_mover-chute-bottom-opening-l' |
@@ -416,9 +416,9 @@
 | Multicabinet | PASS | PASS 7.6/6% | wire tile != blueprint tile 'items_sw_multi_cabinet_2' |
 | Mushroom Case | PASS | PASS 4.2/2% | wire tile != blueprint tile 'items_sw_mushroom_case' |
 | N Marble Dais | KNOWN | KNOWN 20.4/15% | KNOWN: multi-cell sprite (dais family) |
-| Nacham's Loom | PASS | FAIL 34.9/33% | wire tile != blueprint tile 'furniture_chiliad-nacham-loom' |
+| Nacham's Loom | PASS | PASS 8.5/7% | wire tile != blueprint tile 'furniture_chiliad-nacham-loom' |
 | NE Marble Dais | PASS | PASS 18.2/13% | wire tile != blueprint tile 'items_sw_dais_ne' |
-| NephilimShrine | PASS | FAIL 34.3/32% |  |
+| NephilimShrine | PASS | PASS 13.9/19% |  |
 | NormCore | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_diamond_thing' |
 | NormCore1 | PASS | PASS 1.9/0% | wire tile != blueprint tile 'items_sw_diamond_thing' |
 | NormCore2 | PASS | PASS 2.0/0% |  |
@@ -515,7 +515,7 @@
 | Sconce | PASS | PASS 6.4/7% |  |
 | Scrapable Deposit Box 6 | PASS | PASS 3.5/2% | wire tile != blueprint tile 'items_sw_deposit_box' |
 | Scrapasan | PASS | PASS 5.7/3% | wire tile != blueprint tile 'items_sw_chair_scrapasan' |
-| ScrapChest | PASS | FAIL 43.6/34% | wire tile != blueprint tile 'assets_content_textures_tiles_sw_chest'; no capture pair — congruence skipped |
+| ScrapChest | PASS | PASS 3.6/2% | wire tile != blueprint tile 'assets_content_textures_tiles_sw_chest' |
 | SE Marble Dais | PASS | PASS 15.9/12% |  |
 | Security Door | PASS | PASS 6.6/3% | wire tile != blueprint tile 'terrain_sw_securitydoor' |
 | Sewing Machine | PASS | PASS 4.4/3% | wire tile != blueprint tile 'items_sw_sewing_machine' |
@@ -527,18 +527,18 @@
 | ShevaHydraulicPipe Cyan | PASS | PASS 2.7/0% |  |
 | ShevaHydraulicPipe Green | PASS | PASS 1.0/0% |  |
 | ShugruithShrine | PASS | PASS 7.0/6% | wire tile != blueprint tile 'furniture_nephilim_statue_shugruith' |
-| Sign | PASS | WARN 29.4/28% |  |
+| Sign | PASS | PASS 12.2/18% |  |
 | SixshrewSign | PASS | PASS 3.6/4% | wire tile != blueprint tile 'items_sw_sign_goods' |
 | Sleek Table | PASS | PASS 3.0/1% | wire tile != blueprint tile 'items_sw_table_sleek_full' |
 | Sofa | PASS | PASS 1.0/0% | wire tile != blueprint tile 'items_sw_sofa_l' |
 | Sofa C | PASS | PASS 3.6/4% | wire tile != blueprint tile 'items_sw_couch_c' |
 | Sofa L | PASS | PASS 2.6/3% | wire tile != blueprint tile 'items_sw_couch_l' |
-| Sofa R | PASS | WARN 33.1/31% | wire tile != blueprint tile 'items_sw_couch_r'; no capture pair — congruence skipped |
+| Sofa R | PASS | PASS 2.5/3% | wire tile != blueprint tile 'items_sw_couch_r' |
 | Solar Condenser | PASS | FAIL 34.7/29% |  |
 | Solar Power Station | PASS | PASS 13.0/12% | wire tile != blueprint tile 'items_sw_solar_power_station' |
 | Solar Pumping Station | PASS | PASS 8.3/4% | wire tile != blueprint tile 'items_sw_solar_pumping_station' |
 | Solar Still | PASS | PASS 6.3/3% | wire tile != blueprint tile 'items_sw_solar_still' |
-| SolidHighTechInstallation | PASS | FAIL 34.8/29% |  |
+| SolidHighTechInstallation | PASS | PASS 11.5/14% |  |
 | Spindle Ribbon | PASS | PASS 8.7/7% | wire tile != blueprint tile 'furniture_spindle-ribbon' |
 | Spindle Ribbon Top | PASS | PASS 8.1/6% | wire tile != blueprint tile 'furniture_spindle-ribbon-top' |
 | Star Carousel Art Sculpture 1 | PASS | PASS 2.0/2% | wire tile != blueprint tile 'furniture_star-carousel-art-1' |
@@ -554,8 +554,8 @@
 | Star Carousel Pilot Console S | PASS | PASS 1.3/0% | wire tile != blueprint tile 'furniture_star-carousel-pilot-console-s' |
 | Star Carousel Pilot Seat | PASS | PASS 4.3/2% | wire tile != blueprint tile 'furniture_star-carousel-pilot-seat' |
 | Star Carousel Power Core | PASS | PASS 4.8/5% | wire tile != blueprint tile 'furniture_star-carousel-power-core' |
-| Star Carousel Star Chart C | PASS | FAIL 38.7/32% | wire tile != blueprint tile 'furniture_star-carousel-star-chart-c' |
-| Star Carousel Star Chart L | PASS | FAIL 53.2/43% | wire tile != blueprint tile 'furniture_star-carousel-star-chart-l' |
+| Star Carousel Star Chart C | PASS | PASS 3.4/3% | wire tile != blueprint tile 'furniture_star-carousel-star-chart-c' |
+| Star Carousel Star Chart L | PASS | PASS 3.9/4% | wire tile != blueprint tile 'furniture_star-carousel-star-chart-l' |
 | Star Carousel Star Chart R | PASS | PASS 3.3/3% | wire tile != blueprint tile 'furniture_star-carousel-star-chart-r' |
 | Star Carousel Table | PASS | PASS 3.6/2% | wire tile != blueprint tile 'furniture_star-carousel-table' |
 | Star Orchid Temple Gate N | PASS | PASS 8.1/4% | wire tile != blueprint tile 'furniture_orchid-gate-n' |
@@ -630,7 +630,7 @@
 | Sunken Room Stairs SW | PASS | PASS 1.1/0% | wire tile != blueprint tile 'tiles2_sw_sunken_room_stairs_sw' |
 | Sunken Room Stairs W | PASS | PASS 1.0/0% | wire tile != blueprint tile 'tiles2_sw_sunken_room_stairs_w' |
 | SW Marble Dais | PASS | PASS 15.9/12% | wire tile != blueprint tile 'items_sw_dais_sw' |
-| Switch | PASS | FAIL 116.4/77% | wire tile != blueprint tile 'terrain_sw_switch' |
+| Switch | PASS | FAIL 116.5/77% | wire tile != blueprint tile 'terrain_sw_switch' |
 | Table | PASS | PASS 2.2/1% | wire tile != blueprint tile 'items_sw_table4' |
 | Table Golem | PASS | PASS 4.3/1% | wire tile != blueprint tile 'creatures_sw_golem_table' |
 | Tall Brazier | PASS | PASS 8.6/6% | wire tile != blueprint tile 'items_sw_lamp' |
@@ -669,7 +669,7 @@
 | Universal Charging Station | PASS | PASS 4.8/3% | wire tile != blueprint tile 'items_sw_universal_station' |
 | Unlit Torchpost | PASS | PASS 1.9/1% | wire tile != blueprint tile 'tiles_sw_torch_nofire' |
 | Unpowered Gas Burner | PASS | PASS 4.1/3% | wire tile != blueprint tile 'items_sw_titrator' |
-| Va'am's Blower | PASS | WARN 30.4/29% | wire tile != blueprint tile 'furniture_chiliad-vaam-blower-1' |
+| Va'am's Blower | PASS | PASS 11.4/8% | wire tile != blueprint tile 'furniture_chiliad-vaam-blower-1' |
 | VehicleConsole N | PASS | PASS 3.8/3% | wire tile != blueprint tile 'furniture_sw_golem_interior_screen_n' |
 | VehicleConsole S | PASS | PASS 3.8/2% | wire tile != blueprint tile 'furniture_sw_golem_interior_screen_s' |
 | VehicleGolemPassengerSeat | PASS | PASS 4.1/3% | wire tile != blueprint tile 'furniture_sw_golem_interior_chair' |

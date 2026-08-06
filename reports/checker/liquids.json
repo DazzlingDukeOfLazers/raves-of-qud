@@ -2743,8 +2743,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'liquids_static_pure_deep_1-00000000'",
-   "no capture pair \u2014 congruence skipped"
+   "wire tile != blueprint tile 'liquids_static_pure_deep_1-00000000'"
   ],
   "stage": {
    "bp": "WarmStaticPuddle",
@@ -2761,15 +2760,16 @@
   "wire_objs": 1,
   "wire_hex": "b1c9c3",
   "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\WarmStaticPuddle_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\liquids\\WarmStaticPuddle_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 47.65,
-   "pct_hot": 22.3,
+   "mean_abs_diff": 37.75,
+   "pct_hot": 17.6,
    "band": "FAIL",
    "white_px": [
     2,
-    375
+    352
    ],
    "dominant_delta": 0,
    "wire_delta": 161
