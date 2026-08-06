@@ -109,6 +109,24 @@ def refresh_catalog(b=None):
         return json.load(f)
 
 
+def _focus(title):
+    """Foreground a rig window via the DAEMON (AttachThreadInput dance) with
+    plat.activate as fallback. plat's direct SetForegroundWindow silently
+    no-ops under the foreground lock after hours of sweep focus churn — a
+    whole straggler batch read raves 1-state because its animation clock
+    never unfroze (Godot freezes it unfocused)."""
+    try:
+        r = _hv("activate", title, timeout=30)
+        if r.returncode == 0 and '"ok": true' in (r.stdout or ""):
+            return
+    except Exception:
+        pass
+    try:
+        plat.activate(title)
+    except Exception:
+        pass
+
+
 def _snapshot_unstick(b):
     """A snapshot that never comes usually means a BLOCKING POPUP parked the turn
     loop (ambient events fire mid-sweep: 'You spot a dromad caravan'). Dismiss
@@ -248,7 +266,7 @@ def shots_for(bp, cat="single"):
     # Raves' capture is focus-independent (force_draw), so focus can stay put.
     if plat.IS_WIN:
         try:
-            plat.activate("CavesOfQud")
+            _focus("CavesOfQud")
             time.sleep(0.5)
         except Exception:
             pass
@@ -341,7 +359,7 @@ def anim_measure(b, bp, frames=12):
             # focused, and Godot's animation clock freezes unfocused (first
             # campfire run: qud 9 states, raves 1 — the fire was frozen).
             try:
-                plat.activate("CavesOfQud" if app == "qud" else "Raves of Qud")
+                _focus("CavesOfQud" if app == "qud" else "Raves of Qud")
                 time.sleep(0.6)
             except Exception:
                 pass
@@ -520,7 +538,7 @@ def stage_zoom():
     marshal through) never drains unfocused on Windows, the same root as
     the frozen-map-buffer capture fix. Rerun `calibrate` after this."""
     if plat.IS_WIN:
-        plat.activate("CavesOfQud")
+        _focus("CavesOfQud")
         time.sleep(0.8)
     b = control.Bridge()
     for _ in range(14):
