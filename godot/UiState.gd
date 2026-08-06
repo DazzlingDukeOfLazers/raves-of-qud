@@ -38,7 +38,9 @@ func _ready() -> void:
 	t.start()
 
 func _path() -> String:
-	return OS.get_environment("HOME").path_join("Library/Application Support/RavesOfQud/raves_state.json")
+	# InputModel.support_dir() is the one Windows-aware resolver (USERPROFILE, then HOME) —
+	# a bare $HOME is empty for GUI apps on Windows, which silently wrote a relative path.
+	return InputModel.support_dir().path_join("raves_state.json")
 
 func _write() -> void:
 	var d := {"scene": _scene, "mode": str(Settings.get_value("mode", "user")),

@@ -494,6 +494,15 @@ func _build_links() -> void:
 	for txt in LINK_ITEMS:
 		var l := _label(txt, MUTED, "title")
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		if txt == "Modding Toolkit":
+			# live link (the rest stay cosmetic for now): hover brightens like Qud,
+			# click opens the toolkit menu overlay
+			l.mouse_filter = Control.MOUSE_FILTER_STOP
+			l.mouse_entered.connect(func(): l.add_theme_color_override("font_color", SEL))
+			l.mouse_exited.connect(func(): l.add_theme_color_override("font_color", MUTED))
+			l.gui_input.connect(func(e: InputEvent):
+				if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+					_open_overlay("res://ModdingToolkitScreen.gd"))
 		v.add_child(l)
 	add_child(v)
 	_place(v, "links")
@@ -917,8 +926,9 @@ func _open_overlay(script_path: String) -> void:
 	add_child(_overlay)
 	if _overlay.has_signal("closed"):
 		_overlay.closed.connect(_close_overlay)
-	# highvisor state report: overlay scene = the screen's file name (ModsScreen -> mods …)
-	UiState.set_scene(script_path.get_file().get_basename().replace("Screen", "").to_lower())
+	# highvisor state report: overlay scene = the screen's file name, snake_cased
+	# (ModsScreen -> mods, ModdingToolkitScreen -> modding_toolkit)
+	UiState.set_scene(script_path.get_file().get_basename().replace("Screen", "").to_snake_case())
 
 func _close_overlay() -> void:
 	if _overlay != null:
