@@ -46,6 +46,7 @@ const HOTKEY_W := 24.0
 const HOTKEY_W_INDENT := 48.0      # setData prefixes 3 spaces to an indented row's hotkey
 const ICON := Vector2(20, 30)
 const SPACER_W := 2.0
+const ROW_PAD_L := 4.0             # the row's left inset (was the sel-bar stylebox's content margin)
 const FONT_PX := 16                # every text on this screen is 16px in Qud, title included
 
 var _palette := {}
@@ -62,6 +63,7 @@ var _scroll: ScrollContainer
 var _list: VBoxContainer
 var _foot: HFlowContainer
 var _foot_abs: Control        # absolute placement using Qud's own laid-out boxes
+var _bar_h := 0.0             # Qud's KeyMenuOptionBar height, as shipped in the frame
 var _menu: Array = []           # the footer bar's entries, as Qud yielded them
 
 # Same measured dialog chrome as PopupOverlay (see its notes: +6/channel above the dark
@@ -160,6 +162,11 @@ func _build() -> void:
 	lm.add_child(_scroll)
 	_list = VBoxContainer.new()
 	_list.add_theme_constant_override("separation", 0)
+	# EXPAND, not just FILL: a ScrollContainer stretches a child to its viewport only when the child
+	# asks to expand — otherwise the child gets its own minimum width. That used to come free from
+	# the rows' content, and the moment the rows stopped reporting a content width (they are Panels
+	# now, sized by us) the whole list collapsed to zero wide and drew nothing.
+	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_scroll.add_child(_list)
 
 	vb.add_child(_gap(GAP_LIST_FOOT))
@@ -253,6 +260,8 @@ func show_picker(data: Dictionary, palette: Dictionary) -> void:
 
 	_rows = data.get("rows", [])
 	_cur_id = int(data.get("id", -1))
+	# The mod ships the rect numbers as strings; float() takes either.
+	_bar_h = float(data.get("barH", 0))
 	# Adopt QUD'S highlighted row rather than starting at zero. Its opening selection lands on
 	# the first ITEM (not the leading category), and it re-clamps after every collapse — copying
 	# the exported index keeps us honest through both without reimplementing either rule.
@@ -298,10 +307,16 @@ func _build_menu() -> void:
 		c.queue_free()
 
 	# Did Qud ship its laid-out boxes? Then mirror them exactly; otherwise fall back to our own flow.
-	var have_rects := not _menu.is_empty()
+	#
+	# ANY box is enough — do NOT demand one per entry. yieldMenuOptions() can yield an option the bar
+	# has not instantiated (the context-dependent "[Space] Select" is yielded while only three
+	# KeyMenuOption prefabs exist), and requiring a box for every entry dropped the whole absolute
+	# layout back to our own flow. That flow wrapped to two lines against Qud's three, which was the
+	# last 24px of the panel-height residual. An entry with no box is one Qud is not drawing.
+	var have_rects := false
 	for m in _menu:
-		if not m.has("lx"):
-			have_rects = false
+		if m.has("lx"):
+			have_rects = true
 			break
 	_foot_abs.visible = have_rects
 	_foot.visible = not have_rects
@@ -309,6 +324,9 @@ func _build_menu() -> void:
 
 	for i in _menu.size():
 		var m: Dictionary = _menu[i]
+		# Mirroring Qud's boxes means mirroring its omissions too.
+		if have_rects and not m.has("lx"):
+			continue
 		var lbl := _mk_rt()
 		lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
 		lbl.add_theme_font_size_override("normal_font_size", FONT_PX)
@@ -332,10 +350,15 @@ func _build_menu() -> void:
 
 	# The bar's HEIGHT comes from Qud too, so the panel follows Qud's line count rather than ours --
 	# the two disagreed by exactly one 22px line, which was most of the panel-height residual.
+	#
+	# Take the BAR'S OWN height, not the extent of its boxes: Qud's bar is 66 tall while its options
+	# only reach 44, because the FlowLayoutGroup keeps a trailing row's worth of space. Measuring the
+	# boxes left the panel 24px short even after the rows matched to the pixel.
 	if have_rects:
-		var bh := 0.0
-		for m in _menu:
-			bh = maxf(bh, float(m.get("ly", 0)) + float(m.get("lh", FOOT_LINE_H)))
+		var bh := _bar_h
+		if bh <= 0.0:
+			for m in _menu:
+				bh = maxf(bh, float(m.get("ly", 0)) + float(m.get("lh", FOOT_LINE_H)))
 		_foot_abs.custom_minimum_size = Vector2(0, bh)
 
 func _activate_menu(i: int) -> void:
@@ -414,6 +437,8 @@ func _row_px(i: int) -> float:
 	var here: float = ROW_H_CAT if bool(_rows[i].get("cat", false)) else ROW_H_ITEM
 	return roundf(before + here) - roundf(before)
 
+
+
 func _build_rows() -> void:
 	for c in _list.get_children():
 		_list.remove_child(c)
@@ -421,8 +446,16 @@ func _build_rows() -> void:
 	for i in _rows.size():
 		var r: Dictionary = _rows[i]
 		var cat := bool(r.get("cat", false))
-		var row := PanelContainer.new()
+		# A `Panel`, NOT a PanelContainer. Qud's category rows are 20.12px tall, but a 16px
+		# RichTextLabel reports a 21px minimum and a *Container* takes max(own, content) — so every
+		# category row came out 21 and the list ran 11 x 0.88 = 9.7px long. That was the whole
+		# panel-height residual. A Panel draws the same "panel" stylebox but does no child layout,
+		# so the row is exactly the height Qud draws and the label overflows into the clip.
+		# (line_separation cannot fix this: it spaces lines WITHIN a label, so a single-line label
+		# keeps its full ascent+descent minimum regardless.)
+		var row := Panel.new()
 		row.custom_minimum_size = Vector2(0, _row_px(i))
+		row.clip_contents = true
 		row.mouse_filter = Control.MOUSE_FILTER_STOP
 		# FIXED COLUMNS, separation 0 — Qud's row is a run of fixed-width cells, so each element's
 		# offset is the sum of the ones before it (caret 15, hotkey 24/48, icon 20, spacer 2). Letting
@@ -430,6 +463,10 @@ func _build_rows() -> void:
 		var hb := HBoxContainer.new()
 		hb.add_theme_constant_override("separation", 0)
 		hb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		hb.set_anchors_preset(Control.PRESET_FULL_RECT)
+		# The 4px used to come from the sel-bar stylebox's content_margin_left; a Panel's stylebox
+		# is decoration only, so that inset has to be real geometry now.
+		hb.offset_left = ROW_PAD_L
 		row.add_child(hb)
 
 		# Qud marks the highlighted row with a gold ">" in a 15px gutter, left of the hotkey.
@@ -492,18 +529,15 @@ func _build_rows() -> void:
 func _highlight() -> void:
 	var kids := _list.get_children()
 	for i in mini(kids.size(), _rows.size()):
-		var row: PanelContainer = kids[i]
+		var row: Panel = kids[i]
 		var caret: RichTextLabel = row.get_child(0).get_child(0)
 		caret.text = "[color=#%s]>[/color]" % C_GOLD.to_html(false) if i == _sel else ""
 		if i == _sel:
 			var sb := StyleBoxFlat.new()
 			sb.bg_color = C_SELBAR
-			sb.content_margin_left = 4
 			row.add_theme_stylebox_override("panel", sb)
 		else:
-			var sbe := StyleBoxEmpty.new()
-			sbe.content_margin_left = 4
-			row.add_theme_stylebox_override("panel", sbe)
+			row.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
 	_scroll_into_view()
 
 func _scroll_into_view() -> void:
