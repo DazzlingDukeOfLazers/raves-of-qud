@@ -305,6 +305,22 @@ func _render_cells(abilities: Array) -> void:
 ## in the bar (window minus the gutter), then start a new page. Cell width is estimated
 ## from the same font/icon/margins _make_cell lays out.
 func _paginate(abilities: Array) -> Array:
+	# QUD'S OWN PAGE SIZE when it has told us: barCells holds one width per cell on the page it is
+	# showing, so its LENGTH is how many Qud fits. Our own estimate cannot match it -- it is built
+	# from our text metrics and our padding, and after those were re-measured it began fitting 8
+	# where Qud fits 9, which left the last cell missing and the bar ending at 1669 against Qud's
+	# 1912. Later pages assume the same count, which is the best available guess until Qud is on one.
+	if _bar_cells.size() > 0:
+		var per := _bar_cells.size()
+		var out: Array = []
+		var idx := 0
+		while idx < abilities.size():
+			var chunk: Array = []
+			while chunk.size() < per and idx < abilities.size():
+				chunk.append(idx)
+				idx += 1
+			out.append(chunk)
+		return out if out.size() > 0 else [[]]
 	var avail := (size.x if size.x > 100.0 else 1920.0) - GUTTER_W_1TO1 - 26.0
 	var f := get_theme_font("normal_font", "RichTextLabel")
 	if f == null:
