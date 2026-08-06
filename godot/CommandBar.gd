@@ -398,6 +398,11 @@ func _make_cell(a: Dictionary, icon_px: int, slot: int, selected: bool) -> Contr
 	cell.alignment = BoxContainer.ALIGNMENT_CENTER
 	cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	cell.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	# Qud leaves 17px between the icon's ink and the text where this leaves 11 (6 of separation plus
+	# the transparent margin inside the icon box). MATCHING IT ALONE MAKES THINGS WORSE: the cell
+	# centres its content, so the extra 6 is split between the two sides -- the text gained 3 toward
+	# Qud's column and the icons lost 3, and the bar scored 10.06 -> 10.49. Qud is not centring the
+	# same content; closing this needs its actual layout, not a wider gap.
 	cell.add_theme_constant_override("separation", 6)
 	cell.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	frame.add_child(cell)
