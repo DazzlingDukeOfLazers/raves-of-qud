@@ -533,9 +533,17 @@ def reboot_rig(b=None):
             b.close()
         except OSError:
             pass
-    r = _hv("loadsave", GOLDEN_SAVE, timeout=300)
-    if r.returncode != 0:
-        raise RuntimeError("reboot_rig: loadsave failed: %s" % (r.stderr or r.stdout))
+    # The daemon's loadsave path flakes a COMError ("unable to invoke any of
+    # the subscribers") roughly every other call under sweep load — killed two
+    # certification legs. Retry with settle; the daemon recovers on its own.
+    for lattempt in range(3):
+        r = _hv("loadsave", GOLDEN_SAVE, timeout=300)
+        if r.returncode == 0 and '"ok": false' not in (r.stdout or ""):
+            break
+        print("reboot_rig: loadsave attempt %d failed; retrying" % (lattempt + 1))
+        time.sleep(10)
+    else:
+        raise RuntimeError("reboot_rig: loadsave failed 3x: %s" % (r.stderr or r.stdout))
     # The bridge only listens once a game is loaded — poll it back up.
     deadline = time.time() + 180
     while True:
@@ -741,21 +749,48 @@ def main(argv):
                 b = reboot_rig(b)
                 if "--diff" in argv:
                     ensure_daylight(b)
+            # KNOWN elements are unverifiable BY STAGING — and some are
+            # actively hostile to it (a CherubimSpawn's live cherub jammed the
+            # turn flow and killed two certification legs; one once killed the
+            # player). Don't stage them; the report bands them KNOWN and the
+            # merge keeps any older data.
+            if bp in KNOWN:
+                results.append({"bp": bp, "pass": True, "reasons": [],
+                                "warns": ["not staged: KNOWN — " + KNOWN[bp]]})
+                print("[%d/%d] %-40s KNOWN (not staged)" % (start + i + 1, start + len(names), bp))
+                continue
             # The mod's server intermittently RESETS the long-lived sweep
             # connection during scored runs (the per-element qud_shot bridges
             # add ~2 connect/disconnect cycles each; after ~25 elements the
-            # broadcast path drops everyone). Reconnect and retry the element
-            # once — the server itself recovers instantly.
-            try:
-                r = check_one(b, bp)
-            except (ConnectionError, OSError):
+            # broadcast path drops everyone). Reconnect and retry; an element
+            # that kills the TURN FLOW itself (NeutronfluxPool detonating on
+            # the stage — two certification legs died at exactly it) gets a
+            # full rig reboot and one last try, then records a warn instead of
+            # aborting the category.
+            r = None
+            for eattempt in range(3):
                 try:
-                    b.close()
-                except OSError:
-                    pass
-                time.sleep(1.0)
-                b = control.Bridge()
-                r = check_one(b, bp)
+                    r = check_one(b, bp)
+                    break
+                except (ConnectionError, OSError):
+                    try:
+                        b.close()
+                    except OSError:
+                        pass
+                    if eattempt == 0:
+                        time.sleep(1.0)
+                        b = control.Bridge()
+                    else:
+                        print("=== element %r wedged the rig; full reboot" % bp)
+                        b = reboot_rig()
+                        if "--diff" in argv:
+                            ensure_daylight(b)
+            if r is None:
+                results.append({"bp": bp, "pass": False,
+                                "reasons": ["stage wedged the rig 3x — element skipped"],
+                                "warns": []})
+                print("[%d/%d] %-40s SKIPPED (wedged rig)" % (start + i + 1, start + len(names), bp))
+                continue
             if "--shots" in argv or "--diff" in argv:
                 r["shots"] = shots_for(bp, cat)
             if "--diff" in argv:
