@@ -139,6 +139,7 @@ var ROW_BG_BOTTOM_1TO1 := QudChrome.q8(15, 16, 17)
 ## Qud's chrome band height at each end: its letterbox runs 90..989 in a 1080 window.
 const CHROME_H_1TO1 := 90.0
 var _status_strip: PanelContainer  # row 1 — its fill is Qud's strip colour in 1:1, panel fill in user mode
+var _menu_strip: PanelContainer    # row 2's icon cluster — same story: Qud's strip colour behind it
 var _dev_bar: Control              # holodeck cell's Connect/Turn-on-viewport strip (hidden in 1:1)
 const SIDEBAR_FRAC_1TO1 := 0.15     # visual side column: 288px + the 12px split handle = Qud's 300 total   # Qud's MINIMUM message-log width ≈ 15.3% (293px at 1920 — matches a Qud
                                    # log dragged to its minimum, which maximises the playfield)
@@ -803,10 +804,8 @@ func _row_vitals_menu() -> Control:
 	menu.size_flags_horizontal = Control.SIZE_SHRINK_END
 	# Qud's nav icons hug the window's right edge; trim this strip's right inset so the cluster sits
 	# flush like Qud's (the default 8px panel margin left it ~7px shy of Qud's last icon).
-	var mstyle: StyleBoxFlat = _panel_style()
-	mstyle.content_margin_right = 1
-	mstyle.content_margin_left = 1   # trim the left inset too so the vitals box reaches Qud's right edge
-	menu.add_theme_stylebox_override("panel", mstyle)
+	_menu_strip = menu
+	_style_menu_strip(Settings.one_to_one())
 
 	_menu_verbose = HBoxContainer.new()
 	_menu_verbose.add_theme_constant_override("separation", 4)
@@ -1000,6 +999,7 @@ func _apply_layout_mode(on: bool) -> void:
 		var sb := _panel_style(ROW_BG_1TO1 if on else COL_PANEL)
 		sb.content_margin_bottom = 1
 		_status_strip.add_theme_stylebox_override("panel", sb)
+	_style_menu_strip(on)
 	_apply_panel_sizing(on)
 	_push_play_inset(on)
 	_apply_vitals_mode(on)
@@ -1110,6 +1110,20 @@ func _hp_color(hp: int, hpmax: int) -> Color:
 ## Size the three side-column panels per mode. Qud stacks a SHORT minimap, a content-sized Nearby
 ## objects, and a Message log that fills ALL the remaining height. User (QoL) mode keeps the original
 ## split (taller minimap; nearby + log share the leftover space).
+## The top-right icon cluster's strip. Qud's ground behind those icons is the STRIP colour, not the
+## panel fill -- 15k pixels of it -- so in 1:1 it matches row 1 rather than the darker chrome boxes.
+func _style_menu_strip(on: bool) -> void:
+	if _menu_strip == null:
+		return
+	var mstyle := _panel_style(ROW_BG_1TO1 if on else COL_PANEL)
+	# Qud's nav icons hug the window's right edge; trim the insets so the cluster sits flush like
+	# Qud's (the default 8px panel margin left it ~7px shy of Qud's last icon) and so the vitals box
+	# to its left reaches Qud's right edge.
+	mstyle.content_margin_right = 1
+	mstyle.content_margin_left = 1
+	_menu_strip.add_theme_stylebox_override("panel", mstyle)
+
+
 func _apply_panel_sizing(on: bool) -> void:
 	if _minimap != null:
 		# Qud's minimap is a short landscape strip; the QoL one reserved a tall box with dead space.
