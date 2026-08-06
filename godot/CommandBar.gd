@@ -348,10 +348,13 @@ func _paginate(abilities: Array) -> Array:
 	return pages
 
 # The gutter's paged-mode extras, all measured off Qud: the Ctrl+Tab / Ctrl+Shift+Tab
-# keycap hints along the top (gold ~(182,164,5), 17x11 keycaps with micro-labels), and
+# keycap hints along the top (gold (182,163,5) on the glass, 13x9 keycaps with micro-labels), and
 # the green up/down stepper with the page digit right of the text block.
-const HINT_GOLD := Color8(182, 164, 5)
-const HINT_GOLD_DIM := Color8(125, 114, 9)
+## The hint row's golds, COMPENSATED. Qud's keycap border reads (182,163,5) on the glass and its
+## label (125,114,9); ours were raw Color8s landing at (173,154,6) and (114,103,11) -- 9 and 11 dark.
+var HINT_GOLD := QudChrome.q8(182, 164, 5)
+var KEYCAP_FILL := QudChrome.q8(23, 23, 16)   # the slug inside the border
+var HINT_GOLD_DIM := QudChrome.q8(125, 114, 9)
 
 func _draw_gutter() -> void:
 	var f := get_theme_font("font", "Label")
@@ -392,6 +395,9 @@ func _draw_gutter() -> void:
 
 ## One bordered keycap with a tiny centred label; returns the x after it.
 func _draw_keycap(f: Font, x: float, y: float, w: float, label: String) -> float:
+	# FILLED, then bordered. Qud's keycap is a dark slug (23,23,16) inside a bright gold edge --
+	# ours was an outline on the bar's own ground, which reads as a thinner, emptier box.
+	_gutter.draw_rect(Rect2(x, y, w, KEYCAP_H), KEYCAP_FILL)
 	_gutter.draw_rect(Rect2(x, y, w, KEYCAP_H), HINT_GOLD, false, 1.0)
 	var tw := f.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 5).x
 	_gutter.draw_string(f, Vector2(x + (w - tw) * 0.5, y + KEYCAP_H - 2.0), label,
