@@ -78,6 +78,8 @@ var _fact_pane: Control = null
 var _fact_mtime := 0
 var _jrn_pane: Control = null
 var _jrn_mtime := 0
+var _tnk_pane: Control = null
+var _tnk_mtime := 0
 var _inv_mtime := 0
 var _char_mtime := 0
 var _pane_pal_empty := true
@@ -396,6 +398,8 @@ func _set_tab(id: String) -> void:
 		_fact_pane.visible = (id == "reputation")
 	if _jrn_pane != null:
 		_jrn_pane.visible = (id == "journal")
+	if _tnk_pane != null:
+		_tnk_pane.visible = (id == "tinkering")
 	if id == "attributes":
 		_request_export()
 		_load_character()
@@ -414,6 +418,9 @@ func _set_tab(id: String) -> void:
 	if id == "journal":
 		_request_export()
 		_load_journal()
+	if id == "tinkering":
+		_request_export()
+		_load_tinkering()
 	_build_hints()
 	if visible:
 		UiState.set_scene("status_" + _tab)
@@ -531,6 +538,34 @@ func _load_skills(force := false) -> void:
 
 
 
+
+
+## (Re)build the Tinkering tab from tinkering.json.
+func _load_tinkering(force := false) -> void:
+	var path := InputModel.support_dir().path_join("tinkering.json")
+	if not FileAccess.file_exists(path):
+		return
+	var mt := FileAccess.get_modified_time(path)
+	if not force and _tnk_pane != null and mt == _tnk_mtime \
+			and not (_pane_pal_empty and not _palette.is_empty()):
+		return
+	var f := FileAccess.open(path, FileAccess.READ)
+	if f == null:
+		return
+	var txt := f.get_as_text()
+	f.close()
+	var data: Variant = JSON.parse_string(txt)
+	if not (data is Dictionary):
+		return
+	_tnk_mtime = mt
+	if _tnk_pane == null:
+		_tnk_pane = load("res://StatusPaneTinkering.gd").new()
+		_tnk_pane.bridge_cb = func(msg: Dictionary): _send_bridge(msg)
+		_tnk_pane.reload_cb = func(): _load_tinkering(true)
+		_root.add_child(_tnk_pane)
+	_pane_pal_empty = _palette.is_empty()
+	_tnk_pane.setup(data, _palette)
+	_tnk_pane.visible = (_tab == "tinkering")
 
 ## (Re)build the Journal tab from journal.json.
 func _load_journal(force := false) -> void:

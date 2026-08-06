@@ -1018,6 +1018,7 @@ namespace RavesOfQud
                                 QuestsExporter.ReExport();     // active quest log (Quests tab)
                                 FactionsExporter.ReExport();   // faction reputation (Reputation tab)
                                 JournalExporter.ReExport();    // journal tabs (Journal tab)
+                                TinkeringExporter.ReExport();  // build recipes + bits (Tinkering tab)
                                 InventoryExporter.ReExport();   // inventory (Equipment tab)
                                 TitleExporter.ExportCellFrame();     // Qud's own 9-slice cell frame
                                 TitleExporter.ExportChargenEmblem();                        // resident even at the menu
