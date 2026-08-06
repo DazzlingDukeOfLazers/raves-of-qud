@@ -771,3 +771,23 @@ worse (10.06 -> 14.78 and -> 15.07) because our cell's elements are not its elem
 only lands right once the icon element is 32 wide and the text element 100.81. Our own set — icon
 box 47, padding 8, spacing 6, centred — puts the cell boundaries on Qud's columns, which is what
 reads. Matching Qud's numbers means rebuilding the cell to its structure first.
+
+### The ability bar's floor is the ±1 edge rounding
+
+With Qud's per-cell widths shipped and its edges rounded cumulatively, the bar sits at 4.03 and the
+leftover is not a defect to chase. Cells 4 and 6 score 6.55 and 3.89 against their neighbours' 1.6,
+and splitting them says ICON (9.69 / 7.34) versus TEXT (4.49 / 3.15) — which looks damning until you
+diff the pixels: the differing ones are the SAME COLOURS SWAPPED BETWEEN POSITIONS, Qud's blue where
+ours is background and ours where Qud's is. Same sprite, same palette, shifted one pixel.
+
+That pixel is structural. Qud's cell widths are fractional (192.96, 167.76, 159.36, ...) and ours
+must be integers, so every edge lands within ±1 and the icon centred inside inherits it. Cells whose
+edge rounds one way match to 0.03; cells that round the other carry a 1px offset, and a dense
+40px sprite makes that offset expensive in the mean while being invisible to the eye.
+
+Two checks worth repeating before calling an icon wrong:
+
+- **Qud against Qud.** Two captures of the same screen scored 0.00 on every icon zone, which ruled
+  out animation frames as the cause. Without that, "the icon differs" reads as a tile bug.
+- **The differing PAIRS, not the mean.** Colours swapping positions means placement; colours
+  changing value means palette or sprite.
