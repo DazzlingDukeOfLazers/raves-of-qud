@@ -32,31 +32,31 @@ const BG := Color8(0x0C, 0x1A, 0x16)              # dark teal — clear-colour f
 const PANEL := Color(0.059, 0.082, 0.082, 0.90)   # #0F1515 box interior, semi-transparent
 const FRAME := Color8(0xB6, 0xA1, 0x63)           # gilded frame border (tan-gold)
 const HEADER_BG := Color(0.10, 0.13, 0.08, 0.92)  # header strip behind the (future) glyphs
-const SEL := Color8(0xF6, 0xF6, 0xF6)             # selected option — near-white
-const MUTED := Color8(0x5C, 0x66, 0x63)          # unselected / disabled / secondary — grey-green
-const HINT := Color8(0x8F, 0xA6, 0x9E)           # hotkey hint text
-const GOLD := Color8(0xC8, 0xA9, 0x4E)           # keycap accents in the hint
+var SEL := QudChrome.q8(0xF6, 0xF6, 0xF6)         # selected option — near-white (gamma-comp)
+var MUTED := QudChrome.q8(0x5C, 0x66, 0x63)      # unselected / disabled / secondary — grey-green
+var HINT := QudChrome.q8(0x8F, 0xA6, 0x9E)       # hotkey hint text
+var GOLD := QudChrome.q8(0xC8, 0xA9, 0x4E)       # keycap accents in the hint
 
 # Quit-confirm prompt (1:1). Qud's is a COMPACT panel over the box top, not a big modal —
 # measured off a 1920x1080 capture: near-black teal fill, thin muted-teal border, a muted
 # green question, and "> Yes  No" with a gold caret on the selection.
-const Q_DLG_FILL := Color(0.024, 0.145, 0.145, 1.0)   # ~ rgb(6,37,37), opaque (fully hides the menu under it)
-const Q_DLG_BORDER := Color8(0x46, 0x64, 0x60)        # thin muted-teal frame line
-const Q_DLG_TEXT := Color8(0x6E, 0x8A, 0x86)          # question text ~ rgb(110,138,134)
-const Q_DLG_LINE := Color8(0x40, 0x6A, 0x73)          # button-row rule + framing ticks ~ rgb(64,106,115)
-const Q_DLG_CELL := Color8(0x11, 0x2D, 0x2E)          # faint Yes/No cell fill ~ rgb(17,45,46)
+var Q_DLG_FILL := QudChrome.q8(6, 37, 37)             # opaque dialog fill (gamma-comp)
+var Q_DLG_BORDER := QudChrome.q8(0x46, 0x64, 0x60)    # thin muted-teal frame line
+var Q_DLG_TEXT := QudChrome.q8(0x6E, 0x8A, 0x86)      # question text ~ rgb(110,138,134)
+var Q_DLG_LINE := QudChrome.q8(0x40, 0x6A, 0x73)      # button-row rule + framing ticks
+var Q_DLG_CELL := QudChrome.q8(0x11, 0x2D, 0x2E)      # faint Yes/No cell fill
 
 ## The box is built from Qud's OWN extracted frame sprites (title/chrome/, via the mod)
 ## composed as Qud composes them (Frame/Border): a tiled dark panel, gold woven side +
 ## bottom borders, and the gilded hieroglyph header on top. These fractions are each
 ## piece's thickness relative to the box, from the dump (borderTop 350x69, borderSide
 ## 18-wide, borderBot 339x18 on a 339x292 border). Absent sprites -> the styled fallback.
-const HEADER_H_FRAC := 0.185   # borderTop height / box height
+const HEADER_H_FRAC := 0.198   # borderTop height / box height (native 69px on the 349px box)
 const SIDE_W_FRAC := 0.052     # borderSide width / box width
 const BOT_H_FRAC := 0.052      # borderBot height / box height
 ## Qud's header (borderTop 350w) OVERHANGS the box body (339w) by ~1.6% each side — the gilded
 ## header + hieroglyph row are wider than the box, an eave. Applied to the header edge below.
-const HEADER_OVERHANG := 0.016  # fraction of box width the header extends BEYOND each side (matches Qud)
+const HEADER_OVERHANG := 0.024  # (350-334)/2/334 — native sprite width vs box body
 
 ## The box holds a FIXED aspect and scales with window HEIGHT (centered), like Qud's canvas
 ## scaler — so it reads the same shape at any window aspect instead of stretching. Width =
@@ -102,7 +102,10 @@ var _game_live := false        # a snapshot has arrived = a game is actually liv
 ## (mod `metagame` → Marsh Taur pregen, Classic) so Continue lights up and the viewer has a real zone
 ## without hand-running chargen. The mod broadcasts snapshots to this open probe once it boots, which
 ## flips `_game_live`. Set AUTO_META = false to stop Raves spinning up a character in your Qud.
-const AUTO_META := true
+## OFF (2026-08-03): it re-sent every 150s, silently booting throwaway characters whenever both
+## apps idled at their titles — sabotaged menu-parity driving and littered husk saves. Sync via
+## named saves now (`hv loadsave`); Continue's "load a game in Qud" hint covers the empty case.
+const AUTO_META := false
 var _meta_sent := false
 var _meta_wait := 0.0
 var _status_poll_t := 0.0
@@ -117,6 +120,12 @@ var _quit_opts: Array = []     # [{lbl, act}] for the dialog
 
 func _ready() -> void:
 	name = "MainMenu"
+	# Report the scene FIRST: this scene is also where the in-game lifecycle watch
+	# lands when a game ends (MainFrame -> change_scene). Without this, UiState kept
+	# the last in-game scene and its 2s heartbeat rewrote that STALE value forever —
+	# `hv state` then reported e.g. status_skills while Raves sat on the title, and
+	# driving landed clicks on the menu.
+	UiState.set_scene("title")
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	theme = UiFont.make_theme(get_viewport())
 	if Settings.one_to_one():
@@ -276,6 +285,9 @@ func _build_logo() -> void:
 		var r := TextureRect.new()
 		r.texture = tex
 		r.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		# THE TextureRect gotcha, again: without this the wordmark rendered at NATIVE
+		# texture size (8% oversized + off-centre), silently ignoring the layout rect
+		r.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		r.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(r)
 		_place(r, "logo")
@@ -294,6 +306,9 @@ func _load_title_png(file: String) -> Texture2D:
 	var img := Image.new()
 	if img.load(path) != 0:   # 0 == OK
 		return null
+	# NB: unlike the console-screen TILES, the title ART + chrome sprites render
+	# FAITHFULLY through the canvas (measured — brightening them overshot ×1.13);
+	# only flat draws and text colours need QudChrome compensation.
 	return ImageTexture.create_from_image(img)
 
 # ── the centred option box ───────────────────────────────────────────────────────
@@ -313,17 +328,30 @@ func _build_menu() -> void:
 	# middle (the header eats the top, so Qud centres the items a touch low).
 	var opts := VBoxContainer.new()
 	opts.alignment = BoxContainer.ALIGNMENT_CENTER
-	opts.add_theme_constant_override("separation", 2)
+	opts.add_theme_constant_override("separation", 7 if Settings.one_to_one() else 2)   # ElliotSans pitch 46 like Qud
 	opts.anchor_left = 0.09
 	opts.anchor_right = 0.91
-	opts.anchor_top = HEADER_H_FRAC + 0.0345
+	opts.anchor_top = 0.2195   # decoupled from HEADER_H_FRAC: rows measured aligned to Qud
 	opts.anchor_bottom = 1.0 - (BOT_H_FRAC + 0.0355)
 	for k in ["left", "top", "right", "bottom"]:
 		opts.set("offset_" + k, 0.0)
 	for cfg in BOX_ITEMS:
 		var b := _option_button(cfg)
 		opts.add_child(b)
-		_rows.append({"btn": b, "cfg": cfg, "enabled": true})
+		var sub: Label = null
+		if cfg.get("act", "") == "continue":
+			# the save Continue will open, on its OWN line — spelled into the caption it
+			# overflowed Qud's narrow box by half its width
+			sub = Label.new()
+			sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			sub.autowrap_mode = TextServer.AUTOWRAP_OFF
+			sub.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+			sub.clip_text = true
+			sub.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			sub.add_theme_font_size_override("font_size", 13)
+			sub.visible = false
+			opts.add_child(sub)
+		_rows.append({"btn": b, "cfg": cfg, "enabled": true, "sub": sub})
 	box.add_child(opts)
 
 	_box = box
@@ -383,19 +411,38 @@ func _build_chrome_frame(box: Control) -> bool:
 		var r := _edge(bg, TextureRect.STRETCH_TILE, 0.0, 0.0, 1.0, 1.0)
 		box.add_child(r)
 	var side := _chrome("borderSide.png")
-	if side != null:   # left + right woven borders (right mirrored)
-		box.add_child(_edge(side, TextureRect.STRETCH_SCALE, 0.0, HEADER_H_FRAC * 0.6,
+	if side != null:   # left + right woven borders, NATIVE scale — stretching shimmered
+		# the alternating checker; TILE draws 1:1 from the sprite's top
+		box.add_child(_edge(side, TextureRect.STRETCH_TILE, 0.0, HEADER_H_FRAC * 0.6,
 			SIDE_W_FRAC, 1.0 - BOT_H_FRAC * 0.4))
-		var rt := _edge(side, TextureRect.STRETCH_SCALE, 1.0 - SIDE_W_FRAC, HEADER_H_FRAC * 0.6,
+		var rt := _edge(side, TextureRect.STRETCH_TILE, 1.0 - SIDE_W_FRAC, HEADER_H_FRAC * 0.6,
 			1.0, 1.0 - BOT_H_FRAC * 0.4)
 		rt.flip_h = true
 		box.add_child(rt)
 	var bot := _chrome("borderBot.png")
-	if bot != null:   # bottom woven border
-		box.add_child(_edge(bot, TextureRect.STRETCH_SCALE, 0.0, 1.0 - BOT_H_FRAC, 1.0, 1.0))
-	# the gilded hieroglyph header last, on top (its ends carry the top corners). It OVERHANGS the
-	# box body left+right (an eave), like Qud's wider borderTop.
-	box.add_child(_edge(top, TextureRect.STRETCH_SCALE, -HEADER_OVERHANG, 0.0, 1.0 + HEADER_OVERHANG, HEADER_H_FRAC))
+	if bot != null:   # bottom border in two mirrored halves — BOTH corners get the
+		# sprite's native corner art (a single stretch mangled the right corner)
+		box.add_child(_edge(bot, TextureRect.STRETCH_TILE, 0.0, 1.0 - BOT_H_FRAC, 0.5, 1.0))
+		var rb := _edge(bot, TextureRect.STRETCH_TILE, 0.5, 1.0 - BOT_H_FRAC, 1.0, 1.0)
+		rb.flip_h = true
+		box.add_child(rb)
+	# the gilded hieroglyph header last, on top (its ends carry the top corners). Drawn at
+	# EXACTLY native size, centred — any scaling (even ~1%) plus NEAREST filtering drops
+	# pixel columns periodically and breaks the checker band's rhythm (Qud's is uniform).
+	var hdr := TextureRect.new()
+	hdr.texture = top
+	hdr.stretch_mode = TextureRect.STRETCH_KEEP
+	hdr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	hdr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hdr.anchor_left = 0.5
+	hdr.anchor_right = 0.5
+	hdr.anchor_top = 0.0
+	hdr.anchor_bottom = 0.0
+	hdr.offset_left = -top.get_width() / 2.0
+	hdr.offset_right = top.get_width() / 2.0
+	hdr.offset_top = 0.0
+	hdr.offset_bottom = top.get_height()
+	box.add_child(hdr)
 	return true
 
 ## A TextureRect anchored to a fractional sub-rect of its parent (the box), mouse-transparent.
@@ -408,6 +455,7 @@ func _edge(tex: Texture2D, mode: int, al: float, at: float, ar: float, ab: float
 	# panel tile fell short, and the header rendered at native width. IGNORE_SIZE makes it fill the
 	# anchored sub-rect (so stretch_mode actually applies).
 	r.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	r.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST   # crisp checker/hieroglyphs, like Qud
 	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	r.anchor_left = al
 	r.anchor_top = at
@@ -460,7 +508,49 @@ func _option_button(cfg: Dictionary) -> Button:
 	var idx := _rows.size()
 	b.mouse_entered.connect(func(): _select(idx))
 	b.pressed.connect(func(): _activate(idx))
+	_apply_elliot(b, "Medium", 28)
 	return b
+
+## Qud's selection marker: thin bright ragged bars at the button's top + bottom
+## edges, sized to the text (+24px). Uses the buttonHighlight sprite's edge strips
+## when extracted (their raggedness IS Qud's), else plain bright rects.
+func _make_hl_bars(b: Button) -> Control:
+	var wrap := Control.new()
+	wrap.name = "hlbars"
+	wrap.set_anchors_preset(Control.PRESET_FULL_RECT)
+	wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var f := b.get_theme_font("font")
+	var fs := b.get_theme_font_size("font_size")
+	var tw := f.get_string_size(b.text, HORIZONTAL_ALIGNMENT_CENTER, -1, fs).x
+	var w := tw + 80.0   # Qud's bars run well past the text (measured 144px on 64px 'Mods')
+	for spec in [[0.0, 0.0, -1.0], [1.0, -3.0, 1.0]]:
+		var bar: Control
+		if _hl != null:
+			var at := AtlasTexture.new()
+			at.atlas = _hl
+			var hh := int(_hl.get_height())
+			at.region = Rect2(0, 0 if spec[2] < 0 else hh - 3, _hl.get_width(), 3)
+			var tr := TextureRect.new()
+			tr.texture = at
+			tr.stretch_mode = TextureRect.STRETCH_SCALE
+			tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			tr.self_modulate = Color8(224, 216, 189)
+			bar = tr
+		else:
+			var cr := ColorRect.new()
+			cr.color = Color8(224, 216, 189, 230)
+			bar = cr
+		bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		bar.anchor_left = 0.5
+		bar.anchor_right = 0.5
+		bar.anchor_top = spec[0]
+		bar.anchor_bottom = spec[0]
+		bar.offset_left = -w * 0.5
+		bar.offset_right = w * 0.5
+		bar.offset_top = spec[1]
+		bar.offset_bottom = spec[1] + 3.0
+		wrap.add_child(bar)
+	return wrap
 
 func _transparent() -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
@@ -490,10 +580,15 @@ func _highlight_box() -> StyleBox:
 func _build_links() -> void:
 	var v := VBoxContainer.new()
 	v.alignment = BoxContainer.ALIGNMENT_BEGIN
-	v.add_theme_constant_override("separation", 6)
+	v.add_theme_constant_override("separation", 14 if Settings.one_to_one() else 6)
+	if Settings.one_to_one():
+		var pad := Control.new()   # Qud's list starts ~28px lower than the layout rect
+		pad.custom_minimum_size = Vector2(0, 28)
+		v.add_child(pad)
 	for txt in LINK_ITEMS:
 		var l := _label(txt, MUTED, "title")
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		_apply_elliot(l, "Bold", 21)
 		if txt == "Modding Toolkit":
 			# live link (the rest stay cosmetic for now): hover brightens like Qud,
 			# click opens the toolkit menu overlay
@@ -533,8 +628,19 @@ func _apply_selection() -> void:
 		var col: Color = SEL if on else MUTED
 		for role in ["font_color", "font_hover_color", "font_pressed_color", "font_disabled_color"]:
 			b.add_theme_color_override(role, col)
-		# Qud shows selection with its buttonHighlight sprite behind the option (if extracted)
-		b.add_theme_stylebox_override("normal", _highlight_box() if on else _transparent())
+		if Settings.one_to_one():
+			# Qud's selection = two THIN BRIGHT ragged bars hugging the item's top and
+			# bottom edges, only slightly wider than the text (measured: ~2px tall,
+			# text+24 wide, peak (224,216,189)) — not a full-width sprite wash.
+			var bars := b.get_node_or_null("hlbars")
+			if on and bars == null:
+				b.add_child(_make_hl_bars(b))
+			elif not on and bars != null:
+				bars.queue_free()
+			b.add_theme_stylebox_override("normal", _transparent())
+		else:
+			# user mode keeps the sprite wash behind the option
+			b.add_theme_stylebox_override("normal", _highlight_box() if on else _transparent())
 
 ## Qud disables Continue until there's a save; we mirror that against the live bridge —
 ## Continue lights up (becomes selectable) only while a modded Qud is running.
@@ -543,13 +649,85 @@ func _refresh_enabled() -> void:
 		var act: String = row["cfg"].get("act", "")
 		var enabled := true
 		if act == "continue":
-			enabled = _game_live   # a LIVE game, not merely an open bridge socket
+			# 1:1 Continue opens the save picker (reads Qud's saves off disk), so it
+			# enables when Qud's would: saves exist. OR when a game is already LIVE on the
+			# bridge — because _saves_exist() reads ANOTHER APP'S container
+			# (~/Library/Application Support/com.FreeholdGames.CavesOfQud), and macOS can
+			# refuse that: TCC grants are per code-signature, and this app is ad-hoc re-signed
+			# on every build, so the permission silently lapses. When it does, DirAccess.open
+			# returns null, Continue greys out, and the app sits at the title looking like a
+			# BRIDGE failure when the bridge is fine. A live game is reason enough to continue.
+			enabled = (_saves_exist() or _game_live) if Settings.one_to_one() else _game_live
 		row["enabled"] = enabled
 		row["btn"].disabled = not enabled
+		if act == "continue" and row.get("sub") != null:
+			var sl: Label = row["sub"]
+			var txt := _continue_label()
+			sl.text = txt
+			sl.visible = txt != ""
+			sl.add_theme_color_override("font_color", MUTED)
 	if _sel < _rows.size() and not _rows[_sel]["enabled"]:
 		_step(1)
 	_apply_selection()
 	_update_continue_hint()
+
+## The newest save's character name + level, for the Continue label (Daniel's feedback: "Show the
+## save's character name and level here"). Newest-first by Primary.json mtime — the same order
+## LoadGameScreen and Qud's own picker use, so the label always names the save Continue will open.
+## {} when there is no readable save (same TCC caveat as _saves_exist: we may be unable to LOOK).
+func _newest_save() -> Dictionary:
+	var root := OS.get_environment("HOME").path_join(
+		"Library/Application Support/com.FreeholdGames.CavesOfQud/Synced/Saves")
+	var d := DirAccess.open(root)
+	if d == null:
+		return {}
+	var best := {}
+	var best_mtime := -1
+	for sub in d.get_directories():
+		var pj := root.path_join(sub).path_join("Primary.json")
+		if not FileAccess.file_exists(pj):
+			continue
+		var mt := FileAccess.get_modified_time(pj)
+		if mt <= best_mtime:
+			continue
+		var f := FileAccess.open(pj, FileAccess.READ)
+		if f == null:
+			continue
+		var data: Variant = JSON.parse_string(f.get_as_text())
+		if data is Dictionary:
+			best_mtime = mt
+			best = {"name": str(data.get("Name", "")), "level": int(data.get("Level", 0))}
+	return best
+
+## Continue's label. 1:1 keeps Qud's bare "Continue" -- Qud names no save there, and the title
+## screen is on the parity scoreboard. User mode gets the save it will actually open.
+func _continue_label() -> String:
+	if Settings.one_to_one():
+		return ""            # Qud names no save here, and the title is on the parity scoreboard
+	var sv := _newest_save()
+	var nm := str(sv.get("name", ""))
+	if nm == "":
+		return ""
+	return "%s · lvl %d" % [nm, int(sv.get("level", 0))]
+
+static var _saves_warned := false
+
+## Any Qud save on disk? (Gates 1:1 Continue, like Qud's own.) Cheap: one dir listing.
+func _saves_exist() -> bool:
+	var root := OS.get_environment("HOME").path_join(
+		"Library/Application Support/com.FreeholdGames.CavesOfQud/Synced/Saves")
+	var d := DirAccess.open(root)
+	if d == null:
+		# Not "no saves" — we could not LOOK. Say so once; the caller falls back to _game_live.
+		if not _saves_warned:
+			_saves_warned = true
+			push_warning("Raves: cannot read Qud's saves dir (%s) — permission? " % root
+				+ "Continue will rely on a live bridge game instead.")
+		return false
+	for sub in d.get_directories():
+		if FileAccess.file_exists(root.path_join(sub).path_join("Primary.json")):
+			return true
+	return false
 
 ## Show "load a game in Qud" only when the bridge is up but no game is live — otherwise a greyed
 ## Continue looks broken. Hidden when Qud's down (nothing to say) or a game IS live (Continue works).
@@ -572,37 +750,32 @@ func _build_hint() -> void:
 	var dim := "#%s" % HINT.to_html(false)
 	var tail := "[color=%s] navigate      [/color][color=%s][lb]Space[rb][/color][color=%s] select      [/color][color=%s][lb]Esc[rb][/color][color=%s] quit[/color]" % [dim, gold, dim, gold, dim]
 	if Settings.one_to_one():
-		# Qud shows an ARROW-KEYS icon (a gold d-pad cluster), not the literal "↑↓". Draw it and
-		# inline it at the head of the centred hint.
+		# Qud: BOLD hint text; the arrow-keys icon and each keycap sit inside WHITE
+		# [ ] brackets; the d-pad keys carry dark directional arrows.
 		var ih := int(round(UiFont.px(get_viewport(), "caption") * 1.15))
-		var icon := _nav_icon_texture(ih, GOLD)
+		var icon := QudChrome.nav_icon(ih, GOLD)
+		# Qud's hint bar stays MONO (Source Code Pro), bolder than regular — an
+		# emboldened variation of the theme font, not ElliotSans
+		var fv := FontVariation.new()
+		fv.base_font = get_theme_font("normal_font", "RichTextLabel")
+		fv.variation_embolden = 0.5
+		l.add_theme_font_override("normal_font", fv)
+		l.add_theme_font_size_override("normal_font_size", 18)
+		var wht := "#FFFFFF"
 		l.push_paragraph(HORIZONTAL_ALIGNMENT_CENTER)
+		l.append_text("[color=%s][lb][/color]" % wht)
 		l.add_image(icon, icon.get_width(), icon.get_height())
-		l.append_text(tail)
+		l.append_text("[color=%s][rb][/color]" % wht)
+		l.append_text("[color=%s] navigate      [/color]" % dim)
+		l.append_text("[color=%s][lb][/color][color=%s]Space[/color][color=%s][rb][/color]" % [wht, gold, wht])
+		l.append_text("[color=%s] select      [/color]" % dim)
+		l.append_text("[color=%s][lb][/color][color=%s]Esc[/color][color=%s][rb][/color]" % [wht, gold, wht])
+		l.append_text("[color=%s] quit[/color]" % dim)
 		l.pop()
 	else:
 		l.text = "[center][color=%s]↑↓ navigate      [/color][color=%s][lb]Space[rb][/color][color=%s] select      [/color][color=%s][lb]Esc[rb][/color][color=%s] quit[/color][/center]" % [dim, gold, dim, gold, dim]
 	add_child(l)
 	_place(l, "hint")
-
-## A small arrow-keys icon (Qud's gold d-pad cluster) drawn procedurally: four keys in the
-## inverted-T layout — up on top; left / down / right below — used in the 1:1 hint in place of "↑↓".
-func _nav_icon_texture(ih: int, color: Color) -> ImageTexture:
-	var g := maxi(1, int(round(ih * 0.10)))
-	var k := int((ih - g) / 2)          # key size (two rows tall)
-	if k < 2:
-		k = 2
-	var w := 3 * k + 2 * g
-	var h := 2 * k + g
-	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
-	img.fill(Color(0, 0, 0, 0))
-	var mid := k + g                     # x of the centre column
-	img.fill_rect(Rect2i(mid, 0, k, k), color)          # up (top centre)
-	img.fill_rect(Rect2i(0, k + g, k, k), color)        # left
-	img.fill_rect(Rect2i(mid, k + g, k, k), color)      # down (centre)
-	img.fill_rect(Rect2i(2 * mid, k + g, k, k), color)  # right
-	return ImageTexture.create_from_image(img)
-
 func _build_version() -> void:
 	if Settings.one_to_one():
 		_build_version_qud()
@@ -626,10 +799,24 @@ func _build_version_qud() -> void:
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var ver := "#%s" % SEL.to_html(false)     # release: near-white, like Qud
 	var bld := "#%s" % HINT.to_html(false)    # build: readable teal-grey (Qud's is too dark)
-	l.text = "[right][color=%s]%s[/color]\n[color=%s]build %s[/color][/right]" % [
-		ver, Brand.QUD_VERSION, bld, Brand.QUD_BUILD]
+	var hv_ver := _read_hv_version()
+	var extra := "\n[color=%s]raves %s%s[/color]" % [bld, Brand.RAVES_VERSION,
+		(" · hv " + hv_ver) if hv_ver != "" else ""]
+	l.text = "[right][color=%s]%s[/color]\n[color=%s]build %s[/color]%s[/right]" % [
+		ver, Brand.QUD_VERSION, bld, Brand.QUD_BUILD, extra]
+	_apply_elliot(l, "Regular", 16)
 	add_child(l)
 	_place(l, "version")
+	l.offset_top += 28   # Qud's corner sits lower than the seeded layout rect
+	l.offset_bottom += 28
+
+## highvisor's daemon publishes its version next to Raves' state files.
+func _read_hv_version() -> String:
+	var path := InputModel.support_dir().path_join("hv_version.txt")
+	if not FileAccess.file_exists(path):
+		return ""
+	var f := FileAccess.open(path, FileAccess.READ)
+	return f.get_as_text().strip_edges() if f != null else ""
 
 # ── quit button + confirmation ─────────────────────────────────────────────────────
 
@@ -639,15 +826,15 @@ func _build_quit_button() -> void:
 	var hit := Control.new()
 	hit.name = "QuitX"
 	hit.mouse_filter = Control.MOUSE_FILTER_STOP
-	hit.position = Vector2(22, 22)
-	hit.custom_minimum_size = Vector2(56, 56)
-	hit.size = Vector2(56, 56)
+	hit.position = Vector2(26, 26)
+	hit.custom_minimum_size = Vector2(42, 42)   # Qud's X is smaller/thinner than 56px
+	hit.size = Vector2(42, 42)
 	var icon := TextureRect.new()
 	icon.set_anchors_preset(Control.PRESET_FULL_RECT)
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	icon.modulate = Color(1, 1, 1, 0.5)   # Qud draws it at 50% alpha
+	icon.modulate = Color(0.62, 0.62, 0.62, 0.55)   # Qud's X: darker + ~50% alpha
 	var tex := _chrome("Cancel.png")
 	if tex != null:
 		icon.texture = tex
@@ -898,7 +1085,15 @@ func _activate(idx: int) -> void:
 		return
 	match String(row["cfg"].get("act", "")):
 		"continue":
-			_enter_viewer()
+			# Qud's Continue opens the save picker (ModernSaveManagement); mirror it
+			# in 1:1 mode — but only when no game is LIVE. Qud can't sit at its title
+			# with a running game, so a live game means "attach to it" (also, the mod
+			# refuses loadsave mid-game — the picker would dead-end). User mode keeps
+			# the direct attach-to-running-game jump.
+			if Settings.one_to_one() and not _game_live:
+				_open_overlay("res://LoadGameScreen.gd")
+			else:
+				_enter_viewer()
 		"new":
 			if not _qud_up and not _launching:
 				_launching = true
@@ -926,15 +1121,28 @@ func _open_overlay(script_path: String) -> void:
 	add_child(_overlay)
 	if _overlay.has_signal("closed"):
 		_overlay.closed.connect(_close_overlay)
-	# highvisor state report: overlay scene = the screen's file name, snake_cased
-	# (ModsScreen -> mods, ModdingToolkitScreen -> modding_toolkit)
-	UiState.set_scene(script_path.get_file().get_basename().replace("Screen", "").to_snake_case())
+	if _overlay.has_signal("load_requested"):
+		_overlay.load_requested.connect(_on_load_requested)
+	if _overlay.has_signal("delete_requested"):
+		_overlay.delete_requested.connect(func(id):
+			_send_command({"type": "command", "name": "deletesave", "id": str(id)}))
+	# highvisor state report: a screen may declare its scene name (`ui_scene`,
+	# e.g. ModdingToolkitScreen -> "modding_toolkit"); otherwise the legacy
+	# derivation from the file name (ModsScreen -> mods, LoadGameScreen ->
+	# loadgame) — the names the Mac gametree already maps.
+	var scn: Variant = _overlay.get("ui_scene")
+	if scn == null or str(scn) == "":
+		scn = script_path.get_file().get_basename().replace("Screen", "").to_lower()
+	UiState.set_scene(str(scn))
 
 func _close_overlay() -> void:
 	if _overlay != null:
 		_overlay.queue_free()
 		_overlay = null
 	UiState.set_scene("title")
+	_refresh_enabled()   # e.g. Continue greys if the picker deleted the last save
+	# NB selection persists across a screen round-trip in Qud (return from Mods ->
+	# "Mods" still white) — measured; do NOT deselect here.
 
 # ── chargen flow (WIP) ────────────────────────────────────────────────────────────
 # The interactive character creator as a chain of stage screens: Genotype → Subtype → …
@@ -1144,13 +1352,58 @@ func _set_qud_up(up: bool) -> void:
 		_meta_wait = 0.0
 	_refresh_enabled()
 
+# A picker load is in flight: the mod is loading the chosen save in Qud; the moment
+# the heartbeat flips to live, enter the viewer (the same attach as user-mode Continue).
+var _pending_load := false
+
+## LoadGameScreen chose a save: ask the mod to load it (LoadSave.cs completes Qud's
+## own picker completionSource), close the picker, and wait for the game to go live.
+func _on_load_requested(id: String) -> void:
+	_send_command({"type": "command", "name": "loadsave", "id": id})
+	_pending_load = true
+	_close_overlay()
+
 func _set_game_live(live: bool) -> void:
 	if live == _game_live:
 		return
 	_game_live = live
 	_refresh_enabled()
+	if live and _pending_load:
+		_pending_load = false
+		_enter_viewer()
 
 # ── UI helpers ──────────────────────────────────────────────────────────────────
+
+# ── ElliotSans — Qud's modern-UI proportional font, carved from the player's own
+# install into title/chrome/ (never redistributed; falls back to the theme font).
+# The title menu / links / hint / version are NOT Source Code Pro in Qud.
+var _elliot_fonts := {}
+
+func _elliot(weight: String) -> FontFile:
+	if _elliot_fonts.has(weight):
+		return _elliot_fonts[weight]
+	var path := InputModel.support_dir().path_join("title").path_join("chrome").path_join("ElliotSans-%s.ttf" % weight)
+	if not FileAccess.file_exists(path):
+		return null
+	var f := FontFile.new()
+	if f.load_dynamic_font(path) != OK:
+		return null
+	_elliot_fonts[weight] = f
+	return f
+
+## Apply ElliotSans to a control in 1:1 mode (no-op otherwise / when not extracted).
+func _apply_elliot(c: Control, weight: String, size: int) -> void:
+	if not Settings.one_to_one():
+		return
+	var f := _elliot(weight)
+	if f == null:
+		return
+	if c is RichTextLabel:
+		c.add_theme_font_override("normal_font", f)
+		c.add_theme_font_size_override("normal_font_size", size)
+	else:
+		c.add_theme_font_override("font", f)
+		c.add_theme_font_size_override("font_size", size)
 
 func _label(txt: String, col := Color.WHITE, role := "body") -> Label:
 	var l := Label.new()

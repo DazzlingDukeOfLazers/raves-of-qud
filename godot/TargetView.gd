@@ -1,5 +1,8 @@
 extends PanelContainer
 
+## Qud's row-3 face against our body size, measured off its strip.
+const ROW3_FONT_SCALE := 0.667
+
 ## Target view — its own scene in MainFrame's row-4 middle cell. Shows Qud's current combat target
 ## (the mod's `target` block, from XRL.UI.Sidebar.CurrentTarget).
 ##
@@ -11,6 +14,9 @@ extends PanelContainer
 ## FULL (debug, via the top-menu toggle): adds the exact HP bar + numbers, and reveals the real icon.
 
 const DIM := "#8a8f9a"
+## Qud's K (#155352) -- what its row-3 strip text is drawn in. Measured on the glass at (21,73,72);
+## the compensated value comes back out as Qud's own palette entry, which is a good sign it is right.
+const K_1TO1 := "#155352"
 const HP_COL := Color(0.25, 0.80, 0.32)     # green, matching the player HP bar
 
 var _tiles: RefCounted                          # shared tile recolouring for the sprite column (set in _ready)
@@ -116,6 +122,14 @@ var _title: Label
 var _one_to_one := false
 
 func set_one_to_one(on: bool) -> void:
+	# QUD'S ROW-3 TEXT IS SMALL. Measured off its strip: "ACTIVE EFFECTS:" spans 122px for 15
+	# characters (~8.1 each, a ~13.5px face) where ours ran 183px at the theme's body size (~21).
+	# That is also why row 3 came out 31 tall against Qud's 28 -- the row is sized by this text.
+	# A scaled THEME rather than per-label overrides: each of these strips has several labels.
+	if on:
+		theme = UiFont.scaled_theme(get_viewport(), ROW3_FONT_SCALE)
+	else:
+		theme = null
 	_one_to_one = on
 	if _title != null:
 		_title.visible = not on   # 1:1: title folds into the name row ("Target: [none]")
@@ -128,8 +142,18 @@ func set_one_to_one(on: bool) -> void:
 			f.bg_color = Color(0, 0, 0, 0)
 			f.set_border_width_all(0)
 			f.set_corner_radius_all(0)
-			f.content_margin_top = 2
-			f.content_margin_bottom = 2
+			# 5, so the ink lands on Qud's row (1000..1009). This only works now that the text is
+			# small enough for the row's pinned 28 to be the binding height: while the CONTENT set
+			# the height, padding here just grew the row upward and the text never moved.
+			# ...and 5 to the LEFT. Measured glyph by glyph: our advances match Qud's (the same
+			# line spans 306px against its 305 over 32 glyph runs), the whole run just started 5
+			# short. Per view, because each cell's own inset differs.
+			f.content_margin_left = 11
+			f.content_margin_top = 5
+			# ZERO at the bottom, not 2. Row 3 is anchored to the ability bar above it, so its TOP
+			# moves with its height: padding above the text buys nothing (the row grows upward by the
+			# same amount), and only the bottom padding decides how far the text sits off the bar.
+			f.content_margin_bottom = 0
 		else:
 			f.bg_color = QudPalette.CHROME
 			f.set_border_width_all(1)
@@ -151,7 +175,7 @@ func _render() -> void:
 		_show_none()
 		return
 
-	var _pfx := "[color=#3b596b]TARGET:[/color] " if _one_to_one else ""
+	var _pfx := "[color=%s]TARGET:[/color] " % K_1TO1 if _one_to_one else ""
 	_rt_name.text = _pfx + QudText.to_bbcode(String(t.get("display", "")), _palette)
 
 	# Left column: the recoloured target sprite — perceived icon by default, real icon in full mode.
@@ -187,8 +211,9 @@ func _render() -> void:
 	_l_dir.visible = _l_dir.text != ""
 
 func _show_none() -> void:
-	var _pfx := "[color=#3b596b]TARGET:[/color] " if _one_to_one else ""
-	_rt_name.text = _pfx + "[color=%s][none][/color]" % DIM
+	var _pfx := "[color=%s]TARGET:[/color] " % K_1TO1 if _one_to_one else ""
+	# Qud renders both halves of this line in K -- the label and the value alike.
+	_rt_name.text = _pfx + "[color=%s][none][/color]" % (K_1TO1 if _one_to_one else DIM)
 	_sprite.visible = false
 	_rt_desc.visible = false
 	_hp_row.visible = false

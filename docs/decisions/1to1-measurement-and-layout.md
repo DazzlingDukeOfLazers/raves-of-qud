@@ -98,3 +98,32 @@ the model fixes above, each verified by a PIL measurement, one build apiece — 
 
 See also: [`goals.md`](../goals.md) (the recipe + gating), CLAUDE.md ("capture and inspect; do not
 infer" and the Python-first rule).
+
+## Addendum — read the layout model out of the app, don't infer it (the picker pass)
+
+The loop above assumes the model has to be *inferred* from captures. For a Unity target it usually
+doesn't: the model is sitting in the RectTransforms. `mod/UiProbe.cs` (`hv`-triggered via the
+bridge's `uiprobe` command) dumps every RectTransform of a live screen — screen rect in TOP-LEFT
+pixels, i.e. the same space as an `hv shot` capture — plus each text's content, font size, colour
+and alignment, and each Image's sprite name and tint. The picker's entire layout came out of two
+dumps, and the resulting height rule reproduced Qud's panel to **0.00px** across every state.
+
+Use it first. It removes the whole class of errors the top-bar pass fought: no value-dependent
+glyph-width contamination, no guessing which of two similar bands you measured, and the sprite
+names tell you what the chrome actually *is* (the picker's border is a 9-slice sprite; we had been
+reproducing it with the popup dialog's drawn notch lines, which no amount of pixel-nudging fixes).
+
+Its own traps, all of which produce confident-looking wrong answers:
+
+- **Filter on `activeInHierarchy`.** Pooled rows keep inactive variants (a `Modes` node holds both a
+  Category and an Item child). Reading an inactive one gave a category font size of 24 when the live
+  one is 16.
+- **Trust the geometry, not the TEXT.** Pooled `TMP_Text` components hold stale strings from
+  whatever last used them — every row in one dump claimed to be the same item, and one claimed a
+  category that wasn't in the list. Classify rows by STRUCTURE (has an `icon` child => item row).
+- **Vary the content anyway.** The panel looked fixed at 412x460 until a second picker came out
+  510.8x539. The *insets* were constant across both; the size was not. This is the same lesson as
+  the top bar, and it still applies when the numbers come from the engine.
+- **Capture and probe in the same breath.** Qud's footer bar gains and loses a context-dependent
+  entry between frames, so a capture taken seconds before a probe can disagree with it about the
+  panel's height — and the disagreement looks like a layout bug in the client.

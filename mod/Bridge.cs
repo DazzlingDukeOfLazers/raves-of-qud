@@ -28,6 +28,78 @@ namespace RavesOfQud
         private static BridgeServer _server;
         private static readonly object _gate = new object();
 
+        /// <summary>
+        /// Drain Unity's SynchronizationContext by hand (private Exec(), reflection).
+        /// macOS stops pumping posted continuations for an UNFOCUSED window even with
+        /// runInBackground=true — async chains (popup callbacks, screen closes, keymap
+        /// loads) then stall until the next focus. MAIN THREAD ONLY (uiQueue tasks are).
+        /// </summary>
+        /// Pump the sync context ACROSS frames: each uiQueue task drains it once and
+        /// re-queues itself. Async Qud UI (StatusScreensScreen.show) resolves over
+        /// several frames, so a single drain leaves it half-started.
+        public static void PumpTrain(int frames)
+        {
+            if (frames <= 0) return;
+            var gm = GameManager.Instance;
+            if (gm == null || gm.uiQueue == null) return;
+            gm.uiQueue.queueTask(() =>
+            {
+                PumpSyncContext(2);
+                PumpTrain(frames - 1);
+            }, 0);
+        }
+
+
+        /// <summary>UI THREAD. Pump Qud's synchronization context once per frame until the active
+        /// game view differs from <paramref name="was"/>, or <paramref name="tries"/> frames pass.
+        ///
+        /// Needed because an UNFOCUSED Qud stops draining those continuations promptly: a close
+        /// invoked over the bridge would be accepted and then simply not finish. Bounded so a view
+        /// that legitimately doesn't change can't leave us re-queueing forever.</summary>
+        private static void PumpUntilViewChanges(string was, int tries)
+        {
+            if (tries <= 0) return;
+            var gm = GameManager.Instance;
+            if (gm == null || gm.uiQueue == null) return;
+            gm.uiQueue.queueTask(() =>
+            {
+                try
+                {
+                    PumpSyncContext(4);
+                    ConsoleLib.Console.TextConsole.BufferUpdated = true;
+                    var g = GameManager.Instance;
+                    string now = g != null ? g._ActiveGameView : null;
+                    if (now != was) return;          // closed — stop
+                    PumpUntilViewChanges(was, tries - 1);
+                }
+                catch { }
+            }, 0);
+        }
+
+        public static void PumpSyncContext(int n)
+        {
+            try
+            {
+                // QUD'S context, not SynchronizationContext.Current: inside a uiQueue task
+                // Current can be null, so the old pump silently did nothing (an async
+                // StatusScreensScreen.show() then hung forever with no fault logged).
+                var sc = GameManager.Instance != null ? GameManager.Instance.uiSynchronizationContext : null;
+                if (sc == null) sc = System.Threading.SynchronizationContext.Current;
+                // PUBLIC *and* NonPublic. UnityEngine.UnitySynchronizationContext.Exec() is a PUBLIC
+                // method on an internal class, and a NonPublic-only lookup never found it -- so this
+                // pump has been a silent no-op, faithfully logging "no Exec on
+                // UnitySynchronizationContext" on every call while everything that depended on it
+                // (closing a screen, resolving a popup) quietly failed whenever Qud was unfocused.
+                var exec = sc?.GetType().GetMethod("Exec",
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic
+                    | System.Reflection.BindingFlags.Instance);
+                if (exec == null && sc != null)
+                    System.Console.WriteLine("[raves] sync pump: no Exec on " + sc.GetType().Name);
+                for (int i = 0; i < n && exec != null; i++) exec.Invoke(sc, null);
+            }
+            catch (Exception e) { System.Console.WriteLine("[raves] sync pump: " + e.Message); }
+        }
+
         public static BridgeServer Server
         {
             get
@@ -92,6 +164,19 @@ namespace RavesOfQud
         // sidebars, and command bar all drop from even-odd dev ~10-17 to ~0-1.4. See
         // reports/1to1-qud-scanlines.md.
         public static bool DisableQudScanlines = true;    // 1:1 default: kill Qud's always-on scanlines
+        /// Which overlay properties may be neutralised on the MINIMAP's own material.
+        /// Bisected live (2026-08-06) against Qud's 'UI/Textured-Overlay', which carries
+        /// _ColorOverlay + _OverlayTex (no _Offset):
+        ///   _ColorOverlay -> transparent  = MAP BLANKED (the shader MULTIPLIES by it)
+        ///   _OverlayTex   -> white        = map intact AND its scanlines gone
+        /// So 2 (_OverlayTex only) is the one setting that is both safe and does the job:
+        /// bright px 1590 with an even/odd row gap of 0.05, vs 1563/3.90 untouched and 90/0.08
+        /// when _ColorOverlay is included. Live-settable via the `mmmask` bridge command.
+        public  static int MinimapMask = 2;   // bit0 _ColorOverlay · bit1 _OverlayTex · bit2 _Offset
+        private static UnityEngine.Color _mmOrigOverlayCol;
+        private static UnityEngine.Texture _mmOrigOverlayTex;
+        private static float _mmOrigOffset;
+        private static UnityEngine.Material _minimapMatClone;   // the minimap's private overlay material
         private static bool _scanlineApplyPending;        // a uiQueue task is in flight
         private static bool? _scanlineAppliedValue;       // the value the camera currently reflects
         private static float _origScanlineIntensity = float.NaN;  // captured once, for restore
@@ -135,6 +220,8 @@ namespace RavesOfQud
             RecordsExporter.Ensure();
             // One-shot: export Qud's character-creation data (genotypes, …) for Raves' chargen screens.
             ChargenExporter.Ensure();
+            // Live: seed the character-sheet export when a game is up (re-run via "export").
+            CharacterExporter.ReExport();
 
             // Keep Unity RENDERING the window while it's unfocused, so Qud's own map
             // repaints in sync with commands we drive from Godot. Unity pauses the
@@ -458,6 +545,181 @@ namespace RavesOfQud
                     PopupBridge.HandleCommand(f);
                     return;
                 }
+                if (name == "statusscreen")
+                {
+                    // Open Qud's status screens at a TAB INDEX, first-party.
+                    // 0 skills, 1 attributes, 2 equipment, 3 tinkering, 4 journal, 5 quests,
+                    // 6 reputation, 7 message log -- the order the tab strip shows.
+                    // WHY: the harness opened this by clicking the HUD's person icon at a fixed
+                    // coordinate, which is fragile (it silently no-ops after a save load) and left
+                    // every status-tab recipe depending on a pixel. This calls the screen's own
+                    // static opener instead.
+                    f.TryGetValue("tab", out string tabStr);
+                    int tab;
+                    if (!int.TryParse(tabStr, out tab))
+                    {
+                        double td;
+                        tab = double.TryParse(tabStr, System.Globalization.NumberStyles.Any,
+                            System.Globalization.CultureInfo.InvariantCulture, out td) ? (int)td : 0;
+                    }
+                    var gmt = GameManager.Instance;
+                    if (gmt != null && gmt.uiQueue != null)
+                        gmt.uiQueue.queueTask(() =>
+                        {
+                            try
+                            {
+                                Qud.UI.StatusScreensScreen.show(tab, The.Player);
+                                Server.Log("statusscreen: opened tab " + tab);
+                            }
+                            catch (Exception e) { try { Server.Log("statusscreen failed: " + e.Message); } catch { } }
+                        }, 0);
+                    return;
+                }
+                if (name == "savegame")
+                {
+                    // FIXTURE AFFORDANCE -- and NOT the "save as a new game" it looks like.
+                    // XRLCore.SaveGame(name) names a FILE inside the CURRENT game's folder; the
+                    // slot it writes keeps the same ID and Name, so Qud's Load Game picker never
+                    // shows it as a separate entry and `hv loadsave` cannot reach it. It is an
+                    // orphan on disk. For a repeatable fixture use tools/capture/fixture.py quests,
+                    // which rebuilds the state on top of the golden save instead.
+                    f.TryGetValue("save", out string saveName);
+                    if (string.IsNullOrEmpty(saveName)) { Server.Log("savegame: no name"); return; }
+                    var gms = GameManager.Instance;
+                    if (gms != null && gms.uiQueue != null)
+                        gms.uiQueue.queueTask(() =>
+                        {
+                            try
+                            {
+                                XRL.Core.XRLCore.Core.SaveGame(saveName);
+                                Server.Log("savegame: wrote " + saveName);
+                            }
+                            catch (Exception e) { try { Server.Log("savegame failed: " + e.Message); } catch { } }
+                        }, 0);
+                    return;
+                }
+                if (name == "tinkerfixture")
+                {
+                    // FIXTURE AFFORDANCE, like startquest/journalfixture. Every golden save knows
+                    // ZERO schematics and holds ZERO bits, so both Tinkering views had nothing to
+                    // render. This learns a few of Qud's OWN recipes (from the master
+                    // TinkerData._TinkerRecipes list, so they are real ones with real costs) and
+                    // stocks the bit locker.
+                    var gmt2 = GameManager.Instance;
+                    if (gmt2 != null && gmt2.uiQueue != null)
+                        gmt2.uiQueue.queueTask(() =>
+                        {
+                            try
+                            {
+                                int builds = 0, mods = 0;
+                                // TinkerRecipes (the PROPERTY), not _TinkerRecipes (the backing
+                                // field): the master list is built lazily on first access, so the
+                                // raw field is empty and the fixture silently learned nothing.
+                                foreach (var d in XRL.World.Tinkering.TinkerData.TinkerRecipes)
+                                {
+                                    if (d == null) continue;
+                                    if (XRL.World.Tinkering.TinkerData.KnownRecipes.Contains(d)) continue;
+                                    if (d.Type == "Build" && builds < 4)
+                                    { XRL.World.Tinkering.TinkerData.KnownRecipes.Add(d); builds++; }
+                                    else if (d.Type == "Mod" && mods < 4)
+                                    { XRL.World.Tinkering.TinkerData.KnownRecipes.Add(d); mods++; }
+                                    if (builds >= 4 && mods >= 4) break;
+                                }
+                                var pl = The.Player;
+                                var lk = pl != null ? pl.RequirePart<XRL.World.Parts.BitLocker>() : null;
+                                if (lk != null) lk.AddAllBits(5);
+                                TinkeringExporter.ReExport();
+                                Server.Log("tinkerfixture: learned " + builds + " build + " + mods
+                                    + " mod recipes, +5 of every bit");
+                            }
+                            catch (Exception e) { try { Server.Log("tinkerfixture failed: " + e.Message); } catch { } }
+                        }, 0);
+                    return;
+                }
+                if (name == "journalfixture")
+                {
+                    // FIXTURE AFFORDANCE, like startquest. The Journal's grouping tabs are empty on
+                    // every golden save, so the category rendering had nothing to render. AddMapNote
+                    // sets exactly the field LocationCategory groups on, so a handful of notes across
+                    // a few categories exercises it with REAL entries through Qud's own API.
+                    var gmj = GameManager.Instance;
+                    if (gmj != null && gmj.uiQueue != null)
+                        gmj.uiQueue.queueTask(() =>
+                        {
+                            try
+                            {
+                                string zid = The.Player?.CurrentZone?.ZoneID;
+                                if (string.IsNullOrEmpty(zid)) { Server.Log("journalfixture: no zone"); return; }
+                                Qud.API.JournalAPI.AddMapNote(zid, "A watervine farm worked by Joppa's villagers.",
+                                    "Settlements", null, null, true, false, -1L, true);
+                                Qud.API.JournalAPI.AddMapNote(zid, "Brackish water pools thick with salt.",
+                                    "Natural Features", null, null, true, false, -1L, true);
+                                Qud.API.JournalAPI.AddMapNote(zid, "A rusted hulk half-buried in the marsh.",
+                                    "Ruins", null, null, true, false, -1L, true);
+                                Qud.API.JournalAPI.AddMapNote(zid, "Sun-bleached bones in a shallow midden.",
+                                    "Ruins", null, null, true, false, -1L, true);
+                                JournalExporter.ReExport();
+                                Server.Log("journalfixture: added 4 map notes across 3 categories");
+                            }
+                            catch (Exception e) { try { Server.Log("journalfixture failed: " + e.Message); } catch { } }
+                        }, 0);
+                    return;
+                }
+                if (name == "startquest")
+                {
+                    // FIXTURE AFFORDANCE, not gameplay. Building the Quests tab needs a save that
+                    // actually has quests, and neither golden save does; walking a character through
+                    // Joppa's dialogue to earn one is not something the harness can drive. This calls
+                    // QUD'S OWN start path (the same one Conversations.Parts.QuestHandler uses), so
+                    // the resulting quest is a real one with real steps -- not a fabricated stub that
+                    // would render differently from the thing we are trying to mirror.
+                    f.TryGetValue("quest", out string questName);
+                    f.TryGetValue("giver", out string questGiver);
+                    if (string.IsNullOrEmpty(questName)) { Server.Log("startquest: no quest name"); return; }
+                    if (string.IsNullOrEmpty(questGiver)) questGiver = "Raves fixture";
+                    var gmq = GameManager.Instance;
+                    if (gmq != null && gmq.uiQueue != null)
+                        gmq.uiQueue.queueTask(() =>
+                        {
+                            try
+                            {
+                                The.Game.StartQuest(questName, questGiver);
+                                QuestsExporter.ReExport();
+                                Server.Log("startquest: started " + questName);
+                            }
+                            catch (Exception e) { try { Server.Log("startquest failed: " + e.Message); } catch { } }
+                        }, 0);
+                    return;
+                }
+                if (name == "uiprobe")
+                {
+                    // Dump a live Qud screen's RectTransform layout for a parity pass.
+                    f.TryGetValue("target", out string probeTarget);
+                    var gmp = GameManager.Instance;
+                    if (gmp != null && gmp.uiQueue != null)
+                        gmp.uiQueue.queueTask(() =>
+                        {
+                            try { string tg = string.IsNullOrEmpty(probeTarget) ? "picker" : probeTarget;
+                                  UiProbe.Dump(tg); UiProbe.ExportChrome(tg); }
+                            catch { }
+                        }, 0);
+                    return;
+                }
+                if (name == "glyphs")
+                {
+                    // Force a re-extract of Qud's input-glyph font (EnsureExported skips when the
+                    // files are already there, which is unhelpful while tuning the packing).
+                    var gmg = GameManager.Instance;
+                    if (gmg != null && gmg.uiQueue != null)
+                        gmg.uiQueue.queueTask(() => { try { GlyphExporter.Export(); } catch { } }, 0);
+                    return;
+                }
+                if (name == "picker")
+                {
+                    // Answer Qud's mirrored item picker (pick a row / toggle a category / cancel).
+                    PickerBridge.HandleCommand(f);
+                    return;
+                }
                 if (name == "move")
                 {
                     f.TryGetValue("dir", out string dir);
@@ -495,6 +757,338 @@ namespace RavesOfQud
                     var zgm = GameManager.Instance;
                     if (zgm != null && zgm.uiQueue != null)
                         zgm.uiQueue.queueTask(() => { if (zout) zgm.ZoomOut(); else zgm.ZoomIn(); });
+                    return;
+                }
+                if (name == "setoption")
+                {
+                    // SetOption touches UI/audio state — run it on the uiQueue, which drains
+                    // at the MENU too. (The turn-thread drain also has a setoption case, but
+                    // that only runs in-game — menu edits from Raves' Options queued forever.)
+                    f.TryGetValue("id", out string soid);
+                    f.TryGetValue("value", out string soval);
+                    f.TryGetValue("defer", out string sodefer);
+                    if (!string.IsNullOrEmpty(soid))
+                    {
+                        var sgm = GameManager.Instance;
+                        if (sgm != null && sgm.uiQueue != null)
+                            sgm.uiQueue.queueTask(() =>
+                            {
+                                try
+                                {
+                                    XRL.UI.Options.SetOption(soid, soval ?? "");
+                                    if (sodefer != "1") OptionsExporter.ReExport();
+                                    Server.Log("[setoption] " + soid + " = " + soval);
+                                }
+                                catch (Exception ex) { Server.Log("setoption error: " + ex.Message); }
+                            });
+                    }
+                    return;
+                }
+                if (name == "deletesave")
+                {
+                    // Raves' picker confirmed a delete: remove it via Qud's own
+                    // SaveGameInfo.Delete() (DataManager.DeleteSaveDirectory — the
+                    // exact cleanup a picker-row delete performs). Confirm UX is
+                    // Raves-side; this command is the already-confirmed action.
+                    f.TryGetValue("id", out string dsid);
+                    if (!string.IsNullOrEmpty(dsid))
+                    {
+                        var dgm = GameManager.Instance;
+                        if (dgm != null && dgm.uiQueue != null)
+                            dgm.uiQueue.queueTask(() =>
+                            {
+                                try
+                                {
+                                    var t = Qud.API.SavesAPI.GetSavedGameInfo();
+                                    t.Wait(5000);
+                                    Qud.API.SaveGameInfo hit = null;
+                                    if (t.IsCompleted && t.Result != null)
+                                        foreach (var i in t.Result)
+                                            if (i != null && i.ID == dsid) { hit = i; break; }
+                                    if (hit == null) { Server.Log("[deletesave] no save with ID " + dsid); return; }
+                                    hit.Delete();
+                                    Server.Log("[deletesave] deleted '" + hit.Name + "' (" + dsid + ")");
+                                }
+                                catch (Exception ex) { Server.Log("deletesave error: " + ex.Message); }
+                            });
+                    }
+                    return;
+                }
+                if (name == "loadsave")
+                {
+                    // Raves' 1:1 picker chose a save: load it by ID via Qud's own
+                    // picker flow (see LoadSave.cs — completes the completionSource
+                    // exactly like a row click; opens the picker first if needed).
+                    f.TryGetValue("id", out string lsid);
+                    if (!string.IsNullOrEmpty(lsid)) LoadSave.Request(lsid);
+                    return;
+                }
+                if (name == "statusscreen")
+                {
+                    // SOLVED, and NOT the way this command does it: the reliable opener is the
+                    // ordinary TURN-THREAD command path — `command CmdEquipment` (CmdSkills,
+                    // CmdCharacter, …) opens Qud's status screens at that tab, because the turn
+                    // thread is what Qud's own keypress path uses. Calling
+                    // StatusScreensScreen.show() directly hangs from BOTH a uiQueue task and a
+                    // UiContext.Post: its NavigationController.SuspendContextWhile waits on the
+                    // gameplay input context, which is exactly what the turn thread owns.
+                    // Kept for the tab INDEX it documents; prefer the command path.
+                    // Tab order matches the carousel:
+                    // 0 skills · 1 attributes · 2 equipment · 3 tinkering · 4 journal ·
+                    // 5 quests · 6 reputation · 7 message log.
+                    f.TryGetValue("tab", out string ssTab);
+                    int.TryParse(ssTab, out int ssIdx);
+                    // NOT uiQueue: post straight to Qud's UI SynchronizationContext, so the
+                    // call runs on Unity's own update pump like a real button click. Calling
+                    // show() from inside a uiQueue task re-entered NavigationController's
+                    // SuspendContextWhile and the task hung forever (never completed, never
+                    // faulted). Post() is thread-safe, so this goes from the socket thread.
+                    try
+                    {
+                        var ssCtx = GameManager.Instance != null
+                            ? GameManager.Instance.uiSynchronizationContext : null;
+                        if (ssCtx == null) { System.Console.WriteLine("[raves] statusscreen: no ui context"); return; }
+                        ssCtx.Post(delegate
+                        {
+                            try
+                            {
+                                GameObject who = XRL.The.Player;
+                                if (who == null) { System.Console.WriteLine("[raves] statusscreen: no player"); return; }
+                                try { Qud.UI.StatusScreensScreen.prewarm(); } catch { }
+                                var t = Qud.UI.StatusScreensScreen.show(ssIdx, who);
+                                t.ContinueWith(tt =>
+                                {
+                                    if (tt.IsFaulted)
+                                        System.Console.WriteLine("[raves] statusscreen FAULT: "
+                                            + (tt.Exception != null ? tt.Exception.GetBaseException().Message : "?"));
+                                    else
+                                        System.Console.WriteLine("[raves] statusscreen closed (tab " + ssIdx + ")");
+                                });
+                                System.Console.WriteLine("[raves] statusscreen posted tab " + ssIdx);
+                            }
+                            catch (Exception ex) { System.Console.WriteLine("[raves] statusscreen: " + ex.Message); }
+                        }, null);
+                    }
+                    catch (Exception ex) { System.Console.WriteLine("[raves] statusscreen post: " + ex.Message); }
+                    return;
+                }
+                if (name == "invaction")
+                {
+                    // Raves' Equipment tab: open Qud's own item interaction popup for
+                    // the selected object. The menu itself mirrors back over the popup
+                    // channel -- nothing here builds one.
+                    f.TryGetValue("id", out string invId);
+                    f.TryGetValue("mode", out string invMode);
+                    f.TryGetValue("part", out string invPart);
+                    if (invMode == "equip")
+                        InventoryExporter.EquipPicker(invPart);
+                    else
+                        InventoryExporter.Twiddle(invId, invMode);
+                    return;
+                }
+                if (name == "skill")
+                {
+                    // Raves' Skills tab: accept a row (Qud's own SelectNode purchase
+                    // flow, popups included) or toggle a category's expand state.
+                    f.TryGetValue("index", out string skIdx);
+                    f.TryGetValue("mode", out string skMode);
+                    int.TryParse(skIdx, out int skI);
+                    SkillsExporter.Select(skI, skMode ?? "accept");
+                    return;
+                }
+                if (name == "rebind")
+                {
+                    // (see KeybindApplier; PumpSyncContext below keeps unfocused async flows moving)
+                    // Raves' Control Mapping edits (KeybindApplier mirrors Qud's own
+                    // KeybindsScreen flows; confirm/conflict popups mirror back to
+                    // Raves through the popup bridge). action: set|remove|defaults|golden.
+                    f.TryGetValue("action", out string rbAct);
+                    f.TryGetValue("id", out string rbId);
+                    f.TryGetValue("slot", out string rbSlotS);
+                    int.TryParse(rbSlotS, out int rbSlot);
+                    f.TryGetValue("key", out string rbKey);
+                    f.TryGetValue("ctrl", out string rbC);
+                    f.TryGetValue("shift", out string rbS);
+                    f.TryGetValue("alt", out string rbA);
+                    switch (rbAct)
+                    {
+                        case "remove":   _ = KeybindApplier.Remove(rbId, rbSlot); break;
+                        case "defaults": _ = KeybindApplier.Defaults(); break;
+                        case "golden":   _ = KeybindApplier.RestoreGolden(); break;
+                        case "regolden": _ = KeybindApplier.ReGolden(); break;
+                        default:         _ = KeybindApplier.Apply(rbId, rbSlot, rbKey,
+                                             rbC == "1", rbS == "1", rbA == "1"); break;
+                    }
+                    return;
+                }
+                if (name == "statustab")
+                {
+                    // FIRST-PARTY TAB SWITCH for the status screens. The gametree reached these
+                    // eight tabs by clicking a fixed coordinate on the tab bar, which missed often
+                    // enough that driving to a known tab took several retries and sometimes never
+                    // got there -- and a parity capture taken on the WRONG TAB is worse than none.
+                    // StatusScreensScreen.SetPage(i) is public and calls UpdateActiveScreen(), so it
+                    // is the whole switch. Named, not numbered, so callers do not encode Qud's tab
+                    // ordering; the names are Qud's own Screens[] transforms, the same ones the
+                    // heartbeat reports as `tab`.
+                    f.TryGetValue("tab", out string stTab);
+                    var stGm = GameManager.Instance;
+                    if (stGm != null && stGm.uiQueue != null)
+                        stGm.uiQueue.queueTask(() =>
+                        {
+                            try
+                            {
+                                var ss = Qud.UI.StatusScreensScreen.instance;
+                                if (ss == null || ss.Screens == null)
+                                { System.Console.WriteLine("[raves] statustab: status screens not up"); return; }
+                                int idx = -1;
+                                for (int i = 0; i < ss.Screens.Count; i++)
+                                {
+                                    var t = ss.Screens[i];
+                                    if (t != null && string.Equals(t.name, stTab ?? "",
+                                            StringComparison.OrdinalIgnoreCase))
+                                    { idx = i; break; }
+                                }
+                                if (idx < 0)
+                                { System.Console.WriteLine("[raves] statustab: no tab '" + stTab + "'"); return; }
+                                ss.SetPage(idx);
+                                System.Console.WriteLine("[raves] statustab -> " + stTab + " (" + idx + ")");
+                            }
+                            catch (Exception e)
+                            { System.Console.WriteLine("[raves] statustab: " + e.Message); }
+                        }, 0);
+                    return;
+                }
+                if (name == "mmmask")
+                {
+                    f.TryGetValue("mask", out string mmv);
+                    int mmi; if (int.TryParse(mmv, out mmi)) MinimapMask = mmi;
+                    _scanlineAppliedValue = null;   // force the next sweep to re-apply
+                    Server.Log("[mm] MinimapMask=" + MinimapMask);
+                    return;
+                }
+                if (name == "uiback")
+                {
+                    // First-party "press Escape" for Qud's MODERN menu screens (Records/
+                    // Options/Mods/…). Those screens read input hardware-side, so OS-
+                    // synthesized Escape never lands (highvisor's HID events included);
+                    // fire the framework's own cancel event instead. UI state — uiQueue.
+                    var bgm = GameManager.Instance;
+                    if (bgm != null && bgm.uiQueue != null)
+                        bgm.uiQueue.queueTask(() =>
+                        {
+                            try
+                            {
+                                // Most faithful: the active modern window's own OnCancel()
+                                // (ModManagerUI, high scores, …) — the method its UI wires up.
+                                try
+                                {
+                                    var uim = Qud.UI.UIManager.instance;
+                                    var wnd = (uim != null) ? uim.currentWindow : null;
+                                    if (wnd == null)
+                                    {
+                                        // currentWindow is nulled on some view transitions —
+                                        // resolve by the ACTIVE VIEW NAME instead (the same
+                                        // string our heartbeat reports as the scene).
+                                        var view = GameManager.Instance != null
+                                            ? GameManager.Instance._ActiveGameView : null;
+                                        if (!string.IsNullOrEmpty(view))
+                                            try { wnd = Qud.UI.UIManager.getWindow(view); } catch { }
+                                    }
+                                    if (wnd != null)
+                                    {
+                                        var mi = wnd.GetType().GetMethod("OnCancel", System.Type.EmptyTypes);
+                                        // StatusScreensScreen: go straight to the unguarded Exit() — its
+                                        // OnCancel/OnCloseButton no-op when the nav context died (seen
+                                        // after a mutation-buy popup left the screen un-Escapable even
+                                        // for the KEYBOARD; Exit() always tears it down).
+                                        // KeybindsScreen: same story — the inherited OnCancel() is a no-op;
+                                        // its real close is Exit() (CancelButton handler; completes the
+                                        // completionSource so KeybindsMenu() resumes and Hide()s).
+                                        if (wnd.GetType().Name == "StatusScreensScreen"
+                                            || wnd.GetType().Name == "KeybindsScreen")
+                                        {
+                                            var exi = wnd.GetType().GetMethod("Exit", System.Type.EmptyTypes);
+                                            if (exi != null) mi = exi;
+                                        }
+                                        if (mi == null) mi = wnd.GetType().GetMethod("Exit", System.Type.EmptyTypes);
+                                        if (mi != null)
+                                        {
+                                            mi.Invoke(wnd, null);
+                                            // OnCancel -> RemoveGameView(Hard:false) sets bViewUpdated
+                                            // but the view pump only runs when the console buffer is
+                                            // dirty — at an idle title screen that's NEVER. Kick it, or
+                                            // _ActiveGameView (our scene report) stays stale forever.
+                                            ConsoleLib.Console.TextConsole.BufferUpdated = true;
+                                            // UNFOCUSED Qud: async void Exit() completes its await chain
+                                            // (completionSource -> KeybindsMenu resume -> Hide -> the
+                                            // system-menu handler) through Unity's SynchronizationContext,
+                                            // which macOS stops draining for a backgrounded window even
+                                            // with runInBackground=true (turns + uiQueue keep running —
+                                            // only these continuations stall, leaving the screen up and
+                                            // TURNS BLOCKED until the next focus). We're ON the main
+                                            // thread here: pump the context so the close resolves now.
+                                            PumpSyncContext(8);
+                                            // ...and KEEP pumping across frames until the view really
+                                            // changes. Eight iterations in one task is enough while Qud
+                                            // is FOCUSED and hopelessly short when it isn't: backgrounded,
+                                            // Exit()'s async continuations need several frames to drain,
+                                            // so the screen stayed up, Qud stopped publishing snapshots,
+                                            // and Raves could never leave its title screen. That cascade
+                                            // reads as "the Raves goto is broken" and is nothing of the
+                                            // sort. Re-queueing YIELDS between pumps, which a tight loop
+                                            // on the main thread would not.
+                                            PumpUntilViewChanges(GameManager.Instance != null
+                                                ? GameManager.Instance._ActiveGameView : null, 40);
+                                            System.Console.WriteLine("[raves] uiback: " + wnd.GetType().Name + " cancel/exit invoked");
+                                            return;
+                                        }
+                                    }
+                                }
+                                catch (Exception wex) { System.Console.WriteLine("[raves] uiback window: " + wex.Message); }
+                                var nav = XRL.UI.Framework.NavigationController.instance;
+                                if (nav == null) { System.Console.WriteLine("[raves] uiback: no NavigationController"); return; }
+                                // Screens register commandHandlers["Cancel"] (string id), not the
+                                // button enum — fire the command; button event as a fallback.
+                                // SINGLE-SHOT ladder — fire exactly one cancel. A shotgun of
+                                // fallbacks double-fires: the extra Cancel lands on the main
+                                // menu, where Cancel == "Are you sure you want to quit?".
+                                var ev = nav.FireInputCommandEvent("Cancel");
+                                if (ev != null && ev.handled)
+                                {
+                                    ConsoleLib.Console.TextConsole.BufferUpdated = true;
+                                    System.Console.WriteLine("[raves] uiback: nav command Cancel handled");
+                                    return;
+                                }
+                                var ev2 = nav.FireInputButtonEvent(XRL.UI.Framework.InputButtonTypes.CancelButton);
+                                if (ev2 != null && ev2.handled)
+                                {
+                                    ConsoleLib.Console.TextConsole.BufferUpdated = true;
+                                    System.Console.WriteLine("[raves] uiback: nav button Cancel handled");
+                                    return;
+                                }
+                                // Last rung — screens that POLL ControlManager.isCommandDown("Cancel"):
+                                // inject a Cancel FrameCommand the way real input does (enqueue into
+                                // the private CommandQueue; next frame promotes it). Data access only.
+                                bool queued = false;
+                                try
+                                {
+                                    var cmType = typeof(ControlManager);
+                                    var fcType = cmType.GetNestedType("FrameCommand");
+                                    var fc = Activator.CreateInstance(fcType);
+                                    fcType.GetField("id").SetValue(fc, "Cancel");
+                                    var qField = cmType.GetField("CommandQueue",
+                                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+                                    var q = qField.GetValue(null);
+                                    q.GetType().GetMethod("Enqueue").Invoke(q, new object[] { fc });
+                                    queued = true;
+                                }
+                                catch (Exception rex) { System.Console.WriteLine("[raves] uiback reflection: " + rex.Message); }
+                                ConsoleLib.Console.TextConsole.BufferUpdated = true;
+                                System.Console.WriteLine("[raves] uiback: queue-injected Cancel (queued=" + queued + ")");
+                            }
+                            catch (Exception ex) { System.Console.WriteLine("[raves] uiback error: " + ex.Message); }
+                        });
                     return;
                 }
                 if (name == "dir")
@@ -544,12 +1138,27 @@ namespace RavesOfQud
                                 OptionsExporter.ReExport();
                                 RecordsExporter.ReExport();
                                 ChargenExporter.ReExport();
+                                CharacterExporter.ReExport();   // live sheet data for the status screens
+                                BindingsExporter.ReExport();    // control-mapping data
+                                SkillsExporter.ReExport();      // skills & powers tree
+                                QuestsExporter.ReExport();     // active quest log (Quests tab)
+                                FactionsExporter.ReExport();   // faction reputation (Reputation tab)
+                                JournalExporter.ReExport();    // journal tabs (Journal tab)
+                                TinkeringExporter.ReExport();  // build recipes + bits (Tinkering tab)
+                                InventoryExporter.ReExport();   // inventory (Equipment tab)
+                                TitleExporter.ExportCellFrame();     // Qud's own 9-slice cell frame
                                 TitleExporter.ExportChargenEmblem();                        // resident even at the menu
                                 TitleExporter.ExportNamedSprite("tiny-frame-h", "card_frame.png");         // the game-mode card's dotted frame
                                 TitleExporter.ExportNamedSprite("polat-locator-big", "sel_frame.png");     // the selected-card frame (corner brackets)
                                 TitleExporter.ExportNamedSprite("leftrightarrow", "nav_arrow.png");        // back/forward chevron
+                                // Picker chrome, named off its live Image components (UiProbe): the panel
+                                // border is a 9-slice sprite and the list/footer divider is TWO mirrored
+                                // halves meeting at the panel centre -- not the popup's drawn notch lines.
+                                TitleExporter.ExportNamedSprite("polat-char-frame-border", "picker_frame.png");
+                                TitleExporter.ExportNamedSprite("polat-frame-reverse-top-header-filler", "picker_divider.png");
                                 TitleExporter.ExportNamedSprite("polat-center-divider-knob", "deco_knob.png"); // the sub-text ornament
                                 if (!_clocksExported && TitleExporter.ExportTimeClocks()) _clocksExported = true;  // day/night sky discs (resident once a HUD has existed)
+                                GlyphExporter.EnsureExported();  // Qud's PUA input-glyph font, as a BMFont for Raves
                                 Server.Log("[export] re-exported (menu path) chargen chrome");
                             }
                             catch (Exception e) { try { Server.Log("export error: " + e.Message); } catch { } }
@@ -802,11 +1411,70 @@ namespace RavesOfQud
                     //     these UI materials (that name belongs to the camera CC_AnalogTV only). Neutralise the
                     //     overlay tint + the offset on every material that has them; capture originals to restore.
                     int graphics = 0, newMats = 0;
+                    // THE MINIMAP IS EXEMPT. Its Image draws the 80x50 minimapTexture through one of
+                    // these same overlay materials, and neutralising the overlay blanked it outright:
+                    // the widget still reported active/enabled/opaque with a sprite and a filled
+                    // colour array, but not one pixel reached the screen. Qud's minimap had been off
+                    // since before this sweep shipped (2026-07-30), so nothing caught it until the
+                    // option was turned back on. Skipping by MATERIAL, not by Graphic — UI materials
+                    // are shared assets, so mutating it via any other Graphic would blank the map
+                    // just the same.
+                    // Skipping the SHARED material was not enough: the sidebar panels draw with the
+                    // same asset, so exempting it handed their scanlines back (measured — the flat
+                    // chrome's even/odd row gap returned to 13.67, exactly the unsuppressed value).
+                    // Give the minimap its OWN material instance once, then exempt only that: the
+                    // shared asset still gets neutralised for all the chrome, and the map keeps a
+                    // working material. The map therefore keeps Qud's own overlay — which is what
+                    // Qud draws anyway.
+                    UnityEngine.Material minimapMat = null;
+                    try
+                    {
+                        var mmGo = GameManager.Instance != null ? GameManager.Instance.Minimap : null;
+                        if (mmGo != null)
+                        {
+                            var mmImg = mmGo.GetComponent<UnityEngine.UI.Image>();
+                            if (mmImg != null)
+                            {
+                                if (want && _minimapMatClone == null && mmImg.material != null)
+                                {
+                                    var src = mmImg.material;
+                                    // remember the clone's ORIGINALS so the bisect can put back the
+                                    // properties it is not currently neutralising
+                                    if (src.HasProperty("_ColorOverlay")) _mmOrigOverlayCol = src.GetColor("_ColorOverlay");
+                                    if (src.HasProperty("_OverlayTex")) _mmOrigOverlayTex = src.GetTexture("_OverlayTex");
+                                    if (src.HasProperty("_Offset")) _mmOrigOffset = src.GetFloat("_Offset");
+                                    Server.Log("[mm] material '" + src.shader.name + "' has"
+                                        + (src.HasProperty("_ColorOverlay") ? " _ColorOverlay" : "")
+                                        + (src.HasProperty("_OverlayTex") ? " _OverlayTex" : "")
+                                        + (src.HasProperty("_Offset") ? " _Offset(" + _mmOrigOffset + ")" : ""));
+                                    _minimapMatClone = UnityEngine.Object.Instantiate(src);
+                                    mmImg.material = _minimapMatClone;   // once — never per sweep
+                                }
+                                minimapMat = mmImg.material;
+                            }
+                        }
+                    }
+                    catch { }
                     foreach (var g in UnityEngine.Object.FindObjectsOfType<UnityEngine.UI.Graphic>())
                     {
                         if (g == null) continue;
                         var mat = g.material;
                         if (mat == null || mat.shader == null) continue;
+                        if (minimapMat != null && mat == minimapMat)
+                        {
+                            // BISECT: neutralise only the properties MinimapMask selects, so we can
+                            // find which one actually blanks the map and still suppress the rest.
+                            // bit0 _ColorOverlay · bit1 _OverlayTex · bit2 _Offset.
+                            if (mat.HasProperty("_ColorOverlay"))
+                                mat.SetColor("_ColorOverlay", (want && (MinimapMask & 1) != 0)
+                                    ? new UnityEngine.Color(0f, 0f, 0f, 0f) : _mmOrigOverlayCol);
+                            if (mat.HasProperty("_OverlayTex"))
+                                mat.SetTexture("_OverlayTex", (want && (MinimapMask & 2) != 0)
+                                    ? UnityEngine.Texture2D.whiteTexture : _mmOrigOverlayTex);
+                            if (mat.HasProperty("_Offset"))
+                                mat.SetFloat("_Offset", (want && (MinimapMask & 4) != 0) ? 0f : _mmOrigOffset);
+                            continue;
+                        }
                         bool touched = false;
                         if (mat.HasProperty("_ColorOverlay"))
                         {

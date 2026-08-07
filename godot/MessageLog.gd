@@ -109,15 +109,17 @@ const LOG_FONT_FRAC_1TO1 := 0.76
 const TITLE_COLOR_1TO1 := Color8(59, 89, 107)     # Qud's dim grey-teal "Message log" heading
 # Qud's grab-bar between the playfield and the log: three vertical lines "|||", the outer two a lighter
 # teal, the centre a darker grey-teal (measured off Qud). Drawn in the panel's left margin in 1:1.
-const SEP_OUTER := Color8(68, 99, 112)
-const SEP_CENTER := Color8(30, 57, 72)
+var SEP_OUTER := QudChrome.q8(68, 99, 112)
+var SEP_CENTER := QudChrome.q8(30, 57, 72)
 const SEP_MARGIN_1TO1 := 20                       # left content inset so text clears the ||| bar
 
 ## The panel background: user mode keeps the framed QoL box; 1:1 drops the border (Qud shows none) and
 ## insets the content so the ||| grab-bar (drawn in _draw) sits in the left margin.
 func _apply_panel_box() -> void:
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color8(17, 33, 38) if _one_to_one else QudPalette.CHROME   # Qud's dark blue-grey log bg
+	# q8: Qud's colour is the TARGET, and the canvas curve sags it (17,33,38 drawn lands at
+	# 18,30,34 -- measured). Stating the target and compensating is the whole point of QudChrome.
+	sb.bg_color = QudChrome.q8(17, 33, 38) if _one_to_one else QudPalette.CHROME   # Qud's dark blue-grey log bg
 	sb.content_margin_left = SEP_MARGIN_1TO1 if _one_to_one else 6
 	sb.content_margin_right = 6
 	sb.content_margin_top = 4
@@ -150,10 +152,13 @@ func _draw() -> void:
 	if not _one_to_one:
 		return
 	var h := size.y
-	# crisp 1px columns (draw_rect on integer x, not a half-pixel draw_line, so the teal isn't dimmed)
+	# crisp integer columns (draw_rect on integer x, not a half-pixel draw_line, so the teal isn't
+	# dimmed). The CENTRE IS 2px WIDE and the right outer sits at +11 — measured off Qud's own bar
+	# (1623 / 1627-1628 / 1632 at 1080) while matching the Nearby objects panel above; the original
+	# 2/6/10 read the 2px centre as one column and pulled the right edge in with it.
 	draw_rect(Rect2(2, 0, 1, h), SEP_OUTER)
-	draw_rect(Rect2(6, 0, 1, h), SEP_CENTER)
-	draw_rect(Rect2(10, 0, 1, h), SEP_OUTER)
+	draw_rect(Rect2(6, 0, 2, h), SEP_CENTER)
+	draw_rect(Rect2(11, 0, 1, h), SEP_OUTER)
 
 func _apply_log_style() -> void:
 	var body := UiFont.px(get_viewport(), "body")

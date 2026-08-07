@@ -1,0 +1,368 @@
+using System;
+using System.Collections.Generic;
+using Qud.UI;               // PickGameObjectScreen, PickGameObjectLineData, PickGameObjectLineDataType
+using XRL;                  // GameManager
+using XRL.World;            // GameObject
+
+namespace RavesOfQud
+{
+    /// <summary>
+    /// Mirrors Qud's ITEM PICKER (<c>Qud.UI.PickGameObjectScreen</c>) to Raves, and injects the viewer's
+    /// choice back so Qud's blocked turn thread unblocks.
+    ///
+    /// WHY THIS IS SEPARATE FROM <see cref="PopupBridge"/>: the picker is not a PopupMessage. Clicking an
+    /// EMPTY paper-doll slot runs EquipmentScreen.ShowBodypartEquipUI → PickItem.ShowPicker →
+    /// PickGameObjectScreen.show(), a whole screen with its own singleton, its own list model and its own
+    /// TaskCompletionSource. It never passes through getWindow("PopupMessage"), so the popup mirror is blind
+    /// to it: before this, Qud put the picker up and Raves showed nothing at all.
+    ///
+    /// Threading: identical to the popup case, and for the same reason. show() parks the turn thread on
+    /// `await menucomplete.Task` while the UI thread keeps drawing and keeps draining uiQueue — so we poll
+    /// from PopupBridge's existing UI-thread watcher and answer from there too.
+    ///
+    /// The model we export is exactly what PickGameObjectLine.setData draws, so Raves can reproduce the rows
+    /// without guessing: a CATEGORY row is "[-] name" (collapsible), an ITEM row is tile + hotkey + display
+    /// name + right-floated weight. Selection round-trips by INDEX into that same list, and Qud's own
+    /// HandleSelectItem does the work — which is what makes a category row toggle and an item row pick,
+    /// with no second implementation of the rule on our side.
+    /// </summary>
+    public static class PickerBridge
+    {
+        private static volatile bool _resend;   // client (re)connected → re-announce the live picker once
+        private static int _id;
+        private static bool _active;
+        private static string _sig = "";
+        private static PickGameObjectScreen _announced;   // the instance the announced rows came from
+
+        private static void Log(string s) { try { Bridge.Server?.Log(s); } catch { } }
+
+        public static void OnClientConnect() { _resend = true; }
+
+        /// <summary>The picker screen if it is genuinely up, else null. Hide() clears listItems and drops
+        /// Visible, so "visible with rows" is a sound liveness test — no ghost-instance problem like the
+        /// popup's copyWindow path, because this screen is a true singleton.</summary>
+        private static PickGameObjectScreen Live()
+        {
+            try
+            {
+                var sc = PickGameObjectScreen.instance;
+                if (sc == null || !sc.Visible) return null;
+                return (sc.listItems != null && sc.listItems.Count > 0) ? sc : null;
+            }
+            catch { return null; }
+        }
+
+        /// UI THREAD (driven by PopupBridge's watcher). Publish a picker frame whenever the screen's state
+        /// changes — appeared, rows changed (a category collapsed, a sort flipped), or dismissed.
+        public static void Poll(BridgeServer server)
+        {
+            bool resend = _resend;
+            _resend = false;
+
+            PickGameObjectScreen sc = Live();
+            if (sc == null)
+            {
+                if (_active)
+                {
+                    _active = false;
+                    _sig = "";
+                    _announced = null;
+                    var j = new JsonWriter();
+                    j.BeginObject().Member("type", Protocol.TypePicker)
+                        .Member("active", false).Member("id", ++_id).EndObject();
+                    Publish(server, j.ToString());
+                }
+                return;
+            }
+
+            string sig = Signature(sc);
+            if (_active && sig == _sig && !resend) return;
+            _active = true;
+            _sig = sig;
+            _announced = sc;
+            Publish(server, Frame(sc));
+        }
+
+        /// Cheap change-detector: everything the viewer can see, and nothing that churns per frame.
+        private static string Signature(PickGameObjectScreen sc)
+        {
+            var sb = new System.Text.StringBuilder();
+            try { sb.Append(sc.titleText != null ? sc.titleText.text : "").Append('\u001F'); } catch { }
+            foreach (var d in sc.listItems)
+            {
+                if (d == null) continue;
+                try
+                {
+                    if (d.type == PickGameObjectLineDataType.Category)
+                        sb.Append('C').Append(d.category).Append(d.collapsed ? '+' : '-');
+                    else
+                        sb.Append('I').Append(d.go != null ? d.go.ID : "").Append(d.quickKey);
+                    sb.Append('\u001F');
+                }
+                catch { }
+            }
+            // The footer bar too: toggling sort rewrites TOGGLE_SORT's label ("sort: list/by class"),
+            // and the active navigation context can add or drop entries without the rows changing.
+            try
+            {
+                foreach (var el in sc.yieldMenuOptions())
+                {
+                    var mo = el as XRL.UI.Framework.MenuOption;
+                    sb.Append('M').Append(mo != null ? mo.getMenuText() : (el != null ? el.Description : ""))
+                      .Append('\u001F');
+                }
+            }
+            catch { }
+            return sb.ToString();
+        }
+
+
+        private static readonly UnityEngine.Vector3[] _corners = new UnityEngine.Vector3[4];
+
+        /// <summary>Screen rect of a RectTransform, TOP-LEFT origin — the space `hv shot` captures in.</summary>
+        private static bool ScreenRect(UnityEngine.RectTransform rt, out float x, out float y, out float w, out float h)
+        {
+            x = y = w = h = 0f;
+            if (rt == null) return false;
+            rt.GetWorldCorners(_corners);
+            float xmin = _corners[0].x, xmax = _corners[0].x, ymin = _corners[0].y, ymax = _corners[0].y;
+            for (int i = 1; i < 4; i++)
+            {
+                if (_corners[i].x < xmin) xmin = _corners[i].x;
+                if (_corners[i].x > xmax) xmax = _corners[i].x;
+                if (_corners[i].y < ymin) ymin = _corners[i].y;
+                if (_corners[i].y > ymax) ymax = _corners[i].y;
+            }
+            x = xmin; y = UnityEngine.Screen.height - ymax; w = xmax - xmin; h = ymax - ymin;
+            return w > 0f && h > 0f;
+        }
+
+        /// <summary>The footer bar's laid-out option boxes, in hierarchy order.</summary>
+        private static List<UnityEngine.RectTransform> BarOptions(PickGameObjectScreen sc)
+        {
+            var outp = new List<UnityEngine.RectTransform>();
+            try
+            {
+                if (sc.hotkeyBar == null) return outp;
+                foreach (var rt in sc.hotkeyBar.GetComponentsInChildren<UnityEngine.RectTransform>(false))
+                {
+                    if (rt == null) continue;
+                    // The BAR'S OWN node is called "KeyMenuOptionBar", and GetComponentsInChildren
+                    // includes it — a StartsWith("KeyMenuOption") test swallows it and shifts every
+                    // entry's rect by one, so entry 0 gets the whole 400x66 bar and the last gets
+                    // nothing. Match the option prefabs exactly.
+                    if (rt.name == "KeyMenuOption" || rt.name.StartsWith("KeyMenuOption(Clone)"))
+                        outp.Add(rt);
+                }
+            }
+            catch { }
+            return outp;
+        }
+
+        private static string Frame(PickGameObjectScreen sc)
+        {
+            var j = new JsonWriter();
+            j.BeginObject().Member("type", Protocol.TypePicker).Member("active", true).Member("id", ++_id);
+            try { j.Member("title", sc.titleText != null ? (sc.titleText.text ?? "") : ""); } catch { }
+            // Qud's OWN highlighted row. Don't model the rule (it lands on the first ITEM, not the
+            // first row, and it re-clamps after every category toggle) -- read the live scroller.
+            try { j.Member("sel", sc.itemScrollerController.selectedPosition); } catch { }
+            j.Name("rows").BeginArray();
+            for (int i = 0; i < sc.listItems.Count; i++)
+            {
+                var d = sc.listItems[i];
+                if (d == null) continue;
+                j.BeginObject().Member("i", i);
+                try
+                {
+                    // PickGameObjectLine.setData branches on `go == null`, NOT on the type enum — match it,
+                    // so a malformed row can never be exported as an item with no object to draw.
+                    if (d.go == null)
+                    {
+                        j.Member("cat", true)
+                         .Member("name", d.category ?? "")
+                         .Member("collapsed", d.collapsed);
+                    }
+                    else
+                    {
+                        j.Member("cat", false).Member("name", d.go.DisplayName ?? "");
+
+                        // GetWeight() is a DOUBLE, and PickGameObjectLine right-floats its plain ToString()
+                        // with a '#' suffix. Ship the formatted string so Raves doesn't re-decide how many
+                        // decimals a 0.5-pound item shows.
+                        try { j.Member("weight", d.go.GetWeight().ToString(System.Globalization.CultureInfo.InvariantCulture)); } catch { }
+                        InventoryExporter.WriteTile(j, d.go);
+                    }
+                    // The hotkey belongs to BOTH kinds of row: setData writes `hotkey` AFTER the
+                    // go==null branch closes, so Qud letters its categories too (a] [+] Armor) and
+                    // those letters are how you collapse one from the keyboard.
+                    if (d.indent) j.Member("indent", true);
+                    if (d.quickKey != '\0') j.Member("key", d.quickKey.ToString());
+                    if (!string.IsNullOrEmpty(d.hotkeyDescription)) j.Member("hk", d.hotkeyDescription);
+                }
+                catch { }
+                j.EndObject();
+            }
+            j.EndArray();
+
+            // The footer MENU BAR, straight off the live screen. Qud builds it from
+            // yieldMenuOptions() -- defaults, plus style-specific entries (take all / store), plus
+            // whatever the ACTIVE navigation context contributes ("[Space] Select") -- so the bar is
+            // not a fixed list we could hardcode. MenuOption.getMenuText() is Qud's own renderer
+            // ("[{{W|key}}] description"), and TOGGLE_SORT's description is rewritten with the
+            // current sort mode on every show, so reading it here keeps "sort: list/by class" honest.
+            var barOpts = BarOptions(sc);
+            float barX = 0f, barY = 0f, barW = 0f, barH = 0f;
+            bool barRectOk = false;
+            try
+            {
+                if (sc.hotkeyBar != null)
+                    barRectOk = ScreenRect(sc.hotkeyBar.transform as UnityEngine.RectTransform,
+                        out barX, out barY, out barW, out barH);
+            }
+            catch { }
+            if (barRectOk)
+                j.Member("barW", ((int)System.Math.Round(barW)).ToString())
+                 .Member("barH", ((int)System.Math.Round(barH)).ToString());
+
+            // The TITLE TAB. Qud's title is not a caption on a full-width bar: the "Title" node is
+            // its own solid Image sized to the text plus 8px of padding either side (a
+            // HorizontalLayoutGroup + ContentSizeFitter), and everything right of it in that 21px
+            // band is left transparent -- the dimmed world shows through. Ship Qud's width because
+            // it is a text MEASUREMENT, and Raves rasterises text differently; guessing it from our
+            // own metrics is the same mistake the footer wrap made.
+            try
+            {
+                if (sc.titleText != null && sc.titleText.transform.parent != null)
+                {
+                    float tx, ty, tw, th;
+                    if (ScreenRect(sc.titleText.transform.parent as UnityEngine.RectTransform,
+                            out tx, out ty, out tw, out th))
+                        j.Member("tabW", ((int)System.Math.Round(tw)).ToString())
+                         .Member("tabH", ((int)System.Math.Round(th)).ToString());
+                }
+            }
+            catch { }
+
+            j.Name("menu").BeginArray();
+            int mi = 0;
+            try
+            {
+                foreach (var el in sc.yieldMenuOptions())
+                {
+                    if (el == null) continue;
+                    var mo = el as XRL.UI.Framework.MenuOption;
+                    int myIdx = mi++;
+                    j.BeginObject().Member("i", myIdx).Member("id", el.Id ?? "");
+                    // QUD'S OWN LINE BREAKS. The bar is a FlowLayoutGroup whose wrap test is
+                    // "runningWidth + itemWidth > containerWidth", so it depends on how wide QUD
+                    // measures each label — which Raves, on a different text rasteriser, cannot
+                    // reproduce. Recomputing the wrap there would drift; shipping the laid-out
+                    // boxes makes Raves' footer break exactly where Qud's does, by construction.
+                    if (myIdx < barOpts.Count && barRectOk)
+                    {
+                        float ox, oy, ow, oh;
+                        if (ScreenRect(barOpts[myIdx], out ox, out oy, out ow, out oh))
+                            j.Member("lx", ((int)System.Math.Round(ox - barX)).ToString())
+                             .Member("ly", ((int)System.Math.Round(oy - barY)).ToString())
+                             .Member("lw", ((int)System.Math.Round(ow)).ToString())
+                             .Member("lh", ((int)System.Math.Round(oh)).ToString());
+                    }
+                    try { j.Member("text", mo != null ? (mo.getMenuText() ?? "") : (el.Description ?? "")); }
+                    catch { j.Member("text", el.Description ?? ""); }
+                    if (mo != null)
+                    {
+                        try { j.Member("key", mo.getKeyDescription() ?? ""); } catch { }
+                        // `navigate` ships disabled: it is a LEGEND, not something to activate.
+                        if (mo.disabled) j.Member("disabled", true);
+                    }
+                    j.EndObject();
+                }
+            }
+            catch (Exception e) { Log("picker menu: " + e.Message); }
+            j.EndArray();
+
+            // The picker's own palette, so Raves resolves colour chars the same way the rest of the UI does.
+            try { InventoryExporter.WritePalette(j); } catch { }
+            j.EndObject();
+            return j.ToString();
+        }
+
+        private static void Publish(BridgeServer server, string json)
+        {
+            try { server.Publish(Protocol.Frame(json)); }
+            catch (Exception e) { Log("picker publish: " + e.Message); }
+        }
+
+        /// <summary>ANY THREAD. Answer the mirrored picker: {"do":"select","row":N} picks a list row,
+        /// {"do":"menu","row":N,"id":"..."} activates a footer bar entry, {"do":"cancel"} closes.
+        /// Marshalled onto the uiQueue because the turn thread is parked inside show().</summary>
+        public static void HandleCommand(Dictionary<string, string> f)
+        {
+            f.TryGetValue("do", out string what);
+            f.TryGetValue("id", out string wantId);
+            f.TryGetValue("row", out string rowStr);
+            int row;
+            // JSON numbers can arrive as "3.0"; parse leniently rather than silently doing nothing.
+            if (!int.TryParse(rowStr, out row))
+            {
+                double dv;
+                row = double.TryParse(rowStr, System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out dv) ? (int)dv : -1;
+            }
+
+            GameManager gm = GameManager.Instance;
+            if (gm == null || gm.uiQueue == null) { Log("picker cmd: no uiQueue"); return; }
+            gm.uiQueue.queueTask(delegate
+            {
+                try
+                {
+                    var sc = Live();
+                    if (sc == null) { Log("picker cmd: no live picker"); return; }
+                    // Answer the instance we ANNOUNCED. If the screen was rebuilt since, the row index the
+                    // viewer clicked no longer means what they saw — drop it rather than pick a stranger.
+                    if (_announced != null && !ReferenceEquals(_announced, sc))
+                    { Log("picker cmd: screen changed since announce; ignoring"); return; }
+
+                    if (what == "cancel") { sc.Cancel(); return; }
+                    if (what == "menu") { ActivateMenu(sc, row, wantId); return; }
+                    if (what != "select") { Log("picker cmd: unknown do=" + what); return; }
+                    if (row < 0 || row >= sc.listItems.Count)
+                    { Log("picker cmd: row " + row + " out of range (" + sc.listItems.Count + ")"); return; }
+
+                    // Qud's own handler: a category row toggles collapse and rebuilds, an item row completes
+                    // the task and unblocks the turn thread.
+                    sc.HandleSelectItem(sc.listItems[row]);
+                }
+                catch (Exception e) { Log("picker cmd: " + e.Message); }
+            }, 0);
+        }
+
+        /// <summary>UI THREAD. Activate a footer bar entry by its announced position.
+        ///
+        /// It has to be the INSTANCE Qud yielded, not a lookalike: HandleMenuOption dispatches on
+        /// REFERENCE equality (<c>element == TAKE_ALL</c>, <c>== TOGGLE_SORT</c>), so a freshly
+        /// constructed MenuOption with the right Id would fall through every branch and do nothing.
+        /// Re-enumerating yieldMenuOptions() returns the same stored objects, so the nth one is the
+        /// one the viewer saw — and we check the Id still matches before firing, because the bar can
+        /// gain or lose a context entry between the announce and the click.</summary>
+        private static void ActivateMenu(PickGameObjectScreen sc, int idx, string wantId)
+        {
+            if (idx < 0) { Log("picker menu: bad index " + idx); return; }
+            int i = 0;
+            foreach (var el in sc.yieldMenuOptions())
+            {
+                if (i++ != idx) continue;
+                if (el == null) { Log("picker menu: null option at " + idx); return; }
+                string got = el.Id ?? "";
+                if (!string.IsNullOrEmpty(wantId) && got != wantId)
+                { Log("picker menu: bar shifted (" + idx + " is '" + got + "', wanted '" + wantId + "')"); return; }
+                var mo = el as XRL.UI.Framework.MenuOption;
+                if (mo != null && mo.disabled) { Log("picker menu: '" + got + "' is a legend, not an action"); return; }
+                sc.HandleMenuOption(el);
+                return;
+            }
+            Log("picker menu: index " + idx + " past the end of the bar (" + i + ")");
+        }
+    }
+}

@@ -70,6 +70,38 @@ add a one-liner (symptom → rule).
   inspector's `_pick_cell` marches back to the occupied cell; the direction picker wants the literal ground cell.
 
 ### Bridge / snapshots
+- **The Quests and Journal maps are DIFFERENT TEXTURES**, despite being the same world. RefreshMap
+  dims every cell outside `highlights`; Quests passes the quest locations (so most of the world goes
+  dark) and the Journal passes null (nothing dims). One shared file drew the Quests' dimmed map
+  inside the Journal's panel. Export per screen.
+- **Pick the screen by NAME, not by `Visible`, and find it by COMPONENT, not `.instance`.** The
+  status screens are tabs of one StatusScreensScreen, so the Quests instance still reports visible
+  while the Journal tab is showing — a first-visible-wins check wrote the Quests map twice and the
+  Journal's never. And `JournalStatusScreen.instance` is null even when the screen exists;
+  `FindObjectOfType` finds it.
+- **With nothing selected the map centres on the PLAYER's parasang**, not the texture's middle.
+  Defaulting to the middle put Raves several parasangs from Qud's view, looking at forest while Qud
+  showed Joppa's salt marsh.
+- **The status screens' WORLD MAP is a texture Qud already built — export it, don't re-render it.**
+  MapScrollerController.RefreshMap walks all 80x25 cells of `JoppaWorld`, renders each through a
+  RenderEvent and blits its recoloured sprite into a **1280x600** texture (16x24 per cell), then the
+  UI draws that at **2x** inside a 724x744 viewport, scrolled to the target. Reproducing it means
+  reproducing Qud's whole world-map render -- terrain choice, per-cell colour, exploration state --
+  forever. `mapTexture` is private but `mapImage.sprite.texture` IS it, and it is CPU-readable
+  because RefreshMap builds it with `new Texture2D(...)`. It only exists once the screen has
+  RENDERED, so the export has to run with the screen live.
+- **The mod's uiQueue does NOT drain while Qud's window is in the BACKGROUND.** Measured with a
+  `uiprobe` command: backgrounded it logged nothing at all; focused it ran instantly. So EVERY
+  uiQueue-marshalled command (`uiback`, `uiprobe`, `statusscreen`, the chrome exporters) is
+  accepted, queued, and silently deferred until focus returns. Comments in this repo claiming the
+  uiQueue keeps running unfocused are wrong -- what keeps running unfocused is the TURN thread.
+  highvisor's `_qud_bridge` now activates Qud and waits 2s before sending.
+- **`PumpSyncContext` never worked.** It looked up `UnitySynchronizationContext.Exec` with
+  `BindingFlags.NonPublic` only -- but `Exec()` is PUBLIC on that internal class, so the lookup
+  always failed and the pump was a no-op, faithfully logging "no Exec on
+  UnitySynchronizationContext" on every call while everything depending on it quietly stalled.
+  Fixed to `Public | NonPublic | Instance`. Qud's log is at
+  `~/Library/Logs/Freehold Games/CavesOfQud/Player.log` -- read it before theorising.
 - **Snapshots fire on:** EndTurn (throttled), a Raves-driven command (immediate), a zone change (immediate),
   and the no-turn reactive signature (`BuildSignature`, ~10 Hz, focused only). A change that's neither in the
   signature nor turn-based won't publish — set `Bridge.ForcePublishSoon` and flush it on a turn-thread event.
@@ -78,6 +110,38 @@ add a one-liner (symptom → rule).
   drained by Tick/TickRender.
 
 ### Godot / the frame
+- **A mirrored Qud MODAL eats Raves' own keys.** Qud's in-game system menu (Set Checkpoint /
+  Control Mapping / Save and Quit) comes over the popup mirror and PopupOverlay is modal, so while
+  it is up a Raves-local shortcut like the Tinkering Ctrl+Tab silently does nothing. Escape sent to
+  Raves RAISES that menu (it is Qud's own binding), so "press Escape then try the key" is a way to
+  create this, not clear it. Clear it with a popup answer over the bridge, then send the key.
+- **RESOLVED: the "intermittent" status-screen openers were a STUCK MODIFIER in the harness.**
+  `hv key` set the modifier as a flag on the key event and never released it, so after one
+  `ctrl+tab` macOS believed Control was held and every later key arrived modified — a plain `n`
+  reached Raves as Ctrl+N. Not intermittent at all: broken from the first combo onward, for every
+  key, and unfixed by relaunching the app because the stuck state is in the OS. Fixed in highvisor
+  (modifiers are pressed/released as real key events). *Recognise it by:* single keys stop working
+  right after you first send a combo.
+- **The instrument that found it: print what `_input` ACTUALLY receives.** Three separate bugs in
+  this area (this one, the missing `handle_key`, and a mirrored modal eating keys) were each
+  settled in one cycle by logging keycode/modifiers/visibility at the top of `_input`, after
+  several rounds of hypothesis-guessing got nowhere. Reach for it first.
+- **(historical) the openers once looked INTERMITTENT.** `n`/`j`/`q`/`e` opened
+  their tabs reliably at one point in a session and then stopped on a fresh launch of the SAME
+  build, with `hv goto raves status_*` failing its assert. Established: the keys DO reach the app
+  (an `_input` trace logged the right keycode and modifiers arriving), no modal was up, it is not a
+  settle-time issue (still failing after ~20s), not a focused-control issue (clicking the world
+  first did not help), and it affects EVERY tab, not one. Cause still unknown -- start from the
+  `_input` trace, which is the tool that settled the neighbouring bugs.
+- **Raves' Continue greys out when it cannot READ QUD'S SAVES DIR — and that looks like a bridge
+  failure.** `_saves_exist()` lists `~/Library/Application Support/com.FreeholdGames.CavesOfQud/
+  Synced/Saves`, i.e. ANOTHER APP'S container. macOS TCC grants are per code-signature and this app
+  is ad-hoc re-signed on every build, so the permission lapses after enough rebuilds:
+  `DirAccess.open` returns null, 1:1 Continue disables, clicking and pressing Space do nothing, and
+  Raves sits at its title while the bridge is perfectly healthy. Continue now also enables on a
+  LIVE bridge game, and the failed listing warns once instead of silently reading as "no saves".
+  *Symptom to recognise:* Raves at the title, Qud in-game, `qud_state.json` fresh with
+  `live: true`, and NO "Raves bridge: connected" line in Raves' log.
 - **Mouse clicks over the Holodeck are eaten by the frame's container Controls** before `_unhandled_input`.
   Handle Holodeck mouse in **`Main._input`** (fires before GUI). Keyboard is fine in `_unhandled_input`
   (focus-less menu buttons don't swallow it). This bit the **inspector**: Ctrl/Cmd+click → `_inspect`
@@ -99,6 +163,56 @@ add a one-liner (symptom → rule).
   NEGATIVE `CanvasLayer` so it tints only the 3D, not the chrome.
 - **The exported app writes NO `godot.log` / crash report** (ad-hoc signed). Trace via a file under
   `InputModel.support_dir()` (`~/Library/Application Support/RavesOfQud`), or run the dev editor.
+- **Per-screen colour compensation differs.** `QudChrome.q8` (×1.13, Records-fitted) OVERSHOOTS on the
+  Control Mapping screen — capture-fitting its solids gave `captured ≈ drawn − 6` above the dark knee
+  (`ControlMappingScreen._cm8`, +6/channel). Fit each new screen from its OWN solid fills (border/bg),
+  not glyph edges, before trusting either curve. Also: Qud's "letterspaced" headers are NOT tracked —
+  they're the SEMIBOLD face at a bigger size (SCP advance = 0.6×size explains every measured pitch).
+- **Main's Esc handler runs before overlay screens** (`_unhandled_input` is reverse tree order; the
+  Holodeck is the LAST child). Frame overlays (status screens, control mapping) must be reflected in
+  `Main.overlay_check` or 1:1 Esc ALSO fires `CmdSystemMenu` at Qud underneath the overlay's own close.
+- **Qud modal answers: mirror menu picks by TEXT, not index.** `PopupOverlay` rides the picked option's
+  stripped text along in the answer payload (`popup_option` signal); the text keeps its hotkey prefix —
+  match `ends_with("control mapping")`, not equality.
+- **`KeybindsScreen` needs the `uiback` Exit() special-case** (inherited `OnCancel` is a no-op, same as
+  `StatusScreensScreen`), and its `async void Exit()` only COMPLETES while Qud's main loop runs — an
+  unfocused Qud stays on the screen until next activation (the heartbeat scene flips then, not before).
+  Worse: while it (or any modal screen) is up, TURNS ARE BLOCKED — "my remapped key does nothing" was
+  Qud parked on Keybinds. The uiback handler now pumps Unity's SynchronizationContext (private `Exec()`,
+  reflection) after invoking Exit so the close chain resolves unfocused; macOS stops draining those
+  continuations for a backgrounded window even with `runInBackground=true` (turns + uiQueue keep running).
+- **Every scene must REPORT itself on load, not just on transitions.** `UiState` rewrites its file
+  every 2s as a freshness heartbeat, so a scene that never calls `set_scene` republishes the PREVIOUS
+  scene forever — `hv state` then reads fresh-but-wrong (it saw `status_skills` while Raves sat on
+  the title after the lifecycle bounce, and driving clicked into the menu). `MainMenu._ready` now
+  reports `title`, `set_scene` clears any popup (a modal can't survive a scene change), and the
+  heartbeat sanity-checks the live scene root before republishing.
+- **The reflection "sync pump" DOES NOT WORK on this build — retract any fix credited to it.**
+  `Bridge.PumpSyncContext` looks up `Exec()` on the sync context by reflection. Qud's context is a
+  `UnitySynchronizationContext`, which *does* declare a non-public `Exec()` in the assembly — but at
+  RUNTIME `GetMethod("Exec", NonPublic|Instance)` returns null (IL2CPP strips non-public metadata on
+  the Mac build; the mod logs "no Exec on UnitySynchronizationContext"). It was also pumping
+  `SynchronizationContext.Current`, which is null inside a uiQueue task, so it was a double no-op.
+  The `uiback` KeybindsScreen close that this pump was credited with is therefore explained by the
+  nav-cancel rung, not the pump. Don't reach for it again; find a first-party path instead.
+- **Qud APIs that raise a SYNCHRONOUS popup (`Popup.ShowYesNo`, `SelectNode`) must run through
+  `APIDispatch.RunAndWaitAsync`, not straight from a uiQueue task** — the modal wait deadlocks and
+  the call proceeds as if confirmed (a skill purchase went through on "No"). Mirror whatever wrapper
+  Qud's own caller uses; here `SkillsAndPowersLine.Accept()` showed the way.
+- **Answering a mirrored popup must target the ANNOUNCED instance.** Qud pools popup copies
+  (`UIManager.popupMessages`, a private static Queue); a RELEASED copy stays visible with a non-null
+  callback, so `FindObjectsByType` scans pick pooled ghosts and answers vanish into them. PopupBridge
+  holds the instance it announced and excludes anything in the free pool. Also pump the sync context
+  after answering (`Bridge.PumpSyncContext`) or an unfocused Qud won't resume the awaiting chain.
+- **A Control Mapping remap only works in Raves via `QudBinds.gd`** — Raves' in-game keys are hardcoded;
+  the custom-bind fallback (end of Main's key chain) routes unclaimed combos to Qud's command executor.
+  Movement keys the `match` just handled MUST bail before the fallback or they double-send. Bare digits
+  in Qud's display strings are ambiguous (numpad7 renders "7") — match both keycodes.
+- **`hv restart raves` relaunches via the `raves_solo` launcher = `--one-to-one` LOCKED** (highvisor
+  apps.py profile) — every restarted instance is 1:1 regardless of settings. User-mode testing needs the
+  `raves_user` launcher (no flag, in ~/.config/highvisor/launch.json). The lock used to leak into
+  settings.json via `_on_one_to_one_changed` persisting it (making unflagged launches come up 1:1 too) —
+  now guarded; `UiState` reports the EFFECTIVE mode (`Settings.one_to_one()`), not the stored value.
 
 ---
 
@@ -133,3 +247,695 @@ add a one-liner (symptom → rule).
 - [ ] `dotnet build mod/…csproj` first (catches API drift). Deploy = copy `.cs` + **full Qud restart**.
       Client-only `.gd` changes need no restart.
 - [ ] Run the author guard before every push: `git log --all --format='%ae' | grep -i allspice` (must be empty).
+
+## Equipment tab: the cell frame is a real sprite, and the strip starts where you think it doesn't
+
+- **The bracketed cell frame is Qud's own sprite, `polat-category-frame`** — 46x41 with Unity
+  9-slice borders (left 12, bottom 11, right 13, top 12). `FilterBarCategoryButton.background`
+  holds it, assigned in the PREFAB, so the name is invisible in the decompiled source; read it
+  off a live instance (`TitleExporter.ExportCellFrame`). Hand-drawing the motif from a bitmap
+  spec scored WORSE than the previous approximation; nine-slicing the real sprite took the frame
+  leaves from ~14 to ~2.9. **Extract the sprite; don't redraw the art.**
+- **The filter cells are drawn at the sprite's NATIVE 46x41** (58px pitch, 12px gap). The paper
+  doll's boxes are the SAME sprite stretched to 64x64 — one design, two sizes, which is exactly
+  what a nine-patch is for.
+- **The paper-doll boxes are 64x64 at x{274,364,454,544,634}**, not the 55x62 at x+9 that eyeballing
+  the lit area gives. Find a grid by scanning the capture for the frame's own long runs, then
+  remember the runs BREAK at the two ornamented corners (top starts 9 late, bottom ends 9 early) —
+  a naive "longest run" reads 9px short and lands you on the interior.
+- **The strip's first cell is the "*All" button at x618**; categories start at 676. There is no
+  cell at 560. Getting this wrong shifts the whole strip one pitch and silently compares every
+  category icon against its NEIGHBOUR's — the frames still score well, so only the image leaves
+  betray it.
+- **Filter-cell colour is `FilterBarCategoryButton.LateUpdate`, verbatim:** enabled+focused
+  `#FFFFFF`, enabled `#858951` (an olive, NOT gold), focused `#4A757E`, otherwise `#134F4E`.
+  The catch: that method only writes `background.color` when the state CHANGES, so a button
+  nobody has ever toggled keeps its PREFAB colour (~(51,80,91) on screen) and matches none of
+  the four. Don't "fix" that to #134F4E.
+- **Qud persists the enabled filter set with the save** (it survives a full restart), and the
+  no-filter button reports as the category `"*All"`. Export it (`enabledFilters`) and strip
+  `"*All"` on the client, or the list filters against a category no item has and renders empty.
+- The teal stub on a filter cell's bottom line is **not in the sprite** — Qud paints it over the
+  frame, filter cells only, at cell-relative (21,38), 4x3.
+- When measuring the ink inside one of these cells, **inset past the corner motif (14px)**. At
+  inset 6 the motif is inside the mask and every cell reports the same full-region bbox.
+- **Icon sizing: read the RectTransform, don't fit the bboxes.** `FilterBarCategoryButton.icon`'s
+  image is a 20x30 rect, centred (anchors+pivot 0.5), `preserveAspect FALSE`, `type Simple`, over
+  a 16x24 sprite — i.e. Qud stretches the WHOLE tile 1.25x and never looks at the opaque sub-rect.
+  Three successive attempts to normalise by the opaque box failed in opposite directions (small art
+  too big, wide art too narrow). The "every icon is exactly 15 tall" observation that motivated them
+  was an artefact of the ink threshold: an icon's dim rows land in the same 20-60 band as the scrim,
+  so the measured bbox is the bright CORE, not the sprite. Fixing it took the filter icons from
+  ~51 mean diff to ~4.
+- **The client's fallback colour table is not Qud's palette, and one wrong entry repaints a
+  whole screen.** `QudTiles.COLORS['w']` is a dark orange (0.60,0.40,0.10); Qud's real
+  `colorFromChar('w')` is the khaki `#98875f` — the very value `FilterBarCategoryButton` hardcodes
+  for its icons. Qud's palette normally rides on a ZONE SNAPSHOT, so a status pane built straight
+  from an export file can render before one arrives and silently fall back. That looked exactly
+  like run-to-run measurement noise (the same build scored 8.63 and 17.54 on the doll images).
+  The export files now carry the palette themselves. **If a screen's colours are intermittently
+  wrong, suspect the palette hasn't arrived before you suspect the capture.**
+- **Colours belong on the wire, resolved.** `UIThreeColorProperties.FromRenderable` paints with
+  `getColorChars()`, which resolves TileColor over ColorString — so exporting the raw ColorString
+  and deriving client-side is a guess that comes out right for some items and wrong for others.
+  The mod now exports the resolved `fg`/`dt`/`bg` chars (and the flips FromRenderable applies).
+- **A matching ink BBOX is not the objective.** Nudging the doll tile +1px in x made every bbox
+  line up with Qud's exactly and TRIPLED the pixel diff (16 -> 52): the bbox disagreement was a
+  one-column dim edge. Score on pixels; read bboxes as a diagnostic only.
+
+## Equipment tab, round two: the doll label, natural weapons, and TWO list font sizes
+
+- **The primary-limb star is part of the label string, not a separate glyph.**
+  `EquipmentLine.setData` builds `"{{G|*}}" + GetCardinalDescription()`, so the star wraps and
+  centres WITH the text. Drawing it at a fixed offset left of the cell is what made it collide
+  with a short first line ("Left Hand" put the L on top of the star). It is GREEN, not gold.
+- **`DefaultBehavior` DOES render in the doll** -- `Equipped ?? DefaultBehavior`, and when it
+  falls through it renders `GreyOutForUI()`'d, which just forces both tones to `K`. That is why
+  a mutant claw shows as a dark teal ghost. An earlier note here claimed Qud leaves those slots
+  empty; that came from a parity leaf reading 0 ink, **which is exactly what a brightness-
+  thresholded ink mask reports for a sprite painted in `K`**. A dark sprite is invisible to the
+  ink mask -- never read "0 ink" as "nothing there" without looking.
+  (Qud greys the same way when an item spans several parts and this is not the first of them.)
+- **The inventory list is drawn at TWO font sizes**, which is easy to miss because both row kinds
+  share a 26px pitch: a CATEGORY name's glyphs advance 13.3px, an ITEM name's advance 9.75px --
+  size 22 and 16 through the 0.6*size letterspacing. The hotkey column stays at 16 in both. No
+  amount of column nudging lines up a row whose glyphs are the wrong size; measure the advance of
+  a REPEATED letter ("Data" gives you three) before touching any x.
+- Row icons follow the same 20x30 law as the filter bar and the doll (`InventoryLine.icon`),
+  left-anchored rather than centred. We had them at 13x19.
+- **Glyph ink starts are not advances.** Comparing "where does the ink of `[` begin" between apps
+  measures the left bearing, not the layout; only same-character runs give a real advance.
+- **A category row is ONE colour for all three of its parts, and it lives on the PREFAB.**
+  `InventoryLine` does `categoryLabel.SetText(categoryName)` with no markup, so nothing in the
+  source tells you the colour -- read it off a live instance like a RectTransform.
+  `categoryLabel`, `categoryExpandLabel` and `categoryWeightText` are all
+  `RGBA(0.231, 0.365, 0.443)` at alpha 1, which grades to (52,83,102) on screen. Our `{{c|}}`
+  cyan rendered (56,154,176). Sampling the capture alone cannot tell you this: a sample cannot
+  separate a dim colour from a bright one at low alpha, and the probe reports alpha directly.
+- **Draw Qud's raw source colour; do not push it through `_iv8` first.** The helper's flat +6
+  landed the category label at (51,79,97) against Qud's (52,83,102), while drawing Qud's own
+  (59,93,113) matched exactly -- Raves grades Qud's source the same way Qud does.
+- The category weight column is part of the category ROW's style: same colour AND same size as
+  its name (ink 20px tall, 96px wide), not the item size. Right-aligning it on CAT_W_EDGE lands
+  the ink 7px short, because the trailing `|` carries a right bearing.
+- **A leaf that does not span the row cannot score the row.** `list_cat` was 420px wide and
+  stopped at x1275, so the weight column at x1578-1673 was never in it -- changes there moved
+  no number at all.
+- **Item rows: `text` and `hotkeyText` are RGBA(0.690, 0.780, 0.760); `itemWeightText` is the
+  SAME (59,93,113) as the whole category row.** Read off the live InventoryLine, like the rest.
+- **...but for the ITEM_FONT text those are not the values to DRAW.** At 16px the glyph stems are
+  thin enough that anti-aliasing decides the result, and Godot's rasteriser reaches nearer to full
+  colour than Qud's. Qud proves it against itself: the item weight and the category name carry the
+  identical (59,93,113), yet the category renders (52,83,102) at ROW_FONT and the weight only
+  (40,67,81) at ITEM_FONT. So the three ITEM_FONT colours are FITTED to land Qud's rendered ink
+  (name (147,171,166), weight (46,74,89), hotkey (139,164,160)) while every ROW_FONT colour stays
+  Qud's literal value, which matches exactly. Same concession as the 2.5x sprite phase.
+- Even at one size the fit is per-element: the hotkey and the name carry the same source colour and
+  still render 9 apart, because ")" is thinner than a letter.
+- **Sample a colour down a whole COLUMN, not off one row.** "b)" is two glyphs: it gave n=2 and a
+  reading 16 off the truth, which sent one round of fitting the wrong way. The same column over all
+  rows gives n>300 and a stable answer.
+
+## The item interaction popup: drive QUD'S menu, don't build one
+
+- `InventoryAndEquipmentStatusScreen.HandleSelectItem` answers a selection with
+  `EquipmentAPI.TwiddleObject` (namespace **Qud.API**) inside `APIDispatch.RunAndWaitAsync`.
+  TwiddleObject raises the option list, applies the choice and runs every follow-on prompt
+  itself -- and our popup mirror already forwards Qud's modals. So the whole menu, with the
+  right verbs per item and the right side effects, costs one bridge command. Same reasoning as
+  the Skills tab's SelectNode, and the same hard requirement: it MUST go through APIDispatch,
+  or the synchronous popup it blocks on deadlocks.
+- **Export `go.ID`, not `go.IDIfAssigned`.** IDIfAssigned is null until something has caused Qud
+  to assign one -- 13 of 14 items in a normal pack had never been asked, so every row shipped
+  without a handle. `ID` just persists the object's existing BaseID; it invents no identity.
+- **A modal's own hotkeys live in the row TEXT** ("[d] drop", "[E] Equip (manual)"), not in
+  `QudMenuItem.hotkey`, which is empty for menu items. Scanning only the field matched nothing
+  and every letter escaped the modal to the app underneath -- pressing "l" for look toggled the
+  font ruler behind the popup. Case matters: "[e] equip (auto)" and "[E] Equip (manual)" are
+  different rows, so the shift state has to agree.
+- **A re-announced popup must not reset what the viewer has done to it.** The watcher re-sends
+  with a fresh id; rebuilding on that threw away an option list's SELECTION, so the bar moved on
+  Down and sprang back a second later -- which reads exactly like "arrows do nothing". The same
+  bug had already been fixed once for half-typed input; the guard is now content-based and covers
+  both.
+- **Refresh a screen when the popup CLOSES, not when it opens.** An item action lands when the
+  viewer answers, which can be many seconds later; timers started at open had all expired, and
+  the list still showed an item that had just been dropped. `PopupOverlay.closed` -> Main's
+  `popup_closed` -> `StatusScreens._refresh_after_popup`.
+- A `LineEdit` left at the default focus mode holds focus and eats the ACCEPT key. The tell is
+  that ARROWS still work: a LineEdit passes up/down through and swallows only what it uses.
+
+## The popup context header (the "image frame")
+
+- Qud's popup header is `PopupMessage`'s `contextImage` / `contextText` / `contextFrame`.
+  `contextRender` and `contextTitle` are ShowPopup PARAMETERS, not stored fields, so there is
+  nothing to read on the instance -- the live components are the source of truth.
+  `contextImage.threeColorTile` gives the sprite plus already-RESOLVED Foreground/Detail, so the
+  client needs no palette lookup for the tile at all.
+- **That sprite has no name to ship.** Both `sprite.name` and `texture.name` come back empty (it
+  is an atlas sub-sprite), so its PIXELS are its only identity: the mod dumps them into the tiles
+  dir under a per-popup filename. Per-popup because the client caches tile textures by NAME -- a
+  stable name would serve the previous item's art forever.
+- Geometry, all measured as offsets from the popup's TOP LINE (not the panel, whose padding
+  differs): tile box +26 at 48x72 (Qud's RectTransform, 3x the 16x24 sprite), name ink +113,
+  divider +151, first command's ink 22 below that. Panel 240 wide; the tile centres on it.
+- **Draw the header's tile and its name in the SAME pass.** They were a drawn texture plus a
+  RichTextLabel positioned from a deferred callback -- two readings of the same offset at two
+  different moments. When the layout shifted between them the tile landed right and the name did
+  not, INTERMITTENTLY: the identical build measured +113 one run and +89 the next, and the drift
+  looked like state churn for hours. One pass, one reading. It also retires a guessed label
+  leading in favour of the font's own ascent (less 5px: ascent overshoots the cap height).
+- **The reconnect resend WORKS** -- an earlier note here said it did not, and that was wrong.
+  `BridgeServer` fires `OnConnect` per accepted client and `PopupBridge.OnClientConnect` sets a
+  one-shot `_resend` that overrides the signature dedupe, so a client that restarts while a popup
+  is open does get it re-announced. The "Raves shows no popup" cases that prompted the wrong
+  diagnosis were a popup that had actually been dismissed in Qud (Esc closed the status screen
+  underneath it), plus stale item ids after a save reload.
+- **...but every connect forces a full re-announce, and there are a LOT of connects.** highvisor's
+  state poller opens and drops a bridge connection about twice a second, and each one set
+  `_resend`. With a context header that meant a GPU texture readback, a PNG write and a delete at
+  2Hz forever -- and a fresh popup id each time, which is what kept resetting the client's menu
+  selection. The context sprite is now cached against the popup's signature and only re-dumped
+  when the popup actually changes. **A per-connect hook is not a per-CLIENT hook**: anything that
+  polls the bridge trips it.
+- `tools/build_macos.sh` reports `✓ built + signed` even when a script has a PARSE ERROR. Read
+  the `--check-only` output; a green build is not evidence the scripts are sound.
+
+## UiState's heartbeat: name the GAMEPLAY scenes, never the allowed menus
+
+`UiState._heartbeat` re-checks the live scene root and corrects the report when it cannot be
+true -- the guard that stops a crashed Raves pinning highvisor's tree to a screen we already
+left. It used to do that with an ALLOW-LIST: correct to "title" unless the scene is one of
+title / chargen* / quit_dialog / records / options / mods.
+
+Every menu screen added afterwards was therefore silently reverted two seconds after it opened.
+`LoadGameScreen` was one. It reported `loadgame` correctly, the heartbeat undid it, and the
+consequences ran a long way downhill:
+
+  - highvisor believed Raves was on the TITLE while it was showing the save picker
+  - so `goto in_game` clicked for a "Continue" that is not on the picker, and failed
+  - so did every retry, identically, because nothing moved -- only a restart appeared to help
+  - and the title recipe could not back out either, because its self-heal list had the same
+    omission (mods/options/records/quit_dialog, no loadgame)
+
+That is the intermittent `restart -> goto -> assert` failure chased for most of a session, and
+it was never a race. The check now names the handful of GAMEPLAY scenes that genuinely cannot
+coexist with a MainMenu root (`in_game`, `status_*`), so a new screen works without being
+enumerated anywhere.
+
+**The general shape:** an allow-list you must remember to extend is a trap. State it as the small
+closed set of things that are wrong, not the open set of things that are fine.
+- **Ship the filter strip's LIVE colours; its state is not derivable.**
+  `FilterBarCategoryButton.LateUpdate` paints `background` from four states, but only ON CHANGE,
+  so a button nobody has ever toggled keeps its PREFAB colour while one that has been toggled
+  keeps `#134F4E`. Which of those a given cell shows depends on the save's whole interaction
+  history -- unknowable from outside. Modelling it left every cell ~8 off and put the enabled
+  one on the wrong index. The mod now reads `background.color` per category (plus the "*All"
+  button's) and the client draws exactly that, falling back to the four-state law only when no
+  live colour rides along. Hover stays client-side, since that is ours to render.
+  Caveat: the colours are only readable while Qud's equipment screen is OPEN -- its buttons are
+  inactive otherwise, and the export correctly omits them rather than shipping stale ones.
+- When merging two export lists into one view, **copy every field you need, not the first one you
+  noticed**: the strip took its icon from `filterOrder` and its base object from `categories`, so
+  a colour added to `filterOrder` was silently dropped and the cell kept deriving what it was
+  meant to stop deriving.
+- **A doll slot is clickable, and WHICH object is in it decides what a click does.**
+  `EquipmentLine.HandleSelectItem` twiddles an `Equipped` item but only LOOKS at a
+  `DefaultBehavior` one -- so a click on the greyed natural weapon must not offer to drop a body
+  part. The export marks those slots `greyed`, the client sends `mode:"look"`, and the mod runs
+  `InventoryActionEvent.Check(obj, player, obj, "Look")`.
+- `FindById` has to walk `DefaultBehavior` as well as `Equipped`/`Cybernetics`, or every click on
+  a natural weapon comes back "no object with id".
+- Hover state on a redrawn grid must key on something STABLE (here the slot's object id), not an
+  index into the rect list -- that list is rebuilt during the very draw that reads the hover, so
+  an index is half-stale exactly when it is used.
+- **Escape closes the equipment tab when no popup is up.** Dismissing a mirrored popup with
+  Escape during a test therefore closes the screen too if the popup has already gone, and every
+  later click lands on the Holodeck instead -- which reads exactly like "clicks stopped working".
+  Cancel a popup over the bridge (`popup / action:button / btn:Cancel`) when scripting.
+- **The equipment screen's X axis switches PANE; it does not toggle a category.**
+  `InventoryAndEquipmentStatusScreen` builds `horizNav.contexts = [paperdoll (or equipment
+  list), inventory]`, so Left/Right moves between the doll and the list while Up/Down moves
+  within whichever holds focus, and a category expands on Accept. Raves had Left/Right toggling
+  the category, borrowed from the skills tree -- plausible, and not what Qud does.
+- Qud's `PaperdollScroller` scrolls the WHOLE body, so every slot is selectable, empty ones
+  included; do not skip to the filled ones.
+- **An empty doll slot opens Qud's "what fits here" picker.**
+  `HandleSelectItem`'s tail is `else if (!IsRightClick() || bodyPart.DefaultBehavior == null)
+  EquipmentScreen.ShowBodypartEquipUI(GO, bodyPart)` -- so a LEFT click on an empty slot, and on a
+  greyed natural-weapon slot, opens the equip picker; Look is the RIGHT-click case only. (An
+  earlier pass here had left-click doing Look on greyed slots, which is the right action bound to
+  the wrong button.) It is addressed by `BodyPart.ID` -- an empty slot has no object to name --
+  and resolved with `Body.GetPartByID`, which also has to be searched by `FindById`.
+- **JSON numbers reach GDScript as FLOATS.** The part id exported as `188` arrives as `188.0`, so
+  `str()` yields `"188.0"`, the mod's `int.TryParse` rejects it, and the picker silently never
+  opens. Use `"%d" % int(v)` when a number is going back over the wire as a key. The mod parses
+  leniently now AND logs a bad id, because a silent `return` on a parse failure is
+  indistinguishable from a click that never happened.
+- **The equip picker is a SCREEN, not a popup**, so it does not come back over the popup mirror.
+  `ShowBodypartEquipUI` -> `PickItem.ShowPicker` -> `Qud.UI.PickGameObjectScreen.show()`, which
+  never touches `getWindow("PopupMessage")`. MIRRORED NOW by `mod/PickerBridge.cs` +
+  `godot/PickerOverlay.gd` on its own `"picker"` frame type. Three things that only came out by
+  reading the live screen rather than modelling it:
+  - `PickGameObjectLine.setData` writes the hotkey AFTER its `go == null` branch closes, so
+    CATEGORY rows are lettered too (`a) [+] Armor`) -- those letters are the keyboard collapse.
+  - The opening selection is `itemScrollerController.selectedPosition`, which lands on the first
+    ITEM (not the leading category) and re-clamps after every collapse. Export it; don't re-derive it.
+  - `GameObject.GetWeight()` returns a **double**, not an int.
+  Selection round-trips as a row INDEX into `listItems` and Qud's own `HandleSelectItem` applies
+  it, so "category toggles / item picks" cannot drift from the game.
+- **The picker's footer is a MENU BAR, and it is not a fixed list.** `yieldMenuOptions()` = the
+  defaults, plus style-specific entries (take all / store), plus whatever the ACTIVE navigation
+  context contributes -- so `[Space] Select` is present only while a `PickGameObjectLine.Context`
+  is active and legitimately disappears otherwise. Export it live; don't hardcode it. Two more
+  traps: `MenuOption.getMenuText()` is Qud's own renderer (`"[{{W|key}}] " + Description`), and
+  `TOGGLE_SORT.Description` is REWRITTEN with the current sort mode on every show, so reading the
+  object once and caching it would freeze "sort: list/by class" on a stale half.
+  Activating an entry has to pass the INSTANCE Qud yielded: `HandleMenuOption` dispatches on
+  REFERENCE equality (`element == TAKE_ALL`), so a rebuilt MenuOption with the right Id falls
+  through every branch and silently does nothing.
+- **Qud emits input glyphs as PRIVATE USE AREA codepoints**, drawn from its own icon font:
+  `U+E80A` navigate (kbd), `U+E90A` navigate (pad), `U+E816` Ctrl, `U+E818` Alt, `U+E802` Shift,
+  `U+E809` LMB, `U+E814` RMB. Source Code Pro has nothing at U+E8xx, so every one rendered as a
+  tofu `?` -- the picker footer read `[?] navigate`. `mod/GlyphExporter.cs` now EXTRACTS the real
+  font (sweeping all of U+E000..U+F8FF, 66 glyphs) into a BMFont in `<support>/glyphs/`, and
+  `UiFont` loads it as a Godot **fallback** -- so no call site changes and any mirrored string
+  carrying one renders the true icon. `QudText.GLYPHS` keeps the word substitutes for when the
+  export hasn't run yet, and stands down once the font is present.
+  Three traps, each of which produced a plausible-looking wrong result:
+  - **A character's glyph may live in a DIFFERENT font's atlas.** `characterLookupTable` also
+    carries characters served by FALLBACKS; read the rect out of the table's own font and you
+    sample a stranger's texture. `TMP_TextElement.textAsset` names the real owner. U+E80A came out
+    as a `#` plus half its neighbour until this was fixed.
+  - **The source fonts are rasterised at different point sizes** (201 and 120 here). A bitmap font
+    has ONE nominal size, so glyphs must be resampled onto a common scale or they render at wildly
+    different sizes next to each other. The Blit's UV window is the SOURCE rect; the RT's dimensions
+    are the DESTINATION -- tying them together silently crops instead of scaling.
+  - **BMFont channel fields say what each channel HOLDS** (0=glyph, 1=outline, 2=both, 3=zero,
+    4=one). Our page is white with coverage in alpha => `alphaChnl=0 redChnl=4 greenChnl=4
+    blueChnl=4`. Declaring `alphaChnl=1` renders every glyph as a SOLID BLOCK -- it looks like a
+    broken atlas but is a broken *description* of a perfectly good one.
+- **Picker geometry is MEASURED, from Qud's live RectTransforms** (`mod/UiProbe.cs` -> `hv`
+  `uiprobe`), not from screenshots. The whole model is in `PickerOverlay`'s constants; the height
+  rule `21 + 5 + listH + 21 + footH + 6` reproduces Qud's panel to **0.00px** in every content
+  state measured, and the panel is centred on screen in both axes. Residual against a synchronised
+  capture: **dx +1, dw -2, dy +8, dh -16**.
+  What the probe corrected that a screenshot would not have:
+  - The title is **left-aligned in a tab at the panel's top-left** (panel+16, flush with the top
+    edge), not centred as we had it.
+  - Item rows are **30px** (they carry a 20x30 icon); category rows are **20.12px**. We had one
+    height for both.
+  - The chrome is **sprites**: a 9-slice `polat-char-frame-border` (border l6/b6/r6/t21) plus a
+    two-piece mirrored `polat-frame-reverse-top-header-filler` divider — not the popup dialog's
+    drawn notch-and-tick lines, which is what we were incorrectly reusing.
+  - Row columns are FIXED cells: caret 15, hotkey 24 (**48 when indented** — `setData` prefixes
+    three spaces), icon 20, spacer 2, so text lands at +61 / +85 / +39.
+  Three traps in the probe data itself: pooled rows keep **stale TEXT** on their TMP components
+  (geometry is sound, strings are not — classify rows by structure), a `Modes` node holds both a
+  Category and an Item child with only one **active** (filter on `activeInHierarchy` or you read a
+  font size off a hidden variant), and the panel is **content-driven, not fixed** — it looked fixed
+  until a second picker was probed.
+- **The footer's WRAP is MIRRORED, not recomputed.** Qud's bar is a `FlowLayoutGroup` (read off the
+  live component, not guessed) whose wrap test is `running + item > containerWidth` with a trailing
+  `SpacingX` — so where it breaks depends on how **Qud** measures each label. Raves runs a different
+  text rasteriser and measures them narrower, so no spacing constant we picked could ever match
+  except by luck: 15px was consistent with two observed states and changed nothing when applied.
+  The mod now ships each entry's LAID-OUT box (`lx/ly/lw/lh`, relative to the bar) and Raves places
+  them absolutely, so the line breaks are Qud's by construction. Panel-height residual went
+  **-16 -> +7** on the same fixture.
+  The trap that cost a cycle: `GetComponentsInChildren` includes the component's OWN node, and the
+  bar is called **"KeyMenuOptionBar"** — a `StartsWith("KeyMenuOption")` filter swallowed it, shifted
+  every entry's rect by one, and gave entry 0 the whole 400x66 bar. The footer rendered as one
+  overlapping line. Match the option prefabs exactly (`"KeyMenuOption"` / `"KeyMenuOption(Clone)"`).
+- **The +7px residual: CLOSED.** It was never rounding — it was two container defaults.
+  **(a)** Qud's category rows are 20.12px, but a 16px `RichTextLabel` reports a **21px minimum** and
+  a *Container* takes `max(own, content)`, so every category row came out 21 and the list ran
+  11 x 0.88 = 9.7px long. The row is a plain **`Panel`** now (same `"panel"` stylebox, no child
+  layout), so it is exactly the height Qud draws and the label overflows into `clip_contents`.
+  `line_separation` cannot fix this — it spaces lines *within* a label, so a single-line label keeps
+  its full ascent+descent minimum regardless.
+  **(b)** `yieldMenuOptions()` can yield an option the footer bar has not instantiated (the
+  context-dependent `[Space] Select` is yielded while only three `KeyMenuOption` prefabs exist).
+  Demanding a laid-out box for *every* entry threw the absolute layout back to our own flow, which
+  wrapped to two lines against Qud's three — the last 24px. Any box is enough; entries without one
+  are skipped, and the band takes the **bar's own height** (66) rather than the extent of its boxes
+  (44). Final: panel `754/325/412/430` vs Qud's `754/324.84/412/430.32`.
+
+## The picker's chrome: two solid rects, no frame
+
+`polat-char-frame-border` is on the picker's Background node, but **none of that sprite's border
+reaches the glass** — measured on the live screen there is no edge line on any side. Qud paints
+only: the Background rect inset by its own `VerticalLayoutGroup` padding (L/R/B 6, **T 21**), plus a
+solid tab behind the title. The 6px edges and the whole 21px title band are transparent, and the
+dimmed world shows through them. Drawing the extracted sprite as a 9-slice invented a light border
+and a full-width title BAR, and covered the tab.
+
+- The tab's width is a **text measurement** (`Title` = 8px padding + text + 8px), so the mod ships
+  `tabW`/`tabH` — same reason the footer ships its laid-out boxes.
+- **No selection bar.** Every `InventoryItemScrollerLine`'s background Image is `#ffffff00` — alpha
+  zero, selected row included. The selection is the caret: `SelectionCaret` is `#cfc041ff` on the
+  selected line and `#7f7f7f00` on every other.
+- Chrome that needs independent per-side insets must be **drawn**, not added as child Controls: a
+  `PanelContainer` re-fits every child to its own rect and throws the offsets away.
+
+### Godot container defaults that bit here
+
+- A **`ScrollContainer` stretches its child to the viewport only when the child has `SIZE_EXPAND`** —
+  plain `SIZE_FILL` gets the child's own minimum width. That used to come free from the rows'
+  content; the moment the rows stopped reporting a content width the list collapsed to **zero wide**
+  and drew nothing, while the panel height stayed correct.
+- A **negative-width `Rect2` does not flip in Godot 4** — it simply does not rasterise. The
+  divider's mirrored right half was missing entirely; draw from a pre-flipped copy.
+- `Control.position` is relative to the **immediate parent**. Reading `_scroll.position` (inside a
+  MarginContainer) as if it were panel-relative put the divider 26px high, straight through the last
+  row of the list.
+
+## The status screens have no outer frame — every rule belongs to a TAB
+
+There is no frame around Qud's status screens. Each vertical rule is an element inside one tab's own
+subtree (`Screens/<Tab>/.../Vertical Border`), so its x, its vertical extent, and whether that side
+is drawn at all change with the tab. Measured across all eight:
+
+| tab | verticals | top rule |
+|---|---|---|
+| attributes | 173 (y180-938), 1745 (y236-938) | none |
+| equipment | 166, 1753 (both y197-938) | 158-204, 213-581, 1338-1705, 1714-1760 |
+| journal | 1748 (y197-938) | gap 726-1193 |
+| quests | 1748 (y180-938) | none |
+| tinkering | 166 (y197-938) | gap 842-1077 |
+| messagelog / reputation / skills | none | none |
+
+Raves drew one fixed pair (166 / 1753) plus one fixed set of top segments on every tab. That is the
+EQUIPMENT tab's chrome — where it was measured — so it was right on one tab in eight and painted a
+full-height rule down the right of the other seven.
+
+The top rule is a **centred gap**, not a segment list: `158-204 / 213..(959.5-g)` and
+`(959.5+g)..1705 / 1714-1760`, with only the half-width `g` changing (equipment 378.5, journal
+233.5, tinkering 117.5 — all three gaps centre on 959.5). Five tabs draw none.
+
+Interior column dividers (attributes 816/834, journal 952, quests 1021) belong to the panes, not to
+this chrome.
+
+The rule always RESUMES at 213; only its left end moves (204 on equipment and tinkering, 208 on
+journal), so the notch is 8px wide on two tabs and 4px on the third — not a fixed notch that shifts.
+
+## The journal header is bracketed, not ruled
+
+Two 1px VERTICAL ticks close the journal's header block, one at each edge — not the 16px horizontal
+dashes we drew. Off the live element:
+
+    Image (2)  x=170.50  1x16      the left tick
+    Image (3)  x=171.50  16x16     icon
+    Header     x=187.50  w=143.04  "Locations", font 24, #4383a4, SourceCodePro-Regular
+    Image (1)  x=330.54  16x16     icon
+    Image      x=346.54  1x16      the right tick
+
+The right tick is NOT flush with the text: the icon sits between them, and that 16px is part of the
+header's geometry even while we do not draw the icons themselves.
+
+**The header is TRACKED, and the mod ships the width.** Qud measures "Locations" at 143.04 where
+Source Code Pro's nominal 0.6em advance at 24px gives 129.6. One sample cannot tell per-character
+tracking from a fixed pad — they disagree on every other string — so the mod asks the live component
+instead: `TMP_Text.GetPreferredValues(s)` measures any string with the element's own font, size and
+spacing *without disturbing what it is showing*, so all seven sub-tabs are measured off the one
+header Qud has laid out. Cached per visit to the tab, shipped as `hdrW` per tab.
+
+With all seven in hand the model is unambiguous — `width = 16.079 * len - 1.66` reproduces every one
+to 0.01px, so it is **tracking at 0.67em**, not padding. Raves takes its glyph pitch straight from
+the shipped width (`hdrW / len`), which needs no constant and survives a Qud restyle. Drawing the
+string in one call had every glyph after the first sitting ~1.7px per character left of Qud's.
+
+### The header's "icons" are spacers
+
+`JournalHeader/Image (3)` and `Image (1)` are 16x16 with components **`[CanvasRenderer,
+LayoutElement]` and no `Image` component at all** — pure layout spacers whose names are prefab
+leftovers. There is nothing to extract or draw; only their 16px of space is real, and the closing
+tick sits past it.
+
+### One rule colour: #4d6e7a -> (68,99,111)
+
+Every 1px rule element on the status screens carries `#4d6e7a` (54 of them across the probes) and
+lands at **(68,99,111)** on the glass. The shared `S_RULE` targeted (60,84,92) — 12 too dark on the
+top rule, both verticals, the bottom rule and the corner stub — while `S_KEYCAP` and the attributes
+pane's `C_LINE` had both independently arrived at the right value. Journal's header ticks were drawn
+in the pane's dim TEXT colour instead of the rule colour.
+
+`QudChrome.q8()` is now **measured, not modelled** — see below — so asking for Qud's colour lands on
+it: all three rules and both journal ticks render (68,99,111), exactly Qud's.
+
+## The canvas curve is a SAG, not a gain — measure it, don't model it
+
+Raves' 2D canvas does not scale colours; it sags in the middle and lifts near black. Measured on a
+65-step ramp drawn through the pipeline itself: 96 renders 85 (-11, the worst point), while 8
+renders 10 (+2) and both ends are exact. The old compensation was a flat ×1.13 above 20, which is
+right around 68 and 3 out by 111 — that was the status rules' residual, and it would have been a
+per-call-site fudge to "fix" locally.
+
+`QudChrome.INV` is the inverted ramp: `INV[target]` is what to DRAW so the captured pixel lands on
+`target`, within 0.5 for all 256. All three channels measured identically, so one table serves.
+The re-measurement recipe is in QudChrome.gd's header. Beyond the rules it moved everything that
+goes through `q8`/`brighten` — the picker's interior diff against Qud fell from mean 9.46 to 5.49.
+
+### Not every draw path sags — verify per constant before compensating
+
+The canvas curve is real but it is NOT universal. Surveying the in-game chrome turned up 16
+constants stating a Qud-measured colour raw; compensating all of them would have been wrong, because
+two of them (`PAGE_NUM` 141,124,84 and `COL_HP_RED` 209,58,0) **already land exactly** without
+compensation — Qud and Raves both hold those values pixel-for-pixel today.
+
+So test each one against the live frames rather than pattern-matching the source:
+
+    QUD holds V  and  RAVES holds f(V)  and  RAVES holds no V   ->  it is a TARGET, wrap it in q8
+    QUD holds V  and  RAVES holds V                             ->  leave it alone
+
+On that test five needed it (`COL_HP_BAR_1TO1`, `COL_EXP_BAR_1TO1`, `CELL_FRAME_1TO1`, `SEP_OUTER`,
+`SEP_CENTER`), and the "unclear" ones simply had too few pixels on screen in that state to judge —
+which is an answer too: leave them until a state shows them.
+
+### The probe reaches the in-game HUD, not just screens
+
+`uiprobe target=AbilityBar` dumps Qud's whole bottom band while a game is live — the resolver
+matches a COMPONENT type, then a substring, then a GameObject name, and the HUD answers to all
+three. Two rounds of cell-geometry work were fitted by hand on the assumption it could not.
+
+What it gives for the ability bar:
+
+    AbilityBar        y=990    h=90        the whole bottom band
+     Top              y=992    h=25.64     3 areas of 636: effects x=1, target x=642, missile x=1283
+     AbilitySection   y=1017.64 h=62.36
+      Ability Hotbar
+       Hotbar Swapper x=20     w=155       the ABILITIES gutter
+       ButtonArea     x=175    w=1745      cells start at 175; the 180 we match is 175 + padL 5
+        AbilityBarButton  padL=5, UpperLeft, widths 192.96 / 167.76 / 159.36 / ...
+          Spacer          w=1              the 1px divider between cells
+          WorkableArea    spacing 10, MiddleCenter
+            TopHalf       32 x 48          the icon element
+            Ability Text  100.81 x 25
+
+**...nor wholesale, without Qud's per-cell WIDTHS.** Rebuilding the cell to exactly that nesting --
+outer box padL 5 / padR 0, a WorkableArea carrying the green frame, a fixed 32x48 icon element,
+spacing 10, and the gutter moved to Qud's real 175 -- puts the frame on Qud's x180 and still scores
+WORSE (bar mean 10.06 -> 16.09), because the cells come out far too wide: 373 / 579 / 782 against
+Qud's 367 / 537 / 697.
+
+The reason is the leftover, not the model. Both apps size a cell to its content and then share out
+the slack, but Godot splits leftover space EQUALLY between expanding children while Unity's layout
+distributes it by flexible width -- so the same minimums land on different widths. Modelling the
+cell correctly makes our minimums *smaller* (5 of padding instead of 16), which leaves MORE slack to
+distribute and pushes every boundary right. The flat, over-padded cell was accidentally compensating.
+
+**The widths are now shipped** — `barCells` in the snapshot, e.g.
+`192.96,167.76,159.36,159.36,159.36,260.15,117.36,285.35,243.35`, read off the live
+AbilityBarButtons on the UI-thread watcher. The client does NOT use them yet, because pinning the
+widths alone still scores worse (10.06 -> 12.39): the widths are Qud's for the CELL, and our cell
+draws its green frame at its own edge where Qud insets it by padL 5, and our separator nodes add
+width its 1px in-cell Spacer does not.
+
+The three go together or not at all:
+
+1. `barCells` pinned per cell (`custom_minimum_size.x`, `SIZE_FILL` not `EXPAND`)
+2. the nested structure — outer box padL 5 / padR 0, the green frame on the inner WorkableArea,
+   a 1px divider inside each cell but the first (Qud's Spacer, (46,75,83) on the glass)
+3. `GUTTER_W_1TO1` = **175**, Qud's real ButtonArea x — the 180 the frame lands on is 175 + padL
+
+Each of those alone makes the bar WORSE (12.39 / 16.83 / 16.09 against a 10.06 baseline). Applied
+together they land: **9.04**, with the cell boundaries on Qud's own columns — 367, 537, 697 exactly,
+where the flat cell drifted to 695 and 853. The icon ink comes out 45x40 against Qud's 43x40.
+
+That is the shape of the whole lesson: a layout copied piecemeal from another engine reads as a
+series of regressions, because each constant you have not copied yet is compensating for the one you
+just did. Take the model whole, or leave it alone.
+
+**A model you cannot copy piecemeal.** Qud's spacing of 10 and its padL of 5 both make our bar
+worse (10.06 -> 14.78 and -> 15.07) because our cell's elements are not its elements: the spacing
+only lands right once the icon element is 32 wide and the text element 100.81. Our own set — icon
+box 47, padding 8, spacing 6, centred — puts the cell boundaries on Qud's columns, which is what
+reads. Matching Qud's numbers means rebuilding the cell to its structure first.
+
+### The ability bar's floor is the ±1 edge rounding
+
+With Qud's per-cell widths shipped and its edges rounded cumulatively, the bar sits at 4.03 and the
+leftover is not a defect to chase. Cells 4 and 6 score 6.55 and 3.89 against their neighbours' 1.6,
+and splitting them says ICON (9.69 / 7.34) versus TEXT (4.49 / 3.15) — which looks damning until you
+diff the pixels: the differing ones are the SAME COLOURS SWAPPED BETWEEN POSITIONS, Qud's blue where
+ours is background and ours where Qud's is. Same sprite, same palette, shifted one pixel.
+
+That pixel is structural. Qud's cell widths are fractional (192.96, 167.76, 159.36, ...) and ours
+must be integers, so every edge lands within ±1 and the icon centred inside inherits it. Cells whose
+edge rounds one way match to 0.03; cells that round the other carry a 1px offset, and a dense
+40px sprite makes that offset expensive in the mean while being invisible to the eye.
+
+Two checks worth repeating before calling an icon wrong:
+
+- **Qud against Qud.** Two captures of the same screen scored 0.00 on every icon zone, which ruled
+  out animation frames as the cause. Without that, "the icon differs" reads as a tile bug.
+- **The differing PAIRS, not the mean.** Colours swapping positions means placement; colours
+  changing value means palette or sprite.
+
+### Small-text rasterisation: three levers, none of them help
+
+The ability bar's gutter is its largest remaining share (26%), and inside it the keycap hint row is
+42% at mean 28. The cause is that Qud's 5-8px text reaches FULL coverage — its "Tab" peaks at
+(182,164,5) — where ours peaks around (155,140,7): at that size our grey antialiasing spreads each
+stem over two partial pixels and never fills one.
+
+Every available lever was measured, on the hint row alone:
+
+| | "Tab" peak | hint row mean |
+|---|---|---|
+| regular, antialiased (kept) | (155,140,7) | **28.20** |
+| antialiasing off | (182,164,5) ✓ | 30.61 |
+| bold face | (182,164,5) ✓ | 29.20 |
+
+Both of the last two get the peak exactly right and make the picture WORSE, because Qud's glyphs
+have full-coverage cores AND soft edges — hard edges everywhere, or thicker strokes everywhere,
+differ from that more than under-filled ones do. (App-wide MSDF and unhinted rendering were measured
+and rejected earlier for the same reason.)
+
+So the number is not a defect to close: at 5-8px, per-pixel agreement between two rasterisers is
+mostly luck, and the honest move is to leave the lever that measures best rather than the one whose
+peak matches.
+
+## Measurement pass: the top status bars (NOT yet fixed)
+
+The in-game top chrome (y0..92) scores **5.98** against Qud — the worst-matching surface left in the
+1:1 frame, an order above the message log (0.63) and the playfield (0.17). Measured, not fixed:
+
+| band | mean | share |
+|---|---|---|
+| y 20..46 (row 1 content) | 8.90 | 42% |
+| EXP row | 5.47 | 22% |
+| HP row | 5.28 | 19% |
+| y 0..20 | 4.28 | 16% |
+
+| column | mean | share |
+|---|---|---|
+| right (1400..1920) | 9.38 | 43% |
+| left (0..300) | 8.18 | 21% |
+| mid-left | 4.12 | 22% |
+
+It is **group placement**, not glyphs or colour. The content matches closely when zoomed — same
+text, same icons — but the groups sit in different columns:
+
+    left group    QUD x 20..299    ours x 1..237     (starts 19 left, ends 62 short)
+    middle group  QUD x 300..899   ours x 481..848
+    right group   QUD x 1700..1900 ours x 1770..1918
+
+So the top bar packs its groups on a different rule than Qud's. Read Qud's own layout before
+touching it — the probe reaches the HUD (`uiprobe target=AbilityBar` works; the status bar will
+answer to the same resolver), and this session's ability-bar work is the cautionary tale for
+adjusting one group at a time against a container that redistributes the rest.
+
+## The quit chain is a harness hazard: failed `goto title` attempts STACK
+
+`hv goto raves title` from in-game walks Qud's quit chain (CmdQuit → "are you sure" → "save
+first?"), and the mirrored confirms drain only while QUD is focused — a dismiss key sent to Raves
+queues the answer in Qud's uiQueue, which macOS stops draining for a backgrounded window. So the
+recipe can time out with the confirm still up, and EVERY RETRY QUEUES ANOTHER CmdQuit: each
+dismissed confirm lets the next raise a fresh one, which reads as "the popup won't close" (ten
+Escape+drain rounds, no visible progress).
+
+Getting unstuck: the confirm is a LEGACY console popup — synthesized keys don't land on it, but a
+`--hover` click on its own [Esc] Cancel does, and one cancel unwinds the whole stacked chain (the
+game never actually quit). To reach the title without the chain at all, `hv restart raves` is the
+clean lever.
+
+The real fix (open): the title recipe's dismiss steps need the focus dance built in — answer in
+Raves, then focus Qud so the uiQueue drains, then verify — and a guard against resending CmdQuit
+while a quit confirm is already up.
+
+## The sidebar's ||| grab-bar: the centre column is TWO pixels wide
+
+Measured off a synced capture at 1080 — Qud's bar occupies x **1623 / 1627-1628 / 1632**, i.e.
+panel-relative offsets **2 (1px) / 6 (2px) / 11 (1px)**. Both `MessageLog.gd` and
+`NearbyObjects.gd` draw it, and both must agree or the sidebar edge visibly steps where the two
+panels meet.
+
+The first cut drew three 1px columns at 2/6/10: it read the 2px centre as one column and then
+pulled the right outer in with it. Cost: a 23.25 mean-diff band down the whole sidebar that read
+as "text antialiasing" until the columns were dumped pixel by pixel. Fixing it also took the
+already-shipped **message log from 0.63 to 0.161** — a panel that had been called done.
+
+**When a whole-panel diff won't come down, dump the actual pixel columns before blaming the
+rasteriser.** A 1px structural offset and glyph AA look identical in a mean.
+
+## `PanelContainer` CLAMPS `content_margin_top` at 0 — a negative margin does nothing
+
+Silently. Setting `-2` moved the content by exactly the distance to 0 and no further, and setting
+`-4` afterwards changed nothing at all (byte-identical capture) — which is what made it look like
+the edit had not been picked up rather than that the value was being floored.
+
+If 1:1 content has to sit ABOVE the panel's content origin, don't fight the margin: **draw it on
+the owner-drawn surface** and place it with a measured offset (`NearbyObjects.TITLE_BASE_1TO1`).
+Read the surface's real origin once with a `global_position` print rather than deriving it from
+font metrics — the panel origin (93) and list origin (120) took one throwaway build and ended the
+guessing.
+
+## A hidden `CanvasLayer` still feeds its children INPUT
+
+`CanvasLayer.visible = false` stops DRAWING, not processing, and `is_visible_in_tree()` on a child
+Control does not see through the layer (a CanvasLayer is not a CanvasItem ancestor for that check).
+So a "closed" overlay hosted in a hidden CanvasLayer keeps running `_unhandled_input`.
+
+Cost, twice now: the feedback tool's paint-order hit test named elements inside closed screens until
+it got an explicit layer-visibility guard, and the in-game Options overlay went on eating `ui_cancel`
+after closing — Esc stopped opening the system menu entirely, which reads as "Esc is broken", nowhere
+near the overlay that is actually swallowing it.
+
+Two fixes, pick by lifetime: screens that live for the session guard their own handlers
+(`if not visible: return`, as `ControlMappingScreen` does — it IS the CanvasLayer, so its `visible`
+is the real one); screens built per open **free the host on close** (`queue_free()` + null the ref,
+as `MainFrame._close_options_overlay` and `MainMenu._close_overlay` do). The second also re-reads
+config on each open, which is usually what you want anyway.
+
+## Our scanline suppression blanked Qud's OWN minimap
+
+`Bridge.EnsureScanlineState` sweeps EVERY `UI.Graphic` every 20 ticks and neutralises
+`_ColorOverlay` / `_OverlayTex` / `_Offset` on its material. Qud's minimap Image draws the 80x50
+`minimapTexture` through one of those same overlay materials, so the sweep blanked it outright.
+
+**It reported perfectly healthy while invisible** — `DisplayMinimap=True`, texture 80x50, all 4000
+entries of `GameManager.minimapColors` non-zero (258 above alpha 200), GameObject active, Image
+enabled with a sprite, colour opaque white, rect 240x104, canvas alpha 1. Every readable variable
+said "drawing", and not one pixel reached the screen. Don't trust a state dump alone: confirm with
+a whole-frame colour scan for the thing's own palette (canary doors / violet stairs found ZERO
+matches anywhere, which is what proved it wasn't merely mispositioned).
+
+Nothing caught it for a week because Qud's overlay options were "No" from 2026-08-01, and the sweep
+shipped 2026-07-30 — **the feature was already switched off before the code that broke it landed.**
+
+**Which property blanks it (bisected live 2026-08-06):** the minimap's material is
+`UI/Textured-Overlay`, carrying `_ColorOverlay` and `_OverlayTex` (no `_Offset`).
+`_ColorOverlay` -> transparent BLANKS the map (the shader MULTIPLIES by it); `_OverlayTex` ->
+white is safe AND removes its scanlines. Measured, map region: untouched 1563 bright px /
+even-odd gap 3.90; `_OverlayTex` only 1590 / 0.05; anything including `_ColorOverlay` 90 / 0.08.
+So neutralise `_OverlayTex` only on that material (`Bridge.MinimapMask = 2`, live-settable with
+the `mmmask` bridge command) — map visible, scanlines gone, chrome untouched elsewhere.
+
+**Exempting the shared material is NOT the fix** — the sidebar panels draw with the same asset, so
+skipping it handed their scanlines back (measured: the flat chrome's even/odd row gap returned to
+13.67, the unsuppressed value). Clone a PRIVATE material for the minimap once and exempt only that:
+map visible, chrome still flat at 0.00.
+
+Measure suppression with the period-2 row alternation in a flat chrome patch
+(`abs(rows[0::2].mean() - rows[1::2].mean())`), not by eye — 0.00 vs 13.67 is unambiguous.

@@ -149,6 +149,129 @@ namespace RavesOfQud
 
         /// Find a loaded UI Sprite by exact name and write it to <c>Dir/destFile</c> (like the title
         /// art). MAIN-THREAD ONLY. Reads the player's own install; never bundled.
+        /// Export the CELL FRAME sprite Qud's filter bar draws (FilterBarCategoryButton's
+        /// `background` Image). The sprite is assigned in the prefab, so its name is only
+        /// discoverable from a live instance — read it here, log it, and dump the texture
+        /// so Raves can nine-slice Qud's own pixels instead of hand-drawing the motif.
+        /// MAIN-THREAD ONLY (graphics readback).
+        public static bool ExportCellFrame()
+        {
+            try
+            {
+                var btns = Resources.FindObjectsOfTypeAll<Qud.UI.FilterBarCategoryButton>();
+                if (btns == null || btns.Length == 0)
+                {
+                    System.Console.WriteLine("[raves] cell frame: no FilterBarCategoryButton loaded");
+                    return false;
+                }
+                foreach (var b in btns)
+                {
+                    var img = b != null ? b.background : null;
+                    var sp = img != null ? img.sprite : null;
+                    if (sp == null) continue;
+                    System.Console.WriteLine("[raves] cell frame sprite = '" + sp.name
+                        + "' rect " + sp.rect + " border " + sp.border);
+                    WriteSprite(sp, Path.Combine(Dir, "cell_frame.png"));
+                    // ALSO log how the button lays out its ICON. Five sample bboxes were
+                    // not enough to identify the transform (no single scale fits, and every
+                    // one is exactly 15 tall, which smells like clipping) — so read the
+                    // RectTransform and the Image's own settings instead of curve-fitting.
+                    try
+                    {
+                        var ic = b.icon != null ? b.icon.image : null;
+                        if (ic != null)
+                        {
+                            var rt = ic.rectTransform;
+                            System.Console.WriteLine("[raves] icon '" + b.category + "' rect " + rt.rect
+                                + " anchorMin " + rt.anchorMin + " anchorMax " + rt.anchorMax
+                                + " pivot " + rt.pivot + " scale " + rt.localScale
+                                + " preserveAspect " + ic.preserveAspect + " type " + ic.type
+                                + " sprite " + (ic.sprite != null ? ic.sprite.name + " " + ic.sprite.rect : "null"));
+                        }
+                    }
+                    catch (Exception ie) { System.Console.WriteLine("[raves] icon probe: " + ie.Message); }
+                    // and the PAPER DOLL's tile, same question (EquipmentLine.icon)
+                    try
+                    {
+                        var lines = Resources.FindObjectsOfTypeAll<Qud.UI.EquipmentLine>();
+                        if (lines != null)
+                            foreach (var el in lines)
+                            {
+                                var ei = el != null && el.icon != null ? el.icon.image : null;
+                                if (ei == null) continue;
+                                var ert = ei.rectTransform;
+                                System.Console.WriteLine("[raves] doll icon rect " + ert.rect
+                                    + " anchorMin " + ert.anchorMin + " anchorMax " + ert.anchorMax
+                                    + " pivot " + ert.pivot + " scale " + ert.localScale
+                                    + " preserveAspect " + ei.preserveAspect + " type " + ei.type
+                                    + " sprite " + (ei.sprite != null ? ei.sprite.rect.ToString() : "null")
+                                    + " frames " + (el.frames != null ? el.frames.Length : -1));
+                                break;
+                            }
+                    }
+                    catch (Exception de) { System.Console.WriteLine("[raves] doll probe: " + de.Message); }
+                    // and the INVENTORY LIST's row icon, same question again
+                    try
+                    {
+                        var ils = Resources.FindObjectsOfTypeAll<Qud.UI.InventoryLine>();
+                        if (ils != null)
+                            foreach (var il in ils)
+                            {
+                                var ii = il != null && il.icon != null ? il.icon.image : null;
+                                if (ii == null) continue;
+                                var irt = ii.rectTransform;
+                                System.Console.WriteLine("[raves] list icon rect " + irt.rect
+                                    + " anchorMin " + irt.anchorMin + " anchorMax " + irt.anchorMax
+                                    + " pivot " + irt.pivot + " scale " + irt.localScale
+                                    + " preserveAspect " + ii.preserveAspect);
+                                break;
+                            }
+                    }
+                    catch (Exception le) { System.Console.WriteLine("[raves] list probe: " + le.Message); }
+                    // The CATEGORY label's colour. InventoryLine just does
+                    // categoryLabel.SetText(categoryName) with no markup, so the colour
+                    // lives on the prefab's text component -- read it, don't eyeball a
+                    // swatch off the capture (which cannot tell colour from alpha).
+                    try
+                    {
+                        var ils2 = Resources.FindObjectsOfTypeAll<Qud.UI.InventoryLine>();
+                        if (ils2 != null)
+                            foreach (var il in ils2)
+                            {
+                                if (il == null || il.categoryLabel == null) continue;
+                                var cl = il.categoryLabel;
+                                System.Console.WriteLine("[raves] category label colour " + cl.color
+                                    + " alpha " + cl.color.a + " text '" + cl.text + "'"
+                                    + " | expand " + (il.categoryExpandLabel != null
+                                        ? il.categoryExpandLabel.color.ToString() : "null")
+                                    + " | weight " + (il.categoryWeightText != null
+                                        ? il.categoryWeightText.color.ToString() : "null")
+                                    + " | hotkey " + (il.hotkeyText != null
+                                        ? il.hotkeyText.color.ToString() : "null"));
+                                System.Console.WriteLine("[raves] item row colours: text "
+                                    + (il.text != null ? il.text.color.ToString() : "null")
+                                    + " | itemWeight " + (il.itemWeightText != null
+                                        ? il.itemWeightText.color.ToString() : "null")
+                                    + " | text content '" + (il.text != null ? il.text.text : "") + "'");
+                                if (!string.IsNullOrEmpty(cl.text)) break;
+                            }
+                    }
+                    catch (Exception ce) { System.Console.WriteLine("[raves] category colour probe: " + ce.Message); }
+                    // Unity's 9-slice borders (l,b,r,t) — the client needs these to know
+                    // which pixels are corner and which stretch
+                    File.WriteAllText(Path.Combine(Dir, "cell_frame.json"),
+                        "{\"name\":\"" + sp.name + "\",\"w\":" + (int)sp.rect.width
+                        + ",\"h\":" + (int)sp.rect.height
+                        + ",\"left\":" + (int)sp.border.x + ",\"bottom\":" + (int)sp.border.y
+                        + ",\"right\":" + (int)sp.border.z + ",\"top\":" + (int)sp.border.w + "}");
+                    return true;
+                }
+                System.Console.WriteLine("[raves] cell frame: buttons found but no background sprite");
+                return false;
+            }
+            catch (Exception e) { System.Console.WriteLine("[raves] cell frame export failed: " + e.Message); return false; }
+        }
+
         public static void ExportNamedSprite(string spriteName, string destFile)
         {
             try
@@ -318,7 +441,24 @@ namespace RavesOfQud
             return s.Replace(' ', '_');
         }
 
-        private static void WriteSprite(Sprite sp, string dest)
+        /// Dump an arbitrary sprite into the TILES dir under `fileName`, so the client's
+        /// normal tile pipeline can load it by name. Used for images that have no name to
+        /// ship: a popup's context sprite comes off an atlas with an empty sprite.name AND
+        /// an empty texture.name, so there is no handle to send -- the pixels are the only
+        /// identity available.
+        public static bool ExportSpriteToTiles(Sprite sp, string fileName)
+        {
+            try
+            {
+                if (sp == null || sp.texture == null) return false;
+                Directory.CreateDirectory(TileExporter.Dir);
+                WriteSprite(sp, Path.Combine(TileExporter.Dir, fileName));
+                return true;
+            }
+            catch (Exception e) { System.Console.WriteLine("[raves] sprite dump: " + e.Message); return false; }
+        }
+
+        internal static void WriteSprite(Sprite sp, string dest)
         {
             if (sp == null || sp.texture == null) return;
             WriteRegion(sp.texture, sp.textureRect, dest);

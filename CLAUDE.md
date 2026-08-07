@@ -15,6 +15,8 @@ rules to work safely here. Subsystem facts live in the linked docs; the deep deb
 | [`docs/protocol.md`](docs/protocol.md) | the bridge wire format |
 | [`docs/qud-api.md`](docs/qud-api.md) | verified Qud namespaces + signatures (reflection-confirmed) |
 | [`docs/tools.md`](docs/tools.md) | the Python tools, the in-viewer inspector, the Python-first workflow |
+| [`docs/testing.md`](docs/testing.md) | **SPOT vs FULL test tiers** — what runs per commit (seconds, no apps) vs pre-release |
+| [`docs/next-session.md`](docs/next-session.md) | handoff: open feedback items, harness debts to fix FIRST, current parity scores |
 | [`docs/gotchas.md`](docs/gotchas.md) | non-obvious invariants + "adding X → verify Y" checklists |
 | [`docs/roadmap.md`](docs/roadmap.md) | forward strategy (the world-store pivot) |
 | [`docs/goals.md`](docs/goals.md) | version-tagged milestone goals — **V3 = full 1:1 parity across the state tree** (the reusable per-screen pattern) |
@@ -105,6 +107,10 @@ python3 tools/capture/tile.py Tiles_sw_floor_brickb3.bmp   # also: --list water
 python3 tools/capture/control.py move N 5    # cam <1-7> · shot -> shot.png · export (re-export data)
 python3 tools/capture/control.py onboard devices   # drive the onboarding UI with NO Qud running
 
+# FIXTURE state for parity work — reload + resolve objects by NAME, never by a carried id
+python3 tools/capture/fixture.py reload      # · find robe · twiddle robe · state
+# (ids are NOT stable across a save reload; see docs/tools.md)
+
 # Option PRESETS — save/load a whole options set for deterministic test state (see docs/tools.md)
 python3 tools/capture/presets.py list        # · load compass-fullinfo
 ```
@@ -117,6 +123,10 @@ place — that manual thrash burns whole sessions and is the #1 recurring failur
 ```bash
 hv launch raves          # THE pair start: Raves spawns Qud borderless; both auto-placed
 hv launch raves_solo     # just Raves (no Qud spawn) · qud_solo = just Qud (borderless args)
+                         # raves_solo passes --one-to-one: 1:1 LOCKED for the run — the Options
+                         # screen hides the RAVES section (Qud has none), so there is no toggle
+                         # back to user mode; launch the .app without the flag for user mode.
+                         # Gate ALL user-mode-only UI on Settings.one_to_one_only / one_to_one().
 hv state                 # which screen is each app on (first-party scene reports, no guessing)
 hv goto qud in_game      # drive an app to a state-tree node (recipes in highvisor/gametree.json)
 hv assert --app raves --node in_game --timeout 20   # block until a state holds (TDD; exit 0/1)

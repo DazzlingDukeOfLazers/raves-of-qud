@@ -25,8 +25,8 @@ const COL_EXP := Color("40a4b9")              # c — LVL/EXP bar (dark cyan)
 # User mode keeps the bright COL_HP / COL_EXP above.
 const COL_HP_1TO1 := Color(1, 1, 1)           # Qud: HP text white
 const COL_EXP_1TO1 := Color8(146, 169, 164)   # Qud: LVL/EXP text light grey
-const COL_HP_BAR_1TO1 := Color8(25, 89, 34)   # Qud: HP bar dark green (#195922)
-const COL_EXP_BAR_1TO1 := Color8(47, 80, 86)  # Qud: LVL/EXP bar muted teal (sampled with xp on the bar)
+var COL_HP_BAR_1TO1 := QudChrome.q8(25, 89, 34)   # Qud: HP bar dark green (#195922)
+var COL_EXP_BAR_1TO1 := QudChrome.q8(47, 80, 86)  # Qud: LVL/EXP bar muted teal (sampled with xp on the bar)
 # Qud colours the HP text by health % (GameObject.GetHPColor): >=100 white, 66-99 green, 33-65 gold,
 # 15-32 red, <15 dark red. RGB from Qud's palette (red sampled from a live low-HP capture).
 const COL_HP_GREEN := Color8(0, 193, 46)      # &G green (66-99%)
@@ -44,7 +44,7 @@ const COL_NAME := Color("b0b0b0")             # character name — neutral grey 
 # darker and greyer than ANY tile-palette colour — the 18-colour palette is for the game WORLD, not the
 # chrome. So the world/clear stays palette k (the play area samples to k), but the panels use that
 # near-black. (Earlier k-for-panels read too green; K #155352 read as a bright teal box.)
-const COL_PANEL := Color("0c0f10")            # UI near-black chrome fill (Qud's bars ≈ 11,14,15)
+var COL_PANEL := QudChrome.q8(15, 16, 17)    # UI near-black chrome fill — Qud's bars, re-measured
 const COL_BG := Color("0f3b3a")               # k — world/clear background ("Qud viridian")
 
 var _holo: Node             # the Main.tscn instance rendering full-window into the ROOT viewport (null until Connect)
@@ -88,7 +88,14 @@ var _sep3: Control
 const TOPBAR_SEP := 10           # within-group spacing (Qud's :: gaps are looser than our default 6)
 const TOPBAR_TRACKING := 1       # extra glyph spacing — Qud's top bar tracks looser than Source Code Pro
 const STAT_PITCH := 86           # Qud centres each stat on a uniform ~86px grid (not natural text width)
-const VITALS_BOX_H := 18         # Qud's HP/EXP bar box height — the bar fills the whole row, text on top
+## Qud's HP/EXP bar box height — the bar fills the whole row, text on top. NINETEEN, not 18:
+## measured off Qud's own rows, HP 47..65 and EXP 69..87 inclusive, with a 3px gap between them.
+## At 18 the pair came out 2px short overall, which pushed the EXP bar 1px high and left its last
+## two rows (86-87) showing chrome where Qud still has bar.
+const VITALS_BOX_H := 19
+const VITALS_TOP_PAD := 2        # row 1's top -> Qud's first bar row (45 -> 47)
+const VITALS_GAP := 3            # Qud's gap between the HP and EXP boxes (66..68)
+const ROW_GAP := 4               # the gap the TOP rows carry (the bottom rows carry none)
 const VITALS_USER_INSET := 170   # user mode: inset the bar behind the label so green text stays readable
 const COL_VITALS_TRACK := Color8(19, 23, 26)   # Qud's empty-bar track (dark)
 var _l_hp: RichTextLabel   # HP line — RichText so only the current-HP number is health-tinted (like Qud)
@@ -96,6 +103,9 @@ var _bar_hp: ProgressBar
 var _l_exp: Label
 var _bar_exp: ProgressBar
 var _msglog: Control        # the Message log view (MessageLog.gd)
+var _status: CanvasLayer    # the 8-tab status screens overlay (StatusScreens.gd, V4; layer 90)
+var _controlmap: CanvasLayer   # the Control Mapping screen (ControlMappingScreen.gd, V4; layer 90)
+var _options: CanvasLayer      # Raves' own Options, as an IN-GAME overlay (OptionsScreen.gd; layer 90)
 var _nearby: Control        # the Nearby objects view (NearbyObjects.gd)
 var _minimap: Control       # the Minimap view (MinimapView.gd)
 var _effects: Control       # the Active effects view (ActiveEffects.gd)
@@ -118,9 +128,26 @@ var _side: VBoxContainer           # the row-3 side column (panels)
 # opaque rects sized to the strips above/below the play hole (row 3).
 var _top_bg: ColorRect
 var _bottom_bg: ColorRect
-const ROW_BG_1TO1 := Color8(19, 23, 26)   # Qud's continuous chrome-strip background
+## q8, not a bare Color8: these are TARGETS measured off Qud, and the canvas curve sags them on the
+## way to the glass (19,23,26 drawn lands at 20,23,25; 15,16,17 lands at 15,17,17). Stating the
+## target and letting QudChrome compensate is the point -- a var rather than a const only because a
+## const cannot call a function.
+var ROW_BG_1TO1 := QudChrome.q8(19, 23, 26)   # Qud's continuous chrome-strip background (TOP)
+## ...and the BOTTOM band is a different, darker fill. Measured: Qud runs (19,23,26) from the window
+## top down through the status strip, but below the command bar it is (15,16,17). We had one colour
+## for both strips and the two ended up swapped against Qud at the extremes -- our top band wore the
+## panel fill and our bottom band wore the strip fill, each the other's colour.
+var ROW_BG_BOTTOM_1TO1 := QudChrome.q8(15, 16, 17)
+## Qud's chrome band height at each end: its letterbox runs 90..989 in a 1080 window.
+const CHROME_H_1TO1 := 90.0
+var _status_strip: PanelContainer  # row 1 — its fill is Qud's strip colour in 1:1, panel fill in user mode
+var _portrait_margin: MarginContainer  # the avatar's old-rule alignment margin — zeroed in 1:1
+var _menu_strip: PanelContainer    # row 2's icon cluster — same story: Qud's strip colour behind it
 var _dev_bar: Control              # holodeck cell's Connect/Turn-on-viewport strip (hidden in 1:1)
-const SIDEBAR_FRAC_1TO1 := 0.15     # visual side column: 288px + the 12px split handle = Qud's 300 total   # Qud's MINIMUM message-log width ≈ 15.3% (293px at 1920 — matches a Qud
+## Qud's log column, measured off its own separator rather than estimated: its rules stand at
+## x1623/1627/1628/1632 in a 1920 window, so the column is 297 wide. At 0.15 (288) ours sat 11px
+## right of Qud's, which showed up as the whole log panel being inset.
+const SIDEBAR_FRAC_1TO1 := 0.1557   # 299px at 1920 — puts our separator on Qud's 1623   # Qud's MINIMUM message-log width ≈ 15.3% (293px at 1920 — matches a Qud
                                    # log dragged to its minimum, which maximises the playfield)
 const SIDEBAR_W_USER := 320.0      # user-mode side-column min width (the original value)
 
@@ -150,22 +177,48 @@ func _ready() -> void:
 	# full-window playfield), filling the gaps the playfield used to show through. Positioned in _layout_row_bgs.
 	_top_bg = _make_row_bg()
 	_bottom_bg = _make_row_bg()
+	_bottom_bg.color = ROW_BG_BOTTOM_1TO1
 
 	var rows := VBoxContainer.new()
+	_rows_box = rows   # the overflow tripwire audits each row's minimum against the window
 	rows.set_anchors_preset(Control.PRESET_FULL_RECT)
-	rows.add_theme_constant_override("separation", 4)
+	# GAPS ARE EXPLICIT, not one shared separation. Qud's bottom 90px is row 4 (the ability bar,
+	# 62 tall at y=1018) sitting flush under row 3 -- no gap at all -- while the top rows do have
+	# their 4px. One container separation cannot express both, and it was the 4px before the bar
+	# that held the cells 8px short and 8px low of Qud's.
+	rows.add_theme_constant_override("separation", 0)
 	add_child(rows)
 
 	rows.add_child(_row_status())        # 1: top status strip
+	rows.add_child(_vspace(ROW_GAP))
 	rows.add_child(_row_vitals_menu())   # 2: HP/EXP  |  top menu
+	rows.add_child(_vspace(ROW_GAP))
 	rows.add_child(_row_main())          # 3: Holodeck | side panels  (expands)
-	rows.add_child(_row_context())       # 4: effects | target | context menu
+	rows.add_child(_row_context())       # 4: effects | target | context menu — flush, as Qud has it
 	rows.add_child(_row_command())       # 5: command bar (abilities)
 
 	# The registry of sub-views (created inside the row builders above). _apply_stats feeds them all.
 	_panels = [_minimap, _nearby, _msglog, _effects, _target, _context, _command].filter(
 		func(p): return p != null)
 	_apply_full_info()                   # init the toggle label + push the default (perceived) to views
+	# Follow the GAME's lifecycle: when a once-live game ends (Save and Quit / death /
+	# Qud closing), return to Raves' title like Qud returns to its own. Polls the mod
+	# heartbeat; 3 consecutive non-live reads (~3s) debounce load transitions.
+	var lt := Timer.new()
+	lt.wait_time = 1.0
+	lt.timeout.connect(_poll_game_lifecycle)
+	add_child(lt)
+	lt.start()
+	# The 8-tab status screens (V4): created hidden NOW so its message-log history
+	# accumulates from the very first snapshot; F2 toggles it. Fed via _panels.
+	_status = load("res://StatusScreens.gd").new()
+	add_child(_status)
+	_panels.append(_status)
+	# Control Mapping (V4): opened by picking "Control Mapping" in the mirrored
+	# system-menu popup (see _connect_holodeck's popup_option hook); Esc inside
+	# closes it AND uibacks Qud off its KeybindsScreen.
+	_controlmap = load("res://ControlMappingScreen.gd").new()
+	add_child(_controlmap)
 	_add_crt_overlay()                   # Qud's CRT terminal look, on top of the chrome + 3D
 
 	# Resume (Continue / New Game with the bridge up): MainMenu set this so we AUTO-CONNECT the data
@@ -189,6 +242,52 @@ func _on_resize() -> void:
 func _input(e: InputEvent) -> void:
 	if e is InputEventKey and e.pressed and not e.echo and e.keycode == KEY_F12:
 		_shot()
+	# Qud's OWN status-screen keys (Commands.xml defaults): k=skills, x/Tab=attributes,
+	# e=equipment (i, inventory, lands there too — the carousel has no Inventory tab),
+	# n=tinkering, j=journal, q=quests, Ctrl+F=reputation. Only from gameplay (the
+	# overlay's per-tab layer owns letters while open, like Qud's Adventure layer).
+	# F2 stays as the hv-recipe toggle. 1:1-only; consumed so the camera/inspector
+	# bindings underneath never double-fire.
+	# a modal popup may have consumed this key in ITS _input (set_input_as_handled
+	# only stops _unhandled_input, not other _input callbacks) — answering "No"
+	# with N must not ALSO open the Tinkering tab
+	# TYPING GUARD: this dispatch lives in _input (it has to beat Godot's Tab/arrow focus
+	# traversal), which runs BEFORE the GUI pass — so is_input_handled() is still false while a
+	# text field is swallowing the very same key. Without this, typing "e" in the feedback note
+	# or the options search also opened the Equipment screen. See TypingGuard.
+	if TypingGuard.typing(get_viewport()):
+		return
+	if e is InputEventKey and e.pressed and not e.echo and _status != null \
+			and Settings.one_to_one() and not e.alt_pressed \
+			and not get_viewport().is_input_handled():
+		var ctrl: bool = e.ctrl_pressed or e.meta_pressed
+		if e.keycode == KEY_F and ctrl and not e.shift_pressed:
+			if not _status.visible:
+				_status.open("reputation")
+			get_viewport().set_input_as_handled()
+			return
+		if not ctrl and not e.shift_pressed:
+			if e.keycode == KEY_F2:
+				_toggle_status()
+				get_viewport().set_input_as_handled()
+				return
+			if not _status.visible and STATUS_TAB_KEYS.has(e.keycode):
+				_status.open(STATUS_TAB_KEYS[e.keycode])
+				get_viewport().set_input_as_handled()
+				return
+
+# Qud's Commands.xml default binds -> our tab ids (see the handler above)
+const STATUS_TAB_KEYS := {KEY_K: "skills", KEY_X: "attributes", KEY_TAB: "attributes",
+	KEY_E: "equipment", KEY_I: "equipment", KEY_N: "tinkering", KEY_J: "journal",
+	KEY_Q: "quests"}
+
+func _toggle_status() -> void:
+	if _status == null or not Settings.one_to_one():
+		return
+	if _status.visible:
+		_status.close()
+	else:
+		_status.open()
 
 # ── helpers ────────────────────────────────────────────────────────────────
 
@@ -343,6 +442,14 @@ func _bar(value: float, maxv: float, col: Color) -> ProgressBar:
 
 ## One vitals row (HP or LVL/EXP): the bar fills the box, the label + numbers drawn ON TOP (Qud's
 ## layout). 1:1 → bar spans the full box; user → bar inset behind the label (_apply_vitals_mode sets it).
+## A fixed-height spacer. A plain Control, so its minimum is its own and no child can inflate it.
+func _vspace(h: int) -> Control:
+	var c := Control.new()
+	c.custom_minimum_size = Vector2(0, h)
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return c
+
+
 func _vitals_row(lbl: Control, pb: ProgressBar) -> Control:
 	var row := Control.new()
 	row.custom_minimum_size = Vector2(0, VITALS_BOX_H)
@@ -353,11 +460,18 @@ func _vitals_row(lbl: Control, pb: ProgressBar) -> Control:
 	lbl.set_anchors_preset(Control.PRESET_FULL_RECT)
 	lbl.offset_left = 19                       # inset the text to ~x21, aligning with the avatar column (Qud)
 	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# TEXT ROW inside the box, measured off Qud: its glyphs start 4px below the box top on both
+	# lines (HP box 47..65 with text 51..62, EXP box 69..87 with text 73..86). Ours sat 4px low on
+	# the HP line and 2px low on the EXP line, so the nudges are per-widget rather than shared:
+	# both take the offset 1:1 (the Label's centring does NOT halve it -- measured, after assuming
+	# it would and overshooting by 2), but they started from different places: the HP line sat 4px
+	# low and the EXP line 2px.
 	if lbl is Label:
 		(lbl as Label).horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		(lbl as Label).vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		lbl.offset_top = -2.0                  # measured: the shift lands 1:1, not halved
 	elif lbl is RichTextLabel:
-		lbl.offset_top = 2.0                   # RichText has no vertical_alignment — nudge to centre in the box
+		lbl.offset_top = -2.0                  # taken literally: 4px up from where it sat
 	row.add_child(lbl)                         # added after the bar → renders on top
 	return row
 
@@ -507,6 +621,8 @@ func _set_status_label(label: Label, word: String) -> void:
 
 func _row_status() -> Control:
 	var strip := _strip()
+	_status_strip = strip
+	strip.name = "StatusBar"
 	# Trim the space below the bar: Qud's row 2 starts ~4px higher. The bar (and its vcentred avatar/text)
 	# stays put; only the strip's bottom shrinks, lifting row 2 to Qud's y.
 	var sstyle: StyleBoxFlat = _panel_style()
@@ -531,8 +647,12 @@ func _row_status() -> Control:
 	_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	var pm := MarginContainer.new()
+	# This inner margin aligned the avatar to Qud's x20 UNDER THE OLD RULE (group at 0, strip margin
+	# 8, +13 here ≈ 20). The Qud-rule relayout places the group itself at x20, so in 1:1 the margin
+	# would double-count and push the avatar to 33 — it is zeroed there (_apply_layout_mode).
 	pm.add_theme_constant_override("margin_left", int(round(bpx * 0.62)))
 	pm.add_child(_portrait)
+	_portrait_margin = pm
 	_grp_left.add_child(pm)
 	_l_name = _text("—", COL_NAME, "caption")
 	_l_name.clip_text = false
@@ -627,25 +747,47 @@ func _relayout_topbar() -> void:
 	for g in [_grp_left, _grp_t, _grp_stats, _grp_right]:
 		g.size = g.get_combined_minimum_size()
 		g.position.y = (hh - g.size.y) * 0.5
+	# QUD'S OWN RULE, read off the live PlayerStatusBar with the probe (not fitted from captures,
+	# which is what the fixed-261 separator boxes below were). Its row 1 is ONE HorizontalLayoutGroup:
+	#
+	#     TopLeft  padL 16, padR 16, spacing 16, MiddleLeft
+	#       avatar(24) name | SEP | temp ∷ food ∷ weight | SEP | statblock | SEP | clock ∷ zone
+	#
+	# with fixed-width content and the three ||-----|| separators FLEXIBLE, splitting the leftover
+	# equally -- confirmed arithmetically: 1916 - 32 pad - 13x16 spacing - 1027.57 content = 648.43,
+	# and each sep lays out at exactly 648.43/3 = 216.14. The run starts at x20 (avatar) and ends at
+	# x1904 (zone's right edge, 1920 - padR 16). Fitted boxes can never track that: the sep width
+	# moves with the content widths, which move with the live stats.
+	if Settings.one_to_one():
+		var off := _topbar.get_global_rect().position.x
+		var x_left := 20.0 - off
+		var x_rend := 1904.0 - off
+		_grp_left.position.x = x_left
+		_grp_right.position.x = x_rend - _grp_right.size.x
+		var content := _grp_left.size.x + _grp_t.size.x + _grp_stats.size.x + _grp_right.size.x
+		var sepw := ((x_rend - x_left) - content - 6.0 * 16.0) / 3.0
+		_grp_t.position.x = x_left + _grp_left.size.x + 16.0 + sepw + 16.0
+		_grp_stats.position.x = _grp_t.position.x + _grp_t.size.x + 16.0 + sepw + 16.0
+		_sep_at(_sep1, _grp_left.position.x + _grp_left.size.x + 16.0, sepw)
+		_sep_at(_sep2, _grp_t.position.x + _grp_t.size.x + 16.0, sepw)
+		_sep_at(_sep3, _grp_stats.position.x + _grp_stats.size.x + 16.0, sepw)
+		return
 	_grp_left.position.x = 0.0
-	# Right cluster ends ~8px inside the bar's right edge, so its zone name lines up with Qud's.
+	# USER MODE keeps the fitted layout: right cluster ends ~8px inside the bar's right edge.
 	_grp_right.position.x = w - _grp_right.size.x - 8.0
 	# Split the leftover space between left and right into three equal gaps around T and stats.
 	var gap := (_grp_right.position.x - _grp_left.size.x - _grp_t.size.x - _grp_stats.size.x) / 3.0
 	_grp_t.position.x = _grp_left.size.x + gap
 	_grp_stats.position.x = _grp_t.position.x + _grp_t.size.x + gap
-	# Qud's name↔T-group separator is the same fixed-width box (||—————||) as the other two, centred in
-	# the gap — not a line stretched to fill it (which ran ~284px vs Qud's ~260).
 	_place_sep(_sep1, _grp_left, _grp_t, 8.0, 261.0, true)
-	# Qud's water$↔QN separator is the same fixed-width box (||—————||) as the one below, floating
-	# ~centred in the gap between the T-group and the stats (Qud caps at 778/1036, ~258px). Centre a
-	# fixed-width box in the gap rather than stretching it (which ran 20px wide).
 	_place_sep(_sep2, _grp_t, _grp_stats, 8.0, 261.0, true)
-	# Qud's stats↔disc separator is a fixed-width box (||—————||), not a line glued to the stats. Its
-	# right || is 16px left of the disc (aligned above); its left || is ~261px further left, at Qud's x
-	# (~1490). Anchor it to the aligned right end at Qud's box width so the left || matches Qud regardless
-	# of the stats group's width/position (which still sits ~20px left of Qud — a later leftward pass).
 	_place_sep(_sep3, _grp_stats, _grp_right, 16.0, 261.0)
+
+## A separator at an exact x and width — Qud's flexible-separator rule computes both.
+func _sep_at(sep: Control, x: float, w2: float) -> void:
+	sep.size = Vector2(maxf(2.0, w2), sep.get_combined_minimum_size().y)
+	sep.position = Vector2(x, (_topbar.size.y - sep.size.y) * 0.5)
+
 
 func _place_sep(sep: Control, lg: Control, rg: Control, rpad := 8.0, fixed_w := 0.0, centered := false) -> void:
 	var lend := lg.position.x + lg.size.x
@@ -677,15 +819,22 @@ func _row_vitals_menu() -> Control:
 	# mode it's inset behind the label (so the green text stays readable). No panel — the bar is the bg.
 	var vitals := VBoxContainer.new()
 	vitals.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	vitals.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	vitals.add_theme_constant_override("separation", 3)
+	# PLACED, not centred. Qud's bars occupy exact rows -- HP 47..65, EXP 69..87 -- and centring
+	# cannot reach them: with the block 41 tall in a 44 row, SHRINK_CENTER lands on 46, BEGIN on 45
+	# and END on 48. (It happened to land right while the boxes were a px short, which is why the
+	# height fix moved them.) So: align to the top and spell out Qud's two gaps as spacers, with the
+	# container's own separation off.
+	vitals.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	vitals.add_theme_constant_override("separation", 0)
 	vitals.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	# Qud's vitals text is ~15% smaller than our default body — sized to match (cap ~11px vs Qud's 11).
 	var vfs := int(round(UiFont.px(get_viewport(), "body") * 0.85))
+	vitals.add_child(_vspace(VITALS_TOP_PAD))
 	_l_hp = _hp_rich(vfs)
 	_bar_hp = _bar(0, 1, COL_HP)
 	vitals.add_child(_vitals_row(_l_hp, _bar_hp))
+	vitals.add_child(_vspace(VITALS_GAP))
 
 	_l_exp = _text("LVL: —   EXP: —", COL_EXP)
 	_l_exp.add_theme_font_size_override("font_size", vfs)
@@ -700,10 +849,8 @@ func _row_vitals_menu() -> Control:
 	menu.size_flags_horizontal = Control.SIZE_SHRINK_END
 	# Qud's nav icons hug the window's right edge; trim this strip's right inset so the cluster sits
 	# flush like Qud's (the default 8px panel margin left it ~7px shy of Qud's last icon).
-	var mstyle: StyleBoxFlat = _panel_style()
-	mstyle.content_margin_right = 1
-	mstyle.content_margin_left = 1   # trim the left inset too so the vitals box reaches Qud's right edge
-	menu.add_theme_stylebox_override("panel", mstyle)
+	_menu_strip = menu
+	_style_menu_strip(Settings.one_to_one())
 
 	_menu_verbose = HBoxContainer.new()
 	_menu_verbose.add_theme_constant_override("separation", 4)
@@ -736,12 +883,52 @@ func _row_vitals_menu() -> Control:
 	var slot := int(round(nbpx * 2.05))            # ~43px pitch (screen), matching Qud (calibrated)
 	var ihh := int(round(nbpx * 1.6))
 	var iscale := nbpx / 26.0                       # native icon px → render size (consistent, keeps aspect)
+	# Every cell carries the ACTION as its tooltip (the live ones already did; the cosmetic ones name
+	# Qud's action honestly) — hover UX, and the feedback tool harvests it as the element's action.
+	var nav_actions := {
+		"system": "System menu (checkpoints, options, save and quit) — Esc",
+		"wlock": "Window lock (Qud) — not wired yet",
+		"map": "Toggle the minimap overlay (Qud's Overlay Minimap option)",
+		"find": "Toggle the nearby objects overlay (Qud's Overlay Nearby Objects option)",
+		"look": "Look (Qud) — not wired yet",
+		"rest": "Wait (opens Qud's wait menu)",
+		"char": "Character / status screens — x or F2",
+		"poi": "Move to point of interest",
+		"explore": "Autoexplore",
+		"down": "Go down (stairs) — d",
+		"up": "Go up (stairs) — s",
+	}
+	# LIVE cells beyond the hand-wired ones below: plain Qud commands (the popup any of them
+	# opens mirrors back over the popup bridge), and the two overlay TOGGLES, which flip Qud's
+	# own options — the same ones Qud's buttons save — so both apps stay congruent.
+	var nav_cmds := {"explore": "CmdAutoExplore", "poi": "CmdMoveToPointOfInterest",
+		"rest": "CmdWaitMenu"}
+	var nav_toggles := {"map": "OptionOverlayMinimap", "find": "OptionOverlayNearbyObjects"}
 	for key in ["system", "wlock", "map", "find", "look", "rest", "char", "poi", "explore", "down", "up"]:
 		var cell := Control.new()
+		# Hand-named per action so feedback reads "NavUp", never "TextureRect".
+		cell.name = "Nav" + str(key).capitalize()
+		cell.tooltip_text = nav_actions.get(key, "")
 		cell.custom_minimum_size = Vector2(slot, ihh)
 		cell.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		# The up/down nav icons are LIVE (Qud's climb commands); the rest stay cosmetic.
 		# Plain Controls with gui_input — no Button, so nothing grabs focus from the arrows.
+		if key == "system":
+			# the hamburger opens Qud's system menu (checkpoints / options / save & quit)
+			# — CmdSystemMenu over the bridge; the popup mirrors back, same as Esc
+			cell.mouse_filter = Control.MOUSE_FILTER_STOP
+			cell.tooltip_text = "System menu (checkpoints, options, save and quit) — Esc"
+			cell.gui_input.connect(func(e: InputEvent) -> void:
+				if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+					if _holo != null:
+						_holo.request_command("CmdSystemMenu"))
+		if key == "char":
+			# the person icon opens the 8-tab status screens — Qud's own opener
+			cell.mouse_filter = Control.MOUSE_FILTER_STOP
+			cell.tooltip_text = "Character / status screens — x or F2"
+			cell.gui_input.connect(func(e: InputEvent) -> void:
+				if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+					_toggle_status())
 		if key == "up" or key == "down":
 			var stair_up: bool = key == "up"
 			cell.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -749,9 +936,25 @@ func _row_vitals_menu() -> Control:
 			cell.gui_input.connect(func(e: InputEvent) -> void:
 				if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
 					_send_stair(stair_up))
+		if nav_cmds.has(key):
+			var qcmd: String = nav_cmds[key]
+			cell.mouse_filter = Control.MOUSE_FILTER_STOP
+			cell.gui_input.connect(func(e: InputEvent) -> void:
+				if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+					if _holo != null:
+						_holo.request_command(qcmd))
+		if nav_toggles.has(key):
+			var oid: String = nav_toggles[key]
+			cell.mouse_filter = Control.MOUSE_FILTER_STOP
+			cell.gui_input.connect(func(e: InputEvent) -> void:
+				if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+					_toggle_qud_overlay(oid))
 		var tex := _load_nav_icon(key)
 		var ic := TextureRect.new()
 		ic.texture = tex
+		# Runtime-loaded textures carry no resource_path, so the image's NAME rides as meta for the
+		# feedback tool ("nav_up", the extracted file's basename).
+		ic.set_meta("feedback_image", "nav_%s" % key)
 		ic.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		ic.stretch_mode = TextureRect.STRETCH_SCALE
 		ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -773,6 +976,69 @@ func _row_vitals_menu() -> Control:
 func _send_stair(up: bool) -> void:
 	if _holo != null:
 		_holo.request_command("CmdMoveU" if up else "CmdMoveD")
+
+## Raves' own Options, as an IN-GAME overlay — the sibling of the Control Mapping screen above.
+##
+## Qud's Options is a SCREEN (ModernOptionsMenu), not a PopupMessage, so the popup mirror has
+## nothing to render: picking "Options" in the mirrored system menu answered Qud, Qud opened its own
+## options over its window, and the Raves player was left looking at an unchanged game. (Not a
+## regression — MainMenu was always the only opener; in-game simply had no destination.)
+##
+## BUILT PER OPEN AND FREED ON CLOSE, which is MainMenu's pattern for the same screen and is load
+## bearing here for two reasons. It re-reads options.json each time (Qud's side may have changed
+## under us), and — the one that bit — a merely-HIDDEN host keeps feeding its children input: a
+## CanvasLayer's `visible` stops drawing, not processing, and `is_visible_in_tree()` does not see
+## through it, so the closed screen's `_unhandled_input` went on eating Esc and the system menu
+## never opened again. Same trap as the feedback tool's hidden-layer hit test.
+func _open_options_overlay() -> void:
+	if _options != null:
+		return
+	var scr: Variant = load("res://OptionsScreen.gd")
+	if scr == null:
+		return
+	_options = CanvasLayer.new()
+	_options.name = "OptionsOverlay"
+	_options.layer = 90            # the status-screen / control-mapping band, under the CRT
+	var scn: Control = scr.new()
+	scn.closed.connect(_close_options_overlay)
+	_options.add_child(scn)
+	add_child(_options)
+	UiState.set_scene("options")
+
+## Esc inside the overlay closes it AND walks Qud back off the ModernOptionsMenu it opened from the
+## same answer — the control-mapping screen syncs its KeybindsScreen the same way, and leaving Qud
+## parked on a screen the player can't see is how the two apps drift apart.
+func _close_options_overlay() -> void:
+	if _options == null:
+		return
+	_options.queue_free()
+	_options = null
+	UiState.set_scene("in_game")
+	if _holo != null:
+		_holo.request_uiback()
+
+## The two panels whose 1:1 visibility follows Qud's overlay options (Qud's own toggle
+## buttons persist the same ids, so the pair stays congruent). Safe to call any time.
+func _refresh_overlay_panels() -> void:
+	var on := Settings.one_to_one()
+	if _minimap != null:
+		_minimap.visible = (not on) or _qud_option_on("OptionOverlayMinimap")
+	if _nearby != null:
+		_nearby.visible = (not on) or _qud_option_on("OptionOverlayNearbyObjects")
+
+## A nav toggle: flip the Qud option, flip the panel NOW (optimistic — the click must feel
+## instant), then re-sync from the re-exported options.json once the mod has written it
+## (setoption runs on Qud's uiQueue; the export lands within ~a second).
+func _toggle_qud_overlay(id: String) -> void:
+	var want := not _qud_option_on(id)
+	if _holo != null:
+		_holo.request_setoption(id, "Yes" if want else "No")
+	if Settings.one_to_one():
+		if id == "OptionOverlayMinimap" and _minimap != null:
+			_minimap.visible = want
+		if id == "OptionOverlayNearbyObjects" and _nearby != null:
+			_nearby.visible = want
+	get_tree().create_timer(1.5).timeout.connect(_refresh_overlay_panels)
 
 func _toggle_full_info() -> void:
 	_full_info = not _full_info
@@ -800,6 +1066,10 @@ func _add_crt_overlay() -> void:
 	var rect := ColorRect.new()
 	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Post-processing, not an element: on layer 100 this rect is the paint-order TOPMOST control
+	# over the whole window, so without the pass-through every feedback hit-test resolved to it —
+	# labels collapsed to "MainFrame" and the playfield handoff to the tile inspector broke.
+	rect.set_meta("feedback_pass", true)
 	# Scanlines and vignette are independent 1:1-test effects; the overlay shows if either is on.
 	var scan := bool(Settings.get_value("fx_scanlines", false))
 	var vig := bool(Settings.get_value("fx_vignette", false))
@@ -814,6 +1084,27 @@ func _add_crt_overlay() -> void:
 	add_child(_crt_layer)
 	_crt_layer.visible = scan or vig
 
+# Chrome-overflow tripwire: if any row's minimum width exceeds the window, the root
+# VBox inflates past the viewport on the next layout pass and EVERY trailing element
+# (the side column with the message log, right-side clusters) silently walks off the
+# right edge — exactly how the sync-raves-and-qud message log vanished (its 9-ability
+# command bar carried a 2600px minimum). Log the offender chain instead.
+var _rows_box: VBoxContainer = null
+var _overflow_reported := false
+func _report_overflow() -> void:
+	if _overflow_reported or _rows_box == null:
+		return
+	var w := get_viewport_rect().size.x
+	for row in _rows_box.get_children():
+		if row is Control and (row as Control).get_combined_minimum_size().x > w:
+			_overflow_reported = true
+			print("CHROME OVERFLOW: row '%s' min %.0f > window %.0f — trailing chrome will leave the screen" % [
+				row.name, (row as Control).get_combined_minimum_size().x, w])
+			for c in (row as Control).get_children():
+				if c is Control:
+					print("   child '%s' (%s) min %.0f" % [c.name, c.get_class(),
+						(c as Control).get_combined_minimum_size().x])
+
 # --- 1:1 (parity) mode: panel half + persistence ------------------------------
 # The Holodeck owns the master switch + camera (hotkey / highvisor / preset flip it there and
 # emit one_to_one_changed); here we swap the side panels to their Qud-faithful variant and
@@ -821,8 +1112,11 @@ func _add_crt_overlay() -> void:
 func _on_one_to_one_changed(on: bool) -> void:
 	_set_panels_one_to_one(on)
 	_apply_layout_mode(on)
-	Settings.set_value("mode", "1to1" if on else "user")
-	Settings.save()
+	# a --one-to-one LOCKED run isn't a user choice — persisting it made every later
+	# UNFLAGGED launch come up 1:1 too (the lock leaked into settings.json)
+	if not Settings.one_to_one_only:
+		Settings.set_value("mode", "1to1" if on else "user")
+		Settings.save()
 
 func _set_panels_one_to_one(on: bool) -> void:
 	for p in _panels:
@@ -850,6 +1144,23 @@ func _apply_layout_mode(on: bool) -> void:
 		else:
 			_side.custom_minimum_size = Vector2(SIDEBAR_W_USER, 0)
 			_row_split.split_offset = 900
+	# Row 1 carries Qud's STRIP colour in 1:1, not the panel fill: Qud's top band is continuous with
+	# the strip background behind it, and painting the panel fill there put our darkest chrome where
+	# Qud has its lightest.
+	if _status_strip != null:
+		var sb := _panel_style(ROW_BG_1TO1 if on else COL_PANEL)
+		sb.content_margin_bottom = 1
+		if on:
+			# Qud's row-1 Background is a plain fill: no border, no rounding. The faint QoL box
+			# survived into 1:1 and its left edge was the stray ink at x=1.
+			sb.set_border_width_all(0)
+			sb.set_corner_radius_all(0)
+		_status_strip.add_theme_stylebox_override("panel", sb)
+	if _portrait_margin != null:
+		var bpx2 := UiFont.px(get_viewport(), "body")
+		_portrait_margin.add_theme_constant_override("margin_left",
+			0 if on else int(round(bpx2 * 0.62)))
+	_style_menu_strip(on)
 	_apply_panel_sizing(on)
 	_push_play_inset(on)
 	_apply_vitals_mode(on)
@@ -888,10 +1199,20 @@ func _layout_row_bgs() -> void:
 	_bottom_bg.visible = on
 	if not on:
 		return
+	# QUD'S BOUNDARY, not our row stack's. Qud's chrome is exactly 90px at each end -- its letterbox
+	# starts at y=90 and resumes at y=990 -- while our rows come out 93 (row0 41 + sep 4 + row1 44 +
+	# sep 4), so tying the strips to the split's rect painted 3px of chrome over what Qud leaves as
+	# letterbox, at both ends.
+	#
+	# We cannot simply shrink the rows: their vitals content is SHRINK_CENTER, so taking 3px off a
+	# row moves the HP and EXP bars, and those already land on Qud's rows. The strip is a BACKGROUND,
+	# so its extent is free to state Qud's boundary directly; the 3px it no longer covers falls
+	# through to the 3D letterbox behind, which is the colour Qud has there anyway.
 	var r := _row_split.get_rect()          # rows VBox is full-rect at (0,0), so this is in MainFrame coords
+	var top_h := minf(CHROME_H_1TO1, maxf(0.0, r.position.y))
 	_top_bg.position = Vector2.ZERO
-	_top_bg.size = Vector2(size.x, maxf(0.0, r.position.y))
-	var hole_bottom := r.position.y + r.size.y
+	_top_bg.size = Vector2(size.x, top_h)
+	var hole_bottom := maxf(r.position.y + r.size.y, size.y - CHROME_H_1TO1)
 	_bottom_bg.position = Vector2(0, hole_bottom)
 	_bottom_bg.size = Vector2(size.x, maxf(0.0, size.y - hole_bottom))
 
@@ -950,18 +1271,30 @@ func _hp_color(hp: int, hpmax: int) -> Color:
 ## Size the three side-column panels per mode. Qud stacks a SHORT minimap, a content-sized Nearby
 ## objects, and a Message log that fills ALL the remaining height. User (QoL) mode keeps the original
 ## split (taller minimap; nearby + log share the leftover space).
+## The top-right icon cluster's strip. Qud's ground behind those icons is the STRIP colour, not the
+## panel fill -- 15k pixels of it -- so in 1:1 it matches row 1 rather than the darker chrome boxes.
+func _style_menu_strip(on: bool) -> void:
+	if _menu_strip == null:
+		return
+	var mstyle := _panel_style(ROW_BG_1TO1 if on else COL_PANEL)
+	# Qud's nav icons hug the window's right edge; trim the insets so the cluster sits flush like
+	# Qud's (the default 8px panel margin left it ~7px shy of Qud's last icon) and so the vitals box
+	# to its left reaches Qud's right edge.
+	mstyle.content_margin_right = 1
+	mstyle.content_margin_left = 1
+	_menu_strip.add_theme_stylebox_override("panel", mstyle)
+
+
 func _apply_panel_sizing(on: bool) -> void:
 	if _minimap != null:
 		# Qud's minimap is a short landscape strip; the QoL one reserved a tall box with dead space.
 		_minimap.custom_minimum_size = Vector2(0, 150 if on else 220)
-		# 1:1: honour Qud's "Show minimap" option — hidden when off. User mode always shows it.
-		_minimap.visible = (not on) or _qud_option_on("OptionOverlayMinimap")
 	if _nearby != null:
 		# 1:1: size to content (no dead gap) — the panel itself fits its rows via set_one_to_one.
 		# User: expand to share the leftover height with the log.
 		_nearby.size_flags_vertical = Control.SIZE_SHRINK_BEGIN if on else Control.SIZE_EXPAND_FILL
-		# 1:1: honour Qud's "Show nearby objects list" option — hidden when off.
-		_nearby.visible = (not on) or _qud_option_on("OptionOverlayNearbyObjects")
+	# 1:1: honour Qud's overlay options for both panels — hidden when off. User mode always shows.
+	_refresh_overlay_panels()
 	if _msglog != null:
 		_msglog.size_flags_vertical = Control.SIZE_EXPAND_FILL   # always the space-filler; dominant in 1:1
 	# Row 4 (Active effects | Target | Context menu). Qud keeps this a thin single-line strip; the QoL
@@ -1035,11 +1368,14 @@ func _row_main() -> Control:
 	side.add_theme_constant_override("separation", 4)
 	_side = side
 	_minimap = load("res://MinimapView.gd").new()    # the real Minimap view (its own file)
+	_minimap.name = "Minimap"
 	_minimap.custom_minimum_size = Vector2(0, 220)
 	_nearby = load("res://NearbyObjects.gd").new()   # the real Nearby objects view (its own file)
 	_nearby.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_nearby.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_nearby.left_edge_drag.connect(_on_sidebar_drag)   # 1:1: its ||| bar continues the log's handle
 	_msglog = load("res://MessageLog.gd").new()      # the real Message log view (its own file)
+	_msglog.name = "MessageLog"
 	_msglog.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_msglog.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_msglog.left_edge_drag.connect(_on_sidebar_drag)   # 1:1: the ||| grab-bar resizes the side column
@@ -1047,6 +1383,10 @@ func _row_main() -> Control:
 	side.add_child(_nearby)
 	side.add_child(_msglog)
 	split.add_child(side)
+	# the overlay-option visibility rule ran in _apply_layout_mode BEFORE these panels
+	# existed — without this, a panel whose Qud option is off still shows until the next
+	# layout pass (resize/mode flip), which on a quiet run never comes
+	_refresh_overlay_panels.call_deferred()
 	return split
 
 ## The Holodeck cell: the existing 3D scene (Main.tscn), rendered FULL-WINDOW into the root viewport
@@ -1086,6 +1426,9 @@ func _holodeck_cell() -> Control:
 	# The HOLE — a transparent Control the full-window 3D shows through. No stylebox (so nothing is
 	# drawn over the 3D), mouse IGNORE (so clicks fall through to Main's inspector).
 	_holo_hole = Control.new()
+	# Cmd+Right-click on the playfield is the TILE INSPECTOR's gesture; FeedbackTool skips any
+	# element carrying this meta so the two do not fight over the click.
+	_holo_hole.set_meta("feedback_skip", true)
 	_holo_hole.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_holo_hole.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_holo_hole.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -1117,6 +1460,26 @@ func _connect_holodeck() -> void:
 	_holo.render_3d = false                     # DATA ONLY — no 3D build/render at all
 	_holo.connect("snapshot", _apply_stats)     # feeds status bar + panels off the same stream
 	_holo.connect("one_to_one_changed", _on_one_to_one_changed)  # camera flips → sync panels + persist
+	# a system-menu pick of "Control Mapping" mirrors into Raves' own screen (Qud
+	# opens its KeybindsScreen from the same answer). BOTH modes — user mode gets
+	# the extra RAVES section (golden restore) that 1:1 hides.
+	# stripped option text keeps its hotkey prefix ("[c] Control Mapping") — match the tail
+	# A modal just left the screen -- whatever is behind it may now be stale (an item
+	# action lands when the viewer ANSWERS, not when the menu opened).
+	_holo.connect("popup_closed", func():
+		if _status != null and _status.visible and _status.has_method("_refresh_after_popup"):
+			_status._refresh_after_popup())
+	_holo.connect("popup_option", func(text: String):
+		var pick := text.strip_edges().to_lower()
+		if _controlmap != null and pick.ends_with("control mapping"):
+			_controlmap.open()
+		elif pick.ends_with("options"):
+			_open_options_overlay())
+	# while a frame overlay is open, Main's Esc must not ALSO pop Qud's system menu
+	_holo.overlay_check = func() -> bool:
+		return (_status != null and _status.visible) \
+			or (_controlmap != null and _controlmap.visible) \
+			or _options != null            # freed on close, so existing == open
 	add_child(_holo)                            # ROOT viewport → 3D renders full-window BEHIND the chrome
 	_render_btn.disabled = false
 	UiState.set_scene("in_game")                # highvisor state report: the gameplay frame is up
@@ -1141,8 +1504,34 @@ func _enable_viewport() -> void:
 
 ## Update the status bar from one snapshot's `stats` block (and `time` for day/night). Missing
 ## fields fall back to "—" so a partial/older mod never shows stale numbers.
+# ── game-lifecycle watch: leave the viewer when the game ends ────────────────
+var _seen_live := false
+var _dead_reads := 0
+
+func _poll_game_lifecycle() -> void:
+	var path := InputModel.support_dir().path_join("bridge_status.txt")
+	var live := false
+	if FileAccess.file_exists(path):
+		var age := Time.get_unix_time_from_system() - float(FileAccess.get_modified_time(path))
+		if age <= 3.0:
+			var f := FileAccess.open(path, FileAccess.READ)
+			if f != null:
+				live = f.get_as_text().strip_edges() == "live"
+	if live:
+		_seen_live = true
+		_dead_reads = 0
+		return
+	if not _seen_live:
+		return           # never had a game this session — the connect flow owns startup
+	_dead_reads += 1
+	if _dead_reads >= 3:
+		# the game is gone (saved-and-quit, died, or Qud closed) — mirror Qud's
+		# return to the title. MainMenu's _ready reports scene=title itself.
+		get_tree().change_scene_to_file("res://MainMenu.tscn")
+
 func _apply_stats(data: Dictionary) -> void:
 	var s: Dictionary = data.get("stats", {})
+	_report_overflow.call_deferred()   # after this snapshot's text lands + a layout pass
 	# Character icon — the player's own tile, like Qud's top-left avatar.
 	if _portrait != null and _tiles != null:
 		var pal: Dictionary = data.get("palette", {})
@@ -1252,7 +1641,14 @@ func _check_mod_version(data: Dictionary) -> void:
 	_mod_status = status
 	match status:
 		1:
-			_msglog.set_notice("[color=#6fcf6f]✓ Raves mod v%d — up to date[/color]" % proto)
+			# NOT IN 1:1. "up to date" is our own reassurance and Qud has no line like it, so in the
+			# mirror mode it is just a message Qud's log does not contain -- it measured as the
+			# single largest band in the log panel (mean 14.23 against 0.26 elsewhere). The two
+			# WARNINGS below stay in both modes: a version mismatch is worth breaking parity for.
+			if Settings.one_to_one():
+				_msglog.set_notice("")
+			else:
+				_msglog.set_notice("[color=#6fcf6f]✓ Raves mod v%d — up to date[/color]" % proto)
 		2:
 			_msglog.set_notice("[color=#ff6a6a]⚠ Raves mod is out of date (v%d, need v%d) — restart Caves of Qud to load the latest mod[/color]" % [proto, MIN_MOD_PROTOCOL])
 		3:
@@ -1303,14 +1699,17 @@ func _row_context() -> Control:
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 6)
 	_effects = load("res://ActiveEffects.gd").new()   # the real Active effects view (its own file)
+	_effects.name = "ActiveEffects"
 	_effects.custom_minimum_size = Vector2(0, 90)
 	var eff: Control = _effects
 	eff.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_target = load("res://TargetView.gd").new()       # the real Target view (its own file)
+	_target.name = "TargetView"
 	_target.custom_minimum_size = Vector2(0, 90)
 	var tgt: Control = _target
 	tgt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_context = load("res://ContextMenu.gd").new()     # the real Context menu view (its own file)
+	_context.name = "ContextMenu"
 	_context.custom_minimum_size = Vector2(0, 104)    # room for the larger, Qud-sized weapon sprite on one row
 	_context.command_requested.connect(_on_context_command)   # fire/reload/[?] → the Holodeck's bridge
 	var ctx: Control = _context
@@ -1324,6 +1723,7 @@ func _row_context() -> Control:
 
 func _row_command() -> Control:
 	_command = load("res://CommandBar.gd").new()   # the real command bar (its own file)
+	_command.name = "CommandBar"
 	_command.command_requested.connect(_on_ability_command)   # ability click → activate (+ direction picker)
 	return _command
 

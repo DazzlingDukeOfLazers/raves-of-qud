@@ -1,5 +1,8 @@
 extends PanelContainer
 
+## Qud's row-3 face against our body size, measured off its strip.
+const ROW3_FONT_SCALE := 0.667
+
 ## Context menu view — its own scene in MainFrame's row-4 right cell. Mirrors Qud's bottom missile-weapon
 ## area (the mod's `context` block): each equipped missile weapon as its recoloured tile + coloured name
 ## + ammo (remaining/total), then the actions with their Qud hotkeys ("[F] fire   [R] reload").
@@ -11,6 +14,7 @@ extends PanelContainer
 signal command_requested(payload: Dictionary)
 
 const DIM := "#8a8f9a"
+const K_1TO1 := "#155352"   # Qud's K — its row-3 strip text (measured (21,73,72) on the glass)
 const AMMO := "#ffd200"     # amber ammo count, like Qud's readout
 const KEY := "#ffd200"      # hotkey letter — UI yellow
 const LABEL := "#8fd3ff"    # action label — light blue
@@ -57,7 +61,18 @@ func _ready() -> void:
 ## box). Keeps the content margins. User mode restores the framed look.
 var _title: Label
 
+var _one_to_one := false
+
 func set_one_to_one(on: bool) -> void:
+	_one_to_one = on
+	# QUD'S ROW-3 TEXT IS SMALL. Measured off its strip: "ACTIVE EFFECTS:" spans 122px for 15
+	# characters (~8.1 each, a ~13.5px face) where ours ran 183px at the theme's body size (~21).
+	# That is also why row 3 came out 31 tall against Qud's 28 -- the row is sized by this text.
+	# A scaled THEME rather than per-label overrides: each of these strips has several labels.
+	if on:
+		theme = UiFont.scaled_theme(get_viewport(), ROW3_FONT_SCALE)
+	else:
+		theme = null
 	if _title != null:
 		_title.visible = not on   # Qud shows the context text with no "Context menu" heading
 	var cur := get_theme_stylebox("panel")
@@ -67,8 +82,18 @@ func set_one_to_one(on: bool) -> void:
 			f.bg_color = Color(0, 0, 0, 0)
 			f.set_border_width_all(0)
 			f.set_corner_radius_all(0)
-			f.content_margin_top = 2
-			f.content_margin_bottom = 2
+			# 5, so the ink lands on Qud's row (1000..1009). This only works now that the text is
+			# small enough for the row's pinned 28 to be the binding height: while the CONTENT set
+			# the height, padding here just grew the row upward and the text never moved.
+			# ...and 3 to the LEFT. Measured glyph by glyph: our advances match Qud's (the same
+			# line spans 306px against its 305 over 32 glyph runs), the whole run just started 3
+			# short. Per view, because each cell's own inset differs.
+			f.content_margin_left = 9
+			f.content_margin_top = 5
+			# ZERO at the bottom, not 2. Row 3 is anchored to the ability bar above it, so its TOP
+			# moves with its height: padding above the text buys nothing (the row grows upward by the
+			# same amount), and only the bottom padding decides how far the text sits off the bar.
+			f.content_margin_bottom = 0
 		else:
 			f.bg_color = QudPalette.CHROME
 			f.set_border_width_all(1)
@@ -95,7 +120,8 @@ func _render() -> void:
 	var ctx: Dictionary = _last_data.get("context", {})
 	_rt.clear()
 	if String(ctx.get("kind", "none")) != "missile":
-		_rt.append_text("[color=%s]%s[/color]" % [DIM, String(ctx.get("text", "—"))])
+		_rt.append_text("[color=%s]%s[/color]"
+			% [K_1TO1 if _one_to_one else DIM, String(ctx.get("text", "—"))])
 		return
 
 	var acts: Array = ctx.get("actions", [])

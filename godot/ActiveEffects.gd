@@ -1,5 +1,8 @@
 extends PanelContainer
 
+## Qud's row-3 face against our body size, measured off its strip.
+const ROW3_FONT_SCALE := 0.667
+
 ## Active effects view — its own scene in MainFrame's row-4 left cell. Shows the player's current
 ## effects (buffs/debuffs) from the snapshot's `effects` array, each rendered in its Qud colour
 ## (the effect's DisplayName markup — e.g. wet = blue), with a dim turn count. Qud already colours
@@ -7,7 +10,10 @@ extends PanelContainer
 ## on each entry for future grouping/emphasis but isn't needed to get the colours right.
 
 const DIM := "#8a8f9a"    # dim grey for the duration + separators
-const LABEL_1TO1 := "[color=#3b596b]ACTIVE EFFECTS:[/color]"   # Qud's inline uppercase label
+## Qud's inline uppercase label. GREEN, measured off its strip at (70,130,106) on the glass -- ours
+## was a blue-grey (#3b596b -> (52,79,96)). The hex here is compensated for the canvas curve, so it
+## lands on Qud's value rather than 12 short of it.
+const LABEL_1TO1 := "[color=#508d75]ACTIVE EFFECTS:[/color]"
 
 var _rt: RichTextLabel
 var _palette := {}
@@ -47,6 +53,14 @@ var _one_to_one := false
 var _title: Label
 
 func set_one_to_one(on: bool) -> void:
+	# QUD'S ROW-3 TEXT IS SMALL. Measured off its strip: "ACTIVE EFFECTS:" spans 122px for 15
+	# characters (~8.1 each, a ~13.5px face) where ours ran 183px at the theme's body size (~21).
+	# That is also why row 3 came out 31 tall against Qud's 28 -- the row is sized by this text.
+	# A scaled THEME rather than per-label overrides: each of these strips has several labels.
+	if on:
+		theme = UiFont.scaled_theme(get_viewport(), ROW3_FONT_SCALE)
+	else:
+		theme = null
 	_one_to_one = on
 	if _title != null:
 		_title.visible = not on   # 1:1: Qud's strip is ONE line — the label goes inline (uppercase)
@@ -57,8 +71,18 @@ func set_one_to_one(on: bool) -> void:
 			f.bg_color = Color(0, 0, 0, 0)
 			f.set_border_width_all(0)
 			f.set_corner_radius_all(0)
-			f.content_margin_top = 2
-			f.content_margin_bottom = 2
+			# 5, so the ink lands on Qud's row (1000..1009). This only works now that the text is
+			# small enough for the row's pinned 28 to be the binding height: while the CONTENT set
+			# the height, padding here just grew the row upward and the text never moved.
+			# ...and 2 to the LEFT. Measured glyph by glyph: our advances match Qud's (the same
+			# line spans 306px against its 305 over 32 glyph runs), the whole run just started 2
+			# short. Per view, because each cell's own inset differs.
+			f.content_margin_left = 8
+			f.content_margin_top = 5
+			# ZERO at the bottom, not 2. Row 3 is anchored to the ability bar above it, so its TOP
+			# moves with its height: padding above the text buys nothing (the row grows upward by the
+			# same amount), and only the bottom padding decides how far the text sits off the bar.
+			f.content_margin_bottom = 0
 		else:
 			f.bg_color = QudPalette.CHROME
 			f.set_border_width_all(1)

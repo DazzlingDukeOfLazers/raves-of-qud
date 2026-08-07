@@ -43,6 +43,58 @@ static func px(vp: Viewport, role := "body", bump := 0) -> int:
 ## and font for free. Explicit `add_theme_font_size_override` calls still win where a specific role
 ## is wanted. Also registers Label/Button type variations ("Title","Big","Caption") so new code can
 ## pick a role with `theme_type_variation = "Title"` instead of hardcoding a number.
+## Qud's INPUT-GLYPH font, extracted from the game by the mod's GlyphExporter and loaded as a
+## FALLBACK. Qud writes its keycap icons as Private Use Area codepoints (U+E80A navigate, U+E816
+## Ctrl, U+E802 Shift, U+E809 LMB …) and draws them from its own TMP atlas; Source Code Pro has
+## nothing at U+E8xx, so before this every one rendered as a tofu box — the picker's footer read
+## "[?] navigate". As a fallback it needs no call-site changes: any mirrored string containing one
+## of those codepoints just renders the real icon.
+##
+## Cached because make_theme runs per overlay and the .fnt parse is not free. Missing file (the mod
+## has not run its export yet) is normal, not an error — QudText.GLYPHS still substitutes words.
+static var _glyph_font: FontFile = null
+static var _glyph_tried := false
+
+static func qud_glyph_font() -> FontFile:
+	if _glyph_tried:
+		return _glyph_font
+	_glyph_tried = true
+	var path := InputModel.support_dir().path_join("glyphs").path_join("qud_glyphs.fnt")
+	if not FileAccess.file_exists(path):
+		return null
+	var ff := FontFile.new()
+	if ff.load_bitmap_font(path) != OK:
+		push_warning("Raves: could not parse Qud's glyph font at %s" % path)
+		return null
+	# A bitmap font is rasterised at ONE size (Qud's atlas is ~201pt); without this it would draw at
+	# that size next to 36px body text. Scaling keeps the icon proportional to the line it sits on.
+	ff.fixed_size_scale_mode = TextServer.FIXED_SIZE_SCALE_ENABLED
+	_glyph_font = ff
+	return _glyph_font
+
+## `base` with Qud's glyph font appended as a fallback. Returns a DUPLICATE: `fallbacks` is a
+## property of the loaded resource, and load() hands back a shared instance — mutating it in place
+## would push the fallback onto every other user of that .ttf, and re-appending on each make_theme
+## call would grow the list without bound.
+static func _with_qud_glyphs(base: Font) -> Font:
+	var g := qud_glyph_font()
+	if g == null or base == null:
+		return base
+	var dup: Font = base.duplicate()
+	var fb := dup.fallbacks.duplicate()
+	fb.append(g)
+	dup.fallbacks = fb
+	return dup
+
+## A copy of the app theme at a SCALED default size, for a subtree Qud draws smaller than we do.
+## Setting a font size on a Control affects only that Control, so a strip with several labels in it
+## needs a theme; this keeps the face (and the registered bold) and moves only the size.
+static func scaled_theme(vp: Viewport, scale: float) -> Theme:
+	var t := make_theme(vp)
+	t.default_font_size = maxi(1, int(round(px(vp, "body") * scale)))
+	return t
+
+
 static func make_theme(vp: Viewport) -> Theme:
 	var t := Theme.new()
 	# Source Code Pro is Qud's UI font (wiki Visual Style). Fall back to Atkinson if it's ever missing.
@@ -50,11 +102,13 @@ static func make_theme(vp: Viewport) -> Theme:
 	if f == null:
 		f = load("res://fonts/AtkinsonHyperlegible-Regular.ttf")
 	if f != null:
+		f = _with_qud_glyphs(f)
 		t.default_font = f
 		# Register the matching bold so RichTextLabel [b] (message log, nearby, command bar) renders in
 		# Source Code Pro Bold rather than a synthesised/fallback bold. normal/mono stay the regular face.
-		var fb := load("res://fonts/SourceCodePro-Bold.ttf")
+		var fb: Font = load("res://fonts/SourceCodePro-Bold.ttf")
 		if fb != null:
+			fb = _with_qud_glyphs(fb)
 			t.set_font("normal_font", "RichTextLabel", f)
 			t.set_font("mono_font", "RichTextLabel", f)
 			t.set_font("bold_font", "RichTextLabel", fb)

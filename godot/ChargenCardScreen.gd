@@ -369,7 +369,7 @@ func _build_center() -> void:
 	hint.position.y = vp.y * 0.965
 	var ih := int(round(UiFont.px(get_viewport(), "caption") * 1.15))
 	hint.push_paragraph(HORIZONTAL_ALIGNMENT_CENTER)
-	var icon := _nav_icon_texture(ih, SEL_GOLD)
+	var icon := QudChrome.nav_icon(ih, SEL_GOLD)
 	hint.add_image(icon, icon.get_width(), icon.get_height())
 	hint.append_text("[color=#%s] navigate      [/color][color=#%s][lb]Space[rb][/color][color=#%s] select[/color]" % [
 		MUTED.to_html(false), SEL_GOLD.to_html(false), MUTED.to_html(false)])
@@ -802,23 +802,6 @@ func _line(img: Image, x0: int, y0: int, x1: int, y1: int, c: Color) -> void:
 		if e2 < dx:
 			err += dx
 			y0 += sy
-
-func _nav_icon_texture(ih: int, color: Color) -> ImageTexture:
-	var g := maxi(1, int(round(ih * 0.10)))
-	var k := int((ih - g) / 2)
-	if k < 2:
-		k = 2
-	var w := 3 * k + 2 * g
-	var h := 2 * k + g
-	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
-	img.fill(Color(0, 0, 0, 0))
-	var mid := k + g
-	img.fill_rect(Rect2i(mid, 0, k, k), color)
-	img.fill_rect(Rect2i(0, k + g, k, k), color)
-	img.fill_rect(Rect2i(mid, k + g, k, k), color)
-	img.fill_rect(Rect2i(2 * mid, k + g, k, k), color)
-	return ImageTexture.create_from_image(img)
-
 # ══ text helpers ═══════════════════════════════════════════════════════════════════
 
 func _text(txt: String, col: Color, role := "body") -> Label:

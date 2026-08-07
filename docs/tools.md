@@ -338,3 +338,91 @@ frame to avoid a 1-frame flip). See the header comment in `godot/Main.gd`.
 
 `tools/tiletool/` — an AssetsTools.NET C# inspector used once to reverse how tiles are packed in
 the Unity atlases. Kept for reference; not needed for normal work.
+
+
+## `tools/capture/parity.py` — region-scoped parity scoring
+
+Whole-frame and per-band mean-diff cannot adjudicate small UI changes: the live playfield behind a
+status screen's scrim differs every run and moves the average by ~0.7 between IDENTICAL builds, which
+is larger than most real deltas. It also rewards blur (a soft tile regresses to the mean) and, if the
+sampling window includes a cell's own border, "sprite ink" ends up measuring the box.
+
+`parity.py` scores per LEAF instead — a named region plus a kind that says what to compare:
+
+| kind | compares |
+|---|---|
+| `image` | sprite ink only; the chrome band is masked out |
+| `frame` | chrome only; the interior is masked out |
+| `composite` | the whole cell — what the eye sees |
+
+```bash
+python3 tools/capture/parity.py score reports/<date>/parity-equipment.json qud.png raves.png
+python3 tools/capture/parity.py bounds reports/<date>/parity-equipment.json raves.png --leaf doll_image
+python3 tools/capture/parity.py mask  reports/<date>/parity-equipment.json raves.png doll_image[0] /tmp/m.png
+```
+
+Each row reports the masked mean diff, the ink bbox in BOTH apps and the pixel counts, so a change is
+judged on the thing it touched. Regions live in JSON (`reports/<date>/parity-<screen>.json`) with a
+`grid` shorthand for repeated cells, so a new screen is a data edit. The leaf names match the
+per-leaf nodes in highvisor's gametree (`equipment_doll_image`, `equipment_filter_frame`, …).
+
+First run on the Equipment tab: **image 75.6, frame 15.9, composite 17.2** — i.e. the sprites, not the
+chrome, are what still differs, which the whole-frame number (4.5) completely hid.
+
+### parity.py: two metrics beyond mean-abs-diff (2026-08-05)
+
+`ink_color` and `geometry` join `image` / `frame` / `composite`.
+
+A single masked mean-abs-diff answers "is the text the right colour", "is the sprite the
+right size" and "do these pixels match" all at once, and so answers none of them clearly.
+The two new kinds split the question:
+
+| kind | mask | number |
+|---|---|---|
+| `ink_color` | ink | mean channel distance between each app's OWN mean ink colour — position ignored |
+| `geometry` | ink | mean of \|dx\|,\|dy\|,\|dw\|,\|dh\| between the ink boxes, in px — colour ignored |
+
+So a leaf reading ~0 on `ink_color` and badly on `geometry` says *right paint, wrong place* —
+which is the sentence you actually want out of a scoreboard. Both report
+`"present in one app only"` rather than a flattering 0 when one side draws nothing.
+
+**Gotcha fixed at the same time:** `ink_mask` with `inset: 0` sliced `cell[0:-0]`, i.e. NOTHING,
+so any leaf written that way silently scored a perfect 0.00. Inset 0 now means the whole rect.
+
+### fixture.py: never carry an id across a reload (2026-08-05)
+
+`tools/capture/fixture.py` drives the parity fixture state. It exists because object ids are
+**not stable across a save reload**, and every hand-rolled test snippet in this repo was reading
+an id, reloading, and then acting on it. Demonstrated in one command pair: the cloth robe is id
+554, reload, and the same robe is 550 — 554 now belongs to something else. That is how a run
+asking for the robe's interaction menu raised the WRENCH's, and how several capture runs ended up
+scoring two screens with no popup on them.
+
+```bash
+python3 tools/capture/fixture.py reload          # reload, then BLOCK for a fresh export
+python3 tools/capture/fixture.py find robe       # id, name, and whether it is in the pack or worn
+python3 tools/capture/fixture.py twiddle robe    # raise Qud's item menu for it, and verify it came up
+python3 tools/capture/fixture.py state           # what both apps think they are showing
+```
+
+Three things it makes impossible rather than merely discouraged:
+
+- **A stale read.** Every command re-exports and waits for `inventory.json`'s mtime to actually
+  advance before resolving anything, so an id can only come from a file written after the last
+  event that could have invalidated it.
+- **Missing an item that moved.** Tests equip and drop things, so an item migrates between the
+  pack and the body mid-session; a lookup that only walks `categories` starts throwing partway
+  through. `find` walks both and says which one it found.
+- **A silent wrong pick.** Two waterskins is a real case. Ambiguity is an ERROR listing the
+  candidates, not a first-match guess.
+
+#### `--stable`: a mask that turned out not to be needed here
+
+`score --stable <second-qud-capture>` drops every pixel the reference did not hold still between
+two captures, on the theory that the live playfield behind Qud's scrim was polluting the list
+leaves. Measured: it finds **764 px, 0.0%** of the frame -- because the game is PAUSED while a
+status screen is open, so nothing animates within a run. The list leaves' variation (the same
+build scoring list_item 5.70 and 9.00) therefore comes from the game STATE differing between
+runs, not from animation, and the cure is fixture discipline -- reload the same save, do not move
+-- which `fixture.py` now makes routine. The flag is kept for screens that do animate; the
+finding is recorded so nobody re-derives it.

@@ -22,6 +22,8 @@ const NONWALL_DIM := 0.30   # how much of a non-wall object's colour survives (r
 var _tiles: RefCounted   # shared colour resolution (QudTiles), set in _ready
 var _palette := {}
 var _rect: TextureRect
+var _map_margin: MarginContainer   # 1:1 left inset for the map image
+var _vbox: VBoxContainer
 var _tex: ImageTexture   # reused across snapshots; only reallocated when the zone size changes
 var _toggle: Button
 var _title: Label      # header — "Minimap" (user) or the zone name (1:1, Qud-style)
@@ -30,15 +32,10 @@ var _last_data := {}   # last snapshot, so a mode toggle re-renders without wait
 
 func _ready() -> void:
 	_tiles = load("res://QudTiles.gd").new()
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = QudPalette.CHROME
-	sb.set_border_width_all(1)
-	sb.border_color = Color(1, 1, 1, 0.12)
-	sb.set_corner_radius_all(3)
-	sb.set_content_margin_all(6)
-	add_theme_stylebox_override("panel", sb)
+	_apply_panel_box()
 
-	var v := VBoxContainer.new()
+	_vbox = VBoxContainer.new()
+	var v := _vbox
 	v.add_theme_constant_override("separation", 4)
 	add_child(v)
 
@@ -55,6 +52,9 @@ func _ready() -> void:
 	head.add_child(_toggle)
 	_refresh_toggle()
 
+	# the map sits inset from the panel's content edge in 1:1 (Qud: content 1641, map 1658)
+	_map_margin = MarginContainer.new()
+	v.add_child(_map_margin)
 	_rect = TextureRect.new()
 	_rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST   # crisp pixels, no blur
 	_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -64,7 +64,7 @@ func _ready() -> void:
 	_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_rect.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_rect.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	v.add_child(_rect)
+	_map_margin.add_child(_rect)
 
 ## MainFrame calls this each snapshot with the full data (needs cells + player + zone dims + palette).
 func set_snapshot(data: Dictionary) -> void:
@@ -98,9 +98,22 @@ func set_one_to_one(on: bool) -> void:
 		_toggle.visible = not on
 	# Give the map image a real height. Setting it on the TextureRect (content-min) reliably grows the
 	# panel — the panel's own custom_minimum_size wasn't translating into a taller image (the rect stayed
-	# a short strip). ~110px matches Qud's sidebar minimap.
+	# a short strip).
+	#
+	# 1:1 is Qud's MEASURED rect: 240x104 (confirmed against the live RectTransform), which is aspect
+	# 2.31 while the texture is 80x50 = 1.60 — Qud STRETCHES the map, it does not fit it. Raves was
+	# aspect-fitting into 190x119, so every feature sat at the wrong scale.
 	if _rect != null:
-		_rect.custom_minimum_size = Vector2(0, 110 if on else 0)
+		_rect.custom_minimum_size = Vector2(MAP_W_1TO1, MAP_H_1TO1) if on else Vector2(0, 0)
+		_rect.stretch_mode = TextureRect.STRETCH_SCALE if on else TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		_rect.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN if on else Control.SIZE_EXPAND_FILL
+		_rect.size_flags_vertical = Control.SIZE_SHRINK_BEGIN if on else Control.SIZE_EXPAND_FILL
+	if _map_margin != null:
+		_map_margin.add_theme_constant_override("margin_left", MAP_X_1TO1 if on else 0)
+	# Qud's header glyphs and ours land on the same rows, but its map starts 4px higher — the gap
+	# under the heading is smaller than the QoL one. Measured: Qud map top y114, ours y118.
+	if _vbox != null:
+		_vbox.add_theme_constant_override("separation", 0 if on else 4)
 	if on:
 		_saved_mode = _mode
 		_mode = MODE_MINIMAL     # Qud's structural overview, not the painterly per-cell FULL map
@@ -110,12 +123,116 @@ func set_one_to_one(on: bool) -> void:
 		if _title != null:
 			_title.text = "Minimap"
 		_refresh_toggle()
+	# the heading is Qud's dim grey-teal at the log's 0.76x body, as on the two panels below
+	if _title != null:
+		if on:
+			_title.add_theme_font_size_override("font_size",
+				int(round(UiFont.px(get_viewport(), "body") * LOG_FONT_FRAC_1TO1)))
+			_title.add_theme_color_override("font_color", TITLE_COLOR_1TO1)
+		else:
+			_title.add_theme_font_size_override("font_size", UiFont.px(get_viewport(), "title"))
+			_title.remove_theme_color_override("font_color")
+	_apply_panel_box()
+	queue_redraw()
 	_rerender()
+
+## 1:1: Qud's OWN minimap, from the mod's `minimap` block (Cell.RefreshMinimapColor per cell).
+##
+## Geometry is Qud's: its texture is 80x50 for a 25-row zone — EACH ZONE ROW WRITES TWO TEXTURE
+## ROWS (ActionManager.UpdateMinimap: `(24 - i) * 2` and `+ 1`), which also flips the map so row 0
+## is at the bottom. Point-filtered. Reproducing the doubling rather than stretching a 80x25 image
+## keeps the two textures directly comparable if Qud's own ever renders.
+##
+## Colours carry ALPHA (unexplored 32, unlit 128, lit 164, features 230) so the panel background
+## washes through — this is a translucent overlay, not opaque pixels.
+func _render_qud_minimap(mm: Dictionary) -> bool:
+	var w := int(mm.get("width", 0))
+	var h := int(mm.get("height", 0))
+	var cells := String(mm.get("cells", ""))
+	var pal: Array = mm.get("palette", [])
+	if w <= 0 or h <= 0 or cells.length() < w * h or pal.is_empty():
+		return false
+	var cols: Array[Color] = []
+	for p in pal:
+		var s := String(p)
+		if s.length() < 8:
+			cols.append(Color(0, 0, 0, 0))
+			continue
+		cols.append(Color8(("0x" + s.substr(0, 2)).hex_to_int(), ("0x" + s.substr(2, 2)).hex_to_int(),
+			("0x" + s.substr(4, 2)).hex_to_int(), ("0x" + s.substr(6, 2)).hex_to_int()))
+	var img := Image.create(w, h * 2, false, Image.FORMAT_RGBA8)
+	for y in h:
+		for x in w:
+			var idx := QUD_MM_ALPHABET.find(cells[y * w + x])
+			var c: Color = cols[idx] if idx >= 0 and idx < cols.size() else Color(0, 0, 0, 0)
+			# Row doubling only — NO vertical flip. Qud's `(24 - i) * 2` looks like a flip but is
+			# compensation for UNITY textures being bottom-up (y=0 at the bottom); Godot's Image is
+			# top-down, so copying that arithmetic here flipped the map a second time. Measured:
+			# correlation against Qud went 0.083 as-was, 0.745 with the flip removed.
+			var ty := y * 2
+			img.set_pixel(x, ty, c)
+			img.set_pixel(x, ty + 1, c)
+	if _tex != null and _tex.get_width() == w and _tex.get_height() == h * 2:
+		_tex.update(img)
+	else:
+		_tex = ImageTexture.create_from_image(img)
+		_rect.texture = _tex
+	return true
+
+## Qud's minimap rect, measured off its live RectTransform + the rendered frame at 1080:
+## 240x104 at x1658 (content origin 1641 -> 17 in), map top y114.
+const MAP_W_1TO1 := 240.0
+const MAP_H_1TO1 := 104.0
+const MAP_X_1TO1 := 17
+
+const QUD_MM_ALPHABET := "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+
+# ── 1:1 chrome, shared with the two panels below it so the sidebar reads as one column ──────────
+const LOG_FONT_FRAC_1TO1 := 0.76
+const TITLE_COLOR_1TO1 := Color8(59, 89, 107)
+const SEP_MARGIN_1TO1 := 20
+## Qud's movable-window backdrop: a dot every 16px, one shade off the panel fill (measured
+## (19,23,26) against the (17,33,38) chrome).
+const DOT_PITCH_1TO1 := 16
+var DOT_COLOR_1TO1 := QudChrome.q8(19, 23, 26)
+var SEP_OUTER := QudChrome.q8(68, 99, 112)
+var SEP_CENTER := QudChrome.q8(30, 57, 72)
+
+func _apply_panel_box() -> void:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = QudChrome.q8(17, 33, 38) if _one_to_one else QudPalette.CHROME
+	sb.content_margin_left = SEP_MARGIN_1TO1 if _one_to_one else 6
+	sb.content_margin_right = 6
+	sb.content_margin_top = 0 if _one_to_one else 6
+	sb.content_margin_bottom = 6
+	if not _one_to_one:
+		sb.set_border_width_all(1)
+		sb.border_color = Color(1, 1, 1, 0.12)
+		sb.set_corner_radius_all(3)
+	add_theme_stylebox_override("panel", sb)
+
+## 1:1 only: the ||| grab-bar (continuing the log's, centre column 2px wide — see MessageLog) and
+## Qud's dotted window backdrop behind the map.
+func _draw() -> void:
+	if not _one_to_one:
+		return
+	var h := size.y
+	for y in range(0, int(h), DOT_PITCH_1TO1):
+		for x in range(SEP_MARGIN_1TO1, int(size.x), DOT_PITCH_1TO1):
+			draw_rect(Rect2(x, y, 1, 1), DOT_COLOR_1TO1)
+	draw_rect(Rect2(2, 0, 1, h), SEP_OUTER)
+	draw_rect(Rect2(6, 0, 2, h), SEP_CENTER)
+	draw_rect(Rect2(11, 0, 1, h), SEP_OUTER)
 
 func _rerender() -> void:
 	var data := _last_data
 	if data.is_empty():
 		return
+	# 1:1 renders QUD's map when the mod ships it; anything else falls back to the QoL map below.
+	if _one_to_one:
+		var mm: Variant = data.get("minimap", null)
+		if mm is Dictionary and _render_qud_minimap(mm):
+			return
 	var z: Dictionary = data.get("zone", {})
 	var w := int(z.get("width", 0))
 	var h := int(z.get("height", 0))

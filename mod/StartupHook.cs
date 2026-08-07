@@ -151,7 +151,11 @@ namespace RavesOfQud
                             }
                         }
                         catch { _uiSamplePending = false; }
-                        string scene = live && (view == "Stage" || view == "") ? "play" : view;
+                        // A live game IS "play" even when the view string still says
+                        // "MainMenu" — after an UNFOCUSED load the view pump hasn't run,
+                        // and the stale scene fooled the state tree into "title".
+                        string scene = live && (view == "Stage" || view == "" || view == "MainMenu")
+                            ? "play" : view;
                         // Menu-land: a visible Qud.UI window is the most specific screen name
                         // (e.g. ModToolkit, ModManagerUI, SteamWorkshopUploaderView) — it wins
                         // over the stuck "MainMenu" view. In-game, `scene` stays "play".
@@ -160,9 +164,19 @@ namespace RavesOfQud
                             ? DateTimeOffset.UtcNow.ToUnixTimeSeconds() - _uiSampleTs : -1;
                         if (!live && win != "" && uiAge >= 0 && uiAge <= 5) scene = win;
                         bool popup = view.IndexOf("Popup", StringComparison.OrdinalIgnoreCase) >= 0;
+                        // WHICH status tab, when the status screens are the active view. Cached by
+                        // the UI-thread watcher: resolving it here would mean a Unity call off-thread.
+                        string tab = "";
+                        try
+                        {
+                            if (view.IndexOf("StatusScreens", StringComparison.OrdinalIgnoreCase) >= 0)
+                                tab = PopupBridge.StatusTab ?? "";
+                        }
+                        catch { }
                         System.IO.File.WriteAllText(statePath,
                             "{\"scene\":\"" + scene.Replace("\"", "'") + "\",\"live\":" + (live ? "true" : "false")
                             + (popup ? ",\"popup\":\"" + view.Replace("\"", "'") + "\"" : "")
+                            + (tab.Length > 0 ? ",\"tab\":\"" + tab.Replace("\"", "'") + "\"" : "")
                             + ",\"view\":\"" + view.Replace("\"", "'") + "\""
                             + ",\"window\":\"" + win.Replace("\"", "'") + "\""
                             + ",\"unity_scene\":\"" + _uiScene.Replace("\"", "'") + "\""
@@ -170,6 +184,8 @@ namespace RavesOfQud
                             + ",\"ts\":" + DateTimeOffset.UtcNow.ToUnixTimeSeconds() + "}");
                     }
                     catch { /* transient IO — retry next tick */ }
+                    try { LoadSave.Pump(); }   // re-arm a pending picker load (~1/s)
+                    catch { }
                     System.Threading.Thread.Sleep(1000);
                 }
             })

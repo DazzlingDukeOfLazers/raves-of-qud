@@ -17,6 +17,10 @@ extends Control
 
 signal closed
 
+## highvisor scene name (read by MainMenu._open_overlay; matches the gametree's
+## title>modding_toolkit raves detect).
+var ui_scene := "modding_toolkit"
+
 # palette — sampled off the reference capture
 const SCRIM := Color(0.01, 0.02, 0.02, 0.90)     # near-black dim over the art behind
 const PANEL := Color8(0x0E, 0x3F, 0x3A)          # box interior — saturated dark teal

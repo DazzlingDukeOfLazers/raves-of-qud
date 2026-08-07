@@ -71,8 +71,12 @@ namespace RavesOfQud
                 j.Member("id", id);
                 j.Member("title", SafeStr("title", () => m.DisplayTitleStripped, id));
                 j.Member("author", SafeStr("author", () => m.Manifest != null ? m.Manifest.Author : null, null));
+                // XRL.Version is a STRUCT with an implicit conversion from System.Version —
+                // `Version != null` converts null through that operator and NREs inside it
+                // (the "mods field 'version'" log line). Compare against Zero instead.
                 j.Member("version", SafeStr("version",
-                    () => m.Manifest != null && m.Manifest.Version != null ? m.Manifest.Version.ToString() : null, null));
+                    () => m.Manifest != null && m.Manifest.Version != XRL.Version.Zero
+                        ? m.Manifest.Version.ToString() : null, null));
                 j.Member("description", SafeStr("description", () => m.Manifest != null ? m.Manifest.Description : null, null));
                 j.Name("tags").BeginArray();
                 string[] tags = SafeArr("tags", () => m.Manifest != null ? m.Manifest.Tags : null);
@@ -125,8 +129,10 @@ namespace RavesOfQud
 
         private static string HumanSize(long b)
         {
+            // round-half-up, not floor — measured against the live Mods screen twice:
+            // 85.5KB shows 86 (ceil==round), 265.3KB shows 265 (round, ceil gave 266)
             if (b < 1024) return b + " B";
-            if (b < 1024L * 1024L) return (b / 1024L) + " KB";
+            if (b < 1024L * 1024L) return ((b + 512L) / 1024L) + " KB";   // round-half-up
             return ((double)b / 1024.0 / 1024.0).ToString("0.0") + " MB";
         }
     }

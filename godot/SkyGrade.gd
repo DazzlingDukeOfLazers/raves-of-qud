@@ -126,7 +126,9 @@ func _process(dt: float) -> void:
 		# 1:1: the clear colour IS Qud's letterbox/area colour (measured 17,33,38 — everything
 		# outside the 80x25 stage, which the clipped field plane now leaves exposed).
 		if Settings.one_to_one() and _env != null:
-			_env.background_color = Color8(17, 33, 38)
+			# Compensated like every other measured-from-Qud colour: the composited frame goes
+			# through the same curve, which sagged a bare 17,33,38 to 18,30,34 on the glass.
+			_env.background_color = QudChrome.q8(17, 33, 38)
 		return
 	# ease the grade + sky so time-of-day shifts smoothly between turns
 	_tint = _tint.lerp(_tint_target, clampf(dt * 2.0, 0.0, 1.0))
