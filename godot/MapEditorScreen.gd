@@ -65,7 +65,7 @@ const MENUS := {
 	"File": [
 		{"text": "New map", "hot": "Ctrl+N", "act": "new"},
 		{"text": "Load map...", "hot": "Ctrl+O", "act": "load"},
-		{"text": "Test", "hot": "Ctrl+T", "act": ""},
+		{"text": "Test", "hot": "Ctrl+T", "act": "test"},
 		{"text": "Save", "hot": "Ctrl+S", "act": "save"},
 		{"text": "Save As...", "hot": "", "act": "saveas"},
 		{"sep": true},
@@ -321,6 +321,8 @@ func _do(act: String) -> void:
 				_save_rpm(_filename)
 		"saveas":
 			_pick_file(true)
+		"test":
+			_run_test()
 		"selectall":
 			_region = Rect2i(0, 0, COLS, ROWS); _has_region = true; _canvas.queue_redraw()
 		"undo":
@@ -439,6 +441,30 @@ func _load_rpm(path: String) -> bool:
 	_refresh_filter()
 	_canvas.queue_redraw()
 	return true
+
+## Test: write the current map to a scratch .rpm and ask Qud to build it as a live zone.
+## Raves does not simulate — Qud owns worldgen — so this hands the map to Qud's OWN Test
+## (MapEditorDriver.Test -> MapEditorView.Test), which needs Qud sitting in its Map Editor.
+## Saving first means Test always runs the map you can SEE, saved or not.
+func _run_test() -> void:
+	var scratch := _maps_dir().path_join("_raves_test.rpm")
+	var keep := _filename            # a scratch write must not steal the document's identity
+	if not _save_rpm(scratch):
+		push_warning("map editor: could not write the test map")
+		return
+	_filename = keep
+	_update_title()
+	if _peer.get_status() != StreamPeerTCP.STATUS_CONNECTED:
+		push_warning("map editor: Test needs the Qud bridge (is Qud running?)")
+		return
+	var msg := {"type": "command", "name": "mapedit", "do": "test", "bp": scratch}
+	var payload := JSON.stringify(msg).to_utf8_buffer()
+	var n := payload.size()
+	var frame := PackedByteArray()
+	frame.append((n >> 24) & 0xFF); frame.append((n >> 16) & 0xFF)
+	frame.append((n >> 8) & 0xFF); frame.append(n & 0xFF)
+	frame.append_array(payload)
+	_peer.put_data(frame)
 
 ## Qud shows the open file in the title (MapEditorView.UpdateTitle); mirror that.
 func _update_title() -> void:
@@ -827,6 +853,7 @@ func _unhandled_input(e: InputEvent) -> void:
 			KEY_N: _do("new"); accept_event(); return
 			KEY_O: _do("load"); accept_event(); return
 			KEY_S: _do("save"); accept_event(); return
+			KEY_T: _do("test"); accept_event(); return
 			KEY_A: _do("selectall"); accept_event(); return
 			KEY_Z: _do("undo"); accept_event(); return
 			KEY_F1: _do("overlay"); accept_event(); return

@@ -122,6 +122,44 @@ namespace RavesOfQud
             catch (Exception e) { Log("context failed: " + e.Message); return false; }
         }
 
+        /// <summary>Load a .rpm into Qud's OWN Map Editor and run its Test — which builds the map
+        /// as a live zone and drops the player into it (MapEditorView.Test -> RunTest ->
+        /// BuildTestZone, an async state machine we deliberately do not reimplement).
+        ///
+        /// Requires Qud to be sitting IN the Map Editor: Test is one of its actions and needs the
+        /// live MapEditorView. That is Qud's own constraint, not one we add — reported plainly
+        /// rather than failing silently.</summary>
+        public static bool Test(string rpmPath)
+        {
+            try
+            {
+                object v = View();
+                if (v == null)
+                {
+                    Log("Qud is not in the Map Editor — open Modding Toolkit > Map Editor first");
+                    return false;
+                }
+                if (!string.IsNullOrEmpty(rpmPath))
+                {
+                    if (!System.IO.File.Exists(rpmPath)) { Log("no such map: " + rpmPath); return false; }
+                    object map = v.GetType().GetField("Map", ANY)?.GetValue(v);
+                    if (map == null) { Log("editor has no Map to load into"); return false; }
+                    MethodInfo load = map.GetType().GetMethod("LoadFile", ANY,
+                        null, new[] { typeof(string) }, null);
+                    if (load == null) { Log("no MapFile.LoadFile"); return false; }
+                    load.Invoke(map, new object[] { rpmPath });
+                    Invoke(v, "RenderMap");
+                    Log("loaded " + rpmPath + " into Qud's editor");
+                }
+                MethodInfo test = v.GetType().GetMethod("Test", ANY, null, Type.EmptyTypes, null);
+                if (test == null) { Log("no MapEditorView.Test"); return false; }
+                test.Invoke(v, null);
+                Log("Test invoked — Qud is building the zone");
+                return true;
+            }
+            catch (Exception e) { Log("test failed: " + e.Message); return false; }
+        }
+
         /// <summary>Report what the editor currently thinks is selected — a cheap readback so a
         /// driven test asserts on state instead of pixels.</summary>
         public static string State()

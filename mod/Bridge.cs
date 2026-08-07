@@ -1223,6 +1223,7 @@ namespace RavesOfQud
                                     case "select": MapEditorDriver.Select(x, y, x2, y2); break;
                                     case "paint": MapEditorDriver.Paint(x, y, meBp ?? "Across1"); break;
                                     case "context": MapEditorDriver.Context(x, y); break;
+                                    case "test": MapEditorDriver.Test(meBp); break;
                                     default: Server.Log("mapedit state " + MapEditorDriver.State()); break;
                                 }
                             }
