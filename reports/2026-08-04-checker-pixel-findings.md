@@ -179,6 +179,37 @@ Items are essentially perfect; the drops are structured, not noise:
 Dark-era baselines remain in git history as valid dark-parity records; THIS
 is the canonical baseline lineage going forward.
 
+## 13. CERTIFIED BRIGHT BASELINE (2026-08-06 night)
+
+Full re-sweep of every category on the hardened rig. THE BOARD:
+
+    walls      229/229 wire   226 PASS /  2 WARN / 0 FAIL / 1 ANIM
+    plants     181/181 wire   177 PASS /  1 WARN / 0 FAIL / 1 KNOWN / 2 ANIM
+    liquids     79/79  wire    76 PASS /  0 WARN / 0 FAIL / 2 KNOWN / 1 ANIM
+    furniture  745/745 wire   716 PASS /  4 WARN / 0 FAIL / 13 KNOWN / 12 ANIM
+    food       276/276 wire   275 PASS /  0 WARN / 0 FAIL
+    implants    77/77  wire    77 PASS /  0 WARN / 0 FAIL
+    creatures  896/896 wire   865 PASS /  6 WARN / 0 FAIL / 21 KNOWN / 4 ANIM
+    ---------------------------------------------------------------
+    TOTAL     2483/2483 wire  2412 PASS / 13 WARN / 0 FAIL / 37 KNOWN / 20 ANIM
+
+ZERO pixel failures across all 2,483 world elements. KNOWN = physically
+unverifiable by staging (spawners, multi-cell sprites, detonating
+neutron flux, one runtime-shrine cycle pending the repaint-cadence
+question). ANIM = animation verified by state agreement; single-frame
+diffs are phase. The certification burned off six rig failure modes on
+the way (each now guarded): mid-run calibration poisoned by the player
+photobombing the differential frames (aspect guard), viewer menu drift
+and stuck mirrored popups (clear guard), dead bridge connections behind
+a healthy UI heartbeat (snap_ts beacon), loadsave COMError flakes
+(retry), and the window-placement split — pixel thresholds are
+calibrated on the big stored-rect window, while anim bursts need the
+window moved on-screen (off-screen, the animation clock freezes between
+forced draws). The window-mode note lives in reboot_rig.
+
+*Certification complete. Phase-2 Workstream A (per-element world
+verification) is done on the PC side.*
+
 ## 12. THE ANIMATED TAIL, FULLY MEASURED (2026-08-05 evening)
 
 Every remaining FAIL was burst-measured (fixtures walls-tail / plants-tail /

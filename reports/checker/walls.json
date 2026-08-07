@@ -3,16 +3,14 @@
   "bp": "AgateWall",
   "pass": true,
   "reasons": [],
-  "warns": [
-   "wire tile != blueprint tile 'assets_content_textures_tiles_wall_rock-00000000'"
-  ],
+  "warns": [],
   "stage": {
    "bp": "AgateWall",
    "ok": true,
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 2,
+   "cleared": 0,
    "tile": "Assets_Content_Textures_Tiles_wall_rock-00000000.bmp",
    "color": "&r^K",
    "detail": "K",
@@ -25,7 +23,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\AgateWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.08,
+   "mean_abs_diff": 7.06,
    "pct_hot": 8.9,
    "band": "PASS",
    "white_px": [
@@ -60,7 +58,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\AmethystWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 9.09,
+   "mean_abs_diff": 9.1,
    "pct_hot": 10.0,
    "band": "PASS",
    "white_px": [
@@ -95,7 +93,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Basalt_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 8.48,
+   "mean_abs_diff": 8.47,
    "pct_hot": 4.5,
    "band": "PASS",
    "white_px": [
@@ -130,7 +128,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\BasaltWithPipes_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 8.49,
+   "mean_abs_diff": 8.47,
    "pct_hot": 4.5,
    "band": "PASS",
    "white_px": [
@@ -167,7 +165,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Black_Marble_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 8.81,
+   "mean_abs_diff": 8.78,
    "pct_hot": 4.9,
    "band": "PASS",
    "white_px": [
@@ -202,7 +200,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Black_Shale_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 8.51,
+   "mean_abs_diff": 8.5,
    "pct_hot": 4.5,
    "band": "PASS",
    "white_px": [
@@ -239,7 +237,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Blueshifted_Chrome_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.52,
+   "mean_abs_diff": 7.46,
    "pct_hot": 7.9,
    "band": "PASS",
    "white_px": [
@@ -276,7 +274,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\BrickWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.69,
+   "mean_abs_diff": 7.71,
    "pct_hot": 11.7,
    "band": "PASS",
    "white_px": [
@@ -313,7 +311,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\BrinestalkArrowslit_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 3.13,
+   "mean_abs_diff": 3.08,
    "pct_hot": 1.6,
    "band": "PASS",
    "white_px": [
@@ -329,7 +327,8 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'assets_content_textures_tiles_fence_'"
+   "wire tile != blueprint tile 'assets_content_textures_tiles_fence_'",
+   "no capture pair \u2014 congruence skipped"
   ],
   "stage": {
    "bp": "BrinestalkFence",
@@ -346,11 +345,10 @@
   "wire_objs": 1,
   "wire_hex": "98875f",
   "shots": {
-   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\BrinestalkFence_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\BrinestalkFence_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 3.09,
+   "mean_abs_diff": 3.07,
    "pct_hot": 1.6,
    "band": "PASS",
    "white_px": [
@@ -385,7 +383,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\BrinestalkStakes_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 3.08,
+   "mean_abs_diff": 3.09,
    "pct_hot": 1.6,
    "band": "PASS",
    "white_px": [
@@ -409,7 +407,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 6,
+   "cleared": 1,
    "tile": "Assets_Content_Textures_Walls_wall_brinestalk-00000000.png",
    "color": "&w^y",
    "detail": "y",
@@ -422,7 +420,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\BrinestalkWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.09,
+   "mean_abs_diff": 7.01,
    "pct_hot": 6.7,
    "band": "PASS",
    "white_px": [
@@ -459,7 +457,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\BrinestalkWallWithGearbox_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.1,
+   "mean_abs_diff": 7.06,
    "pct_hot": 6.7,
    "band": "PASS",
    "white_px": [
@@ -496,7 +494,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Burnished_Azzurum_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 8.77,
+   "mean_abs_diff": 8.81,
    "pct_hot": 9.4,
    "band": "PASS",
    "white_px": [
@@ -533,7 +531,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\BurntWood_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.4,
+   "mean_abs_diff": 7.43,
    "pct_hot": 4.0,
    "band": "PASS",
    "white_px": [
@@ -570,7 +568,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\CanvasWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.38,
+   "mean_abs_diff": 1.43,
    "pct_hot": 0.5,
    "band": "PASS",
    "white_px": [
@@ -586,7 +584,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'assets_content_textures_walls_wall_skull_2-00000000'"
+   "wire tile != blueprint tile 'assets_content_textures_walls_wall_skull_1-00000000'"
   ],
   "stage": {
    "bp": "CatacombWall",
@@ -595,7 +593,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Assets_Content_Textures_Walls_wall_skull_2-00000000.png",
+   "tile": "Assets_Content_Textures_Walls_wall_skull_1-00000000.png",
    "color": "&y^Y",
    "detail": "Y",
    "name": "compacted bone"
@@ -607,12 +605,12 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\CatacombWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 13.29,
+   "mean_abs_diff": 13.57,
    "pct_hot": 9.2,
    "band": "PASS",
    "white_px": [
-    9,
-    159
+    11,
+    171
    ],
    "dominant_delta": 0,
    "wire_delta": 161
@@ -623,8 +621,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'assets_content_textures_tiles_wall_crystal1-00000000'",
-   "no capture pair \u2014 congruence skipped"
+   "wire tile != blueprint tile 'assets_content_textures_tiles_wall_crystal1-00000000'"
   ],
   "stage": {
    "bp": "Chavvah Taproot",
@@ -641,11 +638,12 @@
   "wire_objs": 1,
   "wire_hex": "b154cf",
   "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Chavvah_Taproot_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Chavvah_Taproot_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 17.26,
-   "pct_hot": 15.4,
+   "mean_abs_diff": 9.35,
+   "pct_hot": 9.4,
    "band": "PASS",
    "white_px": [
     0,
@@ -659,7 +657,9 @@
   "bp": "ChavvahTrunk",
   "pass": true,
   "reasons": [],
-  "warns": [],
+  "warns": [
+   "wire tile != blueprint tile 'assets_content_textures_tiles_wall_crystal1-00000000'"
+  ],
   "stage": {
    "bp": "ChavvahTrunk",
    "ok": true,
@@ -679,7 +679,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\ChavvahTrunk_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 9.4,
+   "mean_abs_diff": 9.39,
    "pct_hot": 9.4,
    "band": "PASS",
    "white_px": [
@@ -716,7 +716,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Chevron_Black_Cyan_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 5.18,
+   "mean_abs_diff": 5.21,
    "pct_hot": 3.8,
    "band": "PASS",
    "white_px": [
@@ -753,7 +753,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Chevron_Brown_Gold_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 8.33,
+   "mean_abs_diff": 8.26,
    "pct_hot": 8.5,
    "band": "PASS",
    "white_px": [
@@ -768,7 +768,9 @@
   "bp": "ChevronWall",
   "pass": true,
   "reasons": [],
-  "warns": [],
+  "warns": [
+   "no capture pair \u2014 congruence skipped"
+  ],
   "stage": {
    "bp": "ChevronWall",
    "ok": true,
@@ -784,12 +786,11 @@
   "wire_objs": 1,
   "wire_hex": "40a4b9",
   "shots": {
-   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\ChevronWall_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\ChevronWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 9.62,
-   "pct_hot": 8.5,
+   "mean_abs_diff": 14.29,
+   "pct_hot": 13.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -823,7 +824,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\ChevronWallWithPiping_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 9.67,
+   "mean_abs_diff": 9.65,
    "pct_hot": 8.5,
    "band": "PASS",
    "white_px": [
@@ -847,7 +848,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 2,
+   "cleared": 1,
    "tile": "Assets_Content_Textures_Walls2_chiliad-canvas_.png",
    "color": "&w",
    "detail": "r",
@@ -860,7 +861,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Chiliad_CanvasWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.4,
+   "mean_abs_diff": 1.41,
    "pct_hot": 0.5,
    "band": "PASS",
    "white_px": [
@@ -884,7 +885,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 3,
+   "cleared": 1,
    "tile": "Assets_Content_Textures_Tiles_wall_brick-00000000.bmp",
    "color": "&y^k",
    "detail": "",
@@ -897,7 +898,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\CodaHost_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 6.86,
+   "mean_abs_diff": 6.92,
    "pct_hot": 2.6,
    "band": "PASS",
    "white_px": [
@@ -934,7 +935,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\ColumbariumWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 16.51,
+   "mean_abs_diff": 16.5,
    "pct_hot": 9.3,
    "band": "PASS",
    "white_px": [
@@ -971,7 +972,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Concrete_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 9.23,
+   "mean_abs_diff": 9.26,
    "pct_hot": 7.8,
    "band": "PASS",
    "white_px": [
@@ -1008,7 +1009,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Coral_Rag_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 12.49,
+   "mean_abs_diff": 12.43,
    "pct_hot": 10.0,
    "band": "PASS",
    "white_px": [
@@ -1045,7 +1046,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Crematory_Mainframe_Monitor_1_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 11.47,
+   "mean_abs_diff": 11.52,
    "pct_hot": 6.2,
    "band": "PASS",
    "white_px": [
@@ -1082,7 +1083,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Crematory_Mainframe_Status_Panel_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 11.48,
+   "mean_abs_diff": 11.43,
    "pct_hot": 6.2,
    "band": "PASS",
    "white_px": [
@@ -1119,7 +1120,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\CrematoryMainframeWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 11.44,
+   "mean_abs_diff": 11.45,
    "pct_hot": 6.2,
    "band": "PASS",
    "white_px": [
@@ -1172,8 +1173,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'assets_content_textures_tiles_wall_brick-00000000'",
-   "no capture pair \u2014 congruence skipped"
+   "wire tile != blueprint tile 'assets_content_textures_tiles_wall_brick-00000000'"
   ],
   "stage": {
    "bp": "CryochamberPlaqueRhinox",
@@ -1190,11 +1190,12 @@
   "wire_objs": 1,
   "wire_hex": "b1c9c3",
   "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\CryochamberPlaqueRhinox_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\CryochamberPlaqueRhinox_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 13.02,
-   "pct_hot": 6.8,
+   "mean_abs_diff": 6.89,
+   "pct_hot": 2.6,
    "band": "PASS",
    "white_px": [
     0,
@@ -1228,7 +1229,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\CryochamberPlaqueSkybear_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 6.96,
+   "mean_abs_diff": 6.93,
    "pct_hot": 2.6,
    "band": "PASS",
    "white_px": [
@@ -1263,7 +1264,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\CryochamberPlaqueSpider_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 6.96,
+   "mean_abs_diff": 6.83,
    "pct_hot": 2.6,
    "band": "PASS",
    "white_px": [
@@ -1298,7 +1299,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\CryochamberPlaqueYempris_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 6.9,
+   "mean_abs_diff": 6.99,
    "pct_hot": 2.6,
    "band": "PASS",
    "white_px": [
@@ -1314,7 +1315,8 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_vent'"
+   "wire tile != blueprint tile 'items_sw_vent'",
+   "no capture pair \u2014 congruence skipped"
   ],
   "stage": {
    "bp": "CryochamberWall",
@@ -1331,12 +1333,11 @@
   "wire_objs": 1,
   "wire_hex": null,
   "shots": {
-   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\CryochamberWall_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\CryochamberWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 4.16,
-   "pct_hot": 3.1,
+   "mean_abs_diff": 5.06,
+   "pct_hot": 4.9,
    "band": "PASS",
    "white_px": [
     0,
@@ -1350,9 +1351,7 @@
   "bp": "CryochamberWallBroken",
   "pass": true,
   "reasons": [],
-  "warns": [
-   "wire tile != blueprint tile 'items_sw_vent'"
-  ],
+  "warns": [],
   "stage": {
    "bp": "CryochamberWallBroken",
    "ok": true,
@@ -1372,7 +1371,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\CryochamberWallBroken_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 4.08,
+   "mean_abs_diff": 4.13,
    "pct_hot": 3.1,
    "band": "PASS",
    "white_px": [
@@ -1388,7 +1387,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'items_sw_vent'"
+   "no capture pair \u2014 congruence skipped"
   ],
   "stage": {
    "bp": "CryochamberWallNE",
@@ -1405,12 +1404,11 @@
   "wire_objs": 1,
   "wire_hex": null,
   "shots": {
-   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\CryochamberWallNE_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\CryochamberWallNE_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 4.09,
-   "pct_hot": 3.1,
+   "mean_abs_diff": 4.99,
+   "pct_hot": 4.9,
    "band": "PASS",
    "white_px": [
     0,
@@ -1431,7 +1429,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 3,
+   "cleared": 1,
    "tile": "Items/sw_vent.bmp",
    "color": "^y&c",
    "detail": "y",
@@ -1444,7 +1442,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\CryochamberWallNW_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 4.02,
+   "mean_abs_diff": 4.07,
    "pct_hot": 3.1,
    "band": "PASS",
    "white_px": [
@@ -1479,7 +1477,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\CryochamberWallSE_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 4.18,
+   "mean_abs_diff": 4.06,
    "pct_hot": 3.1,
    "band": "PASS",
    "white_px": [
@@ -1514,7 +1512,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\CryochamberWallSW_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 4.12,
+   "mean_abs_diff": 4.13,
    "pct_hot": 3.1,
    "band": "PASS",
    "white_px": [
@@ -1538,7 +1536,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 2,
+   "cleared": 1,
    "tile": "Assets_Content_Textures_Walls_wall_filigree-00000000.png",
    "color": "&K^C",
    "detail": "C",
@@ -1551,7 +1549,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\CryptWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.02,
+   "mean_abs_diff": 6.99,
    "pct_hot": 4.0,
    "band": "PASS",
    "white_px": [
@@ -1575,20 +1573,20 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 2,
+   "cleared": 1,
    "tile": "Assets_Content_Textures_Walls_wall_filigree-00000000.png",
    "color": "&K^C",
    "detail": "C",
    "name": "ornately filigreed marble"
   },
-  "wire_objs": 2,
+  "wire_objs": 1,
   "wire_hex": "155352",
   "shots": {
    "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\CryptWall_Period_1_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\CryptWall_Period_1_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.06,
+   "mean_abs_diff": 7.02,
    "pct_hot": 4.0,
    "band": "PASS",
    "white_px": [
@@ -1603,7 +1601,9 @@
   "bp": "CryptWall Period 2",
   "pass": true,
   "reasons": [],
-  "warns": [],
+  "warns": [
+   "no capture pair \u2014 congruence skipped"
+  ],
   "stage": {
    "bp": "CryptWall Period 2",
    "ok": true,
@@ -1619,12 +1619,11 @@
   "wire_objs": 1,
   "wire_hex": "155352",
   "shots": {
-   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\CryptWall_Period_2_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\CryptWall_Period_2_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 6.95,
-   "pct_hot": 4.0,
+   "mean_abs_diff": 10.57,
+   "pct_hot": 6.5,
    "band": "PASS",
    "white_px": [
     0,
@@ -1658,7 +1657,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\CryptWall_Period_3_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.0,
+   "mean_abs_diff": 6.99,
    "pct_hot": 4.0,
    "band": "PASS",
    "white_px": [
@@ -1673,9 +1672,7 @@
   "bp": "CryptWall Period 4",
   "pass": true,
   "reasons": [],
-  "warns": [
-   "no capture pair \u2014 congruence skipped"
-  ],
+  "warns": [],
   "stage": {
    "bp": "CryptWall Period 4",
    "ok": true,
@@ -1684,25 +1681,26 @@
    "y": 12,
    "cleared": 1,
    "tile": "Assets_Content_Textures_Walls_wall_filigree-00000000.png",
-   "color": "&K^C",
+   "color": "&y^C",
    "detail": "C",
-   "name": "ornately filigreed marble"
+   "name": "{{graffitied|graffitied}} ornately filigreed marble"
   },
   "wire_objs": 1,
-  "wire_hex": "155352",
+  "wire_hex": "b1c9c3",
   "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\CryptWall_Period_4_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\CryptWall_Period_4_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 10.59,
-   "pct_hot": 6.5,
+   "mean_abs_diff": 12.5,
+   "pct_hot": 9.3,
    "band": "PASS",
    "white_px": [
     0,
     0
    ],
    "dominant_delta": 0,
-   "wire_delta": 35
+   "wire_delta": 161
   }
  },
  {
@@ -1729,7 +1727,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\CryptWall_Period_5_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 6.98,
+   "mean_abs_diff": 6.93,
    "pct_hot": 4.0,
    "band": "PASS",
    "white_px": [
@@ -1766,7 +1764,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\CrysteelBraidWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 10.64,
+   "mean_abs_diff": 10.65,
    "pct_hot": 9.4,
    "band": "PASS",
    "white_px": [
@@ -1803,7 +1801,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\CrysteelBraidWallwithPiping_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 10.63,
+   "mean_abs_diff": 10.64,
    "pct_hot": 9.4,
    "band": "PASS",
    "white_px": [
@@ -1864,7 +1862,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 4,
+   "cleared": 1,
    "tile": "Assets_Content_Textures_Tiles2_glass_.png",
    "color": "&C^k",
    "detail": "Y",
@@ -1877,8 +1875,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\CyberWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 20.15,
-   "pct_hot": 17.6,
+   "mean_abs_diff": 6.62,
+   "pct_hot": 3.4,
    "band": "PASS",
    "white_px": [
     13,
@@ -1901,7 +1899,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 4,
+   "cleared": 1,
    "tile": "Assets_Content_Textures_Tiles_wall_mud-00000000.bmp",
    "color": "&k^K",
    "detail": "y",
@@ -1914,7 +1912,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\EbonFulcrete_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 8.81,
+   "mean_abs_diff": 8.83,
    "pct_hot": 5.2,
    "band": "PASS",
    "white_px": [
@@ -1944,7 +1942,7 @@
    "detail": "y",
    "name": "ebon fulcrete"
   },
-  "wire_objs": 2,
+  "wire_objs": 1,
   "wire_hex": "0f3b3a",
   "shots": {
    "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\EbonFulcrete_High_Graffiti_Chance_qud.png",
@@ -1988,7 +1986,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\EmeraldWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 8.74,
+   "mean_abs_diff": 8.78,
    "pct_hot": 10.0,
    "band": "PASS",
    "white_px": [
@@ -2023,7 +2021,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Foamcrete_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 12.44,
+   "mean_abs_diff": 12.41,
    "pct_hot": 7.8,
    "band": "PASS",
    "white_px": [
@@ -2047,7 +2045,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 2,
+   "cleared": 1,
    "tile": "Assets_Content_Textures_Tiles2_force_field_1_.png",
    "color": "&R^k",
    "detail": "",
@@ -2060,8 +2058,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\ForceBarrier_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 4.31,
-   "pct_hot": 3.6,
+   "mean_abs_diff": 2.49,
+   "pct_hot": 1.6,
    "band": "PASS",
    "white_px": [
     0,
@@ -2090,15 +2088,15 @@
    "detail": "",
    "name": "forcefield"
   },
-  "wire_objs": 2,
+  "wire_objs": 1,
   "wire_hex": "77bfcf",
   "shots": {
    "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Forcefield_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Forcefield_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 8.7,
-   "pct_hot": 15.4,
+   "mean_abs_diff": 6.09,
+   "pct_hot": 13.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -2121,7 +2119,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 2,
+   "cleared": 1,
    "tile": "Assets_Content_Textures_Tiles_wall_mud-00000000.bmp",
    "color": "&Y^k",
    "detail": "k",
@@ -2134,7 +2132,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Fulcrete_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 17.83,
+   "mean_abs_diff": 17.85,
    "pct_hot": 7.8,
    "band": "PASS",
    "white_px": [
@@ -2164,14 +2162,14 @@
    "detail": "C",
    "name": "fulcrete with square wave"
   },
-  "wire_objs": 2,
+  "wire_objs": 1,
   "wire_hex": "155352",
   "shots": {
    "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Fulcrete_With_Square_Wave_KC_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Fulcrete_With_Square_Wave_KC_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 6.17,
+   "mean_abs_diff": 6.19,
    "pct_hot": 3.5,
    "band": "PASS",
    "white_px": [
@@ -2208,7 +2206,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Fulcrete_With_Square_Wave_rG_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.41,
+   "mean_abs_diff": 7.34,
    "pct_hot": 7.7,
    "band": "PASS",
    "white_px": [
@@ -2278,7 +2276,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Fulcrete_With_Square_Wave_rr_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 4.13,
+   "mean_abs_diff": 4.12,
    "pct_hot": 4.4,
    "band": "PASS",
    "white_px": [
@@ -2313,7 +2311,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Fulcrete_With_Square_Wave_rW_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 6.37,
+   "mean_abs_diff": 6.4,
    "pct_hot": 7.7,
    "band": "PASS",
    "white_px": [
@@ -2335,7 +2333,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 2,
+   "cleared": 1,
    "tile": "Assets_Content_Textures_Walls_wall_zigzag-00000000.png",
    "color": "&W^g",
    "detail": "g",
@@ -2370,20 +2368,20 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 2,
+   "cleared": 1,
    "tile": "Assets_Content_Textures_Walls_wall_zigzag-00000000.png",
    "color": "&y^W",
    "detail": "W",
    "name": "fulcrete with square wave"
   },
-  "wire_objs": 2,
+  "wire_objs": 1,
   "wire_hex": "b1c9c3",
   "shots": {
    "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Fulcrete_With_Square_Wave_yW_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Fulcrete_With_Square_Wave_yW_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 10.63,
+   "mean_abs_diff": 10.64,
    "pct_hot": 7.7,
    "band": "PASS",
    "white_px": [
@@ -2405,20 +2403,20 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 2,
+   "cleared": 1,
    "tile": "Assets_Content_Textures_Walls_wall_zigzag-00000000.png",
    "color": "&r^C",
    "detail": "C",
    "name": "fulcrete with square wave"
   },
-  "wire_objs": 2,
+  "wire_objs": 1,
   "wire_hex": "a64a2e",
   "shots": {
    "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\FulcreteWithSquareWave_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\FulcreteWithSquareWave_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 8.1,
+   "mean_abs_diff": 8.04,
    "pct_hot": 7.7,
    "band": "PASS",
    "white_px": [
@@ -2442,7 +2440,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 4,
+   "cleared": 1,
    "tile": "Assets_Content_Textures_Tiles2_glass_.png",
    "color": "&Y^k",
    "detail": "y",
@@ -2455,7 +2453,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\GlassWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.39,
+   "mean_abs_diff": 7.41,
    "pct_hot": 3.4,
    "band": "PASS",
    "white_px": [
@@ -2481,18 +2479,18 @@
    "y": 12,
    "cleared": 1,
    "tile": "Assets_Content_Textures_Walls_wall_mushroom-00000000.png",
-   "color": "&o^o",
+   "color": "&O^o",
    "detail": "O",
    "name": "mushroom flesh"
   },
   "wire_objs": 1,
-  "wire_hex": "f15f22",
+  "wire_hex": "e99f10",
   "shots": {
    "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\GodshroomWall_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\GodshroomWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.03,
+   "mean_abs_diff": 0.97,
    "pct_hot": 0.0,
    "band": "PASS",
    "white_px": [
@@ -2500,7 +2498,7 @@
     0
    ],
    "dominant_delta": 0,
-   "wire_delta": 225
+   "wire_delta": 217
   }
  },
  {
@@ -2527,7 +2525,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\GolemInteriorGlassWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.4,
+   "mean_abs_diff": 7.41,
    "pct_hot": 3.4,
    "band": "PASS",
    "white_px": [
@@ -2564,15 +2562,15 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\GolemInteriorWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 15.1,
-   "pct_hot": 14.4,
+   "mean_abs_diff": 8.43,
+   "pct_hot": 8.4,
    "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 0,
-   "wire_delta": 136
+   "dominant_delta": 128,
+   "wire_delta": 15
   }
  },
  {
@@ -2601,8 +2599,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\GolemInteriorWall_Endcap_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 14.67,
-   "pct_hot": 14.3,
+   "mean_abs_diff": 9.07,
+   "pct_hot": 9.2,
    "band": "PASS",
    "white_px": [
     0,
@@ -2636,15 +2634,15 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\GolemInteriorWallwPiping_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 15.13,
-   "pct_hot": 14.4,
+   "mean_abs_diff": 8.42,
+   "pct_hot": 8.4,
    "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 0,
-   "wire_delta": 136
+   "dominant_delta": 128,
+   "wire_delta": 15
   }
  },
  {
@@ -2673,8 +2671,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Granite_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.78,
-   "pct_hot": 7.1,
+   "mean_abs_diff": 5.41,
+   "pct_hot": 4.5,
    "band": "PASS",
    "white_px": [
     0,
@@ -2697,7 +2695,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 2,
+   "cleared": 1,
    "tile": "Assets_Content_Textures_Tiles2_mainframe_monitor_1-00000000.png",
    "color": "&y^y",
    "detail": "y",
@@ -2710,7 +2708,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\GritGate_Mainframe_Monitor_1_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 11.52,
+   "mean_abs_diff": 11.38,
    "pct_hot": 6.2,
    "band": "PASS",
    "white_px": [
@@ -2747,7 +2745,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\GritGate_Mainframe_Monitor_2_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 11.12,
+   "mean_abs_diff": 11.09,
    "pct_hot": 5.9,
    "band": "PASS",
    "white_px": [
@@ -2784,7 +2782,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\GritGate_Mainframe_Status_Panel_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 11.49,
+   "mean_abs_diff": 11.55,
    "pct_hot": 6.2,
    "band": "PASS",
    "white_px": [
@@ -2821,7 +2819,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\GritGate_Mainframe_Tape_Drive_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 9.82,
+   "mean_abs_diff": 9.78,
    "pct_hot": 5.0,
    "band": "PASS",
    "white_px": [
@@ -2843,7 +2841,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 5,
+   "cleared": 1,
    "tile": "Assets_Content_Textures_Tiles2_mainframe_status_panel-00000000.png",
    "color": "&y^y",
    "detail": "y",
@@ -2856,7 +2854,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\GritGateMainframeWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 11.45,
+   "mean_abs_diff": 11.44,
    "pct_hot": 6.2,
    "band": "PASS",
    "white_px": [
@@ -2893,7 +2891,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Gypsum_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 13.83,
+   "mean_abs_diff": 13.79,
    "pct_hot": 8.5,
    "band": "PASS",
    "white_px": [
@@ -2930,7 +2928,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\HalfWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 2.02,
+   "mean_abs_diff": 1.96,
    "pct_hot": 0.8,
    "band": "PASS",
    "white_px": [
@@ -2967,7 +2965,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\HalfWall_Aquamarine_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 2.02,
+   "mean_abs_diff": 2.06,
    "pct_hot": 0.8,
    "band": "PASS",
    "white_px": [
@@ -3004,7 +3002,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Halite_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 16.55,
+   "mean_abs_diff": 16.52,
    "pct_hot": 8.5,
    "band": "PASS",
    "white_px": [
@@ -3041,7 +3039,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\HangarWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 12.06,
+   "mean_abs_diff": 12.08,
    "pct_hot": 8.3,
    "band": "PASS",
    "white_px": [
@@ -3078,7 +3076,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\HGlassWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.4,
+   "mean_abs_diff": 7.38,
    "pct_hot": 3.4,
    "band": "PASS",
    "white_px": [
@@ -3224,7 +3222,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\HighCapacityWiredSultanWall_Period1_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 8.02,
+   "mean_abs_diff": 8.01,
    "pct_hot": 8.7,
    "band": "PASS",
    "white_px": [
@@ -3261,9 +3259,9 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\HolographicChavvahTrunk_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 9.31,
-   "pct_hot": 9.4,
-   "band": "PASS",
+   "mean_abs_diff": 31.78,
+   "pct_hot": 60.0,
+   "band": "WARN",
    "white_px": [
     0,
     0
@@ -3298,7 +3296,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\HolographicLowSandstoneWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 8.89,
+   "mean_abs_diff": 8.87,
    "pct_hot": 10.0,
    "band": "PASS",
    "white_px": [
@@ -3314,7 +3312,8 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'assets_content_textures_tiles_wall_rock-00000000'"
+   "wire tile != blueprint tile 'assets_content_textures_tiles_wall_rock-00000000'",
+   "no capture pair \u2014 congruence skipped"
   ],
   "stage": {
    "bp": "HolographicShaleWall",
@@ -3331,18 +3330,17 @@
   "wire_objs": 1,
   "wire_hex": "a64a2e",
   "shots": {
-   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\HolographicShaleWall_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\HolographicShaleWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 8.87,
-   "pct_hot": 10.0,
-   "band": "PASS",
+   "mean_abs_diff": 32.33,
+   "pct_hot": 55.8,
+   "band": "WARN",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 0,
+   "dominant_delta": 64,
    "wire_delta": 194
   }
  },
@@ -3359,7 +3357,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 6,
+   "cleared": 1,
    "tile": "Assets_Content_Textures_Tiles_wall_wood-00000000.bmp",
    "color": "&y^w",
    "detail": "w",
@@ -3372,7 +3370,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\HolographicThatchedWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 5.76,
+   "mean_abs_diff": 5.83,
    "pct_hot": 6.6,
    "band": "PASS",
    "white_px": [
@@ -3388,8 +3386,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'assets_content_textures_tiles_wall_marble-00000000'",
-   "no capture pair \u2014 congruence skipped"
+   "wire tile != blueprint tile 'assets_content_textures_tiles_wall_marble-00000000'"
   ],
   "stage": {
    "bp": "HoloMarble",
@@ -3406,11 +3403,12 @@
   "wire_objs": 1,
   "wire_hex": "ffffff",
   "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\HoloMarble_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\HoloMarble_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 11.46,
-   "pct_hot": 14.2,
+   "mean_abs_diff": 7.15,
+   "pct_hot": 8.5,
    "band": "PASS",
    "white_px": [
     0,
@@ -3424,7 +3422,9 @@
   "bp": "HyperconductiveLabyrinthite",
   "pass": true,
   "reasons": [],
-  "warns": [],
+  "warns": [
+   "wire tile != blueprint tile 'assets_content_textures_walls2_wall_maze-00000000'"
+  ],
   "stage": {
    "bp": "HyperconductiveLabyrinthite",
    "ok": true,
@@ -3444,8 +3444,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\HyperconductiveLabyrinthite_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 20.34,
-   "pct_hot": 18.1,
+   "mean_abs_diff": 12.14,
+   "pct_hot": 9.4,
    "band": "PASS",
    "white_px": [
     0,
@@ -3481,7 +3481,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\InnerSultanWall_Period1_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.73,
+   "mean_abs_diff": 7.7,
    "pct_hot": 4.9,
    "band": "PASS",
    "white_px": [
@@ -3507,26 +3507,26 @@
    "y": 12,
    "cleared": 1,
    "tile": "Assets_Content_Textures_Walls_wall_sultan_diamonds_b-00000000.png",
-   "color": "&K^C",
+   "color": "&Y^C",
    "detail": "C",
-   "name": "gilded marble from the sultanate of Shararad I"
+   "name": "{{graffitied|graffitied}} gilded marble from the sultanate of Shararad I"
   },
   "wire_objs": 1,
-  "wire_hex": "155352",
+  "wire_hex": "ffffff",
   "shots": {
    "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\InnerSultanWall_Period1_High_Graffiti_Chance_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\InnerSultanWall_Period1_High_Graffiti_Chance_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.76,
-   "pct_hot": 4.9,
+   "mean_abs_diff": 12.8,
+   "pct_hot": 8.0,
    "band": "PASS",
    "white_px": [
-    0,
-    0
+    46,
+    679
    ],
    "dominant_delta": 0,
-   "wire_delta": 5
+   "wire_delta": 15
   }
  },
  {
@@ -3555,7 +3555,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\InnerSultanWall_Period2_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 10.67,
+   "mean_abs_diff": 10.62,
    "pct_hot": 7.4,
    "band": "PASS",
    "white_px": [
@@ -3592,7 +3592,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\InnerSultanWall_Period3_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 6.84,
+   "mean_abs_diff": 6.88,
    "pct_hot": 7.9,
    "band": "PASS",
    "white_px": [
@@ -3629,7 +3629,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\InnerSultanWall_Period4_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 10.51,
+   "mean_abs_diff": 10.44,
    "pct_hot": 8.3,
    "band": "PASS",
    "white_px": [
@@ -3653,18 +3653,18 @@
    "y": 12,
    "cleared": 1,
    "tile": "Assets_Content_Textures_Walls_wall_sultan_arches_b-00000000.png",
-   "color": "&B^r",
+   "color": "&G^r",
    "detail": "r",
    "name": "{{graffitied|graffitied}} gilded marble from the sultanate of Antilehim"
   },
   "wire_objs": 1,
-  "wire_hex": "0096ff",
+  "wire_hex": "00c420",
   "shots": {
    "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\InnerSultanWall_Period4_High_Graffiti_Chance_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\InnerSultanWall_Period4_High_Graffiti_Chance_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 12.04,
+   "mean_abs_diff": 8.18,
    "pct_hot": 8.3,
    "band": "PASS",
    "white_px": [
@@ -3701,7 +3701,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\InnerSultanWall_Period5_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 13.69,
+   "mean_abs_diff": 13.64,
    "pct_hot": 8.9,
    "band": "PASS",
    "white_px": [
@@ -3738,7 +3738,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\InnerSultanWall_Period5_High_Graffiti_Chance_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 13.64,
+   "mean_abs_diff": 13.66,
    "pct_hot": 8.9,
    "band": "PASS",
    "white_px": [
@@ -3762,7 +3762,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 2,
+   "cleared": 1,
    "tile": "Assets_Content_Textures_Walls_wall_sultan_valence_b-00000000.png",
    "color": "&y^K",
    "detail": "K",
@@ -3775,7 +3775,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\InnerSultanWall_Period6_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 8.3,
+   "mean_abs_diff": 8.29,
    "pct_hot": 4.2,
    "band": "PASS",
    "white_px": [
@@ -3812,7 +3812,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\InteriorContainer_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 8.4,
+   "mean_abs_diff": 8.42,
    "pct_hot": 8.7,
    "band": "PASS",
    "white_px": [
@@ -3836,7 +3836,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 3,
+   "cleared": 1,
    "tile": "Assets_Content_Textures_Tiles_ironfence_.bmp",
    "color": "&y^k",
    "detail": "y",
@@ -3849,7 +3849,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\IronFence_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 4.42,
+   "mean_abs_diff": 4.45,
    "pct_hot": 2.0,
    "band": "PASS",
    "white_px": [
@@ -3886,7 +3886,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\JasperWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 6.84,
+   "mean_abs_diff": 6.83,
    "pct_hot": 10.0,
    "band": "PASS",
    "white_px": [
@@ -3923,7 +3923,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Limestone_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 14.96,
+   "mean_abs_diff": 14.95,
    "pct_hot": 8.9,
    "band": "PASS",
    "white_px": [
@@ -3958,7 +3958,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\LowSandstoneWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 8.14,
+   "mean_abs_diff": 8.18,
    "pct_hot": 10.0,
    "band": "PASS",
    "white_px": [
@@ -3974,7 +3974,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'assets_content_textures_walls_wall_coolant-00000000'"
+   "wire tile != blueprint tile 'assets_content_textures_walls_wall_coolant_b-00000000'"
   ],
   "stage": {
    "bp": "MachineWallColdTubing",
@@ -3983,7 +3983,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Assets_Content_Textures_Walls_wall_coolant-00000000.png",
+   "tile": "Assets_Content_Textures_Walls_wall_coolant_b-00000000.png",
    "color": "&C^K",
    "detail": "C",
    "name": "machine wall"
@@ -3995,8 +3995,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\MachineWallColdTubing_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 10.62,
-   "pct_hot": 5.9,
+   "mean_abs_diff": 12.2,
+   "pct_hot": 7.0,
    "band": "PASS",
    "white_px": [
     0,
@@ -4011,8 +4011,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'assets_content_textures_walls_wall_coolant-00000000'",
-   "no capture pair \u2014 congruence skipped"
+   "wire tile != blueprint tile 'assets_content_textures_walls_wall_coolant_b-00000000'"
   ],
   "stage": {
    "bp": "MachineWallEmptyTubing",
@@ -4021,7 +4020,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Assets_Content_Textures_Walls_wall_coolant-00000000.png",
+   "tile": "Assets_Content_Textures_Walls_wall_coolant_b-00000000.png",
    "color": "&c^y",
    "detail": "c",
    "name": "machine wall"
@@ -4029,11 +4028,12 @@
   "wire_objs": 1,
   "wire_hex": "40a4b9",
   "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\MachineWallEmptyTubing_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\MachineWallEmptyTubing_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 19.32,
-   "pct_hot": 12.0,
+   "mean_abs_diff": 11.25,
+   "pct_hot": 7.0,
    "band": "PASS",
    "white_px": [
     0,
@@ -4055,7 +4055,7 @@
    "x": 40,
    "y": 12,
    "cleared": 1,
-   "tile": "Assets_Content_Textures_Walls_wall_coolant-00000000.png",
+   "tile": "Assets_Content_Textures_Walls_wall_coolant_b-00000000.png",
    "color": "&R^K",
    "detail": "R",
    "name": "machine wall"
@@ -4067,8 +4067,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\MachineWallHotTubing_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 9.55,
-   "pct_hot": 5.9,
+   "mean_abs_diff": 10.93,
+   "pct_hot": 7.0,
    "band": "PASS",
    "white_px": [
     0,
@@ -4082,7 +4082,9 @@
   "bp": "MachineWallHotTubingWithPiping",
   "pass": true,
   "reasons": [],
-  "warns": [],
+  "warns": [
+   "wire tile != blueprint tile 'assets_content_textures_walls_wall_coolant-00000000'"
+  ],
   "stage": {
    "bp": "MachineWallHotTubingWithPiping",
    "ok": true,
@@ -4102,7 +4104,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\MachineWallHotTubingWithPiping_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 9.61,
+   "mean_abs_diff": 9.5,
    "pct_hot": 5.9,
    "band": "PASS",
    "white_px": [
@@ -4118,7 +4120,8 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'assets_content_textures_tiles_wall_marble-00000000'"
+   "wire tile != blueprint tile 'assets_content_textures_tiles_wall_marble-00000000'",
+   "no capture pair \u2014 congruence skipped"
   ],
   "stage": {
    "bp": "Marble",
@@ -4135,16 +4138,15 @@
   "wire_objs": 1,
   "wire_hex": "ffffff",
   "shots": {
-   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Marble_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Marble_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 11.02,
-   "pct_hot": 8.5,
+   "mean_abs_diff": 18.1,
+   "pct_hot": 14.2,
    "band": "PASS",
    "white_px": [
     18,
-    288
+    292
    ],
    "dominant_delta": 0,
    "wire_delta": 175
@@ -4154,9 +4156,7 @@
   "bp": "MarbleWithPiping",
   "pass": true,
   "reasons": [],
-  "warns": [
-   "wire tile != blueprint tile 'assets_content_textures_tiles_wall_marble-00000000'"
-  ],
+  "warns": [],
   "stage": {
    "bp": "MarbleWithPiping",
    "ok": true,
@@ -4176,7 +4176,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\MarbleWithPiping_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 11.05,
+   "mean_abs_diff": 11.03,
    "pct_hot": 8.5,
    "band": "PASS",
    "white_px": [
@@ -4213,7 +4213,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Marl_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 14.68,
+   "mean_abs_diff": 14.72,
    "pct_hot": 10.0,
    "band": "PASS",
    "white_px": [
@@ -4237,7 +4237,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 2,
+   "cleared": 1,
    "tile": "Furniture/sw_golem_interior_locker.bmp",
    "color": "&y",
    "detail": "c",
@@ -4250,7 +4250,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\MechInteriorContainer_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 13.41,
+   "mean_abs_diff": 13.42,
    "pct_hot": 8.7,
    "band": "PASS",
    "white_px": [
@@ -4287,7 +4287,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\MechInteriorGlassWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.41,
+   "mean_abs_diff": 7.35,
    "pct_hot": 3.4,
    "band": "PASS",
    "white_px": [
@@ -4303,7 +4303,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'assets_content_textures_walls_wall_coolant_b-00000000'"
+   "wire tile != blueprint tile 'assets_content_textures_walls_wall_coolant-00000000'"
   ],
   "stage": {
    "bp": "MechInteriorWall",
@@ -4311,8 +4311,8 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 3,
-   "tile": "Assets_Content_Textures_Walls_wall_coolant_b-00000000.png",
+   "cleared": 1,
+   "tile": "Assets_Content_Textures_Walls_wall_coolant-00000000.png",
    "color": "&c^y",
    "detail": "c",
    "name": "machine wall"
@@ -4324,8 +4324,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\MechInteriorWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 11.16,
-   "pct_hot": 7.0,
+   "mean_abs_diff": 9.74,
+   "pct_hot": 5.9,
    "band": "PASS",
    "white_px": [
     0,
@@ -4361,7 +4361,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\MechInteriorWall_Endcap_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 10.8,
+   "mean_abs_diff": 10.76,
    "pct_hot": 6.7,
    "band": "PASS",
    "white_px": [
@@ -4398,8 +4398,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\MetalWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 13.66,
-   "pct_hot": 14.7,
+   "mean_abs_diff": 7.76,
+   "pct_hot": 8.5,
    "band": "PASS",
    "white_px": [
     0,
@@ -4435,7 +4435,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\MetalWallWithPipes_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.89,
+   "mean_abs_diff": 7.83,
    "pct_hot": 8.5,
    "band": "PASS",
    "white_px": [
@@ -4472,15 +4472,15 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Mover_Wall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 15.18,
-   "pct_hot": 14.4,
+   "mean_abs_diff": 8.46,
+   "pct_hot": 8.4,
    "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 0,
-   "wire_delta": 136
+   "dominant_delta": 128,
+   "wire_delta": 15
   }
  },
  {
@@ -4509,7 +4509,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\MoverHalfWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 2.09,
+   "mean_abs_diff": 2.11,
    "pct_hot": 0.8,
    "band": "PASS",
    "white_px": [
@@ -4546,14 +4546,14 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Mudroot_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 9.77,
+   "mean_abs_diff": 9.69,
    "pct_hot": 10.0,
    "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 128,
+   "dominant_delta": 32,
    "wire_delta": 15
   }
  },
@@ -4572,18 +4572,18 @@
    "y": 12,
    "cleared": 1,
    "tile": "Assets_Content_Textures_Walls_wall_mushroom-00000000.png",
-   "color": "&Y^r",
+   "color": "&r^r",
    "detail": "R",
    "name": "mushroom flesh"
   },
   "wire_objs": 1,
-  "wire_hex": "ffffff",
+  "wire_hex": "a64a2e",
   "shots": {
    "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\MushroomWall-Red_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\MushroomWall-Red_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 5.3,
+   "mean_abs_diff": 5.28,
    "pct_hot": 7.7,
    "band": "PASS",
    "white_px": [
@@ -4591,7 +4591,7 @@
     0
    ],
    "dominant_delta": 0,
-   "wire_delta": 239
+   "wire_delta": 150
   }
  },
  {
@@ -4620,7 +4620,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\MushroomWall-White_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 10.85,
+   "mean_abs_diff": 10.82,
    "pct_hot": 7.7,
    "band": "PASS",
    "white_px": [
@@ -4657,8 +4657,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\OmniForcefield_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 3.62,
-   "pct_hot": 3.6,
+   "mean_abs_diff": 3.04,
+   "pct_hot": 1.6,
    "band": "PASS",
    "white_px": [
     0,
@@ -4694,7 +4694,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Oolite_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 14.39,
+   "mean_abs_diff": 14.32,
    "pct_hot": 9.2,
    "band": "PASS",
    "white_px": [
@@ -4710,8 +4710,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'assets_content_textures_tiles_wall_rock-00000000'",
-   "no capture pair \u2014 congruence skipped"
+   "wire tile != blueprint tile 'assets_content_textures_tiles_wall_rock-00000000'"
   ],
   "stage": {
    "bp": "PeridotWall",
@@ -4728,11 +4727,12 @@
   "wire_objs": 1,
   "wire_hex": "155352",
   "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\PeridotWall_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\PeridotWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 6.91,
-   "pct_hot": 7.1,
+   "mean_abs_diff": 4.87,
+   "pct_hot": 4.5,
    "band": "PASS",
    "white_px": [
     0,
@@ -4755,10 +4755,10 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 2,
+   "cleared": 1,
    "tile": "Assets_Content_Textures_Tiles_wall_flower-00000000.png",
    "color": "&w",
-   "detail": "C",
+   "detail": "M",
    "name": "petal-strewn brinestalk wall"
   },
   "wire_objs": 1,
@@ -4768,7 +4768,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Petal-Strewn_WoodWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 6.16,
+   "mean_abs_diff": 6.33,
    "pct_hot": 5.0,
    "band": "PASS",
    "white_px": [
@@ -4792,7 +4792,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 3,
+   "cleared": 1,
    "tile": "Assets_Content_Textures_Tiles_wall_wood-00000000.bmp",
    "color": "&r^w",
    "detail": "w",
@@ -4805,7 +4805,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\PigskinWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 4.91,
+   "mean_abs_diff": 4.89,
    "pct_hot": 6.6,
    "band": "PASS",
    "white_px": [
@@ -4842,7 +4842,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\PipeFulcrete_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 17.86,
+   "mean_abs_diff": 17.85,
    "pct_hot": 7.8,
    "band": "PASS",
    "white_px": [
@@ -4879,7 +4879,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\PlantWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 8.34,
+   "mean_abs_diff": 8.28,
    "pct_hot": 9.2,
    "band": "PASS",
    "white_px": [
@@ -4916,7 +4916,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Polished_Black_Marble_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 11.36,
+   "mean_abs_diff": 11.35,
    "pct_hot": 4.9,
    "band": "PASS",
    "white_px": [
@@ -4953,7 +4953,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Porous_Coral_Rag_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 12.55,
+   "mean_abs_diff": 12.51,
    "pct_hot": 10.0,
    "band": "PASS",
    "white_px": [
@@ -4990,15 +4990,15 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\PumpingColumnConsumer_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 15.14,
-   "pct_hot": 14.4,
+   "mean_abs_diff": 8.46,
+   "pct_hot": 8.4,
    "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 0,
-   "wire_delta": 136
+   "dominant_delta": 128,
+   "wire_delta": 15
   }
  },
  {
@@ -5027,15 +5027,15 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\PumpingColumnProducer_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 15.16,
-   "pct_hot": 14.4,
+   "mean_abs_diff": 8.48,
+   "pct_hot": 8.4,
    "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 0,
-   "wire_delta": 136
+   "dominant_delta": 128,
+   "wire_delta": 15
   }
  },
  {
@@ -5064,7 +5064,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Quartzite_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 17.74,
+   "mean_abs_diff": 17.73,
    "pct_hot": 15.4,
    "band": "PASS",
    "white_px": [
@@ -5079,7 +5079,10 @@
   "bp": "Red Etz Trellis",
   "pass": true,
   "reasons": [],
-  "warns": [],
+  "warns": [
+   "wire tile != blueprint tile 'assets_content_textures_tiles_fence_'",
+   "no capture pair \u2014 congruence skipped"
+  ],
   "stage": {
    "bp": "Red Etz Trellis",
    "ok": true,
@@ -5095,7 +5098,6 @@
   "wire_objs": 1,
   "wire_hex": "a64a2e",
   "shots": {
-   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Red_Etz_Trellis_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Red_Etz_Trellis_raves.png"
   },
   "congruence": {
@@ -5114,9 +5116,7 @@
   "bp": "ReshephWall1",
   "pass": true,
   "reasons": [],
-  "warns": [
-   "wire tile != blueprint tile 'assets_content_textures_walls2_walls_resheph_1_0-00000000'"
-  ],
+  "warns": [],
   "stage": {
    "bp": "ReshephWall1",
    "ok": true,
@@ -5136,7 +5136,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\ReshephWall1_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 10.39,
+   "mean_abs_diff": 10.37,
    "pct_hot": 5.7,
    "band": "PASS",
    "white_px": [
@@ -5173,12 +5173,12 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\ReshephWall2_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 17.31,
-   "pct_hot": 10.8,
+   "mean_abs_diff": 14.59,
+   "pct_hot": 7.0,
    "band": "PASS",
    "white_px": [
     0,
-    0
+    36
    ],
    "dominant_delta": 0,
    "wire_delta": 13
@@ -5197,7 +5197,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 2,
+   "cleared": 1,
    "tile": "Assets_Content_Textures_Walls2_walls_resheph_3-00000000.png",
    "color": "&y^W",
    "detail": "k",
@@ -5210,8 +5210,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\ReshephWall3_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 13.15,
-   "pct_hot": 7.2,
+   "mean_abs_diff": 12.33,
+   "pct_hot": 6.4,
    "band": "PASS",
    "white_px": [
     0,
@@ -5247,7 +5247,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\ReshephWall4_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 9.53,
+   "mean_abs_diff": 9.6,
    "pct_hot": 4.8,
    "band": "PASS",
    "white_px": [
@@ -5308,7 +5308,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 3,
+   "cleared": 1,
    "tile": "Assets_Content_Textures_Walls2_walls_resheph_6-00000000.png",
    "color": "&y^W",
    "detail": "k",
@@ -5321,7 +5321,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\ReshephWall6_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 10.03,
+   "mean_abs_diff": 10.02,
    "pct_hot": 4.8,
    "band": "PASS",
    "white_px": [
@@ -5351,14 +5351,14 @@
    "detail": "k",
    "name": "true random sampler"
   },
-  "wire_objs": 2,
+  "wire_objs": 1,
   "wire_hex": "b1c9c3",
   "shots": {
    "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\ReshephWall7_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\ReshephWall7_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 11.2,
+   "mean_abs_diff": 10.53,
    "pct_hot": 7.6,
    "band": "PASS",
    "white_px": [
@@ -5395,7 +5395,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\RustedMetalWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 8.79,
+   "mean_abs_diff": 8.84,
    "pct_hot": 8.5,
    "band": "PASS",
    "white_px": [
@@ -5432,7 +5432,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\RustedMetalWallPowerGenerator_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 8.85,
+   "mean_abs_diff": 8.83,
    "pct_hot": 8.5,
    "band": "PASS",
    "white_px": [
@@ -5448,7 +5448,8 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'assets_content_textures_tiles_wall_rock-00000000'"
+   "wire tile != blueprint tile 'assets_content_textures_tiles_wall_rock-00000000'",
+   "no capture pair \u2014 congruence skipped"
   ],
   "stage": {
    "bp": "Sandstone",
@@ -5456,7 +5457,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 2,
+   "cleared": 1,
    "tile": "Assets_Content_Textures_Tiles_wall_rock-00000000.bmp",
    "color": "&r^W",
    "detail": "W",
@@ -5465,12 +5466,11 @@
   "wire_objs": 1,
   "wire_hex": "a64a2e",
   "shots": {
-   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Sandstone_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Sandstone_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 8.17,
-   "pct_hot": 10.0,
+   "mean_abs_diff": 11.85,
+   "pct_hot": 15.5,
    "band": "PASS",
    "white_px": [
     0,
@@ -5484,30 +5484,28 @@
   "bp": "SapphireWall",
   "pass": true,
   "reasons": [],
-  "warns": [
-   "wire tile != blueprint tile 'assets_content_textures_tiles_wall_rock-00000000'"
-  ],
+  "warns": [],
   "stage": {
    "bp": "SapphireWall",
    "ok": true,
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 2,
+   "cleared": 0,
    "tile": "Assets_Content_Textures_Tiles_wall_rock-00000000.bmp",
    "color": "&r^B",
    "detail": "B",
    "name": "shale wall with {{B|sapphire}} deposits"
   },
-  "wire_objs": 2,
+  "wire_objs": 1,
   "wire_hex": "a64a2e",
   "shots": {
    "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\SapphireWall_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\SapphireWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 10.9,
-   "pct_hot": 10.0,
+   "mean_abs_diff": 15.99,
+   "pct_hot": 15.5,
    "band": "PASS",
    "white_px": [
     0,
@@ -5534,15 +5532,15 @@
    "detail": "K",
    "name": "serpentinite"
   },
-  "wire_objs": 2,
+  "wire_objs": 1,
   "wire_hex": "009403",
   "shots": {
    "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Serpentinite_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Serpentinite_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 5.92,
-   "pct_hot": 8.9,
+   "mean_abs_diff": 8.54,
+   "pct_hot": 13.4,
    "band": "PASS",
    "white_px": [
     0,
@@ -5576,8 +5574,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Shale_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.09,
-   "pct_hot": 10.0,
+   "mean_abs_diff": 10.32,
+   "pct_hot": 15.5,
    "band": "PASS",
    "white_px": [
     0,
@@ -5611,8 +5609,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\ShaleWithPiping_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.05,
-   "pct_hot": 10.0,
+   "mean_abs_diff": 10.26,
+   "pct_hot": 15.5,
    "band": "PASS",
    "white_px": [
     0,
@@ -5635,7 +5633,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 2,
+   "cleared": 1,
    "tile": "Assets_Content_Textures_Tiles_wall_fluted-00000000.bmp",
    "color": "&Y^C",
    "detail": "Y",
@@ -5648,12 +5646,12 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\SixDayStiltPillarWall1_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 8.27,
-   "pct_hot": 5.9,
+   "mean_abs_diff": 16.37,
+   "pct_hot": 12.7,
    "band": "PASS",
    "white_px": [
     24,
-    121
+    127
    ],
    "dominant_delta": 0,
    "wire_delta": 239
@@ -5678,19 +5676,19 @@
    "detail": "Y",
    "name": "fluted marble column"
   },
-  "wire_objs": 2,
+  "wire_objs": 1,
   "wire_hex": "ffffff",
   "shots": {
    "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\SixDayStiltPillarWall2_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\SixDayStiltPillarWall2_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.9,
-   "pct_hot": 5.9,
+   "mean_abs_diff": 14.31,
+   "pct_hot": 12.7,
    "band": "PASS",
    "white_px": [
     24,
-    121
+    127
    ],
    "dominant_delta": 0,
    "wire_delta": 239
@@ -5722,8 +5720,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\SixDayStiltWall1_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 9.24,
-   "pct_hot": 7.8,
+   "mean_abs_diff": 14.73,
+   "pct_hot": 12.2,
    "band": "PASS",
    "white_px": [
     0,
@@ -5738,8 +5736,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'assets_content_textures_tiles_wall_marble-00000000'",
-   "no capture pair \u2014 congruence skipped"
+   "wire tile != blueprint tile 'assets_content_textures_tiles_wall_marble-00000000'"
   ],
   "stage": {
    "bp": "SixDayStiltWall2",
@@ -5756,10 +5753,11 @@
   "wire_objs": 1,
   "wire_hex": "ffffff",
   "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\SixDayStiltWall2_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\SixDayStiltWall2_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 18.09,
+   "mean_abs_diff": 18.08,
    "pct_hot": 14.2,
    "band": "PASS",
    "white_px": [
@@ -5783,7 +5781,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 6,
+   "cleared": 1,
    "tile": "Assets_Content_Textures_Tiles_wall_granite-00000000.bmp",
    "color": "&y^K",
    "detail": "K",
@@ -5796,8 +5794,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Slate_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 14.18,
-   "pct_hot": 8.7,
+   "mean_abs_diff": 20.01,
+   "pct_hot": 12.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -5833,12 +5831,12 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\SpindleGlassWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 16.78,
-   "pct_hot": 17.6,
+   "mean_abs_diff": 9.51,
+   "pct_hot": 5.2,
    "band": "PASS",
    "white_px": [
-    0,
-    218
+    8,
+    247
    ],
    "dominant_delta": 0,
    "wire_delta": 239
@@ -5870,8 +5868,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Star_Carousel_Infested_Wall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 8.49,
-   "pct_hot": 8.1,
+   "mean_abs_diff": 12.07,
+   "pct_hot": 13.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -5907,8 +5905,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Star_Carousel_Wall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 8.69,
-   "pct_hot": 7.7,
+   "mean_abs_diff": 12.81,
+   "pct_hot": 13.2,
    "band": "PASS",
    "white_px": [
     0,
@@ -5944,8 +5942,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Star_Orchid_Limestone_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 11.1,
-   "pct_hot": 10.0,
+   "mean_abs_diff": 16.57,
+   "pct_hot": 15.5,
    "band": "PASS",
    "white_px": [
     0,
@@ -5981,12 +5979,12 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Star_Orchid_Marble_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 10.96,
-   "pct_hot": 8.5,
+   "mean_abs_diff": 18.28,
+   "pct_hot": 14.2,
    "band": "PASS",
    "white_px": [
     18,
-    288
+    292
    ],
    "dominant_delta": 0,
    "wire_delta": 175
@@ -6018,12 +6016,12 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Starship_Nozzle_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 10.29,
-   "pct_hot": 7.0,
+   "mean_abs_diff": 16.55,
+   "pct_hot": 11.0,
    "band": "PASS",
    "white_px": [
     14,
-    136
+    133
    ],
    "dominant_delta": 0,
    "wire_delta": 161
@@ -6055,8 +6053,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Starship1_Pilaster_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 2.14,
-   "pct_hot": 0.8,
+   "mean_abs_diff": 5.32,
+   "pct_hot": 3.6,
    "band": "PASS",
    "white_px": [
     0,
@@ -6092,8 +6090,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\StarshipGeometricWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.71,
-   "pct_hot": 8.1,
+   "mean_abs_diff": 12.51,
+   "pct_hot": 13.5,
    "band": "PASS",
    "white_px": [
     0,
@@ -6129,8 +6127,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\StarshipGeometricWall_L_Endcap_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.97,
-   "pct_hot": 7.7,
+   "mean_abs_diff": 12.74,
+   "pct_hot": 13.2,
    "band": "PASS",
    "white_px": [
     0,
@@ -6145,8 +6143,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'walls2_wall_sharp_geometry-01111101'",
-   "no capture pair \u2014 congruence skipped"
+   "wire tile != blueprint tile 'walls2_wall_sharp_geometry-01111101'"
   ],
   "stage": {
    "bp": "StarshipGeometricWall R Endcap",
@@ -6163,18 +6160,19 @@
   "wire_objs": 1,
   "wire_hex": "98875f",
   "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\StarshipGeometricWall_R_Endcap_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\StarshipGeometricWall_R_Endcap_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 25.34,
-   "pct_hot": 26.4,
+   "mean_abs_diff": 16.88,
+   "pct_hot": 18.8,
    "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 0,
-   "wire_delta": 136
+   "dominant_delta": 128,
+   "wire_delta": 15
   }
  },
  {
@@ -6190,21 +6188,21 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 2,
+   "cleared": 1,
    "tile": "Assets_Content_Textures_Walls2_wall_sharp_geometry-00000000.png",
    "color": "&C^W",
    "detail": "k",
    "name": "geometric bulkhead"
   },
-  "wire_objs": 2,
+  "wire_objs": 1,
   "wire_hex": "77bfcf",
   "shots": {
    "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\StarshipGeometricWallBright_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\StarshipGeometricWallBright_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 11.02,
-   "pct_hot": 8.1,
+   "mean_abs_diff": 17.41,
+   "pct_hot": 13.5,
    "band": "PASS",
    "white_px": [
     0,
@@ -6227,7 +6225,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 2,
+   "cleared": 1,
    "tile": "Walls2/wall_sharp_geometry-00010011.png",
    "color": "&C^W",
    "detail": "k",
@@ -6240,8 +6238,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\StarshipGeometricWallBright_Endcap_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 12.27,
-   "pct_hot": 9.1,
+   "mean_abs_diff": 19.79,
+   "pct_hot": 15.4,
    "band": "PASS",
    "white_px": [
     0,
@@ -6275,8 +6273,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\StarshipGeometricWallCyan_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 10.07,
-   "pct_hot": 8.1,
+   "mean_abs_diff": 15.47,
+   "pct_hot": 13.5,
    "band": "PASS",
    "white_px": [
     0,
@@ -6299,7 +6297,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 0,
+   "cleared": 1,
    "tile": "Assets_Content_Textures_Walls2_wall_sharp_geometry-00000000.png",
    "color": "&y^W",
    "detail": "k",
@@ -6312,7 +6310,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\StarshipGeometricWallGrey_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 18.05,
+   "mean_abs_diff": 18.0,
    "pct_hot": 13.5,
    "band": "PASS",
    "white_px": [
@@ -6349,9 +6347,9 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Stasisfield_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 23.12,
-   "pct_hot": 22.1,
-   "band": "PASS",
+   "mean_abs_diff": 53.3,
+   "pct_hot": 88.6,
+   "band": "FAIL",
    "white_px": [
     0,
     0
@@ -6386,8 +6384,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\StationWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.02,
-   "pct_hot": 2.6,
+   "mean_abs_diff": 12.99,
+   "pct_hot": 6.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -6423,8 +6421,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\StoneHalfWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 2.34,
-   "pct_hot": 0.8,
+   "mean_abs_diff": 3.94,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -6460,8 +6458,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\SultanWall_Ornate_Period5_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 8.03,
-   "pct_hot": 8.9,
+   "mean_abs_diff": 11.73,
+   "pct_hot": 12.9,
    "band": "PASS",
    "white_px": [
     0,
@@ -6476,7 +6474,8 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'assets_content_textures_walls_wall_sultan_diamonds-00000000'"
+   "wire tile != blueprint tile 'assets_content_textures_walls_wall_sultan_diamonds-00000000'",
+   "no capture pair \u2014 congruence skipped"
   ],
   "stage": {
    "bp": "SultanWall_Period1",
@@ -6493,7 +6492,6 @@
   "wire_objs": 1,
   "wire_hex": "98875f",
   "shots": {
-   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\SultanWall_Period1_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\SultanWall_Period1_raves.png"
   },
   "congruence": {
@@ -6512,9 +6510,7 @@
   "bp": "SultanWall_Period1 High Graffiti Chance",
   "pass": true,
   "reasons": [],
-  "warns": [
-   "wire tile != blueprint tile 'assets_content_textures_walls_wall_sultan_diamonds-00000000'"
-  ],
+  "warns": [],
   "stage": {
    "bp": "SultanWall_Period1 High Graffiti Chance",
    "ok": true,
@@ -6523,26 +6519,26 @@
    "y": 12,
    "cleared": 1,
    "tile": "Assets_Content_Textures_Walls_wall_sultan_diamonds-00000000.png",
-   "color": "&y^W",
+   "color": "&w^W",
    "detail": "W",
-   "name": "{{graffitied|graffitied}} carved stone from the sultanate of Shararad I"
+   "name": "carved stone from the sultanate of Shararad I"
   },
   "wire_objs": 1,
-  "wire_hex": "b1c9c3",
+  "wire_hex": "98875f",
   "shots": {
    "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\SultanWall_Period1_High_Graffiti_Chance_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\SultanWall_Period1_High_Graffiti_Chance_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 11.23,
-   "pct_hot": 8.7,
+   "mean_abs_diff": 12.59,
+   "pct_hot": 13.5,
    "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 0,
-   "wire_delta": 13
+   "dominant_delta": 32,
+   "wire_delta": 15
   }
  },
  {
@@ -6571,8 +6567,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\SultanWall_Period2_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 8.09,
-   "pct_hot": 7.9,
+   "mean_abs_diff": 12.91,
+   "pct_hot": 13.2,
    "band": "PASS",
    "white_px": [
     0,
@@ -6608,8 +6604,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\SultanWall_Period2_High_Graffiti_Chance_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 8.09,
-   "pct_hot": 7.9,
+   "mean_abs_diff": 12.98,
+   "pct_hot": 13.2,
    "band": "PASS",
    "white_px": [
     0,
@@ -6645,8 +6641,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\SultanWall_Period3_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.36,
-   "pct_hot": 7.6,
+   "mean_abs_diff": 12.47,
+   "pct_hot": 14.1,
    "band": "PASS",
    "white_px": [
     0,
@@ -6671,26 +6667,26 @@
    "y": 12,
    "cleared": 1,
    "tile": "Assets_Content_Textures_Walls_wall_sultan_shields-00000000.png",
-   "color": "&g^W",
+   "color": "&w^W",
    "detail": "W",
-   "name": "{{graffitied|graffitied}} carved stone from the sultanate of Shararad III"
+   "name": "carved stone from the sultanate of Shararad III"
   },
   "wire_objs": 1,
-  "wire_hex": "009403",
+  "wire_hex": "98875f",
   "shots": {
    "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\SultanWall_Period3_High_Graffiti_Chance_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\SultanWall_Period3_High_Graffiti_Chance_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 6.42,
-   "pct_hot": 7.6,
+   "mean_abs_diff": 12.49,
+   "pct_hot": 14.1,
    "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 0,
-   "wire_delta": 16
+   "dominant_delta": 32,
+   "wire_delta": 15
   }
  },
  {
@@ -6719,15 +6715,15 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\SultanWall_Period4_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.75,
-   "pct_hot": 8.9,
+   "mean_abs_diff": 12.67,
+   "pct_hot": 15.4,
    "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 128,
-   "wire_delta": 15
+   "dominant_delta": 0,
+   "wire_delta": 136
   }
  },
  {
@@ -6743,7 +6739,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 3,
+   "cleared": 1,
    "tile": "Assets_Content_Textures_Walls_wall_sultan_columns-00000000.png",
    "color": "&w^W",
    "detail": "W",
@@ -6756,8 +6752,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\SultanWall_Period5_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.41,
-   "pct_hot": 8.1,
+   "mean_abs_diff": 11.22,
+   "pct_hot": 12.2,
    "band": "PASS",
    "white_px": [
     0,
@@ -6772,7 +6768,8 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'assets_content_textures_walls_wall_sultan_valence-00000000'"
+   "wire tile != blueprint tile 'assets_content_textures_walls_wall_sultan_valence-00000000'",
+   "no capture pair \u2014 congruence skipped"
   ],
   "stage": {
    "bp": "SultanWall_Period6",
@@ -6789,7 +6786,6 @@
   "wire_objs": 1,
   "wire_hex": "98875f",
   "shots": {
-   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\SultanWall_Period6_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\SultanWall_Period6_raves.png"
   },
   "congruence": {
@@ -6808,16 +6804,14 @@
   "bp": "ThatchedWall",
   "pass": true,
   "reasons": [],
-  "warns": [
-   "wire tile != blueprint tile 'assets_content_textures_tiles_wall_wood-00000000'"
-  ],
+  "warns": [],
   "stage": {
    "bp": "ThatchedWall",
    "ok": true,
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 3,
+   "cleared": 1,
    "tile": "Assets_Content_Textures_Tiles_wall_wood-00000000.bmp",
    "color": "&y^w",
    "detail": "w",
@@ -6830,8 +6824,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\ThatchedWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 9.02,
-   "pct_hot": 6.6,
+   "mean_abs_diff": 14.52,
+   "pct_hot": 11.5,
    "band": "PASS",
    "white_px": [
     0,
@@ -6867,8 +6861,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\TintedGlassWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 3.47,
-   "pct_hot": 1.3,
+   "mean_abs_diff": 5.22,
+   "pct_hot": 2.5,
    "band": "PASS",
    "white_px": [
     0,
@@ -6904,8 +6898,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\TombExteriorWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 8.06,
-   "pct_hot": 8.9,
+   "mean_abs_diff": 11.8,
+   "pct_hot": 12.9,
    "band": "PASS",
    "white_px": [
     0,
@@ -6941,8 +6935,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\TombHalfWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.79,
-   "pct_hot": 0.8,
+   "mean_abs_diff": 2.68,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -6978,8 +6972,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\TombSultan1Wall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 8.02,
-   "pct_hot": 8.7,
+   "mean_abs_diff": 12.46,
+   "pct_hot": 13.5,
    "band": "PASS",
    "white_px": [
     0,
@@ -7000,7 +6994,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 2,
+   "cleared": 1,
    "tile": "Assets_Content_Textures_Tiles2_half-wall_.png",
    "color": "&y^k",
    "detail": "w",
@@ -7013,8 +7007,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\TombSultan2HalfWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 2.04,
-   "pct_hot": 0.8,
+   "mean_abs_diff": 5.36,
+   "pct_hot": 3.6,
    "band": "PASS",
    "white_px": [
     0,
@@ -7050,8 +7044,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\TombSultan2Wall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 8.11,
-   "pct_hot": 7.9,
+   "mean_abs_diff": 12.93,
+   "pct_hot": 13.2,
    "band": "PASS",
    "white_px": [
     0,
@@ -7072,7 +7066,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 2,
+   "cleared": 1,
    "tile": "Assets_Content_Textures_Tiles2_half-wall_.png",
    "color": "&y^k",
    "detail": "w",
@@ -7085,8 +7079,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\TombSultan3HalfWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 2.0,
-   "pct_hot": 0.8,
+   "mean_abs_diff": 5.34,
+   "pct_hot": 3.6,
    "band": "PASS",
    "white_px": [
     0,
@@ -7122,8 +7116,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\TombSultan3Wall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.36,
-   "pct_hot": 7.6,
+   "mean_abs_diff": 12.57,
+   "pct_hot": 14.1,
    "band": "PASS",
    "white_px": [
     0,
@@ -7157,8 +7151,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\TombSultan4HalfWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 2.04,
-   "pct_hot": 0.8,
+   "mean_abs_diff": 5.29,
+   "pct_hot": 3.6,
    "band": "PASS",
    "white_px": [
     0,
@@ -7194,15 +7188,15 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\TombSultan4Wall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.77,
-   "pct_hot": 8.9,
+   "mean_abs_diff": 12.68,
+   "pct_hot": 15.4,
    "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 128,
-   "wire_delta": 15
+   "dominant_delta": 0,
+   "wire_delta": 136
   }
  },
  {
@@ -7229,8 +7223,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\TombSultan5HalfWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 2.03,
-   "pct_hot": 0.8,
+   "mean_abs_diff": 5.32,
+   "pct_hot": 3.6,
    "band": "PASS",
    "white_px": [
     0,
@@ -7245,8 +7239,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'assets_content_textures_walls_wall_sultan_columns-00000000'",
-   "no capture pair \u2014 congruence skipped"
+   "wire tile != blueprint tile 'assets_content_textures_walls_wall_sultan_columns-00000000'"
   ],
   "stage": {
    "bp": "TombSultan5Wall",
@@ -7254,7 +7247,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 5,
+   "cleared": 1,
    "tile": "Assets_Content_Textures_Walls_wall_sultan_columns-00000000.png",
    "color": "&w^W",
    "detail": "W",
@@ -7263,10 +7256,11 @@
   "wire_objs": 1,
   "wire_hex": "98875f",
   "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\TombSultan5Wall_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\TombSultan5Wall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 11.16,
+   "mean_abs_diff": 11.13,
    "pct_hot": 12.2,
    "band": "PASS",
    "white_px": [
@@ -7281,9 +7275,7 @@
   "bp": "TombSultan6HalfWall",
   "pass": true,
   "reasons": [],
-  "warns": [
-   "wire tile != blueprint tile 'assets_content_textures_tiles2_half-wall_'"
-  ],
+  "warns": [],
   "stage": {
    "bp": "TombSultan6HalfWall",
    "ok": true,
@@ -7303,8 +7295,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\TombSultan6HalfWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 2.01,
-   "pct_hot": 0.8,
+   "mean_abs_diff": 5.32,
+   "pct_hot": 3.6,
    "band": "PASS",
    "white_px": [
     0,
@@ -7325,7 +7317,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 34,
+   "cleared": 1,
    "tile": "Assets_Content_Textures_Tiles_wall_mud-00000000.bmp",
    "color": "&Y^k",
    "detail": "k",
@@ -7338,12 +7330,12 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\TombSultan6Wall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 17.86,
-   "pct_hot": 7.8,
+   "mean_abs_diff": 23.84,
+   "pct_hot": 10.7,
    "band": "PASS",
    "white_px": [
     47,
-    984
+    934
    ],
    "dominant_delta": 0,
    "wire_delta": 15
@@ -7375,8 +7367,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\TombWarriorCryptWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 8.46,
-   "pct_hot": 11.7,
+   "mean_abs_diff": 11.67,
+   "pct_hot": 15.0,
    "band": "PASS",
    "white_px": [
     0,
@@ -7412,8 +7404,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\TopazWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 8.16,
-   "pct_hot": 10.0,
+   "mean_abs_diff": 11.9,
+   "pct_hot": 15.5,
    "band": "PASS",
    "white_px": [
     0,
@@ -7449,12 +7441,12 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\VacuumEdgeGlassWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.41,
-   "pct_hot": 3.4,
+   "mean_abs_diff": 9.53,
+   "pct_hot": 5.2,
    "band": "PASS",
    "white_px": [
     8,
-    218
+    247
    ],
    "dominant_delta": 0,
    "wire_delta": 239
@@ -7486,12 +7478,12 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\VacuumEdgeGlassWallStarShip_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.41,
-   "pct_hot": 3.4,
+   "mean_abs_diff": 9.49,
+   "pct_hot": 5.2,
    "band": "PASS",
    "white_px": [
     8,
-    218
+    247
    ],
    "dominant_delta": 0,
    "wire_delta": 239
@@ -7523,8 +7515,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\VehicleGolemSupportColumn_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 1.75,
-   "pct_hot": 0.8,
+   "mean_abs_diff": 2.68,
+   "pct_hot": 1.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -7560,8 +7552,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Verdigris_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 9.44,
-   "pct_hot": 8.5,
+   "mean_abs_diff": 14.48,
+   "pct_hot": 14.7,
    "band": "PASS",
    "white_px": [
     0,
@@ -7597,12 +7589,12 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\VGlassWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.42,
-   "pct_hot": 3.4,
+   "mean_abs_diff": 9.47,
+   "pct_hot": 5.2,
    "band": "PASS",
    "white_px": [
     8,
-    218
+    247
    ],
    "dominant_delta": 0,
    "wire_delta": 239
@@ -7634,8 +7626,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Wall_Golem_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.87,
-   "pct_hot": 3.5,
+   "mean_abs_diff": 10.8,
+   "pct_hot": 5.8,
    "band": "PASS",
    "white_px": [
     0,
@@ -7671,8 +7663,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Walltrap_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 4.53,
-   "pct_hot": 3.1,
+   "mean_abs_diff": 6.32,
+   "pct_hot": 4.9,
    "band": "PASS",
    "white_px": [
     0,
@@ -7708,8 +7700,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\WalltrapAcid_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 3.29,
-   "pct_hot": 3.1,
+   "mean_abs_diff": 4.38,
+   "pct_hot": 4.9,
    "band": "PASS",
    "white_px": [
     0,
@@ -7730,7 +7722,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 3,
+   "cleared": 1,
    "tile": "Items/sw_vent.bmp",
    "color": "^W&c",
    "detail": "W",
@@ -7743,8 +7735,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\WalltrapClockworkBeetles_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 5.11,
-   "pct_hot": 3.1,
+   "mean_abs_diff": 6.4,
+   "pct_hot": 4.9,
    "band": "PASS",
    "white_px": [
     0,
@@ -7778,12 +7770,12 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\WalltrapCrabs_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.81,
-   "pct_hot": 3.1,
+   "mean_abs_diff": 11.36,
+   "pct_hot": 4.9,
    "band": "PASS",
    "white_px": [
     14,
-    720
+    747
    ],
    "dominant_delta": 0,
    "wire_delta": null
@@ -7813,14 +7805,14 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\WalltrapDefoliant_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 5.38,
-   "pct_hot": 3.1,
+   "mean_abs_diff": 5.12,
+   "pct_hot": 4.9,
    "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 0,
+   "dominant_delta": 32,
    "wire_delta": null
   }
  },
@@ -7835,7 +7827,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 2,
+   "cleared": 1,
    "tile": "Items/sw_vent.bmp",
    "color": "^g&r",
    "detail": "g",
@@ -7848,8 +7840,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\WalltrapFire_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 4.56,
-   "pct_hot": 3.1,
+   "mean_abs_diff": 6.31,
+   "pct_hot": 4.9,
    "band": "PASS",
    "white_px": [
     0,
@@ -7883,8 +7875,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\WalltrapFireCrematory_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 6.1,
-   "pct_hot": 3.1,
+   "mean_abs_diff": 8.11,
+   "pct_hot": 4.9,
    "band": "PASS",
    "white_px": [
     0,
@@ -7918,8 +7910,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\WalltrapFungicide_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 5.95,
-   "pct_hot": 3.1,
+   "mean_abs_diff": 6.78,
+   "pct_hot": 4.9,
    "band": "PASS",
    "white_px": [
     0,
@@ -7940,7 +7932,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 1,
+   "cleared": 25,
    "tile": "Items/sw_vent.bmp",
    "color": "^K&y",
    "detail": "K",
@@ -7953,12 +7945,12 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\WalltrapNormalityGas_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.62,
-   "pct_hot": 3.1,
+   "mean_abs_diff": 10.96,
+   "pct_hot": 4.9,
    "band": "PASS",
    "white_px": [
     14,
-    720
+    747
    ],
    "dominant_delta": 0,
    "wire_delta": null
@@ -7988,14 +7980,14 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\WalltrapShock_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 4.55,
-   "pct_hot": 3.1,
+   "mean_abs_diff": 7.25,
+   "pct_hot": 4.9,
    "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 32,
+   "dominant_delta": 0,
    "wire_delta": null
   }
  },
@@ -8025,7 +8017,7 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Wax_Block_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 18.2,
+   "mean_abs_diff": 18.17,
    "pct_hot": 12.2,
    "band": "PASS",
    "white_px": [
@@ -8062,12 +8054,12 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\WiredFulcrete_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 17.85,
-   "pct_hot": 7.8,
+   "mean_abs_diff": 23.82,
+   "pct_hot": 10.7,
    "band": "PASS",
    "white_px": [
     47,
-    984
+    934
    ],
    "dominant_delta": 0,
    "wire_delta": 15
@@ -8097,12 +8089,12 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\WiredPipeFulcrete_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 17.84,
-   "pct_hot": 7.8,
+   "mean_abs_diff": 23.82,
+   "pct_hot": 10.7,
    "band": "PASS",
    "white_px": [
     47,
-    984
+    934
    ],
    "dominant_delta": 0,
    "wire_delta": 15
@@ -8150,8 +8142,7 @@
   "pass": true,
   "reasons": [],
   "warns": [
-   "wire tile != blueprint tile 'assets_content_textures_tiles_wall_wood-00000000'",
-   "no capture pair \u2014 congruence skipped"
+   "wire tile != blueprint tile 'assets_content_textures_tiles_wall_wood-00000000'"
   ],
   "stage": {
    "bp": "WoodWall",
@@ -8168,10 +8159,11 @@
   "wire_objs": 1,
   "wire_hex": "98875f",
   "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\WoodWall_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\WoodWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 11.87,
+   "mean_abs_diff": 11.94,
    "pct_hot": 11.5,
    "band": "PASS",
    "white_px": [
@@ -8186,7 +8178,9 @@
   "bp": "WoodWallWithGearbox",
   "pass": true,
   "reasons": [],
-  "warns": [],
+  "warns": [
+   "wire tile != blueprint tile 'assets_content_textures_tiles_wall_wood-00000000'"
+  ],
   "stage": {
    "bp": "WoodWallWithGearbox",
    "ok": true,
@@ -8206,8 +8200,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\WoodWallWithGearbox_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.11,
-   "pct_hot": 6.6,
+   "mean_abs_diff": 11.9,
+   "pct_hot": 11.5,
    "band": "PASS",
    "white_px": [
     0,
@@ -8243,8 +8237,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\WornWoodWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.09,
-   "pct_hot": 7.4,
+   "mean_abs_diff": 11.14,
+   "pct_hot": 12.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -8280,8 +8274,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\WornWoodWall_with_Mask_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 10.98,
-   "pct_hot": 7.4,
+   "mean_abs_diff": 17.23,
+   "pct_hot": 12.3,
    "band": "PASS",
    "white_px": [
     0,
@@ -8304,7 +8298,7 @@
    "error": "",
    "x": 40,
    "y": 12,
-   "cleared": 3,
+   "cleared": 1,
    "tile": "Assets_Content_Textures_Walls_wall_filigree-00000000.png",
    "color": "&K^y",
    "detail": "y",
@@ -8317,8 +8311,8 @@
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\Yd_ColumbariumWall_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 7.83,
-   "pct_hot": 4.0,
+   "mean_abs_diff": 11.89,
+   "pct_hot": 6.5,
    "band": "PASS",
    "white_px": [
     0,
@@ -8343,26 +8337,26 @@
    "y": 12,
    "cleared": 1,
    "tile": "Assets_Content_Textures_Tiles_wall_metal-00000000.bmp",
-   "color": "&y^y",
+   "color": "&C^y",
    "detail": "y",
    "name": "{{graffitied|graffitied}} crysteel plate shear wall with piping"
   },
   "wire_objs": 1,
-  "wire_hex": "b1c9c3",
+  "wire_hex": "77bfcf",
   "shots": {
    "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\YdFreeholdCrysteelPlatedWallWithPipes_qud.png",
    "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\walls\\YdFreeholdCrysteelPlatedWallWithPipes_raves.png"
   },
   "congruence": {
-   "mean_abs_diff": 9.5,
-   "pct_hot": 4.5,
+   "mean_abs_diff": 16.79,
+   "pct_hot": 14.7,
    "band": "PASS",
    "white_px": [
     0,
     0
    ],
-   "dominant_delta": 0,
-   "wire_delta": 13
+   "dominant_delta": 32,
+   "wire_delta": 15
   }
  }
 ]

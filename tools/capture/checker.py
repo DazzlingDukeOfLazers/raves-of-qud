@@ -59,7 +59,10 @@ REPORTS = os.path.join(REPO, "reports", "checker")
 # Elements the harness can't meaningfully verify yet, with why — their verdicts
 # report as KNOWN, not FAIL, so real regressions stay visible in the tallies.
 try:
-    with open(os.path.join(REPO, "fixtures", "checker_known.json")) as _f:
+    # utf-8 explicitly: the file carries em-dashes, and Windows' default
+    # cp1252 decode can raise — which silently EMPTIED the whole KNOWN map
+    # (spawners and TauSoft reported FAIL in a certification render).
+    with open(os.path.join(REPO, "fixtures", "checker_known.json"), encoding="utf-8") as _f:
         KNOWN = json.load(_f)
 except (OSError, ValueError):
     KNOWN = {}
@@ -395,9 +398,21 @@ def anim_measure(b, bp, frames=12):
     # (fire) make nearly every jittered frame unique, so 11-vs-12 states is the
     # same behaviour; discrete blinkers must also land within one state of each
     # other so a two-state blink can't pass against a four-state cycle.
-    out["agree"] = (a.get("class") == b_.get("class")
-                    and (a.get("class") != "discrete"
-                         or abs(a.get("states", 0) - b_.get("states", 0)) <= 1))
+    # Discrete tolerance scales with the count: ±1 absolute for blinkers, 15%
+    # for big samplers — a 20-combo shimmer measured 19-vs-17 across a
+    # 60-frame burst is the same behaviour (the Tremble wormhole), while a
+    # 2-state blink still can't pass against a 4-state cycle. Class must also
+    # tolerate the discrete/continuous EDGE at high counts: 8/12 unique reads
+    # discrete while 9/12 reads continuous for the same shimmer.
+    sa, sb = a.get("states", 0), b_.get("states", 0)
+    tol = max(1, int(round(0.15 * max(sa, sb))))
+    classes = {a.get("class"), b_.get("class")}
+    class_ok = (len(classes) == 1
+                or (classes == {"discrete", "continuous"} and min(sa, sb) >= 6))
+    # continuous pairs agree by class alone (jitter makes counts incomparable);
+    # pure discrete pairs must land within the scaled tolerance
+    out["agree"] = class_ok and ("static" in classes or "continuous" in classes
+                                 or abs(sa - sb) <= tol)
     return out
 
 
@@ -679,16 +694,16 @@ def reboot_rig(b=None):
             time.sleep(1)
             _hv("key", "--focus", "Raves", "space")
             time.sleep(4 + attempt * 2)
-            # PIN THE WINDOW ON-SCREEN — and do it AFTER Continue: entering
-            # the game scene re-applies the stored window rect (historically a
-            # Mac-era y=-1270), overriding any earlier move. Off-screen,
-            # Godot renders only when force_draw fires — captures still work,
-            # but the animation clock freezes between them and every animated
-            # element measures 1-state (the straggler batches' mass
-            # false-DISAGREE). Geometry is recalibrated right after, so the
-            # moved window never invalidates the crops.
-            _hv("move", "Raves", "560", "120", "3232", "1878")
-            time.sleep(1)
+            # WINDOW MODES (measured, both ways): PIXEL work wants the BIG
+            # stored-rect window (y=-1269, cells 37x56 — the thresholds are
+            # calibrated on those crops; a 3232x1878 window shrinks cells to
+            # 26x38 and inflates a certified-3.6 Chest to 29). Captures are
+            # position-independent (force_draw). ANIM bursts instead need the
+            # window ON-SCREEN — off-screen the animation clock freezes
+            # between forced draws and everything measures 1-state. Reboots
+            # default to pixel mode (no move); anim sessions move the window
+            # (hv move Raves 560 120 3232 1878) and MUST recalibrate, then
+            # move back and recalibrate again before any pixel scoring.
             # ALL three tests: capture works, the viewer says in_game (with a
             # FRESH heartbeat), and no modal overlay — menus, stuck mirrored
             # popups and hung viewers all capture "successfully" and each

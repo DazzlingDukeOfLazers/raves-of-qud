@@ -1,0 +1,29 @@
+{
+ "fixture": "DromadTrader",
+ "frames": 12,
+ "expect_states": null,
+ "measured": [
+  {
+   "bp": "DromadTrader",
+   "ok": true,
+   "qud": {
+    "frames": 12,
+    "states": 1,
+    "duty": [
+     1.0
+    ],
+    "class": "static"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 1,
+    "duty": [
+     1.0
+    ],
+    "class": "static"
+   },
+   "agree": true
+  }
+ ],
+ "when": "2026-08-06 20:08"
+}

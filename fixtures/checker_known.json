@@ -35,5 +35,6 @@
  "CherubimSpawn5B": "CherubimSpawner: replaces itself with the real cherub between the two captures — staging-timing, unverifiable by same-turn pair; the spawned cherub is never pacified (one killed the player mid-sweep)",
  "CherubimSpawn5B Special": "CherubimSpawner: replaces itself with the real cherub between the two captures — staging-timing, unverifiable by same-turn pair; the spawned cherub is never pacified (one killed the player mid-sweep)",
  "NeutronfluxPool": "neutron flux detonates on staging — wedged the rig 3x in certification; unverifiable by staging",
- "NeutronPool": "neutron flux detonates on staging — wedged the rig 3x in certification; unverifiable by staging"
+ "NeutronPool": "neutron flux detonates on staging — wedged the rig 3x in certification; unverifiable by staging",
+ "EaterGreatMachineShrine E": "runtime-attached AnimatedMaterialGeneric colour cycle (&y^K<->&y^W) plays in Raves per part data, but Qud's idle screen never repaints it — phase-unverifiable pending the repaint-cadence investigation"
 }

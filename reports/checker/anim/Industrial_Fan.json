@@ -1,0 +1,31 @@
+{
+ "fixture": "Industrial Fan",
+ "frames": 12,
+ "expect_states": null,
+ "measured": [
+  {
+   "bp": "Industrial Fan",
+   "ok": true,
+   "qud": {
+    "frames": 12,
+    "states": 2,
+    "duty": [
+     0.5,
+     0.5
+    ],
+    "class": "discrete"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 2,
+    "duty": [
+     0.75,
+     0.25
+    ],
+    "class": "discrete"
+   },
+   "agree": true
+  }
+ ],
+ "when": "2026-08-06 20:15"
+}

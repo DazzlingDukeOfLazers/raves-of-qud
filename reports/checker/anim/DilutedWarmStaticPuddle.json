@@ -1,0 +1,35 @@
+{
+ "fixture": "DilutedWarmStaticPuddle",
+ "frames": 12,
+ "expect_states": null,
+ "measured": [
+  {
+   "bp": "DilutedWarmStaticPuddle",
+   "ok": true,
+   "qud": {
+    "frames": 9,
+    "states": 4,
+    "duty": [
+     0.56,
+     0.22,
+     0.11,
+     0.11
+    ],
+    "class": "discrete"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 4,
+    "duty": [
+     0.42,
+     0.25,
+     0.25,
+     0.08
+    ],
+    "class": "discrete"
+   },
+   "agree": true
+  }
+ ],
+ "when": "2026-08-06 20:03"
+}
