@@ -1,7 +1,9 @@
 extends Node
 
 ## First-party UI-state report for highvisor's state tree ("scene" signal — beats OCR
-## guessing). Writes raves_state.json {scene, mode, popup?, ts} into the support dir:
+## guessing). Writes raves_state.json AND a per-process raves_state.<pid>.json (see
+## _pid_path — one shared file cannot survive two Raves instances) {scene, mode, pid,
+## popup?, ts} into the support dir:
 ## immediately on every change, and re-written every 2s as a freshness heartbeat
 ## (highvisor only trusts a recently-touched file, so a crashed Raves can't pin the
 ## tree to its last screen). Same file contract as the mod's qud_state.json.
@@ -37,6 +39,7 @@ func clear_popup() -> void:
 	_write()
 
 func _ready() -> void:
+	_sweep_dead_reports()
 	_write()
 	var t := Timer.new()
 	t.wait_time = 2.0
@@ -44,8 +47,41 @@ func _ready() -> void:
 	add_child(t)
 	t.start()
 
+func _dir() -> String:
+	return OS.get_environment("HOME").path_join("Library/Application Support/RavesOfQud")
+
 func _path() -> String:
-	return OS.get_environment("HOME").path_join("Library/Application Support/RavesOfQud/raves_state.json")
+	return _dir().path_join("raves_state.json")
+
+## PER-PROCESS report. The shared path above is ONE file with as many writers as there
+## are Raves processes: three live instances (a leaked pair plus the real one) had it
+## cycling in_game -> status_tinkering -> title on every 2s heartbeat, so any single read
+## was a coin flip. That is what made `hv state` report a screen Raves wasn't on and
+## `hv goto` "need retries" -- the reader was sampling somebody ELSE's window.
+##
+## So each process also writes raves_state.<pid>.json and stamps `pid` into both. A reader
+## that knows which pid owns the window it is looking at reads that process's own report
+## and is immune to duplicates; the shared path stays for readers that don't (and for
+## anything older than this change).
+func _pid_path() -> String:
+	return _dir().path_join("raves_state.%d.json" % OS.get_process_id())
+
+## Drop sidecars belonging to processes that are gone. Without this the support dir
+## accumulates one file per Raves that ever ran, and a reader chasing a dead pid gets a
+## stale report instead of a missing one (missing is honest; stale is a lie).
+func _sweep_dead_reports() -> void:
+	var d := DirAccess.open(_dir())
+	if d == null:
+		return
+	for f in d.get_files():
+		if not (f.begins_with("raves_state.") and f.ends_with(".json")):
+			continue
+		var mid := f.trim_prefix("raves_state.").trim_suffix(".json")
+		if not mid.is_valid_int():
+			continue          # the shared raves_state.json itself
+		var pid := int(mid)
+		if pid != OS.get_process_id() and not OS.is_process_running(pid):
+			d.remove(f)
 
 ## Scenes that CANNOT be true while the main menu is the live scene root. The
 ## heartbeat corrects those to "title" so a crashed or stale reporter can't pin
@@ -77,10 +113,13 @@ func _write() -> void:
 	# EFFECTIVE mode — a --one-to-one LOCKED run behaves 1to1 regardless of the
 	# stored setting (which the lock no longer overwrites); report what's true
 	var d := {"scene": _scene, "mode": "1to1" if Settings.one_to_one() else "user",
+		"pid": OS.get_process_id(),
 		"ts": int(Time.get_unix_time_from_system())}
 	if _popup != "":
 		d["popup"] = _popup
-	var f := FileAccess.open(_path(), FileAccess.WRITE)
-	if f != null:
-		f.store_string(JSON.stringify(d))
-		f.close()
+	var payload := JSON.stringify(d)
+	for p in [_path(), _pid_path()]:
+		var f := FileAccess.open(p, FileAccess.WRITE)
+		if f != null:
+			f.store_string(payload)
+			f.close()

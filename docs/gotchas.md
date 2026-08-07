@@ -939,3 +939,32 @@ map visible, chrome still flat at 0.00.
 
 Measure suppression with the period-2 row alternation in a flat chrome patch
 (`abs(rows[0::2].mean() - rows[1::2].mean())`), not by eye — 0.00 vs 13.67 is unambiguous.
+
+## One state file, many writers — the scene report was a coin flip
+
+`raves_state.json` had exactly one path and one writer *per running Raves process*. With three
+instances alive (two leaked from earlier launches), all three heartbeats wrote the same file every
+two seconds, so a single read returned whichever had written last:
+
+```
+in_game -> status_tinkering -> title -> in_game -> ...   (12s of samples, 0.5s apart)
+```
+
+This is the "`raves_state.json` lies" bug and it was NOT a lifecycle/`set_scene` defect — the
+reporter was correct in every process. It presented as **highvisor confidently reporting a screen
+Raves was not on** and as **`hv goto raves in_game` needing retries**, because with duplicate
+windows `_find_win` picks the first match: the recipe could drive window A, read window B's report,
+and fail a step that had actually worked. Any screenshot taken to "check" was also a coin flip.
+
+Fixes, both sides:
+- Raves stamps `pid` into the report and also writes `raves_state.<pid>.json`, sweeping sidecars of
+  dead pids at startup (`OS.is_process_running`).
+- highvisor reads the sidecar for the pid that owns the window it is evaluating, and REFUSES a
+  shared file stamped with a different pid — None (fall back to OCR/port) beats a confident wrong
+  answer. Reports with no `pid` (the Qud mod's `qud_state.json`) read exactly as before.
+- `hv state` shouts `!! N INSTANCES`, and `hv goto` refuses to drive at all while duplicates exist.
+
+**The general lesson:** a single-path status file is an implicit assumption that only one process
+ever runs. State a process reports about ITSELF belongs in a per-process file; a shared path needs
+an owner stamp the reader can check. And when a report and the screen disagree, count the
+processes before you go looking for a bug in the reporter.

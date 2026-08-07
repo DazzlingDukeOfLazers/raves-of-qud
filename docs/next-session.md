@@ -3,17 +3,19 @@
 Branch `dd/main-ui-framing` (raves) + `dd/integrate` (highvisor). Everything below is committed and
 pushed; the working tree is clean.
 
-## Do these two FIRST — they blocked live verification three separate times today
+## ~~Do these two FIRST~~ — BOTH FIXED 2026-08-06 (one root cause, not two bugs)
 
-1. **`raves_state.json` lies.** It reported `scene: in_game` with a one-second-old timestamp while
-   the window was plainly showing the title screen. This is a DETECTION bug, not flakiness:
-   `hv goto` and `hv assert` trust that file, so every recipe built on them can silently drive the
-   wrong screen — and any screenshot taken afterwards is of the wrong thing. Suspect `UiState`
-   not being re-set on the MainFrame → MainMenu lifecycle fallback (`_poll_game_lifecycle` changes
-   scene to MainMenu; does it clear the scene report?). Fix this before any live-driving work.
-2. **`hv goto raves in_game` frequently does not land**, then works on retry. Related to (1) or its
-   own recipe problem. Until both are fixed, budget two or three retries per drive and ALWAYS
-   confirm from a screenshot, never from the state file alone.
+`raves_state.json` was not lying and the goto recipe was not flaky: **three Raves processes were
+alive**, all writing that one path on a 2s heartbeat, so reads cycled
+`in_game → status_tinkering → title` and `_find_win` could hand a recipe a different window than
+the one being read. Raves now stamps `pid` and writes `raves_state.<pid>.json`; highvisor reads the
+sidecar for the window's owning pid, refuses a foreign-stamped shared file, shows `!! N INSTANCES`
+in `hv state`, and `hv goto` refuses to drive while duplicates exist. Guarded by
+`python3 tools/selftest_state_read.py` in the highvisor repo (stdlib only, no apps).
+Full write-up in `docs/gotchas.md` ("One state file, many writers").
+
+Still true and worth keeping: **confirm from a screenshot, never the state file alone.**
+When a report and the screen disagree, `pgrep -f "Raves of Qud" | wc -l` FIRST.
 
 ## Open feedback items (`~/Library/Application Support/RavesOfQud/feedback.jsonl`)
 
