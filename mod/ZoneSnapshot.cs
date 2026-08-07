@@ -1048,7 +1048,6 @@ namespace RavesOfQud
             WriteContext(j, player);    // contextual command menu (missile Fire/Reload) for the frame
             WriteCommandBar(j, player);  // activated abilities for the row-5 command bar
             WriteNearby(j, player);     // Qud's own nearby-objects rows for the side panel
-            WriteMinimap(j, player);    // Qud's own per-cell minimap colours for the side panel
             WriteMessages(j);           // recent message-log lines for the frame Message log
 
             // Refresh the Visibility AND Light maps before reading them: both are RENDER-FRAME
@@ -1075,6 +1074,11 @@ namespace RavesOfQud
                 }
             }
             catch { Bridge.InSnapshotRelight = false; }
+            // AFTER the relight above, not before: Cell.RefreshMinimapColor reads IsVisible()
+            // and IsLit(), and both maps are RENDER-FRAME artifacts that our own tick clears.
+            // Running it earlier shipped a map with no visible-creature dots at all (Qud drew
+            // 24 green px where we drew none) and the lit/unlit wash a frame stale.
+            WriteMinimap(j, player);    // Qud's own per-cell minimap colours for the side panel
             j.Name("cells").BeginArray();
             for (int y = 0; y < h; y++)
             {

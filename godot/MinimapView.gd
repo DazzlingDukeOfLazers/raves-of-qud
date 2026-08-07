@@ -22,6 +22,8 @@ const NONWALL_DIM := 0.30   # how much of a non-wall object's colour survives (r
 var _tiles: RefCounted   # shared colour resolution (QudTiles), set in _ready
 var _palette := {}
 var _rect: TextureRect
+var _map_margin: MarginContainer   # 1:1 left inset for the map image
+var _vbox: VBoxContainer
 var _tex: ImageTexture   # reused across snapshots; only reallocated when the zone size changes
 var _toggle: Button
 var _title: Label      # header — "Minimap" (user) or the zone name (1:1, Qud-style)
@@ -32,7 +34,8 @@ func _ready() -> void:
 	_tiles = load("res://QudTiles.gd").new()
 	_apply_panel_box()
 
-	var v := VBoxContainer.new()
+	_vbox = VBoxContainer.new()
+	var v := _vbox
 	v.add_theme_constant_override("separation", 4)
 	add_child(v)
 
@@ -49,6 +52,9 @@ func _ready() -> void:
 	head.add_child(_toggle)
 	_refresh_toggle()
 
+	# the map sits inset from the panel's content edge in 1:1 (Qud: content 1641, map 1658)
+	_map_margin = MarginContainer.new()
+	v.add_child(_map_margin)
 	_rect = TextureRect.new()
 	_rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST   # crisp pixels, no blur
 	_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -58,7 +64,7 @@ func _ready() -> void:
 	_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_rect.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_rect.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	v.add_child(_rect)
+	_map_margin.add_child(_rect)
 
 ## MainFrame calls this each snapshot with the full data (needs cells + player + zone dims + palette).
 func set_snapshot(data: Dictionary) -> void:
@@ -92,9 +98,22 @@ func set_one_to_one(on: bool) -> void:
 		_toggle.visible = not on
 	# Give the map image a real height. Setting it on the TextureRect (content-min) reliably grows the
 	# panel — the panel's own custom_minimum_size wasn't translating into a taller image (the rect stayed
-	# a short strip). ~110px matches Qud's sidebar minimap.
+	# a short strip).
+	#
+	# 1:1 is Qud's MEASURED rect: 240x104 (confirmed against the live RectTransform), which is aspect
+	# 2.31 while the texture is 80x50 = 1.60 — Qud STRETCHES the map, it does not fit it. Raves was
+	# aspect-fitting into 190x119, so every feature sat at the wrong scale.
 	if _rect != null:
-		_rect.custom_minimum_size = Vector2(0, 110 if on else 0)
+		_rect.custom_minimum_size = Vector2(MAP_W_1TO1, MAP_H_1TO1) if on else Vector2(0, 0)
+		_rect.stretch_mode = TextureRect.STRETCH_SCALE if on else TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		_rect.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN if on else Control.SIZE_EXPAND_FILL
+		_rect.size_flags_vertical = Control.SIZE_SHRINK_BEGIN if on else Control.SIZE_EXPAND_FILL
+	if _map_margin != null:
+		_map_margin.add_theme_constant_override("margin_left", MAP_X_1TO1 if on else 0)
+	# Qud's header glyphs and ours land on the same rows, but its map starts 4px higher — the gap
+	# under the heading is smaller than the QoL one. Measured: Qud map top y114, ours y118.
+	if _vbox != null:
+		_vbox.add_theme_constant_override("separation", 0 if on else 4)
 	if on:
 		_saved_mode = _mode
 		_mode = MODE_MINIMAL     # Qud's structural overview, not the painterly per-cell FULL map
@@ -146,7 +165,11 @@ func _render_qud_minimap(mm: Dictionary) -> bool:
 		for x in w:
 			var idx := QUD_MM_ALPHABET.find(cells[y * w + x])
 			var c: Color = cols[idx] if idx >= 0 and idx < cols.size() else Color(0, 0, 0, 0)
-			var ty := (h - 1 - y) * 2      # Qud's (24 - i) * 2 — the map is bottom-up
+			# Row doubling only — NO vertical flip. Qud's `(24 - i) * 2` looks like a flip but is
+			# compensation for UNITY textures being bottom-up (y=0 at the bottom); Godot's Image is
+			# top-down, so copying that arithmetic here flipped the map a second time. Measured:
+			# correlation against Qud went 0.083 as-was, 0.745 with the flip removed.
+			var ty := y * 2
 			img.set_pixel(x, ty, c)
 			img.set_pixel(x, ty + 1, c)
 	if _tex != null and _tex.get_width() == w and _tex.get_height() == h * 2:
@@ -155,6 +178,12 @@ func _render_qud_minimap(mm: Dictionary) -> bool:
 		_tex = ImageTexture.create_from_image(img)
 		_rect.texture = _tex
 	return true
+
+## Qud's minimap rect, measured off its live RectTransform + the rendered frame at 1080:
+## 240x104 at x1658 (content origin 1641 -> 17 in), map top y114.
+const MAP_W_1TO1 := 240.0
+const MAP_H_1TO1 := 104.0
+const MAP_X_1TO1 := 17
 
 const QUD_MM_ALPHABET := "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 
