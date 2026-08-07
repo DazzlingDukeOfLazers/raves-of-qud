@@ -136,6 +136,27 @@ sparkles, Mimic camouflage, stains, mix compounds.
   split (small shared-file change; coordinate with the Mac before touching).
 - Sweep telemetry: count retries per run in the report header (turn-flow-race rate).
 
+## Gotcha: the Qud self-capture needs FOCUS, and Raves steals it
+
+`control.qud_shot()` asks Qud to screenshot itself (`QueueScreenshot`), which
+drains on Qud's uiQueue — and on Windows that only runs while Qud is FOCUSED.
+The Raves dev-run window holds the foreground hard enough that
+`hv activate CavesOfQud` returns `SetForegroundWindow=1` and Qud STILL does not
+come forward; `qud_shot()` then silently returns False and calibration fails
+with "capture failed (is the Raves viewer open?)" — pointing at the wrong app.
+
+Unblock: minimize everything, then activate Qud. The Raves capture is
+force_draw, so it keeps answering while minimized — only the ANIMATION clock
+freezes, which matters for `anim` bursts but not for calibration or pixel pairs.
+
+    powershell -c "(New-Object -ComObject Shell.Application).MinimizeAll()"
+    hv activate CavesOfQud
+
+DURABLE FIX WORTH DOING: the daemon's own `hv shot CavesOfQud` captures the
+window with no focus dependency at all, and works when the bridge path does
+not. Switching the Qud half of `shots_for()` to it would delete this whole
+failure mode.
+
 ## Rung 6 — zones & zone-specific artwork → `pc-zone-plan.md`
 
 Rungs 1-5 certify elements **in isolation** (2483/2483 wire, 0 pixel FAIL — findings
