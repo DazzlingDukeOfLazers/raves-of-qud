@@ -220,3 +220,47 @@ unblocks all of it** (Daniel's call — the daemon is not ours to start). `hv st
 above could run.
 
 The same restart is still owed to `hv click --middle` from earlier in the session.
+
+### FULL follow-up on `dd/pc-lumpy-merge` — 2026-08-07, both apps in-game
+
+The daemon restart landed, so the in-game tiers became reachable. **FULL 3 and 4
+pass. FULL 1 passes on the field it could reach. FULL 2 runs but its numbers are
+NOT comparable — see below.**
+
+**The Raves status edges were broken and are fixed.** Every `in_game ->
+status_*` edge sent Qud's per-screen letter binding (e/k/x/n/j/q). Raves does not
+implement those: it opens the overlay with **F2** and you pick a TAB. So each
+edge reported every step OK and simply never arrived. They now do F2 + a click on
+the tab, x measured off the live strip (y=136, the row the messagelog edge
+already used): skills 275, attributes 490, equipment 726, tinkering 908,
+journal 1080, quests 1236, reputation 1408, message log 1619.
+**8 of 8 tabs now drive and assert.**
+
+**FULL 1 — PASS on the status-screen search field.** Typed `e j q x n 1 2`: the
+characters LANDED in the field and the scene stayed `status_equipment`, so no
+status screen, ability or menu fired. Checked the field CONTENT, not just the
+scene — the trap the previous run recorded. Coverage is 1 of the 7 listed fields;
+the others are not reachable from a Raves with no game data (below), and the
+Blueprint Browser filter is not reachable from in_game at all (it hangs off the
+title menu, by design).
+
+**FULL 2 — RUNS, but the comparison is INVALID and must not be read as a
+regression.** parity.py scored the equipment spec at composite 18.55 / frame
+18.57 / image 35.01 against a recorded 5.46 / 4.13 / 38.23. Do not act on that:
+**Raves has no game data.** Its equipment screen is empty, HP reads "—", the
+message log and playfield are blank, and the capture is 33 KB against Qud's
+1.5 MB. The score is measuring an empty screen, not a parity gap.
+
+Raves reached `in_game` and renders its chrome, but never established the data
+connection to Qud's bridge — no snapshot arrived, and a `wait` over the bridge
+did not change the capture by a single byte. That is a separate defect from the
+navigation edges fixed here, and it is what FULL 2 is really blocked on.
+
+TWO CAPTURE TRAPS worth carrying, both of which produced convincing wrong
+numbers before being caught:
+  - A Qud shot taken too soon after `activate` catches an unpainted frame. The
+    first attempt scored ~0.00 across every leaf because it was diffing two
+    near-blank frames. The tell was file size — 315 KB vs 1.5 MB for the same
+    screen. Settle ~4s and compare sizes before trusting a score.
+  - `--stable` needs two DIFFERENT Qud captures. Two identical ones drop nothing
+    and silently disable the noise filter the flag exists to provide.
