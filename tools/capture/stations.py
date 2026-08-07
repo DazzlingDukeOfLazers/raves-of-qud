@@ -19,7 +19,9 @@ TWO RULES, both learned by breaking the rig:
 
 2. **Warping mutates the golden save.** Qud autosaves on zone change, so the
    save the whole rig's determinism rests on ends up wherever you warped last.
-   Restore it afterwards: `saves.py restore checker` with Qud down.
+   Restore it afterwards: `saves.py restore checker` with Qud down — and Qud's
+   process is **CoQ.exe**, not CavesOfQud.exe (the window title lies), so a
+   taskkill on the window name silently kills nothing and the restore refuses.
 
 The wish field is `wish`, not `text` — `b.send("wish", wish=...)`. Sending
 `text=` silently no-ops (it is how godmode was never actually applied).
