@@ -15,7 +15,8 @@ const DIM := "#8a8f9a"
 const KEY := "#ffd200"       # hotkey — UI yellow
 const ON := "#59d38a"        # toggled-on green
 const OFF := "#8a8f9a"       # toggled-off / dim
-const CD := "#e08a4a"        # cooling-down amber
+const CD := "#6cb7c8"        # cooling-down: Qud's light blue, measured (108,183,200) in its
+                             # ability bar -- matches the cooldown icon, per Daniel's note
 
 # 1:1 (measured off Qud's command bar): the ability icon is ~40px tall, the name text is a muted teal
 # and the <N> quick-slot number a light grey; a green frame boxes each ability cell.
@@ -569,7 +570,7 @@ func _state_plain(a: Dictionary) -> String:
 	var s := ""
 	var cd := _cooldown_turns(a)
 	if cd > 0:
-		s += " [cd %d]" % cd
+		s += " [%d]" % cd
 	if bool(a.get("toggleable", false)):
 		s += " [on]" if bool(a.get("toggle", false)) else " [off]"
 	elif not bool(a.get("enabled", true)):
@@ -622,7 +623,7 @@ func _state_tag(a: Dictionary) -> String:
 	var s := ""
 	var cd := _cooldown_turns(a)
 	if cd > 0:
-		s += " [color=%s][cd %d][/color]" % [CD, cd]
+		s += " [color=%s][%d][/color]" % [CD, cd]
 	if bool(a.get("toggleable", false)):
 		var on := bool(a.get("toggle", false))
 		s += " [color=%s][%s][/color]" % [ON if on else OFF, "on" if on else "off"]
