@@ -30,8 +30,14 @@ var _failed: Array[String] = []
 func _init() -> void:
 	var sgp = load("res://StateGraphPanel.gd").new()
 	_fixture(sgp)
+	_slice2(sgp)
 	_real(sgp)
 	print("\n%s (%d checks failed)" % ["all good" if _failed.is_empty() else "FAILED", _failed.size()])
+	# FREE it. StateGraphPanel extends Node, so `.new()` hands back an unparented object that
+	# nothing will collect — Godot then reports "resources still in use at exit" and dumps a
+	# crash backtrace AFTER a clean pass. A test whose success looks like a segfault is a test
+	# people stop trusting.
+	sgp.free()
 	quit(1 if not _failed.is_empty() else 0)
 
 
@@ -116,6 +122,86 @@ func _fixture(sgp) -> void:
 	sgp._tree = {"root": null, "apps": null, "transitions": null}
 	sgp._index_targets()
 	_check("null members do not throw", sgp._header().length() > 0 and sgp._rows() == "")
+
+
+func _slice2(sgp) -> void:
+	print("\nslice 2 — click targets, costs, failure reporting")
+	sgp._tree = FIXTURE.duplicate(true)
+	sgp._states = {
+		"qud": {"node": "title", "path": ["title"], "off": false, "label": "Title", "via": "scene"},
+		"raves": {"node": "title", "path": ["title"], "off": false, "label": "Title", "via": "scene"},
+	}
+	sgp._index_targets()
+	# in_game costs 6 to reach; `logo` is a scoreboard node with no inbound transition at all.
+	sgp._costs = {"qud": {"title": 0, "in_game": 6}, "raves": {"title": 0, "in_game": 130}}
+	sgp._driving = ""
+
+	var rows: String = sgp._rows()
+	_check("a reachable cell is a click target",
+		rows.contains("[url=qud:in_game]"), rows)
+	_check("an UNREACHABLE cell is drawn but not clickable",
+		not rows.contains("[url=qud:logo]") and not rows.contains("[url=raves:logo]"), rows)
+	_check("the app already there is still clickable (goto is idempotent)",
+		rows.contains("[url=qud:title]"), rows)
+
+	# Hover reads the cost straight out of the map — no round trip, so it cannot lag the cursor.
+	sgp._on_meta_hover("qud:in_game")
+	_check("hover names the app, target and cost",
+		sgp._status.contains("qud") and sgp._status.contains("in_game")
+		and sgp._status.contains("6"), sgp._status)
+	sgp._on_meta_hover("qud:title")
+	_check("hover says so when the app is already there",
+		sgp._status.to_lower().contains("already"), sgp._status)
+	# The one that matters before you click: cost >= 100 means it routes through the restart
+	# edge, i.e. minutes and the app relaunched.
+	sgp._on_meta_hover("raves:in_game")
+	_check("hover WARNS when the only route is a restart",
+		sgp._status.to_upper().contains("RESTART"), sgp._status)
+	sgp._on_meta_hover("qud:logo")
+	_check("hover says plainly when there is no route",
+		sgp._status.to_lower().contains("cannot reach"), sgp._status)
+
+	_check("a malformed meta is ignored, not crashed on", sgp._split_meta("nonsense").is_empty())
+	_check("a well-formed meta splits into app + node",
+		sgp._split_meta("raves:status_skills") == ["raves", "status_skills"])
+
+	# A drive in flight must not be stomped by a second click, and the hover preview must not
+	# scribble over the progress line.
+	sgp._driving = "qud -> in_game"
+	sgp._on_meta_clicked("raves:title")
+	_check("a second click while driving is refused, with a reason",
+		sgp._status.to_lower().contains("already driving"), sgp._status)
+	sgp._on_meta_hover("qud:in_game")
+	_check("hover does not overwrite the drive status",
+		sgp._status.to_lower().contains("already driving"), sgp._status)
+	sgp._driving = ""
+
+	# The failure path is the reason the trace is kept at all — it must name the transition and
+	# the step, not collapse to "failed".
+	sgp._drive_done("raves", "in_game", {
+		"ok": false, "route": "title -> in_game (18)",
+		"error": "raves:title->in_game#27: ocr failed",
+		"steps": [
+			{"step": {"activate": "Raves of Qud"}, "ok": true},
+			{"step": {"click_text": "Continue", "window": "Raves of Qud"}, "ok": false,
+			 "error": "text 'continue' not on screen"},
+		]})
+	_check("a failed drive reports the failing STEP, not just ok/fail",
+		sgp._status.contains("click_text") and sgp._status.contains("not on screen"), sgp._status)
+	_check("a failed drive also shows the plan it was following",
+		sgp._status.contains("title -> in_game"), sgp._status)
+
+	sgp._drive_done("qud", "status_skills", {
+		"ok": true, "route": "in_game -> status_screens (5) -> status_skills (1)",
+		"steps": [{"step": {"bridge": "statustab"}, "ok": true},
+				  {"step": {"verify": {"node": "status_skills"}}, "ok": true}]})
+	_check("a successful drive reports the route it took",
+		sgp._status.contains("status_skills") and not sgp._status.contains("FAILED"),
+		sgp._status)
+
+	_check("step naming skips modifier keys",
+		sgp._step_name({"window": "x", "note": "y", "key": "f6"}) == "key",
+		sgp._step_name({"window": "x", "note": "y", "key": "f6"}))
 
 
 func _real(sgp) -> void:

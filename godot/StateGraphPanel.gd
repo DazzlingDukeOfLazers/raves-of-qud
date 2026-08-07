@@ -47,6 +47,12 @@ var _since_probe := 0.0
 var _tree := {}               # last gametree response
 var _states := {}             # last gamestate response: {app: {node,label,path,off,via}}
 var _targets := {}            # {app: {node_id: true}} — states the graph can actually DRIVE to
+var _costs := {}              # {app: {node_id: cost}} — what driving there would cost FROM HERE
+var _status := ""             # the bottom line: hover preview, drive progress, or the last trace
+var _driving := ""            # "<app>:<node>" while a gogo is in flight; "" when idle
+var _drive_thread: Thread = null
+var _status_label: RichTextLabel = null
+var _last_nodes := {}         # {app: node} at the last cost fetch — refetch only when it moves
 
 
 func _ready() -> void:
@@ -123,21 +129,27 @@ func _process(delta: float) -> void:
 ## all if the daemon went away between the probe and the gesture — which is the same silence a
 ## shipped build gets, so there is one behaviour to reason about instead of two.
 func open() -> void:
-	_run(func() -> Dictionary:
+	var work := func() -> Dictionary:
 		return {"tree": HighvisorClient.request("gametree"),
-				"state": HighvisorClient.request("gamestate")},
-		_on_opened)
+				"state": HighvisorClient.request("gamestate"),
+				"cost_qud": HighvisorClient.request("plan_route", {"app": _APP_QUD}),
+				"cost_raves": HighvisorClient.request("plan_route", {"app": _APP_RAVES})}
+	_run(work, _on_opened)
 
 
 func _on_opened(res: Dictionary) -> void:
 	var tree := _dict(res.get("tree"))
 	var state := _dict(res.get("state"))
 	if not tree.get("ok", false) or not state.get("ok", false):
+		print("[state-graph] open failed: tree.ok=%s state.ok=%s — treating highvisor as gone"
+				% [tree.get("ok", false), state.get("ok", false)])
 		_daemon = false          # it answered the probe and then did not answer this: treat as gone
 		return
 	_tree = _dict(tree.get("tree"))
 	_states = _dict(state.get("states"))
 	_index_targets()
+	_take_costs(res)
+	_status = "click a cell in the left gutter to drive that app there"
 	_build()
 	_render()
 
@@ -152,10 +164,23 @@ func close() -> void:
 	_head = null
 
 
+## Poll the live state. The reachability maps are re-fetched ONLY when an app has actually
+## changed node: they are pure computation server-side, but they are also only wrong when the
+## start state moves, and a poll that always refetches everything makes the panel the busiest
+## client on the socket for no gain.
 func _refresh() -> void:
-	_run(func() -> Dictionary:
-		return {"state": HighvisorClient.request("gamestate")},
-		_on_refreshed)
+	if not is_open():
+		return
+	var want_costs := _driving != ""
+	var work := func() -> Dictionary:
+		var out := {"state": HighvisorClient.request("gamestate")}
+		if want_costs:
+			# While a drive is in flight the start state is moving under us, so the costs are
+			# worth re-reading every tick rather than only when a node change is observed.
+			out["cost_qud"] = HighvisorClient.request("plan_route", {"app": _APP_QUD})
+			out["cost_raves"] = HighvisorClient.request("plan_route", {"app": _APP_RAVES})
+		return out
+	_run(work, _on_refreshed)
 
 
 func _on_refreshed(res: Dictionary) -> void:
@@ -163,13 +188,53 @@ func _on_refreshed(res: Dictionary) -> void:
 	if not state.get("ok", false):
 		return                    # a missed poll is not news; keep the last good picture
 	_states = _dict(state.get("states"))
+	_take_costs(res)
+	if _costs_stale():
+		_fetch_costs()
 	_render()
 
 
+## The reachability maps, keyed by app. Absent keys leave the previous map in place — a missed
+## poll should not blank the greying and make every state look unreachable.
+func _take_costs(res: Dictionary) -> void:
+	for app in [_APP_QUD, _APP_RAVES]:
+		var r := _dict(res.get("cost_" + app))
+		if r.get("ok", false):
+			_costs[app] = _dict(r.get("costs"))
+			_last_nodes[app] = String(_dict(_states.get(app)).get("node", ""))
+
+
+func _costs_stale() -> bool:
+	for app in [_APP_QUD, _APP_RAVES]:
+		if String(_dict(_states.get(app)).get("node", "")) != String(_last_nodes.get(app, "\u0000")):
+			return true
+	return false
+
+
+func _fetch_costs() -> void:
+	if not is_open():
+		return
+	var work := func() -> Dictionary:
+		return {"cost_qud": HighvisorClient.request("plan_route", {"app": _APP_QUD}),
+				"cost_raves": HighvisorClient.request("plan_route", {"app": _APP_RAVES})}
+	var done := func(res: Dictionary) -> void:
+		_take_costs(res)
+		_render()
+	_run(work, done)
+
+
 func _probe() -> void:
-	_run(func() -> Dictionary:
-		return {"alive": HighvisorClient.alive()},
-		func(res: Dictionary) -> void: _daemon = bool(res.get("alive", false)))
+	var work := func() -> Dictionary:
+		return {"alive": HighvisorClient.alive()}
+	var done := func(res: Dictionary) -> void:
+		var was := _daemon
+		_daemon = bool(res.get("alive", false))
+		if was != _daemon:
+			# The dev gate flipping is the one thing worth a log line: it decides whether the
+			# panel exists at all, and when it is wrong the symptom is a keypress that does
+			# nothing — indistinguishable from a key that never arrived.
+			print("[state-graph] highvisor %s" % ("reachable" if _daemon else "unreachable"))
+	_run(work, done)
 
 
 # --- worker thread -----------------------------------------------------------
@@ -248,7 +313,22 @@ func _build() -> void:
 	_body.bbcode_enabled = true
 	_body.scroll_active = true          # a plain wheel over the panel scrolls it (GUI pass)
 	_body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	# The gutter cells are BBCode [url] spans, which is why the whole tree can stay one
+	# RichTextLabel: no per-row Control, no layout to keep in sync, and hover/click arrive as
+	# signals carrying the meta string we encoded ("<app>:<node>").
+	_body.meta_underlined = false
+	_body.meta_clicked.connect(_on_meta_clicked)
+	_body.meta_hover_started.connect(_on_meta_hover)
+	_body.meta_hover_ended.connect(_on_meta_unhover)
 	vb.add_child(_body)
+
+	_status_label = RichTextLabel.new()
+	_status_label.bbcode_enabled = true
+	_status_label.fit_content = true
+	_status_label.scroll_active = false
+	_status_label.custom_minimum_size = Vector2(0, 0)
+	_status_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vb.add_child(_status_label)
 
 
 func _render() -> void:
@@ -262,6 +342,8 @@ func _render() -> void:
 	_body.text = _rows()
 	if vs != null:
 		vs.value = at
+	if _status_label != null:
+		_status_label.text = "[color=#%s]%s[/color]" % [C_DIM, _status]
 
 
 const C_DIM := "6b7a78"       # a state nobody is in and nothing can drive to
@@ -307,18 +389,33 @@ func _rows() -> String:
 func _walk(node: Dictionary, depth: int, out: Array[String]) -> void:
 	var id := String(node.get("id", ""))
 	var label := String(node.get("label", id))
-	var qm := _mark(id, _dict(_states.get(_APP_QUD)), C_QUD)
-	var rm := _mark(id, _dict(_states.get(_APP_RAVES)), C_RAVES)
+	var qm := _cell(id, _APP_QUD, C_QUD)
+	var rm := _cell(id, _APP_RAVES, C_RAVES)
 	var here := _is_here(id, _dict(_states.get(_APP_QUD))) or _is_here(id, _dict(_states.get(_APP_RAVES)))
 	# A node nothing can DRIVE to is a scoreboard-only row (the per-element 1:1 leaves). Dimming
 	# them says, before slice 2 exists, which rows will ever be clickable — and makes a state that
 	# SHOULD be drivable but has no inbound transition visible as a gap rather than a silence.
 	var drivable: bool = _targets.get(_APP_QUD, {}).has(id) or _targets.get(_APP_RAVES, {}).has(id)
 	var col := C_HERE if here else (C_TEXT if drivable else C_DIM)
-	out.append("%s%s  %s[color=#%s]%s[/color]"
+	out.append("%s%s %s[color=#%s]%s[/color]"
 			% [qm, rm, "  ".repeat(depth), col, label])
 	for ch in _arr(node.get("children")):
 		_walk(ch, depth + 1, out)
+
+
+## A gutter CELL: the app's position mark, wrapped in a click target when the graph can
+## actually get that app there from where it is now.
+##
+## Two cells per row rather than one click on the label, because "go there" is meaningless
+## without saying WHICH app — and the two columns already mean Qud and Raves in slice 1, so the
+## gesture reads off the existing layout instead of adding a mode. Unreachable cells are drawn
+## but NOT wrapped: a click that cannot work should not look like one that can.
+func _cell(id: String, app: String, col: String) -> String:
+	var mark := _mark(id, _dict(_states.get(app)), col)
+	var cost = _dict(_costs.get(app)).get(id)
+	if cost == null:
+		return mark + " "
+	return "[url=%s:%s]%s [/url]" % [app, id, mark]
 
 
 func _is_here(id: String, st: Dictionary) -> bool:
@@ -335,7 +432,137 @@ func _mark(id: String, st: Dictionary, col: String) -> String:
 		return "[color=#%s]●[/color]" % col
 	if id in _arr(st.get("path")):
 		return "[color=#%s]|[/color]" % col
-	return " "
+	# A dim dot, not a space: an empty cell is invisible, and slice 2 makes these cells the
+	# click target. You cannot aim at nothing.
+	return "[color=#%s]\u00b7[/color]" % C_DIM
+
+
+# --- slice 2: click to navigate ----------------------------------------------
+
+## Cost at or above this is only achievable through the "*" -> title RESTART edge (priced 120
+## in highvisor's cost table), so it is worth shouting BEFORE the click rather than after: a
+## restart takes minutes and throws away whatever the app was showing.
+const RESTART_COST := 100
+
+
+func _split_meta(meta) -> Array:
+	var parts := String(meta).split(":", true, 1)
+	return parts if parts.size() == 2 else []
+
+
+## Hovering a cell answers "what would this cost me?" from the reachability map already in
+## hand — no round trip, so it can be instant and cannot lag behind the cursor. The cost is a
+## real number out of the planner, not a guess: it is the sum of the edges it would run.
+func _on_meta_hover(meta) -> void:
+	if _driving != "":
+		return                       # a drive owns the status line while it runs
+	var p := _split_meta(meta)
+	if p.is_empty():
+		return
+	var app: String = p[0]
+	var node: String = p[1]
+	var cost = _dict(_costs.get(app)).get(node)
+	if cost == null:
+		_set_status("%s cannot reach %s from here" % [app, node])
+		return
+	if int(cost) == 0:
+		_set_status("%s is already at %s" % [app, node])
+	elif int(cost) >= RESTART_COST:
+		_set_status("drive %s -> %s   cost %d — via RESTART (minutes; the app is relaunched)"
+				% [app, node, int(cost)])
+	else:
+		_set_status("drive %s -> %s   cost %d" % [app, node, int(cost)])
+
+
+func _on_meta_unhover(_meta) -> void:
+	if _driving == "":
+		_set_status("click a cell in the left gutter to drive that app there")
+
+
+func _on_meta_clicked(meta) -> void:
+	var p := _split_meta(meta)
+	if p.is_empty():
+		return
+	if _driving != "":
+		_set_status("already driving %s — wait for it to finish" % _driving)
+		return
+	_drive(p[0], p[1])
+
+
+## Send the goto and report what came back. Deliberately NOT reduced to ok/fail: the step trace
+## is the useful part when a route breaks — which transition, which step, and the engine's own
+## error — and it is already structured, so throwing it away here would mean going back to the
+## cockpit for exactly the case you opened this panel to avoid.
+##
+## Runs on its OWN thread rather than the shared poll slot. A goto can take minutes (a restart
+## edge relaunches the app), and blocking the poller behind it would freeze the very markers
+## that show it working.
+func _drive(app: String, node: String) -> void:
+	if _drive_thread != null and _drive_thread.is_alive():
+		return
+	if _drive_thread != null:
+		_drive_thread.wait_to_finish()
+	_driving = "%s -> %s" % [app, node]
+	_set_status("driving %s …" % _driving)
+	_drive_thread = Thread.new()
+	_drive_thread.start(func() -> void:
+		var r := HighvisorClient.request("gamego", {"app": app, "node": node})
+		_drive_done.bind(app, node, r).call_deferred())
+
+
+func _drive_done(app: String, node: String, res: Dictionary) -> void:
+	_driving = ""
+	if res.is_empty():
+		_set_status("%s -> %s: no answer from highvisor (is the daemon still up?)" % [app, node])
+		_daemon = false
+		return
+	var steps := _arr(res.get("steps"))
+	var ran := 0
+	var failed := []
+	for st in steps:
+		var d := _dict(st)
+		if _dict(d.get("step")).has("verify"):
+			continue                 # the per-edge arrival check, not a move the user asked for
+		ran += 1
+		if not d.get("ok", false):
+			failed.append("%s: %s" % [_step_name(_dict(d.get("step"))),
+									  String(d.get("error", "failed"))])
+	var head := "%s -> %s" % [app, node]
+	if res.get("ok", false):
+		var detail := String(res.get("detail", ""))
+		if detail != "":
+			_set_status("%s: %s" % [head, detail])
+		else:
+			_set_status("%s: OK  (%s · %d steps)" % [head, String(res.get("route", "")), ran])
+	else:
+		# Name the transition that broke and the step inside it. `route` is the plan it was
+		# following, which is half the diagnosis on its own.
+		var why := String(res.get("error", "failed"))
+		if not failed.is_empty():
+			why = String(failed[0])
+		_set_status("%s: FAILED — %s\n[color=#%s]plan was: %s[/color]"
+				% [head, why, C_DIM, String(res.get("route", "?"))])
+	# The app has moved, so the reachability maps are stale by definition — but only bother if
+	# anyone is still looking. A drive can outlive the panel (they take minutes), and polling on
+	# behalf of a closed overlay is pure noise on the socket.
+	if is_open():
+		_fetch_costs()
+		_refresh()
+
+
+## A step's action, for the failure line — the first key that is not a modifier.
+func _step_name(step: Dictionary) -> String:
+	for k in step:
+		if k not in ["window", "note", "args", "timeout", "unless_running", "unless_within",
+					 "offset"]:
+			return String(k)
+	return "step"
+
+
+func _set_status(text: String) -> void:
+	_status = text
+	if _status_label != null:
+		_status_label.text = "[color=#%s]%s[/color]" % [C_DIM, _status]
 
 
 # --- shape guards ----------------------------------------------------------
