@@ -138,6 +138,32 @@ def qud_shot(wait=8.0):
     return False
 
 
+def qud_shot_window(wait=20.0):
+    """Capture Qud's WINDOW through the highvisor daemon instead of asking Qud
+    to screenshot itself.
+
+    WHY THIS EXISTS: the bridge path (`qud_shot`) queues onto Qud's uiQueue,
+    which on Windows only drains while Qud is FOCUSED. The Raves dev-run window
+    holds the foreground hard enough that `hv activate` reports success while
+    Qud stays behind — the queued screenshot then never lands, and calibration
+    blames the *Raves* viewer. The daemon captures the window directly with no
+    focus dependency, and kept working throughout that failure.
+
+    NOT INTERCHANGEABLE WITH `qud_shot`: this is the WINDOW (chrome included,
+    2327x1284 here), the bridge path is the CLIENT AREA (2301x1213). The origin
+    differs by the border+titlebar, so switching REQUIRES a recalibration — the
+    stage-cell geometry is in whichever space produced it."""
+    import subprocess
+    before = os.path.getmtime(QUD_SHOT) if os.path.exists(QUD_SHOT) else 0
+    try:
+        subprocess.run([sys.executable, "-m", "highvisor.cli", "shot",
+                        "CavesOfQud", QUD_SHOT],
+                       capture_output=True, text=True, timeout=wait)
+    except Exception:
+        return False
+    return os.path.exists(QUD_SHOT) and os.path.getmtime(QUD_SHOT) > before
+
+
 def main(argv):
     if not argv:
         sys.exit(__doc__)

@@ -263,10 +263,17 @@ def shots_for(bp, cat="single"):
     outdir = os.path.join(REPORTS, "shots", cat)
     os.makedirs(outdir, exist_ok=True)
     pair = {}
-    # Focus Qud for its capture: on Windows its tile-map camera only
-    # recomposites while FOCUSED (the mac unfocused-render fixes don't hold
-    # here — a frozen buffer served identical map crops across 240 turns).
-    # Raves' capture is focus-independent (force_draw), so focus can stay put.
+    # Qud's capture comes from the DAEMON (window grab), not the bridge's
+    # self-screenshot. The bridge path queues onto Qud's uiQueue, which on
+    # Windows only drains while Qud is FOCUSED — and the Raves dev-run window
+    # can hold the foreground so firmly that `hv activate` reports success
+    # while Qud stays behind, at which point the screenshot never lands and
+    # calibration blames the wrong app. The window grab has no focus
+    # dependency, so the per-element focus flip goes away too (it was a large
+    # slice of sweep runtime). NB this captures the WINDOW, not the client
+    # area — geometry must be recalibrated when switching. Focus still gets
+    # nudged on Windows because Qud's tile-map camera only RECOMPOSITES while
+    # focused; a background window grab of a stale buffer is still stale.
     if plat.IS_WIN:
         try:
             _focus("CavesOfQud")
