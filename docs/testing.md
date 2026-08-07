@@ -264,3 +264,33 @@ numbers before being caught:
     screen. Settle ~4s and compare sizes before trusting a score.
   - `--stable` needs two DIFFERENT Qud captures. Two identical ones drop nothing
     and silently disable the noise filter the flag exists to provide.
+
+#### FULL 2 is NOT blocked on Raves' data connection — the bridge publishes no snapshots
+
+Chased on 2026-08-07 and the framing was wrong, so it is worth writing down.
+Raves' connection is FINE. Its own log says so:
+
+    [state-graph] highvisor reachable
+    Raves bridge: connected
+
+What does not happen is the SNAPSHOT. With Qud live on the play stage
+(`{scene: play, live: true, view: Stage}`) and valid turn commands sent over the
+bridge (`move`, `wait` — both in Bridge.cs's accepted set), the repo's own
+`tools/capture/snap.py summary`, which connects and BLOCKS until Qud publishes a
+frame, returned nothing in 45s. Raves' capture stayed byte-identical (16449)
+across every attempt, and its panels keep reading `HP: —`.
+
+So the defect is in the mod's snapshot PUBLISHER, not in Raves and not in the
+connection. Prime suspect: the merge brought main's ~60-line StartupHook change
+("the UI sampler must not overwrite a legacy view that is already right"); that
+should be bisected against the pre-merge mod before anything else is touched.
+Note the `mapedit` and `uiback` commands DO execute and log, so the bridge's
+command path is healthy — it is specifically publication that is silent.
+
+Two things this cost, both avoidable next time:
+  - Qud's modern UI ignores OS-synthesized keys, so `hv key escape` will not
+    leave a status screen. Use the bridge (`uiback`), which does.
+  - In 1:1 mode Raves hides the "▶ Connect (data)" affordance, so there is no
+    manual fallback to test the data stage with — auto-connect is the only path,
+    which is why "is it connected?" has to be answered from the LOG rather than
+    from the screen.
