@@ -128,8 +128,10 @@ hv launch raves_solo     # just Raves (no Qud spawn) · qud_solo = just Qud (bor
                          # back to user mode; launch the .app without the flag for user mode.
                          # Gate ALL user-mode-only UI on Settings.one_to_one_only / one_to_one().
 hv state                 # which screen is each app on (first-party scene reports, no guessing)
-hv goto qud in_game      # drive an app to a state-tree node (recipes in highvisor/gametree.json)
+hv goto qud in_game      # drive to a state-tree node — a route PLANNED over highvisor's transition
+                         # graph (hv plan <app> <node> shows it without driving anything)
 hv assert --app raves --node in_game --timeout 20   # block until a state holds (TDD; exit 0/1)
+hv scroll raves 960 540 --dy 1 --mods ctrl  # wheel event (dy in LINES, + = up); mods HOLD the real key
 ```
 
 After a Raves rebuild: quit the old Raves, `hv launch raves_solo` (Qud can stay up). If an `hv`

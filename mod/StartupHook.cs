@@ -56,6 +56,7 @@ namespace RavesOfQud
         // the old behaviour.
         private static volatile string _uiWindow = "";
         private static volatile string _uiScene = "";
+        private static volatile string _uiMenu = "";
         private static long _uiSampleTs;
         private static volatile bool _uiSamplePending;
 
@@ -102,11 +103,67 @@ namespace RavesOfQud
                     }
                 }
                 _uiWindow = win;
+                _uiMenu = SampleMapEditorMenu();
                 _uiScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
                 _uiSampleTs = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             }
             catch { /* sampler must never take down the UI thread */ }
             finally { _uiSamplePending = false; }
+        }
+
+        /// <summary>
+        /// WHICH Map Editor dropdown is down — "File", "Edit", "Transform", "View", "Recent",
+        /// or "Context" for the right-click menu. Empty when none is.
+        ///
+        /// The editor's menu bar is a LEGACY RedShadow dialog, not a Qud window: opening a menu
+        /// changes neither UIManager._currentWindow nor GameManager._ActiveGameView, so the five
+        /// me_menu_* states were invisible to highvisor and had to keep goto recipes long after
+        /// every other screen became a graph edge. There is no OCR fallback worth having either —
+        /// "Recent" is EMPTY on a fresh install (it renders a single "No history" item, per
+        /// MapEditorView.UpdateRecent), so pixels cannot tell it apart from a closed menu.
+        ///
+        /// Each MenuBarButton owns a Menu, and Menu inherits DialogBase.IsVisible — first-party
+        /// truth for "is this dropdown down", one read, no guessing. MAIN THREAD ONLY (Unity
+        /// objects); it is called from the UI sampler, which is already on the uiQueue hop.
+        /// Reflection throughout so a Qud update degrades to "" rather than breaking the compile.
+        /// </summary>
+        private static string SampleMapEditorMenu()
+        {
+            const System.Reflection.BindingFlags ANY =
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Static
+                | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic;
+            try
+            {
+                var vt = Type.GetType("Overlay.MapEditor.MapEditorView, Assembly-CSharp");
+                object view = vt?.GetField("Instance", ANY)?.GetValue(null);
+                // MapEditorView.Instance is assigned in Awake and never cleared, so a destroyed
+                // editor leaves a non-null C# reference behind Unity's overloaded ==. Ask Unity.
+                if (view is UnityEngine.Object uo && uo == null) view = null;
+                if (view == null) return "";
+
+                object bar = vt.GetField("MenuBar", ANY)?.GetValue(view);
+                var menus = bar != null
+                    ? bar.GetType().GetField("_menus", ANY)?.GetValue(bar) as System.Collections.IEnumerable
+                    : null;
+                if (menus != null)
+                {
+                    foreach (object btn in menus)
+                    {
+                        if (btn == null) continue;
+                        object menu = btn.GetType().GetProperty("Menu", ANY)?.GetValue(btn, null);
+                        if (menu == null) continue;
+                        if (menu.GetType().GetProperty("IsVisible", ANY)?.GetValue(menu, null) is bool vis && vis)
+                            return (btn.GetType().GetProperty("Text", ANY)?.GetValue(btn, null) as string) ?? "";
+                    }
+                }
+                // The right-click menu hangs off the view directly, not off the bar.
+                object ctx = vt.GetField("ContextMenu", ANY)?.GetValue(view);
+                if (ctx != null
+                    && ctx.GetType().GetProperty("IsVisible", ANY)?.GetValue(ctx, null) is bool cv && cv)
+                    return "Context";
+            }
+            catch { /* same rule as the caller: never take down the UI thread */ }
+            return "";
         }
 
         /// Background heartbeat: write bridge_status.txt ("live" while a game is running, else "menu")
@@ -157,12 +214,26 @@ namespace RavesOfQud
                         string scene = live && (view == "Stage" || view == "" || view == "MainMenu")
                             ? "play" : view;
                         // Menu-land: a visible Qud.UI window is the most specific screen name
-                        // (e.g. ModToolkit, ModManagerUI, SteamWorkshopUploaderView) — it wins
-                        // over the stuck "MainMenu" view. In-game, `scene` stays "play".
+                        // (e.g. ModToolkit, ModManagerUI, SteamWorkshopUploaderView) for the
+                        // WindowBase menus, whose legacy view field IS stuck at "MainMenu".
+                        //
+                        // But only when the legacy view has nothing better to say. It was taken
+                        // unconditionally, which overwrote a RIGHT answer with a wrong one:
+                        // standing on Qud's high-scores screen the state file read
+                        //     view=ModernHighScores  window=MainMenu  scene=MainMenu
+                        // — the legacy field had it exactly right and the sampler clobbered it,
+                        // so `hv goto qud records` reported "did not arrive" while Qud was
+                        // plainly on the screen. Navigation was never the problem.
+                        //
+                        // In-game, `scene` stays "play" and neither of these applies.
                         string win = _uiWindow;
                         long uiAge = _uiSampleTs > 0
                             ? DateTimeOffset.UtcNow.ToUnixTimeSeconds() - _uiSampleTs : -1;
-                        if (!live && win != "" && uiAge >= 0 && uiAge <= 5) scene = win;
+                        bool viewVague = view.Length == 0
+                            || view.Equals("MainMenu", StringComparison.OrdinalIgnoreCase);
+                        bool winUseful = win.Length > 0
+                            && !win.Equals("MainMenu", StringComparison.OrdinalIgnoreCase);
+                        if (!live && viewVague && winUseful && uiAge >= 0 && uiAge <= 5) scene = win;
                         bool popup = view.IndexOf("Popup", StringComparison.OrdinalIgnoreCase) >= 0;
                         // WHICH status tab, when the status screens are the active view. Cached by
                         // the UI-thread watcher: resolving it here would mean a Unity call off-thread.
@@ -171,6 +242,12 @@ namespace RavesOfQud
                         {
                             if (view.IndexOf("StatusScreens", StringComparison.OrdinalIgnoreCase) >= 0)
                                 tab = PopupBridge.StatusTab ?? "";
+                            // The Map Editor's open dropdown rides the SAME slot, because it is the
+                            // same kind of thing: a sub-screen inside one window that the window name
+                            // cannot distinguish. highvisor's `tab` signature requires a `scene`
+                            // alongside it, so "File" can never match while some other screen is up.
+                            else if (scene.IndexOf("MapEditor", StringComparison.OrdinalIgnoreCase) >= 0)
+                                tab = _uiMenu ?? "";
                         }
                         catch { }
                         System.IO.File.WriteAllText(statePath,

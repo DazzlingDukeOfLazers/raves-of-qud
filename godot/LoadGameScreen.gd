@@ -70,10 +70,9 @@ func _ready() -> void:
 
 # ── data ───────────────────────────────────────────────────────────────────────
 
-## Qud's save root (macOS). Each save is a GUID dir holding Primary.json.
+## Qud's save root, per-OS. Each save is a GUID dir holding Primary.json.
 static func _saves_root() -> String:
-	return OS.get_environment("HOME").path_join(
-		"Library/Application Support/com.FreeholdGames.CavesOfQud/Synced/Saves")
+	return InputModel.qud_saves_dir()
 
 func _load_saves() -> Array:
 	var out: Array = []

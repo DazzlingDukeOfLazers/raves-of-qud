@@ -105,8 +105,11 @@ def godot(cmd):
     os.replace(tmp, GODOT_CMD)   # atomic; no truncate race with Godot's poll
 
 
-def godot_shot(wait=6.0):
-    """Ask Godot to screenshot, then block until shot.png actually updates."""
+def godot_shot(wait=15.0):
+    """Ask Godot to screenshot, then block until shot.png actually updates.
+    (15s: a freshly-launched viewer warming shaders, or one mid zone-rebuild
+    after a zoom, can miss a 6s window — reboot_rig's calibrate did, three
+    cycles in a row, while later shots on the same instance answered fine.)"""
     before = os.path.getmtime(SHOT) if os.path.exists(SHOT) else 0
     godot("shot")
     deadline = time.time() + wait
@@ -133,6 +136,32 @@ def qud_shot(wait=8.0):
             return True
         time.sleep(0.15)
     return False
+
+
+def qud_shot_window(wait=20.0):
+    """Capture Qud's WINDOW through the highvisor daemon instead of asking Qud
+    to screenshot itself.
+
+    WHY THIS EXISTS: the bridge path (`qud_shot`) queues onto Qud's uiQueue,
+    which on Windows only drains while Qud is FOCUSED. The Raves dev-run window
+    holds the foreground hard enough that `hv activate` reports success while
+    Qud stays behind — the queued screenshot then never lands, and calibration
+    blames the *Raves* viewer. The daemon captures the window directly with no
+    focus dependency, and kept working throughout that failure.
+
+    NOT INTERCHANGEABLE WITH `qud_shot`: this is the WINDOW (chrome included,
+    2327x1284 here), the bridge path is the CLIENT AREA (2301x1213). The origin
+    differs by the border+titlebar, so switching REQUIRES a recalibration — the
+    stage-cell geometry is in whichever space produced it."""
+    import subprocess
+    before = os.path.getmtime(QUD_SHOT) if os.path.exists(QUD_SHOT) else 0
+    try:
+        subprocess.run([sys.executable, "-m", "highvisor.cli", "shot",
+                        "CavesOfQud", QUD_SHOT],
+                       capture_output=True, text=True, timeout=wait)
+    except Exception:
+        return False
+    return os.path.exists(QUD_SHOT) and os.path.getmtime(QUD_SHOT) > before
 
 
 def main(argv):

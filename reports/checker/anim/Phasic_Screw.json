@@ -1,0 +1,37 @@
+{
+ "fixture": "Phasic Screw",
+ "frames": 12,
+ "expect_states": null,
+ "measured": [
+  {
+   "bp": "Phasic Screw",
+   "ok": true,
+   "qud": {
+    "frames": 12,
+    "states": 5,
+    "duty": [
+     0.25,
+     0.25,
+     0.25,
+     0.17,
+     0.08
+    ],
+    "class": "discrete"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 5,
+    "duty": [
+     0.33,
+     0.25,
+     0.17,
+     0.17,
+     0.08
+    ],
+    "class": "discrete"
+   },
+   "agree": true
+  }
+ ],
+ "when": "2026-08-05 22:40"
+}

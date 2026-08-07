@@ -1,0 +1,31 @@
+{
+ "fixture": "Fish Cherub",
+ "frames": 60,
+ "expect_states": null,
+ "measured": [
+  {
+   "bp": "Fish Cherub",
+   "ok": true,
+   "qud": {
+    "frames": 53,
+    "states": 2,
+    "duty": [
+     0.85,
+     0.15
+    ],
+    "class": "discrete"
+   },
+   "raves": {
+    "frames": 60,
+    "states": 2,
+    "duty": [
+     0.92,
+     0.08
+    ],
+    "class": "discrete"
+   },
+   "agree": true
+  }
+ ],
+ "when": "2026-08-06 20:24"
+}

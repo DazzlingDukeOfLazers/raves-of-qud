@@ -9,30 +9,35 @@ loading into the game. Only an actual game-load needs the game.
 
 Commands:
   list                    — every save: row order, name, guid, location, mode, saved-at
-  golden <name>           — archive the named save as a golden (rsync copy)
+  golden <save> [as <name>] — archive the named save as a golden (byte-identical copy);
+                            `as` gives the golden a LOGICAL name (embarked characters
+                            get random names, but a rig wants `checker`)
   restore <name>          — copy the golden back over the live save (QUD MUST BE DOWN)
   goldens                 — list archived goldens
   row <name>              — the picker row index (0-based) the named save occupies NOW
 
 Goldens live OUTSIDE the repo (binary, per-platform — see docs/phase2-test-plan.md):
-  ~/Library/Application Support/RavesOfQud/goldens/<name>/
+  <support_dir>/goldens/<name>/    (plat.support_dir() resolves per OS)
 The committed index is fixtures/goldens.json (name -> description).
+Cross-platform: paths and the process check go through the plat seam
+(plat_mac.py / plat_win.py) — no OS calls in this file.
 """
 import json
 import os
 import shutil
-import subprocess
 import sys
 
-QUD_DATA = os.path.expanduser("~/Library/Application Support/com.FreeholdGames.CavesOfQud")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import plat
+
+QUD_DATA = plat.qud_data_dir()
 SAVES = os.path.join(QUD_DATA, "Synced", "Saves")
-GOLDENS = os.path.expanduser("~/Library/Application Support/RavesOfQud/goldens")
+GOLDENS = os.path.join(plat.support_dir(), "goldens")
 
 
 def qud_running():
     """True if any Caves of Qud process is alive (restores must not race a live game)."""
-    r = subprocess.run(["pgrep", "-f", "CoQ"], capture_output=True)
-    return r.returncode == 0
+    return bool(plat.list_pids(plat.QUD_PROC_MATCH))
 
 
 def list_saves():
@@ -82,21 +87,24 @@ def cmd_row(name):
     return 1
 
 
-def cmd_golden(name):
-    s = find_save(name)
+def cmd_golden(save_name, golden_name=None):
+    golden_name = golden_name or save_name
+    s = find_save(save_name)
     if not s:
-        sys.exit(f"no save named {name!r} — `saves.py list` to see them")
-    dst = os.path.join(GOLDENS, name)
+        sys.exit(f"no save named {save_name!r} — `saves.py list` to see them")
+    dst = os.path.join(GOLDENS, golden_name)
     os.makedirs(GOLDENS, exist_ok=True)
     if os.path.isdir(dst):
         shutil.rmtree(dst)
     src = os.path.join(SAVES, s["guid"])
     shutil.copytree(src, dst)
-    # remember which guid the golden restores into
-    json.dump({"guid": s["guid"], "name": name, "meta": {k: s[k] for k in ("location", "mode", "saved")}},
+    # remember which guid the golden restores into, and the SAVE name (the picker /
+    # `hv loadsave` key — the golden's logical name is only the archive dir)
+    json.dump({"guid": s["guid"], "name": s["name"], "golden": golden_name,
+               "meta": {k: s[k] for k in ("location", "mode", "saved")}},
               open(os.path.join(dst, "GOLDEN.json"), "w"), indent=1)
     n = sum(len(f) for _, _, f in os.walk(dst))
-    print(f"golden {name!r} archived from {s['guid']} ({n} files)")
+    print(f"golden {golden_name!r} archived from {s['name']!r} ({s['guid']}, {n} files)")
 
 
 def cmd_restore(name):
@@ -138,7 +146,9 @@ def main(argv):
     elif cmd == "row":
         sys.exit(cmd_row(argv[1]))
     elif cmd == "golden":
-        cmd_golden(argv[1])
+        # golden <save> [as <name>]
+        rest = [a for a in argv[1:] if a != "as"]
+        cmd_golden(rest[0], rest[1] if len(rest) > 1 else None)
     elif cmd == "restore":
         cmd_restore(argv[1])
     elif cmd == "goldens":

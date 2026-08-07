@@ -16,6 +16,7 @@ needs pixels or a live game.
 | check | command | catches |
 |---|---|---|
 | typing guard | `python3 tools/regression/typing_guard_audit.py` | a keyboard hotkey dispatched from `_input` without `TypingGuard`, and any newly added text field |
+| State-graph panel render | `Godot --headless --path godot/ --script res://tests/state_graph_render.gd` | the panel's text builders against a fixture AND the real gametree.json — rows, markers, empty/null trees |
 | Godot parse + `_ready` | `Godot --headless --path godot/ --quit-after 120` | parse errors, autoload/`_ready` failures |
 | Main.gd deep check | `Godot --headless --path godot/ --check-only --script res://Main.gd` | a `class_name` parse error that would silently kill the Holodeck in the export |
 | mod API drift | `dotnet build mod/RavesOfQudBridge.csproj` | Qud API changes, C# errors |
@@ -69,3 +70,105 @@ python3 tools/regression/typing_guard_audit.py
 ```
 
 Exit 0 clean, exit 1 with the offending files named and the fix spelled out.
+
+## The checks are registered in the tree, and runnable from the panel (2026-08-07)
+
+Every SPOT check is now declared in highvisor's `gametree.json` — harness-wide ones at the top
+level (`tests`), screen-specific ones on the node they cover (`in_game` carries the typing-guard
+audit). Two consequences worth having:
+
+- `hv test` lists them all; `hv test <id>` runs one. The caller names WHICH check; the command
+  text lives in version control next to the state it covers, so "run this node's check" can
+  never become "run this string".
+- Raves' state-graph panel (Ctrl+wheel / F6) renders them as clickable `[T]` markers next to
+  each node's 1:1 `done` scores — hover shows the command, click runs it and reports the verdict
+  plus the tail of its output. The scoreboard and the checks now sit on the same row as the
+  state they describe.
+
+Registered today: `plan`, `evaluate`, `state_read` (highvisor), `state_graph_render` (raves),
+`typing_guard` (raves, on `in_game`).
+
+## FULL run 2026-08-07 — results and coverage
+
+SPOT 5/5. FULL 2/3/4 pass; FULL 1 partially covered, and the gap is named below.
+
+Three broken menu edges found and fixed (highvisor `0e6af4b`): Raves' title menu never got its
+activating **Space** (a click only moves the selection, so every title edge except in_game sat
+there); Qud's quit **verified too eagerly** (a PopupMessage lingers after the game ends and
+`in_game`'s detector claims that scene); Qud's Records exit used **uiback**, which
+ModernHighScores ignores — it stranded Qud and took options/mods down with it.
+
+Two harness defects found and fixed (`4629c49`, and the earlier scroll fix): **modifier clicks
+and wheels need the modifier really HELD**, not just flagged on the event. This is why the
+Cmd+Right-click feedback gesture appeared broken — the harness could not produce it.
+
+**FULL 1 coverage — 2 of the 7 listed fields**, both chosen because they sit in contexts where
+the in-game hotkeys are live, which is the only place the guard can actually fail:
+
+- status-screen search — typed `ejqxn12`, scene stayed `equipment`, text landed. So `e`/`j`/`q`/
+  `x`/`n` did not open Equipment/Journal/Quests/Attributes/Tinkering.
+- feedback note (the field the original bug was filed against) — typed `ejqxn12`, scene stayed
+  `in_game`, text landed.
+
+NOT covered this run: Options search, Options host/port, control-mapping, chargen name, tile
+report. Control-mapping was attempted and its route would not resolve; the other four sit on
+screens where the in-game hotkeys are not live, so they carry much less risk — but they are
+untested at runtime, and the SPOT audit only proves the guard is PRESENT in the source.
+
+Parity (equipment spec): composite 5.24, frame 3.61 — in line with the committed scoreboard.
+`image` 38.49 is dominated by the category filter strip, whose icons are offset by exactly one
+slot (`filter_image[0]`'s Raves bbox == `filter_image[1]`'s Qud bbox, and so on). Pre-existing
+and an ordering bug, not a rendering one.
+
+## FULL on the merged mac/PC result — 2026-08-07
+
+Branch `dd/mac-pc-merge` in both repos, after all four PC branches. The merged mod was DEPLOYED
+and Qud fully restarted first — mods compile at startup, so nothing measured before that means
+anything. Bridge came up on 48710, no compile errors in Player.log.
+
+**PASS** — FULL 4 (mod round-trip): statustab on two tabs, the `wish` command channel, nav
+commands moving the playfield and message log, and the popup mirror-and-answer route
+(Esc -> Qud's CmdSystemMenu -> mirrored to Raves -> answered -> arrived).
+**PASS** — FULL 3, everything except one edge: all 8 status tabs across both apps, both apps'
+in_game and title, and all three Raves menus (records/options/mods).
+
+**THREE DEFECTS FOUND, all fixed** (highvisor `f48c473`, `3f07e2c`):
+
+- `key()` raised `NameError: modifiers` — the mac/PC vocabulary rename had clobbered a LOCAL
+  called `mods` (the list `key()` parses out of "ctrl+m" itself). Every synthetic key was dead.
+- Chasing that found TWO `_mod_flags`. The staticmethod added earlier that day was defined
+  first and therefore shadowed, so click/scroll passed a *string* to a function that iterates
+  modifier NAMES — it walked the string character by character. Invisible because the flags are
+  cosmetic on that path: what actually delivers a modifier is the held key.
+- `gamestate` threw `JSONDecodeError: line 1431` — a TORN READ. The tree hot-reloads on mtime,
+  so any non-atomic writer leaves a window where the file is half a document, and since every op
+  resolves through the tree the whole daemon answered that error until someone touched the file.
+  `load_tree` keeps the last good tree now; regression-tested by half-writing the real file.
+
+**ONE FAILURE, not fixed and not merge-caused:** `qud title -> records` fails consistently
+(click_text finds and clicks "Records", Qud stays on the title). It passed earlier the same day
+after the Records exit was fixed, and the click path is byte-for-byte unchanged by the merge
+apart from a parameter rename — so this is the Qud modern-menu class again, not merge damage.
+Needs its own session with a screenshot at each step.
+
+**FULL 1 and FULL 2 — RUN on the merged tree, both PASS.**
+
+FULL 1, the two in-game fields (the only places the hotkeys are live, so the only places the
+guard can fail): status-screen search and the feedback note. Typed `ejqxn12` into each — the
+characters landed and the scene did not move, so `e`/`j`/`q`/`x`/`n` fired nothing. Same 2-of-7
+coverage as the pre-merge run; the other five sit on screens where the in-game hotkeys are not
+live. NOTE: the first status-search attempt typed into nothing (the click missed the field and
+the placeholder was still showing afterwards) — the scene not moving proves nothing when
+nothing was typed, so it was re-run with the click on the field text. Check the field CONTENT,
+not just the scene.
+
+FULL 2 (equipment spec), merged vs pre-merge:
+    composite  5.46  (was 5.24)
+    frame      4.13  (was 3.61)
+    image     38.23  (was 38.49)
+Within the run-to-run noise this spec is documented to have — the live playfield shows through
+the status scrim and moved the same build by ~0.7 between captures before now. No regression.
+The `image` mean is still the category filter strip, offset by one slot; pre-existing and
+tracked separately.
+
+FULL now passes in full on `dd/mac-pc-merge`.

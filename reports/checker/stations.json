@@ -1,0 +1,13 @@
+[
+ {
+  "station": "underground",
+  "zone": "JoppaWorld.11.22.1.1.11",
+  "exercises": "first stratum down: dark lighting, point sources, ghost/memory cells, rock autotiling",
+  "tally": {
+   "ok": 1990,
+   "empty": 10
+  },
+  "bad": [],
+  "cells": 2000
+ }
+]

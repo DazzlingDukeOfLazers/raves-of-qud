@@ -1,0 +1,260 @@
+#!/usr/bin/env python3
+"""Rung 6b — masked whole-playfield congruence (docs/pc-zone-plan.md).
+
+The Object Checker scores ONE cell: the stage. This scores every cell on
+screen, turning a same-turn capture pair into a per-cell verdict grid.
+
+WHY PER CELL, NOT A WHOLE-SCREEN MEAN
+    A single divergent sprite is ~1/1650th of the playfield. Averaged over the
+    whole screen it vanishes into the noise floor. So each cell is scored
+    independently with the CERTIFIED thresholds and the report is a
+    FAILING-CELL COUNT — the same units the object checker earned its
+    confidence in.
+
+THE GRID
+    Calibration locates the stage cell, which is always zone cell (40,12).
+    Every other cell follows by stride: rect(cx,cy) = stage + (cx-40, cy-12)
+    scaled by the cell size. The two apps have different cell sizes and
+    origins (Qud 26x38, Raves 37x56 at the sweep zoom) — the scorer resamples
+    both to a common grid, so that is fine. Only cells fully inside BOTH
+    images are addressable: the Qud view is player-centred and clips the zone's
+    left edge, so ~1650 of 2000 cells score.
+
+MASKING (what is deliberately not scored)
+    * CREATURES — they move between the two captures. Their layer is already
+      certified in isolation; scoring them here would measure capture latency.
+    * ANIMATED elements — phase, not divergence. Same argument as the ANIM
+      band; the fixtures already cover them.
+    A masked cell is reported, never silently dropped.
+
+    playfield.py                 # score the live zone
+    playfield.py --json out.json # + per-cell detail
+"""
+import json
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import congruence
+import control
+import checker
+
+STAGE_CX, STAGE_CY = 40, 12          # the checker's stage cell, the grid anchor
+
+
+def anchor_shift(base, player):
+    """How many cells the view has scrolled since calibration. Qud centres on
+    the PLAYER, so the calibrated rect names zone cell (40,12) only while the
+    player stands where calibration left them. Scoring a whole grid off a
+    stale anchor shifts every cell silently — the village runs happened to
+    line up only because `goto:` preserved the player's cell."""
+    pcx, pcy = base.get("pcx", -1), base.get("pcy", -1)
+    if pcx < 0 or not player:
+        return 0, 0
+    return int(player.get("x", pcx)) - pcx, int(player.get("y", pcy)) - pcy
+
+
+def cell_rect(base, cx, cy, shift=(0, 0)):
+    """The pixel rect of zone cell (cx,cy) given the calibrated stage rect.
+
+    STRIDE IS FRACTIONAL. Calibration measures one cell's bbox as integers, but
+    the true grid pitch is not an integer at an arbitrary zoom — and the error
+    compounds with distance from the anchor. With integer stride the failures
+    were perfectly monotonic in |cx-40|: 0 FAIL at 28 cells out, 19 at 36 cells
+    out, every one of them bare painted ground. `sx`/`sy` (fitted by --fit)
+    override the integer w/h for POSITION only; the crop keeps the cell size."""
+    sx = base.get("sx", base["w"])
+    sy = base.get("sy", base["h"])
+    return {"x": int(round(base["x"] + (cx - STAGE_CX - shift[0]) * sx)),
+            "y": int(round(base["y"] + (cy - STAGE_CY - shift[1]) * sy)),
+            "w": base["w"], "h": base["h"]}
+
+
+def _coarse_diff(qget, rget, qr, rr, n=6):
+    """Cheap mean |Δ| between two cell rects on an n×n subsample."""
+    tot = 0
+    for j in range(n):
+        for i in range(n):
+            qp = qget(qr["x"] + (i + 0.5) * qr["w"] / n, qr["y"] + (j + 0.5) * qr["h"] / n)
+            rp = rget(rr["x"] + (i + 0.5) * rr["w"] / n, rr["y"] + (j + 0.5) * rr["h"] / n)
+            tot += abs(qp[0] - rp[0]) + abs(qp[1] - rp[1]) + abs(qp[2] - rp[2])
+    return tot / (3.0 * n * n)
+
+
+def _grid_cost(qget, rget, qw, qh, rw, rh, gq, gr, cells):
+    """Mean cross-app difference over sample cells for a candidate grid pair."""
+    tot, n = 0.0, 0
+    for (cx, cy) in cells:
+        qr = cell_rect(gq, cx, cy)
+        rr = cell_rect(gr, cx, cy)
+        if not (inside(qr, qw, qh, QUD_MAP_FRAC, QUD_MAP_TOP, QUD_MAP_BOT)
+                and inside(rr, rw, rh, RAVES_MAP_FRAC, RAVES_MAP_TOP, RAVES_MAP_BOT)):
+            continue
+        tot += _coarse_diff(qget, rget, qr, rr)
+        n += 1
+    return (tot / n, n) if n else (1e9, 0)
+
+
+def fit_stride(pair, geom, snap):
+    """Fit BOTH apps' fractional cell pitch by coordinate descent.
+
+    The earlier single-app version failed for two reasons now fixed: it ran
+    before the viewport clip existed (so it minimised sidebar text), and it
+    held Raves fixed on the assumption its 1:1 grid was exact. It is not —
+    Qud 25x37 vs Raves 12x19 are ratios 1.95 vs 2.08, and that mismatch is
+    what drifts a whole cell within 30 columns and produced the phantom
+    "water divergence". Both pitches are free here; content is fixed, so
+    there is no scale degeneracy."""
+    qw, qh, qget = congruence.load_rgb(pair["qud"])
+    rw, rh, rget = congruence.load_rgb(pair["raves"])
+    allc = [(int(c["x"]), int(c["y"])) for c in snap.get("cells", [])]
+    far = [c for c in allc if abs(c[0] - STAGE_CX) > 8 or abs(c[1] - STAGE_CY) > 4]
+    far = far[::max(1, len(far) // 90)][:90]
+    gq, gr = dict(geom["qud"]), dict(geom["raves"])
+    gq.setdefault("sx", float(gq["w"])); gq.setdefault("sy", float(gq["h"]))
+    gr.setdefault("sx", float(gr["w"])); gr.setdefault("sy", float(gr["h"]))
+    base, n0 = _grid_cost(qget, rget, qw, qh, rw, rh, gq, gr, far)
+    print("  start cost %.1f over %d cells" % (base, n0))
+    for _ in range(2):                       # two descent passes
+        for g, key in ((gq, "sx"), (gq, "sy"), (gr, "sx"), (gr, "sy")):
+            best, bestv = None, None
+            centre = g[key]
+            for step in range(-16, 17):
+                cand = centre + step * 0.04
+                if cand <= 1:
+                    continue
+                g[key] = cand
+                c, _ = _grid_cost(qget, rget, qw, qh, rw, rh, gq, gr, far)
+                if best is None or c < best:
+                    best, bestv = c, cand
+            g[key] = bestv
+    final, nf = _grid_cost(qget, rget, qw, qh, rw, rh, gq, gr, far)
+    print("  fitted qud sx=%.3f sy=%.3f | raves sx=%.3f sy=%.3f | cost %.1f -> %.1f"
+          % (gq["sx"], gq["sy"], gr["sx"], gr["sy"], base, final))
+    return gq, gr
+
+
+# Qud's MAP VIEWPORT is narrower than its window: the right edge is the
+# sidebar (Nearby objects + message log). Calibration already knows this —
+# it clips its cluster search to the same fraction. Scoring past it compares
+# message-log TEXT against painted ground: the first run's 28 "FAIL"s were
+# every one of them sidebar glyphs ("moc/ur", "10she") vs bare dirt, which is
+# also what made the pitch fit chase noise.
+# A PASS below this margin (see main) is evidence-free — reported `vacuous`.
+MARGIN = 8.0
+QUD_MAP_FRAC = 0.58
+RAVES_MAP_FRAC = 0.48
+
+# ...and the map is bounded VERTICALLY too: Qud has a status/HP bar on top and
+# an ability/target bar underneath. Clipping only the sidebar let row-15 crops
+# straddle the bottom bar and score "TARGET: [none]" against water — the third
+# false finding this class of mistake produced (sidebar text, then dawn
+# lighting, then this). Fractions are of the window height, measured on the
+# pinned PC layout; re-measure if either app's chrome changes.
+QUD_MAP_TOP, QUD_MAP_BOT = 0.09, 0.86
+RAVES_MAP_TOP, RAVES_MAP_BOT = 0.10, 0.88
+
+
+def inside(rect, w, h, frac=1.0, top=0.0, bot=1.0):
+    return (rect["x"] >= 0 and rect["y"] >= h * top
+            and rect["x"] + rect["w"] <= w * frac
+            and rect["y"] + rect["h"] <= h * bot)
+
+
+def masked_reason(cell, animated):
+    for o in cell.get("objs", []):
+        if o.get("creature"):
+            return "creature"
+        if o.get("name") in animated or o.get("bp") in animated:
+            return "animated"
+        for k in ("animSched", "animShimmer", "animHolo", "animCycle", "animGas", "onFire"):
+            if o.get(k):
+                return "animated"
+    return None
+
+
+def main(argv):
+    from PIL import Image
+    b = control.Bridge()
+    # PIN DAYLIGHT, exactly as the sweep does. Without it the world sits
+    # wherever the save left it — the golden loads at segment 3250, "Harvest
+    # Dawn", the DIMMEST daylight there is. Qud's sight radius is short at
+    # dawn, so cells away from the player render as dim memory while Raves
+    # draws them lit, and a whole zone's worth of cells "fail" for a reason
+    # that has nothing to do with rendering.
+    checker.ensure_daylight(b)
+    b.send("wait")
+    snap = b.read_snapshot(timeout=40)
+    b.close()
+    pair = checker.shots_for("playfield", "playfield")
+    if "qud" not in pair or "raves" not in pair:
+        sys.exit("playfield: capture pair failed")
+    geom = congruence.load_geometry()
+    if "--fit" in argv:
+        print("fitting the Qud grid pitch...")
+        gq, gr = fit_stride(pair, geom, snap)
+        geom["qud"], geom["raves"] = gq, gr
+        congruence.save_geometry(gq, gr)
+        print("  saved to the geometry fixture")
+    qw, qh = Image.open(pair["qud"]).size
+    rw, rh = Image.open(pair["raves"]).size
+    animated = {bp for bp, ok in checker._anim_verified().items() if ok}
+    shift = anchor_shift(geom["qud"], snap.get("player", {}))
+    if shift != (0, 0):
+        print("  view scrolled %s cells since calibration — grid offset applied" % (shift,))
+
+    rows, tally = [], {}
+    for cell in snap.get("cells", []):
+        cx, cy = int(cell["x"]), int(cell["y"])
+        qr = cell_rect(geom["qud"], cx, cy, shift)
+        rr = cell_rect(geom["raves"], cx, cy, shift)
+        if not (inside(qr, qw, qh, QUD_MAP_FRAC, QUD_MAP_TOP, QUD_MAP_BOT) and inside(rr, rw, rh, RAVES_MAP_FRAC, RAVES_MAP_TOP, RAVES_MAP_BOT)):
+            verdict = "offscreen"
+            rows.append({"x": cx, "y": cy, "verdict": verdict})
+            tally[verdict] = tally.get(verdict, 0) + 1
+            continue
+        why = masked_reason(cell, animated)
+        if why:
+            rows.append({"x": cx, "y": cy, "verdict": "masked:" + why})
+            tally["masked:" + why] = tally.get("masked:" + why, 0) + 1
+            continue
+        res = congruence.score(pair["qud"], pair["raves"], {"qud": qr, "raves": rr})
+        band = res["band"]
+        # DISCRIMINATING POWER: a PASS only means something if this cell would
+        # have scored WORSE against the wrong neighbour. On uniform painted
+        # ground it does not — a deliberate one-cell offset over Joppa moved
+        # the tally by 26 cells out of 775, because dirt matches dirt wherever
+        # you sample it. Cells whose margin is below MARGIN are reported as
+        # `vacuous`: covered, but carrying no evidence.
+        off = cell_rect(geom["raves"], cx + 1, cy, shift)
+        margin = 0.0
+        if inside(off, rw, rh, RAVES_MAP_FRAC, RAVES_MAP_TOP, RAVES_MAP_BOT):
+            alt = congruence.score(pair["qud"], pair["raves"], {"qud": qr, "raves": off})
+            margin = alt["mean_abs_diff"] - res["mean_abs_diff"]
+        verdict = band if (band != "PASS" or margin >= MARGIN) else "vacuous"
+        rows.append({"x": cx, "y": cy, "verdict": verdict, "band": band,
+                     "mean": round(res["mean_abs_diff"], 1),
+                     "margin": round(margin, 1),
+                     "objs": [o.get("name") for o in cell.get("objs", [])][:4]})
+        tally[verdict] = tally.get(verdict, 0) + 1
+
+    zone = snap.get("zone", {}).get("id", "?")
+    print("zone: %s" % zone)
+    print("  " + " / ".join("%d %s" % (tally[k], k) for k in sorted(tally)))
+    bad = sorted((r for r in rows if r["verdict"] == "FAIL"),
+                 key=lambda r: -r.get("mean", 0))
+    for r in bad[:20]:
+        print("  FAIL (%2d,%2d) mean=%-6.1f %s" % (r["x"], r["y"], r["mean"],
+                                                  ", ".join(str(o) for o in r["objs"])[:60]))
+    if len(bad) > 20:
+        print("  ... and %d more" % (len(bad) - 20))
+    if "--json" in argv:
+        out = argv[argv.index("--json") + 1]
+        with open(out, "w", encoding="utf-8") as f:
+            json.dump({"zone": zone, "tally": tally, "cells": rows}, f, indent=1)
+        print("detail:", out)
+    return 1 if bad else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

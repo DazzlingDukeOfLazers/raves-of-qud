@@ -1,0 +1,31 @@
+{
+ "fixture": "SewageEel",
+ "frames": 60,
+ "expect_states": null,
+ "measured": [
+  {
+   "bp": "SewageEel",
+   "ok": true,
+   "qud": {
+    "frames": 60,
+    "states": 2,
+    "duty": [
+     0.83,
+     0.17
+    ],
+    "class": "discrete"
+   },
+   "raves": {
+    "frames": 60,
+    "states": 2,
+    "duty": [
+     0.9,
+     0.1
+    ],
+    "class": "discrete"
+   },
+   "agree": true
+  }
+ ],
+ "when": "2026-08-06 20:26"
+}

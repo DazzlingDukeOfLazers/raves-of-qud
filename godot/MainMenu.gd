@@ -271,14 +271,23 @@ func _load_bg_nudge(force := false) -> void:
 
 ## Poll the mod's heartbeat file (StartupHook.StartHeartbeat writes it ~1/s) for the live state.
 ## Fresh file ⇒ Qud is up; content "live" ⇒ a game is actually running. Robust vs. the socket probe.
+## Freshness = "the mtime CHANGED recently", never wall-clock minus mtime: on Windows
+## FileAccess.get_modified_time returns LOCAL time while get_unix_time_from_system is UTC,
+## so the subtraction reads hours stale and Continue never enabled on the PC.
+var _bridge_mtime := 0.0
+var _bridge_mtime_seen := 0.0   # OUR clock when we last saw the mtime move
 func _poll_bridge_status() -> void:
 	var path := InputModel.support_dir().path_join("bridge_status.txt")
 	if not FileAccess.file_exists(path):
 		_set_qud_up(false)
 		_set_game_live(false)
 		return
-	var age := Time.get_unix_time_from_system() - float(FileAccess.get_modified_time(path))
-	if age > 3.0:   # stale heartbeat → Qud (the mod) isn't running
+	var m := float(FileAccess.get_modified_time(path))
+	var now := Time.get_unix_time_from_system()
+	if m != _bridge_mtime:
+		_bridge_mtime = m
+		_bridge_mtime_seen = now
+	if now - _bridge_mtime_seen > 3.0:   # heartbeat stopped moving → the mod isn't running
 		_set_qud_up(false)
 		_set_game_live(false)
 		return
@@ -732,8 +741,7 @@ static var _saves_warned := false
 
 ## Any Qud save on disk? (Gates 1:1 Continue, like Qud's own.) Cheap: one dir listing.
 func _saves_exist() -> bool:
-	var root := OS.get_environment("HOME").path_join(
-		"Library/Application Support/com.FreeholdGames.CavesOfQud/Synced/Saves")
+	var root := InputModel.qud_saves_dir()   # per-OS (a bare HOME read broke the PC)
 	var d := DirAccess.open(root)
 	if d == null:
 		# Not "no saves" — we could not LOOK. Say so once; the caller falls back to _game_live.

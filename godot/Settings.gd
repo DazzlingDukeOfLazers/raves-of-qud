@@ -76,6 +76,25 @@ func _poll_window_rect() -> void:
 		return   # never fight fullscreen
 	var w := int(d.get("w", 0))
 	var h := int(d.get("h", 0))
+	# SANITY: refuse a placement that would land the window off every screen.
+	# A rect computed on another machine's layout (the Mac's 4K stack docked us
+	# at y=-1269 on the PC) silently broke the capture rig's calibrated
+	# geometry mid-run. Validate the TRANSLATED rect against real screens;
+	# skip the whole request when it doesn't intersect any of them.
+	if d.has("x") and d.has("y") and w > 0 and h > 0:
+		var off_chk := DisplayServer.screen_get_position(DisplayServer.get_primary_screen())
+		var tx := int(d.get("x")) + off_chk.x
+		var ty := int(d.get("y")) + off_chk.y
+		var on_any := false
+		for si in DisplayServer.get_screen_count():
+			var sp := DisplayServer.screen_get_position(si)
+			var ssz := DisplayServer.screen_get_size(si)
+			if tx < sp.x + ssz.x and tx + w > sp.x and ty < sp.y + ssz.y and ty + h > sp.y:
+				on_any = true
+				break
+		if not on_any:
+			print("Settings: REJECTED off-screen window_rect ", d)
+			return
 	if w > 0 and h > 0:
 		DisplayServer.window_set_size(Vector2i(w, h))
 	if d.has("x") and d.has("y"):

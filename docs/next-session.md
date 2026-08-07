@@ -3,17 +3,19 @@
 Branch `dd/main-ui-framing` (raves) + `dd/integrate` (highvisor). Everything below is committed and
 pushed; the working tree is clean.
 
-## Do these two FIRST — they blocked live verification three separate times today
+## ~~Do these two FIRST~~ — BOTH FIXED 2026-08-06 (one root cause, not two bugs)
 
-1. **`raves_state.json` lies.** It reported `scene: in_game` with a one-second-old timestamp while
-   the window was plainly showing the title screen. This is a DETECTION bug, not flakiness:
-   `hv goto` and `hv assert` trust that file, so every recipe built on them can silently drive the
-   wrong screen — and any screenshot taken afterwards is of the wrong thing. Suspect `UiState`
-   not being re-set on the MainFrame → MainMenu lifecycle fallback (`_poll_game_lifecycle` changes
-   scene to MainMenu; does it clear the scene report?). Fix this before any live-driving work.
-2. **`hv goto raves in_game` frequently does not land**, then works on retry. Related to (1) or its
-   own recipe problem. Until both are fixed, budget two or three retries per drive and ALWAYS
-   confirm from a screenshot, never from the state file alone.
+`raves_state.json` was not lying and the goto recipe was not flaky: **three Raves processes were
+alive**, all writing that one path on a 2s heartbeat, so reads cycled
+`in_game → status_tinkering → title` and `_find_win` could hand a recipe a different window than
+the one being read. Raves now stamps `pid` and writes `raves_state.<pid>.json`; highvisor reads the
+sidecar for the window's owning pid, refuses a foreign-stamped shared file, shows `!! N INSTANCES`
+in `hv state`, and `hv goto` refuses to drive while duplicates exist. Guarded by
+`python3 tools/selftest_state_read.py` in the highvisor repo (stdlib only, no apps).
+Full write-up in `docs/gotchas.md` ("One state file, many writers").
+
+Still true and worth keeping: **confirm from a screenshot, never the state file alone.**
+When a report and the screen disagree, `pgrep -f "Raves of Qud" | wc -l` FIRST.
 
 ## Open feedback items (`~/Library/Application Support/RavesOfQud/feedback.jsonl`)
 
@@ -22,18 +24,45 @@ guard, Sprint cooldown formatting. Still open:
 
 - **CTRL / SHIFT need full yellow brightness** — command bar; almost certainly a constant in
   `CommandBar.gd` next to the keycap drawing. Cheapest of the three.
-- **Stairs-up icon should grey out when the zone has no stairs** — needs the mod to ship a
-  "zone has StairsUp/StairsDown" flag (Cell has `HasObjectWithPart("StairsUp")`; the minimap
-  colour chain already tests exactly this, see `WriteMinimap`), then `MainFrame`'s nav cluster
-  dims the cell.
-- **Message log needs a scrollbar** — `MessageLog.gd`. Note 1:1 parity: check whether Qud's own
-  log shows one before adding it in 1:1; if not, user mode only.
+- ~~Stairs-up icon greys when the zone has no stairs~~ **DONE** — `stats.stairsUp`/`stairsDown`
+  (mod, cached per zone), `MainFrame._apply_stair_availability` dims the icon to alpha 0.4.
+  Measured: no-stairs zone 45% brightness, stairs zone identical to the Down icon. **This is a
+  deliberate divergence** — Qud has no disabled state for Up/Down at all (only WindowLock /
+  Finder / Minimap carry an `ActiveButton`, and those say ON/OFF with hue, not brightness), and
+  the cluster is 1:1-only chrome, so expect a small top-bar parity delta in stairless zones.
+  Down is deliberately NOT dimmed (digging/falling descend without stairs; Joppa ships
+  `stairsDown` true and `stairsUp` false, so they really are independent) — the flag is already
+  on the wire if that changes.
+- ~~Message log needs a scrollbar~~ **CLOSED — Qud's log has none** (Daniel confirmed), so 1:1
+  gets none either. A user-mode-only scrollbar is still available if it's ever wanted; nothing
+  was built.
+- ~~Message log text colour~~ **DONE** — an unmarked log line is WHITE. Raves was drawing it in
+  `QudPalette.TEXT` (`y` grey), the app-wide theme default: right for chrome, wrong for Qud's own
+  message text. `MessageLog` now overrides `default_color` on its RichTextLabel only. Verified
+  per line against Qud: unmarked lines (255,255,255) in both; the markup-carrying location line
+  still renders (108,183,200) in both, so `{{colour|…}}` spans still win over the default.
+  **Measure the right band:** a first sample straddled the nearby-objects panel and the log
+  (the two apps' sidebars don't align vertically) — group by TEXT LINE, then compare.
 
-## One open colour question (one-line fix if wrong)
+## ~~One open colour question~~ — ANSWERED by measurement (2026-08-06)
 
-`CommandBar.CD` is `#6cb7c8`. Qud's ability bar also carries a saturated `(0,139,255)` and I could
-not capture a COOLING ability in Qud to confirm which one the cooldown icon is. Daniel said "light
-blue", which is why I chose this one. If it looks wrong on screen, change that constant only.
+`CommandBar.CD` was `#6cb7c8`, a lone brighter blue. Drove Sprint through off / on / cooling over
+the bridge and sampled Qud's own bar per glyph column: **Qud draws the whole `[81]` tag, brackets
+included, in the SAME cyan as the ability name** ((95,159,173) vs the name's (96,161,176) in one
+frame), so `CD` is now bound to `NAME_1TO1` and tracks it by construction. The toggle tags are
+two-tone — dark brackets either way, `on` a saturated green, `off` Qud's text grey — which is what
+Daniel reported and what a single per-tag colour could not express. Final: `[on]` matches Qud at
+(2,123,6) exactly; brackets (21,51,51) vs (20,54,54); `off` within 3%.
+
+**The rule that made it land** (also in `docs/gotchas.md`): pass q8 Qud's SCREEN value, never a
+palette source. q8 pre-compensates *Raves'* canvas shader, so a palette source double-counts a
+curve Qud already applied — the palette's `g` is (0,148,3), but Qud puts (3,123,6) on the glass.
+
+The `<1>` quick slot is fixed too (same pass): chevrons bright grey, digit amber, built by
+`_hotkey_cell_tag` from the plain `_hotkey_label` so they can't disagree about which key is shown.
+Digit (126,110,77) vs Qud's (132,116,80); the chevrons sit at (174,175,175) vs (197,198,198) —
+the **small-text rasteriser floor**, the same ~85% the ability NAME sits at in the accepted 4.0
+bar score. Don't inflate a colour constant to fight it.
 
 ## State of the work
 

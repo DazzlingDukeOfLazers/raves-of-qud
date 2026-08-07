@@ -1,0 +1,32 @@
+{
+ "fixture": "Eater Sign 1",
+ "frames": 60,
+ "expect_states": null,
+ "measured": [
+  {
+   "bp": "Eater Sign 1",
+   "ok": true,
+   "qud": {
+    "frames": 59,
+    "states": 3,
+    "duty": [
+     0.97,
+     0.02,
+     0.02
+    ],
+    "class": "discrete"
+   },
+   "raves": {
+    "frames": 60,
+    "states": 2,
+    "duty": [
+     0.97,
+     0.03
+    ],
+    "class": "discrete"
+   },
+   "agree": true
+  }
+ ],
+ "when": "2026-08-06 00:26"
+}

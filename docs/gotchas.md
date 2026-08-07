@@ -939,3 +939,143 @@ map visible, chrome still flat at 0.00.
 
 Measure suppression with the period-2 row alternation in a flat chrome patch
 (`abs(rows[0::2].mean() - rows[1::2].mean())`), not by eye — 0.00 vs 13.67 is unambiguous.
+
+## One state file, many writers — the scene report was a coin flip
+
+`raves_state.json` had exactly one path and one writer *per running Raves process*. With three
+instances alive (two leaked from earlier launches), all three heartbeats wrote the same file every
+two seconds, so a single read returned whichever had written last:
+
+```
+in_game -> status_tinkering -> title -> in_game -> ...   (12s of samples, 0.5s apart)
+```
+
+This is the "`raves_state.json` lies" bug and it was NOT a lifecycle/`set_scene` defect — the
+reporter was correct in every process. It presented as **highvisor confidently reporting a screen
+Raves was not on** and as **`hv goto raves in_game` needing retries**, because with duplicate
+windows `_find_win` picks the first match: the recipe could drive window A, read window B's report,
+and fail a step that had actually worked. Any screenshot taken to "check" was also a coin flip.
+
+Fixes, both sides:
+- Raves stamps `pid` into the report and also writes `raves_state.<pid>.json`, sweeping sidecars of
+  dead pids at startup (`OS.is_process_running`).
+- highvisor reads the sidecar for the pid that owns the window it is evaluating, and REFUSES a
+  shared file stamped with a different pid — None (fall back to OCR/port) beats a confident wrong
+  answer. Reports with no `pid` (the Qud mod's `qud_state.json`) read exactly as before.
+- `hv state` shouts `!! N INSTANCES`, and `hv goto` refuses to drive at all while duplicates exist.
+
+**The general lesson:** a single-path status file is an implicit assumption that only one process
+ever runs. State a process reports about ITSELF belongs in a per-process file; a shared path needs
+an owner stamp the reader can check. And when a report and the screen disagree, count the
+processes before you go looking for a bug in the reporter.
+
+## q8 takes Qud's SCREEN value, not a Qud palette source
+
+`QudChrome.q8` pre-compensates **Raves'** canvas shader: draw `q8(148)` (= 158) and the screen
+measures back 148. So the argument must be the value you want ON THE GLASS.
+
+Matching a Qud colour by looking up its palette entry and passing THAT through q8 double-counts a
+curve Qud has already applied to its own output. Measured on the ability bar's `[on]` tag: the
+mod's palette ships `g` = (0,148,3), but what Qud actually renders is **(3,123,6)** — 21% dimmer.
+`q8(0,148,3)` put (0,148,2) on Raves' screen (too bright); `q8(3,123,6)` put (2,123,6) — exact.
+
+Two corollaries, both measured on the same tag:
+
+- **The lift matters most where it is least visible.** Drawn raw (no q8), the near-black brackets
+  came back DIMMER than Qud's — they dropped out of a `sum>115` pixel scan entirely — while the
+  bright grey word matched fine either way. Raves' shader compresses the dark end hardest, and
+  that is the end q8 lifts. Never skip q8 "because the colour is nearly black".
+- **Peaks wander ±8% between captures of the identical tag** (glyph AA lands differently by
+  subpixel position). Sample the same glyph in both apps in the same run, and treat anything
+  inside that band as matched rather than chasing it.
+
+To identify an unknown Qud UI colour: drive the state over the bridge, screenshot, group the lit
+pixels into glyph COLUMNS, and read each group's brightest pixel — per-glyph, because Qud colours
+brackets separately from the text inside them.
+
+## Raves infers its scene; F5 (QudSync) asks instead
+
+MainFrame decides the game ended by watching `bridge_status.txt` go quiet for three reads, then
+falls back to the title. That inference is right for the common cases and wrong at every
+transition Qud handles with a SCREEN of its own. Abandoning a character is the one that bit: Qud
+raises the tombstone and stops running a game, Raves sees silence, assumes "game over -> title",
+and the two windows disagree with no way back but clicking around in Qud.
+
+The mod already reported the truth — `qud_state.json` carries `live` (is a game actually running)
+plus `scene`, the raw `_ActiveGameView`. Raves simply never read it. `QudSync` (F5, autoload) does:
+
+- **`live` decides where Raves belongs.** It is a fact, not an inference from silence.
+- **`scene` is REPORTED, never matched against a table of Qud view names.** We know "MainMenu" and
+  "Stage"; anything else is named verbatim in the toast. A screen we have never seen produces a
+  useful message instead of a wrong branch — and the tombstone's view id can only be learned by
+  killing a character, so a rescue tool must not depend on having guessed it.
+- **`uiback` is sent, then VERIFIED.** It reaches the active window's own OnCancel/Exit, which
+  covers status screens and popups — but measured, `ModernHighScores` does not budge. So the tool
+  watches Qud's report for ~3s and says which happened. "Sent" is not "worked", and a tool for
+  un-stranding people must never report the one as the other.
+
+Testing it needs no dead character: `hv goto qud records` parks Qud on a screen with no game
+running, which is the same shape as the tombstone case.
+
+## GDScript `or` is a BOOLEAN operator — the Python `x or default` idiom silently yields `true`
+
+`some_dict.get(key) or {}` does **not** return the dictionary. GDScript's `or` evaluates both sides
+to booleans and returns `true`/`false`, never the operand. So the reflex ported from Python —
+`for x in (d.get("children") or [])`, `var a: Dictionary = d.get("apps") or {}` — becomes
+"iterate `true`" and "assign `true` to a Dictionary".
+
+Cost when it bit (StateGraphPanel, 2026-08-06): the panel drew a correctly sized, correctly
+framed, perfectly **empty** box. The frame is Godot's, so it read as a layout or theme problem and
+two export cycles went into chasing those; the real cause was three runtime errors inside the text
+builders, invisible because a RichTextLabel handed nothing just draws nothing.
+
+Use a shape guard rather than `get(k, default)` for anything off the wire — `get`'s default only
+applies when the KEY IS ABSENT, so a JSON `null` still comes back as null:
+
+```gdscript
+static func _dict(v) -> Dictionary: return v if v is Dictionary else {}
+static func _arr(v) -> Array:       return v if v is Array else []
+```
+
+**Check for this whenever a Godot panel renders blank but sized.** An empty draw with an intact
+frame means the CONTENT threw, not the layout.
+
+## A modified WHEEL needs the modifier really held; flags alone are not enough
+
+`hv scroll --mods ctrl` set `kCGEventFlagMaskControl` on the scroll event, and Godot received the
+wheel with `ctrl_pressed` **false** — Raves' Ctrl+wheel panel never opened, while a plain wheel
+zoomed the camera every time. highvisor now presses the real modifier key around the event (release
+in a `finally`, plus `_clear_stuck_mods` — this is the stuck-modifier class that cost a day once).
+The flags-only trick documented on `click` is a different path and still works; don't unify them
+without re-measuring.
+
+**Corollary for UI design here:** a gesture that only a mouse can produce is a gesture the harness
+may not be able to drive. Give any dev-facing overlay a KEY as well (StateGraphPanel: F6), or it
+can only ever be tested by hand — and it will stop being tested.
+
+## GDScript lambdas capture locals BY VALUE — a recursive closure cannot return a result
+
+```gdscript
+var found := {}
+var walk := func(x, f):
+    if x.id == want: found = x        # writes the LAMBDA's copy; the caller sees {}
+    for c in x.children: f.call(c, f)
+walk.call(root, walk)
+return found                          # always {}
+```
+
+`_node_by_id` returned `{}` for a node plainly in the tree because of this. Write a plain
+recursive **function** instead. (`_count_nodes` gets away with the same shape only because it
+accumulates into an `Array`, which is a reference — the workaround hides the trap rather than
+avoiding it, so don't read it as a pattern to copy.)
+
+This is the second GDScript-vs-Python reflex to bite here; the first was `or` being a boolean
+operator. Both produce silence rather than an error.
+
+## A row that overflows a RichTextLabel WRAPS — the content is there and unusable
+
+The state-graph panel's `[T]` run-a-check marker was pushed onto its own line at the far left,
+because the row was a few characters wider than the panel. It rendered, so nothing looked
+broken; it just could not be aimed at. If a fixed-column layout looks right in a fixture and
+wrong on screen, measure the **widest** row, not a typical one — and prefer putting variable
+elements in a fixed-width column so the widest row is a constant.

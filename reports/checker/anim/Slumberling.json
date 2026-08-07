@@ -1,0 +1,31 @@
+{
+ "fixture": "Slumberling",
+ "frames": 12,
+ "expect_states": null,
+ "measured": [
+  {
+   "bp": "Slumberling",
+   "ok": true,
+   "qud": {
+    "frames": 11,
+    "states": 2,
+    "duty": [
+     0.55,
+     0.45
+    ],
+    "class": "discrete"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 2,
+    "duty": [
+     0.58,
+     0.42
+    ],
+    "class": "discrete"
+   },
+   "agree": true
+  }
+ ],
+ "when": "2026-08-06 20:07"
+}

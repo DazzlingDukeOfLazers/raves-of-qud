@@ -48,14 +48,15 @@ WANTED = {
 }
 
 
-def qud_data_dir():
+def qud_install_dir():
     """The <install>/CoQ_Data (or .app equivalent) that holds the Unity asset files.
 
-    Lives here rather than in the plat backends so this tool stays self-contained; the
-    Windows path comes from the backend when it grows a qud_data_dir(), and the macOS
-    branch is the documented Steam location.
+    NOT plat.qud_data_dir() — that is Qud's persistentDataPath (saves, mods, options), a
+    different directory entirely; pointing this at it would find no .assets files and report
+    "no embedded fonts" as though the game shipped none. The Windows path comes from the
+    backend's qud_install_dir(); the macOS branch is the documented Steam location.
     """
-    fn = getattr(plat, "qud_data_dir", None)
+    fn = getattr(plat, "qud_install_dir", None)
     if fn:
         return fn()
     if plat.IS_MAC:
@@ -158,7 +159,7 @@ def scan(data_dir):
 def main(argv):
     want_all = "--all" in argv
     list_only = "--list" in argv
-    data_dir = qud_data_dir()
+    data_dir = qud_install_dir()
     if not os.path.isdir(data_dir):
         print("Qud data dir not found: %s" % data_dir)
         return 1

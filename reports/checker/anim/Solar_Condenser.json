@@ -1,0 +1,31 @@
+{
+ "fixture": "Solar Condenser",
+ "frames": 12,
+ "expect_states": null,
+ "measured": [
+  {
+   "bp": "Solar Condenser",
+   "ok": true,
+   "qud": {
+    "frames": 11,
+    "states": 2,
+    "duty": [
+     0.64,
+     0.36
+    ],
+    "class": "discrete"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 2,
+    "duty": [
+     0.67,
+     0.33
+    ],
+    "class": "discrete"
+   },
+   "agree": true
+  }
+ ],
+ "when": "2026-08-05 22:43"
+}

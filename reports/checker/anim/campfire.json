@@ -1,0 +1,54 @@
+{
+ "fixture": "campfire",
+ "frames": 12,
+ "expect_states": [
+  8,
+  12
+ ],
+ "measured": [
+  {
+   "bp": "Campfire",
+   "ok": true,
+   "qud": {
+    "frames": 12,
+    "states": 12,
+    "duty": [
+     0.08,
+     0.08,
+     0.08,
+     0.08,
+     0.08,
+     0.08,
+     0.08,
+     0.08,
+     0.08,
+     0.08,
+     0.08,
+     0.08
+    ],
+    "class": "continuous"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 12,
+    "duty": [
+     0.08,
+     0.08,
+     0.08,
+     0.08,
+     0.08,
+     0.08,
+     0.08,
+     0.08,
+     0.08,
+     0.08,
+     0.08,
+     0.08
+    ],
+    "class": "continuous"
+   },
+   "agree": true
+  }
+ ],
+ "when": "2026-08-05 12:52"
+}

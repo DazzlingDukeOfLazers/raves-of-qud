@@ -121,6 +121,8 @@ var _panels: Array = []     # every sub-view; each has set_snapshot(data) (some 
 # to Qud's compact icon cluster, and the dev (Connect / viewport) strip is hidden. User mode is untouched.
 var _menu_verbose: HBoxContainer   # user-mode top menu (verbose text buttons)
 var _menu_compact: HBoxContainer   # 1:1 top menu (Qud's compact icon cluster)
+var _nav_up_icon: TextureRect      # the Up (stairs) nav icon — dimmed when the zone has none
+var _zone_has_stairs_up := true    # last snapshot's stats.stairsUp (assume yes until told)
 var _row_split: HSplitContainer    # row-3 split (holo | side); sidebar width set per mode
 var _side: VBoxContainer           # the row-3 side column (panels)
 # 1:1 only: Qud draws one continuous background behind the top strip (rows 1+2) and one behind the bottom
@@ -965,6 +967,9 @@ func _row_vitals_menu() -> Control:
 			ic.offset_left = -ts.x * 0.5; ic.offset_top = -ts.y * 0.5
 			ic.offset_right = ts.x * 0.5; ic.offset_bottom = ts.y * 0.5
 		cell.add_child(ic)
+		if key == "up":
+			_nav_up_icon = ic                 # after the reparent: the dim also rewrites the tooltip
+			_apply_stair_availability()
 		_menu_compact.add_child(cell)
 
 	h.add_child(menu)
@@ -976,6 +981,41 @@ func _row_vitals_menu() -> Control:
 func _send_stair(up: bool) -> void:
 	if _holo != null:
 		_holo.request_command("CmdMoveU" if up else "CmdMoveD")
+
+## Alpha for a nav icon whose action has nothing to act on. Qud has no precedent to copy:
+## its ActiveButton (WindowLock / Finder / Minimap only) swaps ON and OFF art of the SAME
+## brightness — measured mean RGB (138,164,164) cool vs (157,151,140) warm — so Qud says
+## "toggle state" with HUE and never says "unavailable" at all. Its Up/Down buttons carry no
+## ActiveButton and no disabled sprite; pressing Up with no stairs just fails in the log. So
+## this dim is Raves' own vocabulary, kept clear of Qud's two hues by being a dim.
+const NAV_DIM_ALPHA := 0.4
+
+## Grey the Up icon in zones with no way up (Daniel's feedback).
+##
+## A KNOWN, DELIBERATE DIVERGENCE FROM QUD. Qud never dims this icon: only WindowLock / Finder /
+## Minimap carry an ActiveButton, and even those say "toggle is on" with hue rather than
+## brightness — Up/Down have a single sprite and no state at all. Dimming was still the right
+## call because this cluster IS the 1:1 chrome (user mode shows the verbose text row instead), so
+## gating it to user mode would have made the feature unreachable. Expect a small top-bar parity
+## delta in zones with no stairs up; it is this feature, not a regression.
+##
+## The click stays LIVE. A dimmed control that silently eats its click explains nothing; sending
+## CmdMoveU lets Qud answer "There are no stairs up here." in the message log, the same answer the
+## keyboard gives — the dim is a hint, not a gate.
+##
+## Down is deliberately untouched: descent has affordances stairs don't cover (digging, falling),
+## so "no StairsDown here" is not "you cannot go down" — and Joppa, which has no way up, ships
+## stairsDown TRUE, so the two really are independent. The mod sends both flags, so wiring Down
+## is a one-liner if that turns out to be wrong.
+func _apply_stair_availability() -> void:
+	if _nav_up_icon == null:
+		return
+	var dim := not _zone_has_stairs_up
+	_nav_up_icon.modulate = Color(1, 1, 1, NAV_DIM_ALPHA if dim else 1.0)
+	var cell := _nav_up_icon.get_parent()
+	if cell is Control:
+		cell.tooltip_text = "Go up (stairs) — s%s" % (
+			"\nNo stairs up in this zone" if not _zone_has_stairs_up else "")
 
 ## Raves' own Options, as an IN-GAME overlay — the sibling of the Control Mapping screen above.
 ##
@@ -1532,6 +1572,12 @@ func _poll_game_lifecycle() -> void:
 func _apply_stats(data: Dictionary) -> void:
 	var s: Dictionary = data.get("stats", {})
 	_report_overflow.call_deferred()   # after this snapshot's text lands + a layout pass
+	# Stairs availability rides on stats (a zone fact, like `terrain`). Default TRUE when the key
+	# is missing so an older mod build leaves the icon lit rather than greying it everywhere.
+	var up_now := bool(s.get("stairsUp", true))
+	if up_now != _zone_has_stairs_up:
+		_zone_has_stairs_up = up_now
+		_apply_stair_availability()
 	# Character icon — the player's own tile, like Qud's top-left avatar.
 	if _portrait != null and _tiles != null:
 		var pal: Dictionary = data.get("palette", {})

@@ -1,0 +1,25 @@
+{
+ "note": "Rung 6c warp stations (docs/pc-zone-plan.md). Zone IDs are stable ONLY against the golden save's fixed world seed — see fixtures/goldens.json. Warping autosaves over the live save, so restore the golden afterwards: tools/capture/saves.py restore checker (Qud down).",
+ "stations": [
+  {
+   "name": "joppa",
+   "zone": "JoppaWorld.11.22.1.1.10",
+   "exercises": "grass/dirt painted ground, huts, brinestalk walls, the golden save's home zone"
+  },
+  {
+   "name": "village",
+   "zone": "JoppaWorld.11.22.1.2.10",
+   "exercises": "dense build: hut walls at room scale (autotile joinery), water pools, watervine, NPCs"
+  },
+  {
+   "name": "north",
+   "zone": "JoppaWorld.11.21.1.1.10",
+   "exercises": "surface neighbour — salt desert edge, sparse paint"
+  },
+  {
+   "name": "underground",
+   "zone": "JoppaWorld.11.22.1.1.11",
+   "exercises": "first stratum down: dark lighting, point sources, ghost/memory cells, rock autotiling"
+  }
+ ]
+}

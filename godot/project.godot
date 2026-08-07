@@ -28,6 +28,19 @@ Settings="*res://Settings.gd"
 QudLauncher="*res://QudLauncher.gd"
 UiState="*res://UiState.gd"
 FeedbackTool="*res://FeedbackTool.gd"
+QudSync="*res://QudSync.gd"
+StateGraphPanel="*res://StateGraphPanel.gd"
+
+[debug]
+
+; FILE LOGGING, on deliberately. An EXPORTED Raves has nowhere to print: stdout is lost the
+; moment `hv launch` starts it, so any `print()` diagnosing a problem that only reproduces in
+; the export is written to nothing. That turned three separate bugs this session into
+; guess-then-rebuild cycles at ~2 minutes each. The log lands in
+; <support>/logs/raves.log (user:// = the RavesOfQud support dir).
+file_logging/enable_file_logging=true
+file_logging/log_path="user://logs/raves.log"
+file_logging/max_log_files=5
 
 [display]
 
