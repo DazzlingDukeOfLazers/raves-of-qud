@@ -490,6 +490,32 @@ namespace RavesOfQud
         /// default pause-on-unfocus. The false->true edge clears the input queue, so we
         /// re-assert focus within 50 ms of a focus loss (when nothing is pending) rather than
         /// at command time, and drive commands only once focus is already held.
+        ///
+        /// **`OnApplicationFocus` sets TWO flags and we were only holding one.** It does
+        /// `XRLCore.bThreadFocus = focus; focused = focus;` — `focused` gates the TURN thread
+        /// (above), `bThreadFocus` gates UNITY'S Update(), which begins
+        ///     if (!XRLCore.bThreadFocus) { SoundManager.Update(); Thread.Sleep(250); return; }
+        /// and so never reaches the `if (TextConsole.BufferUpdated)` block that is the ONLY
+        /// caller of GameManager.UpdateView() — itself the ONLY assignment to
+        /// `_ActiveGameView`. Holding just `focused` therefore bought a game that keeps
+        /// playing while its view can never change.
+        ///
+        /// That is the whole of the "game ended, view stuck on Stage" strand. After a quit the
+        /// legacy menu loop sets `CurrentGameView = "MainMenu"`, but with bThreadFocus false
+        /// `_ActiveGameView` stays `Stage` forever — so the mod reports a live game's stage
+        /// with no live game, and every harness retry re-tests it. Measured 2026-08-07 and
+        /// made deterministic: focus Qud, take focus away, quit -> scene=Stage,
+        /// cur_view=MainMenu, live=false, every time; with no focus event first it is clean
+        /// every time (bThreadFocus is INITIALISED true, so a Qud that never gains and loses
+        /// focus never trips it — which is why this looked intermittent and correlated with
+        /// Raves being attached, Raves-attached runs being simply the ones whose `activate`
+        /// steps generate focus events).
+        ///
+        /// NOT gated on `The.Game`, unlike the turn-thread flag: the view has to keep updating
+        /// through the teardown and at the menu, which is exactly when there is no game. The
+        /// cost is that Unity runs its normal frame loop instead of the unfocused 4fps
+        /// throttle, and only while a bridge client is attached — i.e. only while something is
+        /// driving Qud headlessly, which is the case this whole keeper exists for.
         /// </summary>
         private static Thread _focusKeeper;
 
@@ -502,10 +528,19 @@ namespace RavesOfQud
                 {
                     try
                     {
-                        if (_server != null && _server.ClientCount > 0
-                            && The.Game != null && !GameManager.focused)
+                        if (_server != null && _server.ClientCount > 0)
                         {
-                            GameManager.focused = true;
+                            // Unity's frame loop. No `The.Game` guard -- the view must keep
+                            // applying through teardown and at the menu, which is precisely
+                            // when there is no game.
+                            if (!XRLCore.bThreadFocus) XRLCore.bThreadFocus = true;
+                            // The turn thread. Still guarded: outside a game there is no turn
+                            // thread to keep alive, and the false->true edge clears the input
+                            // queue, so we assert it only where it buys something.
+                            if (The.Game != null && !GameManager.focused)
+                            {
+                                GameManager.focused = true;
+                            }
                         }
                     }
                     catch { /* transient game-state teardown; retry next tick */ }
