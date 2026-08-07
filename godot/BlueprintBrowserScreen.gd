@@ -28,15 +28,19 @@ const ICON := Color8(0xB4, 0xB4, 0xB4)        # the little cube glyph
 const BACK := Color8(0x8C, 0x8C, 0x8C)
 const NOTE := Color8(0x6E, 0x8A, 0x86)        # our own count/status line
 
-# geometry, measured at 1920x1080 (see the class comment)
-const FILTER_RECT := Rect2(19, 12, 286, 26)
-const LIST_TOP := 58
+# Geometry MEASURED off a 1920x1080 capture of Qud's own screen (pixel-diff pass, 2026-08-06):
+# filter box x 18..305 / y 12..38; row glyph tops 62, 86, 110 … (pitch 24); on a row with an
+# expander the clusters are expander x 8..17, icon x 27..43 (17x18), text x0 48; "Back" glyph
+# bbox x 1832..1884 y 1026..1042. LIST_TOP is set so the FIRST GLYPH TOP lands on Qud's 62.
+const FILTER_RECT := Rect2(18, 12, 288, 27)
+const LIST_TOP := 56
 const ROW_H := 24
 const INDENT := 16
-const X_EXPANDER := 12
-const X_ICON := 34
-const X_NAME := 52
-const BACK_POS := Vector2(1856, 1034)
+const X_EXPANDER := 8
+const X_ICON := 27
+const X_NAME := 48
+const ICON_SIZE := Vector2i(17, 18)
+const BACK_POS := Vector2(1830, 1019)
 
 ## Filtering 5247 rows can match thousands; render a bounded page and SAY so (never a silent cap).
 const MAX_ROWS := 400
@@ -46,7 +50,8 @@ var _children := {}         # parent name -> [names]
 var _roots: Array = []
 var _expanded := {}         # name -> true
 var _visible: Array = []    # [{name, depth, parent}] currently drawn
-var _sel := 0
+## Qud opens with NO row highlighted (measured) — selection appears on hover/arrow. -1 = none.
+var _sel := -1
 var _filter := ""
 var _truncated := 0
 
@@ -116,21 +121,36 @@ func _load_blueprints() -> void:
 # ── chrome ────────────────────────────────────────────────────────────────────
 
 func _build_filter() -> void:
-	_filter_edit = LineEdit.new()
-	_filter_edit.placeholder_text = "Filter..."
-	_filter_edit.position = FILTER_RECT.position
-	_filter_edit.size = FILTER_RECT.size
-	_filter_edit.add_theme_font_size_override("font_size", 14)
-	# Qud's filter box is a plain light field on the black screen
+	# The visible box is its OWN Panel at the measured rect. A LineEdit floors its height at
+	# font-height + margins (31px against Qud's 27) and no override shrinks it, so the field is
+	# transparent and merely sits inside the panel — the drawn rect is then exactly what we
+	# measured, independent of the theme's minimums.
+	var box := Panel.new()
+	box.position = FILTER_RECT.position
+	box.size = FILTER_RECT.size
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color8(0xF0, 0xF0, 0xF0)
 	sb.set_corner_radius_all(3)
-	sb.content_margin_left = 6
-	sb.content_margin_right = 6
-	_filter_edit.add_theme_stylebox_override("normal", sb)
-	_filter_edit.add_theme_stylebox_override("focus", sb)
+	box.add_theme_stylebox_override("panel", sb)
+	add_child(box)
+
+	_filter_edit = LineEdit.new()
+	_filter_edit.placeholder_text = "Filter..."
+	_filter_edit.flat = true
+	var clear := StyleBoxEmpty.new()
+	clear.content_margin_left = 6
+	clear.content_margin_right = 6
+	for st in ["normal", "focus", "read_only"]:
+		_filter_edit.add_theme_stylebox_override(st, clear)
+	_filter_edit.add_theme_font_size_override("font_size", 14)
 	_filter_edit.add_theme_color_override("font_color", Color8(0x20, 0x20, 0x20))
 	_filter_edit.add_theme_color_override("font_placeholder_color", Color8(0x80, 0x80, 0x80))
+	# vertically centre the (taller) field on the drawn box
+	var fh := 31.0
+	_filter_edit.position = Vector2(FILTER_RECT.position.x,
+		FILTER_RECT.position.y + (FILTER_RECT.size.y - fh) * 0.5)
+	_filter_edit.size = Vector2(FILTER_RECT.size.x, fh)
 	_filter_edit.text_changed.connect(_on_filter_changed)
 	add_child(_filter_edit)
 
@@ -159,9 +179,12 @@ func _build_back() -> void:
 			closed.emit())
 	add_child(l)
 
-## Our own status line (Qud has none): the blueprint count, and — when a filter matches more rows
-## than we render — exactly how many were left off. Never cap silently.
+## Our own status line — the blueprint count, and when a filter matches more rows than we render,
+## exactly how many were left off (never cap silently). Qud has NO such line, so 1:1 mode omits it;
+## user mode keeps it. Same gating discipline as every other Raves QoL addition.
 func _build_note() -> void:
+	if Settings.one_to_one():
+		return
 	_note = Label.new()
 	_note.add_theme_font_size_override("font_size", 13)
 	_note.add_theme_color_override("font_color", NOTE)
@@ -214,6 +237,8 @@ func _populate() -> void:
 	_apply_selection()
 
 func _update_note() -> void:
+	if _note == null:
+		return   # 1:1 mode: Qud shows no status line
 	if _by_name.is_empty():
 		_note.text = "no blueprints.json — run the bridge export with Qud running"
 		return
@@ -242,21 +267,20 @@ func _build_row(idx: int) -> Control:
 	if bool(bp.get("parent", false)) and _filter == "":
 		var ex := Label.new()
 		ex.text = "▼" if _expanded.has(rec["name"]) else "▶"
-		ex.add_theme_font_size_override("font_size", 11)
+		# 19px puts the triangle at Qud's measured 10px width (x 8..17); 11 gave 6, 15 gave 7.
+		ex.add_theme_font_size_override("font_size", 19)
 		ex.add_theme_color_override("font_color", EXPANDER)
 		ex.position = Vector2(X_EXPANDER + indent, 4)
 		ex.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row.add_child(ex)
-	var ic := Label.new()
-	ic.text = "▣"
-	ic.add_theme_font_size_override("font_size", 13)
-	ic.add_theme_color_override("font_color", ICON)
-	ic.position = Vector2(X_ICON + indent, 2)
+	var ic := TextureRect.new()
+	ic.texture = _cube_icon()
+	ic.position = Vector2(X_ICON + indent, (ROW_H - ICON_SIZE.y) / 2.0 + 3)
 	ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(ic)
 	var lbl := Label.new()
 	lbl.text = str(rec["name"])
-	lbl.add_theme_font_size_override("font_size", 14)
+	_apply_ui_font(lbl, 14)
 	lbl.add_theme_color_override("font_color", ROW)
 	lbl.position = Vector2(X_NAME + indent, 2)
 	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -268,6 +292,68 @@ func _build_row(idx: int) -> Control:
 			_select(idx)
 			_toggle())
 	return row
+
+## Qud's list font here is ElliotSans (its modern-UI face), carved from the player's own install
+## into title/chrome/ — the same asset MainMenu._elliot() uses for the title. It is CONDENSED: at
+## a matched cap height Qud's rows measure ~6.5px/char against Atkinson's ~8.4 (measured), so the
+## names run ~29% wider without it. This returns null when the font has not been extracted on this
+## machine (the case on Lumpy today), and callers fall back to the theme font — correct-when-present
+## rather than faking the width by shrinking, which would break the cap height that already matches.
+var _ui_font_cached := false
+var _ui_font: FontFile
+
+func _ui_font_or_null() -> FontFile:
+	if _ui_font_cached:
+		return _ui_font
+	_ui_font_cached = true
+	var path := InputModel.support_dir().path_join("title").path_join("chrome").path_join("ElliotSans-Regular.ttf")
+	if FileAccess.file_exists(path):
+		var f := FontFile.new()
+		if f.load_dynamic_font(path) == OK:
+			_ui_font = f
+	return _ui_font
+
+func _apply_ui_font(l: Label, px: int) -> void:
+	var f := _ui_font_or_null()
+	if f != null:
+		l.add_theme_font_override("font", f)
+	l.add_theme_font_size_override("font_size", px)
+
+## Qud's row icon is a 17x18 isometric CUBE OUTLINE, not a glyph — a text "▣" measured 9px wide
+## against its 17 and read as a different shape. Drawn once and shared by every row: a hexagon
+## silhouette plus the three edges meeting at the front-top vertex.
+var _cube: ImageTexture
+
+func _cube_icon() -> ImageTexture:
+	if _cube != null:
+		return _cube
+	var w := ICON_SIZE.x
+	var h := ICON_SIZE.y
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var cx := (w - 1) / 2.0
+	var top := Vector2(cx, 0.0)
+	var upper_l := Vector2(0.0, h * 0.25)
+	var upper_r := Vector2(w - 1, h * 0.25)
+	var lower_l := Vector2(0.0, h * 0.75)
+	var lower_r := Vector2(w - 1, h * 0.75)
+	var bottom := Vector2(cx, h - 1)
+	var mid := Vector2(cx, h * 0.5)      # the front vertex where the three visible edges meet
+	for e in [[top, upper_l], [top, upper_r], [upper_l, lower_l], [upper_r, lower_r],
+			[lower_l, bottom], [lower_r, bottom],           # hexagon silhouette
+			[upper_l, mid], [upper_r, mid], [top, mid]]:    # the three inner edges
+		_line(img, e[0], e[1], ICON)
+	_cube = ImageTexture.create_from_image(img)
+	return _cube
+
+func _line(img: Image, a: Vector2, b: Vector2, col: Color) -> void:
+	var steps := int(maxf(absf(b.x - a.x), absf(b.y - a.y))) + 1
+	for i in range(steps + 1):
+		var p := a.lerp(b, float(i) / float(steps))
+		var x := int(round(p.x))
+		var y := int(round(p.y))
+		if x >= 0 and y >= 0 and x < img.get_width() and y < img.get_height():
+			img.set_pixel(x, y, col)
 
 func _select(idx: int) -> void:
 	if idx < 0 or idx >= _visible.size():
