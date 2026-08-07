@@ -54,7 +54,13 @@ var CD := Color.html(NAME_1TO1)
 ## Make Camp collapses from 45 to 25 across (bar mean 10.06 -> 16.90). Measured, not derived.
 const ICON_PX_1TO1 := 47
 const NAME_1TO1 := "#609caa"       # ability name — measured Color8(96,156,170)
-const NUM_1TO1 := "#929393"        # <N> action number — measured Color8(146,147,147)
+## The <N> quick slot is TWO colours, not one: Qud draws the CHEVRONS bright grey and the DIGIT
+## amber. Sampled per glyph in the same frame as the state tags — (189,189,189) and (193,193,193)
+## for `<` and `>`, (127,111,77) for the `1` between them. The flat #929393 that used to cover the
+## whole tag split the difference and got both wrong: too dark for the chevrons, colourless for
+## the digit. (Screen values through q8 — see the state-tag note above.)
+var SLOT_CHEV := QudChrome.q8(191, 191, 191)
+var SLOT_NUM := QudChrome.q8(127, 111, 77)
 var CELL_FRAME_1TO1 := QudChrome.q8(11, 148, 71)   # green selection box (Qud draws it on the first/selected cell)
 var CELL_FILL_1TO1 := QudChrome.q8(21, 23, 23)     # ...and the fill inside it
 var CELL_DIVIDER_1TO1 := QudChrome.q8(46, 75, 83)  # Qud's 1px Spacer between cells, measured
@@ -574,14 +580,25 @@ func _make_cell(a: Dictionary, icon_px: int, slot: int, selected: bool, cell_w :
 	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	lbl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	lbl.add_theme_font_size_override("normal_font_size", 14)   # Qud's bar text measures ~14px (advance ~8.4/char)
-	# The state tags colour THEMSELVES (Qud gives brackets and body different tones); only the
-	# name and the <N> quick slot are flat. They used to ride inside the <N> grey, which is why
-	# 1:1 showed "[off]" and "[81]" in one dead grey no matter what the tag constants said.
-	lbl.text = "[color=%s]%s[/color]%s[color=%s]%s[/color]" % [
+	# Only the NAME is flat here — the state tags and the quick slot each colour their own
+	# delimiters the way Qud does. Both used to ride inside one grey, which is why 1:1 showed
+	# "[off]", "[81]" and "<1>" in a single dead tone no matter what the constants said.
+	lbl.text = "[color=%s]%s[/color]%s%s" % [
 		NAME_1TO1, QudText.strip(String(a.get("name", ""))),
-		_state_tag(a), NUM_1TO1, _hotkey_label(a, slot)]
+		_state_tag(a), _hotkey_cell_tag(a, slot)]
 	cell.add_child(lbl)
 	return frame
+
+## Coloured quick slot for the 1:1 cell: grey chevrons around an amber digit, Qud's own split.
+## Built from _hotkey_label so the two never disagree about WHICH key is shown — that stays the
+## plain twin the pagination pass measures with (markup would be measured as literal characters).
+func _hotkey_cell_tag(a: Dictionary, slot: int) -> String:
+	var lbl := _hotkey_label(a, slot).strip_edges()
+	if lbl == "":
+		return ""
+	var key := lbl.trim_prefix("<").trim_suffix(">")
+	return " [color=#%s]<[/color][color=#%s]%s[/color][color=#%s]>[/color]" % [
+		SLOT_CHEV.to_html(false), SLOT_NUM.to_html(false), key, SLOT_CHEV.to_html(false)]
 
 ## The cell's hotkey tag: the mod's own hotkey if it sends one, else the positional bar slot (1-9),
 ## which is what the 1-9 keys activate in 1:1. Matches Qud's " <1>".. quick-slot labels.
