@@ -1052,3 +1052,30 @@ without re-measuring.
 **Corollary for UI design here:** a gesture that only a mouse can produce is a gesture the harness
 may not be able to drive. Give any dev-facing overlay a KEY as well (StateGraphPanel: F6), or it
 can only ever be tested by hand — and it will stop being tested.
+
+## GDScript lambdas capture locals BY VALUE — a recursive closure cannot return a result
+
+```gdscript
+var found := {}
+var walk := func(x, f):
+    if x.id == want: found = x        # writes the LAMBDA's copy; the caller sees {}
+    for c in x.children: f.call(c, f)
+walk.call(root, walk)
+return found                          # always {}
+```
+
+`_node_by_id` returned `{}` for a node plainly in the tree because of this. Write a plain
+recursive **function** instead. (`_count_nodes` gets away with the same shape only because it
+accumulates into an `Array`, which is a reference — the workaround hides the trap rather than
+avoiding it, so don't read it as a pattern to copy.)
+
+This is the second GDScript-vs-Python reflex to bite here; the first was `or` being a boolean
+operator. Both produce silence rather than an error.
+
+## A row that overflows a RichTextLabel WRAPS — the content is there and unusable
+
+The state-graph panel's `[T]` run-a-check marker was pushed onto its own line at the far left,
+because the row was a few characters wider than the panel. It rendered, so nothing looked
+broken; it just could not be aimed at. If a fixed-column layout looks right in a fixture and
+wrong on screen, measure the **widest** row, not a typical one — and prefer putting variable
+elements in a fixed-width column so the widest row is a constant.
