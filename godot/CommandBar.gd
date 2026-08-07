@@ -401,8 +401,11 @@ func _draw_keycap(f: Font, x: float, y: float, w: float, label: String) -> float
 	_gutter.draw_rect(Rect2(x, y, w, KEYCAP_H), KEYCAP_FILL)
 	_gutter.draw_rect(Rect2(x, y, w, KEYCAP_H), HINT_GOLD, false, 1.0)
 	var tw := f.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 5).x
+	# The CAP TEXT is full gold, same as its border -- it was on HINT_GOLD_DIM, which is what made
+	# "Ctrl"/"Shift" read washed out inside bright edges (Daniel: "need to be full yellow
+	# brightness"). The dim tone stays for the connective "+", which Qud does keep quieter.
 	_gutter.draw_string(f, Vector2(x + (w - tw) * 0.5, y + KEYCAP_H - 2.0), label,
-		HORIZONTAL_ALIGNMENT_LEFT, -1, 5, HINT_GOLD_DIM)
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 5, HINT_GOLD)
 	return x + w
 
 func _draw_plus(f: Font, x: float, y: float) -> float:
