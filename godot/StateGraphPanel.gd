@@ -311,7 +311,13 @@ func _build() -> void:
 	_head.bbcode_enabled = true
 	_head.fit_content = true
 	_head.scroll_active = false
-	_head.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# INTERACTIVE as of slice 3. It was MOUSE_FILTER_IGNORE while it was pure decoration, and
+	# that silently killed the harness-check links the moment they moved in here — hover did
+	# nothing, clicks did nothing, and the panel looked fine. Same signals as the body.
+	_head.meta_underlined = true       # these ARE links, unlike the body's gutter cells
+	_head.meta_clicked.connect(_on_meta_clicked)
+	_head.meta_hover_started.connect(_on_meta_hover)
+	_head.meta_hover_ended.connect(_on_meta_unhover)
 	vb.add_child(_head)
 
 	_body = RichTextLabel.new()
@@ -348,7 +354,8 @@ func _render() -> void:
 	if vs != null:
 		vs.value = at
 	if _status_label != null:
-		_status_label.text = "[color=#%s]%s[/color]" % [C_DIM, _status]
+		_status_label.text = (_status if _status.begins_with("[color=")
+				else "[color=#%s]%s[/color]" % [C_DIM, _status])
 
 
 const C_DIM := "6b7a78"       # a state nobody is in and nothing can drive to
@@ -357,6 +364,17 @@ const C_HERE := "ffffff"
 const C_QUD := "77bfcf"       # C — cyan
 const C_RAVES := "00c420"     # G — green
 const C_ACCENT := "cfc041"    # W — gold, for headings
+const C_TEST := "77bfcf"      # C — cyan, the [T] run-a-check markers
+const SCORE_LOW := "d74200"   # R
+const SCORE_MID := "e99f10"   # O
+const SCORE_HIGH := "00c420"  # G
+## Column layout, in monospace character cells. Measured against the real panel: the label
+## column at 58 pushed a row carrying a [T] past the right edge and RichTextLabel WRAPPED it
+## onto its own line — the marker was rendered and unusable. The test marker now sits in a
+## fixed column BEFORE the scores, so the scores stay flush right whether a node has a check
+## or not, and the widest possible row is a constant.
+const LABEL_COLS := 52        # where the fixed columns begin
+const TEST_COLS := 4          # " [T]" or blank
 
 
 func _header() -> String:
@@ -376,6 +394,17 @@ func _header() -> String:
 				   ("via " + via) if via != "" else ""])
 	lines.append("[color=#%s]%d states · %d transitions · ctrl+wheel-down or Esc to close[/color]"
 			% [C_DIM, _count_nodes(), _arr(_tree.get("transitions")).size()])
+	# HARNESS-WIDE checks live at the top level of the tree, not on any node — they test the
+	# supervisor, not a screen, and hanging them off an arbitrary node would misdescribe what
+	# they cover. Per-node checks appear as [T] on their own row instead.
+	var harness := _arr(_tree.get("tests"))
+	if not harness.is_empty():
+		var marks := ""
+		for t in harness:
+			var td := _dict(t)
+			marks += " [url=run::%s][color=#%s][T] %s[/color][/url]" % [
+				String(td.get("id", "")), C_TEST, String(td.get("id", ""))]
+		lines.append("[color=#%s]checks:[/color]%s" % [C_DIM, marks])
 	return "\n".join(lines)
 
 
@@ -402,8 +431,14 @@ func _walk(node: Dictionary, depth: int, out: Array[String]) -> void:
 	# SHOULD be drivable but has no inbound transition visible as a gap rather than a silence.
 	var drivable: bool = _targets.get(_APP_QUD, {}).has(id) or _targets.get(_APP_RAVES, {}).has(id)
 	var col := C_HERE if here else (C_TEXT if drivable else C_DIM)
-	out.append("%s%s %s[color=#%s]%s[/color]"
-			% [qm, rm, "  ".repeat(depth), col, label])
+	# Pad to a fixed COLUMN so the scores line up. Safe because the panel inherits Source Code
+	# Pro (Qud's own UI font) and it is monospace — the padding is counted on the PLAIN text,
+	# never on the BBCode, or the markup length would shift every row differently.
+	var indent := "  ".repeat(depth)
+	var plain_len := indent.length() + label.length()
+	var pad := " ".repeat(maxi(1, LABEL_COLS - plain_len))
+	out.append("%s%s %s[color=#%s]%s[/color]%s%s%s"
+			% [qm, rm, indent, col, label, pad, _test_marks(node), _scores(node)])
 	for ch in _arr(node.get("children")):
 		_walk(ch, depth + 1, out)
 
@@ -430,6 +465,39 @@ func _cell(id: String, app: String, col: String) -> String:
 	if cost == null:
 		return mark + " "
 	return "[url=%s:%s]%s [/url]" % [app, id, mark]
+
+
+## The 1:1 SCOREBOARD: each node's `done` per app, 0..1. This is the number the whole parity
+## effort is tracked against, and it lived only in a JSON file and the cockpit — putting it on
+## the same row as the state it describes is the point of a "test tree".
+##
+## Coloured by value rather than printed plain: 66 numbers in a column is a wall, but a column
+## of red/amber/green is a punch-list you can read in one look.
+func _scores(node: Dictionary) -> String:
+	var done := _dict(node.get("done"))
+	var out := ""
+	for app in [_APP_QUD, _APP_RAVES]:
+		if not done.has(app):
+			out += "[color=#%s]  - [/color]" % C_DIM
+			continue
+		var v := float(done[app])
+		var c := SCORE_LOW if v < 0.34 else (SCORE_MID if v < 0.75 else SCORE_HIGH)
+		out += "[color=#%s]%4.1f[/color]" % [c, v]
+	return out
+
+
+## A click target per REGISTERED check on this node. The command itself lives in
+## gametree.json — the click names WHICH check, never what to run.
+func _test_marks(node: Dictionary) -> String:
+	var tests := _arr(node.get("tests"))
+	if tests.is_empty():
+		return " ".repeat(TEST_COLS)     # hold the column so the scores stay aligned
+	var td := _dict(tests[0])
+	# One marker per row. A node with several checks is not a shape the tree has yet, and a
+	# variable-width column would undo the alignment this layout exists for; the extras stay
+	# reachable from `hv test`.
+	return " [url=run:%s:%s][color=#%s][T][/color][/url]" % [
+		String(node.get("id", "")), String(td.get("id", "")), C_TEST]
 
 
 func _is_here(id: String, st: Dictionary) -> bool:
@@ -467,7 +535,16 @@ func _split_meta(meta) -> Array:
 ## real number out of the planner, not a guess: it is the sum of the edges it would run.
 func _on_meta_hover(meta) -> void:
 	if _driving != "":
-		return                       # a drive owns the status line while it runs
+		return                       # a running action owns the status line
+	var t := _split_run(meta)
+	if not t.is_empty():
+		var td := _find_test(t[0], t[1])
+		if td.is_empty():
+			_set_status("no registered check %s" % t[1])
+		else:
+			_set_status("run check %s (%s) — %s" % [t[1], String(td.get("tier", "?")),
+					String(td.get("cmd", ""))])
+		return
 	var p := _split_meta(meta)
 	if p.is_empty():
 		return
@@ -492,13 +569,85 @@ func _on_meta_unhover(_meta) -> void:
 
 
 func _on_meta_clicked(meta) -> void:
+	if _driving != "":
+		_set_status("already running %s — wait for it to finish" % _driving)
+		return
+	var t := _split_run(meta)
+	if not t.is_empty():
+		_run_check(t[0], t[1])
+		return
 	var p := _split_meta(meta)
 	if p.is_empty():
 		return
-	if _driving != "":
-		_set_status("already driving %s — wait for it to finish" % _driving)
-		return
 	_drive(p[0], p[1])
+
+
+## "run:<node>:<test>" -> [node, test]; node is empty for a harness-wide check. Returns [] for
+## anything else, so the drive metas ("<app>:<node>") fall through untouched.
+func _split_run(meta) -> Array:
+	var m := String(meta)
+	if not m.begins_with("run:"):
+		return []
+	var rest := m.substr(4).split(":", true, 1)
+	return rest if rest.size() == 2 else []
+
+
+func _find_test(node_id: String, test_id: String) -> Dictionary:
+	var pool: Array = _arr(_tree.get("tests")) if node_id == "" else _arr(_node_by_id(node_id).get("tests"))
+	for t in pool:
+		if String(_dict(t).get("id", "")) == test_id:
+			return _dict(t)
+	return {}
+
+
+## A plain recursive function, NOT a lambda. GDScript closures capture locals BY VALUE, so the
+## obvious `var found := {}` + a lambda that assigns to it writes to the lambda's own copy and
+## the caller sees nothing — this returned {} for a node that was plainly in the tree.
+## (`_count_nodes` gets away with a lambda only because it accumulates into an ARRAY, which is
+## a reference. Same trap, hidden by the workaround.)
+func _node_by_id(node_id: String, from: Variant = null) -> Dictionary:
+	var here := _dict(from) if from != null else _dict(_tree.get("root"))
+	if String(here.get("id", "")) == node_id:
+		return here
+	for c in _arr(here.get("children")):
+		var hit := _node_by_id(node_id, c)
+		if not hit.is_empty():
+			return hit
+	return {}
+
+
+## Run a registered check and show its verdict plus the TAIL of its output. The tail, not the
+## head: a check that fails says so at the end, and the front is the part you already know.
+func _run_check(node_id: String, test_id: String) -> void:
+	if _drive_thread != null and _drive_thread.is_alive():
+		return
+	if _drive_thread != null:
+		_drive_thread.wait_to_finish()
+	_driving = "check %s" % test_id
+	_set_status("running %s …" % test_id)
+	_drive_thread = Thread.new()
+	_drive_thread.start(func() -> void:
+		var r := HighvisorClient.request("run_test", {"node": node_id, "test": test_id},
+				HighvisorClient.DRIVE_REPLY_MS)
+		_check_done.bind(test_id, r).call_deferred())
+
+
+func _check_done(test_id: String, res: Dictionary) -> void:
+	_driving = ""
+	if res.is_empty():
+		_set_status("check %s: no answer within the wait — it may still be running" % test_id)
+		return
+	if not res.has("exit"):
+		_set_status("check %s: %s" % [test_id, String(res.get("error", "did not run"))])
+		return
+	var head := "check %s: %s" % [test_id, String(res.get("detail", ""))]
+	var col := SCORE_HIGH if res.get("ok", false) else SCORE_LOW
+	var tail := _arr(res.get("tail"))
+	var shown := tail.slice(maxi(0, tail.size() - 4))
+	var body := ""
+	for ln in shown:
+		body += "\n[color=#%s]  %s[/color]" % [C_DIM, String(ln)]
+	_set_status("[color=#%s]%s[/color]%s" % [col, head, body])
 
 
 ## Send the goto and report what came back. Deliberately NOT reduced to ok/fail: the step trace
@@ -582,10 +731,13 @@ func _step_name(step: Dictionary) -> String:
 	return "step"
 
 
+## The status line. Text that already carries its own [color] tags is passed through as-is —
+## wrapping it in the dim default would swallow the pass/fail colour of a check result.
 func _set_status(text: String) -> void:
 	_status = text
 	if _status_label != null:
-		_status_label.text = "[color=#%s]%s[/color]" % [C_DIM, _status]
+		_status_label.text = (text if text.begins_with("[color=")
+				else "[color=#%s]%s[/color]" % [C_DIM, text])
 
 
 # --- shape guards ----------------------------------------------------------

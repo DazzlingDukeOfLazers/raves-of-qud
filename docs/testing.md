@@ -70,3 +70,20 @@ python3 tools/regression/typing_guard_audit.py
 ```
 
 Exit 0 clean, exit 1 with the offending files named and the fix spelled out.
+
+## The checks are registered in the tree, and runnable from the panel (2026-08-07)
+
+Every SPOT check is now declared in highvisor's `gametree.json` — harness-wide ones at the top
+level (`tests`), screen-specific ones on the node they cover (`in_game` carries the typing-guard
+audit). Two consequences worth having:
+
+- `hv test` lists them all; `hv test <id>` runs one. The caller names WHICH check; the command
+  text lives in version control next to the state it covers, so "run this node's check" can
+  never become "run this string".
+- Raves' state-graph panel (Ctrl+wheel / F6) renders them as clickable `[T]` markers next to
+  each node's 1:1 `done` scores — hover shows the command, click runs it and reports the verdict
+  plus the tail of its output. The scoreboard and the checks now sit on the same row as the
+  state they describe.
+
+Registered today: `plan`, `evaluate`, `state_read` (highvisor), `state_graph_render` (raves),
+`typing_guard` (raves, on `in_game`).

@@ -31,6 +31,7 @@ func _init() -> void:
 	var sgp = load("res://StateGraphPanel.gd").new()
 	_fixture(sgp)
 	_slice2(sgp)
+	_slice3(sgp)
 	_real(sgp)
 	print("\n%s (%d checks failed)" % ["all good" if _failed.is_empty() else "FAILED", _failed.size()])
 	# FREE it. StateGraphPanel extends Node, so `.new()` hands back an unparented object that
@@ -181,11 +182,12 @@ func _slice2(sgp) -> void:
 	# scribble over the progress line.
 	sgp._driving = "qud -> in_game"
 	sgp._on_meta_clicked("raves:title")
-	_check("a second click while driving is refused, with a reason",
-		sgp._status.to_lower().contains("already driving"), sgp._status)
+	# "already running", not "already driving" — the same guard now covers a check run too.
+	_check("a second click while an action is in flight is refused, with a reason",
+		sgp._status.to_lower().contains("already running"), sgp._status)
 	sgp._on_meta_hover("qud:in_game")
-	_check("hover does not overwrite the drive status",
-		sgp._status.to_lower().contains("already driving"), sgp._status)
+	_check("hover does not overwrite the in-flight status",
+		sgp._status.to_lower().contains("already running"), sgp._status)
 	sgp._driving = ""
 
 	# The failure path is the reason the trace is kept at all — it must name the transition and
@@ -223,6 +225,95 @@ func _slice2(sgp) -> void:
 	_check("step naming skips modifier keys",
 		sgp._step_name({"window": "x", "note": "y", "key": "f6"}) == "key",
 		sgp._step_name({"window": "x", "note": "y", "key": "f6"}))
+
+
+func _slice3(sgp) -> void:
+	print("\nslice 3 — scores and registered checks")
+	var tree: Dictionary = FIXTURE.duplicate(true)
+	tree["tests"] = [{"id": "plan", "tier": "spot", "cmd": "python3 tools/selftest_plan.py"}]
+	tree["root"]["children"][1]["done"] = {"qud": 1.0, "raves": 0.3}
+	tree["root"]["children"][1]["tests"] = [
+		{"id": "typing_guard", "tier": "spot", "cmd": "python3 tools/regression/typing_guard_audit.py"}]
+	tree["root"]["children"][0]["done"] = {"qud": 1.0, "raves": 0.9}
+	sgp._tree = tree
+	sgp._states = {"qud": {"node": "title", "path": ["title"], "off": false, "via": "scene"},
+				   "raves": {"node": "title", "path": ["title"], "off": false, "via": "scene"}}
+	sgp._index_targets()
+	sgp._costs = {"qud": {"title": 0, "in_game": 6}, "raves": {"title": 0, "in_game": 6}}
+	sgp._driving = ""
+
+	var head: String = sgp._header()
+	_check("harness checks are offered in the header",
+		head.contains("[url=run::plan]"), head)
+
+	var rows: String = sgp._rows()
+	var by := {}
+	for ln in rows.split("\n"):
+		for key in ["Title Screen", "In-Game", "Logo"]:
+			if ln.contains(key):
+				by[key] = ln
+	_check("a node's done scores are rendered",
+		String(by.get("In-Game", "")).contains("1.0") and String(by.get("In-Game", "")).contains("0.3"),
+		String(by.get("In-Game", "")))
+	_check("a low score is coloured differently from a high one",
+		String(by.get("In-Game", "")).contains(sgp.SCORE_LOW)
+		and String(by.get("In-Game", "")).contains(sgp.SCORE_HIGH),
+		String(by.get("In-Game", "")))
+	_check("a node with no done shows a placeholder, not a number",
+		String(by.get("Logo", "")).contains("-"), String(by.get("Logo", "")))
+	_check("a node with a registered check gets a [T] click target",
+		String(by.get("In-Game", "")).contains("[url=run:in_game:typing_guard]"),
+		String(by.get("In-Game", "")))
+	_check("a node with no check gets no [T]",
+		not String(by.get("Title Screen", "")).contains("[url=run:"),
+		String(by.get("Title Screen", "")))
+
+	# The score columns only line up if the padding counts PLAIN text; a regression here would
+	# make every row's numbers land in a different place.
+	var cols := []
+	for key in ["Title Screen", "In-Game"]:
+		var ln: String = by.get(key, "")
+		# The test marker is a LITERAL "[T]", which the naive stripper below would eat as if it
+		# were a tag — that made an aligned row measure 3 short and look like a layout bug.
+		# Swap it for something unbracketed first.
+		ln = ln.replace("[T]", "@T@")
+		# strip bbcode, then find where the score field starts
+		var plain := ""
+		var inside := false
+		for i in ln.length():
+			var ch := ln[i]
+			if ch == "[":
+				inside = true
+			elif ch == "]":
+				inside = false
+			elif not inside:
+				plain += ch
+		cols.append(plain.rstrip(" ").length())
+	_check("score columns align across rows of different label length",
+		cols.size() == 2 and absi(cols[0] - cols[1]) <= 1, str(cols))
+
+	_check("a run meta splits into node + test",
+		sgp._split_run("run:in_game:typing_guard") == ["in_game", "typing_guard"])
+	_check("a harness run meta has an empty node",
+		sgp._split_run("run::plan") == ["", "plan"])
+	_check("a drive meta is NOT mistaken for a run",
+		sgp._split_run("qud:in_game").is_empty())
+
+	sgp._on_meta_hover("run:in_game:typing_guard")
+	_check("hovering a check shows the command it would run",
+		sgp._status.contains("typing_guard_audit.py"), sgp._status)
+
+	sgp._check_done("typing_guard", {"ok": true, "exit": 0, "detail": "passed in 0.4s",
+		"tail": ["OK: every _input key dispatcher is guarded or explicitly exempt."]})
+	_check("a passing check reports pass + its tail",
+		sgp._status.contains("passed") and sgp._status.contains("OK:"), sgp._status)
+	sgp._check_done("plan", {"ok": false, "exit": 1, "detail": "FAILED (exit 1)",
+		"tail": ["  FAIL qud: all 17 targets reachable", "FAILED (1 checks failed)"]})
+	_check("a failing check reports FAILED and is coloured as such",
+		sgp._status.contains("FAILED") and sgp._status.contains(sgp.SCORE_LOW), sgp._status)
+	sgp._check_done("plan", {"ok": false, "error": "no registered test 'plan' on 'the harness'"})
+	_check("an unknown check reports the lookup error, not a crash",
+		sgp._status.contains("no registered test"), sgp._status)
 
 
 func _real(sgp) -> void:
