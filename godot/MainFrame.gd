@@ -251,6 +251,12 @@ func _input(e: InputEvent) -> void:
 	# a modal popup may have consumed this key in ITS _input (set_input_as_handled
 	# only stops _unhandled_input, not other _input callbacks) — answering "No"
 	# with N must not ALSO open the Tinkering tab
+	# TYPING GUARD: this dispatch lives in _input (it has to beat Godot's Tab/arrow focus
+	# traversal), which runs BEFORE the GUI pass — so is_input_handled() is still false while a
+	# text field is swallowing the very same key. Without this, typing "e" in the feedback note
+	# or the options search also opened the Equipment screen. See TypingGuard.
+	if TypingGuard.typing(get_viewport()):
+		return
 	if e is InputEventKey and e.pressed and not e.echo and _status != null \
 			and Settings.one_to_one() and not e.alt_pressed \
 			and not get_viewport().is_input_handled():

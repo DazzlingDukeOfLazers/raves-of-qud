@@ -783,6 +783,10 @@ func _refresh_after_popup() -> void:
 ## Qud's Ctrl+Tab mode toggle never reached the Tinkering pane. Same class as the Holodeck click
 ## trap already in gotchas.md: anything competing with built-in GUI handling belongs in _input.
 func _input(e: InputEvent) -> void:
+	# typing guard: this dispatch runs before the GUI pass, so a focused text field has
+	# not consumed the key yet — see TypingGuard
+	if TypingGuard.typing(get_viewport()):
+		return
 	if not visible or _tab != "tinkering":
 		return
 	if e is InputEventKey and e.pressed and not e.echo and e.keycode == KEY_TAB \

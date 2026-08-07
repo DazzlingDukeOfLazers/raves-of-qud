@@ -179,6 +179,10 @@ func is_open() -> bool:
 ## Swallow input while open so the arrows behind the wizard don't move the player.
 ## _input runs before Main._unhandled_input, so marking keys handled hides them.
 func _input(event: InputEvent) -> void:
+	# typing guard: this dispatch runs before the GUI pass, so a focused text field has
+	# not consumed the key yet — see TypingGuard
+	if TypingGuard.typing(get_viewport()):
+		return
 	if not is_open():
 		return
 	if event is InputEventKey and event.pressed and not event.echo:

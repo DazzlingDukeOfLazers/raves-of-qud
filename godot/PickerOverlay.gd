@@ -599,6 +599,10 @@ func _scroll_into_view() -> void:
 # --- input -------------------------------------------------------------------------------------
 
 func _input(event: InputEvent) -> void:
+	# typing guard: this dispatch runs before the GUI pass, so a focused text field has
+	# not consumed the key yet — see TypingGuard
+	if TypingGuard.typing(get_viewport()):
+		return
 	if not visible:
 		return
 	if not (event is InputEventKey) or not event.is_pressed():
