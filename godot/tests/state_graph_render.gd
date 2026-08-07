@@ -144,6 +144,18 @@ func _slice2(sgp) -> void:
 	_check("the app already there is still clickable (goto is idempotent)",
 		rows.contains("[url=qud:title]"), rows)
 
+	# The dot is the affordance: it must appear only where a click would do something, or the
+	# only way to learn a cell is dead is to click it and watch nothing happen.
+	var by_row := {}
+	for ln in rows.split("\n"):
+		for key in ["In-Game", "Logo"]:
+			if ln.contains(key):
+				by_row[key] = ln
+	_check("a clickable cell draws a mark", String(by_row.get("In-Game", "")).contains("\u00b7")
+		or String(by_row.get("In-Game", "")).contains("●"), String(by_row.get("In-Game", "")))
+	_check("an unreachable cell draws NO mark",
+		not String(by_row.get("Logo", "")).contains("\u00b7"), String(by_row.get("Logo", "")))
+
 	# Hover reads the cost straight out of the map — no round trip, so it cannot lag the cursor.
 	sgp._on_meta_hover("qud:in_game")
 	_check("hover names the app, target and cost",
@@ -198,6 +210,15 @@ func _slice2(sgp) -> void:
 	_check("a successful drive reports the route it took",
 		sgp._status.contains("status_skills") and not sgp._status.contains("FAILED"),
 		sgp._status)
+
+	# A drive that times out must not switch the panel off: the daemon may be perfectly fine and
+	# the goto may have SUCCEEDED (it did, the first time this happened — Qud moved and the panel
+	# said "no answer from highvisor").
+	sgp._daemon = true
+	sgp._drive_done("qud", "status_skills", {})
+	_check("a timed-out drive does not declare the daemon dead", sgp._daemon, str(sgp._daemon))
+	_check("a timed-out drive says it may still be running",
+		sgp._status.to_lower().contains("may still be running"), sgp._status)
 
 	_check("step naming skips modifier keys",
 		sgp._step_name({"window": "x", "note": "y", "key": "f6"}) == "key",

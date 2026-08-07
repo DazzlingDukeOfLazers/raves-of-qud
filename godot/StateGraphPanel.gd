@@ -1,15 +1,16 @@
 extends Node
 
-## THE STATE GRAPH, in Raves (Ctrl+wheel) — slice 1: read-only.
+## THE STATE GRAPH, in Raves (Ctrl+wheel / F6).
 ##
 ## What it is for: the question "where are both apps right now?" was only answerable by alt-tabbing
 ## to highvisor's cockpit, which means leaving the thing you were looking at. This puts the same
 ## answer on top of Raves. It reads highvisor's canonical game tree and its live per-app state, and
 ## draws both apps' position in it.
 ##
-## SLICE 1 IS READ-ONLY ON PURPOSE. Clicking a state to drive there (slice 2) and the test tree
-## (slice 3) are separate, because this slice alone replaces the alt-tab and can be judged on its
-## own. Design + the three slices: docs/decisions/state-tree-panel.md.
+## Slice 1 drew the tree and both apps' position in it. Slice 2 made each row's two gutter cells
+## click targets — clicking drives that app to that state, with the cost previewed on hover so a
+## route that can only go via the RESTART edge is visible before you commit to it. The test tree
+## (slice 3) is still separate. Design: docs/decisions/state-tree-panel.md.
 ##
 ## THE GESTURE. Ctrl+wheel-up opens, Ctrl+wheel-down closes. It has to be claimed in `_input`:
 ## Main.gd's wheel branch lives in `_unhandled_input` and does not test modifiers, so without
@@ -206,7 +207,7 @@ func _take_costs(res: Dictionary) -> void:
 
 func _costs_stale() -> bool:
 	for app in [_APP_QUD, _APP_RAVES]:
-		if String(_dict(_states.get(app)).get("node", "")) != String(_last_nodes.get(app, "\u0000")):
+		if String(_dict(_states.get(app)).get("node", "")) != String(_last_nodes.get(app, "<never-fetched>")):
 			return true
 	return false
 
@@ -243,7 +244,11 @@ func _probe() -> void:
 ## Silently drops the request when one is already in flight: every caller here is a poll, and a
 ## queue of stale polls is worse than a skipped one.
 func _run(work: Callable, done: Callable) -> void:
-	if _busy:
+	# Outside the tree there is nobody to run the deferred callback, so the thread would do its
+	# work and then hang around waiting to hand the result to nothing — which is exactly what
+	# wedged the headless test the moment a code path started re-probing. A thread whose result
+	# can never be delivered should not be started.
+	if _busy or not is_inside_tree():
 		return
 	_join()
 	_busy = true
@@ -356,7 +361,7 @@ const C_ACCENT := "cfc041"    # W — gold, for headings
 
 func _header() -> String:
 	var apps := _dict(_tree.get("apps"))
-	var lines := ["[color=#%s]STATE GRAPH[/color]  [color=#%s]highvisor · read-only (slice 1)[/color]"
+	var lines := ["[color=#%s]STATE GRAPH[/color]  [color=#%s]highvisor · click a gutter cell to drive[/color]"
 			% [C_ACCENT, C_DIM]]
 	for app in [_APP_QUD, _APP_RAVES]:
 		if not apps.has(app):
@@ -413,6 +418,15 @@ func _walk(node: Dictionary, depth: int, out: Array[String]) -> void:
 func _cell(id: String, app: String, col: String) -> String:
 	var mark := _mark(id, _dict(_states.get(app)), col)
 	var cost = _dict(_costs.get(app)).get(id)
+	if mark == "":
+		# Nothing to say about position. A dim dot marks a cell you CAN click; blank marks one
+		# you cannot. The dot has to mean something, or the only way to learn a cell is dead is
+		# to click it and watch nothing happen.
+		if cost == null:
+			return "  "
+		mark = "[color=#%s]\u00b7[/color]" % C_DIM
+	# WHERE THE APP IS is drawn regardless of reachability — position is information, and
+	# conflating it with clickability once blanked the ● on the app's own node.
 	if cost == null:
 		return mark + " "
 	return "[url=%s:%s]%s [/url]" % [app, id, mark]
@@ -432,9 +446,7 @@ func _mark(id: String, st: Dictionary, col: String) -> String:
 		return "[color=#%s]●[/color]" % col
 	if id in _arr(st.get("path")):
 		return "[color=#%s]|[/color]" % col
-	# A dim dot, not a space: an empty cell is invisible, and slice 2 makes these cells the
-	# click target. You cannot aim at nothing.
-	return "[color=#%s]\u00b7[/color]" % C_DIM
+	return ""       # neither here nor on the way; _cell decides what (if anything) to draw
 
 
 # --- slice 2: click to navigate ----------------------------------------------
@@ -506,15 +518,26 @@ func _drive(app: String, node: String) -> void:
 	_set_status("driving %s …" % _driving)
 	_drive_thread = Thread.new()
 	_drive_thread.start(func() -> void:
-		var r := HighvisorClient.request("gamego", {"app": app, "node": node})
+		var r := HighvisorClient.request("gamego", {"app": app, "node": node},
+				HighvisorClient.DRIVE_REPLY_MS)
 		_drive_done.bind(app, node, r).call_deferred())
 
 
 func _drive_done(app: String, node: String, res: Dictionary) -> void:
 	_driving = ""
 	if res.is_empty():
-		_set_status("%s -> %s: no answer from highvisor (is the daemon still up?)" % [app, node])
-		_daemon = false
+		# A drive that did not answer is NOT proof the daemon died — it may simply have taken
+		# longer than we waited, and the app may well have arrived anyway. Declaring the daemon
+		# gone here also switched the whole panel off, which is a bad way to react to a timeout.
+		# Say what is actually known, re-probe, and re-read the state.
+		# NB: explicit `+`. GDScript has no implicit adjacent-string concatenation — two string
+		# literals side by side is a parse error, not one string.
+		_set_status(("%s -> %s: no answer within the wait — it may still be running. "
+				+ "Re-reading the state…") % [app, node])
+		_probe()
+		if is_open():
+			_fetch_costs()
+			_refresh()
 		return
 	var steps := _arr(res.get("steps"))
 	var ran := 0

@@ -24,7 +24,13 @@ const HOST := "127.0.0.1"
 const PORT := 48720
 
 const CONNECT_MS := 500          # the daemon is local: it answers at once or it is not there
-const REPLY_MS := 8000           # gamestate does live port probes; goto/plan can be slower still
+const REPLY_MS := 8000           # gamestate does live port probes; plan is pure computation
+## A DRIVE is a different order of magnitude and needs saying out loud: a `gamego` walks menus,
+## waits on per-edge asserts, and can take a restart edge that relaunches the app. Eight seconds
+## was enough to make the panel report "no answer from highvisor" for a goto that had in fact
+## worked — Qud moved, the panel said it had not. highvisor's own CLI pads past the op budget for
+## exactly this reason; so does this.
+const DRIVE_REPLY_MS := 300000
 const MAX_FRAME := 32 * 1024 * 1024   # matches the daemon's own guard — refuse a nonsense length
 
 
@@ -42,7 +48,7 @@ static func alive() -> bool:
 ## One request, one response. Returns the parsed reply, or {} on ANY failure — no daemon, refused
 ## connection, timeout, short frame, bad JSON. The caller cannot act on the difference (all of them
 ## mean "no supervisor right now"), and a client that raises would take the game down with it.
-static func request(op: String, extra: Dictionary = {}) -> Dictionary:
+static func request(op: String, extra: Dictionary = {}, reply_ms := REPLY_MS) -> Dictionary:
 	var req := {"op": op}
 	for k in extra:
 		req[k] = extra[k]
@@ -67,7 +73,7 @@ static func request(op: String, extra: Dictionary = {}) -> Dictionary:
 		peer.disconnect_from_host()
 		return {}
 
-	var deadline := Time.get_ticks_msec() + REPLY_MS
+	var deadline := Time.get_ticks_msec() + reply_ms
 	var head := _read_exact(peer, 4, deadline)
 	if head.size() != 4:
 		peer.disconnect_from_host()
