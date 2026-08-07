@@ -503,7 +503,12 @@ func render_snapshot(data: Dictionary, neighbors: Array = []) -> void:
 	var cells: Array = data.get("cells", [])
 	var _zz := int(data.get("zone", {}).get("z", SURFACE_Z))
 	_underground = _zz > SURFACE_Z
-	_world_map = _zz < 0
+	# WORLD MAP = Qud's own IsWorldMap(): a ZoneID with NO dot ("JoppaWorld" vs
+	# "JoppaWorld.11.22.1.1.10"). The old `z < 0` test could never fire —
+	# ZoneRequest assigns world zones Z = 10, the same as the surface (verified
+	# in both of its world-zone branches), so this whole render mode (standing
+	# cards, flat-and-lit, no torch glows) has never actually run.
+	_world_map = live_id != "" and not live_id.contains(".")
 	var pc: Dictionary = data.get("player", {})
 	_player_cell = Vector2i(int(pc.get("x", -9999)), int(pc.get("y", -9999))) if not pc.is_empty() else Vector2i(-9999, -9999)
 

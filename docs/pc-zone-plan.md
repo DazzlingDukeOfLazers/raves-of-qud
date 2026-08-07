@@ -123,11 +123,25 @@ treats as one.
   parasang overview, so the rig could not tell them apart — the same class of
   bug as the menu drift that poisoned a certification band, since the clear
   guard would happily pixel-score a world map against a zone. **Added**
-  (`UiState.note_world_map()`, driven from `Main._on_snapshot` off `zone.z < 0`,
-  the rule `ZoneRenderer._world_map` already runs on). It only flips between
-  `in_game` and `world_map`, so status screens and popups still own the report
-  while they are up. **Unverified in place** — verifying the flip live is step 1
-  below.
+  (`UiState.note_world_map()`, driven from `Main._on_snapshot`). It only flips
+  between `in_game` and `world_map`, so status screens and popups still own the
+  report while they are up.
+- **The detection rule was dead code — found while trying to verify the flip.**
+  `ZoneRenderer._world_map` tested `zone.z < 0`. Qud's `ZoneRequest` assigns
+  world zones **`Z = 10`** — identical to the surface — in *both* of its
+  world-zone branches, alongside `WorldX = WorldY = X = Y = -1`. So `z < 0`
+  never fires, and **the entire world-map render mode has never run**: standing
+  cards (`WM_STANDING_CARDS`), flat-and-lit, no-torch-glow. Corrected to Qud's
+  own `IsWorldMap()` definition — *a ZoneID with no dot* (`JoppaWorld` vs
+  `JoppaWorld.11.22.1.1.10`) — off `zone.id`, which the wire already ships. No
+  mod change or protocol bump needed. Both `_world_map` and the scene report now
+  use it.
+  **Status: false-case verified** (a zone still reports `in_game`, no script
+  errors). **True-case NOT verified** — I could not reach the world map:
+  `wish goto:JoppaWorld` silently no-ops, the climb-up key does nothing on the
+  surface, and Qud's `Commands.xml` has no world-map command. Getting there is
+  an open question and step 1 below; it may be a legacy screen, which would
+  itself change this rung's priority.
 - **Its art path is untested end to end**: `worldTerrain` tiles (on the wire
   today: `Terrain/sw_joppa.bmp` + colour/detail), landmarks (Spindle, Red Rock —
   `_landmarks_root`, `LANDMARKS_ENABLED`), standing world-map cards
@@ -139,8 +153,9 @@ warp, census, masked congruence.
 
 ## Sequencing
 
-1. **Verify the `world_map` scene flip live** (open the map, watch
-   `raves_state.json`). Unblocks detection *and* closes the rig hazard.
+1. **Find a way to reach the world map at all**, then verify the flip's
+   true-case. Open question — see above; three approaches failed. Worth asking
+   the Mac side, who built the world-map render path, how they got to it.
 2. **6a structural census** — cheapest, loudest defect class, immune to the rig
    failure modes.
 3. **6c station list + warp driver** — `goto` recipes per station.

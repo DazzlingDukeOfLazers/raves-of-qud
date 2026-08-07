@@ -331,7 +331,9 @@ func _on_snapshot(data: Dictionary) -> void:
 	# map against a zone capture — the failure mode that poisoned a
 	# certification band from the menus. MainFrame still owns the in_game
 	# announcement; this only splits it while a snapshot says otherwise.
-	UiState.note_world_map(int((data.get("zone", {}) as Dictionary).get("z", 0)) < 0)
+	# Same rule as ZoneRenderer._world_map — Qud's IsWorldMap(): a dotless ZoneID.
+	var _zid := String((data.get("zone", {}) as Dictionary).get("id", ""))
+	UiState.note_world_map(_zid != "" and not _zid.contains("."))
 	# Cache the colour map so popup markup renders with the same palette. Do NOT
 	# hide the popup here: ASYNC popups (ShowYesNoAsync / PickOptionAsync) never
 	# block the turn thread, so snapshots keep flowing while they're up — the old
