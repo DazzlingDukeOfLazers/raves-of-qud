@@ -36,11 +36,23 @@ guard, Sprint cooldown formatting. Still open:
 - **Message log needs a scrollbar** — `MessageLog.gd`. Note 1:1 parity: check whether Qud's own
   log shows one before adding it in 1:1; if not, user mode only.
 
-## One open colour question (one-line fix if wrong)
+## ~~One open colour question~~ — ANSWERED by measurement (2026-08-06)
 
-`CommandBar.CD` is `#6cb7c8`. Qud's ability bar also carries a saturated `(0,139,255)` and I could
-not capture a COOLING ability in Qud to confirm which one the cooldown icon is. Daniel said "light
-blue", which is why I chose this one. If it looks wrong on screen, change that constant only.
+`CommandBar.CD` was `#6cb7c8`, a lone brighter blue. Drove Sprint through off / on / cooling over
+the bridge and sampled Qud's own bar per glyph column: **Qud draws the whole `[81]` tag, brackets
+included, in the SAME cyan as the ability name** ((95,159,173) vs the name's (96,161,176) in one
+frame), so `CD` is now bound to `NAME_1TO1` and tracks it by construction. The toggle tags are
+two-tone — dark brackets either way, `on` a saturated green, `off` Qud's text grey — which is what
+Daniel reported and what a single per-tag colour could not express. Final: `[on]` matches Qud at
+(2,123,6) exactly; brackets (21,51,51) vs (20,54,54); `off` within 3%.
+
+**The rule that made it land** (also in `docs/gotchas.md`): pass q8 Qud's SCREEN value, never a
+palette source. q8 pre-compensates *Raves'* canvas shader, so a palette source double-counts a
+curve Qud already applied — the palette's `g` is (0,148,3), but Qud puts (3,123,6) on the glass.
+
+**Found in passing, not fixed** (separate item): Qud's `<1>` quick slot is TWO colours — the
+chevrons bright grey (189,189,189) and the digit AMBER (127,111,77). Raves draws all three in one
+grey (~131,132,132). One format-string change in `_hotkey_label`'s caller if you want it.
 
 ## State of the work
 

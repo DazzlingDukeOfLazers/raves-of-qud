@@ -13,10 +13,37 @@ const DIR_ABILITIES := ["CommandSurvivalCamp"]   # Make Camp
 
 const DIM := "#8a8f9a"
 const KEY := "#ffd200"       # hotkey — UI yellow
-const ON := "#59d38a"        # toggled-on green
-const OFF := "#8a8f9a"       # toggled-off / dim
-const CD := "#6cb7c8"        # cooling-down: Qud's light blue, measured (108,183,200) in its
-                             # ability bar -- matches the cooldown icon, per Daniel's note
+
+# STATE TAGS, sampled off Qud's own ability bar (Sprint driven through off / on / cooling over
+# the bridge, glyph cores read per pixel column). The arguments are Qud's SCREEN values, wrapped
+# in q8 — which pre-compensates RAVES' canvas shader so a value survives it intact (drawing
+# q8(148)=158 measured back as 148 on screen). Do NOT feed q8 a Qud PALETTE source: that
+# double-counts a curve Qud has already applied — the palette's `g` is (0,148,3), but what Qud
+# actually puts on the glass is (3,123,6), and the glass is what we are matching.
+#
+# The lift matters most where it is least obvious. Drawn raw, the near-black brackets came back
+# DIMMER than Qud's (they fell out of a sum>115 pixel scan entirely) while the bright grey word
+# matched fine — Raves' shader compresses the dark end hardest, which is the end q8 lifts.
+#
+# Peaks vary ±8% between captures of the identical tag (glyph AA lands differently by subpixel
+# position), so treat anything inside that as matched and don't chase it.
+#
+#   [off]   dark brackets + grey word    [on]   dark brackets + green word    [81]   all cyan
+#
+# Two things the old single-tone constants could not say:
+#  1. Qud colours the BRACKETS separately from the body — the same near-black green either way —
+#     which is exactly what Daniel reported ("the brackets look dark green and 'on' is closer to
+#     the rectangle selecting Sprint").
+#  2. `on` is a SATURATED green, not a mint. The old #59d38a carried a lot of blue; Qud's green
+#     measures blue = SIX, which rules out the mint and the palette's bright `G` alike.
+var TAG_BRK := QudChrome.q8(21, 56, 56)     # both brackets, both states
+var TAG_ON := QudChrome.q8(3, 123, 6)
+var TAG_OFF := QudChrome.q8(160, 187, 180)
+## Cooling down. NOT a distinct light blue: Qud draws `[81]` — brackets included — in the SAME
+## cyan as the ability's name (measured in one frame, (95,159,173) against the "Sprint" glyphs'
+## (96,161,176)). The old #6cb7c8 was a lone brighter blue. This was the open colour question in
+## docs/next-session.md; binding CD to the name keeps Qud's relationship true by construction.
+var CD := Color.html(NAME_1TO1)
 
 # 1:1 (measured off Qud's command bar): the ability icon is ~40px tall, the name text is a muted teal
 # and the <N> quick-slot number a light grey; a green frame boxes each ability cell.
@@ -547,9 +574,12 @@ func _make_cell(a: Dictionary, icon_px: int, slot: int, selected: bool, cell_w :
 	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	lbl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	lbl.add_theme_font_size_override("normal_font_size", 14)   # Qud's bar text measures ~14px (advance ~8.4/char)
-	lbl.text = "[color=%s]%s[/color][color=%s]%s%s[/color]" % [
+	# The state tags colour THEMSELVES (Qud gives brackets and body different tones); only the
+	# name and the <N> quick slot are flat. They used to ride inside the <N> grey, which is why
+	# 1:1 showed "[off]" and "[81]" in one dead grey no matter what the tag constants said.
+	lbl.text = "[color=%s]%s[/color]%s[color=%s]%s[/color]" % [
 		NAME_1TO1, QudText.strip(String(a.get("name", ""))),
-		NUM_1TO1, _state_plain(a), _hotkey_label(a, slot)]
+		_state_tag(a), NUM_1TO1, _hotkey_label(a, slot)]
 	cell.add_child(lbl)
 	return frame
 
@@ -567,8 +597,10 @@ func _cooldown_turns(a: Dictionary) -> int:
 	var cd := int(a.get("cooldown", 0))
 	return maxi(1, int(cd / 10.0)) if cd > 0 else 0   # never show "cd 0" while still cooling
 
-## Plain-text state suffixes for the cell label. Cooldown first, then toggle/disabled — matching Qud's
-## "[95] [off]" (a toggleable ability can be BOTH cooling down AND toggled off, so show both).
+## UNMARKED twin of _state_tag, for MEASUREMENT only (the pagination pass sizes each cell with
+## `f.get_string_size`, and colour markup would be measured as literal characters — pages would
+## break early and cells would be laid out to a width nothing renders at). Keep the two in sync:
+## same suffixes, same order, one with tags and one without.
 func _state_plain(a: Dictionary) -> String:
 	var s := ""
 	var cd := _cooldown_turns(a)
@@ -622,16 +654,23 @@ func _unhandled_key_input(e: InputEvent) -> void:
 	_activate(String(_abilities[page[slot]].get("command", "")))
 	get_viewport().set_input_as_handled()
 
+## BBCode for one bracketed tag with Qud's two-tone treatment: brackets in `brk`, body in `body`.
+## [lb]/[rb] rather than raw brackets — a literal "[" abutting a [/color] is exactly the shape
+## Godot's parser is entitled to read as a tag, and the escape costs nothing.
+func _tag(body: String, body_col: Color, brk_col: Color) -> String:
+	return " [color=#%s][lb][/color][color=#%s]%s[/color][color=#%s][rb][/color]" % [
+		brk_col.to_html(false), body_col.to_html(false), body, brk_col.to_html(false)]
+
 func _state_tag(a: Dictionary) -> String:
 	var s := ""
 	var cd := _cooldown_turns(a)
 	if cd > 0:
-		s += " [color=%s][%d][/color]" % [CD, cd]
+		s += _tag(str(cd), CD, CD)          # cooldown: brackets share the digits' cyan
 	if bool(a.get("toggleable", false)):
 		var on := bool(a.get("toggle", false))
-		s += " [color=%s][%s][/color]" % [ON if on else OFF, "on" if on else "off"]
+		s += _tag("on" if on else "off", TAG_ON if on else TAG_OFF, TAG_BRK)
 	elif not bool(a.get("enabled", true)):
-		s += " [color=%s][disabled][/color]" % DIM
+		s += _tag("disabled", Color.html(DIM), TAG_BRK)
 	return s
 
 func _hotkey_tag(a: Dictionary) -> String:

@@ -968,3 +968,27 @@ Fixes, both sides:
 ever runs. State a process reports about ITSELF belongs in a per-process file; a shared path needs
 an owner stamp the reader can check. And when a report and the screen disagree, count the
 processes before you go looking for a bug in the reporter.
+
+## q8 takes Qud's SCREEN value, not a Qud palette source
+
+`QudChrome.q8` pre-compensates **Raves'** canvas shader: draw `q8(148)` (= 158) and the screen
+measures back 148. So the argument must be the value you want ON THE GLASS.
+
+Matching a Qud colour by looking up its palette entry and passing THAT through q8 double-counts a
+curve Qud has already applied to its own output. Measured on the ability bar's `[on]` tag: the
+mod's palette ships `g` = (0,148,3), but what Qud actually renders is **(3,123,6)** — 21% dimmer.
+`q8(0,148,3)` put (0,148,2) on Raves' screen (too bright); `q8(3,123,6)` put (2,123,6) — exact.
+
+Two corollaries, both measured on the same tag:
+
+- **The lift matters most where it is least visible.** Drawn raw (no q8), the near-black brackets
+  came back DIMMER than Qud's — they dropped out of a `sum>115` pixel scan entirely — while the
+  bright grey word matched fine either way. Raves' shader compresses the dark end hardest, and
+  that is the end q8 lifts. Never skip q8 "because the colour is nearly black".
+- **Peaks wander ±8% between captures of the identical tag** (glyph AA lands differently by
+  subpixel position). Sample the same glyph in both apps in the same run, and treat anything
+  inside that band as matched rather than chasing it.
+
+To identify an unknown Qud UI colour: drive the state over the bridge, screenshot, group the lit
+pixels into glyph COLUMNS, and read each group's brightest pixel — per-glyph, because Qud colours
+brackets separately from the text inside them.
