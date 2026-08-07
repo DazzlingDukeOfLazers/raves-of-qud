@@ -50,9 +50,11 @@ Daniel reported and what a single per-tag colour could not express. Final: `[on]
 palette source. q8 pre-compensates *Raves'* canvas shader, so a palette source double-counts a
 curve Qud already applied — the palette's `g` is (0,148,3), but Qud puts (3,123,6) on the glass.
 
-**Found in passing, not fixed** (separate item): Qud's `<1>` quick slot is TWO colours — the
-chevrons bright grey (189,189,189) and the digit AMBER (127,111,77). Raves draws all three in one
-grey (~131,132,132). One format-string change in `_hotkey_label`'s caller if you want it.
+The `<1>` quick slot is fixed too (same pass): chevrons bright grey, digit amber, built by
+`_hotkey_cell_tag` from the plain `_hotkey_label` so they can't disagree about which key is shown.
+Digit (126,110,77) vs Qud's (132,116,80); the chevrons sit at (174,175,175) vs (197,198,198) —
+the **small-text rasteriser floor**, the same ~85% the ability NAME sits at in the accepted 4.0
+bar score. Don't inflate a colour constant to fight it.
 
 ## State of the work
 
