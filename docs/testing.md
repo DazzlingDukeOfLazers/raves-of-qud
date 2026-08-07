@@ -294,3 +294,42 @@ Two things this cost, both avoidable next time:
     manual fallback to test the data stage with — auto-connect is the only path,
     which is why "is it connected?" has to be answered from the LOG rather than
     from the screen.
+
+#### Root cause: the save's player has no BridgePart — NOT the StartupHook change
+
+Bisected 2026-08-07. My earlier suspicion (the merged StartupHook) was WRONG and
+is retracted: that diff is entirely heartbeat/`scene` reporting and touches
+nothing in the publish path. Exonerated by inspection, before any redeploy.
+
+The real cause is structural and predates the merge. `BridgePart` — the part that
+fires `Bridge.Tick` / `TickAction` / `TickRender`, i.e. the ONLY thing that
+publishes — is attached by `PlayerBridgeMutator`, a `[PlayerMutator]`. That runs
+when the player GameObject is **created**. It does not run on LOAD.
+
+So a save whose character was created without the bridge mod has a player with no
+BridgePart, and therefore:
+  - the server still starts (StartupHook) and still ACCEPTS commands — `mapedit`,
+    `uiback`, `loadsave` all work and log, which is exactly why this looked like
+    a Raves-side or connection problem
+  - but nothing ever publishes: `snap.py` blocks forever, Raves' panels stay at
+    `HP: —`, and its capture is byte-identical run after run
+
+That is also what the "Mod Configuration Differs" popup was telling us all along:
+these saves were made WITHOUT the bridge. The popup was the symptom, not an
+annoyance to click past.
+
+PROVED BY FIXING IT. `embark` (the mod's own chargen driver) built a fresh
+character with the mod active, and `snap.py summary` returned a full frame
+immediately:
+
+    zone JoppaWorld.11.22.1.1.10  80x25  player (37,22)  cells 2000
+    objects 2096   cell flags: bridge=1  wade=52  swim=0
+
+Raves then picked it up — `raves_state.json` gained an advancing `snap_ts`.
+
+CONSEQUENCE FOR THE FIXTURES: any save predating the mod is invisible to Raves,
+permanently. Either rebuild the fixture saves via `embark`, or make the mod
+attach BridgePart on LOAD as well as on creation (the mutator is creation-only;
+PlayerBecome.cs already handles the body-swap case, so a load-time attach is the
+missing third). The second is the better fix — it makes every existing save work
+— and is the recommended next change.
