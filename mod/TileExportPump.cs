@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using System.Threading;
 using Kobold;      // SpriteManager
@@ -25,6 +26,60 @@ namespace RavesOfQud
             return ctx != null && ctx.GetType().Name == "UnitySynchronizationContext";
         }
 
+
+        /// Qud's canonical tile path is "<Dir>/<file>.bmp" with a CAPITALISED directory —
+        /// SpriteManager.GetUnitySprite("Creatures/sw_farmer.bmp") resolves while
+        /// "creatures/sw_farmer.bmp" and "Assets/Content/Textures/Creatures/sw_farmer.bmp" both
+        /// return null (measured 2026-08-07).
+        ///
+        /// But ~345 of the ~4.6k blueprint Tile values arrive ALREADY FLATTENED, e.g.
+        /// "Assets_Content_Textures_Creatures_sw_farmer.bmp". Those resolve to nothing, so those
+        /// blueprints could never fetch their art. Rebuild a real path from the flattened form:
+        /// drop the Assets_Content_Textures_ prefix, then split at the first underscore that is
+        /// followed by a lower-case letter — Qud's directories are capitalised and its file names
+        /// start lower-case ("sw_", "item_"), so that boundary is the directory separator.
+        ///
+        /// The caller still writes the file under the ORIGINAL requested name, so the client's
+        /// lookup (which only knows the flattened string) keeps matching.
+        private static Sprite Resolve(string tilePath)
+        {
+            Sprite sp = SpriteManager.GetUnitySprite(tilePath);
+            if (sp != null) return sp;
+
+            // Some blueprints spell the separator with a BACKSLASH ("creatures\sw_glowfish.bmp").
+            // SpriteManager wants a forward slash, so try that before anything else — measured:
+            // it was the single miss in a 12-path sample of otherwise-repairable tiles.
+            if (tilePath.IndexOf('\\') >= 0)
+            {
+                sp = SpriteManager.GetUnitySprite(tilePath.Replace('\\', '/'));
+                if (sp != null)
+                {
+                    System.Console.WriteLine("[raves] tile export: backslash path repaired for '" + tilePath + "'");
+                    return sp;
+                }
+            }
+            if (tilePath.IndexOf('/') >= 0) return null;   // already a real path; nothing to repair
+
+            string flat = tilePath;
+            const string prefix = "Assets_Content_Textures_";
+            if (flat.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                flat = flat.Substring(prefix.Length);
+
+            for (int i = 0; i < flat.Length - 1; i++)
+            {
+                if (flat[i] != '_' || !char.IsLower(flat[i + 1])) continue;
+                string cand = flat.Substring(0, i) + "/" + flat.Substring(i + 1);
+                sp = SpriteManager.GetUnitySprite(cand);
+                if (sp != null)
+                {
+                    System.Console.WriteLine("[raves] tile export: '" + tilePath + "' -> '" + cand + "'");
+                    return sp;
+                }
+                break;   // first lower-case boundary is THE separator; more would be guessing
+            }
+            return null;
+        }
+
         public static void Export(string tilePath)
         {
             if (Interlocked.Exchange(ref _logged, 1) == 0)
@@ -36,8 +91,15 @@ namespace RavesOfQud
                 string dest = Path.Combine(TileExporter.Dir, TileExporter.FileFor(tilePath));
                 if (File.Exists(dest)) return;
 
-                Sprite sp = SpriteManager.GetUnitySprite(tilePath);
-                if (sp == null || sp.texture == null) return;
+                Sprite sp = Resolve(tilePath);
+                if (sp == null || sp.texture == null)
+                {
+                    // LOUD, not silent. A path that resolves to nothing used to return here
+                    // without a word, so a bad tile string looked identical to a working one
+                    // that simply had not been drawn yet — which cost a debugging round.
+                    System.Console.WriteLine("[raves] tile export: could not resolve '" + tilePath + "'");
+                    return;
+                }
 
                 Texture2D tex = sp.texture;
                 Rect tr = sp.textureRect;
