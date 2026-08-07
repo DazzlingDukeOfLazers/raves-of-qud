@@ -157,12 +157,26 @@ namespace RavesOfQud
                         string scene = live && (view == "Stage" || view == "" || view == "MainMenu")
                             ? "play" : view;
                         // Menu-land: a visible Qud.UI window is the most specific screen name
-                        // (e.g. ModToolkit, ModManagerUI, SteamWorkshopUploaderView) — it wins
-                        // over the stuck "MainMenu" view. In-game, `scene` stays "play".
+                        // (e.g. ModToolkit, ModManagerUI, SteamWorkshopUploaderView) for the
+                        // WindowBase menus, whose legacy view field IS stuck at "MainMenu".
+                        //
+                        // But only when the legacy view has nothing better to say. It was taken
+                        // unconditionally, which overwrote a RIGHT answer with a wrong one:
+                        // standing on Qud's high-scores screen the state file read
+                        //     view=ModernHighScores  window=MainMenu  scene=MainMenu
+                        // — the legacy field had it exactly right and the sampler clobbered it,
+                        // so `hv goto qud records` reported "did not arrive" while Qud was
+                        // plainly on the screen. Navigation was never the problem.
+                        //
+                        // In-game, `scene` stays "play" and neither of these applies.
                         string win = _uiWindow;
                         long uiAge = _uiSampleTs > 0
                             ? DateTimeOffset.UtcNow.ToUnixTimeSeconds() - _uiSampleTs : -1;
-                        if (!live && win != "" && uiAge >= 0 && uiAge <= 5) scene = win;
+                        bool viewVague = view.Length == 0
+                            || view.Equals("MainMenu", StringComparison.OrdinalIgnoreCase);
+                        bool winUseful = win.Length > 0
+                            && !win.Equals("MainMenu", StringComparison.OrdinalIgnoreCase);
+                        if (!live && viewVague && winUseful && uiAge >= 0 && uiAge <= 5) scene = win;
                         bool popup = view.IndexOf("Popup", StringComparison.OrdinalIgnoreCase) >= 0;
                         // WHICH status tab, when the status screens are the active view. Cached by
                         // the UI-thread watcher: resolving it here would mean a Unity call off-thread.
