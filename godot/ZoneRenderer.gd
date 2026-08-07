@@ -1131,6 +1131,20 @@ func _note(cx: int, cy: int, idx: int, kind: String, y: float) -> void:
 		target[k] = []
 	target[k].append({"idx": idx, "kind": kind, "y": y})
 
+## The WHOLE zone's placement map, "x,y" -> [{idx, kind, y}, ...] — the same
+## per-object verdicts CellInspector shows for one cell, for every cell at once.
+## Rung 6a (docs/pc-zone-plan.md) diffs this against the wire's cell list to
+## answer "did we draw everything the zone sent us?" with no pixels involved.
+func placement_census() -> Dictionary:
+	var out := {}
+	for src in [_placed, _dyn_placed]:
+		for k in src:
+			var key := "%d,%d" % [k.x, k.y]
+			if not out.has(key):
+				out[key] = []
+			out[key].append_array(src[k])
+	return out
+
 ## What the renderer did with cell (cx, cy): [{idx, kind, y}, ...]
 func placements_at(cx: int, cy: int) -> Array:
 	var k := Vector2i(cx, cy)

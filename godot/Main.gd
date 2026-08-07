@@ -492,6 +492,20 @@ func _exec_godot_cmd(cmd: String) -> void:
 	match parts[0]:
 		"shot":
 			_screenshot(false, true)   # forced: window is unfocused, no auto-draw
+		"census":
+			# Rung 6a: dump the renderer's per-cell placement verdicts so the rig
+			# can diff them against the wire's cells — "did we draw everything
+			# the zone sent?" with no pixels, no calibration, no focus.
+			var cs := FileAccess.open(_support_dir().path_join("census.json"), FileAccess.WRITE)
+			if cs != null:
+				var payload := {}
+				if renderer != null:
+					payload = {
+						"zone": _prev_zone_id,
+						"cells": renderer.placement_census(),
+					}
+				cs.store_string(JSON.stringify(payload))
+				cs.close()
 		"uidump":
 			# dump the frame's bottom-row widget rects — who is taller than the 90px budget?
 			var fr := get_parent()

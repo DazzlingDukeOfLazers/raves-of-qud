@@ -65,7 +65,23 @@ documented skip list (no tile *and* no glyph).
 This catches the loudest class of defect — "we drew nothing here" — across an
 entire zone in one pass. It needs no geometry calibration, no focus, no phase
 control, and therefore **cannot be poisoned by any of the six rig failure modes
-that plagued certification**. Do this first; it is likely seconds per zone.
+that plagued certification**.
+
+**BUILT (2026-08-06).** `tools/capture/census.py` + a `census` command on the
+viewer's existing file channel (`ZoneRenderer.placement_census()` →
+`census.json`). Runs in seconds, no calibration.
+
+    pristine JoppaWorld.11.22.1.1.10 — 2000 cells: 733 ok / 1267 unexplored / 0 DROPPED
+
+The audit must mirror the client's 1:1 contract exactly or it lies: the first
+run reported **1267 DROPPED**, every one of them an *unexplored* cell that the
+client correctly draws as nothing. `eligible()` now encodes the real rule —
+unexplored draws nothing, visible+lit draws everything, otherwise only the
+RenderIfDark ghost. That false alarm is also the proof the detector is not
+vacuous: the "wire sent art, client placed nothing" path demonstrably fires.
+
+Verdicts: `ok` / `unexplored` / `empty` / `skipped` (documented no-tile-no-glyph
+rule) / `DROPPED` (defect) / `PHANTOM` (drew something the wire never sent).
 
 ### 6b. Whole-playfield congruence — pixels, masked
 
