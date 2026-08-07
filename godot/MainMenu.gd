@@ -338,7 +338,20 @@ func _build_menu() -> void:
 	for cfg in BOX_ITEMS:
 		var b := _option_button(cfg)
 		opts.add_child(b)
-		_rows.append({"btn": b, "cfg": cfg, "enabled": true})
+		var sub: Label = null
+		if cfg.get("act", "") == "continue":
+			# the save Continue will open, on its OWN line — spelled into the caption it
+			# overflowed Qud's narrow box by half its width
+			sub = Label.new()
+			sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			sub.autowrap_mode = TextServer.AUTOWRAP_OFF
+			sub.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+			sub.clip_text = true
+			sub.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			sub.add_theme_font_size_override("font_size", 13)
+			sub.visible = false
+			opts.add_child(sub)
+		_rows.append({"btn": b, "cfg": cfg, "enabled": true, "sub": sub})
 	box.add_child(opts)
 
 	_box = box
@@ -638,10 +651,55 @@ func _refresh_enabled() -> void:
 			enabled = (_saves_exist() or _game_live) if Settings.one_to_one() else _game_live
 		row["enabled"] = enabled
 		row["btn"].disabled = not enabled
+		if act == "continue" and row.get("sub") != null:
+			var sl: Label = row["sub"]
+			var txt := _continue_label()
+			sl.text = txt
+			sl.visible = txt != ""
+			sl.add_theme_color_override("font_color", MUTED)
 	if _sel < _rows.size() and not _rows[_sel]["enabled"]:
 		_step(1)
 	_apply_selection()
 	_update_continue_hint()
+
+## The newest save's character name + level, for the Continue label (Daniel's feedback: "Show the
+## save's character name and level here"). Newest-first by Primary.json mtime — the same order
+## LoadGameScreen and Qud's own picker use, so the label always names the save Continue will open.
+## {} when there is no readable save (same TCC caveat as _saves_exist: we may be unable to LOOK).
+func _newest_save() -> Dictionary:
+	var root := OS.get_environment("HOME").path_join(
+		"Library/Application Support/com.FreeholdGames.CavesOfQud/Synced/Saves")
+	var d := DirAccess.open(root)
+	if d == null:
+		return {}
+	var best := {}
+	var best_mtime := -1
+	for sub in d.get_directories():
+		var pj := root.path_join(sub).path_join("Primary.json")
+		if not FileAccess.file_exists(pj):
+			continue
+		var mt := FileAccess.get_modified_time(pj)
+		if mt <= best_mtime:
+			continue
+		var f := FileAccess.open(pj, FileAccess.READ)
+		if f == null:
+			continue
+		var data: Variant = JSON.parse_string(f.get_as_text())
+		if data is Dictionary:
+			best_mtime = mt
+			best = {"name": str(data.get("Name", "")), "level": int(data.get("Level", 0))}
+	return best
+
+## Continue's label. 1:1 keeps Qud's bare "Continue" -- Qud names no save there, and the title
+## screen is on the parity scoreboard. User mode gets the save it will actually open.
+func _continue_label() -> String:
+	if Settings.one_to_one():
+		return ""            # Qud names no save here, and the title is on the parity scoreboard
+	var sv := _newest_save()
+	var nm := str(sv.get("name", ""))
+	if nm == "":
+		return ""
+	return "%s · lvl %d" % [nm, int(sv.get("level", 0))]
 
 static var _saves_warned := false
 
