@@ -42,7 +42,19 @@ import checker
 STAGE_CX, STAGE_CY = 40, 12          # the checker's stage cell, the grid anchor
 
 
-def cell_rect(base, cx, cy):
+def anchor_shift(base, player):
+    """How many cells the view has scrolled since calibration. Qud centres on
+    the PLAYER, so the calibrated rect names zone cell (40,12) only while the
+    player stands where calibration left them. Scoring a whole grid off a
+    stale anchor shifts every cell silently — the village runs happened to
+    line up only because `goto:` preserved the player's cell."""
+    pcx, pcy = base.get("pcx", -1), base.get("pcy", -1)
+    if pcx < 0 or not player:
+        return 0, 0
+    return int(player.get("x", pcx)) - pcx, int(player.get("y", pcy)) - pcy
+
+
+def cell_rect(base, cx, cy, shift=(0, 0)):
     """The pixel rect of zone cell (cx,cy) given the calibrated stage rect.
 
     STRIDE IS FRACTIONAL. Calibration measures one cell's bbox as integers, but
@@ -53,8 +65,8 @@ def cell_rect(base, cx, cy):
     override the integer w/h for POSITION only; the crop keeps the cell size."""
     sx = base.get("sx", base["w"])
     sy = base.get("sy", base["h"])
-    return {"x": int(round(base["x"] + (cx - STAGE_CX) * sx)),
-            "y": int(round(base["y"] + (cy - STAGE_CY) * sy)),
+    return {"x": int(round(base["x"] + (cx - STAGE_CX - shift[0]) * sx)),
+            "y": int(round(base["y"] + (cy - STAGE_CY - shift[1]) * sy)),
             "w": base["w"], "h": base["h"]}
 
 
@@ -170,12 +182,15 @@ def main(argv):
     qw, qh = Image.open(pair["qud"]).size
     rw, rh = Image.open(pair["raves"]).size
     animated = {bp for bp, ok in checker._anim_verified().items() if ok}
+    shift = anchor_shift(geom["qud"], snap.get("player", {}))
+    if shift != (0, 0):
+        print("  view scrolled %s cells since calibration — grid offset applied" % (shift,))
 
     rows, tally = [], {}
     for cell in snap.get("cells", []):
         cx, cy = int(cell["x"]), int(cell["y"])
-        qr = cell_rect(geom["qud"], cx, cy)
-        rr = cell_rect(geom["raves"], cx, cy)
+        qr = cell_rect(geom["qud"], cx, cy, shift)
+        rr = cell_rect(geom["raves"], cx, cy, shift)
         if not (inside(qr, qw, qh, QUD_MAP_FRAC, QUD_MAP_TOP, QUD_MAP_BOT) and inside(rr, rw, rh, RAVES_MAP_FRAC, RAVES_MAP_TOP, RAVES_MAP_BOT)):
             verdict = "offscreen"
             rows.append({"x": cx, "y": cy, "verdict": verdict})
@@ -194,7 +209,7 @@ def main(argv):
         # the tally by 26 cells out of 775, because dirt matches dirt wherever
         # you sample it. Cells whose margin is below MARGIN are reported as
         # `vacuous`: covered, but carrying no evidence.
-        off = cell_rect(geom["raves"], cx + 1, cy)
+        off = cell_rect(geom["raves"], cx + 1, cy, shift)
         margin = 0.0
         if inside(off, rw, rh, RAVES_MAP_FRAC, RAVES_MAP_TOP, RAVES_MAP_BOT):
             alt = congruence.score(pair["qud"], pair["raves"], {"qud": qr, "raves": off})

@@ -136,6 +136,22 @@ while `SaltyWaterPuddle` staged alone is the isolated variant and passes at 6.1.
 So the liquids category is certified at ONE autotile variant each, exactly as
 the walls were. Liquid joinery belongs on the same list as wall joinery.
 
+**GRID ANCHOR BUG (fixed in code, NOT yet verified end to end).** `cell_rect`
+anchored on a hardcoded zone cell (40,12), but Qud centres the view on the
+PLAYER — so the calibrated rect only names (40,12) while the player stands
+where calibration left them. Every village run happened to line up only because
+`goto:` preserved the player's cell (39,12), which is also where staging leaves
+them. Calibration now records the player cell (`pcx`/`pcy` in the geometry
+fixture) and `playfield.anchor_shift()` offsets the grid by how far the player
+has moved since. **Unverified**: the rig would not calibrate again before the
+session ended, so no run has yet exercised a non-zero shift.
+
+**CALIBRATE ONLY IN A CLEAN ZONE.** Calibrating while standing in the village
+fails the aspect guard (Raves cluster 66x56, ratio 1.18): the staged Wax Block
+AUTOTILES with the village's existing walls, so the two differential frames
+differ across more than one cell. The guard caught it correctly. Warp home,
+calibrate, then warp to the station.
+
 **And a real limitation.** At the zoomed-in pixel geometry only ~60 cells clear
 the viewport, so a village run scores 14 informative cells. Whole-playfield
 congruence needs the ZOOMED-OUT view to be worth its runtime; that is the next

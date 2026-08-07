@@ -537,6 +537,22 @@ def calibrate(_attempt=0):
             return calibrate(_attempt + 1)
         raise RuntimeError("calibrate: non-cell clusters after 3 attempts (q=%s r=%s)"
                            % (qrect, rrect))
+    # Record WHERE THE PLAYER STOOD. Qud centres the view on the player, so a
+    # calibrated rect only identifies zone cell (40,12) while the player is
+    # where calibration left them. Anything scoring a grid off this rect
+    # (playfield.py) must offset by how far the player has moved since — the
+    # village runs only lined up because `goto:` happened to preserve the
+    # player's cell.
+    try:
+        pb = control.Bridge()
+        pb.send("wait")
+        psnap = pb.read_snapshot(timeout=20)
+        pb.close()
+        pl = psnap.get("player", {})
+        qrect["pcx"], qrect["pcy"] = int(pl.get("x", -1)), int(pl.get("y", -1))
+        rrect["pcx"], rrect["pcy"] = qrect["pcx"], qrect["pcy"]
+    except Exception as e:
+        print("calibrate: could not record the player cell (%s)" % e)
     path = congruence.save_geometry(qrect, rrect)
     outdir = os.path.join(REPORTS, "shots", "calib")
     congruence.save_crop(caps["a"]["qud"], qrect, os.path.join(outdir, "cell_qud.png"))
