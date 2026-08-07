@@ -522,10 +522,16 @@ func _draw_canvas() -> void:
 			_canvas.draw_texture_rect(tex, Rect2(r.position + (cs - d) * 0.5, d), false)
 		else:
 			var rec: Dictionary = _by_name.get(top, {})
-			var glyph := str(rec.get("render", ""))
+			var glyph := _glyph_of(str(rec.get("render", "")))
 			if glyph != "":
-				_canvas.draw_string(ThemeDB.fallback_font, r.position + Vector2(cs.x * 0.3, cs.y * 0.75),
-					glyph, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, _tiles.color_of(_main_code(top)))
+				# centred in the cell, in the console face — Qud draws its glyphs on the
+				# cell grid, not hanging off a baseline in whatever font came to hand
+				var gf: Font = load(FONT_MONO)
+				var gsize := 18
+				var gw := gf.get_string_size(glyph, HORIZONTAL_ALIGNMENT_LEFT, -1, gsize).x
+				_canvas.draw_string(gf,
+					r.position + Vector2((cs.x - gw) * 0.5, cs.y * 0.5 + gsize * 0.36),
+					glyph, HORIZONTAL_ALIGNMENT_LEFT, -1, gsize, _tiles.color_of(_main_code(top)))
 			else:
 				_canvas.draw_rect(r.grow(-2.0), Color(0.35, 0.75, 0.35, 0.45))
 	if _has_region:
@@ -576,6 +582,24 @@ func _want_tile(tile: String) -> void:
 	frame.append((n >> 8) & 0xFF); frame.append(n & 0xFF)
 	frame.append_array(payload)
 	_peer.put_data(frame)
+
+## Qud's RenderString is EITHER a literal character ("~", "=", "@") OR a CP437 code point
+## written as a DECIMAL STRING ("176" = light shade, "219" = full block, "247" = approx) —
+## measured across blueprints.json, where 176/219/247 are among the most common values.
+## Drawing the digits verbatim is what turned a wall-heavy map into "176767..." noise.
+const CP437_HIGH := "ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜ¢£¥₧ƒáíóúñÑªº¿⌐¬½¼¡«»░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■ "
+
+func _glyph_of(render: String) -> String:
+	if render == "":
+		return ""
+	if not render.is_valid_int():
+		return render.substr(0, 1)
+	var code := render.to_int()
+	if code >= 32 and code < 127:
+		return char(code)
+	if code >= 128 and code <= 255:
+		return CP437_HIGH.substr(code - 128, 1)
+	return ""
 
 func _overlay_texture() -> Texture2D:
 	var path := InputModel.support_dir().path_join("title").path_join("bg").path_join("raw_bears.png")
