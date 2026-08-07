@@ -665,7 +665,10 @@ def reboot_rig(b=None):
     for _ in range(4):                       # boot popups stack; cancel through them
         b.send("popup", action="cancel")
         time.sleep(0.6)
-    b.send("wish", text="godmode")           # resets on every load
+    # The mod reads the "wish" field, NOT "text" — `text=` silently no-ops, so
+    # godmode was never actually applied on any boot this session (which is how
+    # a CherubimSpawn's cherub managed to kill the player mid-sweep).
+    b.send("wish", wish="godmode")           # resets on every load
     time.sleep(1.0)
     # Fresh viewer, WHOLE-CYCLE retried: kill (and verify the process is
     # actually GONE — a 600MB Godot outlives a 2s grace, and a relaunch

@@ -1,0 +1,23 @@
+[
+ {
+  "station": "joppa",
+  "zone": "JoppaWorld.11.22.1.1.10",
+  "exercises": "grass/dirt painted ground, huts, brinestalk walls, the golden save's home zone",
+  "tally": {
+   "unexplored": 1267,
+   "ok": 733
+  },
+  "bad": [],
+  "cells": 2000
+ },
+ {
+  "station": "village",
+  "zone": "JoppaWorld.11.22.1.2.10",
+  "exercises": "dense build: hut walls at room scale (autotile joinery), water pools, watervine, NPCs",
+  "tally": {
+   "ok": 2000
+  },
+  "bad": [],
+  "cells": 2000
+ }
+]

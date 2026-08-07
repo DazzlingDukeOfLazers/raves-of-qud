@@ -98,9 +98,35 @@ Two problems, both solvable with what we already have:
 
 ### 6c. Warp stations
 
-`wish goto:<zoneID>` (verified in Workstream B) against the golden save's fixed
-world seed. Because the seed is fixed, a zone ID composes identically on every
-load — the same determinism trick that made Rung 2 work, applied at zone scale.
+`wish goto:<zoneID>` against the golden save's fixed world seed. Because the
+seed is fixed, a zone ID composes identically on every load — the same
+determinism trick that made Rung 2 work, applied at zone scale.
+
+**BUILT (2026-08-06).** `tools/capture/stations.py` +
+`fixtures/checker_stations.json`. First run, census at each station:
+
+    joppa   JoppaWorld.11.22.1.1.10 — 2000 cells: 733 ok / 1267 unexplored / 0 DROPPED
+    village JoppaWorld.11.22.1.2.10 — 2000 cells: 2000 ok / 0 DROPPED
+
+And the payoff this rung exists for: **the village station alone exercises 23
+distinct autotile bitmasks, against 4 for the entire certified 229-wall sweep.**
+
+Three hard-won rules are baked into the driver:
+
+- **The wish field is `wish`, not `text`.** `b.send("wish", text=...)` silently
+  no-ops. That is why `goto:` appeared broken — and why **godmode was never
+  actually applied on any boot**, which is how a CherubimSpawn's cherub killed
+  the player mid-sweep during certification. Fixed in `checker.py` too.
+- **Warps are paced by CONFIRMATION, never by a timer.** `goto:` triggers
+  procedural zone generation that can outlast any guessed sleep. Six warps on
+  fixed 3.5s sleeps deadlocked Qud outright — frozen frame, no UI, unreachable
+  over the bridge, needing a process kill and a menu-driven reload. `warp()`
+  polls until the zone id actually changes, tolerating the connection drops
+  generation causes.
+- **Warping mutates the golden save.** Qud autosaves on zone change, so the save
+  the entire rig's determinism rests on ends up wherever you warped last.
+  Restore it after station runs, Qud down:
+  `python tools/capture/saves.py restore checker`.
 
 ## The determinism budget (honestly)
 
