@@ -119,3 +119,38 @@ Parity (equipment spec): composite 5.24, frame 3.61 — in line with the committ
 `image` 38.49 is dominated by the category filter strip, whose icons are offset by exactly one
 slot (`filter_image[0]`'s Raves bbox == `filter_image[1]`'s Qud bbox, and so on). Pre-existing
 and an ordering bug, not a rendering one.
+
+## FULL on the merged mac/PC result — 2026-08-07
+
+Branch `dd/mac-pc-merge` in both repos, after all four PC branches. The merged mod was DEPLOYED
+and Qud fully restarted first — mods compile at startup, so nothing measured before that means
+anything. Bridge came up on 48710, no compile errors in Player.log.
+
+**PASS** — FULL 4 (mod round-trip): statustab on two tabs, the `wish` command channel, nav
+commands moving the playfield and message log, and the popup mirror-and-answer route
+(Esc -> Qud's CmdSystemMenu -> mirrored to Raves -> answered -> arrived).
+**PASS** — FULL 3, everything except one edge: all 8 status tabs across both apps, both apps'
+in_game and title, and all three Raves menus (records/options/mods).
+
+**THREE DEFECTS FOUND, all fixed** (highvisor `f48c473`, `3f07e2c`):
+
+- `key()` raised `NameError: modifiers` — the mac/PC vocabulary rename had clobbered a LOCAL
+  called `mods` (the list `key()` parses out of "ctrl+m" itself). Every synthetic key was dead.
+- Chasing that found TWO `_mod_flags`. The staticmethod added earlier that day was defined
+  first and therefore shadowed, so click/scroll passed a *string* to a function that iterates
+  modifier NAMES — it walked the string character by character. Invisible because the flags are
+  cosmetic on that path: what actually delivers a modifier is the held key.
+- `gamestate` threw `JSONDecodeError: line 1431` — a TORN READ. The tree hot-reloads on mtime,
+  so any non-atomic writer leaves a window where the file is half a document, and since every op
+  resolves through the tree the whole daemon answered that error until someone touched the file.
+  `load_tree` keeps the last good tree now; regression-tested by half-writing the real file.
+
+**ONE FAILURE, not fixed and not merge-caused:** `qud title -> records` fails consistently
+(click_text finds and clicks "Records", Qud stays on the title). It passed earlier the same day
+after the Records exit was fixed, and the click path is byte-for-byte unchanged by the merge
+apart from a parameter rename — so this is the Qud modern-menu class again, not merge damage.
+Needs its own session with a screenshot at each step.
+
+**NOT RUN:** FULL 1 (live typing guard) and FULL 2 (parity) were not repeated on the merged
+tree. They were run pre-merge and neither touches the merged surface, but that is an argument,
+not a measurement — treat them as unverified here.
