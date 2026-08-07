@@ -147,6 +147,183 @@ namespace RavesOfQud
             catch { return 0; }
         }
 
+        /// Export EVERY entry of <c>MainMenu.backgrounds[]</c> (Qud ships several menu artworks and
+        /// activates one) to <c>Dir/bg/&lt;object&gt;.png</c>, plus <c>bg_manifest.txt</c> recording
+        /// each entry's object name, active state, and sprite — so the client can pick the SAME art
+        /// Qud is showing behind a given screen instead of reusing the title's.
+        ///
+        /// Why this exists: Qud's Modding Toolkit menu draws over a different (heavily dimmed)
+        /// artwork than the title screen, which cost ~6% of the toolkit screen's congruence. The
+        /// manifest's `active` flag is the discovery half — read it, then wire the named file.
+        /// MAIN-THREAD ONLY (graphics readback). Reads the player's own install; never bundled.
+        public static int ExportMenuBackgrounds()
+        {
+            try
+            {
+                var menus = Resources.FindObjectsOfTypeAll<Qud.UI.MainMenu>();
+                if (menus == null || menus.Length == 0)
+                {
+                    System.Console.WriteLine("[raves] bg dump: MainMenu not loaded");
+                    return 0;
+                }
+                Qud.UI.MainMenu menu = menus[0];
+                string dir = Path.Combine(Dir, "bg");
+                Directory.CreateDirectory(dir);
+                var sb = new System.Text.StringBuilder();
+                int n = 0;
+
+                // the single `background` Image (whatever is bound right now)
+                if (menu.background != null && menu.background.sprite != null)
+                {
+                    sb.AppendLine("current background sprite=" + menu.background.sprite.name);
+                    WriteSprite(menu.background.sprite, Path.Combine(dir, "current.png"));
+                    n++;
+                }
+                if (menu.backgrounds != null)
+                {
+                    for (int i = 0; i < menu.backgrounds.Length; i++)
+                    {
+                        GameObject go = menu.backgrounds[i];
+                        if (go == null) continue;
+                        string tag = i + "_" + Sanitize(go.name);
+                        Image img = go.GetComponentInChildren<Image>(true);
+                        RawImage raw = img == null ? go.GetComponentInChildren<RawImage>(true) : null;
+                        string sprite = img != null && img.sprite != null ? img.sprite.name
+                            : (raw != null && raw.texture != null ? raw.texture.name : "(none)");
+                        sb.AppendLine(string.Format("[{0}] object={1} active={2} sprite={3} file={4}.png",
+                            i, go.name, go.activeSelf, sprite, tag));
+                        if (img != null && img.sprite != null)
+                        {
+                            WriteSprite(img.sprite, Path.Combine(dir, tag + ".png"));
+                            n++;
+                        }
+                        else if (raw != null && raw.texture is Texture2D rt2)
+                        {
+                            WriteRegion(rt2, new Rect(0, 0, rt2.width, rt2.height),
+                                Path.Combine(dir, tag + ".png"));
+                            n++;
+                        }
+                    }
+                }
+                // THE BACKDROP — what Qud actually draws behind a modal menu window (the Modding
+                // Toolkit's artwork is NOT one of MainMenu.backgrounds[], which only holds the
+                // Modern/Classic title art; measured). BackdropWindowManager.backdropImage is the
+                // full-screen Image, so read its live sprite.
+                // NB FindObjectsOfTypeAll also returns PREFAB ASSETS, not just scene instances — and
+                // an asset is never activeInHierarchy AND its texture is streamed out, so blitting
+                // it yields garbage pixels (measured: the first attempt exported colour noise).
+                // So: walk them ALL, log each, and export only a LIVE one.
+                foreach (var bw in Resources.FindObjectsOfTypeAll<BackdropWindowManager>())
+                {
+                    if (bw == null || bw.backdropImage == null || bw.backdropImage.sprite == null) continue;
+                    Sprite bsp = bw.backdropImage.sprite;
+                    bool liveObj = bw.gameObject.activeInHierarchy && bw.gameObject.scene.IsValid();
+                    sb.AppendLine("backdrop object=" + bw.gameObject.name
+                        + " activeInHierarchy=" + bw.gameObject.activeInHierarchy
+                        + " inScene=" + bw.gameObject.scene.IsValid()
+                        + " sprite=" + bsp.name + (liveObj ? " -> backdrop.png" : " (asset/inactive, skipped)"));
+                    if (!liveObj) continue;
+                    WriteSprite(bsp, Path.Combine(dir, "backdrop.png"));
+                    // …and a name-keyed copy, so a later session can tell WHICH backdrop this was
+                    // if Qud rotates them.
+                    WriteSprite(bsp, Path.Combine(dir, "backdrop_" + Sanitize(bsp.name) + ".png"));
+                    n += 2;
+                }
+
+                // DISCOVERY: every ACTIVELY-RENDERING large Image in the scene, with its sprite and
+                // screen rect. The named fields above are guesses about WHERE the art lives; this
+                // is the measurement of what is actually on screen right now. It exists because
+                // MainMenu.backgrounds[] and BackdropWindowManager both turned out NOT to be the
+                // Modding Toolkit's artwork, and an inactive object's texture reads back as
+                // garbage (Unity streams out mips for anything not rendering) — so only an ACTIVE
+                // image is worth exporting.
+                foreach (Image img in Resources.FindObjectsOfTypeAll<Image>())
+                {
+                    if (img == null || img.sprite == null) continue;
+                    if (!img.gameObject.activeInHierarchy || !img.gameObject.scene.IsValid()) continue;
+                    if (!img.enabled) continue;
+                    var rt = img.rectTransform;
+                    if (rt == null) continue;
+                    // World-corner size, not rect.size: a stretched-anchor full-screen Image can
+                    // report a tiny LOCAL rect while covering the screen.
+                    var corners = new Vector3[4];
+                    rt.GetWorldCorners(corners);
+                    float w = Mathf.Abs(corners[2].x - corners[0].x);
+                    float h = Mathf.Abs(corners[2].y - corners[0].y);
+                    if (w < 400f || h < 300f) continue;   // full-screen-ish only
+                    float alpha = img.color.a * (img.canvasRenderer != null
+                        ? img.canvasRenderer.GetAlpha() : 1f);
+                    string sn = img.sprite.name;
+                    sb.AppendLine(string.Format(
+                        "ACTIVE image obj={0} sprite={1} size={2}x{3} alpha={4:0.00} file=active_{5}.png",
+                        img.gameObject.name, sn, (int)w, (int)h, alpha, Sanitize(sn)));
+                    if (alpha <= 0.01f) continue;   // present but faded out — not what we see
+                    try
+                    {
+                        WriteSprite(img.sprite, Path.Combine(dir, "active_" + Sanitize(sn) + ".png"));
+                        n++;
+                    }
+                    catch (Exception ie) { sb.AppendLine("   write failed: " + ie.Message); }
+                }
+
+                // …and the same scan for RawImage + SpriteRenderer. The Modding Toolkit's artwork is
+                // none of: MainMenu.backgrounds[], BackdropWindowManager, or any active UI Image
+                // (all measured) — and when the toolkit opens the whole MainMenu subtree goes
+                // inactive, so whatever we see is drawn by a different component type.
+                foreach (RawImage ri in Resources.FindObjectsOfTypeAll<RawImage>())
+                {
+                    if (ri == null || ri.texture == null) continue;
+                    if (!ri.gameObject.activeInHierarchy || !ri.gameObject.scene.IsValid()) continue;
+                    if (!ri.enabled) continue;
+                    var rrt = ri.rectTransform;
+                    if (rrt == null) continue;
+                    var rc = new Vector3[4];
+                    rrt.GetWorldCorners(rc);
+                    float rw = Mathf.Abs(rc[2].x - rc[0].x), rh = Mathf.Abs(rc[2].y - rc[0].y);
+                    if (rw < 400f || rh < 300f) continue;
+                    float ra = ri.color.a * (ri.canvasRenderer != null ? ri.canvasRenderer.GetAlpha() : 1f);
+                    string rn = string.IsNullOrEmpty(ri.texture.name) ? ri.gameObject.name : ri.texture.name;
+                    sb.AppendLine(string.Format(
+                        "ACTIVE rawimage obj={0} tex={1} size={2}x{3} alpha={4:0.00} file=raw_{5}.png",
+                        ri.gameObject.name, rn, (int)rw, (int)rh, ra, Sanitize(rn)));
+                    if (ra <= 0.01f) continue;
+                    try
+                    {
+                        if (ri.texture is Texture2D rtex)
+                        {
+                            WriteRegion(rtex, new Rect(0, 0, rtex.width, rtex.height),
+                                Path.Combine(dir, "raw_" + Sanitize(rn) + ".png"));
+                            n++;
+                        }
+                    }
+                    catch (Exception re) { sb.AppendLine("   write failed: " + re.Message); }
+                }
+                foreach (SpriteRenderer sr in Resources.FindObjectsOfTypeAll<SpriteRenderer>())
+                {
+                    if (sr == null || sr.sprite == null) continue;
+                    if (!sr.gameObject.activeInHierarchy || !sr.gameObject.scene.IsValid()) continue;
+                    if (!sr.enabled) continue;
+                    var b = sr.bounds;
+                    string sn2 = sr.sprite.name;
+                    sb.AppendLine(string.Format(
+                        "ACTIVE spriterenderer obj={0} sprite={1} bounds={2:0}x{3:0} alpha={4:0.00} file=sr_{5}.png",
+                        sr.gameObject.name, sn2, b.size.x, b.size.y, sr.color.a, Sanitize(sn2)));
+                    if (sr.color.a <= 0.01f) continue;
+                    try { WriteSprite(sr.sprite, Path.Combine(dir, "sr_" + Sanitize(sn2) + ".png")); n++; }
+                    catch (Exception se) { sb.AppendLine("   write failed: " + se.Message); }
+                }
+
+                File.WriteAllText(Path.Combine(Dir, "bg_manifest.txt"), sb.ToString());
+                System.Console.WriteLine("[raves] menu backgrounds dumped: " + n + " -> " + dir);
+                return n;
+            }
+            catch (Exception e)
+            {
+                System.Console.WriteLine("[raves] bg dump failed: " + e.Message);
+                return 0;
+            }
+        }
+
         /// Find a loaded UI Sprite by exact name and write it to <c>Dir/destFile</c> (like the title
         /// art). MAIN-THREAD ONLY. Reads the player's own install; never bundled.
         /// Export the CELL FRAME sprite Qud's filter bar draws (FilterBarCategoryButton's

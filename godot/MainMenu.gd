@@ -1145,8 +1145,13 @@ func _on_open_tool(tool_id: String) -> void:
 	match tool_id:
 		"mod_manager":
 			_open_overlay("res://ModsScreen.gd")
+		"blueprint_browser":
+			# ask Qud to refresh blueprints.json first (a modded install can change it);
+			# the screen reads whatever is on disk and reports its own empty state.
+			_send_command({"type": "command", "name": "export"})
+			_open_overlay("res://BlueprintBrowserScreen.gd")
 		_:
-			pass   # deep tools (map editor, blueprint browser, …) — future leaves
+			pass   # deep tools (map editor, waveform, …) — future leaves
 
 func _close_overlay() -> void:
 	if _overlay != null:

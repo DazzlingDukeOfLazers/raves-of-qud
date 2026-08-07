@@ -27,7 +27,11 @@ signal open_tool(tool_id: String)
 var ui_scene := "modding_toolkit"
 
 # palette — sampled off the reference capture
-const SCRIM := Color(0.01, 0.02, 0.02, 0.90)     # near-black dim over the art behind
+const SCRIM := Color(0.01, 0.02, 0.02, 0.90)     # fallback dim when the art isn't extracted
+## The veil Qud draws over its backdrop art. MEASURED, not eyeballed: solving
+## ref = art*(1-a) + scrim*a over three regions clear of the menu box gives a = 0.765
+## (per-channel spread 0.737-0.784). Re-derive with the same solve if the art changes.
+const BACKDROP_DIM := Color(0.01, 0.02, 0.02, 0.765)
 const PANEL := Color8(0x0E, 0x3F, 0x3A)          # box interior — saturated dark teal
 const BORDER := Color8(0x5B, 0x8A, 0x84)         # thin light-teal frame lines
 const TITLE_GOLD := Color8(0xE8, 0xD4, 0x4D)     # "Modding Toolkit" + selected caret
@@ -44,7 +48,7 @@ const ITEMS := [
 	{"text": "Workshop Uploader", "act": ""},
 	{"text": "Map Editor", "act": ""},
 	{"text": "Mod Wiki Website", "act": "url:https://wiki.cavesofqud.com/wiki/Modding:Overview"},
-	{"text": "Blueprint Browser", "act": ""},
+	{"text": "Blueprint Browser", "act": "tool:blueprint_browser"},
 	{"text": "Open Save Folder", "act": "dir:qud_data"},
 	{"text": "Write Mods.csproj File", "act": ""},
 	{"text": "Histographicnomicon", "act": ""},
@@ -82,8 +86,22 @@ func _ready() -> void:
 		theme.set_stylebox("normal", tt, empty)
 	get_viewport().size_changed.connect(_relayout)
 
+	# Qud's OWN backdrop art for this screen. It is NOT the title art: opening the toolkit hides
+	# the whole MainMenu subtree and reveals a separate full-screen RawImage (texture "bears" —
+	# extracted by the mod's ExportMenuBackgrounds; see title/bg_manifest.txt). Absent -> the plain
+	# dim, which is what the screen looked like before the export existed.
+	var art := _load_backdrop()
+	if art != null:
+		var tr := TextureRect.new()
+		tr.texture = art
+		tr.set_anchors_preset(Control.PRESET_FULL_RECT)
+		tr.stretch_mode = TextureRect.STRETCH_SCALE
+		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE   # fill the rect, not the native size
+		tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(tr)
+
 	var scrim := ColorRect.new()
-	scrim.color = SCRIM
+	scrim.color = SCRIM if art == null else BACKDROP_DIM
 	scrim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	scrim.mouse_filter = Control.MOUSE_FILTER_STOP   # modal: swallow clicks to the menu behind
 	add_child(scrim)
@@ -248,6 +266,18 @@ func _activate() -> void:
 		OS.shell_open(act.trim_prefix("url:"))     # external, matching Qud's own behaviour
 	elif act == "dir:qud_data":
 		OS.shell_open(_qud_data_dir())
+
+## Qud's extracted backdrop for this screen (title/bg/raw_bears.png), or null before the mod has
+## exported it. Kept as a named lookup rather than a hardcoded path constant so a future dump that
+## finds a DIFFERENT backdrop only has to change this one line.
+func _load_backdrop() -> Texture2D:
+	var path := InputModel.support_dir().path_join("title").path_join("bg").path_join("raw_bears.png")
+	if not FileAccess.file_exists(path):
+		return null
+	var img := Image.new()
+	if img.load(path) != 0:   # 0 == OK
+		return null
+	return ImageTexture.create_from_image(img)
 
 ## Caves of Qud's data folder — the same folder Qud's "Open Save Folder" opens.
 func _qud_data_dir() -> String:

@@ -1146,6 +1146,7 @@ namespace RavesOfQud
                                 JournalExporter.ReExport();    // journal tabs (Journal tab)
                                 TinkeringExporter.ReExport();  // build recipes + bits (Tinkering tab)
                                 InventoryExporter.ReExport();   // inventory (Equipment tab)
+                                BlueprintExporter.ReExport();   // ObjectBlueprints tree (Blueprint Browser)
                                 TitleExporter.ExportCellFrame();     // Qud's own 9-slice cell frame
                                 TitleExporter.ExportChargenEmblem();                        // resident even at the menu
                                 TitleExporter.ExportNamedSprite("tiny-frame-h", "card_frame.png");         // the game-mode card's dotted frame
@@ -1184,6 +1185,21 @@ namespace RavesOfQud
                     var gmn = GameManager.Instance;
                     if (gmn != null && gmn.uiQueue != null)
                         gmn.uiQueue.queueTask(() => { try { TitleExporter.ExportNavIcons(); } catch (Exception e) { try { Server.Log("dumpnav: " + e.Message); } catch { } } }, 0);
+                    return;
+                }
+                if (name == "dumpbg")
+                {
+                    // One-shot: dump every MainMenu background artwork + a manifest saying which is
+                    // ACTIVE, so a screen drawn over a non-title artwork (the Modding Toolkit) can
+                    // use Qud's own pixels. Main-thread readback, and it must run AT THE MENU —
+                    // which is why it's here (early return) and not in the in-game "export" path.
+                    var gmb = GameManager.Instance;
+                    if (gmb != null && gmb.uiQueue != null)
+                        gmb.uiQueue.queueTask(() =>
+                        {
+                            try { Server.Log("[dumpbg] wrote " + TitleExporter.ExportMenuBackgrounds() + " images"); }
+                            catch (Exception e) { try { Server.Log("dumpbg error: " + e.Message); } catch { } }
+                        }, 0);
                     return;
                 }
                 if (name == "metagame")
@@ -1300,7 +1316,8 @@ namespace RavesOfQud
                         OptionsExporter.ReExport();
                         RecordsExporter.ReExport();
                         ChargenExporter.ReExport();
-                        Server.Log("[export] re-exported mods + options + records + chargen");
+                        BlueprintExporter.ReExport();
+                        Server.Log("[export] re-exported mods + options + records + chargen + blueprints");
                     }
                     catch (Exception e) { Server.Log("export error: " + e.Message); }
                     break;
