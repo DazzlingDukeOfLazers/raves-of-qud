@@ -97,6 +97,11 @@ namespace RavesOfQud
                 j.Member("tile", Safe(() => GetTag(bp, "Tile"), ""));
                 j.Member("render", Safe(() => GetTag(bp, "RenderString"), ""));
                 j.Member("colors", Safe(() => GetTag(bp, "ColorString"), ""));
+                // The RECOLOUR pair. A Qud tile is a 2-colour mask (black -> TileColor,
+                // white -> DetailColor), so ColorString alone cannot render one — it carries
+                // the &FG^BG text colour, a different thing. QudTiles.texture() wants these two.
+                j.Member("tilecolor", Safe(() => GetTag(bp, "TileColor"), ""));
+                j.Member("detail", Safe(() => GetTag(bp, "DetailColor"), ""));
                 EndTiers(j, bp);
                 j.EndObject();
                 n++;

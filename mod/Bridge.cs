@@ -1187,6 +1187,20 @@ namespace RavesOfQud
                         gmn.uiQueue.queueTask(() => { try { TitleExporter.ExportNavIcons(); } catch (Exception e) { try { Server.Log("dumpnav: " + e.Message); } catch { } } }, 0);
                     return;
                 }
+                if (name == "wanttile")
+                {
+                    // Export ONE tile on demand. The full blueprint set is ~5k tiles and only the
+                    // few hundred seen in play are on disk, so screens ask for what they actually
+                    // draw instead of bulk-exporting. TileExporter.Ensure queues it; the pump does
+                    // the readback on the main thread.
+                    f.TryGetValue("path", out string wtPath);
+                    if (!string.IsNullOrEmpty(wtPath))
+                    {
+                        try { TileExporter.Ensure(wtPath); Server.Log("wanttile " + wtPath); }
+                        catch (Exception e) { try { Server.Log("wanttile error: " + e.Message); } catch { } }
+                    }
+                    return;
+                }
                 if (name == "mapedit")
                 {
                     // Drive the Map Editor through its own API (MapEditorDriver) instead of

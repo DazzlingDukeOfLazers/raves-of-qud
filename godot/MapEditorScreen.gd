@@ -101,6 +101,14 @@ var _cells := {}                 # Vector2i -> [blueprint names]
 var _undo: Array = []
 var _overlay_on := false
 
+## Qud tile rendering, via the shared helper every other view uses (it handles the
+## path -> filename normalisation, the grayscale-mask recolour, and caching).
+var _tiles                       # QudTiles instance
+var _by_name := {}               # blueprint name -> record, for tile/colour lookup
+var _requested := {}             # tile paths already asked of the mod, so we ask once
+var _peer := StreamPeerTCP.new()
+
+var _retry_t := 0.0
 var _open_menu := ""
 var _menu_panel: Control
 var _canvas: Control
@@ -126,6 +134,9 @@ func _ready() -> void:
 	bg.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(bg)
 
+	_tiles = load("res://QudTiles.gd").new()
+	_tiles.tiles_dir = InputModel.support_dir().path_join("tiles")
+	_peer.connect_to_host(BridgeClient.host(), BridgeClient.port())
 	_load_blueprints()
 	_build_menubar()
 	_build_canvas()
@@ -134,6 +145,23 @@ func _ready() -> void:
 	_build_hints()
 	_refresh_filter()
 	set_process(true)
+
+func _process(dt: float) -> void:
+	_peer.poll()
+	if _peer.get_status() == StreamPeerTCP.STATUS_CONNECTED:
+		var avail := _peer.get_available_bytes()
+		if avail > 0:
+			_peer.get_data(avail)     # drain; we only SEND on this socket
+	# a requested tile lands on disk a moment later — retry those cells periodically
+	if not _requested.is_empty():
+		_retry_t += dt
+		if _retry_t >= 1.0:
+			_retry_t = 0.0
+			_canvas.queue_redraw()
+
+func _exit_tree() -> void:
+	if _peer != null:
+		_peer.disconnect_from_host()
 
 func _fit_to_viewport() -> void:
 	set_anchors_preset(Control.PRESET_TOP_LEFT)
@@ -153,6 +181,8 @@ func _load_blueprints() -> void:
 	if d is Dictionary and d.get("blueprints", null) is Array:
 		_blueprints = d["blueprints"]
 		_blueprints.sort_custom(func(a, b): return str(a.get("name", "")) < str(b.get("name", "")))
+		for b in _blueprints:
+			_by_name[str(b.get("name", ""))] = b
 
 # ── menu bar ──────────────────────────────────────────────────────────────────
 
@@ -327,14 +357,31 @@ func _draw_canvas() -> void:
 		for y in range(ROWS):
 			var c := Vector2((x + 0.5) * cs.x, (y + 0.5) * cs.y)
 			_canvas.draw_rect(Rect2(c - Vector2(1.5, 1.5), Vector2(3, 3)), GRID_DOT)
-	# painted cells — render the blueprint's glyph until tiles are wired
+	# painted cells — Qud's own tile art, recoloured from the blueprint's TileColor/DetailColor.
+	# Falls back to the render glyph when the mask isn't on disk yet (the mod exports a few hundred
+	# tiles by default; _want_tile asks for the rest one at a time as they're actually drawn).
 	for k in _cells:
 		var p: Vector2i = k
 		var names: Array = _cells[k]
 		if names.is_empty():
 			continue
 		var r := Rect2(Vector2(p.x * cs.x, p.y * cs.y), cs)
-		_canvas.draw_rect(r.grow(-2.0), Color(0.35, 0.75, 0.35, 0.55))
+		var top := str(names[-1])
+		var tex := _tile_for(top)
+		if tex != null:
+			# preserve the tile's aspect inside the cell, like Qud draws it
+			var ts := tex.get_size()
+			var scale: float = minf(cs.x / ts.x, cs.y / ts.y)
+			var d := ts * scale
+			_canvas.draw_texture_rect(tex, Rect2(r.position + (cs - d) * 0.5, d), false)
+		else:
+			var rec: Dictionary = _by_name.get(top, {})
+			var glyph := str(rec.get("render", ""))
+			if glyph != "":
+				_canvas.draw_string(ThemeDB.fallback_font, r.position + Vector2(cs.x * 0.3, cs.y * 0.75),
+					glyph, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, _tiles.color_of(_main_code(top)))
+			else:
+				_canvas.draw_rect(r.grow(-2.0), Color(0.35, 0.75, 0.35, 0.45))
 	if _has_region:
 		var rr := Rect2(Vector2(_region.position.x * cs.x, _region.position.y * cs.y),
 			Vector2(_region.size.x * cs.x, _region.size.y * cs.y))
@@ -342,6 +389,47 @@ func _draw_canvas() -> void:
 	if _hover.x >= 0:
 		var hr := Rect2(Vector2(_hover.x * cs.x, _hover.y * cs.y), cs)
 		_canvas.draw_rect(hr, CURSOR, false, 2.0)
+
+## The recoloured tile for a blueprint, or null when its mask isn't exported yet (in which case
+## we ask the mod for it exactly once and the next redraw picks it up).
+func _tile_for(bp_name: String) -> Texture2D:
+	var rec: Dictionary = _by_name.get(bp_name, {})
+	var tile := str(rec.get("tile", ""))
+	if tile == "":
+		return null
+	var tex: Texture2D = _tiles.texture(tile, _tiles.color_of(_main_code(bp_name)),
+		_tiles.color_of(str(rec.get("detail", ""))))
+	if tex == null:
+		_want_tile(tile)
+	return tex
+
+## Qud's TileColor is a colour STRING ("&Y"); QudTiles.color_of wants the bare code.
+func _main_code(bp_name: String) -> String:
+	var rec: Dictionary = _by_name.get(bp_name, {})
+	var c := str(rec.get("tilecolor", ""))
+	if c == "":
+		c = str(rec.get("colors", ""))
+	c = c.replace("&", "")
+	var caret := c.find("^")
+	if caret >= 0:
+		c = c.substr(0, caret)
+	return c.substr(0, 1) if c.length() > 0 else "y"
+
+## Ask the mod to export one tile (bridge `wanttile`). Bounded by _requested so a missing mask
+## costs one request, not one per frame.
+func _want_tile(tile: String) -> void:
+	if tile == "" or _requested.has(tile):
+		return
+	_requested[tile] = true
+	if _peer.get_status() != StreamPeerTCP.STATUS_CONNECTED:
+		return
+	var payload := JSON.stringify({"type": "command", "name": "wanttile", "path": tile}).to_utf8_buffer()
+	var n := payload.size()
+	var frame := PackedByteArray()
+	frame.append((n >> 24) & 0xFF); frame.append((n >> 16) & 0xFF)
+	frame.append((n >> 8) & 0xFF); frame.append(n & 0xFF)
+	frame.append_array(payload)
+	_peer.put_data(frame)
 
 func _overlay_texture() -> Texture2D:
 	var path := InputModel.support_dir().path_join("title").path_join("bg").path_join("raw_bears.png")
@@ -360,19 +448,21 @@ func _canvas_input(e: InputEvent) -> void:
 			if _dragging:
 				_region = _rect_from(_drag_start, c)
 				_has_region = true
+			elif e.ctrl_pressed and e.button_mask & MOUSE_BUTTON_MASK_LEFT:
+				_paint(c)          # Qud paints continuously along a Ctrl+drag
 			_update_readouts()
 			_canvas.queue_redraw()
 	elif e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_LEFT:
 		var c := _cell_at(e.position)
 		if e.pressed:
-			if Input.is_key_pressed(KEY_SHIFT):        # Qud: Shift+drag = region select
+			if e.shift_pressed:                        # Qud: Shift+drag = region select
 				_dragging = true
 				_drag_start = c
 				_region = _rect_from(c, c)
 				_has_region = true
-			elif Input.is_key_pressed(KEY_CTRL):       # Qud: Ctrl+drag = paint from palette
+			elif e.ctrl_pressed:                       # Qud: Ctrl+drag = paint from palette
 				_paint(c)
-			elif Input.is_key_pressed(KEY_ALT):        # Qud: Alt+click = sample to palette
+			elif e.alt_pressed:                        # Qud: Alt+click = sample to palette
 				var names: Array = _cells.get(c, [])
 				if not names.is_empty():
 					_set_brush(str(names[-1]))
@@ -436,6 +526,10 @@ func _build_palette() -> void:
 	add_child(scroll)
 	_palette_list = VBoxContainer.new()
 	_palette_list.add_theme_constant_override("separation", 0)
+	# The VBox must fill the scroll's width or every row is 0px wide and nothing is
+	# clickable — the brush stayed empty and painting silently no-opped.
+	_palette_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_palette_list.custom_minimum_size = Vector2(scroll.size.x, 0)
 	scroll.add_child(_palette_list)
 
 func _refresh_filter() -> void:
@@ -482,6 +576,7 @@ func _populate_palette(dropped: int) -> void:
 func _palette_row(b: Dictionary) -> Control:
 	var row := Control.new()
 	row.custom_minimum_size = Vector2(0, PALETTE_ROW_H)
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.mouse_filter = Control.MOUSE_FILTER_STOP
 	var hl := ColorRect.new()
 	hl.color = Color(0, 0, 0, 0)
