@@ -152,6 +152,33 @@ AUTOTILES with the village's existing walls, so the two differential frames
 differ across more than one cell. The guard caught it correctly. Warp home,
 calibrate, then warp to the station.
 
+**THE VILLAGE "WATER DIVERGENCE" IS GRID DRIFT — artifact #4.** At the
+zoomed-out geometry the village scored 792 cells, 64 FAIL on water/Watervine
+(means 55-72), spread across the map rather than hugging an edge — which is why
+it looked credible. Eyeballing the crops killed it: every failing pair contains
+the SAME content OFFSET BY ABOUT A CELL, and so does a PASSing control cell
+(13,0 — vine centre-left in Qud, bottom-right in Raves). Content matches;
+position does not.
+
+Cause: the two apps' pitches are not proportional. Qud's cell is 25x37 and
+Raves' 12x19 — ratios 1.95 vs 2.08 — so error grows with distance from the
+anchor, and at 12px cells even half a pixel per cell exceeds a full cell within
+30 columns. The fractional-stride fit attempted earlier was the right idea
+abandoned for the wrong reason: it was fitting sidebar noise at the time,
+because the viewport clip did not exist yet.
+
+**So 6b is NOT yet a trustworthy instrument, and no 6b number should be quoted
+as a defect.** What it needs before another run:
+1. A fractional-stride fit PER APP, now that the viewport is clipped on both
+   axes and the anchor follows the player.
+2. Validation by the shift test already built in — misaligning by one cell must
+   change the tally sharply. Today it does not, which is the tell.
+3. A Raves window large enough that a cell is not 12x19 upsampled to 32x48.
+
+Four artifacts now (sidebar text, dawn lighting, status bar, grid drift), zero
+confirmed render defects. 6a's census, which never touches a pixel, has produced
+zero false positives over the same period. **Weight effort accordingly.**
+
 **And a real limitation.** At the zoomed-in pixel geometry only ~60 cells clear
 the viewport, so a village run scores 14 informative cells. Whole-playfield
 congruence needs the ZOOMED-OUT view to be worth its runtime; that is the next
