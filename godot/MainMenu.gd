@@ -111,7 +111,17 @@ var _meta_wait := 0.0
 var _status_poll_t := 0.0
 var _continue_hint: Label      # "load a game in Qud" note, shown when Qud is up but no game is live
 var _bg_rect: TextureRect      # the title background (nudgeable live via title_bg.json)
-var _bg_nudge := {"dx": 0.0, "dy": 0.0, "scale": 1.0}   # live pan/zoom over the base cover
+## Live pan/zoom over the base cover. The 1.010 is MEASURED, not taste: a plain cover fit put
+## our backdrop ~1% small against Qud's. The tell was that the best per-window alignment offset
+## ran +8 px on the far left and -8 px on the far right — symmetric about the centre, which is a
+## SCALE mismatch rather than a pan — and that the error lived almost entirely on edges (flat
+## areas mean|d| 4.9, edge areas 43.0). It is emphatically NOT a colour grade: the two backdrops'
+## channel means already agreed within 1% (R 51.4/50.7, G 74.1/73.4, B 68.4/67.7).
+## Fitted by searching this very file live (MainMenu polls it) against Qud: mean|d| 6.0 -> 1.3.
+## An anisotropic fit (sx 1.01012, sy 1.00975) scored marginally better at 1.14, but a cover fit
+## is aspect-preserving by construction so anisotropy has no mechanism — that 0.04% split is
+## inside the search's quantisation, and baking it would be encoding noise.
+var _bg_nudge := {"dx": 0.0, "dy": 0.0, "scale": 1.010}
 var _bg_nudge_mtime := -1.0
 var _bg_poll_t := 0.0
 var _quit_dialog: Control      # the "Are you sure you want to quit?" modal, or null
