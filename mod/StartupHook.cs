@@ -103,67 +103,15 @@ namespace RavesOfQud
                     }
                 }
                 _uiWindow = win;
-                _uiMenu = SampleMapEditorMenu();
+                // WHICH Map Editor dropdown is down, if any — the reflection lives in
+                // MapEditorDriver next to the code that CLOSES one, so there is a single
+                // description of the menu bar's shape. Reported below as `tab`.
+                _uiMenu = MapEditorDriver.OpenMenuName();
                 _uiScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
                 _uiSampleTs = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             }
             catch { /* sampler must never take down the UI thread */ }
             finally { _uiSamplePending = false; }
-        }
-
-        /// <summary>
-        /// WHICH Map Editor dropdown is down — "File", "Edit", "Transform", "View", "Recent",
-        /// or "Context" for the right-click menu. Empty when none is.
-        ///
-        /// The editor's menu bar is a LEGACY RedShadow dialog, not a Qud window: opening a menu
-        /// changes neither UIManager._currentWindow nor GameManager._ActiveGameView, so the five
-        /// me_menu_* states were invisible to highvisor and had to keep goto recipes long after
-        /// every other screen became a graph edge. There is no OCR fallback worth having either —
-        /// "Recent" is EMPTY on a fresh install (it renders a single "No history" item, per
-        /// MapEditorView.UpdateRecent), so pixels cannot tell it apart from a closed menu.
-        ///
-        /// Each MenuBarButton owns a Menu, and Menu inherits DialogBase.IsVisible — first-party
-        /// truth for "is this dropdown down", one read, no guessing. MAIN THREAD ONLY (Unity
-        /// objects); it is called from the UI sampler, which is already on the uiQueue hop.
-        /// Reflection throughout so a Qud update degrades to "" rather than breaking the compile.
-        /// </summary>
-        private static string SampleMapEditorMenu()
-        {
-            const System.Reflection.BindingFlags ANY =
-                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Static
-                | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic;
-            try
-            {
-                var vt = Type.GetType("Overlay.MapEditor.MapEditorView, Assembly-CSharp");
-                object view = vt?.GetField("Instance", ANY)?.GetValue(null);
-                // MapEditorView.Instance is assigned in Awake and never cleared, so a destroyed
-                // editor leaves a non-null C# reference behind Unity's overloaded ==. Ask Unity.
-                if (view is UnityEngine.Object uo && uo == null) view = null;
-                if (view == null) return "";
-
-                object bar = vt.GetField("MenuBar", ANY)?.GetValue(view);
-                var menus = bar != null
-                    ? bar.GetType().GetField("_menus", ANY)?.GetValue(bar) as System.Collections.IEnumerable
-                    : null;
-                if (menus != null)
-                {
-                    foreach (object btn in menus)
-                    {
-                        if (btn == null) continue;
-                        object menu = btn.GetType().GetProperty("Menu", ANY)?.GetValue(btn, null);
-                        if (menu == null) continue;
-                        if (menu.GetType().GetProperty("IsVisible", ANY)?.GetValue(menu, null) is bool vis && vis)
-                            return (btn.GetType().GetProperty("Text", ANY)?.GetValue(btn, null) as string) ?? "";
-                    }
-                }
-                // The right-click menu hangs off the view directly, not off the bar.
-                object ctx = vt.GetField("ContextMenu", ANY)?.GetValue(view);
-                if (ctx != null
-                    && ctx.GetType().GetProperty("IsVisible", ANY)?.GetValue(ctx, null) is bool cv && cv)
-                    return "Context";
-            }
-            catch { /* same rule as the caller: never take down the UI thread */ }
-            return "";
         }
 
         /// Background heartbeat: write bridge_status.txt ("live" while a game is running, else "menu")

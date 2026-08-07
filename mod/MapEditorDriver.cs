@@ -38,7 +38,86 @@ namespace RavesOfQud
             if (t == null) return null;
             object v = t.GetField("Instance", ANY)?.GetValue(null)
                     ?? t.GetField("instance", ANY)?.GetValue(null);
+            // Instance is assigned in Awake and never cleared, so a destroyed editor leaves a
+            // non-null C# reference behind Unity's overloaded ==. Ask Unity, not the reference.
+            if (v is UnityEngine.Object uo && uo == null) return null;
             return v;
+        }
+
+        // ------------------------------------------------------------------ menu bar
+        // The editor's menu bar is a LEGACY RedShadow dialog rather than a Qud window, which
+        // makes it invisible to everything that watches UIManager._currentWindow — and
+        // unreachable by key, because Escape never arrives (measured 2026-08-07: an HID-tapped
+        // Escape left the File menu open across four polls, the same class as Qud's modern
+        // menus ignoring OS-synthesized keys). So the bar is read and driven first-party, the
+        // way `uiback` handles the modern menus.
+        //
+        // Each MenuBarButton owns a Menu; Menu inherits DialogBase.IsVisible and cancel().
+
+        /// The visible dropdown as (menu object, its bar label), or (null, "") when none is.
+        /// The right-click ContextMenu hangs off the view rather than the bar, and reports
+        /// "Context". MAIN THREAD ONLY.
+        private static object VisibleMenu(out string name)
+        {
+            name = "";
+            object v = View();
+            if (v == null) return null;
+            Type t = v.GetType();
+
+            object bar = t.GetField("MenuBar", ANY)?.GetValue(v);
+            var menus = bar != null
+                ? bar.GetType().GetField("_menus", ANY)?.GetValue(bar) as System.Collections.IEnumerable
+                : null;
+            if (menus != null)
+            {
+                foreach (object btn in menus)
+                {
+                    if (btn == null) continue;
+                    object m = btn.GetType().GetProperty("Menu", ANY)?.GetValue(btn, null);
+                    if (m == null) continue;
+                    if (m.GetType().GetProperty("IsVisible", ANY)?.GetValue(m, null) is bool vis && vis)
+                    {
+                        name = (btn.GetType().GetProperty("Text", ANY)?.GetValue(btn, null) as string) ?? "";
+                        return m;
+                    }
+                }
+            }
+
+            object ctx = t.GetField("ContextMenu", ANY)?.GetValue(v);
+            if (ctx != null
+                && ctx.GetType().GetProperty("IsVisible", ANY)?.GetValue(ctx, null) is bool cv && cv)
+            {
+                name = "Context";
+                return ctx;
+            }
+            return null;
+        }
+
+        /// Which dropdown is open ("File", "Edit", …, "Context"), or "" for none. Read once a
+        /// second by the mod's UI sampler and published as the state file's `tab`, which is how
+        /// highvisor detects the me_menu_* states. MAIN THREAD ONLY.
+        public static string OpenMenuName()
+        {
+            try { string n; VisibleMenu(out n); return n; }
+            catch { return ""; }   // a sampler read must never take down the UI thread
+        }
+
+        /// Close whichever dropdown is open. Already-closed counts as success: the caller wants
+        /// the editor with no menu over it, and that is what it gets. MAIN THREAD ONLY.
+        public static bool CloseMenu()
+        {
+            try
+            {
+                string name;
+                object m = VisibleMenu(out name);
+                if (m == null) { Log("menuclose: nothing open"); return true; }
+                // cancel(), not hide(): cancel is the public verb the Escape key and the
+                // click-outside path both use, so the dialog unwinds exactly as it would by hand.
+                m.GetType().GetMethod("cancel", ANY)?.Invoke(m, null);
+                Log("menuclose: " + name);
+                return true;
+            }
+            catch (Exception e) { Log("menuclose threw: " + e.Message); return false; }
         }
 
         /// <summary>Select a cell region and refresh the selected-contents list — the state a
