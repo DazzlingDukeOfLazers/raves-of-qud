@@ -1145,6 +1145,10 @@ func _on_open_tool(tool_id: String) -> void:
 	match tool_id:
 		"mod_manager":
 			_open_overlay("res://ModsScreen.gd")
+		"map_editor":
+			# refresh blueprints.json first so the palette shows the live install
+			_send_command({"type": "command", "name": "export"})
+			_open_overlay("res://MapEditorScreen.gd")
 		"blueprint_browser":
 			# ask Qud to refresh blueprints.json first (a modded install can change it);
 			# the screen reads whatever is on disk and reports its own empty state.

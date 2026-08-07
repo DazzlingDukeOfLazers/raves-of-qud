@@ -46,7 +46,7 @@ const HINT_DIM := Color8(0x8F, 0xA6, 0x9E)       # "Back" footer text
 const ITEMS := [
 	{"text": "Mod Manager", "act": "tool:mod_manager"},
 	{"text": "Workshop Uploader", "act": ""},
-	{"text": "Map Editor", "act": ""},
+	{"text": "Map Editor", "act": "tool:map_editor"},
 	{"text": "Mod Wiki Website", "act": "url:https://wiki.cavesofqud.com/wiki/Modding:Overview"},
 	{"text": "Blueprint Browser", "act": "tool:blueprint_browser"},
 	{"text": "Open Save Folder", "act": "dir:qud_data"},
