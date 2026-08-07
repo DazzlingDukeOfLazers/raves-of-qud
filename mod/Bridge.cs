@@ -1224,6 +1224,12 @@ namespace RavesOfQud
                                     case "paint": MapEditorDriver.Paint(x, y, meBp ?? "Across1"); break;
                                     case "context": MapEditorDriver.Context(x, y); break;
                                     case "test": MapEditorDriver.Test(meBp); break;
+                                    // Close the open File/Edit/… dropdown. First-party for the
+                                    // same reason `uiback` is: Escape never reaches the dialog
+                                    // (measured — an HID-tapped Escape left the menu open), and
+                                    // the only click that would close it lands on the canvas and
+                                    // paints. This is how a driven route LEAVES a menu.
+                                    case "menuclose": MapEditorDriver.CloseMenu(); break;
                                     default: Server.Log("mapedit state " + MapEditorDriver.State()); break;
                                 }
                             }
