@@ -151,6 +151,24 @@ after the Records exit was fixed, and the click path is byte-for-byte unchanged 
 apart from a parameter rename — so this is the Qud modern-menu class again, not merge damage.
 Needs its own session with a screenshot at each step.
 
-**NOT RUN:** FULL 1 (live typing guard) and FULL 2 (parity) were not repeated on the merged
-tree. They were run pre-merge and neither touches the merged surface, but that is an argument,
-not a measurement — treat them as unverified here.
+**FULL 1 and FULL 2 — RUN on the merged tree, both PASS.**
+
+FULL 1, the two in-game fields (the only places the hotkeys are live, so the only places the
+guard can fail): status-screen search and the feedback note. Typed `ejqxn12` into each — the
+characters landed and the scene did not move, so `e`/`j`/`q`/`x`/`n` fired nothing. Same 2-of-7
+coverage as the pre-merge run; the other five sit on screens where the in-game hotkeys are not
+live. NOTE: the first status-search attempt typed into nothing (the click missed the field and
+the placeholder was still showing afterwards) — the scene not moving proves nothing when
+nothing was typed, so it was re-run with the click on the field text. Check the field CONTENT,
+not just the scene.
+
+FULL 2 (equipment spec), merged vs pre-merge:
+    composite  5.46  (was 5.24)
+    frame      4.13  (was 3.61)
+    image     38.23  (was 38.49)
+Within the run-to-run noise this spec is documented to have — the live playfield shows through
+the status scrim and moved the same build by ~0.7 between captures before now. No regression.
+The `image` mean is still the category filter strip, offset by one slot; pre-existing and
+tracked separately.
+
+FULL now passes in full on `dd/mac-pc-merge`.
