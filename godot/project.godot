@@ -28,6 +28,7 @@ Settings="*res://Settings.gd"
 QudLauncher="*res://QudLauncher.gd"
 UiState="*res://UiState.gd"
 FeedbackTool="*res://FeedbackTool.gd"
+QudSync="*res://QudSync.gd"
 
 [display]
 

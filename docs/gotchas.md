@@ -992,3 +992,27 @@ Two corollaries, both measured on the same tag:
 To identify an unknown Qud UI colour: drive the state over the bridge, screenshot, group the lit
 pixels into glyph COLUMNS, and read each group's brightest pixel — per-glyph, because Qud colours
 brackets separately from the text inside them.
+
+## Raves infers its scene; F5 (QudSync) asks instead
+
+MainFrame decides the game ended by watching `bridge_status.txt` go quiet for three reads, then
+falls back to the title. That inference is right for the common cases and wrong at every
+transition Qud handles with a SCREEN of its own. Abandoning a character is the one that bit: Qud
+raises the tombstone and stops running a game, Raves sees silence, assumes "game over -> title",
+and the two windows disagree with no way back but clicking around in Qud.
+
+The mod already reported the truth — `qud_state.json` carries `live` (is a game actually running)
+plus `scene`, the raw `_ActiveGameView`. Raves simply never read it. `QudSync` (F5, autoload) does:
+
+- **`live` decides where Raves belongs.** It is a fact, not an inference from silence.
+- **`scene` is REPORTED, never matched against a table of Qud view names.** We know "MainMenu" and
+  "Stage"; anything else is named verbatim in the toast. A screen we have never seen produces a
+  useful message instead of a wrong branch — and the tombstone's view id can only be learned by
+  killing a character, so a rescue tool must not depend on having guessed it.
+- **`uiback` is sent, then VERIFIED.** It reaches the active window's own OnCancel/Exit, which
+  covers status screens and popups — but measured, `ModernHighScores` does not budge. So the tool
+  watches Qud's report for ~3s and says which happened. "Sent" is not "worked", and a tool for
+  un-stranding people must never report the one as the other.
+
+Testing it needs no dead character: `hv goto qud records` parks Qud on a screen with no game
+running, which is the same shape as the tombstone case.
