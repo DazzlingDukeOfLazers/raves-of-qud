@@ -87,3 +87,35 @@ audit). Two consequences worth having:
 
 Registered today: `plan`, `evaluate`, `state_read` (highvisor), `state_graph_render` (raves),
 `typing_guard` (raves, on `in_game`).
+
+## FULL run 2026-08-07 — results and coverage
+
+SPOT 5/5. FULL 2/3/4 pass; FULL 1 partially covered, and the gap is named below.
+
+Three broken menu edges found and fixed (highvisor `0e6af4b`): Raves' title menu never got its
+activating **Space** (a click only moves the selection, so every title edge except in_game sat
+there); Qud's quit **verified too eagerly** (a PopupMessage lingers after the game ends and
+`in_game`'s detector claims that scene); Qud's Records exit used **uiback**, which
+ModernHighScores ignores — it stranded Qud and took options/mods down with it.
+
+Two harness defects found and fixed (`4629c49`, and the earlier scroll fix): **modifier clicks
+and wheels need the modifier really HELD**, not just flagged on the event. This is why the
+Cmd+Right-click feedback gesture appeared broken — the harness could not produce it.
+
+**FULL 1 coverage — 2 of the 7 listed fields**, both chosen because they sit in contexts where
+the in-game hotkeys are live, which is the only place the guard can actually fail:
+
+- status-screen search — typed `ejqxn12`, scene stayed `equipment`, text landed. So `e`/`j`/`q`/
+  `x`/`n` did not open Equipment/Journal/Quests/Attributes/Tinkering.
+- feedback note (the field the original bug was filed against) — typed `ejqxn12`, scene stayed
+  `in_game`, text landed.
+
+NOT covered this run: Options search, Options host/port, control-mapping, chargen name, tile
+report. Control-mapping was attempted and its route would not resolve; the other four sit on
+screens where the in-game hotkeys are not live, so they carry much less risk — but they are
+untested at runtime, and the SPOT audit only proves the guard is PRESENT in the source.
+
+Parity (equipment spec): composite 5.24, frame 3.61 — in line with the committed scoreboard.
+`image` 38.49 is dominated by the category filter strip, whose icons are offset by exactly one
+slot (`filter_image[0]`'s Raves bbox == `filter_image[1]`'s Qud bbox, and so on). Pre-existing
+and an ordering bug, not a rendering one.
