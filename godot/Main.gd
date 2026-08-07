@@ -323,6 +323,15 @@ func _on_snapshot(data: Dictionary) -> void:
 	# left stale zones (and stale dynamic creatures) on screen through a
 	# certification band while raves_state.json read perfectly healthy.
 	UiState.note_snapshot()
+	# WORLD MAP is a distinct SCREEN, not a zone: Qud sends it as a negative
+	# stratum (zone.z < 0 — the parasang overview ZoneRenderer already keys
+	# _world_map off). Report it so the rig can tell "player is reading the
+	# map" from "player is in a zone": they render in the same frame, so a
+	# checker that only asks for in_game would happily pixel-score a world
+	# map against a zone capture — the failure mode that poisoned a
+	# certification band from the menus. MainFrame still owns the in_game
+	# announcement; this only splits it while a snapshot says otherwise.
+	UiState.note_world_map(int((data.get("zone", {}) as Dictionary).get("z", 0)) < 0)
 	# Cache the colour map so popup markup renders with the same palette. Do NOT
 	# hide the popup here: ASYNC popups (ShowYesNoAsync / PickOptionAsync) never
 	# block the turn thread, so snapshots keep flowing while they're up — the old

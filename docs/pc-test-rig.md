@@ -136,8 +136,20 @@ sparkles, Mimic camouflage, stains, mix compounds.
   split (small shared-file change; coordinate with the Mac before touching).
 - Sweep telemetry: count retries per run in the report header (turn-flow-race rate).
 
+## Rung 6 — zones & zone-specific artwork → `pc-zone-plan.md`
+
+Rungs 1-5 certify elements **in isolation** (2483/2483 wire, 0 pixel FAIL — findings
+§13). Everything that only exists when elements are **composed** is still unverified:
+zone-painted ground (the grass in every Joppa capture is `[painted ground]`, never
+staged), wall autotiling (the sweep hit **4 of 256** bitmasks; 225 of 229 walls were
+the isolated `-00000000`), per-zone background/tint, the whole lighting cycle we pin
+bright for determinism, liquid depth, remembered neighbours, and the world map.
+
+Full plan — method (structural census / masked whole-playfield congruence / warp
+stations), station list, determinism budget — in **`pc-zone-plan.md`**.
+
 ## Sequencing
 
 Rung 2 first (it makes every later run deterministic and cheap), then 3 (the payoff:
 actual tile/NPC render verification), 4 as renderer animation work continues, 1
-continuously, 5 opportunistically.
+continuously, 5 opportunistically. Rung 6 opens once 3/4 are certified — they are.

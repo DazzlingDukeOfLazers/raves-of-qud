@@ -15,6 +15,13 @@ var _popup := ""     # popup kind while one is up (message / yesno / menu / inpu
 var _snap_ts := 0    # unix time of the last APPLIED snapshot (0 = none yet):
                      # proves the wire is flowing, not just that the UI is alive
 
+## Split in_game into zone vs parasang overview. ONLY flips between those two —
+## a status screen, popup or menu owns the scene while it's up, and a snapshot
+## arriving underneath it must not steal the report back.
+func note_world_map(on: bool) -> void:
+	if _scene == "in_game" or _scene == "world_map":
+		set_scene("world_map" if on else "in_game")
+
 func note_snapshot() -> void:
 	_snap_ts = int(Time.get_unix_time_from_system())
 	# no _write(): snapshots can arrive every turn — the 2s heartbeat carries it
