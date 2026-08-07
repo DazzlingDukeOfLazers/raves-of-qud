@@ -686,7 +686,7 @@ func _build_hint() -> void:
 		# Qud: BOLD hint text; the arrow-keys icon and each keycap sit inside WHITE
 		# [ ] brackets; the d-pad keys carry dark directional arrows.
 		var ih := int(round(UiFont.px(get_viewport(), "caption") * 1.15))
-		var icon := _nav_icon_texture(ih, GOLD)
+		var icon := QudChrome.nav_icon(ih, GOLD)
 		# Qud's hint bar stays MONO (Source Code Pro), bolder than regular — an
 		# emboldened variation of the theme font, not ElliotSans
 		var fv := FontVariation.new()
@@ -709,35 +709,6 @@ func _build_hint() -> void:
 		l.text = "[center][color=%s]↑↓ navigate      [/color][color=%s][lb]Space[rb][/color][color=%s] select      [/color][color=%s][lb]Esc[rb][/color][color=%s] quit[/color][/center]" % [dim, gold, dim, gold, dim]
 	add_child(l)
 	_place(l, "hint")
-
-## A small arrow-keys icon (Qud's gold d-pad cluster) drawn procedurally: four keys in the
-## inverted-T layout — up on top; left / down / right below — used in the 1:1 hint in place of "↑↓".
-func _nav_icon_texture(ih: int, color: Color) -> ImageTexture:
-	var g := maxi(1, int(round(ih * 0.10)))
-	var k := int((ih - g) / 2)          # key size (two rows tall)
-	if k < 2:
-		k = 2
-	var w := 3 * k + 2 * g
-	var h := 2 * k + g
-	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
-	img.fill(Color(0, 0, 0, 0))
-	var mid := k + g                     # x of the centre column
-	img.fill_rect(Rect2i(mid, 0, k, k), color)          # up (top centre)
-	img.fill_rect(Rect2i(0, k + g, k, k), color)        # left
-	img.fill_rect(Rect2i(mid, k + g, k, k), color)      # down (centre)
-	img.fill_rect(Rect2i(2 * mid, k + g, k, k), color)  # right
-	# dark directional arrows on the keys (Qud's keys aren't plain squares)
-	var dark := Color8(20, 34, 34)
-	var ctr := int(k / 2.0)
-	for i in range(maxi(1, int(k / 3.0))):
-		var w2 := 1 + 2 * i
-		var x0 := ctr - i
-		img.fill_rect(Rect2i(mid + x0, 1 + i, w2, 1), dark)                       # up
-		img.fill_rect(Rect2i(mid + x0, k + g + k - 2 - i, w2, 1), dark)           # down
-		img.fill_rect(Rect2i(1 + i, k + g + x0, 1, w2), dark)                     # left
-		img.fill_rect(Rect2i(2 * mid + k - 2 - i, k + g + x0, 1, w2), dark)       # right
-	return ImageTexture.create_from_image(img)
-
 func _build_version() -> void:
 	if Settings.one_to_one():
 		_build_version_qud()

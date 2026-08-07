@@ -245,7 +245,7 @@ func _build() -> void:
 	var goldc := "#%s" % P_GOLD.to_html(false)
 	hint.push_paragraph(HORIZONTAL_ALIGNMENT_LEFT)
 	hint.append_text("[color=%s][lb][/color]" % wht)
-	hint.add_image(_nav_icon(15), 22, 15)
+	hint.add_image(QudChrome.nav_icon(15), 22, 15)
 	hint.append_text("[color=%s][rb][/color]" % wht)
 	hint.append_text("[color=%s] navigate  [/color]" % dimc)
 	hint.append_text("[color=%s][lb][/color][color=%s]Space[/color][color=%s][rb][/color]" % [wht, goldc, wht])
@@ -284,23 +284,6 @@ void fragment() {
 	mat.shader = sh
 	scan.material = mat
 	add_child(scan)
-
-func _nav_icon(ih: int) -> ImageTexture:
-	var g := maxi(1, int(round(ih * 0.10)))
-	var k := int((ih - g) / 2.0)
-	if k < 2:
-		k = 2
-	var w := 3 * k + 2 * g
-	var h := 2 * k + g
-	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
-	img.fill(Color(0, 0, 0, 0))
-	var mid := k + g
-	img.fill_rect(Rect2i(mid, 0, k, k), P_GOLD)
-	img.fill_rect(Rect2i(0, k + g, k, k), P_GOLD)
-	img.fill_rect(Rect2i(mid, k + g, k, k), P_GOLD)
-	img.fill_rect(Rect2i(2 * mid, k + g, k, k), P_GOLD)
-	return ImageTexture.create_from_image(img)
-
 # ── entries ────────────────────────────────────────────────────────────────────
 
 # The selection dither, measured off Qud's picker (light (20,70,72) / dark (14,50,51),

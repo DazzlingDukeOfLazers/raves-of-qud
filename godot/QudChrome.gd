@@ -69,3 +69,36 @@ static func brighten(img: Image) -> Image:
 			out.a = c.a
 			img.set_pixel(x, y, out)
 	return img
+
+## THE navigation-keys icon — the inverted-T d-pad Qud puts in its hint bars ("[⊞] navigate").
+##
+## ONE source, because there were SEVEN. Every screen that needed it grew its own copy, and they
+## drifted: only MainMenu and LoadGameScreen etched the cardinal arrows at all, and those two used
+## different etch colours, while ChargenCard / ControlMapping / Options / Records / StatusScreens
+## drew bare squares. Daniel filed it off the status screens' bar — "it's supposed to have cardinal
+## arrows … derive it from a common source."
+##
+## Qud's own glyph (measured off its Load Game hint bar): four gold keys, up on the top centre and
+## left/down/right beneath, each carrying a DARK triangular arrow pointing its own way. The etch is
+## a colour rather than a cutout on purpose — Qud bakes the dark into the glyph, so it reads the
+## same over the title artwork as over the near-black chrome.
+static func nav_icon(ih: int, key := Color8(200, 184, 57), etch := Color8(20, 34, 34)) -> ImageTexture:
+	var g := maxi(1, int(round(ih * 0.10)))          # gap between keys
+	var k := maxi(2, int((ih - g) / 2.0))            # one key, two rows tall overall
+	var img := Image.create(3 * k + 2 * g, 2 * k + g, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var mid := k + g                                  # x of the centre column
+	img.fill_rect(Rect2i(mid, 0, k, k), key)          # up
+	img.fill_rect(Rect2i(0, k + g, k, k), key)        # left
+	img.fill_rect(Rect2i(mid, k + g, k, k), key)      # down
+	img.fill_rect(Rect2i(2 * mid, k + g, k, k), key)  # right
+	# the arrows: a triangle growing from each key's pointing edge
+	var ctr := int(k / 2.0)
+	for i in range(maxi(1, int(k / 3.0))):
+		var w2 := 1 + 2 * i
+		var x0 := ctr - i
+		img.fill_rect(Rect2i(mid + x0, 1 + i, w2, 1), etch)                  # up
+		img.fill_rect(Rect2i(mid + x0, k + g + k - 2 - i, w2, 1), etch)      # down
+		img.fill_rect(Rect2i(1 + i, k + g + x0, 1, w2), etch)                # left
+		img.fill_rect(Rect2i(2 * mid + k - 2 - i, k + g + x0, 1, w2), etch)  # right
+	return ImageTexture.create_from_image(img)

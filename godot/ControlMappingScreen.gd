@@ -623,7 +623,7 @@ func _build_hints() -> void:
 	var goldc := "#%s" % C_TITLE.to_html(false)
 	_hint.push_paragraph(HORIZONTAL_ALIGNMENT_LEFT)
 	_hint.append_text("[color=%s][lb][/color]" % wht)
-	_hint.add_image(_nav_icon(15), 22, 15)
+	_hint.add_image(QudChrome.nav_icon(15), 22, 15)
 	_hint.append_text("[color=%s][rb][/color]" % wht)
 	_hint.append_text("[color=%s] navigate  [/color]" % dimc)
 	for k in [["Space", "select"], ["Delete", "remove keybind"], ["+", "restore defaults"]]:
@@ -637,16 +637,3 @@ func _build_hints() -> void:
 	hc.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hc.add_child(_hint)
 	_root.add_child(hc)
-
-func _nav_icon(ih: int) -> ImageTexture:
-	var gold := _cm8(200, 184, 57)
-	var g := maxi(1, int(round(ih * 0.10)))
-	var k := maxi(2, int((ih - g) / 2.0))
-	var img := Image.create(3 * k + 2 * g, 2 * k + g, false, Image.FORMAT_RGBA8)
-	img.fill(Color(0, 0, 0, 0))
-	var mid := k + g
-	img.fill_rect(Rect2i(mid, 0, k, k), gold)
-	img.fill_rect(Rect2i(0, k + g, k, k), gold)
-	img.fill_rect(Rect2i(mid, k + g, k, k), gold)
-	img.fill_rect(Rect2i(2 * mid, k + g, k, k), gold)
-	return ImageTexture.create_from_image(img)

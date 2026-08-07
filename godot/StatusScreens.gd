@@ -308,7 +308,7 @@ func _build_hints() -> void:
 	var goldc := "#%s" % QudChrome.q8(200, 184, 57).to_html(false)
 	_hint.push_paragraph(HORIZONTAL_ALIGNMENT_LEFT)
 	_hint.append_text("[color=%s][lb][/color]" % wht)
-	_hint.add_image(_nav_icon(15), 22, 15)
+	_hint.add_image(QudChrome.nav_icon(15), 22, 15)
 	_hint.append_text("[color=%s][rb][/color]" % wht)
 	_hint.append_text("[color=%s] navigation  [/color]" % dimc)
 	var keys := [["Space", "Accept"]]
@@ -319,20 +319,6 @@ func _build_hints() -> void:
 		_hint.append_text("[color=%s][lb][/color][color=%s]%s[/color][color=%s][rb][/color]" % [wht, goldc, k[0], wht])
 		_hint.append_text("[color=%s] %s  [/color]" % [dimc, k[1]])
 	_hint.pop()
-
-func _nav_icon(ih: int) -> ImageTexture:
-	var gold := QudChrome.q8(200, 184, 57)
-	var g := maxi(1, int(round(ih * 0.10)))
-	var k := maxi(2, int((ih - g) / 2.0))
-	var img := Image.create(3 * k + 2 * g, 2 * k + g, false, Image.FORMAT_RGBA8)
-	img.fill(Color(0, 0, 0, 0))
-	var mid := k + g
-	img.fill_rect(Rect2i(mid, 0, k, k), gold)
-	img.fill_rect(Rect2i(0, k + g, k, k), gold)
-	img.fill_rect(Rect2i(mid, k + g, k, k), gold)
-	img.fill_rect(Rect2i(2 * mid, k + g, k, k), gold)
-	return ImageTexture.create_from_image(img)
-
 # ── the tab bar ────────────────────────────────────────────────────────────────
 
 func _draw_bar() -> void:

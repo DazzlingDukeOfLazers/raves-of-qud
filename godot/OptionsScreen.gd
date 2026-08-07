@@ -1042,7 +1042,7 @@ func _build_1to1() -> void:
 	var goldc := "#%s" % O_GOLD.to_html(false)
 	hint.push_paragraph(HORIZONTAL_ALIGNMENT_LEFT)
 	hint.append_text("[color=%s][lb][/color]" % wht)
-	hint.add_image(_options_nav_icon(15), 22, 15)
+	hint.add_image(QudChrome.nav_icon(15), 22, 15)
 	hint.append_text("[color=%s][rb][/color]" % wht)
 	hint.append_text("[color=%s] navigate  [/color]" % dimc)
 	hint.append_text("[color=%s][lb]-[rb][/color][color=%s] Collapse All  [/color]" % [goldc, dimc])
@@ -1111,23 +1111,6 @@ func _slider_weave_tile() -> ImageTexture:
 			img.set_pixel(i, (i * 3) % 7, dark)
 	_slider_tile_cache = ImageTexture.create_from_image(img)
 	return _slider_tile_cache
-
-func _options_nav_icon(ih: int) -> ImageTexture:
-	var g := maxi(1, int(round(ih * 0.10)))
-	var k := int((ih - g) / 2.0)
-	if k < 2:
-		k = 2
-	var w := 3 * k + 2 * g
-	var h := 2 * k + g
-	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
-	img.fill(Color(0, 0, 0, 0))
-	var mid := k + g
-	img.fill_rect(Rect2i(mid, 0, k, k), O_GOLD)
-	img.fill_rect(Rect2i(0, k + g, k, k), O_GOLD)
-	img.fill_rect(Rect2i(mid, k + g, k, k), O_GOLD)
-	img.fill_rect(Rect2i(2 * mid, k + g, k, k), O_GOLD)
-	return ImageTexture.create_from_image(img)
-
 ## Section header: "[-] SOUND" — big cyan caps; the FIRST section carries Qud's
 ## fresh-open selection dither bar across the content width.
 func _section_header_1to1(name: String, selected: bool) -> Control:
