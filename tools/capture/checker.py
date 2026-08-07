@@ -481,7 +481,19 @@ def calibrate(_attempt=0):
     b = control.Bridge()
     caps = {}
     for tag, bp, must_pass in (("a", "Wax Block", True), ("c", "__calib_empty__", False)):
-        r = check_one(b, bp)
+        # Reconnect-tolerant like the sweep loop: the per-capture qud_shot
+        # bridges churn the server, which drops the OLDEST client — this
+        # long-lived one. Every certified-era calibrate flake traced here.
+        try:
+            r = check_one(b, bp)
+        except (ConnectionError, OSError):
+            try:
+                b.close()
+            except OSError:
+                pass
+            time.sleep(1.0)
+            b = control.Bridge()
+            r = check_one(b, bp)
         if must_pass and not r["pass"]:
             b.close()
             sys.exit("calibrate: staging %r failed: %s" % (bp, r["reasons"]))
@@ -667,6 +679,16 @@ def reboot_rig(b=None):
             time.sleep(1)
             _hv("key", "--focus", "Raves", "space")
             time.sleep(4 + attempt * 2)
+            # PIN THE WINDOW ON-SCREEN — and do it AFTER Continue: entering
+            # the game scene re-applies the stored window rect (historically a
+            # Mac-era y=-1270), overriding any earlier move. Off-screen,
+            # Godot renders only when force_draw fires — captures still work,
+            # but the animation clock freezes between them and every animated
+            # element measures 1-state (the straggler batches' mass
+            # false-DISAGREE). Geometry is recalibrated right after, so the
+            # moved window never invalidates the crops.
+            _hv("move", "Raves", "560", "120", "3232", "1878")
+            time.sleep(1)
             # ALL three tests: capture works, the viewer says in_game (with a
             # FRESH heartbeat), and no modal overlay — menus, stuck mirrored
             # popups and hung viewers all capture "successfully" and each

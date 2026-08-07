@@ -105,8 +105,11 @@ def godot(cmd):
     os.replace(tmp, GODOT_CMD)   # atomic; no truncate race with Godot's poll
 
 
-def godot_shot(wait=6.0):
-    """Ask Godot to screenshot, then block until shot.png actually updates."""
+def godot_shot(wait=15.0):
+    """Ask Godot to screenshot, then block until shot.png actually updates.
+    (15s: a freshly-launched viewer warming shaders, or one mid zone-rebuild
+    after a zoom, can miss a 6s window — reboot_rig's calibrate did, three
+    cycles in a row, while later shots on the same instance answered fine.)"""
     before = os.path.getmtime(SHOT) if os.path.exists(SHOT) else 0
     godot("shot")
     deadline = time.time() + wait
