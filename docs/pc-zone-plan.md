@@ -203,6 +203,25 @@ Note the test is only meaningful on DENSE content. The same test on the sparse
 home zone reads 8.1 / 8.5 / 8.6 — no discrimination at all, the vacuity problem
 again. Run shift tests at the village, never at home.
 
+**FIRST REAL 6B FINDING — water renders BRIGHTER in Raves (candidate
+regression from our own `^X` fill widening).** All 14 aligned FAILs are
+`SaltyWaterPuddle` in one cluster (x 15-19, y 0-2), mean 37-43. Eyeballed: the
+autotile PATTERN matches exactly — the fitted grid is resolving cells — but Qud
+draws the water distinctly DARKER and Raves brighter.
+
+It is not visibility: the PASSing control cell (14,0) carries *identical* flags
+(`explored=true, visible=None, light=200`). Same flags, dirt matches, water does
+not. So it is liquid-specific colour, not the memory ghost.
+
+Hypothesis worth testing first: the creeper fix (922f530) widened the `^X`
+background fill from occluding-walls-only to EVERY object. Water's colour is
+`&B^b`, so it now floods the cell bright blue — while the older measured rule
+was that a `^bg` in the winner's own colour string does NOT fill in Qud's tile
+mode (recorded from the luminous-salt puddle `&Y^y&C`, whose cell stays
+field-coloured). Isolated liquids still pass because a lone puddle on a cleared
+cell is a different composition. If confirmed, the fill rule needs a liquid
+exception rather than a blanket widening.
+
 **REMAINING before 6b numbers are quotable as defects:** 14 aligned FAILs
 survive and are unexamined; they are the first 6b candidates that have survived
 a validated grid, so they are worth eyeballing — but four artifacts have already
