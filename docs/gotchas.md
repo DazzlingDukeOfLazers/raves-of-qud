@@ -1016,3 +1016,39 @@ plus `scene`, the raw `_ActiveGameView`. Raves simply never read it. `QudSync` (
 
 Testing it needs no dead character: `hv goto qud records` parks Qud on a screen with no game
 running, which is the same shape as the tombstone case.
+
+## GDScript `or` is a BOOLEAN operator — the Python `x or default` idiom silently yields `true`
+
+`some_dict.get(key) or {}` does **not** return the dictionary. GDScript's `or` evaluates both sides
+to booleans and returns `true`/`false`, never the operand. So the reflex ported from Python —
+`for x in (d.get("children") or [])`, `var a: Dictionary = d.get("apps") or {}` — becomes
+"iterate `true`" and "assign `true` to a Dictionary".
+
+Cost when it bit (StateGraphPanel, 2026-08-06): the panel drew a correctly sized, correctly
+framed, perfectly **empty** box. The frame is Godot's, so it read as a layout or theme problem and
+two export cycles went into chasing those; the real cause was three runtime errors inside the text
+builders, invisible because a RichTextLabel handed nothing just draws nothing.
+
+Use a shape guard rather than `get(k, default)` for anything off the wire — `get`'s default only
+applies when the KEY IS ABSENT, so a JSON `null` still comes back as null:
+
+```gdscript
+static func _dict(v) -> Dictionary: return v if v is Dictionary else {}
+static func _arr(v) -> Array:       return v if v is Array else []
+```
+
+**Check for this whenever a Godot panel renders blank but sized.** An empty draw with an intact
+frame means the CONTENT threw, not the layout.
+
+## A modified WHEEL needs the modifier really held; flags alone are not enough
+
+`hv scroll --mods ctrl` set `kCGEventFlagMaskControl` on the scroll event, and Godot received the
+wheel with `ctrl_pressed` **false** — Raves' Ctrl+wheel panel never opened, while a plain wheel
+zoomed the camera every time. highvisor now presses the real modifier key around the event (release
+in a `finally`, plus `_clear_stuck_mods` — this is the stuck-modifier class that cost a day once).
+The flags-only trick documented on `click` is a different path and still works; don't unify them
+without re-measuring.
+
+**Corollary for UI design here:** a gesture that only a mouse can produce is a gesture the harness
+may not be able to drive. Give any dev-facing overlay a KEY as well (StateGraphPanel: F6), or it
+can only ever be tested by hand — and it will stop being tested.

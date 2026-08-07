@@ -29,6 +29,7 @@ QudLauncher="*res://QudLauncher.gd"
 UiState="*res://UiState.gd"
 FeedbackTool="*res://FeedbackTool.gd"
 QudSync="*res://QudSync.gd"
+StateGraphPanel="*res://StateGraphPanel.gd"
 
 [display]
 
