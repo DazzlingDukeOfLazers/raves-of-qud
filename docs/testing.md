@@ -333,3 +333,30 @@ attach BridgePart on LOAD as well as on creation (the mutator is creation-only;
 PlayerBecome.cs already handles the body-swap case, so a load-time attach is the
 missing third). The second is the better fix — it makes every existing save work
 — and is the recommended next change.
+
+#### FULL 2 RUNS — 2026-08-07, and what its numbers do and do not mean
+
+With the load-time BridgePart attach in, both apps drive to `equipment` and Raves'
+screen is FULLY POPULATED: equipment doll with slots and item icons, and the
+categorised inventory (Ammo, Energy Cells, Food, Grenades, Light Sources, Meds,
+Tonics, Water Containers) with real items. Capture went 33 KB (empty) -> 145 KB.
+
+    composite mean 13.74 over 12 leaves
+    frame     mean 14.73 over 11 leaves
+    image     mean 49.76 over 10 leaves
+
+DO NOT read that against the recorded 5.46 / 4.13 / 38.23 as a regression. The
+recorded scoreboard was taken on the mac's golden save; this ran on a fresh
+True Kin Horticulturist built by `embark`, because the two saves on this box
+predate the mod and every leaf here is content-sensitive (item rows, category
+strips, slot art). Same spec, different character — the numbers are not
+comparable, and making them so needs the fixture save rebuilt via `embark` and
+committed as the PC golden.
+
+Getting Raves in-game also needed the title edge fixed. `title -> in_game`
+selected Continue with an arrow key, which assumes the selection starts on
+New Game — but Raves REMEMBERS the menu selection, so after any earlier
+navigation that single `down` lands elsewhere and `space` activates the wrong
+row. Arrow keys were verified to move the selection, so this was never key
+delivery: it was a relative move against an unknown starting point. Now it
+CLICKS Continue at (958,578), which is position-independent.
