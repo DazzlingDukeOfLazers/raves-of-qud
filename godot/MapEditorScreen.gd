@@ -64,10 +64,10 @@ const MAX_PALETTE_ROWS := 60   # rendered rows; the count line reports anything 
 const MENUS := {
 	"File": [
 		{"text": "New map", "hot": "Ctrl+N", "act": "new"},
-		{"text": "Load map...", "hot": "Ctrl+O", "act": ""},
+		{"text": "Load map...", "hot": "Ctrl+O", "act": "load"},
 		{"text": "Test", "hot": "Ctrl+T", "act": ""},
-		{"text": "Save", "hot": "Ctrl+S", "act": ""},
-		{"text": "Save As...", "hot": "", "act": ""},
+		{"text": "Save", "hot": "Ctrl+S", "act": "save"},
+		{"text": "Save As...", "hot": "", "act": "saveas"},
 		{"sep": true},
 		{"text": "Reload Blueprints", "hot": "", "act": "reload"},
 		{"sep": true},
@@ -97,7 +97,12 @@ var _region := Rect2i(0, 0, 0, 0)
 var _has_region := false
 var _drag_start := Vector2i(-1, -1)
 var _dragging := false
-var _cells := {}                 # Vector2i -> [blueprint names]
+## Vector2i -> [ {name, owner, part, iprops:{}} ]. Objects are DICTS, not bare names,
+## because a .rpm carries Owner/Part attributes and <intproperty> children per object;
+## storing only the name would silently drop them on a load -> save round-trip.
+var _cells := {}
+var _filename := ""              # current .rpm path ("" = never saved)
+var _dialog: FileDialog
 var _undo: Array = []
 var _overlay_on := false
 
@@ -118,6 +123,7 @@ var _readout_a: Label
 var _readout_b: Label
 var _in_use := false
 var _count_note: Label
+var _title_label: Label
 
 func _ready() -> void:
 	name = "MapEditorScreen"
@@ -213,7 +219,8 @@ func _build_menubar() -> void:
 				_open_dropdown("" if _open_menu == m else m))
 		add_child(l)
 
-	var t := Label.new()
+	_title_label = Label.new()
+	var t := _title_label
 	t.text = "Map Editor"
 	_mono(t, BAR_TEXT_PX)
 	t.add_theme_color_override("font_color", BAR_TEXT)
@@ -302,7 +309,18 @@ func _do(act: String) -> void:
 		"exit":
 			closed.emit()
 		"new":
-			_cells.clear(); _undo.clear(); _has_region = false; _canvas.queue_redraw()
+			_push_undo()
+			_cells.clear(); _has_region = false; _filename = ""
+			_update_title(); _refresh_filter(); _canvas.queue_redraw()
+		"load":
+			_pick_file(false)
+		"save":
+			if _filename == "":
+				_pick_file(true)
+			else:
+				_save_rpm(_filename)
+		"saveas":
+			_pick_file(true)
 		"selectall":
 			_region = Rect2i(0, 0, COLS, ROWS); _has_region = true; _canvas.queue_redraw()
 		"undo":
@@ -318,6 +336,134 @@ func _do(act: String) -> void:
 			_overlay_on = not _overlay_on; _canvas.queue_redraw()
 		"reload":
 			_load_blueprints(); _refresh_filter()
+
+# .rpm file I/O ---------------------------------------------------------------
+# Qud's map format, read off the 273 shipped maps in StreamingAssets/Base:
+#   <Map Width="80" Height="25">
+#     <cell X="0" Y="0">
+#       <object Name="Fulcrete"></object>
+#       <object Name="X" Owner="o" Part="p"><intproperty Name="N" Value="1" /></object>
+#     </cell>
+# Attribute census over every shipped map: Name 129143, Owner 392, Part 37, plus 96
+# <intproperty> children -- that is the entire surface a round-trip has to preserve.
+# Cells are written in Qud's own order (X outer, Y inner); empty cells are omitted.
+
+func _obj_name(o) -> String:
+	return str(o.get("name", "")) if o is Dictionary else str(o)
+
+func _maps_dir() -> String:
+	var d := InputModel.support_dir().path_join("maps")
+	DirAccess.make_dir_recursive_absolute(d)
+	return d
+
+func _xml_escape(t: String) -> String:
+	return t.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+
+func _save_rpm(path: String) -> bool:
+	var f := FileAccess.open(path, FileAccess.WRITE)
+	if f == null:
+		push_warning("map editor: cannot write " + path)
+		return false
+	f.store_string("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n")
+	f.store_string("<Map Width=\"%d\" Height=\"%d\">\n" % [COLS, ROWS])
+	for x in range(COLS):
+		for y in range(ROWS):
+			var objs: Array = _cells.get(Vector2i(x, y), [])
+			if objs.is_empty():
+				# Qud writes EVERY cell of the grid, empties included as a one-line
+				# <cell X=".." Y=".."></cell> — verified against the shipped maps (2000
+				# cells for 80x25, 122 of them empty). Omitting them round-tripped every
+				# object correctly but still differed from Qud's own output, so match it.
+				f.store_string("  <cell X=\"%d\" Y=\"%d\"></cell>
+" % [x, y])
+				continue
+			f.store_string("  <cell X=\"%d\" Y=\"%d\">\n" % [x, y])
+			for o in objs:
+				var line := "    <object Name=\"%s\"" % _xml_escape(_obj_name(o))
+				if o is Dictionary:
+					if str(o.get("owner", "")) != "":
+						line += " Owner=\"%s\"" % _xml_escape(str(o["owner"]))
+					if str(o.get("part", "")) != "":
+						line += " Part=\"%s\"" % _xml_escape(str(o["part"]))
+				var ip: Dictionary = o.get("iprops", {}) if o is Dictionary else {}
+				if ip.is_empty():
+					f.store_string(line + "></object>\n")
+				else:
+					f.store_string(line + ">")
+					for k in ip:
+						f.store_string("<intproperty Name=\"%s\" Value=\"%s\" />" % [
+							_xml_escape(str(k)), _xml_escape(str(ip[k]))])
+					f.store_string("</object>\n")
+			f.store_string("  </cell>\n")
+	f.store_string("</Map>\n")
+	f.close()
+	_filename = path
+	_update_title()
+	return true
+
+func _load_rpm(path: String) -> bool:
+	var px := XMLParser.new()
+	if px.open(path) != OK:
+		push_warning("map editor: cannot read " + path)
+		return false
+	var cells := {}
+	var cur := Vector2i(-1, -1)
+	var cur_obj: Dictionary = {}
+	while px.read() == OK:
+		var t := px.get_node_type()
+		if t == XMLParser.NODE_ELEMENT:
+			var n := px.get_node_name().to_lower()
+			if n == "cell":
+				cur = Vector2i(int(px.get_named_attribute_value_safe("X")),
+					int(px.get_named_attribute_value_safe("Y")))
+			elif n == "object" and cur.x >= 0:
+				cur_obj = {"name": px.get_named_attribute_value_safe("Name"),
+					"owner": px.get_named_attribute_value_safe("Owner"),
+					"part": px.get_named_attribute_value_safe("Part"),
+					"iprops": {}}
+				var arr: Array = cells.get(cur, [])
+				arr.append(cur_obj)
+				cells[cur] = arr
+				if px.is_empty():
+					cur_obj = {}          # <object ... /> — no children follow
+			elif n == "intproperty" and not cur_obj.is_empty():
+				cur_obj["iprops"][px.get_named_attribute_value_safe("Name")] = \
+					px.get_named_attribute_value_safe("Value")
+		elif t == XMLParser.NODE_ELEMENT_END and px.get_node_name().to_lower() == "object":
+			cur_obj = {}
+	_push_undo()
+	_cells = cells
+	_filename = path
+	_has_region = false
+	_update_title()
+	_refresh_filter()
+	_canvas.queue_redraw()
+	return true
+
+## Qud shows the open file in the title (MapEditorView.UpdateTitle); mirror that.
+func _update_title() -> void:
+	if _title_label == null:
+		return
+	_title_label.text = "Map Editor" if _filename == "" else "Map Editor - " + _filename.get_file()
+
+## Raves uses a Godot FileDialog here; Qud has its own picker, so this is one of the
+## deliberate non-1:1 spots (a file chooser is chrome, not game UI).
+func _pick_file(save: bool) -> void:
+	if _dialog != null:
+		_dialog.queue_free()
+	_dialog = FileDialog.new()
+	_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE if save else FileDialog.FILE_MODE_OPEN_FILE
+	_dialog.access = FileDialog.ACCESS_FILESYSTEM
+	_dialog.current_dir = _maps_dir()
+	_dialog.filters = PackedStringArray(["*.rpm ; Qud map"])
+	_dialog.size = Vector2i(900, 600)
+	_dialog.file_selected.connect(func(p: String):
+		if save:
+			_save_rpm(p if p.ends_with(".rpm") else p + ".rpm")
+		else:
+			_load_rpm(p))
+	add_child(_dialog)
+	_dialog.popup_centered()
 
 func _push_undo() -> void:
 	_undo.append(_cells.duplicate(true))
@@ -366,7 +512,7 @@ func _draw_canvas() -> void:
 		if names.is_empty():
 			continue
 		var r := Rect2(Vector2(p.x * cs.x, p.y * cs.y), cs)
-		var top := str(names[-1])
+		var top := _obj_name(names[-1])
 		var tex := _tile_for(top)
 		if tex != null:
 			# preserve the tile's aspect inside the cell, like Qud draws it
@@ -463,9 +609,9 @@ func _canvas_input(e: InputEvent) -> void:
 			elif e.ctrl_pressed:                       # Qud: Ctrl+drag = paint from palette
 				_paint(c)
 			elif e.alt_pressed:                        # Qud: Alt+click = sample to palette
-				var names: Array = _cells.get(c, [])
-				if not names.is_empty():
-					_set_brush(str(names[-1]))
+				var objs: Array = _cells.get(c, [])
+				if not objs.is_empty():
+					_set_brush(_obj_name(objs[-1]))
 			else:
 				_selected = c
 			_update_readouts()
@@ -482,9 +628,9 @@ func _paint(c: Vector2i) -> void:
 	if _brush == "" or c.x < 0 or c.y < 0 or c.x >= COLS or c.y >= ROWS:
 		return
 	_push_undo()
-	var names: Array = _cells.get(c, [])
-	names.append(_brush)
-	_cells[c] = names
+	var objs: Array = _cells.get(c, [])
+	objs.append({"name": _brush, "owner": "", "part": "", "iprops": {}})
+	_cells[c] = objs
 
 # ── palette ───────────────────────────────────────────────────────────────────
 
@@ -536,8 +682,8 @@ func _refresh_filter() -> void:
 	var q := _filter_edit.text.strip_edges().to_lower() if _filter_edit != null else ""
 	var used := {}
 	for k in _cells:
-		for n in _cells[k]:
-			used[n] = true
+		for o in _cells[k]:
+			used[_obj_name(o)] = true
 	_filtered.clear()
 	var dropped := 0
 	for b in _blueprints:
@@ -655,6 +801,8 @@ func _unhandled_input(e: InputEvent) -> void:
 	if e is InputEventKey and e.pressed and e.ctrl_pressed:
 		match e.keycode:
 			KEY_N: _do("new"); accept_event(); return
+			KEY_O: _do("load"); accept_event(); return
+			KEY_S: _do("save"); accept_event(); return
 			KEY_A: _do("selectall"); accept_event(); return
 			KEY_Z: _do("undo"); accept_event(); return
 			KEY_F1: _do("overlay"); accept_event(); return
