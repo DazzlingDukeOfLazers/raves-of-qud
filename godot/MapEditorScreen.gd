@@ -662,8 +662,24 @@ func _ctx_first() -> Dictionary:
 
 ## Qud's modding dialogs use Unity's stock UI font -- sans, not the console mono this screen
 ## draws everything else in -- so these controls deliberately opt OUT of the screen's face.
+## That face is LIBERATION SANS specifically, not "some sans": it ships embedded in the game's
+## own sharedassets0.assets, which is where tools/capture/fonts.py carves it from. Falls back to
+## the theme font when it has not been extracted on this machine.
+var _sans_cached := false
+var _sans: FontFile
+
+func _dlg_face() -> Font:
+	if not _sans_cached:
+		_sans_cached = true
+		var p := InputModel.support_dir().path_join("title").path_join("chrome") 			.path_join("LiberationSans-Regular.ttf")
+		if FileAccess.file_exists(p):
+			var f := FontFile.new()
+			if f.load_dynamic_font(p) == OK:
+				_sans = f
+	return _sans if _sans != null else ThemeDB.fallback_font
+
 func _dlg_sans(c: Control, px: int, ink: Color) -> void:
-	c.add_theme_font_override("font", ThemeDB.fallback_font)
+	c.add_theme_font_override("font", _dlg_face())
 	c.add_theme_font_size_override("font_size", px)
 	c.add_theme_color_override("font_color", ink)
 
