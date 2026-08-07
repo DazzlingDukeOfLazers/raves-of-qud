@@ -164,6 +164,18 @@ namespace RavesOfQud
         // sidebars, and command bar all drop from even-odd dev ~10-17 to ~0-1.4. See
         // reports/1to1-qud-scanlines.md.
         public static bool DisableQudScanlines = true;    // 1:1 default: kill Qud's always-on scanlines
+        /// Which overlay properties may be neutralised on the MINIMAP's own material.
+        /// Bisected live (2026-08-06) against Qud's 'UI/Textured-Overlay', which carries
+        /// _ColorOverlay + _OverlayTex (no _Offset):
+        ///   _ColorOverlay -> transparent  = MAP BLANKED (the shader MULTIPLIES by it)
+        ///   _OverlayTex   -> white        = map intact AND its scanlines gone
+        /// So 2 (_OverlayTex only) is the one setting that is both safe and does the job:
+        /// bright px 1590 with an even/odd row gap of 0.05, vs 1563/3.90 untouched and 90/0.08
+        /// when _ColorOverlay is included. Live-settable via the `mmmask` bridge command.
+        public  static int MinimapMask = 2;   // bit0 _ColorOverlay · bit1 _OverlayTex · bit2 _Offset
+        private static UnityEngine.Color _mmOrigOverlayCol;
+        private static UnityEngine.Texture _mmOrigOverlayTex;
+        private static float _mmOrigOffset;
         private static UnityEngine.Material _minimapMatClone;   // the minimap's private overlay material
         private static bool _scanlineApplyPending;        // a uiQueue task is in flight
         private static bool? _scanlineAppliedValue;       // the value the camera currently reflects
@@ -947,6 +959,14 @@ namespace RavesOfQud
                         }, 0);
                     return;
                 }
+                if (name == "mmmask")
+                {
+                    f.TryGetValue("mask", out string mmv);
+                    int mmi; if (int.TryParse(mmv, out mmi)) MinimapMask = mmi;
+                    _scanlineAppliedValue = null;   // force the next sweep to re-apply
+                    Server.Log("[mm] MinimapMask=" + MinimapMask);
+                    return;
+                }
                 if (name == "uiback")
                 {
                     // First-party "press Escape" for Qud's MODERN menu screens (Records/
@@ -1417,7 +1437,17 @@ namespace RavesOfQud
                             {
                                 if (want && _minimapMatClone == null && mmImg.material != null)
                                 {
-                                    _minimapMatClone = UnityEngine.Object.Instantiate(mmImg.material);
+                                    var src = mmImg.material;
+                                    // remember the clone's ORIGINALS so the bisect can put back the
+                                    // properties it is not currently neutralising
+                                    if (src.HasProperty("_ColorOverlay")) _mmOrigOverlayCol = src.GetColor("_ColorOverlay");
+                                    if (src.HasProperty("_OverlayTex")) _mmOrigOverlayTex = src.GetTexture("_OverlayTex");
+                                    if (src.HasProperty("_Offset")) _mmOrigOffset = src.GetFloat("_Offset");
+                                    Server.Log("[mm] material '" + src.shader.name + "' has"
+                                        + (src.HasProperty("_ColorOverlay") ? " _ColorOverlay" : "")
+                                        + (src.HasProperty("_OverlayTex") ? " _OverlayTex" : "")
+                                        + (src.HasProperty("_Offset") ? " _Offset(" + _mmOrigOffset + ")" : ""));
+                                    _minimapMatClone = UnityEngine.Object.Instantiate(src);
                                     mmImg.material = _minimapMatClone;   // once — never per sweep
                                 }
                                 minimapMat = mmImg.material;
@@ -1430,7 +1460,21 @@ namespace RavesOfQud
                         if (g == null) continue;
                         var mat = g.material;
                         if (mat == null || mat.shader == null) continue;
-                        if (minimapMat != null && mat == minimapMat) continue;   // see above
+                        if (minimapMat != null && mat == minimapMat)
+                        {
+                            // BISECT: neutralise only the properties MinimapMask selects, so we can
+                            // find which one actually blanks the map and still suppress the rest.
+                            // bit0 _ColorOverlay · bit1 _OverlayTex · bit2 _Offset.
+                            if (mat.HasProperty("_ColorOverlay"))
+                                mat.SetColor("_ColorOverlay", (want && (MinimapMask & 1) != 0)
+                                    ? new UnityEngine.Color(0f, 0f, 0f, 0f) : _mmOrigOverlayCol);
+                            if (mat.HasProperty("_OverlayTex"))
+                                mat.SetTexture("_OverlayTex", (want && (MinimapMask & 2) != 0)
+                                    ? UnityEngine.Texture2D.whiteTexture : _mmOrigOverlayTex);
+                            if (mat.HasProperty("_Offset"))
+                                mat.SetFloat("_Offset", (want && (MinimapMask & 4) != 0) ? 0f : _mmOrigOffset);
+                            continue;
+                        }
                         bool touched = false;
                         if (mat.HasProperty("_ColorOverlay"))
                         {

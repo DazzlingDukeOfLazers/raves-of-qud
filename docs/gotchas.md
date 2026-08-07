@@ -924,6 +924,14 @@ matches anywhere, which is what proved it wasn't merely mispositioned).
 Nothing caught it for a week because Qud's overlay options were "No" from 2026-08-01, and the sweep
 shipped 2026-07-30 — **the feature was already switched off before the code that broke it landed.**
 
+**Which property blanks it (bisected live 2026-08-06):** the minimap's material is
+`UI/Textured-Overlay`, carrying `_ColorOverlay` and `_OverlayTex` (no `_Offset`).
+`_ColorOverlay` -> transparent BLANKS the map (the shader MULTIPLIES by it); `_OverlayTex` ->
+white is safe AND removes its scanlines. Measured, map region: untouched 1563 bright px /
+even-odd gap 3.90; `_OverlayTex` only 1590 / 0.05; anything including `_ColorOverlay` 90 / 0.08.
+So neutralise `_OverlayTex` only on that material (`Bridge.MinimapMask = 2`, live-settable with
+the `mmmask` bridge command) — map visible, scanlines gone, chrome untouched elsewhere.
+
 **Exempting the shared material is NOT the fix** — the sidebar panels draw with the same asset, so
 skipping it handed their scanlines back (measured: the flat chrome's even/odd row gap returned to
 13.67, the unsuppressed value). Clone a PRIVATE material for the minimap once and exempt only that:
