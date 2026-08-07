@@ -382,7 +382,11 @@ func show_popup(data: Dictionary, palette: Dictionary) -> void:
 		# Adopt the id and keep the state.
 		_cur_id = id
 		if bool(data.get("input", false)) and _edit != null:
-			UiState.set_popup("input")
+			# ensure_, not set_: this is the SAME popup re-announced, so re-assert the kind
+			# without counting a fresh raise. set_popup() here bumped popup_n on every
+			# re-announce (~1/s from highvisor's own polling), and popup_n is what a dismiss
+			# step diffs to prove its key landed — see UiState.ensure_popup.
+			UiState.ensure_popup("input")
 			_edit.grab_focus()
 		return
 	_content_sig = content_sig

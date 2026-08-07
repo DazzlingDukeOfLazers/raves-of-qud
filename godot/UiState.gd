@@ -53,6 +53,22 @@ func set_popup(kind: String) -> void:
 	_popup_n += 1
 	_write()
 
+## Re-assert the kind of the popup ALREADY up, without counting a new raise.
+##
+## `_popup_n` means "popups RAISED this run", and highvisor's dismiss steps diff it to tell
+## "the key I sent landed" from "nothing happened" — two consecutive confirms both report kind
+## `message`, so the counter is the only thing that separates them. Bumping it on a RE-announce
+## therefore forges that evidence: the mod re-broadcasts the live popup to every client on each
+## connect and highvisor's own state poller connects about twice a second, so a single untouched
+## modal walked popup_n from 3 to 37 in 30s (measured 2026-08-07). Any dismiss conditioned on a
+## popup then saw the fingerprint change on its own within a second — i.e. that step could not
+## fail, which is the whole defect class this session has been unpicking.
+func ensure_popup(kind: String) -> void:
+	if _popup == kind:
+		return
+	_popup = kind
+	_write()
+
 func clear_popup() -> void:
 	if _popup == "":
 		return
