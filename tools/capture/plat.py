@@ -6,7 +6,7 @@ macOS and Windows work lives in separate files — clean parallel branches (dd/m
 no shared-file merge conflicts on platform code.
 
 CONTRACT every backend must provide:
-  paths:    support_dir()
+  paths:    support_dir(), qud_data_dir()
   input:    check(), require(), move/click/rclick/dclick(x,y), cursor(), key(name), type_text(s)
   window:   bounds(app)->{x,y,w,h}, activate(app), clickin(app,fx,fy)
   process:  list_pids([match]), kill_pids(pids, force=False), quit_graceful([app]), launch_game()

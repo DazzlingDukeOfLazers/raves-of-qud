@@ -14,6 +14,19 @@ extends Node
 
 var _scene := "title"
 var _popup := ""     # popup kind while one is up (message / yesno / menu / input)
+var _snap_ts := 0    # unix time of the last APPLIED snapshot (0 = none yet):
+                     # proves the wire is flowing, not just that the UI is alive
+
+## Split in_game into zone vs parasang overview. ONLY flips between those two —
+## a status screen, popup or menu owns the scene while it's up, and a snapshot
+## arriving underneath it must not steal the report back.
+func note_world_map(on: bool) -> void:
+	if _scene == "in_game" or _scene == "world_map":
+		set_scene("world_map" if on else "in_game")
+
+func note_snapshot() -> void:
+	_snap_ts = int(Time.get_unix_time_from_system())
+	# no _write(): snapshots can arrive every turn — the 2s heartbeat carries it
 
 ## The current scene, for tools that annotate with it (FeedbackTool).
 func scene() -> String:
@@ -122,6 +135,11 @@ func _write() -> void:
 		"ts": int(Time.get_unix_time_from_system())}
 	if _popup != "":
 		d["popup"] = _popup
+	# `snap_ts` (PC line): when the last snapshot arrived, so a reader can tell a live
+	# heartbeat from a client that is connected but receiving nothing.
+	if _snap_ts > 0:
+		d["snap_ts"] = _snap_ts
+	# Written to BOTH the shared path and this process's own sidecar — see _pid_path().
 	var payload := JSON.stringify(d)
 	for p in [_path(), _pid_path()]:
 		var f := FileAccess.open(p, FileAccess.WRITE)

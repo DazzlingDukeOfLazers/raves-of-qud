@@ -1,0 +1,47 @@
+{
+ "fixture": "Wormhole",
+ "frames": 12,
+ "expect_states": null,
+ "measured": [
+  {
+   "bp": "Wormhole",
+   "ok": true,
+   "qud": {
+    "frames": 11,
+    "states": 9,
+    "duty": [
+     0.18,
+     0.18,
+     0.09,
+     0.09,
+     0.09,
+     0.09,
+     0.09,
+     0.09,
+     0.09
+    ],
+    "class": "continuous"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 11,
+    "duty": [
+     0.17,
+     0.08,
+     0.08,
+     0.08,
+     0.08,
+     0.08,
+     0.08,
+     0.08,
+     0.08,
+     0.08,
+     0.08
+    ],
+    "class": "continuous"
+   },
+   "agree": true
+  }
+ ],
+ "when": "2026-08-06 20:02"
+}

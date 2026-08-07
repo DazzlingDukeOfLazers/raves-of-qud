@@ -343,6 +343,22 @@ func _on_picker(data: Dictionary) -> void:
 		_item_picker.hide_picker()
 
 func _on_snapshot(data: Dictionary) -> void:
+	# Data-freshness beacon for the test rig: the UI heartbeat proves the
+	# VIEWER is alive, not that the WIRE is — a dropped bridge connection
+	# left stale zones (and stale dynamic creatures) on screen through a
+	# certification band while raves_state.json read perfectly healthy.
+	UiState.note_snapshot()
+	# WORLD MAP is a distinct SCREEN, not a zone: Qud sends it as a negative
+	# stratum (zone.z < 0 — the parasang overview ZoneRenderer already keys
+	# _world_map off). Report it so the rig can tell "player is reading the
+	# map" from "player is in a zone": they render in the same frame, so a
+	# checker that only asks for in_game would happily pixel-score a world
+	# map against a zone capture — the failure mode that poisoned a
+	# certification band from the menus. MainFrame still owns the in_game
+	# announcement; this only splits it while a snapshot says otherwise.
+	# Same rule as ZoneRenderer._world_map — Qud's IsWorldMap(): a dotless ZoneID.
+	var _zid := String((data.get("zone", {}) as Dictionary).get("id", ""))
+	UiState.note_world_map(_zid != "" and not _zid.contains("."))
 	# Cache the colour map so popup markup renders with the same palette. Do NOT
 	# hide the popup here: ASYNC popups (ShowYesNoAsync / PickOptionAsync) never
 	# block the turn thread, so snapshots keep flowing while they're up — the old
@@ -501,6 +517,20 @@ func _exec_godot_cmd(cmd: String) -> void:
 	match parts[0]:
 		"shot":
 			_screenshot(false, true)   # forced: window is unfocused, no auto-draw
+		"census":
+			# Rung 6a: dump the renderer's per-cell placement verdicts so the rig
+			# can diff them against the wire's cells — "did we draw everything
+			# the zone sent?" with no pixels, no calibration, no focus.
+			var cs := FileAccess.open(_support_dir().path_join("census.json"), FileAccess.WRITE)
+			if cs != null:
+				var payload := {}
+				if renderer != null:
+					payload = {
+						"zone": _prev_zone_id,
+						"cells": renderer.placement_census(),
+					}
+				cs.store_string(JSON.stringify(payload))
+				cs.close()
 		"uidump":
 			# dump the frame's bottom-row widget rects — who is taller than the 90px budget?
 			var fr := get_parent()

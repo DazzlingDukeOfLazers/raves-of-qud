@@ -503,7 +503,12 @@ func render_snapshot(data: Dictionary, neighbors: Array = []) -> void:
 	var cells: Array = data.get("cells", [])
 	var _zz := int(data.get("zone", {}).get("z", SURFACE_Z))
 	_underground = _zz > SURFACE_Z
-	_world_map = _zz < 0
+	# WORLD MAP = Qud's own IsWorldMap(): a ZoneID with NO dot ("JoppaWorld" vs
+	# "JoppaWorld.11.22.1.1.10"). The old `z < 0` test could never fire —
+	# ZoneRequest assigns world zones Z = 10, the same as the surface (verified
+	# in both of its world-zone branches), so this whole render mode (standing
+	# cards, flat-and-lit, no torch glows) has never actually run.
+	_world_map = live_id != "" and not live_id.contains(".")
 	var pc: Dictionary = data.get("player", {})
 	_player_cell = Vector2i(int(pc.get("x", -9999)), int(pc.get("y", -9999))) if not pc.is_empty() else Vector2i(-9999, -9999)
 
@@ -596,7 +601,14 @@ func _group_wall_cells(cells: Array, offset: Vector2i, wall_types: Dictionary, w
 			var tile := _canon_wall_tile(String(obj.get("tile", "")))
 			var main_c := _pick_color_string(obj)   # compound beats tilecolor (the shared rule)
 			var detail_c := String(obj.get("detail", ""))
-			var bg := _parse_bg(String(obj.get("color", "")))
+			# Gap-fill bg comes from the EFFECTIVE tile colour: TILECOLOR when
+			# set, else ColorString — exactly how Qud seeds its render event.
+			# (The old "never ColorString" rule held only because its counter-
+			# examples all HAD a TileColor, which masks ColorString entirely —
+			# the metal wall's '&c' vs its noisy ColorString '^R'. An object
+			# with NO TileColor really is painted from ColorString, ^ and all:
+			# the Jilted Lover's '&g^w' tan field.)
+			var bg := _parse_bg(_bg_source(obj))
 			var key := "%s|%s|%s|%s" % [tile, main_c, detail_c, bg]
 			if not wall_types.has(key):
 				wall_types[key] = {"cells": {}, "tile": tile, "main": main_c, "detail": detail_c, "bg": bg}
@@ -794,11 +806,14 @@ func _rebuild_dynamics(cells: Array) -> void:
 		# the terrain tiles, never buried behind a hill card. _place_nonwall picks that up.
 		_placing_player = _world_map and Vector2i(cx, cy) == _player_cell
 		if _one_to_one:
-			# Qud renders ONE object per cell (Cell.Render): among the eligible objects — all of
-			# them when the cell is visible+lit, only the RenderIfDark ones otherwise — the highest
-			# RenderLayer wins, ties going to the LATER object in the cell's list (Qud compares
-			# with `>=`). A vine standing in deep water therefore covers the water entirely;
-			# stacking the whole list painted bright water under every vine.
+			# Qud renders ONE object per cell: among the eligible objects — all of
+			# them when the cell is visible+lit, only the RenderIfDark ones otherwise — the
+			# highest RenderLayer wins. TIES go to the EARLIER object in the cell's list:
+			# classic Cell.Render compares with `>=` (last-wins), but the MODERN tile stage
+			# we mirror draws first-wins — measured on the CaverCorpse spill (corpse idx 0 +
+			# unexamined trinket idx 5, both layer 6: Qud shows the corpse; `>=` here showed
+			# the trinket and the checker caught the divergence). The vine-over-deep-water
+			# rule is unaffected — that's a strict layer difference, not a tie.
 			var win: Dictionary = {}
 			var win_layer := -INF
 			for obj in cell.get("objs", []):
@@ -806,7 +821,7 @@ func _rebuild_dynamics(cells: Array) -> void:
 				if not full_1to1 and bool(wd.get("hideDark", false)):
 					continue   # Qud never draws these out of sight (Render.RenderIfDark false)
 				var lay := float(wd.get("layer", 0))
-				if lay >= win_layer:
+				if lay > win_layer:
 					win = wd
 					win_layer = lay
 			if not win.is_empty():
@@ -1115,6 +1130,20 @@ func _note(cx: int, cy: int, idx: int, kind: String, y: float) -> void:
 	if not target.has(k):
 		target[k] = []
 	target[k].append({"idx": idx, "kind": kind, "y": y})
+
+## The WHOLE zone's placement map, "x,y" -> [{idx, kind, y}, ...] — the same
+## per-object verdicts CellInspector shows for one cell, for every cell at once.
+## Rung 6a (docs/pc-zone-plan.md) diffs this against the wire's cell list to
+## answer "did we draw everything the zone sent us?" with no pixels involved.
+func placement_census() -> Dictionary:
+	var out := {}
+	for src in [_placed, _dyn_placed]:
+		for k in src:
+			var key := "%d,%d" % [k.x, k.y]
+			if not out.has(key):
+				out[key] = []
+			out[key].append_array(src[k])
+	return out
 
 ## What the renderer did with cell (cx, cy): [{idx, kind, y}, ...]
 func placements_at(cx: int, cy: int) -> Array:
@@ -2151,14 +2180,33 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 	if skip_creatures and _is_creature(obj):
 		return
 	var tile := String(obj.get("tile", ""))
+	# Per-object gap-fill bg: the ^X of the EFFECTIVE tile colour — TILECOLOR
+	# when set (Starship '^W' gold, HangarWall '^Y'), else ColorString (the
+	# creepers' '^w' tan lives there; Qud seeds its render event the same way).
+	_wall_bg = _parse_bg(_bg_source(obj))
 
-	# No tile even after asking the object what it would DRAW means Qud draws
-	# nothing: DaylightWidget, ZoneMusic, CheckpointWidget, Landmark* — zone
-	# bookkeeping parked in real cells. We were painting them as colour dots.
-	# (A tile path whose PNG is merely missing still falls through to the glyph
-	# label below; that case is transient, since tiles export on sight.)
+	# No tile means GLYPH MODE: Qud draws the RenderString in the console font
+	# (base blueprints like MountedFurniture render a pale '?', NephilimShrine
+	# its sigil). The mod only ships tile-less objects that HAVE a glyph —
+	# invisible bookkeeping widgets (DaylightWidget, ZoneMusic, Landmark*) are
+	# filtered mod-side on Render.Visible, so "skip everything without a tile"
+	# now skipped real renders (checker: the '?' cluster drew a bare field).
 	if tile == "":
-		_note(cx, cy, idx, "skipped(no tile — not drawn by Qud)", 0.0)
+		var g := String(obj.get("glyph", ""))
+		if g == "":
+			_note(cx, cy, idx, "skipped(no tile, no glyph — not drawn by Qud)", 0.0)
+			return
+		var gl := _take_label()
+		gl.text = _cp437(g)
+		gl.modulate = _qud_color(String(obj.get("color", "")))
+		# Qud fills most of the cell with the glyph and seats it high (measured
+		# off the checker's '?'/'Σ' probes); default label size read ~2/3 scale
+		# and centred low.
+		gl.font_size = 88
+		gl.position = Vector3(cx, 0.5 + idx * LAYER_STEP, cy - 0.05)
+		gl.visible = true
+		_track(gl)
+		_note(cx, cy, idx, "label(glyph-mode — Qud draws RenderString)", gl.position.y)
 		return
 
 	# THE shared precedence rule (compound colour beats tilecolor) — this string ALSO keys
@@ -2189,9 +2237,18 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 	# A filed FILL verdict applies to the tile's texture everywhere it draws (the fill axis is
 	# independent of shape): fill-holes turns the water wheel's see-through slats opaque in the
 	# FLAT path too — Qud shows them solid, and the old 3D panel path was the only place the
-	# verdict used to reach. Unfiled tiles keep Fill.NONE (transparent as-loaded).
+	# verdict used to reach. Unfiled tiles keep Fill.NONE (transparent as-loaded) —
+	# EXCEPT when TILECOLOR carries a ^X background: Qud paints that behind the
+	# art for EVERY object, wall or not (Starship '^W' gold frames, HangarWall
+	# '^Y', the creepers' '^w' tan field — Jilted Lover / Livid Creeper read
+	# 63/53 on a bare teal cell before this). The old occluding-only gate
+	# survived 391 ^ carriers because most are ^k/^K — the field colour itself,
+	# a visual no-op — or full-coverage art. Plain no-^ tiles keep transparent
+	# gaps: their Qud render shows the terrain through, and 213 bright-baseline
+	# walls pass on exactly that behaviour.
+	var wall_fill := Fill.ALL if _wall_bg != "" else Fill.NONE
 	var tex := _colored_tex_rgb(tile, _obj_main(obj), _obj_detail(obj), _color_key(obj),
-		_fill_for(tile, Fill.NONE))
+		_fill_for(tile, wall_fill))
 
 	# A filed verdict overrides everything below it. This is how facts that are not
 	# in Qud's data get in: nothing in `sw_waterwheel_1` says the wheel runs
@@ -2400,7 +2457,8 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			_note(cx, cy, idx, "%s, fill=%s %dpx" % [kind, fname, gaps], s.position.y)
 	else:
 		var l := _take_label()
-		l.text = String(obj.get("glyph", "?"))
+		l.text = _cp437(String(obj.get("glyph", "?")))
+		l.font_size = 64   # pooled labels may carry the glyph path's 96
 		l.modulate = _qud_color(String(obj.get("color", "")))
 		l.position = Vector3(cx, 0.5 + idx * LAYER_STEP, cy)
 		l.visible = true
@@ -2437,6 +2495,13 @@ func _seat(s: Sprite3D, tex: ImageTexture, tile: String, cx: int, cy: int, sink:
 
 # --- greedy-meshed walls ----------------------------------------------------
 
+## The colour string whose ^X paints this object's cell background:
+## TileColor when set (it masks ColorString entirely in tile mode), else
+## ColorString — mirroring how Qud seeds RenderEvent.ColorString.
+func _bg_source(obj: Dictionary) -> String:
+	var tc := String(obj.get("tilecolor", ""))
+	return tc if tc != "" else String(obj.get("color", ""))
+
 func _parse_bg(color: String) -> String:
 	# "&r^w" -> "w"  (the background colour); "" if no ^ component. Qud's rule
 	# (GetBackgroundColorChar) takes the LAST '^' — matters for compound strings.
@@ -2446,9 +2511,15 @@ func _parse_bg(color: String) -> String:
 	return ""
 
 func _wall_bg_color() -> Color:
-	# Qud fills transparent gaps with the world/cell background (dark green), NOT the
-	# object's ^X. The ^X-derived colour was flooding e.g. metal walls cyan; the cyan
-	# actually belongs to the detail pixels (the border), handled by the recolor.
+	# Gap fill = the ^X component of TILECOLOR when present, else the world bg.
+	# BOTH prior measurements were right and are reconciled by WHICH FIELD the ^
+	# came from: metal walls flooded cyan because the old code read COLORSTRING's
+	# '^R' (glyph-mode noise — their TileColor '&y' has no ^), while the Starship
+	# family genuinely fills gold — TileColor '&y^W' — and Qud paints it
+	# (checker evidence: StarshipGeometricWallGrey_goldframe_*). ColorString
+	# compounds stay glyph-only, exactly like the salt-puddle measurement.
+	if _wall_bg != "":
+		return _qud_color("&" + _wall_bg)
 	return _world_bg
 
 func _rebuild_walls(wall_types: Dictionary) -> void:
@@ -3219,12 +3290,39 @@ func _colored_tex(tile: String, main_c: String, detail_c: String, fill := Fill.N
 func _colored_tex_rgb(tile: String, main: Color, detail: Color, ckey: String, fill := Fill.NONE) -> ImageTexture:
 	if tile.is_empty() or _tiles_dir.is_empty():
 		return null
-	var key := "%s|%s|%d" % [tile, ckey, fill]
+	# _wall_bg keys the FILL colour (gap pixels paint _wall_bg_color()), so it
+	# must key the cache too — a gold-fill Starship texture must not be served
+	# for a world-fill wall that shares tile+colours.
+	var key := "%s|%s|%d|%s" % [tile, ckey, fill, _wall_bg]
 	if _tex_cache.has(key):
 		return _tex_cache[key]
 	var mask := _mask(tile)
 	if mask == null:
 		return null
+	# Text/<code>.bmp glyph sprites invert the tile convention: they're an
+	# OPAQUE black field with a white glyph, and Qud paints white = foreground
+	# colour, black = cell background. The dark/light=main/detail lerp painted
+	# the whole cell main-colour (checker: '?' probes jumped to ~113). Paint
+	# glyph pixels with MAIN and turn luminance into alpha instead.
+	if tile.begins_with("Text/"):
+		var tw := mask.get_width()
+		var th := mask.get_height()
+		var timg := Image.create(tw, th, false, Image.FORMAT_RGBA8)
+		# A ^X in the object's TileColor is the glyph cell's BACKGROUND (the
+		# Wormhole's "&B^k" draws on a black field, not the world teal) —
+		# composite fg over it opaquely; without one, luminance becomes alpha.
+		var tbg := _wall_bg_color() if _wall_bg != "" else Color(0, 0, 0, 0)
+		for ty in th:
+			for tx in tw:
+				var tp := mask.get_pixel(tx, ty)
+				var tlum := (tp.r + tp.g + tp.b) / 3.0
+				if _wall_bg != "":
+					timg.set_pixel(tx, ty, Color(tbg.lerp(main, tlum * tp.a), 1.0))
+				else:
+					timg.set_pixel(tx, ty, Color(main.r, main.g, main.b, tlum * tp.a))
+		var ttex := ImageTexture.create_from_image(timg)
+		_tex_cache[key] = ttex
+		return ttex
 	var inner = null
 	if fill == Fill.INTERIOR:
 		inner = _interior(tile)
@@ -3635,6 +3733,124 @@ func _register_anim(win: Dictionary, cx: int, cy: int) -> void:
 					nodes.append(_overlay_quad(texl, cx, cy, y_over, flip))
 			if not nodes.is_empty():
 				_anim_items.append({"kind": "cycle", "nodes": nodes})
+	# AnimatedMaterialGeneric & subclasses (data-driven cycler — Phasic Screw's
+	# helix, the powered-device blink family, the Force Projector detail cycle):
+	# the wire ships ONE merged schedule "len|f=tile;color;detail|..." with
+	# thresholds pre-scaled to a plain 60fps clock and the part's condition
+	# ladder already evaluated at export. Empty fields = the object's base
+	# art/colours. A fully-empty entry is the BASE state: no overlay at all.
+	# A REPLACEMENT tile is built opaque (Fill.ALL): Qud swaps the whole tile,
+	# so the frame must mask the steady base underneath (the power-cut icon
+	# floats on the bare field, not on the computer's art).
+	var af := String(win.get("animSched", ""))
+	if af != "":
+		var fparts := af.split("|")
+		var alen := maxi(int(fparts[0]), 1)
+		var sched: Array = []
+		for fi in range(1, fparts.size()):
+			var kv := fparts[fi].split("=")
+			if kv.size() != 2:
+				continue
+			var axes := String(kv[1]).split(";")
+			if axes.size() != 3:
+				continue
+			var node: MeshInstance3D = null
+			if axes[0] != "" or axes[1] != "" or axes[2] != "":
+				var stile := String(axes[0]) if axes[0] != "" else tile
+				var smain := _qud_color(String(axes[1])) if axes[1] != "" else _obj_main(win)
+				var sdet: Color = _qud_color("&" + String(axes[2])) if axes[2] != "" else _obj_detail(win)
+				# An entry colour's ^X is that FRAME's cell background (Asleep
+				# floods ^c behind the art) — swap _wall_bg for this build, and
+				# force the fill on: with Fill.NONE the background never paints
+				# and a bg-only flash renders identical to the base (measured:
+				# the sleeping chromeling stayed static).
+				var kept_bg := _wall_bg
+				if axes[1] != "":
+					_wall_bg = _parse_bg(String(axes[1]))
+				var sfill: int = Fill.ALL if ((axes[0] != "" and String(axes[0]) != tile) or _wall_bg != "") else Fill.NONE
+				var ftex := _colored_tex_rgb(stile, smain, sdet,
+					"anim~S" + String(kv[1]) + "~" + _color_key(win), _fill_for(stile, sfill))
+				_wall_bg = kept_bg
+				if ftex != null:
+					node = _overlay_quad(ftex, cx, cy, y_over, flip)
+			sched.append({"f": int(kv[0]), "node": node})
+		if sched.size() > 1:
+			_anim_items.append({"kind": "frames", "len": alen, "sched": sched})
+	# Wormhole shimmer: Qud re-rolls a RANDOM colour+glyph combo on every
+	# repaint (Wormhole.Render — no cycle to schedule). The wire ships the
+	# combo tables "period|glyphcodes|colors"; prebuild every combo's Text
+	# tile (each on its own ^X background) and re-roll on our own cadence.
+	var ash := String(win.get("animShimmer", ""))
+	if ash != "":
+		var sparts := ash.split("|")
+		if sparts.size() == 3:
+			var speriod := maxi(int(sparts[0]), 6)
+			var snodes: Array = []
+			var saved_bg := _wall_bg
+			for code in sparts[1].split(","):
+				for scol in sparts[2].split(","):
+					var stile := "Text/%d.bmp" % int(code)
+					_wall_bg = _parse_bg(String(scol))
+					var smain := _qud_color(String(scol))
+					var stex := _colored_tex_rgb(stile, smain, smain,
+						"anim~W" + String(code) + String(scol), Fill.NONE)
+					if stex != null:
+						snodes.append(_overlay_quad(stex, cx, cy, y_over, false))
+			_wall_bg = saved_bg
+			if snodes.size() > 1:
+				_anim_items.append({"kind": "shimmer", "nodes": snodes,
+					"period": speriod, "last": -1, "cur": 0})
+	# PrefabImposter effects: Unity particle prefabs the wire can only NAME.
+	# TreeGlow (Chavvah chimes) is a full-cell moonlight wash the art draws
+	# OVER — colour sampled off native captures (state crops, corner mean
+	# ~(197,181,212), breathing ±7). The wash quad sits UNDER the sprite and
+	# its transparency pulses (continuous states, like the measured 11).
+	var imp := String(win.get("imposter", ""))
+	if imp == "TreeGlow":
+		var wcol := Color8(197, 181, 212)
+		var wnode := _overlay_quad(null, cx, cy, y_over - LAYER_LIFT * 0.5, false, wcol)
+		# Drifting MOTES give the wash the particle system's spatial churn: a
+		# brightness pulse alone tops out at ~4 distinguishable states (merge
+		# radius eats a 1-D range), while Qud's glow reads continuous because
+		# the sparkle POSITIONS move. Three small bright quads, orbits driven
+		# by incommensurate frequencies.
+		var motes: Array = []
+		for mi2 in 3:
+			var mq := _overlay_quad(null, cx, cy, y_over - LAYER_LIFT * 0.4, false,
+				Color8(222, 207, 236))
+			mq.scale = Vector3(0.22, 1, 0.22)
+			motes.append(mq)
+		_anim_items.append({"kind": "glowpulse", "node": wnode, "base": wcol,
+			"motes": motes, "cx": cx, "cy": cy})
+	# HologramMaterial weighted shimmer: "period|col~det~weight|..." — the
+	# part's clock RANDOM-WALKS (FrameOffset += Random(0,20) every render),
+	# so its palette is a distribution, not a cycle: mostly the steady mode
+	# (which the wire's base colours already carry), with brief flashes of
+	# the early entries (Eater Sign's &W blink). Re-roll by weight.
+	var ah := String(win.get("animHolo", ""))
+	if ah != "":
+		var hparts := ah.split("|")
+		if hparts.size() > 2:
+			var hperiod := maxi(int(hparts[0]), 6)
+			var hnodes: Array = []
+			var hweights: Array = []
+			var htotal := 0
+			for hi in range(1, hparts.size()):
+				var hkv := hparts[hi].split("~")
+				if hkv.size() != 3:
+					continue
+				var hmain := _qud_color(String(hkv[0]))
+				var hdet: Color = _qud_color("&" + String(hkv[1])) if hkv[1] != "" else _obj_detail(win)
+				var htex := _colored_tex_rgb(tile, hmain, hdet,
+					"anim~H" + String(hkv[0]) + String(hkv[1]) + "~" + _color_key(win), _fill_for(tile, Fill.NONE))
+				if htex != null:
+					hnodes.append(_overlay_quad(htex, cx, cy, y_over, flip))
+					var hwt := maxi(int(hkv[2]), 1)
+					hweights.append(hwt)
+					htotal += hwt
+			if hnodes.size() > 1:
+				_anim_items.append({"kind": "holo", "nodes": hnodes, "weights": hweights,
+					"total": htotal, "period": hperiod, "last": -1, "cur": 0})
 	# Gas swirl (Qud's Gas.Render): a 4-tile cycle — Tiles2/gas_0..3.png at 15 frames
 	# (250ms) per step, in the gas type's colour. Always exactly one frame visible, so
 	# the overlay fully replaces the steady base (which shows frame 0).
@@ -3766,6 +3982,80 @@ func _animate_1to1() -> void:
 					var nn := nodes[i] as MeshInstance3D
 					if is_instance_valid(nn):
 						nn.visible = i == idx
+		elif kind == "frames":
+			# AnimatedMaterialGeneric: the ACTIVE entry is the last whose
+			# threshold <= the clock (Qud's own step rule). Before the first
+			# threshold, and on base-state entries (null node), every overlay
+			# hides and the steady base shows through.
+			var ff := int(ms * 0.06) % int(it["len"])
+			var sched: Array = it["sched"]
+			var active := -1
+			for si in sched.size():
+				if ff >= int(sched[si]["f"]):
+					active = si
+			for si in sched.size():
+				var fn := sched[si]["node"] as MeshInstance3D
+				if fn != null and is_instance_valid(fn):
+					fn.visible = si == active
+		elif kind == "glowpulse":
+			# TreeGlow breathing: two incommensurate sines so the pulse never
+			# phase-locks with the capture cadence (measured amplitude ~±3%).
+			# Overlay quads spawn INVISIBLE (the toggle programs own that);
+			# a fading program must show its node itself.
+			var gn := it["node"] as MeshInstance3D
+			if is_instance_valid(gn):
+				gn.visible = true
+				# Pulse the wash's BRIGHTNESS, not its alpha: transparency fades
+				# compressed to ±2/channel on screen and dimmed the field off the
+				# measured colour. Albedo swing ±~4% = the captures' ±7/channel.
+				# Three incommensurate sines (fastest sub-capture-period) so
+				# consecutive samples decorrelate like the particle system's.
+				var osc := 1.0 + 0.016 * sin(ms * 0.0013) + 0.014 * sin(ms * 0.0071) + 0.012 * sin(ms * 0.0173)
+				var wb: Color = it["base"]
+				var wm := gn.material_override as StandardMaterial3D
+				if wm != null:
+					wm.albedo_color = Color(wb.r * osc, wb.g * osc, wb.b * osc)
+				var motes: Array = it["motes"]
+				for mi3 in motes.size():
+					var mq := motes[mi3] as MeshInstance3D
+					if is_instance_valid(mq):
+						mq.visible = true
+						var ph := float(mi3) * 2.1
+						mq.position = Vector3(
+							float(it["cx"]) + 0.3 * sin(ms * 0.0009 + ph) + 0.08 * sin(ms * 0.0047 + ph),
+							mq.position.y,
+							float(it["cy"]) + 0.34 * cos(ms * 0.0011 + ph * 1.7) + 0.08 * cos(ms * 0.0053 + ph))
+		elif kind == "shimmer":
+			# Wormhole: pick a RANDOM combo each period (repeats allowed —
+			# Qud's own re-roll can land on the same face twice).
+			var sstep := int(ms * 0.06 / float(it["period"]))
+			if sstep != int(it["last"]):
+				it["last"] = sstep
+				it["cur"] = randi() % (it["nodes"] as Array).size()
+			var snodes: Array = it["nodes"]
+			for si in snodes.size():
+				var sn := snodes[si] as MeshInstance3D
+				if is_instance_valid(sn):
+					sn.visible = si == int(it["cur"])
+		elif kind == "holo":
+			# HologramMaterial: weighted re-roll each period (the steady mode
+			# dominates; flashes carry their measured share of the 200-space).
+			var hstep := int(ms * 0.06 / float(it["period"]))
+			if hstep != int(it["last"]):
+				it["last"] = hstep
+				var hr := randi() % int(it["total"])
+				var hws: Array = it["weights"]
+				var hacc := 0
+				for wi in hws.size():
+					hacc += int(hws[wi])
+					if hr < hacc:
+						it["cur"] = wi
+						break
+			var hn: Array = it["nodes"]
+			for ni in hn.size():
+				var hnn := hn[ni] as MeshInstance3D
+				if is_instance_valid(hnn):
+					hnn.visible = ni == int(it["cur"])
 		elif kind == "cholo":
 			var chn: Array = it["nodes"]
 			if chn.size() == 4:
@@ -3934,9 +4224,25 @@ func _take_label() -> Label3D:
 	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	l.pixel_size = 0.02
 	l.font_size = 64
+	# Qud's map glyphs: Source Code Pro, no outline (checker: the default
+	# Label3D outline read as a black ring Qud never draws).
+	l.font = load("res://fonts/SourceCodePro-Regular.ttf")
+	l.outline_size = 0
 	l.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	_spawn_parent().add_child(l)
 	return l
+
+# Qud RenderStrings are CODEPAGE-437 codes carried as raw chars (blueprint
+# RenderString="228" means Σ, the sigil the shrine draws; read as Unicode it's
+# "ä"). Map through the classic table; codes past 255 pass through untouched.
+const CP437 := " ☺☻♥♦♣♠•◘○◙♂♀♪♫☼►◄↕‼¶§▬↨↑↓→←∟↔▲▼ !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~⌂ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜ¢£¥₧ƒáíóúñÑªº¿⌐¬½¼¡«»░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■ "
+
+func _cp437(s: String) -> String:
+	var out := ""
+	for i in s.length():
+		var c := s.unicode_at(i)
+		out += CP437[c] if c < 256 else s[i]
+	return out
 
 # FALLBACK ONLY — hand-estimated, and measurably wrong: Qud's 'k' is #0f3b3a
 # (a dark teal, the colour of the world itself), NOT the near-black guessed here.

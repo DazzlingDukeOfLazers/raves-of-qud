@@ -1,4 +1,5 @@
 {
  "Marsha Taur": "Marsh Taur preset test character (Classic, Joppa) \u2014 Daniel's golden for preset validation",
- "sync-raves-and-qud": "The startup-stability anchor save (Wander, Joppa) \u2014 restore + load for a deterministic sync state"
+ "sync-raves-and-qud": "The startup-stability anchor save (Wander, Joppa) \u2014 restore + load for a deterministic sync state",
+ "checker": "The PC Object-Checker anchor (Wander, Joppa, godmode-armed char 'Tygashwuraq') \u2014 restore + hv loadsave for a deterministic sweep state"
 }

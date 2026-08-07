@@ -193,6 +193,16 @@ namespace RavesOfQud
                     return bp.HasPart("CyberneticsBaseItem");
                 case "furniture":
                     return bp.InheritsFrom("Furniture");
+                case "walls":
+                    return bp.InheritsFrom("Wall");
+                case "plants":
+                    // Two roots: the Plant blueprint tree and the part-based flora
+                    // (some fungi/vines carry PlantProperties without the ancestor).
+                    return bp.InheritsFrom("Plant") || bp.HasPart("PlantProperties");
+                case "liquids":
+                    // Pool/puddle blueprints (open liquid on the floor), not
+                    // liquid CONTAINERS (waterskins etc. stay in "items").
+                    return bp.InheritsFrom("LiquidPool") || bp.InheritsFrom("Water");
                 case "items":
                     return bp.InheritsFrom("Item")
                         && !bp.HasPart("MeleeWeapon") && !bp.HasPart("MissileWeapon")

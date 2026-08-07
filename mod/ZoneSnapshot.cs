@@ -175,6 +175,257 @@ namespace RavesOfQud
             return r.RenderString ?? "";
         }
 
+        // ---- AnimatedMaterialGeneric (and subclasses) schedule export ------------
+        //
+        // The part is a data-driven cycler over three axes (tile / colour /
+        // detail-colour), gated by a condition ladder (unpowered active parts,
+        // events, effects, understood). AnimatedMaterialGenericAlternate — the
+        // powered-device blink family: Unicomputers, Wire Extruder, piston
+        // press, solar condenser — is an EMPTY subclass, and GetPart<T> matches
+        // exact type only, so the old export never saw it (checker measured the
+        // whole family 2-state in Qud, static in Raves).
+
+        /// <summary>First AnimatedMaterialGeneric-or-subclass on the object.</summary>
+        private static AnimatedMaterialGeneric AnimGenericOf(GameObject go)
+        {
+            foreach (var p in go.PartsList)
+                if (p is AnimatedMaterialGeneric amg) return amg;
+            return null;
+        }
+
+        /// <summary>The part's private StatusOf(IActivePart) — its Ignore* knobs
+        /// baked in — via reflection (one call site; safer than transcribing the
+        /// 14-argument GetActivePartStatus call).</summary>
+        private static object AnimStatusOf(AnimatedMaterialGeneric amg, IActivePart p)
+        {
+            try
+            {
+                var mi = typeof(AnimatedMaterialGeneric).GetMethod(
+                    "StatusOf",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance,
+                    null, new System.Type[] { typeof(IActivePart) }, null);
+                return mi == null ? null : mi.Invoke(amg, new object[] { p });
+            }
+            catch { return null; }
+        }
+
+        private static bool AnimStatusIs(AnimatedMaterialGeneric amg, IActivePart p, ActivePartStatus want)
+        {
+            object st = AnimStatusOf(amg, p);
+            return st != null && st.Equals(want);
+        }
+
+        /// <summary>Mirror of AnimatedMaterialGeneric.Render's condition ladder,
+        /// evaluated at export time (the stage is a steady world: an unpowered
+        /// device stays unpowered between the paired captures).</summary>
+        private static bool AnimGenericActive(GameObject go, AnimatedMaterialGeneric amg)
+        {
+            if (!string.IsNullOrEmpty(amg.RequiresOperationalActivePart)
+                && !AnimStatusIs(amg, go.GetPart(amg.RequiresOperationalActivePart) as IActivePart, ActivePartStatus.Operational))
+                return false;
+            if (!string.IsNullOrEmpty(amg.RequiresUnpoweredActivePart)
+                && !AnimStatusIs(amg, go.GetPart(amg.RequiresUnpoweredActivePart) as IActivePart, ActivePartStatus.Unpowered))
+                return false;
+            if (amg.RequiresAnyUnpoweredActivePart)
+            {
+                bool any = false;
+                foreach (var p in go.PartsList)
+                    if (p is IActivePart ap && AnimStatusIs(amg, ap, ActivePartStatus.Unpowered)) { any = true; break; }
+                if (!any) return false;
+            }
+            if (!string.IsNullOrEmpty(amg.RequiresEvent) && !go.FireEvent(amg.RequiresEvent))
+                return false;
+            if (!string.IsNullOrEmpty(amg.RequiresInverseEvent) && go.FireEvent(amg.RequiresInverseEvent))
+                return false;
+            if (!string.IsNullOrEmpty(amg.RequiresEffect) && !go.HasEffect(amg.RequiresEffect))
+                return false;
+            if (!string.IsNullOrEmpty(amg.RequiresInverseEffect) && go.HasEffect(amg.RequiresInverseEffect))
+                return false;
+            if (amg.MustBeUnderstood && !go.Understood())
+                return false;
+            return true;
+        }
+
+        /// <summary>"80=x,180=y" -> parallel time/value lists; false when the
+        /// spec is absent or one of Qud's own disable spellings.</summary>
+        private static bool AnimParseFrames(string spec,
+            out System.Collections.Generic.List<int> times,
+            out System.Collections.Generic.List<string> vals)
+        {
+            times = null; vals = null;
+            if (string.IsNullOrEmpty(spec) || spec == "0=default" || spec == "disable")
+                return false;
+            times = new System.Collections.Generic.List<int>();
+            vals = new System.Collections.Generic.List<string>();
+            foreach (string kv in spec.Split(','))
+            {
+                int eq = kv.IndexOf('=');
+                int t;
+                if (eq <= 0 || !int.TryParse(kv.Substring(0, eq).Trim(), out t)) continue;
+                times.Add(t);
+                vals.Add(kv.Substring(eq + 1).Trim());
+            }
+            return times.Count > 0;
+        }
+
+        /// <summary>Step function: the last value whose time &lt;= t (Qud's own
+        /// frame-selection rule); null before the first threshold.</summary>
+        private static string AnimStep(System.Collections.Generic.List<int> times,
+            System.Collections.Generic.List<string> vals, int t)
+        {
+            string v = null;
+            for (int i = 0; i < times.Count && t >= times[i]; i++) v = vals[i];
+            return v;
+        }
+
+        /// <summary>Resolve a colour-axis value the way Render(E) does.
+        /// "default"/null -> "" (the object's own colours, client-side).</summary>
+        private static string AnimColorVal(GameObject go, Render r, string v)
+        {
+            if (string.IsNullOrEmpty(v) || v == "default") return "";
+            if (v == "base") { try { return r.GetRenderColor() ?? ""; } catch { return ""; } }
+            if (v == "liquid") { try { return "&" + go.GetLiquidColor(); } catch { return ""; } }
+            return v;
+        }
+
+        /// <summary>
+        /// Merge the part's axes into ONE schedule the client can play:
+        /// "len|f=tile;color;detail|..." — thresholds pre-scaled from Qud's
+        /// SpeedMultiplier clock (GetCurrentFrameAtFPS(60, mult)) onto a plain
+        /// 60fps clock, so the client needs no multiplier. Empty fields mean
+        /// "the object's base art/colours". Null when nothing animates.
+        /// </summary>
+        private static string AnimGenericSchedule(GameObject go, Render r, AnimatedMaterialGeneric amg)
+        {
+            System.Collections.Generic.List<int> tT, cT, tcT, dT;
+            System.Collections.Generic.List<string> tV, cV, tcV, dV;
+            bool hasTile = AnimParseFrames(amg.TileAnimationFrames, out tT, out tV);
+            bool hasCol = AnimParseFrames(amg.ColorStringAnimationFrames, out cT, out cV);
+            bool hasTCol = AnimParseFrames(amg.TileColorAnimationFrames, out tcT, out tcV);
+            bool hasDet = AnimParseFrames(amg.DetailColorAnimationFrames, out dT, out dV);
+            // tiles mode: TileColor frames take precedence over ColorString frames
+            if (hasTCol) { hasCol = true; cT = tcT; cV = tcV; }
+            if (!hasTile && !hasCol && !hasDet) return null;
+
+            var marks = new System.Collections.Generic.SortedSet<int> { 0 };
+            if (hasTile) foreach (int t in tT) marks.Add(t);
+            if (hasCol) foreach (int t in cT) marks.Add(t);
+            if (hasDet) foreach (int t in dT) marks.Add(t);
+
+            float mult = amg.SpeedMultiplier > 0f ? amg.SpeedMultiplier : 1f;
+            // scaled-threshold -> entry; later thresholds win a rounding collision
+            var entries = new System.Collections.Generic.SortedDictionary<int, string>();
+            var distinct = new System.Collections.Generic.HashSet<string>();
+            foreach (int t in marks)
+            {
+                string tile = hasTile ? AnimStep(tT, tV, t) : null;
+                if (tile == "default" || tile == null) tile = "";
+                string col = hasCol ? AnimColorVal(go, r, AnimStep(cT, cV, t)) : "";
+                string det = hasDet ? AnimColorVal(go, r, AnimStep(dT, dV, t)) : "";
+                string entry = tile + ";" + col + ";" + det;
+                distinct.Add(entry);
+                if (tile.Length > 0) TileExporter.Ensure(tile);
+                entries[(int)System.Math.Round(t / mult)] = entry;
+            }
+            if (distinct.Count < 2) return null;   // conditions pass but nothing cycles
+
+            int len = (int)System.Math.Round(amg.AnimationLength / mult);
+            var sb = new System.Text.StringBuilder();
+            sb.Append(len < 1 ? 1 : len);
+            foreach (var kv in entries)
+                sb.Append('|').Append(kv.Key).Append('=').Append(kv.Value);
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// CREATURE STATUS FLASHES, measured generically: Qud's indicators are
+        /// deterministic windows on the shared 60-frame clock — Flying swaps in
+        /// Tiles2/status_flying.bmp on frames 5-14 (RenderEffectIndicator),
+        /// Asleep draws "z" &amp;C^c on 11-24, a charging sticky tongue "*" &amp;M on
+        /// 36-44 — all dispatched through ComponentRender (effects and mutations
+        /// both register for RenderEvent). Rather than porting each effect,
+        /// FORCE the clock through a full second and DIFF what comes back.
+        /// Two passes, keeping only frames both agree on: anything
+        /// RandomCosmetic-driven disagrees with itself and drops to base.
+        /// Returns an animSched spec, or null when nothing flashes.
+        /// </summary>
+        private static string AnimFrameSweep(GameObject go, Render r)
+        {
+            int savedF = XRL.Core.XRLCore.CurrentFrame;
+            int savedFL = XRL.Core.XRLCore.CurrentFrameLong;
+            try
+            {
+                string[] pass1 = new string[60];
+                string[] pass2 = new string[60];
+                for (int p = 0; p < 2; p++)
+                {
+                    string[] arr = p == 0 ? pass1 : pass2;
+                    for (int f = 0; f < 60; f++)
+                    {
+                        XRL.Core.XRLCore.CurrentFrame = f;
+                        XRL.Core.XRLCore.CurrentFrameLong = f * 16;
+                        var ev = new RenderEvent();
+                        ev.Lit = LightLevel.Light;
+                        ev.RenderString = r.RenderString;
+                        ev.ColorString = string.IsNullOrEmpty(r.TileColor) ? r.ColorString : r.TileColor;
+                        ev.DetailColor = r.DetailColor;
+                        ev.Tile = r.Tile;
+                        ev.HighestLayer = r.RenderLayer;
+                        go.ComponentRender(ev);
+                        // Stasisfield's ^m/^C wash lives in FinalRender, a separate
+                        // dispatch the compositor runs after Render — include it.
+                        go.FinalRender(ev);
+                        string tileOut = ev.Tile ?? "";
+                        // glyph indicators null the tile: same Text/<code> rule as
+                        // the main glyph-mode export
+                        if (tileOut.Length == 0 && !string.IsNullOrEmpty(ev.RenderString))
+                            tileOut = "Text/" + (int)ev.RenderString[0] + ".bmp";
+                        // BackgroundString rides the colour axis ("&C" + "^m") so the
+                        // client's ^X parse fills the frame's background
+                        arr[f] = tileOut + ";" + (ev.ColorString ?? "") + (ev.BackgroundString ?? "")
+                                 + ";" + (ev.DetailColor ?? "");
+                    }
+                }
+                // Per-axis base blanking: an axis equal to the object's own export
+                // emits empty, so the client falls back to the base art/colours.
+                string baseTile = string.IsNullOrEmpty(r.Tile)
+                    ? (string.IsNullOrEmpty(r.RenderString) ? "" : "Text/" + (int)r.RenderString[0] + ".bmp")
+                    : r.Tile;
+                string baseColor = (string.IsNullOrEmpty(r.TileColor) ? r.ColorString : r.TileColor) ?? "";
+                string baseDetail = r.DetailColor ?? "";
+                var sb = new System.Text.StringBuilder();
+                sb.Append(60);
+                string prev = null;
+                int distinct = 0;
+                for (int f = 0; f < 60; f++)
+                {
+                    string entry = ";;";
+                    if (pass1[f] == pass2[f])   // random flicker disagrees -> base
+                    {
+                        string[] ax = pass1[f].Split(';');
+                        string t = ax.Length > 0 && ax[0] != baseTile ? ax[0] : "";
+                        string c = ax.Length > 1 && ax[1] != baseColor ? ax[1] : "";
+                        string d = ax.Length > 2 && ax[2] != baseDetail ? ax[2] : "";
+                        if (t.Length > 0) TileExporter.Ensure(t);
+                        entry = t + ";" + c + ";" + d;
+                    }
+                    if (entry != prev)
+                    {
+                        sb.Append('|').Append(f).Append('=').Append(entry);
+                        prev = entry;
+                        distinct++;
+                    }
+                }
+                return distinct > 1 ? sb.ToString() : null;
+            }
+            catch { return null; }
+            finally
+            {
+                XRL.Core.XRLCore.CurrentFrame = savedF;
+                XRL.Core.XRLCore.CurrentFrameLong = savedFL;
+            }
+        }
+
         /// <summary>
         /// Colours straight off the painted ConsoleChar: already RESOLVED to RGB,
         /// so the client needs no palette lookup and no &amp;X^Y parsing for these.
@@ -264,6 +515,41 @@ namespace RavesOfQud
             if (end < t.Length && end > 0 && t[end - 1] == '_') end--;
             if (end > 0) t = t.Substring(0, end);
             return t.ToLowerInvariant();
+        }
+
+        /// <summary>
+        /// LAST-RESORT art resolution through the REAL per-object render-event
+        /// pipeline (seed like Cell.Render, then ComponentRender runs every
+        /// part/effect Render(E) handler). Some parts compute art only there —
+        /// ConveyorPad builds "Tiles/sw_conveyor_[dir]_[frame]" and carries no
+        /// static tile. ONLY called for tile-less objects: tiled ones (holograms,
+        /// animated liquids) keep the curated colour exports — their handlers
+        /// mutate colours per frame and must not leak onto the wire.
+        /// </summary>
+        private static void EventArt(GameObject go, Render r, ref string tile, ref string glyph,
+                                     ref string evColor, ref string evDetail)
+        {
+            try
+            {
+                var ev = new RenderEvent();
+                ev.Lit = LightLevel.Light;   // full visibility so handlers resolve colours
+                ev.RenderString = r.RenderString;
+                ev.ColorString = string.IsNullOrEmpty(r.TileColor) ? r.ColorString : r.TileColor;
+                ev.DetailColor = r.DetailColor;
+                ev.Tile = r.Tile;
+                ev.HighestLayer = r.RenderLayer;
+                go.ComponentRender(ev);
+                if (!string.IsNullOrEmpty(ev.Tile)) tile = ev.Tile;
+                if (string.IsNullOrEmpty(glyph) && !string.IsNullOrEmpty(ev.RenderString)) glyph = ev.RenderString;
+                // Colours the handlers APPLIED (RenderEvent.ApplyColors runs — Lit=Light
+                // makes ColorsVisible true) were thrown away, which shipped the static
+                // part colours instead: ConveyorPad paints "&y" at render time over its
+                // opaque black-and-white belt art, so Qud showed a pale slab and Raves
+                // a dark one (~104 mean, all 10 pads). Hand them back.
+                evColor = ev.ColorString ?? "";
+                evDetail = ev.DetailColor ?? "";
+            }
+            catch { }
         }
 
         private sealed class Ground
@@ -1172,6 +1458,24 @@ namespace RavesOfQud
                         // Qud never draws Visible=false (widgets, hidden objects) — don't ship them.
                         if (!r.Visible) continue;
 
+                        // UNEXAMINED ARTIFACTS draw as their unknown-SAMPLE's art, not their
+                        // own: the EpistemicDisguise EFFECT substitutes the sample's tile,
+                        // colours and layer into the render event at draw time, which the
+                        // getTile()/Render-part reads below bypass entirely. Mirror the
+                        // substitution (visibility stays the real object's). Found by the
+                        // checker's pixel pass — all 76 cybernetics diverged category-wide
+                        // (reports/2026-08-04-checker-pixel-findings.md §1).
+                        try
+                        {
+                            var disguise = go.GetEffect<XRL.World.Effects.EpistemicDisguise>();
+                            if (disguise != null && disguise.Sample != null)
+                            {
+                                Render sr = disguise.Sample.GetPart<Render>();
+                                if (sr != null) r = sr;
+                            }
+                        }
+                        catch { }
+
                         // Drawable = has ART or a GLYPH. Requiring RenderString
                         // silently dropped every tile-only object: RenderString is
                         // just the ASCII fallback, and in tile mode Qud draws from
@@ -1180,6 +1484,20 @@ namespace RavesOfQud
                         bool painted;
                         string tile = ResolvedTile(go, r, out painted);
                         string glyph = ResolvedGlyph(r);
+                        // Tile-less objects may compute art ONLY inside the render-event
+                        // pipeline (ConveyorPad builds its frame tile there; the wire
+                        // shipped a dark "-" and Raves drew bare floor). Adopt event art
+                        // as a last resort — tiled objects keep the curated exports.
+                        string evColor = "", evDetail = "";
+                        if (tile.Length == 0) EventArt(go, r, ref tile, ref glyph, ref evColor, ref evDetail);
+                        // GLYPH MODE: with no tile anywhere, Qud draws the sprite
+                        // "Text/<charcode>.bmp" (Renderable.getTile does exactly
+                        // this). Ship that sprite as the tile so the client renders
+                        // pixel-identical art — a font stand-in scored WARN ~30
+                        // (checker '?'/'Σ' probes; SCP's Σ has flat bars, Qud's
+                        // bitmap Σ diagonal strokes).
+                        if (tile.Length == 0 && glyph.Length > 0)
+                            tile = "Text/" + (int)glyph[0] + ".bmp";
                         if (glyph.Length == 0 && tile.Length == 0) continue;
 
                         if (tile.Length > 0) TileExporter.Ensure(tile); // export-on-sight, cached
@@ -1189,6 +1507,10 @@ namespace RavesOfQud
                         string colorOut = r.ColorString ?? "";
                         string tileColorOut = r.TileColor ?? "";
                         string detailOut = r.DetailColor ?? "";
+                        // Event-art objects: the render event's APPLIED colours are the
+                        // truth (ConveyorPad's "&y"), not the static part fields.
+                        if (evColor.Length > 0) { colorOut = evColor; tileColorOut = evColor; }
+                        if (evDetail.Length > 0) detailOut = evDetail;
                         // HologramMaterial (holograms/projections) repaints the render colours
                         // EVERY frame from its cycle ("&C,&b,&c,&B" / "c,C,b,b"); the frame math
                         // clamps to the LAST entry ~92% of the time, so that IS the steady look
@@ -1229,6 +1551,26 @@ namespace RavesOfQud
                                 }
                                 if (!string.IsNullOrEmpty(mim.ActiveDetailColor))
                                     detailOut = mim.ActiveDetailColor;
+                            }
+                        }
+                        catch { }
+                        // IIconColorPart (HeroIconColor and kin): a render-time colour
+                        // override at priority 100 the static Render fields never see —
+                        // the Warleader mech ships '&c' while HeroMaker's part paints
+                        // '&M' every frame (found via the static-divergence hunt).
+                        try
+                        {
+                            foreach (var pp2 in go.PartsList)
+                            {
+                                var icp = pp2 as IIconColorPart;
+                                if (icp == null) continue;
+                                if (!string.IsNullOrEmpty(icp.TileForeground))
+                                {
+                                    colorOut = icp.TileForeground;
+                                    tileColorOut = icp.TileForeground;
+                                }
+                                if (!string.IsNullOrEmpty(icp.TileDetail)) detailOut = icp.TileDetail;
+                                if (!string.IsNullOrEmpty(icp.Background)) tileColorOut += icp.Background;
                             }
                         }
                         catch { }
@@ -1445,6 +1787,136 @@ namespace RavesOfQud
                              .Member("engDetail", engDetail ?? "");
                         if (animCHolo)
                             j.Member("animCHolo", true);
+                        // AnimatedMaterialGeneric AND SUBCLASSES (Phasic Screw's 6-tile
+                        // helix; the Alternate powered-device blink family; the Force
+                        // Projector detail cycler): the part swaps tile/colours inside
+                        // its own Render(E) per Qud frame, invisible to the static
+                        // reads above. Evaluate its condition ladder NOW and ship the
+                        // merged schedule (see AnimGenericSchedule).
+                        string animSched = null;
+                        try
+                        {
+                            var amg = AnimGenericOf(go);
+                            if (amg != null && AnimGenericActive(go, amg))
+                                animSched = AnimGenericSchedule(go, r, amg);
+                        }
+                        catch { }
+                        // (ConveyorPad deliberately ships NO schedule: measured on the
+                        // rig, Qud's belt only steps on map REPAINTS — rate-limited to
+                        // 150ms of wall time inside Render(E) — and the idle prompt
+                        // doesn't repaint, so the staged belt sits frozen at whatever
+                        // frame the last repaint left. The 1:1 baseline is that static
+                        // frame; EventArt ships it, and the ~104 divergence was the
+                        // discarded event COLOURS, not motion.)
+                        // Creature status flashes (Flying's arrow tile, Asleep's "z",
+                        // a charging tongue's "*") AND bespoke AnimatedMaterial*
+                        // parts (the Stasisfield's 4-window colour cycle): measured
+                        // generically off the 60-frame clock — see AnimFrameSweep.
+                        // Gated to creatures + bespoke animators: the sweep
+                        // re-renders 120 times, and the data-driven animators are
+                        // already ported part-by-part (a conveyor would step its
+                        // belt as a side effect).
+                        try
+                        {
+                            bool bespokeAnim = false;
+                            foreach (var bp in go.PartsList)
+                            {
+                                string bn = bp.GetType().Name;
+                                if (bn.StartsWith("AnimatedMaterial")
+                                    && bn != "AnimatedMaterialGeneric"
+                                    && bn != "AnimatedMaterialGenericAlternate")
+                                { bespokeAnim = true; break; }
+                            }
+                            if (animSched == null && (go.IsCreature || bespokeAnim))
+                            {
+                                // The stasis field's transient "Rushing" churn ends
+                                // itself within seconds (1-in-120 per render); settle
+                                // it so the sweep measures the steady cycle — the
+                                // 1:1 no-animation-baseline rule, like the holograms.
+                                var sfp = go.GetPart<AnimatedMaterialStasisfield>();
+                                if (sfp != null) sfp.Rushing = false;
+                                animSched = AnimFrameSweep(go, r);
+                            }
+                        }
+                        catch { }
+                        if (animSched != null) j.Member("animSched", animSched);
+                        // HologramMaterial is a WEIGHTED SHIMMER, not a cycle: its
+                        // clock is num = (CurrentFrame + FrameOffset) % 200 with
+                        // index = num/count clamped to the last entry — and
+                        // FrameOffset += Random(0,20) EVERY render, so num random-walks
+                        // the whole 200-space. Distribution: each colour index i covers
+                        // num in [i*count, (i+1)*count) except the last, which owns the
+                        // clamp zone (~94% for 4 entries). The old steady-last export is
+                        // that distribution's mode — right for palettes whose flashes
+                        // cluster against the noise floor ("&C,&b,&c,&B"), measurably
+                        // wrong for high-contrast ones (Eater Sign "&W,&w,&W,&w": qud 3
+                        // states, raves static). Ship the exact combo weights.
+                        // (The rare FlickerFrame glyph blip — 1-in-200 — is skipped.)
+                        try
+                        {
+                            var hms = go.GetPart<HologramMaterial>();
+                            if (hms != null && !string.IsNullOrEmpty(hms.ColorStrings))
+                            {
+                                string[] hcols = hms.ColorStrings.Split(',');
+                                string[] hdets = (hms.DetailColors ?? "").Split(',');
+                                bool hasDet = hdets.Length > 0 && hdets[0].Length > 0;
+                                var hw = new System.Collections.Generic.Dictionary<string, int>();
+                                var horder = new System.Collections.Generic.List<string>();
+                                for (int num = 0; num < 200; num++)
+                                {
+                                    int ci = num / hcols.Length; if (ci >= hcols.Length) ci = hcols.Length - 1;
+                                    string hc = hcols[ci].Trim();
+                                    string hd = "";
+                                    if (hasDet)
+                                    {
+                                        int di = num / hdets.Length; if (di >= hdets.Length) di = hdets.Length - 1;
+                                        hd = hdets[di].Trim();
+                                    }
+                                    string combo = hc + "~" + hd;
+                                    if (!hw.ContainsKey(combo)) { hw[combo] = 0; horder.Add(combo); }
+                                    hw[combo]++;
+                                }
+                                if (horder.Count > 1)
+                                {
+                                    var hsb = new System.Text.StringBuilder();
+                                    hsb.Append(24);   // ~400ms re-roll, like the wormhole
+                                    foreach (string combo in horder)
+                                        hsb.Append('|').Append(combo).Append('~').Append(hw[combo]);
+                                    j.Member("animHolo", hsb.ToString());
+                                }
+                            }
+                        }
+                        catch { }
+                        // PrefabImposter: a Unity particle prefab drawn over the cell
+                        // (the Chavvah chimes' TreeGlow moonlight wash). Not portable
+                        // through the tile pipeline — ship the prefab name and let
+                        // the client map known prefabs to bespoke effects.
+                        try
+                        {
+                            var pim = go.GetPart<PrefabImposter>();
+                            if (pim != null && !string.IsNullOrEmpty(pim.Prefab))
+                            {
+                                string pn = pim.Prefab;
+                                int psl = pn.LastIndexOf('/');
+                                if (psl >= 0) pn = pn.Substring(psl + 1);
+                                j.Member("imposter", pn);
+                            }
+                        }
+                        catch { }
+                        // Wormhole: Render(E) re-rolls a RANDOM colour (5 on ^k) and a
+                        // RANDOM glyph (Text codes 9/233/21/15) on every repaint — a
+                        // shimmer, not a cycle (measured 7 discrete states). Ship the
+                        // combo tables; the client re-rolls on its own cadence.
+                        try
+                        {
+                            if (go.GetPart<XRL.World.Parts.Wormhole>() != null)
+                            {
+                                foreach (int wc in new int[] { 9, 233, 21, 15 })
+                                    TileExporter.Ensure("Text/" + wc + ".bmp");
+                                j.Member("animShimmer", "24|9,233,21,15|&B^k,&R^k,&C^k,&W^k,&K^k");
+                            }
+                        }
+                        catch { }
                         // Qud's Swimming effect: an aquatic-limited creature (eel, glowfish) renders
                         // over its supporting liquid's BACKGROUND colour. Ask the liquid itself
                         // (RenderBackgroundPrimary/Secondary on a scratch event — water prepends "^b";

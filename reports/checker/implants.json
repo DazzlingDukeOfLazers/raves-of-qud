@@ -1,0 +1,2851 @@
+[
+ {
+  "bp": "AirCurrentMicrosensor",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_aircurrent'"
+  ],
+  "stage": {
+   "bp": "AirCurrentMicrosensor",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_aircurrent.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\AirCurrentMicrosensor_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\AirCurrentMicrosensor_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.34,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "AnchorSpikes",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_cyber_anchor_spikes'"
+  ],
+  "stage": {
+   "bp": "AnchorSpikes",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_cyber_anchor_spikes.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\AnchorSpikes_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\AnchorSpikes_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.36,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "AnomalyFumigator",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_cyber_anomaly_fumigator'"
+  ],
+  "stage": {
+   "bp": "AnomalyFumigator",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_cyber_anomaly_fumigator.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\AnomalyFumigator_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\AnomalyFumigator_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.32,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "BeautifulVisage",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_beautiful'"
+  ],
+  "stage": {
+   "bp": "BeautifulVisage",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_beautiful.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\BeautifulVisage_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\BeautifulVisage_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.35,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "BiodynamicPowerPlant",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_cyber_biodynamic_power_plant'"
+  ],
+  "stage": {
+   "bp": "BiodynamicPowerPlant",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_cyber_biodynamic_power_plant.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\BiodynamicPowerPlant_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\BiodynamicPowerPlant_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.31,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "BiologicalIndexer",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_scanningmodule'"
+  ],
+  "stage": {
+   "bp": "BiologicalIndexer",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_scanningmodule.bmp",
+   "color": "&C",
+   "detail": "R",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\BiologicalIndexer_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\BiologicalIndexer_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.33,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "BionicArm",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_bionicarm'"
+  ],
+  "stage": {
+   "bp": "BionicArm",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_bionicarm.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\BionicArm_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\BionicArm_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.36,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "BionicHands",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_bionichands'"
+  ],
+  "stage": {
+   "bp": "BionicHands",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_bionichands.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\BionicHands_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\BionicHands_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.32,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "BionicHeart",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_bionicheart'"
+  ],
+  "stage": {
+   "bp": "BionicHeart",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_bionicheart.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\BionicHeart_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\BionicHeart_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.34,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "BionicLiver",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_cyberliver'"
+  ],
+  "stage": {
+   "bp": "BionicLiver",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_cyberliver.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\BionicLiver_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\BionicLiver_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.3,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "CarbideHandBones",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_carbidehand'"
+  ],
+  "stage": {
+   "bp": "CarbideHandBones",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_carbidehand.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\CarbideHandBones_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\CarbideHandBones_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.33,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "CathedraBlackOpal",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_cathedra'"
+  ],
+  "stage": {
+   "bp": "CathedraBlackOpal",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_cathedra.bmp",
+   "color": "&c",
+   "detail": "K",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "40a4b9",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\CathedraBlackOpal_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\CathedraBlackOpal_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.31,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 137
+  }
+ },
+ {
+  "bp": "CathedraRuby",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_cathedra'"
+  ],
+  "stage": {
+   "bp": "CathedraRuby",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_cathedra.bmp",
+   "color": "&c",
+   "detail": "R",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "40a4b9",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\CathedraRuby_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\CathedraRuby_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.34,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 137
+  }
+ },
+ {
+  "bp": "CathedraSapphire",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_cathedra'"
+  ],
+  "stage": {
+   "bp": "CathedraSapphire",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_cathedra.bmp",
+   "color": "&c",
+   "detail": "B",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "40a4b9",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\CathedraSapphire_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\CathedraSapphire_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.32,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 137
+  }
+ },
+ {
+  "bp": "CathedraWhiteOpal",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_cathedra'"
+  ],
+  "stage": {
+   "bp": "CathedraWhiteOpal",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_cathedra.bmp",
+   "color": "&c",
+   "detail": "Y",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "40a4b9",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\CathedraWhiteOpal_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\CathedraWhiteOpal_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.34,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 137
+  }
+ },
+ {
+  "bp": "CherubicVisage",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_cherubic'"
+  ],
+  "stage": {
+   "bp": "CherubicVisage",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_cherubic.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\CherubicVisage_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\CherubicVisage_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.34,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "CommunicationsInterlock",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_comminterlock'"
+  ],
+  "stage": {
+   "bp": "CommunicationsInterlock",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_comminterlock.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\CommunicationsInterlock_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\CommunicationsInterlock_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.35,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "CrysteelHandBones",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_carbidehand'"
+  ],
+  "stage": {
+   "bp": "CrysteelHandBones",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_carbidehand.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\CrysteelHandBones_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\CrysteelHandBones_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.35,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "CustomVisage",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_custom'"
+  ],
+  "stage": {
+   "bp": "CustomVisage",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_custom.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\CustomVisage_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\CustomVisage_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.35,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "DermalInsulation",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_dermalinsulation'"
+  ],
+  "stage": {
+   "bp": "DermalInsulation",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_dermalinsulation.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\DermalInsulation_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\DermalInsulation_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.34,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "DermalPlating",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_dermalplating'"
+  ],
+  "stage": {
+   "bp": "DermalPlating",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_dermalplating.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\DermalPlating_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\DermalPlating_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.3,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "DopamineSynth",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_dopamine'"
+  ],
+  "stage": {
+   "bp": "DopamineSynth",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_dopamine.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\DopamineSynth_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\DopamineSynth_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.35,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "ElectromagneticSensor",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_electromagsensor'"
+  ],
+  "stage": {
+   "bp": "ElectromagneticSensor",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_electromagsensor.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\ElectromagneticSensor_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\ElectromagneticSensor_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.34,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "EquipmentRack",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_cyber_equipment_rack'"
+  ],
+  "stage": {
+   "bp": "EquipmentRack",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_cyber_equipment_rack.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\EquipmentRack_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\EquipmentRack_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.32,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "FireSuppressionSystem",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_cyber_fire_suppression_system'"
+  ],
+  "stage": {
+   "bp": "FireSuppressionSystem",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_cyber_fire_suppression_system.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\FireSuppressionSystem_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\FireSuppressionSystem_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.33,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "ForceModulator",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_comminterlock'"
+  ],
+  "stage": {
+   "bp": "ForceModulator",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_comminterlock.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\ForceModulator_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\ForceModulator_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.31,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "FulleriteHandBones",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_carbidehand'"
+  ],
+  "stage": {
+   "bp": "FulleriteHandBones",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_carbidehand.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\FulleriteHandBones_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\FulleriteHandBones_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.32,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "GiantHands",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_gianthands'"
+  ],
+  "stage": {
+   "bp": "GiantHands",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_gianthands.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\GiantHands_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\GiantHands_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.37,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "GraftedMirrorArm",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_implant_grafted_mirror_arm'"
+  ],
+  "stage": {
+   "bp": "GraftedMirrorArm",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/implant_grafted_mirror_arm.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\GraftedMirrorArm_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\GraftedMirrorArm_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.38,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "GroundingShunts",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_grounding_shunts'"
+  ],
+  "stage": {
+   "bp": "GroundingShunts",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_grounding_shunts.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\GroundingShunts_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\GroundingShunts_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.3,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "GunRack",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_gunrack'"
+  ],
+  "stage": {
+   "bp": "GunRack",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_gunrack.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\GunRack_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\GunRack_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.34,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "HighFidelityMatterRecompositer",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_cyber_high_fidelity_matter_recompositer'"
+  ],
+  "stage": {
+   "bp": "HighFidelityMatterRecompositer",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_cyber_high_fidelity_matter_recompositer.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\HighFidelityMatterRecompositer_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\HighFidelityMatterRecompositer_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.36,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "HighGradeDermalInsulation",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_highgrade'"
+  ],
+  "stage": {
+   "bp": "HighGradeDermalInsulation",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_highgrade.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\HighGradeDermalInsulation_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\HighGradeDermalInsulation_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.3,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "HolographicVisage",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_implant_holographic_visage'"
+  ],
+  "stage": {
+   "bp": "HolographicVisage",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/implant_holographic_visage.bmp",
+   "color": "&B",
+   "detail": "B",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "0096ff",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\HolographicVisage_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\HolographicVisage_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.31,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 207
+  }
+ },
+ {
+  "bp": "HyperElasticAnkleTendons",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_hypertendons'"
+  ],
+  "stage": {
+   "bp": "HyperElasticAnkleTendons",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_hypertendons.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\HyperElasticAnkleTendons_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\HyperElasticAnkleTendons_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.35,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "InflatableAxons",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_axions'"
+  ],
+  "stage": {
+   "bp": "InflatableAxons",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_axions.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\InflatableAxons_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\InflatableAxons_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.33,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "IntravenousPort",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_intravenous'"
+  ],
+  "stage": {
+   "bp": "IntravenousPort",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_intravenous.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\IntravenousPort_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\IntravenousPort_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.37,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "MagneticCore",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_magnetic_core'"
+  ],
+  "stage": {
+   "bp": "MagneticCore",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_magnetic_core.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\MagneticCore_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\MagneticCore_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.33,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "MatterRecompositer",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_matter'"
+  ],
+  "stage": {
+   "bp": "MatterRecompositer",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_matter.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\MatterRecompositer_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\MatterRecompositer_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.29,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "MedassistModule",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_cyber_medassist_module'"
+  ],
+  "stage": {
+   "bp": "MedassistModule",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_cyber_medassist_module.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\MedassistModule_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\MedassistModule_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.35,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "MicromanipulatorArray",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_cyber_micromanipulator_array'"
+  ],
+  "stage": {
+   "bp": "MicromanipulatorArray",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_cyber_micromanipulator_array.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\MicromanipulatorArray_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\MicromanipulatorArray_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.38,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "MotorizedTreads",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_treads'"
+  ],
+  "stage": {
+   "bp": "MotorizedTreads",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_treads.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\MotorizedTreads_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\MotorizedTreads_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.32,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "NavigationSystem",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_cyber_navigation_system'"
+  ],
+  "stage": {
+   "bp": "NavigationSystem",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_cyber_navigation_system.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\NavigationSystem_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\NavigationSystem_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.35,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "NightVision",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_night_vision_implant'"
+  ],
+  "stage": {
+   "bp": "NightVision",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/night_vision_implant.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\NightVision_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\NightVision_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.32,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "NocturnalApex",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_nocturnal'"
+  ],
+  "stage": {
+   "bp": "NocturnalApex",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_nocturnal.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\NocturnalApex_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\NocturnalApex_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.35,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "OnboardRecoiler",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_cyber_onboard_recoiler'"
+  ],
+  "stage": {
+   "bp": "OnboardRecoiler",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_cyber_onboard_recoiler.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\OnboardRecoiler_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\OnboardRecoiler_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.32,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "OpticalMultiscanner",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_multiscanner'"
+  ],
+  "stage": {
+   "bp": "OpticalMultiscanner",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_multiscanner.bmp",
+   "color": "&C",
+   "detail": "m",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\OpticalMultiscanner_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\OpticalMultiscanner_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.35,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "PalladiumElectrodeposits",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_electrodeposits'"
+  ],
+  "stage": {
+   "bp": "PalladiumElectrodeposits",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_electrodeposits.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\PalladiumElectrodeposits_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\PalladiumElectrodeposits_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.36,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "ParabolicMuscularSubroutine",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_parabolic'"
+  ],
+  "stage": {
+   "bp": "ParabolicMuscularSubroutine",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_parabolic.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\ParabolicMuscularSubroutine_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\ParabolicMuscularSubroutine_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.33,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "PenetratingRadar",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_cyber_penetrating_radar'"
+  ],
+  "stage": {
+   "bp": "PenetratingRadar",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_cyber_penetrating_radar.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\PenetratingRadar_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\PenetratingRadar_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.37,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "Pentaceps",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_pentacips'"
+  ],
+  "stage": {
+   "bp": "Pentaceps",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_pentacips.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\Pentaceps_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\Pentaceps_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.33,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "Phase-Adaptive Scope",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_implant_phase_adaptive_scope'"
+  ],
+  "stage": {
+   "bp": "Phase-Adaptive Scope",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/implant_phase_adaptive_scope.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\Phase-Adaptive_Scope_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\Phase-Adaptive_Scope_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.35,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "PhaseHarmonicModulator",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_cyber_phase_harmonic_modulator'"
+  ],
+  "stage": {
+   "bp": "PhaseHarmonicModulator",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_cyber_phase_harmonic_modulator.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\PhaseHarmonicModulator_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\PhaseHarmonicModulator_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.3,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "PneumaticPistons",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_cyber_pneumatic_pistons'"
+  ],
+  "stage": {
+   "bp": "PneumaticPistons",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_cyber_pneumatic_pistons.bmp",
+   "color": "&c",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "40a4b9",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\PneumaticPistons_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\PneumaticPistons_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.32,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 137
+  }
+ },
+ {
+  "bp": "PrecisionForceLathe",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_implant_precision_force_lathe'"
+  ],
+  "stage": {
+   "bp": "PrecisionForceLathe",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/implant_precision_force_lathe.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\PrecisionForceLathe_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\PrecisionForceLathe_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.35,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "RapidReleaseFingerFlexors",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_flexors'"
+  ],
+  "stage": {
+   "bp": "RapidReleaseFingerFlexors",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_flexors.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\RapidReleaseFingerFlexors_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\RapidReleaseFingerFlexors_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.34,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "ReactiveCranialPlating",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_cyber_reactive_cranial_plating'"
+  ],
+  "stage": {
+   "bp": "ReactiveCranialPlating",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_cyber_reactive_cranial_plating.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\ReactiveCranialPlating_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\ReactiveCranialPlating_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.35,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "ReactiveTraumaPlate",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_cyber_reactive_trauma_plate'"
+  ],
+  "stage": {
+   "bp": "ReactiveTraumaPlate",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_cyber_reactive_trauma_plate.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\ReactiveTraumaPlate_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\ReactiveTraumaPlate_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.34,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "Schemasoft2",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_schemasoft'"
+  ],
+  "stage": {
+   "bp": "Schemasoft2",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_schemasoft.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\Schemasoft2_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\Schemasoft2_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.32,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "Schemasoft3",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_schemasoft'"
+  ],
+  "stage": {
+   "bp": "Schemasoft3",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_schemasoft.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\Schemasoft3_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\Schemasoft3_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.36,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "Schemasoft4",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_schemasoft'"
+  ],
+  "stage": {
+   "bp": "Schemasoft4",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_schemasoft.bmp",
+   "color": "&C",
+   "detail": "R",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\Schemasoft4_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\Schemasoft4_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.35,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "SecurityInterlock",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_security'"
+  ],
+  "stage": {
+   "bp": "SecurityInterlock",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_security.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\SecurityInterlock_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\SecurityInterlock_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.33,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "SingleSkillsoft1",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_skillsoft'"
+  ],
+  "stage": {
+   "bp": "SingleSkillsoft1",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_skillsoft.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\SingleSkillsoft1_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\SingleSkillsoft1_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.4,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "SingleSkillsoft2",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_skillsoft'"
+  ],
+  "stage": {
+   "bp": "SingleSkillsoft2",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_skillsoft.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\SingleSkillsoft2_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\SingleSkillsoft2_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.32,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "SingleSkillsoft3",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_skillsoft'"
+  ],
+  "stage": {
+   "bp": "SingleSkillsoft3",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_skillsoft.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\SingleSkillsoft3_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\SingleSkillsoft3_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.33,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "SkinGlitter1",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_skin_glitter'"
+  ],
+  "stage": {
+   "bp": "SkinGlitter1",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_skin_glitter.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\SkinGlitter1_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\SkinGlitter1_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.33,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "SkinGlitter2",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_skin_glitter'"
+  ],
+  "stage": {
+   "bp": "SkinGlitter2",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_skin_glitter.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\SkinGlitter2_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\SkinGlitter2_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.34,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "SocialCoprocessor",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_social_coprocessor'"
+  ],
+  "stage": {
+   "bp": "SocialCoprocessor",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_social_coprocessor.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\SocialCoprocessor_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\SocialCoprocessor_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.34,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "StabilizerArmLocks",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_armlocks'"
+  ],
+  "stage": {
+   "bp": "StabilizerArmLocks",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_armlocks.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\StabilizerArmLocks_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\StabilizerArmLocks_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.35,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "StasisEntangler",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_implant_stasis_entangler'",
+   "no capture pair \u2014 congruence skipped"
+  ],
+  "stage": {
+   "bp": "StasisEntangler",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/implant_stasis_entangler.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\StasisEntangler_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 1.17,
+   "pct_hot": 0.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "StasisProjector",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_stasis_projector'"
+  ],
+  "stage": {
+   "bp": "StasisProjector",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_stasis_projector.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\StasisProjector_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\StasisProjector_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.31,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "TechnologicalIndexer",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_scanningmodule'"
+  ],
+  "stage": {
+   "bp": "TechnologicalIndexer",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_scanningmodule.bmp",
+   "color": "&C",
+   "detail": "C",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\TechnologicalIndexer_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\TechnologicalIndexer_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.31,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "TibularHydrojets",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_tibular_hydrojets'"
+  ],
+  "stage": {
+   "bp": "TibularHydrojets",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_tibular_hydrojets.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\TibularHydrojets_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\TibularHydrojets_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.37,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "TranslucentSkin",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_transparent'"
+  ],
+  "stage": {
+   "bp": "TranslucentSkin",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_transparent.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\TranslucentSkin_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\TranslucentSkin_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.32,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "TransparentSkin",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_transparent'"
+  ],
+  "stage": {
+   "bp": "TransparentSkin",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_transparent.bmp",
+   "color": "&C",
+   "detail": "R",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\TransparentSkin_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\TransparentSkin_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.33,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "TreeSkillsoft",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_skillsoft'"
+  ],
+  "stage": {
+   "bp": "TreeSkillsoft",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_skillsoft.bmp",
+   "color": "&C",
+   "detail": "R",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\TreeSkillsoft_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\TreeSkillsoft_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.29,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ },
+ {
+  "bp": "UltraElasticAnkleTendons",
+  "pass": true,
+  "reasons": [],
+  "warns": [
+   "wire tile != blueprint tile 'items_sw_ultratendons'"
+  ],
+  "stage": {
+   "bp": "UltraElasticAnkleTendons",
+   "ok": true,
+   "error": "",
+   "x": 40,
+   "y": 12,
+   "cleared": 1,
+   "tile": "Items/sw_ultratendons.bmp",
+   "color": "&C",
+   "detail": "r",
+   "name": "weird artifact"
+  },
+  "wire_objs": 1,
+  "wire_hex": "77bfcf",
+  "shots": {
+   "qud": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\UltraElasticAnkleTendons_qud.png",
+   "raves": "C:\\Users\\danie\\personal-git\\raves-of-qud\\reports\\checker\\shots\\implants\\UltraElasticAnkleTendons_raves.png"
+  },
+  "congruence": {
+   "mean_abs_diff": 3.31,
+   "pct_hot": 2.0,
+   "band": "PASS",
+   "white_px": [
+    0,
+    0
+   ],
+   "dominant_delta": 0,
+   "wire_delta": 159
+  }
+ }
+]

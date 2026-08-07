@@ -1,0 +1,30 @@
+{
+ "fixture": "EaterGreatMachineShrine E",
+ "frames": 90,
+ "expect_states": null,
+ "measured": [
+  {
+   "bp": "EaterGreatMachineShrine E",
+   "ok": true,
+   "qud": {
+    "frames": 85,
+    "states": 1,
+    "duty": [
+     1.0
+    ],
+    "class": "static"
+   },
+   "raves": {
+    "frames": 90,
+    "states": 2,
+    "duty": [
+     0.53,
+     0.47
+    ],
+    "class": "discrete"
+   },
+   "agree": false
+  }
+ ],
+ "when": "2026-08-06 20:38"
+}

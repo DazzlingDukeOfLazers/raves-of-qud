@@ -1,0 +1,31 @@
+{
+ "fixture": "Loudspeaker",
+ "frames": 12,
+ "expect_states": null,
+ "measured": [
+  {
+   "bp": "Loudspeaker",
+   "ok": true,
+   "qud": {
+    "frames": 12,
+    "states": 2,
+    "duty": [
+     0.75,
+     0.25
+    ],
+    "class": "discrete"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 2,
+    "duty": [
+     0.92,
+     0.08
+    ],
+    "class": "discrete"
+   },
+   "agree": true
+  }
+ ],
+ "when": "2026-08-06 20:17"
+}

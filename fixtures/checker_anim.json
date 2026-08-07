@@ -1,0 +1,140 @@
+{
+ "_doc": "Rung-4 animation fixtures (docs/pc-test-rig.md): each names blueprints to stage and the expected distinct-state band [min,max] PER APP over a 12-frame jittered burst. Bands are MEASURED (2026-08-05 first baseline) except where noted aspirational: a band the Raves side currently fails documents the porting target. `checker.py anim <fixture>` measures; classes: static(1) / discrete / continuous(>=75% frames unique).",
+ "warm-static": {
+  "blueprints": [
+   "WarmStaticPuddle",
+   "DilutedWarmStaticPuddle"
+  ],
+  "expect_states": [
+   2,
+   5
+  ],
+  "notes": "MEASURED AGREE: qud 4 / raves 3-4 discrete. The recurring pixel-pass WARN/FAILs are pure phase mismatch \u00e2\u20ac\u201d the animation itself is congruent. Candidate for anim-aware banding in the scored sweep."
+ },
+ "machine-tubing": {
+  "blueprints": [
+   "MachineWallHotTubing",
+   "MachineWallColdTubing"
+  ],
+  "expect_states": [
+   1,
+   2
+  ],
+  "notes": "EXONERATED: the '11 continuous states' were sub-noise brightness breathing (~1.8 mean/pair; noise floor 3.5 clusters them). Both apps read 1 static \u2014 AGREE. Not an animation."
+ },
+ "conveyor": {
+  "blueprints": [
+   "ConveyorPad"
+  ],
+  "expect_states": [
+   1,
+   5
+  ],
+  "notes": "AGREE both boots, state count varies with conditions: 4/3 discrete one boot, 1/1 static on a fresh unpowered stage (belt likely needs drive power to roll). Parity holds either way; band spans both."
+ },
+ "phasic-screw": {
+  "blueprints": [
+   "Phasic Screw"
+  ],
+  "expect_states": [
+   3,
+   7
+  ],
+  "notes": "PORTED 2026-08-05: AnimatedMaterialGeneric exported as animFrames and played client-side. Raves measures 5-6 discrete (was 1 static). Qud-side re-measure pending the frozen-capture question (findings section 10)."
+ },
+ "switch-blink": {
+  "blueprints": [
+   "Switch",
+   "DisabledSwitch"
+  ],
+  "expect_states": [
+   1,
+   1
+  ],
+  "notes": "MEASURED AGREE at 1/1: an UNPOWERED switch does not blink. The furniture pixel FAILs for Switch are therefore a STATIC art difference, not animation \u00e2\u20ac\u201d re-triage against the evidence crops (findings section 6 revised)."
+ },
+ "campfire": {
+  "blueprints": [
+   "Campfire"
+  ],
+  "expect_states": [
+   8,
+   12
+  ],
+  "notes": "MEASURED AGREE: qud 11 / raves 12 continuous. The sanity case."
+ },
+ "walls-tail": {
+  "blueprints": [
+   "Stasisfield",
+   "CryochamberWallNE",
+   "ReshephWall2",
+   "YdFreeholdCrysteelPlatedWallWithPipes",
+   "HangarWall"
+  ],
+  "expect_states": null,
+  "notes": "The bright-baseline walls FAIL tail \u2014 run-to-run variable scores (HangarWall probed PASS 12 then swept 47). Measure to classify."
+ },
+ "plants-tail": {
+  "blueprints": [
+   "Qudzu",
+   "Prickler",
+   "Chavvah Chime Right",
+   "Chavvah Chime Left",
+   "Livid Creeper",
+   "Jilted Lover",
+   "Holographic Dogthorn Tree",
+   "Mechanical Succulents Cherub"
+  ],
+  "expect_states": null,
+  "notes": "Plants FAIL tail (pricklers puff, holograms flicker, chimes swing?)."
+ },
+ "furniture-tail": {
+  "blueprints": [
+   "Wooden Water Wheel",
+   "Wormhole",
+   "PistonPressElement",
+   "Wire Extruder",
+   "Nacham's Loom",
+   "Powered Telescope",
+   "Solar Condenser",
+   "GritGateForceProjector_Rank0",
+   "GritGateForceProjector_Rank1",
+   "HighTechInstallation",
+   "SolidHighTechInstallation",
+   "Unicomputer",
+   "Crematory Liquid-Cooled Unicomputer",
+   "Star Carousel Star Chart C",
+   "Star Carousel Star Chart L",
+   "ScrapChest",
+   "Eater Sign 1",
+   "GritGateBed",
+   "Glass Door W",
+   "MountedFurniture",
+   "NephilimShrine"
+  ],
+  "expect_states": null,
+  "notes": "Furniture FAIL tail minus the Switch family (measured static \u2014 real art difference, findings s6) and the conveyors/phasic (already fixtured)."
+ },
+ "creatures-tail": {
+  "blueprints": [
+   "Bloated Pearlfrog",
+   "Ogre Ape",
+   "Spider Golem",
+   "Decarbonizer",
+   "Girshworm",
+   "Humor",
+   "Jilted Lover",
+   "Livid Creeper",
+   "Turret Tinker",
+   "Plant Turret",
+   "Pulsed Field Magnet",
+   "Ehalcodon",
+   "Gyre Wight of Qas",
+   "Sleeping Plated Chromeling",
+   "Slynth Wanderer",
+   "DelegateBears"
+  ],
+  "expect_states": null,
+  "notes": "Representative sample of the creatures FAIL tail (Cherubim spawners handled separately \u2014 they REPLACE themselves between captures; KNOWN)."
+ }
+}

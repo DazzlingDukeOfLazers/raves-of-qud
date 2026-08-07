@@ -1,0 +1,46 @@
+{
+ "fixture": "TrembleExitWormhole",
+ "frames": 12,
+ "expect_states": null,
+ "measured": [
+  {
+   "bp": "TrembleExitWormhole",
+   "ok": true,
+   "qud": {
+    "frames": 12,
+    "states": 9,
+    "duty": [
+     0.17,
+     0.17,
+     0.17,
+     0.08,
+     0.08,
+     0.08,
+     0.08,
+     0.08,
+     0.08
+    ],
+    "class": "continuous"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 10,
+    "duty": [
+     0.17,
+     0.17,
+     0.08,
+     0.08,
+     0.08,
+     0.08,
+     0.08,
+     0.08,
+     0.08,
+     0.08
+    ],
+    "class": "continuous"
+   },
+   "agree": true
+  }
+ ],
+ "when": "2026-08-06 20:19"
+}

@@ -28,3 +28,7 @@ build/
 
 # highvisor regression run output (captures + diffs)
 tools/regression/_regress/
+
+# Full-frame checker captures are per-run scratch (GBs) — evidence/ carries the
+# committed crops for flagged elements; calibrate regenerates the rest.
+reports/checker/shots/

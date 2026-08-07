@@ -279,14 +279,30 @@ def bounds(app):
 
 
 def activate(app):
-    """Bring an app's main window to the foreground (also refreshes its render)."""
+    """Bring an app's main window to the foreground (also refreshes its render).
+    SW_RESTORE only when MINIMIZED: on a normal window it re-applies the stale
+    'restore size', which shrank the borderless 1:1 viewer from 3232x1878 to its
+    tiny pre-size default the first time the anim burst focused it.
+
+    SetForegroundWindow is foreground-locked for background processes; verify
+    and retry, and REPORT the outcome — callers whose captures depend on focus
+    must know. Do NOT 'unlock' with a synthetic ALT tap: keybd_event goes to
+    the app and INJECTS INPUT (it toggled a Qud ability mid-burst — observed
+    'You toggle Butcher Corpses off.' in the log). AttachThreadInput is the
+    clean unlock if plain retries ever prove insufficient."""
     best = _largest(app)
     if best is None:
-        return
+        return False
     hwnd = best[1]
-    _user32.ShowWindow(hwnd, _SW_RESTORE)
-    _user32.BringWindowToTop(hwnd)
-    _user32.SetForegroundWindow(hwnd)
+    if _user32.IsIconic(hwnd):
+        _user32.ShowWindow(hwnd, _SW_RESTORE)
+    for _ in range(3):
+        _user32.BringWindowToTop(hwnd)
+        _user32.SetForegroundWindow(hwnd)
+        time.sleep(0.15)
+        if _user32.GetForegroundWindow() == hwnd:
+            return True
+    return _user32.GetForegroundWindow() == hwnd
 
 
 def clickin(app, fx, fy):
@@ -304,6 +320,13 @@ def support_dir():
     Library/Application Support/RavesOfQud, which resolves identically on Windows — mirror
     it here so we don't have to edit the shared mod file."""
     return os.path.join(os.path.expanduser("~"), "Library", "Application Support", "RavesOfQud")
+
+
+def qud_data_dir():
+    """QUD'S OWN data dir (saves under Synced/Saves, mods, options) — not ours.
+    Unity persistentDataPath on Windows: AppData/LocalLow/<company>/<product>."""
+    return os.path.join(os.path.expanduser("~"), "AppData", "LocalLow",
+                        "Freehold Games", "CavesOfQud")
 
 
 # --- process / launch -----------------------------------------------------------

@@ -1,0 +1,472 @@
+{
+ "fixture": "furniture-tail",
+ "frames": 12,
+ "expect_states": null,
+ "measured": [
+  {
+   "bp": "Wooden Water Wheel",
+   "ok": true,
+   "qud": {
+    "frames": 12,
+    "states": 6,
+    "duty": [
+     0.25,
+     0.25,
+     0.25,
+     0.08,
+     0.08,
+     0.08
+    ],
+    "class": "discrete"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 3,
+    "duty": [
+     0.42,
+     0.33,
+     0.25
+    ],
+    "class": "discrete"
+   },
+   "agree": false
+  },
+  {
+   "bp": "Wormhole",
+   "ok": true,
+   "qud": {
+    "frames": 11,
+    "states": 7,
+    "duty": [
+     0.18,
+     0.18,
+     0.18,
+     0.18,
+     0.09,
+     0.09,
+     0.09
+    ],
+    "class": "discrete"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 1,
+    "duty": [
+     1.0
+    ],
+    "class": "static"
+   },
+   "agree": false
+  },
+  {
+   "bp": "PistonPressElement",
+   "ok": true,
+   "qud": {
+    "frames": 11,
+    "states": 2,
+    "duty": [
+     0.91,
+     0.09
+    ],
+    "class": "discrete"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 1,
+    "duty": [
+     1.0
+    ],
+    "class": "static"
+   },
+   "agree": false
+  },
+  {
+   "bp": "Wire Extruder",
+   "ok": true,
+   "qud": {
+    "frames": 11,
+    "states": 2,
+    "duty": [
+     0.73,
+     0.27
+    ],
+    "class": "discrete"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 1,
+    "duty": [
+     1.0
+    ],
+    "class": "static"
+   },
+   "agree": false
+  },
+  {
+   "bp": "Nacham's Loom",
+   "ok": true,
+   "qud": {
+    "frames": 12,
+    "states": 1,
+    "duty": [
+     1.0
+    ],
+    "class": "static"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 1,
+    "duty": [
+     1.0
+    ],
+    "class": "static"
+   },
+   "agree": true
+  },
+  {
+   "bp": "Powered Telescope",
+   "ok": true,
+   "qud": {
+    "frames": 12,
+    "states": 2,
+    "duty": [
+     0.67,
+     0.33
+    ],
+    "class": "discrete"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 1,
+    "duty": [
+     1.0
+    ],
+    "class": "static"
+   },
+   "agree": false
+  },
+  {
+   "bp": "Solar Condenser",
+   "ok": true,
+   "qud": {
+    "frames": 11,
+    "states": 2,
+    "duty": [
+     0.55,
+     0.45
+    ],
+    "class": "discrete"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 1,
+    "duty": [
+     1.0
+    ],
+    "class": "static"
+   },
+   "agree": false
+  },
+  {
+   "bp": "GritGateForceProjector_Rank0",
+   "ok": true,
+   "qud": {
+    "frames": 12,
+    "states": 2,
+    "duty": [
+     0.58,
+     0.42
+    ],
+    "class": "discrete"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 1,
+    "duty": [
+     1.0
+    ],
+    "class": "static"
+   },
+   "agree": false
+  },
+  {
+   "bp": "GritGateForceProjector_Rank1",
+   "ok": true,
+   "qud": {
+    "frames": 12,
+    "states": 2,
+    "duty": [
+     0.67,
+     0.33
+    ],
+    "class": "discrete"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 1,
+    "duty": [
+     1.0
+    ],
+    "class": "static"
+   },
+   "agree": false
+  },
+  {
+   "bp": "HighTechInstallation",
+   "ok": true,
+   "qud": {
+    "frames": 12,
+    "states": 1,
+    "duty": [
+     1.0
+    ],
+    "class": "static"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 1,
+    "duty": [
+     1.0
+    ],
+    "class": "static"
+   },
+   "agree": true
+  },
+  {
+   "bp": "SolidHighTechInstallation",
+   "ok": true,
+   "qud": {
+    "frames": 11,
+    "states": 1,
+    "duty": [
+     1.0
+    ],
+    "class": "static"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 1,
+    "duty": [
+     1.0
+    ],
+    "class": "static"
+   },
+   "agree": true
+  },
+  {
+   "bp": "Unicomputer",
+   "ok": true,
+   "qud": {
+    "frames": 10,
+    "states": 2,
+    "duty": [
+     0.7,
+     0.3
+    ],
+    "class": "discrete"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 1,
+    "duty": [
+     1.0
+    ],
+    "class": "static"
+   },
+   "agree": false
+  },
+  {
+   "bp": "Crematory Liquid-Cooled Unicomputer",
+   "ok": true,
+   "qud": {
+    "frames": 12,
+    "states": 2,
+    "duty": [
+     0.67,
+     0.33
+    ],
+    "class": "discrete"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 1,
+    "duty": [
+     1.0
+    ],
+    "class": "static"
+   },
+   "agree": false
+  },
+  {
+   "bp": "Star Carousel Star Chart C",
+   "ok": true,
+   "qud": {
+    "frames": 12,
+    "states": 1,
+    "duty": [
+     1.0
+    ],
+    "class": "static"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 1,
+    "duty": [
+     1.0
+    ],
+    "class": "static"
+   },
+   "agree": true
+  },
+  {
+   "bp": "Star Carousel Star Chart L",
+   "ok": true,
+   "qud": {
+    "frames": 12,
+    "states": 1,
+    "duty": [
+     1.0
+    ],
+    "class": "static"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 1,
+    "duty": [
+     1.0
+    ],
+    "class": "static"
+   },
+   "agree": true
+  },
+  {
+   "bp": "ScrapChest",
+   "ok": true,
+   "qud": {
+    "frames": 12,
+    "states": 1,
+    "duty": [
+     1.0
+    ],
+    "class": "static"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 1,
+    "duty": [
+     1.0
+    ],
+    "class": "static"
+   },
+   "agree": true
+  },
+  {
+   "bp": "Eater Sign 1",
+   "ok": true,
+   "qud": {
+    "frames": 12,
+    "states": 3,
+    "duty": [
+     0.83,
+     0.08,
+     0.08
+    ],
+    "class": "discrete"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 1,
+    "duty": [
+     1.0
+    ],
+    "class": "static"
+   },
+   "agree": false
+  },
+  {
+   "bp": "GritGateBed",
+   "ok": true,
+   "qud": {
+    "frames": 12,
+    "states": 1,
+    "duty": [
+     1.0
+    ],
+    "class": "static"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 1,
+    "duty": [
+     1.0
+    ],
+    "class": "static"
+   },
+   "agree": true
+  },
+  {
+   "bp": "Glass Door W",
+   "ok": true,
+   "qud": {
+    "frames": 12,
+    "states": 1,
+    "duty": [
+     1.0
+    ],
+    "class": "static"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 1,
+    "duty": [
+     1.0
+    ],
+    "class": "static"
+   },
+   "agree": true
+  },
+  {
+   "bp": "MountedFurniture",
+   "ok": true,
+   "qud": {
+    "frames": 12,
+    "states": 1,
+    "duty": [
+     1.0
+    ],
+    "class": "static"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 1,
+    "duty": [
+     1.0
+    ],
+    "class": "static"
+   },
+   "agree": true
+  },
+  {
+   "bp": "NephilimShrine",
+   "ok": true,
+   "qud": {
+    "frames": 11,
+    "states": 1,
+    "duty": [
+     1.0
+    ],
+    "class": "static"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 1,
+    "duty": [
+     1.0
+    ],
+    "class": "static"
+   },
+   "agree": true
+  }
+ ],
+ "when": "2026-08-05 20:02"
+}

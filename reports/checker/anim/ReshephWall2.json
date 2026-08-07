@@ -1,0 +1,31 @@
+{
+ "fixture": "ReshephWall2",
+ "frames": 12,
+ "expect_states": null,
+ "measured": [
+  {
+   "bp": "ReshephWall2",
+   "ok": true,
+   "qud": {
+    "frames": 12,
+    "states": 2,
+    "duty": [
+     0.75,
+     0.25
+    ],
+    "class": "discrete"
+   },
+   "raves": {
+    "frames": 12,
+    "states": 2,
+    "duty": [
+     0.92,
+     0.08
+    ],
+    "class": "discrete"
+   },
+   "agree": true
+  }
+ ],
+ "when": "2026-08-06 02:29"
+}
