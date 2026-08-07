@@ -51,9 +51,31 @@ improvement, and it earns its keep on things the current model does badly:
   cheap, anything needing OCR is flaky-expensive — so the planner prefers first-party moves
 - an unreachable target is a *planning* failure with a reason, instead of a step that fails midway
 
-That is a gametree redesign living in **highvisor**, not a Raves panel. Ship the panel on the
-recipes we have; revisit the graph when "the recipe assumed the wrong starting screen" actually
-starts costing us. Do not build both at once — the panel is the thing that gets used daily.
+That is a gametree redesign living in **highvisor**, not a Raves panel.
+
+> **SUPERSEDED 2026-08-06 — the graph was built.** Daniel called it ("let's do the graph refactor,
+> it will help everything") and highvisor `51f6098` + `ad9ef9c` landed it: `gametree.json` now
+> carries `transitions` (`from → to`, steps, cost) and `hv goto` searches a route from the state
+> the app is detected in. All 20 `goto` recipes are gone. So the section above is history, and the
+> panel's job got *simpler*, not harder — it no longer needs to explain a recipe chain, it renders
+> a graph and a route.
+>
+> What changed for the panel, concretely:
+> * **A new op to draw with.** `plan_route {app, node, from?}` returns the route WITHOUT driving —
+>   so hovering a node can show what clicking it would do, and the panel can grey a node that has
+>   no route from here instead of offering a click that fails.
+> * **Edges are real data.** The panel can draw them, with cost. A node whose only route in is the
+>   cost-120 restart edge is visibly a gap in the graph, which is exactly the sort of thing a
+>   picture surfaces and a JSON file does not.
+> * **Routing is honest about the current state**, so the "you are here" highlight and the click
+>   target now share one source of truth.
+>
+> The A* answer also stands, just for a different reason than this doc gave: `plan.route` IS A*,
+> with a **zero heuristic** (= Dijkstra), because the obvious tree-distance heuristic is
+> inadmissible — `status_skills → status_journal` is two containment hops but ONE `statustab`
+> call. Not "A* isn't needed"; "A* here should not be given a heuristic that lies."
+
+Ship the panel on the graph. Slice 1 is unchanged.
 
 ## Slices (each independently useful, each verifiable)
 
