@@ -990,6 +990,26 @@ namespace RavesOfQud
                     try { Server.Log("[checklist] wrote " + ObjectChecker.WriteChecklist()); }
                     catch (Exception e) { Server.Log("checklist error: " + e.Message); }
                     break;
+                case "reveal":
+                    // Mark the whole active zone explored (Zone.ExploreAll — not
+                    // wish-exposed, hence this verb). Rung 6c needs it: a freshly
+                    // warped-into underground zone is 1991/2000 UNEXPLORED, so the
+                    // structural census has almost nothing to measure. Revealing
+                    // also creates the explored-but-not-visible cells that are the
+                    // only way to exercise the memory-ghost render path.
+                    // MAIN-THREAD ONLY: mutates the zone's explored map.
+                    try
+                    {
+                        var az = XRL.The.ActiveZone;
+                        if (az != null)
+                        {
+                            az.ExploreAll();
+                            ForcePublishSoon = true;
+                            Server.Log("[reveal] " + az.ZoneID);
+                        }
+                    }
+                    catch (Exception e) { Server.Log("reveal error: " + e.Message); }
+                    break;
                 case "become":
                     // Turn the player INTO an arbitrary blueprint. MAIN-THREAD ONLY:
                     // creates a GameObject, re-homes player control, retires the old

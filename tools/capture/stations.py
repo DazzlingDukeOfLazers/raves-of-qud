@@ -90,6 +90,13 @@ def warp(b, zone_id, settle=90.0):
 
 def run_station(b, st):
     b = warp(b, st["zone"])
+    # REVEAL before censusing: a zone you just warped into is almost entirely
+    # unexplored (the underground station measured 8 of 2000 cells on its first
+    # run), and the client correctly draws nothing for unexplored cells — so
+    # there is nothing to verify. Revealing also creates the
+    # explored-but-not-visible cells that exercise the memory-ghost path.
+    b.send("reveal")
+    time.sleep(1.2)
     snap = _snap(b)
     cen = census_mod.fetch_census()
     rows = census_mod.audit(snap, cen)

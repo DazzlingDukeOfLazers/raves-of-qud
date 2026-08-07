@@ -105,11 +105,22 @@ determinism trick that made Rung 2 work, applied at zone scale.
 **BUILT (2026-08-06).** `tools/capture/stations.py` +
 `fixtures/checker_stations.json`. First run, census at each station:
 
-    joppa   JoppaWorld.11.22.1.1.10 — 2000 cells: 733 ok / 1267 unexplored / 0 DROPPED
-    village JoppaWorld.11.22.1.2.10 — 2000 cells: 2000 ok / 0 DROPPED
+    joppa       JoppaWorld.11.22.1.1.10 — 2000 cells:  733 ok / 1267 unexplored / 0 DROPPED
+    village     JoppaWorld.11.22.1.2.10 — 2000 cells: 2000 ok / 0 DROPPED
+    underground JoppaWorld.11.22.1.1.11 — 2000 cells: 1990 ok / 10 empty / 0 DROPPED
 
 And the payoff this rung exists for: **the village station alone exercises 23
-distinct autotile bitmasks, against 4 for the entire certified 229-wall sweep.**
+distinct autotile bitmasks and the underground 85, against 4 for the entire
+certified 229-wall sweep.** The underground also puts **1977 cells through the
+explored-but-dark memory-ghost path** — a whole render mode the object checker
+could never reach, since it pins every stage bright by design.
+
+**Stations must be REVEALED before censusing.** A freshly warped-into zone is
+almost entirely unexplored — underground measured **8 of 2000 cells** on its
+first run — and the client correctly draws nothing there, so there is nothing
+to verify. `Zone.ExploreAll()` is not wish-exposed, so the mod gained a
+`reveal` verb; the driver calls it after every warp. Revealing is also what
+creates the explored-but-not-visible cells that exercise the ghost path at all.
 
 Three hard-won rules are baked into the driver:
 
