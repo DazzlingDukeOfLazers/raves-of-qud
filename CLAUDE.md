@@ -15,6 +15,8 @@ rules to work safely here. Subsystem facts live in the linked docs; the deep deb
 | [`docs/protocol.md`](docs/protocol.md) | the bridge wire format |
 | [`docs/qud-api.md`](docs/qud-api.md) | verified Qud namespaces + signatures (reflection-confirmed) |
 | [`docs/tools.md`](docs/tools.md) | the Python tools, the in-viewer inspector, the Python-first workflow |
+| [`docs/testing.md`](docs/testing.md) | **SPOT vs FULL test tiers** — what runs per commit (seconds, no apps) vs pre-release |
+| [`docs/next-session.md`](docs/next-session.md) | handoff: open feedback items, harness debts to fix FIRST, current parity scores |
 | [`docs/gotchas.md`](docs/gotchas.md) | non-obvious invariants + "adding X → verify Y" checklists |
 | [`docs/roadmap.md`](docs/roadmap.md) | forward strategy (the world-store pivot) |
 | [`docs/goals.md`](docs/goals.md) | version-tagged milestone goals — **V3 = full 1:1 parity across the state tree** (the reusable per-screen pattern) |
