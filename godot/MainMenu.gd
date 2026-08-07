@@ -581,10 +581,6 @@ func _build_links() -> void:
 	var v := VBoxContainer.new()
 	v.alignment = BoxContainer.ALIGNMENT_BEGIN
 	v.add_theme_constant_override("separation", 14 if Settings.one_to_one() else 6)
-	if Settings.one_to_one():
-		var pad := Control.new()   # Qud's list starts ~28px lower than the layout rect
-		pad.custom_minimum_size = Vector2(0, 28)
-		v.add_child(pad)
 	for txt in LINK_ITEMS:
 		var l := _label(txt, MUTED, "title")
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -601,6 +597,18 @@ func _build_links() -> void:
 		v.add_child(l)
 	add_child(v)
 	_place(v, "links")
+	if Settings.one_to_one():
+		# MEASURED 2026-08-07 at 1920x1080: Qud's rows top at y 855/894/932/972, ours at
+		# 895/934/975/1015 — a full row pitch (40 px) low, which is why this column's glyph
+		# overlap against Qud was 0.0% even with the right face loaded: the rows could not
+		# land on each other at all. The pitch (39-40) and the x start (65 vs 64) already
+		# matched, so this is a pure vertical offset. A 28 px pad used to sit at the top of
+		# this VBox modelling "Qud's list starts lower than the layout rect"; the diff
+		# disproved that. Dropping it moved the column 54 px, not the 28 its height suggested
+		# (the VBox is placed by its own content height), so +2 puts the first row back on
+		# Qud's y 855. Re-measured after the change rather than assumed.
+		v.offset_top += 2
+		v.offset_bottom += 2
 
 # ── selection / enabled state ─────────────────────────────────────────────────────
 
@@ -760,15 +768,19 @@ func _build_hint() -> void:
 		fv.base_font = get_theme_font("normal_font", "RichTextLabel")
 		fv.variation_embolden = 0.5
 		l.add_theme_font_override("normal_font", fv)
-		l.add_theme_font_size_override("normal_font_size", 18)
+		# 16, not 18: at 18 the words measured ~13% wider than Qud's (its "select" spans 56 px
+		# to ours at 63, "quit" 36 to 42).
+		l.add_theme_font_size_override("normal_font_size", 16)
 		var wht := "#FFFFFF"
 		l.push_paragraph(HORIZONTAL_ALIGNMENT_CENTER)
 		l.append_text("[color=%s][lb][/color]" % wht)
 		l.add_image(icon, icon.get_width(), icon.get_height())
 		l.append_text("[color=%s][rb][/color]" % wht)
-		l.append_text("[color=%s] navigate      [/color]" % dim)
+		# TWO spaces between segments, not six. Measured: Qud's gap from "navigate" to
+		# "[Space]" is 19 px and ours was 70 — six spaces at 18 px mono is ~65 px of it.
+		l.append_text("[color=%s] navigate  [/color]" % dim)
 		l.append_text("[color=%s][lb][/color][color=%s]Space[/color][color=%s][rb][/color]" % [wht, gold, wht])
-		l.append_text("[color=%s] select      [/color]" % dim)
+		l.append_text("[color=%s] select  [/color]" % dim)
 		l.append_text("[color=%s][lb][/color][color=%s]Esc[/color][color=%s][rb][/color]" % [wht, gold, wht])
 		l.append_text("[color=%s] quit[/color]" % dim)
 		l.pop()
@@ -776,6 +788,9 @@ func _build_hint() -> void:
 		l.text = "[center][color=%s]↑↓ navigate      [/color][color=%s][lb]Space[rb][/color][color=%s] select      [/color][color=%s][lb]Esc[rb][/color][color=%s] quit[/color][/center]" % [dim, gold, dim, gold, dim]
 	add_child(l)
 	_place(l, "hint")
+	if Settings.one_to_one():
+		l.offset_top += 6      # measured: Qud's hint inks at y 1036, the seeded rect put ours at 1030
+		l.offset_bottom += 6
 func _build_version() -> void:
 	if Settings.one_to_one():
 		_build_version_qud()
@@ -799,24 +814,18 @@ func _build_version_qud() -> void:
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var ver := "#%s" % SEL.to_html(false)     # release: near-white, like Qud
 	var bld := "#%s" % HINT.to_html(false)    # build: readable teal-grey (Qud's is too dark)
-	var hv_ver := _read_hv_version()
-	var extra := "\n[color=%s]raves %s%s[/color]" % [bld, Brand.RAVES_VERSION,
-		(" · hv " + hv_ver) if hv_ver != "" else ""]
-	l.text = "[right][color=%s]%s[/color]\n[color=%s]build %s[/color]%s[/right]" % [
-		ver, Brand.QUD_VERSION, bld, Brand.QUD_BUILD, extra]
+	# NO "raves x.y.z · hv …" line here. Qud's corner is two lines — its release and its
+	# build — and a third line is Raves branding that 1:1 mode has no business showing. It
+	# also pushed the block up: the extra line is why our corner started ~34 px above Qud's.
+	l.text = "[right][color=%s]%s[/color]\n[color=%s]build %s[/color][/right]" % [
+		ver, Brand.QUD_VERSION, bld, Brand.QUD_BUILD]
 	_apply_elliot(l, "Regular", 16)
 	add_child(l)
 	_place(l, "version")
-	l.offset_top += 28   # Qud's corner sits lower than the seeded layout rect
-	l.offset_bottom += 28
-
-## highvisor's daemon publishes its version next to Raves' state files.
-func _read_hv_version() -> String:
-	var path := InputModel.support_dir().path_join("hv_version.txt")
-	if not FileAccess.file_exists(path):
-		return ""
-	var f := FileAccess.open(path, FileAccess.READ)
-	return f.get_as_text().strip_edges() if f != null else ""
+	# MEASURED: Qud's two lines ink at y 1034..1044 and 1054..1064; the seeded rect put ours
+	# at 995, so the corner drops 67 px from the rect rather than the 28 guessed before.
+	l.offset_top += 69
+	l.offset_bottom += 69
 
 # ── quit button + confirmation ─────────────────────────────────────────────────────
 
