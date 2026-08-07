@@ -24,10 +24,15 @@ guard, Sprint cooldown formatting. Still open:
 
 - **CTRL / SHIFT need full yellow brightness** — command bar; almost certainly a constant in
   `CommandBar.gd` next to the keycap drawing. Cheapest of the three.
-- **Stairs-up icon should grey out when the zone has no stairs** — needs the mod to ship a
-  "zone has StairsUp/StairsDown" flag (Cell has `HasObjectWithPart("StairsUp")`; the minimap
-  colour chain already tests exactly this, see `WriteMinimap`), then `MainFrame`'s nav cluster
-  dims the cell.
+- ~~Stairs-up icon greys when the zone has no stairs~~ **DONE** — `stats.stairsUp`/`stairsDown`
+  (mod, cached per zone), `MainFrame._apply_stair_availability` dims the icon to alpha 0.4.
+  Measured: no-stairs zone 45% brightness, stairs zone identical to the Down icon. **This is a
+  deliberate divergence** — Qud has no disabled state for Up/Down at all (only WindowLock /
+  Finder / Minimap carry an `ActiveButton`, and those say ON/OFF with hue, not brightness), and
+  the cluster is 1:1-only chrome, so expect a small top-bar parity delta in stairless zones.
+  Down is deliberately NOT dimmed (digging/falling descend without stairs; Joppa ships
+  `stairsDown` true and `stairsUp` false, so they really are independent) — the flag is already
+  on the wire if that changes.
 - **Message log needs a scrollbar** — `MessageLog.gd`. Note 1:1 parity: check whether Qud's own
   log shows one before adding it in 1:1; if not, user mode only.
 

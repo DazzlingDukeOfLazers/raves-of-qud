@@ -447,7 +447,39 @@ namespace RavesOfQud
             }
             catch { }
             try { if (z != null) j.Member("terrain", z.DisplayName ?? ""); } catch { }   // "salt marsh, surface"
+            // Does this zone contain stairs at all? Raves greys its Up nav icon where there is
+            // nothing to climb (Daniel's feedback). Both directions ship because the walk finds
+            // them together; only Up is wired client-side -- descending has affordances stairs
+            // don't cover (digging, falling), so "no StairsDown here" is not "you cannot go down".
+            try
+            {
+                if (z != null)
+                {
+                    RefreshZoneStairs(z);
+                    j.Member("stairsUp", _stairsUp).Member("stairsDown", _stairsDown);
+                }
+            }
+            catch { }
             j.EndObject();
+        }
+
+        // Cached per zone: stairs are placed by the zone builder and don't come and go, but
+        // WriteStats runs on EVERY snapshot and each probe is a full 80x25 cell walk.
+        private static string _stairsZone;
+        private static bool _stairsUp, _stairsDown;
+
+        /// Fill _stairsUp/_stairsDown for `z`. First hit wins — LoopObjectsWithPart is lazy, so
+        /// the break stops the walk instead of building a list of every staircase in the zone.
+        private static void RefreshZoneStairs(Zone z)
+        {
+            string id = z.ZoneID ?? "";
+            if (id == _stairsZone) return;
+            bool up = false, down = false;
+            foreach (var go in z.LoopObjectsWithPart("StairsUp")) { if (go != null) { up = true; break; } }
+            foreach (var go in z.LoopObjectsWithPart("StairsDown")) { if (go != null) { down = true; break; } }
+            _stairsZone = id;
+            _stairsUp = up;
+            _stairsDown = down;
         }
 
         /// The player's active effects (buffs/debuffs) for the frame's Active effects panel. DisplayName
