@@ -1187,6 +1187,35 @@ namespace RavesOfQud
                         gmn.uiQueue.queueTask(() => { try { TitleExporter.ExportNavIcons(); } catch (Exception e) { try { Server.Log("dumpnav: " + e.Message); } catch { } } }, 0);
                     return;
                 }
+                if (name == "mapedit")
+                {
+                    // Drive the Map Editor through its own API (MapEditorDriver) instead of
+                    // synthetic mouse input, which cannot reliably produce its drag verbs.
+                    // Main thread: everything it touches is Unity state.
+                    f.TryGetValue("do", out string meDo);
+                    f.TryGetValue("x", out string meX); f.TryGetValue("y", out string meY);
+                    f.TryGetValue("x2", out string meX2); f.TryGetValue("y2", out string meY2);
+                    f.TryGetValue("bp", out string meBp);
+                    var gme = GameManager.Instance;
+                    if (gme != null && gme.uiQueue != null)
+                        gme.uiQueue.queueTask(() =>
+                        {
+                            try
+                            {
+                                int x = MapEditorDriver.ParseInt(meX), y = MapEditorDriver.ParseInt(meY);
+                                int x2 = MapEditorDriver.ParseInt(meX2), y2 = MapEditorDriver.ParseInt(meY2);
+                                switch (meDo)
+                                {
+                                    case "select": MapEditorDriver.Select(x, y, x2, y2); break;
+                                    case "paint": MapEditorDriver.Paint(x, y, meBp ?? "Across1"); break;
+                                    case "context": MapEditorDriver.Context(x, y); break;
+                                    default: Server.Log("mapedit state " + MapEditorDriver.State()); break;
+                                }
+                            }
+                            catch (Exception e) { try { Server.Log("mapedit error: " + e.Message); } catch { } }
+                        }, 0);
+                    return;
+                }
                 if (name == "dumpbg")
                 {
                     // One-shot: dump every MainMenu background artwork + a manifest saying which is
