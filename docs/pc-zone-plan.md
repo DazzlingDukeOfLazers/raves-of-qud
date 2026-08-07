@@ -179,6 +179,35 @@ Four artifacts now (sidebar text, dawn lighting, status bar, grid drift), zero
 confirmed render defects. 6a's census, which never touches a pixel, has produced
 zero false positives over the same period. **Weight effort accordingly.**
 
+**STRIDE FIXED AND VALIDATED (2026-08-07).** `fit_stride` now fits BOTH apps'
+pitch by coordinate descent, with the viewport clipped and the anchor tracking
+the player. Fitted against the integers calibration reports:
+
+    qud   sx 25 -> 24.600   sy 37 -> 37.160
+    raves sx 37 -> 37.040   sy 56 -> 55.920
+
+Qud's 0.4 px/cell x error is the whole story: it compounds to half a cell across
+30 columns, which is exactly the phantom "water divergence".
+
+SHIFT TEST, village (dx = cells Raves is deliberately offset):
+
+    before fit   dx=0 mean 13.1, 51 FAIL | dx=1 15.6, 78 | dx=2 17.3, 94
+    after  fit   dx=0 mean 10.5, 14 FAIL | dx=1 14.6, 61 | dx=2 16.5, 80
+
+Aligned FAILs drop 51 -> 14 and the aligned mean 13.1 -> 10.5, while the
+misaligned columns barely move — so the gap between aligned and misaligned
+WIDENED (2.5 -> 4.1 mean, 27 -> 47 FAILs). That is the signature of a grid that
+now resolves cells: being right is rewarded and being wrong is punished.
+
+Note the test is only meaningful on DENSE content. The same test on the sparse
+home zone reads 8.1 / 8.5 / 8.6 — no discrimination at all, the vacuity problem
+again. Run shift tests at the village, never at home.
+
+**REMAINING before 6b numbers are quotable as defects:** 14 aligned FAILs
+survive and are unexamined; they are the first 6b candidates that have survived
+a validated grid, so they are worth eyeballing — but four artifacts have already
+dissolved here, so eyeball first, claim second.
+
 **And a real limitation.** At the zoomed-in pixel geometry only ~60 cells clear
 the viewport, so a village run scores 14 informative cells. Whole-playfield
 congruence needs the ZOOMED-OUT view to be worth its runtime; that is the next

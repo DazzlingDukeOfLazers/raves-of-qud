@@ -81,40 +81,57 @@ def _coarse_diff(qget, rget, qr, rr, n=6):
     return tot / (3.0 * n * n)
 
 
+def _grid_cost(qget, rget, qw, qh, rw, rh, gq, gr, cells):
+    """Mean cross-app difference over sample cells for a candidate grid pair."""
+    tot, n = 0.0, 0
+    for (cx, cy) in cells:
+        qr = cell_rect(gq, cx, cy)
+        rr = cell_rect(gr, cx, cy)
+        if not (inside(qr, qw, qh, QUD_MAP_FRAC, QUD_MAP_TOP, QUD_MAP_BOT)
+                and inside(rr, rw, rh, RAVES_MAP_FRAC, RAVES_MAP_TOP, RAVES_MAP_BOT)):
+            continue
+        tot += _coarse_diff(qget, rget, qr, rr)
+        n += 1
+    return (tot / n, n) if n else (1e9, 0)
+
+
 def fit_stride(pair, geom, snap):
-    """Fit Qud's fractional cell pitch by minimising cross-app difference over
-    cells spread far from the anchor. Raves is held fixed: its 1:1 grid is
-    generated programmatically, while Qud's comes from a zoom quantisation."""
+    """Fit BOTH apps' fractional cell pitch by coordinate descent.
+
+    The earlier single-app version failed for two reasons now fixed: it ran
+    before the viewport clip existed (so it minimised sidebar text), and it
+    held Raves fixed on the assumption its 1:1 grid was exact. It is not —
+    Qud 25x37 vs Raves 12x19 are ratios 1.95 vs 2.08, and that mismatch is
+    what drifts a whole cell within 30 columns and produced the phantom
+    "water divergence". Both pitches are free here; content is fixed, so
+    there is no scale degeneracy."""
     qw, qh, qget = congruence.load_rgb(pair["qud"])
     rw, rh, rget = congruence.load_rgb(pair["raves"])
-    cells = [(int(c["x"]), int(c["y"])) for c in snap.get("cells", [])]
-    best = {}
-    for axis, key, base_v in (("x", "sx", geom["qud"]["w"]), ("y", "sy", geom["qud"]["h"])):
-        # sample cells FAR from the anchor on this axis — that is where pitch
-        # error shows; near the anchor every candidate scores the same
-        far = [c for c in cells if abs(c[0] - STAGE_CX) > 20] if axis == "x" \
-            else [c for c in cells if abs(c[1] - STAGE_CY) > 6]
-        far = far[::max(1, len(far) // 60)][:60]
-        scores = []
-        for step in range(-12, 13):
-            cand = base_v + step * 0.05
-            trial = dict(geom["qud"]); trial[key] = cand
-            tot, n = 0.0, 0
-            for (cx, cy) in far:
-                qr = cell_rect(trial, cx, cy)
-                rr = cell_rect(geom["raves"], cx, cy)
-                if not (inside(qr, qw, qh, QUD_MAP_FRAC, QUD_MAP_TOP, QUD_MAP_BOT) and inside(rr, rw, rh, RAVES_MAP_FRAC, RAVES_MAP_TOP, RAVES_MAP_BOT)):
+    allc = [(int(c["x"]), int(c["y"])) for c in snap.get("cells", [])]
+    far = [c for c in allc if abs(c[0] - STAGE_CX) > 8 or abs(c[1] - STAGE_CY) > 4]
+    far = far[::max(1, len(far) // 90)][:90]
+    gq, gr = dict(geom["qud"]), dict(geom["raves"])
+    gq.setdefault("sx", float(gq["w"])); gq.setdefault("sy", float(gq["h"]))
+    gr.setdefault("sx", float(gr["w"])); gr.setdefault("sy", float(gr["h"]))
+    base, n0 = _grid_cost(qget, rget, qw, qh, rw, rh, gq, gr, far)
+    print("  start cost %.1f over %d cells" % (base, n0))
+    for _ in range(2):                       # two descent passes
+        for g, key in ((gq, "sx"), (gq, "sy"), (gr, "sx"), (gr, "sy")):
+            best, bestv = None, None
+            centre = g[key]
+            for step in range(-16, 17):
+                cand = centre + step * 0.04
+                if cand <= 1:
                     continue
-                tot += _coarse_diff(qget, rget, qr, rr)
-                n += 1
-            if n:
-                scores.append((tot / n, cand))
-        if scores:
-            scores.sort()
-            best[key] = round(scores[0][1], 3)
-            print("  fit %s: %.3f px (from %d, mean |d| %.1f)"
-                  % (key, best[key], base_v, scores[0][0]))
-    return best
+                g[key] = cand
+                c, _ = _grid_cost(qget, rget, qw, qh, rw, rh, gq, gr, far)
+                if best is None or c < best:
+                    best, bestv = c, cand
+            g[key] = bestv
+    final, nf = _grid_cost(qget, rget, qw, qh, rw, rh, gq, gr, far)
+    print("  fitted qud sx=%.3f sy=%.3f | raves sx=%.3f sy=%.3f | cost %.1f -> %.1f"
+          % (gq["sx"], gq["sy"], gr["sx"], gr["sy"], base, final))
+    return gq, gr
 
 
 # Qud's MAP VIEWPORT is narrower than its window: the right edge is the
@@ -175,9 +192,9 @@ def main(argv):
     geom = congruence.load_geometry()
     if "--fit" in argv:
         print("fitting the Qud grid pitch...")
-        fitted = fit_stride(pair, geom, snap)
-        geom["qud"].update(fitted)
-        congruence.save_geometry(geom["qud"], geom["raves"])
+        gq, gr = fit_stride(pair, geom, snap)
+        geom["qud"], geom["raves"] = gq, gr
+        congruence.save_geometry(gq, gr)
         print("  saved to the geometry fixture")
     qw, qh = Image.open(pair["qud"]).size
     rw, rh = Image.open(pair["raves"]).size
