@@ -59,6 +59,12 @@ func _ready() -> void:
 
 	_rt = RichTextLabel.new()
 	_rt.bbcode_enabled = true            # we convert Qud {{colour|text}} markup to BBCode
+	# An UNMARKED log line is WHITE, not the theme's `y` grey. Measured: Qud puts (255,255,255)
+	# on the glass where we had (168,194,187) — QudPalette.TEXT, which the theme applies to every
+	# label in the app. That default is right for CHROME (headings, panel furniture) and wrong
+	# here: a log line is Qud's own message text, and Qud's message default is `Y`. Lines that
+	# DO carry {{colour|…}} markup are unaffected — they set their own colour over this.
+	_rt.add_theme_color_override("default_color", Color(1, 1, 1))
 	_rt.scroll_active = true
 	_rt.scroll_following = true            # stay pinned to the newest line
 	_rt.selection_enabled = false   # a selectable RTL grabs focus on click and the arrows stop

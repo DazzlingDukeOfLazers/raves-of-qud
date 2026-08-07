@@ -33,8 +33,16 @@ guard, Sprint cooldown formatting. Still open:
   Down is deliberately NOT dimmed (digging/falling descend without stairs; Joppa ships
   `stairsDown` true and `stairsUp` false, so they really are independent) — the flag is already
   on the wire if that changes.
-- **Message log needs a scrollbar** — `MessageLog.gd`. Note 1:1 parity: check whether Qud's own
-  log shows one before adding it in 1:1; if not, user mode only.
+- ~~Message log needs a scrollbar~~ **CLOSED — Qud's log has none** (Daniel confirmed), so 1:1
+  gets none either. A user-mode-only scrollbar is still available if it's ever wanted; nothing
+  was built.
+- ~~Message log text colour~~ **DONE** — an unmarked log line is WHITE. Raves was drawing it in
+  `QudPalette.TEXT` (`y` grey), the app-wide theme default: right for chrome, wrong for Qud's own
+  message text. `MessageLog` now overrides `default_color` on its RichTextLabel only. Verified
+  per line against Qud: unmarked lines (255,255,255) in both; the markup-carrying location line
+  still renders (108,183,200) in both, so `{{colour|…}}` spans still win over the default.
+  **Measure the right band:** a first sample straddled the nearby-objects panel and the log
+  (the two apps' sidebars don't align vertically) — group by TEXT LINE, then compare.
 
 ## ~~One open colour question~~ — ANSWERED by measurement (2026-08-06)
 
