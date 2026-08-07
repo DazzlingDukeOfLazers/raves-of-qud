@@ -2246,7 +2246,13 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 	# a visual no-op — or full-coverage art. Plain no-^ tiles keep transparent
 	# gaps: their Qud render shows the terrain through, and 213 bright-baseline
 	# walls pass on exactly that behaviour.
-	var wall_fill := Fill.ALL if _wall_bg != "" else Fill.NONE
+	# LIQUIDS ARE THE EXCEPTION. Widening this fill to every object (the creeper
+	# fix) regressed water: a pool's own '&B^b' then floods the cell bright blue,
+	# while Qud leaves the field colour behind liquid art — the rule measured
+	# long ago on the luminous-salt puddle '&Y^y&C', and re-found by rung 6b,
+	# which caught it only because a composed pool differs from a lone staged
+	# puddle. Qud's Swimming BACKGROUND still fills (aquaBg, handled above).
+	var wall_fill := Fill.ALL if (_wall_bg != "" and not bool(obj.get("liquid", false))) else Fill.NONE
 	var tex := _colored_tex_rgb(tile, _obj_main(obj), _obj_detail(obj), _color_key(obj),
 		_fill_for(tile, wall_fill))
 

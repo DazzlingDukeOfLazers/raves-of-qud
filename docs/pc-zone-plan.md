@@ -203,6 +203,23 @@ Note the test is only meaningful on DENSE content. The same test on the sparse
 home zone reads 8.1 / 8.5 / 8.6 — no discrimination at all, the vacuity problem
 again. Run shift tests at the village, never at home.
 
+**FIXED (2026-08-07): liquids are exempt from the `^X` fill.**
+`_place_nonwall`'s fill now reads
+`Fill.ALL if (_wall_bg != "" and not obj.liquid) else Fill.NONE`, using the
+wire's existing `liquid` flag (`go.LiquidVolume != null`). Qud's Swimming
+background still fills via aquaBg. Regression probes at the CERTIFIED geometry:
+
+    HangarWall                12.0 (cert 12.1)   StarshipGeometricWallGrey 11.1 (11.1)
+    Jilted Lover               4.9 (cert  7.4)   SaltyWaterPuddle           4.7 (6.1)
+    Livid Creeper / Switch / DoorSwitch / WaterPool — all within tolerance
+
+**METHOD TRAP worth remembering: pixel scores are NOT comparable across zooms.**
+The first regression pass ran at the zoomed-out geometry (25x37 cells) against
+baselines certified at 98x147, and reported walls "REGRESSED" 11.1 -> 21.0 and
+12.1 -> 24.3. Detailed wall art suffers most when a small crop is upsampled to
+the 32x48 scoring grid. Re-probing at the certified zoom matched to the decimal.
+Always compare like-for-like geometry before calling a regression.
+
 **FIRST REAL 6B FINDING — water renders BRIGHTER in Raves (candidate
 regression from our own `^X` fill widening).** All 14 aligned FAILs are
 `SaltyWaterPuddle` in one cluster (x 15-19, y 0-2), mean 37-43. Eyeballed: the
