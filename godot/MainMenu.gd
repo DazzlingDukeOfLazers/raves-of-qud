@@ -1126,6 +1126,8 @@ func _open_overlay(script_path: String) -> void:
 	if _overlay.has_signal("delete_requested"):
 		_overlay.delete_requested.connect(func(id):
 			_send_command({"type": "command", "name": "deletesave", "id": str(id)}))
+	if _overlay.has_signal("open_tool"):
+		_overlay.open_tool.connect(_on_open_tool)
 	# highvisor state report: a screen may declare its scene name (`ui_scene`,
 	# e.g. ModdingToolkitScreen -> "modding_toolkit"); otherwise the legacy
 	# derivation from the file name (ModsScreen -> mods, LoadGameScreen ->
@@ -1134,6 +1136,17 @@ func _open_overlay(script_path: String) -> void:
 	if scn == null or str(scn) == "":
 		scn = script_path.get_file().get_basename().replace("Screen", "").to_lower()
 	UiState.set_scene(str(scn))
+
+## Modding Toolkit hand-off: swap the toolkit overlay for the requested tool's
+## screen (Qud's Mod Manager opens the same Mods screen; its Esc exits to the
+## TITLE, not back to the toolkit — measured, so a plain overlay swap matches).
+func _on_open_tool(tool_id: String) -> void:
+	_close_overlay()
+	match tool_id:
+		"mod_manager":
+			_open_overlay("res://ModsScreen.gd")
+		_:
+			pass   # deep tools (map editor, blueprint browser, …) — future leaves
 
 func _close_overlay() -> void:
 	if _overlay != null:

@@ -17,6 +17,11 @@ extends Control
 
 signal closed
 
+## Ask MainMenu to swap this overlay for a tool screen ("mod_manager" today;
+## deep tools as they're built). Emitted instead of opening screens directly so
+## MainMenu keeps sole ownership of the overlay slot + UiState scene reporting.
+signal open_tool(tool_id: String)
+
 ## highvisor scene name (read by MainMenu._open_overlay; matches the gametree's
 ## title>modding_toolkit raves detect).
 var ui_scene := "modding_toolkit"
@@ -31,18 +36,30 @@ const ITEM_SEL := Color8(0xE9, 0xF2, 0xF0)       # selected item text — near-w
 const BAR := Color8(0x1D, 0x5A, 0x52)            # selected-row highlight bar
 const HINT_DIM := Color8(0x8F, 0xA6, 0x9E)       # "Back" footer text
 
-## Qud's item list, verbatim (Qud.UI.ModToolkit).
+## Qud's item list, verbatim (Qud.UI.ModToolkit), with each item's Raves action:
+## "tool:<id>" hands off to MainMenu (open_tool), "url:"/"dir:" shell-opens like
+## Qud does, "" stays cosmetic until its screen exists.
 const ITEMS := [
-	"Mod Manager",
-	"Workshop Uploader",
-	"Map Editor",
-	"Mod Wiki Website",
-	"Blueprint Browser",
-	"Open Save Folder",
-	"Write Mods.csproj File",
-	"Histographicnomicon",
-	"Waveform Collapse Map Generator",
+	{"text": "Mod Manager", "act": "tool:mod_manager"},
+	{"text": "Workshop Uploader", "act": ""},
+	{"text": "Map Editor", "act": ""},
+	{"text": "Mod Wiki Website", "act": "url:https://wiki.cavesofqud.com/wiki/Modding:Overview"},
+	{"text": "Blueprint Browser", "act": ""},
+	{"text": "Open Save Folder", "act": "dir:qud_data"},
+	{"text": "Write Mods.csproj File", "act": ""},
+	{"text": "Histographicnomicon", "act": ""},
+	{"text": "Waveform Collapse Map Generator", "act": ""},
 ]
+
+## Qud's toolkit menu is LEGACY-CONSOLE styled — its glyphs are the console mono
+## (Source Code Pro), not ElliotSans. Sizes measured off the 1920x1080 reference
+## capture (~29px row pitch).
+const FONT_REG := "res://fonts/SourceCodePro-Regular.ttf"
+const FONT_SEMI := "res://fonts/SourceCodePro-Semibold.ttf"
+## 18px: Qud's longest row ("Waveform Collapse Map Generator", 31 glyphs) spans
+## ~333px in the 1080p reference → ~10.7px/glyph → SCP (0.6em advance) at 18.
+const ITEM_PX := 18
+const TITLE_PX := 21
 
 ## Box geometry, fractions of window HEIGHT (Qud's canvas scaler) — measured off the capture:
 ## 708px tall on 2160 ⇒ 0.328; aspect 710/708 ⇒ ~1.0; centre-line sits ~0.49 of the window.
@@ -119,7 +136,8 @@ func _build_box() -> void:
 	# title: "┤ Modding Toolkit ├" — gold, centred near the top
 	var title := Label.new()
 	title.text = "┤ Modding Toolkit ├"
-	title.theme_type_variation = "Title"
+	title.add_theme_font_override("font", load(FONT_SEMI))
+	title.add_theme_font_size_override("font_size", TITLE_PX)
 	title.add_theme_color_override("font_color", TITLE_GOLD)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -151,7 +169,8 @@ func _build_box() -> void:
 	foot.fit_content = true
 	foot.scroll_active = false
 	foot.autowrap_mode = TextServer.AUTOWRAP_OFF
-	foot.theme_type_variation = "Caption"
+	foot.add_theme_font_override("normal_font", load(FONT_REG))
+	foot.add_theme_font_size_override("normal_font_size", ITEM_PX - 2)
 	foot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var gold := "#%s" % TITLE_GOLD.to_html(false)
 	var dim := "#%s" % HINT_DIM.to_html(false)
@@ -183,14 +202,16 @@ func _build_row(idx: int) -> Control:
 	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var caret := Label.new()
 	caret.text = "> "
-	caret.theme_type_variation = "Title"
+	caret.add_theme_font_override("font", load(FONT_REG))
+	caret.add_theme_font_size_override("font_size", ITEM_PX)
 	caret.add_theme_color_override("font_color", Color(0, 0, 0, 0))
 	caret.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	caret.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	h.add_child(caret)
 	var lbl := Label.new()
-	lbl.text = ITEMS[idx]
-	lbl.theme_type_variation = "Title"
+	lbl.text = ITEMS[idx]["text"]
+	lbl.add_theme_font_override("font", load(FONT_REG))
+	lbl.add_theme_font_size_override("font_size", ITEM_PX)
 	lbl.add_theme_color_override("font_color", ITEM)
 	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -218,9 +239,23 @@ func _apply_selection() -> void:
 		_rows[i]["lbl"].add_theme_color_override("font_color", ITEM_SEL if on else ITEM)
 
 func _activate() -> void:
-	# Cosmetic during the mimic phase — the tools themselves are future leaves
-	# (mod_manager can route to ModsScreen once the toolkit's own nav lands).
-	pass
+	var act := str(ITEMS[_sel]["act"])
+	if act == "":
+		return   # deep tool without a Raves screen yet — cosmetic, like Qud items we haven't built
+	if act.begins_with("tool:"):
+		open_tool.emit(act.trim_prefix("tool:"))   # MainMenu swaps the overlay
+	elif act.begins_with("url:"):
+		OS.shell_open(act.trim_prefix("url:"))     # external, matching Qud's own behaviour
+	elif act == "dir:qud_data":
+		OS.shell_open(_qud_data_dir())
+
+## Caves of Qud's data folder — the same folder Qud's "Open Save Folder" opens.
+func _qud_data_dir() -> String:
+	if OS.get_name() == "Windows":
+		return OS.get_environment("USERPROFILE").path_join(
+			"AppData/LocalLow/Freehold Games/CavesOfQud")
+	return OS.get_environment("HOME").path_join(
+		"Library/Application Support/com.FreeholdGames.CavesOfQud")
 
 func _unhandled_input(e: InputEvent) -> void:
 	if e.is_action_pressed("ui_down"):
