@@ -83,7 +83,38 @@ vacuous: the "wire sent art, client placed nothing" path demonstrably fires.
 Verdicts: `ok` / `unexplored` / `empty` / `skipped` (documented no-tile-no-glyph
 rule) / `DROPPED` (defect) / `PHANTOM` (drew something the wire never sent).
 
-### 6b. Whole-playfield congruence — pixels, masked
+### 6b. Whole-playfield congruence — pixels, masked  **[BUILT 2026-08-06]**
+
+`tools/capture/playfield.py`. Per-cell scoring over the grid derived from the
+calibrated stage cell (always zone cell 40,12) plus stride. Two corrections the
+first runs forced, both worth keeping:
+
+- **Clip to the MAP VIEWPORT, not the window.** Qud's right edge is the sidebar;
+  the first run's 28 "FAIL"s were every one of them message-log text
+  ("moc/ur", "10she") scored against painted ground. It also made a fractional
+  stride fit chase that noise — the fit was reverted once the clip landed.
+- **A PASS is not automatically evidence.** Deliberately misaligning Raves by a
+  whole cell over Joppa moved the tally by 26 of 775 — dirt matches dirt
+  wherever you sample it. Each cell is now also scored against its neighbour and
+  reported `vacuous` when the margin is under 8. On Joppa that is **768 of 774
+  cells**: sparse outdoor ground proves almost nothing, and the tool now says so
+  instead of printing a green wall.
+
+    joppa   — 1 PASS / 5 WARN / 0 FAIL / 768 vacuous
+    village — 39 PASS / 76 WARN / 116 FAIL / 543 vacuous
+
+**FINDING (candidate, needs a fix decision): remembered cells are not dimmed.**
+The village's 116 FAILs are dominated by water at ~91 mean, and the crops show
+Qud drawing those cells DARK while Raves draws them full-colour blue. The wire
+sends `explored=true, light=200` and **omits `visible` entirely**; the client
+reads `bool(cell.get("visible", true))`, so a missing flag becomes *visible*,
+and the explored-but-unseen memory look never engages. Either the mod must
+always emit `visible`, or the client's default must invert. This is invisible to
+the Object Checker by construction — it stages one cell next to the player,
+which is always visible — and only appears once a zone has regions you have seen
+but are not looking at.
+
+#### original design notes
 
 Same-turn pair as today, but scored over the full playfield instead of one cell.
 Two problems, both solvable with what we already have:
