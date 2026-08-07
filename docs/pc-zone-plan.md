@@ -118,11 +118,28 @@ not control its environment measures the environment. Daylight, window
 placement, zoom and viewport all have to be pinned before a pixel number means
 anything.
 
-**RESIDUAL (real, unexplained): water.** All four surviving FAILs are
-`SaltyWaterPuddle` at 34-62 mean. Water sparkle is a CLIENT-SIDE animation with
-no wire field, so `masked_reason()` cannot see it — the mask only knows about
-animation the wire declares. Either the mask needs a client-side-animation list
-or water genuinely diverges; unresolved, and the next thread here.
+**RESIDUAL: also retracted. There is no water bug.** The four
+`SaltyWaterPuddle` FAILs were Qud's BOTTOM STATUS BAR bleeding into row-15
+crops — the montage shows "TARGE" and "T: [none]" inside the cells. I had
+clipped the viewport horizontally (the sidebar) but never vertically. With both
+axes clipped the village reads **14 PASS / 45 vacuous / 0 FAIL**.
+
+That is THREE false findings from one root cause — sidebar text, unpinned dawn
+lighting, and now the status bar. The rule earned the hard way: **before
+believing any per-cell number, prove the crop is inside the map viewport.** All
+four bounds are now constants at the top of `playfield.py`.
+
+**What genuinely survives — a real coverage gap, found on the way.** Composed
+water is AUTOTILED like walls: the village pool ships
+`Liquids/Water/deep-11111000.png`, `deep-11111111.png`, `deep-11101111.png`,
+while `SaltyWaterPuddle` staged alone is the isolated variant and passes at 6.1.
+So the liquids category is certified at ONE autotile variant each, exactly as
+the walls were. Liquid joinery belongs on the same list as wall joinery.
+
+**And a real limitation.** At the zoomed-in pixel geometry only ~60 cells clear
+the viewport, so a village run scores 14 informative cells. Whole-playfield
+congruence needs the ZOOMED-OUT view to be worth its runtime; that is the next
+piece of work here, not more scoring at this zoom.
 
 *(superseded text below, kept for the reasoning trail)*
 **FINDING (candidate, needs a fix decision): remembered cells are not dimmed.**

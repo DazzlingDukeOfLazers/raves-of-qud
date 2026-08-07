@@ -91,7 +91,7 @@ def fit_stride(pair, geom, snap):
             for (cx, cy) in far:
                 qr = cell_rect(trial, cx, cy)
                 rr = cell_rect(geom["raves"], cx, cy)
-                if not (inside(qr, qw, qh, QUD_MAP_FRAC) and inside(rr, rw, rh, RAVES_MAP_FRAC)):
+                if not (inside(qr, qw, qh, QUD_MAP_FRAC, QUD_MAP_TOP, QUD_MAP_BOT) and inside(rr, rw, rh, RAVES_MAP_FRAC, RAVES_MAP_TOP, RAVES_MAP_BOT)):
                     continue
                 tot += _coarse_diff(qget, rget, qr, rr)
                 n += 1
@@ -116,10 +116,20 @@ MARGIN = 8.0
 QUD_MAP_FRAC = 0.58
 RAVES_MAP_FRAC = 0.48
 
+# ...and the map is bounded VERTICALLY too: Qud has a status/HP bar on top and
+# an ability/target bar underneath. Clipping only the sidebar let row-15 crops
+# straddle the bottom bar and score "TARGET: [none]" against water — the third
+# false finding this class of mistake produced (sidebar text, then dawn
+# lighting, then this). Fractions are of the window height, measured on the
+# pinned PC layout; re-measure if either app's chrome changes.
+QUD_MAP_TOP, QUD_MAP_BOT = 0.09, 0.86
+RAVES_MAP_TOP, RAVES_MAP_BOT = 0.10, 0.88
 
-def inside(rect, w, h, frac=1.0):
-    return (rect["x"] >= 0 and rect["y"] >= 0
-            and rect["x"] + rect["w"] <= w * frac and rect["y"] + rect["h"] <= h)
+
+def inside(rect, w, h, frac=1.0, top=0.0, bot=1.0):
+    return (rect["x"] >= 0 and rect["y"] >= h * top
+            and rect["x"] + rect["w"] <= w * frac
+            and rect["y"] + rect["h"] <= h * bot)
 
 
 def masked_reason(cell, animated):
@@ -166,7 +176,7 @@ def main(argv):
         cx, cy = int(cell["x"]), int(cell["y"])
         qr = cell_rect(geom["qud"], cx, cy)
         rr = cell_rect(geom["raves"], cx, cy)
-        if not (inside(qr, qw, qh, QUD_MAP_FRAC) and inside(rr, rw, rh, RAVES_MAP_FRAC)):
+        if not (inside(qr, qw, qh, QUD_MAP_FRAC, QUD_MAP_TOP, QUD_MAP_BOT) and inside(rr, rw, rh, RAVES_MAP_FRAC, RAVES_MAP_TOP, RAVES_MAP_BOT)):
             verdict = "offscreen"
             rows.append({"x": cx, "y": cy, "verdict": verdict})
             tally[verdict] = tally.get(verdict, 0) + 1
@@ -186,7 +196,7 @@ def main(argv):
         # `vacuous`: covered, but carrying no evidence.
         off = cell_rect(geom["raves"], cx + 1, cy)
         margin = 0.0
-        if inside(off, rw, rh, RAVES_MAP_FRAC):
+        if inside(off, rw, rh, RAVES_MAP_FRAC, RAVES_MAP_TOP, RAVES_MAP_BOT):
             alt = congruence.score(pair["qud"], pair["raves"], {"qud": qr, "raves": off})
             margin = alt["mean_abs_diff"] - res["mean_abs_diff"]
         verdict = band if (band != "PASS" or margin >= MARGIN) else "vacuous"
