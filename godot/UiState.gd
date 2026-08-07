@@ -47,8 +47,13 @@ func _ready() -> void:
 	add_child(t)
 	t.start()
 
+## THE one support-dir resolver. It used to hardcode $HOME/Library/... — mac-only, and on
+## Windows a bare $HOME is EMPTY for GUI apps, so the reports silently went to a relative path
+## and nothing upstream could find them. The PC line fixed that at `_path()`; doing it here
+## instead fixes the pid sidecar and the dead-report sweep at the same time, which are the two
+## callers that would otherwise have stayed mac-only.
 func _dir() -> String:
-	return OS.get_environment("HOME").path_join("Library/Application Support/RavesOfQud")
+	return InputModel.support_dir()
 
 func _path() -> String:
 	return _dir().path_join("raves_state.json")

@@ -589,6 +589,15 @@ func _build_links() -> void:
 		var l := _label(txt, MUTED, "title")
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		_apply_elliot(l, "Bold", 21)
+		if txt == "Modding Toolkit":
+			# live link (the rest stay cosmetic for now): hover brightens like Qud,
+			# click opens the toolkit menu overlay
+			l.mouse_filter = Control.MOUSE_FILTER_STOP
+			l.mouse_entered.connect(func(): l.add_theme_color_override("font_color", SEL))
+			l.mouse_exited.connect(func(): l.add_theme_color_override("font_color", MUTED))
+			l.gui_input.connect(func(e: InputEvent):
+				if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+					_open_overlay("res://ModdingToolkitScreen.gd"))
 		v.add_child(l)
 	add_child(v)
 	_place(v, "links")
@@ -1117,8 +1126,36 @@ func _open_overlay(script_path: String) -> void:
 	if _overlay.has_signal("delete_requested"):
 		_overlay.delete_requested.connect(func(id):
 			_send_command({"type": "command", "name": "deletesave", "id": str(id)}))
-	# highvisor state report: overlay scene = the screen's file name (ModsScreen -> mods …)
-	UiState.set_scene(script_path.get_file().get_basename().replace("Screen", "").to_lower())
+	if _overlay.has_signal("open_tool"):
+		_overlay.open_tool.connect(_on_open_tool)
+	# highvisor state report: a screen may declare its scene name (`ui_scene`,
+	# e.g. ModdingToolkitScreen -> "modding_toolkit"); otherwise the legacy
+	# derivation from the file name (ModsScreen -> mods, LoadGameScreen ->
+	# loadgame) — the names the Mac gametree already maps.
+	var scn: Variant = _overlay.get("ui_scene")
+	if scn == null or str(scn) == "":
+		scn = script_path.get_file().get_basename().replace("Screen", "").to_lower()
+	UiState.set_scene(str(scn))
+
+## Modding Toolkit hand-off: swap the toolkit overlay for the requested tool's
+## screen (Qud's Mod Manager opens the same Mods screen; its Esc exits to the
+## TITLE, not back to the toolkit — measured, so a plain overlay swap matches).
+func _on_open_tool(tool_id: String) -> void:
+	_close_overlay()
+	match tool_id:
+		"mod_manager":
+			_open_overlay("res://ModsScreen.gd")
+		"map_editor":
+			# refresh blueprints.json first so the palette shows the live install
+			_send_command({"type": "command", "name": "export"})
+			_open_overlay("res://MapEditorScreen.gd")
+		"blueprint_browser":
+			# ask Qud to refresh blueprints.json first (a modded install can change it);
+			# the screen reads whatever is on disk and reports its own empty state.
+			_send_command({"type": "command", "name": "export"})
+			_open_overlay("res://BlueprintBrowserScreen.gd")
+		_:
+			pass   # deep tools (map editor, waveform, …) — future leaves
 
 func _close_overlay() -> void:
 	if _overlay != null:

@@ -1146,6 +1146,7 @@ namespace RavesOfQud
                                 JournalExporter.ReExport();    // journal tabs (Journal tab)
                                 TinkeringExporter.ReExport();  // build recipes + bits (Tinkering tab)
                                 InventoryExporter.ReExport();   // inventory (Equipment tab)
+                                BlueprintExporter.ReExport();   // ObjectBlueprints tree (Blueprint Browser)
                                 TitleExporter.ExportCellFrame();     // Qud's own 9-slice cell frame
                                 TitleExporter.ExportChargenEmblem();                        // resident even at the menu
                                 TitleExporter.ExportNamedSprite("tiny-frame-h", "card_frame.png");         // the game-mode card's dotted frame
@@ -1184,6 +1185,65 @@ namespace RavesOfQud
                     var gmn = GameManager.Instance;
                     if (gmn != null && gmn.uiQueue != null)
                         gmn.uiQueue.queueTask(() => { try { TitleExporter.ExportNavIcons(); } catch (Exception e) { try { Server.Log("dumpnav: " + e.Message); } catch { } } }, 0);
+                    return;
+                }
+                if (name == "wanttile")
+                {
+                    // Export ONE tile on demand. The full blueprint set is ~5k tiles and only the
+                    // few hundred seen in play are on disk, so screens ask for what they actually
+                    // draw instead of bulk-exporting. TileExporter.Ensure queues it; the pump does
+                    // the readback on the main thread.
+                    f.TryGetValue("path", out string wtPath);
+                    if (!string.IsNullOrEmpty(wtPath))
+                    {
+                        try { TileExporter.Ensure(wtPath); Server.Log("wanttile " + wtPath); }
+                        catch (Exception e) { try { Server.Log("wanttile error: " + e.Message); } catch { } }
+                    }
+                    return;
+                }
+                if (name == "mapedit")
+                {
+                    // Drive the Map Editor through its own API (MapEditorDriver) instead of
+                    // synthetic mouse input, which cannot reliably produce its drag verbs.
+                    // Main thread: everything it touches is Unity state.
+                    f.TryGetValue("do", out string meDo);
+                    f.TryGetValue("x", out string meX); f.TryGetValue("y", out string meY);
+                    f.TryGetValue("x2", out string meX2); f.TryGetValue("y2", out string meY2);
+                    f.TryGetValue("bp", out string meBp);
+                    var gme = GameManager.Instance;
+                    if (gme != null && gme.uiQueue != null)
+                        gme.uiQueue.queueTask(() =>
+                        {
+                            try
+                            {
+                                int x = MapEditorDriver.ParseInt(meX), y = MapEditorDriver.ParseInt(meY);
+                                int x2 = MapEditorDriver.ParseInt(meX2), y2 = MapEditorDriver.ParseInt(meY2);
+                                switch (meDo)
+                                {
+                                    case "select": MapEditorDriver.Select(x, y, x2, y2); break;
+                                    case "paint": MapEditorDriver.Paint(x, y, meBp ?? "Across1"); break;
+                                    case "context": MapEditorDriver.Context(x, y); break;
+                                    case "test": MapEditorDriver.Test(meBp); break;
+                                    default: Server.Log("mapedit state " + MapEditorDriver.State()); break;
+                                }
+                            }
+                            catch (Exception e) { try { Server.Log("mapedit error: " + e.Message); } catch { } }
+                        }, 0);
+                    return;
+                }
+                if (name == "dumpbg")
+                {
+                    // One-shot: dump every MainMenu background artwork + a manifest saying which is
+                    // ACTIVE, so a screen drawn over a non-title artwork (the Modding Toolkit) can
+                    // use Qud's own pixels. Main-thread readback, and it must run AT THE MENU —
+                    // which is why it's here (early return) and not in the in-game "export" path.
+                    var gmb = GameManager.Instance;
+                    if (gmb != null && gmb.uiQueue != null)
+                        gmb.uiQueue.queueTask(() =>
+                        {
+                            try { Server.Log("[dumpbg] wrote " + TitleExporter.ExportMenuBackgrounds() + " images"); }
+                            catch (Exception e) { try { Server.Log("dumpbg error: " + e.Message); } catch { } }
+                        }, 0);
                     return;
                 }
                 if (name == "metagame")
@@ -1300,7 +1360,8 @@ namespace RavesOfQud
                         OptionsExporter.ReExport();
                         RecordsExporter.ReExport();
                         ChargenExporter.ReExport();
-                        Server.Log("[export] re-exported mods + options + records + chargen");
+                        BlueprintExporter.ReExport();
+                        Server.Log("[export] re-exported mods + options + records + chargen + blueprints");
                     }
                     catch (Exception e) { Server.Log("export error: " + e.Message); }
                     break;
