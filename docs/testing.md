@@ -172,3 +172,51 @@ The `image` mean is still the category filter strip, offset by one slot; pre-exi
 tracked separately.
 
 FULL now passes in full on `dd/mac-pc-merge`.
+
+---
+
+## FULL on `dd/pc-lumpy-merge` — 2026-08-07 (Lumpy, Win11)
+
+Run after merging `origin/main` twice in a row (the Map Editor cycle + the
+blueprint_browser conversion). **SPOT 5/5. FULL 3 and 4 pass. FULL 1 and 2 are
+BLOCKED on one thing, named below — not on a defect in this branch.**
+
+**SPOT — all five pass.** Typing-guard audit clean (every `_input` dispatcher
+guarded or exempt). State-graph panel render 12/12. Headless parse + `_ready`: 0
+errors. `Main.gd` deep check clean. The mod build has no `dotnet` on this box, so
+it was verified the way that actually matters here: deploy the merged `mod/*.cs`,
+start Qud, and read `build_log.txt` — **0 error lines, and the bridge port opens**,
+which is a stronger claim than a compile anyway since it proves the mod loaded.
+
+> One SPOT failure was real but not ours: `state_graph_render` died on
+> `Identifier "HighvisorClient" not declared`. That is the `class_name` case
+> CLAUDE.md documents — main added `HighvisorClient.gd`, and this machine's
+> `.godot` class cache predated it. One `--headless --editor --quit` rescan fixed
+> it. Worth knowing because it presents as a parse error in a file you did not
+> touch.
+
+**FULL 4 — mod round-trip: PASS.** Over the bridge into Qud's live Map Editor:
+`mapedit paint` and `mapedit state` (this branch's) and `mapedit menuclose`
+(main's new verb) all execute and log. The two lines merged cleanly into one
+dispatch — `MapEditorDriver` carries both `Test` and `CloseMenu`.
+
+**FULL 3 — menu recipes: PASS by hand, blocked via `hv goto`.** Driven by click:
+`title -> modding_toolkit -> blueprint_browser` and `-> map_editor`, each
+confirmed with `hv assert`. All three pass.
+
+**The coordinate that moved.** This branch's title fix lifted the left link column
+by one row pitch to match Qud, so Modding Toolkit is at **y≈902, not y≈952**.
+Verified both ways: y=902 asserts `modding_toolkit`, y=952 misses entirely. Any
+recipe or transition edge still carrying the old value needs updating.
+
+**FULL 1 and 2 — BLOCKED, one cause.** Both need the two apps in-game, and the
+route there is gone from under the running daemon: main converted the legacy
+recipes to `transitions` edges, `gametree.json` hot-reloads but daemon CODE does
+not, so the daemon reads the new tree and cannot plan it. Symptoms, all the same
+root: `hv plan` -> `unknown op: 'plan_route'`; `hv goto qud in_game` and
+`hv goto raves blueprint_browser` -> "no goto recipe". **One daemon restart
+unblocks all of it** (Daniel's call — the daemon is not ours to start). `hv state`,
+`hv assert`, `hv click` and the bridge are all unaffected, which is why everything
+above could run.
+
+The same restart is still owed to `hv click --middle` from earlier in the session.
