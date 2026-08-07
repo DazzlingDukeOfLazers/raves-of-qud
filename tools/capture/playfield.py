@@ -137,6 +137,13 @@ def masked_reason(cell, animated):
 def main(argv):
     from PIL import Image
     b = control.Bridge()
+    # PIN DAYLIGHT, exactly as the sweep does. Without it the world sits
+    # wherever the save left it — the golden loads at segment 3250, "Harvest
+    # Dawn", the DIMMEST daylight there is. Qud's sight radius is short at
+    # dawn, so cells away from the player render as dim memory while Raves
+    # draws them lit, and a whole zone's worth of cells "fail" for a reason
+    # that has nothing to do with rendering.
+    checker.ensure_daylight(b)
     b.send("wait")
     snap = b.read_snapshot(timeout=40)
     b.close()

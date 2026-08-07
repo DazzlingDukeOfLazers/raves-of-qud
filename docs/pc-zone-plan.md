@@ -103,6 +103,28 @@ first runs forced, both worth keeping:
     joppa   — 1 PASS / 5 WARN / 0 FAIL / 768 vacuous
     village — 39 PASS / 76 WARN / 116 FAIL / 543 vacuous
 
+**RETRACTED — the "remembered cells are not dimmed" finding was WRONG.**
+The mod already emits `visible:false` whenever `!c.IsVisible()` ("sent only when
+false; the client defaults true"), so `visible=None` meant Qud considered those
+cells *visible* — the opposite of what I inferred. The actual cause: **playfield
+runs never pinned daylight.** The golden save loads at segment 3250, "Harvest
+Dawn" — the dimmest daylight there is — where Qud's sight radius is short and
+distant cells render as dim memory while Raves draws them lit. The sweep has
+always called `ensure_daylight`; `playfield.py` did not. With it pinned, the
+village drops from **116 FAIL / 775 scored to 4 FAIL / 84 scored**.
+
+Lesson, the same one the certification kept teaching: an instrument that does
+not control its environment measures the environment. Daylight, window
+placement, zoom and viewport all have to be pinned before a pixel number means
+anything.
+
+**RESIDUAL (real, unexplained): water.** All four surviving FAILs are
+`SaltyWaterPuddle` at 34-62 mean. Water sparkle is a CLIENT-SIDE animation with
+no wire field, so `masked_reason()` cannot see it — the mask only knows about
+animation the wire declares. Either the mask needs a client-side-animation list
+or water genuinely diverges; unresolved, and the next thread here.
+
+*(superseded text below, kept for the reasoning trail)*
 **FINDING (candidate, needs a fix decision): remembered cells are not dimmed.**
 The village's 116 FAILs are dominated by water at ~91 mean, and the crops show
 Qud drawing those cells DARK while Raves draws them full-colour blue. The wire
