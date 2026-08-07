@@ -907,3 +907,27 @@ Two fixes, pick by lifetime: screens that live for the session guard their own h
 is the real one); screens built per open **free the host on close** (`queue_free()` + null the ref,
 as `MainFrame._close_options_overlay` and `MainMenu._close_overlay` do). The second also re-reads
 config on each open, which is usually what you want anyway.
+
+## Our scanline suppression blanked Qud's OWN minimap
+
+`Bridge.EnsureScanlineState` sweeps EVERY `UI.Graphic` every 20 ticks and neutralises
+`_ColorOverlay` / `_OverlayTex` / `_Offset` on its material. Qud's minimap Image draws the 80x50
+`minimapTexture` through one of those same overlay materials, so the sweep blanked it outright.
+
+**It reported perfectly healthy while invisible** — `DisplayMinimap=True`, texture 80x50, all 4000
+entries of `GameManager.minimapColors` non-zero (258 above alpha 200), GameObject active, Image
+enabled with a sprite, colour opaque white, rect 240x104, canvas alpha 1. Every readable variable
+said "drawing", and not one pixel reached the screen. Don't trust a state dump alone: confirm with
+a whole-frame colour scan for the thing's own palette (canary doors / violet stairs found ZERO
+matches anywhere, which is what proved it wasn't merely mispositioned).
+
+Nothing caught it for a week because Qud's overlay options were "No" from 2026-08-01, and the sweep
+shipped 2026-07-30 — **the feature was already switched off before the code that broke it landed.**
+
+**Exempting the shared material is NOT the fix** — the sidebar panels draw with the same asset, so
+skipping it handed their scanlines back (measured: the flat chrome's even/odd row gap returned to
+13.67, the unsuppressed value). Clone a PRIVATE material for the minimap once and exempt only that:
+map visible, chrome still flat at 0.00.
+
+Measure suppression with the period-2 row alternation in a flat chrome patch
+(`abs(rows[0::2].mean() - rows[1::2].mean())`), not by eye — 0.00 vs 13.67 is unambiguous.

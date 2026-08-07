@@ -164,6 +164,7 @@ namespace RavesOfQud
         // sidebars, and command bar all drop from even-odd dev ~10-17 to ~0-1.4. See
         // reports/1to1-qud-scanlines.md.
         public static bool DisableQudScanlines = true;    // 1:1 default: kill Qud's always-on scanlines
+        private static UnityEngine.Material _minimapMatClone;   // the minimap's private overlay material
         private static bool _scanlineApplyPending;        // a uiQueue task is in flight
         private static bool? _scanlineAppliedValue;       // the value the camera currently reflects
         private static float _origScanlineIntensity = float.NaN;  // captured once, for restore
@@ -1390,11 +1391,46 @@ namespace RavesOfQud
                     //     these UI materials (that name belongs to the camera CC_AnalogTV only). Neutralise the
                     //     overlay tint + the offset on every material that has them; capture originals to restore.
                     int graphics = 0, newMats = 0;
+                    // THE MINIMAP IS EXEMPT. Its Image draws the 80x50 minimapTexture through one of
+                    // these same overlay materials, and neutralising the overlay blanked it outright:
+                    // the widget still reported active/enabled/opaque with a sprite and a filled
+                    // colour array, but not one pixel reached the screen. Qud's minimap had been off
+                    // since before this sweep shipped (2026-07-30), so nothing caught it until the
+                    // option was turned back on. Skipping by MATERIAL, not by Graphic — UI materials
+                    // are shared assets, so mutating it via any other Graphic would blank the map
+                    // just the same.
+                    // Skipping the SHARED material was not enough: the sidebar panels draw with the
+                    // same asset, so exempting it handed their scanlines back (measured — the flat
+                    // chrome's even/odd row gap returned to 13.67, exactly the unsuppressed value).
+                    // Give the minimap its OWN material instance once, then exempt only that: the
+                    // shared asset still gets neutralised for all the chrome, and the map keeps a
+                    // working material. The map therefore keeps Qud's own overlay — which is what
+                    // Qud draws anyway.
+                    UnityEngine.Material minimapMat = null;
+                    try
+                    {
+                        var mmGo = GameManager.Instance != null ? GameManager.Instance.Minimap : null;
+                        if (mmGo != null)
+                        {
+                            var mmImg = mmGo.GetComponent<UnityEngine.UI.Image>();
+                            if (mmImg != null)
+                            {
+                                if (want && _minimapMatClone == null && mmImg.material != null)
+                                {
+                                    _minimapMatClone = UnityEngine.Object.Instantiate(mmImg.material);
+                                    mmImg.material = _minimapMatClone;   // once — never per sweep
+                                }
+                                minimapMat = mmImg.material;
+                            }
+                        }
+                    }
+                    catch { }
                     foreach (var g in UnityEngine.Object.FindObjectsOfType<UnityEngine.UI.Graphic>())
                     {
                         if (g == null) continue;
                         var mat = g.material;
                         if (mat == null || mat.shader == null) continue;
+                        if (minimapMat != null && mat == minimapMat) continue;   // see above
                         bool touched = false;
                         if (mat.HasProperty("_ColorOverlay"))
                         {
