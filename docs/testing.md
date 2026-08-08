@@ -351,3 +351,48 @@ takes it, is refused, and then gives up: `_drive_route` only re-plans when the a
 refusal deliberately leaves the game exactly where it was. So the `* -> title` restart edge that
 would work is never reached. All 29 refusals across the two tours are that one gap. Tracked
 separately; it wants edge-exclusion on retry, not a cost tweak.
+
+### FULL 3, Classic save — RE-RUN 2026-08-08 after refused-edge exclusion
+
+**Supersedes the "B. Classic save" block above** (qud 10/28 + 18 refused, raves 10/21 + 11),
+which was correct for the code as it stood: a refused edge ended the drive. highvisor `4fc058c`
+now excludes the refused edge and re-plans, so the `* -> title` restart route the graph already
+had becomes reachable.
+
+**Method — the save is reloaded before EVERY node, uniformly.** Without that the tour stops
+testing what it is named after: the first refusal-driven restart leaves Qud at the title, so every
+later node would start from a title screen rather than an in-game Classic save, most would "arrive"
+for reasons having nothing to do with Classic, and the numbers would not be comparable node-for-node
+against the baseline. A failed reload counts as ENV, not as an edge defect.
+
+**The restart fallback is allow-by-default in the daemon; the tour gets it by simply not passing
+`--no-restart`. Stated plainly: these numbers hold only with it enabled.** With `--no-restart` the
+18 qud nodes fail again, by design — verified.
+
+| tour | arrived | via cheap | via restart | refused | EDGE | ENV | was |
+|---|---|---|---|---|---|---|---|
+| qud | **28/28** | 10 | 18 | 0 | 0 | 0 | 10/28 |
+| raves | **20/21** | 10 | 10 | 0 | 0 | 0 | 10/21 |
+
+**Cost.** qud 19.6 min wall — 11.0 min of it reloads (56%), 8.6 min driving. raves 16.6 min —
+11.6 min reloads (70%), 5.0 min driving. **Reloading dominates**, so this shape of tour is a
+pre-release exercise, not something to run per commit; the drives themselves are cheap.
+
+**No restart storm.** Each restart-routed node cost 15–25s, not the 120 its edge is *priced* at —
+that 120 is the planner's avoidance weight, not seconds. 28 restarts across both tours came to
+13.6 min of driving in total.
+
+**The one non-arrival is an artefact of the method, not a defect: raves `continue`.** Its node is
+the load-game picker, and Raves' Continue only opens the picker when there is no live game —
+with one running it attaches straight in-game. Reloading before every node guarantees a live game,
+so the picker is unreachable *by construction*. Verified both ways: with a live Qud game the goto
+fails `wanted {'scene': 'loadgame'}, got In-Game`; with Qud at the title it succeeds. It arrived in
+the Wander tour precisely because that tour did not reload per node.
+
+That verification also exercised the new structured marker: the failure reports `refused: False`,
+so "declined on purpose" is now distinguishable from "broke" without reading the error text. An
+earlier version of the tour script string-matched and mis-labelled this exact run as REFUSED
+because an *earlier* edge in it had refused.
+
+**Wander regression, run AFTER the Classic tours** (the regression this change could most easily
+cause): qud 3/3 and raves 2/2 quit cycles take the cheap route (cost 8 / 22) with **zero** restarts.
