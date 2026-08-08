@@ -785,3 +785,25 @@ NEXT: the dividers. Qud draws each column separator as a thin DASHED line —
 fills the whole 7px `Border` rect solid. That is now the dominant term left in
 `outer_frame`, and it is the one thing still visibly different in a side-by-side
 crop of the top band.
+
+#### Dividers: dashed, not solid
+
+Implemented from measurement rather than the RectTransform: Qud's `Border` node
+is 7 wide but the sprite inside paints a **2px dotted line down its centre** —
+lit at x=592/593 and 813/814 against nominal 588.5/809.5, so centre +3.5. The
+colour is a flat (77,106,115) at every sample over every background (opaque, no
+blend), where Raves was filling all 7px with a darker (44,74,80). Dashes are
+~3px on / ~3px off, period 6.105, anchored at the details box top.
+
+Verified in the capture: Raves now lights exactly x=592/593 at (77,106,115),
+and both apps' dash tops converge (368, 380, …).
+
+`outer_frame` 6.42 -> 6.34. Small, as expected — the dividers are a thin
+feature inside a 74,080px leaf — but it is a real 1:1 correction and the last
+thing visibly different in a side-by-side crop of the top band.
+
+Reputation now stands at **outer_frame 6.34 / list_item 2.92 / list_next 5.14**
+(composite mean 4.03, from 9.41 on the live baseline). The remainder is
+sub-pixel baseline rounding — Qud lands text lines at 346/364/382 where the
+17.6 pitch puts Raves at 346/363.6/381.2 — plus glyph rasterisation. Both are
+the same class of residual the equipment tab bottomed out at.

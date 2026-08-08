@@ -9,8 +9,8 @@ extends Control
 ##              rep indicator x=227 y=+6.5 22x17 | name x=253.5 f=16
 ##              "Reputation: N" x=823.5 f=14
 ##   details    y=+36 h=max(80, lines*17.6): emblem x=261.5 y=+10 40x60 | feeling x=361.5 w=220 f=14
-##              divider x=588.5 w=7 | rank x=602.5 w=200 f=14
-##              divider x=809.5 w=7 | secret x=823.5 w=931 f=14
+##              divider x=588.5 (a DASHED 2px line at +3.5) | rank x=602.5 w=200 f=14
+##              divider x=809.5 (ditto) | secret x=823.5 w=931 f=14
 ##   rows are separated by 8px
 ##
 ## DRAWN ON A CANVAS, not built from nodes. There are ~98 visible factions; a RichTextLabel per
@@ -52,7 +52,6 @@ const DIV2_X := 809.5
 const T3_X := 823.5
 const T3_W := 931.0
 const DET_FONT := 14
-const DIV_W := 7.0
 const ROW_GAP := 8.0
 const SECRET_WRAP := 60   # FactionsLine.setData: detailsText3.blockWrap = 60 CHARACTERS
 
@@ -66,7 +65,16 @@ const DET_LINE_H := 17.6
 
 const C_TEXT := Color8(0xaf, 0xc6, 0xc1)
 const C_GOLD := Color8(0xcf, 0xc0, 0x41)
-const C_DIV := Color8(0x2c, 0x4a, 0x50)
+## The column separator is a DASHED 2px line, not a filled 7px bar. The 7 is the `Border`
+## RectTransform's width; the sprite inside it paints a 2px dotted line down the centre —
+## measured lit at x=592/593 and 813/814 against nominal x=588.5/809.5, i.e. centre +3.5.
+## Colour is a flat (77,106,115) at every sample, over every background: opaque, not blended.
+## Dashes run ~3px on / ~3px off with a 6.105px period, anchored at the details box's top.
+const C_DIV := Color8(0x4d, 0x6a, 0x73)
+const DIV_INK_DX := 3.5
+const DIV_INK_W := 2.0
+const DIV_DASH_ON := 3.05
+const DIV_DASH_PERIOD := 6.105
 
 var bridge_cb: Callable = Callable()
 var reload_cb: Callable = Callable()
@@ -176,8 +184,8 @@ func _draw_row(f: Dictionary, i: int, y: float) -> void:
 	var tex: Texture2D = _tiles.texture_for(f, true)
 	if tex != null:
 		_content.draw_texture_rect(tex, Rect2(ICON_X, dy + ICON_DY, ICON_W, ICON_H), false)
-	_content.draw_rect(Rect2(DIV1_X, dy, DIV_W, det_h), C_DIV)
-	_content.draw_rect(Rect2(DIV2_X, dy, DIV_W, det_h), C_DIV)
+	_draw_divider(DIV1_X, dy, det_h)
+	_draw_divider(DIV2_X, dy, det_h)
 	# The secret column is the odd one out: its RectTransform is 931 wide but setData sets
 	# detailsText3.blockWrap = 60, i.e. Qud wraps it by CHARACTER COUNT, not by the box. Wrapping
 	# it to the box gave two long lines where Qud has four.
@@ -257,6 +265,12 @@ func _runs_for(para: String, a: int, b: int, cols: Array) -> Array:
 		out.append([para.substr(i, j - i), c])
 		i = j
 	return out
+
+func _draw_divider(x: float, y: float, h: float) -> void:
+	var t := 0.0
+	while t < h:
+		_content.draw_rect(Rect2(x + DIV_INK_DX, y + t, DIV_INK_W, minf(DIV_DASH_ON, h - t)), C_DIV)
+		t += DIV_DASH_PERIOD
 
 func _draw_lines(lines: Array, x: float, y: float) -> void:
 	var ly := y + 14.0
