@@ -28,7 +28,7 @@ Each leaf reports mean abs diff over the compared pixels, the ink bounding box i
 both apps, and coverage, so a change can be judged on the thing it touched.
 
 USAGE
-  parity.py capture <node> <prefix> [--no-goto]   # drive both apps and shoot the triple
+  parity.py capture <node> <prefix> [--no-goto] [--stable-gap S]  # shoot the triple
   parity.py score  <spec.json> <qud.png> <raves.png> [--leaf NAME] [--json]
                    [--stable <qud2.png>]   ignore pixels the reference does not hold still
   parity.py bounds <spec.json> <img.png> [--leaf NAME]      # what a leaf sees
@@ -323,7 +323,7 @@ def _hv():
     sys.exit("cannot find the hv CLI; set HV=/path/to/hv")
 
 
-def cmd_capture(node, prefix, goto=True):
+def cmd_capture(node, prefix, goto=True, stable_gap=0.0):
     """Drive both apps to `node` and capture the q / q2 / raves triple that `score` wants.
 
     THE POINT OF THIS COMMAND is that every capture goes through `hv shot --live`, which
@@ -337,6 +337,7 @@ def cmd_capture(node, prefix, goto=True):
     mistake kept coming back -- the liveness check was reinvented, or forgotten, each time.
     """
     import subprocess
+    import time
     hv = _hv()
 
     def run(args, what):
@@ -352,7 +353,17 @@ def cmd_capture(node, prefix, goto=True):
     shots = [("CavesOfQud", prefix + "_q.png"),
              ("CavesOfQud", prefix + "_q2.png"),   # the --stable reference
              ("Raves of Qud", prefix + "_r.png")]
-    for target, out in shots:
+    for i, (target, out) in enumerate(shots):
+        # --stable-gap spaces the two Qud shots out. OFF by default, and the reason is
+        # worth keeping: --stable masks 1,008 px on the reputation tab while the same
+        # screen differs on 129,370 px between runs, so widening the window looked like
+        # the obvious fix. It is not. Measured at 12s it masked 1,046 px -- no better --
+        # because the run-to-run difference is not animation at all. Qud's list sits at a
+        # DIFFERENT SCROLL OFFSET between runs (~28px, visible immediately in a stacked
+        # crop), and no stability window can mask a scroll. Kept as an option for a screen
+        # that genuinely does animate; not paid by default for one that does not.
+        if i == 1 and stable_gap > 0:
+            time.sleep(stable_gap)
         print("  " + run(["shot", target, out, "--live"], "shot %s" % target))
 
     # Both windows must be the same size or every leaf rect means something different in
@@ -384,7 +395,8 @@ def main(argv):
         stable = argv[argv.index("--stable") + 1] if "--stable" in argv else None
         cmd_score(argv[2], argv[3], argv[4], only, "--json" in argv, stable)
     elif cmd == "capture":
-        cmd_capture(argv[2], argv[3], goto="--no-goto" not in argv)
+        gap = float(argv[argv.index("--stable-gap") + 1]) if "--stable-gap" in argv else 0.0
+        cmd_capture(argv[2], argv[3], goto="--no-goto" not in argv, stable_gap=gap)
     elif cmd == "bounds":
         cmd_bounds(argv[2], argv[3], only)
     elif cmd == "mask":

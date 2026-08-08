@@ -1197,3 +1197,61 @@ Measured end to end, restart through score with nothing done by hand:
     after restart:   1920x1080
     after Holodeck:  1920x1080      <- previously 4267x2400
     outer_frame 6.34   list_item 2.92   list_next 5.14
+
+## FULL 2 across all eight status tabs — 2026-08-08 (golden `pc-parity`, merged tree)
+
+Every capture liveness-gated (`ui_age` 1/1/0 on all eight), through
+`parity.py capture`. First attempt failed six of eight, which was itself the
+finding — see below.
+
+| tab | whole-screen content_match | leaf scores |
+|---|---|---|
+| skills | 97.24 | outer_frame 3.08 · list_item 5.97 · list_next 3.86 |
+| attributes | 98.33 | *(no leaf spec)* |
+| equipment | 98.35 | outer_frame 3.66 · list_cat 4.64 · list_item 5.69 |
+| tinkering | 98.81 | *(no leaf spec)* |
+| journal | 96.88 | *(no leaf spec)* |
+| quests | 97.02 | *(no leaf spec)* |
+| reputation | 96.73 | outer_frame 9.28 · list_item 4.13 · list_next 9.25 |
+| messagelog | 98.64 | *(no leaf spec)* |
+
+### Six of eight failed first, and it was the bridge activate
+
+Every failure read `wanted status_X, got <the PREVIOUS tab>`. The `statustab`
+frames were landing in an undrained uiQueue and applying one step late, when the
+next capture's activate happened to work. Silent by construction: a TCP write to
+the mod cannot fail because the queue is parked, so the step reported ok and
+simply never happened.
+
+`_qud_bridge` was checking "is Qud frontmost" and, if not, activating and
+sleeping a flat 2s. Both halves wrong in the same direction — the activate often
+does not take, and frontmost is not the condition that matters, since a Qud that
+IS frontmost but has stopped rendering drains nothing and paid no settle at all.
+Replaced with the same `ui_age` settle the captures use. Three consecutive tab
+hops then landed, and the re-run went eight for eight.
+
+### Reputation moved 5.14 -> 9.25 with no code change, and it is not noise
+
+Raves' captures across the two runs differ by 0.1%; Qud's by 6.2%. Stacking the
+two Qud frames shows the same content at a **different scroll offset** (~28px).
+A row-shaped leaf is exquisitely sensitive to that, which is the whole story.
+
+So I widened the `--stable` window, on the theory that it masks only what moves
+inside its 2.5s pair. That theory is wrong and the measurement says so: at 12s it
+masked 1,046 px against 1,008 before, while 129,370 px actually vary between
+runs. No stability window can mask a scroll. `--stable-gap` survives as an
+option for a screen that genuinely animates; the default is back to 0 rather
+than pay 12s a capture for nothing.
+
+The real consequence: **leaf scores on a scrolling list are only comparable when
+the list's scroll is pinned.** Within one run they are now exactly reproducible
+(two consecutive runs returned identical 9.28 / 4.13 / 9.25). Across runs they
+are not, unless the tab is entered the same way. Reputation's earlier 6.34 /
+2.92 / 5.14 and today's 9.28 / 4.13 / 9.25 are both honest measurements of
+differently-scrolled screens, and neither is a regression.
+
+NEXT, and it blocks trustworthy list scoring: pin the scroll before capturing —
+either drive the list Home as part of the status_* edges, or make the spec
+anchor its row leaves to a landmark the way the item-popup spec already anchors
+to its own top line. The anchor machinery exists (`anchor_row`); the status
+specs just do not use it.
