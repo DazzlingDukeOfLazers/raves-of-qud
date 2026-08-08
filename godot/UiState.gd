@@ -14,6 +14,13 @@ extends Node
 
 var _scene := "title"
 var _popup := ""     # popup kind while one is up (message / yesno / menu / input)
+## How many popups have been RAISED this run. The kind alone cannot tell one modal from
+## the next of the same kind, and Qud's quit is exactly that: "are you sure?" then "save
+## first?", both kind `message`. A driver that answers the first and re-reads sees an
+## unchanged (scene, popup) pair and concludes nothing happened — measured 2026-08-07,
+## where it failed the quit route on a step that had in fact worked. The serial makes
+## "a DIFFERENT popup is up now" observable without inventing popup ids.
+var _popup_n := 0
 var _snap_ts := 0    # unix time of the last APPLIED snapshot (0 = none yet):
                      # proves the wire is flowing, not just that the UI is alive
 
@@ -42,6 +49,23 @@ func set_scene(scene: String) -> void:
 	_write()
 
 func set_popup(kind: String) -> void:
+	_popup = kind
+	_popup_n += 1
+	_write()
+
+## Re-assert the kind of the popup ALREADY up, without counting a new raise.
+##
+## `_popup_n` means "popups RAISED this run", and highvisor's dismiss steps diff it to tell
+## "the key I sent landed" from "nothing happened" — two consecutive confirms both report kind
+## `message`, so the counter is the only thing that separates them. Bumping it on a RE-announce
+## therefore forges that evidence: the mod re-broadcasts the live popup to every client on each
+## connect and highvisor's own state poller connects about twice a second, so a single untouched
+## modal walked popup_n from 3 to 37 in 30s (measured 2026-08-07). Any dismiss conditioned on a
+## popup then saw the fingerprint change on its own within a second — i.e. that step could not
+## fail, which is the whole defect class this session has been unpicking.
+func ensure_popup(kind: String) -> void:
+	if _popup == kind:
+		return
 	_popup = kind
 	_write()
 
@@ -135,6 +159,7 @@ func _write() -> void:
 		"ts": int(Time.get_unix_time_from_system())}
 	if _popup != "":
 		d["popup"] = _popup
+		d["popup_n"] = _popup_n
 	# `snap_ts` (PC line): when the last snapshot arrived, so a reader can tell a live
 	# heartbeat from a client that is connected but receiving nothing.
 	if _snap_ts > 0:

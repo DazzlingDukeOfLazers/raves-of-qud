@@ -209,6 +209,14 @@ the form (lower right); Esc clears the selection.
   the exported app writes none).
 - **Vertex-colour meshes need `vertex_color_is_srgb = true`** or palette colours desaturate.
 - **Driving an unfocused Qud is solved** (`Keyboard.PushCommand` + a focus watchdog) — see the decisions doc.
+  **`OnApplicationFocus` sets TWO flags** and the watchdog must hold both: `GameManager.focused`
+  gates the TURN thread, `XRLCore.bThreadFocus` gates UNITY'S `Update()` — which early-returns
+  before the `if (TextConsole.BufferUpdated)` block that is the only caller of
+  `GameManager.UpdateView()`, itself the only assignment to `_ActiveGameView`. Holding only
+  `focused` buys a game that keeps playing while its view can never change: after a quit the
+  legacy menu loop sets `CurrentGameView = "MainMenu"` and `_ActiveGameView` stays `Stage`
+  forever. `bThreadFocus` is INITIALISED true, so a Qud that never gains-then-loses focus never
+  trips it — which is exactly why this read as intermittent for a whole session.
 - **Commit + push after each round — but only once the relevant checks pass**, not merely "it builds":
   the mod build (`dotnet build`), the Godot parse/run check, and any targeted regression checks for what
   you touched. Then run the **author guard**: `git log --all --format='%ae' | grep -i allspice` must print

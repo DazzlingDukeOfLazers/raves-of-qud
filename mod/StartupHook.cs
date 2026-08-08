@@ -145,6 +145,30 @@ namespace RavesOfQud
                         string view = "";
                         try { view = GameManager.Instance != null ? (GameManager.Instance._ActiveGameView ?? "") : ""; }
                         catch { }
+                        // DIAGNOSTIC TRIO for the "game ended, view stuck on Stage" strand.
+                        // All three are plain field reads, which is all this thread may do.
+                        //
+                        // `curView` is the one that splits the problem in half. Qud keeps TWO view
+                        // names: _CurrentGameView (the logical one the legacy menu loop sets) and
+                        // _ActiveGameView (what UpdateView last applied -- assigned in exactly one
+                        // place, GameManager.UpdateView). XRLCore's menu loop restores the menu with
+                        //     if (CurrentGameView != "MainMenu") SetGameViewStack("MainMenu")
+                        // i.e. it tests the LOGICAL one, while we report the APPLIED one. So at a
+                        // strand:
+                        //   curView=MainMenu, view=Stage -> the menu loop ran; UpdateView did not.
+                        //   curView=Stage,    view=Stage -> control never got back to the loop at all.
+                        // Those are different bugs in different threads and the single after-the-fact
+                        // snapshot we had could not tell them apart.
+                        //
+                        // running/player split `live`, which ANDs three things. If player is null
+                        // while running is still true, the game never ended and RunGame is still
+                        // looping -- a third possibility the collapsed flag hid completely.
+                        string curView = "";
+                        bool running = false, hasPlayer = false;
+                        try { curView = GameManager.Instance != null ? (GameManager.Instance.CurrentGameView ?? "") : ""; }
+                        catch { }
+                        try { running = The.Game != null && The.Game.Running; } catch { }
+                        try { hasPlayer = The.Player != null; } catch { }
                         // Ask the main thread for a fresh window sample (at most one in flight).
                         try
                         {
@@ -203,6 +227,9 @@ namespace RavesOfQud
                             + (popup ? ",\"popup\":\"" + view.Replace("\"", "'") + "\"" : "")
                             + (tab.Length > 0 ? ",\"tab\":\"" + tab.Replace("\"", "'") + "\"" : "")
                             + ",\"view\":\"" + view.Replace("\"", "'") + "\""
+                            + ",\"cur_view\":\"" + curView.Replace("\"", "'") + "\""
+                            + ",\"running\":" + (running ? "true" : "false")
+                            + ",\"player\":" + (hasPlayer ? "true" : "false")
                             + ",\"window\":\"" + win.Replace("\"", "'") + "\""
                             + ",\"unity_scene\":\"" + _uiScene.Replace("\"", "'") + "\""
                             + ",\"ui_age\":" + uiAge

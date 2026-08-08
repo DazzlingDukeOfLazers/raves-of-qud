@@ -864,6 +864,39 @@ The real fix (open): the title recipe's dismiss steps need the focus dance built
 Raves, then focus Qud so the uiQueue drains, then verify — and a guard against resending CmdQuit
 while a quit confirm is already up.
 
+### …and the chain is a different LENGTH for a Classic character
+
+**CmdQuit is two prompts for a Wander/Roleplay save and THREE for a Classic one.** Decompiled from
+the shipped assembly (`XRL.Core.XRLCore`, `case "CmdQuit"`), after "are you sure you want to quit"
+→ Yes and "do you want to save first?", Qud raises a third confirm unless
+`Options.DisablePermadeath || CheckpointingSystem.IsCheckpointingEnabled()` — and
+`IsCheckpointingEnabled()` is true only for game state `Checkpointing == "Enabled"` or **GameMode
+Wander/Roleplay**. For a Classic character it is
+`Popup.AskString("…Type 'ABANDON' to confirm")`: a **text-input** modal, reported as
+`DynamicPopupMessage`, not a button confirm.
+
+Two consequences worth knowing before touching anything on this path:
+
+- **Never answer it programmatically.** Typing ABANDON is the quit-*without*-saving branch: it sets
+  a DeathReason and ends a permadeath run. A harness must not destroy a character to satisfy a
+  state transition. highvisor now cancels that prompt and fails the edge with the reason; the
+  non-destructive way to the title from a Classic game is a restart.
+- **It is why "the quit edge breaks on a long-lived Qud" looked like process ageing for three
+  sessions.** It never was age — a bare load/quit loop on the Wander fixture ran 40/40 clean in
+  9.2 minutes (2026-08-07). The failing session simply had a Classic character loaded, so the
+  chain hung on the ABANDON prompt every time. What made it look progressive is that
+  highvisor's `in_game` detector accepts the stuck state, so every "retry on a fresh load" planned
+  **zero** steps and re-tested the same stuck game.
+
+Also note Qud **discards** the "save first?" answer (`XRLCore` assigns `DialogResult.No` and then
+ignores the prompt's return value). Answer it correctly anyway — the modal is real and must be
+cleared — but don't reason about the quit's outcome from what you pressed there.
+
+`hv goto raves title` walks the same three-prompt chain through the mirrored modals and has the
+same hole: its dismiss steps condition on `popup: message`, which an input popup does not match,
+so an ABANDON prompt slips past as "not present" and the edge fails at its verify instead of at the
+step. Worth closing the same way the Qud edge was.
+
 ## The sidebar's ||| grab-bar: the centre column is TWO pixels wide
 
 Measured off a synced capture at 1080 — Qud's bar occupies x **1623 / 1627-1628 / 1632**, i.e.

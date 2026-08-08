@@ -173,6 +173,185 @@ tracked separately.
 
 FULL now passes in full on `dd/mac-pc-merge`.
 
+## FULL run 2026-08-07 (evening) — current `main`, both repos
+
+Run end to end on `main` with the whole day's fixes in it (directional assert, popup matcher +
+`refuse`, `_qud_command_chain`, `stranded_stage`, the focus-keeper two-flag fix, `hv quit`, the
+gametree conversions). SPOT first as the gate: **5/5**, plus highvisor's four selftests.
+
+### FULL 1 — typing guard, live: **PASS on 6 of the 7 listed fields**
+
+Typed `e j q x n 1 2` into each and **read the characters back out of the field** — never inferred
+from the scene not moving, which is the documented trap and which bit again this run (the first
+Options attempt clicked 40px off, typed into nothing, and the scene "correctly" did not move).
+
+| field | result |
+|---|---|
+| status-screen search | PASS — text in field, scene stayed `status_equipment` |
+| feedback note | PASS — over a status screen, a harder case than the doc's in-game one |
+| Options search | PASS (after re-clicking the real box) |
+| control-mapping | PASS — the field the previous run could not reach at all |
+| tile report | PASS — **in-game**, where `e`/`j`/`q`/`x`/`n` would open Equipment/Journal/Quests/Attributes/Tinkering |
+| chargen name | N/A — no name field exists; the only chargen `LineEdit` is `filter…` |
+| Options host/port | **NOT COVERED** — those live in the `Raves` options category, which `--one-to-one` hides, and `raves_solo` passes that flag. Needs the `raves_user` launcher. |
+
+Two defects found and fixed from this case alone — see below.
+
+### FULL 2 — 1:1 parity sweep: **INCONCLUSIVE, not a regression**
+
+Scored PER LEAF against `reports/2026-08-04-status-screens/parity-equipment.json` with `--stable`
+(a second Qud capture), baseline taken by scoring the committed captures with the same tool and
+spec so the comparison is like-for-like. 33 leaves.
+
+**The comparison is not valid, and the reason is visible in the pixels.** The captured game state
+differs from the 2026-08-04 baseline: the category filter strip holds a *different set of category
+icons*, a *different filter is selected* (ALL highlighted now, a different category then), and
+Qud's strip sits one cell to the right. The spec addresses cells by fixed coordinates, so those
+leaves are comparing different widgets — hence `filter_image` 3–5 → 58–79. `doll_image` is equally
+state-dependent (it compares equipped-item sprites).
+
+What IS comparable is the chrome, which does not depend on contents, and it is flat-to-better:
+`doll_frame[0..4]` −0.61/−0.33/−0.62/−0.70/−0.60, `filter_frame[1..4]` −0.75/−0.75/−0.87/−2.12,
+`list_item` −2.34. (`filter_frame[0]` +18.43 is the ALL cell, gold-selected now vs grey then.)
+Consistent with no rendering regression — and nothing landed today touches a rendering path.
+
+**To make this case meaningful again the baseline captures need retaking against the current
+fixture**, or the fixture needs pinning. Left as-is rather than reported as a pass or a failure.
+
+### FULL 4 — mod round-trip: **PASS**
+
+- popups mirror and answer: `CmdSystemMenu` → Qud popup at 0.02s → Raves `popup=menu` at 0.43s.
+- `statustab`: Journal and Tinkering, and back to in-game.
+- nav commands — the doc's gap ("in 1:1 the nav cluster is icon-only, no caption to anchor a
+  click"). Exercised through the SAME bridge channel the buttons use, with the command names read
+  out of `MainFrame.gd` (`CmdAutoExplore` / `CmdMoveToPointOfInterest` / `CmdWaitMenu`), each
+  verified by its effect rather than by the send returning:
+  autoexplore moved the player (40,24)→(39,23); POI raised Qud's 2-option chooser; `CmdWaitMenu`
+  raised its popup at 0.6s. **This does not test the icon's click target** — only that the command
+  reaches Qud and acts.
+
+### FULL 3 — menu recipes, whole tree: **Qud 20/28 arrived; Raves NOT RUN**
+
+Drove every modelled target for Qud (28), greedy-nearest by the planner's own costs, arrival
+checked with `hv assert --node` so a CONTAINER counts as arrived when detection lands inside it
+(`goto status_screens` → `status_attributes` passed, correctly).
+
+ARRIVED (20): in_game, all 8 status tabs + status_screens, title, modding_toolkit,
+histographicnomicon, map_editor + all 5 me_menu_* sub-screens, mod_manager.
+
+**All 8 failures are one root cause, not eight.** At `wfc_generator` the route took a restart
+edge; on that restart **Qud's in-game Roslyn compiler NRE'd and the mod did not load**
+(`MODERROR [Raves of Qud Bridge] - Exception compiling mod assembly ... NullReferenceException at
+CSharpCompilation.GetSourceDeclarationDiagnostics`). The bridge never came up, `qud_state.json`
+went stale (420s against a 6s TTL), and every subsequent target failed clicking for captions on
+the wrong screen.
+
+**Not caused by anything committed today**: `dotnet build` is clean, the same mod had compiled and
+run through hours of driving earlier in the session, and a clean `hv restart qud` afterwards came
+up with the bridge OPEN, the heartbeat 0.8s fresh and **zero** MODERRORs. Transient, under the load
+the tour put on the app.
+
+The harness defect it exposes is worth more than the flake: **`hv state` answered
+"Title Screen  via=live" the whole time Qud was sitting on the Modding Toolkit.** With the state
+file stale the engine falls back to the `game_live: false` inference, which every menu screen
+satisfies, so a dead bridge degrades into a *confident wrong answer* rather than an unknown — the
+same class as the `stranded_stage` mislabelling fixed earlier today. Tracked separately.
+
+NOT RUN this session, and not to be read as passing:
+- the **Raves** whole-tree tour (21 targets) — out of budget after the Qud tour;
+- FULL 3 against the **Classic** save as a tour. The part of it that matters most, the quit chain,
+  WAS exercised against `Marsha Taur` earlier the same day: 3/3 consecutive loud failures naming
+  the ABANDON prompt, cancelled, game left live, not poisoning the next attempt.
+
+### FULL 2 — RETAKEN 2026-08-08: **PASS**, and the earlier INCONCLUSIVE is superseded
+
+New baseline at `reports/2026-08-08-parity-baseline/` (captures + `scoreboard.json` + a README
+recording the pin). Supersedes the "INCONCLUSIVE" entry above, which was correct at the time: the
+2026-08-04 captures carried no record of the state they were taken in.
+
+**Pinned** with the repo's own tooling, not by hand: `sync-raves-and-qud` (Wander, Joppa
+`JoppaWorld.11.22.1.1.10`) loaded via `tools/capture/fixture.py reload`, Equipment tab in both apps,
+filter **ALL** (the default on open, so nothing needs arranging), Qud activated and given ~3s to
+repaint, captured twice for `--stable`.
+
+**The retake was checked before it was trusted**, because re-baselining a leaf that genuinely
+regressed would drive its delta to zero and look healthy. Control: the leaves that do not depend on
+which item or filter is selected — `doll_frame[0..4]`, `filter_frame[1..4]`, `outer_frame` — scored
+against the OLD baseline moved **-1.64 .. +0.91**, matching the -0.30 .. -2.34 measured the day
+before and inside this spec's documented ~0.7 noise. Nothing material moved, so the new numbers are
+a change of fixture, not of rendering.
+
+**Reproducibility**: the pin was re-driven end to end and re-scored — **all 33 leaves within
+±0.01** (mean -0.001).
+
+**What it revealed**: the old captures were taken on this same save all along. Fixture-dependent
+leaves come back nearly identical (`doll_image` 5.75/12.70/0/2.76/0 vs 5.75/12.71/0/2.76/0;
+`filter_image` within 0.03 on four of five). The 58–79 "regression" on 2026-08-07 was purely the
+`meta` save being loaded instead.
+
+**One leaf named, not absorbed: `list_cat` 3.91 → 6.48 (+2.57)** — content, not rendering. That row
+was blank in the old capture (different scroll position) so the apps trivially agreed; it now holds
+`c) [-] Data Disks |1 lbs.|`, real text both apps render the same, and the residual is glyph
+antialiasing. **Therefore `list_cat`/`list_item` are NOT fixture-independent** and must not be used
+as controls for a future retake — the state-independent set is `doll_frame[0..4]`,
+`filter_frame[1..4]`, `outer_frame`.
+
+### FULL 3 completed 2026-08-08 — the two tours the 08-07 run did not cover
+
+Same method as the Qud tour: greedy-nearest by planner cost, arrival via `hv assert --node` so a
+CONTAINER counts when detection lands inside it. The tour now also samples the **environment**
+around every goto (bridge reachable, `qud_state.json` within its 6s TTL) and classifies each
+failure, because the 08-07 run reported 8 failures that were one dead reporter:
+
+    EDGE     environment healthy, the route still did not arrive
+    ENV      the reporter was down -- not a broken edge
+    REFUSED  the harness declined ON PURPOSE (see the Classic rows)
+
+#### A. Raves, Wander fixture: **21/21 ARRIVED** (0 EDGE, 0 ENV)
+
+First pass was 13/21 with 8 EDGE failures, **all one missing edge** — see the control-mapping fix
+in highvisor `beee9bc`. Opening Raves' Control Mapping drives QUD to its Keybinds screen; Raves had
+no exit edge, so the tour left it by whatever route the planner found, closing Raves' copy and
+leaving Qud parked on Keybinds with its turn thread inside the UI. Every later
+`raves in_game -> title` then failed "dismiss ran but in_game is still up", because CmdQuit reaches
+a turn thread that is not in the game loop. The health columns were the thing that made this
+readable at a glance: 0 ENV, heartbeat under 1s all run, so it could not be blamed on the mod-load
+flake that produced the previous tour's phantom failures.
+
+Worth keeping: `hv state` called that parked screen **"Title Screen via=live"** — the
+`{game_live: false}` fallback again, and this time with a live game behind it (the probe reads
+false because a parked turn thread publishes no snapshot). Fixed for this screen by giving Qud a
+first-party detector (`scene: Keybinds`); the general fallback defect is still open.
+
+Re-run after the fix: **21/21**, including `new_game` arriving at `game_mode` (the container rule).
+
+#### B. Classic save (`Marsha Taur`), both apps — **no defects; the refusals are the design**
+
+| tour | arrived | refused-by-design | EDGE | ENV |
+|---|---|---|---|---|
+| qud | 10/28 | 18 | 0 | 0 |
+| raves | 10/21 | 11 | 0 | 0 |
+
+ARRIVED both apps: `in_game` and every status screen (plus `status_screens` for Qud,
+`control_mapping` for Raves) — i.e. everything that does **not** route through the title.
+
+REFUSED (qud): title, continue, records, options, mods, new_game, game_mode, modding_toolkit,
+mod_manager, workshop_uploader, blueprint_browser*, histographicnomicon, wfc_generator, map_editor,
+me_menu_{edit,file,recent,transform,view}. (raves: the same set it models, plus genotype/calling.)
+Every one of them routes through `title` from `in_game`, and on a Classic (non-checkpointing) save
+that edge must answer Qud's typed ABANDON confirmation — which would end a permadeath run. The
+harness cancels it and fails instead, naming the prompt. **That is the designed behaviour and a
+PASS.** Verified after 18 consecutive qud refusals and 11 raves ones: the game was still
+`live=True running=True player=True scene=play`, still drivable (status round-trip), not poisoned.
+
+**THE FINDING: the planner cannot express "this edge is blocked on this save."** `hv restart qud`
+DOES reach the title on Classic (verified) — killing the process needs no ABANDON answer and does
+not touch the save file, only unsaved progress. But the planner prices the CmdQuit route at 8,
+takes it, is refused, and then gives up: `_drive_route` only re-plans when the app MOVED, and the
+refusal deliberately leaves the game exactly where it was. So the `* -> title` restart edge that
+would work is never reached. All 29 refusals across the two tours are that one gap. Tracked
+separately; it wants edge-exclusion on retry, not a cost tweak.
+
 ---
 
 ## FULL on `dd/pc-lumpy-merge` — 2026-08-07 (Lumpy, Win11)
