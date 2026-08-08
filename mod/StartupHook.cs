@@ -64,45 +64,10 @@ namespace RavesOfQud
         {
             try
             {
-                string win = "";
-                var umType = Type.GetType("Qud.UI.UIManager, Assembly-CSharp");
-                object um = umType != null ? umType.GetField("instance").GetValue(null) : null;
-                if (um != null)
-                {
-                    var cw = umType.GetField("_currentWindow",
-                        System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public
-                        | System.Reflection.BindingFlags.NonPublic)?.GetValue(um);
-                    if (cw != null)
-                    {
-                        var visProp = cw.GetType().GetProperty("Visible",
-                            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public
-                            | System.Reflection.BindingFlags.NonPublic);
-                        bool vis = visProp != null && visProp.GetValue(cw, null) is bool b && b;
-                        if (vis) win = cw.GetType().Name;
-                    }
-                }
-                // Some toolkit screens are SingletonWindowBase windows that never become
-                // UIManager._currentWindow (verified live: Workshop Uploader, Blueprint
-                // Browser, Histographicnomicon, Waveform generator) — probe them directly.
-                // instance is a static on the SingletonWindowBase<T> generic base.
-                if (win == "")
-                {
-                    foreach (var tn in new[] { "SteamWorkshopUploaderView", "BrowseBlueprintsView",
-                                               "HistoryTestView", "WaveformTestView" })
-                    {
-                        var t = Type.GetType(tn + ", Assembly-CSharp");
-                        var instF = t?.BaseType?.GetField("instance",
-                            System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public
-                            | System.Reflection.BindingFlags.NonPublic);
-                        object inst = instF != null ? instF.GetValue(null) : null;
-                        if (inst == null) continue;
-                        var vp = inst.GetType().GetProperty("Visible",
-                            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public
-                            | System.Reflection.BindingFlags.NonPublic);
-                        if (vp != null && vp.GetValue(inst, null) is bool v && v) { win = tn; break; }
-                    }
-                }
-                _uiWindow = win;
+                // Which window is up lives in ONE place — UiReflector, next to the code that
+                // reflects over that same object. This sampler wants its NAME; the `reflect`
+                // bridge command wants its methods. Two readers, one description of "visible".
+                _uiWindow = UiReflector.CurrentWindowName();
                 // WHICH Map Editor dropdown is down, if any — the reflection lives in
                 // MapEditorDriver next to the code that CLOSES one, so there is a single
                 // description of the menu bar's shape. Reported below as `tab`.

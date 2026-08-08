@@ -801,6 +801,61 @@ namespace RavesOfQud
                     }
                     return;
                 }
+                if (name == "reflect")
+                {
+                    // Dump the LIVE UI window's methods + current field values to ui_reflect.txt.
+                    //
+                    // The chargen carousel cannot be reached by any synthesized input (see the long
+                    // note on `pick`), so the remaining route is to call the window object's own
+                    // methods -- which means finding out what they are. Reflecting the running
+                    // object beats decompiling the assembly: it says WHICH window is up and what its
+                    // selection state currently reads, neither of which is in the DLL.
+                    //
+                    // uiQueue, not the socket thread: UIManager and its windows are Unity objects.
+                    // `typename` optionally names a class to reflect instead of the visible window.
+                    // NOT `type` -- that is the wire envelope's own field ({"type":"command",...}),
+                    // so an arg by that name reads back as "command" and reflects nothing.
+                    f.TryGetValue("typename", out string reflectType);
+                    var gmr = GameManager.Instance;
+                    if (gmr != null && gmr.uiQueue != null)
+                        gmr.uiQueue.queueTask(() =>
+                        {
+                            try { UiReflector.Dump(reflectType); }
+                            catch (Exception e) { Server.Log("reflect failed: " + e.Message); }
+                        }, 0);
+                    return;
+                }
+                if (name == "choose" || name == "invoke")
+                {
+                    // Drive a modern chargen window through its OWN methods (UiDriver) — the only
+                    // route in, since these screens read none of the input queues anything outside
+                    // the process can reach. `choose` matches one of the window's own choices by
+                    // label (or index) and hands it to ChoiceSelected; `invoke` calls a named
+                    // no-arg method (RandomSelection, ResetSelection, ...).
+                    f.TryGetValue("label", out string chooseLabel);
+                    f.TryGetValue("index", out string chooseIdx);
+                    f.TryGetValue("method", out string chooseMethod);
+                    int ci;
+                    if (!int.TryParse(chooseIdx, out ci))
+                    {
+                        double cd;
+                        ci = double.TryParse(chooseIdx, System.Globalization.NumberStyles.Any,
+                            System.Globalization.CultureInfo.InvariantCulture, out cd) ? (int)cd : -1;
+                    }
+                    bool isChoose = name == "choose";
+                    var gmc = GameManager.Instance;
+                    if (gmc != null && gmc.uiQueue != null)
+                        gmc.uiQueue.queueTask(() =>
+                        {
+                            try
+                            {
+                                if (isChoose) UiDriver.Choose(chooseLabel, ci);
+                                else UiDriver.Invoke(chooseMethod);
+                            }
+                            catch (Exception e) { Server.Log(name + " failed: " + e.Message); }
+                        }, 0);
+                    return;
+                }
                 if (name == "move")
                 {
                     f.TryGetValue("dir", out string dir);
