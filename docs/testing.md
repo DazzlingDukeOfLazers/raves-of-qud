@@ -395,3 +395,43 @@ scoreboard; compare PC runs to THIS baseline.
 
 `image` at 49.58 remains the category filter strip, which the mac notes already
 track as a pre-existing offset-by-one-slot defect rather than a scoring artifact.
+
+### The PC/mac FULL 2 gap is the equipment FILTER STRIP, not rasterisation
+
+Tested 2026-08-07 and my "Windows font rasterisation" hypothesis is FALSIFIED.
+
+CONTROL first: scoring the mac's OWN committed captures on this machine gives
+composite 3.19 / frame 2.34 / image 4.28. Same tool, same spec, mac-rendered
+pair 3.19 vs PC-rendered pair 13.27 — so the difference lives in what the apps
+RENDER, not in the scorer.
+
+`list_item`, scored per platform (each pair mirrors one character, so the error
+CHARACTER is comparable even though content differs):
+
+    MAC   best align dx=-1 dy=+1   ink overlap 26.8%   FLAT 5.25   EDGE 37.65
+    PC    best align dx=-1 dy=+1   ink overlap 37.1%   FLAT 2.43   EDGE 54.40
+
+Identical alignment, identical ink boxes, and the PC is BETTER on mean|d| (3.76
+vs 6.36) and on overlap. Text is not the problem; `list_item` is not even in the
+top 14 contributors.
+
+The gap is the FILTER STRIP, by an order of magnitude:
+
+    filter_image[0..4]   mac 2.15-5.57   PC 78.44-81.62   (+74 to +76 each)
+    filter_frame[0..4]   mac 1.50-2.87   PC 24.06-37.93
+    filter_cell[0..1]    mac 1.79-1.92   PC 23.57-42.27
+
+Looked at it rather than inferring: on the MAC, Qud's and Raves' strips ALIGN —
+same start x, icons matching one-for-one. On the PC, Qud's strip sits ~88 px
+RIGHT of Raves' and the icons do not correspond — FOR THE SAME CHARACTER.
+
+So this is a real Raves layout defect, not a platform artifact and not the
+fixture: Raves positions the category filter strip differently from Qud, and the
+two only coincide at the category count the mac's fixture happens to produce.
+The mac note calling this "offset by one slot, pre-existing" was seeing the
+benign end of the same bug.
+
+NEXT: measure how Qud anchors that strip (left-aligned from a fixed x, centred,
+or right-aligned against the panel) across two characters with different category
+counts, then match it. Fixing it should move `image` from ~49.6 toward the mac's
+~4, i.e. most of the PC/mac gap.
