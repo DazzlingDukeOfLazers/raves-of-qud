@@ -1161,3 +1161,39 @@ After `hv layout pair`, the full path — capture then score, no hand-written sh
     outer_frame 6.28   list_item 2.81   list_next 5.28   (composite mean 4.04)
 
 Same numbers as the manual runs within capture noise.
+
+### The 2400-tall window, actually fixed
+
+Two layers, and the second was the real one.
+
+**The stage forgets.** `hv layout NAME` now records itself as the standing stage
+and `hv restart` re-applies it once the app reports ready, so a relaunched window
+comes back placed without anyone remembering to re-run the layout. Response
+carries `relaid` so it is visible rather than magic.
+
+**Raves was fighting the stage on a different clock.** That alone did not fix it:
+the restart placed the window at 1920x1080 and it was 4267x2400 again by capture
+time. `Main.gd` restores a saved `win` size from `raves_settings.json` when the
+Holodeck loads — which happens when a status tab is opened, well AFTER placement.
+The saved value was `[4267, 2400]`.
+
+That late timing is why this read as "the restart raced the window" for most of
+the evening. It was not a race at all; it was a second writer on a completely
+different trigger.
+
+The restore was already skipped in launch-qud mode, "because a saved size would
+fight" QudLauncher's geometry. The same reasoning applies one layer out in 1:1
+mode, where the stage owns geometry and Raves must match Qud's window exactly or
+every leaf rect means a different thing in each app. Now gated on both.
+
+The save side is gated too, and that matters for the human: in 1:1 mode the size
+on screen is the STAGE's, so writing it back would quietly replace the size
+chosen in user mode with whatever the last parity run used. The stored value is
+carried through instead. Verified — `raves_settings.json` still reads
+`[4267, 2400]` after a full parity run.
+
+Measured end to end, restart through score with nothing done by hand:
+
+    after restart:   1920x1080
+    after Holodeck:  1920x1080      <- previously 4267x2400
+    outer_frame 6.34   list_item 2.92   list_next 5.14

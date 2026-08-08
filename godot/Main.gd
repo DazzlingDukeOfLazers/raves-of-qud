@@ -952,6 +952,17 @@ func _notification(what: int) -> void:
 ## Persist the view/render settings a run should remember.
 func _save_settings() -> void:
 	var sz := DisplayServer.window_get_size()
+	# In 1:1 mode the window size is the STAGE's, not the user's, so writing it back would
+	# quietly overwrite the size they chose in user mode with whatever the last parity run
+	# happened to use. Carry the stored value through instead of recording the stage's.
+	var keep_win: Variant = null
+	if Settings.one_to_one() and FileAccess.file_exists(SETTINGS_PATH):
+		var pf := FileAccess.open(SETTINGS_PATH, FileAccess.READ)
+		if pf != null:
+			var prev: Variant = JSON.parse_string(pf.get_as_text())
+			pf.close()
+			if prev is Dictionary:
+				keep_win = prev.get("win", null)
 	var d := {
 		"mode": _cam_rig._mode,
 		"compass_yaw": _cam_rig._compass_yaw,
@@ -962,7 +973,7 @@ func _save_settings() -> void:
 		"fp_height": _cam_rig._fp_height,
 		"water_depth": (renderer.deep_water_depth if renderer != null else 0.6),
 		"level_height": (renderer.level_height if renderer != null else 4.0),
-		"win": [sz.x, sz.y],
+		"win": (keep_win if keep_win != null else [sz.x, sz.y]),
 	}
 	var f := FileAccess.open(SETTINGS_PATH, FileAccess.WRITE)
 	if f != null:
@@ -990,8 +1001,16 @@ func _load_settings() -> void:
 	var win = d.get("win", null)
 	# Skip in launch-qud mode: QudLauncher owns the window geometry there (borderless
 	# quadrant), and a saved size would fight it when entering gameplay.
+	#
+	# Skip in 1:1 mode for the same reason, one layer out: the STAGE owns geometry there
+	# (hv layout / the cockpit buttons), and Raves must match Qud's window exactly or every
+	# parity leaf rect means a different thing in each app. This restore fired late enough
+	# to look like something else entirely -- `hv restart raves` placed the window
+	# correctly, then loading the Holodeck for a status tab resized it back to a saved
+	# 4267x2400, so captures came back 2400 tall against a 1080-tall spec and the blame
+	# went to the restart racing the window. It was this, on a completely different clock.
 	if win is Array and win.size() == 2 and int(win[0]) > 200 and int(win[1]) > 200 \
-			and not QudLauncher.active:
+			and not QudLauncher.active and not Settings.one_to_one():
 		DisplayServer.window_set_size(Vector2i(int(win[0]), int(win[1])))
 	var m := int(d.get("mode", _cam_rig._mode))
 	if m >= 0 and m <= CamMode.TOP_FOLLOW:
