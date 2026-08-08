@@ -561,3 +561,35 @@ is exactly what a shared cause looks like from the wrong instrument.
 
 The `--stable` flag was written for this and its docstring says so. I had read it
 earlier the same day and still walked into it.
+
+### Leaf spec: skills (2026-08-07) — and why reputation is not here
+
+`reports/2026-04-status-screens/parity-skills.json` added, measured off the
+pc-parity golden. FIRST SCORE (with `--stable`, which this spec requires):
+
+    outer_frame  15.09
+    list_item    24.55
+    list_next    27.33
+    composite mean 25.94 (2 leaves)   frame mean 15.09 (1 leaf)
+
+Real divergence, unlike the whole-screen 92.87 the sweep reported for this tab —
+that number was measuring Qud's moving playfield. This one measures Raves.
+
+The rects were taken FROM STABLE PIXELS ONLY: a naive row scan over a Qud status
+screen finds the live world behind the scrim, not the UI. Every rect here was
+derived from pixels that agree between two Qud captures seconds apart. Anyone
+adding a spec for the remaining tabs must do the same or they will measure the
+world and call it chrome.
+
+REPUTATION IS BLOCKED, and not by anything in the spec format. `hv goto qud
+status_reputation` reports success and Qud DOES NOT MOVE — its two captures came
+back byte-identical to the skills ones, while `hv state` read
+`qud=skills raves=reputation`. So Qud's tab navigation lands on skills for that
+node. Writing a reputation spec from those captures would have described the
+skills screen under a reputation filename, which is worse than having no spec.
+Fix the qud status_reputation edge first; the spec is then ten minutes' work.
+
+This is the same failure shape as the raves status edges and the Continue edge:
+every step reports ok and the state does not move. Third instance on this branch
+— worth a `verify` on each edge that asserts the DESTINATION, which the tree
+supports and these edges do not all use.
