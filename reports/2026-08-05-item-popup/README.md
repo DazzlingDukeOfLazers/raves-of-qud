@@ -33,7 +33,18 @@ python3 tools/capture/parity.py score \
 The entire pin was re-driven from scratch (reload → re-attach Raves → re-raise the popup →
 re-activate → re-capture) and re-scored. **All 7 leaves reproduced EXACTLY (+0.00)**, better than
 the ±0.01 the Equipment baseline managed. An item popup raised by name off a reloaded fixture is
-about as deterministic as this harness gets.
+about as deterministic as this harness gets. Re-checked on 2026-08-08 after the box-model port:
+two consecutive re-drives of the whole pin scored identically to two decimal places on all seven.
+
+**One hazard the pin does not remove: the FIRST twiddle after a fixture reload sometimes raises a
+SHORT option list** (the cloth robe's 8 options arriving as 2 or 6, with Qud still settling). It is
+a different popup, so a run that captures it silently compares two different things — the header
+leaves still score, because they are anchored to each app's own top line. Verify the option count
+off Qud's live RectTransforms before capturing, and re-raise if it is wrong. Do **not** clear a
+menu with `popup / action:button / btn:Cancel` to retry: the mod fabricates a Cancel item, Qud's
+`OnActivateCommand` falls through to the HIGHLIGHTED row, and on the cloth robe that is
+"equip (auto)" — a retry loop written that way quietly equips the fixture's item and then fails
+forever. Reload the fixture instead; a reload cannot activate anything.
 
 ## Which leaves are safe as CONTROLS
 
@@ -48,74 +59,90 @@ wrong once on the Equipment spec (`list_cat`/`list_item` were treated as chrome 
 
 That is a thin control set — two of seven — which is precisely why the pin has to name the item.
 
-## Verdict: the screen is in good shape, with two structural offsets
 
-**At the floor, not worth chasing:**
+## 2026-08-08 — Qud's popup BOX MODEL, ported whole
 
-| leaf | diff | why it is the floor |
-|---|---|---|
-| `popup_image_color` | **0.00** | the tile's two-tone is exact |
-| `popup_image_geometry` | **0.25** | 42×54 ink in both apps, 1px apart in x |
-| `popup_frame_text_color` | **2.26** | palette matches; this is an ink mean over antialiased small text |
-| `popup_image_frame` | **2.50** | chrome lines, same band as Equipment's `doll_frame` (1.9–2.6) |
+The two offsets recorded here on 2026-08-05 (the popup "16px low", the item name "1px left") are
+closed. Neither was nudged: the model in the spec's `qud_model` block was applied whole, and both
+fell out of it.
 
-**Two genuine divergences, named rather than buried:**
-
-1. **The whole popup sits 16px LOW in Raves.** Measured off the anchor rows directly: Qud's popup
-   top line is at y320, Raves' at y336. `popup_placement` = 6.75. The spec recorded this on
-   2026-08-05 as constant across a 5- and a 7-option menu; it is unchanged.
-2. **The item-name line sits 1px LEFT in Raves.** `popup_frame_text_content` scores **15.40** and
-   on its own says nothing useful — the glyphs and palette match (`ink_color` 2.26) and the line is
-   simply translated. The new `popup_frame_text_geometry` (0.75) and the ink boxes
-   (Qud x=4 w=152, Raves x=3 w=153) say it precisely.
-
-Number 2 is the case for the spec format in miniature: a single masked mean-abs-diff folded a 1px
-translation and a rasteriser difference into one number and so answered neither. 1px structural
-offsets are exactly what this project chases (see the sidebar grab-bar note in `docs/gotchas.md`),
-so both are worth fixing — but neither is a regression, and the content underneath is exact.
-
-## 2026-08-08 — the offsets were investigated and NOT nudged
-
-Asked to fix the two offsets, I decompiled Qud's control first, as the repo requires. The result
-changed the problem, so the fix was deliberately **not** applied as a constant.
-
-**Qud's model** (from the live RectTransforms via the mod's `uiprobe target=PopupMessage`, cross-
-checked against the committed captures — the probe's `MenuControll h=407.12` matches the 407.5
-measured between the chrome rules):
-
-- the popup root is a 1920×1080 `VerticalLayoutGroup` with `align: MiddleCenter` — **Qud centres
-  the popup; it does not place it at a fixed y**. `MenuControll` sits at y=336.44 with h=407.12,
-  and 336.44 is exactly (1080−407.12)/2.
-- the item name is `ContextItemText`, full content width (238.21 at x=840.9), so Qud centres the
-  name on **x=960.0 — exactly screen centre**.
-
-**The "16px low" is not a constant.** Measuring the three chrome rules in both apps
-(Qud 320 / 471.5 / 728, Raves 336 / 487.5 / 735) decomposes it:
-
-| part | Qud | Raves | |
+| leaf | was | now | |
 |---|---|---|---|
-| header block | 151.0 | 151.0 | **already exact** — Raves' header is Qud's model |
-| command area | 256.5 | 247.5 | Raves **9px short**, and this part scales with option count |
-| box centre | 524.2 | 535.8 | Raves **11.5px lower** — a different anchoring |
-| width | 278.21 | ~280 | Raves 2px wider |
+| `popup_placement` | 6.75 | **0.00** | the popup's own top-line placement, absolute |
+| `popup_frame_text_content` | 15.40 | **4.98** | the item-name line |
+| `popup_frame_text_geometry` | 0.75 | **0.25** | same x, same y, same width; 1px of ink height left |
+| `popup_image_geometry` | 0.25 | **0.00** | identical tile bbox |
+| `popup_image_frame` | 2.50 | **2.28** | header chrome |
+| `popup_frame_text_color` | 2.26 | 2.30 | +0.04, inside run-to-run noise |
+| `popup_image_color` | 0.00 | 0.00 | |
 
-Adding 16 to the popup's y would zero the TOP rule on this one capture and leave the BOTTOM rule
-7px out, because the observed 16 is the **sum** of a content-dependent height error and an
-anchoring error that happen to add up on the cloth robe's 5-option menu. The 2026-08-05 note that
-it was "constant across a 5- and a 7-option menu" is not evidence of a fixed offset — both parts
-can be near-constant while their sum is a coincidence of those two sizes. That note is what made a
-nudge look safe, and the decomposition is what shows it is not.
+### What changed
 
-The **1px name offset** is very likely downstream of the 2px width difference (Qud centres the name
-on exactly x=960.0; a 2px-wider box centred the same way rounds differently), so it should be
-re-measured *after* the box model is right rather than nudged on its own.
+Qud centres `MenuControll` — spacing 10, pad L20 R20 T0 B5 — and hangs the visible chrome OFF that
+box: the top rule 16 **above** it, the opaque fill from box_top−20 to box_bottom−2, the bottom rule
+15.5 **inside** it. Raves centred the PANEL and drew its top rule 8px inside. So this was never a
+margin to add; it changed which box is centred, and it is shared by every popup kind.
 
-**Not fixed, on purpose.** The remaining work is a box-model port — Qud's `MenuControll`
-(spacing 10, pad L20 R20 T0 B5), `ContextContainer` (spacing 10, pad T10, MiddleCenter),
-the 16px divider strip and the 224-tall Scroll View — applied WHOLE. The repo's own precedent is
-explicit that this is the only way it works: the ability bar went 13.5 → 4.0 only when Qud's cell
-model was applied whole, and every piecemeal copy scored *worse*. The model is recorded in the
-spec's `qud_model` block so that port starts from Qud's numbers instead of from a delta.
+Inside the box, Qud's own structure now drives the sizes rather than a fitted height: the 138.12
+context block, a Scroll View that is `Message + 2 + options area + 2 + inputbox` (26 per row,
+spacing 2), and a 20px `MenuCrome` bar whose entries are `padL 2 + an 8px cursor cell + spacing 5 +
+text + padR 20`.
 
-**Scores are therefore unchanged** from the baseline above — nothing was altered, so nothing was
-re-scored. The controls, the reproducibility and the verdict all still stand as committed.
+### Verified across sizes AND kinds — six popups, four kinds, six widths
+
+The spec is pinned to one item at fixed coordinates, so it cannot see a differently sized popup.
+These were measured wherever they land, against Qud's own `MenuControll` from
+`uiprobe target=PopupMessage`. **Exact** = the opaque fill, the top rule, the context divider and
+the bottom rule all landed on Qud's pixel rows/columns with zero delta.
+
+| popup | kind | Qud's box | |
+|---|---|---|---|
+| cloth robe, 8 options | menu + context | 278.21×407.12 @ 820.90,336.44 | exact |
+| basic toolkit, 7 options | menu + context | 239.81×379.12 @ 840.09,350.44 | exact |
+| data disk, 9 options | menu + context | 433.61×435.12 @ 743.20,322.44 | exact |
+| wish prompt (`CmdWish`) | AskString input, 2 entries | 650.00×76.72 @ 635.00,501.64 | exact |
+| quest notice | message, 1 entry | 462.81×57.12 @ 728.59,511.44 | exact |
+| quit confirm (`CmdQuit`) | yes/no, 3 entries | 453.40×57.12 @ 733.30,511.44 | exact |
+
+Three of those exist because **each term of the width rule wins on a different popup**, which one
+capture could never have shown:
+
+- the cloth robe is sized by its widest COMMAND (67 + 211.21 = 278.21)
+- the data disk by its 41-character NAME (40 + 393.6 = 433.61) — its commands only ask for 199.81,
+  so a client that sized on the list alone would draw that popup a little over half Qud's width
+- the quit confirm by its COMMAND BAR (3 entries + 2 spacings + 2 line sprites at a 25px floor =
+  453.40) — its message only asks for 383.40, and nothing but a multi-button confirm reaches it
+
+### The one concession, stated rather than buried
+
+Godot snaps every Control rect to a whole pixel, so the carrier `PanelContainer` cannot be 278.21
+wide. Two consequences, both handled deliberately:
+
+1. **A Container CEILS a fractional minimum** — a row asking for 228.2 is handed 229 — and the box
+   came out 279, whose centred left edge is 820 where Qud's 278.21 rasterises from 821. The model's
+   own widths are rounded to the NEAREST pixel instead, which reproduces Qud's pixel on all six.
+2. **The chrome is drawn on the exact fractional box**, offset from the carrier by the sub-pixel
+   difference. That is what puts the AskString's rules on Qud's rows despite a 76.72 box living in
+   a 77px carrier. The offset is derived from SIZES only: a Control's `position` reads (0,0) from
+   inside its own draw callback on the show frame, and since nothing dirties the panel afterwards
+   that stale draw is the one left on screen.
+
+### Where the 1px name shift actually came from
+
+The prediction on record — that it was downstream of the 2px width difference and would resolve on
+its own — is **confirmed**. Nothing in the name's own layout changed.
+
+The cause was measurement, not placement: Godot's `get_string_size` returns a whole number where
+Qud lays this text out at exactly 0.6em (9.6px at font 16), and summing the per-run pieces of a
+coloured string rounds again — the widest option row measured 213 against Qud's 211.21. Measuring
+and advancing on the font's own pitch puts the name's ink box at Qud's x, y and width; the residual
+0.25 is one pixel of ink HEIGHT, which is the rasteriser and a documented floor.
+
+### Controls, and what did not move
+
+- `popup_image_frame` (fixture-independent) 2.50 → 2.28 — the header chrome did not regress.
+- **Raves' header block still measures 151.0 against Qud's 151.0.** It was already Qud's model, and
+  the port deliberately left its internals alone: the top rule moved to box_top−16 and every header
+  offset is still quoted from that line, so the arithmetic is unchanged by construction.
+- The Equipment spec was re-scored on the same build: **all 33 leaves within ±0.02** of
+  `reports/2026-08-08-parity-baseline/scoreboard.json`. No shared layout rule reached it.

@@ -51,10 +51,33 @@ Needs both apps: `hv launch raves`, both in-game.
    the guard is reached at runtime, not merely present in the source.
 2. **1:1 parity sweep.** `python3 tools/capture/parity.py` against the current report set; compare
    the panel means to the last committed scoreboard.
+   - **A parity spec is pinned to one state at fixed coordinates, so it cannot see a differently
+     sized widget.** After touching a shared layout (the popup box, a panel's chrome), also drive
+     the widget at several SIZES and KINDS and compare the geometry wherever it lands — Qud's own
+     `uiprobe` rect against the capture. The popup box model was checked that way across six
+     popups and four kinds, and two of the three terms in its width rule are reached by exactly one
+     of them (see `reports/2026-08-05-item-popup/README.md`). One capture would have hidden both.
 3. **Menu recipes.** `hv goto raves <node>` + `hv assert` across records/options/mods/load, both
    apps.
 4. **Mod round-trip.** Popups mirror and answer; `statustab`; the nav commands (autoexplore, POI,
    wait) each reach Qud.
+
+### Raising each popup KIND, deterministically
+
+The popup box is shared by every kind, so a change to it has to be seen on more than the item menu.
+All of these are non-destructive on the `sync-raves-and-qud` fixture and clear on the next reload:
+
+| kind | how |
+|---|---|
+| option menu, N options | `tools/capture/fixture.py twiddle <item>` — cloth robe 8, basic toolkit 7, data disk 9 |
+| menu sized by the NAME | twiddle `data disk` (a 41-character name, wider than any of its commands) |
+| text input (AskString) | bridge `command` / `CmdWish` — the wish prompt |
+| message | any notice; the fixture's quest grant raises one |
+| yes/no confirm | bridge `command` / `CmdQuit` on a **Wander** save, then answer `Cancel`. Two prompts, and cancelling the first unwinds without quitting. Never on a Classic character — that chain ends in the ABANDON text prompt (see `docs/gotchas.md`) |
+
+Verify the option COUNT off Qud's live RectTransforms before capturing: the first twiddle after a
+fixture reload sometimes raises a short list, which silently turns a parity run into a comparison
+of two different popups.
 
 FULL is allowed to need judgement. SPOT is not.
 

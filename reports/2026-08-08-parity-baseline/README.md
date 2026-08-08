@@ -68,3 +68,10 @@ which every composite leaf on text carries.
 They depend on the list's contents and scroll position, so do not use them as chrome-style controls
 when validating a future retake. The genuinely state-independent set is `doll_frame[0..4]`,
 `filter_frame[1..4]` and `outer_frame`.
+
+## 2026-08-08 (later) — re-scored after the popup box-model port
+
+`godot/PopupOverlay.gd` was rewritten to Qud's box model (see
+`reports/2026-08-05-item-popup/`). The popup shares no container with this screen, but a layout
+rule can reach further than it looks, so the whole pin was re-driven and re-scored on that build:
+**all 33 leaves within ±0.02** (range −0.01 .. +0.02). Nothing moved. The scoreboard is unchanged.
