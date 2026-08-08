@@ -825,6 +825,19 @@ namespace RavesOfQud
                         }, 0);
                     return;
                 }
+                if (name == "dumpcolors")
+                {
+                    // Export Qud's real code-char -> RGB palette. uiQueue because colorFromChar
+                    // returns a UnityEngine.Color and the lookup lives behind Unity's own types.
+                    var gmk = GameManager.Instance;
+                    if (gmk != null && gmk.uiQueue != null)
+                        gmk.uiQueue.queueTask(() =>
+                        {
+                            try { ColorsExporter.Export(); }
+                            catch (Exception e) { Server.Log("dumpcolors failed: " + e.Message); }
+                        }, 0);
+                    return;
+                }
                 if (name == "choose" || name == "invoke")
                 {
                     // Drive a modern chargen window through its OWN methods (UiDriver) — the only

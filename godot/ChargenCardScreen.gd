@@ -35,17 +35,19 @@ const ICON_SEL := Color(1, 1, 1, 1)
 const ICON_DIM := Color(0.35, 0.47, 0.54, 1.0)
 const DIM := Color(0.55, 0.62, 0.60, 0.35)    # very dim ("[9] Next" when disabled)
 
-const QUD_COLORS := {
-	"r": Color(0.60, 0.20, 0.15), "R": Color(1.00, 0.30, 0.30),
-	"g": Color(0.00, 0.50, 0.00), "G": Color(0.20, 0.90, 0.20),
-	"b": Color(0.00, 0.00, 0.60), "B": Color(0.25, 0.45, 1.00),
-	"c": Color(0.00, 0.55, 0.55), "C": Color(0.40, 1.00, 1.00),
-	"m": Color(0.55, 0.00, 0.55), "M": Color(1.00, 0.40, 1.00),
-	"w": Color(0.60, 0.40, 0.10), "W": Color(1.00, 0.82, 0.00),
-	"o": Color(0.70, 0.35, 0.00), "O": Color(1.00, 0.55, 0.00),
-	"y": Color(0.70, 0.70, 0.70), "Y": Color(1.00, 1.00, 1.00),
-	"k": Color(0.10, 0.10, 0.10), "K": Color(0.10, 0.10, 0.10),
-}
+## Qud's colour codes -> RGB. QudPalette.COLORS is the canonical table and always was; this file
+## carried its own hand-approximated copy that had drifted badly, and since the same table colours
+## every screen, every parity comparison was carrying the drift.
+##
+## Measured on THIS screen's arcology band rules at 1920x1080: Qud draws the Ibul band (96,162,174)
+## where the local copy drew (97,245,245), and Yawningmoon (168,64,14) where it drew (244,75,75) —
+## generic bright ANSI colours against Qud's muted set. Three entries were the wrong hue family
+## outright: R is ORANGE, not pink-red; k/K are dark TEAL, not grey; y is green-tinted bone.
+##
+## Confirmed first-party rather than assumed: `hv bridge dumpcolors` calls Qud's own
+## ColorUtility.colorFromChar for every code (mod: ColorsExporter) and the export agrees with
+## QudPalette exactly, so the wiki transcription it was built from is correct.
+const QUD_COLORS := QudPalette.COLORS
 
 ## Qud draws its chargen text SMALLER than the app's own scale. Measured by column-profiling the same
 ## strings in both apps at 1920x1080: "character creation" spans 284px in Qud against 330 in Raves,
