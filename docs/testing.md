@@ -1859,3 +1859,29 @@ Corollaries worth not rediscovering:
   tells you to run — **does not exist on this machine**; only loop/halves/quads do.
 - After placing, assert the two windows do not overlap. Stacked cleanly on the 4K
   (Raves 0,-2160 / Qud 0,-1080, both 1920x1080) the failing edge passed first try.
+
+### FULL 3 / 4 / 1 on the merged tree — 2026-08-08
+
+| gate | was | now |
+|---|---|---|
+| FULL 3, raves Wander whole-tree tour | 21/21 | **22/22 arrived, 0 EDGE, 0 ENV, 0 REFUSED** (19.4 min). 22 because the chargen work added `caste`. |
+| FULL 4, `hv loadsave` + popup round-trip | pass | pass — popup mirrored (`popup=menu`, `popup_n=2`) and answered; loadsave `via bridge loadsave`. |
+| FULL 1, typing guard on the NEW field | 14 fields | **15** — typed `e j q x n 1 2` into the Map Editor blueprint filter, read **`ejqxn12`** back out of the pixels, scene never left `map_editor`. |
+
+**The tour is a script now: `highvisor/tools/tour.py`.** It had been re-typed as ad-hoc shell in
+every session, and an earlier version string-matched the daemon's output and mis-labelled an
+arrival as REFUSED. Arrival is decided by `hv assert` — the tree's own detectors — never by
+`goto`'s exit code. Its own first run reported 0/8 EDGE while every goto underneath had arrived,
+because the assert was called with the wrong flags and could never pass; it now prints a warning
+when a run fails EVERYTHING, since a clean sweep is far likelier to be a broken harness than N
+simultaneous defects.
+
+Three nodes arrived while `goto` said no (`status_quests`, `caste`, `blueprint_browser`) — those
+edges' `verify` blocks disagree with the detector that finally resolves them. Open, not blocking.
+
+**Two capture hazards found the hard way.** `hv layout pair` did not exist even though
+`parity.py`'s size-mismatch message tells you to run it — it does now (Raves 0,-2160 / Qud
+0,-1080, both 1920x1080, no overlap), trimmed to the two apps because `layout-save` otherwise
+captures every window on screen. And the merged tree's layout restoration **re-applies the last
+layout on every restart**: `hv loadsave` restarts Qud and silently put both windows back to
+1793x997 mid-session. Any capture taken after a restart can be off-geometry — apply `pair` first.
