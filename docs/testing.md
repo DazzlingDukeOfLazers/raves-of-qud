@@ -434,3 +434,16 @@ named rather than buried:
 Number 2 is the spec format's argument in miniature: one masked mean folded a 1px translation and a
 rasteriser difference into a single number and so answered neither question. Neither offset is a
 regression.
+
+**2026-08-08 follow-up — the offsets were decompiled, and deliberately NOT nudged.** Qud's popup
+root is a 1920x1080 `VerticalLayoutGroup` with `align: MiddleCenter` (from `uiprobe
+target=PopupMessage`): it CENTRES the popup rather than placing it, with `MenuControll` h=407.12 at
+y=336.44 = (1080-407.12)/2 exactly. Measuring the three chrome rules in both apps decomposes the
+"16px low" into parts that do not add up to a constant: the header block already matches EXACTLY
+(151.0 both), the command area is 9px short in Raves **and scales with option count**, the box
+centre sits 11.5px lower, and the box is 2px wider. Adding 16 would zero the top rule on the cloth
+robe's 5-option menu and leave the bottom rule 7px out. The 2026-08-05 "constant across 5 and 7
+options" note is what made a nudge look safe; it is a coincidence of those two sizes, not evidence
+of a fixed offset. The fix is a whole box-model port (recorded in the spec's `qud_model` block),
+per the ability-bar precedent where every piecemeal copy scored worse. Scores unchanged - nothing
+was altered.

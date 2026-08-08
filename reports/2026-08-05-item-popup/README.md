@@ -73,3 +73,49 @@ Number 2 is the case for the spec format in miniature: a single masked mean-abs-
 translation and a rasteriser difference into one number and so answered neither. 1px structural
 offsets are exactly what this project chases (see the sidebar grab-bar note in `docs/gotchas.md`),
 so both are worth fixing — but neither is a regression, and the content underneath is exact.
+
+## 2026-08-08 — the offsets were investigated and NOT nudged
+
+Asked to fix the two offsets, I decompiled Qud's control first, as the repo requires. The result
+changed the problem, so the fix was deliberately **not** applied as a constant.
+
+**Qud's model** (from the live RectTransforms via the mod's `uiprobe target=PopupMessage`, cross-
+checked against the committed captures — the probe's `MenuControll h=407.12` matches the 407.5
+measured between the chrome rules):
+
+- the popup root is a 1920×1080 `VerticalLayoutGroup` with `align: MiddleCenter` — **Qud centres
+  the popup; it does not place it at a fixed y**. `MenuControll` sits at y=336.44 with h=407.12,
+  and 336.44 is exactly (1080−407.12)/2.
+- the item name is `ContextItemText`, full content width (238.21 at x=840.9), so Qud centres the
+  name on **x=960.0 — exactly screen centre**.
+
+**The "16px low" is not a constant.** Measuring the three chrome rules in both apps
+(Qud 320 / 471.5 / 728, Raves 336 / 487.5 / 735) decomposes it:
+
+| part | Qud | Raves | |
+|---|---|---|---|
+| header block | 151.0 | 151.0 | **already exact** — Raves' header is Qud's model |
+| command area | 256.5 | 247.5 | Raves **9px short**, and this part scales with option count |
+| box centre | 524.2 | 535.8 | Raves **11.5px lower** — a different anchoring |
+| width | 278.21 | ~280 | Raves 2px wider |
+
+Adding 16 to the popup's y would zero the TOP rule on this one capture and leave the BOTTOM rule
+7px out, because the observed 16 is the **sum** of a content-dependent height error and an
+anchoring error that happen to add up on the cloth robe's 5-option menu. The 2026-08-05 note that
+it was "constant across a 5- and a 7-option menu" is not evidence of a fixed offset — both parts
+can be near-constant while their sum is a coincidence of those two sizes. That note is what made a
+nudge look safe, and the decomposition is what shows it is not.
+
+The **1px name offset** is very likely downstream of the 2px width difference (Qud centres the name
+on exactly x=960.0; a 2px-wider box centred the same way rounds differently), so it should be
+re-measured *after* the box model is right rather than nudged on its own.
+
+**Not fixed, on purpose.** The remaining work is a box-model port — Qud's `MenuControll`
+(spacing 10, pad L20 R20 T0 B5), `ContextContainer` (spacing 10, pad T10, MiddleCenter),
+the 16px divider strip and the 224-tall Scroll View — applied WHOLE. The repo's own precedent is
+explicit that this is the only way it works: the ability bar went 13.5 → 4.0 only when Qud's cell
+model was applied whole, and every piecemeal copy scored *worse*. The model is recorded in the
+spec's `qud_model` block so that port starts from Qud's numbers instead of from a delta.
+
+**Scores are therefore unchanged** from the baseline above — nothing was altered, so nothing was
+re-scored. The controls, the reproducibility and the verdict all still stand as committed.
