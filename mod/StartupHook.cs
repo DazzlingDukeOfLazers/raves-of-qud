@@ -205,7 +205,29 @@ namespace RavesOfQud
                             || view.Equals("MainMenu", StringComparison.OrdinalIgnoreCase);
                         bool winUseful = win.Length > 0
                             && !win.Equals("MainMenu", StringComparison.OrdinalIgnoreCase);
-                        if (!live && viewVague && winUseful && uiAge >= 0 && uiAge <= 5) scene = win;
+                        bool sampleFresh = uiAge >= 0 && uiAge <= 5;
+                        if (!live && viewVague && winUseful && sampleFresh) scene = win;
+                        // NAME THE TITLE POSITIVELY. Everything above reports the title by NOT
+                        // matching anything else: the legacy view says "MainMenu" on the title and on
+                        // all five character-creation screens alike (Qud hosts the whole chargen flow
+                        // in that one view), and `winUseful` deliberately rejects "MainMenu", so a
+                        // fresh sample that genuinely says "we are on the title" left `scene` reading
+                        // exactly what a STALE sample on the caste screen leaves it reading.
+                        //
+                        // highvisor's title node matched that bare "MainMenu", so whenever this
+                        // sampler lagged a chargen transition the state tree confidently answered
+                        // "Title Screen". Measured 2026-08-08: `hv state` reported Title Screen while
+                        // Qud sat on QudBuildSummaryModuleWindow, which the next poll named correctly.
+                        // Every `hv goto qud ...` PLANS off that answer, so routes began from a screen
+                        // the game was not on -- much of why driving Qud's chargen read as random.
+                        //
+                        // With a distinct name, a fresh sample is a positive assertion and a stale one
+                        // leaves "MainMenu", which now matches no node at all: `unknown`, the honest
+                        // answer, and one the planner can route out of. Same argument the title node's
+                        // own note makes for deleting its `game_live: false` fallback.
+                        else if (!live && viewVague && sampleFresh
+                                 && win.Equals("MainMenu", StringComparison.OrdinalIgnoreCase))
+                            scene = "TitleScreen";
                         bool popup = view.IndexOf("Popup", StringComparison.OrdinalIgnoreCase) >= 0;
                         // WHICH status tab, when the status screens are the active view. Cached by
                         // the UI-thread watcher: resolving it here would mean a Unity call off-thread.
