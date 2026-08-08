@@ -460,3 +460,35 @@ empty ones are the obvious suspect). The next step is to dump both category
 lists for one character and diff the NAMES, which says immediately whether Raves
 is splitting a category Qud merges or adding one Qud drops. Do that before
 touching layout code — two anchoring hypotheses have already been wrong here.
+
+## FULL 2 — PC BASELINE SUPERSEDED, 2026-08-07: 13.27 -> 0.04
+
+The filter-strip fix closes it outright.
+
+    composite  13.27 -> 0.04     (12 leaves)
+    frame      14.42 -> 0.04     (11 leaves)
+    image      49.58 -> 0.00     (10 leaves)
+
+For reference the mac's own captures score 3.19 / 2.34 / 4.28 on this tool, so
+the PC is now the better of the two — the residual there is the same filter-strip
+defect at the count where it nearly cancels.
+
+THE BUG. Qud CENTRES the category strip on the screen and sizes it to the
+categories actually present. Raves had the reference measurements baked in as
+constants — Q badge 590, ALL cell 618 — which are correct only for the eleven
+categories the mac fixture happened to carry. Measured on two fixtures:
+
+    mac (11 cats)  Q@590  E@1329  span 739  centre 959.5
+    PC  ( 8 cats)  Q@677         span 565  centre 959.5    (3 fewer cells x 58)
+
+so on the PC golden the whole strip sat 87 px left of Qud's, and every
+fixed-rect filter_* leaf compared an icon against its NEIGHBOUR — 78-82 instead
+of 2-6. `_filt_left(cells)` now derives the origin from the live count and
+reproduces both fixtures exactly: 12 cells -> 590, 9 cells -> 677. Verified live,
+Raves' strip moved 590 -> 677 and Qud's is at 677.
+
+Three hypotheses were wrong before this one — the merged StartupHook, Windows
+font rasterisation, and strip anchoring — and each died to a measurement before
+any code changed. What finally worked was measuring the SAME quantity across two
+fixtures and asking what stayed constant: the centre did, so the constant was
+never 590.
