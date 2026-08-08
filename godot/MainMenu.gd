@@ -1281,8 +1281,12 @@ func _on_genotype_chosen(genotype_name: String) -> void:
 	_cg_genotype = genotype_name
 	var cls := _genotype_subtype_class(genotype_name)   # "Castes" / "Callings"
 	_close_overlay()
-	var sub: Variant = load("res://SubtypeScreen.gd").new()
-	UiState.set_scene("chargen_subtype")
+	var sub: Variant = load("res://CasteScreen.gd").new()
+	# SPLIT SCENE, one per branch. Both used to report "chargen_subtype", which meant the gametree
+	# could not tell Choose Caste from Choose Calling: `hv goto raves caste` passed its verify even
+	# if the click had missed and confirmed Mutated Human instead. Qud distinguishes them first-party
+	# (QudSubtypeModuleCategoryWindow vs QudSubtypeModuleWindow); this is Raves catching up.
+	UiState.set_scene("chargen_caste" if cls == "Castes" else "chargen_calling")
 	sub.subtype_class = cls
 	sub.genotype_name = genotype_name
 	_overlay = sub

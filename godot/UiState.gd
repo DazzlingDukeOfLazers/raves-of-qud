@@ -10,7 +10,9 @@ extends Node
 ##
 ## Callers: MainMenu (title / overlays / chargen / quit dialog), MainFrame (in_game),
 ## PopupOverlay (popup up/down). Scenes highvisor maps today: title, records, options,
-## mods, chargen_game_mode, chargen_genotype, chargen_subtype, quit_dialog, in_game.
+## mods, chargen_game_mode, chargen_genotype, chargen_caste, chargen_calling, quit_dialog, in_game.
+## (chargen_caste/chargen_calling replaced a single chargen_subtype, which could not distinguish the
+## True Kin branch from the Mutated Human one — see MainMenu._on_genotype_chosen.)
 
 var _scene := "title"
 var _popup := ""     # popup kind while one is up (message / yesno / menu / input)
