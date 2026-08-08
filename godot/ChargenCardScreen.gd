@@ -17,6 +17,12 @@ const BG := Color8(0x04, 0x21, 0x20)
 const CC_GOLD := Color8(0xAC, 0xA3, 0x36)     # "character creation"
 const SUB_TEAL := Color8(0x29, 0x73, 0x82)    # ":choose …:"
 const MUTED := Color8(0x61, 0x7C, 0x78)       # breadcrumb / description / hint
+## The category band's dashed RULE. Qud draws every band's rule in this one colour and gives only
+## the LABEL the arcology's colour — measured on all three at once: the rule reads (73,117,126)
+## under the green Ekuemekiyye label, the cyan Ibul label AND the orange Yawningmoon label alike.
+## Raves used to tint the rule to match its label, which is why the header row read as three
+## coloured strips rather than three labels on one rule.
+const BAND_RULE := Color8(0x49, 0x75, 0x7E)   # Qud (73,117,126)
 const SEL_GOLD := Color8(0xC8, 0xB8, 0x39)    # selected card border + hotkey + caret
 const BRIGHT_GOLD := Color8(0xE8, 0xD0, 0x1C) # onboarding highlight + guide corner squares (bright yellow)
 const DIM_BORDER := Color8(0x2C, 0x47, 0x47)  # unselected card border
@@ -382,8 +388,24 @@ func _build_center() -> void:
 	row.position.y = vp.y * _y_cards()   # tuck the cards just under the subtitle, as in Qud (was 0.5 — too low)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(row)
+	# Qud widens the pitch across an ARCOLOGY BOUNDARY: its caste cards measure
+	# [120,120,120,140,120,120,120,140,120,120,120] at 1920x1080 — four cards per band, +20px where
+	# one band ends and the next begins. Without it Raves' row was uniform and finished ~56px narrower
+	# than Qud's, and the bands sat too close to read as separate groups. A zero-width spacer with a
+	# minimum size is enough; the row's own separation lands on both sides of it, so ask for the
+	# DIFFERENCE rather than the whole gap.
+	var band_break := {}
+	for b in _category_bands():
+		var last := int(b.get("start", 0)) + int(b.get("count", 0)) - 1
+		if last >= 0 and last < _items.size() - 1:
+			band_break[last] = true
 	for i in range(_items.size()):
 		row.add_child(_build_card(_items[i], i, card_w, card_h))
+		if band_break.has(i):
+			var spacer := Control.new()
+			spacer.custom_minimum_size = Vector2(_band_break_px(), 0)
+			spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			row.add_child(spacer)
 	_build_bands()
 
 	_desc = _rich("", "body")
@@ -435,10 +457,6 @@ func _build_card(m: Dictionary, idx: int, cw: int, ch: int) -> Control:
 	cell.gui_input.connect(func(e):
 		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
 			_engage(); _select(idx); _confirm())
-	var caret := _text("›", SEL_GOLD, "big")
-	caret.custom_minimum_size = Vector2(12, 0)
-	caret.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	cell.add_child(caret)
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 4)
 	col.mouse_filter = Control.MOUSE_FILTER_IGNORE   # let clicks fall through to the cell's gui_input
@@ -452,6 +470,18 @@ func _build_card(m: Dictionary, idx: int, cw: int, ch: int) -> Control:
 	border.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_apply_card_frame(border)
 	boxc.add_child(border)
+	# The caret is an OVERLAY on the card box, not a column of its own. As an HBox child it reserved
+	# 12px + 4px separation in EVERY card, selected or not, inflating the pitch by 16px twelve times
+	# over: Raves measured a 134px card pitch against Qud's 120, and because the band rules are
+	# positioned FROM the cards they inherited it (Raves' header row spanned 1587px against Qud's
+	# 1495). Qud draws its caret in the GAP beside the selected card and reserves nothing for the
+	# rest, so this hangs outside the box's left edge and costs no layout width.
+	var caret := _text("›", SEL_GOLD, "big")
+	caret.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	boxc.add_child(caret)
+	caret.set_anchors_preset(Control.PRESET_CENTER_LEFT)
+	caret.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	caret.position.x = -13
 	var icon := TextureRect.new()
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -522,16 +552,27 @@ func _build_bands() -> void:
 			if first:
 				col = run[1]
 				first = false
-		var lrule := _dash_rule(col, -1)
+		var lrule := _dash_rule(BAND_RULE, -1)
 		var label := _text(plain, col, "caption")
 		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var rrule := _dash_rule(col, 1)
+		var rrule := _dash_rule(BAND_RULE, 1)
 		holder.add_child(lrule)
 		holder.add_child(label)
 		holder.add_child(rrule)
 		add_child(holder)
 		_bands.append({"holder": holder, "start": int(b.get("start", 0)), "count": int(b.get("count", 0))})
 	_position_bands_deferred()
+
+## Extra horizontal space inserted where one category ends and the next begins, ON TOP of the row's
+## normal card separation. Qud runs a 140px pitch across a boundary against 120 within a band.
+##
+## It cannot land exactly, and the reason is worth stating rather than hiding: an HBoxContainer puts
+## its separation on BOTH sides of the spacer, so a boundary costs 2*separation + this. At 1920 the
+## separation is already 24px, which overshoots the 20px target on its own — hence the clamp at zero
+## and a measured boundary pitch of ~143 against Qud's 140. Three pixels twice, against the 56px the
+## row was losing without any break at all.
+func _band_break_px() -> float:
+	return maxf(0.0, 20.0 - float(int(get_viewport_rect().size.x * _card_gap_frac())))
 
 ## A horizontal dashed rule that eats whatever width the label leaves, END-CAPPED with a vertical
 ## tick on its outer side (`cap` = -1 for the left rule, +1 for the right).
@@ -582,9 +623,13 @@ func _position_bands() -> void:
 		# Qud's rules run PAST the cards they head, not flush with them: its band row spans x212-1707
 		# against card frames at x231-1688, i.e. ~19px proud at each end. Flush looked deliberate and
 		# measured wrong.
-		# Half the old 0.010: at 19px each side, adjacent bands met exactly and their end caps had
-		# nowhere to sit. Qud leaves a visible break between one arcology's rule and the next.
-		var out := vp.x * 0.005
+		# Back to ~19px each side (0.0099), which is what Qud measures: its band row spans x212-1707
+		# against card frames at x231-1688. It was halved to 0.005 because adjacent bands were meeting
+		# with no room for their end caps — but the real cause of that was the card row having NO
+		# inter-band break, so the bands were butted together before the outset ever mattered. With
+		# the break restored (see _band_break_px) the full outset fits and Qud's visible gap between
+		# one arcology's rule and the next comes back.
+		var out := vp.x * 0.0099
 		var h: Control = b["holder"]
 		h.position = Vector2(x0 - out, vp.y * _y_bands())
 		h.size = Vector2((x1 - x0) + out * 2.0, h.size.y)
