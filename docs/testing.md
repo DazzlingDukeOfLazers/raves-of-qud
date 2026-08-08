@@ -625,3 +625,31 @@ Alongside skills (15.09 / 24.55 / 27.33) that is the same shape at the same
 magnitude, and both share the frame rect with equipment — whose frame scores
 ~0.04 now. So the frame geometry is right and something inside these two tabs
 diverges consistently. Two tabs measuring alike is a lead, not two bugs.
+
+### Rerun on a FRESH Qud: skills was an artifact, reputation is real
+
+The skills spec was first scored against a Qud whose uiQueue had stalled, so its
+capture was not the screen it claimed to be. Rerun after `hv restart qud` with
+`ui_age` verified at 1 for both captures:
+
+    skills      15.09 / 24.55 / 27.33   ->   3.01 / 4.95 / 4.00
+    reputation  15.87 / 24.95 / 30.61   ->  15.56 / 24.23 / 29.62
+                (frame / list_item / list_next)
+
+**Skills is fine.** Its earlier score was measuring a stale frame. **Reputation
+genuinely diverges** and reproduces across two independent runs on the golden.
+
+RETRACTS the "two tabs measuring alike is one lead, not two bugs" note above.
+They do not measure alike — one was a lie told by a stalled UI. The lead was an
+artifact of the same stall that has now cost four wrong conclusions on this
+branch, which is why `hv assert` reports `ui_age` at the top level as of
+highvisor e7cae41.
+
+STANDING RULE, learned the hard way and cheap to follow: record `ui_age` beside
+any parity score. A capture from a stalled app is indistinguishable from a real
+divergence once it is a number in a table, and the number outlives the session
+that produced it.
+
+Reputation is now the one open parity defect with a spec behind it: frame ~15.6
+against equipment's ~0.04 on the SAME frame rect, so its panel chrome diverges
+too, not just the rows.
