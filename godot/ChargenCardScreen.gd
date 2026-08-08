@@ -385,7 +385,7 @@ func _crumb_frame(box: Control, frame: Texture2D) -> void:
 
 func _build_side_nav() -> void:
 	var vp := get_viewport_rect().size
-	var ah: int = int(vp.y * 0.04)
+	var ah: int = int(round(vp.y * 0.0306))   # 33px at 1080 — Qud's chevron height
 	var la := _make_arrow(true, NAV_ARROW, ah)
 	la.position = Vector2(vp.x * 0.033, vp.y * 0.485)
 	add_child(la)
@@ -409,23 +409,30 @@ func _build_side_nav() -> void:
 	rb.size = Vector2(vp.x * 0.085, 0)
 	add_child(rb)
 
+## Qud's side chevron is a THIN two-segment stroke, not a filled glyph. Measured on the caste
+## screen: 18 wide x 33 tall with a 3px stroke, tip toward the screen edge.
+##
+## DRAWN, not blitted. nav_arrow.png is a 15x15 sprite and this used to stretch it into a 43px box —
+## a 2.9x upscale that turned the stroke into a ~15px blob, five times Qud's. No sprite scaling can
+## fix that either: Qud's chevron is 18x33, an aspect a square source cannot reach.
 func _make_arrow(left: bool, color: Color, h: int) -> Control:
-	var tex := _load_title_sprite("nav_arrow.png")
-	if tex != null:
-		var r := TextureRect.new()
-		r.texture = tex
-		r.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		r.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		r.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		r.flip_h = left
-		r.modulate = color
-		r.custom_minimum_size = Vector2(h, h)
-		r.size = Vector2(h, h)
-		r.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		return r
-	var l := _text("‹" if left else "›", color, "big")
-	l.add_theme_font_size_override("font_size", h)
-	return l
+	var w := int(round(h * 0.545))          # Qud 18 wide against 33 tall
+	# 2.1px at h=33, which MEASURES as Qud's 3. The stroke runs at ~45 degrees and a diagonal line's
+	# horizontal cross-section is width/sin(angle), so a line drawn 3px wide profiles as ~4.2 —
+	# asking for 3 directly came out 5 against Qud's 3.
+	var t := maxf(1.0, h * 0.064)
+	var c := Control.new()
+	c.custom_minimum_size = Vector2(w, h)
+	c.size = Vector2(w, h)
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	c.draw.connect(func():
+		var back := float(w) - t * 0.5      # the two open ends, at the edge away from the tip
+		var tip := t * 0.5
+		var x0 := back if left else tip
+		var x1 := tip if left else back
+		c.draw_line(Vector2(x0, tip), Vector2(x1, h * 0.5), color, t)
+		c.draw_line(Vector2(x1, h * 0.5), Vector2(x0, float(h) - tip), color, t))
+	return c
 
 # ══ layout: centre column (emblem, titles, cards, flavour, hint) ═══════════════════
 
