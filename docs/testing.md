@@ -295,3 +295,59 @@ was blank in the old capture (different scroll position) so the apps trivially a
 antialiasing. **Therefore `list_cat`/`list_item` are NOT fixture-independent** and must not be used
 as controls for a future retake — the state-independent set is `doll_frame[0..4]`,
 `filter_frame[1..4]`, `outer_frame`.
+
+### FULL 3 completed 2026-08-08 — the two tours the 08-07 run did not cover
+
+Same method as the Qud tour: greedy-nearest by planner cost, arrival via `hv assert --node` so a
+CONTAINER counts when detection lands inside it. The tour now also samples the **environment**
+around every goto (bridge reachable, `qud_state.json` within its 6s TTL) and classifies each
+failure, because the 08-07 run reported 8 failures that were one dead reporter:
+
+    EDGE     environment healthy, the route still did not arrive
+    ENV      the reporter was down -- not a broken edge
+    REFUSED  the harness declined ON PURPOSE (see the Classic rows)
+
+#### A. Raves, Wander fixture: **21/21 ARRIVED** (0 EDGE, 0 ENV)
+
+First pass was 13/21 with 8 EDGE failures, **all one missing edge** — see the control-mapping fix
+in highvisor `beee9bc`. Opening Raves' Control Mapping drives QUD to its Keybinds screen; Raves had
+no exit edge, so the tour left it by whatever route the planner found, closing Raves' copy and
+leaving Qud parked on Keybinds with its turn thread inside the UI. Every later
+`raves in_game -> title` then failed "dismiss ran but in_game is still up", because CmdQuit reaches
+a turn thread that is not in the game loop. The health columns were the thing that made this
+readable at a glance: 0 ENV, heartbeat under 1s all run, so it could not be blamed on the mod-load
+flake that produced the previous tour's phantom failures.
+
+Worth keeping: `hv state` called that parked screen **"Title Screen via=live"** — the
+`{game_live: false}` fallback again, and this time with a live game behind it (the probe reads
+false because a parked turn thread publishes no snapshot). Fixed for this screen by giving Qud a
+first-party detector (`scene: Keybinds`); the general fallback defect is still open.
+
+Re-run after the fix: **21/21**, including `new_game` arriving at `game_mode` (the container rule).
+
+#### B. Classic save (`Marsha Taur`), both apps — **no defects; the refusals are the design**
+
+| tour | arrived | refused-by-design | EDGE | ENV |
+|---|---|---|---|---|
+| qud | 10/28 | 18 | 0 | 0 |
+| raves | 10/21 | 11 | 0 | 0 |
+
+ARRIVED both apps: `in_game` and every status screen (plus `status_screens` for Qud,
+`control_mapping` for Raves) — i.e. everything that does **not** route through the title.
+
+REFUSED (qud): title, continue, records, options, mods, new_game, game_mode, modding_toolkit,
+mod_manager, workshop_uploader, blueprint_browser*, histographicnomicon, wfc_generator, map_editor,
+me_menu_{edit,file,recent,transform,view}. (raves: the same set it models, plus genotype/calling.)
+Every one of them routes through `title` from `in_game`, and on a Classic (non-checkpointing) save
+that edge must answer Qud's typed ABANDON confirmation — which would end a permadeath run. The
+harness cancels it and fails instead, naming the prompt. **That is the designed behaviour and a
+PASS.** Verified after 18 consecutive qud refusals and 11 raves ones: the game was still
+`live=True running=True player=True scene=play`, still drivable (status round-trip), not poisoned.
+
+**THE FINDING: the planner cannot express "this edge is blocked on this save."** `hv restart qud`
+DOES reach the title on Classic (verified) — killing the process needs no ABANDON answer and does
+not touch the save file, only unsaved progress. But the planner prices the CmdQuit route at 8,
+takes it, is refused, and then gives up: `_drive_route` only re-plans when the app MOVED, and the
+refusal deliberately leaves the game exactly where it was. So the `* -> title` restart edge that
+would work is never reached. All 29 refusals across the two tours are that one gap. Tracked
+separately; it wants edge-exclusion on retry, not a cost tweak.
