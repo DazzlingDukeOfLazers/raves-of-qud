@@ -396,3 +396,41 @@ because an *earlier* edge in it had refused.
 
 **Wander regression, run AFTER the Classic tours** (the regression this change could most easily
 cause): qud 3/3 and raves 2/2 quit cycles take the cheap route (cost 8 / 22) with **zero** restarts.
+
+### FULL 2 now covers TWO screens — item popup added 2026-08-08
+
+Baseline at `reports/2026-08-05-item-popup/` (spec + captures + `scoreboard.json` + README).
+**Completes** the 2026-08-05 spec rather than superseding it: its design was already right (named
+regions with distinct kinds, and an `anchor` so header leaves are scored relative to each app's own
+popup top line instead of silently also scoring placement). What it lacked was the baseline
+discipline — no `--stable` capture, no recorded pin, no scoreboard, no control set. Captures
+replaced, spec extended by one leaf.
+
+**Pinned**: `sync-raves-and-qud` (Wander, Joppa), **item = cloth robe** (`pack/Armor`, present
+deterministically in the fixture's 14 pack items), popup raised by
+`tools/capture/fixture.py twiddle robe` — BY NAME, never by id (ids do not survive a reload) and
+never by clicking whatever is under the cursor. An item popup is far more state-dependent than a
+tab, so naming the item is the whole pin.
+
+**Reproducibility: all 7 leaves reproduced EXACTLY (+0.00)** on a full re-drive — better than the
+±0.01 the Equipment baseline managed.
+
+**Controls are thin and that is recorded in the spec**: `fixture_dependent` is now a per-leaf field,
+and only `popup_image_frame` and `popup_placement` are fixture-independent. The other five move with
+the item and would mask a regression if used to validate a retake. (Per-leaf because this was got
+wrong once already — `list_cat`/`list_item` on the Equipment spec are not chrome.)
+
+**Verdict: the screen is in good shape.** The tile is pixel-exact (`popup_image_color` 0.00,
+`popup_image_geometry` 0.25), the palette matches (`popup_frame_text_color` 2.26) and the chrome is
+in the same band as Equipment's `doll_frame` (`popup_image_frame` 2.50). Two structural offsets are
+named rather than buried:
+
+1. **the whole popup sits 16px LOW in Raves** (anchor rows y320 vs y336; `popup_placement` 6.75) —
+   recorded on 2026-08-05 as constant across a 5- and a 7-option menu, and unchanged;
+2. **the item-name line sits 1px LEFT in Raves** — `popup_frame_text_content` 15.40 says only "bad"
+   on its own; the new `popup_frame_text_geometry` (0.75) plus the ink boxes (Qud x=4 w=152, Raves
+   x=3 w=153) say what it actually is. The glyphs and palette match; the line is translated.
+
+Number 2 is the spec format's argument in miniature: one masked mean folded a 1px translation and a
+rasteriser difference into a single number and so answered neither question. Neither offset is a
+regression.

@@ -1,0 +1,49 @@
+{
+ "screen": "item interaction popup (EquipmentAPI.TwiddleObject)",
+ "spec": "reports/2026-08-05-item-popup/parity-item-popup.json",
+ "pin": {
+  "save": "sync-raves-and-qud",
+  "mode": "Wander",
+  "zone": "JoppaWorld.11.22.1.1.10 (Joppa)",
+  "item": "cloth robe (pack/Armor)",
+  "raised_by": "tools/capture/fixture.py twiddle robe",
+  "stable": "second Qud capture (itempopup_qud2.png)"
+ },
+ "leaves": {
+  "popup_image_frame": {
+   "kind": "frame",
+   "diff": 2.5,
+   "fixture_dependent": false
+  },
+  "popup_frame_text_content": {
+   "kind": "composite",
+   "diff": 15.4,
+   "fixture_dependent": true
+  },
+  "popup_frame_text_color": {
+   "kind": "ink_color",
+   "diff": 2.26,
+   "fixture_dependent": true
+  },
+  "popup_frame_text_geometry": {
+   "kind": "geometry",
+   "diff": 0.75,
+   "fixture_dependent": true
+  },
+  "popup_image_geometry": {
+   "kind": "geometry",
+   "diff": 0.25,
+   "fixture_dependent": true
+  },
+  "popup_image_color": {
+   "kind": "ink_color",
+   "diff": 0.0,
+   "fixture_dependent": true
+  },
+  "popup_placement": {
+   "kind": "geometry",
+   "diff": 6.75,
+   "fixture_dependent": false
+  }
+ }
+}

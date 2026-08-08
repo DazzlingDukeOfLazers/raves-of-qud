@@ -16,7 +16,8 @@
     152
    ],
    "inset": 12,
-   "note": "the framed header block above the commands: top border y334, divider y485"
+   "note": "the framed header block above the commands: top border y334, divider y485",
+   "fixture_dependent": false
   },
   {
    "name": "popup_frame_text_content",
@@ -27,7 +28,8 @@
     160,
     20
    ],
-   "note": "the item name line inside that block -- 'cloth robe [AV]1 [DV]0'"
+   "note": "the item name line inside that block -- 'cloth robe [AV]1 [DV]0'",
+   "fixture_dependent": true
   },
   {
    "name": "popup_frame_text_color",
@@ -39,7 +41,21 @@
     20
    ],
    "inset": 0,
-   "note": "same line, palette only: badge blue plus the name greys"
+   "note": "same line, palette only: badge blue plus the name greys",
+   "fixture_dependent": true
+  },
+  {
+   "name": "popup_frame_text_geometry",
+   "kind": "geometry",
+   "rect": [
+    880,
+    109,
+    160,
+    20
+   ],
+   "inset": 0,
+   "note": "the item-name line's ink BOX, colour ignored. Added 2026-08-08 because popup_frame_text_content scored 15.40 and could not say why: the glyphs and palette match (ink_color 2.26) and the whole line simply sits 1px LEFT in Raves. A composite mean folds a 1px translation and a rasteriser difference into one number; this leaf separates them, which is the spec format's entire argument.",
+   "fixture_dependent": true
   },
   {
    "name": "popup_image_geometry",
@@ -51,7 +67,8 @@
     80
    ],
    "inset": 0,
-   "note": "the item tile's size and placement (Qud: 42x54 ink at x939 y369)"
+   "note": "the item tile's size and placement (Qud: 42x54 ink at x939 y369)",
+   "fixture_dependent": true
   },
   {
    "name": "popup_image_color",
@@ -63,7 +80,8 @@
     80
    ],
    "inset": 0,
-   "note": "the item tile's two-tone"
+   "note": "the item tile's two-tone",
+   "fixture_dependent": true
   },
   {
    "name": "popup_placement",
@@ -76,7 +94,8 @@
     60
    ],
    "inset": 0,
-   "note": "the popup's own top-line placement, absolute: Raves sits 16px low (constant across a 5- and a 7-option menu)"
+   "note": "the popup's own top-line placement, absolute: Raves sits 16px low (constant across a 5- and a 7-option menu)",
+   "fixture_dependent": false
   }
  ],
  "anchor": {
@@ -95,5 +114,6 @@
   ],
   "min": 100,
   "tol": 25
- }
+ },
+ "controls_note": "fixture_dependent says whether a leaf changes when a DIFFERENT item's popup is scored. It is recorded per leaf because the distinction was already got wrong once on the Equipment spec, where list_cat/list_item were treated as chrome and are not. Only the two leaves with fixture_dependent=false -- popup_image_frame and popup_placement -- are safe as CONTROLS when validating a retaken baseline; everything else moves with the item and would mask a real regression. That is a thin control set, which is exactly why the pin must name the item."
 }
