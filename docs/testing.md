@@ -1255,3 +1255,36 @@ either drive the list Home as part of the status_* edges, or make the spec
 anchor its row leaves to a landmark the way the item-popup spec already anchors
 to its own top line. The anchor machinery exists (`anchor_row`); the status
 specs just do not use it.
+
+### The scroll is pinned, and the FULL 2 leaf numbers above are SUPERSEDED
+
+Pinned by rebuilding the screen rather than by scrolling it: `parity.py capture`
+now drives both apps out to `in_game` and back in before capturing any `status_*`
+node, so each list comes up at the top. `--no-fresh` opts out.
+
+Proof is the route test, not the mechanism: reputation captured directly, and
+captured after visiting quests, journal and skills, now score **identically** —
+6.27 / 2.81 / 5.28 both times, with Qud's two frames differing by 0.05% against
+6.2% before.
+
+Re-scored with the pin, superseding the unpinned rows in the table above:
+
+| tab | content_match | leaf scores |
+|---|---|---|
+| skills | 97.98 | outer_frame 3.01 · list_item 4.96 · list_next 3.99 |
+| equipment | 98.43 | outer_frame 3.61 · list_cat 4.09 · list_item 5.16 |
+| reputation | 98.28 | outer_frame 6.27 · list_item 2.81 · list_next 5.28 |
+
+Every one improved, because an unpinned capture could only ever add divergence.
+Reputation's earlier 9.28 / 4.13 / 9.25 was a scrolled screen and is void;
+6.27 / 2.81 / 5.28 agrees with the 6.34 / 2.92 / 5.14 measured directly after
+the paragraph fix, which is the corroboration that matters — two runs days apart
+in approach, same answer, once the fixture state is actually the same.
+
+Reputation's content_match also moved 96.73 -> 98.28, the largest jump of the
+three, which is what you would expect from the tab whose list was scrolled.
+
+The five tabs without leaf specs (attributes, tinkering, journal, quests,
+messagelog) still rest on whole-screen congruence alone, and those figures were
+taken unpinned. They are less exposed — no leaf rect to slip against — but not
+immune, and worth retaking whenever specs get written for them.

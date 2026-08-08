@@ -28,7 +28,7 @@ Each leaf reports mean abs diff over the compared pixels, the ink bounding box i
 both apps, and coverage, so a change can be judged on the thing it touched.
 
 USAGE
-  parity.py capture <node> <prefix> [--no-goto] [--stable-gap S]  # shoot the triple
+  parity.py capture <node> <prefix> [--no-goto] [--no-fresh] [--stable-gap S]
   parity.py score  <spec.json> <qud.png> <raves.png> [--leaf NAME] [--json]
                    [--stable <qud2.png>]   ignore pixels the reference does not hold still
   parity.py bounds <spec.json> <img.png> [--leaf NAME]      # what a leaf sees
@@ -323,7 +323,7 @@ def _hv():
     sys.exit("cannot find the hv CLI; set HV=/path/to/hv")
 
 
-def cmd_capture(node, prefix, goto=True, stable_gap=0.0):
+def cmd_capture(node, prefix, goto=True, stable_gap=0.0, fresh=True):
     """Drive both apps to `node` and capture the q / q2 / raves triple that `score` wants.
 
     THE POINT OF THIS COMMAND is that every capture goes through `hv shot --live`, which
@@ -347,6 +347,19 @@ def cmd_capture(node, prefix, goto=True, stable_gap=0.0):
         return r.stdout.strip()
 
     if goto:
+        # PIN THE SCROLL by rebuilding the screen. Switching tabs inside an open status
+        # screen preserves each list's scroll offset, so the same tab reached after a
+        # different route comes up scrolled differently -- measured at ~28px on the
+        # reputation list, which moved list_next from 5.14 to 9.25 with no code change.
+        # A row-shaped leaf reads a scroll as a total mismatch, so a score is only
+        # comparable across runs if the list starts in the same place.
+        #
+        # Closing to in_game and re-entering rebuilds the list at the top. Verified: the
+        # tab reached directly and the tab reached after visiting quests and journal
+        # differ by 0.05%, against 6.2% without this.
+        if fresh and node.startswith("status_"):
+            for app in ("raves", "qud"):
+                run(["goto", app, "in_game"], "goto %s in_game (scroll pin)" % app)
         for app in ("raves", "qud"):
             run(["goto", app, node], "goto %s %s" % (app, node))
 
@@ -396,7 +409,8 @@ def main(argv):
         cmd_score(argv[2], argv[3], argv[4], only, "--json" in argv, stable)
     elif cmd == "capture":
         gap = float(argv[argv.index("--stable-gap") + 1]) if "--stable-gap" in argv else 0.0
-        cmd_capture(argv[2], argv[3], goto="--no-goto" not in argv, stable_gap=gap)
+        cmd_capture(argv[2], argv[3], goto="--no-goto" not in argv, stable_gap=gap,
+                    fresh="--no-fresh" not in argv)
     elif cmd == "bounds":
         cmd_bounds(argv[2], argv[3], only)
     elif cmd == "mask":
