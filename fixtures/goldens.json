@@ -1,5 +1,6 @@
 {
- "Marsha Taur": "Marsh Taur preset test character (Classic, Joppa) \u2014 Daniel's golden for preset validation",
- "sync-raves-and-qud": "The startup-stability anchor save (Wander, Joppa) \u2014 restore + load for a deterministic sync state",
- "checker": "The PC Object-Checker anchor (Wander, Joppa, godmode-armed char 'Tygashwuraq') \u2014 restore + hv loadsave for a deterministic sweep state"
+ "Marsha Taur": "Marsh Taur preset test character (Classic, Joppa) — Daniel's golden for preset validation",
+ "sync-raves-and-qud": "The startup-stability anchor save (Wander, Joppa) — restore + load for a deterministic sync state",
+ "checker": "The PC Object-Checker anchor (Wander, Joppa, godmode-armed char 'Tygashwuraq') — restore + hv loadsave for a deterministic sweep state",
+ "pc-parity": "The PC 1:1 parity anchor (Wander, Joppa, char 'Lumpy-true-kin-dev-char') — restore + hv loadsave for a repeatable FULL 2 scoreboard. Streams on any machine now that BridgePart attaches on LOAD, so it does not matter that this character predates the bridge mod."
 }
