@@ -21,8 +21,14 @@ const SEL_GOLD := Color8(0xC8, 0xB8, 0x39)    # selected card border + hotkey + 
 const BRIGHT_GOLD := Color8(0xE8, 0xD0, 0x1C) # onboarding highlight + guide corner squares (bright yellow)
 const DIM_BORDER := Color8(0x2C, 0x47, 0x47)  # unselected card border
 const NAME_SEL := Color8(0xC5, 0xCE, 0xC6)    # selected name
-const NAME_DIM := Color8(0x4E, 0x64, 0x60)    # unselected name
-const HOTKEY_DIM := Color8(0x6B, 0x66, 0x3A)  # unselected hotkey
+# Unselected name and hotkey, SAMPLED off Qud rather than eyeballed, and sampled on all three card
+# screens because these are shared: the 90th-percentile ink of an unselected label measured
+# (13,62,61)/(13,63,62)/(14,64,63) for the name on caste/genotype/mode, and (5,50,48)/(12,57,56)/
+# (12,57,56) for the hotkey. Raves was drawing (77,99,95) and (106,101,58) — the name far too bright,
+# and the hotkey a wrong HUE: Qud's resting hotkey is the same dim teal as the name, not olive-gold.
+# Only the SELECTED card's hotkey goes gold (SEL_GOLD), which is what the olive was half-remembering.
+const NAME_DIM := Color8(0x0D, 0x3F, 0x3E)    # unselected name    — Qud (13,63,62)
+const HOTKEY_DIM := Color8(0x0C, 0x39, 0x38)  # unselected hotkey  — Qud (12,57,56)
 const ICON_MAIN := Color8(0xA8, 0xC2, 0xBB)   # neutral (unselected) icon body
 const ICON_DETAIL := Color8(0x15, 0x49, 0x48) # neutral icon detail
 const ICON_SEL := Color(1, 1, 1, 1)
