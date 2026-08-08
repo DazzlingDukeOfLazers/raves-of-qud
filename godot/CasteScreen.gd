@@ -110,12 +110,10 @@ func _banded() -> bool:
 func _sel_uses_card_frame() -> bool: return _banded()
 
 func _card_w_frac() -> float: return 0.0499 if _banded() else super._card_w_frac()
-## 0.013, not 0.0102: measured against Qud, whose caste cards sit on a 120px pitch at 1920x1080
-## (card frames at x231, 351, 471, 591 …). Raves ran at 114 once the selection caret stopped
-## reserving width in every card. NB Qud widens the pitch to ~139 across an ARCOLOGY BOUNDARY —
-## that extra inter-band gap is not modelled here, so Raves' twelve cards still finish ~38px
-## narrower than Qud's.
-func _card_gap_frac() -> float: return 0.013 if _banded() else super._card_gap_frac()
+## 0.0131 -> a 25px gap, which puts the cards on Qud's 120px pitch (card box 95 + 25). Measured
+## against Qud, whose caste card frames sit at x231, 351, 471, 591 … The band boundary adds a
+## further 20px on top; see _band_break_px.
+func _card_gap_frac() -> float: return 0.0131 if _banded() else super._card_gap_frac()
 
 ## The arcology row occupies the space the unbanded screens give the selection frame: inherited, the
 ## frame reached up to y481 with band 1 sitting at y482, and swallowed that band's left rule whole.

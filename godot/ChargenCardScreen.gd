@@ -483,12 +483,18 @@ func _build_center() -> void:
 		if last >= 0 and last < _items.size() - 1:
 			band_break[last] = true
 	for i in range(_items.size()):
-		row.add_child(_build_card(_items[i], i, card_w, card_h))
+		var cell := _build_card(_items[i], i, card_w, card_h)
+		row.add_child(cell)
+		# The break goes INSIDE the last card's cell, not between cells in the row. As a row child a
+		# spacer collects the row's separation on BOTH sides, so a boundary cost 2*gap + spacer and
+		# could not be tuned down to Qud's 140 once the gap reached 23 — it measured 143 with the
+		# spacer already clamped to zero. Inside the cell (whose own separation is 0) it adds exactly
+		# its own width: col + break + gap = 95 + 20 + 25 = 140.
 		if band_break.has(i):
 			var spacer := Control.new()
 			spacer.custom_minimum_size = Vector2(_band_break_px(), 0)
 			spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			row.add_child(spacer)
+			cell.add_child(spacer)
 	_build_bands()
 
 	_desc = _rich("", "body")
@@ -540,7 +546,10 @@ func _build_center() -> void:
 
 func _build_card(m: Dictionary, idx: int, cw: int, ch: int) -> Control:
 	var cell := HBoxContainer.new()
-	cell.add_theme_constant_override("separation", 4)
+	# ZERO, not 4. The cell held a caret next to the column and needed a gap; the caret is an overlay
+	# now, so the only thing this separation can still reach is the band-break spacer — where it
+	# would silently add 4px to every boundary.
+	cell.add_theme_constant_override("separation", 0)
 	cell.mouse_filter = Control.MOUSE_FILTER_STOP
 	cell.mouse_entered.connect(func(): _engage(); _select(idx))
 	cell.gui_input.connect(func(e):
@@ -672,16 +681,10 @@ func _build_bands() -> void:
 		_bands.append({"holder": holder, "start": int(b.get("start", 0)), "count": int(b.get("count", 0))})
 	_position_bands_deferred()
 
-## Extra horizontal space inserted where one category ends and the next begins, ON TOP of the row's
-## normal card separation. Qud runs a 140px pitch across a boundary against 120 within a band.
-##
-## It cannot land exactly, and the reason is worth stating rather than hiding: an HBoxContainer puts
-## its separation on BOTH sides of the spacer, so a boundary costs 2*separation + this. At 1920 the
-## separation is already 24px, which overshoots the 20px target on its own — hence the clamp at zero
-## and a measured boundary pitch of ~143 against Qud's 140. Three pixels twice, against the 56px the
-## row was losing without any break at all.
+## Extra width given to the LAST card of a category, so the next band starts further along. Qud runs
+## a 140px pitch across a band boundary against 120 within one, i.e. exactly 20px more.
 func _band_break_px() -> float:
-	return maxf(0.0, 20.0 - float(int(get_viewport_rect().size.x * _card_gap_frac())))
+	return round(get_viewport_rect().size.x * 0.0104)   # 20px at 1920
 
 ## A horizontal dashed rule that eats whatever width the label leaves, END-CAPPED with a vertical
 ## tick on its outer side (`cap` = -1 for the left rule, +1 for the right).
