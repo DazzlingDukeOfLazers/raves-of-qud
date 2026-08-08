@@ -163,6 +163,7 @@ namespace RavesOfQud
                 {
                     if (gen != _pumpGen) return;        // a newer chain took over — retire quietly
                     _aliveMs = Environment.TickCount;   // proof of life, BEFORE Poll's own rate limit
+                    try { InputDiag.Sample(); InputDiag.SamplePopup(); } catch { }
                     try { Poll(); } catch (Exception e) { Log("popup poll: " + e.Message); }
                     GameManager g = GameManager.Instance;
                     if (g != null && g.uiQueue != null) Kick(g, gen);
@@ -316,6 +317,23 @@ namespace RavesOfQud
             {
                 if (_active)
                 {
+                    // WHY a popup went away, in one line, every time. Qud nulls
+                    // `commandCallback` in OnActivateCommand and `selectCallback` in OnSelect,
+                    // so a modal that closes with BOTH still set was never answered by anyone
+                    // — it was HIDDEN, and `Popup.PickOption` then returns its untouched
+                    // DefaultSelected (the self-answering item menu, 2026-08-08). Without this
+                    // line "the viewer answered" and "something tore the modal down" look
+                    // identical from every channel outside Qud.
+                    try
+                    {
+                        var gone = _announcedPm;
+                        Log("[popup] closed: cmdCb=" + (gone != null && gone.commandCallback != null)
+                            + " selCb=" + (gone != null && gone.selectCallback != null)
+                            + " pooled=" + (gone != null && InFreePool(gone))
+                            + (gone != null && gone.commandCallback != null && gone.selectCallback != null
+                               ? "  <-- UNANSWERED: hidden out from under the viewer" : ""));
+                    }
+                    catch { }
                     _active = false;
                     _sig = "";
                     _announcedPm = null;

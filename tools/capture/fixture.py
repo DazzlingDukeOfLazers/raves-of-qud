@@ -218,15 +218,29 @@ def cmd_find(substr):
 
 
 def cmd_twiddle(substr):
+    """Raise Qud's item menu and verify it FROM QUD'S SIDE.
+
+    This used to poll `raves_state.json`, i.e. it asked RAVES whether QUD had raised a
+    popup. That is the failure mode this repo has now paid for twice (see the highvisor
+    CLAUDE.md note and `docs/gotchas.md`): a Raves sitting at the title, or one whose
+    overlay builder threw, publishes "no popup" exactly as convincingly as a Qud that
+    never raised one -- and the tool then blames Qud. The mod's own `popup` frame on the
+    bridge is Qud's report about Qud, so that is what decides PASS/FAIL; Raves' mirror is
+    reported afterwards as extra information, not as the verdict.
+    """
     oid, name, where = resolve(fresh_inventory(), substr)
     print(f"twiddling {name} (id {oid}, {where})")
-    Bridge().send("invaction", id=oid)
-    for _ in range(12):
-        time.sleep(0.5)
-        if raves_popup():
-            print(f"popup up: {raves_popup()}")
-            return
-    raise SystemExit("STOP: no popup appeared -- check that Qud still has a screen open")
+    b = Bridge(timeout=2)
+    b.send("invaction", id=oid)
+    frame = b.read_frame("popup", timeout=8, match=lambda d: d.get("active"))
+    b.close()
+    if frame is None:
+        raise SystemExit("STOP: Qud announced no popup -- the bridge saw no active `popup` frame "
+                         "within 8s (is a game live? did the menu answer itself?)")
+    opts = frame.get("options") or []
+    print(f"qud popup up: id {frame.get('id')}, kind {frame.get('kind')}, {len(opts)} options")
+    mirror = raves_popup()
+    print(f"raves mirror: {mirror or '(not mirroring -- check Raves, not Qud)'}")
 
 
 def cmd_state():

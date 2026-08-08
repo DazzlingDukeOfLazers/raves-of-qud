@@ -14,7 +14,7 @@ which leaves are safe as controls. The captures are replaced; the spec is extend
 | zone | `JoppaWorld.11.22.1.1.10` — Joppa surface |
 | loaded via | `python3 tools/capture/fixture.py reload sync-raves-and-qud` |
 | **item** | **cloth robe** — `pack/Armor`, present deterministically in this fixture's 14 pack items |
-| popup raised by | `python3 tools/capture/fixture.py twiddle robe` — resolves the item BY NAME and verifies the popup came up. Never by id (ids are not stable across a reload) and never by clicking whatever is under the cursor |
+| popup raised by | `python3 tools/capture/fixture.py twiddle robe` — resolves the item BY NAME and verifies the popup came up **from QUD's own `popup` frame on the bridge**, not from `raves_state.json` (a Raves at the title reports "no popup" exactly as convincingly as a Qud that never raised one). Never by id (ids are not stable across a reload) and never by clicking whatever is under the cursor |
 | mirrored | Qud raises it; Raves receives it over the popup bridge (`popup=menu`) |
 | capture | Qud activated and given ~3s to repaint (it does not repaint unfocused), captured TWICE for `--stable`; then Raves activated and captured |
 
@@ -42,20 +42,50 @@ a different popup, so a run that captures it silently compares two different thi
 leaves still score, because they are anchored to each app's own top line. Verify the option count
 before capturing (the mirrored `popup` frame carries `options`), and re-raise if it is wrong.
 
-**2026-08-08 — the mechanism behind the short list, measured.** It is not the popup settling. The
-item menu is sometimes **answered almost immediately after it raises**, by something delivering its
-highlighted row — on the cloth robe that is `equip (auto)`. Cancelling from the bridge then arrives
-too late and the mod (correctly, since 165f44b) refuses it: `[popup] REFUSED button (id N): the
-announced popup is no longer live`. The item has by then moved between the pack and the body, so
-the NEXT raise legitimately offers a different list — 6 options equipped, 8 in the pack. Measured
-over 8 scripted raise/cancel cycles: 6 raised and mirrored, 2 self-answered, with the robe toggling
-slots throughout. **What delivers that answer is not identified**; it is not the bridge (the log
-shows the refusal, not an accepted answer) and it is not the mod's fabricated-Cancel path (the item
-menu's single bottom button really is `command: "Cancel"`, so `FindByCommand` matches it and no
-item is fabricated — an earlier note here blamed that path and was wrong).
+**2026-08-08 — the mechanism behind the short list: FOUND AND FIXED.** Nothing was "answering" the
+menu. Nothing delivered a keystroke, a click, or a hover; `ControlManager`'s command queue was
+empty on every affected raise. The popup was **hidden out from under itself**, and Qud's own
+`Popup.PickOption` reports a cancelled popup as **the highlighted row**.
 
-The practical rule is unchanged and still works: **reload the fixture rather than retry**, and
-check the option count before you capture. A reload cannot activate anything.
+The chain, read off `mod/InputDiag.cs` (the game-view stack + the popup's visibility, per frame):
+
+    pm f4322  view=PopupMessage/PopupMessage  stack=Stage,Stage,PopupMessage   cmd=True sel=True
+    pm f4323  view=Stage/PopupMessage         stack=Stage,Stage,Stage          cmd=True sel=True
+    pm f4324  canv=False hnf=1 onHide=False   cmd=True sel=True                <- hidden, unanswered
+
+The mod raised the menu through `APIDispatch.RunAndWaitAsync`, which runs on a **threadpool**
+thread, so Qud's TURN thread stayed free and spinning in `XRLCore.PlayerTurn`'s wait-for-input
+loop — a loop that executes `GameManager.Instance.CurrentGameView = Options.StageViewID;` every
+iteration. It slammed the view back to `Stage` under the live popup, `UpdateView` re-hosted the
+canvas, `PopupMessage.Hide()` fired `onHide`, that cancelled the awaiting task, and because
+`Popup.WaitNewPopupMessage` is `async void` the cancellation never reached `PickOption` — which
+returned its untouched `SelectedOption`, i.e. `DefaultSelected`. `TwiddleObject` then performed
+that action for real, which is why the robe kept toggling pack↔body and the next raise honestly
+offered 6 options instead of 8.
+
+`cmd=True sel=True` at the close is the discriminator: Qud nulls `commandCallback` in
+`OnActivateCommand` and `selectCallback` in `OnSelect`, so both still set means **no one
+answered**. From the wire, from `raves_state.json` and from a screenshot the two cases are
+indistinguishable — which is why the earlier passes blamed the bridge and then the
+fabricated-Cancel path, and both were wrong.
+
+**Fix** (`mod/InventoryExporter.Twiddle`): raise the menu the way Qud's own idle-game caller does
+— `GameManager.Instance.gameQueue.queueSingletonTask(...)`, per `NearbyItemsWindow.OnSelect` — so
+`TwiddleObject` runs ON the turn thread with that loop inside it. Full write-up in
+`docs/gotchas.md`.
+
+**Rate, same fixture, same harness (`invaction` over the bridge, verified from QUD's `popup`
+frames — never from Raves):**
+
+| build | self-answered |
+|---|---|
+| before (`APIDispatch`) | **6 / 8** and **7 / 8** on two runs |
+| after (`gameQueue`) | **0 / 12** (export per cycle, the `fixture.py twiddle` shape) and **0 / 4** (no export) |
+
+All 16 post-fix raises came up with the correct 8 options and the robe never left the pack.
+
+The old workaround — reload the fixture rather than retry — is no longer needed, but checking the
+option count before capturing is still cheap insurance.
 
 ## Which leaves are safe as CONTROLS
 
@@ -290,9 +320,10 @@ The full spec was also re-scored on this build against the scoreboard: **all 7 l
 a pin re-driven from a fixture reload. And `popup_placement`, one of the two fixture-independent
 controls, is among them.
 
-### A separate defect, spotted and not fixed
+### A separate defect, spotted and now FIXED (2026-08-08)
 
-Qud renders the first option as `Keyboard & Mouse`; Raves renders `Keyboard  Mouse`. Qud's
-`EscapeNonMarkupFormatting` doubles a literal `&` to `&&` on the wire and Raves never un-escapes
-it. It affects option/message TEXT, not the box model, so it is out of this spec's leaves — but it
-is a real difference and it is written down here rather than left to be re-found.
+Qud rendered the first option as `Keyboard & Mouse`; Raves rendered `Keyboard  Mouse`. Qud's
+`EscapeNonMarkupFormatting` doubles a literal `&` to `&&` on the wire (`^` to `^^` likewise) and
+`QudText` read the pair as a colour code, eating BOTH characters. All three parsers
+(`to_bbcode` / `strip` / `runs`) now treat a doubled sigil as the literal character; a single
+`&X` is still a colour code. Guarded in the SPOT tier by `tests/popup_overlay_render.gd`.

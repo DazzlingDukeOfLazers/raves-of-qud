@@ -363,8 +363,45 @@ add a one-liner (symptom → rule).
   TwiddleObject raises the option list, applies the choice and runs every follow-on prompt
   itself -- and our popup mirror already forwards Qud's modals. So the whole menu, with the
   right verbs per item and the right side effects, costs one bridge command. Same reasoning as
-  the Skills tab's SelectNode, and the same hard requirement: it MUST go through APIDispatch,
-  or the synchronous popup it blocks on deadlocks.
+  the Skills tab's SelectNode.
+- **...but copy Qud's THREAD, not just its call. `APIDispatch` is the wrong wrapper for a
+  BRIDGE-driven twiddle, and it made the item menu answer itself 6 times in 8** (2026-08-08).
+  `APIDispatch.RunAndWaitAsync` runs its delegate on a THREADPOOL thread (`Task.Run`). That is
+  right for Qud's caller -- the status screen has already parked the turn thread -- and wrong
+  for ours, because a twiddle driven over the bridge leaves the turn thread free and spinning
+  in `XRLCore.PlayerTurn`'s wait-for-input loop. That loop, and `ActionManager.RunSegment`,
+  each run `GameManager.Instance.CurrentGameView = Options.StageViewID;` unconditionally on
+  every iteration. The chain from there is exact and none of it is visible from outside Qud:
+  - `Popup.PickOption` shows the menu by PUSHING the `PopupMessage` game view;
+  - the next loop iteration slams `CurrentGameView` back to `Stage`;
+  - `GameManager.UpdateView` applies it and re-hosts the canvas, hiding the popup window;
+  - `PopupMessage.Hide()` fires `onHide` -> `TaskCompletionSource.TrySetCanceled()`;
+  - the `complete.Task.Wait()` inside `Popup.WaitNewPopupMessage` throws -- and that method is
+    **`async void`**, so the exception is swallowed by the state machine and never reaches
+    `PickOption`, which returns its untouched local `SelectedOption`. That local is initialised
+    to **`DefaultSelected`**. So a CANCELLED popup returns the HIGHLIGHTED ROW, and
+    `TwiddleObject` performs it (cloth robe: `equip (auto)`, which is why the item kept
+    toggling pack/body and the "next" menu legitimately had 6 options instead of 8).
+  Whether it fires is a race with where the turn thread is: if the Stage assignment lands
+  *before* `UpdateView` ever applies `PopupMessage` there is no transition and the popup
+  survives, which is the 2-in-8 that looked fine.
+  **The fix is Qud's own pattern for exactly this situation** -- a UI window asking for an item
+  menu with the game idle -- `NearbyItemsWindow.OnSelect`:
+  `GameManager.Instance.gameQueue.queueSingletonTask(id, () => EquipmentAPI.TwiddleObject(go))`.
+  The gameQueue drains inside `Keyboard.getvk(..., pumpActions: true)`, the turn thread's own
+  input wait, so TwiddleObject runs ON the turn thread with that loop inside it rather than
+  racing it. It is also the thread `WaitNewPopupMessage` is written for: off the UI thread it
+  takes the blocking `uiQueue.awaitTask` branch the popup mirror already answers. Measured
+  6/8 self-answered before, **0/16 after**. The deadlock `APIDispatch` exists to avoid is the
+  one you get calling TwiddleObject from a **uiQueue** task -- not from the turn thread.
+- **A popup that closes with BOTH callbacks still set was not answered -- it was hidden.**
+  `OnActivateCommand` nulls `commandCallback`, `OnSelect` nulls `selectCallback`. `PopupBridge`
+  logs both at every close (`[popup] closed: cmdCb=… selCb=…`) precisely because that is the
+  only signal that separates "the viewer answered" from "something tore the modal down": from
+  the wire, from `raves_state.json`, and from a screenshot the two are identical. The wider
+  instrument (`mod/InputDiag.cs`, `Enabled=false` by default) prints the game-view stack and
+  the per-frame ControlManager command next to the popup's visibility, and it is what turned
+  three rounds of guessing into one run.
 - **Export `go.ID`, not `go.IDIfAssigned`.** IDIfAssigned is null until something has caused Qud
   to assign one -- 13 of 14 items in a normal pack had never been asked, so every row shipped
   without a handle. `ID` just persists the object's existing BaseID; it invents no identity.

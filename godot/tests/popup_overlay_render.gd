@@ -34,6 +34,7 @@ func _ready() -> void:
 	_case("plain message (quest notice)", _message())
 	_case("AskString input (wish prompt)", _input_prompt())
 	_answer_names_the_popup()
+	_doubled_sigil_is_a_literal()
 	print("\n%s (%d checks failed)" % ["all good" if _failed.is_empty() else "FAILED", _failed.size()])
 	get_tree().quit(1 if not _failed.is_empty() else 0)
 
@@ -57,6 +58,28 @@ func _case(name: String, frame: Dictionary) -> void:
 	ov.hide_popup()
 	_check("%s → hide_popup clears it" % name, not ov.visible)
 	ov.queue_free()
+
+
+## `&&` / `^^` on the wire are Qud's ESCAPES for a literal `&` / `^`, not colour codes.
+## Popup.NewPopupMessageAsync doubles them on the way out, so "Keyboard & Mouse" arrives as
+## "Keyboard && Mouse"; reading the pair as a colour code ate BOTH characters and Raves drew
+## "Keyboard  Mouse". All three QudText parsers have to agree, so all three are checked.
+func _doubled_sigil_is_a_literal() -> void:
+	var pal := _palette()
+	_check("to_bbcode un-escapes &&",
+		QudText.to_bbcode("Keyboard && Mouse", pal).contains("Keyboard & Mouse"),
+		QudText.to_bbcode("Keyboard && Mouse", pal))
+	_check("strip un-escapes &&",
+		QudText.strip("{{y|Keyboard && Mouse}}") == "Keyboard & Mouse",
+		QudText.strip("{{y|Keyboard && Mouse}}"))
+	var text := ""
+	for run in QudText.runs("{{y|Keyboard && Mouse}}", pal):
+		text += String(run[0])
+	_check("runs un-escapes &&", text == "Keyboard & Mouse", text)
+	_check("strip un-escapes ^^", QudText.strip("50^^2") == "50^2", QudText.strip("50^^2"))
+	# …and a SINGLE sigil is still a colour code, i.e. still consumed.
+	_check("a single &y is still a colour code",
+		QudText.strip("&yhello") == "hello", QudText.strip("&yhello"))
 
 
 ## The answer must NAME the popup it is answering: the mod refuses an id that does not belong

@@ -57,9 +57,16 @@ class Bridge:
         payload = json.dumps(msg).encode("utf-8")
         self.sock.sendall(struct.pack(">I", len(payload)) + payload)
 
-    def read_snapshot(self, timeout=30):
-        """Block until the next framed snapshot arrives; return the parsed dict."""
-        self.sock.settimeout(timeout)
+    def read_frame(self, kind="snapshot", timeout=30, match=None):
+        """Block until the next framed message of `kind` arrives; return it (or None on timeout).
+
+        The generic form of `read_snapshot`. It exists because the MOD's frames are the
+        first-party report about QUD -- the only channel that can answer "did Qud raise
+        this?" without going through Raves. Reading Raves' `raves_state.json` instead is
+        the mistake the popup work kept paying for: a Raves at the title, or with a broken
+        overlay, publishes "no popup" just as faithfully as a Qud that never raised one.
+        """
+        deadline = time.time() + timeout
         while True:
             while len(self.buf) >= 4:
                 n = struct.unpack(">I", self.buf[:4])[0]
@@ -67,12 +74,26 @@ class Bridge:
                     break
                 body, self.buf = self.buf[4:4 + n], self.buf[4 + n:]
                 d = json.loads(body.decode("utf-8"))
-                if d.get("type") == "snapshot":
+                if d.get("type") == kind and (match is None or match(d)):
                     return d
-            chunk = self.sock.recv(65536)
+            left = deadline - time.time()
+            if left <= 0:
+                return None
+            self.sock.settimeout(max(0.05, min(left, 1.0)))
+            try:
+                chunk = self.sock.recv(65536)
+            except socket.timeout:
+                continue
             if not chunk:
                 raise ConnectionError("bridge closed")
             self.buf += chunk
+
+    def read_snapshot(self, timeout=30):
+        """Block until the next framed snapshot arrives; return the parsed dict."""
+        d = self.read_frame("snapshot", timeout)
+        if d is None:
+            raise TimeoutError("no snapshot within %ss" % timeout)
+        return d
 
     def move(self, d, n=1):
         d = d.upper()

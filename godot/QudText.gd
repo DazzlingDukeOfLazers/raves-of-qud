@@ -33,6 +33,15 @@ static func to_bbcode(s: String, palette: Dictionary) -> String:
 				depth -= 1
 			i += 2
 			continue
+		# A DOUBLED sigil is Qud's escape for the literal character, not a colour code.
+		# Popup.NewPopupMessageAsync does `.Replace("&&", "&").Replace("^^", "^")` on the
+		# way in and re-doubles on the way out, so every mirrored string carrying a real
+		# ampersand arrives doubled. Consuming it as a colour code ate BOTH characters and
+		# rendered Qud's "Keyboard & Mouse" as "Keyboard  Mouse".
+		if i + 1 < n and (s[i] == "&" or s[i] == "^") and s[i + 1] == s[i]:
+			out += s[i]
+			i += 2
+			continue
 		if s[i] == "&" and i + 1 < n:
 			if amp:
 				out += "[/color]"
@@ -69,6 +78,10 @@ static func strip(s: String) -> String:
 		if i + 1 < n and s[i] == "}" and s[i + 1] == "}":
 			i += 2
 			continue
+		if i + 1 < n and (s[i] == "&" or s[i] == "^") and s[i + 1] == s[i]:
+			out += s[i]            # doubled sigil = the literal character (see to_bbcode)
+			i += 2
+			continue
 		if (s[i] == "&" or s[i] == "^") and i + 1 < n:
 			i += 2
 			continue
@@ -100,6 +113,11 @@ static func runs(s: String, palette: Dictionary, default_color := Color(1, 1, 1)
 	while i < n:
 		var is_open: bool = i + 1 < n and s[i] == "{" and s[i + 1] == "{"
 		var is_close: bool = i + 1 < n and s[i] == "}" and s[i + 1] == "}"
+		# doubled sigil = the literal character, not a colour code (see to_bbcode)
+		if i + 1 < n and (s[i] == "&" or s[i] == "^") and s[i + 1] == s[i]:
+			cur += s[i]
+			i += 2
+			continue
 		var is_amp: bool = (s[i] == "&" or s[i] == "^") and i + 1 < n
 		if is_open:
 			var bar := s.find("|", i + 2)
