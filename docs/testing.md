@@ -262,3 +262,36 @@ NOT RUN this session, and not to be read as passing:
 - FULL 3 against the **Classic** save as a tour. The part of it that matters most, the quit chain,
   WAS exercised against `Marsha Taur` earlier the same day: 3/3 consecutive loud failures naming
   the ABANDON prompt, cancelled, game left live, not poisoning the next attempt.
+
+### FULL 2 — RETAKEN 2026-08-08: **PASS**, and the earlier INCONCLUSIVE is superseded
+
+New baseline at `reports/2026-08-08-parity-baseline/` (captures + `scoreboard.json` + a README
+recording the pin). Supersedes the "INCONCLUSIVE" entry above, which was correct at the time: the
+2026-08-04 captures carried no record of the state they were taken in.
+
+**Pinned** with the repo's own tooling, not by hand: `sync-raves-and-qud` (Wander, Joppa
+`JoppaWorld.11.22.1.1.10`) loaded via `tools/capture/fixture.py reload`, Equipment tab in both apps,
+filter **ALL** (the default on open, so nothing needs arranging), Qud activated and given ~3s to
+repaint, captured twice for `--stable`.
+
+**The retake was checked before it was trusted**, because re-baselining a leaf that genuinely
+regressed would drive its delta to zero and look healthy. Control: the leaves that do not depend on
+which item or filter is selected — `doll_frame[0..4]`, `filter_frame[1..4]`, `outer_frame` — scored
+against the OLD baseline moved **-1.64 .. +0.91**, matching the -0.30 .. -2.34 measured the day
+before and inside this spec's documented ~0.7 noise. Nothing material moved, so the new numbers are
+a change of fixture, not of rendering.
+
+**Reproducibility**: the pin was re-driven end to end and re-scored — **all 33 leaves within
+±0.01** (mean -0.001).
+
+**What it revealed**: the old captures were taken on this same save all along. Fixture-dependent
+leaves come back nearly identical (`doll_image` 5.75/12.70/0/2.76/0 vs 5.75/12.71/0/2.76/0;
+`filter_image` within 0.03 on four of five). The 58–79 "regression" on 2026-08-07 was purely the
+`meta` save being loaded instead.
+
+**One leaf named, not absorbed: `list_cat` 3.91 → 6.48 (+2.57)** — content, not rendering. That row
+was blank in the old capture (different scroll position) so the apps trivially agreed; it now holds
+`c) [-] Data Disks |1 lbs.|`, real text both apps render the same, and the residual is glyph
+antialiasing. **Therefore `list_cat`/`list_item` are NOT fixture-independent** and must not be used
+as controls for a future retake — the state-independent set is `doll_frame[0..4]`,
+`filter_frame[1..4]`, `outer_frame`.
