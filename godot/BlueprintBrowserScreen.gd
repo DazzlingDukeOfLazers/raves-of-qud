@@ -35,6 +35,16 @@ const NOTE := Color8(0x6E, 0x8A, 0x86)        # our own count/status line
 const FILTER_RECT := Rect2(18, 12, 288, 27)
 const LIST_TOP := 56
 const ROW_H := 24
+## CALIBRATED against Qud, not guessed. Qud renders "BaseAnimatedObject" as 122 px of ink with a
+## 9 px 'B' cap, which fixes the SIZE at 13 (14 px measured 130 px wide; 14 * 122/130 = 13.1, and
+## the cap-height projection agrees at 12.9).
+##
+## The WEIGHT is Medium, and width alone could not tell us that -- width-per-cap puts Qud at 13.56
+## between Regular's 13.39 and Medium's 13.89, which is inside the measurement noise. Ink DENSITY
+## separates them cleanly: rendering the same string at a matched 9 px cap gives total ink 74805
+## (Regular), 99652 (Medium), 123041 (Bold) against Qud's own 95458. Medium, comfortably.
+const NAME_PX := 13
+const NAME_WEIGHT := "Medium"
 const INDENT := 16
 const X_EXPANDER := 8
 const X_ICON := 27
@@ -280,9 +290,12 @@ func _build_row(idx: int) -> Control:
 	row.add_child(ic)
 	var lbl := Label.new()
 	lbl.text = str(rec["name"])
-	_apply_ui_font(lbl, 14)
+	_apply_ui_font(lbl, NAME_PX)
 	lbl.add_theme_color_override("font_color", ROW)
-	lbl.position = Vector2(X_NAME + indent, 2)
+	# y=4, not 2: with the real face in place the glyphs were landing 2 px high against Qud
+	# (rows 3 and 4 measured 109..117 and 133..141 against Qud's 111..119 and 135..143 -- both
+	# descender-free, so that is a clean baseline offset rather than a metrics mismatch).
+	lbl.position = Vector2(X_NAME + indent, 4)
 	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(lbl)
 
@@ -293,12 +306,13 @@ func _build_row(idx: int) -> Control:
 			_toggle())
 	return row
 
-## Qud's list font here is ElliotSans (its modern-UI face), carved from the player's own install
-## into title/chrome/ — the same asset MainMenu._elliot() uses for the title. It is CONDENSED: at
-## a matched cap height Qud's rows measure ~6.5px/char against Atkinson's ~8.4 (measured), so the
-## names run ~29% wider without it. This returns null when the font has not been extracted on this
-## machine (the case on Lumpy today), and callers fall back to the theme font — correct-when-present
-## rather than faking the width by shrinking, which would break the cap height that already matches.
+## Qud's list font here is ElliotSans Medium (its modern-UI face), carved from the player's own
+## install into title/chrome/ by tools/capture/fonts.py — the same asset MainMenu._elliot() uses
+## for the title. It is CONDENSED: at a matched cap height Qud's rows measure ~6.5px/char against
+## Atkinson's ~8.4 (measured), so the names run ~29% wider without it. This returns null when the
+## font has not been extracted on this machine, and callers fall back to the theme font —
+## correct-when-present rather than faking the width by shrinking, which would break the cap
+## height that already matches.
 var _ui_font_cached := false
 var _ui_font: FontFile
 
@@ -306,7 +320,7 @@ func _ui_font_or_null() -> FontFile:
 	if _ui_font_cached:
 		return _ui_font
 	_ui_font_cached = true
-	var path := InputModel.support_dir().path_join("title").path_join("chrome").path_join("ElliotSans-Regular.ttf")
+	var path := InputModel.support_dir().path_join("title").path_join("chrome") 		.path_join("ElliotSans-%s.ttf" % NAME_WEIGHT)
 	if FileAccess.file_exists(path):
 		var f := FontFile.new()
 		if f.load_dynamic_font(path) == OK:

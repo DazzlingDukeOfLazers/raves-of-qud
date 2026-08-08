@@ -329,6 +329,18 @@ def qud_data_dir():
                         "Freehold Games", "CavesOfQud")
 
 
+def qud_install_dir():
+    """<install>/CoQ_Data — the Unity ASSET files (fonts, textures) live here.
+
+    Deliberately NOT qud_data_dir(): that name belongs to Qud's persistentDataPath (saves,
+    mods, options), and both sides of the mac/PC merge had independently claimed it for these
+    two different directories. Used by tools/capture/fonts.py to carve Qud's UI faces out of
+    the player's own install.
+    """
+    return os.path.join("C:" + os.sep, "Program Files (x86)", "Steam", "steamapps",
+                        "common", "Caves of Qud", "CoQ_Data")
+
+
 # --- process / launch -----------------------------------------------------------
 def list_pids(match=QUD_PROC_MATCH):
     r = subprocess.run(["tasklist", "/FO", "CSV", "/NH"], capture_output=True, text=True)

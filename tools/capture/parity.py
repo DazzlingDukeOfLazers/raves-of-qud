@@ -28,6 +28,7 @@ Each leaf reports mean abs diff over the compared pixels, the ink bounding box i
 both apps, and coverage, so a change can be judged on the thing it touched.
 
 USAGE
+  parity.py capture <node> <prefix> [--no-goto] [--no-fresh] [--stable-gap S]
   parity.py score  <spec.json> <qud.png> <raves.png> [--leaf NAME] [--json]
                    [--stable <qud2.png>]   ignore pixels the reference does not hold still
   parity.py bounds <spec.json> <img.png> [--leaf NAME]      # what a leaf sees
@@ -223,8 +224,28 @@ def cmd_score(spec_path, qud_path, raves_path, only=None, as_json=False, stable=
     spec, leaves = load_spec(spec_path)
     q = np.asarray(Image.open(qud_path).convert("RGB"))
     r = np.asarray(Image.open(raves_path).convert("RGB"))
+    if q.shape[:2] != r.shape[:2]:
+        # Every leaf rect is absolute pixels, so two differently sized windows make each
+        # rect mean a different thing in each app. Say so, rather than let numpy raise a
+        # boolean-index error twenty frames deeper.
+        sys.exit("SIZE MISMATCH: qud is %dx%d, raves is %dx%d. The leaf rects are absolute "
+                 "pixels, so these cannot be compared. Run `hv layout pair` and re-capture."
+                 % (q.shape[1], q.shape[0], r.shape[1], r.shape[0]))
     if stable:
         q2 = np.asarray(Image.open(stable).convert("RGB"))
+        if q2.shape == q.shape and not (q != q2).any():
+            # A LIVE Qud never renders two identical frames -- the playfield behind the
+            # scrim animates, so two captures normally differ on most pixels. Identical
+            # means the app stopped rendering and the "capture" is a stale frame, which
+            # scores as confident nonsense: an evening of reputation measurements were
+            # taken against a frozen playfield while the bridge cheerfully reported the
+            # right screen. --stable cannot catch this on its own; a frozen app holds
+            # EVERY pixel still, so the filter passes everything and reports the
+            # reference as rock solid. Refuse instead of measuring a corpse.
+            sys.exit("FROZEN REFERENCE: %s and %s are pixel-identical, so the app was not\n"
+                     "rendering. Restart it and re-capture -- any score from these is void.\n"
+                     "(Qud stalls this way within ~10 min; focusing does NOT recover it.)"
+                     % (qud_path, stable))
         if q2.shape == q.shape:
             # Where the reference did not hold still between two captures, it is the
             # world showing through -- not UI. Paint those pixels identical in both so
@@ -285,6 +306,97 @@ def cmd_mask(spec_path, img_path, leaf_name, out_path):
     sys.exit("no leaf named %r" % leaf_name)
 
 
+def _hv():
+    """Path to the hv CLI. Not on PATH on every box (Lumpy installs it user-scope)."""
+    import os
+    import shutil
+    env = os.environ.get("HV")
+    if env and os.path.exists(env):
+        return env
+    found = shutil.which("hv")
+    if found:
+        return found
+    for c in (os.path.expanduser("~/bin/hv"),
+              os.path.expandvars(r"%LOCALAPPDATA%\Programs\Python\Python312\Scripts\hv.exe")):
+        if os.path.exists(c):
+            return c
+    sys.exit("cannot find the hv CLI; set HV=/path/to/hv")
+
+
+def cmd_capture(node, prefix, goto=True, stable_gap=0.0, fresh=True):
+    """Drive both apps to `node` and capture the q / q2 / raves triple that `score` wants.
+
+    THE POINT OF THIS COMMAND is that every capture goes through `hv shot --live`, which
+    blocks until the app is actually rendering. A Unity app that is not rendering still
+    screenshots: it returns its last frame, and for Qud that frame is the playfield with
+    no UI overlay, so a status-screen capture comes back looking like the plain map while
+    the heartbeat correctly reports the status screen. An evening of reputation scores was
+    measured against exactly that.
+
+    This existed as ad-hoc shell in every session before now, which is precisely why the
+    mistake kept coming back -- the liveness check was reinvented, or forgotten, each time.
+    """
+    import subprocess
+    import time
+    hv = _hv()
+
+    def run(args, what):
+        r = subprocess.run([hv] + args, capture_output=True, text=True)
+        if r.returncode != 0:
+            sys.exit("%s failed (exit %d):\n%s%s" % (what, r.returncode, r.stdout, r.stderr))
+        return r.stdout.strip()
+
+    if goto:
+        # PIN THE SCROLL by rebuilding the screen. Switching tabs inside an open status
+        # screen preserves each list's scroll offset, so the same tab reached after a
+        # different route comes up scrolled differently -- measured at ~28px on the
+        # reputation list, which moved list_next from 5.14 to 9.25 with no code change.
+        # A row-shaped leaf reads a scroll as a total mismatch, so a score is only
+        # comparable across runs if the list starts in the same place.
+        #
+        # Closing to in_game and re-entering rebuilds the list at the top. Verified: the
+        # tab reached directly and the tab reached after visiting quests and journal
+        # differ by 0.05%, against 6.2% without this.
+        if fresh and node.startswith("status_"):
+            for app in ("raves", "qud"):
+                run(["goto", app, "in_game"], "goto %s in_game (scroll pin)" % app)
+        for app in ("raves", "qud"):
+            run(["goto", app, node], "goto %s %s" % (app, node))
+
+    shots = [("CavesOfQud", prefix + "_q.png"),
+             ("CavesOfQud", prefix + "_q2.png"),   # the --stable reference
+             ("Raves of Qud", prefix + "_r.png")]
+    for i, (target, out) in enumerate(shots):
+        # --stable-gap spaces the two Qud shots out. OFF by default, and the reason is
+        # worth keeping: --stable masks 1,008 px on the reputation tab while the same
+        # screen differs on 129,370 px between runs, so widening the window looked like
+        # the obvious fix. It is not. Measured at 12s it masked 1,046 px -- no better --
+        # because the run-to-run difference is not animation at all. Qud's list sits at a
+        # DIFFERENT SCROLL OFFSET between runs (~28px, visible immediately in a stacked
+        # crop), and no stability window can mask a scroll. Kept as an option for a screen
+        # that genuinely does animate; not paid by default for one that does not.
+        if i == 1 and stable_gap > 0:
+            time.sleep(stable_gap)
+        print("  " + run(["shot", target, out, "--live"], "shot %s" % target))
+
+    # Both windows must be the same size or every leaf rect means something different in
+    # each. A Raves dev-run relaunches at the display's default size, so this is not
+    # hypothetical -- it silently produced a 2400-tall capture against a 1080-tall spec.
+    sizes = {}
+    for _t, out in shots:
+        sizes[out] = Image.open(out).size
+    uniq = set(sizes.values())
+    if len(uniq) > 1:
+        for k, v in sizes.items():
+            print("    %s %s" % (k, v))
+        sys.exit("SIZE MISMATCH: the windows are not the same size. Run `hv layout pair` "
+                 "and re-capture; a raw `hv move` on a fixed sleep races the window.")
+
+    print("\n  captured %s at %s" % (node, "x".join(str(n) for n in uniq.pop())))
+    print("  score it:\n    parity.py score <spec.json> %s_q.png %s_r.png --stable %s_q2.png"
+          % (prefix, prefix, prefix))
+
+
 def main(argv):
     if len(argv) < 2:
         sys.exit(__doc__)
@@ -295,6 +407,10 @@ def main(argv):
     if cmd == "score":
         stable = argv[argv.index("--stable") + 1] if "--stable" in argv else None
         cmd_score(argv[2], argv[3], argv[4], only, "--json" in argv, stable)
+    elif cmd == "capture":
+        gap = float(argv[argv.index("--stable-gap") + 1]) if "--stable-gap" in argv else 0.0
+        cmd_capture(argv[2], argv[3], goto="--no-goto" not in argv, stable_gap=gap,
+                    fresh="--no-fresh" not in argv)
     elif cmd == "bounds":
         cmd_bounds(argv[2], argv[3], only)
     elif cmd == "mask":

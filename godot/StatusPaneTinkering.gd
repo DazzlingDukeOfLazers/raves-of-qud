@@ -28,6 +28,38 @@ extends Control
 const HINT_X := 192.1
 const HINT_Y := 222.0
 const HINT_FONT := 14
+## Qud's Ctrl keycap, a Private Use Area codepoint it draws from its own icon font
+## (QudText.GLYPHS maps the same value). Present in the extracted atlas as a 195x133 cell,
+## so this renders as the real keycap once the mod has exported the glyphs.
+const CTRL_GLYPH := 0xE816
+## The keycap is drawn at its OWN size and its own advance, both derived from Qud.
+##
+## SIZE: at the hint's 14px the cap came out 8px tall with 38 ink px against Qud's 20x12/116
+## — right width, two thirds the height. (Not a sampling problem: `generate_mipmaps` changes
+## the ink count by zero, set before OR after load_bitmap_font.) The cell is 133px tall at a
+## nominal 201, so 133*(n/201) = 12 derives n = 18 — but 18 measured 18x10/83 and 20 measures
+## 20x11/103, so the derivation was a starting point and the capture picked the value. Safe to
+## tune as a single variable precisely because GLYPH_ADVANCE no longer depends on it.
+##
+## ADVANCE: drawing it bigger widens the glyph's natural advance and pushes the rest of the
+## line right of where Qud puts it, which costs more than the better cap gains. So the pen
+## steps by a measured constant instead. Solved by cross-correlating the trailing text
+## against Qud's over three known advances — 14 -> -6px, 18 -> -2px, 22.5 -> +3px — which
+## puts zero at 20.0 from either of the two clean fits. That it equals Qud's cap span
+## (x201..220) is the corroboration: the advance IS the cap's width.
+const GLYPH_FONT := 20
+const GLYPH_ADVANCE := 20.0
+## The section rule the mode hint sits ON. Measured off a live Qud capture: 2px tall at
+## y230, spanning the full pane width x158..1760 (1603px), in a flat (56,79,90) — the same
+## family as the reputation pane's divider ink. It runs UNDER the text, which punches
+## through it: sampling the rule's own colour finds it continuous from 158 to 1760 with
+## gaps only where glyphs sit, so it is one rect drawn before the hint, not a pair of
+## segments flanking it. Raves omitted it entirely (1150 lit px against 0 across x600-1750).
+const RULE_Y := 230.0
+const RULE_X := 158.0
+const RULE_W := 1603.0
+const RULE_H := 2.0
+const C_RULE := Color8(0x38, 0x4f, 0x5a)
 const LIST_X := 174.5
 const LIST_Y := 246.0
 const LIST_W := 607.0
@@ -90,10 +122,27 @@ func setup(data: Dictionary, palette: Dictionary) -> void:
 func _draw_all() -> void:
 	if _font == null:
 		return
+	# The rule goes down FIRST: Qud draws the hint over it, so the text has to punch through.
+	_content.draw_rect(Rect2(RULE_X, RULE_Y, RULE_W, RULE_H), C_RULE)
+
 	# Qud's own hint string, with the Ctrl keycap glyph it emits (U+E816 — the extracted icon
 	# font renders it; QudText falls back to the word when that font is missing).
-	_draw_markup("[{{W|+Tab}}] switch to %s" % ("build" if _mode == 1 else "modifications"),
-		Vector2(HINT_X, HINT_Y + 13.0), HINT_FONT)
+	#
+	# The glyph was MISSING and only this comment said otherwise: the literal read
+	# "[{{W|+Tab}}]", so Raves drew "[+Tab]" against Qud's "[Ctrl+Tab]" for as long as the
+	# screen has existed. Caught by a parity leaf, not by reading the code — the comment
+	# described the intent convincingly enough that the string beside it looked right.
+	# The codepoint has to be built, not typed, or it is invisible in the source too.
+	var base := HINT_Y + 13.0
+	var x := HINT_X
+	_content.draw_string(_font, Vector2(x, base), "[",
+		HORIZONTAL_ALIGNMENT_LEFT, -1, HINT_FONT, C_TEXT)
+	x += _font.get_string_size("[", HORIZONTAL_ALIGNMENT_LEFT, -1, HINT_FONT).x
+	_content.draw_string(_font, Vector2(x, base), String.chr(CTRL_GLYPH),
+		HORIZONTAL_ALIGNMENT_LEFT, -1, GLYPH_FONT, QudText.color_of_code("W", _palette, C_TEXT))
+	x += GLYPH_ADVANCE          # Qud's step across the cap, NOT the glyph's own at GLYPH_FONT
+	_draw_markup("{{W|+Tab}}] switch to %s" % ("build" if _mode == 1 else "modifications"),
+		Vector2(x, base), HINT_FONT)
 
 	var y := LIST_Y
 	if _mode == 1:

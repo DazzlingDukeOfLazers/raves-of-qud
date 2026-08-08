@@ -1,0 +1,43 @@
+{
+ "screen": "status_skills",
+ "note": "Leaf regions for the Skills tab, measured off L_skills_q.png at 1920x1080 on the pc-parity golden. MEASURED ON STABLE PIXELS ONLY: Qud draws this screen over the live playfield, so a naive scan finds the world, not the UI -- rows here were taken from pixels that agree between two Qud captures seconds apart. Always score this spec with --stable. First pass: the panel frame plus two list rows at the measured 33px pitch; the skill-tree column and the category headers deserve leaves once someone walks them.",
+ "defaults": {
+  "inset": 6,
+  "threshold": 60
+ },
+ "leaves": [
+  {
+   "name": "outer_frame",
+   "kind": "frame",
+   "rect": [
+    158,
+    197,
+    1604,
+    743
+   ],
+   "inset": 16,
+   "note": "the shared status-panel frame, same geometry as the equipment tab"
+  },
+  {
+   "name": "list_item",
+   "kind": "composite",
+   "rect": [
+    860,
+    694,
+    900,
+    26
+   ]
+  },
+  {
+   "name": "list_next",
+   "kind": "composite",
+   "rect": [
+    860,
+    726,
+    900,
+    26
+   ],
+   "note": "the following row at the measured 33px pitch"
+  }
+ ]
+}

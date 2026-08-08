@@ -1,0 +1,58 @@
+{
+ "screen": "status_messagelog",
+ "defaults": {
+  "inset": 6,
+  "threshold": 60
+ },
+ "note": "Has real content on this golden: the embark log. Line rects are measured bands, so these leaves cover wrapped body text at three different widths.",
+ "leaves": [
+  {
+   "name": "outer_frame",
+   "kind": "frame",
+   "rect": [
+    158,
+    197,
+    1604,
+    743
+   ],
+   "inset": 16,
+   "note": "The status pane's own chrome, the same rect every status tab uses."
+  },
+  {
+   "name": "log_head",
+   "kind": "composite",
+   "rect": [
+    188,
+    194,
+    200,
+    20
+   ],
+   "inset": 0,
+   "note": "'Joppa, Harvest Dawn' (measured y198-208, x194-373)."
+  },
+  {
+   "name": "log_line",
+   "kind": "composite",
+   "rect": [
+    188,
+    234,
+    1150,
+    20
+   ],
+   "inset": 0,
+   "note": "First body line (measured y238-248, x193-1042)."
+  },
+  {
+   "name": "log_para",
+   "kind": "composite",
+   "rect": [
+    172,
+    334,
+    1570,
+    40
+   ],
+   "inset": 0,
+   "note": "The two-line wrapped paragraph (measured y338-369)."
+  }
+ ]
+}

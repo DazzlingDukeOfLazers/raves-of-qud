@@ -58,6 +58,52 @@ const HINT_Y := 1023
 const HINT_Y2 := 1039
 const MAX_PALETTE_ROWS := 60   # rendered rows; the count line reports anything not drawn
 
+# Per-object context menu. The five items and their ORDER are Qud's own: MapEditorView.OnEnter
+# builds ContextMenu with exactly five Menu.addItem calls and -- unlike the File/Edit menus --
+# no HotKeyText follow-up, so there is no hotkey column. Geometry measured off a live capture:
+# the panel's top-left sits AT the mouse (offset 0,+1), 127x85 for five 17px rows, text inset 13.
+const CTX_ITEMS := [
+	{"text": "Set owner", "act": "ctx_owner"},
+	{"text": "Set part", "act": "ctx_part"},
+	{"text": "Add string property", "act": "ctx_addprop"},
+	{"text": "Add int property", "act": "ctx_addint"},
+	{"text": "Remove property", "act": "ctx_delprop"},
+]
+const CTX_W := 127
+const CTX_H := 85
+const CTX_TEXT_X := 13
+# Qud draws these labels on a FIXED CELL, not with a font's own metrics: across the five items
+# the ink width tracks 5.0 px/char exactly (19 chars -> 94 px, 16 -> 79, 15 -> 74), and no
+# integer font size reproduces that in Godot -- 8 comes out 5% narrow, 9 runs 7% wide. So we
+# advance the pen ourselves, the same way the glyph fallback draws on the canvas grid.
+const CTX_ADVANCE := 5.0
+const CTX_TEXT_PX := 8          # cap height 5 px, measured off "Set part"
+const CTX_ROW_PITCH := 16.5     # baselines measured at 12, 28, 45, 61, 78
+const CTX_BASELINE := 12.0
+# The panel is OPAQUE and 1px-scanlined -- sampling 448 interior pixels found exactly two
+# colours alternating every row, with the parity keyed to SCREEN y, not to the panel.
+const CTX_LINE_EVEN := Color8(0x05, 0x32, 0x30)   # (5,50,48)
+const CTX_LINE_ODD := Color8(0x02, 0x16, 0x16)    # (2,22,22)
+const CTX_TEXT_COL := Color8(0xC2, 0xCD, 0xCC)    # (194,205,204)
+const CTX_HILITE := Color8(0x1D, 0x4A, 0x46)
+
+# The DialogManager popups the context actions open. Measured at 1920x1080: the panel is a flat
+# grey centred on x=959.5, the screen behind it dimmed with black at alpha 0.42, and the text
+# fields are a FIXED 204 wide centred on the same axis regardless of the panel's width.
+const DLG_DIM := 0.42
+const DLG_PANEL := Color8(0x6B, 0x6B, 0x6B)       # (107,107,107)
+const DLG_FIELD_W := 204
+const DLG_FIELD_H := 17
+const DLG_BTN_W := 59
+const DLG_BTN_H := 23
+const DLG_PAD := 18
+const DLG_TITLE_PX := 15
+const DLG_TEXT_PX := 14
+const DLG_FIELD_BG := Color8(0xFF, 0xFF, 0xFF)    # (255,255,255) — sampled, pure white
+const DLG_BTN_BG := Color8(0xF5, 0xF5, 0xF5)      # (245,245,245)
+const DLG_INK := Color8(0x37, 0x37, 0x37)         # (55,55,55) — field and button text
+const DLG_TITLE_INK := Color8(0xFD, 0xFD, 0xFD)   # (253,253,253)
+
 ## Qud's menus, verbatim. `hot` is the right-hand hotkey column ("" = none). Cross-checked against
 ## MapEditorView: New map/Load map/Test/Save/SaveAs/_ReloadBlueprints/Exit, SelectAll/Undo/Redo,
 ## FlipHorizontal/FlipVertical, ToggleOverlay.
@@ -124,6 +170,11 @@ var _readout_b: Label
 var _in_use := false
 var _count_note: Label
 var _title_label: Label
+var _ctx: Control                # the per-object context menu panel ("" = closed)
+var _ctx_cell := Vector2i(-1, -1)
+var _ctx_bp := ""                # the blueprint the menu is acting on
+var _ctx_hover := -1
+var _modal: Control              # the active DialogManager-style popup
 
 func _ready() -> void:
 	name = "MapEditorScreen"
@@ -338,6 +389,16 @@ func _do(act: String) -> void:
 			_overlay_on = not _overlay_on; _canvas.queue_redraw()
 		"reload":
 			_load_blueprints(); _refresh_filter()
+		"ctx_owner":
+			_ctx_set_owner()
+		"ctx_part":
+			_ctx_set_part()
+		"ctx_addprop":
+			_ctx_add_prop(false)
+		"ctx_addint":
+			_ctx_add_prop(true)
+		"ctx_delprop":
+			_ctx_remove_prop()
 
 # .rpm file I/O ---------------------------------------------------------------
 # Qud's map format, read off the 273 shipped maps in StreamingAssets/Base:
@@ -387,11 +448,15 @@ func _save_rpm(path: String) -> bool:
 						line += " Owner=\"%s\"" % _xml_escape(str(o["owner"]))
 					if str(o.get("part", "")) != "":
 						line += " Part=\"%s\"" % _xml_escape(str(o["part"]))
+				var sp: Dictionary = o.get("props", {}) if o is Dictionary else {}
 				var ip: Dictionary = o.get("iprops", {}) if o is Dictionary else {}
-				if ip.is_empty():
+				if ip.is_empty() and sp.is_empty():
 					f.store_string(line + "></object>\n")
 				else:
 					f.store_string(line + ">")
+					for k in sp:
+						f.store_string("<property Name=\"%s\" Value=\"%s\" />" % [
+							_xml_escape(str(k)), _xml_escape(str(sp[k]))])
 					for k in ip:
 						f.store_string("<intproperty Name=\"%s\" Value=\"%s\" />" % [
 							_xml_escape(str(k)), _xml_escape(str(ip[k]))])
@@ -422,12 +487,15 @@ func _load_rpm(path: String) -> bool:
 				cur_obj = {"name": px.get_named_attribute_value_safe("Name"),
 					"owner": px.get_named_attribute_value_safe("Owner"),
 					"part": px.get_named_attribute_value_safe("Part"),
-					"iprops": {}}
+					"props": {}, "iprops": {}}
 				var arr: Array = cells.get(cur, [])
 				arr.append(cur_obj)
 				cells[cur] = arr
 				if px.is_empty():
 					cur_obj = {}          # <object ... /> — no children follow
+			elif n == "property" and not cur_obj.is_empty():
+				cur_obj["props"][px.get_named_attribute_value_safe("Name")] = \
+					px.get_named_attribute_value_safe("Value")
 			elif n == "intproperty" and not cur_obj.is_empty():
 				cur_obj["iprops"][px.get_named_attribute_value_safe("Name")] = \
 					px.get_named_attribute_value_safe("Value")
@@ -490,6 +558,326 @@ func _pick_file(save: bool) -> void:
 			_load_rpm(p))
 	add_child(_dialog)
 	_dialog.popup_centered()
+
+# per-object context menu ------------------------------------------------------
+# Qud builds this menu but never shows it: DisplayContextInRegion has NO caller anywhere in
+# Assembly-CSharp (verified by an IL scan of every method on MapEditorView, and its own
+# OnCommand has no branch for the "MiddleTile:x,y" command OnClick faithfully dispatches).
+# So the middle button is a slot Qud dispatches and drops on the floor. Raves hangs the menu
+# there -- a DELIBERATE divergence, and the only one available: reproducing the menu 1:1 while
+# leaving it unreachable would be reproducing a bug rather than the UI.
+
+func _erase_top(c: Vector2i) -> void:
+	var objs: Array = _cells.get(c, [])
+	if objs.is_empty():
+		return
+	_push_undo()
+	objs.pop_back()
+	if objs.is_empty():
+		_cells.erase(c)
+	else:
+		_cells[c] = objs
+	_refresh_filter()
+	_update_readouts()
+	_canvas.queue_redraw()
+
+func _close_context() -> void:
+	if _ctx != null:
+		_ctx.queue_free()
+		_ctx = null
+	_ctx_hover = -1
+
+## Qud shows the menu at Input.mousePosition with the panel's top-left ON the cursor, and it
+## acts on the FIRST object in the cell (DisplayContextInRegion takes one blueprint).
+func _open_context(c: Vector2i, at: Vector2) -> void:
+	_close_context()
+	var objs: Array = _cells.get(c, [])
+	if objs.is_empty():
+		return                      # no object under the cursor, nothing to configure
+	_ctx_cell = c
+	_ctx_bp = _obj_name(objs[0])
+	var panel := Control.new()
+	panel.position = Vector2(at.x, at.y + 1.0)
+	panel.size = Vector2(CTX_W, CTX_H)
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	panel.draw.connect(_draw_context)
+	panel.gui_input.connect(_context_input)
+	panel.mouse_exited.connect(func():
+		_ctx_hover = -1
+		if _ctx != null:
+			_ctx.queue_redraw())
+	_ctx = panel          # before add_child: the first draw can fire inside it
+	add_child(panel)
+
+func _draw_context() -> void:
+	# scanlines: the parity follows SCREEN y, so the stripes stay put as the menu moves
+	var top := int(_ctx.global_position.y)
+	for y in range(CTX_H):
+		var col := CTX_LINE_ODD if (top + y) % 2 == 1 else CTX_LINE_EVEN
+		_ctx.draw_rect(Rect2(0, y, CTX_W, 1), col)
+	if _ctx_hover >= 0:
+		_ctx.draw_rect(Rect2(0, _ctx_hover * CTX_ROW_PITCH, CTX_W, CTX_ROW_PITCH), CTX_HILITE)
+	var f: Font = load(FONT_MONO)
+	for i in range(CTX_ITEMS.size()):
+		var base := CTX_BASELINE + i * CTX_ROW_PITCH
+		var text := str(CTX_ITEMS[i]["text"])
+		for j in range(text.length()):
+			_ctx.draw_string(f, Vector2(CTX_TEXT_X + j * CTX_ADVANCE, base), text.substr(j, 1),
+				HORIZONTAL_ALIGNMENT_LEFT, -1, CTX_TEXT_PX, CTX_TEXT_COL)
+
+func _context_input(e: InputEvent) -> void:
+	if e is InputEventMouseMotion:
+		var i := int(e.position.y / CTX_ROW_PITCH)
+		if i != _ctx_hover:
+			_ctx_hover = clampi(i, -1, CTX_ITEMS.size() - 1)
+			_ctx.queue_redraw()
+	elif e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+		var i := int(e.position.y / CTX_ROW_PITCH)
+		if i >= 0 and i < CTX_ITEMS.size():
+			var act := str(CTX_ITEMS[i]["act"])
+			_close_context()
+			_do(act)
+
+## Every object in scope for a context action: Qud applies these ACROSS the selected region
+## (MapFileRegion.FindCellsWithObjectBlueprint over SelectedRegion), falling back to the whole
+## map when nothing is selected -- so a single edit can retag every instance at once.
+func _ctx_targets() -> Array:
+	var out: Array = []
+	for k in _cells:
+		var p: Vector2i = k
+		if _has_region and not _region.has_point(p):
+			continue
+		for o in _cells[k]:
+			if o is Dictionary and str(o.get("name", "")) == _ctx_bp:
+				out.append(o)
+	return out
+
+func _ctx_first() -> Dictionary:
+	var t := _ctx_targets()
+	return t[0] if not t.is_empty() else {}
+
+# the DialogManager popups -----------------------------------------------------
+# Qud's modding tools use Unity's plain dialogs here rather than Qud's own console chrome, so
+# these are sans-serif on flat grey -- reproduced from measurement, not styled to taste.
+
+## Qud's modding dialogs use Unity's stock UI font -- sans, not the console mono this screen
+## draws everything else in -- so these controls deliberately opt OUT of the screen's face.
+## That face is LIBERATION SANS specifically, not "some sans": it ships embedded in the game's
+## own sharedassets0.assets, which is where tools/capture/fonts.py carves it from. Falls back to
+## the theme font when it has not been extracted on this machine.
+var _sans_cached := false
+var _sans: FontFile
+
+func _dlg_face() -> Font:
+	if not _sans_cached:
+		_sans_cached = true
+		var p := InputModel.support_dir().path_join("title").path_join("chrome") 			.path_join("LiberationSans-Regular.ttf")
+		if FileAccess.file_exists(p):
+			var f := FontFile.new()
+			if f.load_dynamic_font(p) == OK:
+				_sans = f
+	return _sans if _sans != null else ThemeDB.fallback_font
+
+func _dlg_sans(c: Control, px: int, ink: Color) -> void:
+	c.add_theme_font_override("font", _dlg_face())
+	c.add_theme_font_size_override("font_size", px)
+	c.add_theme_color_override("font_color", ink)
+
+func _dlg_box(bg: Color) -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = bg
+	sb.set_corner_radius_all(3)
+	sb.set_content_margin_all(4)
+	return sb
+
+func _close_modal() -> void:
+	if _modal != null:
+		_modal.queue_free()
+		_modal = null
+
+func _modal_root() -> Control:
+	_close_modal()
+	var root := Control.new()
+	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.mouse_filter = Control.MOUSE_FILTER_STOP
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, DLG_DIM)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(dim)
+	add_child(root)
+	_modal = root
+	return root
+
+func _dlg_panel(root: Control, title: String, w: int, h: int) -> Control:
+	var vw := get_viewport_rect().size.x
+	var panel := ColorRect.new()
+	panel.color = DLG_PANEL
+	panel.position = Vector2(roundf((vw - w) * 0.5), roundf((1080.0 - h) * 0.5))
+	panel.size = Vector2(w, h)
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	root.add_child(panel)
+	var l := Label.new()
+	l.text = title
+	_dlg_sans(l, DLG_TITLE_PX, DLG_TITLE_INK)
+	l.size = Vector2(w, 20)
+	l.position = Vector2(0, 12)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_child(l)
+	return panel
+
+func _dlg_field(panel: Control, y: int, text: String) -> LineEdit:
+	var e := LineEdit.new()
+	e.text = text
+	_dlg_sans(e, DLG_TEXT_PX, DLG_INK)
+	e.add_theme_color_override("font_selected_color", DLG_INK)
+	e.add_theme_color_override("caret_color", DLG_INK)
+	e.add_theme_stylebox_override("normal", _dlg_box(DLG_FIELD_BG))
+	e.add_theme_stylebox_override("focus", _dlg_box(DLG_FIELD_BG))
+	e.position = Vector2((panel.size.x - DLG_FIELD_W) * 0.5, y)
+	e.size = Vector2(DLG_FIELD_W, DLG_FIELD_H)
+	panel.add_child(e)
+	return e
+
+func _dlg_button(b: Button) -> void:
+	_dlg_sans(b, DLG_TEXT_PX, DLG_INK)
+	for st in ["normal", "hover", "pressed", "focus", "disabled"]:
+		b.add_theme_stylebox_override(st, _dlg_box(DLG_BTN_BG))
+	b.add_theme_color_override("font_hover_color", DLG_INK)
+	b.add_theme_color_override("font_pressed_color", DLG_INK)
+	b.add_theme_color_override("font_focus_color", DLG_INK)
+
+func _dlg_buttons(panel: Control, y: int, ok_cb: Callable, with_cancel := true) -> void:
+	var n := 2 if with_cancel else 1
+	var total := DLG_BTN_W * n + (4 * (n - 1))
+	var x := (panel.size.x - total) * 0.5
+	var ok := Button.new()
+	ok.text = "Ok"
+	_dlg_button(ok)
+	ok.position = Vector2(x, y)
+	ok.size = Vector2(DLG_BTN_W, DLG_BTN_H)
+	ok.pressed.connect(func():
+		ok_cb.call()
+		_close_modal())
+	panel.add_child(ok)
+	if not with_cancel:
+		return
+	var no := Button.new()
+	no.text = "Cancel"
+	_dlg_button(no)
+	no.position = Vector2(x + DLG_BTN_W + 4, y)
+	no.size = Vector2(DLG_BTN_W, DLG_BTN_H)
+	no.pressed.connect(_close_modal)
+	panel.add_child(no)
+
+## DialogManager.getString -- panel 240x110, title +14, field +44, buttons +77 (measured)
+func _dlg_string(title: String, initial: String, cb: Callable) -> void:
+	var root := _modal_root()
+	var panel := _dlg_panel(root, title, 240, 110)
+	var f := _dlg_field(panel, 44, initial)
+	_dlg_buttons(panel, 77, func(): cb.call(f.text))
+	f.grab_focus()
+	f.select_all()
+
+## DialogManager.getPair -- panel 244x130, title +13, fields +44/+64, buttons +98 (measured)
+func _dlg_pair(title: String, a: String, b: String, cb: Callable) -> void:
+	var root := _modal_root()
+	var panel := _dlg_panel(root, title, 244, 130)
+	var fa := _dlg_field(panel, 44, a)
+	var fb := _dlg_field(panel, 64, b)
+	_dlg_buttons(panel, 98, func(): cb.call(fa.text, fb.text))
+	fa.grab_focus()
+	fa.select_all()
+
+## DialogManager.info -- panel 224x92, message +14, a lone Ok at +59 (measured)
+func _dlg_info(message: String) -> void:
+	var root := _modal_root()
+	var panel := _dlg_panel(root, message, 224, 92)
+	_dlg_buttons(panel, 59, func(): pass, false)
+
+## DialogManager.getChoice -- same family, sized to the option count
+func _dlg_choice(title: String, options: Array, cb: Callable) -> void:
+	var root := _modal_root()
+	var h := 60 + options.size() * 22 + 30
+	var panel := _dlg_panel(root, title, 260, h)
+	for i in range(options.size()):
+		var b := Button.new()
+		b.text = str(options[i])
+		_dlg_button(b)
+		b.position = Vector2((panel.size.x - DLG_FIELD_W) * 0.5, 40 + i * 22)
+		b.size = Vector2(DLG_FIELD_W, 20)
+		var idx := i
+		b.pressed.connect(func():
+			cb.call(idx)
+			_close_modal())
+		panel.add_child(b)
+	_dlg_buttons(panel, h - 30, func(): pass, false)
+
+# the five context actions -----------------------------------------------------
+# Prompts are verbatim from the IL: SetOwnerInRegion getString("New owner:"),
+# SetPartForContext getString("New part:"), Add{,Int}PropertyForContext
+# getPair("Define property name and value", "[Name]", "[Value]"/"1"), and
+# RemovePropertyForContext getChoice("Choose a property to remove") / info("No properties defined.").
+
+func _ctx_set_owner() -> void:
+	var cur := str(_ctx_first().get("owner", ""))
+	_dlg_string("New owner:", cur, func(v: String):
+		_push_undo()
+		for o in _ctx_targets():
+			o["owner"] = v
+		_canvas.queue_redraw())
+
+func _ctx_set_part() -> void:
+	var cur := str(_ctx_first().get("part", ""))
+	_dlg_string("New part:", cur, func(v: String):
+		_push_undo()
+		for o in _ctx_targets():
+			o["part"] = v
+		_canvas.queue_redraw())
+
+func _ctx_add_prop(as_int: bool) -> void:
+	_dlg_pair("Define property name and value", "[Name]", "1" if as_int else "[Value]",
+		func(n: String, v: String):
+			if n == "" or n == "[Name]":
+				return
+			_push_undo()
+			for o in _ctx_targets():
+				var key := "iprops" if as_int else "props"
+				var d: Dictionary = o.get(key, {})
+				d[n] = v
+				o[key] = d
+			_canvas.queue_redraw())
+
+## Qud gathers the properties of EVERY instance in scope and labels each choice with the set of
+## values seen across them -- "Faction (Joppa, Grit Gate)" -- so a bulk remove shows what it hits.
+func _ctx_remove_prop() -> void:
+	var seen := {}
+	for o in _ctx_targets():
+		for key in ["props", "iprops"]:
+			var d: Dictionary = o.get(key, {})
+			for n in d:
+				var vals: Array = seen.get(n, [])
+				if not vals.has(str(d[n])):
+					vals.append(str(d[n]))
+				seen[n] = vals
+	if seen.is_empty():
+		_dlg_info("No properties defined.")
+		return
+	var names: Array = seen.keys()
+	names.sort()
+	var labels: Array = []
+	for n in names:
+		labels.append("%s (%s)" % [n, ", ".join(seen[n])])
+	_dlg_choice("Choose a property to remove", labels, func(i: int):
+		var victim := str(names[i])
+		_push_undo()
+		for o in _ctx_targets():
+			for key in ["props", "iprops"]:
+				var d: Dictionary = o.get(key, {})
+				d.erase(victim)
+				o[key] = d
+		_canvas.queue_redraw())
 
 func _push_undo() -> void:
 	_undo.append(_cells.duplicate(true))
@@ -648,6 +1036,12 @@ func _canvas_input(e: InputEvent) -> void:
 				_paint(c)          # Qud paints continuously along a Ctrl+drag
 			_update_readouts()
 			_canvas.queue_redraw()
+	elif e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_RIGHT and e.pressed:
+		# Qud's OnClick sends "RightTile:x,y", and OnCommand's handler pops the TOP object off
+		# that cell (pushing a "Remove" undo action). Right-click is an eraser, not a menu.
+		_erase_top(_cell_at(e.position))
+	elif e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_MIDDLE and e.pressed:
+		_open_context(_cell_at(e.position), e.position + CANVAS.position)
 	elif e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_LEFT:
 		var c := _cell_at(e.position)
 		if e.pressed:
@@ -679,7 +1073,7 @@ func _paint(c: Vector2i) -> void:
 		return
 	_push_undo()
 	var objs: Array = _cells.get(c, [])
-	objs.append({"name": _brush, "owner": "", "part": "", "iprops": {}})
+	objs.append({"name": _brush, "owner": "", "part": "", "props": {}, "iprops": {}})
 	_cells[c] = objs
 
 # ── palette ───────────────────────────────────────────────────────────────────
@@ -846,6 +1240,11 @@ func _build_hints() -> void:
 # ── input ─────────────────────────────────────────────────────────────────────
 
 func _unhandled_input(e: InputEvent) -> void:
+	if e is InputEventKey and e.pressed and e.keycode == KEY_ESCAPE:
+		if _modal != null:
+			_close_modal(); accept_event(); return
+		if _ctx != null:
+			_close_context(); accept_event(); return
 	if TypingGuard.typing(get_viewport()) and not e.is_action_pressed("ui_cancel"):
 		return
 	if e is InputEventKey and e.pressed and e.ctrl_pressed:

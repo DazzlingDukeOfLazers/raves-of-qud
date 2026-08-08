@@ -99,6 +99,30 @@ func _card_icon(tile: String, item_name: String) -> Dictionary:
 	var colored := _recolor_tile(tile, ICON_MAIN, ICON_DETAIL)
 	return {"colored": colored, "neutral": colored}
 
+## CATEGORY BANDS — a coloured, dash-ruled header row above the cards, each band spanning its own
+## contiguous group of them: [{display, start, count}], where `display` is Qud's own markup and
+## carries the band's colour. Empty (the default) means no header row at all, which is every chargen
+## screen but Choose Caste — Qud groups the twelve castes under their three arcologies and rules a
+## dashed line across each group.
+func _category_bands() -> Array: return []
+
+## Vertical layout, as fractions of viewport height. These are HOOKS rather than constants because
+## the banded screen is not the unbanded one shifted by a fixed amount: inserting the header row moves
+## the title and subtitle up by ~0.035 but the card row by only ~0.013, so a single "lift" would put
+## one of them wrong. Measured off Qud captures at 1920x1080; see CasteScreen for the banded set.
+func _y_title() -> float: return 0.435
+func _y_subtitle() -> float: return 0.455
+func _y_bands() -> float: return 0.449
+func _y_cards() -> float: return 0.483
+func _y_desc() -> float: return 0.665
+
+## Card width and inter-card gap, as fractions of viewport WIDTH. A hook because the row does not
+## simply stretch with the item count: Qud fits twelve castes into much the same span it gives five
+## game modes by drawing them narrower and tighter, so a screen with a long row supplies its own
+## measured pair rather than inheriting the five-card one.
+func _card_w_frac() -> float: return 0.049
+func _card_gap_frac() -> float: return 0.014
+
 # ══ lifecycle ══════════════════════════════════════════════════════════════════════
 
 func _ready() -> void:
@@ -312,31 +336,32 @@ func _build_center() -> void:
 	var cc := _text("character creation", CC_GOLD, "big")
 	cc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	cc.anchor_left = 0.0; cc.anchor_right = 1.0
-	cc.position.y = vp.y * 0.435
+	cc.position.y = vp.y * _y_title()
 	add_child(cc)
 	var sub := _text(_subtitle(), SUB_TEAL, "caption")
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	sub.anchor_left = 0.0; sub.anchor_right = 1.0
-	sub.position.y = vp.y * 0.455   # tighter under the title, as in Qud (was 0.468 — too low)
+	sub.position.y = vp.y * _y_subtitle()   # tighter under the title, as in Qud (was 0.468 — too low)
 	add_child(sub)
 
-	var card_w := int(vp.x * 0.049)
+	var card_w := int(vp.x * _card_w_frac())
 	var card_h := int(vp.y * 0.086)
 	_border_tex = _dashed_border_tex(card_w, card_h)
 	_frame_tex = _load_card_frame()
 	_frame_extracted = _frame_tex != null
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", int(vp.x * 0.014))
+	row.add_theme_constant_override("separation", int(vp.x * _card_gap_frac()))
 	row.anchor_left = 0.0; row.anchor_right = 1.0
-	row.position.y = vp.y * 0.483   # tuck the cards just under the subtitle, as in Qud (was 0.5 — too low)
+	row.position.y = vp.y * _y_cards()   # tuck the cards just under the subtitle, as in Qud (was 0.5 — too low)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(row)
 	for i in range(_items.size()):
 		row.add_child(_build_card(_items[i], i, card_w, card_h))
+	_build_bands()
 
 	_desc = _rich("", "body")
-	_desc.position = Vector2(vp.x * 0.393, vp.y * 0.665)   # left-justified, as in Qud (not centred)
+	_desc.position = Vector2(vp.x * 0.393, vp.y * _y_desc())   # left-justified, as in Qud (not centred)
 	_desc.custom_minimum_size.x = vp.x * 0.32
 	add_child(_desc)
 
@@ -413,7 +438,13 @@ func _build_card(m: Dictionary, idx: int, cw: int, ch: int) -> Control:
 	var nm := _text(str(m.get("display", m.get("name", "?"))), NAME_DIM, "caption")
 	nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	nm.custom_minimum_size = Vector2(cw, 0)
-	nm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	# WORD, not WORD_SMART. Qud wraps a card name only at spaces and lets a single long word overflow
+	# its card -- "Horticulturist", "Syzygyrior" and "Praetorian" all sit on one line, wider than the
+	# frame under them, while "Priest of All Suns" breaks across three. WORD_SMART instead breaks
+	# INSIDE words when they do not fit, which on Choose Caste produced "Horticul/turist" and
+	# "Praetori/an". It never showed up on the mode and genotype screens because nothing there is
+	# longer than its card.
+	nm.autowrap_mode = TextServer.AUTOWRAP_WORD
 	col.add_child(nm)
 	var hk := _text("[%s]" % str(m.get("hotkey", "")), HOTKEY_DIM, "caption")
 	hk.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -421,6 +452,92 @@ func _build_card(m: Dictionary, idx: int, cw: int, ch: int) -> Control:
 	col.add_child(hk)
 	_cards.append({"cell": cell, "col": col, "boxc": boxc, "border": border, "icon": icon, "name": nm, "hotkey": hk, "caret": caret})
 	return cell
+
+# ══ category bands (Choose Caste's arcology headers) ═══════════════════════════════
+
+## One dash-ruled header per band, each spanning exactly its own run of cards.
+##
+## Built as an HBox — [rule][label][rule] — rather than a padded string of "─" characters, because
+## the fill has to reach the group's real edges and a character count only reaches them by accident:
+## the three arcology names differ in length by more than a card's width, so Qud's own rules are
+## visibly different lengths. Letting two expanding rules take up the slack gets that for free at any
+## font size or window width.
+##
+## Positioned AFTER layout (deferred), for the same reason _position_sel_frame is: an HBoxContainer
+## has no meaningful child rects until the container has run, so measuring the card columns on the
+## build frame would place every band at x=0 with zero width.
+var _bands: Array = []
+
+func _build_bands() -> void:
+	var bands := _category_bands()
+	if bands.is_empty():
+		return
+	for b in bands:
+		var holder := HBoxContainer.new()
+		holder.add_theme_constant_override("separation", 6)
+		holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		# The band name arrives as Qud markup ("{{G|The Toxic Arboreta…}}") straight out of
+		# chargen.json, so the colour is IN the string — take it from the first run rather than
+		# making the subclass restate it, which would be a second place for it to go stale.
+		var plain := ""
+		var col := MUTED
+		var first := true
+		for run in QudText.runs(str(b.get("display", "")), _palette, MUTED):
+			plain += str(run[0])
+			if first:
+				col = run[1]
+				first = false
+		var lrule := _dash_rule(col)
+		var label := _text(plain, col, "caption")
+		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var rrule := _dash_rule(col)
+		holder.add_child(lrule)
+		holder.add_child(label)
+		holder.add_child(rrule)
+		add_child(holder)
+		_bands.append({"holder": holder, "start": int(b.get("start", 0)), "count": int(b.get("count", 0))})
+	_position_bands_deferred()
+
+## A horizontal dashed rule that eats whatever width the label leaves.
+func _dash_rule(col: Color) -> Control:
+	var c := Control.new()
+	c.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	c.custom_minimum_size = Vector2(8, 2)
+	c.draw.connect(func():
+		var w := c.size.x
+		var y := c.size.y * 0.5
+		var x := 0.0
+		while x < w:
+			c.draw_rect(Rect2(x, y, minf(4.0, w - x), 1.0), col)
+			x += 7.0)
+	return c
+
+func _position_bands_deferred() -> void:
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_position_bands()
+
+func _position_bands() -> void:
+	if _bands.is_empty():
+		return
+	var vp := get_viewport_rect().size
+	for b in _bands:
+		var lo: int = b["start"]
+		var hi: int = lo + b["count"] - 1
+		if lo < 0 or hi >= _cards.size() or b["count"] <= 0:
+			continue
+		var a: Control = _cards[lo].get("col")
+		var z: Control = _cards[hi].get("col")
+		if a == null or z == null:
+			continue
+		var x0 := a.get_global_rect().position.x
+		var x1 := z.get_global_rect().end.x
+		if x1 - x0 <= 1.0:
+			continue
+		var h: Control = b["holder"]
+		h.position = Vector2(x0, vp.y * _y_bands())
+		h.size = Vector2(x1 - x0, h.size.y)
 
 # ══ guided-tutorial extras ═════════════════════════════════════════════════════════
 
@@ -673,7 +790,10 @@ func _set_emblem(tex: Texture2D) -> void:
 	_emblem_rect.texture = tex
 	var eh: int = int(vp.y * 0.042)
 	var ew: int = int(eh * float(tex.get_width()) / float(tex.get_height()))
-	_emblem_rect.position = Vector2((vp.x - ew) * 0.5, vp.y * 0.432 - eh)
+	# Sits just above the title, and must TRACK it: this was the literal 0.432 (i.e. _y_title() less
+	# a 0.003 nudge), which put the sheaf straight through the middle of "character creation" the
+	# moment Choose Caste raised the title block to make room for its arcology row.
+	_emblem_rect.position = Vector2((vp.x - ew) * 0.5, vp.y * (_y_title() - 0.003) - eh)
 	_emblem_rect.size = Vector2(ew, eh)
 
 func _load_title_sprite(fname: String) -> Texture2D:

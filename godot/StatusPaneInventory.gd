@@ -134,6 +134,24 @@ const FILT_BADGE := Vector2(20, 27)
 const FILT_BADGE_Y := 184.0
 const FILT_BADGE_QX := 590.0
 const FILT_BADGE_EX := 1310.0
+# ...but only for a character with the ELEVEN categories the reference had. Qud CENTRES the
+# strip on the screen and sizes it to the categories actually present, so those two numbers
+# are one sample of a family, not constants. Measured on two fixtures:
+#   mac  (11 cats) Q@590 E@1329  span 739  centre 959.5
+#   PC   ( 8 cats) Q@677          span 565  centre 959.5   (3 fewer cells x 58 = 174 narrower)
+# Hard-coding 590/618 put the whole strip 87 px left of Qud's on the PC golden, so every
+# fixed-rect filter_* leaf compared an icon against its neighbour and scored 78-82 vs 2-6.
+# The mac fixture hid it because its count matched the numbers baked in here.
+const FILT_SPAN_FULL := 739.0       # span at FILT_MAX_CELLS cells (the measured reference)
+const FILT_CENTRE := 959.5          # screen centre; Qud keeps the strip on it
+const FILT_ALL_DX := 28.0           # ALL cell offset from the Q badge (618 - 590)
+const FILT_BADGE_EDX := 720.0       # E badge offset from the Q badge at full span (1310 - 590)
+
+## Left edge of the strip for `cells` drawn cells (ALL + categories), centred like Qud's.
+## Reproduces the reference exactly at FILT_MAX_CELLS: 959.5 - 739/2 = 590.
+func _filt_left(cells: int) -> float:
+	var span := FILT_SPAN_FULL - float(FILT_MAX_CELLS - cells) * FILT_PITCH
+	return FILT_CENTRE - span * 0.5
 
 var _data := {}
 var _palette := {}
@@ -402,7 +420,11 @@ func _filt_color(on: bool, focused: bool) -> Color:
 func _draw_filter_strip() -> void:
 	var cats: Array = _data.get("categories", [])
 	_filt_rects.clear()
-	var x := FILT_X
+	# Centre the strip on the count Qud would draw: the ALL cell plus one per category,
+	# capped at FILT_MAX_CELLS (the rest are on Qud's other page).
+	var _cells := mini(cats.size() + 1, FILT_MAX_CELLS)
+	var _left := _filt_left(_cells)
+	var x := _left + FILT_ALL_DX
 	# the ALL cell — gold-framed while no category filter is enabled (Qud's "*All")
 	var all_rect := Rect2(Vector2(x, FILT_Y), Vector2(FILT_W, FILT_H))
 	_filt_rects.append([all_rect, ""])   # placeholder replaced below; keeps index 0 stable
@@ -425,8 +447,8 @@ func _draw_filter_strip() -> void:
 	# strip order is QUD'S (filterOrder: category of the alphabetically-first item),
 	# which differs from the list's alphabetical category order
 	# the paging hotkeys that bound the strip
-	_draw_filt_badge(FILT_BADGE_QX, "Q")
-	_draw_filt_badge(FILT_BADGE_EX, "E")
+	_draw_filt_badge(_left, "Q")
+	_draw_filt_badge(_left + FILT_BADGE_EDX - float(FILT_MAX_CELLS - _cells) * FILT_PITCH, "E")
 	var order: Array = _data.get("filterOrder", [])
 	var by_name := {}
 	for c in cats:
