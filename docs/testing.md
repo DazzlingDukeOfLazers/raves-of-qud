@@ -1864,7 +1864,7 @@ Corollaries worth not rediscovering:
 
 | gate | was | now |
 |---|---|---|
-| FULL 3, raves Wander whole-tree tour | 21/21 | **22/22 arrived, 0 EDGE, 0 ENV, 0 REFUSED** (19.4 min). 22 because the chargen work added `caste`. |
+| FULL 3, raves Wander whole-tree tour | 21/21 | **22/22 arrived, 0 EDGE, 0 ENV, 0 REFUSED** (18.2 min, RE-RUN — see the correction below). 22 because the chargen work added `caste`. |
 | FULL 4, `hv loadsave` + popup round-trip | pass | pass — popup mirrored (`popup=menu`, `popup_n=2`) and answered; loadsave `via bridge loadsave`. |
 | FULL 1, typing guard on the NEW field | 14 fields | **15** — typed `e j q x n 1 2` into the Map Editor blueprint filter, read **`ejqxn12`** back out of the pixels, scene never left `map_editor`. |
 
@@ -1924,3 +1924,25 @@ MapEditorScreen.gd:895/1027) and is unexplained. **Open.**
 **Driving the Map Editor canvas needs `hv mouse` FIRST.** A bare `hv click` warps and clicks but
 Godot never updates its own cursor position, so the editor reported `Mouse Position: 0, 0` and
 `Selected Cell: none` while clicks "succeeded". `hv mouse <win> x y`, then click.
+
+### Correction — the first FULL 3 run could not have failed, and what it hid
+
+`hv assert` returns **both** `ok` (the envelope: the op ran) and `passed` (the verdict).
+`tour.py` read `ok`. So every node counted as arrived regardless of the assertion, and the
+first 22/22 was guaranteed before the tour started — it was reported as a result before being
+caught. Ninth instance of this family recorded in this repo.
+
+The tour now reads `passed` and **exits** rather than guessing if that field is ever absent.
+Re-run from scratch: **22/22, 0 EDGE / 0 ENV / 0 REFUSED, 18.2 min.** The number was right, but
+only the second run is evidence for it. Also: no node printed `(goto said no)` on the re-run
+(the three that did on the first run all drove cleanly), and `status_quests` went 39.2s → 14.2s.
+
+**The bug was hiding a real gap: `map_editor` had no `raves` detector.** Its `detect` block in
+`gametree.json` carried a `qud` entry only, so Raves — which publishes `scene=map_editor` —
+resolved as `running · unknown screen  via=window`, and every assert on that node timed out
+silently under the broken check. Added; it now reads `Map Editor  scene=map_editor  via=scene`.
+
+Also landed (Mac-side Stage H): `plat_mac.qud_install_dir()`, so `tools/capture/fonts.py` no
+longer carries a `getattr(plat, "qud_install_dir", None)` fallback plus a duplicate copy of each
+platform's path. Verified end-to-end — the extractor carved 4 faces out of this Mac's install
+through the unified call.

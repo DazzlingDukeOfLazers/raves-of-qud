@@ -316,6 +316,22 @@ def qud_data_dir():
                         "com.FreeholdGames.CavesOfQud")
 
 
+def qud_install_dir():
+    """<install>/…/Data — the Unity ASSET files (fonts, textures), for fonts.py to carve from.
+
+    The macOS half of the seam `plat_win.qud_install_dir()` opened: the PC branch added it
+    there only, so `fonts.py` had to carry its own `getattr(plat, "qud_install_dir", None)`
+    fallback. Same name on both platforms now, so the caller can just call it.
+
+    Deliberately NOT qud_data_dir(): that is Qud's persistentDataPath (saves, mods, options),
+    a different directory, and pointing font extraction at it finds no .assets and reports
+    "no embedded fonts" as though the game shipped none.
+    """
+    return os.path.join(os.path.expanduser("~"), "Library", "Application Support", "Steam",
+                        "steamapps", "common", "Caves of Qud", "CoQ.app", "Contents",
+                        "Resources", "Data")
+
+
 # --- process / launch (macOS) ---------------------------------------------------
 def list_pids(match=QUD_PROC_MATCH):
     r = subprocess.run(["pgrep", "-f", match], capture_output=True, text=True)

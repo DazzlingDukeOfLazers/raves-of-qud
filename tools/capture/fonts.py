@@ -53,17 +53,12 @@ def qud_install_dir():
 
     NOT plat.qud_data_dir() — that is Qud's persistentDataPath (saves, mods, options), a
     different directory entirely; pointing this at it would find no .assets files and report
-    "no embedded fonts" as though the game shipped none. The Windows path comes from the
-    backend's qud_install_dir(); the macOS branch is the documented Steam location.
+    "no embedded fonts" as though the game shipped none.
+
+    Both backends define qud_install_dir() now (the PC branch added it to plat_win only, so
+    this used to carry a getattr() fallback and a duplicate copy of each platform's path).
     """
-    fn = getattr(plat, "qud_install_dir", None)
-    if fn:
-        return fn()
-    if plat.IS_MAC:
-        return os.path.expanduser(
-            "~/Library/Application Support/Steam/steamapps/common/"
-            "Caves of Qud/CoQ.app/Contents/Resources/Data")
-    return r"C:\Program Files (x86)\Steam\steamapps\common\Caves of Qud\CoQ_Data"
+    return plat.qud_install_dir()
 
 
 def parse_sfnt(buf, off, limit):
