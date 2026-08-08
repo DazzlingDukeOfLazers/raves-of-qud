@@ -55,6 +55,9 @@ const ICON_DIM := Color(0.35, 0.47, 0.54, 1.0)
 ## so the Back reading is the one that is not confounded by state — and Raves was drawing it at
 ## (97,124,120) against Qud's (177,201,195).
 const NAV_ARROW := Color8(0x42, 0x64, 0x70)   # Qud (66,100,112) — same value as CRUMB_ICON
+## The three-dot deco under the description. Its own steel, bluer than both MUTED (97,124,120) and
+## the nav/crumb steel (66,100,112) — not a palette entry, so it is recorded as measured.
+const DECO_KNOB := Color8(0x5B, 0x7A, 0x8A)   # Qud (91,122,138)
 const HINT_TEXT := QudPalette.COLORS["y"]     # Qud (177,201,195)
 const DIM := QudPalette.COLORS["k"]           # Qud (15,59,58) — "[Num 9] Next" when disabled
 
@@ -481,23 +484,29 @@ func _build_center() -> void:
 	_desc.custom_minimum_size.x = vp.x * 0.32
 	add_child(_desc)
 
-	var knob := _load_title_sprite("deco_knob.png")
-	if knob != null:
-		var ks: int = maxi(6, int(vp.y * 0.009))
-		var d: int = int(ks * 1.3)
-		var cx: float = vp.x * 0.5
-		var oy: float = vp.y * 0.775
-		for off in [Vector2(0, -d), Vector2(-d, d), Vector2(d, d)]:
-			var k := TextureRect.new()
-			k.texture = knob
-			k.stretch_mode = TextureRect.STRETCH_SCALE
-			k.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-			k.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-			k.modulate = MUTED
-			k.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			k.position = Vector2(cx + off.x - ks * 0.5, oy + off.y - ks * 0.5)
-			k.size = Vector2(ks, ks)
-			add_child(k)
+	# The three-dot deco under the description. Measured off Qud's caste screen: three 5px dots
+	# centred at (959,900) at 1920x1080, offsets (0,-4), (-9,+4), (+9,+4). The spread is NOT
+	# symmetric — twice as wide as it is tall — so one `d` for both axes cannot describe it. Raves
+	# drew 9px dots at +-11 on both axes at y837: bigger, rounder and ~60px too high.
+	#
+	# Drawn rather than blitted from deco_knob.png, which was the previous approach and could not
+	# reach the right colour. That sprite carries Qud's art colour (58,80,92) baked in, and a
+	# TextureRect's modulate MULTIPLIES, so asking for (91,122,138) rendered (21,38,50) — exactly
+	# the product. Getting there from the sprite would need a modulate above 1.0 to brighten it.
+	# At 5px Qud's dots are solid blocks anyway, so a ColorRect is both exact and one less
+	# dependency on an extracted asset being present.
+	var ks: int = maxi(3, int(round(vp.y * 0.0046)))   # 5px at 1080
+	var dx: int = maxi(2, int(round(vp.x * 0.0047)))   # 9px at 1920
+	var dy: int = maxi(1, int(round(vp.y * 0.0037)))   # 4px at 1080
+	var cx: float = vp.x * 0.5
+	var oy: float = vp.y * 0.8333                      # y900 at 1080
+	for off in [Vector2(0, -dy), Vector2(-dx, dy), Vector2(dx, dy)]:
+		var k := ColorRect.new()
+		k.color = DECO_KNOB
+		k.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		k.position = Vector2(cx + off.x - ks * 0.5, oy + off.y - ks * 0.5)
+		k.size = Vector2(ks, ks)
+		add_child(k)
 
 	var rnd := _rich("[center][color=#%s][lb]R[rb][/color][color=#%s] Randomize Selection[/color][/center]" % [
 		SEL_GOLD.to_html(false), MUTED.to_html(false)], "body")
