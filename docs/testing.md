@@ -1658,3 +1658,32 @@ mutating `pc-parity` would invalidate every baseline just pinned against it
 (skills, equipment, reputation, tinkering). That is a deliberate non-action here,
 not an oversight: the next step is `pc-parity-rich` with the quest, schematics and
 journal entries, kept alongside rather than replacing.
+
+### Journal: the category strip is a DIFFERENT WIDGET, not a misaligned one
+
+Cropping the header settled it in one look. Qud draws the journal sub-tab
+selector as ICON BUTTONS — a `Q` keycap glyph followed by pictorial category
+icons in boxes. Raves draws the category WORDS: "Locations  Chronology  Gossip
+and Lore  Sultan His…".
+
+That accounts for both symptoms exactly: Qud's header band runs x190-906 against
+Raves' x190-589, and Qud has a band at y211-217 that Raves has nothing for. I had
+been reading those as an alignment gap; they are two different controls.
+
+So `cat_strip`'s 19.45 is not a fidelity number and should not be treated as one
+— annotated in the spec accordingly. It becomes meaningful only once Raves draws
+icons. The assets are plausibly already to hand: the `Q` is an input glyph from
+the atlas we already load, and the category icons are the same class as the tile
+exports.
+
+This is the third time this session that a leaf scoring badly meant "something
+here is wrong" rather than "this thing is misplaced" — filter strip, reputation
+frame, now this. The crop answers it every time and the statistics never do.
+
+### Tinkering: still unmeasured
+
+No schematics on this golden, so its list rendering remains completely uncovered.
+`filter_chip` (14.93) and `empty_state` (13.51) are chrome. Populating it needs
+either a data-disk wish plus reading it, or a direct recipe grant — and like the
+quest, it belongs in a `pc-parity-rich` second golden rather than mutating
+`pc-parity`.

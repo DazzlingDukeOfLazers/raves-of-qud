@@ -4,7 +4,7 @@
   "inset": 6,
   "threshold": 60
  },
- "note": "Locations sub-tab is EMPTY on this golden ('No entries found.'), so the list is uncovered; the world map beside it is real content and is the substantial leaf here.",
+ "note": "Locations sub-tab is EMPTY on this golden ('No entries found.'), so the list is uncovered; the world map beside it is real content and is the substantial leaf here. CAT_STRIP IS A DIFFERENT WIDGET IN EACH APP (icons vs words) -- see its leaf note; its score is not a fidelity number until that is fixed.",
  "leaves": [
   {
    "name": "outer_frame",
@@ -28,7 +28,7 @@
     34
    ],
    "inset": 0,
-   "note": "The journal category icon strip (measured y188-218, x700-1259)."
+   "note": "The journal sub-tab selector, and the two apps do not draw the same KIND of thing here. Qud renders icon buttons -- a 'Q' keycap glyph followed by pictorial category icons in boxes. Raves renders the category WORDS ('Locations  Chronology  Gossip and Lore  Sultan His...'). That is why Qud's header band runs x190-906 against Raves' x190-589 and why Qud has a band at y211-217 that Raves has nothing for. Not a layout offset: a different widget. Scoring it is only meaningful once Raves draws icons."
   },
   {
    "name": "worldmap",
