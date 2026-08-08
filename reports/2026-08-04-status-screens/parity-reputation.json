@@ -1,0 +1,43 @@
+{
+ "screen": "status_reputation",
+ "note": "Leaf regions for the Reputation (Factions) tab, measured off the pc-parity golden at 1920x1080. Same discipline as parity-skills.json: rects taken FROM STABLE PIXELS ONLY, because Qud draws this over the live playfield and a naive scan measures the world. Always score with --stable. The panel frame and list rows share their geometry with the other status tabs, which is why those rects match parity-skills.json; the faction reputation BARS want their own leaf once someone measures them.",
+ "defaults": {
+  "inset": 6,
+  "threshold": 60
+ },
+ "leaves": [
+  {
+   "name": "outer_frame",
+   "kind": "frame",
+   "rect": [
+    158,
+    197,
+    1604,
+    743
+   ],
+   "inset": 16,
+   "note": "shared status-panel frame, same geometry as equipment and skills"
+  },
+  {
+   "name": "list_item",
+   "kind": "composite",
+   "rect": [
+    860,
+    694,
+    900,
+    26
+   ]
+  },
+  {
+   "name": "list_next",
+   "kind": "composite",
+   "rect": [
+    860,
+    726,
+    900,
+    26
+   ],
+   "note": "the following row at the measured 33px pitch"
+  }
+ ]
+}

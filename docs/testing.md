@@ -593,3 +593,35 @@ This is the same failure shape as the raves status edges and the Continue edge:
 every step reports ok and the state does not move. Third instance on this branch
 — worth a `verify` on each edge that asserts the DESTINATION, which the tree
 supports and these edges do not all use.
+
+### The qud status_reputation edge was never broken — the uiQueue had stalled
+
+Retracting the blocker recorded above. `statustab Factions` resolved correctly
+all along: `[raves] statustab -> Factions (6)` is in Player.log from the failing
+run. What was wrong is that the heartbeat read `tab: SkillsAndPowers` with
+**ui_age 236** — Qud's uiQueue had stopped draining, so the queued tab switch
+never executed and Qud sat on whichever tab it was already showing.
+
+That is the FIRST gotcha recorded on this branch, this morning, in the Map Editor
+Test commit: a long-lived Qud can stop draining GameManager.uiQueue while still
+serving the bridge, so mod-driven actions no-op silently and `ui_age` climbs
+without bound. It cost a wrong "the edge is broken" conclusion twelve hours later
+because I read the destination state and not `ui_age`.
+
+After `hv restart qud`: ui_age 1, and `hv goto qud` PASSES for reputation, skills
+and journal. **Check ui_age before diagnosing any mod-driven edge as broken** —
+it is the difference between a stalled queue and a wrong recipe, and they look
+identical from the destination.
+
+### Leaf spec: reputation (2026-08-07)
+
+`parity-reputation.json`, measured the same way as skills (stable pixels only,
+score with --stable). First score on the pc-parity golden:
+
+    outer_frame  15.87      list_item 24.95      list_next 30.61
+    composite mean 27.78 (2 leaves)   frame mean 15.87 (1 leaf)
+
+Alongside skills (15.09 / 24.55 / 27.33) that is the same shape at the same
+magnitude, and both share the frame rect with equipment — whose frame scores
+~0.04 now. So the frame geometry is right and something inside these two tabs
+diverges consistently. Two tabs measuring alike is a lead, not two bugs.
