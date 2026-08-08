@@ -360,3 +360,38 @@ navigation that single `down` lands elsewhere and `space` activates the wrong
 row. Arrow keys were verified to move the selection, so this was never key
 delivery: it was a relative move against an unknown starting point. Now it
 CLICKS Continue at (958,578), which is position-independent.
+
+## FULL 2 — PC BASELINE, 2026-08-07 (golden `pc-parity`, equipment spec)
+
+Repeatable at last: `saves.py restore pc-parity` -> `hv loadsave
+Lumpy-true-kin-dev-char` -> drive both to `status_equipment` -> score.
+
+    composite mean 13.27 over 12 leaves
+    frame     mean 14.42 over 11 leaves
+    image     mean 49.58 over 10 leaves
+
+**Noise floor 0.00.** A second run from the same state with fresh captures
+returned those three numbers IDENTICALLY. Note that contradicts the mac-side note
+about this spec drifting ~0.7 between captures — on this fixture the character
+stands still in a quiet Joppa zone, so nothing animates behind the status scrim.
+Any movement in these numbers is therefore signal, not noise, which is exactly
+what a baseline is for. Treat a change of even 0.5 as real.
+
+### A correction: the fixture was NOT what made the mac numbers unreachable
+
+I previously put the distance from the mac's recorded 5.46 / 4.13 / 38.23 down to
+the fixture — different character, content-sensitive leaves. The data says
+otherwise. The earlier run on a freshly embarked character scored
+13.74 / 14.73 / 49.76 against this golden's 13.27 / 14.42 / 49.58: the character
+swap is worth about **0.4**, not the ~9 points that separate this machine from
+the mac's scoreboard.
+
+So the gap is real and still unexplained. It is NOT the fixture, and it is not
+capture noise. Candidates, in the order worth testing: platform rendering
+differences (Windows font rasterisation and DPI — the same class that left the
+Blueprint Browser's glyph agreement at 27% with the correct face loaded), and a
+genuine parity regression on this branch. Do not compare PC runs to the mac
+scoreboard; compare PC runs to THIS baseline.
+
+`image` at 49.58 remains the category filter strip, which the mac notes already
+track as a pre-existing offset-by-one-slot defect rather than a scoring artifact.
