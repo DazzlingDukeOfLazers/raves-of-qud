@@ -775,8 +775,18 @@ namespace RavesOfQud
                     // drain at all. PushMouseEvent only touches Qud's own locked input queue plus the
                     // wake event -- no Unity calls -- so it is safe off-thread, the same argument
                     // PushCommand carries above.
+                    // `event` pushes a tag VERBATIM; `label` is the "Pick:" convenience. Reading the
+                    // assembly's UTF-16 literal heap showed "Pick:" has exactly twelve entries and
+                    // every one is a title-menu row (New Game, Continue, Options, Quit...), with
+                    // nothing for chargen — which is why pick "Classic" did nothing. The carousel's
+                    // vocabulary is different and sits right beside it: "Meta:NavigateE"/"NavigateW",
+                    // "Select:<n>", "Command:Accept"/"Cancel". Rather than guess which and bake it
+                    // in, this lets the tag be driven from outside and settled by experiment.
+                    f.TryGetValue("event", out string pickEvent);
                     f.TryGetValue("label", out string pickLabel);
-                    if (!string.IsNullOrEmpty(pickLabel))
+                    if (!string.IsNullOrEmpty(pickEvent))
+                        Keyboard.PushMouseEvent(pickEvent);
+                    else if (!string.IsNullOrEmpty(pickLabel))
                         Keyboard.PushMouseEvent("Pick:" + pickLabel);
                     return;
                 }
