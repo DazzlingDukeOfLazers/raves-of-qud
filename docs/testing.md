@@ -1441,3 +1441,33 @@ the "switch" word's left edge (a long, unambiguous ink run well clear of the
 cap), solve the pen offset from that, and only then set the cap size and advance
 independently. The cap size is already known good at 18px; it is purely the
 placement of what follows that is unsolved.
+
+### Keycap placement: FIXED (tab_hint 20.16 -> 7.58)
+
+The blocker last round was the instrument. Naming a landmark ("the '+' stroke")
+put the detector next to a boxed glyph and it caught the cap's right edge in some
+frames, which read as a shift moving NON-MONOTONICALLY with the advance.
+
+Replaced it with something that names nothing: cross-correlate the COLUMN INK
+PROFILE of the whole trailing run (x236-560, rule rows dropped) and take the best
+fit. It is self-validating — the reported shift must move 1:1 with the advance —
+and it does:
+
+    advance 14.0 -> raves -6px      advance 18.0 -> -2px      advance 22.5 -> +3px
+
+Both clean fits put zero at **advance 20.0**, and that it equals Qud's measured
+cap span (x201..220) is the corroboration: the advance IS the cap's width.
+
+With placement pinned independently, the cap size became a clean single variable:
+18 gives 18x10/83 ink, 20 gives 20x11/103, against Qud's 20x12/116. Kept 20.
+
+    tab_hint   20.16 -> 7.87 (advance fixed) -> 7.58 (cap at 20)
+    composite mean   16.20 -> 11.99
+    trailing text    +0 px from Qud
+
+Verified by crop as well as by score: the keycap reads "Ctrl" and the line aligns.
+
+The lesson is the one that keeps recurring here, in its sharpest form yet: a
+measurement that disagrees with itself is worth more attention than the thing it
+was measuring. Three tuning attempts failed against the bad detector; one attempt
+succeeded against the good one.
