@@ -1112,3 +1112,46 @@ because the row was a few characters wider than the panel. It rendered, so nothi
 broken; it just could not be aimed at. If a fixed-column layout looks right in a fixture and
 wrong on screen, measure the **widest** row, not a typical one — and prefer putting variable
 elements in a fixed-width column so the widest row is a constant.
+
+## Qud's popup box, and the two Godot rounding traps that hid inside it
+
+Qud centres `MenuControll` (spacing 10, pad L20 R20 T0 B5) and **hangs the visible chrome off that
+box rather than around it**: the top rule 16 *above* it, the opaque fill from box_top−20 to
+box_bottom−2, the bottom rule 15.5 *inside* it. Raves centred the panel and drew its top rule 8px
+inside, which read for two sessions as "the popup sits 16px low" — a number that looked like a
+constant to add and was actually the sum of an anchoring error and a content-dependent height
+error. Model, arithmetic and the six-popup verification are in
+`reports/2026-08-05-item-popup/` and in `PopupOverlay.gd`'s header.
+
+Two things about Godot's layout came out of it that are not specific to popups:
+
+- **A Container CEILS a fractional minimum, and Control rects are snapped to whole pixels.** A row
+  asking for 228.2 is handed 229, which made the box 279 wide against Qud's 278.21 — and 279
+  centres on 820 where 278.21 rasterises from 821. So a subpixel model reaches the screen a whole
+  pixel out, in the direction the ceil pushed it. Round the MODEL's own values to the nearest pixel
+  yourself; do not let the container round them for you. (Centring floors: 820.5 lands at 820.)
+- **`position` / `global_position` read (0,0) from inside a Control's own draw callback** on the
+  show frame — sizes are valid there, positions are not. Nothing dirties the panel afterwards, so
+  that stale draw is the one left on screen: chrome computed from a position read at draw time was
+  displaced by the panel's whole offset and stayed that way. Derive placement from SIZES (the
+  container's own rule is reproducible) or read it once outside the draw.
+
+**And Godot's `get_string_size` returns a whole number.** Qud lays this text out at exactly 0.6em
+(9.6px at font 16, which is every width its probe reports); Godot rounds the total up, and summing
+the per-run pieces of a `{{...}}`-coloured string rounds again — 211.21 became 213. Measure and
+advance on the font's own pitch (`get_string_size("AAAAAAAAAA")/10`) whenever a width has to agree
+with Qud's. This is what the journal header found from the other end, and it is what put the item
+popup's name 1px left of Qud's for two sessions: the name's own layout was never wrong.
+
+### Raising popups to test: the retry that equips your fixture
+
+`popup / action:button / btn:Cancel` is the documented dismissal, and on a MENU it is not safe: the
+mod fabricates a Cancel item, Qud's `OnActivateCommand` falls through to the HIGHLIGHTED row, and
+on the cloth robe that row is "equip (auto)". A retry loop written that way quietly equips the
+fixture's item and then fails forever on a menu that no longer has 8 options — which reads as "the
+popup stopped coming up". **Reload the fixture to clear a menu; a reload cannot activate anything.**
+
+Also: **the first twiddle after a fixture reload sometimes raises a SHORT option list** (8 options
+arriving as 2 or 6, Qud still settling). It is a different popup, and the anchored header leaves
+still score against it, so a parity run captures it without complaining. Count the
+`MenuOptionText(Clone)` rows in a `uiprobe` dump before capturing.
