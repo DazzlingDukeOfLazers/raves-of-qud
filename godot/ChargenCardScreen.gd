@@ -23,6 +23,10 @@ const MUTED := Color8(0x61, 0x7C, 0x78)       # breadcrumb / description / hint
 ## Raves used to tint the rule to match its label, which is why the header row read as three
 ## coloured strips rather than three labels on one rule.
 const BAND_RULE := Color8(0x49, 0x75, 0x7E)   # Qud (73,117,126)
+## Breadcrumb icons. Qud draws them all in ONE flat colour — the mode sprite, the plus, the True Kin
+## face and the current crumb's plain glyph every peak at (66,100,112) — so the tile is used as a
+## MASK and tinted, NOT rendered in the item's own `detail` colour the way the cards are.
+const CRUMB_ICON := Color8(0x42, 0x64, 0x70)  # Qud (66,100,112)
 ## Selected card border + hotkey + caret. Qud's own W (#cfc041) — measured off the caste screen's
 ## selection frame at (207,192,65), which is that palette entry exactly. Was a hand-picked
 ## (200,184,57).
@@ -107,7 +111,9 @@ var _sel_frame: NinePatchRect          # Qud's big solid-yellow selection frame 
 ## Node name (debug/inspection only).
 func _screen_node_name() -> String: return "ChargenCardScreen"
 
-## Breadcrumb crumbs shown top-left, left→right, e.g. [{"label": "Choose Game Mode", "current": true}].
+## Breadcrumb crumbs shown top-left, left→right, e.g.
+## [{"label": "Classic", "tile": "UI/sw_classic_mode.bmp"}, {"label": "Caste", "current": true}].
+## `tile` is optional and only drawn on COMPLETED crumbs; the current one keeps the plain glyph.
 func _breadcrumb_crumbs() -> Array: return [{"label": "Choose", "current": true}]
 
 ## The ":choose …:" subtitle line under "character creation".
@@ -278,14 +284,35 @@ func _build_topleft() -> void:
 		box.position = Vector2(x, 28)
 		box.size = Vector2(44, 46)
 		_crumb_frame(box, frame)
-		var glyph := Panel.new()   # the filled rounded-rect breadcrumb icon
-		var gsb := StyleBoxFlat.new()
-		gsb.bg_color = MUTED
-		gsb.set_corner_radius_all(3)
-		glyph.add_theme_stylebox_override("panel", gsb)
-		glyph.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		glyph.position = Vector2(14, 11); glyph.size = Vector2(16, 24)
-		box.add_child(glyph)
+		# A COMPLETED crumb shows the tile of the thing that was chosen — Qud puts the Classic mode
+		# sprite behind "Classic" and the True Kin sprite behind "True Kin". The CURRENT crumb keeps
+		# the plain filled rounded-rect, which is what every crumb used to draw.
+		var tile := str(crumb.get("tile", ""))
+		var tex: Texture2D = null
+		if tile != "" and not bool(crumb.get("current", false)):
+			tex = _recolor_tile(tile, CRUMB_ICON, CRUMB_ICON)
+		if tex != null:
+			var ic := TextureRect.new()
+			ic.texture = tex
+			ic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			ic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			ic.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+			ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			# 22x23, not the box's full 28x30: Qud's crumb sprite lights ~85 px against 139 at that
+			# size, i.e. Raves was drawing it ~1.28x too large. (Counting is the only clean way to
+			# compare here — Qud's dashed crumb FRAME is tinted the same colour as the icon, so an
+			# ink bounding box measures the frame, and every crumb then reads an identical 34x43.)
+			ic.position = Vector2(11, 12); ic.size = Vector2(22, 23)
+			box.add_child(ic)
+		else:
+			var glyph := Panel.new()   # the filled rounded-rect breadcrumb icon
+			var gsb := StyleBoxFlat.new()
+			gsb.bg_color = CRUMB_ICON
+			gsb.set_corner_radius_all(3)
+			glyph.add_theme_stylebox_override("panel", gsb)
+			glyph.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			glyph.position = Vector2(14, 11); glyph.size = Vector2(16, 24)
+			box.add_child(glyph)
 		add_child(box)
 		x += 52
 		var cur: bool = bool(crumb.get("current", false))
@@ -294,6 +321,26 @@ func _build_topleft() -> void:
 		add_child(t)
 		x += t.get_theme_font("font").get_string_size(t.text,
 			HORIZONTAL_ALIGNMENT_LEFT, -1, t.get_theme_font_size("font_size")).x + 22
+
+## The tile of a previously-chosen chargen item, for its breadcrumb crumb — e.g. _chargen_tile(
+## "gameModes", "Classic") -> "UI/sw_classic_mode.bmp". Empty when chargen.json is missing or the
+## name is not in that section, which just leaves the crumb on its plain glyph.
+func _chargen_tile(section: String, item_name: String) -> String:
+	if item_name == "":
+		return ""
+	var path := InputModel.support_dir().path_join("chargen.json")
+	if not FileAccess.file_exists(path):
+		return ""
+	var f := FileAccess.open(path, FileAccess.READ)
+	if f == null:
+		return ""
+	var data: Variant = JSON.parse_string(f.get_as_text())
+	if not (data is Dictionary and data.get(section, null) is Array):
+		return ""
+	for it in data[section]:
+		if it is Dictionary and str(it.get("name", "")) == item_name:
+			return str(it.get("tile", ""))
+	return ""
 
 func _crumb_frame(box: Control, frame: Texture2D) -> void:
 	if frame != null:

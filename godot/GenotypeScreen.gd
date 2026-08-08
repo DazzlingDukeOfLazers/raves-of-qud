@@ -32,7 +32,8 @@ func _breadcrumb_crumbs() -> Array:
 		return crumbs
 	var out: Array = []
 	if mode_name != "":
-		out.append({"label": mode_name, "current": false})
+		out.append({"label": mode_name, "current": false,
+			"tile": _chargen_tile("gameModes", mode_name)})
 	out.append({"label": "Choose Genotype", "current": true})
 	return out
 

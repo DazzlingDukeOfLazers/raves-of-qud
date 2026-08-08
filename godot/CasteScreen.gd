@@ -49,9 +49,11 @@ func _breadcrumb_crumbs() -> Array:
 	var here := "Caste" if subtype_class == "Castes" else "Calling"
 	var out: Array = []
 	if mode_name != "":
-		out.append({"label": mode_name, "current": false})
+		out.append({"label": mode_name, "current": false,
+			"tile": _chargen_tile("gameModes", mode_name)})
 	if genotype_name != "":
-		out.append({"label": genotype_name, "current": false})
+		out.append({"label": genotype_name, "current": false,
+			"tile": _chargen_tile("genotypes", genotype_name)})
 	out.append({"label": here, "current": true})
 	return out
 
