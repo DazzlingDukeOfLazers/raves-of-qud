@@ -51,15 +51,20 @@ func _default_index() -> int: return 0
 
 # ── layout: the banded screen is NOT the plain one shifted ─────────────────────────
 #
-# Measured off a live 1920x1080 Qud capture of Choose Caste (reports/…/q3_caste.png). Inserting the
-# arcology row does not push the cards DOWN, it pulls the title block UP and leaves the cards nearly
-# where they were: title/subtitle move by ~0.035 of viewport height, the card row by ~0.013. That is
-# why these are five separate hooks and not one offset — a uniform lift puts the title right and the
-# cards 24px high, which reads as "close" and scores badly.
+# ROW-PROFILED against a live 1920x1080 Qud capture of Choose Caste, not eyeballed: each value below
+# comes from comparing bands of lit rows between the two screenshots, because "the title looks a bit
+# low" is how a layout constant ends up carrying a guess. Qud's bands, for the record —
+#   emblem 384-417 · "character creation" 423-440 · ":choose caste:" 449-459 · arcology row 482-498
+#   card frames 507-615 (tiles 525-587) · names 621-654 · hotkeys 662-672 · bullets from 696
+#
+# Inserting the arcology row does not push the cards DOWN, it pulls the title block UP and leaves the
+# cards where they were: title and subtitle move by ~0.05 of viewport height, the card row by ~0.013.
+# That is why these are five separate hooks and not one offset — a uniform lift puts the title right
+# and the cards 24px high, which reads as "close" and scores badly.
 
-func _y_title() -> float: return 0.400 if _banded() else super._y_title()
-func _y_subtitle() -> float: return 0.421 if _banded() else super._y_subtitle()
-func _y_bands() -> float: return 0.449
+func _y_title() -> float: return 0.384 if _banded() else super._y_title()
+func _y_subtitle() -> float: return 0.410 if _banded() else super._y_subtitle()
+func _y_bands() -> float: return 0.4444
 func _y_cards() -> float: return 0.470 if _banded() else super._y_cards()
 func _y_desc() -> float: return 0.650 if _banded() else super._y_desc()
 
@@ -72,6 +77,10 @@ func _banded() -> bool:
 ## Qud's 1448 and pushed the outer castes under the page arrows.
 func _card_w_frac() -> float: return 0.0458 if _banded() else super._card_w_frac()
 func _card_gap_frac() -> float: return 0.0094 if _banded() else super._card_gap_frac()
+
+## The arcology row occupies the space the unbanded screens give the selection frame: inherited, the
+## frame reached up to y481 with band 1 sitting at y482, and swallowed that band's left rule whole.
+func _sel_pad_top_frac() -> float: return 0.005 if _banded() else super._sel_pad_top_frac()
 
 # ── data ───────────────────────────────────────────────────────────────────────────
 

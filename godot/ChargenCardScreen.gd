@@ -110,7 +110,7 @@ func _category_bands() -> Array: return []
 ## the banded screen is not the unbanded one shifted by a fixed amount: inserting the header row moves
 ## the title and subtitle up by ~0.035 but the card row by only ~0.013, so a single "lift" would put
 ## one of them wrong. Measured off Qud captures at 1920x1080; see CasteScreen for the banded set.
-func _y_title() -> float: return 0.435
+func _y_title() -> float: return 0.4304   # was 0.435; row-profiling put Raves' title 5px below Qud's
 func _y_subtitle() -> float: return 0.455
 func _y_bands() -> float: return 0.449
 func _y_cards() -> float: return 0.483
@@ -122,6 +122,12 @@ func _y_desc() -> float: return 0.665
 ## measured pair rather than inheriting the five-card one.
 func _card_w_frac() -> float: return 0.049
 func _card_gap_frac() -> float: return 0.014
+
+## How far ABOVE the selected card the big selection frame reaches, as a fraction of viewport height.
+## On an unbanded screen Qud runs it up to the subtitle line; on Choose Caste there is an arcology
+## row in that space and Qud's frame stops short of it, so the banded screen tightens this rather
+## than drawing its highlight straight through a header.
+func _sel_pad_top_frac() -> float: return 0.024
 
 # ══ lifecycle ══════════════════════════════════════════════════════════════════════
 
@@ -688,7 +694,7 @@ func _position_sel_frame() -> void:
 	var vp := get_viewport_rect().size
 	var pl := vp.x * 0.024
 	var pr := vp.x * 0.024
-	var pt := vp.y * 0.024   # top edge lands on the subtitle line, as in Qud
+	var pt := vp.y * _sel_pad_top_frac()   # top edge lands on the subtitle line, as in Qud
 	var pb := vp.y * 0.0185  # bottom edge clears the hotkey and stops above the flavour line
 	_sel_frame.position = Vector2(r.position.x - pl, r.position.y - pt)
 	_sel_frame.size = Vector2(r.size.x + pl + pr, r.size.y + pt + pb)
@@ -793,7 +799,12 @@ func _set_emblem(tex: Texture2D) -> void:
 	# Sits just above the title, and must TRACK it: this was the literal 0.432 (i.e. _y_title() less
 	# a 0.003 nudge), which put the sheaf straight through the middle of "character creation" the
 	# moment Choose Caste raised the title block to make room for its arcology row.
-	_emblem_rect.position = Vector2((vp.x - ew) * 0.5, vp.y * (_y_title() - 0.003) - eh)
+	#
+	# The +0.0045 is MEASURED, not nudged, and it corrects a gap that was wrong on every chargen
+	# screen: row-profiling Qud against Raves put the emblem-to-title gap at 6px in Qud and 14px in
+	# Raves, on the genotype screen as much as on Choose Caste. The same delta lands both, which is
+	# what says it is one constant being wrong rather than two screens disagreeing.
+	_emblem_rect.position = Vector2((vp.x - ew) * 0.5, vp.y * (_y_title() + 0.0045) - eh)
 	_emblem_rect.size = Vector2(ew, eh)
 
 func _load_title_sprite(fname: String) -> Texture2D:
