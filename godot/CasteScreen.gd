@@ -93,6 +93,11 @@ func _banded() -> bool:
 ## the gaps tighter. Measured off the same capture: card boxes ~88px wide on a ~124px pitch, against
 ## the five-card screen's 94 on 121. Inherited unchanged, the twelve-card row ran 1660px wide against
 ## Qud's 1448 and pushed the outer castes under the page arrows.
+## Castes pack twelve cards into the row, and there Qud marks the selection by recolouring the card's
+## own dotted frame rather than dropping the big locator sprite over it. Callings are a short row and
+## keep the locator.
+func _sel_uses_card_frame() -> bool: return _banded()
+
 func _card_w_frac() -> float: return 0.0499 if _banded() else super._card_w_frac()
 ## 0.013, not 0.0102: measured against Qud, whose caste cards sit on a 120px pitch at 1920x1080
 ## (card frames at x231, 351, 471, 591 …). Raves ran at 114 once the selection caret stopped

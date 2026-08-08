@@ -23,7 +23,10 @@ const MUTED := Color8(0x61, 0x7C, 0x78)       # breadcrumb / description / hint
 ## Raves used to tint the rule to match its label, which is why the header row read as three
 ## coloured strips rather than three labels on one rule.
 const BAND_RULE := Color8(0x49, 0x75, 0x7E)   # Qud (73,117,126)
-const SEL_GOLD := Color8(0xC8, 0xB8, 0x39)    # selected card border + hotkey + caret
+## Selected card border + hotkey + caret. Qud's own W (#cfc041) — measured off the caste screen's
+## selection frame at (207,192,65), which is that palette entry exactly. Was a hand-picked
+## (200,184,57).
+const SEL_GOLD := QudPalette.COLORS["W"]
 const BRIGHT_GOLD := Color8(0xE8, 0xD0, 0x1C) # onboarding highlight + guide corner squares (bright yellow)
 const DIM_BORDER := Color8(0x2C, 0x47, 0x47)  # unselected card border
 const NAME_SEL := Color8(0xC5, 0xCE, 0xC6)    # selected name
@@ -771,7 +774,22 @@ func _init_sel_frame_deferred() -> void:
 	await get_tree().process_frame
 	_position_sel_frame()
 
+## True when the selected card is marked by recolouring its OWN dotted frame rather than by the big
+## locator sprite. Qud does this wherever the cards are packed tightly — measured on Choose Caste,
+## where the highlight is exactly the card box (x231..328, y507..615 for card [A], i.e. 97x108) drawn
+## in #cfc041, dotted, with the same dash pattern as the unselected frames. It is emphatically NOT
+## the locator: that whole box lights only 159 pixels, where a solid frame of the same size lights
+## over a thousand.
+##
+## The locator is still right on the roomy screens (genotype's two big cards), so this is a hook
+## rather than a change of behaviour for everyone.
+func _sel_uses_card_frame() -> bool:
+	return false
+
 func _position_sel_frame() -> void:
+	if _sel_frame != null and _sel_uses_card_frame():
+		_sel_frame.visible = false
+		return
 	if _sel_frame == null or _sel < 0 or _sel >= _cards.size():
 		return
 	var col: Control = _cards[_sel].get("col")
@@ -818,8 +836,10 @@ func _apply_selection() -> void:
 	for i in range(_cards.size()):
 		var on: bool = (i == _sel)
 		var c: Dictionary = _cards[i]
-		# Each card's own dotted frame stays dim (as in Qud) — the big _sel_frame is the highlight.
-		c["border"].modulate = DIM_BORDER
+		# Normally each card's own dotted frame stays dim and the big _sel_frame is the highlight —
+		# but on a dense row Qud highlights by RECOLOURING the card's own frame instead (see
+		# _sel_uses_card_frame), which is why this is not unconditionally DIM_BORDER.
+		c["border"].modulate = SEL_GOLD if (on and _sel_uses_card_frame()) else DIM_BORDER
 		if c.has("colored"):
 			c["icon"].texture = c["colored"] if on else c["neutral"]
 			c["icon"].modulate = ICON_SEL if on else ICON_DIM
