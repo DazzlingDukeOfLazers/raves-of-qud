@@ -505,10 +505,10 @@ func _build_bands() -> void:
 			if first:
 				col = run[1]
 				first = false
-		var lrule := _dash_rule(col)
+		var lrule := _dash_rule(col, -1)
 		var label := _text(plain, col, "caption")
 		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var rrule := _dash_rule(col)
+		var rrule := _dash_rule(col, 1)
 		holder.add_child(lrule)
 		holder.add_child(label)
 		holder.add_child(rrule)
@@ -516,8 +516,14 @@ func _build_bands() -> void:
 		_bands.append({"holder": holder, "start": int(b.get("start", 0)), "count": int(b.get("count", 0))})
 	_position_bands_deferred()
 
-## A horizontal dashed rule that eats whatever width the label leaves.
-func _dash_rule(col: Color) -> Control:
+## A horizontal dashed rule that eats whatever width the label leaves, END-CAPPED with a vertical
+## tick on its outer side (`cap` = -1 for the left rule, +1 for the right).
+##
+## The cap is not decoration. Without it the three arcology rules run off both edges into each other
+## and the header row reads as ONE continuous strip of text rather than three labels each owning its
+## own four cards -- which is exactly how it was misread. Qud draws "─┤ The Ice-Sheathed Arcology of
+## Ibul ├─": the rule visibly starts and stops around its group.
+func _dash_rule(col: Color, cap := 0) -> Control:
 	var c := Control.new()
 	c.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -528,7 +534,10 @@ func _dash_rule(col: Color) -> Control:
 		var x := 0.0
 		while x < w:
 			c.draw_rect(Rect2(x, y, minf(4.0, w - x), 1.0), col)
-			x += 7.0)
+			x += 7.0
+		if cap != 0:
+			var cx := 0.0 if cap < 0 else w - 1.0
+			c.draw_rect(Rect2(cx, y - 3.0, 1.0, 7.0), col))
 	return c
 
 func _position_bands_deferred() -> void:
@@ -556,7 +565,9 @@ func _position_bands() -> void:
 		# Qud's rules run PAST the cards they head, not flush with them: its band row spans x212-1707
 		# against card frames at x231-1688, i.e. ~19px proud at each end. Flush looked deliberate and
 		# measured wrong.
-		var out := vp.x * 0.010
+		# Half the old 0.010: at 19px each side, adjacent bands met exactly and their end caps had
+		# nowhere to sit. Qud leaves a visible break between one arcology's rule and the next.
+		var out := vp.x * 0.005
 		var h: Control = b["holder"]
 		h.position = Vector2(x0 - out, vp.y * _y_bands())
 		h.size = Vector2((x1 - x0) + out * 2.0, h.size.y)
