@@ -15,6 +15,9 @@ extends "res://ChargenCardScreen.gd"
 ## Mutated Human get "Callings", a single ungrouped category, and `_category_bands` returns empty for
 ## it, which collapses this back to exactly the plain carousel the other two stages use.
 
+## The game mode already chosen ("Classic"…), for the breadcrumb trail. Empty simply drops the crumb.
+var mode_name := ""
+
 ## Set by the flow before _ready: "Castes" / "Callings", plus the genotype name for the breadcrumb.
 var subtype_class := ""
 var genotype_name := ""
@@ -36,11 +39,17 @@ func _subtitle() -> String:
 	var t := str(_class().get("chargenTitle", "")).strip_edges()
 	return ":%s:" % (t.to_lower() if t != "" else "choose subtype")
 
+## Qud: "Classic | New | True Kin | Caste" — captured off the live screen, not assumed. Raves has no
+## chartype screen (Qud's New / Presets / Random / Library / Last step), so that crumb is absent
+## rather than faked: a crumb for a screen the player was never shown would claim a choice they never
+## made, and would go stale the moment Raves grows a real chartype screen.
 func _breadcrumb_crumbs() -> Array:
 	if not crumbs.is_empty():
 		return crumbs
 	var here := "Caste" if subtype_class == "Castes" else "Calling"
 	var out: Array = []
+	if mode_name != "":
+		out.append({"label": mode_name, "current": false})
 	if genotype_name != "":
 		out.append({"label": genotype_name, "current": false})
 	out.append({"label": here, "current": true})

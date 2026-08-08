@@ -6,8 +6,13 @@ extends "res://ChargenCardScreen.gd"
 ## Set `crumbs` before adding to the tree to control the top-left breadcrumb (e.g. the tutorial trail
 ## Tutorial → Choose Genotype → Pregens); left unset it shows just "Choose Genotype".
 
-## Optional breadcrumb override — [{label, current}], left→right. Empty = the default single crumb.
+## Optional breadcrumb override — [{label, current}], left→right. Empty = the default trail.
 var crumbs: Array = []
+
+## The game mode already chosen ("Classic"…), so the breadcrumb can show the trail rather than just
+## this screen. Qud's genotype breadcrumb reads "Classic | New | Choose Genotype" — captured, not
+## assumed. Empty (e.g. entering the flow mid-way) simply drops the crumb.
+var mode_name := ""
 
 ## Fallback genotypes (perk bullets verbatim from Qud), used until chargen.json is slurped.
 const GENOTYPES := [
@@ -19,10 +24,17 @@ func _screen_node_name() -> String: return "GenotypeScreen"
 func _subtitle() -> String: return ":choose genotype:"
 func _default_index() -> int: return 0   # Mutated Human
 
+## Qud: "Classic | New | Choose Genotype". Raves has no chartype screen (Qud's New / Presets /
+## Random / Library / Last step), so the "New" crumb is absent rather than faked — a crumb for a
+## screen the player was never shown would be a claim about a choice they never made.
 func _breadcrumb_crumbs() -> Array:
 	if not crumbs.is_empty():
 		return crumbs
-	return [{"label": "Choose Genotype", "current": true}]
+	var out: Array = []
+	if mode_name != "":
+		out.append({"label": mode_name, "current": false})
+	out.append({"label": "Choose Genotype", "current": true})
+	return out
 
 func _load_items() -> Array:
 	var raw := _load_genotypes()
