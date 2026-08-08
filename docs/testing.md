@@ -352,6 +352,102 @@ refusal deliberately leaves the game exactly where it was. So the `* -> title` r
 would work is never reached. All 29 refusals across the two tours are that one gap. Tracked
 separately; it wants edge-exclusion on retry, not a cost tweak.
 
+### FULL 3, Classic save — RE-RUN 2026-08-08 after refused-edge exclusion
+
+**Supersedes the "B. Classic save" block above** (qud 10/28 + 18 refused, raves 10/21 + 11),
+which was correct for the code as it stood: a refused edge ended the drive. highvisor `4fc058c`
+now excludes the refused edge and re-plans, so the `* -> title` restart route the graph already
+had becomes reachable.
+
+**Method — the save is reloaded before EVERY node, uniformly.** Without that the tour stops
+testing what it is named after: the first refusal-driven restart leaves Qud at the title, so every
+later node would start from a title screen rather than an in-game Classic save, most would "arrive"
+for reasons having nothing to do with Classic, and the numbers would not be comparable node-for-node
+against the baseline. A failed reload counts as ENV, not as an edge defect.
+
+**The restart fallback is allow-by-default in the daemon; the tour gets it by simply not passing
+`--no-restart`. Stated plainly: these numbers hold only with it enabled.** With `--no-restart` the
+18 qud nodes fail again, by design — verified.
+
+| tour | arrived | via cheap | via restart | refused | EDGE | ENV | was |
+|---|---|---|---|---|---|---|---|
+| qud | **28/28** | 10 | 18 | 0 | 0 | 0 | 10/28 |
+| raves | **20/21** | 10 | 10 | 0 | 0 | 0 | 10/21 |
+
+**Cost.** qud 19.6 min wall — 11.0 min of it reloads (56%), 8.6 min driving. raves 16.6 min —
+11.6 min reloads (70%), 5.0 min driving. **Reloading dominates**, so this shape of tour is a
+pre-release exercise, not something to run per commit; the drives themselves are cheap.
+
+**No restart storm.** Each restart-routed node cost 15–25s, not the 120 its edge is *priced* at —
+that 120 is the planner's avoidance weight, not seconds. 28 restarts across both tours came to
+13.6 min of driving in total.
+
+**The one non-arrival is an artefact of the method, not a defect: raves `continue`.** Its node is
+the load-game picker, and Raves' Continue only opens the picker when there is no live game —
+with one running it attaches straight in-game. Reloading before every node guarantees a live game,
+so the picker is unreachable *by construction*. Verified both ways: with a live Qud game the goto
+fails `wanted {'scene': 'loadgame'}, got In-Game`; with Qud at the title it succeeds. It arrived in
+the Wander tour precisely because that tour did not reload per node.
+
+That verification also exercised the new structured marker: the failure reports `refused: False`,
+so "declined on purpose" is now distinguishable from "broke" without reading the error text. An
+earlier version of the tour script string-matched and mis-labelled this exact run as REFUSED
+because an *earlier* edge in it had refused.
+
+**Wander regression, run AFTER the Classic tours** (the regression this change could most easily
+cause): qud 3/3 and raves 2/2 quit cycles take the cheap route (cost 8 / 22) with **zero** restarts.
+
+### FULL 2 now covers TWO screens — item popup added 2026-08-08
+
+Baseline at `reports/2026-08-05-item-popup/` (spec + captures + `scoreboard.json` + README).
+**Completes** the 2026-08-05 spec rather than superseding it: its design was already right (named
+regions with distinct kinds, and an `anchor` so header leaves are scored relative to each app's own
+popup top line instead of silently also scoring placement). What it lacked was the baseline
+discipline — no `--stable` capture, no recorded pin, no scoreboard, no control set. Captures
+replaced, spec extended by one leaf.
+
+**Pinned**: `sync-raves-and-qud` (Wander, Joppa), **item = cloth robe** (`pack/Armor`, present
+deterministically in the fixture's 14 pack items), popup raised by
+`tools/capture/fixture.py twiddle robe` — BY NAME, never by id (ids do not survive a reload) and
+never by clicking whatever is under the cursor. An item popup is far more state-dependent than a
+tab, so naming the item is the whole pin.
+
+**Reproducibility: all 7 leaves reproduced EXACTLY (+0.00)** on a full re-drive — better than the
+±0.01 the Equipment baseline managed.
+
+**Controls are thin and that is recorded in the spec**: `fixture_dependent` is now a per-leaf field,
+and only `popup_image_frame` and `popup_placement` are fixture-independent. The other five move with
+the item and would mask a regression if used to validate a retake. (Per-leaf because this was got
+wrong once already — `list_cat`/`list_item` on the Equipment spec are not chrome.)
+
+**Verdict: the screen is in good shape.** The tile is pixel-exact (`popup_image_color` 0.00,
+`popup_image_geometry` 0.25), the palette matches (`popup_frame_text_color` 2.26) and the chrome is
+in the same band as Equipment's `doll_frame` (`popup_image_frame` 2.50). Two structural offsets are
+named rather than buried:
+
+1. **the whole popup sits 16px LOW in Raves** (anchor rows y320 vs y336; `popup_placement` 6.75) —
+   recorded on 2026-08-05 as constant across a 5- and a 7-option menu, and unchanged;
+2. **the item-name line sits 1px LEFT in Raves** — `popup_frame_text_content` 15.40 says only "bad"
+   on its own; the new `popup_frame_text_geometry` (0.75) plus the ink boxes (Qud x=4 w=152, Raves
+   x=3 w=153) say what it actually is. The glyphs and palette match; the line is translated.
+
+Number 2 is the spec format's argument in miniature: one masked mean folded a 1px translation and a
+rasteriser difference into a single number and so answered neither question. Neither offset is a
+regression.
+
+**2026-08-08 follow-up — the offsets were decompiled, and deliberately NOT nudged.** Qud's popup
+root is a 1920x1080 `VerticalLayoutGroup` with `align: MiddleCenter` (from `uiprobe
+target=PopupMessage`): it CENTRES the popup rather than placing it, with `MenuControll` h=407.12 at
+y=336.44 = (1080-407.12)/2 exactly. Measuring the three chrome rules in both apps decomposes the
+"16px low" into parts that do not add up to a constant: the header block already matches EXACTLY
+(151.0 both), the command area is 9px short in Raves **and scales with option count**, the box
+centre sits 11.5px lower, and the box is 2px wider. Adding 16 would zero the top rule on the cloth
+robe's 5-option menu and leave the bottom rule 7px out. The 2026-08-05 "constant across 5 and 7
+options" note is what made a nudge look safe; it is a coincidence of those two sizes, not evidence
+of a fixed offset. The fix is a whole box-model port (recorded in the spec's `qud_model` block),
+per the ability-bar precedent where every piecemeal copy scored worse. Scores unchanged - nothing
+was altered.
+
 ---
 
 ## FULL on `dd/pc-lumpy-merge` — 2026-08-07 (Lumpy, Win11)

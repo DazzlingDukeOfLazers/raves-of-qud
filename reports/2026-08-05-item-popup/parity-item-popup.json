@@ -16,7 +16,8 @@
     152
    ],
    "inset": 12,
-   "note": "the framed header block above the commands: top border y334, divider y485"
+   "note": "the framed header block above the commands: top border y334, divider y485",
+   "fixture_dependent": false
   },
   {
    "name": "popup_frame_text_content",
@@ -27,7 +28,8 @@
     160,
     20
    ],
-   "note": "the item name line inside that block -- 'cloth robe [AV]1 [DV]0'"
+   "note": "the item name line inside that block -- 'cloth robe [AV]1 [DV]0'",
+   "fixture_dependent": true
   },
   {
    "name": "popup_frame_text_color",
@@ -39,7 +41,21 @@
     20
    ],
    "inset": 0,
-   "note": "same line, palette only: badge blue plus the name greys"
+   "note": "same line, palette only: badge blue plus the name greys",
+   "fixture_dependent": true
+  },
+  {
+   "name": "popup_frame_text_geometry",
+   "kind": "geometry",
+   "rect": [
+    880,
+    109,
+    160,
+    20
+   ],
+   "inset": 0,
+   "note": "the item-name line's ink BOX, colour ignored. Added 2026-08-08 because popup_frame_text_content scored 15.40 and could not say why: the glyphs and palette match (ink_color 2.26) and the whole line simply sits 1px LEFT in Raves. A composite mean folds a 1px translation and a rasteriser difference into one number; this leaf separates them, which is the spec format's entire argument.",
+   "fixture_dependent": true
   },
   {
    "name": "popup_image_geometry",
@@ -51,7 +67,8 @@
     80
    ],
    "inset": 0,
-   "note": "the item tile's size and placement (Qud: 42x54 ink at x939 y369)"
+   "note": "the item tile's size and placement (Qud: 42x54 ink at x939 y369)",
+   "fixture_dependent": true
   },
   {
    "name": "popup_image_color",
@@ -63,7 +80,8 @@
     80
    ],
    "inset": 0,
-   "note": "the item tile's two-tone"
+   "note": "the item tile's two-tone",
+   "fixture_dependent": true
   },
   {
    "name": "popup_placement",
@@ -76,7 +94,8 @@
     60
    ],
    "inset": 0,
-   "note": "the popup's own top-line placement, absolute: Raves sits 16px low (constant across a 5- and a 7-option menu)"
+   "note": "the popup's own top-line placement, absolute: Raves sits 16px low (constant across a 5- and a 7-option menu)",
+   "fixture_dependent": false
   }
  ],
  "anchor": {
@@ -95,5 +114,19 @@
   ],
   "min": 100,
   "tol": 25
- }
+ },
+ "controls_note": "fixture_dependent says whether a leaf changes when a DIFFERENT item's popup is scored. It is recorded per leaf because the distinction was already got wrong once on the Equipment spec, where list_cat/list_item were treated as chrome and are not. Only the two leaves with fixture_dependent=false -- popup_image_frame and popup_placement -- are safe as CONTROLS when validating a retaken baseline; everything else moves with the item and would mask a real regression. That is a thin control set, which is exactly why the pin must name the item.",
+ "qud_model": {
+  "measured": "2026-08-08, from Qud's LIVE RectTransforms via the mod's `uiprobe` (target=PopupMessage) plus the committed captures. Both agree: the probe's MenuControll h=407.12 against 407.5 measured between the chrome rules.",
+  "root": "PopupMessage 1920x1080, VerticalLayoutGroup, align=MiddleCenter, no padding -- Qud CENTRES the popup, it does not place it at a fixed y",
+  "popup_box": "MenuControll x=820.9 y=336.44 w=278.21 h=407.12, VerticalLayoutGroup spacing=10 pad L20 R20 T0 B5, UpperLeft. y is exactly (1080-407.12)/2",
+  "header_block": "ContextContainer h=138.12, VerticalLayoutGroup spacing=10 pad T10, MiddleCenter",
+  "tile": "IRenderableDisplay 48x72 at x=936 y=346.44",
+  "name_line": "ContextItemText x=840.9 y=428.44 w=238.21 h=20.12 -- full content width, so the name is centred on x=960.0, exactly screen centre",
+  "divider": "'polat frame reverse header' h=16 at y=458.56",
+  "command_area": "Scroll View h=224; Content spacing=2 pad L5 R5; options area h=222 spacing=2",
+  "header_block_arithmetic": "VERIFIED to the pixel against the probe's own numbers: ContextContainer = padT(10) + tile(72) + spacing(10) + nameLine(20.12) + spacing(10) + divider(16) = 138.12, and the probe reports h=138.12. MenuControll's y is likewise exactly (1080-407.12)/2 = 336.44. So the vertical model is fully derived, not fitted.",
+  "chrome_vs_box": "THE PART THAT MAKES THIS A REWORK, not a margin tweak. Qud's visible rules do not bound the centred box: the top rule (320) sits 16.44 ABOVE MenuControll's top, and the bottom rule (728) sits 15.56 INSIDE its bottom (743.56). Raves instead draws its top rule 8px INSIDE the panel (`_draw_chrome`, ly=8) and centres the PANEL. Landing Qud's rules therefore means changing which box is centred and where the chrome hangs off it -- panel_h would have to go 424 -> 456 and the bottom rule from 17 to 40 above the panel bottom -- for every popup kind that shares this panel (message, yes/no, menu, input, picker), not just the item popup."
+ },
+ "offsets_note": "THE '16px LOW' IS NOT A CONSTANT, and must not be fixed with one. Decomposed 2026-08-08 by measuring the three chrome rules in both apps (qud 320/471.5/728, raves 336/487.5/735):\n  header block  151.0 vs 151.0  -- ALREADY EXACT, Raves' header is Qud's model\n  command area  256.5 vs 247.5  -- Raves is 9px SHORT, and this part scales with the number of options, so it is not a fixed error\n  centre        524.2 vs 535.8  -- Raves' box sits 11.5px lower, i.e. a different anchoring\n  width         278.21 vs ~280  -- Raves is 2px wider\nAdding 16 to the popup's y would zero the TOP rule on this one capture and leave the BOTTOM rule 7px out, because the observed 16 is the sum of a content-dependent height error and an anchoring error that happen to add up on the cloth robe's 5-option menu. The 2026-08-05 note that it was 'constant across a 5- and a 7-option menu' is not evidence of a fixed offset -- both parts can be near-constant while the sum is a coincidence of those two sizes.\nThe 1px name-line offset is very likely a consequence of the 2px width difference (Qud centres the name on x=960.0 exactly; a 2px-wider box centred the same way rounds differently), so it should be re-measured AFTER the box model is right rather than nudged on its own.\nFix = port Qud's box model whole (the `qud_model` block above), per the repo's own precedent: the ability bar only went 13.5 -> 4.0 when Qud's cell model was applied WHOLE, and every piecemeal copy scored WORSE. NOT DONE as of 2026-08-08; the model is recorded here so the port starts from numbers rather than from a delta.\n\n2026-08-08, second pass: the vertical model is now DERIVED and confirmed (see qud_model.header_block_arithmetic), and Raves' anchor identified (see qud_model.chrome_vs_box). The port was still not landed, and the reason is scope rather than knowledge: it changes which box is centred for every popup kind, and the verification that would make it trustworthy -- several option counts AND several popup kinds -- is the same verification that would catch a half-port. Landing it unverified is the ability-bar failure mode, where each piecemeal copy scored worse than doing nothing."
 }
