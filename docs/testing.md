@@ -1391,3 +1391,53 @@ to a 14px line: `fixed_size_scale_mode` scales it, it does not re-render it. Qud
 draws the same asset crisply at target size. Fixing it properly means rendering
 the glyph from a higher-resolution source or an SDF, which is its own job and
 the same shape as the ElliotSans extraction.
+
+### The keycap rasterisation: NOT fixed, and why I stopped
+
+Reverted to `2024058`. Three attempts, all measured, none kept.
+
+First, a correction to my own earlier measurement: the "keycap ink box" I quoted
+used a 40px-wide window that BOTH apps filled, so `w=40` in each read as
+agreement. Isolating the cap properly (columns 199-222, excluding the two rule
+rows) gives:
+
+    qud    20x12, 116 ink px
+    raves  19x8,   38 ink px
+
+Nearly the right width, two thirds the height. So it is not a sampling artefact
+as I first reported — the glyph is drawn at the wrong SIZE.
+
+| attempt | keycap | tab_hint |
+|---|---|---|
+| committed: cap at the 14px line, natural advance | 19x8, ink 38 | **20.16** |
+| `generate_mipmaps`, set before AND after load | unchanged, ink 38 | 20.16 |
+| cap at 18px, natural advance | 18x10, ink 83 | 21.07 |
+| cap at 18px, advance pinned to 22.5 | 18x10, ink 83 | 21.76 |
+
+`generate_mipmaps` does nothing for a bitmap font on either side of
+`load_bitmap_font` — zero change in ink count. That hypothesis is dead, not
+merely unproven.
+
+Drawing the cap at 18px genuinely improves it (ink 38 -> 83 against Qud's 116,
+height 8 -> 10 against 12) but widens the advance, pushing "+Tab] switch to…"
+off Qud's x. That costs the leaf more than the better cap gains.
+
+**Where it actually stalled: the instrument, not the renderer.** To place the
+following text I measured the first column right of the cap carrying ink, and it
+came out NON-MONOTONIC in the one parameter I control:
+
+    advance 14.0 -> '+' ink at x227
+    advance 18.0 -> '+' ink at x223
+    advance 22.5 -> '+' ink at x227
+
+A larger advance cannot move text left. The detector (threshold 70, >=2 lit rows
+in a column) is picking the cap's right edge in some frames and the '+' in
+others, so any constant fitted against it is fitted to noise. Tuning through it
+would have produced a number that scored well by accident.
+
+NEXT: build the pen position from a RELIABLE landmark before touching the draw
+code again — the '+' stroke is a poor target next to a boxed glyph. Better: find
+the "switch" word's left edge (a long, unambiguous ink run well clear of the
+cap), solve the pen offset from that, and only then set the cap size and advance
+independently. The cap size is already known good at 18px; it is purely the
+placement of what follows that is unsolved.
