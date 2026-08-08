@@ -1752,3 +1752,40 @@ NEXT, and it is the gap worth closing: give the item popup a real route
 (in_game -> equipment -> select item -> open popup) so it can be captured and
 scored like every other screen. Everything else in the tree is drivable; this is
 the one screen whose numbers can only be inherited.
+
+### A route for the item popup: the mechanism exists, the ADDRESSING does not
+
+`invaction` is the lever. `Bridge.cs`: `{"bridge":"invaction","args":{"id":…,"mode":…}}`
+calls `InventoryExporter.Twiddle(id, mode)`, which opens "Qud's own item
+interaction popup for the selected object" — exactly the screen
+`parity-item-popup.json` measures, and the popup mirrors back over the popup
+channel rather than being rebuilt.
+
+**But `Twiddle` takes an ID, and a gametree edge cannot carry one.** This repo's
+own rule (CLAUDE.md, the fixture workflow): *ids are NOT stable across a save
+reload — resolve objects by NAME, never by a carried id.* An edge with a baked id
+would work until the next reload and then silently open nothing, or the wrong
+object. That is worse than no route: it would produce item-popup numbers that
+look like a Lumpy result while measuring whatever the id happened to hit.
+
+The other arm, `{"mode":"equip","part":…}`, needs no id and part names ARE stable
+— but `EquipPicker(part)` raises the EQUIP PICKER, a different popup from the one
+the spec measures. Wiring it would give a drivable route to the wrong screen,
+which is the exact failure this session kept catching (a leaf whose name lies
+about what it covers). Deliberately not done.
+
+WHAT ACTUALLY CLOSES IT, and it is small: teach `invaction` a `name` argument
+that resolves the object off the player's inventory by display name, the same way
+`loadsave` resolves a save row from DISK metadata instead of taking a row number.
+Then the edge is stable and readable:
+
+    {"bridge":"invaction","args":{"name":"leather boots","mode":"twiddle"}}
+
+Detection should already work — the mod's heartbeat carries a `popup` key and
+Raves' UiState carries `_popup`, so `equipment_item_popup` can detect on the
+popup signal rather than needing a new reporter.
+
+Two more commands worth knowing about, found while looking: **`journalfixture`
+and `tinkerfixture`** — the mod already ships fixture-populating commands for the
+two tabs recorded above as empty and unmeasurable. `pc-parity-rich` may not need
+wishes at all.
