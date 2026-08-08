@@ -1001,3 +1001,49 @@ This is the check that would have caught the whole thing in the first minute,
 and it costs nothing. **`ui_age` is not a substitute** — that run recorded
 `ui_age 1` and was still measuring a corpse, because the value was sampled at a
 different moment than the capture. Compare the pixels you actually scored.
+
+## Post-merge re-score — 2026-08-08 (Lumpy, merged `origin/main`)
+
+Merged `origin/main` into `dd/pc-lumpy-merge` in both repos (raves `ed8810e`,
+highvisor `4b6b2ce`). One conflict each, both trivial: `docs/testing.md` was a
+pure append collision (kept both blocks), and the highvisor `gametree.json`
+conflict was our bare `sleep: 1.5` against main's conditional `dismiss` on the
+Raves title→in_game edge — took main's whole, since an idempotent conditional
+beats hoping a delay covers it. Verified after resolving: JSON parses, 71
+transitions, all 8 Lumpy `raves status_*` edges plus the toolkit subtree intact.
+Mod redeployed (38 .cs) and Godot parse clean on the merged tree.
+
+Reputation, re-scored on the golden with a verified-live Qud:
+
+| leaf | pre-merge | post-merge |
+|---|---|---|
+| outer_frame | 6.34 | 6.37 |
+| list_item | 2.92 | 2.93 |
+| list_next | 5.14 | 5.14 |
+
+Within capture noise (±0.03). **No regression from the merge.**
+
+### The focus-keeper fix did NOT cure the stall
+
+I expected `39c8134` to be the root cause — `bThreadFocus` gates
+`GameManager.Update()`, which would explain a frozen view, an undrained uiQueue
+and a Qud that focusing cannot revive. It is still the best mechanism on offer,
+but the prediction was wrong: **Qud stalled again on the merged tree**, mid-run,
+with the fix deployed and confirmed present in the deployed `Bridge.cs`.
+
+Caught by the new `FROZEN REFERENCE` guard rather than by producing another
+evening of confident nonsense, which is exactly what it is for. That is now two
+saves in one session.
+
+Worth checking next: the commit gates the keeper on **a connected client**, and
+the daemon connects per-command and disconnects (`client connected` /
+`client disconnected` pairs all through `Player.log`). If there is no persistent
+client, the keeper may simply never engage on this box. That is a hypothesis
+with an obvious test — hold a connection open and see whether the stall stops —
+not a conclusion.
+
+Also noted: after `hv restart raves` the window comes up 4267x2400 and an
+`hv move` issued too early loses the race, so a capture silently comes back the
+wrong size. `parity.py` fails loudly on the shape mismatch, which is fine, but
+the placement should be verified rather than assumed — check `hv ls` reports
+1920x1080 before capturing.
