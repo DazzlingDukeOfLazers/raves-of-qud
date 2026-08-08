@@ -74,6 +74,17 @@ All of these are non-destructive on the `sync-raves-and-qud` fixture and clear o
 | text input (AskString) | bridge `command` / `CmdWish` — the wish prompt |
 | message | any notice; the fixture's quest grant raises one |
 | yes/no confirm | bridge `command` / `CmdQuit` on a **Wander** save, then answer `Cancel`. Two prompts, and cancelling the first unwinds without quitting. Never on a Classic character — that chain ends in the ABANDON text prompt (see `docs/gotchas.md`) |
+| **titled** option list | system menu (`CmdSystemMenu`) → answer option 2 (`[c] Control Mapping`) → `hv click CavesOfQud 675 117 --hover` on "Configuring Controller: …". That is `KeybindsScreen.SelectInputType()` → `Popup.PickOptionAsync("Select Controller", …)` — Qud's own code path, not scaffolding. **The click needs `--hover`; bare does nothing.** |
+
+**The titled one raises reliably but MIRRORS unreliably — read this before using it.** Qud raises
+it as a dynamic copy while the Keybinds screen has the turn thread parked, and
+`PopupBridge.Ensure()` (which arms the mirror's watcher) is only called from `Bridge.TickRender`,
+which does not fire while a popup holds that thread. Observed: mirrored on the first raise, then
+not once in eight attempts across two Qud restarts. **Do not "cancel and retry" it over the
+bridge** — answering a copy the mod never announced leaves Qud's own popup bookkeeping inconsistent
+(`ShowPopup::OnHide wasn't called!` in `Player.log`, then a Mono internal-call fault) and after that
+NO popup raises at all, including the item menu the parity pin needs. Recover by restarting Qud
+before that fault, not after.
 
 Verify the option COUNT off Qud's live RectTransforms before capturing: the first twiddle after a
 fixture reload sometimes raises a short list, which silently turns a parity run into a comparison

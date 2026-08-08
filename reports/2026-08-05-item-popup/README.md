@@ -146,3 +146,73 @@ and advancing on the font's own pitch puts the name's ink box at Qud's x, y and 
   offset is still quoted from that line, so the arithmetic is unchanged by construction.
 - The Equipment spec was re-scored on the same build: **all 33 leaves within ±0.02** of
   `reports/2026-08-08-parity-baseline/scoreboard.json`. No shared layout rule reached it.
+
+## 2026-08-08 (later) — the titled branch: measured, fixed, render check outstanding
+
+The port left one branch resting on the probe's *structure* rather than on a measurement: the
+title row (`PolatFrameSuperHeader`), because none of the six popups above has one. It is now
+measured on Qud's side and fixed — but the confirming re-capture is missing, and that is stated
+here rather than left to look like a merge defect later.
+
+### Raising one — Qud's own code path, no scaffolding
+
+`Qud.UI.KeybindsScreen.SelectInputType()` calls `Popup.PickOptionAsync("Select Controller", …)`.
+Reached entirely through Qud's own UI:
+
+```bash
+# in-game, fixture loaded
+python3 -c "…Bridge().send('command', command='CmdSystemMenu')"     # system menu
+python3 -c "…Bridge().send('popup', action='option', index='2')"    # [c] Control Mapping
+hv click CavesOfQud 675 117 --hover                                 # "Configuring Controller: …"
+```
+
+The click needs `--hover`; bare does nothing (the click matrix in `docs/gotchas.md`).
+
+### What Qud does
+
+`MenuControll` 221.13×121.00 @ 849.43,479.50 — `20 + 10 + 56 + 10 + 20 + 5 = 121`, and the Scroll
+View's 56 is `2 + (2 rows × 26 + 2)`. The title row is the box's **first** child when there is no
+context block. Its minimum rect is its Header's own text width (the two edge assemblies floor at
+10 each and the spacing is 10), so on this popup **the title sizes the box**: 181.13 against a
+command area asking for only 180.61.
+
+**Header text is tracked.** Same face and size as the body text (SourceCodePro-Regular SDF, 16, per
+the probe) and still wider: 181.13 for 17 characters, i.e. 0.67em advance against the body's 0.6em.
+That is not fitted to this one sample — it is the constant the journal header already established
+at a different size, whose shipped widths give `16.079·len − 1.66` at size 24; the same model
+predicts `0.67·16·17 − 0.07·16 = 181.12` here.
+
+### What Raves had wrong, and what changed
+
+One mirrored capture was obtained before the fix. It showed the branch wrong three ways:
+
+| | Qud | Raves (before) |
+|---|---|---|
+| box width | 221.13 (fill x849–1070) | 211 (fill x854–1064) — the title never contributed |
+| title ink | 178px wide | 161px — drawn at the body pitch |
+| edge assembly | 10px bar, 3 tall, 2×20 tick at its inner end | 10×2 bar plus a separate 2×16 tick one pixel further in (12px) |
+| top rule | row 463 | row 463 — already exact |
+
+All three are fixed on the model. The title row is now an owner-drawn 20px Control (a
+RichTextLabel reports 21), it asks the content box for its Header width, and it draws on the
+header pitch.
+
+### Why this is "outstanding" and not "verified"
+
+**Raising a titled popup works; mirroring it does not, reliably.** Qud raises it as a dynamic copy
+while the Keybinds screen has the turn thread parked, and `PopupBridge.Ensure()` — which arms the
+mirror's watcher — is called only from `Bridge.TickRender`, which does not fire while a popup holds
+the turn thread. It mirrored on the first raise and then not once in eight further attempts across
+two Qud restarts.
+
+Worse, cancelling the *unannounced* copy over the bridge leaves Qud's own popup bookkeeping
+inconsistent — `ShowPopup::OnHide wasn't called!` in `Player.log`, followed by a Mono
+internal-call fault — after which **no popup raises on that machine at all**, including the item
+menu this spec is pinned to. That is the state the session ended in; see `docs/gotchas.md`.
+
+**Numbers to expect when it is re-checked:** box 221 wide, fill x849–1070, top rule row 463, title
+ink ~178px wide, edge assemblies 10px with a 2×20 tick at `x+8` and `x+w−10`.
+
+**The six popups above are unaffected by this change**: every new code path is inside an
+`if _title.visible` branch, and none of them has a title. They were not re-captured, because by the
+time the title fix was built the harness could no longer raise a popup.

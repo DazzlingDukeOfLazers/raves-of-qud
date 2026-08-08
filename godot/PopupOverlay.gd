@@ -86,6 +86,20 @@ const CROME_PAD_R := 20.0          # MenuOptionText padR
 ## 393.40 + 2 spacings + 2 lines at their 25px floor. No other kind reaches it, which is
 ## exactly why the box model had to be checked against a yes/no and not only a menu.
 const CROME_LINE_MIN := 25.0
+## THE TITLE ROW (Qud's `PolatFrameSuperHeader`). 20 tall, spacing 10, pad L-20 R-20, and
+## its two edge assemblies have a 10px minimum -- so its minimum RECT is exactly its
+## Header's own text width, and on a popup with nothing wider that is what sizes the box.
+##
+## Qud's header text is the SAME face and size as its body text (probe: SourceCodePro-
+## Regular SDF, 16, on both) and still measures wider, because a header advances 0.67em
+## where body text advances 0.6em. That is not fitted to this popup: the journal header's
+## shipped widths already gave `16.079*len - 1.66` at size 24, which is 0.67em advance
+## less the 0.07em the last glyph does not spend, and the same model predicts
+## 0.67*16*17 - 0.07*16 = 181.12 for "Select Controller" against a probed 181.13.
+const HDR_ADVANCE_EM := 0.67
+const BODY_ADVANCE_EM := 0.6
+const TITLE_LINE_MIN := 10.0       # the --| / |-- assemblies at each edge
+const TITLE_SP := 10.0             # PolatFrameSuperHeader spacing
 const ROW_H := 26.0                # MenuOptionText(Clone) in the options area
 const ROW_TEXT_X := 15.0           # padL 2 + cursor 8 + spacing 5
 const CONTENT_PAD_LR := 5.0        # Content padL/padR
@@ -173,6 +187,8 @@ var _crome_w := 0.0                 # MenuCrome's entries + spacing: the bottom 
 var _ctx_w := 0.0
 var _msg_w := 0.0
 var _msg_h := 0.0
+var _title_w := 0.0
+var _title_runs: Array = []
 var _edit_slot: Control             # Qud's inputbox slot, pinned to its 17.60
 
 func _build() -> void:
@@ -229,9 +245,14 @@ func _build() -> void:
 	vb.add_child(_ctx_box)
 
 	# PolatFrameSuperHeader — Qud puts the title row AFTER the context block, not before it
-	_title = _mk_rt()
-	_title.autowrap_mode = TextServer.AUTOWRAP_OFF   # the title's natural width drives the panel
-	_title.custom_minimum_size = Vector2(120, CROME_H)
+	# (with no context block it is simply first). Owner-drawn for the same two reasons as
+	# the command bar: a RichTextLabel at font 16 reports a 21px minimum where Qud's row is
+	# 20, and its width has to be Qud's own header measurement rather than Godot's.
+	_title = Control.new()
+	_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_title.clip_contents = true
+	_title.custom_minimum_size = Vector2(0, CROME_H)
+	_title.draw.connect(_draw_title)
 	vb.add_child(_title)
 	_ctx_img = Control.new()
 	_ctx_img.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -389,13 +410,18 @@ func _draw_chrome() -> void:
 		_rect(off, Rect2(c0 - 2, dy, 2, 10), C_TOPLINE)
 		_rect(off, Rect2(c1, dy, 2, 10), C_TOPLINE)
 	if _title.visible:
-		# ─┤ Title ├─ edge assemblies at the title row's mid-height. The title row is
-		# Qud's PolatFrameSuperHeader, which follows the context block.
-		var ty := (CTX_H + BOX_SPACING if _ctx_box.visible else 0.0) + CROME_H * 0.5
-		_rect(off, Rect2(0, ty - 1, 10, 2), C_BOTLINE)
-		_rect(off, Rect2(10, ty - 8, 2, 16), C_BOTLINE)
-		_rect(off, Rect2(w - 12, ty - 8, 2, 16), C_BOTLINE)
-		_rect(off, Rect2(w - 10, ty - 1, 10, 2), C_BOTLINE)
+		# ─┤ Title ├─ edge assemblies, MEASURED off Qud's own titled popup rather than
+		# eyeballed: each is a 10px horizontal bar 3 tall through the row's mid-height with
+		# a 2px vertical at its INNER end running the row's full 20px height, and the
+		# horizontal reaches the box edge (Qud: x849-858 with the tick at 857-858, and the
+		# mirror at 1061-1070). We had 10x2 plus a separate 2x16 tick sitting one pixel
+		# further in, i.e. a 12px assembly against Qud's 10.
+		var tt := (CTX_H + BOX_SPACING if _ctx_box.visible else 0.0)
+		var ty := tt + CROME_H * 0.5
+		_rect(off, Rect2(0, ty - 1.5, TITLE_LINE_MIN, 3), C_BOTLINE)
+		_rect(off, Rect2(TITLE_LINE_MIN - 2, tt, 2, CROME_H), C_BOTLINE)
+		_rect(off, Rect2(w - TITLE_LINE_MIN, tt, 2, CROME_H), C_BOTLINE)
+		_rect(off, Rect2(w - TITLE_LINE_MIN, ty - 1.5, TITLE_LINE_MIN, 3), C_BOTLINE)
 	# The bottom rule is MenuCrome's two line sprites. Qud splits the box width around the
 	# command entries: line = (box_w - entries - 2*spacing)/2, and each entry measures
 	# padL 2 + cursor 8 + spacing 5 + text + padR 20. Verified on both probes -- the item
@@ -451,6 +477,8 @@ func _measure_box(is_input: bool) -> void:
 	_btn_row.custom_minimum_size = Vector2(_snap(maxf(0.0, crome_ask)), CROME_H)
 	if _ctx_box.visible:
 		box_content_w = maxf(box_content_w, _ctx_w)
+	if _title.visible:
+		box_content_w = maxf(box_content_w, _title_w)
 	_box_w = 2.0 * BOX_PAD_LR + box_content_w
 	var parts: Array[float] = []
 	if _ctx_box.visible:
@@ -547,6 +575,29 @@ func _draw_ctx_img() -> void:
 		_ctx_img.draw_string(f, Vector2(px, baseline), txt,
 			HORIZONTAL_ALIGNMENT_LEFT, -1, CTX_NAME_SIZE, run[1])
 		px += pitch * txt.length()   # advance on QUD'S pitch, not on a re-rounded run width
+
+## A HEADER's advance: the body pitch scaled by Qud's header tracking (0.67em vs 0.6em).
+static func _hdr_advance(f: Font, size: int) -> float:
+	return _pitch(f, size) * HDR_ADVANCE_EM / BODY_ADVANCE_EM
+
+## The title row: Qud centres it in the row, on the HEADER pitch. Drawing it in one call at
+## the body pitch is the journal header's mistake -- every glyph after the first lands
+## progressively left of Qud's, and the row measures 17px narrow on a 17-character title.
+func _draw_title() -> void:
+	if _title_runs.is_empty():
+		return
+	var f := _title.get_theme_default_font()
+	if f == null:
+		return
+	var adv := _hdr_advance(f, 16)
+	var px := (_title.size.x - _title_w) * 0.5
+	var base := 4.56 + f.get_ascent(16) - 5.0
+	for run in _title_runs:
+		var txt: String = run[0]
+		for i in txt.length():
+			_title.draw_string(f, Vector2(px, base), txt[i],
+				HORIZONTAL_ALIGNMENT_LEFT, -1, 16, run[1])
+			px += adv
 
 ## Source Code Pro's advance, as a FRACTION. Qud lays this text out at exactly 0.6em --
 ## every width the probe reports is 9.6 * len at font 16 (211.21 for a 22-character row,
@@ -645,15 +696,20 @@ func show_popup(data: Dictionary, palette: Dictionary) -> void:
 
 	var title_markup := str(data.get("title", "")).strip_edges()
 	_title.visible = title_markup != ""
+	_title_w = 0.0
 	if _title.visible:
-		# Qud renders dialog titles centred in GOLD (palette 'W') on their own row
-		# under the top line — unmarked title text inherits the gold; any {{...}}
-		# markup inside still wins
-		var goldhex := String(_palette.get("W", "#cfc041"))
-		if not goldhex.begins_with("#"):
-			goldhex = "#" + goldhex
-		_title.text = "[center][color=%s]%s[/color][/center]" % [goldhex,
-			QudText.to_bbcode(title_markup, _palette)]
+		# Qud wraps the whole title in {{W|...}} (PopupMessage.ShowPopup), so gold is the
+		# default and any {{...}} inside still wins.
+		var tf := _root.get_theme_font("font", "Label")
+		_title_runs = QudText.runs(title_markup, _palette, C_GOLD)
+		var n := 0
+		for run in _title_runs:
+			n += String(run[0]).length()
+		var adv := _hdr_advance(tf, 16)
+		_title_w = maxf(0.0, adv * n - (adv - _pitch(tf, 16)))
+		_title.custom_minimum_size = Vector2(_snap(_title_w), CROME_H)
+	else:
+		_title_runs = []
 	var msg_raw := str(data.get("message", ""))
 	# menus ship an EMPTY body ("{{y|}}"). Qud keeps the Message ELEMENT either way -- an
 	# empty one is h=0 and the Content spacing after it still counts -- so the slot stays

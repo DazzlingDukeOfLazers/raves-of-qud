@@ -1155,3 +1155,44 @@ Also: **the first twiddle after a fixture reload sometimes raises a SHORT option
 arriving as 2 or 6, Qud still settling). It is a different popup, and the anchored header leaves
 still score against it, so a parity run captures it without complaining. Count the
 `MenuOptionText(Clone)` rows in a `uiprobe` dump before capturing.
+
+## The popup mirror can only ARM from TickRender — so a popup can be unmirrorable by construction
+
+`PopupBridge.Ensure()`, which starts the UI-thread watcher that mirrors Qud's modals to Raves, is
+called from **`Bridge.TickRender` only**. `TickRender` comes from `BeforeRenderEvent`, which does
+not fire while Qud's window is unfocused *and* does not fire while a popup has the turn thread
+parked. So a popup that opens while the watcher is not already armed can never arm it: the thing
+that would start the watcher is the thing the popup is blocking.
+
+Found on Qud's titled popup (`KeybindsScreen.SelectInputType()` →
+`Popup.PickOptionAsync("Select Controller", …)`, raised from the Control Mapping screen, which
+parks the turn thread). It mirrored on the first raise and then not once in eight further attempts
+across two Qud restarts, with Qud focused, in-game, turns running and the popup plainly on screen
+for 20s at a time. The uiQueue was draining throughout — `uiprobe` refreshed its dump every time —
+which is the tell that separates this from the documented "uiQueue does not drain in the
+background": **the queue is fine, the watcher was never started.**
+
+`Ensure()` is idempotent and cheap. It belongs on a path that runs when the turn thread is parked
+too, not only on the render tick.
+
+### …and answering a popup the mod never ANNOUNCED corrupts Qud's popup state
+
+`popup / action:button / btn:Cancel` answers `_announcedPm`. When the watcher never announced the
+live popup, that field holds a stale instance, and the answer goes to the wrong one — Qud's real
+popup is left with a dangling `onHide`. The next `ShowPopup` logs
+
+    ERROR  - ShowPopup::OnHide wasn't called! Calling it now
+    cant resolve internal call to "System.Runtime.InteropServices.Marshal::..."
+    Your mono runtime and class libraries are out of sync.
+
+and from then on **no popup raises at all** — `EquipmentAPI.TwiddleObject` logs its `[raves] twiddle
+<item>` line and produces nothing, so the parity fixture's own item menu stops working. The Mono
+message is Qud's generic text for an unimplemented internal call, not a real install problem; the
+fault is the popup bookkeeping ahead of it. A Qud restart clears the process, but the first twiddle
+after it reproduced the same chain, so treat the machine as needing a clean pair start plus a
+verified item-popup mirror BEFORE trusting any capture.
+
+**Check the mirror before driving popups:** raise the item menu and confirm Raves reports
+`popup=menu` in `hv state`. If it does not, nothing downstream of it means anything — and
+`fixture.py twiddle`'s "no popup appeared" is ambiguous between "Qud raised nothing" and "Raves
+never heard about it", because it verifies through Raves.

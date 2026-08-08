@@ -58,12 +58,48 @@
  "box_model_check": {
   "note": "The spec is pinned to one item at fixed coordinates, so it cannot say anything about a differently sized popup. These are the four things the box model predicts -- the opaque fill, the top rule, the context divider and the bottom rule -- measured wherever they land, against Qud's own MenuControll from `uiprobe target=PopupMessage`. `exact` means every one landed on Qud's pixel row/column with zero delta.",
   "popups": [
-   {"what": "cloth robe, 8 options", "kind": "menu + context", "qud_box": "278.21x407.12 @ 820.90,336.44", "result": "exact"},
-   {"what": "basic toolkit, 7 options", "kind": "menu + context", "qud_box": "239.81x379.12 @ 840.09,350.44", "result": "exact"},
-   {"what": "data disk, 9 options", "kind": "menu + context, width driven by the ITEM NAME (393.61) not the commands (199.81)", "qud_box": "433.61x435.12 @ 743.20,322.44", "result": "exact"},
-   {"what": "wish prompt (CmdWish)", "kind": "AskString input, no context, 2 command entries", "qud_box": "650.00x76.72 @ 635.00,501.64", "result": "exact"},
-   {"what": "quest notice", "kind": "message, 1 command entry, width driven by the text", "qud_box": "462.81x57.12 @ 728.59,511.44", "result": "exact"},
-   {"what": "quit confirm (CmdQuit)", "kind": "yes/no, 3 command entries, width driven by the COMMAND BAR", "qud_box": "453.40x57.12 @ 733.30,511.44", "result": "exact"}
+   {
+    "what": "cloth robe, 8 options",
+    "kind": "menu + context",
+    "qud_box": "278.21x407.12 @ 820.90,336.44",
+    "result": "exact"
+   },
+   {
+    "what": "basic toolkit, 7 options",
+    "kind": "menu + context",
+    "qud_box": "239.81x379.12 @ 840.09,350.44",
+    "result": "exact"
+   },
+   {
+    "what": "data disk, 9 options",
+    "kind": "menu + context, width driven by the ITEM NAME (393.61) not the commands (199.81)",
+    "qud_box": "433.61x435.12 @ 743.20,322.44",
+    "result": "exact"
+   },
+   {
+    "what": "wish prompt (CmdWish)",
+    "kind": "AskString input, no context, 2 command entries",
+    "qud_box": "650.00x76.72 @ 635.00,501.64",
+    "result": "exact"
+   },
+   {
+    "what": "quest notice",
+    "kind": "message, 1 command entry, width driven by the text",
+    "qud_box": "462.81x57.12 @ 728.59,511.44",
+    "result": "exact"
+   },
+   {
+    "what": "quit confirm (CmdQuit)",
+    "kind": "yes/no, 3 command entries, width driven by the COMMAND BAR",
+    "qud_box": "453.40x57.12 @ 733.30,511.44",
+    "result": "exact"
+   },
+   {
+    "what": "\"Select Controller\" (KeybindsScreen.SelectInputType)",
+    "kind": "TITLED option list -- the only kind with a PolatFrameSuperHeader, and its box is sized by the TITLE",
+    "qud_box": "221.13x121.00 @ 849.43,479.50",
+    "result": "Qud measured; Raves RENDER CHECK OUTSTANDING -- the pre-fix capture showed 211 wide against Qud's 221.13 and title ink 161 against 178; fixed on the model, not re-captured (the popup mirror would not raise again). Expect: box 221, fill x849..1070, top rule row 463, title ink ~178 wide."
+   }
   ]
  }
 }
