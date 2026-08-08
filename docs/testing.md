@@ -653,3 +653,29 @@ that produced it.
 Reputation is now the one open parity defect with a spec behind it: frame ~15.6
 against equipment's ~0.04 on the SAME frame rect, so its panel chrome diverges
 too, not just the rows.
+
+### Reputation frame: narrowed to a geometry shift, NOT fixed
+
+Measured on the golden with `ui_age` 1 and stable-pixel masking. Frame-band
+mismatches (the rect minus its 16px inset interior), by edge:
+
+    skills      1060   top 144   bottom  899   left   17   right 0
+    reputation 12846   top 5497  bottom 5513   left 1836   right 0
+
+Reputation is 12x skills on the SAME frame rect. The distribution is the useful
+part: **the right edge is perfect (0) while top, bottom and left are all wrong.**
+A colour or alpha difference would hit all four edges evenly. This is a shift or
+a size difference that happens to leave the right edge coincident.
+
+NOT FIXED, and deliberately not guessed at. My attempt to pin the exact frame
+rules (long stable bright runs) was not reliable enough to trust — it found a
+Raves h-rule at y=937 on both tabs with no Qud counterpart, and disagreeing
+v-rules on skills (Qud 174/1744 vs Raves 1180) — which is more likely a weak
+detector than a real asymmetry, and acting on it would be the fifth confident
+wrong call on this branch today.
+
+WHAT WOULD SETTLE IT, cheaply: crop the four frame edges of both apps on the
+reputation tab and LOOK, the way the filter strip was settled. That took one
+side-by-side crop and turned a wrong "anchoring" hypothesis into an exact
+formula. The measurement above says where to crop — top, bottom and left, with
+the right edge as the known-good control.
