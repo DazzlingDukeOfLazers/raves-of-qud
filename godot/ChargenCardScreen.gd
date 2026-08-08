@@ -552,10 +552,21 @@ func _build_card(m: Dictionary, idx: int, cw: int, ch: int) -> Control:
 	col.add_child(boxc)
 	var nm := _text(str(m.get("display", m.get("name", "?"))), NAME_DIM, "caption")
 	nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	# The name label's min width DRIVES THE COLUMN, so it cannot simply be widened to fix wrapping:
+	# measured, cw+20 wraps "Priest of All Suns" exactly like Qud (83/74/21 against Qud's 80/74/22)
+	# but drags the card pitch from 119 to 139 against Qud's 120. Qud lets a name overflow its card
+	# without pushing neighbours apart ("Horticulturist" is 118px over a 97px card); Raves cannot,
+	# because the label is a VBoxContainer child and a container sizes children to its own width.
+	# Closing this properly means lifting the name out of the column so it can overflow — see the
+	# note in task #24 — not nudging this number.
 	nm.custom_minimum_size = Vector2(cw, 0)
 	# WORD, not WORD_SMART. Qud wraps a card name only at spaces and lets a single long word overflow
 	# its card -- "Horticulturist", "Syzygyrior" and "Praetorian" all sit on one line, wider than the
-	# frame under them, while "Priest of All Suns" breaks across three. WORD_SMART instead breaks
+	# frame under them. (Qud breaks "Priest of All Suns" across TWO lines, not three; Raves takes
+	# three because its font's advance is ~1px per character wider at the same cap height -- 9.4px
+	# against Qud's 8.43, measured on "Horticulturist" at 132px against 118 with an identical 11px
+	# glyph height. That is a font-face metric difference, so it cannot be fixed by changing the font
+	# SIZE without losing the matching height.) WORD_SMART instead breaks
 	# INSIDE words when they do not fit, which on Choose Caste produced "Horticul/turist" and
 	# "Praetori/an". It never showed up on the mode and genotype screens because nothing there is
 	# longer than its card.
