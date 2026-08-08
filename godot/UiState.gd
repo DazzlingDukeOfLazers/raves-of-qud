@@ -3,7 +3,7 @@ extends Node
 ## First-party UI-state report for highvisor's state tree ("scene" signal — beats OCR
 ## guessing). Writes raves_state.json AND a per-process raves_state.<pid>.json (see
 ## _pid_path — one shared file cannot survive two Raves instances) {scene, mode, pid,
-## popup?, ts} into the support dir:
+## ui_age, popup?, ts} into the support dir:
 ## immediately on every change, and re-written every 2s as a freshness heartbeat
 ## (highvisor only trusts a recently-touched file, so a crashed Raves can't pin the
 ## tree to its last screen). Same file contract as the mod's qud_state.json.
@@ -23,6 +23,35 @@ var _popup := ""     # popup kind while one is up (message / yesno / menu / inpu
 var _popup_n := 0
 var _snap_ts := 0    # unix time of the last APPLIED snapshot (0 = none yet):
                      # proves the wire is flowing, not just that the UI is alive
+
+## Seconds since this process last DREW A FRAME, mirroring the field of the same name in
+## the mod's qud_state.json so `hv shot --live` can gate on either app the same way.
+##
+## WHY A CAPTURE NEEDS THIS. A window that has stopped rendering still screenshots — the
+## compositor hands back its last frame — so a stale capture is indistinguishable from a
+## good one by size, format or timing. On the Qud side that produced status-screen
+## captures showing the bare playfield, and a whole evening of parity numbers measured
+## against them. Age is the only cheap tell, and it has to be read AT the capture.
+##
+## Frames DRAWN, not `_process` ticks: Godot keeps running the main loop while the window
+## is minimised or fully occluded, so a process-tick counter would read healthy for
+## exactly the window where the capture is stale. `Engine.get_frames_drawn()` advances
+## only when a frame is actually presented.
+var _frame_n := 0
+var _frame_t := 0.0
+
+func _process(_dt: float) -> void:
+	var n := Engine.get_frames_drawn()
+	if n != _frame_n:
+		_frame_n = n
+		_frame_t = Time.get_ticks_msec() / 1000.0
+
+## Whole seconds since the last presented frame. Rounded to match qud_state.json, whose
+## ui_age is an integer, so one threshold works for both apps.
+func _ui_age() -> int:
+	if _frame_t <= 0.0:
+		return 0                      # nothing drawn yet this run; not evidence of staleness
+	return int(maxf(0.0, Time.get_ticks_msec() / 1000.0 - _frame_t))
 
 ## Split in_game into zone vs parasang overview. ONLY flips between those two —
 ## a status screen, popup or menu owns the scene while it's up, and a snapshot
@@ -156,6 +185,7 @@ func _write() -> void:
 	# stored setting (which the lock no longer overwrites); report what's true
 	var d := {"scene": _scene, "mode": "1to1" if Settings.one_to_one() else "user",
 		"pid": OS.get_process_id(),
+		"ui_age": _ui_age(),
 		"ts": int(Time.get_unix_time_from_system())}
 	if _popup != "":
 		d["popup"] = _popup

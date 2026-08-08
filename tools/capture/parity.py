@@ -224,6 +224,13 @@ def cmd_score(spec_path, qud_path, raves_path, only=None, as_json=False, stable=
     spec, leaves = load_spec(spec_path)
     q = np.asarray(Image.open(qud_path).convert("RGB"))
     r = np.asarray(Image.open(raves_path).convert("RGB"))
+    if q.shape[:2] != r.shape[:2]:
+        # Every leaf rect is absolute pixels, so two differently sized windows make each
+        # rect mean a different thing in each app. Say so, rather than let numpy raise a
+        # boolean-index error twenty frames deeper.
+        sys.exit("SIZE MISMATCH: qud is %dx%d, raves is %dx%d. The leaf rects are absolute "
+                 "pixels, so these cannot be compared. Run `hv layout pair` and re-capture."
+                 % (q.shape[1], q.shape[0], r.shape[1], r.shape[0]))
     if stable:
         q2 = np.asarray(Image.open(stable).convert("RGB"))
         if q2.shape == q.shape and not (q != q2).any():

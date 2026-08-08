@@ -1128,3 +1128,36 @@ instead of by whoever is watching.
 Raves reports `--live skipped: state file has no ui_age`. Honest rather than
 silent: `raves_state.json` carries no age field, so only Qud's liveness is
 enforced today. Adding one to the Raves heartbeat would close that half.
+
+### Raves reports `ui_age` too
+
+`UiState` now carries `ui_age` alongside `scene`/`mode`/`pid`, so `hv shot --live`
+gates on either app with one threshold. It counts seconds since the last
+**presented frame**, not `_process` ticks: Godot keeps running the main loop while
+a window is minimised or fully occluded, so a tick counter would read healthy for
+exactly the case where the capture is stale. `Engine.get_frames_drawn()` only
+advances when a frame actually reaches the screen.
+
+Verified by stopping the rendering rather than by reading the code:
+
+| state | ui_age |
+|---|---|
+| focused, rendering | 0 |
+| minimised, +4s … +20s | 2 → 6 → 10 → 14 → 18 |
+| restored | 0 |
+
+And through the tool: a minimised Raves shot with `--live` reported
+`ui_age 5`, re-activated twice, and captured at 0. It no longer prints
+`--live skipped: state file has no ui_age`.
+
+Both guards then earned their keep on the very next run. Restoring the minimised
+window brought Raves back at 4267x2400, and `parity.py capture` refused the triple
+with a size mismatch instead of handing over a 2400-tall capture to a 1080-tall
+spec. `score` now fails the same way with a sentence rather than a numpy
+boolean-index traceback from twenty frames deeper.
+
+After `hv layout pair`, the full path — capture then score, no hand-written shell:
+
+    outer_frame 6.28   list_item 2.81   list_next 5.28   (composite mean 4.04)
+
+Same numbers as the manual runs within capture noise.
