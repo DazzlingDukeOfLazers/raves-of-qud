@@ -782,12 +782,23 @@ namespace RavesOfQud
                     // vocabulary is different and sits right beside it: "Meta:NavigateE"/"NavigateW",
                     // "Select:<n>", "Command:Accept"/"Cancel". Rather than guess which and bake it
                     // in, this lets the tag be driven from outside and settled by experiment.
+                    // `carrier` picks the DISPATCHER: "mouse" (default) = PushMouseEvent, "command" =
+                    // PushCommand. Both exist and they are not interchangeable. The tags that work
+                    // through the mouse queue are unprefixed ("Pick:<label>" resolves to a menu row);
+                    // the carousel's are namespaced (Meta:, Select:, Command:) and pushing those
+                    // through the mouse queue changed 0 pixels, which is the shape of a tag arriving
+                    // at a dispatcher that has no handler registered for it.
                     f.TryGetValue("event", out string pickEvent);
                     f.TryGetValue("label", out string pickLabel);
-                    if (!string.IsNullOrEmpty(pickEvent))
-                        Keyboard.PushMouseEvent(pickEvent);
-                    else if (!string.IsNullOrEmpty(pickLabel))
-                        Keyboard.PushMouseEvent("Pick:" + pickLabel);
+                    f.TryGetValue("carrier", out string pickCarrier);
+                    string tag = !string.IsNullOrEmpty(pickEvent) ? pickEvent
+                               : (!string.IsNullOrEmpty(pickLabel) ? "Pick:" + pickLabel : null);
+                    if (!string.IsNullOrEmpty(tag))
+                    {
+                        if (pickCarrier == "command") Keyboard.PushCommand(tag, null);
+                        else Keyboard.PushMouseEvent(tag);
+                        Server.Log("pick: " + (pickCarrier ?? "mouse") + " <- " + tag);
+                    }
                     return;
                 }
                 if (name == "move")
