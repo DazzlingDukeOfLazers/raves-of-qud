@@ -58,6 +58,11 @@ const NAV_ARROW := Color8(0x42, 0x64, 0x70)   # Qud (66,100,112) — same value 
 ## The three-dot deco under the description. Its own steel, bluer than both MUTED (97,124,120) and
 ## the nav/crumb steel (66,100,112) — not a palette entry, so it is recorded as measured.
 const DECO_KNOB := Color8(0x5B, 0x7A, 0x8A)   # Qud (91,122,138)
+## How far a card NAME may spill past its column on each side before wrapping. Qud's names overflow
+## their cards freely — "Horticulturist" is 118px over a 97px card — and 10 each side is what makes
+## "Priest of All Suns" break in two like Qud's rather than three. Costs no layout width; see the
+## wrapper in _build_card.
+const NAME_OVERFLOW := 10
 const HINT_TEXT := QudPalette.COLORS["y"]     # Qud (177,201,195)
 const DIM := QudPalette.COLORS["k"]           # Qud (15,59,58) — "[Num 9] Next" when disabled
 
@@ -579,14 +584,15 @@ func _build_card(m: Dictionary, idx: int, cw: int, ch: int) -> Control:
 	col.add_child(boxc)
 	var nm := _text(str(m.get("display", m.get("name", "?"))), NAME_DIM, "caption")
 	nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	# The name label's min width DRIVES THE COLUMN, so it cannot simply be widened to fix wrapping:
-	# measured, cw+20 wraps "Priest of All Suns" exactly like Qud (83/74/21 against Qud's 80/74/22)
-	# but drags the card pitch from 119 to 139 against Qud's 120. Qud lets a name overflow its card
-	# without pushing neighbours apart ("Horticulturist" is 118px over a 97px card); Raves cannot,
-	# because the label is a VBoxContainer child and a container sizes children to its own width.
-	# Closing this properly means lifting the name out of the column so it can overflow — see the
-	# note in task #24 — not nudging this number.
-	nm.custom_minimum_size = Vector2(cw, 0)
+	# THE NAME IS NOT A COLUMN CHILD, it sits in a wrapper — because a container sizes its children
+	# to its own width, so as a direct child the label could never be wider than the column, and its
+	# minimum width DROVE that column. Widening it to fit "Priest of All Suns" the way Qud does
+	# (two lines, not three) dragged the card pitch from 119 to 139 against Qud's 120.
+	#
+	# Qud has no such coupling: "Horticulturist" is 118px over a 97px card and its neighbours do not
+	# move. The wrapper reserves exactly the column width; the label inside is anchored full-rect
+	# with negative side offsets, so it stays NAME_OVERFLOW px wider and spills symmetrically over
+	# the cards either side without contributing a pixel to layout.
 	# WORD, not WORD_SMART. Qud wraps a card name only at spaces and lets a single long word overflow
 	# its card -- "Horticulturist", "Syzygyrior" and "Praetorian" all sit on one line, wider than the
 	# frame under them. (Qud breaks "Priest of All Suns" across TWO lines, not three; Raves takes
@@ -598,12 +604,20 @@ func _build_card(m: Dictionary, idx: int, cw: int, ch: int) -> Control:
 	# "Praetori/an". It never showed up on the mode and genotype screens because nothing there is
 	# longer than its card.
 	nm.autowrap_mode = TextServer.AUTOWRAP_WORD
-	col.add_child(nm)
+	var nmwrap := Control.new()
+	nmwrap.custom_minimum_size = Vector2(cw, 0)   # height set in _size_names once laid out
+	nmwrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	col.add_child(nmwrap)
+	nmwrap.add_child(nm)
+	nm.set_anchors_preset(Control.PRESET_FULL_RECT)
+	nm.offset_left = -NAME_OVERFLOW
+	nm.offset_right = NAME_OVERFLOW
 	var hk := _text("[%s]" % str(m.get("hotkey", "")), HOTKEY_DIM, "caption")
 	hk.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hk.custom_minimum_size = Vector2(cw, 0)
 	col.add_child(hk)
-	_cards.append({"cell": cell, "col": col, "boxc": boxc, "border": border, "icon": icon, "name": nm, "hotkey": hk, "caret": caret})
+	_cards.append({"cell": cell, "col": col, "boxc": boxc, "border": border, "icon": icon,
+		"name": nm, "namewrap": nmwrap, "hotkey": hk, "caret": caret})
 	return cell
 
 # ══ category bands (Choose Caste's arcology headers) ═══════════════════════════════
@@ -686,9 +700,25 @@ func _dash_rule(col: Color, cap := 0) -> Control:
 			c.draw_rect(Rect2(cx, y - 3.0, 1.0, 7.0), col))
 	return c
 
+## Give each name wrapper the height its (already wider) label actually needs. A Control does not
+## size itself to its children, so without this the wrapper stays 0px tall and the hotkey rides up
+## over the name. Deferred because the label's wrapped height is only knowable once it has been laid
+## out at its real width.
+func _size_names() -> void:
+	for c in _cards:
+		var w: Control = c.get("namewrap")
+		var l: Label = c.get("name")
+		if w == null or l == null:
+			continue
+		var h := l.get_minimum_size().y
+		if h > 0.0 and absf(w.custom_minimum_size.y - h) > 0.5:
+			w.custom_minimum_size.y = h
+
 func _position_bands_deferred() -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
+	_size_names()
+	await get_tree().process_frame   # let the row re-flow at the new name heights
 	_position_bands()
 
 func _position_bands() -> void:
