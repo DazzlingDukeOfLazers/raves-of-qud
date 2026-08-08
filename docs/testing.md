@@ -1805,3 +1805,57 @@ Two more commands worth knowing about, found while looking: **`journalfixture`
 and `tinkerfixture`** — the mod already ships fixture-populating commands for the
 two tabs recorded above as empty and unmeasurable. `pc-parity-rich` may not need
 wishes at all.
+
+## Mac merge of `dd/pc-lumpy-merge` — 2026-08-08 (branch `dd/mac-pc-merge-0808`)
+
+Executed against the plan in `highvisor/docs/merge-plan-2026-08-08.md`, whose execution log holds
+the full detail. Both repos merged with **zero textual conflicts**; the re-survey at execution
+time found **16 rewritten edges, not the 11 the plan predicted**, plus a chargen subtree (2 nodes,
+9 edges, 3 detectors) that postdated it.
+
+**SPOT 5/5, apps down.** typing-guard audit PASS with the field inventory 14 → 15 — checked by
+DIFFING the inventory against `main`, not by reading the total, and the single new entry is
+`MapEditorScreen.gd`'s `LineEdit`, exactly as predicted. `Godot --check-only` on all eight changed
+`.gd` files plus Main.gd's deep check: every "failure" is the missing-autoload artefact and `main`
+produces them identically. `dotnet build` 0 errors / 18 pre-existing CS0618, which clears
+`PlayerBridgeLoadAttach.cs` against this Mac's Qud assembly.
+
+**FULL 2 — both pinned baselines hold on the merged tree.**
+
+| gate | baseline | result |
+|---|---|---|
+| Equipment, 33 leaves | B1 `reports/2026-08-08-parity-baseline/` | **33/33 within ±0.01**, max abs delta 0.010 |
+| Item popup, 7 leaves | B2 `reports/2026-08-05-item-popup/` | **7/7 at exactly +0.00** |
+
+The plan's sharp prediction about the PC's inventory filter-strip recentre **held**:
+`filter_image[0..4]` moved `+0.00` in both capture runs, so the strip really is 12 cells and
+`_filt_left(12) == 590.0 == the old hardcoded constant`.
+
+**Score a small move TWICE before believing it.** The first capture run showed a *uniform* `+1.43`
+on all five `filter_frame` leaves and `+0.71` on all five `filter_cell` leaves while
+`filter_image` stayed flat; the second run reproduced B1 exactly. It was a capture-time artefact.
+Two things to keep from that: a single capture can be off by ~1.4 on this leaf family, and the
+uniform-across-a-whole-family signature is the tell that a move is NOT geometry — a real strip
+shift makes the diffs vary wildly (the 38–79 numbers of 08-07), it does not move ten leaves by the
+same number.
+
+**What actually blocked the parity run for an hour, and it was not what it looked like.** Qud's
+`in_game -> status_screens` edge failed with the pointer provably on target — the hover tooltip
+("Character Sheet") was rendering on the right icon in the capture. The cause was that **the two
+windows overlapped by 124px**: the toolbar click at global y=-1130 fell inside the Raves window
+(-2156..-1076), so Raves received it. `hv launch raves` had already said
+`anchor 'CavesOfQud' not found` — the auto-placer ran before Qud's window existed and Qud was
+never placed — and that one line was the whole diagnosis, ignored for an hour while focus,
+window chrome and click coordinates were investigated instead.
+
+Corollaries worth not rediscovering:
+
+- **`hv launch raves` is the pair start.** It spawns Qud BORDERLESS at 1920x1080, which is the
+  geometry the baselines were captured at. Launching Qud first from Steam gives it a title bar,
+  so the window is 1920x**1108**, every window-relative Y is 28px out, and captures no longer
+  match a 1080-tall spec.
+- **Do NOT run `hv layout loop` before a capture.** It is a desktop working arrangement and its
+  saved rects resize Qud to 1793x997. `hv layout pair` — which `parity.py`'s size-mismatch message
+  tells you to run — **does not exist on this machine**; only loop/halves/quads do.
+- After placing, assert the two windows do not overlap. Stacked cleanly on the 4K
+  (Raves 0,-2160 / Qud 0,-1080, both 1920x1080) the failing edge passed first try.
