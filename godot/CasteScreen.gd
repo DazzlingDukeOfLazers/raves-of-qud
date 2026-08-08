@@ -24,6 +24,9 @@ var crumbs: Array = []
 const HOTKEYS := "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 var _class_cache := {}
+## tile -> Qud detail colour code, filled by _load_items so _card_icon can look one up. Keyed by TILE
+## rather than name because that is what _card_icon is handed, and tiles are unique per caste.
+var _detail_by_tile := {}
 
 func _screen_node_name() -> String: return "CasteScreen"
 
@@ -45,9 +48,24 @@ func _breadcrumb_crumbs() -> Array:
 
 func _default_index() -> int: return 0
 
-## Icons are left to the base two-tone recolour, as GenotypeScreen leaves them: Qud draws the caste
-## sprites in the same neutral grey-teal as the mode and genotype icons and carries selection with
-## brightness, which _apply_selection's ICON_SEL/ICON_DIM modulate already does.
+## The SELECTED caste is drawn in the creature's OWN detail colour, the resting ones in the flat
+## two-tone. Corrects a note that had this backwards: stacking the captures shows Qud's selected
+## Horticulturist plainly GREEN against Raves' grey, and it is not a brightness step.
+##
+## The colour does NOT come from the sprite. The exported tile is a black/white MASK -- loading it
+## natively (tried, reverted) yields a black-and-white figure, which is the whole reason
+## _recolor_tile exists. It comes from chargen.json, where every subtype carries a `detail` colour
+## code alongside its tile: Horticulturist 'g', the Ibul castes 'c', the Yawningmoon ones 'r'. Per
+## CASTE, not per arcology -- Ekuemekiyye alone runs g/Y/W/g -- so it has to be looked up per card.
+##
+## Only the detail channel moves. ICON_MAIN already measures (168,194,187) against the (177,201,195)
+## Qud draws for the selected body, so the figure itself was never the problem.
+func _card_icon(tile: String, item_name: String) -> Dictionary:
+	var neutral := _recolor_tile(tile, ICON_MAIN, ICON_DETAIL)
+	var code := str(_detail_by_tile.get(tile, ""))
+	if code == "" or not QUD_COLORS.has(code):
+		return {"colored": neutral, "neutral": neutral}
+	return {"colored": _recolor_tile(tile, ICON_MAIN, QUD_COLORS[code]), "neutral": neutral}
 
 # ── layout: the banded screen is NOT the plain one shifted ─────────────────────────
 #
@@ -121,11 +139,14 @@ func _load_items() -> Array:
 			if lines.is_empty():
 				for b in st.get("statBonuses", []):
 					lines.append("· +%d %s" % [int(b.get("bonus", 0)), str(b.get("name", ""))])
+			var tile := str(st.get("tile", ""))
+			if tile != "":
+				_detail_by_tile[tile] = str(st.get("detail", ""))
 			out.append({
 				"name": str(st.get("name", "?")),
 				"display": str(st.get("display", st.get("name", "?"))),
 				"hotkey": HOTKEYS[i] if i < HOTKEYS.length() else "",
-				"tile": str(st.get("tile", "")),
+				"tile": tile,
 				"desc": "\n".join(lines),
 			})
 	return out
