@@ -985,6 +985,11 @@ func _finish(payload: Dictionary) -> void:
 	visible = false
 	_edit.release_focus()
 	UiState.clear_popup()
+	# NAME the popup being answered. The mod refuses an answer whose id does not belong to the
+	# modal currently on screen, so an answer that raced the popup closing is rejected instead of
+	# being applied to whatever replaced it — the "answered a stale instance" bug, which leaves
+	# Qud's own popup with a dangling onHide and no way to notice.
+	payload["id"] = _cur_id
 	answered.emit(payload)
 
 ## Called on `active:false` and on any normal snapshot (a snapshot can only publish once Qud's turn thread

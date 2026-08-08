@@ -433,7 +433,10 @@ namespace RavesOfQud
             BridgeServer server = Server;
             EnsureScanlineState();              // keep Qud's always-on CC_AnalogTV scanlines suppressed (1:1)
             MaybeExportClocks();                // one-shot day/night sky discs — marshalled to the uiQueue
-            PopupBridge.Ensure();               // arm the UI-thread popup watcher (mirrors Qud modals to Raves)
+            // Belt-and-braces re-arm of the popup mirror. NOT the primary one: a modal parks the
+            // turn thread and this tick stops firing, so arming here alone could never cover the
+            // case it exists for. StartupHook's heartbeat is the arming path (see PopupBridge.Ensure).
+            PopupBridge.Ensure();
             bool applied = false;
             while (server.Incoming.TryDequeue(out string json))
             {

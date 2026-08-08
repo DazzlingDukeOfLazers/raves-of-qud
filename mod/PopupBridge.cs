@@ -40,6 +40,12 @@ namespace RavesOfQud
         // PickOptionAsync, AskString) can vanish from FindObjectsByType by answer-time,
         // and a re-scan then hits a decoy singleton — the injected answer went nowhere.
         private static PopupMessage _announcedPm;
+        // The announce ids that belong to the popup CURRENTLY on screen. Every announce bumps
+        // `_id`, and a RE-announce happens on every client connect (highvisor's state poller
+        // connects ~2/s), so "the id the client is answering" legitimately lags `_id` by a few.
+        // The episode's FIRST id pins the lower bound: ids are monotonic and an episode is
+        // contiguous, so [_episodeMinId, _id] is exactly this popup and nothing before it.
+        private static int _episodeMinId;
 
         private static void Log(string s) { try { Bridge.Server?.Log(s); } catch { } }
 
@@ -108,29 +114,62 @@ namespace RavesOfQud
         /// Flag a one-shot re-broadcast of the current popup on the next poll.</summary>
         public static void OnClientConnect() { _resend = true; PickerBridge.OnClientConnect(); }
 
-        /// <summary>Idempotent — starts the UI-thread watcher if it isn't already running. Called from the
-        /// per-turn / per-frame ticks so a game load (or a torn-down + rebuilt uiQueue) re-arms it.</summary>
-        public static void Ensure()
+        // ---- watcher liveness ------------------------------------------------------------
+        // `_pumping` on its own is a flag that cannot fail. The watcher is a task that
+        // re-queues ITSELF, so if the uiQueue it rides on is torn down and rebuilt (a game
+        // load), the old chain simply stops running and nothing ever clears the flag —
+        // Ensure() then reports "already armed" over a dead watcher, forever.
+        //
+        // So do not ask the flag, ask for PROOF OF LIFE: the chain stamps `_aliveMs` on every
+        // drain, and Ensure() re-arms whenever that stamp goes stale. `_pumpGen` retires the
+        // old chain on a re-arm, so healing a dead watcher can never leave two pumps running.
+        private static volatile int _aliveMs;
+        private static volatile int _pumpGen;
+        private const int PumpStaleMs = 2000;   // ~60 missed 30Hz polls: dead, not merely busy
+
+        /// <summary>Is the mirror's watcher actually RUNNING (not merely flagged as started)?</summary>
+        public static bool WatcherAlive
         {
-            if (_pumping) return;
-            GameManager gm = GameManager.Instance;
-            if (gm == null || gm.uiQueue == null) return;
-            _pumping = true;
-            Kick(gm);
+            get { return _pumping && unchecked(Environment.TickCount - _aliveMs) < PumpStaleMs; }
         }
 
-        private static void Kick(GameManager gm)
+        /// <summary>Idempotent — starts (or re-starts) the UI-thread watcher unless one is
+        /// provably alive.
+        ///
+        /// WHERE THIS IS CALLED FROM MATTERS. It used to be called from `Bridge.TickRender`
+        /// and nowhere else, and `TickRender` rides `BeforeRenderEvent`, which does not fire
+        /// while a modal has Qud's turn thread parked. That made the arming unreachable in
+        /// exactly the case it exists for: a popup that opens before the watcher is armed
+        /// blocks the only thing that would arm it. It is now driven by the mod's own
+        /// heartbeat thread (StartupHook), which runs once a second regardless of focus,
+        /// turns, render frames, or whether a game is live at all.</summary>
+        public static void Ensure()
+        {
+            if (WatcherAlive) return;
+            GameManager gm = GameManager.Instance;
+            if (gm == null || gm.uiQueue == null) return;
+            int gen = ++_pumpGen;
+            _pumping = true;
+            _aliveMs = Environment.TickCount;   // grace: don't re-arm again before the first drain
+            Log("[popup] arming the mirror watcher (gen " + gen + ")");
+            Kick(gm, gen);
+        }
+
+        private static void Kick(GameManager gm, int gen)
         {
             try
             {
                 gm.uiQueue.queueTask(delegate
                 {
+                    if (gen != _pumpGen) return;        // a newer chain took over — retire quietly
+                    _aliveMs = Environment.TickCount;   // proof of life, BEFORE Poll's own rate limit
                     try { Poll(); } catch (Exception e) { Log("popup poll: " + e.Message); }
                     GameManager g = GameManager.Instance;
-                    if (g != null && g.uiQueue != null) Kick(g); else _pumping = false;   // stop; Ensure() re-arms
+                    if (g != null && g.uiQueue != null) Kick(g, gen);
+                    else if (gen == _pumpGen) _pumping = false;   // stop; Ensure() re-arms
                 }, 0);
             }
-            catch { _pumping = false; }
+            catch { if (gen == _pumpGen) _pumping = false; }
         }
 
         /// <summary>The status screens' ACTIVE TAB ("Tinkering", "Journal", "Quests", ...), cached
@@ -280,6 +319,7 @@ namespace RavesOfQud
                     _active = false;
                     _sig = "";
                     _announcedPm = null;
+                    _episodeMinId = int.MaxValue;   // nothing is answerable until the next announce
                     var jc = new JsonWriter();
                     jc.BeginObject().Member("type", Protocol.TypePopup).Member("active", false).Member("id", ++_id).EndObject();
                     Publish(server, jc.ToString());
@@ -311,8 +351,10 @@ namespace RavesOfQud
             string sig = Sig(message, title, buttons, options, input, inputDefault) + SEP + ctxSig;
             _announcedPm = pm;   // answers target the instance Raves is looking at
             if (_active && sig == _sig && !resend) return;   // same popup, same content — Raves already has it
+            bool freshEpisode = !_active || sig != _sig;   // a resend is the SAME episode, not a new one
             _active = true;
             _sig = sig;
+            if (freshEpisode) _episodeMinId = _id + 1;      // _id is bumped just below
 
             var j = new JsonWriter();
             j.BeginObject();
@@ -478,19 +520,24 @@ namespace RavesOfQud
             f.TryGetValue("btn", out string btn);
             f.TryGetValue("index", out string indexStr);
             f.TryGetValue("text", out string text);
+            f.TryGetValue("id", out string idStr);
             gm.uiQueue.queueTask(delegate
             {
                 try
                 {
-                    // Target the ANNOUNCED instance first — async copies (ShowYesNoAsync /
-                    // PickOptionAsync / AskString via copyWindow) can vanish from a re-scan
-                    // by answer-time, which used to hand the answer to a decoy singleton.
-                    PopupMessage pm = _announcedPm;
-                    bool held = false;
-                    try { held = pm != null && pm.Visible; } catch { pm = null; }
-                    if (!held) pm = FindVisiblePopup(true);
-                    if (pm == null) { Log("[popup] answer: no target"); return; }
-                    Log("[popup] answer -> " + action + " held=" + held + " live=" + IsLive(pm)
+                    PopupMessage pm = AnswerableTarget(idStr, out string why);
+                    if (pm == null)
+                    {
+                        Log("[popup] REFUSED " + (action ?? "?") + " (id " + (idStr ?? "-") + "): " + why
+                            + " — the bridge only answers a popup it has announced.");
+                        // Say so on the WIRE too, not just in the log: a client that just had an
+                        // answer refused is, by definition, out of step with what is on screen.
+                        // Re-announcing the truth (the live popup, or active:false) is what stops
+                        // it retrying into the same refusal.
+                        _resend = true;
+                        return;
+                    }
+                    Log("[popup] answer -> " + action + " id=" + (idStr ?? "-")
                         + " inst=" + pm.GetInstanceID());
                     List<QudMenuItem> buttons = pm.controller != null ? pm.controller.bottomContextOptions : null;
                     List<QudMenuItem> options = pm.controller != null ? pm.controller.menuData : null;
@@ -522,6 +569,53 @@ namespace RavesOfQud
                 }
                 catch (Exception e) { Log("popup cmd: " + e.Message); }
             }, 0);
+        }
+
+        /// <summary>The ONLY popup the bridge will answer: the exact instance whose content was
+        /// last ANNOUNCED to the client, still live, still in use, and named by an id belonging
+        /// to the episode currently on screen. Returns null (with a reason) for anything else.
+        ///
+        /// This used to fall back to "scan for whatever popup is visible" when the announced
+        /// instance did not check out — a check that cannot fail, and it failed in both
+        /// directions. With no announcement at all it cheerfully answered a modal the viewer
+        /// had never seen; and for the async COPIES (ShowYesNoAsync / PickOptionAsync /
+        /// AskString, all via UIManager.copyWindow) the scan can return a POOLED GHOST that
+        /// still looks visible and still has a callback, so the answer went nowhere while Qud's
+        /// real modal kept its `onHide` dangling — which surfaces one popup later as
+        /// `ShowPopup::OnHide wasn't called!` and leaves the popup bookkeeping inconsistent.
+        ///
+        /// A refusal that names its reason is strictly better than an answer that might be
+        /// right: the caller can re-read and retry, where a wrong answer is unrecoverable.</summary>
+        private static PopupMessage AnswerableTarget(string idStr, out string why)
+        {
+            PopupMessage pm = _announcedPm;
+            if (pm == null || !_active)
+            {
+                why = "no popup has been announced (nothing is on screen, or the watcher never armed)";
+                return null;
+            }
+            // The client names WHICH popup it is answering. An answer that races the popup
+            // closing, or a queued retry, names an id we have moved past — and applying it to
+            // the SUCCESSOR popup is precisely the "answered a stale instance" bug. Clients
+            // that send no id still work; they just get the instance checks below.
+            if (!string.IsNullOrEmpty(idStr))
+            {
+                if (!int.TryParse(idStr, out int want))
+                {
+                    why = "unparseable popup id " + idStr;
+                    return null;
+                }
+                if (want < _episodeMinId || want > _id)
+                {
+                    why = "answer names popup " + want + ", but the one on screen is "
+                          + _episodeMinId + ".." + _id;
+                    return null;
+                }
+            }
+            if (!IsLive(pm)) { why = "the announced popup is no longer live"; return null; }
+            if (InFreePool(pm)) { why = "the announced popup has been released to UIManager's pool"; return null; }
+            why = "";
+            return pm;
         }
 
         private static QudMenuItem FindByCommand(List<QudMenuItem> items, string command)
