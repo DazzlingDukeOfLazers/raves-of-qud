@@ -1047,3 +1047,60 @@ Also noted: after `hv restart raves` the window comes up 4267x2400 and an
 wrong size. `parity.py` fails loudly on the shape mismatch, which is fine, but
 the placement should be verified rather than assumed — check `hv ls` reports
 1920x1080 before capturing.
+
+## The persistent-connection hypothesis: FALSIFIED — 2026-08-08
+
+Added `clients` and `thread_focus` to the heartbeat so the focus keeper's two
+inputs are observable, because "stalled" looked identical from outside whether
+the keeper was idle, not running, or working fine. The keeper's gate is literally
+`if (_server != null && _server.ClientCount > 0)`, so the hypothesis was that the
+daemon's connect-per-command pattern left `ClientCount == 0` and the keeper never
+engaged.
+
+It does not. Measured across every provocation:
+
+    clients = 1..4        thread_focus = true       (always)
+
+**Raves is itself a persistent bridge client**, so the count is never 0 while the
+pair is up. The keeper is engaged and holding `bThreadFocus` the whole time — and
+the bad captures still happen. The gate is not the cause.
+
+### What is actually happening
+
+A Qud that is not rendering captures as the **playfield with no UI overlay**,
+while the heartbeat correctly reports the status screen. The heartbeat was never
+lying; the capture was. Measured with a tab-bar ink count (y 124–152, which every
+status screen fills and the playfield leaves empty):
+
+| capture | ui_age at shot | tab-bar ink | what the file shows |
+|---|---|---|---|
+| P1 | 3 | 576 | reputation screen |
+| P2–P6 | 5–23 | 0 | playfield |
+| FG / BG | 5 / 13 | 0 | playfield |
+| FG2 | 1 | 576 | reputation screen |
+
+**`ui_age` at the moment of capture is the predictor.** At 1 the capture is the
+real screen; above ~3 it is a stale UI-less frame. Not the value logged before or
+after the shot — the earlier runs sampled it at a different moment and read 1
+while the shot itself was stale, which is exactly how this stayed hidden.
+
+And the reason it drifts above 1: **`hv activate CavesOfQud` frequently does not
+take.** Measured three attempts in a row where the foreground stayed elsewhere;
+only the third brought `ui_age` to 1. So the earlier "focusing does not recover
+it" (471→482) is at least as well explained by activate failing as by a hang. No
+mod bug is needed to explain any of tonight.
+
+### The procedure that follows
+
+Before every Qud capture: activate, then **poll until `ui_age <= 2`**, retrying
+the activate, and only then shoot. Do not trust a single activate, and do not
+sample `ui_age` around the shot instead of at it.
+
+The `FROZEN REFERENCE` guard is validated by this — the identical frames it
+rejected were genuinely the stale playfield, not a legitimately static screen (I
+suspected a false positive mid-investigation and was wrong; P2–P6 are playfield,
+not reputation). It stays, but it is the backstop, not the check.
+
+Unrelated but recurring: `hv restart raves` relaunches the Godot dev-run at
+4267x2400 on this box. Use `hv layout pair` after a Raves restart rather than an
+`hv move` on a fixed sleep, which races the window into existence.

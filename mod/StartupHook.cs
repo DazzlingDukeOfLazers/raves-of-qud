@@ -233,6 +233,15 @@ namespace RavesOfQud
                             + ",\"window\":\"" + win.Replace("\"", "'") + "\""
                             + ",\"unity_scene\":\"" + _uiScene.Replace("\"", "'") + "\""
                             + ",\"ui_age\":" + uiAge
+                            // The two inputs to the focus keeper, so a stall can be DIAGNOSED
+                            // instead of argued about. The keeper only asserts bThreadFocus while
+                            // ClientCount > 0, so "stalled" splits three ways that look identical
+                            // from outside: no client attached (keeper idle), client attached but
+                            // bThreadFocus still false (keeper not running / losing a race), or
+                            // bThreadFocus true and the UI stalled anyway (the gate is not the
+                            // cause). Reading these costs nothing and settles which.
+                            + ",\"clients\":" + ClientCountSafe()
+                            + ",\"thread_focus\":" + (ThreadFocusSafe() ? "true" : "false")
                             + ",\"ts\":" + DateTimeOffset.UtcNow.ToUnixTimeSeconds() + "}");
                     }
                     catch { /* transient IO — retry next tick */ }
@@ -243,6 +252,22 @@ namespace RavesOfQud
             })
             { IsBackground = true, Name = "RavesHeartbeat" };
             _heartbeat.Start();
+        }
+
+        /// <summary>Attached bridge clients, or -1 if the server is not up yet. Off-thread safe:
+        /// ClientCount takes its own lock and touches no Unity object.</summary>
+        private static int ClientCountSafe()
+        {
+            try { return Bridge.Server != null ? Bridge.Server.ClientCount : -1; }
+            catch { return -1; }
+        }
+
+        /// <summary>XRLCore.bThreadFocus — the flag gating Unity's Update(), which the keeper holds
+        /// true while a client is attached. A plain static read, no Unity API call.</summary>
+        private static bool ThreadFocusSafe()
+        {
+            try { return XRL.Core.XRLCore.bThreadFocus; }
+            catch { return false; }
         }
     }
 }
