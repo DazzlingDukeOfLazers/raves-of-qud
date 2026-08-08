@@ -492,3 +492,37 @@ font rasterisation, and strip anchoring — and each died to a measurement befor
 any code changed. What finally worked was measuring the SAME quantity across two
 fixtures and asking what stayed constant: the centre did, so the constant was
 never 590.
+
+## FULL 2 swept across all eight status tabs — 2026-08-07 (golden `pc-parity`)
+
+Only `equipment` has a leaf spec, so the other seven were scored whole-screen.
+
+    skills 92.87   attributes 93.43   equipment 93.37   tinkering 93.65
+    journal 93.66  quests 93.68       reputation 93.02  messagelog 93.70
+
+That band is 0.83 wide across eight different screens, which is the tell: it is
+not eight per-screen problems, it is ONE shared difference. Note equipment reads
+93.37 whole-screen while its LEAVES now score 0.04 — the residual is entirely
+outside the spec'd regions, which is also why a whole-screen number was never the
+right instrument for a single element.
+
+LOCATED, and it is not located at all: bucketing the mismatch into 160x120 bands
+gives every band exactly 1.4% of the error, on two unrelated tabs, with near
+identical totals (83280 vs 83483). Uniform spread = global, not regional.
+
+IT IS A TONAL OFFSET. Over 230k sampled pixels on `quests`, **not one matches**
+(exact-equal 0.0%), and Qud is uniformly BRIGHTER:
+
+    mean signed (qud - raves)   R +7.27   G +17.61   B +18.21
+    mean |delta|                R  7.79   G  19.05   B  19.06
+    most common G delta         +22 .. +30, tightly clustered
+
+A constant positive offset weighted to G and B — i.e. Raves darkens the field
+behind the status overlay more than Qud does, or applies a different scrim
+colour. One fix should lift all eight tabs at once.
+
+NEXT: this is the same shape as the toolkit backdrop veil, which was solved by
+measuring the blend rather than guessing an alpha — sample a region Qud does NOT
+draw over, solve for (alpha, colour) from two known backgrounds, and match. Do
+NOT tune it by eye; the last four defects on this branch all yielded to a
+measured invariant and none to a plausible guess.
