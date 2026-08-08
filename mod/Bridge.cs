@@ -755,6 +755,31 @@ namespace RavesOfQud
                     PickerBridge.HandleCommand(f);
                     return;
                 }
+                if (name == "pick")
+                {
+                    // Activate a MENU ROW by its label, through the row's own dispatch — the same
+                    // "Pick:<label>" event EmbarkDriver uses for "New Game" and LoadSave for
+                    // "Continue", generalised so highvisor can drive any of them.
+                    //
+                    // This exists because character creation cannot be driven from outside at all on
+                    // Windows. Measured 2026-08-08: keys reach Qud's chargen screens by NO path --
+                    // SendKeys (window messages) and SendInput scancode (raw, the path Unity's Input
+                    // System actually reads) both leave the card carousel untouched with the window
+                    // focused and answering clicks; a raw Right arrow moved exactly 0 pixels. The
+                    // printed [A]-[L] hotkeys do nothing either. Clicks land, but the carousel's
+                    // select-versus-confirm behaviour never resolved into a model that survived a
+                    // second run, so every coordinate recipe was a coin flip.
+                    //
+                    // Socket thread ON PURPOSE, following EmbarkDriver: a menu screen has no game
+                    // running, so the main-thread command queue drained by Tick/TickRender may never
+                    // drain at all. PushMouseEvent only touches Qud's own locked input queue plus the
+                    // wake event -- no Unity calls -- so it is safe off-thread, the same argument
+                    // PushCommand carries above.
+                    f.TryGetValue("label", out string pickLabel);
+                    if (!string.IsNullOrEmpty(pickLabel))
+                        Keyboard.PushMouseEvent("Pick:" + pickLabel);
+                    return;
+                }
                 if (name == "move")
                 {
                     f.TryGetValue("dir", out string dir);
