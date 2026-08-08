@@ -703,3 +703,85 @@ content origin to match — the same shape of fix as the filter strip (derive th
 origin, do not hard-code the reference). The list_item/list_next leaves at 24-30
 are almost certainly the same offset seen through row-shaped rects, so one fix
 should take all three leaves down together.
+
+#### RETRACTED: the reputation "content origin" defect never existed — Qud was FROZEN
+
+The whole reputation investigation above was scored against a Caves of Qud that
+had stopped rendering. Proof, not inference: a screenshot taken fresh at 00:49
+was **byte-identical** (same size, same md5 `fef1371116…`) to `N_reputation_q.png`
+captured at 00:15. Thirty-four minutes, same frame, every pixel. The bridge
+heartbeat cheerfully reported `scene: StatusScreensScreen, tab: Factions` the
+whole time; the window was showing the plain playfield.
+
+So "at the same y, Qud shows only the playfield through the scrim" was true and
+completely misleading — Qud was not on the reputation screen at all. There was
+no content-origin bug. The scores 15.56 / 24.23 / 29.62 measured Raves' correct
+reputation pane against a stale playfield frame.
+
+Two traps worth naming, because both made the bad data look good:
+
+- **`--stable` cannot save you here.** It drops pixels the reference does not
+  hold still between two captures. A frozen app holds EVERY pixel still, so the
+  filter passed 99.9% of pixels through and reported the reference as rock
+  solid. A stability check on a corpse reads as perfect stability.
+- **`ui_age` is necessary but not sufficient.** The run recorded `ui_age 1` and
+  was still wrong, because the value was sampled at a different moment than the
+  capture. The reliable tell is cheaper and needs no bridge: **two successive
+  captures of a live app always differ.** If `q.png` and `q2.png` are byte-equal,
+  the app did not render and nothing measured against it means anything.
+
+The stall recurs within ~10 minutes of a fresh start and **focusing does not
+recover it** (measured: `ui_age` kept climbing 471→482 with the window focused).
+Only a restart clears it. It has now caused five wrong conclusions in one day.
+
+#### What the reputation pane actually got wrong (measured on a LIVE Qud)
+
+Re-captured against a verified-live Qud (`ui_age 1`, two captures differing):
+baseline **outer_frame 7.54 / list_item 6.31 / list_next 12.52** — real
+divergence, about half what the frozen frame invented.
+
+Cropping the Apes block side by side showed it immediately: Qud renders each
+interest as its OWN paragraph, blank line between, faction name re-tinted at
+each sentence start. Raves concatenated them into one run-on paragraph. Qud's
+Apes block is 7 line slots, Raves' was 5, so every row below drifted upward
+cumulatively — which is why `list_next` (further down the list) scored worse
+than `list_item`.
+
+`_wrapped` was destroying both halves of the data it was given:
+`QudText.strip()` erased the `{{C|Apes}}` tint and `.replace("\n", " ")`
+collapsed the paragraph breaks the exporter had faithfully carried across.
+
+Then a UiProbe of the live `FactionsStatusScreen` settled the geometry exactly,
+instead of fitting curves to noisy pixel bands:
+
+    row heights   116.00   123.99   141.59   159.19
+    minus 36 hdr   80.00    87.99   105.59   123.19
+                =  floor    5*17.6   6*17.6    7*17.6
+
+So **`det_h = max(80, lines * 17.6)`**, the 80 floor being the icon column. The
+fixed 80 looked right for years because most factions sit under the floor.
+Modelled in Python against all 18 probed rows first: 17/18 matched, and the one
+holdout (Baetyls) has a first interest of *exactly* 60 characters — so Qud's
+`blockWrap` breaks AT the limit, not past it. With `>=`, **18/18**.
+
+Result, each step verified by re-scoring:
+
+| leaf | frozen (void) | live baseline | + paragraphs & height | + newline fix |
+|---|---|---|---|---|
+| outer_frame | 15.56 | 7.54 | 6.90 | **6.42** |
+| list_item | 24.23 | 6.31 | 3.75 | **2.92** |
+| list_next | 29.62 | 12.52 | 12.71 | **5.14** |
+
+The middle column is worth keeping: splitting on `"\n"` after `QudText.runs`
+looked like a fix and scored like one on two leaves while making `list_next`
+slightly worse. `runs()` maps through **cp437, where 0x0A is the printable glyph
+◙** — the newlines were being DRAWN, not obeyed ("Oboroqoru's lair.◙◙Apes are
+interested…"). Splitting before the cp437 conversion is what actually took
+`list_next` from 12.71 to 5.14. The crop showed the ◙◙ instantly; the score
+alone would have read as partial success.
+
+NEXT: the dividers. Qud draws each column separator as a thin DASHED line —
+2px wide at x=592/813, segments ~3px on / ~3px off, period ~6.1px — where Raves
+fills the whole 7px `Border` rect solid. That is now the dominant term left in
+`outer_frame`, and it is the one thing still visibly different in a side-by-side
+crop of the top band.
