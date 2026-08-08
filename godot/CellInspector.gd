@@ -350,6 +350,18 @@ func set_panel_visible(v: bool) -> void:
 		_panel.visible = v
 
 func hide_panel() -> void:
+	# CLEAR THE SELECTION ITSELF, not just its pixels. `_selected` was set on every inspect
+	# and never cleared anywhere, and Main's Esc branch gates on
+	# `inspector.selected_tile() != null` to decide whether Esc had UI to dismiss or should
+	# fall through to Qud's system menu. So the FIRST Ctrl+click of a session left that
+	# permanently true and Esc could never open the system menu again — for the rest of the
+	# run, with nothing on screen to explain it (measured 2026-08-07: fresh Raves, Esc opens
+	# the menu; after one Ctrl+click inspect, four Escapes in a row do nothing).
+	#
+	# Safe here because hide_panel() means "the selection is dismissed" — it is called only
+	# from Main._dismiss_selection(). The capture gesture, which hides the overlay and puts
+	# it back, goes through set_overlay_visible()/set_panel_visible() and is untouched.
+	_selected = null
 	_panel.visible = false
 	_preview.visible = false
 	_mark_box.visible = false
