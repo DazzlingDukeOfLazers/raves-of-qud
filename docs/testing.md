@@ -1710,3 +1710,45 @@ No schematics on this golden, so its list rendering remains completely uncovered
 either a data-disk wish plus reading it, or a direct recipe grant — and like the
 quest, it belongs in a `pc-parity-rich` second golden rather than mutating
 `pc-parity`.
+
+## Merge + regression — 2026-08-08 (second pull, both repos CLEAN)
+
+raves `ed723fa`, highvisor `222f893`. **No conflicts either side** —
+`docs/testing.md` and `gametree.json` both auto-merged this time.
+
+Main brought one matched pair: raves `bfeb50e` ports Qud's popup BOX MODEL whole
+(placement 6.75 -> 0.00) and highvisor `bbe412b` refreshes the item-popup leaves
+to match. Same lesson as the keycap work this session — derive the model from the
+game rather than tune constants at it.
+
+`selftest_plan` + `selftest_evaluate` pass (gametree changed), Godot parse clean,
+`hv state` reports both apps `via=scene`.
+
+**All four baselines reproduce EXACTLY** after redeploy and restart:
+
+| tab | baseline | measured |
+|---|---|---|
+| skills | 3.01 / 4.96 / 3.99 | 3.01 / 4.96 / 4.00 |
+| equipment | 3.90 / 4.80 / 5.12 | 3.90 / 4.80 / 5.12 |
+| reputation | 6.27 / 2.81 / 5.28 | 6.28 / 2.81 / 5.28 |
+| tinkering | 3.58 / 7.58 | 3.58 / 7.58 |
+
+Which is the point of having pinned them: a merge that touches a different screen
+can now be confirmed harmless in one pass instead of argued about.
+
+### The item popup CANNOT be driven on Lumpy — it has leaves but no route
+
+Planned to score main's changed screen and could not. `item_popup` appears in
+`gametree.json` only as LEAF NAMES under `equipment_item_popup`; there is no
+transition to or from it, so `parity.py capture` has nothing to drive and the
+screen is scored on main from committed reference captures.
+
+Scoring main's committed set does validate that the merged spec and captures are
+self-consistent, and they are — placement 0.00, image geometry 0.00, image colour
+0.00, frame 2.28, text content 4.98. But that measures main's captures, not this
+box, so it is NOT a Lumpy result and must not be quoted as one.
+
+NEXT, and it is the gap worth closing: give the item popup a real route
+(in_game -> equipment -> select item -> open popup) so it can be captured and
+scored like every other screen. Everything else in the tree is drivable; this is
+the one screen whose numbers can only be inherited.
