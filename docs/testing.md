@@ -1567,3 +1567,45 @@ The lesson is the one that keeps recurring here, in its sharpest form yet: a
 measurement that disagrees with itself is worth more attention than the thing it
 was measuring. Three tuning attempts failed against the bad detector; one attempt
 succeeded against the good one.
+
+## Merge + regression — 2026-08-08 (main into `dd/pc-lumpy-merge`, both repos)
+
+raves `1aa2297`, highvisor `93ee351`. One conflict each.
+
+highvisor's was SEMANTIC, not textual: main deleted the `{game_live: false}`
+fallback on the `title` node, because absence of bytes on a 0.35s probe is not
+evidence of the title screen — it measured "Title Screen via=live" for 7 minutes
+while Qud sat on the Modding Toolkit. That is the same failure family this branch
+chased all session, from the other end: main removes the bad inference, we verify
+the pixels (`hv shot --live`). Took main's note wholesale, appended ours beneath.
+`selftest_plan` and `selftest_evaluate` both pass — the two that guard exactly the
+logic main changed.
+
+raves' was the usual `docs/testing.md` append collision; kept both.
+
+Regression after redeploying the mod, reloading the daemon and restarting both
+apps. `hv state` reports both apps `via=scene`, not `via=live` — main's change
+working as intended.
+
+| tab | expected | measured |
+|---|---|---|
+| skills | 3.01 / 4.96 / 3.99 | 3.01 / 4.97 / 4.00 |
+| reputation | 6.27 / 2.81 / 5.28 | 6.28 / 2.81 / 5.27 |
+| tinkering | frame 3.58, tab_hint 7.58 | 3.58 / 7.58 (exact) |
+| equipment | 3.61 / 4.09 / 5.16 | 3.90 / 4.79 / 5.12 |
+
+The pinned tabs reproduce to ±0.01, which is the scroll pin doing its job.
+
+TWO CORRECTIONS TO MY OWN REPORTING, both found by this pass:
+
+**The equipment spec has NINE leaves, not three.** doll_image/doll_frame/doll_cell
+and filter_image/filter_frame/filter_cell were always there; every equipment
+figure quoted earlier came through a `grep -E "^outer_frame|^list_"` that silently
+dropped them. The spec did not change in the merge — my reporting was narrow. The
+filter grid scores 1.64–7.27 and the doll leaves were never shown at all.
+
+**Equipment drifted more than the others** (outer_frame 3.61 -> 3.90, list_cat
+4.09 -> 4.79) where skills and reputation reproduced exactly. Not yet explained.
+Equipment is the tab with the paper-doll and the filter strip, so it has live
+content the pinned list tabs do not; worth a look before treating its numbers as
+a baseline the way the other three now are.
