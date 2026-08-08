@@ -1609,3 +1609,52 @@ filter grid scores 1.64–7.27 and the doll leaves were never shown at all.
 Equipment is the tab with the paper-doll and the filter strip, so it has live
 content the pinned list tabs do not; worth a look before treating its numbers as
 a baseline the way the other three now are.
+
+## Equipment baselined, and the empty tabs opened up — 2026-08-08
+
+### Equipment reproduces exactly; the "drift" was cross-session
+
+Two back-to-back captures score identically — outer_frame 3.90, list_cat 4.80/4.79,
+list_item 5.12, and every doll_/filter_ leaf to ±0.01. Qud's own two frames differ
+by 0.05%, the same floor the pinned list tabs sit at.
+
+So equipment is NOT unstable and IS baselined at those figures. The 3.61 -> 3.90
+step I flagged was between sessions, not between runs — the same class as
+reputation's scroll offset, and a reminder that a cross-session comparison is only
+meaningful when the fixture state is identical. Within a session all four tabs are
+now reproducible.
+
+Also recorded: the doll leaves were never in any figure I reported. They are the
+worst on this screen — doll_image 13.13-30.51 against list leaves at ~5 — and had
+been hidden by a grep the whole time.
+
+### The quests tab has list content for the first time
+
+Started "What's Eating the Watervine?" through the mod's `startquest` bridge
+command. Both apps now render a real quest list, so this tab's list rendering has
+been measured for the first time:
+
+    outer_frame 4.10 · worldmap 11.37 · quest_title 18.98
+    quest_name 12.59 · quest_step 17.82 · quest_step2 18.36
+
+The `empty_state` leaf is gone from the spec; it was measuring the absence of the
+thing worth measuring.
+
+**A real defect fell out immediately: the rows drift progressively.** Qud's rows
+band at y278-289 / 298-312 / 338-349 / 359-369; Raves' at 279-289 / 300-313 /
+342-352 / 363-376. One pixel low at the first row, four by the fourth — a row
+pitch slightly too large, accumulating down the list. That is the same shape as
+the reputation paragraph bug and should yield to the same treatment: derive the
+pitch from Qud rather than carry a constant. `quest_step2` is positioned
+deliberately to catch it.
+
+Journal moved too but is not yet fixed: Qud shows three left-column bands to
+Raves' two, and Qud's header runs x190-906 against Raves' x190-589.
+
+### IMPORTANT: the quest is not durable, and must not be saved over the golden
+
+It lives in the RUNNING game only. Making it a fixture needs a SECOND golden —
+mutating `pc-parity` would invalidate every baseline just pinned against it
+(skills, equipment, reputation, tinkering). That is a deliberate non-action here,
+not an oversight: the next step is `pc-parity-rich` with the quest, schematics and
+journal entries, kept alongside rather than replacing.

@@ -4,7 +4,7 @@
   "inset": 6,
   "threshold": 60
  },
- "note": "EMPTY on this golden -- no active quests -- so the quest list is uncovered and the world map is the only substantial content.",
+ "note": "Populated 2026-08-08 by starting \"What's Eating the Watervine?\" through the mod's startquest bridge command -- the tab was EMPTY on the bare pc-parity golden, so its list rendering had never been measured at all. The quest lives in the RUNNING game; making it durable needs a second golden, not a mutation of pc-parity (which would invalidate the baselines pinned against it).",
  "leaves": [
   {
    "name": "outer_frame",
@@ -31,16 +31,52 @@
    "note": "The world-map panel, found as the large near-black rect inside the pane."
   },
   {
-   "name": "empty_state",
+   "name": "quest_title",
    "kind": "composite",
    "rect": [
     174,
-    211,
-    336,
+    208,
+    420,
+    24
+   ],
+   "inset": 0,
+   "note": "The quest header row (qud y214-229)."
+  },
+  {
+   "name": "quest_name",
+   "kind": "composite",
+   "rect": [
+    230,
+    274,
+    210,
     20
    ],
    "inset": 0,
-   "note": "'You have no active quests.' (measured y215-226, x179-500)."
+   "note": "First quest name row (qud y278-289, x238-425)."
+  },
+  {
+   "name": "quest_step",
+   "kind": "composite",
+   "rect": [
+    258,
+    294,
+    480,
+    22
+   ],
+   "inset": 0,
+   "note": "Its first step line (qud y298-312, x265-729)."
+  },
+  {
+   "name": "quest_step2",
+   "kind": "composite",
+   "rect": [
+    258,
+    334,
+    520,
+    42
+   ],
+   "inset": 0,
+   "note": "The next name+step pair (qud y338-369) -- placed to catch the CUMULATIVE drift: raves runs 4px low here against 1px at the first row."
   }
  ]
 }
