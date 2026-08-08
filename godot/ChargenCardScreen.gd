@@ -41,6 +41,18 @@ const QUD_COLORS := {
 	"k": Color(0.10, 0.10, 0.10), "K": Color(0.10, 0.10, 0.10),
 }
 
+## Qud draws its chargen text SMALLER than the app's own scale. Measured by column-profiling the same
+## strings in both apps at 1920x1080: "character creation" spans 284px in Qud against 330 in Raves,
+## ":choose caste:" 127 against 142 — the same ratio on the genotype screen as on Choose Caste, so it
+## is one scale for the whole chargen flow rather than a per-screen nudge. 0.87 lands the title at
+## 287 and the subtitle at 124.
+##
+## Applied as a THEME rather than per-label font sizes, which UiFont's contract forbids: the sizes
+## still come from UiFont.px() and still track window height, this subtree just reads them at 0.87.
+## It is also what stops long card names wrapping — "Horticulturist" only overflowed its frame
+## because it was being drawn 15% too wide.
+const TEXT_SCALE := 0.87
+
 var selected := ""
 
 ## Guided-tutorial extras (opt-in; set before adding to the tree). onboard_index draws a bright
@@ -135,7 +147,7 @@ func _ready() -> void:
 	name = _screen_node_name()
 	_fit_to_viewport()
 	get_viewport().size_changed.connect(_fit_to_viewport)
-	theme = UiFont.make_theme(get_viewport())
+	theme = UiFont.scaled_theme(get_viewport(), TEXT_SCALE)
 	for code in QUD_COLORS:
 		_palette[code] = "#" + Color(QUD_COLORS[code]).to_html(false)
 	_items = _load_items()
@@ -541,9 +553,13 @@ func _position_bands() -> void:
 		var x1 := z.get_global_rect().end.x
 		if x1 - x0 <= 1.0:
 			continue
+		# Qud's rules run PAST the cards they head, not flush with them: its band row spans x212-1707
+		# against card frames at x231-1688, i.e. ~19px proud at each end. Flush looked deliberate and
+		# measured wrong.
+		var out := vp.x * 0.010
 		var h: Control = b["holder"]
-		h.position = Vector2(x0, vp.y * _y_bands())
-		h.size = Vector2(x1 - x0, h.size.y)
+		h.position = Vector2(x0 - out, vp.y * _y_bands())
+		h.size = Vector2((x1 - x0) + out * 2.0, h.size.y)
 
 # ══ guided-tutorial extras ═════════════════════════════════════════════════════════
 

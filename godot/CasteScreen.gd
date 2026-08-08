@@ -75,8 +75,8 @@ func _banded() -> bool:
 ## the gaps tighter. Measured off the same capture: card boxes ~88px wide on a ~124px pitch, against
 ## the five-card screen's 94 on 121. Inherited unchanged, the twelve-card row ran 1660px wide against
 ## Qud's 1448 and pushed the outer castes under the page arrows.
-func _card_w_frac() -> float: return 0.0458 if _banded() else super._card_w_frac()
-func _card_gap_frac() -> float: return 0.0094 if _banded() else super._card_gap_frac()
+func _card_w_frac() -> float: return 0.0499 if _banded() else super._card_w_frac()
+func _card_gap_frac() -> float: return 0.0102 if _banded() else super._card_gap_frac()
 
 ## The arcology row occupies the space the unbanded screens give the selection frame: inherited, the
 ## frame reached up to y481 with band 1 sitting at y482, and swallowed that band's left rule whole.
