@@ -455,7 +455,16 @@ func _build_card(m: Dictionary, idx: int, cw: int, ch: int) -> Control:
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	icon.set_anchors_preset(Control.PRESET_FULL_RECT)
-	icon.offset_left = 12; icon.offset_right = -12; icon.offset_top = 10; icon.offset_bottom = -10
+	# The vertical inset SETS THE SPRITE SIZE: these tiles are taller than they are wide, so the icon
+	# area's height is what STRETCH_KEEP_ASPECT_CENTERED scales against and the horizontal inset never
+	# binds. At 10 the sprite came out ~20% too big on every card screen -- measured ink 33x60 against
+	# Qud's 28x50 on Choose Caste, and 42x51 against 35x43 on Choose Genotype, i.e. 1.18-1.20 in both
+	# places. 16 puts the area at 60px tall and the sprite on Qud's size.
+	#
+	# NOTE these four are literal px while the card box around them is a fraction of the viewport, so
+	# they do not track window height the way everything else here does. Correct at 1920x1080, which
+	# is what 1:1 runs at; a different window size would drift.
+	icon.offset_left = 12; icon.offset_right = -12; icon.offset_top = 16; icon.offset_bottom = -16
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	boxc.add_child(icon)
 	col.add_child(boxc)
