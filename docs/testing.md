@@ -1885,3 +1885,42 @@ edges' `verify` blocks disagree with the detector that finally resolves them. Op
 captures every window on screen. And the merged tree's layout restoration **re-applies the last
 layout on every restart**: `hv loadsave` restarts Qud and silently put both windows back to
 1793x997 mid-session. Any capture taken after a restart can be off-geometry — apply `pair` first.
+
+### Map Editor context menu — now TESTABLE on the Mac, and it does not work — 2026-08-08
+
+The merge's headline Raves feature (`MapEditorScreen.gd` +405: the per-object context menu and its
+Qud-modding dialogs) was hung off MIDDLE click, and `backends/darwin.py` had no middle button — so
+the plan recorded it as untestable here rather than broken. The Mac now has one, so it was tested.
+
+**Result: right-click and middle-click do not reach the Map Editor canvas on macOS.**
+
+Measured, all at the same cell, with Raves frontmost and an AgateWall painted under the cursor:
+
+| gesture | canvas response |
+|---|---|
+| left click | **works** — "Selected Cell: 36, 10" |
+| Ctrl+left (paint from palette) | **works** — cell painted |
+| Shift+left (region select) | **works** — region drawn |
+| **right click** (Qud's eraser, `_erase_top`) | **nothing** |
+| **middle click** (`_open_context`) | **nothing** |
+
+It is NOT the backend and NOT the OS: **Cmd+right-click in-game opened the feedback form**, so
+right-button CGEvents reach Raves fine. It is also not an `_input`-level consumer — `FeedbackTool`
+returns early unless the event is right+meta, `CellInspector` has no `_input`, and `Main.gd`'s
+right/middle camera-pan branch is in `_unhandled_input`, which runs AFTER `gui_input`. So the
+loss is inside the Map Editor's own canvas input path (`_canvas.gui_input -> _canvas_input`,
+MapEditorScreen.gd:895/1027) and is unexplained. **Open.**
+
+**Two false trails, recorded because both looked conclusive:**
+
+1. "Ctrl does not reach Raves." It does. Ctrl+click paint appeared to fail only because the brush
+   was **AcidGas** — a gas, which paints no visible pixels. Repeating with `AgateWall` painted a
+   cell immediately. The check that settles it is file-based: Raves' in-game Ctrl+click inspector
+   rewrites `selection.txt`, and its mtime moved.
+2. "Middle click does nothing" at (700,500) — that point is on the *edge* of the painted cell.
+   Re-aimed at the cell centre (698,487). Still nothing, so the finding survives, but the first
+   reading was not yet evidence.
+
+**Driving the Map Editor canvas needs `hv mouse` FIRST.** A bare `hv click` warps and clicks but
+Godot never updates its own cursor position, so the editor reported `Mouse Position: 0, 0` and
+`Selected Cell: none` while clicks "succeeded". `hv mouse <win> x y`, then click.
