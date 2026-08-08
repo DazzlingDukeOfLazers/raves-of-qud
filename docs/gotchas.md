@@ -1195,4 +1195,14 @@ verified item-popup mirror BEFORE trusting any capture.
 **Check the mirror before driving popups:** raise the item menu and confirm Raves reports
 `popup=menu` in `hv state`. If it does not, nothing downstream of it means anything — and
 `fixture.py twiddle`'s "no popup appeared" is ambiguous between "Qud raised nothing" and "Raves
-never heard about it", because it verifies through Raves.
+never heard about it", because it verifies through Raves. **Disambiguate with a screenshot of
+QUD's own window**, not with more retries: `hv shot CavesOfQud` settles in one step which half is
+broken, and `qud_state.json`'s `scene` says `PopupMessage` when Qud really has one up.
+
+**Two things this state is NOT, both checked, so nobody re-hunts them:** the saves are intact
+(`~/Library/Application Support/com.FreeholdGames.CavesOfQud/Synced/Saves` was untouched — no
+mtime moved during the session), so the parity fixture's data is fine; and the uiQueue is draining
+(`uiprobe` refreshes its dump every time). What stops working is Qud's own `ShowPopup`: the mod
+logs its `[raves] twiddle <item>` line, `EquipmentAPI.TwiddleObject` runs, and Qud's window shows
+no popup. It survived a full clean pair start (`hv quit` both → `hv launch raves`), so treat it as
+needing a fresh look at Qud/the mod rather than as a fixture or harness-driving problem.
