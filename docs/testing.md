@@ -679,3 +679,27 @@ reputation tab and LOOK, the way the filter strip was settled. That took one
 side-by-side crop and turned a wrong "anchoring" hypothesis into an exact
 formula. The measurement above says where to crop — top, bottom and left, with
 the right edge as the known-good control.
+
+#### The crop settles it: reputation's CONTENT starts too high, the frame is innocent
+
+Cropped the top frame band of both apps on the reputation tab (x140-1790,
+y185-240) and looked. At the SAME screen y, Qud shows only the playfield through
+the scrim; Raves is already drawing its list — "> — Antelopes … Reputation: 0"
+with the description rows under it.
+
+So `outer_frame` was never measuring a border. It was catching Raves' list text
+intruding into a band Qud leaves empty. That is exactly why the edge breakdown
+looked the way it did — top, bottom and left wrong with the right edge clean is
+what CONTENT PLACEMENT looks like through a frame-shaped leaf, not what a
+mis-drawn border looks like.
+
+Same lesson as the filter strip, twice in one day: a leaf named `frame` scoring
+badly does not mean the frame is wrong, it means something is wrong INSIDE that
+leaf's rect. One crop answered what two rounds of clever pixel statistics could
+not.
+
+NEXT: measure Raves' first reputation row's y against Qud's and shift the pane's
+content origin to match — the same shape of fix as the filter strip (derive the
+origin, do not hard-code the reference). The list_item/list_next leaves at 24-30
+are almost certainly the same offset seen through row-shaped rects, so one fix
+should take all three leaves down together.
