@@ -1104,3 +1104,27 @@ not reputation). It stays, but it is the backstop, not the check.
 Unrelated but recurring: `hv restart raves` relaunches the Godot dev-run at
 4267x2400 on this box. Use `hv layout pair` after a Raves restart rather than an
 `hv move` on a fixed sleep, which races the window into existence.
+
+### The poll is folded in: `parity.py capture`
+
+The capture step was ad-hoc shell in every session, which is exactly why the
+liveness mistake kept coming back — it was reinvented, or forgotten, each time.
+It is now a command:
+
+    parity.py capture <node> <prefix> [--no-goto]
+    # drives both apps to the node and writes <prefix>_q.png, _q2.png, _r.png
+
+Every shot goes through `hv shot --live`, which blocks until the app is actually
+rendering and re-activates until it is. It also refuses to hand back a triple
+whose windows are different sizes — not hypothetical, a Raves dev-run relaunches
+at the display's default and silently produced a 2400-tall capture against a
+1080-tall spec.
+
+End-to-end on the golden, no hand-written bash: **6.37 / 2.93 / 5.15**, matching
+the manual run. The first Qud shot needed **13 activate retries** before it
+landed — that is the flakiness that cost the evening, now absorbed by the tool
+instead of by whoever is watching.
+
+Raves reports `--live skipped: state file has no ui_age`. Honest rather than
+silent: `raves_state.json` carries no age field, so only Qud's liveness is
+enforced today. Adding one to the Raves heartbeat would close that half.

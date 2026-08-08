@@ -28,6 +28,7 @@ Each leaf reports mean abs diff over the compared pixels, the ink bounding box i
 both apps, and coverage, so a change can be judged on the thing it touched.
 
 USAGE
+  parity.py capture <node> <prefix> [--no-goto]   # drive both apps and shoot the triple
   parity.py score  <spec.json> <qud.png> <raves.png> [--leaf NAME] [--json]
                    [--stable <qud2.png>]   ignore pixels the reference does not hold still
   parity.py bounds <spec.json> <img.png> [--leaf NAME]      # what a leaf sees
@@ -298,6 +299,73 @@ def cmd_mask(spec_path, img_path, leaf_name, out_path):
     sys.exit("no leaf named %r" % leaf_name)
 
 
+def _hv():
+    """Path to the hv CLI. Not on PATH on every box (Lumpy installs it user-scope)."""
+    import os
+    import shutil
+    env = os.environ.get("HV")
+    if env and os.path.exists(env):
+        return env
+    found = shutil.which("hv")
+    if found:
+        return found
+    for c in (os.path.expanduser("~/bin/hv"),
+              os.path.expandvars(r"%LOCALAPPDATA%\Programs\Python\Python312\Scripts\hv.exe")):
+        if os.path.exists(c):
+            return c
+    sys.exit("cannot find the hv CLI; set HV=/path/to/hv")
+
+
+def cmd_capture(node, prefix, goto=True):
+    """Drive both apps to `node` and capture the q / q2 / raves triple that `score` wants.
+
+    THE POINT OF THIS COMMAND is that every capture goes through `hv shot --live`, which
+    blocks until the app is actually rendering. A Unity app that is not rendering still
+    screenshots: it returns its last frame, and for Qud that frame is the playfield with
+    no UI overlay, so a status-screen capture comes back looking like the plain map while
+    the heartbeat correctly reports the status screen. An evening of reputation scores was
+    measured against exactly that.
+
+    This existed as ad-hoc shell in every session before now, which is precisely why the
+    mistake kept coming back -- the liveness check was reinvented, or forgotten, each time.
+    """
+    import subprocess
+    hv = _hv()
+
+    def run(args, what):
+        r = subprocess.run([hv] + args, capture_output=True, text=True)
+        if r.returncode != 0:
+            sys.exit("%s failed (exit %d):\n%s%s" % (what, r.returncode, r.stdout, r.stderr))
+        return r.stdout.strip()
+
+    if goto:
+        for app in ("raves", "qud"):
+            run(["goto", app, node], "goto %s %s" % (app, node))
+
+    shots = [("CavesOfQud", prefix + "_q.png"),
+             ("CavesOfQud", prefix + "_q2.png"),   # the --stable reference
+             ("Raves of Qud", prefix + "_r.png")]
+    for target, out in shots:
+        print("  " + run(["shot", target, out, "--live"], "shot %s" % target))
+
+    # Both windows must be the same size or every leaf rect means something different in
+    # each. A Raves dev-run relaunches at the display's default size, so this is not
+    # hypothetical -- it silently produced a 2400-tall capture against a 1080-tall spec.
+    sizes = {}
+    for _t, out in shots:
+        sizes[out] = Image.open(out).size
+    uniq = set(sizes.values())
+    if len(uniq) > 1:
+        for k, v in sizes.items():
+            print("    %s %s" % (k, v))
+        sys.exit("SIZE MISMATCH: the windows are not the same size. Run `hv layout pair` "
+                 "and re-capture; a raw `hv move` on a fixed sleep races the window.")
+
+    print("\n  captured %s at %s" % (node, "x".join(str(n) for n in uniq.pop())))
+    print("  score it:\n    parity.py score <spec.json> %s_q.png %s_r.png --stable %s_q2.png"
+          % (prefix, prefix, prefix))
+
+
 def main(argv):
     if len(argv) < 2:
         sys.exit(__doc__)
@@ -308,6 +376,8 @@ def main(argv):
     if cmd == "score":
         stable = argv[argv.index("--stable") + 1] if "--stable" in argv else None
         cmd_score(argv[2], argv[3], argv[4], only, "--json" in argv, stable)
+    elif cmd == "capture":
+        cmd_capture(argv[2], argv[3], goto="--no-goto" not in argv)
     elif cmd == "bounds":
         cmd_bounds(argv[2], argv[3], only)
     elif cmd == "mask":
