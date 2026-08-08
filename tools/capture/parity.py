@@ -225,6 +225,19 @@ def cmd_score(spec_path, qud_path, raves_path, only=None, as_json=False, stable=
     r = np.asarray(Image.open(raves_path).convert("RGB"))
     if stable:
         q2 = np.asarray(Image.open(stable).convert("RGB"))
+        if q2.shape == q.shape and not (q != q2).any():
+            # A LIVE Qud never renders two identical frames -- the playfield behind the
+            # scrim animates, so two captures normally differ on most pixels. Identical
+            # means the app stopped rendering and the "capture" is a stale frame, which
+            # scores as confident nonsense: an evening of reputation measurements were
+            # taken against a frozen playfield while the bridge cheerfully reported the
+            # right screen. --stable cannot catch this on its own; a frozen app holds
+            # EVERY pixel still, so the filter passes everything and reports the
+            # reference as rock solid. Refuse instead of measuring a corpse.
+            sys.exit("FROZEN REFERENCE: %s and %s are pixel-identical, so the app was not\n"
+                     "rendering. Restart it and re-capture -- any score from these is void.\n"
+                     "(Qud stalls this way within ~10 min; focusing does NOT recover it.)"
+                     % (qud_path, stable))
         if q2.shape == q.shape:
             # Where the reference did not hold still between two captures, it is the
             # world showing through -- not UI. Paint those pixels identical in both so

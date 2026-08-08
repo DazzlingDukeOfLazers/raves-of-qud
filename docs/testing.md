@@ -807,3 +807,18 @@ Reputation now stands at **outer_frame 6.34 / list_item 2.92 / list_next 5.14**
 sub-pixel baseline rounding — Qud lands text lines at 346/364/382 where the
 17.6 pitch puts Raves at 346/363.6/381.2 — plus glyph rasterisation. Both are
 the same class of residual the equipment tab bottomed out at.
+
+#### The guard: parity.py now refuses a frozen reference
+
+`score --stable` exits 1 with `FROZEN REFERENCE` when the two Qud captures are
+pixel-identical. A live Qud never renders two identical frames — the playfield
+behind the scrim animates, and two captures normally differ on most pixels — so
+identical means the app stopped rendering and the capture is a stale frame.
+
+Verified both directions: it rejects the exact pair that produced the bogus
+15.56/24.23/29.62 (exit 1), and still scores the live pair (exit 0).
+
+This is the check that would have caught the whole thing in the first minute,
+and it costs nothing. **`ui_age` is not a substitute** — that run recorded
+`ui_age 1` and was still measuring a corpse, because the value was sampled at a
+different moment than the capture. Compare the pixels you actually scored.
