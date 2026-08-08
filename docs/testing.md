@@ -526,3 +526,38 @@ measuring the blend rather than guessing an alpha — sample a region Qud does N
 draw over, solve for (alpha, colour) from two known backgrounds, and match. Do
 NOT tune it by eye; the last four defects on this branch all yielded to a
 measured invariant and none to a plausible guess.
+
+### RETRACTION: there is no scrim offset — I scored against an unstable reference
+
+The "one shared tonal offset across all eight tabs" conclusion above is WRONG.
+Leaving it in place with this correction under it, because the mistake is more
+instructive than the finding would have been.
+
+What actually happens: **Qud draws its status screens over the LIVE playfield**,
+which shows through the scrim and moves between frames. Two Qud captures of the
+SAME screen, seconds apart, differ on **66.3% of pixels**. My whole-screen sweep
+compared Raves against that without `--stable`, so Qud's animated world was
+scored as a Raves error — and because the world fills the whole frame, the error
+came out uniform (every band exactly 1.4%), which is precisely why it LOOKED
+like a global tonal offset.
+
+The transfer fit even said so and I misread it: Raves came out essentially
+CONSTANT against Qud's varying value (R 7.0, G 30.0, B 29.0, slopes ~0). That is
+not "Raves is darker by a constant" — it is Raves painting its own flat field
+while Qud shows a moving world. The flat side was the stable one.
+
+Corrected, masking pixels Qud does not hold still:
+
+    equipment, whole screen, stable pixels only:  97.74%   (unmasked: 93.37%)
+
+and its leaf score with `--stable` is 0.04. Both agree; the unmasked 93% never
+measured Raves at all.
+
+CONSEQUENCE FOR THE SWEEP ABOVE: those eight numbers are not a scoreboard. Any
+whole-screen comparison of a Qud status screen MUST pass `--stable` (two Qud
+captures) or restrict to leaf rects. The 0.83-wide band across eight screens was
+not a shared defect — it was the same unstable background under all eight, which
+is exactly what a shared cause looks like from the wrong instrument.
+
+The `--stable` flag was written for this and its docstring says so. I had read it
+earlier the same day and still walked into it.
