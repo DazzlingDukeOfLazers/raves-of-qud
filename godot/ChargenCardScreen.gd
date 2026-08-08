@@ -46,7 +46,17 @@ const ICON_MAIN := Color8(0xA8, 0xC2, 0xBB)   # neutral (unselected) icon body
 const ICON_DETAIL := Color8(0x15, 0x49, 0x48) # neutral icon detail
 const ICON_SEL := Color(1, 1, 1, 1)
 const ICON_DIM := Color(0.35, 0.47, 0.54, 1.0)
-const DIM := Color(0.55, 0.62, 0.60, 0.35)    # very dim ("[9] Next" when disabled)
+## Side-nav ("[Esc] Back" / "[Num 9] Next"), measured off Qud's caste screen. Three distinct
+## colours, where Raves previously used MUTED for everything and a guessed DIM:
+##   arrow, enabled  (66,100,112) — the same steel as the breadcrumb icons
+##   text,  enabled  (177,201,195) — QudPalette y
+##   either, disabled (15,59,58)  — QudPalette k, all but invisible
+## Qud's Next reads disabled on arrival because nothing is confirmed yet; its Back is always live,
+## so the Back reading is the one that is not confounded by state — and Raves was drawing it at
+## (97,124,120) against Qud's (177,201,195).
+const NAV_ARROW := Color8(0x42, 0x64, 0x70)   # Qud (66,100,112) — same value as CRUMB_ICON
+const HINT_TEXT := QudPalette.COLORS["y"]     # Qud (177,201,195)
+const DIM := QudPalette.COLORS["k"]           # Qud (15,59,58) — "[Num 9] Next" when disabled
 
 ## Qud's colour codes -> RGB. QudPalette.COLORS is the canonical table and always was; this file
 ## carried its own hand-approximated copy that had drifted badly, and since the same table colours
@@ -368,17 +378,25 @@ func _crumb_frame(box: Control, frame: Texture2D) -> void:
 func _build_side_nav() -> void:
 	var vp := get_viewport_rect().size
 	var ah: int = int(vp.y * 0.04)
-	var la := _make_arrow(true, MUTED, ah)
+	var la := _make_arrow(true, NAV_ARROW, ah)
 	la.position = Vector2(vp.x * 0.033, vp.y * 0.485)
 	add_child(la)
-	var lb := _rich("[color=#%s][lb]Esc[rb] Back[/color]" % MUTED.to_html(false), "caption")
+	# The bracketed KEY is gold and the word beside it is not — the same split Qud uses for
+	# "[R] Randomize Selection" and "[Space] select", and which this caption was missing. Measured:
+	# Qud's "[Esc]" carries yellow pixels peaking at (174,169,62) while "Back" peaks at (177,201,195).
+	var lb := _rich("[color=#%s][lb]Esc[rb][/color][color=#%s] Back[/color]"
+		% [SEL_GOLD.to_html(false), HINT_TEXT.to_html(false)], "caption")
 	lb.position = Vector2(vp.x * 0.02, vp.y * 0.525)
 	add_child(lb)
 	var nxt: bool = _next_enabled()
-	var ra := _make_arrow(false, MUTED if nxt else DIM, ah)
+	var ra := _make_arrow(false, NAV_ARROW if nxt else DIM, ah)
 	ra.position = Vector2(vp.x * 0.955, vp.y * 0.485)
 	add_child(ra)
-	var rb := _rich("[right][color=#%s][lb]9[rb] Next[/color][/right]" % (MUTED if nxt else DIM).to_html(false), "caption")
+	# "Num 9", not "9" — Qud names the KEYPAD key, and the caption is 110px wide against Raves' 82.
+	# DISABLED loses the gold too: Qud's Next caption has no yellow pixel anywhere while it is dim.
+	var rb := _rich("[right][color=#%s][lb]Num 9[rb][/color][color=#%s] Next[/color][/right]"
+		% [(SEL_GOLD if nxt else DIM).to_html(false), (HINT_TEXT if nxt else DIM).to_html(false)],
+		"caption")
 	rb.position = Vector2(vp.x * 0.90, vp.y * 0.525)
 	rb.size = Vector2(vp.x * 0.085, 0)
 	add_child(rb)
