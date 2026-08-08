@@ -32,6 +32,17 @@ const HINT_FONT := 14
 ## (QudText.GLYPHS maps the same value). Present in the extracted atlas as a 195x133 cell,
 ## so this renders as the real keycap once the mod has exported the glyphs.
 const CTRL_GLYPH := 0xE816
+## The section rule the mode hint sits ON. Measured off a live Qud capture: 2px tall at
+## y230, spanning the full pane width x158..1760 (1603px), in a flat (56,79,90) — the same
+## family as the reputation pane's divider ink. It runs UNDER the text, which punches
+## through it: sampling the rule's own colour finds it continuous from 158 to 1760 with
+## gaps only where glyphs sit, so it is one rect drawn before the hint, not a pair of
+## segments flanking it. Raves omitted it entirely (1150 lit px against 0 across x600-1750).
+const RULE_Y := 230.0
+const RULE_X := 158.0
+const RULE_W := 1603.0
+const RULE_H := 2.0
+const C_RULE := Color8(0x38, 0x4f, 0x5a)
 const LIST_X := 174.5
 const LIST_Y := 246.0
 const LIST_W := 607.0
@@ -94,6 +105,9 @@ func setup(data: Dictionary, palette: Dictionary) -> void:
 func _draw_all() -> void:
 	if _font == null:
 		return
+	# The rule goes down FIRST: Qud draws the hint over it, so the text has to punch through.
+	_content.draw_rect(Rect2(RULE_X, RULE_Y, RULE_W, RULE_H), C_RULE)
+
 	# Qud's own hint string, with the Ctrl keycap glyph it emits (U+E816 — the extracted icon
 	# font renders it; QudText falls back to the word when that font is missing).
 	#

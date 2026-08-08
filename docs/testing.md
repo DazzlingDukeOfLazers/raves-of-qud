@@ -1366,3 +1366,28 @@ spanning x158-1760 (1603px), colour (56,79,90) — the section separator that ru
 behind and past the hint text. Absent in Raves at those rows (1150 lit px vs 0
 across x600-1750). That, not the glyph, is the dominant remaining term in
 `tab_hint`.
+
+### The missing rule — fixed, pixel-exact
+
+Qud draws a section rule under the tinkering mode hint that Raves omitted
+entirely. Measured off the capture rather than guessed: 2px tall at y230,
+spanning the full pane width x158..1760 (1603px), flat (56,79,90).
+
+The part worth getting right was the ORDER. Sampling the rule's own colour showed
+it continuous from 158 to 1760 with gaps only where glyphs sit, so it runs UNDER
+the text and the text punches through — one rect drawn before the hint, not two
+segments flanking it. Drawing it after would have struck the text out.
+
+Verified numerically, not by eye alone: both apps now light exactly 1150 px at
+y230 and y231 across x600-1750, at an identical (56,79,90).
+
+    tab_hint   23.49 -> 20.17      composite mean 17.69 -> 16.20
+
+**Still open on this leaf, and now the dominant term:** the Ctrl keycap
+RASTERISES differently. Same 40px advance and near-identical box (qud h=14, raves
+h=13), but Qud lights 225 ink px against Raves' 146 — Qud's keycap reads "Ctrl",
+Raves' is a denser, muddier mark. That is the 201pt bitmap atlas being downscaled
+to a 14px line: `fixed_size_scale_mode` scales it, it does not re-render it. Qud
+draws the same asset crisply at target size. Fixing it properly means rendering
+the glyph from a higher-resolution source or an SDF, which is its own job and
+the same shape as the ElliotSans extraction.
