@@ -1,0 +1,46 @@
+{
+ "screen": "status_quests",
+ "defaults": {
+  "inset": 6,
+  "threshold": 60
+ },
+ "note": "EMPTY on this golden -- no active quests -- so the quest list is uncovered and the world map is the only substantial content.",
+ "leaves": [
+  {
+   "name": "outer_frame",
+   "kind": "frame",
+   "rect": [
+    158,
+    197,
+    1604,
+    743
+   ],
+   "inset": 16,
+   "note": "The status pane's own chrome, the same rect every status tab uses."
+  },
+  {
+   "name": "worldmap",
+   "kind": "composite",
+   "rect": [
+    1023,
+    200,
+    772,
+    718
+   ],
+   "inset": 0,
+   "note": "The world-map panel, found as the large near-black rect inside the pane."
+  },
+  {
+   "name": "empty_state",
+   "kind": "composite",
+   "rect": [
+    174,
+    211,
+    336,
+    20
+   ],
+   "inset": 0,
+   "note": "'You have no active quests.' (measured y215-226, x179-500)."
+  }
+ ]
+}

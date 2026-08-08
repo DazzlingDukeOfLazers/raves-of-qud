@@ -1,0 +1,58 @@
+{
+ "screen": "status_journal",
+ "defaults": {
+  "inset": 6,
+  "threshold": 60
+ },
+ "note": "Locations sub-tab is EMPTY on this golden ('No entries found.'), so the list is uncovered; the world map beside it is real content and is the substantial leaf here.",
+ "leaves": [
+  {
+   "name": "outer_frame",
+   "kind": "frame",
+   "rect": [
+    158,
+    197,
+    1604,
+    743
+   ],
+   "inset": 16,
+   "note": "The status pane's own chrome, the same rect every status tab uses."
+  },
+  {
+   "name": "cat_strip",
+   "kind": "composite",
+   "rect": [
+    700,
+    186,
+    560,
+    34
+   ],
+   "inset": 0,
+   "note": "The journal category icon strip (measured y188-218, x700-1259)."
+  },
+  {
+   "name": "worldmap",
+   "kind": "composite",
+   "rect": [
+    954,
+    236,
+    841,
+    682
+   ],
+   "inset": 0,
+   "note": "The world-map panel, found as the large near-black rect inside the pane."
+  },
+  {
+   "name": "empty_state",
+   "kind": "composite",
+   "rect": [
+    174,
+    262,
+    262,
+    22
+   ],
+   "inset": 0,
+   "note": "'No entries found.' (measured y266-279, x180-425)."
+  }
+ ]
+}

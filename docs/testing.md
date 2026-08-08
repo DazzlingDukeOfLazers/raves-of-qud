@@ -1288,3 +1288,48 @@ The five tabs without leaf specs (attributes, tinkering, journal, quests,
 messagelog) still rest on whole-screen congruence alone, and those figures were
 taken unpinned. They are less exposed — no leaf rect to slip against — but not
 immune, and worth retaking whenever specs get written for them.
+
+## Leaf specs for the remaining five status tabs — 2026-08-08
+
+`parity-attributes/tinkering/journal/quests/messagelog.json`. Every rect measured
+off a pinned Qud capture (card borders, text bands, the world-map panel found as
+the large near-black region), not eyeballed from a downscaled sheet.
+
+**Three of the five are EMPTY on the pc-parity golden** and the specs say so in
+their own `note`: tinkering has no schematics, journal's Locations sub-tab no
+entries, quests no active quests. So those specs measure chrome and empty-state
+text, and the LIST rendering of three tabs remains completely uncovered. A
+fixture with schematics, journal entries and an active quest is what would
+actually close that, and it is worth more than any number below.
+
+| tab | frame | content leaves |
+|---|---|---|
+| attributes | 3.55 | attr_card[0..5] 6.67–7.99 · attr_desc 23.94 · sec_header 21.26 |
+| tinkering | 3.62 | filter_chip 14.93 · tab_hint 24.63 · empty_state 13.51 |
+| journal | 5.93 | cat_strip 19.45 · worldmap 19.73 · empty_state 28.66 |
+| quests | 4.41 | worldmap 19.23 · empty_state 21.25 |
+| messagelog | 3.77 | log_head 22.11 · log_line 20.37 · log_para 11.86 |
+
+The frames all land at 3.5–5.9, in line with the three established tabs, so the
+pane chrome is consistently right. The content leaves at 12–29 are much worse
+than skills/equipment/reputation's 2.8–6.3, and that gap is the finding: these
+five tabs have had no leaf-level attention.
+
+### Cropping the leaves paid for itself immediately
+
+Two things a score alone would not have told me:
+
+**A leaf was misnamed, not miscomputed.** tinkering's `empty_state` rect actually
+framed `[Ctrl+Tab] switch to modifications`. The rect was right, the name was
+wrong — renamed `tab_hint`, and the real empty-state line added as its own leaf
+(13.51). A spec whose names lie about what they cover is worse than no spec.
+
+**And it found a genuine bug.** Qud draws that hint with a boxed **Ctrl key
+glyph**; Raves omits it and renders `[+Tab]`. That is the same class as the
+ElliotSans and glyph-strip work — a missing first-party glyph, not a layout
+error — and it is worth fixing on its own.
+
+`messagelog log_head` scores 22.11 on text that reads identically in both apps,
+so the remaining content divergence is dominated by ~1px baseline offsets on thin
+glyphs, the same residual the equipment tab bottomed out at. Do not read 20-ish
+here as "badly broken"; read it as "unexamined".
