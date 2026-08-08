@@ -28,7 +28,13 @@ var _bsel := 0                # keyboard-selected BUTTON (message/confirm mode)
 var _built := false
 
 var _root: Control
-var _title: RichTextLabel
+# OWNER-DRAWN, so a Control and not a RichTextLabel — see `_build`. The declaration was
+# missed when the title row was converted, and GDScript only catches that at RUNTIME: the
+# assignment threw inside `_build`, which ABORTED the whole builder, so none of the widgets
+# after it existed and EVERY popup kind failed to display. Silently — an overlay that never
+# gets built just stays invisible, which from outside is indistinguishable from a popup the
+# mod never mirrored. Guarded now by `tests/popup_overlay_render.tscn`.
+var _title: Control
 var _msg: RichTextLabel
 var _opt_box: VBoxContainer
 # The CONTEXT HEADER Qud puts above the command list: the subject's tile and its name,

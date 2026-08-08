@@ -1156,53 +1156,91 @@ arriving as 2 or 6, Qud still settling). It is a different popup, and the anchor
 still score against it, so a parity run captures it without complaining. Count the
 `MenuOptionText(Clone)` rows in a `uiprobe` dump before capturing.
 
-## The popup mirror can only ARM from TickRender — so a popup can be unmirrorable by construction
+## The popup mirror has TWO halves, and only one of them was ever observable
 
-`PopupBridge.Ensure()`, which starts the UI-thread watcher that mirrors Qud's modals to Raves, is
-called from **`Bridge.TickRender` only**. `TickRender` comes from `BeforeRenderEvent`, which does
-not fire while Qud's window is unfocused *and* does not fire while a popup has the turn thread
-parked. So a popup that opens while the watcher is not already armed can never arm it: the thing
-that would start the watcher is the thing the popup is blocking.
+Both halves are fixed and both are guarded now. The story is kept because the *shape* of the
+mistake is what costs the time, not the bugs themselves.
 
-Found on Qud's titled popup (`KeybindsScreen.SelectInputType()` →
-`Popup.PickOptionAsync("Select Controller", …)`, raised from the Control Mapping screen, which
-parks the turn thread). It mirrored on the first raise and then not once in eight further attempts
-across two Qud restarts, with Qud focused, in-game, turns running and the popup plainly on screen
-for 20s at a time. The uiQueue was draining throughout — `uiprobe` refreshed its dump every time —
-which is the tell that separates this from the documented "uiQueue does not drain in the
-background": **the queue is fine, the watcher was never started.**
+### Half one: the watcher could not arm while a popup was up (FIXED, 165f44b)
 
-`Ensure()` is idempotent and cheap. It belongs on a path that runs when the turn thread is parked
-too, not only on the render tick.
+`PopupBridge.Ensure()` — which starts the UI-thread watcher that mirrors Qud's modals to Raves —
+had exactly one caller, `Bridge.TickRender`. `TickRender` is reached only from
+`BridgePart.HandleEvent(BeforeRenderEvent)`, and `BridgePart` is attached to the **player**. So with
+no player it could not be called at all, and while a modal parks the turn thread `BeforeRenderEvent`
+stops firing: the popup that most needs mirroring was exactly the one that could never arm the
+watcher.
 
-### …and answering a popup the mod never ANNOUNCED corrupts Qud's popup state
+Arming now runs off the mod's **heartbeat thread** (once a second, regardless of focus, turns,
+render frames, or whether a game is live) plus `StartupHook.Init`. Verified in the failing case, not
+the happy one: with Qud at its MAIN MENU (`live:false`, `player:false`, so `BridgePart` does not
+exist) the title-screen quit confirm mirrors over the bridge. The old code could not have produced
+that frame.
 
-`popup / action:button / btn:Cancel` answers `_announcedPm`. When the watcher never announced the
-live popup, that field holds a stale instance, and the answer goes to the wrong one — Qud's real
-popup is left with a dangling `onHide`. The next `ShowPopup` logs
+`_pumping` was also a flag that could not be falsified — the watcher re-queues itself onto the
+uiQueue, so a torn-down and rebuilt queue leaves the chain dead with the flag still true, forever.
+`Ensure()` now demands **proof of life** (the chain stamps `_aliveMs` on every drain; a stale stamp
+re-arms) with a generation counter so healing cannot leave two pumps running.
 
-    ERROR  - ShowPopup::OnHide wasn't called! Calling it now
-    cant resolve internal call to "System.Runtime.InteropServices.Marshal::..."
-    Your mono runtime and class libraries are out of sync.
+### Half two: the CLIENT never built its overlay, and nothing could see that (FIXED)
 
-and from then on **no popup raises at all** — `EquipmentAPI.TwiddleObject` logs its `[raves] twiddle
-<item>` line and produces nothing, so the parity fixture's own item menu stops working. The Mono
-message is Qud's generic text for an unimplemented internal call, not a real install problem; the
-fault is the popup bookkeeping ahead of it. A Qud restart clears the process, but the first twiddle
-after it reproduced the same chain, so treat the machine as needing a clean pair start plus a
-verified item-popup mirror BEFORE trusting any capture.
+`godot/PopupOverlay.gd` declared `var _title: RichTextLabel` after the title row had been converted
+to an owner-drawn `Control`. GDScript only catches that at RUNTIME: the assignment threw inside
+`_build()`, **aborting the whole builder**, so every widget created after it was null and
+`show_popup()` died on the first one it touched. No popup of any kind displayed in Raves.
 
-**Check the mirror before driving popups:** raise the item menu and confirm Raves reports
-`popup=menu` in `hv state`. If it does not, nothing downstream of it means anything — and
-`fixture.py twiddle`'s "no popup appeared" is ambiguous between "Qud raised nothing" and "Raves
-never heard about it", because it verifies through Raves. **Disambiguate with a screenshot of
-QUD's own window**, not with more retries: `hv shot CavesOfQud` settles in one step which half is
-broken, and `qud_state.json`'s `scene` says `PopupMessage` when Qud really has one up.
+**This is the part worth remembering.** An overlay that never got built simply stays
+`visible = false`, and from outside that is indistinguishable from every upstream failure:
+`raves_state.json` reports no popup, `hv state` shows none, and **`fixture.py twiddle` prints "no
+popup appeared" because it verifies through RAVES**. A whole session was spent concluding "no popup
+raises in Qud at all, and it survives a clean pair restart" from those signals alone. Qud was
+raising popups the entire time.
 
-**Two things this state is NOT, both checked, so nobody re-hunts them:** the saves are intact
-(`~/Library/Application Support/com.FreeholdGames.CavesOfQud/Synced/Saves` was untouched — no
-mtime moved during the session), so the parity fixture's data is fine; and the uiQueue is draining
-(`uiprobe` refreshes its dump every time). What stops working is Qud's own `ShowPopup`: the mod
-logs its `[raves] twiddle <item>` line, `EquipmentAPI.TwiddleObject` runs, and Qud's window shows
-no popup. It survived a full clean pair start (`hv quit` both → `hv launch raves`), so treat it as
-needing a fresh look at Qud/the mod rather than as a fixture or harness-driving problem.
+**So when a popup does not appear, split the halves before theorising:**
+
+1. **Tap the bridge** and look for `popup` frames — the mod's half, decidable in seconds
+   (`type:"popup", active:true`, with its `options`).
+2. **Screenshot QUD's own window** (`hv shot CavesOfQud`) — Qud's half.
+3. Only then look at Raves.
+
+Never take a Raves-side signal as evidence about Qud. Guarded now by
+`godot/tests/popup_overlay_render.tscn`, a SPOT test that drives the real `show_popup` over the real
+wire frames headlessly and fails on any runtime error in that path.
+
+### Answering a popup the mod never ANNOUNCED (FIXED, 165f44b)
+
+`HandleCommand` used to target `_announcedPm` and, when that did not check out, fall back to "scan
+for any visible popup". That answers a modal the viewer never saw — and for the async COPIES
+(`ShowYesNoAsync` / `PickOptionAsync` / `AskString`, all via `UIManager.copyWindow`) the scan can
+return a **pooled ghost** that still looks visible and still has a callback. The answer vanishes,
+Qud's real modal keeps its `onHide` dangling, and it surfaces one popup later as
+`ShowPopup::OnHide wasn't called!` followed by a Mono internal-call fault.
+
+The fallback is gone. The bridge answers only the exact instance it announced, still live, still out
+of `UIManager`'s free pool, and named by an id belonging to the episode on screen; Raves stamps the
+id it is answering. Ids are checked against the **episode range**, not against the latest id: every
+client connect forces a re-announce (highvisor's state poller connects ~2/s), so a valid answer
+legitimately lags by a few and strict equality would reject good answers.
+
+**That `ShowPopup::OnHide wasn't called!` chain does not stop Qud raising popups** — that was the
+other half of the wrong diagnosis, and it is worth stating flatly so nobody re-hunts it. Measured on
+a clean restart plus a fresh golden-save load: Qud raised the item menu, the wish AskString and the
+title-screen quit confirm normally. The Mono `cant resolve internal call to
+Marshal::GetHRForException_WinRT` lines are just what `MetricsManager.LogException` looks like on
+this build — they mark an exception being REPORTED, not a broken runtime.
+
+### The item menu sometimes answers ITSELF (OPEN — not diagnosed)
+
+The item menu is sometimes answered within a fraction of a second of raising, with its **highlighted
+row** — `equip (auto)` on the cloth robe. A bridge cancel then arrives too late and is refused
+(`[popup] REFUSED button (id N): the announced popup is no longer live`, which is the new guard
+doing its job). The item has moved between the pack and the body by then, so the next raise offers a
+legitimately different list: **6 options equipped, 8 in the pack.** Measured 6/8 over eight scripted
+raise-and-cancel cycles, with and without Qud focused.
+
+Two things it is NOT: it is not the bridge answering (the log shows a refusal, never an accepted
+answer), and it is not the mod's fabricated-Cancel path (the item menu's single bottom button really
+is `command: "Cancel"`, so `FindByCommand` matches it and nothing is fabricated — an earlier note
+blamed that path and was wrong). What delivers the answer is unidentified.
+
+**Working rule for captures:** reload the fixture between raises rather than retrying, and check the
+option count on the mirrored frame before you capture. A reload cannot activate anything.

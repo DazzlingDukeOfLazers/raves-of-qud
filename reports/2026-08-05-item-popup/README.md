@@ -40,11 +40,22 @@ two consecutive re-drives of the whole pin scored identically to two decimal pla
 SHORT option list** (the cloth robe's 8 options arriving as 2 or 6, with Qud still settling). It is
 a different popup, so a run that captures it silently compares two different things — the header
 leaves still score, because they are anchored to each app's own top line. Verify the option count
-off Qud's live RectTransforms before capturing, and re-raise if it is wrong. Do **not** clear a
-menu with `popup / action:button / btn:Cancel` to retry: the mod fabricates a Cancel item, Qud's
-`OnActivateCommand` falls through to the HIGHLIGHTED row, and on the cloth robe that is
-"equip (auto)" — a retry loop written that way quietly equips the fixture's item and then fails
-forever. Reload the fixture instead; a reload cannot activate anything.
+before capturing (the mirrored `popup` frame carries `options`), and re-raise if it is wrong.
+
+**2026-08-08 — the mechanism behind the short list, measured.** It is not the popup settling. The
+item menu is sometimes **answered almost immediately after it raises**, by something delivering its
+highlighted row — on the cloth robe that is `equip (auto)`. Cancelling from the bridge then arrives
+too late and the mod (correctly, since 165f44b) refuses it: `[popup] REFUSED button (id N): the
+announced popup is no longer live`. The item has by then moved between the pack and the body, so
+the NEXT raise legitimately offers a different list — 6 options equipped, 8 in the pack. Measured
+over 8 scripted raise/cancel cycles: 6 raised and mirrored, 2 self-answered, with the robe toggling
+slots throughout. **What delivers that answer is not identified**; it is not the bridge (the log
+shows the refusal, not an accepted answer) and it is not the mod's fabricated-Cancel path (the item
+menu's single bottom button really is `command: "Cancel"`, so `FindByCommand` matches it and no
+item is fabricated — an earlier note here blamed that path and was wrong).
+
+The practical rule is unchanged and still works: **reload the fixture rather than retry**, and
+check the option count before you capture. A reload cannot activate anything.
 
 ## Which leaves are safe as CONTROLS
 
@@ -197,22 +208,91 @@ All three are fixed on the model. The title row is now an owner-drawn 20px Contr
 RichTextLabel reports 21), it asks the content box for its Header width, and it draws on the
 header pitch.
 
-### Why this is "outstanding" and not "verified"
+## 2026-08-08 (later still) — the render check is CLOSED, and why it could not run before
 
-**Raising a titled popup works; mirroring it does not, reliably.** Qud raises it as a dynamic copy
-while the Keybinds screen has the turn thread parked, and `PopupBridge.Ensure()` — which arms the
-mirror's watcher — is called only from `Bridge.TickRender`, which does not fire while a popup holds
-the turn thread. It mirrored on the first raise and then not once in eight further attempts across
-two Qud restarts.
+### What was actually broken
 
-Worse, cancelling the *unannounced* copy over the bridge leaves Qud's own popup bookkeeping
-inconsistent — `ShowPopup::OnHide wasn't called!` in `Player.log`, followed by a Mono
-internal-call fault — after which **no popup raises on that machine at all**, including the item
-menu this spec is pinned to. That is the state the session ended in; see `docs/gotchas.md`.
+Not the mirror, and not Qud. **`PopupOverlay` never built at all**, so Raves displayed no popup of
+any kind.
 
-**Numbers to expect when it is re-checked:** box 221 wide, fill x849–1070, top rule row 463, title
-ink ~178px wide, edge assemblies 10px with a 2×20 tick at `x+8` and `x+w−10`.
+The title row was converted to an owner-drawn `Control` and the field's declaration was left as
+`var _title: RichTextLabel`. GDScript only catches that at RUNTIME: the assignment threw inside
+`_build()`, which **aborted the whole builder**, so `_msg`, `_ctx_box`, `_ctx_img`, `_edit` and the
+rest never existed and `show_popup()` died on the first null it touched. Every popup kind, not just
+titled ones.
 
-**The six popups above are unaffected by this change**: every new code path is inside an
-`if _title.visible` branch, and none of them has a title. They were not re-captured, because by the
-time the title fix was built the harness could no longer raise a popup.
+That failure is silent from every angle anyone was looking from. An overlay that never got built
+just stays `visible = false`, so `raves_state.json` reports no popup, `hv state` shows none, and
+`fixture.py twiddle` — which verifies through **Raves** — prints "no popup appeared". All of which
+reads exactly like a mod that never announced, a watcher that never armed, or a Qud that never
+raised one. Those three were hunted, in that order, and the previous session's conclusion ("no
+popup raises in Qud at all, surviving a clean pair restart") was drawn entirely from Raves-side
+signals. Qud was raising popups the whole time — a bridge tap sees the `popup` frames, and a
+screenshot of Qud's own window shows the modal.
+
+**The lesson is the one already written on the mod side, applied to the client: the mirror has two
+halves and only one of them was observable.** It is now guarded by a SPOT test that drives the real
+`show_popup` over the real wire frames headlessly —
+`godot/tests/popup_overlay_render.tscn`. It reproduces the whole failure in about a second and
+would have caught it before the build.
+
+### The titled popup, measured
+
+Re-captured with both apps in the driven state (`titled_qud.png`, `titled_qud2.png`,
+`titled_raves.png`). Raised by Qud's own path, and it **mirrored on the first attempt** — twice,
+across two runs.
+
+| | Qud | Raves | |
+|---|---|---|---|
+| fill left/right | x849–1070 | x849–1070 | **exact** (849.43 + 221.13 = 1070.56) |
+| box width | 221 | 221 | **exact** (was 211) |
+| top rule row | 463 | 463 | **exact** (rows 463–464, full width) |
+| fill top row | 459 | 459 | **exact** (box_top − 20 = 459.50) |
+| edge assembly ticks | cols 857–858, 1061–1062 | same | **exact** |
+| title ink | x870–1049, 180 wide, 12 rows | x870–1048, 179 wide, 11 rows | same left edge; **1px narrow, 1 row short** (was 161 wide) |
+| fill bottom row | 598 | 597 | **1 row short — the one thing still off** |
+
+Six of seven are exact. Two residuals, both stated rather than rounded away:
+
+- **The title ink is 1px narrower and 1 row shorter.** Same left edge and the same pitch; this is
+  the rasteriser floor every text leaf in this spec carries (`popup_frame_text_geometry` sits at
+  0.25 for the same reason). The recorded expectation was "~178"; Qud actually inks 180 and Raves
+  179.
+- **The fill's bottom row is 1px high.** Qud renders 140 fill rows (459–598) where Raves renders
+  139 (459–597), i.e. Raves' titled box is **120 tall against Qud's 121**. The model says
+  `20 + 10 + 56 + 10 + 20 + 5 = 121`, so one term is losing a pixel; which one is **not** diagnosed
+  here, and it is not guessed at either. It is specific to the titled branch — the untitled popups
+  below are pixel-exact top and bottom.
+
+### The other six: measured, not reasoned
+
+The claim on record was that they are unaffected by construction, every new path being inside an
+`if _title.visible` branch. That reasoning was **wrong in the only way that mattered** — the
+`_title` declaration is outside any branch, and it broke all six — so they were measured.
+
+| popup | re-raised | fill box, Qud | fill box, Raves | |
+|---|---|---|---|---|
+| cloth robe, 8 options | yes | x821–1098 (278), y316–741 (426) | identical | **exact** |
+| data disk, 9 options | yes | x743–1176 (434), y302–755 (454) | identical | **exact** |
+| wish prompt (AskString) | yes | x635 left edge, y482–575 | same edges; width 650 = Qud's 650.00 | **exact** |
+| basic toolkit, 7 options | **no** | — | — | not re-raised |
+| quest notice | **no** | — | — | not re-raised |
+| quit confirm | **no** | — | — | not re-raised |
+
+The three that were re-raised cover both container kinds (menu + context, and a bare input) and two
+of the three width-driving terms — the widest COMMAND (cloth robe) and the item NAME (data disk).
+The three that were not are named rather than implied: the toolkit adds no term the other two
+menus do not already exercise, the quest notice needs a quest grant, and the quit confirm is the
+one whose third prompt can end a run (see `docs/gotchas.md`). **The COMMAND BAR term is therefore
+still unmeasured on this build** — only the quit confirm reaches it.
+
+The full spec was also re-scored on this build against the scoreboard: **all 7 leaves +0.00**, from
+a pin re-driven from a fixture reload. And `popup_placement`, one of the two fixture-independent
+controls, is among them.
+
+### A separate defect, spotted and not fixed
+
+Qud renders the first option as `Keyboard & Mouse`; Raves renders `Keyboard  Mouse`. Qud's
+`EscapeNonMarkupFormatting` doubles a literal `&` to `&&` on the wire and Raves never un-escapes
+it. It affects option/message TEXT, not the box model, so it is out of this spec's leaves — but it
+is a real difference and it is written down here rather than left to be re-found.

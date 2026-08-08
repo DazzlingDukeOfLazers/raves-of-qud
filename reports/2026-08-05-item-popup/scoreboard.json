@@ -1,7 +1,7 @@
 {
  "screen": "item interaction popup (EquipmentAPI.TwiddleObject)",
  "spec": "reports/2026-08-05-item-popup/parity-item-popup.json",
- "measured": "2026-08-08, after the popup BOX MODEL port (godot/PopupOverlay.gd). Previous numbers kept as `was` so the delta is readable without a git log.",
+ "measured": "2026-08-08, after the popup BOX MODEL port (godot/PopupOverlay.gd). Previous numbers kept as `was` so the delta is readable without a git log. RE-SCORED 2026-08-08 (later) on the build that fixes PopupOverlay._title's declared type: the whole pin was re-driven from a fixture reload and all seven leaves reproduced EXACTLY (+0.00). Captures replaced with that run.",
  "pin": {
   "save": "sync-raves-and-qud",
   "mode": "Wander",
@@ -98,7 +98,16 @@
     "what": "\"Select Controller\" (KeybindsScreen.SelectInputType)",
     "kind": "TITLED option list -- the only kind with a PolatFrameSuperHeader, and its box is sized by the TITLE",
     "qud_box": "221.13x121.00 @ 849.43,479.50",
-    "result": "Qud measured; Raves RENDER CHECK OUTSTANDING -- the pre-fix capture showed 211 wide against Qud's 221.13 and title ink 161 against 178; fixed on the model, not re-captured (the popup mirror would not raise again). Expect: box 221, fill x849..1070, top rule row 463, title ink ~178 wide."
+    "result": "RENDER CHECK CLOSED 2026-08-08. Re-captured (titled_qud.png / titled_qud2.png / titled_raves.png) after the PopupOverlay._title type fix. Width, both side edges, the fill top and the top rule are EXACT; the fill's BOTTOM row is 1px short. See `measured` below.",
+    "measured": {
+     "fill_left_right": "x849..1070 in BOTH -- Qud's 849.43 + 221.13 = 1070.56. exact",
+     "box_width": "221 in both (1070-849). exact",
+     "top_rule_row": "463 in both (the rule occupies rows 463-464 and spans the full x849..1070). exact",
+     "fill_top_row": "459 in both -- the model's box_top-20 = 459.50. exact",
+     "fill_bottom_row": "Qud 598, Raves 597 -- ONE ROW SHORT. The model's box_bottom-2 = 598.50, so Qud renders 140 fill rows and Raves 140-1 = 139, i.e. Raves' titled box is 120 tall against Qud's 121. NOT closed; see the README.",
+     "title_ink": "Qud x870..1049 (180 wide, 12 rows y484..495); Raves x870..1048 (179 wide, 11 rows y483..493). Same left edge, 1px narrower, 1 row shorter -- the documented rasteriser floor. Was 161 wide before the fix, against a recorded expectation of ~178.",
+     "edge_assemblies": "the 2px ticks land on columns 857-858 and 1061-1062 in BOTH -- fill_left+8 and fill_right-9. exact"
+    }
    }
   ]
  }

@@ -16,6 +16,7 @@ needs pixels or a live game.
 | check | command | catches |
 |---|---|---|
 | typing guard | `python3 tools/regression/typing_guard_audit.py` | a keyboard hotkey dispatched from `_input` without `TypingGuard`, and any newly added text field |
+| Popup overlay render | `Godot --headless --path godot/ --quit-after 400 res://tests/popup_overlay_render.tscn` | a runtime error in `PopupOverlay.show_popup` — which leaves the overlay invisible and reads from outside as "the popup never mirrored" |
 | State-graph panel render | `Godot --headless --path godot/ --script res://tests/state_graph_render.gd` | the panel's text builders against a fixture AND the real gametree.json — rows, markers, empty/null trees |
 | Godot parse + `_ready` | `Godot --headless --path godot/ --quit-after 120` | parse errors, autoload/`_ready` failures |
 | Main.gd deep check | `Godot --headless --path godot/ --check-only --script res://Main.gd` | a `class_name` parse error that would silently kill the Holodeck in the export |
@@ -76,19 +77,23 @@ All of these are non-destructive on the `sync-raves-and-qud` fixture and clear o
 | yes/no confirm | bridge `command` / `CmdQuit` on a **Wander** save, then answer `Cancel`. Two prompts, and cancelling the first unwinds without quitting. Never on a Classic character — that chain ends in the ABANDON text prompt (see `docs/gotchas.md`) |
 | **titled** option list | system menu (`CmdSystemMenu`) → answer option 2 (`[c] Control Mapping`) → `hv click CavesOfQud 675 117 --hover` on "Configuring Controller: …". That is `KeybindsScreen.SelectInputType()` → `Popup.PickOptionAsync("Select Controller", …)` — Qud's own code path, not scaffolding. **The click needs `--hover`; bare does nothing.** |
 
-**The titled one raises reliably but MIRRORS unreliably — read this before using it.** Qud raises
-it as a dynamic copy while the Keybinds screen has the turn thread parked, and
-`PopupBridge.Ensure()` (which arms the mirror's watcher) is only called from `Bridge.TickRender`,
-which does not fire while a popup holds that thread. Observed: mirrored on the first raise, then
-not once in eight attempts across two Qud restarts. **Do not "cancel and retry" it over the
-bridge** — answering a copy the mod never announced leaves Qud's own popup bookkeeping inconsistent
-(`ShowPopup::OnHide wasn't called!` in `Player.log`, then a Mono internal-call fault) and after that
-NO popup raises at all, including the item menu the parity pin needs. Recover by restarting Qud
-before that fault, not after.
+**The titled one is CLOSED as of 2026-08-08** — raised and mirrored on the first attempt, twice,
+and re-captured. Measured figures in `reports/2026-08-05-item-popup/`. The earlier note here said it
+"mirrors unreliably" and blamed `PopupBridge.Ensure()` arming only from `TickRender`; that arming
+hole was real and is fixed, but it was not what stopped the mirror. **Raves' `PopupOverlay` was not
+building at all** (a `RichTextLabel`/`Control` type mismatch aborted `_build()`), so no popup of any
+kind displayed — see `docs/gotchas.md`.
 
-Verify the option COUNT off Qud's live RectTransforms before capturing: the first twiddle after a
-fixture reload sometimes raises a short list, which silently turns a parity run into a comparison
-of two different popups.
+**When a popup "does not appear", split the halves before theorising.** Tap the bridge for `popup`
+frames (the mod's half) and `hv shot CavesOfQud` (Qud's half) BEFORE looking at Raves.
+`fixture.py twiddle` and `hv state --popup` both verify through RAVES, so neither can tell you
+anything about Qud — reading them as if they could cost a full session.
+
+**Verify the option COUNT before capturing** — read `options` off the mirrored `popup` frame. The
+item menu sometimes answers itself with its highlighted row (`equip (auto)` on the cloth robe) right
+after raising, which moves the item between pack and body and makes the next raise offer a
+genuinely different list (6 equipped, 8 in the pack). Measured 6/8 over eight cycles; the cause is
+not identified. **Reload the fixture between raises rather than cancelling and retrying.**
 
 FULL is allowed to need judgement. SPOT is not.
 
