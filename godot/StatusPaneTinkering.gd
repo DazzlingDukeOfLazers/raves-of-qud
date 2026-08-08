@@ -28,6 +28,10 @@ extends Control
 const HINT_X := 192.1
 const HINT_Y := 222.0
 const HINT_FONT := 14
+## Qud's Ctrl keycap, a Private Use Area codepoint it draws from its own icon font
+## (QudText.GLYPHS maps the same value). Present in the extracted atlas as a 195x133 cell,
+## so this renders as the real keycap once the mod has exported the glyphs.
+const CTRL_GLYPH := 0xE816
 const LIST_X := 174.5
 const LIST_Y := 246.0
 const LIST_W := 607.0
@@ -92,7 +96,14 @@ func _draw_all() -> void:
 		return
 	# Qud's own hint string, with the Ctrl keycap glyph it emits (U+E816 — the extracted icon
 	# font renders it; QudText falls back to the word when that font is missing).
-	_draw_markup("[{{W|+Tab}}] switch to %s" % ("build" if _mode == 1 else "modifications"),
+	#
+	# The glyph was MISSING and only this comment said otherwise: the literal read
+	# "[{{W|+Tab}}]", so Raves drew "[+Tab]" against Qud's "[Ctrl+Tab]" for as long as the
+	# screen has existed. Caught by a parity leaf, not by reading the code — the comment
+	# described the intent convincingly enough that the string beside it looked right.
+	# The codepoint has to be built, not typed, or it is invisible in the source too.
+	_draw_markup("[{{W|%s+Tab}}] switch to %s"
+			% [String.chr(CTRL_GLYPH), "build" if _mode == 1 else "modifications"],
 		Vector2(HINT_X, HINT_Y + 13.0), HINT_FONT)
 
 	var y := LIST_Y

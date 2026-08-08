@@ -1333,3 +1333,36 @@ error — and it is worth fixing on its own.
 so the remaining content divergence is dominated by ~1px baseline offsets on thin
 glyphs, the same residual the equipment tab bottomed out at. Do not read 20-ish
 here as "badly broken"; read it as "unexamined".
+
+### The Ctrl keycap glyph — fixed, and it was never there
+
+`StatusPaneTinkering` drew the mode hint from the literal
+
+    "[{{W|+Tab}}] switch to %s"
+
+directly beneath a comment reading "Qud's own hint string, with the Ctrl keycap
+glyph it emits (U+E816)". The comment described an intention that the string
+beside it never carried, so Raves rendered `[+Tab]` against Qud's `[Ctrl+Tab]`
+for as long as the screen has existed.
+
+Worth naming as a review hazard: the comment is *more* convincing than the code
+at a glance, and a Private Use Area codepoint is invisible in source either way,
+so nothing about reading that line suggests a bug. A parity leaf found it in one
+crop.
+
+Fixed by building the codepoint rather than typing it — `String.chr(CTRL_GLYPH)`
+with `CTRL_GLYPH := 0xE816`, matching `QudText.GLYPHS`. The extracted atlas
+already carried it (a 195x133 cell), so nothing needed re-exporting. Verified by
+crop: the boxed keycap now renders.
+
+`tab_hint` moved only 24.63 -> 23.49, and that is the expected size of the win,
+not a disappointment — the glyph is ~200px of a 5,800px leaf. Reading the score
+alone would have suggested the fix barely worked; the crop shows it worked
+exactly.
+
+NEXT on this tab, found by the same crop and measured rather than eyeballed:
+**Qud draws a horizontal rule that Raves omits entirely.** 2px tall at y230-231,
+spanning x158-1760 (1603px), colour (56,79,90) — the section separator that runs
+behind and past the hint text. Absent in Raves at those rows (1150 lit px vs 0
+across x600-1750). That, not the glyph, is the dominant remaining term in
+`tab_hint`.
