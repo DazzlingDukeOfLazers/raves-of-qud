@@ -435,3 +435,28 @@ NEXT: measure how Qud anchors that strip (left-aligned from a fixed x, centred,
 or right-aligned against the panel) across two characters with different category
 counts, then match it. Fixing it should move `image` from ~49.6 toward the mac's
 ~4, i.e. most of the PC/mac gap.
+
+#### Not anchoring either: Raves emits MORE filter categories than Qud
+
+Measured 2026-08-07 before changing anything, and the anchoring premise is wrong
+too. Across all four captures (both apps x both fixtures) the strip's right end
+sits at x=1741-1742 — Raves already anchors the way Qud does.
+
+What differs is the CELL COUNT. On the PC golden, same character, same inventory:
+
+    Qud    Q | ALL | 8 category cells | E
+    Raves  Q | ALL | 11 category cells | E
+
+Three extra cells push every cell left of them out of position, which is exactly
+why the fixed-rect filter_image / filter_frame / filter_cell leaves compare an
+icon against its neighbour and score 78-82 instead of 2-6. On the mac fixture the
+counts happen to land close enough that the leaves still line up — that is the
+"offset by one slot" the mac note recorded, i.e. the same defect seen at a
+character where it nearly cancels.
+
+So the fix is in what Raves puts IN the strip, not where it puts it: Raves is
+categorising inventory more finely than Qud (or including categories Qud omits —
+empty ones are the obvious suspect). The next step is to dump both category
+lists for one character and diff the NAMES, which says immediately whether Raves
+is splitting a category Qud merges or adding one Qud drops. Do that before
+touching layout code — two anchoring hypotheses have already been wrong here.
