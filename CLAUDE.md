@@ -221,6 +221,17 @@ the form (lower right); Esc clears the selection.
   legacy menu loop sets `CurrentGameView = "MainMenu"` and `_ActiveGameView` stays `Stage`
   forever. `bThreadFocus` is INITIALISED true, so a Qud that never gains-then-loses focus never
   trips it — which is exactly why this read as intermittent for a whole session.
+- **`gameQueue` is DEAD while Qud is in the background; the turn thread is not.** Both marshal
+  onto "the main thread" and they are not interchangeable:
+  `GameManager.Instance.gameQueue.queueSingletonTask` is drained by Unity's loop, which stops when
+  the window is backgrounded — and Raves in front IS Qud backgrounded, i.e. the normal case for
+  anything the player does in Raves. Use a turn-thread event instead
+  (`BeginTakeActionEvent` -> `Bridge.TickAction`, which keeps firing unfocused; see
+  `Navigator.Pump`), with `Keyboard.PushCommand` as the kick that starts a turn. The failure is
+  invisible from outside: a TCP write to a mod whose queue is parked still succeeds, so the
+  command reports ok and simply never happens — measured as no log line for 8s, then the whole
+  action firing the instant Qud came forward. (Same shape as the `uiQueue` note in highvisor's
+  `_qud_bridge`, one queue over.)
 - **Commit + push after each round — but only once the relevant checks pass**, not merely "it builds":
   the mod build (`dotnet build`), the Godot parse/run check, and any targeted regression checks for what
   you touched. Then run the **author guard**: `git log --all --format='%ae' | grep -i allspice` must print
