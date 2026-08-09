@@ -70,6 +70,27 @@ dotnet build "$OUT/check.csproj" -v q --nologo -o "$OUT/bin" > "$LOG" 2>&1
 rc=$?
 if [ $rc -eq 0 ]; then
   echo "mod check OK ($(ls mod/*.cs | wc -l | tr -d ' ') files)"
+  # DEPLOY, because the alternative is measuring the old code and believing it is the new one.
+  # Qud loads the mod from its own Mods directory -- a COPY, not a link -- and it compiles what
+  # is there at startup. Edit, restart Qud, measure, and every reading is of the previous build:
+  # the popup id churn "survived" its fix that way, and the evidence (a fresh process, ids
+  # restarting at 1) looked like confirmation that the new code was running. Nothing about a
+  # stale copy is visible from the game side, so the copy happens here, where the check that
+  # says the source is good also puts that source where Qud will read it.
+  DEPLOY="$HOME/Library/Application Support/com.FreeholdGames.CavesOfQud/Mods/RavesOfQudBridge"
+  if [ -d "$DEPLOY" ]; then
+    cp mod/*.cs mod/manifest.json "$DEPLOY"/
+    # …and VERIFY the copy landed, rather than trusting cp's exit code: a partial deploy is the
+    # same silent wrong-code failure one directory over.
+    stale=0
+    for f in mod/*.cs mod/manifest.json; do
+      cmp -s "$f" "$DEPLOY/$(basename "$f")" || { echo "  DEPLOY MISMATCH: $(basename "$f")"; stale=1; }
+    done
+    [ $stale -eq 0 ] && echo "deployed to Mods/RavesOfQudBridge (restart Qud to compile it)" \
+                     || { echo "STOP: deploy did not match the source"; exit 3; }
+  else
+    echo "note: no deploy dir at $DEPLOY — skipped (is Qud installed here?)"
+  fi
 else
   echo "MOD CHECK FAILED:"
   grep -E "error CS" "$LOG" | sed 's|^.*/mod/|mod/|' | sort -u | head -40

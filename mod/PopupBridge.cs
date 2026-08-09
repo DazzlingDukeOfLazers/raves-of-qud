@@ -40,11 +40,11 @@ namespace RavesOfQud
         // PickOptionAsync, AskString) can vanish from FindObjectsByType by answer-time,
         // and a re-scan then hits a decoy singleton — the injected answer went nowhere.
         private static PopupMessage _announcedPm;
-        // The announce ids that belong to the popup CURRENTLY on screen. Every announce bumps
-        // `_id`, and a RE-announce happens on every client connect (highvisor's state poller
-        // connects ~2/s), so "the id the client is answering" legitimately lags `_id` by a few.
-        // The episode's FIRST id pins the lower bound: ids are monotonic and an episode is
-        // contiguous, so [_episodeMinId, _id] is exactly this popup and nothing before it.
+        // The announce ids that belong to the popup CURRENTLY on screen. A NEW popup bumps `_id`;
+        // a RE-announce of the same one does NOT (see Poll), so in practice an episode is a single
+        // id -- but a close frame bumps it too, and clients answer asynchronously, so the range is
+        // still what decides. The episode's FIRST id pins the lower bound: ids are monotonic and an
+        // episode is contiguous, so [_episodeMinId, _id] is exactly this popup and nothing before it.
         private static int _episodeMinId;
 
         private static void Log(string s) { try { Bridge.Server?.Log(s); } catch { } }
@@ -392,13 +392,23 @@ namespace RavesOfQud
             bool freshEpisode = !_active || sig != _sig;   // a resend is the SAME episode, not a new one
             _active = true;
             _sig = sig;
-            if (freshEpisode) _episodeMinId = _id + 1;      // _id is bumped just below
+            // A RESEND REUSES THE ID, so the frame is byte-identical to the one every client
+            // already holds. It used to bump `_id`, which made an unchanged popup arrive as a
+            // NEW popup about twice a second -- `_resend` is set on every client connect and
+            // highvisor's state poller connects and drops at that rate, forever, for as long as
+            // the modal is up. That churn is not theoretical: it reset half-typed AskString text
+            // ("kept resetting as I tried to type QUIT") and sprang an option list's selection
+            // back to the first row, and both were fixed by teaching the CLIENT to recognise a
+            // re-announce by content. The client-side defences stay -- a resend after a genuine
+            // content change still has to be absorbed -- but the source no longer sprays, and a
+            // client that dedupes on id alone is now correct.
+            if (freshEpisode) { _episodeMinId = _id + 1; _id++; }
 
             var j = new JsonWriter();
             j.BeginObject();
             j.Member("type", Protocol.TypePopup);
             j.Member("active", true);
-            j.Member("id", ++_id);
+            j.Member("id", _id);
             j.Member("message", message ?? "");
             j.Member("title", title ?? "");
             j.Member("input", input);
