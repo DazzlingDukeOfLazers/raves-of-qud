@@ -443,8 +443,14 @@ func _draw_chrome() -> void:
 		var dy := ly + CTX_DIVIDER
 		for seg in [[0.0, l0], [l1, c0], [c1, r0], [r1, w]]:
 			_rect(off, Rect2(seg[0], dy, seg[1] - seg[0], 2), C_TOPLINE)
-		for x in [l0 - 2, r1, c0 - 2, c1]:
+		# Only the OUTER breaks are capped here. The centre break is filled by the ornament,
+		# and Qud draws no cap under it: its rule runs to offset 133 and resumes at 144 with
+		# the strokes in between. Drawing both put a cap column one pixel below the stems'
+		# feet -- offsets 132/133/144/145 reached dy+2 where Qud stops at +1, which is the
+		# only way the first build differed.
+		for x in [l0 - 2, r1]:
 			_rect(off, Rect2(x, dy - CAP_H * 0.5 + 1.0, 2, CAP_H), C_TOPLINE)
+		_draw_divider_orn(off, cx, dy)
 	if _title.visible:
 		# ─┤ Title ├─ edge assemblies, MEASURED off Qud's own titled popup rather than
 		# eyeballed: each is a 10px horizontal bar 3 tall through the row's mid-height with
@@ -644,6 +650,28 @@ static func _hdr_advance(f: Font, size: int) -> float:
 ## The title row: Qud centres it in the row, on the HEADER pitch. Drawing it in one call at
 ## the body pitch is the journal header's mistake -- every glyph after the first lands
 ## progressively left of Qud's, and the row measures 17px narrow on a 17-character title.
+## The context divider's own three-stroke ornament: the same family as the emblem's roots,
+## but rising ABOVE the line and capped at the TOP.
+##
+## MEASURED off Qud 2026-08-09 (cloth robe popup, box x821-1098 w278, divider rule y471-472),
+## dy relative to the rule's top row:
+##   left    stem x131-133 (3 wide)  dy -9..+1    cap x131-134  dy -9..-6
+##   centre  stem x138-139 (2 wide)  dy -11..+1   cap x137-140  dy -11..-8
+##   right   stem x144-146 (3 wide)  dy -9..+1    cap x143-146  dy -9..-6
+##
+## NOT a mirror of the roots, which is why it is spelled out rather than derived from them:
+## below the top rule the outer stems are 2px and the middle 3px, and here it is the other way
+## round, with the outer pair sitting a column left of where mirroring would put them. Same
+## subpixel box (278.21) rasterising differently for the two instances. Every stem runs one
+## pixel PAST the rule (dy +1), so the stroke joins the line rather than stopping on it.
+func _draw_divider_orn(off: Vector2, cx: float, dy: float) -> void:
+	# x offset from the box centre, stem width, stem top (dy), stem height
+	for st in [[-8.0, 3.0, -9.0, 11.0], [-1.0, 2.0, -11.0, 13.0], [5.0, 3.0, -9.0, 11.0]]:
+		_rect(off, Rect2(cx + st[0], dy + st[2], st[1], st[3]), C_TOPLINE)
+	for cp in [[-8.0, -9.0], [-2.0, -11.0], [4.0, -9.0]]:
+		_rect(off, Rect2(cx + cp[0], dy + cp[1], CAP_H, CAP_H), C_TOPLINE)
+
+
 ## The three strokes below the top rule -- see ROOT_PITCH. `ly` is the rule's top, and the
 ## rule is 2px, so the strokes begin at ly+2.
 func _draw_roots(off: Vector2, cx: float, ly: float) -> void:
