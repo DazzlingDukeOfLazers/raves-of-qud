@@ -1527,6 +1527,20 @@ namespace RavesOfQud
                     try { Server.Log("[checklist] wrote " + ObjectChecker.WriteChecklist()); }
                     catch (Exception e) { Server.Log("checklist error: " + e.Message); }
                     break;
+                case "moveto":
+                    // CLICK-TO-TRAVEL. Qud's own navigation: the click lands in Raves, the cell
+                    // arrives here, and Brain.PushGoal(new MoveTo(cell)) does the walking, so
+                    // pathing and hostile-interrupts behave exactly as Qud's do. Queued onto the
+                    // TURN thread inside Navigator, never a threadpool -- see the note there.
+                    try
+                    {
+                        f.TryGetValue("x", out string mvX);
+                        f.TryGetValue("y", out string mvY);
+                        Navigator.MoveToCell(MapEditorDriver.ParseInt(mvX),
+                                             MapEditorDriver.ParseInt(mvY));
+                    }
+                    catch (Exception e) { Server.Log("moveto error: " + e.Message); }
+                    break;
                 case "reveal":
                     // Mark the whole active zone explored (Zone.ExploreAll — not
                     // wish-exposed, hence this verb). Rung 6c needs it: a freshly
