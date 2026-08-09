@@ -137,6 +137,12 @@ namespace RavesOfQud
                         bool running = false, hasPlayer = false;
                         try { curView = GameManager.Instance != null ? (GameManager.Instance.CurrentGameView ?? "") : ""; }
                         catch { }
+                        // Publish it for the SNAPSHOT too. Raves has no mirror for Qud's legacy
+                        // screens (the Looker is the one that matters here), so without this a
+                        // client cannot tell that Qud is sitting in one -- and a button that opens
+                        // one has no way to offer the way back out. Read here because this thread
+                        // runs once a second regardless of focus, turns or render frames.
+                        try { Bridge.CurrentView = curView; } catch { }
                         try { running = The.Game != null && The.Game.Running; } catch { }
                         try { hasPlayer = The.Player != null; } catch { }
                         // ARM THE POPUP MIRROR FROM HERE. This is the whole reason the arming

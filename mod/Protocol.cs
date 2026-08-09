@@ -38,6 +38,7 @@ namespace RavesOfQud
         public const string TypeSnapshot = "snapshot";
         public const string TypeCommand  = "command";
         public const string TypePopup    = "popup";   // server->client: a live Qud modal mirrored to Raves
+        public const string TypeView     = "view";    // server->client: Qud's CurrentGameView changed
         public const string TypePicker   = "picker";  // server->client: Qud's PickGameObjectScreen mirrored
 
         /// <summary>Length-prefix a JSON string into a ready-to-send frame.</summary>

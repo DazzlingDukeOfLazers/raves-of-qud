@@ -1190,6 +1190,10 @@ namespace RavesOfQud
                 // until the UI thread has seen them, and the client keeps its last icons until then.
                 string navb = PopupBridge.NavButtons ?? "";
                 if (navb.Length > 0) j.Member("navButtons", navb);
+                // Qud's current view (Bridge.CurrentView). "Looker" and friends are legacy screens
+                // Raves does not mirror; shipping the name at least lets it know one is up.
+                string qv = Bridge.CurrentView ?? "";
+                if (qv.Length > 0) j.Member("qudView", qv);
             }
             catch { }
             j.Name("abilities").BeginArray();

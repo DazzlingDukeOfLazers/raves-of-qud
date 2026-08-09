@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;    // focus-keeper watchdog thread
 using ConsoleLib.Console;  // Keyboard.PushCommand — wakes the main thread while unfocused
 using XRL;        // The, IPlayerMutator, IEventRegistrar
@@ -1288,8 +1289,7 @@ namespace RavesOfQud
                     // us guessing command ids. allowmap:true routes through the bindings; PushKey
                     // Sets KeyEvent, so it wakes an unfocused game exactly like the move injection.
                     f.TryGetValue("key", out string k);
-                    if (!string.IsNullOrEmpty(k))
-                        PushKeyChar(k[0]);
+                    PushKeyName(k);          // "escape"/"enter"/… by name, or a single character
                     return;
                 }
                 if (name == "export")
@@ -1476,6 +1476,40 @@ namespace RavesOfQud
         /// KeyCode values for 'a'..'z' and '0'..'9' equal their lowercase-ASCII codepoints, so the
         /// char casts straight to the KeyCode. allowmap:true makes Qud resolve it to the bound
         /// command; the enqueue+Set wakes the turn thread even while the window is unfocused.
+        /// Qud's CurrentGameView, sampled by the heartbeat thread (StartupHook) and shipped on the
+        /// snapshot. The legacy screens -- the Looker above all -- are not mirrored, so this is how
+        /// a client knows Qud is in one.
+        public static volatile string CurrentView = "";
+
+        /// A raw key into Qud's own queue. Letters and digits go through the KEYMAP (allowmap), so
+        /// they fire whatever the player has bound; NAMED keys go through unmapped, because they are
+        /// the ones legacy screens read directly. Escape is the reason this grew a name table: the
+        /// Looker reads `Keyboard.getvk` and ignores commands, so `command CmdEscape` left it up and
+        /// so did a second press of the button that opened it -- measured, both.
+        private static readonly Dictionary<string, UnityEngine.KeyCode> NamedKeys =
+            new Dictionary<string, UnityEngine.KeyCode>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "escape", UnityEngine.KeyCode.Escape },
+                { "enter",  UnityEngine.KeyCode.Return },
+                { "space",  UnityEngine.KeyCode.Space },
+                { "tab",    UnityEngine.KeyCode.Tab },
+            };
+
+        private static void PushKeyName(string name)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(name)) return;
+                if (NamedKeys.TryGetValue(name, out var named))
+                {
+                    Keyboard.PushKey(new Keyboard.XRLKeyEvent(named, '\0'), bAllowMap: false);
+                    return;
+                }
+                if (name.Length == 1) PushKeyChar(name[0]);
+            }
+            catch (Exception e) { try { Server.Log("pushkey error: " + e.Message); } catch { } }
+        }
+
         private static void PushKeyChar(char ch)
         {
             try

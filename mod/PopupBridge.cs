@@ -318,6 +318,31 @@ namespace RavesOfQud
             });
         }
 
+        private static string _lastView = "\u0000";
+
+        /// UI THREAD. Publish Qud's CurrentGameView when it CHANGES, as its own frame.
+        ///
+        /// NOT ON THE SNAPSHOT, and that is the whole point. Qud's legacy screens -- the Looker --
+        /// park the TURN thread, which is what writes snapshots, so a client waiting for the news on
+        /// that channel learns it exactly never: measured, Raves sat with `qudView` unset for as
+        /// long as the Looker was up, which is precisely when it needed to know. This watcher runs
+        /// on the UI thread and keeps going while the turn thread is parked -- the same reason the
+        /// popup mirror lives here.
+        private static void PollView(BridgeServer server)
+        {
+            try
+            {
+                if (server == null || server.ClientCount == 0) return;
+                string v = GameManager.Instance != null ? (GameManager.Instance.CurrentGameView ?? "") : "";
+                if (v == _lastView) return;
+                _lastView = v;
+                var j = new JsonWriter();
+                j.BeginObject().Member("type", Protocol.TypeView).Member("name", v).EndObject();
+                Publish(server, j.ToString());
+            }
+            catch { }
+        }
+
         /// UI THREAD. The three ActiveButtons' live on/off, for the client's icon swap.
         private static void PollNavButtons()
         {
@@ -364,6 +389,7 @@ namespace RavesOfQud
             PollJournalHeader();
             PollBarCells();
             PollNavButtons();
+            PollView(Bridge.Server);
 
             BridgeServer server = Bridge.Server;
             if (server == null || server.ClientCount == 0) return;

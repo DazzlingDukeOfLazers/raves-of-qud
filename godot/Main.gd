@@ -185,6 +185,7 @@ func _ready() -> void:
 	add_child(client)
 	client.snapshot.connect(_on_snapshot)
 	client.popup.connect(_on_popup)
+	client.qud_view.connect(func(v: String) -> void: qud_view_changed.emit(v))
 	client.picker.connect(_on_picker)
 	client.connected.connect(_on_bridge_connected)
 
@@ -673,6 +674,12 @@ func request_nav_click(button: String) -> void:
 	if client != null:
 		client.send_command("navclick", {"button": button})
 
+## A raw key into Qud's own queue, by NAME ("escape") or as a single character. Legacy screens —
+## the Looker — read keys directly and ignore commands, so this is the only way to answer them.
+func request_key(key: String) -> void:
+	if client != null:
+		client.send_command("key", {"key": key})
+
 # --- direction picker (for abilities like Make Camp that prompt for a direction) ----------------
 # Qud's PickDirection blocks the turn thread waiting for a LeftClick at a CELL (it derives the
 # direction). We show the ability's icon as a cursor over the Holodeck; clicking an adjacent tile
@@ -706,6 +713,9 @@ var _one_to_one := false
 var _saved_cam_mode := -1      # user-mode camera, restored when leaving 1:1
 var _saved_flat_2d := false    # user-mode tile mode (3D vs flat), restored when leaving 1:1
 signal one_to_one_changed(on: bool)
+## Qud moved to a different CurrentGameView — its legacy screens (the Looker) arrive here, on the
+## popup mirror's channel rather than the snapshot, because those screens stop snapshots.
+signal qud_view_changed(name: String)
 
 func is_one_to_one() -> bool:
 	return _one_to_one

@@ -126,6 +126,8 @@ var _nav_up_icon: TextureRect      # the Up (stairs) nav icon — dimmed when th
 ## `ActiveButton`, i.e. the only ones with two sprites. Everything else has one image and no state.
 var _nav_toggle_icons := {}
 var _nav_toggle_state := {}        # nav key -> last applied bool, so a repeat snapshot is free
+var _nav_look_cell: Control        # the Look cell — its tooltip says which way it will go
+var _qud_view := ""                # Qud's CurrentGameView from the snapshot ("Looker" while looking)
 var _zone_has_stairs_up := true    # last snapshot's stats.stairsUp (assume yes until told)
 var _row_split: HSplitContainer    # row-3 split (holo | side); sidebar width set per mode
 var _side: VBoxContainer           # the row-3 side column (panels)
@@ -900,7 +902,7 @@ func _row_vitals_menu() -> Control:
 		"wlock": "Lock / unlock Qud's windows",
 		"map": "Toggle the minimap overlay (Qud's Overlay Minimap option)",
 		"find": "Toggle the nearby objects overlay (Qud's Overlay Nearby Objects option)",
-		"look": "Look (Qud) — not wired yet",
+		"look": "Look (Qud)",
 		"rest": "Wait (opens Qud's wait menu)",
 		"char": "Character / status screens — x or F2",
 		"poi": "Move to point of interest",
@@ -956,6 +958,25 @@ func _row_vitals_menu() -> Control:
 				if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
 					if _holo != null:
 						_holo.request_command(qcmd))
+		if key == "look":
+			# Qud's own Look button, pressed the way the lock is: it is an ActiveButton, so invoking
+			# its onClick runs whatever Qud binds there rather than our guess at a command.
+			#
+			# AND IT IS ITS OWN WAY BACK OUT. Look puts Qud in the LOOKER, a legacy screen Raves does
+			# not mirror — so from here the game just stops responding, and it cannot be escaped:
+			# measured, neither Raves' Esc, nor `command CmdEscape`, nor a second press of this
+			# button leaves it (the Looker reads raw keys through `Keyboard.getvk` and ignores
+			# commands). Wiring the way in without the way out would be a trap, so while Qud reports
+			# the Looker this button sends a raw Escape instead.
+			cell.mouse_filter = Control.MOUSE_FILTER_STOP
+			cell.gui_input.connect(func(e: InputEvent) -> void:
+				if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+					if _holo != null:
+						if _qud_view == "Looker":
+							_holo.request_key("escape")
+						else:
+							_holo.request_nav_click("LookButton"))
+			_nav_look_cell = cell
 		if key == "wlock":
 			# No Option behind this one: press QUD'S button and let its own handler decide, then the
 			# icon follows from the `navButtons` report like the other two.
@@ -1039,6 +1060,16 @@ const NAV_DIM_ALPHA := 0.4
 ## so "no StairsDown here" is not "you cannot go down" — and Joppa, which has no way up, ships
 ## stairsDown TRUE, so the two really are independent. The mod sends both flags, so wiring Down
 ## is a one-liner if that turns out to be wrong.
+## Qud is in one of its legacy screens (or back out). Only the Looker matters here: it is the one
+## this app can open, and the Look cell has to say whether it will open it or leave it.
+func _apply_qud_view(view: String) -> void:
+	if view == _qud_view:
+		return
+	_qud_view = view
+	if _nav_look_cell != null:
+		_nav_look_cell.tooltip_text = "Leave Qud's look mode (Esc)" if view == "Looker" else "Look (Qud)"
+
+
 ## Qud's toggle buttons, nav key -> the GameObject name the mod reports (and the extracted sprite
 ## prefix). These three are the whole set: `ActiveButton` is what gives a cell two faces.
 const NAV_ACTIVE_BUTTONS := {
@@ -1563,6 +1594,9 @@ func _connect_holodeck() -> void:
 	_holo.render_3d = false                     # DATA ONLY — no 3D build/render at all
 	_holo.connect("snapshot", _apply_stats)     # feeds status bar + panels off the same stream
 	_holo.connect("one_to_one_changed", _on_one_to_one_changed)  # camera flips → sync panels + persist
+	# Qud's CurrentGameView, off the popup mirror's channel — the legacy screens it reports (the
+	# Looker) park the turn thread, so this cannot ride the snapshot. See PopupBridge.PollView.
+	_holo.connect("qud_view_changed", _apply_qud_view)
 	# a system-menu pick of "Control Mapping" mirrors into Raves' own screen (Qud
 	# opens its KeybindsScreen from the same answer). BOTH modes — user mode gets
 	# the extra RAVES section (golden restore) that 1:1 hides.

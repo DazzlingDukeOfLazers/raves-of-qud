@@ -7,6 +7,7 @@ class_name BridgeClient
 
 signal snapshot(data: Dictionary)
 signal popup(data: Dictionary)   # a Qud modal mirrored from the mod ({"type":"popup", active:…})
+signal qud_view(name: String)    # Qud's CurrentGameView changed (its legacy screens, e.g. "Looker")
 signal picker(data: Dictionary)  # Qud's PickGameObjectScreen mirrored ({"type":"picker", active:…})
 signal connected   # fires each time the bridge (re)connects
 
@@ -92,6 +93,10 @@ func _drain() -> void:
 				latest_popup = data
 			elif data.get("type", "") == "picker":
 				latest_picker = data
+			elif data.get("type", "") == "view":
+				# Qud's CurrentGameView, on its OWN frame because the legacy screens that matter
+				# park the turn thread and stop snapshots — see PopupBridge.PollView.
+				qud_view.emit(String(data.get("name", "")))
 			else:
 				if latest != null:
 					dropped += 1
