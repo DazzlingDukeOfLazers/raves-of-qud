@@ -110,6 +110,21 @@ const TITLE_LINE_MIN := 10.0       # the --| / |-- assemblies at each edge
 ## [Esc] Cancel rule at the bottom is NOT capped this way -- it keeps its own 1px end
 ## ticks down the sprite's full height, which is what Qud draws there.
 const CAP_H := 4.0
+## A rule break is capped on BOTH sides, and the two are not the same width. MEASURED off
+## Qud's divider 2026-08-09 (box x821-1098 w278, rule y471-472), every cap dy -1..+2:
+##   offsets 63-64   (2 wide)   end of the segment that reaches the box's LEFT edge
+##   offsets 72-75   (4 wide)   start of the segment heading for the centre
+##   offsets 202-205 (4 wide)   end of that segment on the other side
+##   offsets 213-214 (2 wide)   start of the segment reaching the RIGHT edge
+## So the cap facing the box EDGE is 2 wide and the one facing the CENTRE is 4 -- the same
+## square the ornaments' strokes terminate in. We drew only the 2-wide pair, so each break
+## was capped on one side and ran off square on the other.
+##
+## Anchored to l1 / r0 -- the same values the segments are drawn from -- rather than to
+## measured offsets, so the caps rasterise with their own segment instead of drifting from it
+## if the box width changes.
+const CAP_W_INNER := 4.0
+
 
 ## The emblem does not stop at the top rule -- three strokes carry on BELOW it, each ending
 ## in the same small square the rule breaks use. The extracted emblem PNG covers only the
@@ -435,21 +450,33 @@ func _draw_chrome() -> void:
 	# it looked like on screen.
 	for x in [l0 - 2, r1, c0 - 2, c1]:
 		_rect(off, Rect2(x, ly - CAP_H * 0.5 + 1.0, 2, CAP_H), C_TOPLINE)
+	for x in [l1, r0 - CAP_W_INNER]:
+		_rect(off, Rect2(x, ly - CAP_H * 0.5 + 1.0, CAP_W_INNER, CAP_H), C_TOPLINE)
 	_draw_emblem(off, cx)
 	_draw_roots(off, cx, ly)
 	# The context block is closed off by its own full-width divider, notched like the top
 	# line (Qud: top rule y320, divider y471 -- both the same strip, 151 apart).
 	if _ctx_box.visible:
 		var dy := ly + CTX_DIVIDER
-		for seg in [[0.0, l0], [l1, c0], [c1, r0], [r1, w]]:
+		# The divider's OUTER breaks are one pixel wider than the top rule's, on both sides.
+		# Measured: the top rule runs (0,65) and (212,277) while the divider runs (0,64) and
+		# (213,277), everything between them identical. Two separate sprites landing on
+		# different subpixel x, so it cannot be derived from the top rule -- and drawing both
+		# alike put each outer cap one pixel off in OPPOSITE directions, which is what gave
+		# it away.
+		var dl0 := l0 - 1.0
+		var dr1 := r1 + 1.0
+		for seg in [[0.0, dl0], [l1, c0], [c1, r0], [dr1, w]]:
 			_rect(off, Rect2(seg[0], dy, seg[1] - seg[0], 2), C_TOPLINE)
 		# Only the OUTER breaks are capped here. The centre break is filled by the ornament,
 		# and Qud draws no cap under it: its rule runs to offset 133 and resumes at 144 with
 		# the strokes in between. Drawing both put a cap column one pixel below the stems'
 		# feet -- offsets 132/133/144/145 reached dy+2 where Qud stops at +1, which is the
 		# only way the first build differed.
-		for x in [l0 - 2, r1]:
+		for x in [dl0 - 2, dr1]:
 			_rect(off, Rect2(x, dy - CAP_H * 0.5 + 1.0, 2, CAP_H), C_TOPLINE)
+		for x in [l1, r0 - CAP_W_INNER]:
+			_rect(off, Rect2(x, dy - CAP_H * 0.5 + 1.0, CAP_W_INNER, CAP_H), C_TOPLINE)
 		_draw_divider_orn(off, cx, dy)
 	if _title.visible:
 		# ─┤ Title ├─ edge assemblies, MEASURED off Qud's own titled popup rather than
