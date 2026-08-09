@@ -1991,3 +1991,38 @@ Also landed (Mac-side Stage H): `plat_mac.qud_install_dir()`, so `tools/capture/
 longer carries a `getattr(plat, "qud_install_dir", None)` fallback plus a duplicate copy of each
 platform's path. Verified end-to-end — the extractor carved 4 faces out of this Mac's install
 through the unified call.
+
+### Second merge with Lumpy, and the letter-key question settled — 2026-08-08
+
+`origin/dd/pc-lumpy-merge` merged again (their answers, the WM_CHAR/VK fix, `hv bridge`, the
+chargen carousel). Detail and the conflict-by-conflict resolutions are in
+`highvisor/docs/merge-plan-2026-08-08.md`.
+
+**The letter keys: both of us were half right.** Lumpy measured that on Windows `k/x/e/n/q` do
+nothing while `j` raises a PopupMessage *in Qud* — so in 1:1 Raves forwards letters to Qud and
+`MainFrame.STATUS_TAB_KEYS` never sees them. Their conclusion (use one form everywhere) is right.
+Their reason — "identical on both platforms" — is not: **measured here, `hv key raves k` opens
+Skills, and so does F2 + tab-click.** The letters do reach MainFrame on macOS. So the ground for
+one form is that F2 + tab-click works on BOTH and the letters work on one. The per-OS seam is gone
+from all seven status edges, and the note now carries both machines' measurements — worth keeping
+distinct, because a future Windows fix to the forwarding cannot be inferred from macOS behaviour.
+
+**Gates on the merged tree:** SPOT 5/5 · B1 Equipment **33/33 within ±0.02** · B2 item popup
+**7/7 at +0.00** · raves whole-tree tour **22/22, 0 EDGE / 0 ENV / 0 REFUSED** · qud tour
+**30/31**, whose one EDGE (`title->modding_toolkit`, a coordinate double-click) passed twice on
+immediate retry.
+
+**The Map Editor context menu works on macOS now** — ctrl+click paints an AgateWall, middle-click
+opens the five-row per-object menu, right-click erases. The earlier "right and middle click are
+dead" reading was wrong: macOS's display server converts Ctrl+left into a RIGHT button before Godot
+sees it, so Ctrl+click ran the ERASER and nothing could ever be placed — both handlers were
+correctly no-opping on an empty cell. `MapEditorScreen.gd` un-converts on `btn==RIGHT && ctrl`.
+The precondition of the test was broken and its silence was read as a finding.
+
+**A UI-sampler latch worth knowing about.** `StartupHook._uiSamplePending` is cleared by the
+sampler task itself, so a task queued and never run latches it true forever and sampling stops
+silently. That only became load-bearing with Lumpy's positive title naming, which needs a FRESH
+sample: after one deploy Qud sat at its title reporting `scene=MainMenu` and `hv state` answered
+`unknown` — the root of most Qud routes. A clean `hv restart qud` fixed it. The watchdog added here
+re-arms and logs; it did NOT fire in the clean run, so the restart is what recovered detection,
+not the watchdog.
