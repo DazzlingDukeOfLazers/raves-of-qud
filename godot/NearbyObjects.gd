@@ -17,6 +17,9 @@ extends PanelContainer
 ## NOTE: the whole-zone scan (RADIUS = zone size) is the basis for the future Points of Interest menu.
 
 signal left_edge_drag(dx: float)   # 1:1: the ||| grab-bar resizes the side column (as the log does)
+## A row was activated (Qud: clicking a nearby item opens its menu). Carries the OBJECT ID from
+## the mod's finder list, so the mod acts on the object the row was drawn from.
+signal object_activated(id: String)
 
 const MAX_ROWS := 25
 const RADIUS := 1   # king-move radius; 1 = the 3x3 (9 tiles) around the player
@@ -66,6 +69,8 @@ var _list: Control       # 1:1: the owner-drawn row list (the QoL path uses _rt 
 var _qud_rows: Array = []   # 1:1 rows: {tex, arrow, name, right}
 var _font: Font
 var _dragging := false
+var _press = null         # Vector2 while a button is down, for the click-not-drag test
+const CLICK_SLOP := 6.0   # same tolerance as the playfield's travel/interact clicks
 var _grab: Control        # the ||| bar's own hit strip, so only IT shows a resize cursor
 
 func _ready() -> void:
@@ -268,12 +273,41 @@ func _gui_input(e: InputEvent) -> void:
 	if e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_LEFT:
 		if e.pressed and e.position.x < float(SEP_MARGIN_1TO1):
 			_dragging = true
+			_press = e.position
 			accept_event()
+		elif e.pressed:
+			_press = e.position          # a press on the LIST, pending a release that stays put
 		elif not e.pressed:
+			var was_drag := _dragging
+			var press = _press
 			_dragging = false
+			_press = null
+			# Activate on RELEASE and only if the mouse barely moved: the same click-not-drag rule
+			# the playfield uses, so dragging the column edge past the rows never opens a menu.
+			if not was_drag and press != null and e.position.distance_to(press) <= CLICK_SLOP:
+				var id := _row_id_at(e.position)
+				if id != "":
+					object_activated.emit(id)
+					accept_event()
 	elif e is InputEventMouseMotion and _dragging:
 		left_edge_drag.emit(e.relative.x)
 		accept_event()
+
+## The id of the row under a PANEL-local point, or "" for the heading, the gaps, the grab bar, and
+## every part of this panel that is not a row. Rows are laid out by _draw_rows on `_list`, so the
+## geometry is read back from the same three constants that drew them rather than re-guessed.
+func _row_id_at(pos: Vector2) -> String:
+	if not _one_to_one or _list == null or _qud_rows.is_empty():
+		return ""
+	if pos.x < float(SEP_MARGIN_1TO1):
+		return ""                        # the ||| bar drags; it does not select
+	var y := pos.y + global_position.y - _list.global_position.y
+	if y < ROW0_TOP_1TO1:
+		return ""                        # the "Nearby objects" heading shares the surface
+	var i := int(floorf((y - ROW0_TOP_1TO1) / ROW_H_1TO1))
+	if i < 0 or i >= _qud_rows.size():
+		return ""
+	return String(_qud_rows[i].get("id", ""))
 
 ## Build the 1:1 rows from the mod's "nearby" array (Qud's ObjectFinder output, already filtered
 ## and sorted — order is Qud's, so it is preserved verbatim).
@@ -294,6 +328,7 @@ func _build_qud_rows(rows: Variant) -> void:
 			if o.has("weight"):
 				right = "{{K|%dlbs.}}" % int(o["weight"])
 			_qud_rows.append({
+				"id": String(o.get("id", "")),
 				"tex": _tiles.texture_for(o, _full),
 				"arrow": String(o.get("arrow", "")),
 				"name": String(o.get("name", "")),

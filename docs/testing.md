@@ -18,6 +18,7 @@ needs pixels or a live game.
 | typing guard | `python3 tools/regression/typing_guard_audit.py` | a keyboard hotkey dispatched from `_input` without `TypingGuard`, and any newly added text field |
 | Popup overlay render | `Godot --headless --path godot/ --quit-after 400 res://tests/popup_overlay_render.tscn` | a runtime error in `PopupOverlay.show_popup` — which leaves the overlay invisible and reads from outside as "the popup never mirrored" |
 | Panel grab-bar cursor | `Godot --headless --path godot/ --quit-after 400 res://tests/panel_grab_bar.tscn` | the ||| resize cursor spreading past the 20px bar it belongs to — reported from use as "I can't select nearby objects, the resize icon dominates" |
+| Nearby-row hit test | `Godot --headless --path godot/ --quit-after 400 res://tests/nearby_rows.tscn` | a click resolving to the WRONG row's object — off-by-one row arithmetic looks fine on screen and opens the wrong menu, which is worse than opening none |
 | State-graph panel render | `Godot --headless --path godot/ --script res://tests/state_graph_render.gd` | the panel's text builders against a fixture AND the real gametree.json — rows, markers, empty/null trees |
 | Godot parse + `_ready` | `Godot --headless --path godot/ --quit-after 120` | parse errors, autoload/`_ready` failures |
 | Main.gd deep check | `Godot --headless --path godot/ --check-only --script res://Main.gd` | a `class_name` parse error that would silently kill the Holodeck in the export |

@@ -2,6 +2,8 @@ using System;
 using XRL;                       // The
 using XRL.World;                 // Cell, GameObject, Zone
 using XRL.World.Capabilities;    // AutoAct
+using XRL.UI;                    // ObjectFinder — the nearby list Qud itself draws
+using Qud.API;                   // EquipmentAPI.TwiddleObject
 using ConsoleLib.Console;        // Keyboard.PushCommand
 
 namespace RavesOfQud
@@ -79,6 +81,64 @@ namespace RavesOfQud
             Keyboard.PushMouseEvent("AdventureMouseInteract", x, y);
             Log("[nav] interact " + x + "," + y);
             return true;
+        }
+
+        /// <summary>Activate a row of the Nearby Objects panel: Qud's item menu for THAT object.
+        ///
+        /// `Qud.UI.NearbyItemsWindow.OnSelect` is two lines and this is both of them:
+        ///
+        ///     GameManager.Instance.gameQueue.queueSingletonTask("nearby items twiddle",
+        ///         () => EquipmentAPI.TwiddleObject(data.go));
+        ///
+        /// Same queue, same singleton KEY (so a second click cannot stack a second menu), and the
+        /// same reason it must be the gameQueue rather than a threadpool -- InventoryExporter.Twiddle
+        /// carries the full account of what a twiddle off the turn thread does to itself.
+        ///
+        /// PLUS A WAKE, which Qud does not need and we do. That queue drains inside
+        /// `Keyboard.getvk(..., pumpActions: true)` -- the turn thread's input WAIT -- so it is
+        /// pumped when the thread wakes, and nothing about queueing a task wakes it. Qud's own
+        /// caller is a click in a focused window, which arrives as input; ours arrives on a socket
+        /// while the window is in the background, and the task then sat until something else woke
+        /// the loop (measured on `moveto`: nothing for 8s, then everything the moment Qud came
+        /// forward). `CmdNone` is the wake: `Keyboard.PushCommand` sets the same KeyEvent the
+        /// thread is blocked on, and XRLCore's CmdNone case refreshes the sidebar and takes no
+        /// turn. Queue FIRST, then wake, or the pump can run before there is anything to pump.
+        ///
+        /// The object is resolved from the finder's OWN list, not from the zone: the row exists
+        /// because that object is in `ObjectFinder.instance.peekItems()`, so that is where its id
+        /// means something. An id that has left the list is stale by definition -- the thing was
+        /// picked up, killed or walked away -- and is refused rather than hunted for.</summary>
+        public static bool TwiddleNearby(string id)
+        {
+            var gm = GameManager.Instance;
+            if (gm == null || gm.gameQueue == null) { Log("[nav] no gameQueue"); return false; }
+            gm.gameQueue.queueSingletonTask("nearby items twiddle", () =>
+            {
+                try
+                {
+                    GameObject go = FindNearby(id);
+                    if (go == null) { Log("[nav] nearby: no object with id " + id + " in the list"); return; }
+                    Log("[nav] nearby twiddle " + go.DisplayNameOnlyStripped);
+                    EquipmentAPI.TwiddleObject(go);
+                }
+                catch (Exception e) { Log("[nav] nearby twiddle error: " + e.Message); }
+            });
+            Keyboard.PushCommand("CmdNone", null);
+            return true;
+        }
+
+        /// <summary>The object behind a nearby-list id, from the list itself. Null if it has left.</summary>
+        private static GameObject FindNearby(string id)
+        {
+            if (string.IsNullOrEmpty(id)) return null;
+            var finder = ObjectFinder.instance;
+            if (finder == null) return null;
+            foreach (var item in finder.peekItems())
+            {
+                GameObject go = item.go;
+                if (go != null && go.ID == id) return go;
+            }
+            return null;
         }
 
         /// <summary>Apply a parked target. TURN THREAD ONLY — called from BeginTakeAction.</summary>

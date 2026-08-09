@@ -1418,6 +1418,7 @@ func _row_main() -> Control:
 	_nearby.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_nearby.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_nearby.left_edge_drag.connect(_on_sidebar_drag)   # 1:1: its ||| bar continues the log's handle
+	_nearby.object_activated.connect(_on_nearby_activated)  # clicking a row opens Qud's item menu
 	_msglog = load("res://MessageLog.gd").new()      # the real Message log view (its own file)
 	_msglog.name = "MessageLog"
 	_msglog.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -1706,6 +1707,13 @@ func _check_mod_version(data: Dictionary) -> void:
 
 ## Forward a Context-menu click to the Holodeck's bridge (Main owns the BridgeClient). No-op until the
 ## Holodeck is connected.
+## A Nearby Objects row was clicked. Qud's own list does exactly one thing on select — twiddle
+## that object (NearbyItemsWindow.OnSelect) — and the menu comes back over the popup mirror.
+func _on_nearby_activated(object_id: String) -> void:
+	if _holo != null and object_id != "":
+		_holo.request_nearby(object_id)
+
+
 func _on_context_command(payload: Dictionary) -> void:
 	if _holo == null:
 		return

@@ -1545,6 +1545,17 @@ namespace RavesOfQud
                     }
                     catch (Exception e) { Server.Log("moveto error: " + e.Message); }
                     break;
+                case "nearby":
+                    // A row of the Nearby Objects panel was activated. The id came from the same
+                    // finder list the row was drawn from -- see Navigator.TwiddleNearby.
+                    try
+                    {
+                        f.TryGetValue("id", out string nbId);
+                        Navigator.TwiddleNearby(nbId);
+                    }
+                    catch (Exception e) { Server.Log("nearby error: " + e.Message); }
+                    break;
+
                 case "interact":
                     // RIGHT-CLICK a cell. Qud's own AdventureMouseInteract handler decides what that
                     // means (twiddle, default right-click action, or a nudge sound on empty ground);

@@ -1007,7 +1007,14 @@ namespace RavesOfQud
                         try { arrow = Directions.GetUITextArrowForDirection(dir) ?? ""; } catch { }
                         try { takeable = go.IsTakeable(); } catch { }
                         try { if (takeable) weight = go.Weight; } catch { }
+                        // The ID is what makes a row CLICKABLE: Raves sends it back and the mod
+                        // resolves it against this same finder list, so the object acted on is the
+                        // one the row is drawn from -- not "whatever is topmost in that cell",
+                        // which differs the moment anything stacks.
+                        string oid = "";
+                        try { oid = go.ID ?? ""; } catch { }
                         j.BeginObject()
+                            .Member("id", oid)
                             .Member("name", nm)      // DisplayName (markup kept — client colours it)
                             .Member("dir", dir)
                             .Member("arrow", arrow);

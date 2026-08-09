@@ -661,6 +661,12 @@ func request_item_action(item_id: String, action: String) -> void:
 	if client != null:
 		client.send_command("itemaction", {"item": item_id, "command": action})
 
+## A Nearby Objects row was clicked: Qud's item menu for THAT object. The id is the mod's own
+## finder-list id (see mod/Navigator.TwiddleNearby), so the object acted on is the one drawn.
+func request_nearby(object_id: String) -> void:
+	if client != null:
+		client.send_command("nearby", {"id": object_id})
+
 # --- direction picker (for abilities like Make Camp that prompt for a direction) ----------------
 # Qud's PickDirection blocks the turn thread waiting for a LeftClick at a CELL (it derives the
 # direction). We show the ability's icon as a cursor over the Holodeck; clicking an adjacent tile
