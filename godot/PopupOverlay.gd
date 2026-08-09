@@ -81,7 +81,14 @@ const BOX_SPACING := 10.0
 const BOX_PAD_LR := 20.0
 const BOX_PAD_B := 5.0
 const CTX_H := 138.12              # ContextContainer, a CONSTANT across every item probed
-const CROME_H := 20.0              # MenuCrome (the bottom command bar)
+const CROME_H := 20.0              # MenuCrome (the bottom command bar) WITH entries
+# …and WITHOUT any: 15, the bare height of the two line sprites. Qud's death screen is the
+# case -- it offers four options and no bottom commands at all, so its MenuCrome holds only
+# `--|` and `|--`. Measured off Qud's own MenuControll (uiprobe target=PopupMessage):
+# 5 padB + 10 spacing + 172.34 content + 15 = 202.34, against the 207.36 a fixed 20 gives.
+# That 5px went into the box height, and a centred box turned it into every option row
+# sitting ~4px off Qud's.
+const CROME_H_BARE := 15.0
 const CROME_SP := 5.0              # its spacing, and the gutter inside each option
 const CROME_PAD_L := 2.0           # MenuOptionText padL
 const CROME_CURSOR := 8.0          # its Selection Cursor cell -- present even when unselected
@@ -568,7 +575,8 @@ func _measure_box(is_input: bool) -> void:
 	if _btn_row.get_child_count() > 0:
 		crome_ask = _crome_w + 2.0 * CROME_SP + 2.0 * CROME_LINE_MIN - 2.0 * BOX_PAD_LR
 	var box_content_w := maxf(content_w + 2.0 * CONTENT_PAD_LR, crome_ask)
-	_btn_row.custom_minimum_size = Vector2(_snap(maxf(0.0, crome_ask)), CROME_H)
+	var crome_h := CROME_H if _btn_row.get_child_count() > 0 else CROME_H_BARE
+	_btn_row.custom_minimum_size = Vector2(_snap(maxf(0.0, crome_ask)), crome_h)
 	if _ctx_box.visible:
 		box_content_w = maxf(box_content_w, _ctx_w)
 	if _title.visible:
@@ -580,7 +588,7 @@ func _measure_box(is_input: bool) -> void:
 	if _title.visible:
 		parts.append(CROME_H)
 	parts.append(content_h)
-	parts.append(CROME_H)
+	parts.append(crome_h)
 	_box_h = BOX_PAD_B + BOX_SPACING * (parts.size() - 1)
 	for v in parts:
 		_box_h += v

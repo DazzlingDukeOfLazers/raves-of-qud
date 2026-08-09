@@ -36,6 +36,7 @@ func _ready() -> void:
 	_case("death popup (message WITH newlines + 4 options)", _death_menu())
 	_newlines_are_line_breaks()
 	_markup_palette_is_seeded()
+	_box_heights_match_qud()
 	_answer_names_the_popup()
 	_doubled_sigil_is_a_literal()
 	print("\n%s (%d checks failed)" % ["all good" if _failed.is_empty() else "FAILED", _failed.size()])
@@ -142,6 +143,28 @@ func _markup_palette_is_seeded() -> void:
 	_check("a {{W|…}} span uses it",
 		QudText.to_bbcode("{{W|ogre ape}}", pal).contains("cfc041"),
 		QudText.to_bbcode("{{W|ogre ape}}", pal))
+
+
+## Qud's own box heights, read off `MenuControll` with `uiprobe target=PopupMessage` (the death
+## screen) and off the six-popup table in reports/2026-08-05-item-popup. These are MEASURED
+## numbers, not ones this model produced — which is the only reason they are worth asserting.
+##
+## The death screen is here because it is the one popup with NO bottom commands: its MenuCrome
+## holds just the two line sprites and stands 15 tall, not 20. A fixed 20 put 5px into the box
+## height, and a centred box spread that over every row (~4px off Qud's, uniformly).
+func _box_heights_match_qud() -> void:
+	var cases := [
+		["death screen (no bottom commands)", _death_menu(), 202.34],
+		["quest notice (1 command)", _message(), 57.12],
+		["cloth robe menu (context + 1 command)", _item_menu(), 407.12],
+	]
+	for c in cases:
+		var ov := PopupOverlay.new()
+		add_child(ov)
+		ov.show_popup(c[1], _palette())
+		_check("box height, %s: %.2f" % [c[0], float(c[2])],
+			absf(ov._box_h - float(c[2])) <= 0.05, "got %.2f, Qud measures %.2f" % [ov._box_h, c[2]])
+		ov.queue_free()
 
 
 func _palette() -> Dictionary:

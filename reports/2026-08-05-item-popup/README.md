@@ -144,6 +144,7 @@ the bottom rule all landed on Qud's pixel rows/columns with zero delta.
 | wish prompt (`CmdWish`) | AskString input, 2 entries | 650.00×76.72 @ 635.00,501.64 | exact |
 | quest notice | message, 1 entry | 462.81×57.12 @ 728.59,511.44 | exact |
 | quit confirm (`CmdQuit`) | yes/no, 3 entries | 453.40×57.12 @ 733.30,511.44 | exact |
+| **death screen** | menu, **0 entries** | **278.21×202.34 @ 820.90,438.83** | exact, after the fix below |
 
 Three of those exist because **each term of the width rule wins on a different popup**, which one
 capture could never have shown:
@@ -153,6 +154,36 @@ capture could never have shown:
   so a client that sized on the list alone would draw that popup a little over half Qud's width
 - the quit confirm by its COMMAND BAR (3 entries + 2 spacings + 2 line sprites at a 25px floor =
   453.40) — its message only asks for 383.40, and nothing but a multi-button confirm reaches it
+
+### 2026-08-09 — a seventh popup, and the term it exposed: an EMPTY MenuCrome is 15, not 20
+
+The six above all have at least one bottom command, so all six pin `MenuCrome` at 20 and none of
+them can see what it does with none. Qud's death screen has none — four options, no bottom bar —
+and its MenuCrome holds only the two line sprites, standing **15.00**. Read off Qud's own
+`MenuControll` (`uiprobe target=PopupMessage`, with the popup live):
+
+    MenuControll  278.21x202.34 @ 820.90,438.83   sp=10 pad=20,20,0,5
+      Scroll View 238.21x172.34
+        Message   228.21x60.34     <- 3 lines
+        options   228.21x110.00    <- 4 x 26 + 3 x 2
+      MenuCrome   238.21x15.00     <- two line sprites, no entries
+
+    5 padB + 10 spacing + 172.34 content + 15 = 202.34, against 207.36 for a fixed 20.
+
+Those 5px went into the box height, and because the box is CENTRED they came out as every option
+row sitting ~4px off Qud's — a uniform offset across the whole row family, which is the signature
+of one term rather than a per-row bug. Fixed in `PopupOverlay` (`CROME_H_BARE`); the three
+measured box heights (this one, the quest notice, the cloth robe) are asserted in
+`tests/popup_overlay_render.gd`, and the death-screen one fails with the old fixed 20.
+
+Verified live, Raves against Qud on the same popup: the opaque fill is **identical** —
+top 419, bottom 638, left 821, right 1098 in both. Text rows land within 1px, which is the ink-top
+grouping's own noise (Qud's own option steps read 29/28/28 for rows that are exactly 28 apart).
+Region diff 7.45% -> 3.00% of pixels, at parity with the message-less system menu's 3.31%.
+
+**Still open on this popup:** the bottom rule. Qud draws the entry-less MenuCrome as `--|` + `|--`
+with a centred gap (two 136.60 sprites at 820.90 and 962.50); Raves draws one plain rule. That is
+3.42% of the region on its own.
 
 ### The one concession, stated rather than buried
 
