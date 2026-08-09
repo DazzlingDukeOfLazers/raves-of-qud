@@ -37,6 +37,7 @@ func _ready() -> void:
 	_newlines_are_line_breaks()
 	_markup_palette_is_seeded()
 	_box_heights_match_qud()
+	_long_message_wraps_like_qud()
 	_answer_names_the_popup()
 	await _outside_field_owns_the_keyboard()
 	_doubled_sigil_is_a_literal()
@@ -202,6 +203,51 @@ func _outside_field_owns_the_keyboard() -> void:
 		not answered.is_empty())
 	outside.queue_free()
 	ov.queue_free()
+
+
+## A LONG message wraps at Qud's cap and the box then takes the longest line that came out.
+## Numbers measured off Qud's own live popup (`uiprobe target=PopupMessage`, security door):
+##
+##     MenuControll 789.20x285.68     Message 739.20x100.56  (5 lines at 20.12)
+##
+## Raves drew that message as one 1250px slab: it capped at a flat 1240 and never re-measured the
+## wrapped result. Reported through the feedback form — "Let's fix the 1:1 width to match Qud".
+func _long_message_wraps_like_qud() -> void:
+	var ov := PopupOverlay.new()
+	add_child(ov)
+	ov.show_popup(_security_door(), _palette())
+	_check("long message: box width 789.20", absf(ov._box_w - 789.20) <= 0.05,
+		"got %.2f, Qud measures 789.20" % ov._box_w)
+	_check("long message: box height 285.68", absf(ov._box_h - 285.68) <= 0.05,
+		"got %.2f, Qud measures 285.68" % ov._box_h)
+	_check("long message: text block 739.20 wide", absf(ov._msg_w - 739.20) <= 0.05,
+		"got %.2f, Qud measures 739.20" % ov._msg_w)
+	_check("long message: 5 wrapped lines (100.56 tall)", absf(ov._msg_h - 100.60) <= 0.10,
+		"got %.2f, Qud measures 100.56" % ov._msg_h)
+	ov.queue_free()
+
+	# The wrapper itself, since the sizes above only see its longest line.
+	var wrapped := PopupOverlay._wrap(PackedStringArray(["aaa bbb ccc ddd"]), 7)
+	_check("wrap breaks on words, not mid-word",
+		Array(wrapped) == ["aaa bbb", "ccc ddd"], str(Array(wrapped)))
+	var unbreakable := PopupOverlay._wrap(PackedStringArray(["short enormouslylongunbreakableword"]), 10)
+	_check("a word longer than the column count is left whole, not split",
+		Array(unbreakable) == ["short", "enormouslylongunbreakableword"], str(Array(unbreakable)))
+
+
+## Qud's look-at for a security door — the message the feedback names, verbatim off the wire.
+func _security_door() -> Dictionary:
+	return {
+		"type": "popup", "active": true, "id": 140, "kind": "message",
+		"message": "{{y|A furrowed metal plate is fit to the arch of the doorway, and a sliding "
+			+ "panel sits recessed in the center. The panel is impressed with the mold of a key "
+			+ "card.\n\nPerfect}}",
+		"title": "", "input": false, "inputDefault": "",
+		"buttons": [{"text": "{{W|press [Space]}}", "command": "Accept", "hotkey": "Accept"}],
+		"options": [],
+		"context": {"frame": true, "text": "{{y|security door}}", "textColor": "#b1c9c3",
+			"fg": "#b1c9c3", "dt": "#4fa8c4"},
+	}
 
 
 func _palette() -> Dictionary:

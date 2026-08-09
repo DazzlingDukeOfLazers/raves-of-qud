@@ -154,7 +154,19 @@ const ROW_H := 26.0                # MenuOptionText(Clone) in the options area
 const ROW_TEXT_X := 15.0           # padL 2 + cursor 8 + spacing 5
 const CONTENT_PAD_LR := 5.0        # Content padL/padR
 const MSG_LINE := 20.12            # Qud's Message/ContextItemText line box at font 16
-const MSG_W_MAX := 1240.0          # our own wrap cap; Qud's comes from the caller
+# How wide the message may get before it wraps. MEASURED, not derived, and the difference matters.
+# `PopupMessage.SizeContentToWidth` caps the BOX at 840 (MaximumPreferredSize.x), which would leave
+# the text 790 — and wrapping there gives an 82-column line where Qud draws 77. Qud's own Message
+# element measures 739.20 on a message long enough to fill it (uiprobe, the security door), so that
+# is the number: the text wraps at 739.20 / 9.6 = 77 columns and the box takes the longest line
+# that results. The 840 cap is real but is not what bites first -- something narrower wraps the
+# text before it can reach it, and the prefab's own width is the likely candidate.
+#
+# UNDERDETERMINED BY ONE SAMPLE, stated so nobody re-derives it from thin air: wrapping this
+# message at 77, 78 or 79 columns all produce Qud's 3 lines with a longest of 77. 77 is chosen
+# because it is the width Qud reports, not a fitted number. The test pins Qud's measured box
+# (789.20 x 285.68), so a message that does tell the three apart will fail it rather than drift.
+const MSG_W_MAX := 739.20
 const EDIT_W := 600.0              # AskString inputbox -- what makes the wish box 650 wide
 const EDIT_H := 17.6
 
@@ -762,6 +774,33 @@ func _draw_title() -> void:
 ## popups: 278.21->278 (x821, Qud 821), 239.81->240 (x840, Qud 840), 433.61->434 (x743,
 ## Qud 743), 650->650. Never round a POSITION here -- only the model's own widths, once,
 ## where Godot would otherwise round them for us in the wrong direction.
+## Greedy word wrap at `cols` columns, applied per already-split line. Qud's text is monospaced and
+## TMP breaks on words, so a line fills until the next word would overrun and then breaks. A word
+## longer than the whole column count is left over-long rather than split, which is what TMP does
+## with an unbreakable run. Explicit newlines are preserved — they arrive as separate entries.
+static func _wrap(lines: PackedStringArray, cols: int) -> PackedStringArray:
+	if cols <= 0:
+		return lines
+	var out := PackedStringArray()
+	for raw in lines:
+		var line := String(raw)
+		if line.length() <= cols:
+			out.append(line)
+			continue
+		var cur := ""
+		for word in line.split(" "):
+			var w := String(word)
+			if cur == "":
+				cur = w
+			elif cur.length() + 1 + w.length() <= cols:
+				cur += " " + w
+			else:
+				out.append(cur)
+				cur = w
+		out.append(cur)
+	return out
+
+
 static func _snap(v: float) -> float:
 	return roundf(v)
 
@@ -877,16 +916,22 @@ func show_popup(data: Dictionary, palette: Dictionary) -> void:
 		# box there and pushed every option row down by the same amount.
 		if msg_lines.size() > 1 and String(msg_lines[msg_lines.size() - 1]).strip_edges() == "":
 			msg_lines.remove_at(msg_lines.size() - 1)
+		# WRAP FIRST, THEN SIZE TO THE LONGEST LINE THAT CAME OUT — Qud's own two steps, and the
+		# second is the one that was missing. `PopupMessage.SizeContentToWidth` caps the box at
+		#     MaximumPreferredSize = new Vector2(840f, …)
+		# so the text wraps inside it; the box then takes the text's PREFERRED width, which for
+		# wrapped text is its longest RENDERED line — always short of the cap, because lines break
+		# on words. Measured on the security-door message: Qud's box is 789.20 and its Message
+		# 739.20, i.e. 77 columns, wrapped at 82. Raves capped at a flat 1240 and never re-measured,
+		# so a long message drew one 1250px slab where Qud draws five wrapped lines.
+		msg_lines = _wrap(msg_lines, int(floorf(MSG_W_MAX / pitch)))
 		var natural := 0.0
 		for ln in msg_lines:
 			natural = maxf(natural, pitch * String(ln).length())
 		var msg_w := minf(natural, MSG_W_MAX)
 		if is_input:
 			msg_w = EDIT_W          # an AskString is sized by its inputbox, not its prompt
-		var lines := 0.0
-		for ln in msg_lines:
-			lines += maxf(1.0, ceilf(pitch * String(ln).length() / maxf(1.0, msg_w)))
-		lines = maxf(1.0, lines)
+		var lines := maxf(1.0, float(msg_lines.size()))
 		_msg_slot.custom_minimum_size = Vector2(msg_w, _snap(MSG_LINE * lines))
 		_msg_w = msg_w
 		_msg_h = MSG_LINE * lines

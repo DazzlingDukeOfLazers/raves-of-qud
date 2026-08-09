@@ -185,6 +185,38 @@ Region diff 7.45% -> 3.00% of pixels, at parity with the message-less system men
 with a centred gap (two 136.60 sprites at 820.90 and 962.50); Raves draws one plain rule. That is
 3.42% of the region on its own.
 
+### 2026-08-09 — a LONG message: wrap first, then size to the longest line that came out
+
+Raised from the feedback form ("Let's fix the 1:1 width to match Qud") on Qud's security-door
+description. Qud, live (`uiprobe target=PopupMessage`):
+
+    MenuControll  789.20x285.68 @ 565.40,397.16
+      ContextContainer 749.20x138.12
+      Scroll View      749.20x102.56
+        Content          749.20x102.56
+          Message          739.20x100.56   <- 5 lines at 20.12, longest 77 columns
+      MenuCrome        749.20x 20.00       <- one entry, "press [Space]"
+
+Raves drew the same message as ONE 1250px slab. Two separate mistakes: it capped the text at a
+flat 1240px, and it never re-measured the result — `PopupMessage.SizeContentToWidth` wraps the
+text and then takes its PREFERRED width, which for wrapped text is the longest RENDERED line,
+always short of the cap because lines break on words.
+
+**The wire message is NOT pre-wrapped** — checked on the bridge, it arrives as one 158-character
+line plus `\n\nPerfect`. Qud wraps at display time, so Raves has to wrap too; honouring only the
+explicit newlines is not enough.
+
+**The cap is measured, and it is underdetermined by one sample.** Qud's code caps the BOX at 840
+(`MaximumPreferredSize.x`), which would leave the text 790 and wrap at 82 columns — Raves did
+exactly that and drew an 837.20 box against Qud's 789.20. Something narrower wraps the text first;
+the prefab's own width is the likely candidate. `MSG_W_MAX` is therefore Qud's measured Message
+width, 739.20 (77 columns). Wrapping this message at 77, 78 or 79 all give Qud's 3 lines with a
+longest of 77, so a second long message would be worth measuring; the test pins Qud's box
+(789.20 x 285.68) so a message that tells them apart fails loudly instead of drifting.
+
+Verified live: Raves' fill and Qud's are both 790x304 at 565,377 — same width, same height, same
+origin — and the region diff is 4.90%, text antialiasing.
+
 ### The one concession, stated rather than buried
 
 Godot snaps every Control rect to a whole pixel, so the carrier `PanelContainer` cannot be 278.21
