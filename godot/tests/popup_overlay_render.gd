@@ -38,6 +38,7 @@ func _ready() -> void:
 	_markup_palette_is_seeded()
 	_box_heights_match_qud()
 	_answer_names_the_popup()
+	await _outside_field_owns_the_keyboard()
 	_doubled_sigil_is_a_literal()
 	print("\n%s (%d checks failed)" % ["all good" if _failed.is_empty() else "FAILED", _failed.size()])
 	get_tree().quit(1 if not _failed.is_empty() else 0)
@@ -165,6 +166,42 @@ func _box_heights_match_qud() -> void:
 		_check("box height, %s: %.2f" % [c[0], float(c[2])],
 			absf(ov._box_h - float(c[2])) <= 0.05, "got %.2f, Qud measures %.2f" % [ov._box_h, c[2]])
 		ov.queue_free()
+
+
+## A Qud message popup answers to SPACE ("press [Space]"), and this handler runs in `_input`,
+## before the GUI pass, exempt from the typing guard so Qud's own AskString can submit while
+## typing. That exemption is about THIS overlay's field. It used to read as "act while anyone is
+## typing anywhere", so with the feedback note open, every space the viewer typed answered the
+## popup instead of reaching the note — the text came out "Securiabc", both spaces gone.
+func _outside_field_owns_the_keyboard() -> void:
+	var ov := PopupOverlay.new()
+	add_child(ov)
+	ov.show_popup(_message(), _palette())
+	var answered: Array = []
+	ov.answered.connect(func(p: Dictionary): answered.append(p))
+	var outside := LineEdit.new()
+	add_child(outside)
+	outside.grab_focus()
+	await get_tree().process_frame
+	_check("the outside field really has focus (else this proves nothing)",
+		get_viewport().gui_get_focus_owner() == outside)
+
+	var space := InputEventKey.new()
+	space.keycode = KEY_SPACE
+	space.pressed = true
+	ov._input(space)
+	_check("a space does NOT answer the popup while another field has focus",
+		answered.is_empty() and ov.visible,
+		"answered %s" % [answered])
+
+	# …and the popup is not simply deaf: with nothing being typed into, Space still answers it.
+	outside.release_focus()
+	await get_tree().process_frame
+	ov._input(space)
+	_check("…and Space still answers it once nothing is being typed into",
+		not answered.is_empty())
+	outside.queue_free()
+	ov.queue_free()
 
 
 func _palette() -> Dictionary:

@@ -1038,6 +1038,15 @@ func _input(event: InputEvent) -> void:
 		return
 	if _edit.visible:
 		return                      # text prompt: let the LineEdit type; Enter/Esc via its gui_input
+	# SOMEONE ELSE'S TEXT FIELD OWNS THE KEYBOARD. This handler is exempt from the typing guard so
+	# Qud's own AskString can submit while typing -- but that exemption is about OUR field, and it
+	# was reading as "act while anyone is typing anywhere". A Qud message popup says `press [Space]`,
+	# and with the feedback note open underneath, every space the viewer typed answered the popup
+	# instead of reaching the note: the text came out "Securiabc" with both spaces gone.
+	# So: our own field, act; a field outside this overlay, it is not our keyboard.
+	var focused := get_viewport().gui_get_focus_owner()
+	if (focused is LineEdit or focused is TextEdit) and not is_ancestor_of(focused):
+		return
 	if not (event is InputEventKey and event.pressed and not event.echo):
 		return
 	var kc: int = event.keycode

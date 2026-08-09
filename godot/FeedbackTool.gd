@@ -45,7 +45,11 @@ func register_provider(n: Node) -> void:
 		_providers.append(n)
 
 func _ready() -> void:
-	layer = 120   # above game popups (PopupOverlay) — feedback can be ABOUT a popup
+	# ABOVE game popups (PopupOverlay is 130): feedback can be ABOUT a popup, so the popup must not
+	# cover the form describing it. This said 120 while claiming to be above -- the comment was the
+	# intent and the number was left behind when PopupOverlay moved up, which is how a Qud modal
+	# ended up drawn over the note field.
+	layer = 140
 
 func _input(event: InputEvent) -> void:
 	# Modal while open: the form owns every event except its own editing.
