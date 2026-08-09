@@ -46,7 +46,9 @@ var overlay_check: Callable = Callable()   # MainFrame: "is a frame overlay (sta
 var _travel_press = null        # Vector2 while the button is down, else null
 const TRAVEL_SLOP := 6.0
 var _binds := QudBinds.new()    # the player's Qud keybindings — custom-remap fallback routing
-var _palette := {}              # latest Qud colour map (code -> hex) from snapshots, for popup markup
+var _palette := QudPalette.markup()   # Qud colour map (code -> hex) for popup markup.
+                                # Seeded from the canonical table, then replaced by the
+                                # live one on the first snapshot -- see QudPalette.markup().
 var _char_creator: CharacterCreator
 var renderer: ZoneRenderer
 var store := WorldStore.new()   # Phase-0 world store; renderer reads the live zone from it

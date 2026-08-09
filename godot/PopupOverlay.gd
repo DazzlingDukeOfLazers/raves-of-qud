@@ -856,11 +856,29 @@ func show_popup(data: Dictionary, palette: Dictionary) -> void:
 	# AskString gets Qud's own 600px inputbox width instead.
 	if _msg.visible:
 		var f := _root.get_theme_font("font", "Label")
-		var natural := _pitch(f, 16) * QudText.strip(msg_raw).length()
+		var pitch := _pitch(f, 16)
+		# SIZED PER LINE. A message can carry Qud's own line breaks -- the death popup is
+		# "You died.\n\nYou were killed by an {{W|ogre ape}}.\n" and Qud draws it on three
+		# lines. Measuring the whole string end to end called that one 60-character line, so
+		# the box came out that wide and one line tall. The width is the LONGEST line; the
+		# height counts every explicit line, each wrapped in turn (an empty line still
+		# occupies one, which is what makes the blank between the two sentences).
+		var msg_lines := QudText.strip(msg_raw).split("\n")
+		# Qud draws no TRAILING blank line. Its death message ends "…ogre ape.\n" and the option
+		# list starts one line under the text, not two -- measured, keeping it left 17px of empty
+		# box there and pushed every option row down by the same amount.
+		if msg_lines.size() > 1 and String(msg_lines[msg_lines.size() - 1]).strip_edges() == "":
+			msg_lines.remove_at(msg_lines.size() - 1)
+		var natural := 0.0
+		for ln in msg_lines:
+			natural = maxf(natural, pitch * String(ln).length())
 		var msg_w := minf(natural, MSG_W_MAX)
 		if is_input:
 			msg_w = EDIT_W          # an AskString is sized by its inputbox, not its prompt
-		var lines := maxf(1.0, ceilf(natural / maxf(1.0, msg_w)))
+		var lines := 0.0
+		for ln in msg_lines:
+			lines += maxf(1.0, ceilf(pitch * String(ln).length() / maxf(1.0, msg_w)))
+		lines = maxf(1.0, lines)
 		_msg_slot.custom_minimum_size = Vector2(msg_w, _snap(MSG_LINE * lines))
 		_msg_w = msg_w
 		_msg_h = MSG_LINE * lines

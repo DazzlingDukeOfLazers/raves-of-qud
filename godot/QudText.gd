@@ -177,7 +177,14 @@ static func color_of_code(code: String, palette: Dictionary, default_color := Co
 ## "cloth robe ♦1 ○0" arrived as "cloth robe 1 0". Map them to the real characters.
 const CP437 := {
 	1: "☺", 2: "☻", 3: "♥", 4: "♦", 5: "♣", 6: "♠", 7: "•", 8: "◘",
-	9: "○", 10: "◙", 11: "♂", 12: "♀", 13: "♪", 14: "♫", 15: "☼",
+	11: "♂", 12: "♀", 14: "♫", 15: "☼",
+	# 9, 10 and 13 are DELIBERATELY ABSENT. CP437 has glyphs for them (○ ◙ ♪) but in a
+	# string they are tab, LINE FEED and carriage return, and Qud lays them out as
+	# whitespace -- its death popup draws "You died." / blank / "You were killed by an
+	# ogre ape." on three lines. Mapping 10 to ◙ turned every one of those breaks into a
+	# visible glyph on one long line ("You died.◙◙You were killed by..."), which is also
+	# why the box measured one 60-character line wide. Qud can only reach the real glyphs
+	# through a raw control byte, which would wreck its own layout the same way.
 	16: "►", 17: "◄", 18: "↕", 19: "‼", 20: "¶", 21: "§", 22: "▬", 23: "↨",
 	24: "↑", 25: "↓", 26: "→", 27: "←", 28: "∟", 29: "↔", 30: "▲", 31: "▼",
 	# CP437's HIGH range reaches us as the same byte reinterpreted as Latin-1, so Qud's step

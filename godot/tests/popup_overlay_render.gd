@@ -33,6 +33,9 @@ func _ready() -> void:
 	_case("TITLED option menu (Select Controller, 2 options)", _titled_menu())
 	_case("plain message (quest notice)", _message())
 	_case("AskString input (wish prompt)", _input_prompt())
+	_case("death popup (message WITH newlines + 4 options)", _death_menu())
+	_newlines_are_line_breaks()
+	_markup_palette_is_seeded()
 	_answer_names_the_popup()
 	_doubled_sigil_is_a_literal()
 	print("\n%s (%d checks failed)" % ["all good" if _failed.is_empty() else "FAILED", _failed.size()])
@@ -98,6 +101,49 @@ func _answer_names_the_popup() -> void:
 	ov.queue_free()
 
 
+## Qud's own line breaks must STAY line breaks. CP437 has glyphs for bytes 9/10/13 (○ ◙ ♪)
+## and QudText.cp437 substituted them, so the death popup's "You died.\n\nYou were killed by
+## an ogre ape.\n" drew as ONE line reading "You died.◙◙You were killed by an ogre ape.◙" --
+## against Qud's three. It also mis-sized the box, which was measured off that one long line.
+func _newlines_are_line_breaks() -> void:
+	var msg := "{{y|You died.\n\nYou were killed by an {{W|ogre ape}}.\n}}"
+	var stripped := QudText.strip(msg)
+	# cp437() is the function that had the bug, so check IT, not a caller that never
+	# routed through it -- `strip` does not, and a check on `strip` passed with the bug in.
+	_check("cp437 leaves tab/LF/CR alone",
+		QudText.cp437("a\tb\nc\rd") == "a\tb\nc\rd", QudText.cp437("a\tb\nc\rd"))
+	_check("a newline survives to_bbcode",
+		QudText.to_bbcode(msg, _palette()).contains("\n") \
+			and not QudText.to_bbcode(msg, _palette()).contains("◙"))
+	# …and the box is sized by the LONGEST line, not by every line laid end to end.
+	var ov := PopupOverlay.new()
+	add_child(ov)
+	ov.show_popup(_death_menu(), _palette())
+	var longest := 0
+	for ln in stripped.split("\n"):
+		longest = maxi(longest, String(ln).length())
+	_check("message box is sized by the longest line",
+		ov._msg_w < ov._pitch(ov._root.get_theme_font("font", "Label"), 16) * (stripped.length() - 2),
+		"msg_w %.1f for a %d-char message whose longest line is %d"
+			% [ov._msg_w, stripped.length(), longest])
+	ov.queue_free()
+
+
+## The markup palette must be Qud's colours BEFORE any snapshot arrives. A popup parks Qud's
+## turn thread, so snapshots stop while one is up -- a client that connects (or restarts) then
+## never gets the live palette, and every {{code|...}} span fell back to white. Measured on the
+## death screen: Qud drew "{{W|ogre ape}}" gold (164,157,53 on screen), Raves drew it white.
+func _markup_palette_is_seeded() -> void:
+	var pal := QudPalette.markup()
+	_check("markup palette resolves W to gold, not white",
+		String(pal.get("W", "")).to_lower() == "#cfc041", str(pal.get("W", "<missing>")))
+	_check("markup palette covers every canonical code",
+		pal.size() == QudPalette.COLORS.size(), "%d of %d" % [pal.size(), QudPalette.COLORS.size()])
+	_check("a {{W|…}} span uses it",
+		QudText.to_bbcode("{{W|ogre ape}}", pal).contains("cfc041"),
+		QudText.to_bbcode("{{W|ogre ape}}", pal))
+
+
 func _palette() -> Dictionary:
 	return {"y": "#e8d9a0", "W": "#ffffff", "K": "#404040", "c": "#4fa8c4", "r": "#a04040"}
 
@@ -146,6 +192,23 @@ func _message() -> Dictionary:
 		"inputDefault": "",
 		"buttons": [{"text": "{{W|[Space]}} OK", "command": "Accept", "hotkey": "Accept"}],
 		"options": [],
+	}
+
+
+## Qud's death screen: a multi-LINE message above an option list. The only mirrored popup
+## that carries real newlines, and the reason they are checked at all.
+func _death_menu() -> Dictionary:
+	return {
+		"type": "popup", "active": true, "id": 60, "kind": "menu",
+		"message": "{{y|You died.\n\nYou were killed by an {{W|ogre ape}}.\n}}",
+		"title": "", "input": false, "inputDefault": "",
+		"buttons": [],
+		"options": [
+			{"text": "{{y|View final messages}}", "command": "option:0", "hotkey": ""},
+			{"text": "{{y|Reload from checkpoint}}", "command": "option:1", "hotkey": ""},
+			{"text": "{{y|Retire character}}", "command": "option:2", "hotkey": ""},
+			{"text": "{{y|Quit to main menu}}", "command": "option:3", "hotkey": ""},
+		],
 	}
 
 

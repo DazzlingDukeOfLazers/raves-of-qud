@@ -36,3 +36,18 @@ const AMBER := Color("f15f22")        # o — cooldowns / warnings
 ## Look up a colour by its Qud code (e.g. "R"), falling back to white for an unknown code.
 static func of(code: String, fallback := Color.WHITE) -> Color:
 	return COLORS.get(code, fallback)
+
+
+## The same table in the shape QudText wants: code -> "#rrggbb".
+##
+## A STARTING VALUE for the markup palette, so a client that has not seen a snapshot yet still
+## draws Qud's colours. The snapshot palette is the live source of truth and overwrites this the
+## moment one arrives -- but a POPUP blocks Qud's turn thread, and snapshots stop while it is up.
+## Connect (or restart) while a popup is on screen and none ever arrives, so every {{code|...}}
+## span fell back to white: Qud's death screen drew its "{{W|ogre ape}}" in gold and Raves drew it
+## in white, along with the whole rest of the message.
+static func markup() -> Dictionary:
+	var d := {}
+	for code in COLORS:
+		d[code] = "#" + (COLORS[code] as Color).to_html(false)
+	return d
