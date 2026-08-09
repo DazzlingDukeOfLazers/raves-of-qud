@@ -423,3 +423,30 @@ of that ornament (sprite rows 43-59), and the emblem stops 2px above the rule as
 Raves shows the glyph without its descending tail. That is the same outstanding item, not a new
 defect — it is listed here because the side-by-side makes it the most obvious remaining difference
 on the screen.
+
+## Re-taken 2026-08-09, after the popup chrome work
+
+Five rendering commits landed on this popup after the baseline above was recorded — the rule
+caps changed from 2×10 ticks to Qud's 2×4 squares, the emblem was extracted and drawn, its three
+strokes were carried below the top rule, the context divider gained its own three-stroke
+ornament, and every rule break is now capped on BOTH sides. The pin is unchanged
+(`sync-raves-and-qud`, cloth robe by name via `fixture.py twiddle robe`).
+
+**Scored against the OLD baseline before re-taking, so the effect is visible rather than
+absorbed** — the trap this directory's first README was written about:
+
+| leaf | old | now | delta |
+|---|---|---|---|
+| popup_frame_text_color | 2.30 | 2.30 | +0.00 |
+| popup_frame_text_content | 4.98 | 4.98 | +0.00 |
+| popup_frame_text_geometry | 0.25 | 0.25 | +0.00 |
+| popup_image_color | 0.00 | 0.00 | +0.00 |
+| **popup_image_frame** | **2.28** | **1.36** | **−0.92** |
+| popup_image_geometry | 0.00 | 0.00 | +0.00 |
+| popup_placement | 0.00 | 0.00 | +0.00 |
+
+Six of seven unmoved, and the one that moved got BETTER: `popup_image_frame` is the chrome
+around the item tile, which is exactly what the cap and ornament work touched. Nothing
+regressed, so this retake cannot be hiding one — the standing risk with any re-baseline.
+
+The previous numbers are kept in `scoreboard.json` under `previous`.

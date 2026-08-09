@@ -14,7 +14,7 @@
  "leaves": {
   "popup_image_frame": {
    "kind": "frame",
-   "diff": 2.28,
+   "diff": 1.36,
    "was": 2.5,
    "fixture_dependent": false
   },
@@ -118,5 +118,15 @@
   "ink_bbox_raves": "x940..978 (39 wide), y276..318 (43 tall), centre 959.0, tone (68,99,111), 428 lit",
   "result": "bbox, centre and tone EXACT. 418 pixels shared = 92.3% of Qud's ink.",
   "residual": "35 px of the glyph's 1px central spine. It is an EXTRACTION limit, not a placement one: the atlas region holds the disc colour at alpha 128 at exactly those pixels, with no glyph tone to recover. Point sampling in WriteRegion changed the PNG by zero bytes; chargen_emblem.png (same art, different sprite) agrees worse (397); vertical-continuity growth reaches 447 but floods 316 disc pixels. Do not retry these three."
+ },
+ "retaken": "2026-08-09, after the popup chrome work (rule caps, emblem roots, divider ornament, both-sided break caps)",
+ "previous": {
+  "popup_frame_text_color": 2.3,
+  "popup_frame_text_content": 4.98,
+  "popup_frame_text_geometry": 0.25,
+  "popup_image_color": 0.0,
+  "popup_image_frame": 2.28,
+  "popup_image_geometry": 0.0,
+  "popup_placement": 0.0
  }
 }
