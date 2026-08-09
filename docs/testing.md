@@ -1886,6 +1886,49 @@ captures every window on screen. And the merged tree's layout restoration **re-a
 layout on every restart**: `hv loadsave` restarts Qud and silently put both windows back to
 1793x997 mid-session. Any capture taken after a restart can be off-geometry — apply `pair` first.
 
+### Map Editor context menu — RESOLVED 2026-08-08: macOS was rewriting Ctrl+left into a right-click
+
+**Root cause, measured with a print at the top of `_canvas_input`: nothing was ever lost.** Every
+button reached the canvas handler and dispatched correctly — right → `btn=2` → `_erase_top`,
+middle → `btn=3` → `_open_context`. Both returned instantly because the cell was **empty**
+(`objs=0`), and it was empty because the *setup step* had silently failed: macOS's display server
+converts **Ctrl+left-click into a RIGHT button event** (the platform's "control-click == secondary
+click" convention, applied in Godot's `GodotContentView` `mouseDown`/`mouseDragged`/`mouseUp`;
+Godot exposes no switch for it). So Ctrl+click ran the **eraser**, never `_paint`. Nothing could
+ever be painted, so the eraser and the context menu were correctly no-opping on empty cells.
+
+The probe log is unambiguous — a converted click and a genuine one differ only in the ctrl flag:
+
+```
+canvas btn=2 pressed=true ctrl=true    <- Ctrl+left, converted by macOS
+canvas btn=2 pressed=true ctrl=false   <- a real right-click
+canvas btn=3 pressed=true ctrl=false   <- a real middle-click
+```
+
+**Fix** (`MapEditorScreen.gd`, `_mac` + `_canvas_input`): un-convert at the one place it enters the
+editor — a RIGHT button carrying ctrl is really the Ctrl+left paint gesture, since a genuine
+right-click always arrives with ctrl clear and Ctrl+right is not a Map Editor binding. The
+paint-along-the-drag mask accepts the RIGHT mask too, because a ctrl+drag is held down as the right
+button for its whole duration. Only **ctrl** is converted — shift and alt arrive as `btn=1`, verified.
+
+Verified on the exported build: Ctrl+click paints an AgateWall, middle-click opens the per-object
+menu (`objs=1`, all five rows drawn), right-click erases it, plain/shift/alt left unchanged.
+
+**Two gestures remain UNVERIFIED, and not because of Raves: `hv drag` raises `NotImplementedError`
+on the darwin backend** (only the abstract base in `backend.py` exists). Ctrl+drag continuous paint
+and Shift+drag region select therefore cannot be exercised from the Mac at all — and the "Shift+left
+region select **works**" row in the original table below was a shift *click* (a 1×1 region), not a
+drag. Fix belongs in highvisor.
+
+**Third false trail, and the important one: the ruled-out cause was the actual cause.** The entry
+below records "NOT the ctrl modifier" as settled — on evidence that only ever showed ctrl *reaching*
+Raves, never that it painted. This is another "check that cannot fail": the test's own precondition
+was broken, so the thing under test could not have passed, and its silence was read as a finding
+about right/middle click.
+
+<details>
+<summary>Original (superseded) diagnosis — kept for the false-trail record</summary>
+
 ### Map Editor context menu — now TESTABLE on the Mac, and it does not work — 2026-08-08
 
 The merge's headline Raves feature (`MapEditorScreen.gd` +405: the per-object context menu and its
@@ -1924,6 +1967,8 @@ MapEditorScreen.gd:895/1027) and is unexplained. **Open.**
 **Driving the Map Editor canvas needs `hv mouse` FIRST.** A bare `hv click` warps and clicks but
 Godot never updates its own cursor position, so the editor reported `Mouse Position: 0, 0` and
 `Selected Cell: none` while clicks "succeeded". `hv mouse <win> x y`, then click.
+
+</details>
 
 ### Correction — the first FULL 3 run could not have failed, and what it hid
 

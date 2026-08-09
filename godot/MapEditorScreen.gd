@@ -176,6 +176,15 @@ var _ctx_bp := ""                # the blueprint the menu is acting on
 var _ctx_hover := -1
 var _modal: Control              # the active DialogManager-style popup
 
+## macOS turns Ctrl+left-click into a RIGHT-button event in the display server itself
+## (the platform's "control-click == secondary click" convention, applied in Godot's
+## GodotContentView mouseDown/mouseDragged/mouseUp). Godot exposes no switch for it, so the
+## editor un-converts below: a RIGHT button carrying ctrl is really the Ctrl+left paint
+## gesture, and a genuine right-click always arrives with ctrl CLEAR. Measured 2026-08-08 —
+## ctrl+left logged `btn=2 ctrl=true` while a real right-click logged `btn=2 ctrl=false`.
+## Ctrl+right is not a Map Editor binding, so collapsing the two costs nothing.
+var _mac := OS.get_name() == "macOS"
+
 func _ready() -> void:
 	name = "MapEditorScreen"
 	_fit_to_viewport()
@@ -1029,39 +1038,48 @@ func _canvas_input(e: InputEvent) -> void:
 		var c := _cell_at(e.position)
 		if c != _hover:
 			_hover = c
+			# a ctrl+drag is held down as the RIGHT button on macOS (see _mac), so the
+			# paint-along-the-drag mask has to accept either one
+			var paint_mask: int = MOUSE_BUTTON_MASK_LEFT
+			if _mac:
+				paint_mask |= MOUSE_BUTTON_MASK_RIGHT
 			if _dragging:
 				_region = _rect_from(_drag_start, c)
 				_has_region = true
-			elif e.ctrl_pressed and e.button_mask & MOUSE_BUTTON_MASK_LEFT:
+			elif e.ctrl_pressed and e.button_mask & paint_mask:
 				_paint(c)          # Qud paints continuously along a Ctrl+drag
 			_update_readouts()
 			_canvas.queue_redraw()
-	elif e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_RIGHT and e.pressed:
-		# Qud's OnClick sends "RightTile:x,y", and OnCommand's handler pops the TOP object off
-		# that cell (pushing a "Remove" undo action). Right-click is an eraser, not a menu.
-		_erase_top(_cell_at(e.position))
-	elif e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_MIDDLE and e.pressed:
-		_open_context(_cell_at(e.position), e.position + CANVAS.position)
-	elif e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_LEFT:
-		var c := _cell_at(e.position)
-		if e.pressed:
-			if e.shift_pressed:                        # Qud: Shift+drag = region select
-				_dragging = true
-				_drag_start = c
-				_region = _rect_from(c, c)
-				_has_region = true
-			elif e.ctrl_pressed:                       # Qud: Ctrl+drag = paint from palette
-				_paint(c)
-			elif e.alt_pressed:                        # Qud: Alt+click = sample to palette
-				var objs: Array = _cells.get(c, [])
-				if not objs.is_empty():
-					_set_brush(_obj_name(objs[-1]))
+	elif e is InputEventMouseButton:
+		var btn: int = e.button_index
+		if _mac and btn == MOUSE_BUTTON_RIGHT and e.ctrl_pressed:
+			btn = MOUSE_BUTTON_LEFT       # un-convert; see _mac
+		if btn == MOUSE_BUTTON_RIGHT and e.pressed:
+			# Qud's OnClick sends "RightTile:x,y", and OnCommand's handler pops the TOP object
+			# off that cell (pushing a "Remove" undo action). Right-click erases, not menus.
+			_erase_top(_cell_at(e.position))
+		elif btn == MOUSE_BUTTON_MIDDLE and e.pressed:
+			_open_context(_cell_at(e.position), e.position + CANVAS.position)
+		elif btn == MOUSE_BUTTON_LEFT:
+			var c := _cell_at(e.position)
+			if e.pressed:
+				if e.shift_pressed:                        # Qud: Shift+drag = region select
+					_dragging = true
+					_drag_start = c
+					_region = _rect_from(c, c)
+					_has_region = true
+				elif e.ctrl_pressed:                       # Qud: Ctrl+drag = paint from palette
+					_paint(c)
+				elif e.alt_pressed:                        # Qud: Alt+click = sample to palette
+					var objs: Array = _cells.get(c, [])
+					if not objs.is_empty():
+						_set_brush(_obj_name(objs[-1]))
+				else:
+					_selected = c
+				_update_readouts()
+				_canvas.queue_redraw()
 			else:
-				_selected = c
-			_update_readouts()
-			_canvas.queue_redraw()
-		else:
-			_dragging = false
+				_dragging = false
 
 func _rect_from(a: Vector2i, b: Vector2i) -> Rect2i:
 	var lo := Vector2i(mini(a.x, b.x), mini(a.y, b.y))

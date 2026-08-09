@@ -110,6 +110,16 @@ add a one-liner (symptom → rule).
   drained by Tick/TickRender.
 
 ### Godot / the frame
+- **macOS turns Ctrl+left-click into a RIGHT-button event before Godot sees it.** The display
+  server applies the platform's "control-click == secondary click" convention in
+  `GodotContentView`'s `mouseDown`/`mouseDragged`/`mouseUp`; there is no project setting for it, and
+  it holds for the WHOLE drag, not just the press. So any Ctrl+click binding silently runs the
+  right-click branch instead — this is what broke the Map Editor's Ctrl+click paint (2026-08-08),
+  and the failure presents as *the right-click and middle-click features being dead*, because
+  nothing can be placed for them to act on. *Recognise it by:* `button_index == RIGHT` arriving
+  with `ctrl_pressed == true`. **Disambiguate on the ctrl flag** — a genuine right-click always
+  carries ctrl clear (measured). Shift and alt are NOT converted. Any new Ctrl+click gesture in
+  Raves must handle the RIGHT button too, or it will not fire on the Mac.
 - **A mirrored Qud MODAL eats Raves' own keys.** Qud's in-game system menu (Set Checkpoint /
   Control Mapping / Save and Quit) comes over the popup mirror and PopupOverlay is modal, so while
   it is up a Raves-local shortcut like the Tinkering Ctrl+Tab silently does nothing. Escape sent to
