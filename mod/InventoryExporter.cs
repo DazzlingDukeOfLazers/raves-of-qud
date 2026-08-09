@@ -98,11 +98,46 @@ namespace RavesOfQud
             }, 0);
         }
 
+        /// <summary>Raise Qud's item menu for an object, ON THE TURN THREAD.
+        ///
+        /// WHICH THREAD RUNS TwiddleObject IS THE WHOLE BUG (2026-08-08). This used to be
+        /// `uiQueue.queueTask` + `APIDispatch.RunAndWaitAsync`, copied from
+        /// `InventoryAndEquipmentStatusScreen.HandleSelectItem`. APIDispatch runs its delegate
+        /// on a THREADPOOL thread (`Task.Run`), which is correct for Qud's caller — the status
+        /// screen has already parked the turn thread — and wrong for ours, because a
+        /// bridge-driven twiddle leaves the turn thread free and spinning in
+        /// `XRLCore.PlayerTurn`'s wait-for-input loop. That loop, and `ActionManager.RunSegment`,
+        /// each execute
+        ///     GameManager.Instance.CurrentGameView = Options.StageViewID;
+        /// unconditionally on every iteration. `Popup.PickOption` shows the menu by PUSHING the
+        /// "PopupMessage" game view; the next loop iteration slams the view back to "Stage",
+        /// `GameManager.UpdateView` then reassigns the canvas and HIDES the popup window, and
+        /// `PopupMessage.Hide()` fires `onHide` -> `TaskCompletionSource.TrySetCanceled`. The
+        /// `Wait()` in `Popup.WaitNewPopupMessage` throws, and because that method is
+        /// `async void` the exception never reaches `PickOption` — which then returns its
+        /// untouched local `SelectedOption`, i.e. **DefaultSelected**. So the menu executes its
+        /// own highlighted row (for a cloth robe: "equip (auto)"). Measured 6/8 raises.
+        ///
+        /// Qud's own equivalent — a UI window asking for an item menu with the game idle — is
+        /// `NearbyItemsWindow.OnSelect`, and it does exactly this:
+        ///     GameManager.Instance.gameQueue.queueSingletonTask("nearby items twiddle",
+        ///         () =&gt; EquipmentAPI.TwiddleObject(data.go));
+        /// The gameQueue drains inside `Keyboard.getvk(..., pumpActions: true)` — the turn
+        /// thread's own input wait — so TwiddleObject runs ON the turn thread, that loop is
+        /// inside it rather than racing it, and nothing re-asserts the Stage view under the
+        /// popup. It is also the thread `Popup.WaitNewPopupMessage` is written for: off the UI
+        /// thread it takes the blocking `uiQueue.awaitTask` branch that the popup mirror
+        /// already answers.
+        ///
+        /// Do NOT wrap this in APIDispatch again. The deadlock APIDispatch exists to avoid is
+        /// the one you get calling TwiddleObject from a *uiQueue* task; the turn thread is
+        /// where Qud itself calls it from.</summary>
         public static void Twiddle(string id, string mode = null)
         {
             var gm = GameManager.Instance;
-            if (gm == null || gm.uiQueue == null) return;
-            gm.uiQueue.queueTask(() =>
+            if (gm == null || gm.gameQueue == null) return;
+            // Singleton: two twiddles cannot be in flight at once (Qud's own key, same reason).
+            gm.gameQueue.queueSingletonTask("raves item twiddle", () =>
             {
                 try
                 {
@@ -121,36 +156,23 @@ namespace RavesOfQud
                         // looks at them. Mirroring the split keeps a click on the greyed claw
                         // from offering to drop a body part.
                         System.Console.WriteLine("[raves] look " + target.DisplayNameOnlyStripped);
-                        APIDispatch.RunAndWaitAsync(delegate
-                        {
-                            try { InventoryActionEvent.Check(target, p, target, "Look"); }
-                            catch (Exception le) { System.Console.WriteLine("[raves] Look: " + le.Message); }
-                        });
+                        try { InventoryActionEvent.Check(target, p, target, "Look"); }
+                        catch (Exception le) { System.Console.WriteLine("[raves] Look: " + le.Message); }
                         return;
                     }
                     System.Console.WriteLine("[raves] twiddle " + target.DisplayNameOnlyStripped);
                     bool bDone = false;
                     InventoryAction action = null;
-                    APIDispatch.RunAndWaitAsync(delegate
-                    {
-                        try { EquipmentAPI.TwiddleObject(p, target, ref bDone, out action); }
-                        catch (Exception te) { System.Console.WriteLine("[raves] TwiddleObject: " + te.Message); }
-                    }).ContinueWith(delegate
-                    {
-                        var g2 = GameManager.Instance;
-                        if (g2 != null && g2.uiQueue != null)
-                            g2.uiQueue.queueTask(() =>
-                            {
-                                // "Mod" hands off to the tinkering screen, which Raves has
-                                // no tab for yet -- say so rather than silently doing nothing
-                                if (action != null && action.Command == "Mod")
-                                    System.Console.WriteLine("[raves] twiddle chose Mod (tinkering screen not mirrored yet)");
-                                ReExport();
-                            }, 0);
-                    });
+                    try { EquipmentAPI.TwiddleObject(p, target, ref bDone, out action); }
+                    catch (Exception te) { System.Console.WriteLine("[raves] TwiddleObject: " + te.Message); }
+                    // "Mod" hands off to the tinkering screen, which Raves has no tab for yet --
+                    // say so rather than silently doing nothing.
+                    if (action != null && action.Command == "Mod")
+                        System.Console.WriteLine("[raves] twiddle chose Mod (tinkering screen not mirrored yet)");
+                    ReExport();
                 }
                 catch (Exception e) { System.Console.WriteLine("[raves] twiddle error: " + e.Message); }
-            }, 0);
+            });
         }
 
         /// Look an object up by the id the export shipped (go.IDIfAssigned): the pack

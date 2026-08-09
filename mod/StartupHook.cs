@@ -34,6 +34,10 @@ namespace RavesOfQud
                 // Register the message-log callback NOW (before any game loads) so the "since load" count
                 // catches the same load-time messages Qud's own sidebar does — matching its log length.
                 ZoneSnapshot.EnsureMessageCallback();
+                // Arm the popup mirror as early as anything can be armed. Usually a no-op here
+                // (GameManager.Instance does not exist yet at mod-load), but a LIVE mod reload
+                // re-invokes this with the game up, and the heartbeat below re-arms regardless.
+                PopupBridge.Ensure();
                 System.Console.WriteLine("[raves] pre-game bridge listener up.");
                 StartHeartbeat();
             }
@@ -134,6 +138,16 @@ namespace RavesOfQud
                         catch { }
                         try { running = The.Game != null && The.Game.Running; } catch { }
                         try { hasPlayer = The.Player != null; } catch { }
+                        // ARM THE POPUP MIRROR FROM HERE. This is the whole reason the arming
+                        // moved: a modal parks Qud's TURN thread, which stops BeforeRenderEvent,
+                        // which is what drives Bridge.TickRender -- the only caller Ensure() used
+                        // to have. So the popup that most needs mirroring was exactly the one
+                        // that could never arm the watcher, and a popup raised before the first
+                        // render tick could never be mirrored at all. This thread runs once a
+                        // second regardless of focus, turns, render frames, or whether a game is
+                        // live; Ensure() is idempotent and verifies the watcher is really running
+                        // rather than trusting a flag, so a re-armed uiQueue heals within a second.
+                        try { PopupBridge.Ensure(); } catch { }
                         // Ask the main thread for a fresh window sample (at most one in flight).
                         try
                         {
