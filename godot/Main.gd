@@ -667,6 +667,12 @@ func request_nearby(object_id: String) -> void:
 	if client != null:
 		client.send_command("nearby", {"id": object_id})
 
+## Press one of Qud's OWN top-bar buttons by name. For the window lock there is no Option to set —
+## its state lives on the button — so the only honest way to flip it is Qud's own onClick.
+func request_nav_click(button: String) -> void:
+	if client != null:
+		client.send_command("navclick", {"button": button})
+
 # --- direction picker (for abilities like Make Camp that prompt for a direction) ----------------
 # Qud's PickDirection blocks the turn thread waiting for a LeftClick at a CELL (it derives the
 # direction). We show the ability's icon as a cursor over the Holodeck; clicking an adjacent tile

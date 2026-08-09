@@ -259,6 +259,13 @@ namespace RavesOfQud
         /// the journal's hdrW.</summary>
         public static string BarCells = "";
 
+        /// Qud's three TOGGLE buttons in the top-right cluster, as "name=0|1,…". Qud draws each with
+        /// `ActiveButton`, which swaps `TargetImage.sprite` between ActiveImage and DisabledImage on
+        /// `IsActive` — so the state is a live UI flag, not an Option, and the WINDOW LOCK has no
+        /// Option at all. Sampled HERE because reading it is a Unity call, and the turn thread must
+        /// never make one; the snapshot writer just reads this string.
+        public static string NavButtons = "";
+
         /// UI THREAD.
         private static void PollBarCells()
         {
@@ -280,6 +287,50 @@ namespace RavesOfQud
                     break;
                 }
                 BarCells = sb.ToString();
+            }
+            catch { }
+        }
+
+        /// Click one of Qud's top-bar buttons BY NAME, by invoking its own onClick — so whatever the
+        /// button does (the window lock has no Option behind it, just UI state) is Qud's code doing
+        /// it, and `IsActive` flips as Qud decides. Marshalled onto the uiQueue: Unity objects, and
+        /// the turn thread must never touch those.
+        public static void ClickNavButton(string name)
+        {
+            GameManager gm = GameManager.Instance;
+            if (gm == null || gm.uiQueue == null || string.IsNullOrEmpty(name)) return;
+            gm.uiQueue.queueTask(delegate
+            {
+                try
+                {
+                    foreach (var btn in UnityEngine.Object.FindObjectsOfType<Qud.UI.ActiveButton>())
+                    {
+                        if (btn == null || btn.gameObject.name != name) continue;
+                        var b = btn.gameObject.GetComponent<UnityEngine.UI.Button>();
+                        if (b == null) { Log("[nav] " + name + " has no Button"); return; }
+                        b.onClick.Invoke();
+                        Log("[nav] clicked " + name + " -> IsActive " + btn.IsActive);
+                        return;
+                    }
+                    Log("[nav] no ActiveButton named " + name);
+                }
+                catch (Exception e) { Log("[nav] navclick: " + e.Message); }
+            });
+        }
+
+        /// UI THREAD. The three ActiveButtons' live on/off, for the client's icon swap.
+        private static void PollNavButtons()
+        {
+            try
+            {
+                var sb = new System.Text.StringBuilder();
+                foreach (var btn in UnityEngine.Object.FindObjectsOfType<Qud.UI.ActiveButton>())
+                {
+                    if (btn == null || !btn.gameObject.activeInHierarchy) continue;
+                    if (sb.Length > 0) sb.Append(',');
+                    sb.Append(btn.gameObject.name).Append('=').Append(btn.IsActive ? '1' : '0');
+                }
+                NavButtons = sb.ToString();
             }
             catch { }
         }
@@ -312,6 +363,7 @@ namespace RavesOfQud
             PollStatusTab();
             PollJournalHeader();
             PollBarCells();
+            PollNavButtons();
 
             BridgeServer server = Bridge.Server;
             if (server == null || server.ClientCount == 0) return;

@@ -1186,6 +1186,10 @@ namespace RavesOfQud
             {
                 string cells = PopupBridge.BarCells ?? "";
                 if (cells.Length > 0) j.Member("barCells", cells);
+                // The top-right toggles' live on/off (see PopupBridge.NavButtons). Same deal: empty
+                // until the UI thread has seen them, and the client keeps its last icons until then.
+                string navb = PopupBridge.NavButtons ?? "";
+                if (navb.Length > 0) j.Member("navButtons", navb);
             }
             catch { }
             j.Name("abilities").BeginArray();

@@ -122,6 +122,10 @@ var _panels: Array = []     # every sub-view; each has set_snapshot(data) (some 
 var _menu_verbose: HBoxContainer   # user-mode top menu (verbose text buttons)
 var _menu_compact: HBoxContainer   # 1:1 top menu (Qud's compact icon cluster)
 var _nav_up_icon: TextureRect      # the Up (stairs) nav icon — dimmed when the zone has none
+## Qud's three TOGGLE buttons, by nav key -> {icon, on, off} — the only nav cells that carry an
+## `ActiveButton`, i.e. the only ones with two sprites. Everything else has one image and no state.
+var _nav_toggle_icons := {}
+var _nav_toggle_state := {}        # nav key -> last applied bool, so a repeat snapshot is free
 var _zone_has_stairs_up := true    # last snapshot's stats.stairsUp (assume yes until told)
 var _row_split: HSplitContainer    # row-3 split (holo | side); sidebar width set per mode
 var _side: VBoxContainer           # the row-3 side column (panels)
@@ -893,7 +897,7 @@ func _row_vitals_menu() -> Control:
 	# Qud's action honestly) — hover UX, and the feedback tool harvests it as the element's action.
 	var nav_actions := {
 		"system": "System menu (checkpoints, options, save and quit) — Esc",
-		"wlock": "Window lock (Qud) — not wired yet",
+		"wlock": "Lock / unlock Qud's windows",
 		"map": "Toggle the minimap overlay (Qud's Overlay Minimap option)",
 		"find": "Toggle the nearby objects overlay (Qud's Overlay Nearby Objects option)",
 		"look": "Look (Qud) — not wired yet",
@@ -910,6 +914,9 @@ func _row_vitals_menu() -> Control:
 	var nav_cmds := {"explore": "CmdAutoExplore", "poi": "CmdMoveToPointOfInterest",
 		"rest": "CmdWaitMenu"}
 	var nav_toggles := {"map": "OptionOverlayMinimap", "find": "OptionOverlayNearbyObjects"}
+	# Window lock has NO Qud option — it is a live UI flag on the button itself — so the icons are
+	# driven by what Qud reports (`navButtons`), not by our idea of the state. That covers all
+	# three with one mechanism and keeps the lock honest instead of guessing at it.
 	for key in ["system", "wlock", "map", "find", "look", "rest", "char", "poi", "explore", "down", "up"]:
 		var cell := Control.new()
 		# Hand-named per action so feedback reads "NavUp", never "TextureRect".
@@ -949,15 +956,36 @@ func _row_vitals_menu() -> Control:
 				if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
 					if _holo != null:
 						_holo.request_command(qcmd))
+		if key == "wlock":
+			# No Option behind this one: press QUD'S button and let its own handler decide, then the
+			# icon follows from the `navButtons` report like the other two.
+			cell.mouse_filter = Control.MOUSE_FILTER_STOP
+			cell.tooltip_text = "Lock / unlock Qud's windows"
+			cell.gui_input.connect(func(e: InputEvent) -> void:
+				if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+					if _holo != null:
+						_holo.request_nav_click("WindowLockButton"))
 		if nav_toggles.has(key):
 			var oid: String = nav_toggles[key]
 			cell.mouse_filter = Control.MOUSE_FILTER_STOP
 			cell.gui_input.connect(func(e: InputEvent) -> void:
 				if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
 					_toggle_qud_overlay(oid))
+		# The three TOGGLES ship two sprites each (Qud's ActiveButton: DisabledImage / ActiveImage);
+		# every other cell has one. `nav_<key>.png` is whichever Qud happened to have bound when the
+		# icons were extracted, which is why the lock always looked LOCKED and the two overlays
+		# always looked OFF — a still frame of a button that has two faces.
+		var off_tex: Texture2D = _load_title_png("nav/%s__normal.png" % NAV_ACTIVE_BUTTONS[key]) \
+			if NAV_ACTIVE_BUTTONS.has(key) else null
+		var on_tex: Texture2D = _load_title_png("nav/%s__active.png" % NAV_ACTIVE_BUTTONS[key]) \
+			if NAV_ACTIVE_BUTTONS.has(key) else null
 		var tex := _load_nav_icon(key)
+		if off_tex != null and on_tex != null:
+			tex = off_tex                     # replaced the moment the first snapshot lands
 		var ic := TextureRect.new()
 		ic.texture = tex
+		if off_tex != null and on_tex != null:
+			_nav_toggle_icons[key] = {"icon": ic, "on": on_tex, "off": off_tex}
 		# Runtime-loaded textures carry no resource_path, so the image's NAME rides as meta for the
 		# feedback tool ("nav_up", the extracted file's basename).
 		ic.set_meta("feedback_image", "nav_%s" % key)
@@ -1011,6 +1039,36 @@ const NAV_DIM_ALPHA := 0.4
 ## so "no StairsDown here" is not "you cannot go down" — and Joppa, which has no way up, ships
 ## stairsDown TRUE, so the two really are independent. The mod sends both flags, so wiring Down
 ## is a one-liner if that turns out to be wrong.
+## Qud's toggle buttons, nav key -> the GameObject name the mod reports (and the extracted sprite
+## prefix). These three are the whole set: `ActiveButton` is what gives a cell two faces.
+const NAV_ACTIVE_BUTTONS := {
+	"wlock": "WindowLockButton",
+	"map": "MapButton",
+	"find": "FinderButton",
+}
+
+## Swap each toggle's icon to the face Qud is showing. Driven by the mod's `navButtons` — the live
+## `ActiveButton.IsActive`, sampled on Qud's UI thread — so the lock, whose state is not an Option
+## and not otherwise visible to us, is as correct as the two that are.
+func _apply_nav_buttons(spec: String) -> void:
+	if spec == "":
+		return                          # no report yet: keep what is drawn rather than guess
+	var by_name := {}
+	for pair in spec.split(","):
+		var kv := String(pair).split("=")
+		if kv.size() == 2:
+			by_name[String(kv[0])] = String(kv[1]) == "1"
+	for key in _nav_toggle_icons:
+		var name: String = NAV_ACTIVE_BUTTONS.get(key, "")
+		if not by_name.has(name):
+			continue
+		var on: bool = by_name[name]
+		if _nav_toggle_state.get(key) == on:
+			continue
+		_nav_toggle_state[key] = on
+		var e: Dictionary = _nav_toggle_icons[key]
+		(e["icon"] as TextureRect).texture = e["on"] if on else e["off"]
+
 func _apply_stair_availability() -> void:
 	if _nav_up_icon == null:
 		return
@@ -1579,6 +1637,7 @@ func _apply_stats(data: Dictionary) -> void:
 	_report_overflow.call_deferred()   # after this snapshot's text lands + a layout pass
 	# Stairs availability rides on stats (a zone fact, like `terrain`). Default TRUE when the key
 	# is missing so an older mod build leaves the icon lit rather than greying it everywhere.
+	_apply_nav_buttons(String(data.get("navButtons", "")))
 	var up_now := bool(s.get("stairsUp", true))
 	if up_now != _zone_has_stairs_up:
 		_zone_has_stairs_up = up_now

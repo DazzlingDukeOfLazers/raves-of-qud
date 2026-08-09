@@ -1556,6 +1556,19 @@ namespace RavesOfQud
                     catch (Exception e) { Server.Log("nearby error: " + e.Message); }
                     break;
 
+                case "navclick":
+                    // Press one of Qud's own top-bar buttons (window lock has no Option to set).
+                    // `button`, NOT `name`: the frame's own `name` field IS the command, so an arg
+                    // called `name` reads back as "navclick" -- measured, the mod dutifully looked
+                    // for an ActiveButton called navclick and said so.
+                    try
+                    {
+                        f.TryGetValue("button", out string nbName);
+                        PopupBridge.ClickNavButton(nbName);
+                    }
+                    catch (Exception e) { Server.Log("navclick error: " + e.Message); }
+                    break;
+
                 case "interact":
                     // RIGHT-CLICK a cell. Qud's own AdventureMouseInteract handler decides what that
                     // means (twiddle, default right-click action, or a nudge sound on empty ground);
