@@ -110,6 +110,23 @@ const TITLE_LINE_MIN := 10.0       # the --| / |-- assemblies at each edge
 ## [Esc] Cancel rule at the bottom is NOT capped this way -- it keeps its own 1px end
 ## ticks down the sprite's full height, which is what Qud draws there.
 const CAP_H := 4.0
+
+## The emblem does not stop at the top rule -- three strokes carry on BELOW it, each ending
+## in the same small square the rule breaks use. The extracted emblem PNG covers only the
+## part above the rule, so these are drawn.
+##
+## MEASURED off Qud 2026-08-09 (cloth robe popup, box x821-1098 w278, rule y320-321). Every
+## stroke starts at y322, immediately under the rule:
+##   left    stem x132-133  y322-330 (9 tall)   cap x131-134  y327-330
+##   centre  stem x138-139  y322-332 (11 tall)  cap x137-140  y329-332
+##   right   stem x144-145  y322-330 (9 tall)   cap x143-146  y327-330
+## i.e. 2px stems on a 6px pitch centred on the box, each capped by a 4x4 square at its FOOT,
+## with the middle stroke 2px longer. Same square the rule breaks terminate in, which is why
+## it reads as one family rather than three loose ticks.
+const ROOT_PITCH := 6.0
+const ROOT_STEM_W := 2.0
+const ROOT_H := 9.0          # outer strokes
+const ROOT_H_MID := 11.0     # the middle one runs 2px further
 const TITLE_SP := 10.0             # PolatFrameSuperHeader spacing
 const ROW_H := 26.0                # MenuOptionText(Clone) in the options area
 const ROW_TEXT_X := 15.0           # padL 2 + cursor 8 + spacing 5
@@ -419,6 +436,7 @@ func _draw_chrome() -> void:
 	for x in [l0 - 2, r1, c0 - 2, c1]:
 		_rect(off, Rect2(x, ly - CAP_H * 0.5 + 1.0, 2, CAP_H), C_TOPLINE)
 	_draw_emblem(off, cx)
+	_draw_roots(off, cx, ly)
 	# The context block is closed off by its own full-width divider, notched like the top
 	# line (Qud: top rule y320, divider y471 -- both the same strip, 151 apart).
 	if _ctx_box.visible:
@@ -626,6 +644,25 @@ static func _hdr_advance(f: Font, size: int) -> float:
 ## The title row: Qud centres it in the row, on the HEADER pitch. Drawing it in one call at
 ## the body pitch is the journal header's mistake -- every glyph after the first lands
 ## progressively left of Qud's, and the row measures 17px narrow on a 17-character title.
+## The three strokes below the top rule -- see ROOT_PITCH. `ly` is the rule's top, and the
+## rule is 2px, so the strokes begin at ly+2.
+func _draw_roots(off: Vector2, cx: float, ly: float) -> void:
+	var top := ly + 2.0
+	for i in [-1, 0, 1]:
+		var c: float = cx + float(i) * ROOT_PITCH
+		var h: float = ROOT_H_MID if i == 0 else ROOT_H
+		# The MIDDLE stem is 3px wide and sits flush with the left edge of its own cap, where
+		# the outer two are 2px centred in theirs. Not a fudge -- measured: Qud paints x137-139
+		# full height under a cap at x137-140, against x132-133 under x131-134 either side. The
+		# box is 278.21 wide in Qud's subpixels, so its centre falls differently on the middle
+		# stroke than on the pair 6px out, and rasterises one column wider.
+		if i == 0:
+			_rect(off, Rect2(c - CAP_H * 0.5, top, ROOT_STEM_W + 1.0, h), C_TOPLINE)
+		else:
+			_rect(off, Rect2(c - ROOT_STEM_W * 0.5, top, ROOT_STEM_W, h), C_TOPLINE)
+		_rect(off, Rect2(c - CAP_H * 0.5, top + h - CAP_H, CAP_H, CAP_H), C_TOPLINE)
+
+
 func _draw_title() -> void:
 	if _title_runs.is_empty():
 		return
