@@ -1223,6 +1223,7 @@ func _on_mode_chosen(mode_name: String) -> void:
 		_start_tutorial()   # pregen guided game — no genotype/subtype, boot straight in
 		return
 	var geno: Variant = load("res://GenotypeScreen.gd").new()
+	geno.mode_name = _cg_mode   # breadcrumb trail: Qud shows the mode alongside the current screen
 	_overlay = geno
 	add_child(geno)
 	geno.closed.connect(_close_overlay)
@@ -1289,6 +1290,7 @@ func _on_genotype_chosen(genotype_name: String) -> void:
 	UiState.set_scene("chargen_caste" if cls == "Castes" else "chargen_calling")
 	sub.subtype_class = cls
 	sub.genotype_name = genotype_name
+	sub.mode_name = _cg_mode
 	_overlay = sub
 	add_child(sub)
 	sub.closed.connect(_close_overlay)

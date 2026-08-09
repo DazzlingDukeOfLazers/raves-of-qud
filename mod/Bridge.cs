@@ -758,6 +758,120 @@ namespace RavesOfQud
                     PickerBridge.HandleCommand(f);
                     return;
                 }
+                if (name == "pick")
+                {
+                    // Activate a MENU ROW by its label, through the row's own dispatch — the same
+                    // "Pick:<label>" event EmbarkDriver uses for "New Game" and LoadSave for
+                    // "Continue", generalised so highvisor can drive any of them.
+                    //
+                    // This exists because character creation cannot be driven from outside at all on
+                    // Windows. Measured 2026-08-08: keys reach Qud's chargen screens by NO path --
+                    // SendKeys (window messages) and SendInput scancode (raw, the path Unity's Input
+                    // System actually reads) both leave the card carousel untouched with the window
+                    // focused and answering clicks; a raw Right arrow moved exactly 0 pixels. The
+                    // printed [A]-[L] hotkeys do nothing either. Clicks land, but the carousel's
+                    // select-versus-confirm behaviour never resolved into a model that survived a
+                    // second run, so every coordinate recipe was a coin flip.
+                    //
+                    // Socket thread ON PURPOSE, following EmbarkDriver: a menu screen has no game
+                    // running, so the main-thread command queue drained by Tick/TickRender may never
+                    // drain at all. PushMouseEvent only touches Qud's own locked input queue plus the
+                    // wake event -- no Unity calls -- so it is safe off-thread, the same argument
+                    // PushCommand carries above.
+                    // `event` pushes a tag VERBATIM; `label` is the "Pick:" convenience. Reading the
+                    // assembly's UTF-16 literal heap showed "Pick:" has exactly twelve entries and
+                    // every one is a title-menu row (New Game, Continue, Options, Quit...), with
+                    // nothing for chargen — which is why pick "Classic" did nothing. The carousel's
+                    // vocabulary is different and sits right beside it: "Meta:NavigateE"/"NavigateW",
+                    // "Select:<n>", "Command:Accept"/"Cancel". Rather than guess which and bake it
+                    // in, this lets the tag be driven from outside and settled by experiment.
+                    // `carrier` picks the DISPATCHER: "mouse" (default) = PushMouseEvent, "command" =
+                    // PushCommand. Both exist and they are not interchangeable. The tags that work
+                    // through the mouse queue are unprefixed ("Pick:<label>" resolves to a menu row);
+                    // the carousel's are namespaced (Meta:, Select:, Command:) and pushing those
+                    // through the mouse queue changed 0 pixels, which is the shape of a tag arriving
+                    // at a dispatcher that has no handler registered for it.
+                    f.TryGetValue("event", out string pickEvent);
+                    f.TryGetValue("label", out string pickLabel);
+                    f.TryGetValue("carrier", out string pickCarrier);
+                    string tag = !string.IsNullOrEmpty(pickEvent) ? pickEvent
+                               : (!string.IsNullOrEmpty(pickLabel) ? "Pick:" + pickLabel : null);
+                    if (!string.IsNullOrEmpty(tag))
+                    {
+                        if (pickCarrier == "command") Keyboard.PushCommand(tag, null);
+                        else Keyboard.PushMouseEvent(tag);
+                        Server.Log("pick: " + (pickCarrier ?? "mouse") + " <- " + tag);
+                    }
+                    return;
+                }
+                if (name == "reflect")
+                {
+                    // Dump the LIVE UI window's methods + current field values to ui_reflect.txt.
+                    //
+                    // The chargen carousel cannot be reached by any synthesized input (see the long
+                    // note on `pick`), so the remaining route is to call the window object's own
+                    // methods -- which means finding out what they are. Reflecting the running
+                    // object beats decompiling the assembly: it says WHICH window is up and what its
+                    // selection state currently reads, neither of which is in the DLL.
+                    //
+                    // uiQueue, not the socket thread: UIManager and its windows are Unity objects.
+                    // `typename` optionally names a class to reflect instead of the visible window.
+                    // NOT `type` -- that is the wire envelope's own field ({"type":"command",...}),
+                    // so an arg by that name reads back as "command" and reflects nothing.
+                    f.TryGetValue("typename", out string reflectType);
+                    var gmr = GameManager.Instance;
+                    if (gmr != null && gmr.uiQueue != null)
+                        gmr.uiQueue.queueTask(() =>
+                        {
+                            try { UiReflector.Dump(reflectType); }
+                            catch (Exception e) { Server.Log("reflect failed: " + e.Message); }
+                        }, 0);
+                    return;
+                }
+                if (name == "dumpcolors")
+                {
+                    // Export Qud's real code-char -> RGB palette. uiQueue because colorFromChar
+                    // returns a UnityEngine.Color and the lookup lives behind Unity's own types.
+                    var gmk = GameManager.Instance;
+                    if (gmk != null && gmk.uiQueue != null)
+                        gmk.uiQueue.queueTask(() =>
+                        {
+                            try { ColorsExporter.Export(); }
+                            catch (Exception e) { Server.Log("dumpcolors failed: " + e.Message); }
+                        }, 0);
+                    return;
+                }
+                if (name == "choose" || name == "invoke")
+                {
+                    // Drive a modern chargen window through its OWN methods (UiDriver) — the only
+                    // route in, since these screens read none of the input queues anything outside
+                    // the process can reach. `choose` matches one of the window's own choices by
+                    // label (or index) and hands it to ChoiceSelected; `invoke` calls a named
+                    // no-arg method (RandomSelection, ResetSelection, ...).
+                    f.TryGetValue("label", out string chooseLabel);
+                    f.TryGetValue("index", out string chooseIdx);
+                    f.TryGetValue("method", out string chooseMethod);
+                    int ci;
+                    if (!int.TryParse(chooseIdx, out ci))
+                    {
+                        double cd;
+                        ci = double.TryParse(chooseIdx, System.Globalization.NumberStyles.Any,
+                            System.Globalization.CultureInfo.InvariantCulture, out cd) ? (int)cd : -1;
+                    }
+                    bool isChoose = name == "choose";
+                    var gmc = GameManager.Instance;
+                    if (gmc != null && gmc.uiQueue != null)
+                        gmc.uiQueue.queueTask(() =>
+                        {
+                            try
+                            {
+                                if (isChoose) UiDriver.Choose(chooseLabel, ci);
+                                else UiDriver.Invoke(chooseMethod);
+                            }
+                            catch (Exception e) { Server.Log(name + " failed: " + e.Message); }
+                        }, 0);
+                    return;
+                }
                 if (name == "move")
                 {
                     f.TryGetValue("dir", out string dir);

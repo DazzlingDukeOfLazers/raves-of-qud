@@ -29,19 +29,10 @@ const GOLD := Color8(0xC8, 0xA9, 0x4E)           # header title, keycaps
 const DIM := Color(0.89, 0.85, 0.72, 0.5)
 
 # Qud's 16-colour palette for rendering the summary's {{code|text}} markup (baked so the summary
-# reads in-colour at the title menu, where there's no live snapshot palette). Same values as
-# ZoneRenderer.COLORS; converted to the hex map QudText.to_bbcode wants in _ready.
-const QUD_COLORS := {
-	"r": Color(0.60, 0.20, 0.15), "R": Color(1.00, 0.30, 0.30),
-	"g": Color(0.00, 0.50, 0.00), "G": Color(0.20, 0.90, 0.20),
-	"b": Color(0.00, 0.00, 0.60), "B": Color(0.25, 0.45, 1.00),
-	"c": Color(0.00, 0.55, 0.55), "C": Color(0.40, 1.00, 1.00),
-	"m": Color(0.55, 0.00, 0.55), "M": Color(1.00, 0.40, 1.00),
-	"w": Color(0.60, 0.40, 0.10), "W": Color(1.00, 0.82, 0.00),
-	"o": Color(0.70, 0.35, 0.00), "O": Color(1.00, 0.55, 0.00),
-	"y": Color(0.70, 0.70, 0.70), "Y": Color(1.00, 1.00, 1.00),
-	"k": Color(0.10, 0.10, 0.10), "K": Color(0.10, 0.10, 0.10),
-}
+# reads in-colour at the title menu, where there's no live snapshot palette). Converted to the hex
+# map QudText.to_bbcode wants in _ready. The values come from QudPalette, exported from the game —
+# this file used to carry its own hand-approximated copy that had drifted from every other one.
+const QUD_COLORS := QudPalette.COLORS
 
 const SIDE_W_FRAC := 0.016    # border thickness as a fraction of the panel
 const BAR_H_FRAC := 0.022
