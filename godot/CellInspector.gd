@@ -117,6 +117,17 @@ func selected_tile() -> Variant:
 func inspect_at_mouse() -> void:
 	inspect_at(_cam, get_viewport().get_mouse_position())
 
+## The cell under a screen point, with NO side effects — no report, no marker, no clipboard,
+## no selection.txt. Click-to-travel picks with this rather than a second pixel->cell mapping
+## of its own: travel then lands on exactly the cell Ctrl+click reports, including the
+## wall-snapping below, so what the inspector says you are pointing at is where you walk.
+## Returns a Vector2i, or null when the ray misses the ground plane.
+func cell_at(cam: Camera3D, mp: Vector2, zscale := 1.0) -> Variant:
+	var hit = _ground_hit_cam(cam, mp)
+	if hit == null:
+		return null
+	return _pick_cell(Vector3(hit.x, hit.y, hit.z / zscale), cam, mp)
+
 ## Inspect using a specific camera + viewport-local mouse position. The main view passes
 ## its camera + the window mouse; a multi-view pane passes its own camera + pane-local pos.
 ## The marker is a node in the shared 3D world, so it shows in every pane at once.

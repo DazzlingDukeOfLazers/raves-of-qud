@@ -41,6 +41,10 @@ var _wish_edit: LineEdit
 var _popup: PopupOverlay        # mirrors Qud modal popups forwarded by the mod (own file)
 var _item_picker: PickerOverlay # mirrors Qud's PickGameObjectScreen (empty-slot equip picker)
 var overlay_check: Callable = Callable()   # MainFrame: "is a frame overlay (status/controlmap) open?"
+# Click-to-travel: where the left button went down, and how far it may travel and still count as a
+# click rather than a camera-orbit drag. 6 px is a hand tremor at the trackpad; an orbit is tens.
+var _travel_press = null        # Vector2 while the button is down, else null
+const TRAVEL_SLOP := 6.0
 var _binds := QudBinds.new()    # the player's Qud keybindings — custom-remap fallback routing
 var _palette := {}              # latest Qud colour map (code -> hex) from snapshots, for popup markup
 var _char_creator: CharacterCreator
@@ -759,6 +763,28 @@ func _inspect() -> void:
 		reporter.set_target(sel.x, sel.y, inspector.zone_id(),
 			inspector.last_objects(), inspector.last_report())
 
+## CLICK-TO-TRAVEL. Send the clicked cell to Qud, which walks the player there with its own
+## MoveTo goal (see mod/Navigator.cs) -- pathing, doors and hostile-interrupts are Qud's, not ours.
+##
+## The cell comes from the INSPECTOR's picking, not a second mapping of our own: travel then lands
+## on exactly the cell Ctrl+click reports, wall-snapping included.
+func _travel_click(pos: Vector2) -> void:
+	if inspector == null or _cam_rig == null or _cam_rig._cam == null:
+		return
+	# Only the playfield travels. claims() is the same "is this UI chrome?" test the Cmd+right-click
+	# branch above uses -- the play hole carries feedback_skip, every panel and screen does not.
+	if FeedbackTool.claims(pos):
+		return
+	# A modal owns the whole screen even where it does not paint: clicking the visible playfield
+	# behind a popup must not quietly order a walk the player cannot see happening.
+	if (_popup != null and _popup.visible) or (_item_picker != null and _item_picker.visible) \
+			or (overlay_check.is_valid() and bool(overlay_check.call())):
+		return
+	var cell = inspector.cell_at(_cam_rig._cam, pos, _cam_rig.zstretch())
+	if cell == null:
+		return
+	client.send_command("moveto", {"x": cell.x, "y": cell.y})
+
 ## Inspect from a multi-view pane: raycast with that pane's camera + the pane-local mouse
 ## position. The 3D marker is shared, so the pick shows across every pane.
 func _multiview_inspect(cam: Camera3D, pos: Vector2) -> void:
@@ -1043,6 +1069,21 @@ func _input(event: InputEvent) -> void:
 				return
 			_inspect_and_capture()
 			get_viewport().set_input_as_handled()
+		return
+	# CLICK-TO-TRAVEL. A plain left click on the playfield walks the player there, as in Qud.
+	# Decided on RELEASE, and only when the mouse barely moved: in MOUSE mode this same button
+	# drags the camera orbit, and a drag must not also be a travel order.
+	# Deliberately NOT consumed -- the release still has to reach _unhandled_input to END that
+	# orbit; swallowing it leaves the camera spinning with the button already up.
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT \
+			and not (event.ctrl_pressed or event.meta_pressed or event.alt_pressed or event.shift_pressed):
+		if event.pressed:
+			_travel_press = event.position
+		else:
+			var press = _travel_press
+			_travel_press = null
+			if press != null and event.position.distance_to(press) <= TRAVEL_SLOP:
+				_travel_click(event.position)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:

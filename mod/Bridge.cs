@@ -189,6 +189,9 @@ namespace RavesOfQud
         {
             BridgeServer server = Server;
             EnsureScanlineState();   // also drive scanline suppression off turns (renders can stall unfocused)
+            // Click-to-travel lands here, and only here: BeginTakeAction is the turn thread and
+            // fires while Qud is in the BACKGROUND, which is where every click from Raves arrives.
+            Navigator.Pump(player);
             if (server == null || server.ClientCount == 0) return;
             if (ForcePublishSoon)
             {
@@ -1531,7 +1534,8 @@ namespace RavesOfQud
                     // CLICK-TO-TRAVEL. Qud's own navigation: the click lands in Raves, the cell
                     // arrives here, and Brain.PushGoal(new MoveTo(cell)) does the walking, so
                     // pathing and hostile-interrupts behave exactly as Qud's do. Queued onto the
-                    // TURN thread inside Navigator, never a threadpool -- see the note there.
+                    // TURN thread inside Navigator (parked here, applied from BeginTakeAction --
+                    // Unity's queue is dead while Qud is backgrounded; see the note there).
                     try
                     {
                         f.TryGetValue("x", out string mvX);
