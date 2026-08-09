@@ -61,6 +61,26 @@ namespace RavesOfQud
             return true;
         }
 
+        /// <summary>Right-click a cell: Qud's own context interaction. Socket thread, no parking.
+        ///
+        /// HANDED STRAIGHT TO QUD, not reimplemented. `XRLCore`'s "AdventureMouseInteract" case takes
+        /// the cell's highest render-layer object and either fires its
+        /// `DefaultRightClickInventoryAction` or calls `Twiddle(MouseClick: true)` -- the interaction
+        /// menu, which is a PopupMessage and therefore already mirrors into Raves. Reimplementing that
+        /// here would mean re-deciding "which object" and re-raising the menu off the turn thread,
+        /// which is the exact shape that made the item menu answer itself (docs/gotchas.md).
+        ///
+        /// Unfocused-safe for the reason PushCommand is: `Keyboard.PushCommand` IS
+        /// `PushMouseEvent("Command:" + cmd)` -- one queue, one `KeyEvent.Set()`, and the turn thread
+        /// wakes on it whatever Unity's main loop is doing. Qud's loop then runs the handler itself,
+        /// on its own thread, in its own order.</summary>
+        public static bool Interact(int x, int y)
+        {
+            Keyboard.PushMouseEvent("AdventureMouseInteract", x, y);
+            Log("[nav] interact " + x + "," + y);
+            return true;
+        }
+
         /// <summary>Apply a parked target. TURN THREAD ONLY — called from BeginTakeAction.</summary>
         public static void Pump(GameObject player)
         {

@@ -765,27 +765,43 @@ func _inspect() -> void:
 		reporter.set_target(sel.x, sel.y, inspector.zone_id(),
 			inspector.last_objects(), inspector.last_report())
 
+## RIGHT-CLICK: Qud's context interaction on the clicked tile — the object's menu, which comes
+## back over the popup mirror. Qud's own handler picks the object and decides what right-clicking
+## it means (see mod/Navigator.Interact); all we carry is the cell.
+func _interact_click(pos: Vector2) -> void:
+	var cell = _playfield_cell(pos)
+	if cell == null:
+		return
+	client.send_command("interact", {"x": cell.x, "y": cell.y})
+
+
 ## CLICK-TO-TRAVEL. Send the clicked cell to Qud, which walks the player there with its own
 ## MoveTo goal (see mod/Navigator.cs) -- pathing, doors and hostile-interrupts are Qud's, not ours.
 ##
 ## The cell comes from the INSPECTOR's picking, not a second mapping of our own: travel then lands
 ## on exactly the cell Ctrl+click reports, wall-snapping included.
 func _travel_click(pos: Vector2) -> void:
-	if inspector == null or _cam_rig == null or _cam_rig._cam == null:
-		return
-	# Only the playfield travels. claims() is the same "is this UI chrome?" test the Cmd+right-click
-	# branch above uses -- the play hole carries feedback_skip, every panel and screen does not.
-	if FeedbackTool.claims(pos):
-		return
-	# A modal owns the whole screen even where it does not paint: clicking the visible playfield
-	# behind a popup must not quietly order a walk the player cannot see happening.
-	if (_popup != null and _popup.visible) or (_item_picker != null and _item_picker.visible) \
-			or (overlay_check.is_valid() and bool(overlay_check.call())):
-		return
-	var cell = inspector.cell_at(_cam_rig._cam, pos, _cam_rig.zstretch())
+	var cell = _playfield_cell(pos)
 	if cell == null:
 		return
 	client.send_command("moveto", {"x": cell.x, "y": cell.y})
+
+
+## The zone cell a playfield click lands on, or null if this click is not the playfield's to have.
+## Shared by both buttons so travel and interact can never disagree about either half of that.
+func _playfield_cell(pos: Vector2) -> Variant:
+	if inspector == null or _cam_rig == null or _cam_rig._cam == null:
+		return null
+	# claims() is the same "is this UI chrome?" test the Cmd+right-click branch above uses -- the
+	# play hole carries feedback_skip, every panel and screen does not.
+	if FeedbackTool.claims(pos):
+		return null
+	# A modal owns the whole screen even where it does not paint: clicking the visible playfield
+	# behind a popup must not quietly order a walk, or open a second menu behind the first.
+	if (_popup != null and _popup.visible) or (_item_picker != null and _item_picker.visible) \
+			or (overlay_check.is_valid() and bool(overlay_check.call())):
+		return null
+	return inspector.cell_at(_cam_rig._cam, pos, _cam_rig.zstretch())
 
 ## Inspect from a multi-view pane: raycast with that pane's camera + the pane-local mouse
 ## position. The 3D marker is shared, so the pick shows across every pane.
@@ -1077,7 +1093,10 @@ func _input(event: InputEvent) -> void:
 	# drags the camera orbit, and a drag must not also be a travel order.
 	# Deliberately NOT consumed -- the release still has to reach _unhandled_input to END that
 	# orbit; swallowing it leaves the camera spinning with the button already up.
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT \
+	# …and a plain RIGHT click is Qud's context interaction on that tile. Same click-not-drag
+	# discipline (right-drag pans in MOUSE mode), same reason for not consuming it.
+	if event is InputEventMouseButton \
+			and event.button_index in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT] \
 			and not (event.ctrl_pressed or event.meta_pressed or event.alt_pressed or event.shift_pressed):
 		if event.pressed:
 			_travel_press = event.position
@@ -1085,7 +1104,10 @@ func _input(event: InputEvent) -> void:
 			var press = _travel_press
 			_travel_press = null
 			if press != null and event.position.distance_to(press) <= TRAVEL_SLOP:
-				_travel_click(event.position)
+				if event.button_index == MOUSE_BUTTON_LEFT:
+					_travel_click(event.position)
+				else:
+					_interact_click(event.position)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:

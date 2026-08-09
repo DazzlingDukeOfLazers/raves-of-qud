@@ -66,10 +66,12 @@ var _list: Control       # 1:1: the owner-drawn row list (the QoL path uses _rt 
 var _qud_rows: Array = []   # 1:1 rows: {tex, arrow, name, right}
 var _font: Font
 var _dragging := false
+var _grab: Control        # the ||| bar's own hit strip, so only IT shows a resize cursor
 
 func _ready() -> void:
 	_tiles = load("res://QudTiles.gd").new()
 	_font = UiFont.make_theme(get_viewport()).default_font
+	_build_grab_strip()
 	_apply_panel_box()
 
 	_vbox = VBoxContainer.new()
@@ -214,7 +216,9 @@ func _apply_panel_box() -> void:
 		sb.border_color = Color(1, 1, 1, 0.12)
 		sb.set_corner_radius_all(3)
 	add_theme_stylebox_override("panel", sb)
-	mouse_default_cursor_shape = Control.CURSOR_HSIZE if _one_to_one else Control.CURSOR_ARROW
+	if _grab != null:
+		_grab.visible = _one_to_one
+		_grab.offset_right = float(SEP_MARGIN_1TO1)
 
 func _apply_title_style() -> void:
 	if _title == null:
@@ -240,6 +244,24 @@ func _draw() -> void:
 
 ## The ||| margin drags the sidebar edge, exactly as the log's does — the bar is one continuous
 ## handle down the column, so half of it being inert would be a worse lie than not drawing it.
+## The ||| bar is the ONLY part of this panel that resizes anything, so it is the only part that
+## may say so. `mouse_default_cursor_shape` is per-CONTROL, and setting it on the panel put the
+## horizontal-resize cursor over the whole thing -- reported as "the resize icon dominates", and
+## it is a cursor promising a drag that the other 95% of the panel does not do. A child strip the
+## width of the bar carries the cursor instead; MOUSE_FILTER_PASS so events still reach
+## `_gui_input` below, which is what actually does the dragging.
+func _build_grab_strip() -> void:
+	if _grab != null:
+		return                  # idempotent: a mode toggle must not stack a second strip
+	_grab = Control.new()
+	_grab.name = "GrabBar"
+	_grab.mouse_filter = Control.MOUSE_FILTER_PASS
+	_grab.mouse_default_cursor_shape = Control.CURSOR_HSIZE
+	_grab.set_anchors_preset(Control.PRESET_LEFT_WIDE)
+	_grab.offset_left = 0
+	_grab.offset_right = float(SEP_MARGIN_1TO1)
+	add_child(_grab)
+
 func _gui_input(e: InputEvent) -> void:
 	if not _one_to_one:
 		return

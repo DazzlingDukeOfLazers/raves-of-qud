@@ -1545,6 +1545,19 @@ namespace RavesOfQud
                     }
                     catch (Exception e) { Server.Log("moveto error: " + e.Message); }
                     break;
+                case "interact":
+                    // RIGHT-CLICK a cell. Qud's own AdventureMouseInteract handler decides what that
+                    // means (twiddle, default right-click action, or a nudge sound on empty ground);
+                    // we only carry the cell. See Navigator.Interact.
+                    try
+                    {
+                        f.TryGetValue("x", out string ixS);
+                        f.TryGetValue("y", out string iyS);
+                        Navigator.Interact(MapEditorDriver.ParseInt(ixS), MapEditorDriver.ParseInt(iyS));
+                    }
+                    catch (Exception e) { Server.Log("interact error: " + e.Message); }
+                    break;
+
                 case "reveal":
                     // Mark the whole active zone explored (Zone.ExploreAll — not
                     // wish-exposed, hence this verb). Rung 6c needs it: a freshly

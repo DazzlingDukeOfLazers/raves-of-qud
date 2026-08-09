@@ -18,6 +18,7 @@ const FILTER_GRACE := 4   # quiet rounds a line survives before its count starts
 ## this and adjusts the side-column width. dx = mouse motion in px (negative = dragged left = wider log).
 signal left_edge_drag(dx: float)
 var _dragging := false
+var _grab: Control        # the ||| bar's own hit strip, so only IT shows a resize cursor
 
 var _filter := false
 var _last_msgs: Array = []       # last verbatim tail (for verbatim render + delta)
@@ -37,6 +38,7 @@ var _notice := ""                # sticky status line (BBCode) pinned at the BOT
 
 func _ready() -> void:
 	_tiles = load("res://QudTiles.gd").new()
+	_build_grab_strip()
 	_apply_panel_box()   # user mode = framed QoL box; 1:1 = borderless + room for the ||| grab-bar
 
 	resized.connect(queue_redraw)   # the ||| grab-bar spans the panel height — redraw when it changes
@@ -136,10 +138,30 @@ func _apply_panel_box() -> void:
 		sb.set_corner_radius_all(3)
 	add_theme_stylebox_override("panel", sb)
 	# resize cursor over the ||| margin (the RichTextLabel child overrides it with the I-beam over text)
-	mouse_default_cursor_shape = Control.CURSOR_HSIZE if _one_to_one else Control.CURSOR_ARROW
+	if _grab != null:
+		_grab.visible = _one_to_one
+		_grab.offset_right = float(SEP_MARGIN_1TO1)
 
 ## Make the whole ||| grab-bar (the left content margin) a resize handle in 1:1. The RichTextLabel child
 ## keeps its I-beam over the text; only the uncovered margin gets this panel's HSIZE cursor + drag.
+## The ||| bar is the ONLY part of this panel that resizes anything, so it is the only part that
+## may say so. `mouse_default_cursor_shape` is per-CONTROL, and setting it on the panel put the
+## horizontal-resize cursor over the whole thing -- reported as "the resize icon dominates", and
+## it is a cursor promising a drag that the other 95% of the panel does not do. A child strip the
+## width of the bar carries the cursor instead; MOUSE_FILTER_PASS so events still reach
+## `_gui_input` below, which is what actually does the dragging.
+func _build_grab_strip() -> void:
+	if _grab != null:
+		return                  # idempotent: a mode toggle must not stack a second strip
+	_grab = Control.new()
+	_grab.name = "GrabBar"
+	_grab.mouse_filter = Control.MOUSE_FILTER_PASS
+	_grab.mouse_default_cursor_shape = Control.CURSOR_HSIZE
+	_grab.set_anchors_preset(Control.PRESET_LEFT_WIDE)
+	_grab.offset_left = 0
+	_grab.offset_right = float(SEP_MARGIN_1TO1)
+	add_child(_grab)
+
 func _gui_input(e: InputEvent) -> void:
 	if not _one_to_one:
 		return
