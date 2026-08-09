@@ -17,6 +17,29 @@ Full write-up in `docs/gotchas.md` ("One state file, many writers").
 Still true and worth keeping: **confirm from a screenshot, never the state file alone.**
 When a report and the screen disagree, `pgrep -f "Raves of Qud" | wc -l` FIRST.
 
+## NEXT: mirror Qud's LOOKER (feedback, 2026-08-09: "Let's wire the looker.")
+
+The Look button opens and closes Qud's Looker (956b8a2), but Raves shows the ordinary playfield
+while it is up — no cursor, no description. Scouted; here is everything the next session needs.
+
+- **`XRL.UI.Look.lookingAt` is a public static** — the GameObject under the cursor. Name and
+  description come free from it.
+- **The cursor x,y are LOCALS in `ShowLooker`** (`num`/`num2`). No public field carries them, and
+  `Qud.UI.PickTargetWindow` does not either — both checked, do not re-search.
+- **The reticle is in the BUFFER**: `ShowLooker` does
+  `Buffer.Buffer[x,y].imposterExtra.Add("Prefabs/Imposters/TargetReticle")`, and `Look._ScreenBuffer`
+  / `Look._TextConsole` are public statics. Scanning for that imposter is the way to the cursor
+  cell. (`Look.Buffer` itself is private.)
+- **Publish from `PopupBridge.Poll`, NOT the snapshot.** The Looker parks the turn thread, so the
+  snapshot channel is dead for exactly as long as the mirror is needed — the third instance of that
+  pattern in one session (popups, `qudView`, this). Add a `looker` frame beside the `popup` and
+  `view` ones and route it in `BridgeClient`.
+- **Driving it**: the Looker reads raw keys through `Keyboard.getvk`. `Bridge.NamedKeys` already has
+  escape/enter/space/tab; add up/down/left/right and Raves can move the cursor with
+  `Main.request_key`. Escape already leaves (verified).
+- Raves side: a cursor highlight on the cell plus the description. `CellInspector` already has the
+  cell→screen mapping and a marker; the tooltip text is Qud's own `Look.GenerateTooltipContent`.
+
 ## Open feedback items (`~/Library/Application Support/RavesOfQud/feedback.jsonl`)
 
 Read them with the snippet in "Tools" below. Closed today: nav icon, Continue save name, typing
