@@ -63,6 +63,7 @@ namespace RavesOfQud
         private static volatile string _uiMenu = "";
         private static long _uiSampleTs;
         private static volatile bool _uiSamplePending;
+        private static long _uiQueuedTs;          // when the in-flight sample was queued
 
         private static void SampleUiOnMainThread()
         {
@@ -152,9 +153,29 @@ namespace RavesOfQud
                         try
                         {
                             var gm = GameManager.Instance;
+                            long nowTs = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                            // WATCHDOG. `_uiSamplePending` is cleared by the task itself, so a
+                            // sample that is queued and never RUNS latches it true forever and no
+                            // further sample is ever requested -- the sampler stops silently and
+                            // `scene` quietly falls back to the vague legacy view. Measured on
+                            // macOS 2026-08-08 at Qud's title: window=MainMenu was sampled once at
+                            // startup and never again, so `sampleFresh` stayed false, the positive
+                            // "TitleScreen" assertion never fired, and `hv state` answered
+                            // `unknown` for the title -- the root of most Qud routes. The same
+                            // startup logs a NullReferenceException from inside
+                            // ThreadTaskQueue.queueTask, so uiQueue really can be in a state where
+                            // work does not drain. Re-arm rather than latch: whatever the cause,
+                            // one lost task must not end sampling for the life of the process.
+                            if (_uiSamplePending && _uiQueuedTs > 0 && nowTs - _uiQueuedTs >= 5)
+                            {
+                                UnityEngine.Debug.Log("[raves] ui sample did not run in "
+                                                      + (nowTs - _uiQueuedTs) + "s -- re-arming");
+                                _uiSamplePending = false;
+                            }
                             if (!_uiSamplePending && gm != null && gm.uiQueue != null)
                             {
                                 _uiSamplePending = true;
+                                _uiQueuedTs = nowTs;
                                 gm.uiQueue.queueTask(SampleUiOnMainThread, 0);
                             }
                         }
