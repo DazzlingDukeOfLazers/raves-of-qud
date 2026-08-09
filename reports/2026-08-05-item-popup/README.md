@@ -327,3 +327,99 @@ Qud rendered the first option as `Keyboard & Mouse`; Raves rendered `Keyboard  M
 `QudText` read the pair as a colour code, eating BOTH characters. All three parsers
 (`to_bbcode` / `strip` / `runs`) now treat a doubled sigil as the literal character; a single
 `&X` is still a colour code. Guarded in the SPOT tier by `tests/popup_overlay_render.gd`.
+
+## 2026-08-09 — the cap change re-scored, and the TREE EMBLEM added
+
+Two separate things landed on this screen and they are scored separately on purpose, because
+`f097c16` (the 2x10 → 2x4 rule caps) shipped **without** re-driving this pin and its commit
+message said so.
+
+### The cap change: no effect on any leaf, measured
+
+The whole pin was re-driven from a fixture reload on the `f097c16` build, before touching
+anything. **All 7 leaves reproduced the pinned scoreboard exactly (+0.00.)** So the caps are not
+covered by this spec — the assumption recorded in `f097c16` is now a measurement. It follows from
+the rects: `popup_image_frame` is anchored at the top rule and reaches DOWN 152 rows, and
+`popup_placement` is absolute `y320..380`, so a 4px cap centred on the rule changes the leaf's ink
+BBOX not at all and its 12px frame band only where Raves already matched.
+
+### The emblem: Qud drew one, Raves drew nothing
+
+Qud draws a tree/vine glyph ABOVE the popup box. It is `polat-frame-top`, the `PolatFrameTopping`
+child of `PolatFrame`, laid out 183x60 with its BOTTOM on the box top — screen `(868.5, 276.44,
+183, 60)` against a box at `(820.9, 336.44)`, from the mod's own chrome dump.
+
+**Extracted first-party, not redrawn.** New bridge command `popupchrome`
+(`hv bridge popupchrome`) runs `TitleExporter`'s existing chrome walk over the ACTIVE
+`PopupMessage`'s transform, so the sprite lands as a real PNG in `<support>/title/chrome/`
+beside the main menu's. It rides the `uiQueue`, not the main-thread command queue, because a
+modal parks Qud's turn thread and `Tick`/`TickRender` may never drain while the thing being
+exported is on screen. `ExportNamedSprite` cannot do this job at all — the popup's chrome is a
+SpriteAtlas instance that `Resources.FindObjectsOfTypeAll<Sprite>()` never sees.
+
+Drawn through **one shared accessor**, `QudChrome.popup_emblem()` — decoded once into a static,
+handed out by reference. The `nav_icon` above it records what the alternative costs: seven screens
+grew seven copies of one glyph and they drifted. The chargen header carries this same art
+(`chargen_emblem.png` is a byte-identical 434-pixel mask of the same tone), so the second caller
+already exists.
+
+### Verified by re-measuring, not by eye
+
+`measure_emblem.py` in this directory. It matches the glyph's flat TINT with a tolerance rather
+than thresholding brightness — Qud dims the live playfield behind a modal instead of blanking it,
+so `sum(rgb)>140` returns the whole scan window (measured: `x800..1119`). Tolerances 0 through 6
+all give the same answer; at 8 a dimmed wall segment joins in.
+
+| | Qud | Raves | |
+|---|---|---|---|
+| ink bbox | x940..978 (39), y276..318 (43) | x940..978 (39), y276..318 (43) | **exact** |
+| centre | 959.0, against a box centre of 959.5 | 959.0 | **exact** |
+| tone | (68,99,111) | (68,99,111) | **exact** |
+| lit pixels | 453 | 428 | 418 shared, 92.3% of Qud's |
+
+**The 35-pixel residual is the central stem's dashes, and it is in the EXTRACTION, not the
+placement.** Where Qud renders the glyph's 1px spine, the extracted PNG holds the disc colour at
+alpha 128 — no glyph tone in it at all — so the pixels are not recoverable from the file. Three
+things were tried and are recorded so they are not retried: forcing Point sampling in
+`WriteRegion` changed the PNG by **zero bytes**; `chargen_emblem.png`, extracted from a different
+sprite through the same path, agrees with Qud's render *worse* (397 against 418); and growing the
+tone mask into the half-alpha pixels by vertical continuity reaches 447/453 but floods 316 pixels
+of the disc with it. The atlas region genuinely holds those values.
+
+The same overreach is why `EMBLEM_CLIP_RIGHT` exists: the extracted glyph is 40 columns and Qud
+inks 39. The dropped column is the right wing's 2px tip at rows 16-17 whose mirror on the left IS
+drawn — so it is the region reaching one column too far, not an asymmetric glyph. The PNG also
+carries a wide (60,96,103) band across its middle rows that Qud provably never puts on screen
+(outside the glyph, the two apps differ nowhere in those rows).
+
+### Re-scored after: all 7 leaves +0.00 again
+
+| leaf | pinned | before (f097c16) | after (emblem) |
+|---|---|---|---|
+| `popup_image_frame` | 2.28 | 2.28 | 2.28 |
+| `popup_frame_text_content` | 4.98 | 4.98 | 4.98 |
+| `popup_frame_text_color` | 2.30 | 2.30 | 2.30 |
+| `popup_frame_text_geometry` | 0.25 | 0.25 | 0.25 |
+| `popup_image_geometry` | 0.00 | 0.00 | 0.00 |
+| `popup_image_color` | 0.00 | 0.00 | 0.00 |
+| `popup_placement` | 0.00 | 0.00 | 0.00 |
+
+Unchanged is the CORRECT result, not a null one: every leaf's rect starts at the top rule or
+below it, and the emblem lives entirely above it (`y276..318` against a rule at `y320`). The
+anchor is unaffected too — it needs 100 matching pixels in a row and the emblem's widest row has
+39. Captures replaced with this run.
+
+### Still open on this rule, and now one more
+
+`f097c16` measured two things it did not fix, and both stand:
+
+- Qud caps BOTH sides of each outer break, its inner caps 4 wide (offsets 53-56 and 183-186);
+  Raves caps only the outer side.
+- Qud's CENTRE break carries an ornament spanning offsets 107-131, `y308-332`, where Raves draws
+  plain caps.
+
+The second one now has a visible edge: the emblem's spine continues DOWN through the rule as part
+of that ornament (sprite rows 43-59), and the emblem stops 2px above the rule as specified, so
+Raves shows the glyph without its descending tail. That is the same outstanding item, not a new
+defect — it is listed here because the side-by-side makes it the most obvious remaining difference
+on the screen.

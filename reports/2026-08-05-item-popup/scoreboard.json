@@ -1,7 +1,7 @@
 {
  "screen": "item interaction popup (EquipmentAPI.TwiddleObject)",
  "spec": "reports/2026-08-05-item-popup/parity-item-popup.json",
- "measured": "2026-08-08, after the popup BOX MODEL port (godot/PopupOverlay.gd). Previous numbers kept as `was` so the delta is readable without a git log. RE-SCORED 2026-08-08 (later) on the build that fixes PopupOverlay._title's declared type: the whole pin was re-driven from a fixture reload and all seven leaves reproduced EXACTLY (+0.00). Captures replaced with that run.",
+ "measured": "2026-08-08, after the popup BOX MODEL port (godot/PopupOverlay.gd). Previous numbers kept as `was` so the delta is readable without a git log. RE-SCORED 2026-08-08 (later) on the build that fixes PopupOverlay._title's declared type: the whole pin was re-driven from a fixture reload and all seven leaves reproduced EXACTLY (+0.00). Captures replaced with that run. RE-SCORED TWICE on 2026-08-09, each from a full pin re-drive (fixture reload -> twiddle robe -> parity.py capture): once on f097c16 BEFORE any change, to separate that commit's rule-cap change from what came after, and once after the popup TREE EMBLEM was added. All seven leaves scored +0.00 on both -- the caps are not covered by this spec, and the emblem lives entirely above every leaf's rect (ink y276..318 against a top rule at y320). Captures replaced with the second run. See the README's 2026-08-09 section.",
  "pin": {
   "save": "sync-raves-and-qud",
   "mode": "Wander",
@@ -110,5 +110,13 @@
     }
    }
   ]
+ },
+ "emblem_check": {
+  "note": "Qud's tree glyph ABOVE the box -- sprite `polat-frame-top`, the PolatFrameTopping child of PolatFrame, laid out 183x60 with its BOTTOM on the box top. Extracted first-party off the LIVE popup by the new `popupchrome` bridge command and drawn through the shared QudChrome.popup_emblem() accessor. Raves drew nothing here before. Re-measure with reports/2026-08-05-item-popup/measure_emblem.py -- it matches the glyph's flat tint, not brightness, because Qud dims the live playfield behind a modal rather than blanking it.",
+  "qud_layout": "screen (868.5, 276.44, 183, 60) against a box at (820.9, 336.44)",
+  "ink_bbox_qud": "x940..978 (39 wide), y276..318 (43 tall), centre 959.0, tone (68,99,111), 453 lit",
+  "ink_bbox_raves": "x940..978 (39 wide), y276..318 (43 tall), centre 959.0, tone (68,99,111), 428 lit",
+  "result": "bbox, centre and tone EXACT. 418 pixels shared = 92.3% of Qud's ink.",
+  "residual": "35 px of the glyph's 1px central spine. It is an EXTRACTION limit, not a placement one: the atlas region holds the disc colour at alpha 128 at exactly those pixels, with no glyph tone to recover. Point sampling in WriteRegion changed the PNG by zero bytes; chargen_emblem.png (same art, different sprite) agrees worse (397); vertical-continuity growth reaches 447 but floods 316 disc pixels. Do not retry these three."
  }
 }

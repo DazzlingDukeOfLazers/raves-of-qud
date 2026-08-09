@@ -743,6 +743,23 @@ namespace RavesOfQud
                         }, 0);
                     return;
                 }
+                if (name == "popupchrome")
+                {
+                    // Export the LIVE popup's chrome sprites (the tree emblem above the box, the
+                    // frame, the header strips) through the same walk TitleExporter runs over the
+                    // main menu. First-party pixels out of the player's own install -- the same
+                    // argument as `pick` and the ElliotSans carve -- rather than art redrawn by
+                    // hand from a screenshot.
+                    //
+                    // NOT folded into "export": that one runs on the main-thread command queue
+                    // drained by Tick/TickRender, and a modal parks the turn thread, so it may
+                    // never drain while the very thing being exported is on screen. The uiQueue
+                    // does drain -- it is what keeps the popup itself painting.
+                    var gmpc = GameManager.Instance;
+                    if (gmpc != null && gmpc.uiQueue != null)
+                        gmpc.uiQueue.queueTask(() => { try { PopupBridge.ExportChrome(); } catch { } }, 0);
+                    return;
+                }
                 if (name == "glyphs")
                 {
                     // Force a re-extract of Qud's input-glyph font (EnsureExported skips when the

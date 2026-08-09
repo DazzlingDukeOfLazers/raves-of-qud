@@ -1291,3 +1291,39 @@ blamed that path and was wrong). What delivers the answer is unidentified.
 
 **Working rule for captures:** reload the fixture between raises rather than retrying, and check the
 option count on the mirrored frame before you capture. A reload cannot activate anything.
+
+## An EXTRACTED sprite is not always what Qud RENDERS — check the region before trusting it
+
+Measured 2026-08-09 on the popup's tree emblem (`polat-frame-top`, extracted by the new
+`hv bridge popupchrome`). The pipeline is sound and the pixels are Qud's own, but the region
+`sp.textureRect` names **overreaches the sprite Unity actually draws**, three ways at once:
+
+- a wide `(60,96,103)` band across its middle rows that Qud provably never puts on screen
+  (outside the glyph, the two apps differ nowhere in those rows);
+- one column too many on the right — the PNG's glyph is 40 wide, Qud inks 39, and the dropped
+  column's mirror on the left IS drawn, so the glyph is not the asymmetric thing;
+- the glyph's 1px spine stored as the DISC colour at alpha 128, where Qud renders glyph tone.
+
+**So verify an extraction against a live capture before building on it** — `hv shot` both apps,
+match the flat tone, compare the masks. Do not re-run these three: forcing `FilterMode.Point` in
+`TitleExporter.WriteRegion` changes the file by **zero bytes** (it is kept as a guard, and its
+result is recorded in the comment); a second extraction of the same art through a different sprite
+(`chargen_emblem.png`) agrees with the render *worse*; and growing the tone mask into the
+half-alpha pixels by vertical continuity floods the disc.
+
+**And do not threshold BRIGHTNESS to measure anything over a modal.** Qud dims the live playfield
+behind a popup instead of blanking it, so `sum(rgb)>140` returns the whole scan window — the
+emblem's bbox came back as `x800..1119`. Match the flat TINT with a tolerance instead;
+`reports/2026-08-05-item-popup/measure_emblem.py` is the worked example, and tolerances 0-6 all
+give the same answer there.
+
+**Adding a screen's extracted chrome → put the loader in `QudChrome`, not in the screen.** The
+emblem is on the popup and on the chargen header, and `QudChrome.nav_icon` already records what
+seven private copies of one glyph cost. `QudChrome.popup_emblem()` decodes once into a static.
+It also does NOT call `brighten()`: the extracted tone `(77,110,122)` is exactly `q8(68,99,111)`,
+i.e. already the value to draw so the captured pixel lands on Qud's rendered value — round-tripped,
+not assumed. Compensating twice would have made it visibly pale.
+
+**Exporting chrome from a MODAL runs on the `uiQueue`, never the main-thread command queue.** A
+popup parks Qud's turn thread, so `Tick`/`TickRender` may never drain while the thing being
+exported is on screen — the same argument that puts the popup mirror's watcher there.

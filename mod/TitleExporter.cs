@@ -543,70 +543,129 @@ namespace RavesOfQud
         /// frame from the header glyphs from the option scroller without guessing. One-shot.
         private static void ExportChrome(Qud.UI.MainMenu menu, string dumpPath)
         {
-            var sb = new System.Text.StringBuilder();
-            string dir = Path.Combine(Dir, "chrome");
-            Directory.CreateDirectory(dir);
-            var seen = new System.Collections.Generic.HashSet<Sprite>();
             Transform[] roots = {
                 menu.centerTransform,
                 menu.leftFader != null ? menu.leftFader.transform : null,
             };
+            WalkRoots(roots, dumpPath);
+        }
+
+        /// <summary>MAIN THREAD. Run the SAME chrome walk over any live subtree, so a screen other
+        /// than the main menu can have its sprites extracted first-party instead of hand-drawn.
+        ///
+        /// Written for the item popup's TREE EMBLEM (Qud's `polat-frame-top`, the `PolatFrameTopping`
+        /// child of `PolatFrame`), which Raves drew as nothing. Note this cannot be done with
+        /// <see cref="ExportNamedSprite"/>: that scans Resources.FindObjectsOfTypeAll&lt;Sprite&gt;()
+        /// for a name, and the popup's chrome comes off a SpriteAtlas whose runtime instances the
+        /// global scan never sees -- the same trap UiProbe.ExportChrome records. Reading the sprite
+        /// off the Image that is drawing it cannot miss.
+        ///
+        /// Sprites land in <c>&lt;Dir&gt;/chrome/</c> beside the main menu's, so the client has ONE
+        /// chrome directory to load from. Returns the number of distinct sprites written.</summary>
+        public static int ExportChromeUnder(Transform root, string dumpFile)
+        {
+            if (root == null) return 0;
+            return WalkRoots(new[] { root }, Path.Combine(Dir, dumpFile));
+        }
+
+        private static int WalkRoots(Transform[] roots, string dumpPath)
+        {
+            var sb = new System.Text.StringBuilder();
+            string dir = Path.Combine(Dir, "chrome");
+            Directory.CreateDirectory(dir);
+            var seen = new System.Collections.Generic.HashSet<Sprite>();
             foreach (Transform root in roots)
             {
                 if (root == null) continue;
-                sb.AppendLine("ROOT " + PathOf(root));
-                WalkDump(root, sb, dir, seen);
+                sb.AppendLine("ROOT " + PathOf(root, root));
+                // The root itself can carry the Image (WalkDump only reports CHILDREN), and for a
+                // subtree handed in from outside there is no reason it would not.
+                DumpOne(root, root, sb, dir, seen);
+                WalkDump(root, root, sb, dir, seen);
                 sb.AppendLine();
             }
             File.WriteAllText(dumpPath, sb.ToString());
             System.Console.WriteLine("[raves] chrome dump -> " + dumpPath + " (" + seen.Count + " sprites)");
+            return seen.Count;
         }
 
-        private static void WalkDump(Transform t, System.Text.StringBuilder sb, string dir,
+        private static void WalkDump(Transform t, Transform stop, System.Text.StringBuilder sb, string dir,
                                      System.Collections.Generic.HashSet<Sprite> seen)
         {
             foreach (Transform c in t)
             {
-                string path = PathOf(c);
-                var rt = c as RectTransform;
-                Vector2 sz = rt != null ? rt.rect.size : Vector2.zero;
-                Image img = c.GetComponent<Image>();
-                RawImage raw = c.GetComponent<RawImage>();
-                if (img != null)
-                {
-                    Sprite sp = img.sprite;
-                    string sn = sp != null ? sp.name : "(null)";
-                    Vector4 bd = sp != null ? sp.border : Vector4.zero;   // l, b, r, t
-                    Rect trc = sp != null ? sp.textureRect : new Rect();
-                    sb.AppendLine(string.Format(
-                        "IMG {0} active={1} type={2} sprite={3} src={4}x{5} border=({6},{7},{8},{9}) rect={10}x{11} color={12}",
-                        path, c.gameObject.activeInHierarchy, img.type, sn,
-                        (int)trc.width, (int)trc.height, bd.x, bd.y, bd.z, bd.w,
-                        (int)sz.x, (int)sz.y, "#" + ColorUtility.ToHtmlStringRGBA(img.color)));
-                    if (sp != null && sp.texture != null && seen.Add(sp))
-                        WriteSprite(sp, Path.Combine(dir, Sanitize(sn) + ".png"));
-                }
-                else if (raw != null)
-                {
-                    string tn = raw.texture != null ? raw.texture.name : "(null)";
-                    sb.AppendLine(string.Format("RAW {0} active={1} tex={2} rect={3}x{4}",
-                        path, c.gameObject.activeInHierarchy, tn, (int)sz.x, (int)sz.y));
-                    if (raw.texture is Texture2D t2)
-                        WriteRegion(t2, new Rect(0, 0, t2.width, t2.height),
-                            Path.Combine(dir, Sanitize(c.name) + ".png"));
-                }
-                else
-                {
-                    sb.AppendLine(string.Format("--- {0} rect={1}x{2}", path, (int)sz.x, (int)sz.y));
-                }
-                WalkDump(c, sb, dir, seen);
+                DumpOne(c, stop, sb, dir, seen);
+                WalkDump(c, stop, sb, dir, seen);
             }
         }
 
-        private static string PathOf(Transform t)
+        private static void DumpOne(Transform c, Transform stop, System.Text.StringBuilder sb, string dir,
+                                    System.Collections.Generic.HashSet<Sprite> seen)
+        {
+            string path = PathOf(c, stop);
+            var rt = c as RectTransform;
+            Vector2 sz = rt != null ? rt.rect.size : Vector2.zero;
+            Image img = c.GetComponent<Image>();
+            RawImage raw = c.GetComponent<RawImage>();
+            if (img != null)
+            {
+                Sprite sp = img.sprite;
+                string sn = sp != null ? sp.name : "(null)";
+                Vector4 bd = sp != null ? sp.border : Vector4.zero;   // l, b, r, t
+                Rect trc = sp != null ? sp.textureRect : new Rect();
+                sb.AppendLine(string.Format(
+                    "IMG {0} active={1} type={2} sprite={3} src={4}x{5} border=({6},{7},{8},{9}) rect={10}x{11} color={12}{13}",
+                    path, c.gameObject.activeInHierarchy, img.type, sn,
+                    (int)trc.width, (int)trc.height, bd.x, bd.y, bd.z, bd.w,
+                    (int)sz.x, (int)sz.y, "#" + ColorUtility.ToHtmlStringRGBA(img.color), ScreenRect(rt)));
+                if (sp != null && sp.texture != null && seen.Add(sp))
+                    WriteSprite(sp, Path.Combine(dir, Sanitize(sn) + ".png"));
+            }
+            else if (raw != null)
+            {
+                string tn = raw.texture != null ? raw.texture.name : "(null)";
+                sb.AppendLine(string.Format("RAW {0} active={1} tex={2} rect={3}x{4}{5}",
+                    path, c.gameObject.activeInHierarchy, tn, (int)sz.x, (int)sz.y, ScreenRect(rt)));
+                if (raw.texture is Texture2D t2)
+                    WriteRegion(t2, new Rect(0, 0, t2.width, t2.height),
+                        Path.Combine(dir, Sanitize(c.name) + ".png"));
+            }
+            else
+            {
+                sb.AppendLine(string.Format("--- {0} rect={1}x{2}{3}", path, (int)sz.x, (int)sz.y, ScreenRect(rt)));
+            }
+        }
+
+        /// Where the node actually LANDS, in capture space: screen pixels, TOP-LEFT origin, the same
+        /// convention as UiProbe (and as an `hv shot`, since both windows render at 1x). Without it a
+        /// dump says what a sprite IS but not where Qud puts it, which is half of what a placement
+        /// needs -- and the half that is otherwise inferred from a screenshot.
+        private static readonly Vector3[] _corners = new Vector3[4];
+
+        private static string ScreenRect(RectTransform rt)
+        {
+            if (rt == null) return "";
+            try
+            {
+                rt.GetWorldCorners(_corners);
+                float xmin = Mathf.Min(_corners[0].x, _corners[2].x);
+                float xmax = Mathf.Max(_corners[0].x, _corners[2].x);
+                float ymin = Mathf.Min(_corners[0].y, _corners[2].y);
+                float ymax = Mathf.Max(_corners[0].y, _corners[2].y);
+                return string.Format(" screen=({0:0.##},{1:0.##},{2:0.##},{3:0.##})",
+                    xmin, Screen.height - ymax, xmax - xmin, ymax - ymin);
+            }
+            catch { return ""; }
+        }
+
+        /// The node's path, relative to `stop` (inclusive). The main-menu walk used to stop at
+        /// whatever carried a MainMenu component; naming the root explicitly lets the same dump
+        /// serve a subtree that has no MainMenu above it at all.
+        private static string PathOf(Transform t, Transform stop)
         {
             string p = t.name;
-            for (Transform u = t.parent; u != null && u.GetComponent<Qud.UI.MainMenu>() == null; u = u.parent)
+            for (Transform u = t.parent; u != null && u != stop
+                     && u.GetComponent<Qud.UI.MainMenu>() == null; u = u.parent)
                 p = u.name + "/" + p;
             return p;
         }
@@ -642,6 +701,15 @@ namespace RavesOfQud
         }
 
         /// Scaled blit of just this region into an RT, readback, PNG (no full-atlas alloc).
+        ///
+        /// POINT SAMPLING is a GUARD, and it is here with its result recorded so nobody pays for the
+        /// experiment twice. Every caller blits 1:1 (a sprite's own textureRect, or a whole texture),
+        /// so a bilinear sampler lands on texel centres and returns the texel -- and that is what was
+        /// measured: forcing Point changed `polat-frame-top.png` by ZERO bytes. It is kept because an
+        /// extraction should ask for the texel rather than rely on the arithmetic staying exact, and
+        /// because the alternative was suspected first when the popup emblem came out disagreeing with
+        /// Qud's own render on 31 of 453 lit pixels. It is NOT the cause of that: the atlas region
+        /// genuinely holds those values (see QudChrome.popup_emblem for what the region overreaches).
         private static void WriteRegion(Texture tex, Rect r, string dest)
         {
             int w = Mathf.RoundToInt(r.width);
@@ -649,9 +717,16 @@ namespace RavesOfQud
             if (w <= 0 || h <= 0) return;
             RenderTexture rt = RenderTexture.GetTemporary(
                 w, h, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear);
-            Vector2 scale = new Vector2(r.width / tex.width, r.height / tex.height);
-            Vector2 offset = new Vector2(r.x / tex.width, r.y / tex.height);
-            Graphics.Blit(tex, rt, scale, offset);
+            rt.filterMode = FilterMode.Point;
+            FilterMode prevFilter = tex.filterMode;
+            tex.filterMode = FilterMode.Point;
+            try
+            {
+                Vector2 scale = new Vector2(r.width / tex.width, r.height / tex.height);
+                Vector2 offset = new Vector2(r.x / tex.width, r.y / tex.height);
+                Graphics.Blit(tex, rt, scale, offset);
+            }
+            finally { tex.filterMode = prevFilter; }
 
             RenderTexture prev = RenderTexture.active;
             RenderTexture.active = rt;

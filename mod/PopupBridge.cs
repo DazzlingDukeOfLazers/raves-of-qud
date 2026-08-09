@@ -108,6 +108,26 @@ namespace RavesOfQud
             return null;
         }
 
+        /// <summary>UI THREAD. Export the LIVE popup's chrome sprites — the same walk
+        /// <see cref="TitleExporter"/> runs over the main menu, pointed at whatever modal is on
+        /// screen right now, so they land as real PNGs in <c>&lt;support&gt;/title/chrome/</c>
+        /// beside the rest.
+        ///
+        /// It has to be the LIVE instance and it has to be here. The popup's chrome comes off a
+        /// SpriteAtlas, so a name lookup through <c>Resources.FindObjectsOfTypeAll&lt;Sprite&gt;()</c>
+        /// finds nothing (UiProbe records the same trap) — the Image that is drawing it is the only
+        /// handle. And a popup parks Qud's TURN thread, so the main-thread command queue that
+        /// Tick/TickRender drains may never drain while one is up; the uiQueue this rides on does,
+        /// which is the whole reason the mirror watcher lives there too.</summary>
+        public static bool ExportChrome()
+        {
+            PopupMessage pm = FindVisiblePopup(true);
+            if (pm == null) { Log("[popup] chrome export: no live popup"); return false; }
+            int n = TitleExporter.ExportChromeUnder(pm.transform, "popup_chrome_dump.txt");
+            Log("[popup] chrome export: " + n + " sprites from " + pm.gameObject.name);
+            return n > 0;
+        }
+
         /// <summary>Called (on the accept thread) when a client connects. A popup is published only on
         /// change, so a viewer that connects — or a rebuilt Raves that reconnects — WHILE a modal is up
         /// would otherwise never learn of it (the turn thread is blocked, so no snapshot flows either).

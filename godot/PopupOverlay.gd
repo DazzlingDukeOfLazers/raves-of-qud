@@ -240,6 +240,9 @@ func _build() -> void:
 	_sb_box.content_margin_top = 0
 	_sb_box.content_margin_bottom = BOX_PAD_B
 	_panel.add_theme_stylebox_override("panel", _sb_box)
+	# the emblem is an extracted BITMAP drawn 1:1 from this callback -- never let the default
+	# filter soften Qud's own pixels (the same rule the context tile already follows)
+	_panel.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_panel.draw.connect(_draw_chrome)
 	center.add_child(_panel)
 
@@ -415,6 +418,7 @@ func _draw_chrome() -> void:
 	# it looked like on screen.
 	for x in [l0 - 2, r1, c0 - 2, c1]:
 		_rect(off, Rect2(x, ly - CAP_H * 0.5 + 1.0, 2, CAP_H), C_TOPLINE)
+	_draw_emblem(off, cx)
 	# The context block is closed off by its own full-width divider, notched like the top
 	# line (Qud: top rule y320, divider y471 -- both the same strip, 151 apart).
 	if _ctx_box.visible:
@@ -452,6 +456,31 @@ func _draw_chrome() -> void:
 		_rect(off, Rect2(w - line, h + CROME_TICK_TOP, 1, CROME_TICK_H), C_BOTLINE)
 	else:
 		_rect(off, Rect2(0, by, w, 1), C_BOTLINE)
+
+
+## The TREE EMBLEM above the box (Qud's `polat-frame-top`, the `PolatFrameTopping` child of
+## `PolatFrame`). Qud centres the 183x60 sprite on the box and hangs it so its BOTTOM is the
+## box top, which puts the glyph's ink 60px above the box and stops it 2px short of the top
+## rule. Read off the live popup, not fitted: `uiprobe` and the mod's own chrome dump both
+## report the topping at screen (868.5, 276.44, 183, 60) against a box at (820.9, 336.44).
+##
+## The texture comes from `QudChrome.popup_emblem()` -- ONE decode for the whole app, in the
+## sprite's own 183-wide frame, so the placement here is Qud's model verbatim with no carve
+## offset to keep in step.
+##
+## SNAPPED TO A WHOLE PIXEL, unlike the rules around it. Those are 1-2px bars whose row is
+## decided by the fractional `off`; this is a bitmap, and its exact-box x lands on 868.5 -- a
+## dead half pixel, where a nearest-filtered blit could sample either column. Unity's canvas
+## resolves the same half pixel by rounding (Qud's glyph inks from x940, i.e. a topping at
+## 869), so rounding here reproduces Qud rather than leaving it to a tie-break.
+func _draw_emblem(off: Vector2, cx: float) -> void:
+	var tex := QudChrome.popup_emblem()
+	if tex == null:
+		return
+	var w := float(QudChrome.EMBLEM_W)
+	var x := roundf(cx - w * 0.5 + off.x)
+	var y := roundf(-float(QudChrome.EMBLEM_H) + off.y)
+	_panel.draw_texture_rect(tex, Rect2(Vector2(x, y), tex.get_size()), false)
 
 
 ## Qud's box, computed from the MODEL in Qud's own subpixels -- the same arithmetic the
