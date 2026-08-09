@@ -1663,6 +1663,23 @@ namespace RavesOfQud
                         RecordsExporter.ReExport();
                         ChargenExporter.ReExport();
                         BlueprintExporter.ReExport();
+                        // The reputation screen's indicator SPRITE, once. Not a data exporter: it
+                        // has to come off a live Image on the Unity thread (the atlas trap), so it
+                        // rides the uiQueue and simply finds nothing until the Factions screen has
+                        // been opened at least once -- harmless, and the next `export` picks it up.
+                        // Raves keeps drawing its solid rect while the file is absent.
+                        var gmx = GameManager.Instance;
+                        if (gmx != null && gmx.uiQueue != null)
+                            gmx.uiQueue.queueTask(() =>
+                            {
+                                try
+                                {
+                                    string rp = System.IO.Path.Combine(TileExporter.Dir, "rep_indicator.png");
+                                    if (!System.IO.File.Exists(rp))
+                                        UiProbe.ExportLoadedSprite("polat-decoration-1", "rep_indicator.png");
+                                }
+                                catch { }
+                            }, 0);
                         Server.Log("[export] re-exported mods + options + records + chargen + blueprints");
                     }
                     catch (Exception e) { Server.Log("export error: " + e.Message); }

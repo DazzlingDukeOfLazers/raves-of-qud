@@ -88,6 +88,14 @@ var _det_cache := {}         # id -> details-box height, cleared whenever the da
 var _font: Font
 var _tiles: RefCounted = null
 var _content: Control
+## Qud's reputation indicator is a SPRITE, not a swatch: FactionsLine's prefab holds a fixed
+## `polat-decoration-1` (a small fan ornament) and setData touches only its `.color`, so the
+## reputation is carried entirely by the tint. Drawing a solid 22x17 rect there was the stand-in.
+##
+## The pixels come out of the player's own install -- exported by the mod, never committed -- so
+## this is null on a machine that has not run the export yet, and _draw_row falls back to the rect
+## rather than leaving the column empty.
+var _ind_tex: Texture2D = null
 
 func _init() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -97,6 +105,7 @@ func _ready() -> void:
 	_font = UiFont.make_theme(get_viewport()).default_font
 	_tiles = load("res://QudTiles.gd").new()
 	_tiles.tiles_dir = InputModel.support_dir().path_join("tiles")
+	_ind_tex = _load_indicator()
 	_content = Control.new()
 	_content.position = Vector2(0, VIEW_Y)
 	_content.size = Vector2(1920, VIEW_H)
@@ -149,6 +158,17 @@ func _row_h(f: Dictionary) -> float:
 		return HEAD_H
 	return HEAD_H + (DET_DY - HEAD_H) + _det_h(f)
 
+## The exported indicator sprite, or null when the export has not run. Loaded once: it is one
+## 22x17 image shared by every row, so re-reading it per faction would be ~98 file hits a frame.
+func _load_indicator() -> Texture2D:
+	var path: String = InputModel.support_dir().path_join("tiles").path_join("rep_indicator.png")
+	if not FileAccess.file_exists(path):
+		return null
+	var img := Image.new()
+	if img.load_png_from_buffer(FileAccess.get_file_as_bytes(path)) != OK:
+		return null
+	return ImageTexture.create_from_image(img)
+
 func _draw_rows() -> void:
 	if _font == null:
 		return
@@ -170,9 +190,20 @@ func _draw_row(f: Dictionary, i: int, y: float) -> void:
 	_content.draw_string(_font, Vector2(EXP_X + 9, y + 23), "-" if open else "+",
 		HORIZONTAL_ALIGNMENT_LEFT, -1, EXP_FONT, C_TEXT)
 
-	# The reputation INDICATOR is a solid bar in the rep's own colour (Reputation.GetColor).
+	# The reputation INDICATOR: Qud's ornament sprite, TINTED with the rep's own colour
+	# (Reputation.GetColor). Stretched into the 22x17 box exactly as Qud's Image does -- its
+	# type is Simple, so there is no slicing and no aspect fit to reproduce.
 	var ind := QudText.color_of_code(str(f.get("repColor", "y")), _palette, C_TEXT)
-	_content.draw_rect(Rect2(IND_X, y + IND_DY, IND_W, IND_H), ind)
+	# SNAPPED to whole pixels. Qud's own rect lands on a half pixel (the probe reads
+	# ReputationIndicator at y=183.5) and Unity point-samples it back onto the grid, so Qud's
+	# output is two colours and nothing else. Blitting at y+6.5 in Godot instead BLENDS the
+	# 22x17 sprite across two rows -- measured as 98 of 374 pixels at a flat 50% mix, which is
+	# exactly the soft, doubled look the feedback shot has and Qud does not.
+	var ind_r := Rect2(Vector2(IND_X, y + IND_DY).round(), Vector2(IND_W, IND_H))
+	if _ind_tex != null:
+		_content.draw_texture_rect(_ind_tex, ind_r, false, ind)
+	else:
+		_content.draw_rect(ind_r, ind)
 
 	_draw_markup(str(f.get("label", "")), Vector2(NAME_X, y + 21), NAME_FONT)
 	_draw_markup("Reputation: " + str(f.get("repText", "")), Vector2(REP_X, y + 20), REP_FONT)

@@ -1327,3 +1327,33 @@ not assumed. Compensating twice would have made it visibly pale.
 **Exporting chrome from a MODAL runs on the `uiQueue`, never the main-thread command queue.** A
 popup parks Qud's turn thread, so `Tick`/`TickRender` may never drain while the thing being
 exported is on screen — the same argument that puts the popup mirror's watcher there.
+
+## Blitting a Qud sprite at Qud's own coordinate BLENDS it — snap the destination
+
+Qud's layout is full of half pixels: the reputation indicator's `RectTransform` reads
+`x=227 y=183.5 w=22 h=17`. Copy that straight into a `draw_texture_rect` and Godot samples the
+22x17 sprite across two rows: measured 98 of 374 pixels at a flat 50% mix, three colours where
+Qud has two. The result is a soft, doubled-looking glyph — exactly the "wrong icon" report, and
+easy to misread as the wrong sprite rather than the right sprite drawn badly.
+
+Unity point-samples the same rect back onto the pixel grid, so **Qud's output is always crisp**.
+Round the destination position (`Vector2(x, y).round()`) whenever a 1:1 bitmap lands on a
+fractional coordinate. Text does not need this — the font rasteriser handles its own hinting —
+so this only bites the handful of places a pane draws pixels.
+
+Residual worth knowing: Qud's point-sample of a 17-tall sprite in a rect on a half pixel DROPS
+one source row and leaves its bottom row blank, and *which* row varies per list entry (row 8 for
+the first faction, row 12 for the second, both rects at `.5`). That is float noise in Unity's
+rasteriser, not a rule; Raves draws all 17 rows and is one row taller. Don't try to reproduce it.
+
+## An extracted UI sprite may only exist on a LIVE screen (the atlas trap, second instance)
+
+`TitleExporter.ExportNamedSprite` scans `Resources.FindObjectsOfTypeAll<Sprite>()`, which never
+sees an atlased sprite's runtime instance — it finds nothing and writes no file, silently. Read
+the sprite off the `Image` that is DRAWING it instead: `UiProbe.ExportChrome(target)` walks a live
+screen, and `UiProbe.ExportLoadedSprite(name, dest)` scans every loaded `Image` (including
+inactive ones, so a status screen the player has opened once still works when it is off screen).
+
+Getting the factions indicator out was therefore: `hv goto qud status_reputation`, then
+`hv bridge uiprobe target=FactionsStatusScreen`. The client must degrade when the file is absent —
+`StatusPaneFactions` falls back to the solid rect rather than drawing nothing.

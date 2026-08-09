@@ -85,6 +85,11 @@ namespace RavesOfQud
                     // is #ffffff00 -- so this 15x15 sprite, tinted #cfc041ff on the selected line and
                     // #7f7f7f00 on every other, IS the selection. A ">" glyph stood in for it.
                     else if (nm == "leftrightarrow") dest = "picker_caret.png";
+                    // The FACTIONS screen's REPUTATION INDICATOR. FactionsLine.setData touches
+                    // only `reputationIndicator.color` -- the sprite itself is fixed in the prefab
+                    // and the reputation is carried entirely by the TINT. So this is one 22x17
+                    // sprite for all ~98 rows, and Raves stood a solid rect in for it.
+                    else if (nm == "polat-decoration-1") dest = "rep_indicator.png";
                     if (dest == null) continue;
                     TitleExporter.WriteSprite(img.sprite, Path.Combine(TileExporter.Dir, dest));
                     // The 9-SLICE BORDER, without which the client has to guess where to cut the
@@ -104,6 +109,31 @@ namespace RavesOfQud
                     MapExporter.ExportWorldMap(target);
             }
             catch (Exception e) { Log("chrome export failed: " + e); }
+        }
+
+        /// <summary>UNITY MAIN THREAD. Write the sprite named <paramref name="spriteName"/> by
+        /// finding an Image that is DRAWING it, anywhere in the loaded scene -- including objects
+        /// that are inactive, which is what makes this work for a screen the player is not looking
+        /// at right now (Qud keeps the status-screen prefabs instantiated once opened).
+        ///
+        /// The same atlas trap as <see cref="ExportChrome"/> rules out the obvious
+        /// Resources.FindObjectsOfTypeAll&lt;Sprite&gt;() version: an atlased sprite's runtime
+        /// instance is not in that list. Images are. Returns true when a file was written.</summary>
+        public static bool ExportLoadedSprite(string spriteName, string destFile)
+        {
+            try
+            {
+                foreach (var img in Resources.FindObjectsOfTypeAll<Image>())
+                {
+                    if (img == null || img.sprite == null) continue;
+                    if (img.sprite.name != spriteName) continue;
+                    TitleExporter.WriteSprite(img.sprite, Path.Combine(TileExporter.Dir, destFile));
+                    Log("sprite '" + spriteName + "' -> " + destFile);
+                    return true;
+                }
+            }
+            catch (Exception e) { Log("sprite export failed: " + e); }
+            return false;
         }
 
         private static GameObject Resolve(string target)
