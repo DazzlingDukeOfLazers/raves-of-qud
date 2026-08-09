@@ -242,8 +242,10 @@ func _on_resize() -> void:
 	_layout_row_bgs.call_deferred()
 
 func _input(e: InputEvent) -> void:
-	if e is InputEventKey and e.pressed and not e.echo and e.keycode == KEY_F12:
-		_shot()
+	# F12 sits BELOW the typing guard with everything else. It used to run first, so it fired
+	# while a text field had focus -- the one hotkey in this handler that was never guarded.
+	# Harmless in itself (a screenshot), but it is the same defect as the letters and there is
+	# no reason for it to be the exception.
 	# Qud's OWN status-screen keys (Commands.xml defaults): k=skills, x/Tab=attributes,
 	# e=equipment (i, inventory, lands there too — the carousel has no Inventory tab),
 	# n=tinkering, j=journal, q=quests, Ctrl+F=reputation. Only from gameplay (the
@@ -259,6 +261,8 @@ func _input(e: InputEvent) -> void:
 	# or the options search also opened the Equipment screen. See TypingGuard.
 	if TypingGuard.typing(get_viewport()):
 		return
+	if e is InputEventKey and e.pressed and not e.echo and e.keycode == KEY_F12:
+		_shot()
 	if e is InputEventKey and e.pressed and not e.echo and _status != null \
 			and Settings.one_to_one() and not e.alt_pressed \
 			and not get_viewport().is_input_handled():
