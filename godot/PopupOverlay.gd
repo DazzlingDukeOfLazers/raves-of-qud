@@ -105,6 +105,11 @@ const CROME_LINE_MIN := 25.0
 const HDR_ADVANCE_EM := 0.67
 const BODY_ADVANCE_EM := 0.6
 const TITLE_LINE_MIN := 10.0       # the --| / |-- assemblies at each edge
+## Cap on a rule break: 2 wide x this tall, centred on the 2px rule. Qud draws a small
+## SQUARE here (measured 4 tall, y319-322 against a rule at y320-321), not a tick. The
+## [Esc] Cancel rule at the bottom is NOT capped this way -- it keeps its own 1px end
+## ticks down the sprite's full height, which is what Qud draws there.
+const CAP_H := 4.0
 const TITLE_SP := 10.0             # PolatFrameSuperHeader spacing
 const ROW_H := 26.0                # MenuOptionText(Clone) in the options area
 const ROW_TEXT_X := 15.0           # padL 2 + cursor 8 + spacing 5
@@ -401,20 +406,23 @@ func _draw_chrome() -> void:
 	var r1 := cx + side + 3.0
 	for seg in [[0.0, l0], [l1, c0], [c1, r0], [r1, w]]:
 		_rect(off, Rect2(seg[0], ly, seg[1] - seg[0], 2), C_TOPLINE)
-	_rect(off, Rect2(l0 - 2, ly - 4, 2, 10), C_TOPLINE)   # ╢ outward side ticks
-	_rect(off, Rect2(r1, ly - 4, 2, 10), C_TOPLINE)       # ╟
-	_rect(off, Rect2(c0 - 2, ly, 2, 10), C_TOPLINE)       # ╖ centre down-ticks
-	_rect(off, Rect2(c1, ly, 2, 10), C_TOPLINE)           # ╓
+	# The break in each rule is capped by a small SQUARE, not a tick. MEASURED off Qud's own
+	# popup 2026-08-09 (weird artifact, box x840-1079): every cap is 2 wide and 4 tall
+	# spanning y319-322 against a rule at y320-321 -- i.e. centred on the rule, one pixel
+	# proud each side. We drew 2x10, and hung the centre pair DOWNWARD from the rule
+	# (y320-329) rather than centring them, so the two edges did not even match each other.
+	# At this size the cap reads as a square; the tall version reads as `--|`, which is what
+	# it looked like on screen.
+	for x in [l0 - 2, r1, c0 - 2, c1]:
+		_rect(off, Rect2(x, ly - CAP_H * 0.5 + 1.0, 2, CAP_H), C_TOPLINE)
 	# The context block is closed off by its own full-width divider, notched like the top
 	# line (Qud: top rule y320, divider y471 -- both the same strip, 151 apart).
 	if _ctx_box.visible:
 		var dy := ly + CTX_DIVIDER
 		for seg in [[0.0, l0], [l1, c0], [c1, r0], [r1, w]]:
 			_rect(off, Rect2(seg[0], dy, seg[1] - seg[0], 2), C_TOPLINE)
-		_rect(off, Rect2(l0 - 2, dy - 4, 2, 10), C_TOPLINE)
-		_rect(off, Rect2(r1, dy - 4, 2, 10), C_TOPLINE)
-		_rect(off, Rect2(c0 - 2, dy, 2, 10), C_TOPLINE)
-		_rect(off, Rect2(c1, dy, 2, 10), C_TOPLINE)
+		for x in [l0 - 2, r1, c0 - 2, c1]:
+			_rect(off, Rect2(x, dy - CAP_H * 0.5 + 1.0, 2, CAP_H), C_TOPLINE)
 	if _title.visible:
 		# ─┤ Title ├─ edge assemblies, MEASURED off Qud's own titled popup rather than
 		# eyeballed: each is a 10px horizontal bar 3 tall through the row's mid-height with
