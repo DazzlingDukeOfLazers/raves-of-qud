@@ -1,7 +1,6 @@
 using System;
 using XRL;                       // The
 using XRL.World;                 // Cell, GameObject, Zone
-using XRL.World.AI.GoalHandlers; // MoveTo
 using XRL.World.Capabilities;    // AutoAct
 using ConsoleLib.Console;        // Keyboard.PushCommand
 
@@ -10,13 +9,20 @@ namespace RavesOfQud
     /// <summary>
     /// Qud's click-to-travel: walk the player to a cell in the current zone.
     ///
-    /// DRIVEN THROUGH QUD'S OWN GOAL, not a hand-rolled walk. `Brain.PushGoal(new MoveTo(cell))`
-    /// is the same handler Qud's own navigation pushes, so pathfinding weights, doors, hostiles
-    /// interrupting the travel, and the "you are interrupted" message all behave identically to
-    /// Qud for free. Stepping a path here would look right until something attacked, and 1:1 is
-    /// the whole point. (API read off the shipped assembly, not guessed:
-    /// XRL.World.AI.GoalHandlers.MoveTo(Cell, bool careful = false, ...) and
-    /// XRL.World.Parts.Brain.PushGoal(GoalHandler).)
+    /// LITERALLY QUD'S OWN CLICK HANDLER. `XRLCore`'s "AdventureMouseForceMove" case does exactly
+    /// this and nothing else:
+    ///
+    ///     if (cell.PathDistanceTo(currentCell) != 1) {
+    ///         PlayerAvoid.Clear();
+    ///         AutoAct.Setting = "M" + cell.X + "," + cell.Y;   // the TARGET is in the setting
+    ///     } else { ...single step in that direction... }
+    ///
+    /// The target rides in the setting string and AutoAct walks it; there is no Brain goal in it.
+    /// This code used to push `Brain.PushGoal(new MoveTo(cell))` plus a bare "M", which also walks
+    /// -- and walks at a THIRD of the speed, because a Brain goal re-runs the actor's AI every
+    /// turn where AutoAct just takes its next path step. Measured over the same route: 4.2 steps/s
+    /// through the goal, 12.3 steps/s for Qud's own click. That gap was mistaken for bridge
+    /// overhead; the mod's whole per-turn publish is ~15ms of a 238ms step.
     ///
     /// THREADING — AND WHY NOT gameQueue. Mutating game state needs the turn thread, and the
     /// obvious channel is `GameManager.Instance.gameQueue.queueSingletonTask` (what
@@ -76,23 +82,25 @@ namespace RavesOfQud
                 Cell target = z.GetCell(x, y);
                 if (target == null) { Log("[nav] no cell at " + x + "," + y); return; }
 
-                // Clicking where you already stand is a no-op, not a zero-length goal.
+                // Clicking where you already stand is a no-op, not a zero-length travel.
                 Cell here = player.CurrentCell;
-                if (here != null && here.X == x && here.Y == y)
+                if (here == null) { Log("[nav] player has no cell"); return; }
+                if (here.X == x && here.Y == y)
                 { Log("[nav] already on " + x + "," + y); return; }
 
-                if (player.Brain == null) { Log("[nav] player has no Brain"); return; }
-                player.Brain.PushGoal(new MoveTo(target));
-                // AND LET TURNS ELAPSE. The goal alone is not enough for the PLAYER: the turn loop
-                // parks waiting for input, so the walk only advances when something takes a turn.
-                // `AutoAct.Setting` is what makes Qud keep taking them by itself; any value outside
-                // {'.','g','o','r','z'} reads as MOVEMENT to AutoAct.IsMovement, which is the class
-                // that gets interrupted by hostiles -- the behaviour we want inherited rather than
-                // reimplemented. Measured: goal alone never moves, goal + AutoAct + one turn walks
-                // the whole path. We are not stepping it; Qud is.
-                AutoAct.Setting = "M";
-                Log("[nav] moveto " + x + "," + y
-                    + (here != null ? " from " + here.X + "," + here.Y : ""));
+                if (target.PathDistanceTo(here) == 1)
+                {
+                    // Adjacent: Qud takes one step rather than starting a travel, so we do too.
+                    string dir = here.GetDirectionFromCell(target);
+                    if (!string.IsNullOrEmpty(dir) && dir != "." && dir != "?") player.Move(dir);
+                    Log("[nav] step " + dir + " to " + x + "," + y);
+                    return;
+                }
+                // The avoid-list is cleared on a fresh travel order (Qud does this here): the cells
+                // the player was steering around belonged to the LAST walk.
+                The.Core.PlayerAvoid.Clear();
+                AutoAct.Setting = "M" + x + "," + y;
+                Log("[nav] moveto " + x + "," + y + " from " + here.X + "," + here.Y);
             }
             catch (Exception e) { Log("[nav] moveto error: " + e.Message); }
         }
