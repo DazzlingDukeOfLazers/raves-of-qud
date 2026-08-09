@@ -439,7 +439,7 @@ func _open_form() -> void:
 	# through to nothing; Cmd+Enter still worked because the modal reads it in _input, which made
 	# the miss easy to misread as a delivery problem rather than a focus one).
 	_edit.grab_focus.call_deferred()
-	UiState.set_popup("feedback")
+	UiState.set_popup("feedback", "feedback", layer, true)
 
 ## The crop viewer: a clipped window onto the element image with zoom + pan. Wheel zooms
 ## about the cursor (the texture point under it stays put), left-drag pans, and the two
@@ -515,7 +515,7 @@ func _close(save: bool) -> void:
 		_form.queue_free()
 		_form = null
 	_edit = null
-	UiState.clear_popup()
+	UiState.clear_popup("feedback")
 	if _prev_focus != null and is_instance_valid(_prev_focus):
 		_prev_focus.grab_focus()
 	_prev_focus = null

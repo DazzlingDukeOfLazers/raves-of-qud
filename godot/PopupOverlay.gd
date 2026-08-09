@@ -827,7 +827,7 @@ func show_popup(data: Dictionary, palette: Dictionary) -> void:
 			# without counting a fresh raise. set_popup() here bumped popup_n on every
 			# re-announce (~1/s from highvisor's own polling), and popup_n is what a dismiss
 			# step diffs to prove its key landed — see UiState.ensure_popup.
-			UiState.ensure_popup("input")
+			UiState.ensure_popup("qud", "input", layer)
 			_edit.grab_focus()
 		return
 	_content_sig = content_sig
@@ -913,7 +913,7 @@ func show_popup(data: Dictionary, palette: Dictionary) -> void:
 	else:
 		_edit.release_focus()
 	# highvisor state report: a popup is up (kind feeds `hv assert --popup …`)
-	UiState.set_popup("input" if is_input else ("menu" if _options.size() > 0 else "message"))
+	UiState.set_popup("qud", "input" if is_input else ("menu" if _options.size() > 0 else "message"), layer)
 
 ## MenuCrome's entries are Qud's `MenuOptionText`: padL 2 + an 8px Selection Cursor cell +
 ## spacing 5 + the text + padR 20. That cursor cell is there even on a single-entry bar --
@@ -1145,7 +1145,7 @@ func _cancel() -> void:
 func _finish(payload: Dictionary) -> void:
 	visible = false
 	_edit.release_focus()
-	UiState.clear_popup()
+	UiState.clear_popup("qud")
 	# NAME the popup being answered. The mod refuses an answer whose id does not belong to the
 	# modal currently on screen, so an answer that raced the popup closing is rejected instead of
 	# being applied to whatever replaced it — the "answered a stale instance" bug, which leaves
@@ -1160,7 +1160,7 @@ func hide_popup() -> void:
 	if visible:
 		visible = false
 		_edit.release_focus()
-	UiState.clear_popup()
+	UiState.clear_popup("qud")
 	_cur_id = -1
 	if was:
 		closed.emit()

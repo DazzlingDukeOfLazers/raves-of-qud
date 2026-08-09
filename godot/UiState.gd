@@ -15,7 +15,18 @@ extends Node
 ## True Kin branch from the Mutated Human one — see MainMenu._on_genotype_chosen.)
 
 var _scene := "title"
-var _popup := ""     # popup kind while one is up (message / yesno / menu / input)
+## Popups BY SOURCE — `{source: {kind, layer, sticky}}` — because three independent overlays raise
+## them and one slot cannot hold three answers. PopupOverlay (Qud's mirrored modals, layer 130),
+## PickerOverlay (the item picker, 129) and FeedbackTool (the note form, 120) each used to write
+## and clear the same string, so whichever moved last spoke for all of them: opening the feedback
+## form over a Qud popup relabelled it, and CLOSING the Qud popup wiped the form's report while the
+## form was still on screen. Measured — `popup: feedback` present, then gone, with the form up and
+## being typed into, which makes `hv assert --popup feedback` a coin flip.
+##
+## The reported kind is the one on TOP, decided by the CanvasLayer each caller already draws on
+## (passed in, not copied here, so it cannot drift from the layer that actually renders). A source
+## clears only its own entry.
+var _popups := {}
 ## How many popups have been RAISED this run. The kind alone cannot tell one modal from
 ## the next of the same kind, and Qud's quit is exactly that: "are you sure?" then "save
 ## first?", both kind `message`. A driver that answers the first and re-reads sees an
@@ -74,15 +85,38 @@ func set_scene(scene: String) -> void:
 	if scene == _scene:
 		return
 	_scene = scene
-	# a popup cannot survive a scene change — clear it with the scene, or the report
-	# claims a modal is up on a screen that never had one
-	_popup = ""
+	# A scene-bound popup cannot survive a scene change — clear it with the scene, or the report
+	# claims a modal is up on a screen that never had one. STICKY sources are exempt: the feedback
+	# form is an autoload overlay that outlives the screen under it, and clearing it here would
+	# re-introduce the bug the per-source split exists to fix, one layer along.
+	var live := {}
+	for src in _popups:
+		if bool(_popups[src].get("sticky", false)):
+			live[src] = _popups[src]
+	_popups = live
 	_write()
 
-func set_popup(kind: String) -> void:
-	_popup = kind
-	_popup_n += 1
+## Raise a popup. `source` names the overlay (one entry each), `layer` is the CanvasLayer it draws
+## on — pass your own `layer`, so top-most on the report means top-most on screen. `sticky` marks a
+## source that survives a scene change (an autoload overlay, not a child of the screen).
+func set_popup(source: String, kind: String, layer: int, sticky := false) -> void:
+	var prev: Variant = _popups.get(source)
+	_popups[source] = {"kind": kind, "layer": layer, "sticky": sticky}
+	if prev == null or String((prev as Dictionary).get("kind", "")) != kind:
+		_popup_n += 1
 	_write()
+
+## The kind on TOP, or "" when nothing is up. Ties go to the most recently raised (Dictionary
+## keeps insertion order), which is the same answer paint order gives for two equal layers.
+func _popup_kind() -> String:
+	var kind := ""
+	var best := -0x7FFFFFFF
+	for src in _popups:
+		var e: Dictionary = _popups[src]
+		if int(e.get("layer", 0)) >= best:
+			best = int(e.get("layer", 0))
+			kind = String(e.get("kind", ""))
+	return kind
 
 ## Re-assert the kind of the popup ALREADY up, without counting a new raise.
 ##
@@ -94,16 +128,19 @@ func set_popup(kind: String) -> void:
 ## modal walked popup_n from 3 to 37 in 30s (measured 2026-08-07). Any dismiss conditioned on a
 ## popup then saw the fingerprint change on its own within a second — i.e. that step could not
 ## fail, which is the whole defect class this session has been unpicking.
-func ensure_popup(kind: String) -> void:
-	if _popup == kind:
+func ensure_popup(source: String, kind: String, layer: int, sticky := false) -> void:
+	var prev: Variant = _popups.get(source)
+	if prev != null and String((prev as Dictionary).get("kind", "")) == kind:
 		return
-	_popup = kind
+	_popups[source] = {"kind": kind, "layer": layer, "sticky": sticky}
 	_write()
 
-func clear_popup() -> void:
-	if _popup == "":
+## Clear YOUR popup. Only yours: this used to wipe the slot whoever called it, so a Qud popup
+## closing took the feedback form's report down with it.
+func clear_popup(source: String) -> void:
+	if not _popups.has(source):
 		return
-	_popup = ""
+	_popups.erase(source)
 	_write()
 
 func _ready() -> void:
@@ -179,7 +216,7 @@ func _heartbeat() -> void:
 	var root := get_tree().current_scene if get_tree() != null else null
 	if root != null and root.name == "MainMenu" and _is_gameplay_scene(_scene):
 		_scene = "title"
-		_popup = ""
+		_popups.clear()      # the whole gameplay frame is gone; nothing it raised survives
 	_write()
 
 func _write() -> void:
@@ -189,8 +226,9 @@ func _write() -> void:
 		"pid": OS.get_process_id(),
 		"ui_age": _ui_age(),
 		"ts": int(Time.get_unix_time_from_system())}
-	if _popup != "":
-		d["popup"] = _popup
+	var kind := _popup_kind()
+	if kind != "":
+		d["popup"] = kind
 		d["popup_n"] = _popup_n
 	# `snap_ts` (PC line): when the last snapshot arrived, so a reader can tell a live
 	# heartbeat from a client that is connected but receiving nothing.

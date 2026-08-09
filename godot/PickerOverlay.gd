@@ -320,7 +320,7 @@ func show_picker(data: Dictionary, palette: Dictionary) -> void:
 	_panel.custom_minimum_size = Vector2(PANEL_MIN_W, 0)
 	visible = true
 	# Report it the same way popups do, so `hv state` / `hv assert` can see the picker is up.
-	UiState.set_popup("itempicker")
+	UiState.set_popup("picker", "itempicker", layer)
 
 ## The footer bar. Each entry is Qud's own rendered text ("[{{W|Esc}}] Close Menu"), so the
 ## markup carries its own colours; a DISABLED entry ("navigate") is a legend and stays inert.
@@ -429,7 +429,7 @@ func hide_picker() -> void:
 	_rows = []
 	_menu = []
 	_sel = 0
-	UiState.clear_popup()
+	UiState.clear_popup("picker")
 	closed.emit()
 
 # --- rows --------------------------------------------------------------------------------------
