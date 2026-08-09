@@ -1117,6 +1117,15 @@ func _input(event: InputEvent) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
+		# TYPING GUARD, and it is NOT redundant here. `_unhandled_input` only sees keys the GUI did
+		# not consume -- which is not "no keys while a field has focus": a field consumes what it
+		# has a use for and ignores the rest, and modifier combos are exactly the rest. Measured
+		# with the feedback note focused: letters landed in the box, and Ctrl+Shift+X ran Qud's xp
+		# wish (0 -> 150 Exp). Everything below dispatches to QUD -- moves, waits, wishes, and
+		# `_binds.match_event`, which runs whatever the player has bound -- so it is all off-limits
+		# while someone is typing.
+		if TypingGuard.typing(get_viewport()):
+			return
 		# Shift+Space: wait a turn in Qud (a Godot->Qud passthrough). Takes a turn for now.
 		if event.shift_pressed and event.keycode == KEY_SPACE:
 			client.send_command("wait", {}); return

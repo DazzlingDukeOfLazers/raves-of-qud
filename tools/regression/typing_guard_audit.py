@@ -11,6 +11,14 @@ handler that reads `keycode` is therefore a latent "typing opens a menu" bug. Th
 reading the source, so it runs in milliseconds and needs no game, no Qud, and no window — which
 also means it cannot go flaky.
 
+THE UNHANDLED PASS IS AUDITED TOO, as of 2026-08-09, and its absence is why this audit passed
+while the bug was live. `_unhandled_input` / `_unhandled_key_input` see only what the GUI did not
+consume, and that was written down here and in TypingGuard as "guarded for free". It is not: a
+field consumes the keys it has a USE for and ignores the rest, and modifier combos are the rest.
+Measured with the feedback note focused — plain letters landed in the box, `Ctrl+Shift+X` ran
+Qud's xp wish (0 -> 150 Exp) through Main's unhandled handler. An audit that checks the pass where
+the bug cannot be is not a check.
+
 It reports two things:
   1. every `_input` handler that dispatches keys WITHOUT consulting TypingGuard   -> FAIL
   2. an inventory of every text field, so a new one is visible in the diff        -> INFO
@@ -26,8 +34,8 @@ import sys
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "godot")
 
-# `_input` handlers that legitimately act WHILE typing, with the reason. Anything else that reads a
-# keycode from `_input` must call TypingGuard.typing().
+# Handlers that legitimately act WHILE typing, with the reason. Anything else that reads a keycode
+# from an input callback must call TypingGuard.typing().
 EXEMPT = {
     "FeedbackTool.gd": "owns the note field; its Esc/Cmd+Enter must work WHILE typing",
     "PopupOverlay.gd": "mirrors Qud's own text-input popup; Esc/Enter submit while typing",
@@ -44,19 +52,36 @@ def scan():
         for m in re.finditer(r"\b(LineEdit|TextEdit|CodeEdit)\.new\(\)", src):
             fields.append((name, m.group(1)))
 
-        # body of `func _input(...)` up to the next top-level `func`
-        m = re.search(r"\nfunc _input\(", src)
-        if not m:
-            continue
-        body = src[m.start():]
-        nxt = re.search(r"\nfunc (?!_input\()", body[1:])
-        if nxt:
-            body = body[: nxt.start() + 1]
-        if not re.search(r"keycode|is_action_pressed", body):
-            continue
-        checked.append(name)
-        if "TypingGuard.typing" not in body and name not in EXEMPT:
-            unguarded.append(name)
+        for hook in ("_input", "_unhandled_input", "_unhandled_key_input"):
+            # body of `func <hook>(...)` up to the next top-level `func`
+            m = re.search(r"\nfunc %s\(" % hook, src)
+            if not m:
+                continue
+            body = src[m.start() + 1:]
+            nxt = re.search(r"\nfunc ", body)
+            if nxt:
+                body = body[: nxt.start()]
+            if not re.search(r"keycode|is_action_pressed", body):
+                continue
+            # THE TWO PASSES NEED DIFFERENT RULES, because they see different keys.
+            #
+            # `_input` runs BEFORE the GUI, so it sees everything and any keycode it acts on can
+            # fire under a typist's fingers. Flag it all.
+            #
+            # The unhandled passes see only what the focused field did NOT consume, so most of what
+            # they act on is already unreachable while typing: text, digits, arrows, backspace. What
+            # a field does NOT eat is modifier combos and function keys — and Escape, which those
+            # screens use to back out and SHOULD still work with a search box focused. So flag the
+            # unhandled pass on the reachable class only: modifiers, F-keys, or anything that
+            # dispatches to Qud. Flagging the rest would mean either ten blanket guards that break
+            # Esc, or a ten-entry exemption list, and both hide the next real one.
+            if hook != "_input" and not re.search(
+                    r"ctrl_pressed|meta_pressed|alt_pressed|KEY_F\d|send_command|request_command", body):
+                continue
+            where = "%s:%s" % (name, hook)
+            checked.append(where)
+            if "TypingGuard.typing" not in body and name not in EXEMPT:
+                unguarded.append(where)
     return unguarded, fields, checked
 
 
@@ -65,18 +90,18 @@ def main():
     print(f"text fields found : {len(fields)}")
     for f, kind in fields:
         print(f"    {f:26s} {kind}")
-    print(f"\n_input key dispatchers checked : {len(checked)}")
+    print(f"\nkey dispatchers checked : {len(checked)}")
     for f in checked:
-        why = EXEMPT.get(f)
+        why = EXEMPT.get(f.split(":")[0])
         state = f"EXEMPT ({why})" if why else ("guarded" if f not in unguarded else "UNGUARDED")
-        print(f"    {f:26s} {state}")
+        print(f"    {f:34s} {state}")
     if unguarded:
-        print("\nFAIL: these dispatch keys from _input without TypingGuard.typing():")
+        print("\nFAIL: these dispatch keys without TypingGuard.typing():")
         for f in unguarded:
             print(f"    {f}  -> add `if TypingGuard.typing(get_viewport()): return` at the top,")
             print("       or add it to EXEMPT here with the reason it must act while typing.")
         return 1
-    print("\nOK: every _input key dispatcher is guarded or explicitly exempt.")
+    print("\nOK: every key dispatcher is guarded or explicitly exempt.")
     return 0
 
 

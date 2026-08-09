@@ -9,14 +9,22 @@ extends RefCounted
 ## Journal, a digit activated an ability.
 ##
 ## WHY the text field alone does not stop it. A LineEdit/TextEdit consumes the key in the GUI input
-## pass and marks the event handled. That is enough to stop `_unhandled_input` and
-## `_unhandled_key_input` — but the GUI pass runs AFTER `_input`, so any handler that dispatches
-## from `_input` has already fired by then, and `get_viewport().is_input_handled()` is still false
-## when it looks. Handlers in `_input` therefore have to ask this question themselves.
+## pass and marks the event handled — but the GUI pass runs AFTER `_input`, so any handler that
+## dispatches from `_input` has already fired by then, and `get_viewport().is_input_handled()` is
+## still false when it looks. Handlers in `_input` therefore have to ask this question themselves.
 ##
-## Rule of thumb for new code: dispatch a hotkey from `_unhandled_input` where you can — it is
-## guarded for free. Use `_input` only when you must beat Godot's own handling (Tab, arrow-key focus
-## traversal, a modal that owns everything), and then guard with this.
+## AND SO DO HANDLERS IN `_unhandled_input` (Daniel, 2026-08-09: "It's still sending keys to Qud").
+## An earlier version of this note said `_unhandled_input` was "guarded for free". It is not, and
+## the half-truth is worse than no rule: a field consumes the keys it has a USE for — text, caret
+## movement, its own editing shortcuts — and everything else falls straight through it. Modifier
+## combos and function keys are exactly the class it ignores. Measured with the feedback note
+## focused and typed into: plain letters landed in the box and reached nothing else, and
+## `Ctrl+Shift+X` ran Qud's xp wish, 0 -> 150 Exp. Main also routes any unclaimed combo through the
+## player's own Qud bindings, so the reachable set there is "whatever they have bound".
+##
+## Rule for new code: `_input` or `_unhandled_input`, if the handler reads a keycode and does
+## something a typist would not want, ask this first. The only exemptions are handlers that must
+## act WHILE typing (a form's own Esc / Cmd+Enter), and they say so where they are exempted.
 static func typing(vp: Viewport) -> bool:
 	if vp == null:
 		return false

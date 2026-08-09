@@ -652,6 +652,11 @@ func _unhandled_key_input(e: InputEvent) -> void:
 		return
 	if not (e is InputEventKey and e.pressed and not e.echo):
 		return
+	# Not free just because this is the unhandled pass: a text field consumes the DIGITS below, but
+	# it has no use for Ctrl+Tab and lets it through — so page-flipping worked while typing a note.
+	# See TypingGuard.
+	if TypingGuard.typing(get_viewport()):
+		return
 	# Ctrl+Tab / Ctrl+Shift+Tab flip bar pages (Qud's own binding, shown in its gutter)
 	if e.keycode == KEY_TAB and e.ctrl_pressed and _pages.size() > 1:
 		_flip_page(-1 if e.shift_pressed else 1)
