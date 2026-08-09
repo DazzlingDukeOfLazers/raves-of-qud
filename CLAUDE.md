@@ -89,8 +89,12 @@ cp mod/*.cs mod/manifest.json ~/Library/Application\ Support/com.FreeholdGames.C
 /Users/homefolder/Downloads/Godot.app/Contents/MacOS/Godot --headless --path godot/ --quit-after 120
 # ^ only deep-analyses scripts it LOADS. Main.gd is instanced on "Connect", so force-check it:
 /Users/homefolder/Downloads/Godot.app/Contents/MacOS/Godot --headless --path godot/ --check-only --script res://Main.gd
-# In --check-only, `Identifier not found: Settings`/`QudLauncher` are FALSE POSITIVES (autoloads aren't
-# loaded). But `Could not parse global class X from res://X.gd` is REAL — X.gd has a parse error and the
+# In --check-only, `Identifier not found: <AUTOLOAD>` is a FALSE POSITIVE (autoloads aren't loaded) —
+# Settings, QudLauncher and UiState all produce one, and a script that merely REFERENCES a failed one
+# reports `Failed to compile depended scripts`, which is the same artefact one level down. Check the
+# names against `project.godot`'s [autoload] section rather than the list here, and compare against
+# `main` before reading any of it as a regression: on 2026-08-08 the merge's eight changed .gd files
+# all "failed", identically to main. But `Could not parse global class X from res://X.gd` is REAL — X.gd has a parse error and the
 # export will ship it broken (a Main.gd `class_name` ref then fails at RUNTIME, silently killing the
 # Holodeck). Never lump the two together; if you see a "global class" error, fix X.gd before shipping.
 

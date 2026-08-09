@@ -1,0 +1,82 @@
+{
+ "screen": "status_attributes",
+ "defaults": {
+  "inset": 6,
+  "threshold": 60
+ },
+ "note": "The one unspec'd tab with real content on the pc-parity golden. Card geometry measured off the live capture: six main-attribute cards 70x70 at y255, left edges 206..716 on a 102px pitch.",
+ "leaves": [
+  {
+   "name": "outer_frame",
+   "kind": "frame",
+   "rect": [
+    158,
+    197,
+    1604,
+    743
+   ],
+   "inset": 16,
+   "note": "The status pane's own chrome, the same rect every status tab uses."
+  },
+  {
+   "name": "attr_card",
+   "kind": "composite",
+   "inset": 0,
+   "grid": {
+    "w": 70,
+    "h": 70,
+    "cells": [
+     [
+      206,
+      255
+     ],
+     [
+      308,
+      255
+     ],
+     [
+      410,
+      255
+     ],
+     [
+      512,
+      255
+     ],
+     [
+      614,
+      255
+     ],
+     [
+      716,
+      255
+     ]
+    ]
+   },
+   "note": "STR/AGI/TOU/INT/WIL/EGO. composite: the box, its label, value and modifier together."
+  },
+  {
+   "name": "attr_desc",
+   "kind": "composite",
+   "rect": [
+    190,
+    334,
+    640,
+    54
+   ],
+   "inset": 0,
+   "note": "The three-line description of the selected attribute (measured y339-383)."
+  },
+  {
+   "name": "sec_header",
+   "kind": "composite",
+   "rect": [
+    190,
+    421,
+    320,
+    18
+   ],
+   "inset": 0,
+   "note": "The SECONDARY ATTRIBUTES section rule + caption (measured y425-434)."
+  }
+ ]
+}

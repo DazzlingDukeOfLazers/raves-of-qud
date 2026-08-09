@@ -1,0 +1,58 @@
+{
+ "screen": "status_tinkering",
+ "defaults": {
+  "inset": 6,
+  "threshold": 60
+ },
+ "note": "EMPTY on the pc-parity golden -- the character has no schematics, so this spec measures the tab's CHROME and its empty state, not its list. A fixture with schematics is needed before this tab's list rendering is covered at all.",
+ "leaves": [
+  {
+   "name": "outer_frame",
+   "kind": "frame",
+   "rect": [
+    158,
+    197,
+    1604,
+    743
+   ],
+   "inset": 16,
+   "note": "The status pane's own chrome, the same rect every status tab uses."
+  },
+  {
+   "name": "filter_chip",
+   "kind": "composite",
+   "rect": [
+    928,
+    205,
+    64,
+    20
+   ],
+   "inset": 0,
+   "note": "The centred ALL filter chip (measured y211-217, x937-982)."
+  },
+  {
+   "name": "tab_hint",
+   "kind": "composite",
+   "rect": [
+    188,
+    220,
+    290,
+    20
+   ],
+   "inset": 0,
+   "note": "'[Ctrl+Tab] switch to modifications' -- NOT the empty-state line, which is what this leaf was first called. Renamed after cropping it: the rect was right, the name was wrong. It caught a real defect immediately -- Qud draws a boxed Ctrl KEY GLYPH and Raves omits it, rendering '[+Tab]'."
+  },
+  {
+   "name": "empty_state",
+   "kind": "composite",
+   "rect": [
+    174,
+    246,
+    640,
+    20
+   ],
+   "inset": 0,
+   "note": "'You don't have any schematics.' (measured y250-262, x179-801)."
+  }
+ ]
+}

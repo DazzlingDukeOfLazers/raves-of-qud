@@ -86,12 +86,18 @@ static func _with_qud_glyphs(base: Font) -> Font:
 	dup.fallbacks = fb
 	return dup
 
-## A copy of the app theme at a SCALED default size, for a subtree Qud draws smaller than we do.
-## Setting a font size on a Control affects only that Control, so a strip with several labels in it
-## needs a theme; this keeps the face (and the registered bold) and moves only the size.
+## A copy of the app theme at a SCALED size, for a subtree Qud draws smaller than we do. Setting a
+## font size on a Control affects only that Control, so a strip with several labels in it needs a
+## theme; this keeps the face (and the registered bold) and moves only the size.
+##
+## Scales the ROLE VARIATIONS as well as the default. It used to move `default_font_size` alone,
+## which silently did nothing for the labels that actually carry a hierarchy: a
+## `theme_type_variation = "Title"` label keeps taking its size from the variation, so a screen asking
+## for 0.87 got body text at 0.87 and headings still at 1.0. Every chargen heading was oversized for
+## exactly that reason.
 static func scaled_theme(vp: Viewport, scale: float) -> Theme:
 	var t := make_theme(vp)
-	t.default_font_size = maxi(1, int(round(px(vp, "body") * scale)))
+	refresh_theme(t, vp, scale)
 	return t
 
 
@@ -122,12 +128,12 @@ static func make_theme(vp: Viewport) -> Theme:
 
 ## Re-stamp a theme's sizes for the current window (call on resize). Keeps the default + every role
 ## variation in sync with px().
-static func refresh_theme(t: Theme, vp: Viewport) -> void:
+static func refresh_theme(t: Theme, vp: Viewport, scale := 1.0) -> void:
 	if t == null:
 		return
-	t.default_font_size = px(vp, "body")
+	t.default_font_size = maxi(1, int(round(px(vp, "body") * scale)))
 	for role in ROLE.keys():
 		var vtype: String = String(role).capitalize()   # "Caption" / "Body" / "Title" / "Big"
 		for base in ["Label", "Button", "CheckBox", "LineEdit", "TextEdit", "OptionButton"]:
 			t.set_type_variation(vtype, base)
-			t.set_font_size("font_size", vtype, px(vp, role))
+			t.set_font_size("font_size", vtype, maxi(1, int(round(px(vp, role) * scale))))

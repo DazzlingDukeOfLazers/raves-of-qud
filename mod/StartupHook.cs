@@ -63,50 +63,16 @@ namespace RavesOfQud
         private static volatile string _uiMenu = "";
         private static long _uiSampleTs;
         private static volatile bool _uiSamplePending;
+        private static long _uiQueuedTs;          // when the in-flight sample was queued
 
         private static void SampleUiOnMainThread()
         {
             try
             {
-                string win = "";
-                var umType = Type.GetType("Qud.UI.UIManager, Assembly-CSharp");
-                object um = umType != null ? umType.GetField("instance").GetValue(null) : null;
-                if (um != null)
-                {
-                    var cw = umType.GetField("_currentWindow",
-                        System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public
-                        | System.Reflection.BindingFlags.NonPublic)?.GetValue(um);
-                    if (cw != null)
-                    {
-                        var visProp = cw.GetType().GetProperty("Visible",
-                            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public
-                            | System.Reflection.BindingFlags.NonPublic);
-                        bool vis = visProp != null && visProp.GetValue(cw, null) is bool b && b;
-                        if (vis) win = cw.GetType().Name;
-                    }
-                }
-                // Some toolkit screens are SingletonWindowBase windows that never become
-                // UIManager._currentWindow (verified live: Workshop Uploader, Blueprint
-                // Browser, Histographicnomicon, Waveform generator) — probe them directly.
-                // instance is a static on the SingletonWindowBase<T> generic base.
-                if (win == "")
-                {
-                    foreach (var tn in new[] { "SteamWorkshopUploaderView", "BrowseBlueprintsView",
-                                               "HistoryTestView", "WaveformTestView" })
-                    {
-                        var t = Type.GetType(tn + ", Assembly-CSharp");
-                        var instF = t?.BaseType?.GetField("instance",
-                            System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public
-                            | System.Reflection.BindingFlags.NonPublic);
-                        object inst = instF != null ? instF.GetValue(null) : null;
-                        if (inst == null) continue;
-                        var vp = inst.GetType().GetProperty("Visible",
-                            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public
-                            | System.Reflection.BindingFlags.NonPublic);
-                        if (vp != null && vp.GetValue(inst, null) is bool v && v) { win = tn; break; }
-                    }
-                }
-                _uiWindow = win;
+                // Which window is up lives in ONE place — UiReflector, next to the code that
+                // reflects over that same object. This sampler wants its NAME; the `reflect`
+                // bridge command wants its methods. Two readers, one description of "visible".
+                _uiWindow = UiReflector.CurrentWindowName();
                 // WHICH Map Editor dropdown is down, if any — the reflection lives in
                 // MapEditorDriver next to the code that CLOSES one, so there is a single
                 // description of the menu bar's shape. Reported below as `tab`.
@@ -187,9 +153,29 @@ namespace RavesOfQud
                         try
                         {
                             var gm = GameManager.Instance;
+                            long nowTs = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                            // WATCHDOG. `_uiSamplePending` is cleared by the task itself, so a
+                            // sample that is queued and never RUNS latches it true forever and no
+                            // further sample is ever requested -- the sampler stops silently and
+                            // `scene` quietly falls back to the vague legacy view. Measured on
+                            // macOS 2026-08-08 at Qud's title: window=MainMenu was sampled once at
+                            // startup and never again, so `sampleFresh` stayed false, the positive
+                            // "TitleScreen" assertion never fired, and `hv state` answered
+                            // `unknown` for the title -- the root of most Qud routes. The same
+                            // startup logs a NullReferenceException from inside
+                            // ThreadTaskQueue.queueTask, so uiQueue really can be in a state where
+                            // work does not drain. Re-arm rather than latch: whatever the cause,
+                            // one lost task must not end sampling for the life of the process.
+                            if (_uiSamplePending && _uiQueuedTs > 0 && nowTs - _uiQueuedTs >= 5)
+                            {
+                                UnityEngine.Debug.Log("[raves] ui sample did not run in "
+                                                      + (nowTs - _uiQueuedTs) + "s -- re-arming");
+                                _uiSamplePending = false;
+                            }
                             if (!_uiSamplePending && gm != null && gm.uiQueue != null)
                             {
                                 _uiSamplePending = true;
+                                _uiQueuedTs = nowTs;
                                 gm.uiQueue.queueTask(SampleUiOnMainThread, 0);
                             }
                         }
@@ -219,7 +205,29 @@ namespace RavesOfQud
                             || view.Equals("MainMenu", StringComparison.OrdinalIgnoreCase);
                         bool winUseful = win.Length > 0
                             && !win.Equals("MainMenu", StringComparison.OrdinalIgnoreCase);
-                        if (!live && viewVague && winUseful && uiAge >= 0 && uiAge <= 5) scene = win;
+                        bool sampleFresh = uiAge >= 0 && uiAge <= 5;
+                        if (!live && viewVague && winUseful && sampleFresh) scene = win;
+                        // NAME THE TITLE POSITIVELY. Everything above reports the title by NOT
+                        // matching anything else: the legacy view says "MainMenu" on the title and on
+                        // all five character-creation screens alike (Qud hosts the whole chargen flow
+                        // in that one view), and `winUseful` deliberately rejects "MainMenu", so a
+                        // fresh sample that genuinely says "we are on the title" left `scene` reading
+                        // exactly what a STALE sample on the caste screen leaves it reading.
+                        //
+                        // highvisor's title node matched that bare "MainMenu", so whenever this
+                        // sampler lagged a chargen transition the state tree confidently answered
+                        // "Title Screen". Measured 2026-08-08: `hv state` reported Title Screen while
+                        // Qud sat on QudBuildSummaryModuleWindow, which the next poll named correctly.
+                        // Every `hv goto qud ...` PLANS off that answer, so routes began from a screen
+                        // the game was not on -- much of why driving Qud's chargen read as random.
+                        //
+                        // With a distinct name, a fresh sample is a positive assertion and a stale one
+                        // leaves "MainMenu", which now matches no node at all: `unknown`, the honest
+                        // answer, and one the planner can route out of. Same argument the title node's
+                        // own note makes for deleting its `game_live: false` fallback.
+                        else if (!live && viewVague && sampleFresh
+                                 && win.Equals("MainMenu", StringComparison.OrdinalIgnoreCase))
+                            scene = "TitleScreen";
                         bool popup = view.IndexOf("Popup", StringComparison.OrdinalIgnoreCase) >= 0;
                         // WHICH status tab, when the status screens are the active view. Cached by
                         // the UI-thread watcher: resolving it here would mean a Unity call off-thread.
@@ -247,6 +255,15 @@ namespace RavesOfQud
                             + ",\"window\":\"" + win.Replace("\"", "'") + "\""
                             + ",\"unity_scene\":\"" + _uiScene.Replace("\"", "'") + "\""
                             + ",\"ui_age\":" + uiAge
+                            // The two inputs to the focus keeper, so a stall can be DIAGNOSED
+                            // instead of argued about. The keeper only asserts bThreadFocus while
+                            // ClientCount > 0, so "stalled" splits three ways that look identical
+                            // from outside: no client attached (keeper idle), client attached but
+                            // bThreadFocus still false (keeper not running / losing a race), or
+                            // bThreadFocus true and the UI stalled anyway (the gate is not the
+                            // cause). Reading these costs nothing and settles which.
+                            + ",\"clients\":" + ClientCountSafe()
+                            + ",\"thread_focus\":" + (ThreadFocusSafe() ? "true" : "false")
                             + ",\"ts\":" + DateTimeOffset.UtcNow.ToUnixTimeSeconds() + "}");
                     }
                     catch { /* transient IO — retry next tick */ }
@@ -257,6 +274,22 @@ namespace RavesOfQud
             })
             { IsBackground = true, Name = "RavesHeartbeat" };
             _heartbeat.Start();
+        }
+
+        /// <summary>Attached bridge clients, or -1 if the server is not up yet. Off-thread safe:
+        /// ClientCount takes its own lock and touches no Unity object.</summary>
+        private static int ClientCountSafe()
+        {
+            try { return Bridge.Server != null ? Bridge.Server.ClientCount : -1; }
+            catch { return -1; }
+        }
+
+        /// <summary>XRLCore.bThreadFocus — the flag gating Unity's Update(), which the keeper holds
+        /// true while a client is attached. A plain static read, no Unity API call.</summary>
+        private static bool ThreadFocusSafe()
+        {
+            try { return XRL.Core.XRLCore.bThreadFocus; }
+            catch { return false; }
         }
     }
 }
