@@ -104,6 +104,37 @@ const TAB_TOPGAP := {
 	"tinkering":  117.5,
 }
 
+## INTERIOR COLUMN DIVIDERS — the rule BETWEEN panes, with Qud's plant ornament sitting in a
+## break at its middle and a small diamond knob capping every free end. An earlier note here
+## said interior dividers "belong to the panes, not here"; they do not — they are frame chrome
+## like the outer rules, and no pane was drawing them, so the equipment tab ran its item list
+## straight up against the paper doll and tinkering had nothing between its three columns.
+## Reported 2026-08-10: "add vertical separator line and artwork between paperdoll and inventory
+## item list" / "add two vertical separators to match Qud".
+##
+## Every number is first-party, read off Qud's own RectTransforms (hv bridge uiprobe) rather
+## than a screenshot: `VLine`/`Image` for the rule halves, `polat-center-divider-knob` (7x7) for
+## the caps and `polat-vertical-divider-decoration` (40x122) for the ornament, both extracted
+## from the player's install. `x` is the rule's column; the ornament is centred on it and the
+## knob straddles it (x-3), which is why neither carries an x of its own.
+const TAB_VDIV := {
+	"equipment": [
+		{"x": 825.0, "top": [236.0, 498.5], "orn": 516.5, "bot": [656.5, 919.0],
+			"knobs": [229.0, 498.5, 649.5, 919.0]},
+	],
+	# Tinkering butts the ornament straight onto both rule halves — no 11px spacers and no
+	# inner knobs, only the two outer caps. Same art, different assembly; do not "tidy" the
+	# two tabs into one shape.
+	"tinkering": [
+		{"x": 801.0, "top": [242.0, 522.5], "orn": 522.5, "bot": [644.5, 925.0],
+			"knobs": [242.0, 918.0]},
+		{"x": 1341.0, "top": [242.0, 522.5], "orn": 522.5, "bot": [644.5, 925.0],
+			"knobs": [242.0, 918.0]},
+	],
+}
+const VDIV_ORN := Vector2(40, 122)
+const VDIV_KNOB := Vector2(7, 7)
+
 const TAB_VRULES := {
 	"attributes": [[173.0, 180.0, 938.0], [1745.0, 236.0, 938.0]],
 	"equipment":  [[166.0, 197.0, 938.0], [1753.0, 197.0, 938.0]],
@@ -119,6 +150,8 @@ var _tab := "messagelog"
 var _hover_tab := -1
 var _palette := {}
 var _icons := {}             # "<id>_on"/"<id>_off" -> Texture2D
+var _orn_tex: Texture2D = null    # polat-vertical-divider-decoration (40x122), TAB_VDIV
+var _knob_tex: Texture2D = null   # polat-center-divider-knob (7x7), TAB_VDIV
 var _bar: Control
 var _pane_host: Control
 var _frame: Control = null   # the screen chrome layer; repainted on tab change
@@ -200,7 +233,31 @@ func _ready() -> void:
 				var img := Image.new()
 				if img.load(p) == 0:
 					_icons["%s_%s" % [t["id"], st]] = ImageTexture.create_from_image(QudChrome.brighten(img))
+	# The interior dividers' art, extracted from the player's own install (see TAB_VDIV).
+	# Absent until someone has run the export, and the rule halves still draw without them —
+	# a missing ornament must not take the separator with it.
+	_orn_tex = _load_tile_sprite("divider_orn.png")
+	_knob_tex = _load_tile_sprite("divider_knob.png")
 	_build()
+
+## NO QudChrome.brighten HERE, AND THAT IS THE POINT. Pre-compensation is for a colour MEASURED
+## OFF A QUD CAPTURE: that number is Qud's OUTPUT, so it is the target and has to be pushed
+## through INV to survive Raves' canvas sag. An EXTRACTED SPRITE is the opposite — its texels are
+## Qud's INPUT, and Qud's own canvas sags them by the same curve on the way to the screen. Drawing
+## them raw reproduces Qud exactly; brightening them first cancels Qud's sag and leaves the art
+## ~12% too light.
+##
+## Measured, all three channels, on the divider ornament (2026-08-10): texel (58,80,92) ->
+## Qud draws (51,70,82), and QudChrome.INV[51]=58, INV[70]=80, INV[82]=92. The forward curve maps
+## the raw texel onto Qud's screen value on the nose, three for three.
+func _load_tile_sprite(fname: String) -> Texture2D:
+	var p := InputModel.support_dir().path_join("tiles").path_join(fname)
+	if not FileAccess.file_exists(p):
+		return null
+	var img := Image.new()
+	if img.load(p) != 0:
+		return null
+	return ImageTexture.create_from_image(img)
 
 func _build() -> void:
 	# the multiply scrim: a screen-texture shader (a plain MUL ColorRect can't dim the
@@ -259,6 +316,7 @@ void fragment() {
 	frame.position = Vector2.ZERO
 	frame.size = Vector2(1920, 1080)
 	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	frame.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST   # see TAB_VDIV
 	_frame = frame
 	frame.draw.connect(func():
 		# The top rule is per tab too, and it is a GAP, not a fixed set of segments: it runs
@@ -284,6 +342,23 @@ void fragment() {
 		# The verticals belong to the TAB, not the frame -- see TAB_VRULES.
 		for r in TAB_VRULES.get(_tab, []):
 			frame.draw_rect(Rect2(r[0], r[1], 1.0, r[2] - r[1] + 1.0), S_RULE)
+		# ...and so do the INTERIOR ones, which carry art -- see TAB_VDIV.
+		for d in TAB_VDIV.get(_tab, []):
+			var dx: float = d["x"]
+			for half in [d["top"], d["bot"]]:
+				frame.draw_rect(Rect2(dx, half[0], 1.0, half[1] - half[0]), S_RULE)
+			# FLOOR THE SPRITE ORIGINS. Qud's RectTransforms sit on half pixels (the ornament at
+			# y=516.5, two of the four knobs at .5) and Unity lands them on the pixel grid; drawn
+			# at the raw y, Godot blends each row across two and the ornament grew a faint copy of
+			# every edge -- measured as extra lit runs at 568/572 where Qud has bare background.
+			# NEAREST on top of that, so nothing resamples a sprite that is already 1:1.
+			if _orn_tex != null:
+				frame.draw_texture(_orn_tex,
+					Vector2(floorf(dx - VDIV_ORN.x * 0.5), floorf(d["orn"])))
+			if _knob_tex != null:
+				for ky in d["knobs"]:
+					frame.draw_texture(_knob_tex,
+						Vector2(floorf(dx - (VDIV_KNOB.x - 1.0) * 0.5), floorf(ky)))
 		# EQUIPMENT ONLY. The Ctrl+Tab cybernetics hint belongs to the paper doll; drawn
 		# unconditionally it printed over the first row of every other tab's content.
 		if _tab == "equipment":
