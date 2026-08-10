@@ -57,6 +57,15 @@ const C_TEXT := Color("#afc6c1")
 const C_BRACKET := Color("#b1c9c3")
 const C_HOTKEY := Color("#cfc041")
 
+## Qud dims the WHOLE screen behind the terminal: the probe's `OuterBackground` is a 1920x1080 Image
+## tinted #041111cc, i.e. 80%-opaque near-black over the playfield. This one is drawn (unlike the
+## "Icon Panel" below) because the capture AGREES with the layout dump instead of contradicting it:
+## Raves' undimmed playfield measures RGB(18,46,45) in the same region where Qud measures (7,23.3,
+## 23.2), and compositing this colour at alpha .8 over Raves' value predicts (6.8,22.8,22.6) — a
+## match to within half a level, on three separate sample regions. Without it Raves' terminal read
+## twice as bright as Qud's everywhere outside the text.
+const C_SCRIM := Color("#041111cc")
+
 var _data := {}
 var _palette := {}
 var _sel := 0
@@ -66,6 +75,8 @@ var _font: Font
 var _caret_tex: Texture2D = null
 var _rule_tex: Texture2D = null
 var _head_tex: Texture2D = null
+var _rule_tex_top: Texture2D = null   # the same two sprites mirrored, for the TOP rule (see _chrome_ex)
+var _head_tex_top: Texture2D = null
 var _row_rects: Array = []   # [[Rect2, option_index], …] rebuilt each draw
 
 
@@ -92,16 +103,32 @@ func _ready() -> void:
 	# is the NOTCHED centre. Aliasing both to the filler drew a plain bar and lost the notch.
 	_rule_tex = _chrome("picker_divider.png")
 	_head_tex = _chrome("term_header.png")
+	_rule_tex_top = _chrome_ex("picker_divider.png", true)
+	_head_tex_top = _chrome_ex("term_header.png", true)
 
 
 static func _chrome(fname: String) -> Texture2D:
+	return _chrome_ex(fname, false)
+
+
+## `flip_v` builds the MIRRORED copy of a chrome sprite. Qud draws the TOP rule flipped: measured
+## against its own capture, the top rule's line lands on rows 2-3 of its 16px box and the bottom
+## rule's on rows 13-14 — the same three sprites, mirrored, so the line hugs the panel's outer edge
+## and the notch always points inward. Drawing both unflipped put the top rule 10px low on every
+## terminal screen (the box was never wrong: Qud's own probe reports `polat top header` at y238.44,
+## exactly vp+RULE_DY). Flip the IMAGE rather than passing a negative-height Rect2 — the fillers are
+## drawn with tile=true, where a negative size is not reliably a mirror.
+static func _chrome_ex(fname: String, flip_v: bool) -> Texture2D:
 	var p := InputModel.support_dir().path_join("tiles").path_join(fname)
 	if not FileAccess.file_exists(p):
 		return null
 	var img := Image.new()
 	if img.load(p) != OK:
 		return null
-	return ImageTexture.create_from_image(QudChrome.brighten(img))
+	img = QudChrome.brighten(img)
+	if flip_v:
+		img.flip_y()
+	return ImageTexture.create_from_image(img)
 
 
 func show_terminal(data: Dictionary, palette: Dictionary) -> void:
@@ -137,17 +164,46 @@ func _body_lines() -> PackedStringArray:
 	return String(_data.get("body", "")).split("\n")
 
 
+## How many lines the body OCCUPIES — which is not the same as how many `split("\n")` returns.
+## Some bodies end with a newline and some do not, and Qud lays the options out one gap below the
+## last VISIBLE line either way. Read off the wire (2026-08-10), the upgrade sub-screen's body is
+##     "…\n&C4&y credits for license tiers 25+\n"
+## -> 8 elements, the last one empty, for 7 rendered lines; the welcome screen's has no trailing
+## newline and split() is already right. Counting the empty tail put every option row on that one
+## screen exactly one LINE_H low (measured +21px against Qud's capture) while the welcome screen
+## matched to 1px — which is what made this look screen-specific rather than like an off-by-one.
+## Only the single-trailing-newline case is measured; dropping the whole empty tail is the same
+## rule stated generally ("options follow the last line with ink").
+func _body_line_count() -> int:
+	var lines := _body_lines()
+	var n := lines.size()
+	while n > 0 and String(lines[n - 1]).strip_edges() == "":
+		n -= 1
+	return n
+
+
 func _render() -> void:
 	if _data.is_empty():
 		return
+	# The full-screen dimming scrim goes down FIRST, under every other thing this draws. Size it
+	# from the VIEWPORT, not from `_draw.size`: everything else here is drawn in absolute screen
+	# coordinates and Controls do not clip by default, so `_draw` renders correctly even while its
+	# own rect is empty — which it is, and which made the first version of this line a no-op that
+	# changed nothing on screen.
+	_draw.draw_rect(Rect2(Vector2.ZERO, _draw.get_viewport_rect().size), C_SCRIM)
 	var vp: float = float(_data.get("vpY100", VP_Y_FALLBACK * 100.0)) / 100.0
 	var rule_y := vp + RULE_DY
 	var rule_bot_y := vp + RULE_BOT_DY
-	# the two horizontal rules, three sprites each (filler | header | filler)
-	for y in [rule_y, rule_bot_y]:
-		_rule_seg(FILL_L_X, y, FILL_W, _rule_tex, true)
-		_rule_seg(HEAD_X, y, HEAD_W, _head_tex, false)
-		_rule_seg(FILL_R_X, y, FILL_W, _rule_tex, true)
+	# The two horizontal rules, three sprites each (filler | header | filler). The TOP one is drawn
+	# from the MIRRORED copies so its line hugs the panel's top edge and the notch points down into
+	# the panel, which is what Qud does — see _chrome_ex.
+	var top_fill: Texture2D = _rule_tex_top if _rule_tex_top != null else _rule_tex
+	var top_head: Texture2D = _head_tex_top if _head_tex_top != null else _head_tex
+	for pair in [[rule_y, top_fill, top_head], [rule_bot_y, _rule_tex, _head_tex]]:
+		var seg_y: float = pair[0]
+		_rule_seg(FILL_L_X, seg_y, FILL_W, pair[1], true)
+		_rule_seg(HEAD_X, seg_y, HEAD_W, pair[2], false)
+		_rule_seg(FILL_R_X, seg_y, FILL_W, pair[1], true)
 	# NOT DRAWN: the probe reports an "Icon Panel" here (560,254.44 800x16, sprite `solid`,
 	# tint #ffffff63). Rendering that as a 39%-white band put a pale bar across the screen that
 	# Qud's own capture does not have anywhere — the sprite is evidently not white, or the strip
@@ -156,7 +212,6 @@ func _render() -> void:
 
 	var asc := _font.get_ascent(16)
 	var y := vp + BODY_DY
-	var lines := _body_lines()
 	# THE BODY CARRIES MARKUP TOO, and it is parsed as ONE string rather than per line.
 	# The option rows always went through QudText; the body did not, because the first
 	# screens had none — then the install refusal arrived as "&yInsufficent license points"
@@ -176,11 +231,11 @@ func _render() -> void:
 			_draw.draw_string(_font, Vector2(bx, y + asc).round(), seg,
 				HORIZONTAL_ALIGNMENT_LEFT, -1, 16, run[1])
 			bx += _font.get_string_size(seg, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
-	y = vp + BODY_DY + float(lines.size()) * LINE_H
 
 	# Options start one ROW_GAP below the body block and stack the same way — Qud's vertical
 	# layout, derived rather than pinned, so a 3-line body and a 6-line one both land right.
-	var opt_y0 := vp + BODY_DY + float(lines.size()) * LINE_H + ROW_GAP
+	# The count comes from _body_line_count(), NOT lines.size(): a trailing newline is not a line.
+	var opt_y0 := vp + BODY_DY + float(_body_line_count()) * LINE_H + ROW_GAP
 	_row_rects.clear()
 	var opts: Array = _data.get("options", [])
 	for i in opts.size():
