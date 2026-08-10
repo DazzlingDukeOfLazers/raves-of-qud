@@ -1765,16 +1765,26 @@ background). The frame Control is `TEXTURE_FILTER_NEAREST` for the same reason.
 Reported 2026-08-10: "switching between tabs sometimes makes the torch yellow, not red. It's
 inconsistent." It is inconsistent, and so is Qud's.
 
-A lit torch carries `XRL.World.Parts.AnimatedMaterialFire`, whose entire `Render` is:
+A lit torch animates from `XRL.World.Parts.TorchProperties.Render` — **not** `AnimatedMaterialFire`,
+which is what the matching colour set led me to assume first, and assuming it exported no `anim`
+at all because a torch has no part by that name:
 
 ```csharp
-int num = (XRLCore.CurrentFrame + FrameOffset) % 60;
-if (!Options.DisableTextAnimationEffects) FrameOffset += Stat.RandomCosmetic(1, 5);
-text = (num < 15) ? "&R" : (num < 30) ? "&W" : (num >= 45) ? "&W" : "&r";
-E.ApplyColors(text, ICON_COLOR_PRIORITY);
+if ((ChangeColorString || ChangeDetailColor) && pLight.Lit) {
+    int num = (XRLCore.CurrentFrame + FrameOffset) % 60;
+    if (!Options.DisableTextAnimationEffects) FrameOffset += Stat.Random(1, 5);
+    char c = 'W';
+    if (num < 15) c = 'R'; else if (num >= 30 && num < 45) c = 'r';
+    if (ChangeDetailColor) E.DetailColor = c.ToString();
+}
 ```
 
-so the flame cycles **&R (bright red) / &W (gold) / &r (dark red)** — exactly the three colours that
+The two parts happen to share the cycle character for character, so ONE client-side table serves
+both — but they are different parts and only one of them is on a torch. Note the `pLight.Lit`
+guard: an unlit torch does not animate at all, because `Extinguish()` writes `DetailColor = "r"`
+once and leaves it. That is why the unburnt torch in the item list is stably dark red.
+
+The flame cycles **&R (bright red) / &W (gold) / &r (dark red)** — exactly the three colours that
 turned up on screen. `Qud.UI.EquipmentLine.setData` calls `RenderForUI("Equipment")` **once**, when
 the line is built, and the Image keeps that colour; Qud does not re-render the doll icon per frame.
 So Qud freezes one arbitrary phase per screen open, and measured side by side:
@@ -1784,13 +1794,26 @@ So Qud freezes one arbitrary phase per screen open, and measured side by side:
 | Qud | dark red ×6 (frozen) | gold, gold, gold, gold, red, red |
 | Raves | gold ×8 (frozen) | gold, dark red, gold, red, gold, gold |
 
-Same three colours, same freeze-on-build, same randomness. **Raves is mirroring this correctly.**
-What is left is not a colour bug but an unavoidable consequence of mirroring a frame-animated
-value through a snapshot: the two apps sample at different moments, so side by side they usually
-disagree. There is no version of "sample it once" that makes two independent samples of a random
-phase match.
+Same three colours, same freeze-on-build, same randomness — Raves was mirroring the *mechanism*
+faithfully, and two independent samples of a random phase cannot be made to agree. So the fix is
+not a colour: the export now names the ANIMATION (`anim: "fire"`) instead of shipping one sampled
+frame and calling it the object's colour, and the client decides.
 
-**`RenderForUI` is not a read.** `FrameOffset += Stat.RandomCosmetic(1, 5)` runs on every call, so
-every inventory export nudges the animation phase of every animated object the player carries. It
-is the cosmetic RNG stream, so nothing gameplay-visible rides on it — but do not treat an exporter
-that calls `RenderForUI` as side-effect free.
+**Gold is half the cycle**, which is why an unsuspecting sample kept coming up yellow:
+
+| phase | colour | share |
+|---|---|---|
+| `num < 15` | `&R` bright red | 25% |
+| `15–29`, `45–59` | `&W` gold | **50%** |
+| `30–44` | `&r` dark red | 25% |
+
+Two independent samples therefore agree only Σp² = **37.5%** of the time. User mode runs the cycle
+(a torch reads as a torch); 1:1 pins the gold phase, which is the single likeliest thing Qud's
+frozen icon is showing and lifts agreement to **50%**.
+
+**`RenderForUI` is not a read, and it is not cosmetic either.** `FrameOffset += Stat.Random(1, 5)`
+runs on every call — `Stat.Random`, the GAMEPLAY stream, not `RandomCosmetic` (that is
+`AnimatedMaterialFire`; the two parts differ here even though their colour tables do not). So every
+inventory export of a player carrying a lit torch draws from the same RNG the game rolls dice on.
+Nothing observable has come of it, but an exporter that calls `RenderForUI` is not side-effect
+free, and on a seeded run it is not even side-effect *neutral*.

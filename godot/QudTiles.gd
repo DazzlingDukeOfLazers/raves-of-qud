@@ -40,6 +40,49 @@ func glyph_for(obj: Dictionary, full: bool) -> String:
 		return String(obj.get("glyphP", ""))
 	return String(obj.get("glyph", ""))
 
+# ══ FRAME-DRIVEN MATERIALS ══════════════════════════════════════════════════════════════
+# An object carrying AnimatedMaterialFire has no fixed detail colour: the part overrides it on
+# every render from (XRLCore.CurrentFrame + FrameOffset) % 60. The export's `dt` is therefore one
+# arbitrary frame, and the mod now ships `anim` naming the part instead of pretending otherwise.
+#
+# Transcribed from ConsoleLib's own branch table, in its own order — gold owns TWO of the four
+# quarters, which is why an unsuspecting sample came up gold half the time:
+#     n < 15 -> &R    n < 30 -> &W    n >= 45 -> &W    else -> &r
+const ANIM_PERIOD := 60
+## Qud runs this at one cycle per 60 render frames; at 60fps that is 1s round, 250ms a step.
+const ANIM_FRAME_MS := 1000.0 / 60.0
+## The phase 1:1 mode pins to. Qud's own paper doll freezes ONE arbitrary frame per screen open
+## (EquipmentLine.setData samples RenderForUI once and keeps it), so there is no phase that
+## matches it -- but the two gold quarters make &W the single likeliest thing Qud is showing:
+## pinning here agrees with Qud 50% of the time against 37.5% for a fresh sample each open.
+const ANIM_PIN_PHASE := 20
+
+## Detail colour CODE for a frame-driven material at `phase`, or "" when the kind is one we do
+## not model (the caller then keeps whatever the export sampled, which is what we did before).
+func anim_code(kind: String, phase: int) -> String:
+	if kind != "fire":
+		return ""
+	var n := phase % ANIM_PERIOD
+	if n < 15:
+		return "R"
+	if n < 30:
+		return "W"
+	if n >= 45:
+		return "W"
+	return "r"
+
+## Phase for right now — pinned in 1:1 mode, running off the wall clock otherwise. Deliberately
+## NOT the frame counter: Godot's frame rate is not Qud's, and the cycle is defined in Qud frames.
+func anim_phase() -> int:
+	if Settings.one_to_one():
+		return ANIM_PIN_PHASE
+	return int(Time.get_ticks_msec() / ANIM_FRAME_MS) % ANIM_PERIOD
+
+## Which of the four quarters `phase` falls in. Redrawing is worth doing when this changes and
+## pointless otherwise — four repaints a second, not one per frame.
+func anim_step(phase: int) -> int:
+	return (phase % ANIM_PERIOD) / 15
+
 ## Recoloured tile texture for a tile path + main/detail colours, or null if there's no tile/mask.
 func texture(tile: String, main: Color, detail: Color) -> Texture2D:
 	if tile == "":

@@ -370,8 +370,69 @@ namespace RavesOfQud
                 catch { }
                 try { if (r.getHFlip()) j.Member("hflip", true); } catch { }
                 try { if (r.getVFlip()) j.Member("vflip", true); } catch { }
+                // FRAME-DRIVEN COLOURS ARE NOT A COLOUR. AnimatedMaterialFire and its siblings
+                // override the detail char on EVERY render out of
+                //     (XRLCore.CurrentFrame + FrameOffset) % 60
+                // so the `dt` above is one arbitrary frame of an animation, not the object's
+                // colour -- and each call also does FrameOffset += RandomCosmetic(1,5), so two
+                // exports of the same torch disagree. Qud's own EquipmentLine samples once and
+                // keeps it, which is why its paper doll shows a different flame every time the
+                // screen is opened (reported 2026-08-10 as an inconsistent torch).
+                //
+                // Naming the ANIMATION lets the client stop guessing from a sampled char: it can
+                // run the cycle itself in user mode and pin a fixed phase in 1:1. Every kind is
+                // exported, not just the one the client handles, so a new one shows up in the data
+                // rather than needing a mod edit and a restart to discover.
+                try
+                {
+                    string kind = AnimKind(go);
+                    if (kind != null) j.Member("anim", kind);
+                }
+                catch { }
             }
             catch { }
+        }
+
+        /// The animation driving this object's colours, or null when nothing does.
+        ///
+        /// TWO SOURCES, ONE CYCLE. The obvious family is AnimatedMaterial* (ten-odd variants,
+        /// matched on the type name so a new one reports itself rather than needing a mod edit).
+        /// But the TORCH -- the object that started this -- is not one of them: it animates from
+        /// `TorchProperties.Render` with ChangeDetailColor="true", whose table is character for
+        /// character the same as AnimatedMaterialFire's:
+        ///     num &lt; 15 -&gt; 'R',  30 &lt;= num &lt; 45 -&gt; 'r',  otherwise 'W'
+        /// so both report as "fire" and the client runs one cycle for both. Checking only the
+        /// class-name family found nothing on a torch and exported no `anim` at all.
+        ///
+        /// AND ONLY WHILE LIT. TorchProperties guards its whole Render on `pLight.Lit`, and
+        /// Extinguish() writes DetailColor="r" once and leaves it — so an unlit torch is not
+        /// animated, it is statically dark red, and must NOT be flagged or the client would
+        /// flicker a torch that is out.
+        private static string AnimKind(GameObject go)
+        {
+            const string PREFIX = "AnimatedMaterial";
+            try
+            {
+                foreach (var part in go.PartsList)
+                {
+                    if (part == null) continue;
+                    string n = part.GetType().Name;
+                    if (n.StartsWith(PREFIX, StringComparison.Ordinal) && n.Length > PREFIX.Length)
+                        return n.Substring(PREFIX.Length).ToLowerInvariant();
+                }
+            }
+            catch { }
+            try
+            {
+                var tp = go.GetPart<XRL.World.Parts.TorchProperties>();
+                if (tp != null && (tp.ChangeColorString || tp.ChangeDetailColor))
+                {
+                    var ls = go.GetPart<XRL.World.Parts.LightSource>();
+                    if (ls != null && ls.Lit) return "fire";
+                }
+            }
+            catch { }
+            return null;
         }
 
         /// True when a display name carries no actual NOUN — only markup, badges and

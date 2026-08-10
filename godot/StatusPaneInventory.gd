@@ -175,6 +175,8 @@ var _sel := 0
 var _scroll := 0.0
 var _collapsed := {}        # category name -> true when collapsed (Raves-side view state)
 var _enabled := {}          # filter strip: enabled category names; EMPTY means "*All"
+var _has_anim := false      # any slot/row carries an AnimatedMaterial part (see _detail_code)
+var _anim_step := -1        # last drawn quarter of the animation cycle
 var _filt_rects: Array = [] # [[Rect2, category-or-empty], …] rebuilt with the strip
 var _filt_hover := -1       # index into _filt_rects under the cursor (-1 = none)
 # Doll slots are clickable like list rows: [[Rect2, id, greyed], …], rebuilt each draw.
@@ -301,6 +303,7 @@ func _relayout() -> void:
 				_sel = i
 				break
 	_sel = clampi(_sel, 0, maxi(0, _rows.size() - 1))
+	_scan_anim()
 	_content.size = Vector2(LIST_W, maxf(LIST_H, _rows.size() * ROW_H + 8.0))
 	_content.queue_redraw()
 
@@ -580,7 +583,8 @@ func _draw_doll() -> void:
 				var dt := str(sl.get("dt", ""))
 				var tex: Texture2D = _tiles.texture(tile,
 					_tiles.color_of(fg if fg != "" else str(sl.get("color", "")), Color.WHITE),
-					_tiles.color_of(dt if dt != "" else str(sl.get("detail", "")),
+					_tiles.color_of(
+						_detail_code(sl, dt if dt != "" else str(sl.get("detail", ""))),
 						Color(0.545, 0.4, 0.18)))
 				if tex != null:
 					# GROUND TRUTH from a live EquipmentLine: icon.image's RectTransform is
@@ -740,13 +744,56 @@ func _draw_markup_sized(target: CanvasItem, s: String, pos: Vector2, size: int) 
 		target.draw_string(_font, Vector2(x, pos.y), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, size, run[1])
 		x += _font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
 
+## THE DETAIL CODE TO ACTUALLY DRAW WITH. For an ordinary object that is whatever the export
+## sampled. For one carrying an AnimatedMaterial part it is NOT: the part rewrites the detail
+## char on every render out of (CurrentFrame + FrameOffset) % 60, so `sampled` is one arbitrary
+## frame of a flame — which is why the paper doll's torch came up red, gold or dark red at random
+## depending on which tab you arrived from (reported 2026-08-10).
+##
+## User mode runs the cycle, so a torch reads as a torch. 1:1 pins it, because Qud's own doll
+## freezes a single frame per screen open and a moving flame would never match a still one.
+## An animation kind we do not model falls through to `sampled`, unchanged from before.
+func _detail_code(d: Dictionary, sampled: String) -> String:
+	var kind := str(d.get("anim", ""))
+	if kind == "":
+		return sampled
+	var c: String = _tiles.anim_code(kind, _tiles.anim_phase())
+	return c if c != "" else sampled
+
+## Repaint on the QUARTER, not the frame: the cycle only has four distinct colours, so four
+## repaints a second is the whole animation and anything more is wasted canvas work.
+func _process(_delta: float) -> void:
+	if not _has_anim or not visible or Settings.one_to_one():
+		return
+	var step: int = _tiles.anim_step(_tiles.anim_phase())
+	if step == _anim_step:
+		return
+	_anim_step = step
+	if _static != null:
+		_static.queue_redraw()
+	if _content != null:
+		_content.queue_redraw()
+
+## Does anything currently on this pane animate? Scanned once per rebuild rather than per frame,
+## so a character carrying no torch costs nothing at all.
+func _scan_anim() -> void:
+	_has_anim = false
+	for sl in _data.get("slots", []):
+		if sl is Dictionary and str(sl.get("anim", "")) != "":
+			_has_anim = true
+			return
+	for r in _rows:
+		if str(r.get("anim", "")) != "":
+			_has_anim = true
+			return
+
 func _draw_tile(r: Dictionary, pos: Vector2) -> void:
 	var tile := str(r.get("tile", ""))
 	if tile == "":
 		return
 	var tex: Texture2D = _tiles.texture(tile,
 		_tiles.color_of(str(r.get("color", "")), Color.WHITE),
-		_tiles.color_of(str(r.get("detail", "")), Color.WHITE))
+		_tiles.color_of(_detail_code(r, str(r.get("detail", ""))), Color.WHITE))
 	if tex != null:
 		# Same law as the filter bar and the doll: InventoryLine.icon's RectTransform is
 		# 20x30 (left-anchored, pivot 0.5, preserveAspect FALSE) over a 16x24 sprite, so
