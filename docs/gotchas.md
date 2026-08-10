@@ -1530,10 +1530,19 @@ on the Raves side decides any of that.
 The UPGRADE LICENCE branch behaves the same way: its body carries the credit-tier table in
 `&`-markup, its option reads "Upgrade Your License [{{C|1}} credit] {{R|insufficent credits}}",
 and driving it at 0 credits returns Qud's own "&RInsufficient credits to upgrade". Verified to
-that guard; a SUCCESSFUL upgrade still wants a `CyberneticsCreditWedge` in hand, and neither
-`hv wish CyberneticsCreditWedge` nor `hv wish object:CyberneticsCreditWedge` spawned one — the
-wish is accepted and logged, and nothing appears in inventory. The wish syntax for that
-blueprint is the open question, not the terminal flow.
+that guard; a SUCCESSFUL upgrade still wants a `CyberneticsCreditWedge` in hand.
+
+**`hv wish <blueprint>` DOES NOT SPAWN ITEMS — and the blueprint name is not the reason.**
+First read blamed the wedge's spelling. An A/B on a known-good blueprint settles it: with Qud in
+play and the queue draining, `hv wish "Chem Cell"` twice left the inventory's chem-cell row count
+at 2 both times. The command is accepted, `[raves] [wish] …` is logged, and nothing arrives. So
+the fault is in the wish PATH (`Wishing.HandleWish` via the `wish` command), not in any
+particular blueprint — and any earlier "the wish worked" reading that rested on a screen changing
+rather than on a counted before/after is worth re-checking. `godmode`/`xp` style wishes mutate
+state and may still work; spawning is what is proven broken.
+
+Also ruled out for spawning a test object here: `check bp=…` calls `ObjectChecker.ClearZone`
+first, which would delete the becoming nook itself.
 
 **And the terminal is where the parked-queue guard earned itself in the field.** Wishing while
 the terminal was UP was refused out loud:
