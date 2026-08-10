@@ -1107,8 +1107,14 @@ func _apply_stair_availability() -> void:
 	_nav_up_icon.modulate = Color(1, 1, 1, NAV_DIM_ALPHA if dim else 1.0)
 	var cell := _nav_up_icon.get_parent()
 	if cell is Control:
-		cell.tooltip_text = "Go up (stairs) — s%s" % (
-			"\nNo stairs up in this zone" if not _zone_has_stairs_up else "")
+		# "Go up", not "Go up (stairs)", and no reason given when it is dim. The flag behind
+		# this is Qud's whole CmdMoveU affordance -- stairs, any climbable, or the world map
+		# (ZoneSnapshot.RefreshZoneStairs) -- so naming stairs was both too narrow and, on the
+		# surface, an outright lie: "No stairs up in this zone" over a zone whose up is the
+		# world map, which needs no stairs (reported 2026-08-10). A tooltip that states a CAUSE
+		# it does not actually know is worse than one that just states the fact.
+		cell.tooltip_text = "Go up — s%s" % (
+			"\nNothing to ascend here" if not _zone_has_stairs_up else "")
 
 ## Raves' own Options, as an IN-GAME overlay — the sibling of the Control Mapping screen above.
 ##

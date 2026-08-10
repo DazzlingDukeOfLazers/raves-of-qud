@@ -742,7 +742,11 @@ namespace RavesOfQud
                 if (z != null)
                 {
                     RefreshZoneStairs(z);
-                    j.Member("stairsUp", _stairsUp).Member("stairsDown", _stairsDown);
+                    // `stairsUp` is Qud's WHOLE up-affordance, not a StairsUp headcount --
+                    // see RefreshZoneStairs. The per-cell leg is checked here because it
+                    // moves with the player and cannot be cached per zone.
+                    j.Member("stairsUp", _stairsUp || CellClimbsUp(player))
+                     .Member("stairsDown", _stairsDown);
                 }
             }
             catch { }
@@ -756,6 +760,27 @@ namespace RavesOfQud
 
         /// Fill _stairsUp/_stairsDown for `z`. First hit wins — LoopObjectsWithPart is lazy, so
         /// the break stops the walk instead of building a list of every staircase in the zone.
+        ///
+        /// `_stairsUp` IS NOT "does this zone contain a StairsUp part" ANY MORE, and the old
+        /// name is kept only because it is on the wire. Reported 2026-08-10: "nav up is greyed
+        /// out even though you can go up" — correct, and the greying was reasoning from the
+        /// wrong question. Qud's CmdMoveU (XRLCore) offers THREE ways up and a StairsUp object
+        /// is only one of them:
+        ///
+        ///   1. something in the player's OWN CELL handles `ClimbUp` (the stairs you stand on);
+        ///   2. any explored, visible, ascent-eligible object in the zone with a registered
+        ///      `ClimbUp` event — a ladder, a shaft, a rope, not just a staircase;
+        ///   3. THE WORLD MAP, which needs no object at all: outdoors (`Z <= 10`, not inside,
+        ///      not already the world map) `CmdMoveU` simply asks "go to the world map?".
+        ///
+        /// (3) is what the report was standing in. On the surface there is no StairsUp anywhere
+        /// in the zone, so the icon greyed out and its tooltip said "No stairs up in this zone"
+        /// while the player could plainly walk up to the world map. A `SpecialUpMessage` zone is
+        /// the opposite case — Qud answers CmdMoveU with that message and goes nowhere — so it
+        /// counts as NO regardless of what else is around.
+        ///
+        /// Non-destructive by construction: Qud FIRES the ClimbUp event to move; we only ask
+        /// `HasRegisteredEvent`, which cannot climb anything by accident.
         private static void RefreshZoneStairs(Zone z)
         {
             string id = z.ZoneID ?? "";
@@ -763,9 +788,51 @@ namespace RavesOfQud
             bool up = false, down = false;
             foreach (var go in z.LoopObjectsWithPart("StairsUp")) { if (go != null) { up = true; break; } }
             foreach (var go in z.LoopObjectsWithPart("StairsDown")) { if (go != null) { down = true; break; } }
+            // (3) the world map — no object required
+            if (!up)
+            {
+                try
+                {
+                    if (!z.IsWorldMap() && z.Z <= 10 && !z.IsInside()) up = true;
+                }
+                catch { }
+            }
+            // (2) anything else that registers ClimbUp
+            if (!up)
+            {
+                try
+                {
+                    foreach (var go in z.GetObjects())
+                    {
+                        if (go == null || !go.HasRegisteredEvent("ClimbUp")) continue;
+                        if (go.HasTagOrIntProperty("ExcludeFromAscentSelection")) continue;
+                        up = true;
+                        break;
+                    }
+                }
+                catch { }
+            }
+            // a zone that answers CmdMoveU with a message goes nowhere, whatever it holds
+            try { if (!string.IsNullOrEmpty(z.SpecialUpMessage())) up = false; }
+            catch { }
             _stairsZone = id;
             _stairsUp = up;
             _stairsDown = down;
+        }
+
+        /// Does the player's OWN cell hold something that climbs? Qud's first CmdMoveU test,
+        /// and the one that cannot be cached per zone because it moves with the player.
+        private static bool CellClimbsUp(GameObject player)
+        {
+            try
+            {
+                var cell = player != null ? player.CurrentCell : null;
+                if (cell == null) return false;
+                foreach (var go in cell.Objects)
+                    if (go != null && go.HasRegisteredEvent("ClimbUp")) return true;
+            }
+            catch { }
+            return false;
         }
 
         /// The player's active effects (buffs/debuffs) for the frame's Active effects panel. DisplayName
