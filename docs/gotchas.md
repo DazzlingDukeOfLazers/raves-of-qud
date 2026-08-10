@@ -1532,14 +1532,25 @@ The UPGRADE LICENCE branch behaves the same way: its body carries the credit-tie
 and driving it at 0 credits returns Qud's own "&RInsufficient credits to upgrade". Verified to
 that guard; a SUCCESSFUL upgrade still wants a `CyberneticsCreditWedge` in hand.
 
-**`hv wish <blueprint>` DOES NOT SPAWN ITEMS — and the blueprint name is not the reason.**
-First read blamed the wedge's spelling. An A/B on a known-good blueprint settles it: with Qud in
-play and the queue draining, `hv wish "Chem Cell"` twice left the inventory's chem-cell row count
-at 2 both times. The command is accepted, `[raves] [wish] …` is logged, and nothing arrives. So
-the fault is in the wish PATH (`Wishing.HandleWish` via the `wish` command), not in any
-particular blueprint — and any earlier "the wish worked" reading that rested on a screen changing
-rather than on a counted before/after is worth re-checking. `godmode`/`xp` style wishes mutate
-state and may still work; spawning is what is proven broken.
+**`hv wish <blueprint>` PUTS THE OBJECT ON THE FLOOR, NOT IN YOUR PACK.** Qud's wish handler
+ends with
+
+    foreach (Cell adjacentCell in who.CurrentCell.GetAdjacentCells())
+        if (adjacentCell.IsEmpty()) { ...; adjacentCell.AddObject(gameObject22); ... }
+
+— an ADJACENT EMPTY CELL, and `Popup.Show("No adjacent empty squares to create your wish!")`
+when there is none. Nothing is ever added to the inventory.
+
+I got this wrong twice in a row and the shape is worth keeping. First I blamed the blueprint
+name; then I "proved" the whole wish path dead by wishing `Chem Cell` twice and watching
+`inventory.json`'s chem-cell row count stay at 2 — a probe that could not have succeeded no
+matter how well the wish worked, because wished items never go there. Reading the SNAPSHOT's
+zone instead found every one of them on the ground, wedges included:
+`{{C|cybernetics credit wedge}} {{C|1}} x2`.
+
+**Check a wish on the FLOOR (the snapshot's cells), never in inventory.** And the general form,
+which this session hit three times: when a check comes back negative, ask whether the check
+could have come back positive at all before believing it.
 
 Also ruled out for spawning a test object here: `check bp=…` calls `ObjectChecker.ClearZone`
 first, which would delete the becoming nook itself.
