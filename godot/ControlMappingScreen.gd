@@ -277,6 +277,12 @@ func _send_edit(fields: Dictionary) -> void:
 				_load_bindings())
 
 func _root_input(e: InputEvent) -> void:
+	# CONSUME MOUSE EVENTS — MOUSE_FILTER_STOP does not stop the WHEEL, which Godot
+	# propagates up the Control chain until someone calls accept_event(). Found by the
+	# modal-input audit after the same leak was reported on the skills screen
+	# (2026-08-10): scrolling this list would otherwise zoom the playfield behind it.
+	if e is InputEventMouseButton or e is InputEventMouseMotion:
+		_root.accept_event()
 	if e is InputEventMouseButton and e.pressed:
 		if e.button_index == MOUSE_BUTTON_WHEEL_UP:
 			_scroll_by(-ROW_H * 2)

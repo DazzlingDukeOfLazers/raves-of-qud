@@ -1431,3 +1431,34 @@ The cost of not knowing this was a session: the OS-level attempts failed, the sc
 off as having no exit, and Qud was restarted and the save reloaded. `hv back` was never tried.
 Highvisor now models both screens with `uiback` exits, plus a generic `unknown -> in_game` edge so
 an unmodelled screen costs one bridge call instead of a restart (highvisor `docs/05-driving-input.md`).
+
+## `MOUSE_FILTER_STOP` does not stop the WHEEL
+
+A full-rect Control with `MOUSE_FILTER_STOP` is the obvious way to make an overlay modal, and
+for clicks it works: Godot finds the control under the cursor, delivers the button, and marks
+the event handled, so nothing downstream sees it. **The wheel is not delivered that way.**
+Godot propagates a wheel event UP the Control chain looking for someone who wants it (so that
+nested `ScrollContainer`s work) and marks it handled only when a control calls
+`accept_event()`. No call, no consumption — the tick continues to `_unhandled_input`.
+
+Reported from use (2026-08-10): *"While you're scrolling Skills, the background playfield
+receives the scroll wheel messages and zooms."* Exactly that — the status screens' root is
+full-rect STOP and its panes scroll correctly, and every tick ALSO reached `Main`'s camera
+handler. Measured against a control: two captures with no input differ by 0.00, one scroll
+moved the playfield by 1.37 and visibly enlarged the tiles behind the modal.
+
+Two things follow, and the second is the one that generalises:
+
+- **Consume it at the modal.** `_root.accept_event()` for `InputEventMouseButton` /
+  `InputEventMouseMotion` in the root's `gui_input` handler.
+- **Guard the RECEIVER too.** `Main._modal_owns_input()` is one definition of "a modal owns
+  input" (mirrored popup, item picker, or a MainFrame overlay), asked by every branch that
+  drives the world. The mouse branch was the only one that never asked — the keyboard path,
+  the Esc path and `cell_at` all did, and `cell_at` even states the rule in a comment ("a
+  modal owns the whole screen even where it does not paint"). A rule written down in three
+  places and applied in three of four is a rule with a hole in it.
+
+`tools/regression/modal_input_audit.py` pins both halves statically. It found two more
+instances on its first run: ControlMappingScreen had the same missing `accept_event()` (fixed
+with it), and PopupOverlay/PickerOverlay have a STOP root with no handler at all — their
+wheel is stopped only by the receiver-side guard, which the audit reports rather than hides.
