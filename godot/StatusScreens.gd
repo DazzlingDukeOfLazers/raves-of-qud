@@ -881,7 +881,22 @@ func _build_log_pane() -> void:
 func set_snapshot(data: Dictionary) -> void:
 	var pal: Dictionary = data.get("palette", {})
 	if not pal.is_empty():
+		var first := _palette.is_empty()
 		_palette = pal   # same shape MessageLog/QudText already consume
+		if first:
+			# Every pane built BEFORE the first palette rendered its markup in the
+			# fallback WHITE, and stayed that way (feedback 2026-08-10: "Skill list
+			# items need color formatting to match Qud"). The state is easy to hit:
+			# a Raves connected while Qud sits parked on one of its own status
+			# screens receives NO snapshot at all — the turn thread that publishes
+			# them is parked — so there is no palette anywhere until Qud returns to
+			# play, and the 1.2s reload chain that would have healed the pane only
+			# re-arms while its tab check keeps passing. Push the recovery from the
+			# palette's own arrival instead: flag every pane stale and rebuild the
+			# one on screen.
+			_pane_pal_empty = true
+			if visible:
+				_set_tab(_tab)
 	var pobj: Dictionary = data.get("player", {})
 	if not pobj.is_empty():
 		_last_player = pobj
