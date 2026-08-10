@@ -1,0 +1,55 @@
+# Qud types the mod BINDS TO — the surface whose signatures we need to see move.
+# One fully-qualified name per line; blank lines and #-comments ignored.
+# Consumed by tools/qud_api_snapshot.sh. Add a type here the first time you reflect on it,
+# call it from the mod, or copy behaviour out of it.
+#
+# Deliberately NOT the whole assembly: this list is what a patch could break for US.
+
+# --- the bridge's spine: threads, queues, views, input -----------------------------
+GameManager
+XRL.Core.XRLCore
+ConsoleLib.Console.Keyboard
+ConsoleLib.Console.TextConsole
+ConsoleLib.Console.ColorUtility
+XRL.UI.Framework.NavigationController
+XRL.UI.Framework.APIDispatch
+Qud.UI.UIManager
+
+# --- popups + pickers (the mirror, and the default-answer trap) --------------------
+XRL.UI.Popup
+Qud.UI.PopupMessage
+XRL.UI.PickItem
+Qud.UI.PickGameObjectScreen
+
+# --- the status screens we mirror --------------------------------------------------
+Qud.UI.StatusScreensScreen
+Qud.UI.InventoryAndEquipmentStatusScreen
+Qud.UI.SkillsAndPowersStatusScreen
+XRL.UI.SkillsAndPowersScreen
+Qud.UI.JournalStatusScreen
+Qud.UI.FilterBarCategoryButton
+XRL.UI.EquipmentScreen
+Qud.API.EquipmentAPI
+
+# --- world + player state we export --------------------------------------------------
+XRL.World.Zone
+XRL.World.Cell
+XRL.World.GameObject
+XRL.World.Parts.Render
+XRL.World.Parts.StairsUp
+XRL.World.Parts.Description
+XRL.World.Anatomy.BodyPart
+XRL.Rules.Strings
+XRL.UI.Look
+XRL.UI.Sidebar
+
+# --- chargen (the embark driver) ------------------------------------------------------
+XRL.CharacterBuilds.EmbarkBuilder
+XRL.CharacterBuilds.Qud.QudGamemodeModule
+XRL.CharacterBuilds.Qud.QudChartypeModule
+XRL.CharacterBuilds.Qud.QudGenotypeModule
+
+# --- options, keybinds, saves ---------------------------------------------------------
+XRL.UI.Options
+XRL.CommandBindingManager
+XRL.World.Capabilities.Wishing
