@@ -33,6 +33,13 @@ var C_HEAD := _sk8(108, 133, 129)      # header strip + SP label
 var C_RULE := _sk8(60, 84, 92)
 var C_GOLD := _sk8(200, 184, 57)
 var C_SEL := _sk8(23, 59, 60)
+# The header's own colours, from the live screen's text markup (uiprobe statBlock/SP):
+# labels {{g}}, values AND the ■ separators {{K}}, the SP count {{C}}. Literal hexes as
+# fallbacks so a pane built before the palette lands still shows Qud's colours.
+var C_LAB := Color("#009403")          # attribute labels (palette g)
+var C_VAL := Color("#155352")          # values + separators (palette K)
+var C_SPV := Color("#77bfcf")          # the SP count (palette C)
+var C_SPT := Color("#b1c9c3")          # "Skill Points (SP): " (palette y)
 
 var _data := {}
 var _palette := {}
@@ -49,8 +56,18 @@ var _detail_learned: RichTextLabel
 var _detail_desc: RichTextLabel
 var _detail_req: RichTextLabel
 var _font: Font
+var _portrait: Texture2D = null        # the player tile, 2x, left of the stat strip (Qud's Icon)
 var bridge_cb: Callable = Callable()   # StatusScreens: send a bridge command
 var reload_cb: Callable = Callable()   # StatusScreens: re-read skills.json
+
+## StatusScreens hands over the portrait it already builds from character.json (the same
+## texture the attributes tab and the tab-bar icon use). May arrive after setup — redraw.
+func set_portrait(t: Texture2D) -> void:
+	if t == _portrait:
+		return
+	_portrait = t
+	if _static != null:
+		_static.queue_redraw()
 
 func _ready() -> void:
 	name = "SkillsPane"
@@ -131,16 +148,51 @@ func _relayout() -> void:
 func _draw_static() -> void:
 	if _data.is_empty():
 		return
-	# header: the six mains, then the SP counter (Qud's own spacing: "STR:19 ▪ AGI: 18…")
+	# HEADER, from Qud's own layout model (uiprobe SkillsAndPowersStatusScreen, 2026-08-10):
+	#   HLine (174.5,184.5) 32x1 · Icon (214.5,161) 32x48 · statBlock CENTRED in a 480px
+	#   box at x258.5, font 12 · HLine (746.5,184.5) 32x1 · SP CENTRED in a 230px box at
+	#   x786.5, font 16 · one long HLine 1024.5..1745.5. The old header was a left-aligned
+	#   sketch of a 2026-08-04 capture: everything at font 15 in one colour, which Source
+	#   Code Pro rasterises RAGGED at that off-size — the feedback's "weird distortions".
+	#   Colours are the screen's own markup: labels {{g}}, values + ■ separators {{K}},
+	#   the SP count {{C}} — and Qud's quirk that ONLY the first label keeps its colon in
+	#   the label span ("STR:20" tight, "AGI: 18" spaced) is the markup's, kept verbatim.
 	var st: Dictionary = _data.get("stats", {})
-	var parts: Array = []
-	for k in ["STR", "AGI", "TOU", "INT", "WIL", "EGO"]:
-		parts.append("%s: %d" % [k, int(st.get(k, 0))])
-	_static.draw_string(_font, Vector2(LIST_X, 190), "  ▪  ".join(parts),
-		HORIZONTAL_ALIGNMENT_LEFT, -1, 15, C_HEAD)
-	_static.draw_string(_font, Vector2(806, 190), "Skill Points (SP): %d" % int(_data.get("sp", 0)),
-		HORIZONTAL_ALIGNMENT_LEFT, -1, 16, C_HEAD)
-	_static.draw_rect(Rect2(740, 185, 52, 1), C_RULE)      # the short rule between them
+	var runs: Array = []
+	var keys := ["STR", "AGI", "TOU", "INT", "WIL", "EGO"]
+	for i in keys.size():
+		var k: String = keys[i]
+		if i == 0:
+			runs.append(["%s:" % k, C_LAB])
+			runs.append(["%d" % int(st.get(k, 0)), C_VAL])
+		else:
+			runs.append([k, C_LAB])
+			runs.append([": %d" % int(st.get(k, 0)), C_VAL])
+		if i < keys.size() - 1:
+			runs.append([" ■ ", C_VAL])
+	var total := 0.0
+	for r in runs:
+		total += _font.get_string_size(r[0], HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
+	var hx := 258.5 + (480.0 - total) * 0.5
+	var hy := 180.46 + _font.get_ascent(12)
+	for r in runs:
+		_static.draw_string(_font, Vector2(hx, hy).round(), r[0],
+			HORIZONTAL_ALIGNMENT_LEFT, -1, 12, r[1])
+		hx += _font.get_string_size(r[0], HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
+	if _portrait != null:
+		# rounded destination — a fractional blit BLENDS in Godot (docs/gotchas.md)
+		_static.draw_texture_rect(_portrait, Rect2(Vector2(214.5, 161).round(), Vector2(32, 48)), false)
+	var sp_runs := [["Skill Points (SP): ", C_SPT], ["%d" % int(_data.get("sp", 0)), C_SPV]]
+	var sp_w := 0.0
+	for r in sp_runs:
+		sp_w += _font.get_string_size(r[0], HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
+	var sx := 786.5 + (230.0 - sp_w) * 0.5
+	for r in sp_runs:
+		_static.draw_string(_font, Vector2(sx, 190).round(), r[0],
+			HORIZONTAL_ALIGNMENT_LEFT, -1, 16, r[1])
+		sx += _font.get_string_size(r[0], HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
+	for seg in [[174.0, 32.0], [746.0, 32.0], [1024.0, 721.0]]:
+		_static.draw_rect(Rect2(seg[0], 184, seg[1], 1), C_RULE)
 	_static.draw_rect(Rect2(1180, 200, 1, 730), C_RULE)    # tree | detail divider
 
 func _draw_rows() -> void:

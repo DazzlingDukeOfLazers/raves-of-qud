@@ -493,6 +493,8 @@ func _set_tab(id: String) -> void:
 	if id == "skills":
 		_request_export()
 		_load_skills()
+		_load_character()   # the skills header's Icon is the portrait character.json builds
+		                    # -- without this it stayed null until the user VISITED attributes
 	if id == "equipment":
 		_request_export()
 		_load_inventory()
@@ -584,6 +586,8 @@ func _load_character() -> void:
 	_portrait_tex = tex
 	if _bar != null:
 		_bar.queue_redraw()   # the attributes tab icon IS the live portrait
+	if _skills_pane != null:
+		_skills_pane.set_portrait(tex)   # the skills header's Icon is the same portrait
 	_pane_pal_empty = _palette.is_empty()
 	_attr_pane.setup(data, _palette, tex)
 	_attr_pane.visible = (_tab == "attributes")
@@ -620,6 +624,7 @@ func _load_skills(force := false) -> void:
 		_root.add_child(_skills_pane)
 	_pane_pal_empty = _palette.is_empty()
 	_skills_pane.setup(data, _palette)
+	_skills_pane.set_portrait(_portrait_tex)   # Qud's header Icon; null until character.json lands
 	_skills_pane.visible = (_tab == "skills")
 	get_tree().create_timer(1.2).timeout.connect(func():
 		if visible and _tab == "skills":
