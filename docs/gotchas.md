@@ -1552,6 +1552,25 @@ zone instead found every one of them on the ground, wedges included:
 which this session hit three times: when a check comes back negative, ask whether the check
 could have come back positive at all before believing it.
 
+**…but WALKING OVER one moves it to your pack, and `CmdGet` then reports "There's nothing to
+take."** Qud auto-takes currency-like objects as you step on the cell. Collecting the wedges the
+next day, one `move dir=W` was the whole pickup, and the `CmdGet` I sent afterwards to "do" it
+raised a popup saying the floor was empty — which reads exactly like the move having failed.
+Qud's own message log is the arbiter and said so plainly:
+
+    :: You pass by a cybernetics credit wedge 1¢ x2 and a chem cell x2.
+    :: You take the cybernetics credit wedge 1¢ x2.
+
+So the pair of rules is: a FRESH wish is on the floor; once you have walked over it, it is in the
+pack, and "nothing to take" is the confirmation rather than the failure.
+
+**`snap.py find <text>` matches TILE PATHS, not display names.** `find wedge` and `find "chem
+cell"` both printed `(none)` while the wedge was sitting in the inventory and the chem cell in a
+stun rod — neither has "wedge" or "chem" anywhere in its tile filename, so no object of that name
+could ever match. `find cyber` works only because the terminal's tile really is
+`sw_cyberterminal.bmp`. Another probe that cannot succeed; it happened to agree with the truth
+here, which is the dangerous kind. Search inventory/zone JSON by `name` when you mean a name.
+
 Also ruled out for spawning a test object here: `check bp=…` calls `ObjectChecker.ClearZone`
 first, which would delete the becoming nook itself.
 
@@ -1565,3 +1584,43 @@ the terminal was UP was refused out loud:
 Exactly right: `wish` is a fall-through command, the terminal parks the turn thread, and before
 that guard the wish would have sat in the queue and fired later against whatever was on screen.
 Quit the terminal first, then wish.
+
+## The cybernetics terminal, measured against Qud a second time (2026-08-10)
+
+Driving the licence upgrade end to end put three more parity defects on the board that the first
+pass had missed. All three were invisible until the two screens were measured side by side; none
+of them were guessable from the code.
+
+**Qud draws the TOP rule MIRRORED.** Top and bottom rules are the same three sprites in the same
+16px box, and Qud's own probe puts them exactly where Raves already had them (`polat top header`
+y238.44 = vp+RULE_DY, `polat bottom header` y774.56 = vp+RULE_BOT_DY). Yet Qud's top-rule line
+lands on rows 2-3 of its box and its bottom-rule line on rows 13-14: the sprite is flipped so the
+line hugs the panel's OUTER edge and the notch always points inward. Drawing both unflipped put
+the top rule 10px low on every terminal screen. The tell that it was not a constant: the bottom
+rule matched to the pixel while the top did not, off the same anchor. Flip the IMAGE (`flip_y()`
+into a second texture), not a negative-height `Rect2` — the fillers tile, and a negative size is
+not reliably a mirror under `tile=true`.
+
+**A trailing newline is not a line.** `split("\n")` on a body that ends with `\n` returns a final
+empty element, and counting it pushed the option rows exactly one `LINE_H` (+21px measured) down
+— but only on the screens whose body happens to end that way, which made a plain off-by-one look
+screen-specific. The upgrade sub-screen's body ends `"…tiers 25+\n"` (8 elements, 7 rendered
+lines); the welcome screen's does not, and matched all along. Qud puts the options one gap below
+the last line WITH INK. Read the body off the wire before theorising about it — a 12-line socket
+reader settled in one shot what the pixel arithmetic could only narrow to "n is 8, not 7".
+
+**`_draw.size` is empty, so a full-rect draw off it is a silent no-op.** Qud dims the whole screen
+behind the terminal (`OuterBackground`, 1920x1080, `#041111cc`), which Raves was not drawing at
+all — its terminal read twice as bright as Qud's everywhere outside the text. The first fix,
+`draw_rect(Rect2(Vector2.ZERO, _draw.size), C_SCRIM)`, changed nothing on screen: everything else
+in that overlay is drawn in ABSOLUTE screen coordinates, and Controls do not clip by default, so
+`_draw` renders correctly while its own rect stays (0,0). Size a full-screen rect from
+`get_viewport_rect().size`. Caught only because the after-measurement was byte-identical to the
+before — which is the whole reason to re-measure rather than re-look.
+
+That scrim is also the counter-example to the "Icon Panel" rule one section up. Both are nodes in
+the same layout dump; the difference is that the capture AGREES with this one. Raves' undimmed
+playfield measures RGB(18,46,45) where Qud measures (7,23.3,23.2), and `#041111cc` composited at
+alpha .8 over Raves' value predicts (6.8,22.8,22.6) — within half a level, on three separate
+regions. Draw a dump node when the capture confirms it and not when it contradicts it; the
+arithmetic tells you which case you are in.
