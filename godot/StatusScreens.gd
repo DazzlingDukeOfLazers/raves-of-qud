@@ -169,7 +169,16 @@ func _ready() -> void:
 			_fact_pane.handle_mouse(e)
 		elif _tab == "journal" and _jrn_pane != null and _jrn_pane.visible \
 				and _jrn_pane.has_method("handle_mouse"):
-			_jrn_pane.handle_mouse(e))
+			_jrn_pane.handle_mouse(e)
+		# CONSUME IT. MOUSE_FILTER_STOP is not enough for the WHEEL: Godot propagates a
+		# wheel event up the Control chain and marks it handled only when someone calls
+		# accept_event() — so scrolling the skills list ALSO reached Main's
+		# _unhandled_input and zoomed the playfield behind the modal (measured
+		# 2026-08-10: tiles visibly larger, against 0.00 ambient diff). Buttons and
+		# motion are consumed for the same reason a modal owns the whole screen even
+		# where it does not paint.
+		if e is InputEventMouseButton or e is InputEventMouseMotion:
+			_root.accept_event())
 	_root.theme = UiFont.make_theme(get_viewport())    # CanvasLayer theme-root trap
 	add_child(_root)
 	for t in TABS:

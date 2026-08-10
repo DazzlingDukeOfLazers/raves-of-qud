@@ -16,6 +16,7 @@ needs pixels or a live game.
 | check | command | catches |
 |---|---|---|
 | typing guard | `python3 tools/regression/typing_guard_audit.py` | a keyboard hotkey dispatched from `_input` without `TypingGuard`, and any newly added text field |
+| modal input | `python3 tools/regression/modal_input_audit.py` | mouse input leaking PAST an open modal — `MOUSE_FILTER_STOP` does not stop the WHEEL, so a modal that never calls `accept_event()` lets every tick reach `_unhandled_input` and zoom the playfield behind it |
 | Popup overlay render | `Godot --headless --path godot/ --quit-after 400 res://tests/popup_overlay_render.tscn` | a runtime error in `PopupOverlay.show_popup` — which leaves the overlay invisible and reads from outside as "the popup never mirrored" |
 | Panel grab-bar cursor | `Godot --headless --path godot/ --quit-after 400 res://tests/panel_grab_bar.tscn` | the ||| resize cursor spreading past the 20px bar it belongs to — reported from use as "I can't select nearby objects, the resize icon dominates" |
 | Journal carousel hit test | `Godot --headless --path godot/ --quit-after 400 res://tests/journal_carousel.tscn` | a click selecting the WRONG sub-tab — the cells are owner-drawn, so a hit rect built on the 58px pitch instead of the 46px cell looks identical on screen and swallows the gaps |

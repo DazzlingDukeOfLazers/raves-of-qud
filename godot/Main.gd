@@ -820,10 +820,19 @@ func _playfield_cell(pos: Vector2) -> Variant:
 		return null
 	# A modal owns the whole screen even where it does not paint: clicking the visible playfield
 	# behind a popup must not quietly order a walk, or open a second menu behind the first.
-	if (_popup != null and _popup.visible) or (_item_picker != null and _item_picker.visible) \
-			or (overlay_check.is_valid() and bool(overlay_check.call())):
+	if _modal_owns_input():
 		return null
 	return inspector.cell_at(_cam_rig._cam, pos, _cam_rig.zstretch())
+
+## Is a modal (mirrored Qud popup, item picker, or a MainFrame overlay — status screens /
+## control mapping / options) currently in charge of input? One definition, because this
+## question is asked from four places and the copies drifted: the mouse branch of
+## `_unhandled_input` never asked it at all, which is how a wheel over the skills list
+## zoomed the playfield behind the modal (2026-08-10).
+func _modal_owns_input() -> bool:
+	return (_popup != null and _popup.visible) \
+		or (_item_picker != null and _item_picker.visible) \
+		or (overlay_check.is_valid() and bool(overlay_check.call()))
 
 ## Inspect from a multi-view pane: raycast with that pane's camera + the pane-local mouse
 ## position. The 3D marker is shared, so the pick shows across every pane.
@@ -1304,13 +1313,19 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.keycode in [KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_KP_8, KEY_KP_2,
 				KEY_KP_4, KEY_KP_6, KEY_KP_7, KEY_KP_9, KEY_KP_1, KEY_KP_3]:
 			return
-		if not (_popup != null and _popup.visible) \
-				and not (_item_picker != null and _item_picker.visible) \
-				and not (overlay_check.is_valid() and bool(overlay_check.call())):
+		if not _modal_owns_input():
 			var qcmd: String = _binds.match_event(event)
 			if qcmd != "":
 				client.send_command("command", {"command": qcmd})
 	elif event is InputEventMouseButton:
+		# A MODAL OWNS THE MOUSE TOO — the same rule `cell_at` states above ("a modal owns
+		# the whole screen even where it does not paint"), which this branch never applied.
+		# Without it, scrolling a status-screen list zoomed the playfield behind it, and an
+		# orbit/pan drag over a modal moved the camera underneath. accept_event() in
+		# StatusScreens stops the wheel reaching here at all; this is the backstop for every
+		# overlay, including any that forgets to consume.
+		if _modal_owns_input():
+			return
 		match event.button_index:
 			MOUSE_BUTTON_LEFT:
 				# Ctrl/Cmd+click inspect is handled in _input (containers eat it here when embedded);
