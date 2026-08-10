@@ -141,6 +141,29 @@ func _ready() -> void:
 	_head_tex = _chrome("term_header.png")
 	_rule_tex_top = _chrome_ex("picker_divider.png", true)
 	_head_tex_top = _chrome_ex("term_header.png", true)
+	_fit()
+	get_viewport().size_changed.connect(_fit)
+
+
+## SIZE THIS SUBTREE BY HAND, because anchors cannot do it here: Main is a **Node3D**, so this
+## Control has no Control parent, PRESET_FULL_RECT resolves against nothing, and every rect in the
+## subtree stays (0,0). That is not cosmetic -- a zero-size Control is never picked, so `_root` got
+## no `gui_input` at all, which is why hover did nothing AND why a click never hit-tested a row.
+##
+## It also explains the earlier scrim no-op: `draw_rect(Rect2(Vector2.ZERO, _draw.size), ...)` drew
+## an empty rectangle. Drawing kept working throughout because everything here draws in ABSOLUTE
+## coordinates and Controls do not clip -- so the overlay LOOKED completely fine while being, as far
+## as input was concerned, a zero-by-zero node. Rendering correctly is not evidence of a sane rect.
+func _fit() -> void:
+	var vs := get_viewport_rect().size
+	position = Vector2.ZERO
+	size = vs
+	if _root != null:
+		_root.position = Vector2.ZERO
+		_root.size = vs
+	if _draw != null:
+		_draw.position = Vector2.ZERO
+		_draw.size = vs
 
 
 static func _chrome(fname: String) -> Texture2D:
@@ -317,11 +340,9 @@ func _body_line_count() -> int:
 func _render() -> void:
 	if _data.is_empty():
 		return
-	# The full-screen dimming scrim goes down FIRST, under every other thing this draws. Size it
-	# from the VIEWPORT, not from `_draw.size`: everything else here is drawn in absolute screen
-	# coordinates and Controls do not clip by default, so `_draw` renders correctly even while its
-	# own rect is empty — which it is, and which made the first version of this line a no-op that
-	# changed nothing on screen.
+	# The full-screen dimming scrim goes down FIRST, under every other thing this draws. Sized from
+	# the VIEWPORT rather than `_draw.size` — `_fit()` now keeps those equal, but this does not need
+	# to depend on that having run.
 	_draw.draw_rect(Rect2(Vector2.ZERO, _draw.get_viewport_rect().size), C_SCRIM)
 	var vp: float = float(_data.get("vpY100", VP_Y_FALLBACK * 100.0)) / 100.0
 	var rule_y := vp + RULE_DY
