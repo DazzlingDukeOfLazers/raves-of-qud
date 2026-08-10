@@ -262,6 +262,27 @@ func _last_line_survives_the_clip() -> void:
 		JSON.stringify(ov._msg.get_parsed_text().right(20)))
 	ov.queue_free()
 
+	# EVERY LINE COUNT, not just the one that was reported. The apron case above passed
+	# while the 4-line quit confirm still lost its bottom, because the label's 20n+1 and
+	# the slot's round(20.12n) happen to agree at n=8 and nowhere below it — a fix fitted
+	# to one sample. These four span the counts the popups actually use.
+	for c in [{"n": 1, "m": "{{y|You have received a new quest.}}"},
+			{"n": 3, "m": "{{y|You died.\n\nYou were killed by an {{W|ogre ape}}.}}"},
+			{"n": 4, "m": "{{y|If you quit without saving, you will lose all your unsaved progress. Are you sure you want to QUIT and LOSE YOUR PROGRESS?\n\nType 'QUIT' to confirm.}}"},
+			{"n": 8, "m": "{{y|Boar hide was brined, limed, and put in a tanning drum. It was cut and fitted into an apron, and now it's a brown canvas for knife scars and tong burns.\n\n{{R|+12 Heat Resistance}}\n\n{{K|Weight: 5 lbs.}}\n\n{{Y|Perfect}}}}"}]:
+		var o := PopupOverlay.new()
+		add_child(o)
+		o.show_popup({"type": "popup", "active": true, "id": 1, "kind": "message",
+			"message": c["m"], "title": "", "input": false, "inputDefault": "",
+			"buttons": [{"text": "OK", "command": "Accept"}], "options": []}, _palette())
+		await get_tree().process_frame
+		await get_tree().process_frame
+		_check("%d-line message fits its slot (no clipped bottom)" % c["n"],
+			o._msg.get_content_height() <= o._msg_slot.custom_minimum_size.y,
+			"content %d in a %.0f slot" % [o._msg.get_content_height(),
+				o._msg_slot.custom_minimum_size.y])
+		o.queue_free()
+
 
 func _wrap_checks() -> void:
 	var wrapped := PopupOverlay._wrap(PackedStringArray(["aaa bbb ccc ddd"]), 7)

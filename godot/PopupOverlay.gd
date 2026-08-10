@@ -938,7 +938,14 @@ func show_popup(data: Dictionary, palette: Dictionary) -> void:
 		if is_input:
 			msg_w = EDIT_W          # an AskString is sized by its inputbox, not its prompt
 		var lines := maxf(1.0, float(msg_lines.size()))
-		_msg_slot.custom_minimum_size = Vector2(msg_w, _snap(MSG_LINE * lines))
+		# CEIL, not round. The label advances 21px a line and `line_separation -1` makes n
+		# lines exactly 20n+1; Qud's slot is 20.12n. Rounding matches those at n=8 and
+		# under-sizes by 1px at n=1..5, and `clip_contents` turns that 1px into a shaved
+		# last line — which is why the 8-line apron popup passed its test while the 4-line
+		# quit confirm still lost its bottom (feedback 2026-08-10). ceil(20.12n) >= 20n+1
+		# for every n, so the slot can never be shorter than the text it holds, and it is
+		# never more than 1px taller than Qud's.
+		_msg_slot.custom_minimum_size = Vector2(msg_w, ceilf(MSG_LINE * lines))
 		# ONE CHARACTER of extra layout room for the label, clipped off by the slot. Godot's
 		# RichTextLabel counts a candidate line's TRAILING SPACE when deciding to break
 		# (measured: the 77-column apron line broke at every width up to 748.6 = 78 chars,
