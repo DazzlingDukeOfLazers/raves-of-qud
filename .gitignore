@@ -15,6 +15,13 @@ tools/tiletool/obj/
 assets/qud/
 *.dll
 
+# ...AND NEVER A WINDOW CAPTURE OF IT EITHER. Six Qud screenshots were swept into a
+# commit by `git add -A` on 2026-08-10: a capture loop ran with its cwd drifted to the
+# repo root (the same drift that has silently skipped a build twice), dropped q1..q6.png
+# here, and the next commit took them. Screenshots belong in the session scratchpad, or
+# in reports/ when they are the deliverable. Rooted so it cannot reach reports/ or godot/.
+/*.png
+
 # Python (the capture tools are stdlib scripts; never commit bytecode)
 __pycache__/
 *.pyc
