@@ -9,6 +9,7 @@ signal snapshot(data: Dictionary)
 signal popup(data: Dictionary)   # a Qud modal mirrored from the mod ({"type":"popup", active:…})
 signal qud_view(name: String)    # Qud's CurrentGameView changed (its legacy screens, e.g. "Looker")
 signal picker(data: Dictionary)  # Qud's PickGameObjectScreen mirrored ({"type":"picker", active:…})
+signal cyber(data: Dictionary)   # Qud's cybernetics TERMINAL mirrored ({"type":"cyber", active:…})
 signal connected   # fires each time the bridge (re)connects
 
 const HOST := "127.0.0.1"
@@ -77,6 +78,7 @@ func _drain() -> void:
 	var latest: Variant = null
 	var latest_popup: Variant = null
 	var latest_picker: Variant = null
+	var latest_cyber: Variant = null
 	var dropped := 0
 	while _buf.size() >= 4:
 		var frame_len := (_buf[0] << 24) | (_buf[1] << 16) | (_buf[2] << 8) | _buf[3]
@@ -93,6 +95,8 @@ func _drain() -> void:
 				latest_popup = data
 			elif data.get("type", "") == "picker":
 				latest_picker = data
+			elif data.get("type", "") == "cyber":
+				latest_cyber = data
 			elif data.get("type", "") == "view":
 				# Qud's CurrentGameView, on its OWN frame because the legacy screens that matter
 				# park the turn thread and stop snapshots — see PopupBridge.PollView.
@@ -109,6 +113,8 @@ func _drain() -> void:
 		popup.emit(latest_popup)
 	if latest_picker != null:
 		picker.emit(latest_picker)
+	if latest_cyber != null:
+		cyber.emit(latest_cyber)
 
 ## Send a command to Qud, e.g. send_command("move", {"dir": "N"}).
 func send_command(name: String, extra: Dictionary = {}) -> void:
