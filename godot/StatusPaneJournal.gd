@@ -65,6 +65,7 @@ const C_GOLD := Color8(0xcf, 0xc0, 0x41)
 var C_CELL_ON := QudChrome.q8(122, 126, 71)    # #858951 — the current tab
 var C_CELL_OFF := QudChrome.q8(51, 80, 91)     # the untouched prefab colour on the rest
 var C_PANEL := QudChrome.q8(7, 29, 29)         # the knob's punch-out
+var C_HOVER := QudChrome.q8(65, 106, 115)      # #4A757E — the cell under the pointer
 ## Qud's own, off the live element: JournalHeader/Header is #4383a4 at font 24 in
 ## SourceCodePro-Regular. Ours was a grey (#829ea8) and read as a different colour entirely.
 const C_HDR := Color8(0x43, 0x83, 0xa4)
@@ -81,6 +82,12 @@ var _font: Font
 var _content: Control
 var _tiles: RefCounted = null
 var _bar: RefCounted = null
+## The carousel's hit geometry, rebuilt by _draw_carousel: [[Rect2, tab index], …] for the cells,
+## then the two badges as [Rect2, -1]/[Rect2, -2]. Owner-drawn panes cannot be hit-tested from
+## outside, so the pane answers with the rects it actually drew — the same contract the inventory
+## strip uses, and the reason a moved constant can never desync the clickable area from the paint.
+var _cell_rects: Array = []
+var _cell_hover := -1
 var _map: Texture2D = null
 var _map_tried := false
 var _player_pos := Vector2(-1, -1)
@@ -192,15 +199,19 @@ func _draw_carousel() -> void:
 	var n := _tabs.size()
 	if n == 0:
 		return
+	_cell_rects.clear()
 	var left: float = _bar.run_left(n, 960.0)
 	var x0: float = left + _bar.BADGE.x + _bar.BADGE_GAP
 	var green := QudText.color_of_code("g", _palette, Color8(0x00, 0x94, 0x03))
 	_bar.badge(_content, _font, left, "Q", C_TICK, green)
-	_bar.badge(_content, _font, x0 + _bar.cells_width(n) + _bar.BADGE_GAP,
-		"E", C_TICK, green)
+	var ex: float = x0 + _bar.cells_width(n) + _bar.BADGE_GAP
+	_bar.badge(_content, _font, ex, "E", C_TICK, green)
+	_cell_rects.append([Rect2(Vector2(left, _bar.BADGE_Y), _bar.BADGE), -1])
+	_cell_rects.append([Rect2(Vector2(ex, _bar.BADGE_Y), _bar.BADGE), -2])
 	for i in n:
 		var r: Rect2 = _bar.cell_rect(x0, i)
-		_bar.cell(_content, r, C_CELL_ON if i == _tab else C_CELL_OFF, C_TICK, true, C_PANEL)
+		_cell_rects.append([r, i])
+		_bar.cell(_content, r, _cell_color(i), C_TICK, true, C_PANEL)
 		var tile := str((_tabs[i] as Dictionary).get("icon", ""))
 		if tile == "" or _tiles == null:
 			continue
@@ -313,19 +324,84 @@ func _draw_markup(s: String, pos: Vector2, px: int) -> void:
 		_content.draw_string(_font, Vector2(x, pos.y), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, px, run[1])
 		x += _font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
 
+## A cell's frame colour -- FilterBarCategoryButton.LateUpdate's four states, verbatim:
+##
+##   enabled + focused -> #FFFFFF    enabled -> #858951    focused -> #4A757E    else -> prefab
+##
+## "enabled" is the CURRENT tab and "focused" is the pointer, because FrameworkHoverable makes the
+## cell's navigation context active on pointer-enter. The four-state law is usable here in a way it
+## is not on the inventory strip: there, focus history is Qud's and unobservable from outside, so
+## that pane prefers a live colour off the wire. Here Raves owns the hover, so the state is known.
+func _cell_color(i: int) -> Color:
+	if i == _tab:
+		return Color(1, 1, 1) if i == _cell_hover else C_CELL_ON
+	return C_HOVER if i == _cell_hover else C_CELL_OFF
+
+## Pointer handling for the carousel. Called by StatusScreens' gui_input (this pane is owner-drawn
+## and takes no events of its own).
+##
+## Only the CELLS are clickable. Qud's [Q]/[E] are UIHotkeySkin labels, not buttons -- clicking one
+## in Qud does nothing -- so they are hit-tested for the feedback tool's benefit and left inert
+## rather than given an affordance the game does not have.
+func handle_mouse(e: InputEvent) -> void:
+	if e is InputEventMouseMotion:
+		var was := _cell_hover
+		_cell_hover = -1
+		for entry in _cell_rects:
+			if int(entry[1]) >= 0 and (entry[0] as Rect2).has_point(e.position):
+				_cell_hover = int(entry[1])
+				break
+		if _cell_hover != was:
+			_content.queue_redraw()
+		return
+	if not (e is InputEventMouseButton and e.pressed):
+		return
+	if e.button_index != MOUSE_BUTTON_LEFT:
+		return
+	for entry in _cell_rects:
+		if int(entry[1]) >= 0 and (entry[0] as Rect2).has_point(e.position):
+			_select_tab(int(entry[1]))
+			return
+
+## Switch sub-tabs. ONE path for the click and for Q/E, so the two cannot drift on the parts that
+## are easy to forget: the selection and the scroll both reset, as they do in Qud when its
+## CurrentCategory changes and the entry scroller is rebuilt.
+func _select_tab(i: int) -> void:
+	if _tabs.is_empty():
+		return
+	_tab = clampi(i, 0, _tabs.size() - 1)
+	_sel = 0
+	_scroll = 0.0
+	_content.queue_redraw()
+
+## FEEDBACK PROVIDER (FeedbackTool.feedback_element_at contract). Owner-drawn, so the tool's hit
+## test cannot see inside -- the pane answers from the rects it drew.
+func feedback_element_at(p: Vector2) -> Dictionary:
+	if not is_visible_in_tree():
+		return {}
+	for entry in _cell_rects:
+		if not (entry[0] as Rect2).has_point(p):
+			continue
+		var i := int(entry[1])
+		if i < 0:
+			var k := "Q" if i == -1 else "E"
+			return {"label": "carousel · [" + k + "]", "rect": entry[0],
+				"action": "previous sub-tab" if i == -1 else "next sub-tab"}
+		var nm := str((_tabs[i] as Dictionary).get("name", ""))
+		return {"label": "carousel · " + nm, "rect": entry[0],
+			"action": "show the " + nm + " sub-tab"}
+	return {}
+
 ## Q/E cycle the sub-tabs, matching the [Q]/[E] badges Qud puts either side of its icon strip.
 func handle_key(e: InputEventKey) -> bool:
 	if _tabs.is_empty():
 		return false
 	if e.keycode == KEY_Q:
-		_tab = (_tab - 1 + _tabs.size()) % _tabs.size()
+		_select_tab((_tab - 1 + _tabs.size()) % _tabs.size())
 	elif e.keycode == KEY_E:
-		_tab = (_tab + 1) % _tabs.size()
+		_select_tab((_tab + 1) % _tabs.size())
 	else:
 		return false
-	_sel = 0
-	_scroll = 0.0
-	_content.queue_redraw()
 	return true
 
 

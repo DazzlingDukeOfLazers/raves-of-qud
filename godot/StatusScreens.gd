@@ -154,7 +154,10 @@ func _ready() -> void:
 			_inv_pane.handle_mouse(e)
 		elif _tab == "reputation" and _fact_pane != null and _fact_pane.visible \
 				and _fact_pane.has_method("handle_mouse"):
-			_fact_pane.handle_mouse(e))
+			_fact_pane.handle_mouse(e)
+		elif _tab == "journal" and _jrn_pane != null and _jrn_pane.visible \
+				and _jrn_pane.has_method("handle_mouse"):
+			_jrn_pane.handle_mouse(e))
 	_root.theme = UiFont.make_theme(get_viewport())    # CanvasLayer theme-root trap
 	add_child(_root)
 	for t in TABS:
