@@ -87,8 +87,16 @@ const TOP_LEFT_END := 204.0
 const TOP_RESUME := 213.0
 const TICK_Y := 190.0
 const TICK_H := 14.0
+## THE EQUIPMENT GAP IS NOT A CONSTANT -- it is the filter strip's span plus a 9px margin either
+## side, and the strip grows with the character's categories. 378.5 is what that formula yields for
+## the 11-category reference fixture (739/2 + 9), which is why it looked like a measured constant
+## for as long as we only ever measured that fixture. On a 17-category character Qud's rule ends at
+## 407 and resumes at 1512 -- g = 552.5 = 1087/2 + 9 -- while Raves still drew 378.5 and struck
+## through three cells on each side. Same defect as FILT_MAX_CELLS one file over: a number read off
+## one save, mistaken for geometry. Journal and tinkering carry no strip, so theirs stay fixed.
+const TOP_GAP_PAD := 9.0
 const TAB_TOPGAP := {
-	"equipment":  378.5,
+	"equipment":  378.5,   # fallback only, for the frame drawn before the pane has data
 	"journal":    233.5,
 	"tinkering":  117.5,
 }
@@ -255,6 +263,9 @@ void fragment() {
 		# centred on 959.5 on every tab that has one and only its half-width g changes with the
 		# tab's header block. Five tabs draw no top rule at all.
 		var g: float = TAB_TOPGAP.get(_tab, -1.0)
+		# ...except on equipment, where the carousel sets it — see TOP_GAP_PAD.
+		if _tab == "equipment" and _inv_pane != null and _inv_pane.has_method("filter_span"):
+			g = _inv_pane.filter_span() * 0.5 + TOP_GAP_PAD
 		if g > 0.0:
 			# The three gaps, as [first tick column, last tick column]. Everything else follows:
 			# a rule segment fills each span BETWEEN gaps, and a tick stands on each gap edge.
@@ -801,6 +812,10 @@ func _load_inventory(force := false) -> void:
 	_pane_pal_empty = _palette.is_empty()
 	_inv_pane.setup(data, _palette)
 	_inv_pane.visible = (_tab == "equipment")
+	# The frame's top rule is sized from THIS pane's strip, so it is stale the moment the strip
+	# changes width — a category emptying out or appearing moves both ends of the gap.
+	if _frame != null:
+		_frame.queue_redraw()
 	get_tree().create_timer(1.2).timeout.connect(func():
 		if visible and _tab == "equipment":
 			_load_inventory())
