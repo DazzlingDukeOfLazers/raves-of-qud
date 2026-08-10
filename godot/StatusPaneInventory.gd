@@ -476,6 +476,13 @@ func _draw_doll() -> void:
 		var pos := Vector2(cell[0], cell[1])
 		var box := Rect2(pos, Vector2(BOX_W, BOX_H))
 		var sl: Variant = by_label.get(label)
+		# CYBERNETICS VIEW: the same doll, each part's IMPLANT (the slot's `cyber`
+		# sub-object) or nothing. The sub-object carries no "part" id, so implant-less
+		# slots stop being clickable here — Qud's own behaviour: EquipmentLine's
+		# cybernetics branch does nothing for a part with no implant, where the normal
+		# view opens the equip picker on an empty slot.
+		if show_cyber:
+			sl = sl.get("cyber") if sl != null and (sl as Dictionary).has("cyber") else null
 		# hover brightens the whole frame, as it does on the filter strip
 		var sid := str(sl.get("id", "")) if sl != null else ""
 		# "%d", not str(): the export's part id is a JSON NUMBER, which Godot parses as a
@@ -692,7 +699,60 @@ func _draw_tile(r: Dictionary, pos: Vector2) -> void:
 
 # ── input ──────────────────────────────────────────────────────────────────────
 
+## The doll's CYBERNETICS view (feedback 2026-08-10: "Make paper doll section toggle
+## to cybernetics"): Qud's CMD_SHOWCYBERNETICS fires the framework "Toggle" command.
+var show_cyber := false
+
+## The keys that flip the view — Qud's "Toggle" row read from the control-mapping
+## export, so a player's rebind (F7) works here with no code change. Qud's own hint
+## renders only the PRIMARY slot, which is why adding F7 without replacing slot 1
+## left its caption reading Ctrl+Tab; Raves accepts every bound slot. Falls back to
+## the stock Ctrl+Tab when the export is missing. Entries keep the raw label for the
+## User-mode hint (StatusScreens._draw_cyber_hint).
+static var _toggle_binds: Array = []
+static var _toggle_read := false
+
+static func toggle_binds() -> Array:
+	if _toggle_read:
+		return _toggle_binds
+	_toggle_read = true
+	var out: Array = []
+	var path := InputModel.support_dir().path_join("bindings.json")
+	if FileAccess.file_exists(path):
+		var f := FileAccess.open(path, FileAccess.READ)
+		var d: Variant = JSON.parse_string(f.get_as_text()) if f != null else null
+		if d is Dictionary:
+			for c in d.get("categories", []):
+				for row in c.get("commands", []):
+					if str(row.get("id", "")) != "Toggle":
+						continue
+					for slot in ["b1", "b2", "b3", "b4"]:
+						var b := str(row.get(slot, ""))
+						if b == "":
+							continue
+						var parts := b.split("+")
+						var kc := OS.find_keycode_from_string(parts[parts.size() - 1])
+						if kc == KEY_NONE:
+							continue
+						out.append({"label": b, "keycode": kc,
+							"ctrl": "Control" in parts or "Ctrl" in parts,
+							"shift": "Shift" in parts, "alt": "Alt" in parts})
+	if out.is_empty():
+		out.append({"label": "Ctrl+Tab", "keycode": KEY_TAB,
+			"ctrl": true, "shift": false, "alt": false})
+	_toggle_binds = out
+	return out
+
 func handle_key(e: InputEventKey) -> bool:
+	# The cybernetics toggle outranks the empty-rows early return: the view must flip
+	# even for a character whose item list is empty. STRICT modifier match, so a bare
+	# Tab can never trigger the Ctrl+Tab slot.
+	for b in toggle_binds():
+		if e.keycode == int(b["keycode"]) and e.ctrl_pressed == bool(b["ctrl"]) \
+				and e.shift_pressed == bool(b["shift"]) and e.alt_pressed == bool(b["alt"]):
+			show_cyber = not show_cyber
+			_static.queue_redraw()
+			return true
 	if _rows.is_empty():
 		return false
 	if _in_doll:

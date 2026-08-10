@@ -389,6 +389,24 @@ func _draw_cyber_hint(c: CanvasItem) -> void:
 	var f: Font = _root.get_theme_default_font()
 	if f == null:
 		return
+	if not Settings.one_to_one():
+		# USER MODE: the LIVE "Toggle" binding(s) from the control-mapping export.
+		# Qud's own caption renders only the primary slot, so a player who ADDS a
+		# binding (F7) without replacing slot 1 reads a stale Ctrl+Tab forever
+		# (flagged 2026-08-10). 1:1 below stays verbatim-Qud, stale caption and all.
+		c.draw_rect(Rect2(166.0, 227.0, 24.0, 1.0), S_RULE)
+		c.draw_rect(Rect2(189.0, 220.0, 1.0, 16.0), S_RULE)
+		var labels := PackedStringArray()
+		for b in load("res://StatusPaneInventory.gd").toggle_binds():
+			var l := str(b.get("label", ""))
+			if l != "" and not labels.has(l):
+				labels.append(l)
+		var cap2 := "[%s]" % " / ".join(labels)
+		c.draw_string(f, Vector2(199.0, 233.0), cap2, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, S_GOLD)
+		var w := f.get_string_size(cap2, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
+		c.draw_string(f, Vector2(199.0 + w + 9.0, 233.0), "show cybernetics",
+			HORIZONTAL_ALIGNMENT_LEFT, -1, 14, S_HINT)
+		return
 	c.draw_rect(Rect2(166.0, 227.0, 24.0, 1.0), S_RULE)     # ⊣ into the left edge
 	c.draw_rect(Rect2(189.0, 220.0, 1.0, 16.0), S_RULE)
 	# 14, not 16: MEASURED against Qud's own advances -- its "show" is 33px for four

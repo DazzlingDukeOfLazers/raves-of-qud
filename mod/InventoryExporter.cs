@@ -398,6 +398,21 @@ namespace RavesOfQud
                             // and colours than the "Inventory" context the list uses
                             WriteTile(j, eq, "Equipment", greyed);
                         }
+                        // THE CYBERNETICS VIEW (EquipmentLine.showCybernetics, toggled by the
+                        // framework "Toggle" command): the same doll showing each part's IMPLANT.
+                        // Exported as its own member — the fallback above only surfaces an
+                        // implant when nothing is Equipped over it, and the view swap must not
+                        // need a re-export.
+                        GameObject cyb = null;
+                        try { cyb = bp.Cybernetics; } catch { }
+                        if (cyb != null)
+                        {
+                            j.Name("cyber").BeginObject();
+                            try { j.Member("item", cyb.DisplayName ?? ""); } catch { }
+                            try { j.Member("id", cyb.ID ?? ""); } catch { }
+                            WriteTile(j, cyb, "Equipment", false);
+                            j.EndObject();
+                        }
                         j.EndObject();
                     }
             }
