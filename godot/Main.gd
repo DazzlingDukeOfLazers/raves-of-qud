@@ -1292,6 +1292,17 @@ func _unhandled_input(event: InputEvent) -> void:
 				_cam_rig.zoom_1to1_step(1); return    # Qud's CmdZoomIn (quarter step)
 			inspector.nudge_font(2)
 			reporter.nudge_font(2); return
+		# A MODAL OWNS THE ARROWS — the KEYBOARD half of the rule the mouse branch below
+		# already states, and the half that was missing. While a status screen, the control
+		# mapping, a popup or the terminal is up, Up/Down mean MOVE THE SELECTION, not walk
+		# north/south: pressing Down on the equipment list sent the player walking behind the
+		# overlay (reported 2026-08-10). The status panes consume mouse events but no keys at
+		# all, so nothing upstream was ever going to stop this; like the wheel fix, the modal
+		# check has to be here as well, because a pane that forgets to consume must not be able
+		# to move the player. Placed above the movement block only — Escape keeps its own
+		# overlay handling further up, and the debug keys (F12/P/I) stay usable over a modal.
+		if _modal_owns_input():
+			return
 		# in KEYBOARD mode the arrows drive the camera, not the player
 		if _cam_rig._mode == CamMode.KEYBOARD:
 			return
