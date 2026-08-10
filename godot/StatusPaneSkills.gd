@@ -30,7 +30,9 @@ static func _sk8(r8: int, g8: int, b8: int) -> Color:
 	return Color8(r8 if r8 <= 20 else r8 + 6, g8 if g8 <= 20 else g8 + 6, b8 if b8 <= 20 else b8 + 6)
 
 var C_HEAD := _sk8(108, 133, 129)      # header strip + SP label
-var C_RULE := _sk8(60, 84, 92)
+# Qud's chrome tint is authored #4d6e7a (uiprobe imgColor on every HLine/VBorder and the
+# divider), which its compositing lands at (68,99,111) on screen — measured 2026-08-10.
+var C_RULE := _sk8(68, 99, 111)
 var C_GOLD := _sk8(200, 184, 57)
 var C_SEL := _sk8(23, 59, 60)
 # The header's own colours, from the live screen's text markup (uiprobe statBlock/SP):
@@ -57,6 +59,8 @@ var _detail_desc: RichTextLabel
 var _detail_req: RichTextLabel
 var _font: Font
 var _portrait: Texture2D = null        # the player tile, 2x, left of the stat strip (Qud's Icon)
+var _knob_tex: Texture2D = null        # divider endcap diamond (deco_knob.png)
+var _deco_tex: Texture2D = null        # divider centre emblem (skills_divider.png)
 var bridge_cb: Callable = Callable()   # StatusScreens: send a bridge command
 var reload_cb: Callable = Callable()   # StatusScreens: re-read skills.json
 
@@ -131,9 +135,26 @@ func setup(data: Dictionary, palette: Dictionary) -> void:
 	if not palette.is_empty():
 		_tiles.palette = palette
 	_tiles.tiles_dir = InputModel.support_dir().path_join("tiles")
+	# Divider chrome, off Qud's own sprites. NOT latched: the files appear on the first
+	# `export` after the skills screen has existed in Qud, so keep retrying while null.
+	if _knob_tex == null:
+		_knob_tex = _chrome_png("deco_knob.png")
+	if _deco_tex == null:
+		_deco_tex = _chrome_png("skills_divider.png")
 	_relayout()
 	_static.queue_redraw()
 	_refresh_detail()
+
+static func _chrome_png(fname: String) -> Texture2D:
+	var path := InputModel.support_dir().path_join("tiles").path_join(fname)
+	if not FileAccess.file_exists(path):
+		return null
+	var img := Image.new()
+	if img.load(path) != OK:
+		return null
+	# brighten: the raw sprite drawn 1:1 lands ~6/255 dim of Qud's capture, the same
+	# correction every other exported chrome gets (QudFilterBar.frame_texture).
+	return ImageTexture.create_from_image(QudChrome.brighten(img))
 
 ## Qud hides the powers of a collapsed category; its own `visible` flag says which.
 func _relayout() -> void:
@@ -193,7 +214,21 @@ func _draw_static() -> void:
 		sx += _font.get_string_size(r[0], HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
 	for seg in [[174.0, 32.0], [746.0, 32.0], [1024.0, 721.0]]:
 		_static.draw_rect(Rect2(seg[0], 184, seg[1], 1), C_RULE)
-	_static.draw_rect(Rect2(1180, 200, 1, 730), C_RULE)    # tree | detail divider
+	# THE TREE|DETAIL DIVIDER, Qud's own model (uiprobe): two 1px lines at x1181,
+	# y205..504 and y626..925; a 7x7 diamond knob capping each FAR end (overlaying the
+	# line's first/last pixels); and the 40x122 polat-vertical-divider-decoration emblem
+	# — the tree/sword with its dot-triangles — bridging the y504..626 gap. Qud tints
+	# the LINES #4d6e7a and leaves the sprites untinted. Until both sprites have been
+	# exported (mod `export` after the skills screen exists), a plain full-height line
+	# stands in — visibly wrong rather than half-dressed.
+	if _knob_tex != null and _deco_tex != null:
+		_static.draw_rect(Rect2(1181, 205, 1, 299), C_RULE)
+		_static.draw_rect(Rect2(1181, 626, 1, 299), C_RULE)
+		_static.draw_texture_rect(_knob_tex, Rect2(1178, 205, 7, 7), false)
+		_static.draw_texture_rect(_knob_tex, Rect2(1178, 918, 7, 7), false)
+		_static.draw_texture_rect(_deco_tex, Rect2(1161, 504, 40, 122), false)
+	else:
+		_static.draw_rect(Rect2(1181, 205, 1, 720), C_RULE)
 
 func _draw_rows() -> void:
 	var off := -_scroll

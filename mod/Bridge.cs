@@ -1330,7 +1330,17 @@ namespace RavesOfQud
                                 // halves meeting at the panel centre -- not the popup's drawn notch lines.
                                 TitleExporter.ExportNamedSprite("polat-char-frame-border", "picker_frame.png");
                                 TitleExporter.ExportNamedSprite("polat-frame-reverse-top-header-filler", "picker_divider.png");
-                                TitleExporter.ExportNamedSprite("polat-center-divider-knob", "deco_knob.png"); // the sub-text ornament
+                                // Chrome that lives in a SPRITE ATLAS. ExportNamedSprite's Resources
+                                // scan cannot see an atlased sprite's runtime instance (the atlas
+                                // trap) -- deco_knob.png sat in this list for days and was silently
+                                // never written. Read them off a live Image instead; finds nothing
+                                // until a screen carrying them has been opened once, which is
+                                // harmless -- the next export picks them up, and Raves draws its
+                                // plain-line stand-in while the file is absent.
+                                if (!System.IO.File.Exists(System.IO.Path.Combine(TileExporter.Dir, "deco_knob.png")))
+                                    UiProbe.ExportLoadedSprite("polat-center-divider-knob", "deco_knob.png");   // divider endcap diamond
+                                if (!System.IO.File.Exists(System.IO.Path.Combine(TileExporter.Dir, "skills_divider.png")))
+                                    UiProbe.ExportLoadedSprite("polat-vertical-divider-decoration", "skills_divider.png");   // the tree/sword emblem + dot triangles
                                 if (!_clocksExported && TitleExporter.ExportTimeClocks()) _clocksExported = true;  // day/night sky discs (resident once a HUD has existed)
                                 GlyphExporter.EnsureExported();  // Qud's PUA input-glyph font, as a BMFont for Raves
                                 Server.Log("[export] re-exported (menu path) chargen chrome");
