@@ -129,7 +129,10 @@ const FILT_PITCH := 58.0
 # with a green letter. Between them it fits the ALL cell plus ELEVEN categories --
 # 618 + 12*58 = 1314, which is exactly where the E sits, so a thirteenth cell would
 # land on top of it. Raves drew every category it had and did precisely that.
-const FILT_MAX_CELLS := 12          # the ALL cell + 11 categories
+# The REFERENCE cell count -- the fixture the span below was measured on, and nothing more.
+# It is NOT a cap: Qud's strip has no page and grows to fit every category (confirmed on a
+# 17-category character). It survives only as the anchor `_filt_left` extrapolates from.
+const FILT_MAX_CELLS := 12          # reference fixture: the ALL cell + 11 categories
 const FILT_BADGE := Vector2(20, 27)
 const FILT_BADGE_Y := 184.0
 const FILT_BADGE_QX := 590.0
@@ -396,7 +399,14 @@ func _filter_strip(cats: Array) -> Array:
 	var strip: Array = []
 	for ent in _data.get("filterOrder", []):
 		var nm := str(ent.get("name", "")) if ent is Dictionary else str(ent)
-		var cell: Dictionary = (by_name[nm] as Dictionary).duplicate() if by_name.has(nm) else {"name": nm}
+		# A filterOrder entry with NO list category gets no cell. Qud's strip is sized to what the
+		# INVENTORY actually holds: this character's filterOrder carries 18 entries, the 18th being
+		# "Armor" (equipped only, nothing in the list), and Qud draws 18 cells — ALL plus the 17
+		# that do have entries. Drawing the 18th put Raves' strip one pitch (58px) wider than
+		# Qud's, measured badge-to-badge.
+		if not by_name.has(nm):
+			continue
+		var cell: Dictionary = (by_name[nm] as Dictionary).duplicate()
 		# an equipped-only category (Clothes) has no list entry — take Qud's icon
 		if ent is Dictionary and str(ent.get("icon", "")) != "":
 			cell["icon"] = str(ent["icon"])
@@ -419,7 +429,15 @@ func _draw_filter_strip() -> void:
 	# the layout was centred for and the [E] landed ON the final cell instead of beside it.
 	# Reported as "the E display is over the final carousel, not to the right."
 	var strip := _filter_strip(cats)
-	var _cells := mini(strip.size() + 1, FILT_MAX_CELLS)
+	# EVERY category gets a cell. There is no page: the strip GROWS and the badges move out with
+	# it. Capping at FILT_MAX_CELLS was the same mistake the span constants above already warn
+	# about -- a number read off one fixture that happened to have 11 categories, mistaken for a
+	# bound. Measured against a 17-category character (2026-08-10): Qud drew all 18 cells, [Q] at
+	# x416 and the [E] ending at 1503, and `_filt_left(18)` already predicts 416.0 exactly
+	# (959.5 - 1087/2) with the [E] at 416 + 1087 = 1503. So the centring model was right the whole
+	# time and only the truncation was wrong -- Raves was drawing 12 of 17 and silently dropping
+	# Missile Weapons, Scrap, Tonics, Tools, Trade Goods and Water Containers off the end.
+	var _cells := strip.size() + 1
 	var _left := _filt_left(_cells)
 	var x := _left + FILT_ALL_DX
 	# the ALL cell — gold-framed while no category filter is enabled (Qud's "*All")
@@ -451,8 +469,6 @@ func _draw_filter_strip() -> void:
 	# hide in it. Reproduces the reference exactly at FILT_MAX_CELLS -- 618 + 684 + 8 = 1310.
 	_draw_filt_badge(x + float(_cells - 1) * FILT_PITCH - (FILT_PITCH - FILT_W) + FILT_BADGE_GAP, "E")
 	for cat in strip:
-		if _filt_rects.size() >= FILT_MAX_CELLS:
-			break            # the rest are on Qud's other page (see FILT_MAX_CELLS)
 		var cname := str(cat.get("name", ""))
 		var rect := Rect2(Vector2(x, FILT_Y), Vector2(FILT_W, FILT_H))
 		var live: Variant = _filt_live(str(cat.get("color", "")))
