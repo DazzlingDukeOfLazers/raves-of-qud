@@ -240,6 +240,24 @@ func setup(data: Dictionary, palette: Dictionary) -> void:
 ## Flatten categories+items into rows and assign Qud's hotkey spread (skipping the
 ## letters Qud reserves for commands).
 func _relayout() -> void:
+	# SELECTION FOLLOWS THE ITEM, NOT THE INDEX. Rows are rebuilt from scratch here, and the
+	# old code only CLAMPED `_sel` -- fine while the list is stable, wrong the moment Qud
+	# re-files something under us. Identifying a weird artifact does exactly that: the object
+	# is renamed and moves out of its category into its real one, so the row that was selected
+	# is now somewhere else and the index points at whatever slid into its place, while the
+	# highlight looks like it never moved (reported 2026-08-10).
+	#
+	# The object ID is the right handle: identification renames the object but does NOT replace
+	# it, so the id is stable across exactly the event that reshuffles the list. Categories have
+	# no id and are matched by name instead, so collapsing/filtering keeps its selection too.
+	var keep_id := ""
+	var keep_cat := ""
+	if _sel >= 0 and _sel < _rows.size():
+		var cur: Dictionary = _rows[_sel]
+		if str(cur.get("kind", "")) == "item":
+			keep_id = str(cur.get("id", ""))
+		else:
+			keep_cat = str(cur.get("name", ""))
 	_rows.clear()
 	var li := 0
 	for cat in _data.get("categories", []):
@@ -257,6 +275,17 @@ func _relayout() -> void:
 			row.merge(it)
 			_rows.append(row)
 			li += 1
+	# Put the selection back on the SAME thing. Falling through to the clamp is the honest
+	# answer when it is genuinely gone (dropped, eaten, filtered out) -- but a rename must not
+	# look like a disappearance, which is what the plain clamp made it look like.
+	if keep_id != "" or keep_cat != "":
+		for i in _rows.size():
+			var r: Dictionary = _rows[i]
+			var is_item: bool = str(r.get("kind", "")) == "item"
+			if (keep_id != "" and is_item and str(r.get("id", "")) == keep_id) \
+					or (keep_cat != "" and not is_item and str(r.get("name", "")) == keep_cat):
+				_sel = i
+				break
 	_sel = clampi(_sel, 0, maxi(0, _rows.size() - 1))
 	_content.size = Vector2(LIST_W, maxf(LIST_H, _rows.size() * ROW_H + 8.0))
 	_content.queue_redraw()
