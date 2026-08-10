@@ -150,11 +150,22 @@ const FILT_CENTRE := 959.5          # screen centre; Qud keeps the strip on it
 const FILT_ALL_DX := 28.0           # ALL cell offset from the Q badge (618 - 590)
 const FILT_BADGE_GAP := 8.0         # Qud's "8px Spacer" between a badge and the cell run
 
+## Drawn width of the strip, [Q] badge to [E] badge, for `cells` cells (ALL + categories).
+## Reproduces the reference exactly at FILT_MAX_CELLS: 739.
+func _filt_span(cells: int) -> float:
+	return FILT_SPAN_FULL - float(FILT_MAX_CELLS - cells) * FILT_PITCH
+
 ## Left edge of the strip for `cells` drawn cells (ALL + categories), centred like Qud's.
 ## Reproduces the reference exactly at FILT_MAX_CELLS: 959.5 - 739/2 = 590.
 func _filt_left(cells: int) -> float:
-	var span := FILT_SPAN_FULL - float(FILT_MAX_CELLS - cells) * FILT_PITCH
-	return FILT_CENTRE - span * 0.5
+	return FILT_CENTRE - _filt_span(cells) * 0.5
+
+## The strip's span for the CURRENT inventory, for callers outside this pane -- the frame sizes
+## the top rule's centred gap around it (StatusScreens.TOP_GAP_PAD). Public because the rule and
+## the strip have to agree: a gap measured on one fixture struck through the cells on every other.
+## Counted the same way `_draw_filter_strip` counts, off `_filter_strip`, so the two cannot drift.
+func filter_span() -> float:
+	return _filt_span(_filter_strip(_data.get("categories", [])).size() + 1)
 
 var _data := {}
 var _palette := {}
