@@ -1390,3 +1390,30 @@ rather than queueing. Two things follow for anyone driving the pair:
 - **A "regression" in a click path is worth testing against Qud in play first.** Also check the
   probe itself: the first click I sent to disprove this landed in the 10px gap BETWEEN two filter
   cells and changed nothing, which looked like more evidence for the wrong theory.
+
+## A legacy VIEW NAME is not a legacy screen — check the sampled window
+
+`GameManager`'s view name and the UI window behind it are two different facts, and Qud's Book is
+the case where they disagree. Reading an item's "show effects" pushes the game view **`Book`** —
+the same name `BookUI`'s console loop uses — but with `Options.ModernUI` on, `BookUI.ShowBookByID`
+returns early into `BookScreen.show(...)`, a modern `Qud.UI` window. The mod's own sampler says so
+in one line: `view=Book`, `window=BookScreen`.
+
+That matters because the two kinds take input from different places and share none of it.
+Measured 2026-08-09, exits tried against both the Book and the Looker (a genuine legacy screen):
+
+| | Looker | Book |
+|---|---|---|
+| OS/HID Escape | no | no |
+| the mod's LEGACY key queue (`key key=escape`, `Keyboard.PushKey`) | yes | **no** |
+| the mod's `uiback` | **yes** | **yes** |
+
+So the shape of the rule is: **`uiback` first, always.** It is the only exit that spans both
+kinds — the Book through `FireInputButtonEvent(CancelButton)`, the Looker through `uiback`'s last
+rung, whose injected `Cancel` FrameCommand `Keyboard.metaMousecommands` maps to `Keys.Escape`,
+which is precisely what the Looker's `getvk` loop is waiting for.
+
+The cost of not knowing this was a session: the OS-level attempts failed, the screen was written
+off as having no exit, and Qud was restarted and the save reloaded. `hv back` was never tried.
+Highvisor now models both screens with `uiback` exits, plus a generic `unknown -> in_game` edge so
+an unmodelled screen costs one bridge call instead of a restart (highvisor `docs/05-driving-input.md`).
