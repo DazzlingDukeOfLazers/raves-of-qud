@@ -119,6 +119,14 @@ namespace RavesOfQud
             j.Member("body", body ?? "");
             j.Member("footer", footer ?? "");
             j.Member("selected", Selected(sc));
+            // THE ONE LIVE NUMBER THE CLIENT CANNOT DERIVE. Everything on this screen is a fixed
+            // offset from the scroll VIEWPORT's top (rule -32, icon panel -16, body +18, footer
+            // +484, bottom rule +504.12, hints +520.12 -- checked against two different screens),
+            // but the viewport itself MOVES with the content: the welcome screen sits at 270.44 and
+            // the "learn" sub-screen at 292.44. Pinning the client to the first screen's numbers
+            // made the option rows collide with a longer body. Ship the anchor; let the client do
+            // the arithmetic it can actually do.
+            j.Member("vpY100", (int)System.Math.Round(ViewportTop(sc) * 100.0));   // hundredths: JsonWriter has no float member
             j.Name("options").BeginArray();
             foreach (var o in opts) j.Value(o ?? "");
             j.EndArray();
@@ -143,6 +151,39 @@ namespace RavesOfQud
                 return list;
             }
             catch (Exception e) { Log("[cyber] read: " + e.Message); return null; }
+        }
+
+        /// UI THREAD. The scroll viewport's TOP in screen space, top-down (Unity's origin is
+        /// bottom-left; captures are top-down, so flip once here rather than in the client).
+        /// Returns the first screen's measured 270.44 if the node cannot be found, which keeps a
+        /// probe failure looking like the old fixed layout instead of collapsing everything to 0.
+        private static float ViewportTop(CyberneticsTerminalScreen sc)
+        {
+            try
+            {
+                var t = FindChild(sc.transform, "Viewport");
+                var rt = t as UnityEngine.RectTransform;
+                if (rt == null) return 270.44f;
+                var c = new UnityEngine.Vector3[4];
+                rt.GetWorldCorners(c);
+                float ymax = c[0].y;
+                for (int i = 1; i < 4; i++) if (c[i].y > ymax) ymax = c[i].y;
+                return UnityEngine.Screen.height - ymax;
+            }
+            catch { return 270.44f; }
+        }
+
+        private static UnityEngine.Transform FindChild(UnityEngine.Transform t, string name)
+        {
+            if (t == null) return null;
+            for (int i = 0; i < t.childCount; i++)
+            {
+                var c = t.GetChild(i);
+                if (c.name == name) return c;
+                var deep = FindChild(c, name);
+                if (deep != null) return deep;
+            }
+            return null;
         }
 
         /// The highlighted OPTION index, or -1 on the body row. The scroller counts the body block as

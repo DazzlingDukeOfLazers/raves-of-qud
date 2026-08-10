@@ -26,8 +26,19 @@ extends Control
 
 signal answered(payload: Dictionary)   # {"action":"select","index":n} / {"action":"quit"}
 
-const RULE_Y := 238.44
-const RULE_BOT_Y := 774.56
+## EVERY VERTICAL IS AN OFFSET FROM THE SCROLL VIEWPORT'S TOP, which the mod ships live as
+## `vpY100` (hundredths). The frame MOVES with its content — the welcome screen's viewport sits
+## at 270.44 and the "Learn About Cybernetics" sub-screen's at 292.44 — so the first version's
+## pinned constants collided the option rows with a longer body the moment a selection was
+## driven through. These offsets are the part that IS stable: checked across both screens.
+const VP_Y_FALLBACK := 270.44   # the welcome screen's, for a frame with no anchor
+const RULE_DY := -32.0
+const ICON_PANEL_DY := -16.0
+const BODY_DY := 18.0
+const FOOTER_DY := 484.0
+const RULE_BOT_DY := 504.12
+const HINT_DY := 520.12
+const ROW_GAP := 18.0            # Qud's inter-row spacing; body->options and option->option
 const RULE_H := 16.0
 const FILL_L_X := 544.0
 const HEAD_X := 872.0
@@ -36,15 +47,10 @@ const FILL_R_X := 1048.0
 const FILL_W := 328.0
 const PANEL_X := 560.0
 const PANEL_W := 800.0
-const ICON_PANEL_Y := 254.44
-const BODY_Y := 288.44
-const OPT_Y0 := 366.78
-const OPT_PITCH := 38.12
 const LINE_H := 20.12
 const CARET_X := 593.0
 const TEXT_X := 607.0
-const FOOTER_Y := 754.44
-const HINT_Y := 790.56
+
 
 # Qud's own colours off the probe: body/option text #afc6c1, bracket #b1c9c3, hotkey #cfc041.
 const C_TEXT := Color("#afc6c1")
@@ -134,8 +140,11 @@ func _body_lines() -> PackedStringArray:
 func _render() -> void:
 	if _data.is_empty():
 		return
+	var vp: float = float(_data.get("vpY100", VP_Y_FALLBACK * 100.0)) / 100.0
+	var rule_y := vp + RULE_DY
+	var rule_bot_y := vp + RULE_BOT_DY
 	# the two horizontal rules, three sprites each (filler | header | filler)
-	for y in [RULE_Y, RULE_BOT_Y]:
+	for y in [rule_y, rule_bot_y]:
 		_rule_seg(FILL_L_X, y, FILL_W, _rule_tex, true)
 		_rule_seg(HEAD_X, y, HEAD_W, _head_tex, false)
 		_rule_seg(FILL_R_X, y, FILL_W, _rule_tex, true)
@@ -146,16 +155,20 @@ func _render() -> void:
 	# nothing, draw nothing rather than invent an alpha that makes the diff worse.
 
 	var asc := _font.get_ascent(16)
-	var y := BODY_Y
-	for ln in _body_lines():
+	var y := vp + BODY_DY
+	var lines := _body_lines()
+	for ln in lines:
 		_draw.draw_string(_font, Vector2(TEXT_X, y + asc).round(), String(ln),
 			HORIZONTAL_ALIGNMENT_LEFT, -1, 16, C_TEXT)
 		y += LINE_H
 
+	# Options start one ROW_GAP below the body block and stack the same way — Qud's vertical
+	# layout, derived rather than pinned, so a 3-line body and a 6-line one both land right.
+	var opt_y0 := vp + BODY_DY + float(lines.size()) * LINE_H + ROW_GAP
 	_row_rects.clear()
 	var opts: Array = _data.get("options", [])
 	for i in opts.size():
-		var ry := OPT_Y0 + float(i) * OPT_PITCH
+		var ry := opt_y0 + float(i) * (LINE_H + ROW_GAP)
 		_row_rects.append([Rect2(PANEL_X, ry - 2.0, PANEL_W, LINE_H + 4.0), i])
 		if i == _sel:
 			_caret(ry)
@@ -169,10 +182,10 @@ func _render() -> void:
 
 	# footer — Qud's own composed string ("Credits: 0  License Tier: 2  Points Used: 2"); the
 	# tier/points arithmetic is the screen's, never re-derived here
-	_draw.draw_string(_font, Vector2(PANEL_X, FOOTER_Y + asc).round(),
+	_draw.draw_string(_font, Vector2(PANEL_X, vp + FOOTER_DY + asc).round(),
 		String(_data.get("footer", "")), HORIZONTAL_ALIGNMENT_LEFT, -1, 16, C_TEXT)
 
-	_hints()
+	_hints(vp + HINT_DY)
 
 
 func _rule_seg(x: float, y: float, w: float, tex: Texture2D, tile: bool) -> void:
@@ -193,7 +206,7 @@ func _caret(row_y: float) -> void:
 
 
 ## Qud's footer hint row, at the probed x's: [glyph] navigate  [Space] accept  [Esc] quit.
-func _hints() -> void:
+func _hints(hint_y: float) -> void:
 	var asc := _font.get_ascent(16)
 	# Qud's first hint key is its own PUA input glyph (U+E80A), ONE character wide, and its x's
 	# are laid out for that. Spelling it "Arrows" ran the bracket group into "navigate" — so use
@@ -203,15 +216,15 @@ func _hints() -> void:
 	for h in [[771.9, nav_key, 825.1, "navigate"], [916.9, "Space", 994.1, "accept"],
 			[1066.7, "Esc", 1124.7, "quit"]]:
 		var bx: float = h[0]
-		_draw.draw_string(_font, Vector2(bx, HINT_Y + asc).round(), "[",
+		_draw.draw_string(_font, Vector2(bx, hint_y + asc).round(), "[",
 			HORIZONTAL_ALIGNMENT_LEFT, -1, 16, C_BRACKET)
 		var w1 := _font.get_string_size("[", HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
-		_draw.draw_string(_font, Vector2(bx + w1, HINT_Y + asc).round(), String(h[1]),
+		_draw.draw_string(_font, Vector2(bx + w1, hint_y + asc).round(), String(h[1]),
 			HORIZONTAL_ALIGNMENT_LEFT, -1, 16, C_HOTKEY)
 		var w2 := _font.get_string_size(String(h[1]), HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
-		_draw.draw_string(_font, Vector2(bx + w1 + w2, HINT_Y + asc).round(), "]",
+		_draw.draw_string(_font, Vector2(bx + w1 + w2, hint_y + asc).round(), "]",
 			HORIZONTAL_ALIGNMENT_LEFT, -1, 16, C_BRACKET)
-		_draw.draw_string(_font, Vector2(float(h[2]), HINT_Y + asc).round(), String(h[3]),
+		_draw.draw_string(_font, Vector2(float(h[2]), hint_y + asc).round(), String(h[3]),
 			HORIZONTAL_ALIGNMENT_LEFT, -1, 16, C_TEXT)
 
 
