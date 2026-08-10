@@ -1759,3 +1759,38 @@ is drawing it, so new chrome no longer needs a mod edit and a restart. Note `img
 Unity lands them on the pixel grid; drawn at the raw `y`, Godot blends each row across two and the
 ornament grows a faint copy of every edge (measured: extra lit runs at 568/572 where Qud has bare
 background). The frame Control is `TEXTURE_FILTER_NEAREST` for the same reason.
+
+## THE PAPER DOLL'S TORCH IS SUPPOSED TO BE A DIFFERENT COLOUR EVERY TIME
+
+Reported 2026-08-10: "switching between tabs sometimes makes the torch yellow, not red. It's
+inconsistent." It is inconsistent, and so is Qud's.
+
+A lit torch carries `XRL.World.Parts.AnimatedMaterialFire`, whose entire `Render` is:
+
+```csharp
+int num = (XRLCore.CurrentFrame + FrameOffset) % 60;
+if (!Options.DisableTextAnimationEffects) FrameOffset += Stat.RandomCosmetic(1, 5);
+text = (num < 15) ? "&R" : (num < 30) ? "&W" : (num >= 45) ? "&W" : "&r";
+E.ApplyColors(text, ICON_COLOR_PRIORITY);
+```
+
+so the flame cycles **&R (bright red) / &W (gold) / &r (dark red)** — exactly the three colours that
+turned up on screen. `Qud.UI.EquipmentLine.setData` calls `RenderForUI("Equipment")` **once**, when
+the line is built, and the Image keeps that colour; Qud does not re-render the doll icon per frame.
+So Qud freezes one arbitrary phase per screen open, and measured side by side:
+
+| | sitting on the tab | re-opening the tab |
+|---|---|---|
+| Qud | dark red ×6 (frozen) | gold, gold, gold, gold, red, red |
+| Raves | gold ×8 (frozen) | gold, dark red, gold, red, gold, gold |
+
+Same three colours, same freeze-on-build, same randomness. **Raves is mirroring this correctly.**
+What is left is not a colour bug but an unavoidable consequence of mirroring a frame-animated
+value through a snapshot: the two apps sample at different moments, so side by side they usually
+disagree. There is no version of "sample it once" that makes two independent samples of a random
+phase match.
+
+**`RenderForUI` is not a read.** `FrameOffset += Stat.RandomCosmetic(1, 5)` runs on every call, so
+every inventory export nudges the animation phase of every animated object the player carries. It
+is the cosmetic RNG stream, so nothing gameplay-visible rides on it — but do not treat an exporter
+that calls `RenderForUI` as side-effect free.
