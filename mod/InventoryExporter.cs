@@ -4,7 +4,7 @@ using System.IO;
 using System.Text;
 using Qud.API;             // EquipmentAPI.TwiddleObject — Qud's own item menu
 using XRL.UI;              // InventoryAction
-using XRL.UI.Framework;    // APIDispatch — Qud runs the twiddle on the game thread
+using XRL.UI.Framework;    // (APIDispatch retired here 2026-08-10 — the turn thread is the right one)
 using XRL.World;
 using XRL.World.Anatomy;   // BodyPart (the paper doll)
 
@@ -44,9 +44,15 @@ namespace RavesOfQud
         /// flow gets the whole menu -- correct verbs, correct order, correct side
         /// effects -- for free. Same reasoning as the Skills tab's SelectNode.
         ///
-        /// MUST go through APIDispatch: TwiddleObject blocks on a synchronous popup, and
-        /// calling it straight from a uiQueue task deadlocks that wait (the bug that let
-        /// a skill purchase complete even when the player answered No).
+        /// RUNS ON THE TURN THREAD, like Twiddle below and for the same reason (see its
+        /// note). `ShowBodypartEquipUI` blocks on `PickItem.ShowPicker` -- a synchronous
+        /// modal -- so all three placements behave differently and only one is right:
+        /// a uiQueue task DEADLOCKS the wait, an APIDispatch threadpool thread lets the
+        /// free-spinning turn loop slam the view back to Stage and tear the picker down
+        /// (it then returns its default, i.e. equips something nobody chose), and the
+        /// gameQueue opens it ON the thread whose loop would otherwise race it. This was
+        /// the LAST of the three APIDispatch copies, fixed 2026-08-10 alongside the
+        /// reported skills one; unreported, found by grepping for the pattern.
         /// Qud's "what fits here" picker for a body part -- EquipmentScreen.ShowBodypartEquipUI,
         /// which is what InventoryAndEquipmentStatusScreen.HandleSelectItem runs for a slot with
         /// nothing equipped in it (and for a greyed natural-weapon slot on a LEFT click; only a
@@ -55,8 +61,20 @@ namespace RavesOfQud
         public static void EquipPicker(string partId)
         {
             var gm = GameManager.Instance;
-            if (gm == null || gm.uiQueue == null) return;
-            gm.uiQueue.queueTask(() =>
+            if (gm == null || gm.gameQueue == null) return;
+            // Same refusal as Twiddle: a queue nobody drains turns this into a picker that
+            // opens later, over whatever screen is up by then.
+            string parkedView;
+            if (!Bridge.GameQueueDraining(out parkedView))
+            {
+                string msg = "equip picker refused: Qud is on " + parkedView
+                    + ", where the turn thread is parked and gameQueue never drains."
+                    + " Leave that screen (hv back / hv goto qud in_game) and click again.";
+                System.Console.WriteLine("[raves] " + msg);
+                try { Bridge.Server?.Log(msg); } catch { }
+                return;
+            }
+            gm.gameQueue.queueSingletonTask("raves equip picker", () =>
             {
                 try
                 {
@@ -83,19 +101,12 @@ namespace RavesOfQud
                         return;
                     }
                     System.Console.WriteLine("[raves] equip picker for " + (part.Name ?? "?"));
-                    APIDispatch.RunAndWaitAsync(delegate
-                    {
-                        try { XRL.UI.EquipmentScreen.ShowBodypartEquipUI(p, part); }
-                        catch (Exception ee) { System.Console.WriteLine("[raves] ShowBodypartEquipUI: " + ee.Message); }
-                    }).ContinueWith(delegate
-                    {
-                        var g2 = GameManager.Instance;
-                        if (g2 != null && g2.uiQueue != null)
-                            g2.uiQueue.queueTask(() => { ReExport(); }, 0);
-                    });
+                    try { XRL.UI.EquipmentScreen.ShowBodypartEquipUI(p, part); }
+                    catch (Exception ee) { System.Console.WriteLine("[raves] ShowBodypartEquipUI: " + ee.Message); }
+                    ReExport();
                 }
                 catch (Exception e) { System.Console.WriteLine("[raves] equip picker error: " + e.Message); }
-            }, 0);
+            });
         }
 
         /// <summary>Raise Qud's item menu for an object, ON THE TURN THREAD.
