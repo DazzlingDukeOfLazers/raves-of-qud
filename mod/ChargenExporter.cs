@@ -63,6 +63,7 @@ namespace RavesOfQud
             WriteGenotypes(j);
             WriteSubtypes(j);
             WriteGameModes(j);
+            WriteCharTypes(j);
             j.EndObject();
             // Write ATOMICALLY: WriteAllText truncates-then-writes, so a Raves chargen screen reading the
             // file mid-write catches it empty ("No chargen data yet"). Write a temp then atomically swap
@@ -230,6 +231,40 @@ namespace RavesOfQud
                     .Member("fg", m[4])
                     .Member("detail", m[5])
                     .Member("desc", m[6])
+                .EndObject();
+            }
+            j.EndArray();
+        }
+
+        /// The chargen CHARACTER TYPES (Qud's ":choose character type:" step, between game mode and
+        /// genotype), mirroring EmbarkModules.xml → QudChartypeModule's &lt;types&gt; block: Presets /
+        /// New / Random / Library / Last, each with its card icon + fg/detail colour codes. Static
+        /// mirror for the same reason WriteGameModes is (the module's GameTypes dict only populates
+        /// inside a live chargen builder); `name` is the module's ID — the string selectType() takes —
+        /// and `display` its on-card Title, which differ for Pregen/Presets.
+        private static void WriteCharTypes(JsonWriter j)
+        {
+            var types = new[]
+            {
+                new[] { "Pregen",  "Presets", "A", "UI/sw_preset.bmp",        "W", "w", "Pick from several preset characters. Once you get comfortable, you can customize them." },
+                new[] { "New",     "New",     "B", "UI/sw_newchar.bmp",       "W", "w", "Create a new character." },
+                new[] { "Random",  "Random",  "C", "UI/sw_random.bmp",        "w", "W", "Roll a random character." },
+                new[] { "Library", "Library", "D", "Items/sw_bookshelf1.bmp", "w", "W", "Choose a character from your build library." },
+                new[] { "Last",    "Last",    "E", "UI/sw_lastchar.bmp",      "W", "w", "Replay the last character you played." },
+            };
+            j.Name("charTypes").BeginArray();
+            foreach (var t in types)
+            {
+                string tile = t[3];
+                if (!string.IsNullOrEmpty(tile)) { try { TileExporter.Ensure(tile); } catch { } }
+                j.BeginObject()
+                    .Member("name", t[0])
+                    .Member("display", t[1])
+                    .Member("hotkey", t[2])
+                    .Member("tile", tile)
+                    .Member("fg", t[4])
+                    .Member("detail", t[5])
+                    .Member("desc", t[6])
                 .EndObject();
             }
             j.EndArray();

@@ -14,6 +14,10 @@ var crumbs: Array = []
 ## assumed. Empty (e.g. entering the flow mid-way) simply drops the crumb.
 var mode_name := ""
 
+## The chartype leg of the trail ("New"), now that Raves HAS that screen. Empty = not shown, so
+## a flow entered mid-way still never claims a choice the player did not make.
+var chartype_title := ""
+
 ## Fallback genotypes (perk bullets verbatim from Qud), used until chargen.json is slurped.
 const GENOTYPES := [
 	{"name": "Mutated Human", "hotkey": "A", "extraInfo": ["Mutations", "Moderate starting attributes", "-600 reputation with the {{playerReputation|Putus Templar}}"]},
@@ -24,9 +28,9 @@ func _screen_node_name() -> String: return "GenotypeScreen"
 func _subtitle() -> String: return ":choose genotype:"
 func _default_index() -> int: return 0   # Mutated Human
 
-## Qud: "Classic | New | Choose Genotype". Raves has no chartype screen (Qud's New / Presets /
-## Random / Library / Last step), so the "New" crumb is absent rather than faked — a crumb for a
-## screen the player was never shown would be a claim about a choice they never made.
+## Qud: "Classic | New | Choose Genotype". The "New" leg comes from the chartype screen the
+## player actually passed through (ChartypeScreen, 2026-08-10) — still never faked: entering
+## the flow mid-way leaves `chartype_title` empty and the crumb absent.
 func _breadcrumb_crumbs() -> Array:
 	if not crumbs.is_empty():
 		return crumbs
@@ -34,6 +38,8 @@ func _breadcrumb_crumbs() -> Array:
 	if mode_name != "":
 		out.append({"label": mode_name, "current": false,
 			"tile": _chargen_tile("gameModes", mode_name)})
+	if chartype_title != "":
+		out.append({"label": chartype_title, "current": false})
 	out.append({"label": "Choose Genotype", "current": true})
 	return out
 

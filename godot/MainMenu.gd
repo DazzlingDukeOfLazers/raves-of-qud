@@ -1222,8 +1222,38 @@ func _on_mode_chosen(mode_name: String) -> void:
 	if mode_name == "Tutorial":
 		_start_tutorial()   # pregen guided game — no genotype/subtype, boot straight in
 		return
+	# Qud's next step is CHARACTER TYPE (Presets/New/Random/Library/Last), not genotype —
+	# skipping it was the "jumped straight to the mutant/truekin screen" feedback (2026-08-10).
+	_open_chartype()
+
+func _open_chartype(notice := "") -> void:
+	var ct: Variant = load("res://ChartypeScreen.gd").new()
+	ct.mode_name = _cg_mode
+	if notice != "":
+		# Reuse the guided-tutorial popup as an honest notice for the chartype flows Raves
+		# has no slice for yet — better than a click that silently does nothing, and better
+		# than faking a screen it cannot follow through on.
+		ct.guide_title = "NOT YET IN RAVES"
+		ct.guide_body = notice
+	_overlay = ct
+	add_child(ct)
+	ct.closed.connect(_close_overlay)
+	ct.chose.connect(_on_chartype_chosen)
+	UiState.set_scene("chargen_chartype")
+
+func _on_chartype_chosen(type_id: String) -> void:
+	_close_overlay()
+	if type_id != "New":
+		# Presets / Random / Library / Last are real Qud flows whose Raves slices are not
+		# built yet. Reopen the step with the notice up rather than silently doing nothing.
+		var title := "Presets" if type_id == "Pregen" else type_id
+		# plain text — the guide body renders verbatim (no {{}} markup pass, see
+		# ChargenCardScreen._update_guide_body)
+		_open_chartype("%s isn't wired into Raves' character creation yet — New is the path that works end to end. To use %s, start the game from Qud's own window." % [title, title])
+		return
 	var geno: Variant = load("res://GenotypeScreen.gd").new()
 	geno.mode_name = _cg_mode   # breadcrumb trail: Qud shows the mode alongside the current screen
+	geno.chartype_title = "New"   # ...and the chartype leg: "Wander | New | Choose Genotype"
 	_overlay = geno
 	add_child(geno)
 	geno.closed.connect(_close_overlay)
@@ -1291,6 +1321,7 @@ func _on_genotype_chosen(genotype_name: String) -> void:
 	sub.subtype_class = cls
 	sub.genotype_name = genotype_name
 	sub.mode_name = _cg_mode
+	sub.chartype_title = "New"   # the leg of the trail the chartype screen added
 	_overlay = sub
 	add_child(sub)
 	sub.closed.connect(_close_overlay)

@@ -21,6 +21,8 @@ var mode_name := ""
 ## Set by the flow before _ready: "Castes" / "Callings", plus the genotype name for the breadcrumb.
 var subtype_class := ""
 var genotype_name := ""
+## The chartype leg of the trail ("New"); empty = not shown (flow entered mid-way).
+var chartype_title := ""
 ## Optional breadcrumb override — [{label, current}], left→right. Empty = the default trail.
 var crumbs: Array = []
 
@@ -39,10 +41,10 @@ func _subtitle() -> String:
 	var t := str(_class().get("chargenTitle", "")).strip_edges()
 	return ":%s:" % (t.to_lower() if t != "" else "choose subtype")
 
-## Qud: "Classic | New | True Kin | Caste" — captured off the live screen, not assumed. Raves has no
-## chartype screen (Qud's New / Presets / Random / Library / Last step), so that crumb is absent
-## rather than faked: a crumb for a screen the player was never shown would claim a choice they never
-## made, and would go stale the moment Raves grows a real chartype screen.
+## Qud: "Classic | New | True Kin | Caste" — captured off the live screen, not assumed. The "New"
+## leg comes from the chartype screen the player actually passed through (ChartypeScreen,
+## 2026-08-10); a flow entered mid-way leaves `chartype_title` empty and the crumb absent, so it
+## still never claims a choice the player did not make.
 func _breadcrumb_crumbs() -> Array:
 	if not crumbs.is_empty():
 		return crumbs
@@ -51,6 +53,8 @@ func _breadcrumb_crumbs() -> Array:
 	if mode_name != "":
 		out.append({"label": mode_name, "current": false,
 			"tile": _chargen_tile("gameModes", mode_name)})
+	if chartype_title != "":
+		out.append({"label": chartype_title, "current": false})
 	if genotype_name != "":
 		out.append({"label": genotype_name, "current": false,
 			"tile": _chargen_tile("genotypes", genotype_name)})
