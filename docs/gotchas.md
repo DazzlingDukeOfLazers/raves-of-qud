@@ -1501,3 +1501,28 @@ copy-paste reintroduces the bug with your own words as justification.
 
 `Bridge.GameQueueDraining` refuses instead of queueing when the turn thread is parked; every
 one of these three now asks it first (a silently-queued PURCHASE is the worst of all worlds).
+
+## The cybernetics terminal is ONE channel, all the way down
+
+Worth knowing before adding screens to it: every stage of the becoming-nook flow — the welcome
+menu, the Learn sub-screens, the implant list, the **body-part picker**, the progress/result
+screens, and Qud's own refusals — is the same `CyberneticsTerminalScreen` with a different
+`CurrentScreen` behind it. They all arrive on the one `cyber` frame as body + options + footer.
+No stage needed its own mirror, and a new stage Freehold adds will very likely need none either.
+
+Two things the flow taught, both of which only appear once you drive it:
+
+- **The body carries markup, and `&X` is a RUNNING colour.** Options always went through
+  QudText; the body did not, because every body up to the install refusal happened to be plain.
+  Parse the body WHOLE — `&y` set on line 1 is what paints line 4, so splitting into lines
+  before parsing drops the carry and repaints the tail in the default.
+- **The footer lags one screen, IN QUD TOO.** Installing a 1-point implant lands on a
+  "successfully installed" screen still reading `Points Used: 0`; it reads `1` on the next
+  screen. Qud composes FooterText in `BeforeRender`, so the completion screen shows the count
+  from before the commit. Checked against Qud's own capture rather than assumed — a mirror that
+  "fixed" this would be wrong, not better.
+
+Qud's own guards run first-party and are the proof the round-trip is real: with 2 of 2 licence
+points used, picking an implant returns "Insufficent license points to install", and the costs
+in the list are `{{R|…}}` red. Free a point and the same list re-renders `{{C|…}}` cyan. Nothing
+on the Raves side decides any of that.
