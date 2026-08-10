@@ -157,10 +157,26 @@ func _render() -> void:
 	var asc := _font.get_ascent(16)
 	var y := vp + BODY_DY
 	var lines := _body_lines()
-	for ln in lines:
-		_draw.draw_string(_font, Vector2(TEXT_X, y + asc).round(), String(ln),
-			HORIZONTAL_ALIGNMENT_LEFT, -1, 16, C_TEXT)
-		y += LINE_H
+	# THE BODY CARRIES MARKUP TOO, and it is parsed as ONE string rather than per line.
+	# The option rows always went through QudText; the body did not, because the first
+	# screens had none — then the install refusal arrived as "&yInsufficent license points"
+	# and Raves printed the codes verbatim (2026-08-10). `&X` is Qud's RUNNING colour: it
+	# stays in force across newlines, so parsing line by line would drop the carry and
+	# repaint the tail wrong. Parse whole, then break runs on their own newlines.
+	var bx := TEXT_X
+	for run in QudText.runs(String(_data.get("body", "")), _palette, C_TEXT):
+		var parts: PackedStringArray = String(run[0]).split("\n")
+		for pi in parts.size():
+			var seg: String = parts[pi]
+			if pi > 0:
+				bx = TEXT_X
+				y += LINE_H
+			if seg == "":
+				continue
+			_draw.draw_string(_font, Vector2(bx, y + asc).round(), seg,
+				HORIZONTAL_ALIGNMENT_LEFT, -1, 16, run[1])
+			bx += _font.get_string_size(seg, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
+	y = vp + BODY_DY + float(lines.size()) * LINE_H
 
 	# Options start one ROW_GAP below the body block and stack the same way — Qud's vertical
 	# layout, derived rather than pinned, so a 3-line body and a 6-line one both land right.
