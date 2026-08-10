@@ -1526,3 +1526,22 @@ Qud's own guards run first-party and are the proof the round-trip is real: with 
 points used, picking an implant returns "Insufficent license points to install", and the costs
 in the list are `{{R|…}}` red. Free a point and the same list re-renders `{{C|…}}` cyan. Nothing
 on the Raves side decides any of that.
+
+The UPGRADE LICENCE branch behaves the same way: its body carries the credit-tier table in
+`&`-markup, its option reads "Upgrade Your License [{{C|1}} credit] {{R|insufficent credits}}",
+and driving it at 0 credits returns Qud's own "&RInsufficient credits to upgrade". Verified to
+that guard; a SUCCESSFUL upgrade still wants a `CyberneticsCreditWedge` in hand, and neither
+`hv wish CyberneticsCreditWedge` nor `hv wish object:CyberneticsCreditWedge` spawned one — the
+wish is accepted and logged, and nothing appears in inventory. The wish syntax for that
+blueprint is the open question, not the terminal flow.
+
+**And the terminal is where the parked-queue guard earned itself in the field.** Wishing while
+the terminal was UP was refused out loud:
+
+    [raves] refused 'wish': Qud is on CyberneticsTerminalScreen, where the turn thread is
+    parked and Server.Incoming never drains — the command would sit and fire late on whatever
+    screen comes next.
+
+Exactly right: `wish` is a fall-through command, the terminal parks the turn thread, and before
+that guard the wish would have sat in the queue and fired later against whatever was on screen.
+Quit the terminal first, then wish.
