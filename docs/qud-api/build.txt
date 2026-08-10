@@ -1,0 +1,7 @@
+# Caves of Qud build identity — regenerate with tools/qud_api_snapshot.sh
+CFBundleShortVersionString  2.0.4
+Assembly-CSharp.dll mtime   2026-08-08 20:10:14
+Assembly-CSharp.dll bytes   11806208
+Assembly-CSharp.dll sha256  fc8ee1cf1d6b5c8dc1a810688d768817f11b25123ab6126eb191630b409913a4
+steam buildid               24626113
+steam LastUpdated           1786237817
