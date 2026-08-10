@@ -1357,3 +1357,15 @@ inactive ones, so a status screen the player has opened once still works when it
 Getting the factions indicator out was therefore: `hv goto qud status_reputation`, then
 `hv bridge uiprobe target=FactionsStatusScreen`. The client must degrade when the file is absent —
 `StatusPaneFactions` falls back to the solid rect rather than drawing nothing.
+
+## A screen's order is the SCREEN's, not the order the constants are declared
+
+`XRL.UI.JournalScreen` declares `STR_LOCATIONS, STR_CHRONOLOGY, STR_OBSERVATIONS, …`; the journal
+draws them in `Qud.UI.JournalStatusScreen.categoryInfos` order, which puts Chronology **fifth**,
+not second. We had shipped the declaration order, so Raves' journal tabs — and Q/E cycling — were
+in the wrong sequence.
+
+It survived because the strip was drawn as TEXT: one plausible ordering of seven words looks like
+another, and nothing in a capture said otherwise. It died the moment the cells became ICONS and
+each one could be matched against Qud's own screenshot by pixel mask. Where a list's order comes
+from a different type than its contents, check the type that DRAWS it.

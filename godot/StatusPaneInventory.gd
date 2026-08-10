@@ -315,85 +315,25 @@ func _opaque_rect(tex: Texture2D) -> Rect2:
 	_opaque_cache[key] = rect
 	return rect
 
-## Qud's OWN frame sprite, nine-sliced. The mod exports `polat-category-frame`
-## (46x41, Unity 9-slice borders l12 b11 r13 t12) to title/cell_frame.png, so the
-## corners are Qud's pixels and only the middles stretch — which is how one design
-## serves both the 50x41 filter cells and the 55x62 doll slots. Falls back to the
-## hand-drawn motif if the sprite hasn't been exported yet.
-const FRAME_BORDER := {"left": 12, "bottom": 11, "right": 13, "top": 12}
-var _frame_tex: Texture2D = null
-var _frame_tried := false
+## Qud's OWN frame sprite and its nine-slice now live in QudFilterBar, because the JOURNAL draws
+## the same FilterBarCategoryButton and a second copy would drift. What stayed here is this pane's
+## colour law and hit-testing; the pixels are shared.
+##
+## The knob is passed in the older, thinner form this strip has been shipping (a 4x3 stub, no
+## punch-out) so nothing about the inventory screen changes with the extraction. Qud's own is an
+## 8x8 punch-out with a 4x4 stub inside — see QudFilterBar.cell — and this should converge on it.
+var _bar: RefCounted = load("res://QudFilterBar.gd").new()
 
 func _frame_texture() -> Texture2D:
-	if _frame_tried:
-		return _frame_tex
-	_frame_tried = true
-	var path := InputModel.support_dir().path_join("title").path_join("cell_frame.png")
-	if FileAccess.file_exists(path):
-		var img := Image.new()
-		if img.load(path) == 0:
-			_frame_tex = ImageTexture.create_from_image(QudChrome.brighten(img))
-	return _frame_tex
+	return _bar.frame_texture()
 
-## Draw the sprite as a nine-patch by hand: corners 1:1, edges stretched along one
-## axis, centre skipped (the cell interior stays transparent).
 func _draw_cell_frame(r: Rect2, col: Color, knob := true) -> void:
-	# The teal stub on the bottom line is NOT part of the sprite (its alpha mask has
-	# nothing there) — Qud paints it over the frame, and only on the filter cells;
-	# the paper-doll boxes use the same sprite without it. Measured at cell-relative
-	# (21,38), 4x3, in C_HOVER's teal on every category cell.
-	if knob:
-		_static.draw_rect(Rect2(r.position + Vector2(21, 38), Vector2(4, 3)), C_HOVER)
-	var tex := _frame_texture()
-	if tex == null:
-		_draw_cell_frame_fallback(r, col, knob)
-		return
-	var tw := tex.get_width()
-	var th := tex.get_height()
-	var l: int = FRAME_BORDER["left"]
-	var rr: int = FRAME_BORDER["right"]
-	var t: int = FRAME_BORDER["top"]
-	var bo: int = FRAME_BORDER["bottom"]
-	var x := r.position.x
-	var y := r.position.y
-	var w := r.size.x
-	var h := r.size.y
-	var mid_w := maxf(0.0, w - l - rr)
-	var mid_h := maxf(0.0, h - t - bo)
-	var src_mid_w := maxf(1.0, tw - l - rr)
-	var src_mid_h := maxf(1.0, th - t - bo)
-	# corners
-	_static.draw_texture_rect_region(tex, Rect2(x, y, l, t), Rect2(0, 0, l, t), col)
-	_static.draw_texture_rect_region(tex, Rect2(x + w - rr, y, rr, t), Rect2(tw - rr, 0, rr, t), col)
-	_static.draw_texture_rect_region(tex, Rect2(x, y + h - bo, l, bo), Rect2(0, th - bo, l, bo), col)
-	_static.draw_texture_rect_region(tex, Rect2(x + w - rr, y + h - bo, rr, bo),
-		Rect2(tw - rr, th - bo, rr, bo), col)
-	# edges — THESE are the runs that stretch
-	_static.draw_texture_rect_region(tex, Rect2(x + l, y, mid_w, t), Rect2(l, 0, src_mid_w, t), col)
-	_static.draw_texture_rect_region(tex, Rect2(x + l, y + h - bo, mid_w, bo),
-		Rect2(l, th - bo, src_mid_w, bo), col)
-	_static.draw_texture_rect_region(tex, Rect2(x, y + t, l, mid_h), Rect2(0, t, l, src_mid_h), col)
-	_static.draw_texture_rect_region(tex, Rect2(x + w - rr, y + t, rr, mid_h),
-		Rect2(tw - rr, t, rr, src_mid_h), col)
-
-func _draw_cell_frame_fallback(r: Rect2, col: Color, knob := true) -> void:
-	var x := r.position.x
-	var y := r.position.y
-	var w := r.size.x
-	var h := r.size.y
-	_static.draw_rect(Rect2(x, y, w, 2), col)
-	_static.draw_rect(Rect2(x, y + h - 2, w, 2), col)
-	_static.draw_rect(Rect2(x, y, 2, h), col)
-	_static.draw_rect(Rect2(x + w - 2, y, 2, h), col)
-	if knob:
-		_static.draw_rect(Rect2(x + w * 0.5 - 2, y + h - 4, 5, 5), C_HOVER)
+	_bar.cell(_static, r, col, C_HOVER, knob, Color(0, 0, 0, 0), Vector2(4, 3))
 
 ## One of the strip's paging hotkey badges: a filled teal box with a green letter.
 func _draw_filt_badge(x: float, letter: String) -> void:
-	_static.draw_rect(Rect2(Vector2(x, FILT_BADGE_Y), FILT_BADGE), C_HOVER)
-	var lw := _font.get_string_size(letter, HORIZONTAL_ALIGNMENT_LEFT, -1, 18).x
-	_static.draw_string(_font, Vector2(x + (FILT_BADGE.x - lw) * 0.5, FILT_BADGE_Y + 21),
-		letter, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, _tiles.color_of("g", Color(0.1, 0.5, 0.2)))
+	_bar.badge(_static, _font, x, letter, C_HOVER,
+		_tiles.color_of("g", Color(0.1, 0.5, 0.2)), FILT_BADGE_Y)
 
 ## Qud's LIVE colour for a filter cell, when the export carries one.
 ##

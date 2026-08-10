@@ -16,9 +16,11 @@ extends Control
 ## it only on the tabs whose CategoryInfo sets UsesMap (Locations and Village Histories), which the
 ## export carries per tab, and centres it on the SELECTED entry's target rather than pinning.
 ##
-## The seven sub-tabs are Qud's (JournalScreen's STR_ constants, in screen order). Qud draws them
-## as an ICON STRIP; this renders them as text labels for now -- navigable and honest, but not the
-## icons. Q/E cycle, matching Qud's [Q]/[E] badges on that strip.
+## The seven sub-tabs are Qud's (JournalScreen's STR_ constants, in screen order), drawn as Qud's
+## own ICON CAROUSEL: a row of FilterBarCategoryButtons flanked by the [Q]/[E] paging badges, which
+## Q/E cycle. Same prefab, same 46x41 cell at a 58px pitch, as the inventory's filter strip -- the
+## shared drawing is QudFilterBar. Each cell's tile comes from that button's own categoryImageMap,
+## shipped per tab by the mod, so the seven paths cannot drift from the game's.
 
 const HDR_X := 187.5
 const HDR_Y := 182.6
@@ -57,6 +59,12 @@ const C_DIM := Color8(0x3b, 0x55, 0x5e)
 ## at (52,75,83) -- a different colour from the frame rule they sit on.
 var C_TICK := QudChrome.q8(68, 99, 111)
 const C_GOLD := Color8(0xcf, 0xc0, 0x41)
+## The carousel's two frame states and the panel black the knob punches into, all SCREEN values
+## (QudChrome.q8 takes what the capture shows, not the Unity property) — the same two the inventory
+## strip calls C_FILT_ON and C_BOX, because it is the same button.
+var C_CELL_ON := QudChrome.q8(122, 126, 71)    # #858951 — the current tab
+var C_CELL_OFF := QudChrome.q8(51, 80, 91)     # the untouched prefab colour on the rest
+var C_PANEL := QudChrome.q8(7, 29, 29)         # the knob's punch-out
 ## Qud's own, off the live element: JournalHeader/Header is #4383a4 at font 24 in
 ## SourceCodePro-Regular. Ours was a grey (#829ea8) and read as a different colour entirely.
 const C_HDR := Color8(0x43, 0x83, 0xa4)
@@ -71,6 +79,8 @@ var _scroll := 0.0
 var _palette := {}
 var _font: Font
 var _content: Control
+var _tiles: RefCounted = null
+var _bar: RefCounted = null
 var _map: Texture2D = null
 var _map_tried := false
 var _player_pos := Vector2(-1, -1)
@@ -81,11 +91,17 @@ func _init() -> void:
 
 func _ready() -> void:
 	_font = UiFont.make_theme(get_viewport()).default_font
+	_tiles = load("res://QudTiles.gd").new()
+	_tiles.tiles_dir = InputModel.support_dir().path_join("tiles")
+	_bar = load("res://QudFilterBar.gd").new()
 	_content = Control.new()
 	_content.position = Vector2(0, 0)
 	_content.size = Vector2(1920, 940)
 	_content.clip_contents = false
 	_content.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# NEAREST or the carousel's tiles come out LINEAR-smeared -- draw_* inherits the
+	# drawing Control's texture_filter, as the inventory pane's icons found first.
+	_content.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_content.draw.connect(_draw_all)
 	add_child(_content)
 
@@ -94,6 +110,8 @@ func setup(data: Dictionary, palette: Dictionary) -> void:
 	var own: Dictionary = data.get("palette", {})
 	if typeof(own) == TYPE_DICTIONARY and not own.is_empty():
 		_palette = own
+	if _tiles != null:
+		_tiles.palette = _palette
 	_tabs = data.get("tabs", [])
 	var pp: Dictionary = data.get("player", {})
 	_player_pos = Vector2(float(pp.get("x", 0)), float(pp.get("y", 0))) if not pp.is_empty() \
@@ -139,22 +157,8 @@ func _draw_all() -> void:
 	# early and the block read as too narrow.
 	_content.draw_rect(Rect2(HDR_X + nw + HDR_ICON_W, HDR_TICK_Y, 1.0, HDR_TICK_H), C_TICK)
 
-	# --- the sub-tab strip, centred (Qud draws icons; these are labels for now)
-	var strip := PackedStringArray()
-	for t in _tabs:
-		strip.append(str(t.get("name", "")))
-	var total := 0.0
-	for s in strip:
-		total += _font.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x + 22.0
-	var x := 960.0 - total * 0.5
-	for i in strip.size():
-		var w := _font.get_string_size(strip[i], HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
-		var col := C_GOLD if i == _tab else C_DIM
-		_content.draw_string(_font, Vector2(x, STRIP_Y + 14.0), strip[i],
-			HORIZONTAL_ALIGNMENT_LEFT, -1, 14, col)
-		if i == _tab:
-			_content.draw_rect(Rect2(x, STRIP_Y + 19.0, w, 1.0), C_GOLD)
-		x += w + 22.0
+	# --- the sub-tab carousel
+	_draw_carousel()
 
 	# --- the entry list
 	var entries: Array = tab.get("entries", [])
@@ -171,6 +175,39 @@ func _draw_all() -> void:
 				break
 			var h := _draw_entry(entries[i], y, i == _sel)
 			y += h + ROW_GAP
+
+## Qud's category carousel: [Q] then one framed icon per sub-tab then [E], centred on the gap the
+## top rule leaves for it (StatusScreens draws that gap at 959.5 +/- 233.5, i.e. 726..1193, and the
+## run Qud lays out inside it is 450 wide and centred on 960 -- so the two agree without either
+## being told about the other).
+##
+## FRAME COLOUR is a two-state read, not the four-state one FilterBarCategoryButton.LateUpdate
+## describes. Those four only apply to a strip of FILTERS; the journal's cells are a single-select
+## carousel, and Qud's live values are #858951 on the current tab and the untouched PREFAB colour on
+## the rest -- measured on screen as (122,126,71) and (51,80,91), the same two the inventory pane
+## calls C_FILT_ON and C_BOX. A tab you have visited and left can carry #134F4E instead, because
+## LateUpdate writes only on a state CHANGE; that history-dependent third value is not modelled
+## here, for the same reason the inventory pane prefers a live colour off the wire to deriving one.
+func _draw_carousel() -> void:
+	var n := _tabs.size()
+	if n == 0:
+		return
+	var left: float = _bar.run_left(n, 960.0)
+	var x0: float = left + _bar.BADGE.x + _bar.BADGE_GAP
+	var green := QudText.color_of_code("g", _palette, Color8(0x00, 0x94, 0x03))
+	_bar.badge(_content, _font, left, "Q", C_TICK, green)
+	_bar.badge(_content, _font, x0 + _bar.cells_width(n) + _bar.BADGE_GAP,
+		"E", C_TICK, green)
+	for i in n:
+		var r: Rect2 = _bar.cell_rect(x0, i)
+		_bar.cell(_content, r, C_CELL_ON if i == _tab else C_CELL_OFF, C_TICK, true, C_PANEL)
+		var tile := str((_tabs[i] as Dictionary).get("icon", ""))
+		if tile == "" or _tiles == null:
+			continue
+		var tex: Texture2D = _tiles.texture(tile,
+			_bar.ICON_MAIN, _bar.ICON_DETAIL)
+		if tex != null:
+			_content.draw_texture_rect(tex, _bar.icon_rect(r), false)
 
 ## The sub-tab name, laid out on QUD'S pitch.
 ##

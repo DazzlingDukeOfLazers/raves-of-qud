@@ -33,12 +33,18 @@ namespace RavesOfQud
     /// </summary>
     public static class JournalExporter
     {
-        // JournalScreen's tab constants, in the order the screen shows them.
+        // The order QUD.UI.JournalStatusScreen.categoryInfos lists them, which is the order the
+        // carousel shows and Q/E cycles.
+        //
+        // This used to be the order the STR_ constants are DECLARED in XRL.UI.JournalScreen, which
+        // is not the same thing: that puts Chronology second where the screen puts it fifth. Invisible
+        // while Raves drew the strip as text -- one plausible order looks like another -- and caught
+        // the moment the cells became ICONS and could be matched against Qud's own capture.
         // internal: PopupBridge measures each of these headers with Qud's own TMP component.
         internal static readonly string[] Tabs =
         {
-            "Locations", "Chronology", "Gossip and Lore", "Sultan Histories",
-            "Village Histories", "General Notes", "Recipes",
+            "Locations", "Gossip and Lore", "Sultan Histories", "Village Histories",
+            "Chronology", "General Notes", "Recipes",
         };
 
         public static string Path_ => System.IO.Path.Combine(
@@ -77,6 +83,29 @@ namespace RavesOfQud
                             System.Globalization.CultureInfo.InvariantCulture));
                 }
                 catch { }
+                // The CAROUSEL ICON. Qud's category bar is a row of FilterBarCategoryButtons and
+                // SetCategory looks the tile up in the button's OWN static map -- so read that map
+                // rather than restating seven paths here, and they cannot drift from the game's.
+                // Ensure() forces the tile out even when nothing in the save ever wore it (two of
+                // the seven -- sw_monument5 and sw_crayons -- were missing from the export for
+                // exactly that reason).
+                //
+                // The catch LOGS. A swallowed one here writes a tab with no `icon` and the client
+                // silently draws an empty cell -- indistinguishable from "this tab has no icon",
+                // which is the failure shape this project keeps paying for.
+                try
+                {
+                    string ico;
+                    if (Qud.UI.FilterBarCategoryButton.categoryImageMap.TryGetValue(tab, out ico)
+                        && !string.IsNullOrEmpty(ico))
+                    {
+                        TileExporter.Ensure(ico);
+                        j.Member("icon", ico);
+                    }
+                    else Bridge.Server?.Log("journal: no carousel icon for '" + tab + "' (map has "
+                        + Qud.UI.FilterBarCategoryButton.categoryImageMap.Count + " entries)");
+                }
+                catch (Exception e) { try { Bridge.Server?.Log("journal icon failed for '" + tab + "': " + e); } catch { } }
                 // Only these two tabs show the world map (categoryInfos' UsesMap).
                 j.Member("usesMap", tab == "Locations" || tab == "Village Histories");
                 // …and only these four GROUP (UsesCategories); Chronology opts out explicitly.
