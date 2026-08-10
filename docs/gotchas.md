@@ -1462,3 +1462,42 @@ Two things follow, and the second is the one that generalises:
 instances on its first run: ControlMappingScreen had the same missing `accept_event()` (fixed
 with it), and PopupOverlay/PickerOverlay have a STOP root with no handler at all — their
 wheel is stopped only by the receiver-side guard, which the audit reports rather than hides.
+
+## A synchronous Qud popup has THREE possible threads and only one is right
+
+`Popup.ShowYesNo` / `Popup.Show` / `PickItem.ShowPicker` / `EquipmentAPI.TwiddleObject` all
+BLOCK on a modal. Where the bridge calls them from decides what happens, and the three
+outcomes look nothing alike:
+
+| thread | outcome |
+|---|---|
+| `uiQueue` task | DEADLOCK — the modal's wait never resolves |
+| `APIDispatch.RunAndWaitAsync` (threadpool) | the modal flashes up and **auto-answers its default** |
+| `gameQueue.queueSingletonTask` | correct — the modal opens and waits for a real answer |
+
+The middle one is the dangerous one, because it is also what Qud's OWN screens do — and
+correctly, because those have already parked the turn thread. A bridge-driven call has not:
+the turn thread is free, spinning in `XRLCore.PlayerTurn`'s wait-for-input loop, which runs
+`GameManager.Instance.CurrentGameView = Options.StageViewID;` unconditionally every
+iteration. The popup PUSHES the PopupMessage view, the next iteration slams it back to
+Stage, `UpdateView` hides the window, `Hide()` fires `onHide` -> `TrySetCanceled`, and the
+`Wait()` throws inside an `async void` where nothing can catch it. The Show call then
+returns its untouched default.
+
+Copied three times, fixed three times, a week apart each:
+
+- `Twiddle` (2026-08-08) — the item menu executed its own highlighted row; measured 6/8.
+- `SelectNode` (2026-08-10) — reported as *"clicking on a skill instabuys it — a popup pops
+  up, but it goes away right away"*. The default of the buy confirm is **Yes**, so the
+  player's skill points were spent by a question nobody was allowed to answer.
+- `EquipPicker` (2026-08-10, same pass) — unreported, found by grepping `APIDispatch` after
+  the second one. Same shape, same fix, before anyone lost an equip to it.
+
+**The lesson that took three tries: a comment recording the wrong cause is worse than no
+comment.** SelectNode's said "must run on the GAME thread via APIDispatch", which sounds
+right, names the correct goal, and prescribes the thing that breaks it — so each new caller
+copied it faithfully. When a fix lands, fix the SIBLING COMMENTS too, or the next
+copy-paste reintroduces the bug with your own words as justification.
+
+`Bridge.GameQueueDraining` refuses instead of queueing when the turn thread is parked; every
+one of these three now asks it first (a silently-queued PURCHASE is the worst of all worlds).
