@@ -38,6 +38,7 @@ func _ready() -> void:
 	_markup_palette_is_seeded()
 	_box_heights_match_qud()
 	_long_message_wraps_like_qud()
+	await _last_line_survives_the_clip()
 	_answer_names_the_popup()
 	await _outside_field_owns_the_keyboard()
 	_doubled_sigil_is_a_literal()
@@ -227,6 +228,42 @@ func _long_message_wraps_like_qud() -> void:
 	ov.queue_free()
 
 	# The wrapper itself, since the sizes above only see its longest line.
+	_wrap_checks()
+
+
+## The item popup's wear/tear line ("Perfect") vanished — feedback 2026-08-10. The frame is
+## the apron's Look popup off a live bridge tap, and it needs BOTH label fixes at once:
+## Godot's RichTextLabel counts a candidate line's trailing space when breaking (Qud does
+## not), so at exactly msg_w the 77-column description line broke one word early and the
+## whole message came out one line taller than `_wrap` counted; and the label advances 21px
+## a line against Qud's 20.12 slot, so by 8 lines the deficit alone pushes the last line
+## under `clip_contents`. Either regression alone re-clips the tail and fails here.
+## NEEDS TWO FRAMES: the label reflows after show_popup returns, so the checks await.
+func _last_line_survives_the_clip() -> void:
+	var ov := PopupOverlay.new()
+	add_child(ov)
+	ov.show_popup({
+		"type": "popup", "active": true, "id": 10, "kind": "message",
+		"message": "{{y|Boar hide was brined, limed, and put in a tanning drum. It was cut and fitted into an apron, and now it's a brown canvas for knife scars and tong burns.\n\n{{R|+12 Heat Resistance}}\n\n{{K|Weight: 5 lbs.}}\n\n{{Y|Perfect}}}}",
+		"title": "", "input": false, "inputDefault": "",
+		"buttons": [{"text": "press [Space]", "command": "Cancel", "hotkey": "Space"}],
+		"options": [],
+	}, _palette())
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_check("apron look: label wraps to Qud's 8 lines, not 9",
+		ov._msg.get_line_count() == 8, "got %d" % ov._msg.get_line_count())
+	_check("apron look: rendered text fits the slot (nothing clipped)",
+		ov._msg.get_content_height() <= ov._msg_slot.custom_minimum_size.y,
+		"content %d in a %.0f slot" % [ov._msg.get_content_height(),
+			ov._msg_slot.custom_minimum_size.y])
+	_check("apron look: the wear/tear line is the last thing in the label",
+		ov._msg.get_parsed_text().strip_edges().ends_with("Perfect"),
+		JSON.stringify(ov._msg.get_parsed_text().right(20)))
+	ov.queue_free()
+
+
+func _wrap_checks() -> void:
 	var wrapped := PopupOverlay._wrap(PackedStringArray(["aaa bbb ccc ddd"]), 7)
 	_check("wrap breaks on words, not mid-word",
 		Array(wrapped) == ["aaa bbb", "ccc ddd"], str(Array(wrapped)))

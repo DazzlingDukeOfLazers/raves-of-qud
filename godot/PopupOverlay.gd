@@ -357,6 +357,12 @@ func _build() -> void:
 	_content.add_child(_msg_slot)
 	_msg = _mk_rt()
 	_msg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	# Qud's Message line box is 20.12 (MSG_LINE); Source Code Pro at 16 advances 21 in a
+	# RichTextLabel. Left alone, the deficit compounds: at 8 lines the label is 168px in a
+	# 161px slot and `clip_contents` silently eats the LAST LINE — which is how the item
+	# popup lost its wear/tear "Perfect" (feedback 2026-08-10). -1 makes 8 label lines
+	# 21*8-7 = 161, the slot's own snap of Qud's 20.12*8; every count lands within 1px.
+	_msg.add_theme_constant_override("line_separation", -1)
 	_msg_slot.add_child(_msg)
 
 	# The options area. Qud keeps it too when a popup has no options -- h=0, and the
@@ -933,6 +939,17 @@ func show_popup(data: Dictionary, palette: Dictionary) -> void:
 			msg_w = EDIT_W          # an AskString is sized by its inputbox, not its prompt
 		var lines := maxf(1.0, float(msg_lines.size()))
 		_msg_slot.custom_minimum_size = Vector2(msg_w, _snap(MSG_LINE * lines))
+		# ONE CHARACTER of extra layout room for the label, clipped off by the slot. Godot's
+		# RichTextLabel counts a candidate line's TRAILING SPACE when deciding to break
+		# (measured: the 77-column apron line broke at every width up to 748.6 = 78 chars,
+		# and fit at 749); Qud does not — it breaks at the column limit and the space
+		# vanishes. So a label at exactly msg_w wraps one word early whenever a line lands
+		# on the limit, one line more than `_wrap` counted, and the box clips the tail.
+		# The +pitch cancels the rule exactly: n chars + trailing space fit iff
+		# (n+1)*pitch <= msg_w + pitch, i.e. n <= msg_w/pitch — Qud's own law. (A 77+ char
+		# unbreakable word could now char-break one char later than Qud; Qud's prose has
+		# no such words.) No glyph ever occupies the strip, so the clip is invisible.
+		_msg.offset_right = pitch
 		_msg_w = msg_w
 		_msg_h = MSG_LINE * lines
 	else:
