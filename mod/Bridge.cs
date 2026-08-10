@@ -1481,6 +1481,28 @@ namespace RavesOfQud
         /// a client knows Qud is in one.
         public static volatile string CurrentView = "";
 
+        /// <summary>Would a gameQueue task actually RUN if queued right now, or just sit there?
+        ///
+        /// `gameQueue` drains inside `Keyboard.getvk(pumpActions: true)` -- the TURN thread's input
+        /// wait. While Qud is on one of its OWN modern menus (a status screen, the Looker) that
+        /// thread is parked somewhere else and nothing drains. The task does not fail: it waits,
+        /// and then fires whenever the player finally leaves the menu.
+        ///
+        /// That is worse than an error. Measured 2026-08-09: with Qud left on its Equipment screen,
+        /// four clicks in Raves' paper doll and item list did nothing at all, and the moment Qud
+        /// returned to play one of them opened an interaction menu for an item the player had never
+        /// clicked. It reads exactly like "the click handler is broken" -- it is not; the handler
+        /// ran, the action queued, and the queue was asleep.
+        ///
+        /// So callers ASK first and refuse loudly. "Stage" is the in-play view; the empty string is
+        /// a heartbeat that has not sampled yet and is treated as fine rather than blocking a real
+        /// action on a missing reading.</summary>
+        public static bool GameQueueDraining(out string view)
+        {
+            view = CurrentView ?? "";
+            return view == "" || view == "Stage";
+        }
+
         /// A raw key into Qud's own queue. Letters and digits go through the KEYMAP (allowmap), so
         /// they fire whatever the player has bound; NAMED keys go through unmapped, because they are
         /// the ones legacy screens read directly. Escape is the reason this grew a name table: the

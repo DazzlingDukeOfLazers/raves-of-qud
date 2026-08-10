@@ -136,6 +136,20 @@ namespace RavesOfQud
         {
             var gm = GameManager.Instance;
             if (gm == null || gm.gameQueue == null) return;
+            // REFUSE rather than queue into a queue nobody is draining -- see Bridge.GameQueueDraining.
+            // Qud parked on one of its own modern menus makes every paper-doll and item-list click in
+            // Raves do nothing, and then fire all at once, on whatever the ids resolve to by then, the
+            // moment Qud returns to play. Silence plus a delayed wrong action is the worst of both.
+            string parkedView;
+            if (!Bridge.GameQueueDraining(out parkedView))
+            {
+                string msg = "twiddle refused: Qud is on " + parkedView
+                    + ", where the turn thread is parked and gameQueue never drains."
+                    + " Leave that screen in Qud (hv back / hv goto qud in_game) and click again.";
+                System.Console.WriteLine("[raves] " + msg);
+                try { Bridge.Server?.Log(msg); } catch { }
+                return;
+            }
             // Singleton: two twiddles cannot be in flight at once (Qud's own key, same reason).
             gm.gameQueue.queueSingletonTask("raves item twiddle", () =>
             {

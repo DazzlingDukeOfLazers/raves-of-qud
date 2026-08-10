@@ -1369,3 +1369,24 @@ It survived because the strip was drawn as TEXT: one plausible ordering of seven
 another, and nothing in a capture said otherwise. It died the moment the cells became ICONS and
 each one could be matched against Qud's own screenshot by pixel mask. Where a list's order comes
 from a different type than its contents, check the type that DRAWS it.
+
+## Qud on its OWN modern menu parks the turn thread — and `gameQueue` then swallows clicks
+
+CLAUDE.md's rule is "gameQueue is dead while Qud is in the BACKGROUND". There is a second way to
+kill it, and it is easier to hit: Qud sitting on one of its own modern menus. A status screen or the
+Looker parks the turn thread inside that screen's loop, not in `Keyboard.getvk(pumpActions: true)`,
+which is the only place `gameQueue` drains. A queued task does not fail — it waits.
+
+Symptom, and it is a convincing impostor: every paper-doll and item-list click in Raves' Equipment
+tab does nothing, and reads as a broken click handler. It is not. The handler ran, the hit test hit,
+the action queued, and the queue was asleep. Then when Qud finally returns to play, the backlog
+fires at once — on whatever the ids resolve to by then. Measured 2026-08-09: an interaction menu
+opened for a "cracked lens" nobody had clicked.
+
+`Bridge.GameQueueDraining(out view)` is the check; `InventoryExporter.Twiddle` refuses and logs
+rather than queueing. Two things follow for anyone driving the pair:
+
+- **Don't leave Qud parked** after a parity capture. `hv goto qud in_game` when you are done.
+- **A "regression" in a click path is worth testing against Qud in play first.** Also check the
+  probe itself: the first click I sent to disprove this landed in the 10px gap BETWEEN two filter
+  cells and changed nothing, which looked like more evidence for the wrong theory.
