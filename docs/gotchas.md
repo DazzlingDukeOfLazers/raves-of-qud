@@ -1624,3 +1624,60 @@ playfield measures RGB(18,46,45) where Qud measures (7,23.3,23.2), and `#041111c
 alpha .8 over Raves' value predicts (6.8,22.8,22.6) — within half a level, on three separate
 regions. Draw a dump node when the capture confirms it and not when it contradicts it; the
 arithmetic tells you which case you are in.
+
+## A POLL THAT RE-ARMS ON THE SUCCESS PATH IS NOT A POLL
+
+Every `StatusScreens._load_*` ended with
+
+```gdscript
+get_tree().create_timer(1.2).timeout.connect(func():
+    if visible and _tab == "equipment":
+        _load_inventory())
+```
+
+and every one of them began with
+
+```gdscript
+if not force and _inv_pane != null and mt == _inv_mtime …:
+    return
+```
+
+The re-arm sits BELOW the early return, so the chain dies the first time the file has not
+changed — which is the normal case one tick after opening a tab. What looked like a 1.2s
+heartbeat was really "read once at open, read once more 1.2s later, then never again", and
+the pane then showed its open-time data until the tab was left and re-entered.
+
+It hid for as long as it did because every visible symptom needs the data to change *while
+you are looking at it*, and almost nothing does. Identification is the exception: examine a
+weird artifact and Qud re-files the object out of Artifacts into its real category, the mod
+re-exports — and Raves went on drawing `Artifacts / odd trinket` against an inventory.json
+that already said `Trade Goods / gyre iron` (reported 2026-08-10).
+
+**The rule:** a repeating `Timer` is re-armed by the engine. A one-shot re-armed by the code
+path that just decided there was nothing to do can only run while there IS something to do,
+which is the opposite of what a poll is for. If you write a self-re-arming timer, the re-arm
+belongs above every `return` in the function, or it belongs in a `Timer` node.
+
+Same family as **a check that cannot fail**: the loop reported healthy because it was never
+running.
+
+## Identification is the only thing that re-files an item, and it is three popups deep
+
+Getting an item to change inventory category in-game means Tinkering's `examine`, which lives
+inside the item menu, needs several tries at a random rate, and — observed 2026-08-10, driven
+through Raves' mirrored menu — **drops the item the moment it succeeds** (`You identify your
+odd trinket as a gyre iron.` / `You drop the gyre iron.`, four for four). A fixture that has to
+survive that to observe one boolean is not a fixture.
+
+So the bridge carries two test commands:
+
+- `identify id=<objid>` / `identify all=1` — `GameObject.MakeUnderstood()` on the turn thread,
+  then a re-export. Logs `was -> now` per object, because after the call there is no way to ask
+  what the category used to be.
+- `cybercarry count=<n>` — implants **unidentified in the pack** (the chest `cyberchest` builds
+  is right for the terminal and useless to the inventory screen, and nothing cheap moves a
+  chest's contents into the pack — walking onto it does not take them).
+
+Category is not stored: `GetInventoryCategory()` raises an event that `Examiner` answers with
+`"Artifacts"` while `!Understood()`. Flipping understanding re-files the object with no further
+call, which is what makes the fixture a fair test of the export rather than a way of faking one.

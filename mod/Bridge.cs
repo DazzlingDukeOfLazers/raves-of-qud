@@ -1071,6 +1071,17 @@ namespace RavesOfQud
                         InventoryExporter.Twiddle(invId, invMode);
                     return;
                 }
+                if (name == "identify")
+                {
+                    // TEST FIXTURE: understand a carried artifact outright (id=<objid>, or all=1
+                    // for every unidentified thing in the pack). Identification is what re-files
+                    // an item out of Artifacts into its real category, and it is otherwise only
+                    // reachable through Tinkering's examine -- several popups and a dice roll deep.
+                    f.TryGetValue("id", out string idId);
+                    f.TryGetValue("all", out string idAll);
+                    InventoryExporter.Identify(idId, idAll == "1" || idAll == "true");
+                    return;
+                }
                 if (name == "skill")
                 {
                     // Raves' Skills tab: accept a row (Qud's own SelectNode purchase
@@ -1624,6 +1635,19 @@ namespace RavesOfQud
                         Server.Log("[cyberchest] " + CyberTestbed.Build(player, cw));
                     }
                     catch (Exception e) { Server.Log("cyberchest error: " + e.Message); }
+                    break;
+                case "cybercarry":
+                    // The same parts, UNIDENTIFIED, in the pack rather than a chest -- the starting
+                    // state for the Equipment tab's identification tests. Main-thread, like the rest.
+                    try
+                    {
+                        f.TryGetValue("count", out string ccStr);
+                        int cc = 3;
+                        if (!string.IsNullOrEmpty(ccStr)) int.TryParse(ccStr, out cc);
+                        Server.Log("[cybercarry] " + CyberTestbed.Carry(player, cc));
+                        InventoryExporter.ReExport();
+                    }
+                    catch (Exception e) { Server.Log("cybercarry error: " + e.Message); }
                     break;
                 case "cyberlicense":
                     // Grant licence TIERS outright. Not an item -- `CyberneticsLicenses` is an int
