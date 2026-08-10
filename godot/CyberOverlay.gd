@@ -66,10 +66,46 @@ const C_HOTKEY := Color("#cfc041")
 ## twice as bright as Qud's everywhere outside the text.
 const C_SCRIM := Color("#041111cc")
 
+## THE PHOSPHOR TINT. Qud renders the terminal's own text green, and it does it on TOP of the
+## ordinary colours rather than instead of them: the probe reports the row markup as Qud's normal
+## greys (`<color=#b1c9c3FF>` = the `&y` palette entry, footer `#afc6c1`) while the PIXELS come out
+## (150,255,169). Measured, that difference is a per-channel MULTIPLY, and the multiplier calibrated
+## on `&y` alone predicts two colours it was not fitted to:
+##     &C #77bfcf -> predicted (101,242,179), measured (98,242,184)
+##     footer #afc6c1 -> predicted (148,251,167), measured (148,255,167)  [R and B exact]
+## which is why this is a function of the source colour and not a flat green: an accent stays a
+## distinguishable accent, exactly as it does in Qud. Applies to the ROW TEXT and the FOOTER only —
+## the hint bar's gold (200,184,57 measured, i.e. untinted #cfc041) and the selection caret are
+## outside the tinted content and must stay as they are.
+const TERM_TINT := Vector3(150.0 / 177.0, 255.0 / 201.0, 169.0 / 195.0)
+
+func _term(c: Color) -> Color:
+	return Color(minf(c.r * TERM_TINT.x, 1.0), minf(c.g * TERM_TINT.y, 1.0),
+		minf(c.b * TERM_TINT.z, 1.0), c.a)
+
+
+## THE TYPEWRITER, straight off Qud's `CyberneticsTerminalRow.Update()`:
+##   * 0.015s PER CHARACTER, and a long frame catches up in one go (`(int)(cursorTimer / 0.015f)`)
+##     rather than dropping the backlog, so the reveal keeps real time on a slow frame.
+##   * the cursor is a literal `_` appended to the revealed prefix (`Text.Substring(0, cursor) + "_"`)
+##     -- that is the `tier_` visible in any mid-animation capture.
+##   * rows type ONE AT A TIME, in order, body first: a finished row hands off with
+##     `data.nextCursorData.row.currentCursor = true`. That sequential hand-off IS the sweep.
+##   * the cursor counts characters of the RAW markup string, so it spends real time invisibly
+##     "typing" the `&C` codes. Faithful here for the same reason: it is what sets the pacing.
+##   * ANY command completes EVERYTHING instantly -- the check sits outside the per-row cursor
+##     branch, so every row's Update() completes itself on the same frame.
+const TYPE_DT := 0.015
+
 var _data := {}
 var _palette := {}
 var _sel := 0
 var _root: Control
+var _cur_row := 0        # which row is typing: 0 = the body, 1+ = option (row - 1)
+var _cur_pos := 0        # character index within that row's RAW text
+var _cur_t := 0.0
+var _typing := false
+var _type_sig := ""      # the content the current animation belongs to (see show_terminal)
 var _draw: Control
 var _font: Font
 var _caret_tex: Texture2D = null
@@ -136,6 +172,15 @@ func show_terminal(data: Dictionary, palette: Dictionary) -> void:
 	if not palette.is_empty():
 		_palette = palette
 	_sel = int(data.get("selected", 0))
+	# Restart the reveal only when the CONTENT actually changed. The mirror republishes this frame
+	# continuously (and re-sends the whole thing on every client connect), so keying the animation
+	# off "a frame arrived" would retype the screen forever and it would never finish.
+	var sig := String(data.get("body", ""))
+	for o in (data.get("options", []) as Array):
+		sig += "\n" + String(o)
+	if sig != _type_sig:
+		_type_sig = sig
+		_start_typing()
 	if _caret_tex == null:
 		_caret_tex = _chrome("picker_caret.png")   # may have been exported since we started
 	if _rule_tex == null:
@@ -153,6 +198,12 @@ func hide_terminal() -> void:
 	visible = false
 	_data = {}
 	_row_rects.clear()
+	# Forget the signature, or REOPENING the same screen never retypes. Qud builds fresh rows on
+	# every Show(), so closing the nook and walking back to it plays the reveal again. Leaving this
+	# set made the animation look completely dead in testing: the first open had already consumed
+	# the welcome screen's signature, so every later open matched it and skipped straight to done.
+	_type_sig = ""
+	_typing = false
 	UiState.set_scene("in_game")
 
 
@@ -161,7 +212,88 @@ func hide_terminal() -> void:
 ## newlines in the payload ARE Qud's line breaks. Splitting on them is reproducing its layout,
 ## not guessing at one — do not re-wrap.
 func _body_lines() -> PackedStringArray:
-	return String(_data.get("body", "")).split("\n")
+	return _revealed(0).split("\n")
+
+
+## The RAW text of a typing row: row 0 is the body, row n>0 is option n-1. Raw, not rendered —
+## Qud's cursor walks the markup string, and the layout below has to agree with the reveal.
+func _row_text(row: int) -> String:
+	if row <= 0:
+		return String(_data.get("body", ""))
+	var opts: Array = _data.get("options", [])
+	var i := row - 1
+	return String(opts[i]) if i < opts.size() else ""
+
+
+## What that row shows RIGHT NOW: nothing before its turn, prefix + `_` during it, all of it after.
+func _revealed(row: int) -> String:
+	if not _typing or row < _cur_row:
+		return _row_text(row)
+	if row > _cur_row:
+		return ""
+	return _row_text(row).substr(0, _cur_pos) + "_"
+
+
+func _rows_total() -> int:
+	return 1 + (_data.get("options", []) as Array).size()
+
+
+func _start_typing() -> void:
+	_cur_row = 0
+	_cur_pos = 0
+	_cur_t = 0.0
+	_typing = true
+
+
+## Qud completes EVERY row on any command, not just the one holding the cursor — the check sits
+## outside the per-row cursor branch, so all of them finish on the same frame.
+func _finish_typing() -> void:
+	if _typing:
+		_typing = false
+		_draw.queue_redraw()
+
+
+## Move the caret to the row under `p`, if any. Qud does this on HOVER with no click at all --
+## measured by parking the pointer over one of its rows and watching the caret jump to it.
+##
+## NOT VERIFIED THROUGH THE HARNESS, and the reason is worth knowing before anyone tries again:
+## `hv mouse` WARPS the cursor, and a warp delivers no InputEventMouseMotion to Godot, so the caret
+## never moves under it. That is a fact about the harness, not about this code -- the same warp DOES
+## move Qud's caret, because Unity polls the pointer position every frame instead of reading events.
+## Polling was tried here on both `get_local_mouse_position()` (fed by the same events, so equally
+## stale) and `DisplayServer.mouse_get_position()`; neither moved the caret under `hv mouse`, so the
+## simple event handler is what ships. Confirm this one with a real mouse.
+func _hover_at(p: Vector2) -> void:
+	for r in _row_rects:
+		if (r[0] as Rect2).has_point(p):
+			if _sel != int(r[1]):
+				_sel = int(r[1])
+				_draw.queue_redraw()
+			return
+
+
+func _process(delta: float) -> void:
+	if not visible:
+		return
+	if not _typing:
+		return
+	_cur_t += delta
+	if _cur_t < TYPE_DT:
+		return
+	# Catch up whole characters, exactly as Qud does -- a long frame advances the reveal by the
+	# number of ticks it covered rather than by one, so the animation keeps real time.
+	var n := int(_cur_t / TYPE_DT)
+	_cur_t -= TYPE_DT * float(n)
+	_cur_pos += n
+	# Hand off to the next row when this one runs out. The overshoot is DROPPED rather than carried:
+	# Qud restarts the next row's timer from zero in setData, so a row always gets its full 0.015s
+	# on its first character. `_cur_row` strictly increases, so this cannot spin on an empty row.
+	while _typing and _cur_pos >= _row_text(_cur_row).length():
+		_cur_row += 1
+		_cur_pos = 0
+		if _cur_row >= _rows_total():
+			_typing = false
+	_draw.queue_redraw()
 
 
 ## How many lines the body OCCUPIES — which is not the same as how many `split("\n")` returns.
@@ -219,7 +351,7 @@ func _render() -> void:
 	# stays in force across newlines, so parsing line by line would drop the carry and
 	# repaint the tail wrong. Parse whole, then break runs on their own newlines.
 	var bx := TEXT_X
-	for run in QudText.runs(String(_data.get("body", "")), _palette, C_TEXT):
+	for run in QudText.runs(_revealed(0), _palette, C_TEXT):
 		var parts: PackedStringArray = String(run[0]).split("\n")
 		for pi in parts.size():
 			var seg: String = parts[pi]
@@ -229,7 +361,7 @@ func _render() -> void:
 			if seg == "":
 				continue
 			_draw.draw_string(_font, Vector2(bx, y + asc).round(), seg,
-				HORIZONTAL_ALIGNMENT_LEFT, -1, 16, run[1])
+				HORIZONTAL_ALIGNMENT_LEFT, -1, 16, _term(run[1]))
 			bx += _font.get_string_size(seg, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
 
 	# Options start one ROW_GAP below the body block and stack the same way — Qud's vertical
@@ -240,21 +372,29 @@ func _render() -> void:
 	var opts: Array = _data.get("options", [])
 	for i in opts.size():
 		var ry := opt_y0 + float(i) * (LINE_H + ROW_GAP)
+		# The hit rect exists from the first frame even while the row is still blank, so the mouse
+		# can hover-select a row Qud has not finished typing — which is what Qud does too (the row
+		# object is created up front with empty text and its navigation context is live). What the
+		# row cannot do yet is ACTIVATE; see _on_root_input.
 		_row_rects.append([Rect2(PANEL_X, ry - 2.0, PANEL_W, LINE_H + 4.0), i])
 		if i == _sel:
 			_caret(ry)
-		var runs: Array = QudText.runs(String(opts[i]), _palette, C_TEXT)
+		var shown := _revealed(i + 1)
+		if shown == "":
+			continue
+		var runs: Array = QudText.runs(shown, _palette, C_TEXT)
 		var x := TEXT_X
 		for r in runs:
 			var txt: String = r[0]
 			_draw.draw_string(_font, Vector2(x, ry + asc).round(), txt,
-				HORIZONTAL_ALIGNMENT_LEFT, -1, 16, r[1])
+				HORIZONTAL_ALIGNMENT_LEFT, -1, 16, _term(r[1]))
 			x += _font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
 
 	# footer — Qud's own composed string ("Credits: 0  License Tier: 2  Points Used: 2"); the
-	# tier/points arithmetic is the screen's, never re-derived here
+	# tier/points arithmetic is the screen's, never re-derived here. Tinted: measured green in
+	# Qud's capture, and it is the pair that confirmed the multiply (see TERM_TINT).
 	_draw.draw_string(_font, Vector2(PANEL_X, vp + FOOTER_DY + asc).round(),
-		String(_data.get("footer", "")), HORIZONTAL_ALIGNMENT_LEFT, -1, 16, C_TEXT)
+		String(_data.get("footer", "")), HORIZONTAL_ALIGNMENT_LEFT, -1, 16, _term(C_TEXT))
 
 	_hints(vp + HINT_DY)
 
@@ -302,7 +442,21 @@ func _hints(hint_y: float) -> void:
 func _on_root_input(e: InputEvent) -> void:
 	if e is InputEventMouseButton or e is InputEventMouseMotion:
 		_root.accept_event()   # a modal owns the mouse; the wheel needs this (docs/gotchas.md)
+	# HOVER SELECTS, because Qud's does: measured 2026-08-10 by parking the pointer over a row with
+	# no click at all -- the caret moved to it. Without this the rows were already clickable (a click
+	# round-trips through the bridge and Qud navigates) but nothing on screen responded to the mouse
+	# until the click landed, so they did not READ as clickable.
+	if e is InputEventMouseMotion:
+		_hover_at(e.position)
 	if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+		# A click mid-reveal completes the text instead of choosing. Qud's HandleSelect refuses
+		# outright while the row is still typing (`is CyberneticsTerminalLineData { CursorDone: not
+		# false }`), so activating here would be wrong -- but a click that does NOTHING reads as a
+		# broken control, and Qud already treats input during the reveal as "skip it". Completing is
+		# that same gesture on the mouse; the second click selects.
+		if _typing:
+			_finish_typing()
+			return
 		for r in _row_rects:
 			if (r[0] as Rect2).has_point(e.position):
 				_sel = int(r[1])
@@ -314,6 +468,12 @@ func _on_root_input(e: InputEvent) -> void:
 func handle_key(e: InputEventKey) -> bool:
 	if not visible:
 		return false
+	# ANY key completes the reveal and is swallowed -- Qud's rows check
+	# `ControlManager.currentFrameCommands.Count > 0` before they check their own cursor, so the
+	# keypress that skips the animation does not also navigate or accept.
+	if _typing:
+		_finish_typing()
+		return true
 	var opts: Array = _data.get("options", [])
 	match e.keycode:
 		KEY_UP, KEY_KP_8:
