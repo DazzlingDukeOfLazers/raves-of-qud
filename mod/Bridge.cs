@@ -759,6 +759,33 @@ namespace RavesOfQud
                         }, 0);
                     return;
                 }
+                if (name == "sprite")
+                {
+                    // Export ONE named sprite off whatever Image is drawing it (UiProbe's atlas-proof
+                    // path). uiprobe's ExportChrome only knows the sprites someone has already written
+                    // a mapping for, which makes every new piece of chrome a mod edit and a restart --
+                    // and the probe dump names the sprite right there. Same thread contract as
+                    // popupchrome: uiQueue, because the screen being read may have parked the turn.
+                    // `img`, NOT `name`: `name` is the COMMAND key in this same field bag, so
+                    // asking for it back hands you the string "sprite" and the export looks for a
+                    // sprite by that name forever.
+                    f.TryGetValue("img", out string spName);
+                    f.TryGetValue("file", out string spFile);
+                    var gms = GameManager.Instance;
+                    if (gms != null && gms.uiQueue != null && !string.IsNullOrEmpty(spName))
+                        gms.uiQueue.queueTask(() =>
+                        {
+                            try
+                            {
+                                string dest = string.IsNullOrEmpty(spFile) ? spName + ".png" : spFile;
+                                if (!UiProbe.ExportLoadedSprite(spName, dest))
+                                    Server?.Log("sprite '" + spName + "': no loaded Image is drawing it"
+                                        + " — open the screen that uses it first");
+                            }
+                            catch (Exception se) { Server?.Log("sprite export: " + se.Message); }
+                        }, 0);
+                    return;
+                }
                 if (name == "popupchrome")
                 {
                     // Export the LIVE popup's chrome sprites (the tree emblem above the box, the

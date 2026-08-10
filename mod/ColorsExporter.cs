@@ -24,6 +24,7 @@ namespace RavesOfQud
         private const string CODES = "rRgGbBcCmMwWoOyYkK";
 
         public static string Path_ => System.IO.Path.Combine(Root, "colors.json");
+        public static string ShaderPath_ => System.IO.Path.Combine(Root, "shaders.json");
 
         private static string Root
         {
@@ -73,6 +74,105 @@ namespace RavesOfQud
                 Console.WriteLine("[raves] colors exported -> " + Path_);
             }
             catch (Exception e) { Console.WriteLine("[raves] colors export failed: " + e.Message); }
+            ExportShaders();
+        }
+
+        /// <summary>The NAMED colours — <c>{{rules|…}}</c>, <c>{{painted|…}}</c>, <c>{{rocket|…}}</c>.
+        ///
+        /// The single-char table above is only half of Qud's markup. A span's code can also be a
+        /// SHADER NAME, and the client was resolving those by taking the first character: `rules`
+        /// became `r`, so every rules line in every item description rendered dark red where Qud
+        /// draws it light blue (`&lt;shader Name="rules" Type="solid" Colors="C"/&gt;`). Reported
+        /// 2026-08-10 as "red effect text in Raves should be light blue as in Qud", and the same
+        /// bug was quietly colouring `{{painted|painted}}`, `{{spaser|…}}` and the rest.
+        ///
+        /// Read off MarkupShaders' own registry rather than Colors.xml so mod-added shaders come
+        /// too. The KIND matters as much as the colours, because each is a different function of
+        /// character position (ConsoleLib.Console.MarkupShaders):
+        ///   solid        Colors[0] throughout
+        ///   sequence     Colors[totalPos % Colors.Length]                  — cycles per character
+        ///   alternation  Colors[totalPos * Colors.Length / totalLen]       — N equal bands
+        ///   bordered     Colors[1] on the first and last character, else Colors[0]
+        /// All four are pure functions of position, so the client can reproduce them exactly --
+        /// there is nothing time-varying to chase here.
+        private static void ExportShaders()
+        {
+            try
+            {
+                var t = Type.GetType("ConsoleLib.Console.MarkupShaders, Assembly-CSharp");
+                if (t == null)
+                    foreach (var cand in typeof(GameManager).Assembly.GetTypes())
+                        if (cand.Name == "MarkupShaders") { t = cand; break; }
+                if (t == null) { Console.WriteLine("[raves] shaders: no MarkupShaders"); return; }
+
+                // ByName is the dictionary Qud's own `{{name|` lookup goes through, so it is the
+                // one that cannot disagree with what the game renders. Fall back to the public
+                // Shaders list if the field is ever renamed.
+                System.Collections.IEnumerable shaders = null;
+                var byName = t.GetField("ByName", BindingFlags.Static | BindingFlags.NonPublic
+                                                  | BindingFlags.Public);
+                if (byName != null)
+                {
+                    var dict = byName.GetValue(null) as System.Collections.IDictionary;
+                    if (dict != null) shaders = dict.Values;
+                }
+                if (shaders == null)
+                {
+                    var lst = t.GetField("Shaders", BindingFlags.Static | BindingFlags.Public);
+                    if (lst != null) shaders = lst.GetValue(null) as System.Collections.IEnumerable;
+                }
+                if (shaders == null) { Console.WriteLine("[raves] shaders: no registry"); return; }
+
+                var sb = new StringBuilder();
+                sb.Append("{\n");
+                bool first = true;
+                var seen = new System.Collections.Generic.HashSet<string>();
+                foreach (object sh in shaders)
+                {
+                    if (sh == null) continue;
+                    Type st = sh.GetType();
+                    string name = null, colors = null;
+                    try
+                    {
+                        var fn = Field(st, "Name");
+                        if (fn != null) name = fn.GetValue(sh) as string;
+                        var fc = Field(st, "Colors");
+                        var arr = fc != null ? fc.GetValue(sh) as char[] : null;
+                        if (arr != null) colors = new string(arr);
+                    }
+                    catch { }
+                    if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(colors)) continue;
+                    if (!seen.Add(name)) continue;
+                    // The concrete class IS the kind: Solid / Sequence / Alternation / Bordered
+                    // (and the abstract bases I*, for patterns). Lowercased to match Colors.xml.
+                    string kind = st.Name.TrimStart('I').ToLowerInvariant();
+                    if (!first) sb.Append(",\n");
+                    first = false;
+                    sb.Append("  \"").Append(Esc(name)).Append("\": {\"kind\": \"").Append(Esc(kind))
+                      .Append("\", \"colors\": \"").Append(Esc(colors)).Append("\"}");
+                }
+                sb.Append("\n}\n");
+                File.WriteAllText(ShaderPath_, sb.ToString());
+                Console.WriteLine("[raves] shaders exported -> " + ShaderPath_);
+            }
+            catch (Exception e) { Console.WriteLine("[raves] shaders export failed: " + e.Message); }
+        }
+
+        /// Colors/Name live on IMarkupShader, not on the concrete subclass, so walk up.
+        private static FieldInfo Field(Type t, string name)
+        {
+            for (Type c = t; c != null; c = c.BaseType)
+            {
+                var f = c.GetField(name, BindingFlags.Instance | BindingFlags.Public
+                                         | BindingFlags.NonPublic | BindingFlags.DeclaredOnly);
+                if (f != null) return f;
+            }
+            return null;
+        }
+
+        private static string Esc(string s)
+        {
+            return s.Replace("\\", "\\\\").Replace("\"", "\\\"");
         }
     }
 }

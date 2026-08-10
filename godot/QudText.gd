@@ -6,11 +6,17 @@ extends RefCounted
 ##   &X             — running FOREGROUND colour for following text until the next &X (stateful)
 ##   ^X             — running background (we ignore it)
 ## `palette` maps a single-char code -> hex string.
+##
+## ...AND THE SPAN'S CODE IS NOT ALWAYS ONE CHARACTER. It can be a SHADER NAME —
+## {{rules|…}}, {{painted|…}}, {{rocket|…}} — and this file used to resolve those by taking
+## the first character, so `rules` became `r` and every rules line in every item description
+## came out dark red where Qud draws it light blue (reported 2026-08-10). Qud's own registry
+## is exported to shaders.json; see `_shader_table` and `_expand_shaders`.
 
 ## Render markup as Godot BBCode ([color=#hex]…[/color]), escaping stray '[' so text can't be read as
 ## BBCode. Unknown codes fall back to white.
 static func to_bbcode(s: String, palette: Dictionary) -> String:
-	s = cp437(s)
+	s = _expand_shaders(cp437(s))
 	var out := ""
 	var i := 0
 	var n := s.length()
@@ -89,8 +95,17 @@ static func strip(s: String) -> String:
 		i += 1
 	return out
 
+## A span code -> hex. A one-character code is a palette lookup; anything longer is a SHADER
+## NAME and must be resolved through the registry, never by its first letter -- that shortcut
+## is what painted `{{rules|…}}` dark red. `_expand_shaders` has already split the positional
+## kinds into per-character spans by the time this runs, so what arrives here is flat and
+## colors[0] is the whole answer. A name nothing answers to falls back to white, which is what
+## Qud's own renderer does with a shader it cannot find -- NOT to the first character.
 static func _hex(code: String, palette: Dictionary) -> String:
 	var c := code.substr(0, 1) if code.length() > 0 else ""
+	if code.length() > 1:
+		var sh := _shader(code)
+		c = str(sh.get("colors", " ")).substr(0, 1) if not sh.is_empty() else ""
 	var h := String(palette.get(c, ""))
 	return h.trim_prefix("#") if h != "" else "ffffff"
 
@@ -101,7 +116,7 @@ static func _hex(code: String, palette: Dictionary) -> String:
 ## NB: written without lambdas on purpose — GDScript closures capture by VALUE, so a
 ## `flush` lambda appends the string as it was when the lambda was created (empty).
 static func runs(s: String, palette: Dictionary, default_color := Color(1, 1, 1)) -> Array:
-	s = cp437(s)
+	s = _expand_shaders(cp437(s))
 	var out: Array = []
 	var stack: Array = []            # active {{ }} colours, innermost last
 	var amp_col: Color = default_color
@@ -164,8 +179,13 @@ static func runs(s: String, palette: Dictionary, default_color := Color(1, 1, 1)
 
 
 ## One Qud colour code -> Color (palette-resolved; `default_color` when unknown).
+## Same rule as `_hex`: one character is a palette code, more than one is a SHADER NAME and
+## gets resolved through the registry rather than by its first letter.
 static func color_of_code(code: String, palette: Dictionary, default_color := Color(1, 1, 1)) -> Color:
 	var c := code.substr(0, 1) if code.length() > 0 else ""
+	if code.length() > 1:
+		var sh := _shader(code)
+		c = str(sh.get("colors", " ")).substr(0, 1) if not sh.is_empty() else ""
 	var h := String(palette.get(c, ""))
 	if h == "":
 		return default_color
@@ -216,6 +236,96 @@ const GLYPHS := {
 	0xE809: "LMB",
 	0xE814: "RMB",
 }
+
+# ══ NAMED SHADERS ═══════════════════════════════════════════════════════════════════════
+# Qud's markup accepts a shader NAME where a colour code goes, and the shader decides the
+# colour PER CHARACTER. Exported by ColorsExporter off ConsoleLib.Console.MarkupShaders'
+# own registry (152 of them), so this tracks the game rather than a copy of Colors.xml:
+#   solid        colors[0] throughout
+#   sequence     colors[i % len]                — cycles per character
+#   alternation  colors[i * len / n]            — n equal bands across the run
+#   bordered     colors[1] on the first and last character, else colors[0]
+# All four are pure functions of position: nothing here is time-varying, so Raves can be
+# exact rather than approximate.
+static var _shaders: Dictionary = {}
+static var _shaders_tried := false
+
+static func _shader_table() -> Dictionary:
+	if not _shaders_tried:
+		_shaders_tried = true
+		var p := InputModel.support_dir().path_join("shaders.json")
+		if FileAccess.file_exists(p):
+			var f := FileAccess.open(p, FileAccess.READ)
+			if f != null:
+				var d: Variant = JSON.parse_string(f.get_as_text())
+				if d is Dictionary:
+					_shaders = d
+	return _shaders
+
+## The shader for a span code, or {} when the code is a plain one-character colour (or a name
+## nothing in the registry answers to).
+static func _shader(code: String) -> Dictionary:
+	if code.length() < 2:
+		return {}
+	var v: Variant = _shader_table().get(code, null)
+	return v if v is Dictionary else {}
+
+## The single-char colour code this shader paints character `i` of an `n`-character run with.
+## Mirrors ConsoleLib.Console.MarkupShaders one branch at a time; `/` is integer division in
+## GDScript exactly as in C#, so the alternation band arithmetic transfers verbatim.
+static func _shade_code(sh: Dictionary, i: int, n: int) -> String:
+	var cols := str(sh.get("colors", ""))
+	if cols == "":
+		return ""
+	var ln := cols.length()
+	match str(sh.get("kind", "solid")):
+		"sequence":
+			return cols[i % ln]
+		"alternation":
+			return cols[clampi(i * ln / maxi(n, 1), 0, ln - 1)]
+		"bordered":
+			return cols[1] if ln > 1 and (i == 0 or i == n - 1) else cols[0]
+		_:
+			return cols[0]
+
+## Rewrite every POSITIONAL shader span into one single-char span per character, so the two
+## parsers below need to know nothing about shaders — a `solid` name still resolves in `_hex`
+## as one flat span, which is the common case and much cheaper than a span per letter.
+##
+## Left alone when the run contains markup of its own or any sigil we would have to re-escape
+## ({ } | & ^): a shaded run is a leaf in practice, and guessing at a nested one would corrupt
+## the string. Those fall through to the flat colors[0] treatment, which is wrong only in the
+## same way it was before and never worse.
+static func _expand_shaders(s: String) -> String:
+	if s.find("{{") < 0 or _shader_table().is_empty():
+		return s
+	var out := ""
+	var i := 0
+	var n := s.length()
+	while i < n:
+		if i + 1 < n and s[i] == "{" and s[i + 1] == "{":
+			var bar := s.find("|", i + 2)
+			var close := s.find("}}", i + 2)
+			if bar >= 0 and close > bar:
+				var code := s.substr(i + 2, bar - (i + 2))
+				var sh := _shader(code)
+				var body := s.substr(bar + 1, close - (bar + 1))
+				if not sh.is_empty() and str(sh.get("kind", "solid")) != "solid" \
+						and body.length() > 0 and not _has_sigil(body):
+					for k in body.length():
+						var c := _shade_code(sh, k, body.length())
+						out += ("{{%s|%s}}" % [c, body[k]]) if c != "" else body[k]
+					i = close + 2
+					continue
+		out += s[i]
+		i += 1
+	return out
+
+static func _has_sigil(s: String) -> bool:
+	for ch in "{}|&^":
+		if s.find(ch) >= 0:
+			return true
+	return false
 
 static func cp437(s: String) -> String:
 	var out := s

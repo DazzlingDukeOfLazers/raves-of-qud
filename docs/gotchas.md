@@ -1681,3 +1681,81 @@ So the bridge carries two test commands:
 Category is not stored: `GetInventoryCategory()` raises an event that `Examiner` answers with
 `"Artifacts"` while `!Understood()`. Flipping understanding re-files the object with no further
 call, which is what makes the fixture a fair test of the export rather than a way of faking one.
+
+## A SPAN'S COLOUR CODE IS NOT ALWAYS ONE CHARACTER
+
+`{{rules|…}}`, `{{painted|…}}`, `{{rocket|…}}` — the code can be a SHADER NAME, and QudText
+resolved those by taking the first character. `rules` became `r`, so every rules line in every
+item description drew dark red where Qud draws it light blue
+(`<shader Name="rules" Type="solid" Colors="C"/>`). Reported 2026-08-10.
+
+Qud's registry (`ConsoleLib.Console.MarkupShaders`, 152 entries) is exported to `shaders.json` by
+`ColorsExporter`, name -> `{kind, colors}`. Each kind is a pure function of character position, so
+there is nothing time-varying to approximate:
+
+| kind | colour of character `i` of an `n`-character run |
+|---|---|
+| `solid` | `colors[0]` |
+| `sequence` | `colors[i % len]` |
+| `alternation` | `colors[i * len / n]` (integer division, as in C#) |
+| `bordered` | `colors[1]` on the first and last character, else `colors[0]` |
+
+`QudText._expand_shaders` rewrites the positional kinds into one single-char span per character
+before either parser runs, so `to_bbcode`/`runs` still know nothing about shaders and a `solid`
+name stays one flat span. A run containing its own markup or a `{ } | & ^` is left alone rather
+than re-escaped.
+
+**An unknown multi-character code falls back to WHITE, never to its first letter.** That shortcut
+is the bug; Qud's own renderer leaves a shader it cannot find uncoloured.
+
+## PRE-COMPENSATE A MEASURED COLOUR, NOT AN EXTRACTED SPRITE
+
+`QudChrome.brighten()` pushes pixels through `INV` so Raves' canvas sag lands them on a target.
+That is right for a colour **measured off a Qud capture** — that number is Qud's OUTPUT, so it is
+the target. It is wrong for an **extracted sprite**, whose texels are Qud's INPUT: Qud's own canvas
+sags them by the same curve on the way to the screen, so drawing them RAW reproduces Qud exactly
+and brightening them first cancels Qud's sag and leaves the art ~12% too light.
+
+Measured on the status screens' divider ornament (2026-08-10), all three channels:
+
+```
+texel (58,80,92)  ->  Qud draws (51,70,82)
+QudChrome.INV[51]=58   INV[70]=80   INV[82]=92
+```
+
+The forward curve maps the raw texel onto Qud's screen value on the nose, three for three. With
+`brighten` removed the ornament's mean per-channel difference against Qud fell 10.87 -> 1.36 and
+the knob became pixel-identical.
+
+`StatusScreens._load_tile_sprite` is the corrected path. **The other extracted-sprite call sites
+have NOT been rechecked** — the status tab icons still go through `brighten` — so treat that as an
+open question rather than a settled one.
+
+### Residual, recorded rather than chased
+14 of 518 opaque ornament pixels still differ (max 53), all on the sprite's 1px dashed detail rows
+(52, 75, 85, 88). Qud draws this Image at `y=516.5` — a half pixel — so Unity's bilinear softens
+exactly those single-pixel details while leaving solid blocks alone. Matching it would mean
+reproducing a Qud rendering artefact.
+
+## INTERIOR COLUMN DIVIDERS ARE FRAME CHROME, NOT PANE CHROME
+
+An old note in `StatusScreens` said interior dividers "belong to the panes". They do not, and no
+pane drew them: the equipment tab ran its item list straight up against the paper doll and
+tinkering had nothing between its three columns. They are in `TAB_VDIV` now, beside `TAB_VRULES`.
+
+Read the geometry off Qud's own RectTransforms (`hv bridge uiprobe target=StatusScreensScreen`),
+never off a screenshot — the dump names the rule halves (`VLine`/`Image`), the 7x7
+`polat-center-divider-knob` caps and the 40x122 `polat-vertical-divider-decoration`, with exact
+positions. **Equipment and tinkering assemble the same parts differently** (equipment inserts 11px
+spacers and two inner knobs, tinkering butts the ornament straight onto both halves and caps only
+the outer ends) — do not tidy them into one shape.
+
+`hv bridge sprite img=<sprite-name> file=<dest.png>` extracts any named sprite off whatever Image
+is drawing it, so new chrome no longer needs a mod edit and a restart. Note `img=`, **not** `name=`:
+`name` is the command key in the same field bag, so asking for it back hands you the string
+"sprite".
+
+**Sprite y positions must be floored before drawing.** Qud's RectTransforms sit on half pixels and
+Unity lands them on the pixel grid; drawn at the raw `y`, Godot blends each row across two and the
+ornament grows a faint copy of every edge (measured: extra lit runs at 568/572 where Qud has bare
+background). The frame Control is `TEXTURE_FILTER_NEAREST` for the same reason.
