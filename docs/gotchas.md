@@ -1384,7 +1384,21 @@ fires at once — on whatever the ids resolve to by then. Measured 2026-08-09: a
 opened for a "cracked lens" nobody had clicked.
 
 `Bridge.GameQueueDraining(out view)` is the check; `InventoryExporter.Twiddle` refuses and logs
-rather than queueing. Two things follow for anyone driving the pair:
+rather than queueing. Since 2026-08-10 the same refusal also sits on the RECEIVE path:
+`OnPayload`'s fall-through — every command not handled inline on the socket thread — used to
+`Server.Incoming.Enqueue` unconditionally, and Incoming drains on the same parked turn thread
+(Tick/TickRender), so a `navclick`, `interact`, `moveto`, `nearby` or `wish` sent while Qud sat
+on the Book logged *nothing* and fired the moment the popup chain cleared. Measured before the
+fix: a LookButton press sent on the Book pressed itself after play resumed. Now the fall-through
+asks `GameQueueDraining` first and refuses loudly, naming the command and the screen. The inline
+handlers stay exempt on purpose — each already runs on a queue that drains (`uiQueue`) or wakes
+the turn thread itself (`Keyboard.PushCommand`/`PushKey`).
+
+(A correction to an earlier belief: `invaction` is handled INLINE on the socket thread, so
+Twiddle's guard fires on any screen, the Book included — measured. The gap was never the click
+path; it was the fall-through set.)
+
+Two things follow for anyone driving the pair:
 
 - **Don't leave Qud parked** after a parity capture. `hv goto qud in_game` when you are done.
 - **A "regression" in a click path is worth testing against Qud in play first.** Also check the

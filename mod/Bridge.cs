@@ -576,10 +576,11 @@ namespace RavesOfQud
         /// </summary>
         private static void OnPayload(string json)
         {
+            string name = null;   // hoisted: the fall-through guard below names the command it refuses
             try
             {
                 var f = MiniJson.ParseFlat(json);
-                f.TryGetValue("name", out string name);
+                f.TryGetValue("name", out name);
                 if (name == "popup")
                 {
                     // Answer a mirrored Qud popup (dismiss / pick option / submit text). Marshals onto the
@@ -1468,7 +1469,28 @@ namespace RavesOfQud
                 }
             }
             catch (Exception e) { try { Server.Log("onpayload error: " + e.Message); } catch { } }
-            // not consumed inline -> hand to the main-thread drain
+            // not consumed inline -> hand to the main-thread drain. REFUSE instead when nobody
+            // is draining it: Tick (EndTurnEvent) and TickRender (BeforeRenderEvent) both run
+            // off the TURN thread, so while Qud sits on a popup, a status screen, the Looker or
+            // the Book, an enqueued command does not fail — it WAITS, silently, and then fires
+            // the moment play resumes, on whatever the screen is by then. Measured twice: an
+            // interaction menu opened for a cracked lens nobody had clicked (2026-08-09), and a
+            // navclick sent while Qud was on the Book logged nothing at send time and pressed
+            // the Look button when the popup chain cleared (2026-08-10). This is Twiddle's
+            // refusal one layer down, covering every fall-through command at once; the inline
+            // handlers above are exempt because each already runs on a queue that drains
+            // (uiQueue) or wakes the turn thread itself (Keyboard.PushCommand/PushKey).
+            string parkedView;
+            if (!GameQueueDraining(out parkedView))
+            {
+                string msg = "refused '" + (name ?? "?") + "': Qud is on " + parkedView
+                    + ", where the turn thread is parked and Server.Incoming never drains —"
+                    + " the command would sit and fire late on whatever screen comes next."
+                    + " Leave that screen (hv back / hv goto qud in_game) and retry.";
+                System.Console.WriteLine("[raves] " + msg);
+                try { Server?.Log(msg); } catch { }
+                return;
+            }
             Server.Incoming.Enqueue(json);
         }
 
