@@ -235,6 +235,82 @@ namespace RavesOfQud
             return null;
         }
 
+        /// <summary>Identify carried artifacts OUTRIGHT — the test fixture for "an identified item
+        /// must leave Artifacts for its real category".
+        ///
+        /// WHY THIS EXISTS RATHER THAN "just examine it in the menu": identification is the one
+        /// event that re-files an item under you, so it is the event every list-refresh bug hides
+        /// behind — and the only in-game way to reach it is Tinkering's `examine`, which lives
+        /// INSIDE the item menu, takes several tries per item at a random rate, and (2026-08-10)
+        /// drops the item the moment it succeeds. A probe that has to survive three popups and a
+        /// dice roll to observe one boolean is not a probe. This flips the boolean directly.
+        ///
+        /// Category is not stored anywhere: `GetInventoryCategory()` raises an event that
+        /// `Examiner` answers with "Artifacts" while `!Understood()`, so understanding the object
+        /// re-files it with no further call. That is exactly what makes this a fair test of the
+        /// EXPORT rather than a way of faking one.
+        ///
+        /// Turn thread, like Twiddle -- it mutates game objects and then re-exports.</summary>
+        public static void Identify(string id, bool all)
+        {
+            var gm = GameManager.Instance;
+            if (gm == null || gm.gameQueue == null) return;
+            string parkedView;
+            if (!Bridge.GameQueueDraining(out parkedView))
+            {
+                string msg = "identify refused: Qud is on " + parkedView
+                    + ", where the turn thread is parked and gameQueue never drains.";
+                System.Console.WriteLine("[raves] " + msg);
+                try { Bridge.Server?.Log(msg); } catch { }
+                return;
+            }
+            gm.gameQueue.queueSingletonTask("raves identify", () =>
+            {
+                try
+                {
+                    GameObject p = XRL.The.Player;
+                    if (p == null) return;
+                    var targets = new List<GameObject>();
+                    if (all)
+                    {
+                        var inv = p.Inventory;
+                        if (inv != null)
+                            foreach (GameObject go in inv.GetObjectsDirect())
+                                if (go != null && !go.Understood()) targets.Add(go);
+                    }
+                    else
+                    {
+                        GameObject one = FindById(p, id);
+                        if (one == null)
+                        {
+                            System.Console.WriteLine("[raves] identify: no object with id " + id);
+                            return;
+                        }
+                        targets.Add(one);
+                    }
+                    int done = 0;
+                    foreach (GameObject go in targets)
+                    {
+                        // Snapshot the BEFORE category: the whole point of the fixture is the pair,
+                        // and after the call there is no way to ask what it used to be.
+                        string was = "?";
+                        try { was = go.GetInventoryCategory() ?? "?"; } catch { }
+                        bool changed = false;
+                        try { changed = go.MakeUnderstood(); } catch { }
+                        if (!changed) continue;
+                        done++;
+                        string now = "?";
+                        try { now = go.GetInventoryCategory() ?? "?"; } catch { }
+                        System.Console.WriteLine("[raves] identify " + go.ID + " "
+                            + go.DisplayNameOnlyStripped + ": " + was + " -> " + now);
+                    }
+                    System.Console.WriteLine("[raves] identify: " + done + " of " + targets.Count);
+                    ReExport();
+                }
+                catch (Exception e) { System.Console.WriteLine("[raves] identify error: " + e.Message); }
+            });
+        }
+
         public static void ReExport()
         {
             try { Export(); }

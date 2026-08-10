@@ -94,6 +94,9 @@ const TICK_H := 14.0
 ## 407 and resumes at 1512 -- g = 552.5 = 1087/2 + 9 -- while Raves still drew 378.5 and struck
 ## through three cells on each side. Same defect as FILT_MAX_CELLS one file over: a number read off
 ## one save, mistaken for geometry. Journal and tinkering carry no strip, so theirs stay fixed.
+## How often an open tab re-reads its export. Inherited from the one-shot follow-ups this
+## replaced; fast enough that a re-file lands within a blink, and one mtime stat per tick.
+const PANE_POLL_S := 1.2
 const TOP_GAP_PAD := 9.0
 const TAB_TOPGAP := {
 	"equipment":  378.5,   # fallback only, for the frame drawn before the pane has data
@@ -338,6 +341,41 @@ void fragment() {
 	hc.add_child(_hint)
 	_root.add_child(hc)
 	_build_hints()
+
+	# THE POLL THAT USED TO STOP. Every loader ended with a one-shot `create_timer(1.2)`
+	# that re-armed itself -- but on the SUCCESS path only, below the `mt == _..._mtime`
+	# early return. So the chain died the first time the file had not changed, which is
+	# the normal case one tick after opening a tab, and from then on the pane showed
+	# whatever it had read at open time until the tab was left and re-entered.
+	#
+	# Identifying an artifact is the sharp case (reported 2026-08-10): Qud re-files the
+	# object out of Artifacts into its real category, the mod re-exports -- and Raves went
+	# on drawing "Artifacts / odd trinket" against an inventory.json that already said
+	# "Trade Goods / gyre iron". A REPEATING timer is re-armed by the engine rather than by
+	# the code path that just decided there was nothing to do, so it cannot stop.
+	var poll := Timer.new()
+	poll.name = "PanePoll"
+	poll.wait_time = PANE_POLL_S
+	poll.autostart = true
+	poll.timeout.connect(_poll_panes)
+	add_child(poll)
+
+## Re-read the ACTIVE tab's export. One file's mtime per tick -- cheap, and the only tab
+## whose pane anyone can see. Deliberately does NOT _request_export(): that re-exports
+## every screen in the game (blueprints, tiles, records) and belongs on a tab switch, not
+## on a heartbeat. The mod already re-exports the inventory after anything Raves drives
+## through it (Twiddle, Identify), so the fresh file is there to be found.
+func _poll_panes() -> void:
+	if not visible:
+		return
+	match _tab:
+		"attributes": _load_character()
+		"skills":     _load_skills()
+		"equipment":  _load_inventory()
+		"quests":     _load_quests()
+		"reputation": _load_factions()
+		"journal":    _load_journal()
+		"tinkering":  _load_tinkering()
 
 
 ## Rebuild the bottom hint bar for the active tab (Qud's changes per screen).
@@ -629,10 +667,6 @@ func _load_character() -> void:
 	_pane_pal_empty = _palette.is_empty()
 	_attr_pane.setup(data, _palette, tex)
 	_attr_pane.visible = (_tab == "attributes")
-	# fresh export may land AFTER this read — poll the mtime once more shortly
-	get_tree().create_timer(1.2).timeout.connect(func():
-		if visible and _tab == "attributes":
-			_load_character())
 
 ## (Re)build the Skills pane from skills.json when it changes (same guards as the
 ## character sheet: mtime, plus a rebuild once the palette lands).
@@ -664,9 +698,6 @@ func _load_skills(force := false) -> void:
 	_skills_pane.setup(data, _palette)
 	_skills_pane.set_portrait(_portrait_tex)   # Qud's header Icon; null until character.json lands
 	_skills_pane.visible = (_tab == "skills")
-	get_tree().create_timer(1.2).timeout.connect(func():
-		if visible and _tab == "skills":
-			_load_skills())
 
 
 
@@ -816,9 +847,6 @@ func _load_inventory(force := false) -> void:
 	# changes width — a category emptying out or appearing moves both ends of the gap.
 	if _frame != null:
 		_frame.queue_redraw()
-	get_tree().create_timer(1.2).timeout.connect(func():
-		if visible and _tab == "equipment":
-			_load_inventory())
 
 # ── open / close / input ───────────────────────────────────────────────────────
 

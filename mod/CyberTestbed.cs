@@ -35,6 +35,36 @@ namespace RavesOfQud
         /// credit wedges. Shares ZooBuilder's selector rather than re-deriving the set: "implants"
         /// there is already `bp.HasPart("CyberneticsBaseItem")`, which is the same predicate the
         /// terminal's own install list is built from.
+        /// Put `n` implants straight into the PLAYER'S PACK, unidentified.
+        ///
+        /// The chest below is the right fixture for the terminal (that is where Qud expects the
+        /// parts to live) and the wrong one for the INVENTORY SCREEN, which can only show what is
+        /// carried -- and there is no cheap way from the harness to get a chest's contents into the
+        /// pack (walking onto it does not take them; only currency is auto-taken). An unidentified
+        /// artifact in the pack is the starting state for every "identification re-files the item"
+        /// test, so it needs a one-command source.
+        public static string Carry(GameObject player, int n)
+        {
+            if (player == null) return "no player";
+            int added = 0;
+            foreach (string bp in ZooBuilder.Select("implants"))
+            {
+                if (added >= n) break;
+                try
+                {
+                    GameObject o = GameObjectFactory.Factory.CreateObject(bp);
+                    if (o == null) continue;
+                    // Do NOT touch Understood here: a freshly built implant carries its Examiner
+                    // unidentified, which is the whole point -- it enters the list as "weird
+                    // artifact" under Artifacts, exactly as one looted from a ruin would.
+                    player.Inventory.AddObject(o);
+                    added++;
+                }
+                catch { }
+            }
+            return "carried " + added + " unidentified implants";
+        }
+
         public static string Build(GameObject player, int wedges)
         {
             if (player == null) return "no player";
