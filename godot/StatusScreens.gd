@@ -69,12 +69,24 @@ var _root: Control           # full-rect content root inside this layer
 ## centred on 959.5. The other five draw no top rule, and we were drawing the equipment tab's on all
 ## eight.
 const TOP_CENTRE := 959.5
-## Where the top rule's LEFT segment stops. The rule RESUMES at 213 on every tab that draws one, so
-## it is only this end that moves: 204 on equipment and tinkering, 208 on journal. The notch is
-## therefore 8px wide on those two and 4px on the journal -- not a fixed notch that shifts.
-const TOP_LEFT_END := {"journal": 208.0}
-const TOP_LEFT_END_DEFAULT := 204.0
+## EVERY GAP IN THE TOP RULE IS BRACKETED BY A TICK -- a 1px column, 14 tall, at y=190. Qud's
+## CategoryBar carries them as `VBar` children either side of each spacer, and there are six on a
+## tab that draws a rule: the left notch, the centred gap the carousel sits in, and the right notch.
+## Reported as "carousel bar on the right-hand side has ---| |---", and it does.
+##
+## Measured off Qud's journal screen, column by column: the rule runs to 203, a tick occupies 204
+## (rows 190..203), the gap is 205..212, a tick occupies 213, the rule resumes at 214. Same shape at
+## 726 / 1193 around the carousel and at 1705 / 1714 at the right end. Raves drew the rule THROUGH
+## those six columns, so the ticks read as a rule that simply stopped.
+##
+## This also retires the per-tab TOP_LEFT_END. The journal was recorded at 208 where the other two
+## tabs were 204 -- one tab out of three disagreeing about a fixed notch should have been the tell.
+## Qud's own probe puts its VBars at 204.5/213.5 on the journal too; the 208 was the rule and its
+## tick read as one run.
+const TOP_LEFT_END := 204.0
 const TOP_RESUME := 213.0
+const TICK_Y := 190.0
+const TICK_H := 14.0
 const TAB_TOPGAP := {
 	"equipment":  378.5,
 	"journal":    233.5,
@@ -235,10 +247,17 @@ void fragment() {
 		# tab's header block. Five tabs draw no top rule at all.
 		var g: float = TAB_TOPGAP.get(_tab, -1.0)
 		if g > 0.0:
-			var lend: float = TOP_LEFT_END.get(_tab, TOP_LEFT_END_DEFAULT)
-			for seg in [[158.0, lend], [TOP_RESUME, TOP_CENTRE - g],
-					[TOP_CENTRE + g, 1705.0], [1714.0, 1760.0]]:
-				frame.draw_rect(Rect2(seg[0], 197.0, seg[1] - seg[0] + 1.0, 1.0), S_RULE)
+			# The three gaps, as [first tick column, last tick column]. Everything else follows:
+			# a rule segment fills each span BETWEEN gaps, and a tick stands on each gap edge.
+			var gaps := [[TOP_LEFT_END, TOP_RESUME], [TOP_CENTRE - g, TOP_CENTRE + g],
+				[1705.0, 1714.0]]
+			var from := 158.0
+			for gap in gaps:
+				frame.draw_rect(Rect2(from, 197.0, gap[0] - from, 1.0), S_RULE)
+				for tx in gap:
+					frame.draw_rect(Rect2(tx, TICK_Y, 1.0, TICK_H), S_RULE)
+				from = gap[1] + 1.0
+			frame.draw_rect(Rect2(from, 197.0, 1762.0 - from, 1.0), S_RULE)
 		# The verticals belong to the TAB, not the frame -- see TAB_VRULES.
 		for r in TAB_VRULES.get(_tab, []):
 			frame.draw_rect(Rect2(r[0], r[1], 1.0, r[2] - r[1] + 1.0), S_RULE)

@@ -145,7 +145,7 @@ const FILT_BADGE_EX := 1310.0
 const FILT_SPAN_FULL := 739.0       # span at FILT_MAX_CELLS cells (the measured reference)
 const FILT_CENTRE := 959.5          # screen centre; Qud keeps the strip on it
 const FILT_ALL_DX := 28.0           # ALL cell offset from the Q badge (618 - 590)
-const FILT_BADGE_EDX := 720.0       # E badge offset from the Q badge at full span (1310 - 590)
+const FILT_BADGE_GAP := 8.0         # Qud's "8px Spacer" between a badge and the cell run
 
 ## Left edge of the strip for `cells` drawn cells (ALL + categories), centred like Qud's.
 ## Reproduces the reference exactly at FILT_MAX_CELLS: 959.5 - 739/2 = 590.
@@ -357,12 +357,40 @@ func _filt_color(on: bool, focused: bool) -> Color:
 ## Qud's category filter strip: the ALL cell then one per category, each showing
 ## that category's first item as its icon. Selecting a filter is a later slice —
 ## this draws the strip Qud shows above the panes.
+## The cells the strip will DRAW, in Qud's order. Separated from the drawing so the count is known
+## before the layout is centred -- see _draw_filter_strip. Order is QUD'S (`filterOrder`: the
+## category of the alphabetically-first item), which differs from the list's alphabetical order.
+func _filter_strip(cats: Array) -> Array:
+	var by_name := {}
+	for c in cats:
+		by_name[str(c.get("name", ""))] = c
+	var strip: Array = []
+	for ent in _data.get("filterOrder", []):
+		var nm := str(ent.get("name", "")) if ent is Dictionary else str(ent)
+		var cell: Dictionary = (by_name[nm] as Dictionary).duplicate() if by_name.has(nm) else {"name": nm}
+		# an equipped-only category (Clothes) has no list entry — take Qud's icon
+		if ent is Dictionary and str(ent.get("icon", "")) != "":
+			cell["icon"] = str(ent["icon"])
+		# ...and its LIVE frame colour, which likewise rides on the filterOrder entry:
+		# `cell` is copied from the category list, which has no such field, so without
+		# this the strip silently kept deriving the colour it was meant to stop deriving
+		if ent is Dictionary and str(ent.get("color", "")) != "":
+			cell["color"] = str(ent["color"])
+		strip.append(cell)
+	return cats if strip.is_empty() else strip
+
 func _draw_filter_strip() -> void:
 	var cats: Array = _data.get("categories", [])
 	_filt_rects.clear()
-	# Centre the strip on the count Qud would draw: the ALL cell plus one per category,
-	# capped at FILT_MAX_CELLS (the rest are on Qud's other page).
-	var _cells := mini(cats.size() + 1, FILT_MAX_CELLS)
+	# BUILD THE STRIP FIRST, then measure it. The count that centres the strip and places the [E]
+	# badge has to be the count actually DRAWN, and `categories` is not it: the cells come from
+	# `filterOrder`, which can carry a category the list has none of (an equipped-only one such as
+	# Clothes -- the loop below has always known that, which is why it takes the icon off the order
+	# entry). Sizing on `cats` under-counted by one such category, so the strip drew 58px wider than
+	# the layout was centred for and the [E] landed ON the final cell instead of beside it.
+	# Reported as "the E display is over the final carousel, not to the right."
+	var strip := _filter_strip(cats)
+	var _cells := mini(strip.size() + 1, FILT_MAX_CELLS)
 	var _left := _filt_left(_cells)
 	var x := _left + FILT_ALL_DX
 	# the ALL cell — gold-framed while no category filter is enabled (Qud's "*All")
@@ -388,26 +416,11 @@ func _draw_filter_strip() -> void:
 	# which differs from the list's alphabetical category order
 	# the paging hotkeys that bound the strip
 	_draw_filt_badge(_left, "Q")
-	_draw_filt_badge(_left + FILT_BADGE_EDX - float(FILT_MAX_CELLS - _cells) * FILT_PITCH, "E")
-	var order: Array = _data.get("filterOrder", [])
-	var by_name := {}
-	for c in cats:
-		by_name[str(c.get("name", ""))] = c
-	var strip: Array = []
-	for ent in order:
-		var nm := str(ent.get("name", "")) if ent is Dictionary else str(ent)
-		var cell: Dictionary = (by_name[nm] as Dictionary).duplicate() if by_name.has(nm) else {"name": nm}
-		# an equipped-only category (Clothes) has no list entry — take Qud's icon
-		if ent is Dictionary and str(ent.get("icon", "")) != "":
-			cell["icon"] = str(ent["icon"])
-		# ...and its LIVE frame colour, which likewise rides on the filterOrder entry:
-		# `cell` is copied from the category list, which has no such field, so without
-		# this the strip silently kept deriving the colour it was meant to stop deriving
-		if ent is Dictionary and str(ent.get("color", "")) != "":
-			cell["color"] = str(ent["color"])
-		strip.append(cell)
-	if strip.is_empty():
-		strip = cats
+	# ...and the [E] sits one 8px spacer past the LAST cell. Spelled as the run it has to clear
+	# rather than as an offset from the [Q] at full span: the old form was algebraically the same
+	# but only when `_cells` was right, and it read as a constant, which is what let a wrong count
+	# hide in it. Reproduces the reference exactly at FILT_MAX_CELLS -- 618 + 684 + 8 = 1310.
+	_draw_filt_badge(x + float(_cells - 1) * FILT_PITCH - (FILT_PITCH - FILT_W) + FILT_BADGE_GAP, "E")
 	for cat in strip:
 		if _filt_rects.size() >= FILT_MAX_CELLS:
 			break            # the rest are on Qud's other page (see FILT_MAX_CELLS)
