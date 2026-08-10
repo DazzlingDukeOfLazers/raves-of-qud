@@ -1613,6 +1613,30 @@ namespace RavesOfQud
                     }
                     catch (Exception e) { Server.Log("zoo error: " + e.Message); }
                     break;
+                case "cyberchest":
+                    // Cybernetics test fixture: a chest of every implant + credit wedges on an
+                    // adjacent cell. MAIN-THREAD ONLY, same contract as "zoo".
+                    try
+                    {
+                        f.TryGetValue("wedges", out string cwStr);
+                        int cw = 20;
+                        if (!string.IsNullOrEmpty(cwStr)) int.TryParse(cwStr, out cw);
+                        Server.Log("[cyberchest] " + CyberTestbed.Build(player, cw));
+                    }
+                    catch (Exception e) { Server.Log("cyberchest error: " + e.Message); }
+                    break;
+                case "cyberlicense":
+                    // Grant licence TIERS outright. Not an item -- `CyberneticsLicenses` is an int
+                    // property on the player, and Qud's own upgrade is ModIntProperty(...,1).
+                    try
+                    {
+                        f.TryGetValue("n", out string clStr);
+                        int cl = 1;
+                        if (!string.IsNullOrEmpty(clStr)) int.TryParse(clStr, out cl);
+                        Server.Log("[cyberlicense] " + CyberTestbed.Grant(player, cl));
+                    }
+                    catch (Exception e) { Server.Log("cyberlicense error: " + e.Message); }
+                    break;
                 case "check":
                     // Object Checker stage (phase2 Workstream A): clear a small rect,
                     // place ONE blueprint, park the player adjacent, write ground truth
