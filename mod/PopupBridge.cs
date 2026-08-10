@@ -132,7 +132,7 @@ namespace RavesOfQud
         /// change, so a viewer that connects — or a rebuilt Raves that reconnects — WHILE a modal is up
         /// would otherwise never learn of it (the turn thread is blocked, so no snapshot flows either).
         /// Flag a one-shot re-broadcast of the current popup on the next poll.</summary>
-        public static void OnClientConnect() { _resend = true; PickerBridge.OnClientConnect(); }
+        public static void OnClientConnect() { _resend = true; PickerBridge.OnClientConnect(); CyberBridge.OnClientConnect(); }
 
         // ---- watcher liveness ------------------------------------------------------------
         // `_pumping` on its own is a flag that cannot fail. The watcher is a task that
@@ -401,6 +401,10 @@ namespace RavesOfQud
             // turn thread exactly like a popup does, so the UI-thread pump is the only place either can be
             // read. Poll it FIRST — a picker can be up with no popup, and vice versa; they are independent.
             try { PickerBridge.Poll(server); } catch (Exception e) { Log("picker poll: " + e.Message); }
+            // The cybernetics/generic TERMINAL rides the same watcher, and must: it parks the
+            // turn thread exactly like the popup and the picker do, so this is the only pump
+            // still running while it is up.
+            try { CyberBridge.Poll(server); } catch (Exception e) { Log("cyber poll: " + e.Message); }
 
             PopupMessage pm = FindVisiblePopup(false);
             // Believed-active but not found? FORCE the full scan before declaring a

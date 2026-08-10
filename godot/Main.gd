@@ -40,6 +40,7 @@ var _wish_layer: CanvasLayer    # Ctrl+Shift+W wish prompt overlay (built lazily
 var _wish_edit: LineEdit
 var _popup: PopupOverlay        # mirrors Qud modal popups forwarded by the mod (own file)
 var _item_picker: PickerOverlay # mirrors Qud's PickGameObjectScreen (empty-slot equip picker)
+var _cyber: Control            # mirrors Qud's cybernetics TERMINAL (the becoming nook)
 var overlay_check: Callable = Callable()   # MainFrame: "is a frame overlay (status/controlmap) open?"
 # Click-to-travel: where the left button went down, and how far it may travel and still count as a
 # click rather than a camera-orbit drag. 6 px is a hand tremor at the trackpad; an orbit is tens.
@@ -187,6 +188,7 @@ func _ready() -> void:
 	client.popup.connect(_on_popup)
 	client.qud_view.connect(func(v: String) -> void: qud_view_changed.emit(v))
 	client.picker.connect(_on_picker)
+	client.cyber.connect(_on_cyber)
 	client.connected.connect(_on_bridge_connected)
 
 	_sky_grade = load("res://SkyGrade.gd").new()   # day/night atmosphere: WorldEnvironment + grade + sun/moon
@@ -227,6 +229,10 @@ func _ready() -> void:
 
 	# Item picker (its own file): Qud's PickGameObjectScreen — what an EMPTY paper-doll slot
 	# raises. It is a screen, not a PopupMessage, so it arrives on its own channel.
+	_cyber = load("res://CyberOverlay.gd").new()
+	add_child(_cyber)
+	_cyber.answered.connect(func(payload: Dictionary):
+		client.send_command("cyber", payload))
 	_item_picker = PickerOverlay.new()
 	add_child(_item_picker)
 	_item_picker.closed.connect(func(): popup_closed.emit())
@@ -348,6 +354,16 @@ func _on_picker(data: Dictionary) -> void:
 		_item_picker.show_picker(data, _palette)
 	else:
 		_item_picker.hide_picker()
+
+## Qud's cybernetics terminal, mirrored. Same parked-turn-thread story as the popup and the
+## picker — the screen awaits its own completionSource, so this channel is the only word we get.
+func _on_cyber(data: Dictionary) -> void:
+	if _cyber == null:
+		return
+	if bool(data.get("active", false)):
+		_cyber.show_terminal(data, _palette)
+	else:
+		_cyber.hide_terminal()
 
 func _on_snapshot(data: Dictionary) -> void:
 	# Data-freshness beacon for the test rig: the UI heartbeat proves the
@@ -832,6 +848,7 @@ func _playfield_cell(pos: Vector2) -> Variant:
 func _modal_owns_input() -> bool:
 	return (_popup != null and _popup.visible) \
 		or (_item_picker != null and _item_picker.visible) \
+		or (_cyber != null and _cyber.visible) \
 		or (overlay_check.is_valid() and bool(overlay_check.call()))
 
 ## Inspect from a multi-view pane: raycast with that pane's camera + the pane-local mouse
@@ -1150,6 +1167,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		# `_binds.match_event`, which runs whatever the player has bound -- so it is all off-limits
 		# while someone is typing.
 		if TypingGuard.typing(get_viewport()):
+			return
+		# THE TERMINAL EATS KEYS FIRST while it is up: it is a modal, and arrows/Space/Esc mean
+		# navigate/accept/quit INSIDE it, not move/wait/system-menu in the game underneath.
+		if _cyber != null and _cyber.visible and _cyber.handle_key(event):
+			get_viewport().set_input_as_handled()
 			return
 		# Shift+Space: wait a turn in Qud (a Godot->Qud passthrough). Takes a turn for now.
 		if event.shift_pressed and event.keycode == KEY_SPACE:

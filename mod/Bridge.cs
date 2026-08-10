@@ -588,6 +588,17 @@ namespace RavesOfQud
                     PopupBridge.HandleCommand(f);
                     return;
                 }
+                if (name == "cyber")
+                {
+                    // Answer the mirrored cybernetics/generic TERMINAL. Socket-thread dispatch like
+                    // `popup`: the screen parks the turn thread, so Server.Incoming is asleep and
+                    // CyberBridge marshals onto the uiQueue itself.
+                    f.TryGetValue("action", out string cyAct);
+                    f.TryGetValue("index", out string cyIdx);
+                    if (cyAct == "quit") CyberBridge.Quit();
+                    else if (int.TryParse(cyIdx, out int ci)) CyberBridge.Select(ci);
+                    return;
+                }
                 if (name == "statusscreen")
                 {
                     // Open Qud's status screens at a TAB INDEX, first-party.
@@ -1341,6 +1352,8 @@ namespace RavesOfQud
                                     UiProbe.ExportLoadedSprite("polat-center-divider-knob", "deco_knob.png");   // divider endcap diamond
                                 if (!System.IO.File.Exists(System.IO.Path.Combine(TileExporter.Dir, "skills_divider.png")))
                                     UiProbe.ExportLoadedSprite("polat-vertical-divider-decoration", "skills_divider.png");   // the tree/sword emblem + dot triangles
+                                if (!System.IO.File.Exists(System.IO.Path.Combine(TileExporter.Dir, "term_header.png")))
+                                    UiProbe.ExportLoadedSprite("polat-frame-reverse-top-header", "term_header.png");   // the terminal rule's NOTCHED centre piece
                                 if (!_clocksExported && TitleExporter.ExportTimeClocks()) _clocksExported = true;  // day/night sky discs (resident once a HUD has existed)
                                 GlyphExporter.EnsureExported();  // Qud's PUA input-glyph font, as a BMFont for Raves
                                 Server.Log("[export] re-exported (menu path) chargen chrome");
