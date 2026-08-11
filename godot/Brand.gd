@@ -17,7 +17,10 @@ const GAME_NAME := "Raves of Qud"
 ## worthless, so this has to be bumped WITH the tag, not after it.
 const RAVES_VERSION := "0.8.0"
 const GAME_TAGLINE := "a 3D viewer for Caves of Qud"
-const ORG_NAME := "«the organization that makes Raves of Qud»"   # placeholder
+## Spelled "Mutant Factory" — two words, matching mutantfactory.net and the 13 uses on the site.
+## The GitHub org is `MutantFactory` (no space) because GitHub logins cannot contain one; that is a
+## handle, not the name, and display text should use this constant rather than the handle.
+const ORG_NAME := "Mutant Factory"
 const LICENSE := "MIT"
 
 ## The base Caves of Qud release this 1:1 build was reconstructed against — shown on the
