@@ -672,6 +672,14 @@ func _append_record(text: String) -> void:
 	# ...unless the reporter said not to. A screenshot is the one part of this payload that can
 	# carry something they did not mean to send, so it is the one part they can drop, and the
 	# record says which they chose rather than leaving a reader to infer it from an absent file.
+	# [deleteme] — THE TEST-REPORT MARKER. Verifying this feature means filing reports through it,
+	# and ten of those landed in the real outbox on 2026-08-10 and had to be picked out by hand
+	# afterwards. A marker in the NOTE is the affordance (anyone can type it, on any machine, with
+	# no tooling); `test` is the machine contract, resolved once here so no consumer has to
+	# string-match. Readers skip these — see tools/feedback.py — and the server should drop them at
+	# the door rather than store and filter.
+	if text.to_lower().contains("[deleteme]"):
+		rec["test"] = true
 	rec["shot_attached"] = _attach_shot
 	if _thumb != null and _attach_shot:
 		var dir := InputModel.support_dir().path_join("feedback")

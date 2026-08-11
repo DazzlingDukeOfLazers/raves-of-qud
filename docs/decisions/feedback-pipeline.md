@@ -121,6 +121,27 @@ being asked to agree to it, and long enough to wrap the panel off the screen.
 payload, less incidental PII, and — for this project specifically — less of Caves of Qud's
 artwork, which this repo ships none of and must not start hosting.
 
+## `[deleteme]` — test reports mark themselves
+
+Verifying this feature means filing reports through it, and ten of those landed in the real outbox
+on 2026-08-10 and had to be picked out by hand. So a note containing **`[deleteme]`** is a test
+report:
+
+- the **marker in the note** is the affordance — anyone can type it, on any machine, with no tooling;
+- **`test: true`** in the envelope is the machine contract, resolved once at write time so no
+  consumer has to string-match;
+- readers skip them by default (`tools/feedback.py`, `--all` to show), and **the server should drop
+  them at the door** rather than store and filter.
+
+Readers should check the substring as well as the flag: records written before the flag existed
+carry only the text.
+
+## Reading the outbox
+
+`tools/feedback.py` is the triage side — newest-first, or `groups` to sort by `element_key` so the
+thing several people hit rises to the top. Reports from before `element_key` existed fall back to
+`scene`, which is why the historical groups are coarse.
+
 ## The client is an outbox, not a client
 
 `feedback.jsonl` in the support dir stays the source of truth. Games run offline; a failed POST
