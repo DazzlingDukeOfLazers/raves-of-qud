@@ -244,7 +244,17 @@ func _draw_rows() -> void:
 		if y + ROW_H < 0 or y > LIST_H:
 			continue
 		if i == _sel:
-			_content.draw_rect(Rect2(0, y, LIST_W - 4, ROW_H - 2), C_SEL)
+			# QUD DRAWS NO BAND HERE. Measured on its own skills screen: the selected row's
+			# background is (7,29,29), pixel for pixel the same as every unselected row -- the
+			# gold ">" is the whole selection cue. Raves painted a 996px teal bar, which was both
+			# an invention and a defect: it reached x1186 and the vertical divider lives at x1181,
+			# so the selected row ERASED 22 rows of the divider (feedback 2026-08-10 asked for
+			# that divider, and it was there -- being overpainted).
+			#
+			# User mode keeps a band, because a list you drive with the keyboard wants one; it now
+			# stops at Qud's own category right edge so it cannot reach the divider either.
+			if not Settings.one_to_one():
+				_content.draw_rect(Rect2(0, y, RIGHT_EDGE - LIST_X, ROW_H - 2), C_SEL)
 			_content.draw_string(_font, Vector2(6, y + 15), ">", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, C_GOLD)
 		var is_skill := str(n.get("kind", "")) == "skill"
 		if is_skill:
