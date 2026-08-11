@@ -1708,28 +1708,37 @@ than re-escaped.
 **An unknown multi-character code falls back to WHITE, never to its first letter.** That shortcut
 is the bug; Qud's own renderer leaves a shader it cannot find uncoloured.
 
-## PRE-COMPENSATE A MEASURED COLOUR, NOT AN EXTRACTED SPRITE
+## PRE-COMPENSATION IS PER SPRITE, AND THE FILE TELLS YOU WHICH
 
 `QudChrome.brighten()` pushes pixels through `INV` so Raves' canvas sag lands them on a target.
-That is right for a colour **measured off a Qud capture** — that number is Qud's OUTPUT, so it is
-the target. It is wrong for an **extracted sprite**, whose texels are Qud's INPUT: Qud's own canvas
-sags them by the same curve on the way to the screen, so drawing them RAW reproduces Qud exactly
-and brightening them first cancels Qud's sag and leaves the art ~12% too light.
+Whether a given sprite wants it is **not** decidable from "is it extracted" — both answers occur
+among files sitting in the same directory, and an earlier version of this entry said otherwise and
+was wrong in the dangerous direction (it would have had someone "fix" the status tab icons, which
+are correct).
 
-Measured on the status screens' divider ornament (2026-08-10), all three channels:
+**The test, and it is one command:** compare the FILE's ink against what QUD draws.
 
-```
-texel (58,80,92)  ->  Qud draws (51,70,82)
-QudChrome.INV[51]=58   INV[70]=80   INV[82]=92
-```
+| sprite | file texels | Qud draws | treatment |
+|---|---|---|---|
+| `title/chrome/statusIcon_equipment_on.png` | (166,149,73) | (166,149,73) | **brighten** |
+| `tiles/divider_orn.png` | (56,79,90) | (51,70,82) | **raw** |
 
-The forward curve maps the raw texel onto Qud's screen value on the nose, three for three. With
-`brighten` removed the ornament's mean per-channel difference against Qud fell 10.87 -> 1.36 and
-the knob became pixel-identical.
+- **File ≈ Qud's screen** → the export already holds an OUTPUT value. It is a measured colour in
+  sprite form, so it needs `INV` to survive the canvas, exactly like `S_RULE`. Most extracted
+  chrome is this: `StatusPaneSkills` records the same finding independently — "the raw sprite drawn
+  1:1 lands ~6/255 dim of Qud's capture".
+- **File LIGHTER than Qud's screen** → the export holds Qud's INPUT, and Qud's own canvas sags it
+  on the way out. Draw it raw and Raves' canvas performs the same sag. Brightening cancels Qud's
+  and leaves the art ~12% light.
 
-`StatusScreens._load_tile_sprite` is the corrected path. **The other extracted-sprite call sites
-have NOT been rechecked** — the status tab icons still go through `brighten` — so treat that as an
-open question rather than a settled one.
+The divider ornament is the second kind, verified all three channels: texel (58,80,92) →
+Qud (51,70,82), and `QudChrome.INV[51]=58`, `INV[70]=80`, `INV[82]=92`. Dropping `brighten` there
+took its mean per-channel difference from 10.87 to 1.36 and made the knob pixel-identical.
+
+The likely cause of the split is the EXPORT PATH — `UiProbe.ExportLoadedSprite` writes the texture
+bytes, while the older chrome dumps appear to carry output-space values — but that has not been
+confirmed, so **measure rather than infer from where the file came from**. All seven `brighten()`
+call sites were checked on 2026-08-11 and every one of them is correct as written.
 
 ### Residual, recorded rather than chased
 14 of 518 opaque ornament pixels still differ (max 53), all on the sprite's 1px dashed detail rows
