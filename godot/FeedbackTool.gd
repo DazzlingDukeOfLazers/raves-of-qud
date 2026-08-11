@@ -33,6 +33,8 @@ var _thumb: ImageTexture = null    # a crop of the LAST DRAWN FRAME around the e
 var _target_image := ""            # the element's image name (icon file / texture resource)
 var _target_action := ""           # what the element does — its (or an ancestor's) tooltip
 var _edit: TextEdit = null
+var _element_key_cached := ""      # stable grouping key, resolved when the form opens
+var _attach_shot := true           # the reporter's choice — see the consent row in _open_form
 var _prev_focus: Control = null
 var _providers: Array = []         # registered feedback_element_at providers (owner-drawn panes)
 
@@ -163,6 +165,8 @@ func _input(event: InputEvent) -> void:
 	_target_action = prov_action if prov_action != "" else _elem_action(elem)
 	_target_pos = mb.position
 	_target_path = String(elem.get_path())
+	_element_key_cached = _element_key(elem)
+	_attach_shot = true                       # opt-OUT, per form; reset for every report
 	_target_label = _display_label(elem, leaf)
 	_target_rect = prov_rect if prov_rect.size.x > 0.0 else elem.get_global_rect()
 	# The viewport texture is the last DRAWN frame — the form is not in it yet, so grabbing here
@@ -327,6 +331,59 @@ func _node_label(n: Node) -> String:
 		return (n as RichTextLabel).get_parsed_text().strip_edges().left(24)
 	return n.get_class()
 
+## A STABLE, CONTENT-FREE KEY for the element — the field reports GROUP on.
+##
+## `path` cannot do this job and never could. Godot names anonymous nodes `@Class@<instance>`,
+## and the instance counter is per-RUN: measured across 37 local records, one element reported
+## twice came back as `.../StatusScreens/@Control@6773` and `.../StatusScreens/@Control@265`, and
+## 95 distinct auto-names appeared for a handful of real nodes. Two users reporting the same
+## button produce different paths; so does one user across two launches. Dedupe, "14 people hit
+## this", and per-element history all collapse on that. The path stays in the record because it
+## is useful when debugging ONE report locally — it is just not an identity.
+##
+## `element` cannot do it either: it embeds live text, so it drifts with game state and is where
+## character names and world strings leak into a payload that leaves the machine.
+##
+## Two rules, in order:
+##   1. the nearest ancestor (or the element) carrying a `feedback_id` meta wins — the same idiom
+##      as `feedback_skip`/`feedback_pass`. Put one on anything you want to track by name across
+##      redesigns; the tree can then be rearranged under it without breaking the key.
+##   2. otherwise the ancestor chain with every auto-name collapsed to its bare CLASS. Derived
+##      from tree SHAPE, so it survives relaunches, machines and builds that do not restructure
+##      the screen.
+func _element_key(c: Control) -> String:
+	var scene := UiState.scene()
+	if scene == "":
+		scene = "?"
+	var parts: Array[String] = []
+	var n: Node = c
+	while n != null and not (n is Viewport):
+		if n.has_meta("feedback_id"):
+			parts.push_front(String(n.get_meta("feedback_id")))
+			return scene + "/" + "/".join(parts)
+		var nm := String(n.name)
+		parts.push_front(n.get_class() if nm.begins_with("@") else nm)
+		n = n.get_parent()
+	return scene + "/" + "/".join(parts)
+
+## A random per-INSTALL id, so reports can be grouped ("this reporter has filed nine") and a bad
+## actor dropped, without accounts and without anything identifying. Generated once, kept beside
+## the outbox. Not a user id: reinstalling makes a new one, and that is fine.
+func _install_id() -> String:
+	var p := InputModel.support_dir().path_join("install_id.txt")
+	if FileAccess.file_exists(p):
+		var rf := FileAccess.open(p, FileAccess.READ)
+		if rf != null:
+			var got := rf.get_as_text().strip_edges()
+			if got != "":
+				return got
+	var made := str(randi()).sha256_text().substr(0, 16)
+	var wf := FileAccess.open(p, FileAccess.WRITE)
+	if wf != null:
+		wf.store_string(made)
+		wf.close()
+	return made
+
 ## "scene · parent · leaf", keeping only names that say something (skip bare class names of
 ## anonymous containers on the way up, keep at most the last two meaningful ancestors).
 func _display_label(c: Control, leaf_override := "") -> String:
@@ -378,9 +435,18 @@ func _open_form() -> void:
 	sb.content_margin_top = 10
 	sb.content_margin_bottom = 10
 	panel.add_theme_stylebox_override("panel", sb)
-	panel.set_anchors_preset(Control.PRESET_CENTER)
 	panel.custom_minimum_size = Vector2(560, 0)
-	root.add_child(panel)
+	# A CENTERCONTAINER, not PRESET_CENTER. The preset anchors all four sides to 0.5 and the panel
+	# then GROWS DOWNWARD from the middle of the screen — so a form taller than half the window
+	# runs off the bottom. It always did: at 1080 the hint row and the Save/Cancel buttons were
+	# already past the edge, which went unnoticed because the shortcuts in the hint (Cmd+Enter /
+	# Esc) work without them. Adding the consent rows made it obvious by pushing the checkbox out
+	# too. CenterContainer centres on BOTH axes and respects the child's minimum size.
+	var centre := CenterContainer.new()
+	centre.set_anchors_preset(Control.PRESET_FULL_RECT)
+	centre.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(centre)
+	centre.add_child(panel)
 
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 8)
@@ -420,6 +486,31 @@ func _open_form() -> void:
 	_edit.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
 	v.add_child(_edit)
 
+	# WHAT LEAVES THE MACHINE, SPELLED OUT, BEFORE IT DOES. This is the whole reason in-game
+	# feedback beats "screenshot it yourself and post it": the report carries state the reporter
+	# never had to assemble — which means it also carries state they never consciously chose to
+	# send. Nobody reads a JSON line before submitting. So the form says it in a sentence, and the
+	# one component that can hold something unintended (the picture) is the one they can drop.
+	# Cheap as a label now; a migration and an apology after launch.
+	# Names the KINDS of thing, not their values: the element is already displayed above, and a
+	# raw element_key is both long enough to wrap the panel off the bottom of the screen and
+	# meaningless to the person being asked to consent to it.
+	var manifest := Label.new()
+	manifest.text = "Sends: your note, the element you picked, and %s %s on %s." % [
+		Brand.GAME_NAME, Brand.RAVES_VERSION, OS.get_name()]
+	manifest.add_theme_color_override("font_color", QudChrome.q8(96, 156, 170))
+	manifest.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(manifest)
+
+	if _thumb != null:
+		var shot_box := CheckBox.new()
+		shot_box.text = "…and the picture above"
+		shot_box.button_pressed = _attach_shot
+		shot_box.focus_mode = Control.FOCUS_NONE   # never steal the ACCEPT key from the note
+		shot_box.add_theme_color_override("font_color", QudChrome.q8(96, 156, 170))
+		shot_box.toggled.connect(func(on: bool): _attach_shot = on)
+		v.add_child(shot_box)
+
 	var hint := Label.new()
 	hint.text = "[Cmd+Enter] save    [Esc] cancel"
 	hint.add_theme_color_override("font_color", QudChrome.q8(96, 156, 170))
@@ -457,7 +548,11 @@ func _make_shot_viewer() -> Control:
 
 	var view := Control.new()
 	view.clip_contents = true
-	view.custom_minimum_size = Vector2(532, 200)
+	# 150, not 200: the consent rows below the note field cost ~50px, and PRESET_CENTER grows a
+	# panel off the bottom of a 1080 screen without complaining — the manifest and the checkbox
+	# were both drawn past y=1080 and invisible. A consent control you cannot see is worse than
+	# none, since it reads as agreement nobody was offered.
+	view.custom_minimum_size = Vector2(532, 150)
 	view.mouse_filter = Control.MOUSE_FILTER_STOP
 	var img := TextureRect.new()
 	img.texture = _thumb
@@ -527,11 +622,25 @@ func _close(save: bool) -> void:
 # --- persistence ---------------------------------------------------------------------------------
 
 func _append_record(text: String) -> void:
+	# THE ENVELOPE. Deliberately product-agnostic in its first six fields so the same shape can
+	# carry feedback from other apps later: what/where/who-installed/which-build, then the
+	# app-specific bits. `v` is the schema version — a reader that meets an envelope it does not
+	# understand should keep it, not drop it, and the number is how it decides.
+	#
+	# app_version and platform are not optional extras. A report you cannot pin to an exact build
+	# is close to worthless: "it's broken" against an unknown binary is a conversation, not a bug.
 	var rec := {
+		"v": 1,
+		"app": Brand.GAME_NAME,
+		"app_version": Brand.RAVES_VERSION,
+		"platform": OS.get_name(),
+		"install_id": _install_id(),
 		"ts": Time.get_datetime_string_from_system(true),   # UTC, sortable
 		"scene": UiState.scene(),
 		"mode": "1to1" if Settings.one_to_one() else "user",
 		"element": _target_label,
+		"element_key": _element_key_cached,
+		# NOT an identity — a per-run instance path, kept for local debugging only. See _element_key.
 		"path": _target_path,
 		"pos": [int(_target_pos.x), int(_target_pos.y)],
 		"rect": [int(_target_rect.position.x), int(_target_rect.position.y),
@@ -544,7 +653,12 @@ func _append_record(text: String) -> void:
 		rec["action"] = _target_action
 	# The crop rides along as a PNG — the note plus the pixels it was about, ready for the same
 	# server submission later. Named by the record's timestamp so the pair is self-associating.
-	if _thumb != null:
+	#
+	# ...unless the reporter said not to. A screenshot is the one part of this payload that can
+	# carry something they did not mean to send, so it is the one part they can drop, and the
+	# record says which they chose rather than leaving a reader to infer it from an absent file.
+	rec["shot_attached"] = _attach_shot
+	if _thumb != null and _attach_shot:
 		var dir := InputModel.support_dir().path_join("feedback")
 		DirAccess.make_dir_recursive_absolute(dir)
 		var fname := String(rec["ts"]).replace(":", "-") + ".png"
