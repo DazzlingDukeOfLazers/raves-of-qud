@@ -43,6 +43,13 @@ const URL_ELSEWHERE := "https://www.cavesofqud.com/"
 const URL_STEAM_RUN := "steam://rungameid/333640"   # launches an installed copy
 const URL_DONATE := "«donation link for Raves of Qud»"   # placeholder
 
+## Where in-game feedback is submitted (feedback-service; see its schema/envelope.v1.md).
+## A CUSTOM DOMAIN on purpose -- this was feedback-service.daniel-dee.workers.dev, and a personal
+## subdomain compiled into a shipped client is not something you can take back.
+## EMPTY DISABLES SUBMISSION, and the outbox still accumulates: that is the correct behaviour for a
+## build that ships before the service exists, or for anyone forking this who has no server.
+const FEEDBACK_ENDPOINT := "https://feedback.mutantfactory.net"
+
 ## Convenience: the window/title string. Kept here so a rename only touches Brand.
 static func title() -> String:
 	return GAME_NAME

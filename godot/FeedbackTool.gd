@@ -4,8 +4,13 @@ extends CanvasLayer
 ##
 ## The point is a feedback loop on the UI itself: a tester Cmd+Right-clicks the thing that looks
 ## wrong, sees what Raves calls it ("title · Continue"), types a note, and it lands in a file the
-## team can read — one JSON line per note in <support>/feedback.jsonl. Server submission comes
-## later; the JSONL shape is chosen so those lines can be POSTed as-is when it does.
+## team can read — one JSON line per note in <support>/feedback.jsonl.
+##
+## THE FILE IS AN OUTBOX, NOT A DESTINATION. Reports are POSTed to Brand.FEEDBACK_ENDPOINT by the
+## FeedbackSubmitter this builds in _ready, and a line is deleted only once the server has taken
+## it — so an offline session, a captive portal or a dead endpoint costs nothing but a delay. The
+## envelope is the feedback-service contract (schema/envelope.v1.md in that repo): `v`, app,
+## app_version, platform, install_id, ts, then the per-product fields.
 ##
 ## Scope rules:
 ##   - the HOLODECK PLAYFIELD is not an element. Cmd+Right-click there stays the tile inspector's
@@ -37,6 +42,7 @@ var _element_key_cached := ""      # stable grouping key, resolved when the form
 var _attach_shot := true           # the reporter's choice — see the consent row in _open_form
 var _prev_focus: Control = null
 var _providers: Array = []         # registered feedback_element_at providers (owner-drawn panes)
+var _submitter: FeedbackSubmitter = null   # drains the outbox to Brand.FEEDBACK_ENDPOINT
 
 
 ## Owner-drawn panes register here (they cannot be found by walking up from a hit: late
@@ -52,6 +58,19 @@ func _ready() -> void:
 	# intent and the number was left behind when PopupOverlay moved up, which is how a Qud modal
 	# ended up drawn over the note field.
 	layer = 140
+	# THE OUTBOX GETS A DRAIN. Until now `feedback.jsonl` only ever grew: the form wrote a report,
+	# said "Sends: …", and nothing sent it. Submission lives beside the writer deliberately -- the
+	# same object owns filling the queue and emptying it, so neither can be wired without the other.
+	_submitter = FeedbackSubmitter.new()
+	_submitter.name = "FeedbackSubmitter"
+	_submitter.endpoint = Brand.FEEDBACK_ENDPOINT
+	_submitter.outbox_path = InputModel.support_dir().path_join(FILE_NAME)
+	_submitter.finished.connect(func(sent: int, discarded: int, failed: int) -> void:
+		if sent or discarded or failed:
+			print("[feedback] submitted %d, discarded %d, held %d" % [sent, discarded, failed]))
+	add_child(_submitter)
+	# On start, because a report filed offline yesterday should leave today without being re-filed.
+	_submitter.flush.call_deferred()
 
 func _input(event: InputEvent) -> void:
 	# Modal while open: the form owns every event except its own editing.
@@ -702,3 +721,8 @@ func _append_record(text: String) -> void:
 	f.store_line(JSON.stringify(rec))
 	f.close()
 	print("[feedback] %s -> %s" % [_target_label, path])
+	# ...and try to send it NOW. A report is most worth having while the thing it describes is still
+	# on screen, and flushing here means the common case never waits for a restart. Offline or a
+	# dead endpoint costs nothing: the line stays in the outbox and the next flush picks it up.
+	if _submitter != null:
+		_submitter.flush()
