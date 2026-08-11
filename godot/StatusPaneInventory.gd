@@ -470,8 +470,15 @@ func _draw_filter_strip() -> void:
 		_draw_cell_frame(all_rect, C_ALL_OFF)
 	_filt_rects.append([all_rect, ""])
 	var aw := _font.get_string_size("ALL", HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
+	# THE LABEL DOES NOT FOLLOW THE FRAME. Selecting *All golds the cell's FRAME; Raves also
+	# golded the word, so the ALL cell read as lit twice over. Qud's own node carries a flat
+	# `color: #afc6c1ff` with no conditional on it (uiprobe, StatusScreensScreen), and the
+	# capture agrees — Qud's glyphs sample grey inside a gold frame. Found by the pre-release
+	# parity sweep, which only saw it once today's strip fix put the two cells on top of each
+	# other: for as long as Raves' strip sat 29px left of Qud's, this leaf was comparing the
+	# ALL cell against its neighbour and the colour never came up.
 	_static.draw_string(_font, Vector2(x + (FILT_W - aw) * 0.5, FILT_Y + 25), "ALL",
-		HORIZONTAL_ALIGNMENT_LEFT, -1, 14, C_GOLD if _enabled.is_empty() else C_LABEL)
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 14, C_LABEL)
 	x += FILT_PITCH
 	# strip order is QUD'S (filterOrder: category of the alphabetically-first item),
 	# which differs from the list's alphabetical category order
