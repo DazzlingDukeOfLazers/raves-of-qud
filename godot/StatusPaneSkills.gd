@@ -25,6 +25,13 @@ const LIST_W := 1000.0
 const LIST_H := 700.0
 const RIGHT_EDGE := 1135.0   # Qud RIGHT-aligns the category column here
 const DETAIL_X := 1218.0
+## The attribute strip's font size. Qud draws this row SMALLER than the "Skill Points (SP)" text
+## beside it (which is 16 and already matches to 1px), and Raves had it at 12 -- 10% too narrow, so
+## the six entries drifted out of step across the row: Qud pitches them 72/81/81/79/82px, Raves
+## 65/73/74/72/74. Measured ink span of the whole strip: Qud 449px, Raves 407px.
+## The row is CENTRED on its 480px box, so getting the width right also walks the start back from
+## x295 to Qud's x274 without a second constant.
+const STRIP_FS := 13
 
 static func _sk8(r8: int, g8: int, b8: int) -> Color:
 	return Color8(r8 if r8 <= 20 else r8 + 6, g8 if g8 <= 20 else g8 + 6, b8 if b8 <= 20 else b8 + 6)
@@ -199,13 +206,13 @@ func _draw_static() -> void:
 			runs.append([" ■ ", C_VAL])
 	var total := 0.0
 	for r in runs:
-		total += _font.get_string_size(r[0], HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
+		total += _font.get_string_size(r[0], HORIZONTAL_ALIGNMENT_LEFT, -1, STRIP_FS).x
 	var hx := 258.5 + (480.0 - total) * 0.5
-	var hy := 180.46 + _font.get_ascent(12)
+	var hy := 180.46 + _font.get_ascent(STRIP_FS)
 	for r in runs:
 		_static.draw_string(_font, Vector2(hx, hy).round(), r[0],
-			HORIZONTAL_ALIGNMENT_LEFT, -1, 12, r[1])
-		hx += _font.get_string_size(r[0], HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
+			HORIZONTAL_ALIGNMENT_LEFT, -1, STRIP_FS, r[1])
+		hx += _font.get_string_size(r[0], HORIZONTAL_ALIGNMENT_LEFT, -1, STRIP_FS).x
 	if _portrait != null:
 		# rounded destination — a fractional blit BLENDS in Godot (docs/gotchas.md)
 		_static.draw_texture_rect(_portrait, Rect2(Vector2(214.5, 161).round(), Vector2(32, 48)), false)
