@@ -516,6 +516,8 @@ func feedback_element_at(p: Vector2) -> Dictionary:
 		if (r[0] as Rect2).has_point(p):
 			var opts: Array = _data.get("options", [])
 			var i: int = int(r[1])
+			# Keyed by ROW INDEX, not the option text: the text is Qud's and varies with what the
+			# terminal is offering, so it would scatter one control across a dozen buckets.
 			return {"label": "terminal · %s" % (String(opts[i]) if i < opts.size() else "?"),
-				"rect": r[0]}
+				"key": "terminal.row", "rect": r[0]}
 	return {}

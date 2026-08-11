@@ -597,6 +597,7 @@ func feedback_element_at(p: Vector2) -> Dictionary:
 		if i >= 0:
 			var r := _bar.get_global_rect()
 			return {"label": "tab · " + str(TABS[i]["name"]),
+				"key": "tab." + str(TABS[i]["id"]),
 				"rect": Rect2(CELL_X[i], r.position.y, CELL_X[i + 1] - CELL_X[i], r.size.y),
 				"action": "switch to the " + str(TABS[i]["name"]) + " tab"}
 	# DELEGATE to the visible pane: the panes are owner-drawn and late overlays keep them out of

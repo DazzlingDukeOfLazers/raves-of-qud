@@ -12,7 +12,10 @@ extends Node
 
 # ── the project ──────────────────────────────────────────────────────────────
 const GAME_NAME := "Raves of Qud"
-const RAVES_VERSION := "0.2.0"   # shown in the 1:1 title version corner under Qud's build
+## Shown in the 1:1 title version corner under Qud's build — and, since 2026-08-10, stamped into
+## every feedback report as `app_version`. A report you cannot pin to an exact build is close to
+## worthless, so this has to be bumped WITH the tag, not after it.
+const RAVES_VERSION := "0.8.0"
 const GAME_TAGLINE := "a 3D viewer for Caves of Qud"
 const ORG_NAME := "«the organization that makes Raves of Qud»"   # placeholder
 const LICENSE := "MIT"

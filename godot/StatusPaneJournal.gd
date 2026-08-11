@@ -386,9 +386,12 @@ func feedback_element_at(p: Vector2) -> Dictionary:
 		if i < 0:
 			var k := "Q" if i == -1 else "E"
 			return {"label": "carousel · [" + k + "]", "rect": entry[0],
+				"key": "carousel.page_" + ("prev" if i == -1 else "next"),
 				"action": "previous sub-tab" if i == -1 else "next sub-tab"}
 		var nm := str((_tabs[i] as Dictionary).get("name", ""))
+		# The sub-tab name is journal SCHEMA (the same set for every player), so it keys.
 		return {"label": "carousel · " + nm, "rect": entry[0],
+			"key": "carousel." + nm.to_snake_case(),
 			"action": "show the " + nm + " sub-tab"}
 	return {}
 

@@ -984,15 +984,22 @@ func _move(d: int) -> void:
 func feedback_element_at(p: Vector2) -> Dictionary:
 	if not is_visible_in_tree():
 		return {}
+	# `key` is the grouping half of the contract (FeedbackTool._element_key): stable and
+	# content-free. Body-part and category names are GAME SCHEMA, not player data — they are the
+	# same strings for every user and they survive redesigns — so they earn a place in the key and
+	# make "everyone hates the Right Hand slot" a question the data can answer. The item NAME
+	# never does: it is inventory, it differs per player, and it would make every row its own key.
 	for d in _doll_rects:
 		if (d[0] as Rect2).has_point(p):
 			var slot_name := str(d[4]) if d.size() > 4 else str(d[3])
 			return {"label": "paper doll · " + slot_name, "rect": d[0],
+				"key": "doll." + slot_name.to_snake_case(),
 				"action": "equip slot: " + slot_name}
 	for entry in _filt_rects:
 		if (entry[0] as Rect2).has_point(p):
 			var nm := str(entry[1])
 			return {"label": "filter · " + (nm if nm != "" else "All"), "rect": entry[0],
+				"key": "filter." + (nm.to_snake_case() if nm != "" else "all"),
 				"action": "toggle the category filter"}
 	if p.x >= LIST_X and p.x <= LIST_X + LIST_W and p.y >= LIST_Y and p.y <= LIST_Y + LIST_H:
 		var idx := int((p.y - LIST_Y + _scroll) / ROW_H)
@@ -1000,7 +1007,10 @@ func feedback_element_at(p: Vector2) -> Dictionary:
 			var r: Dictionary = _rows[idx]
 			var kind := "category" if str(r.get("kind", "")) == "cat" else "item"
 			var label := kind + " · " + str(r.get("name", r.get("letter", "?")))
-			return {"label": label,
+			# ...and the row keys on its KIND only. The name here is an inventory item — player
+			# data, different for everyone — so putting it in the key would give every row its own
+			# bucket and group nothing.
+			return {"label": label, "key": "list." + kind,
 				"rect": Rect2(LIST_X, LIST_Y + idx * ROW_H - _scroll, LIST_W, ROW_H)}
 	return {}
 

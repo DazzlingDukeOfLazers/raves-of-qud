@@ -145,6 +145,7 @@ func _input(event: InputEvent) -> void:
 	# its own internal geometry (it drew it) and answers with the element the point is really on —
 	# a paper-doll slot, an inventory row, a tab cell. First non-empty answer wins.
 	var prov_action := ""
+	var prov_key := ""
 	var prov_rect := Rect2()
 	var prov: Node = hit
 	for _p in 8:
@@ -159,13 +160,27 @@ func _input(event: InputEvent) -> void:
 				if pd.has("rect"):
 					prov_rect = pd["rect"]
 				prov_action = str(pd.get("action", ""))
+				# ...AND ITS SUB-ELEMENT KEY. Without this the whole pane is one key: `elem`
+				# becomes the pane Control above, so every doll slot, filter cell and list row in
+				# StatusPaneInventory grouped as `status_equipment/MainFrame/StatusScreens/Control`
+				# — which is most of Raves' UI arriving indistinguishable. The provider drew the
+				# thing, so it is the only one that can name it; `key` is its half of the contract
+				# and must be STABLE and CONTENT-FREE, like the rest of element_key.
+				prov_key = str(pd.get("key", ""))
 				break
 		prov = prov.get_parent()
 	_target_image = _elem_image(elem)
 	_target_action = prov_action if prov_action != "" else _elem_action(elem)
 	_target_pos = mb.position
 	_target_path = String(elem.get_path())
-	_element_key_cached = _element_key(elem)
+	# A PROVIDER KEY REPLACES THE TREE WALK, it does not extend it. The walk exists for elements
+	# nobody can name; a provider that answers HAS named it, and prefixing its answer with the
+	# node chain only adds a path that changes when the pane is re-parented — and which resolved
+	# two different ways for the same pane depending on whether the hit landed on the pane or on
+	# StatusScreens above it (`.../Control/doll.right_hand` vs `.../Control/InventoryPane/…`).
+	# `status_equipment/doll.right_hand` is shorter, readable, and survives a reorganisation.
+	_element_key_cached = _element_key(elem) if prov_key == "" \
+		else (UiState.scene() if UiState.scene() != "" else "?") + "/" + prov_key
 	_attach_shot = true                       # opt-OUT, per form; reset for every report
 	_target_label = _display_label(elem, leaf)
 	_target_rect = prov_rect if prov_rect.size.x > 0.0 else elem.get_global_rect()
@@ -504,7 +519,7 @@ func _open_form() -> void:
 
 	if _thumb != null:
 		var shot_box := CheckBox.new()
-		shot_box.text = "…and the picture above"
+		shot_box.text = "Include image"
 		shot_box.button_pressed = _attach_shot
 		shot_box.focus_mode = Control.FOCUS_NONE   # never steal the ACCEPT key from the note
 		shot_box.add_theme_color_override("font_color", QudChrome.q8(96, 156, 170))

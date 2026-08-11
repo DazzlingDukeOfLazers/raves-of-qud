@@ -28,14 +28,14 @@ same reader, the same triage view and the same server:
 {
   "v": 1,
   "app": "Raves of Qud",
-  "app_version": "0.2.0",
+  "app_version": "0.8.0",
   "platform": "macOS",
   "install_id": "efd4b9d8be4252fd",
   "ts": "2026-08-11T17:41:58",
 
   "scene": "status_equipment",
   "element": "status_equipment · StatusScreens · filter · Food",
-  "element_key": "status_equipment/MainFrame/StatusScreens/Control",
+  "element_key": "status_equipment/filter.food",
   "text": "…the player's note…",
   "shot_attached": true,
   "shot": "feedback/2026-08-11T17-41-58.png"
@@ -51,8 +51,9 @@ Everything after `ts` is per-product and may be extended freely. Raves also carr
 ### `app_version` and `platform` are not optional
 
 A report you cannot pin to an exact build is close to worthless — "it's broken" against an unknown
-binary is a conversation, not a bug. **`Brand.RAVES_VERSION` is currently `0.2.0` and needs to
-track the real release before this opens to anyone.**
+binary is a conversation, not a bug. `Brand.RAVES_VERSION` is the single source and **must be
+bumped WITH the tag, not after it** — it sat at `0.2.0` through 0.8's testing and would have
+stamped every report with a build that never shipped.
 
 ### `element_key` — the field reports GROUP on
 
@@ -69,15 +70,35 @@ verification pair it did. Unreliable in both directions is the problem.)
 `element` cannot do it either: it embeds live text, so it drifts with game state and is exactly
 where character names and world strings leak into a payload that leaves the machine.
 
-So `element_key` is derived by two rules, in order:
+So `element_key` is derived by three rules, in order:
 
 1. the nearest ancestor (or the element) carrying a **`feedback_id` meta** wins — same idiom as the
    existing `feedback_skip` / `feedback_pass`. Put one on anything worth tracking by name across
    redesigns; the tree can then be rearranged underneath without breaking the key.
-2. otherwise the ancestor chain with every auto-name **collapsed to its bare class**. Derived from
+2. an owner-drawn pane answers with its own **`key`** through the `feedback_element_at` contract.
+   This is not optional polish: when a provider answers, the element becomes the PANE, so without
+   it every doll slot, filter cell and list row in `StatusPaneInventory` grouped as one key —
+   which is most of Raves' UI arriving indistinguishable. A provider key REPLACES the tree walk
+   rather than extending it, since the provider has already established identity and a node path
+   in front of it only adds something that breaks when the pane is re-parented.
+3. otherwise the ancestor chain with every auto-name **collapsed to its bare class**. Derived from
    tree SHAPE, so it survives relaunches, machines, and builds that do not restructure the screen.
 
-Verified: same element, two launches, identical `element_key`.
+Provider keys must be stable and content-free. Game SCHEMA earns a place in the key — body-part
+names, category names, tab ids are the same strings for every player and survive redesigns, so
+`doll.right_hand` makes "everyone hates that slot" answerable. Player DATA never does: an item name
+is inventory, differs per player, and would give every row its own bucket.
+
+Verified: same element, two launches, identical key; and four elements on one screen —
+
+```
+status_equipment/filter.food
+status_equipment/doll.right_hand
+status_equipment/list.category
+status_equipment/tab.equipment
+```
+
+all four of which were `status_equipment/MainFrame/StatusScreens/Control` before.
 
 ## Consent is part of the feature
 
@@ -86,8 +107,8 @@ machine, and the one component that can hold something unintended — the pictur
 reporter can drop:
 
 ```
-Sends: your note, the element you picked, and Raves of Qud 0.2.0 on macOS.
-[x] …and the picture above
+Sends: your note, the element you picked, and Raves of Qud 0.8.0 on macOS.
+[x] Include image
 ```
 
 The record keeps `shot_attached` either way, so a reader can tell "declined" from "failed to
@@ -146,6 +167,7 @@ that become work get promoted to a public issue by hand, text-first.
 | `element_key` (stable, content-free) | **done**, verified across relaunch |
 | consent line + screenshot opt-out | **done** |
 | element-crop screenshot default | **already the behaviour**; keep it |
-| `feedback_id` metas on elements worth naming | **not started** — rule 2 covers everything until then |
-| `Brand.RAVES_VERSION` tracking the real release | **stale at 0.2.0** |
+| provider `key`s (doll, filter, list, tabs, journal carousel, terminal) | **done**, verified distinct |
+| `feedback_id` metas on plain Controls | **not started** — the fallback covers them; add one when a name should survive a redesign |
+| `Brand.RAVES_VERSION` tracking the real release | **done** — 0.8.0 |
 | transport, moderation, triage view | **designed, not built** |
