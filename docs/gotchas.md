@@ -1826,3 +1826,36 @@ runs on every call — `Stat.Random`, the GAMEPLAY stream, not `RandomCosmetic` 
 inventory export of a player carrying a lit torch draws from the same RNG the game rolls dice on.
 Nothing observable has come of it, but an exporter that calls `RenderForUI` is not side-effect
 free, and on a seeded run it is not even side-effect *neutral*.
+
+## THE ITEM MENU RE-OPENS AFTER AN ACTION THAT DOES NOT MOVE THE ITEM
+
+`EquipmentAPI.TwiddleObject` is a **loop**, and this is the shape of it:
+
+```csharp
+InventoryAction a = ShowInventoryActionMenu(...);
+...
+a.Process(GO, Owner, Telekinetic);
+if (!GO.IsInvalid() && currentCell == GO.CurrentCell
+    && inInventory == GO.InInventory && equipped == GO.Equipped)
+    continue;          // <- nothing moved: SHOW THE MENU AGAIN
+break;
+```
+
+Drop, equip and throw all move the object, so the loop breaks and the menu closes. **Examine does
+not**, so the menu comes straight back — and that is Qud's behaviour, not Raves': the same loop
+runs behind Qud's own status screen. A human sees the menu reappear and presses Esc.
+
+**The trap: the menu's default row is `> [d] drop`.** Any input that arrives at a re-shown menu
+without being aimed at it activates the default and destroys the item. That is how "examining an
+artifact drops it (4 for 4)" got into the 0.8 tag as a Raves bug — a scripted key sequence sent
+`space` after the examine result, the menu had already re-opened underneath it, and the space took
+`drop`. **The report was my harness, not the app.**
+
+Re-measured 2026-08-11 with deliberate, observed steps: raise menu -> `x` (examine) -> dismiss the
+result -> **menu re-opens** -> Esc. The artifact survived, identified as an air current microsensor,
+and re-filed from Artifacts into Cybernetic Implants. No drop.
+
+**When driving the item menu, never send a blind key after an action.** Read the popup kind first
+(`hv state` reports `popup=menu` vs `popup=message`) and aim each key at the popup that is actually
+up. Same family as the torch: a bug reported against the app that measurement dissolves into the
+way it was being measured.

@@ -103,3 +103,31 @@ abilities).
 **Not covered:** feedback note (needs Cmd+right-click on an element), Options host/port,
 control-mapping, chargen name, tile report. Same shape of gap as the 2026-08-07 run. The SPOT audit
 proves the guard is *present* on every dispatcher; this proves it is *reached* on two of them.
+
+---
+
+## Follow-up, 2026-08-11 — the three known-open items
+
+**1. Unreachable graph nodes — FIXED (highvisor).** `selftest_plan` now fails on any detectable
+state with no way in, with two escape hatches that must carry a reason: `UNROUTABLE` (needs
+something the harness cannot manufacture) and `UNWIRED` (wirable, nobody has) which is reported
+every run and does not fail. Making inbound per-APP immediately found three one-sided edges a
+shared set was hiding. `quit_dialog` is wired and round-trips for Raves; Qud's is recorded in
+UNWIRED because the corner-X `click_hover` raised it once and then did not repeat, and an
+intermittent edge is worse than none. Its detect was also fixed — it required `game_live: false`,
+an AND with a negative, which failed while the dialog was plainly on screen.
+
+**2. Extracted-sprite call sites — CHECKED, and the DOC was the defect.** All seven `brighten()`
+call sites are correct as written. The rule I wrote after the divider ("extracted sprite -> draw
+raw") was generalised from one example and is wrong: `statusIcon_equipment_on.png` holds
+(166,149,73) and Qud draws (166,149,73), so it is an OUTPUT value and needs `INV`; `divider_orn.png`
+holds (56,79,90) and Qud draws (51,70,82), so it is an INPUT value and needs raw. Following the old
+rule would have broken the tab icons. `docs/gotchas.md` now carries the one-command test instead of
+the false generalisation.
+
+**3. Examine drops the item — NOT A BUG.** `TwiddleObject` loops: after an action that does not
+move the object it re-shows the menu, and examine does not move it. The menu's default row is
+`> [d] drop`, so the scripted `space` that followed the examine result landed on a menu that had
+already re-opened. Re-measured with deliberate steps: the artifact survives, identifies, and
+re-files into Cybernetic Implants. The 0.8 tag names this as an app defect; it is a harness defect,
+and the tag text cannot be edited, which is why the correction lives here.
