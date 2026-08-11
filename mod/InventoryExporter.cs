@@ -340,13 +340,66 @@ namespace RavesOfQud
             catch { }
         }
 
+        /// <summary>RenderForUI WITHOUT the side effect. Use this everywhere instead of calling
+        /// <c>go.RenderForUI</c> directly.</summary>
+        ///
+        /// A render is supposed to be a read. <c>TorchProperties.Render</c> is not:
+        /// <code>
+        ///     int num = (XRLCore.CurrentFrame + FrameOffset) % 60;
+        ///     if (!Options.DisableTextAnimationEffects)
+        ///         FrameOffset += Stat.Random(1, 5);
+        /// </code>
+        /// <c>Stat.Random</c> is the GAMEPLAY stream -- not <c>Stat.RandomCosmetic</c>, which is what
+        /// the near-identical AnimatedMaterialFire uses, and the one place those two parts differ
+        /// even though their colour tables do not. So merely exporting the inventory of a player
+        /// carrying a LIT torch consumed a roll the game would otherwise have made, and shifted
+        /// every subsequent roll on a seeded run. An observer must not move the thing it observes.
+        ///
+        /// Clearing the two flags makes Render's own guard --
+        /// <c>(ChangeColorString || ChangeDetailColor) &amp;&amp; pLight.Lit</c> -- false, so the entire
+        /// animating branch is skipped: no roll drawn, no offset drift. Restored in `finally`, or a
+        /// throw mid-export would leave a torch permanently unable to flicker in Qud itself.
+        ///
+        /// What comes back instead is the torch's STANDING DetailColor, which <c>Light()</c> sets to
+        /// "W" -- the same gold 1:1 mode pins, and a stable value rather than one arbitrary frame of
+        /// a flame. The animation itself is carried by `anim` (see AnimKind) and run client-side,
+        /// which was the whole point of exporting the animation instead of a sample.
+        internal static RenderEvent RenderForUIStable(GameObject go, string context = null)
+        {
+            XRL.World.Parts.TorchProperties tp = null;
+            bool cs = false, dc = false;
+            try
+            {
+                tp = go.GetPart<XRL.World.Parts.TorchProperties>();
+                if (tp != null)
+                {
+                    cs = tp.ChangeColorString;
+                    dc = tp.ChangeDetailColor;
+                    tp.ChangeColorString = false;
+                    tp.ChangeDetailColor = false;
+                }
+            }
+            catch { tp = null; }
+            try
+            {
+                return go.RenderForUI(context);
+            }
+            finally
+            {
+                if (tp != null)
+                {
+                    try { tp.ChangeColorString = cs; tp.ChangeDetailColor = dc; } catch { }
+                }
+            }
+        }
+
         internal static void WriteTile(JsonWriter j, GameObject go, string context = "Inventory",
             bool grey = false)
         {
             try
             {
                 // RenderForUI returns a RenderEvent (fields, not the Renderable accessors)
-                var r = go.RenderForUI(context);
+                var r = RenderForUIStable(go, context);
                 if (r == null) return;
                 // GreyOutForUI just forces both tones to 'K'; let QUD apply it so the
                 // resolved chars below come back already greyed

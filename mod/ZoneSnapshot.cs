@@ -1216,7 +1216,9 @@ namespace RavesOfQud
             try
             {
                 if (go.Understood()) return;   // known -> perceived == full, no override needed
-                var re = go.RenderForUI();
+                // Side-effect-free: a lit torch's Render draws from the GAMEPLAY RNG on every call.
+                // Rare here (a torch is normally Understood) but the rule is the call, not the odds.
+                var re = InventoryExporter.RenderForUIStable(go);
                 if (re == null) return;
                 string tp = re.Tile ?? "";
                 if (tp.Length > 0) TileExporter.Ensure(tp);

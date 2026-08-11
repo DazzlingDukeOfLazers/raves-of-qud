@@ -1823,9 +1823,41 @@ frozen icon is showing and lifts agreement to **50%**.
 **`RenderForUI` is not a read, and it is not cosmetic either.** `FrameOffset += Stat.Random(1, 5)`
 runs on every call — `Stat.Random`, the GAMEPLAY stream, not `RandomCosmetic` (that is
 `AnimatedMaterialFire`; the two parts differ here even though their colour tables do not). So every
-inventory export of a player carrying a lit torch draws from the same RNG the game rolls dice on.
-Nothing observable has come of it, but an exporter that calls `RenderForUI` is not side-effect
-free, and on a seeded run it is not even side-effect *neutral*.
+inventory export of a player carrying a lit torch drew from the same RNG the game rolls dice on.
+
+**Fixed 2026-08-11 — never call `go.RenderForUI` directly; call
+`InventoryExporter.RenderForUIStable`.** It clears `ChangeColorString`/`ChangeDetailColor` for the
+duration of the call, which makes Render's own guard
+(`(ChangeColorString || ChangeDetailColor) && pLight.Lit`) false and skips the whole animating
+branch — no roll drawn, no offset drift — and restores them in `finally`, or a throw mid-export
+would leave a torch permanently unable to flicker *in Qud itself*. What comes back instead is the
+standing `DetailColor`, which `Light()` sets to `"W"`: the same gold 1:1 pins, and stable.
+
+Measured on a genuinely lit torch (Qud's own item menu offering `[x] extinguish` is the proof it
+was lit — not the export under test), 12 re-exports: `detail` **W ×12** where it used to wander
+R/W/r, `tile` `sw_torch_lit.png` ×12, `anim` `fire` ×12. **That last column is the restore check**:
+`AnimKind` returns `"fire"` only while one of the two flags is true, so a leaked suppression would
+have shown up as `anim: (none)` from the second export on.
+
+### Getting a torch to STAY lit for a test
+
+`Options.AutoTorch` (`OptionAutoTorch`, default **Yes**) extinguishes a lit torch at end of turn
+whenever the player `IsUnderSky() && IsDay()` — so on any surface fixture in daylight it lights and
+goes straight back out, and the export you then read says `torch (unburnt)` while you are certain
+you just lit it. Turn it off for the run and back on afterwards:
+`hv bridge setoption id=OptionAutoTorch value=No`. Two other refusals print a message first
+(`IsUnlightableBecauseOfLiquidCovering` / `…BecauseOfSubmersion`); AutoTorch is the silent one.
+
+Two more traps met while driving this:
+
+- **`hv bridge popup` with no `action` is not a query.** It falls to the `else` branch, fabricates
+  an `Accept`, and activates the highlighted row — which unequipped the torch. Reading a popup
+  means reading the `popup` FRAME (`Bridge.read_frame("popup", …)`), never sending the command.
+- **Item-menu labels carry markup INSIDE the word** — `l{{hotkey|i}}ght`, so matching `"light"`
+  against the raw label finds nothing. Strip `{{tag|text}}` innermost-first before matching, and
+  refuse to act when the match is not unique rather than falling back to an index.
+- **`itemaction` cannot reach a torch.** `FindEquippedById` searches `GetMissileWeapons()` only; it
+  was written for the battery-swap case. Drive the item menu for anything else.
 
 ## THE ITEM MENU RE-OPENS AFTER AN ACTION THAT DOES NOT MOVE THE ITEM
 
