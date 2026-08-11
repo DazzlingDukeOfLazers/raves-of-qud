@@ -499,6 +499,13 @@ func _build_center() -> void:
 			spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			cell.add_child(spacer)
 	_build_bands()
+	# ALWAYS, and NOT from inside _build_bands. This schedules `_size_names`, which every card
+	# screen needs, and band positioning, which only some do -- and it used to be the last line of
+	# _build_bands, below its `if bands.is_empty(): return`. So the screens WITHOUT category bands
+	# (game mode, character type, genotype) never sized their name wrappers, the wrappers stayed
+	# 0px tall, and the hotkey rode up over the name exactly as _size_names' own comment warns.
+	# Choose Caste has bands and was fine, which is why this read as "some screens are wrong".
+	_layout_deferred()
 
 	_desc = _rich("", "body")
 	_desc.position = Vector2(vp.x * 0.393, vp.y * _y_desc())   # left-justified, as in Qud (not centred)
@@ -682,7 +689,6 @@ func _build_bands() -> void:
 		holder.add_child(rrule)
 		add_child(holder)
 		_bands.append({"holder": holder, "start": int(b.get("start", 0)), "count": int(b.get("count", 0))})
-	_position_bands_deferred()
 
 ## Extra width given to the LAST card of a category, so the next band starts further along. Qud runs
 ## a 140px pitch across a band boundary against 120 within one, i.e. exactly 20px more.
@@ -727,12 +733,15 @@ func _size_names() -> void:
 		if h > 0.0 and absf(w.custom_minimum_size.y - h) > 0.5:
 			w.custom_minimum_size.y = h
 
-func _position_bands_deferred() -> void:
+## The post-build layout pass EVERY card screen runs. Named for what it does rather than for the
+## bands, which are the optional half: `_size_names` is the part with no opt-out, and burying this
+## behind a bands check is what put the hotkey on top of the name on three screens.
+func _layout_deferred() -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
 	_size_names()
 	await get_tree().process_frame   # let the row re-flow at the new name heights
-	_position_bands()
+	_position_bands()                # no-op when the screen has no category bands
 
 func _position_bands() -> void:
 	if _bands.is_empty():
