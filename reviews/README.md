@@ -1,6 +1,6 @@
 # reviews/ — ChatGPT doc-review tickets (raves-of-qud)
 
-The local drop zone for the [work-cycle loop](https://github.com/DazzlingDukeOfLazers/highvisor)'s
+The local drop zone for the [work-cycle loop](https://github.com/TheMutantFactory/highvisor)'s
 documentation-review step (canonical loop: highvisor `docs/09-work-cycle.md`). ChatGPT reviews this
 repo's docs and writes suggestions here as dated tickets:
 
