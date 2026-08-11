@@ -447,7 +447,10 @@ func _build_center() -> void:
 	_emblem_rect = em
 	var etex := _load_emblem()
 	_emblem_extracted = etex != null
-	_set_emblem(etex if etex != null else _emblem_texture(MUTED))
+	# NOTHING when it has not been extracted yet -- the poll above fills it in as soon as the
+	# sprite lands. The old fallback drew a hand-coded approximation of Qud's sheaf, which meant
+	# the screen showed a crown that exists nowhere in Qud and looked, correctly, wrong.
+	_set_emblem(etex)
 	var cc := _text("character creation", CC_GOLD, "big")
 	cc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	cc.anchor_left = 0.0; cc.anchor_right = 1.0
@@ -1020,8 +1023,10 @@ func _apply_card_frame(np: NinePatchRect) -> void:
 func _load_card_frame() -> Texture2D:
 	return _load_title_sprite("card_frame.png")
 
+## THE ONE CROWN — see QudChrome.emblem(). This used to load the sprite itself and fall back to a
+## hand-drawn approximation; both are gone, because two copies of one picture is how they drift.
 func _load_emblem() -> Texture2D:
-	return _load_title_sprite("chargen_emblem.png")
+	return QudChrome.emblem()
 
 func _set_emblem(tex: Texture2D) -> void:
 	if _emblem_rect == null or tex == null:
@@ -1129,44 +1134,6 @@ func _dashed_border_tex(w: int, h: int, dash := 5, gap := 4, th := 2) -> ImageTe
 		y += dash + gap
 	return ImageTexture.create_from_image(img)
 
-func _emblem_texture(color: Color) -> ImageTexture:
-	var w := 21
-	var h := 24
-	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
-	img.fill(Color(0, 0, 0, 0))
-	var cx := 10
-	_line(img, cx, 8, cx, 23, color)
-	for hy in [0, 2, 4, 6]:
-		_plot(img, cx, hy, color)
-	var pairs := [[9, 1, 3], [13, 2, 7], [17, 3, 11]]
-	for p in pairs:
-		_line(img, cx, p[0], p[1], p[2], color)
-		_line(img, cx, p[0], w - 1 - p[1], p[2], color)
-	_line(img, cx, 23, 6, 19, color)
-	_line(img, cx, 23, 14, 19, color)
-	return ImageTexture.create_from_image(img)
-
-func _plot(img: Image, x: int, y: int, c: Color) -> void:
-	if x >= 0 and x < img.get_width() and y >= 0 and y < img.get_height():
-		img.set_pixel(x, y, c)
-
-func _line(img: Image, x0: int, y0: int, x1: int, y1: int, c: Color) -> void:
-	var dx := absi(x1 - x0)
-	var dy := absi(y1 - y0)
-	var sx := 1 if x0 < x1 else -1
-	var sy := 1 if y0 < y1 else -1
-	var err := dx - dy
-	while true:
-		_plot(img, x0, y0, c)
-		if x0 == x1 and y0 == y1:
-			break
-		var e2 := 2 * err
-		if e2 > -dy:
-			err -= dy
-			x0 += sx
-		if e2 < dx:
-			err += dx
-			y0 += sy
 # ══ text helpers ═══════════════════════════════════════════════════════════════════
 
 func _text(txt: String, col: Color, role := "body") -> Label:

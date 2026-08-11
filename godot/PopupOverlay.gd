@@ -540,9 +540,9 @@ func _draw_chrome() -> void:
 ## rule. Read off the live popup, not fitted: `uiprobe` and the mod's own chrome dump both
 ## report the topping at screen (868.5, 276.44, 183, 60) against a box at (820.9, 336.44).
 ##
-## The texture comes from `QudChrome.popup_emblem()` -- ONE decode for the whole app, in the
-## sprite's own 183-wide frame, so the placement here is Qud's model verbatim with no carve
-## offset to keep in step.
+## The texture comes from `QudChrome.emblem()` -- ONE decode, and one BITMAP, shared with the
+## chargen screens; `EMBLEM_IN_TOPPING` puts the glyph back where it sits inside this 183x60
+## frame, so the placement here stays Qud's model verbatim.
 ##
 ## SNAPPED TO A WHOLE PIXEL, unlike the rules around it. Those are 1-2px bars whose row is
 ## decided by the fractional `off`; this is a bitmap, and its exact-box x lands on 868.5 -- a
@@ -550,13 +550,24 @@ func _draw_chrome() -> void:
 ## resolves the same half pixel by rounding (Qud's glyph inks from x940, i.e. a topping at
 ## 869), so rounding here reproduces Qud rather than leaving it to a tie-break.
 func _draw_emblem(off: Vector2, cx: float) -> void:
-	var tex := QudChrome.popup_emblem()
+	var tex := QudChrome.emblem()
 	if tex == null:
 		return
+	# The texture is now the GLYPH's own 40x45 frame rather than the 183-wide topping, so its
+	# offset inside that frame is added back here. Same screen position as before, arrived at
+	# from the one shared bitmap instead of a per-surface carve.
 	var w := float(QudChrome.EMBLEM_W)
-	var x := roundf(cx - w * 0.5 + off.x)
-	var y := roundf(-float(QudChrome.EMBLEM_H) + off.y)
-	_panel.draw_texture_rect(tex, Rect2(Vector2(x, y), tex.get_size()), false)
+	var x := roundf(cx - w * 0.5 + QudChrome.EMBLEM_IN_TOPPING.x + off.x)
+	var y := roundf(-float(QudChrome.EMBLEM_H) + QudChrome.EMBLEM_IN_TOPPING.y + off.y)
+	# ONE COLUMN SHORT, on this surface only. Qud inks x940..978 here (39 columns) and x940..979
+	# on Choose Caste (40) -- off the same 40-column glyph, because the popup's topping is centred
+	# on the BOX at a half pixel and the chargen one lands whole (QudChrome.EMBLEM_IN_TOPPING).
+	# Reproducing that by resampling at x.5 would mean carrying Qud's subpixel blit; taking the
+	# column off the source rect lands the same measured span, and unlike the old carve it does not
+	# claim the artwork is 39 wide. Rows are NOT trimmed: Qud draws all 45 here, and the constant
+	# that used to cut two of them was reasoning from a rule row that measurement puts elsewhere.
+	var src := Rect2(Vector2.ZERO, tex.get_size() - Vector2(1, 0))
+	_panel.draw_texture_rect_region(tex, Rect2(Vector2(x, y), src.size), src)
 
 
 ## Qud's box, computed from the MODEL in Qud's own subpixels -- the same arithmetic the
