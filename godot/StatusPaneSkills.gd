@@ -42,6 +42,12 @@ var C_LAB := Color("#009403")          # attribute labels (palette g)
 var C_VAL := Color("#155352")          # values + separators (palette K)
 var C_SPV := Color("#77bfcf")          # the SP count (palette C)
 var C_SPT := Color("#b1c9c3")          # "Skill Points (SP): " (palette y)
+## THE TREE'S DEFAULT INK. The runs Qud's markup leaves uncoloured -- the `[150sp]` costs and the
+## attribute numbers -- are not white: Qud's default console ink is palette y, and its brightest
+## pixel anywhere in this tree measures (168,194,187), which is y after compositing. `QudText.runs`
+## defaults to WHITE when the markup names no colour, so every one of those runs came out pure
+## (255,255,255) -- 566 px of it against Qud's zero.
+var C_TEXT := Color("#b1c9c3")         # palette y
 
 var _data := {}
 var _palette := {}
@@ -258,7 +264,7 @@ func _draw_rows() -> void:
 ## RichTextLabel each — this keeps the whole tree to one draw pass).
 func _draw_markup(s: String, pos: Vector2) -> void:
 	var x := pos.x
-	for run in QudText.runs(s, _palette):
+	for run in QudText.runs(s, _palette, C_TEXT):
 		var txt: String = run[0]
 		if txt == "":
 			continue

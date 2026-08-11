@@ -107,7 +107,13 @@ static func _hex(code: String, palette: Dictionary) -> String:
 		var sh := _shader(code)
 		c = str(sh.get("colors", " ")).substr(0, 1) if not sh.is_empty() else ""
 	var h := String(palette.get(c, ""))
-	return h.trim_prefix("#") if h != "" else "ffffff"
+	if h == "":
+		# See color_of_code: a code Qud DEFINES must not render white just because the runtime
+		# palette has not arrived. Only a code nothing defines falls through.
+		if QudPalette.COLORS.has(c):
+			return QudPalette.COLORS[c].to_html(false)
+		return "ffffff"
+	return h.trim_prefix("#")
 
 
 ## Qud markup -> [[text, Color], …] runs, for CANVAS drawing (draw_string) where a
@@ -188,6 +194,20 @@ static func color_of_code(code: String, palette: Dictionary, default_color := Co
 		c = str(sh.get("colors", " ")).substr(0, 1) if not sh.is_empty() else ""
 	var h := String(palette.get(c, ""))
 	if h == "":
+		# THE PALETTE IS NOT ALWAYS THERE, and "not there" is not "white". It rides on the
+		# snapshot, and a Raves that has never received one has none -- which happens whenever it
+		# connects while Qud sits parked on one of its own screens, because the turn thread that
+		# publishes snapshots is parked with it. Every pane built in that window drew its markup in
+		# the fallback white: "Skill list items need color formatting to match Qud" (2026-08-10) is
+		# that state, and it reproduces on the first try by opening Qud's skills screen first.
+		#
+		# StatusScreens already heals this when a palette LATER arrives; nothing healed the case
+		# where none ever does. So a code Qud actually DEFINES resolves against the canonical table
+		# instead -- the same 18 values, confirmed identical to the mod's own first-party
+		# `dumpcolors` export (colors.json) rather than assumed. A code nothing defines still takes
+		# the caller's default, so the inventory's item-default behaviour is untouched.
+		if QudPalette.COLORS.has(c):
+			return QudPalette.COLORS[c]
 		return default_color
 	return Color(h if h.begins_with("#") else "#" + h)
 
