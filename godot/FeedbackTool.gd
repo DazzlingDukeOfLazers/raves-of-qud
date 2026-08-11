@@ -699,7 +699,12 @@ func _append_record(text: String) -> void:
 	# the door rather than store and filter.
 	if text.to_lower().contains("[deleteme]"):
 		rec["test"] = true
-	rec["shot_attached"] = _attach_shot
+	# WRITTEN LAST, FROM THE RESULT — not from the checkbox. `shot_attached` used to be set to
+	# `_attach_shot` up front while `shot` was only written if the PNG actually saved, so a missing
+	# thumbnail or a failed save left the record promising a picture that does not exist. The two
+	# fields describe ONE fact and are now set from one place. (FeedbackSubmitter re-checks at send
+	# time as well, for records written by tools that predate the field.)
+	rec["shot_attached"] = false
 	if _thumb != null and _attach_shot:
 		var dir := InputModel.support_dir().path_join("feedback")
 		DirAccess.make_dir_recursive_absolute(dir)
@@ -707,6 +712,9 @@ func _append_record(text: String) -> void:
 		var img := _thumb.get_image()
 		if img != null and img.save_png(dir.path_join(fname)) == OK:
 			rec["shot"] = "feedback/" + fname
+			rec["shot_attached"] = true
+		else:
+			push_warning("feedback: screenshot could not be saved; filing the note without it")
 	var path := InputModel.support_dir().path_join(FILE_NAME)
 	var f: FileAccess
 	if FileAccess.file_exists(path):

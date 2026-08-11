@@ -61,13 +61,16 @@ func _flush() -> void:
 			# Not our record. Keep it verbatim — this file belongs to the app, not to us.
 			keep.append(line)
 			continue
+		# Reconcile the shot BEFORE the POST: `shot_attached` is what the server stores, and this is
+		# the last place that knows whether there is really a file behind it. Mutating `rec` is safe
+		# because a held line is re-queued from `line` (the original text), never from this dict.
+		var shot_path := _resolve_shot(rec as Dictionary)
 		var res := await _post_report(rec as Dictionary)
 		match res.get("kind", "fail"):
 			"sent":
 				sent += 1
-				var shot := str((rec as Dictionary).get("shot", ""))
-				if shot != "" and bool(res.get("image_accepted", false)):
-					await _put_image(str(res.get("id", "")), shot)
+				if shot_path != "" and bool(res.get("image_accepted", false)):
+					await _put_image(str(res.get("id", "")), shot_path)
 			"discarded":
 				# A [deleteme] report. Accepted and thrown away by design; dropping the line is the
 				# whole point, and retrying it forever would be the bug.
@@ -91,6 +94,37 @@ func _flush() -> void:
 		_append_lines(outbox_path + rejected_suffix, rejected)
 	_busy = false
 	finished.emit(sent, discarded, failed)
+
+
+## Make `shot_attached` mean what it says, and return the absolute path of the image to upload ("" if
+## there is none). ONE FACT, ONE FIELD: the decision to upload used to read `shot` while the server
+## recorded `shot_attached`, so anything that set one without the other made the store lie — 28 of
+## the first 38 reports arrived flagged "no screenshot" and then uploaded one, because the migration
+## that produced them wrote `shot` and never knew about the flag. The client can lie the other way
+## too: Raves sets the flag from its "Include image" checkbox but only writes `shot` if the PNG
+## actually saved, so a failed save promised a picture that never existed.
+##
+## Both directions are settled here rather than upstream because EVERY report passes through this
+## function, including ones written by tools that predate the field or by a product that never sets
+## it. A missing file demotes the record to "no screenshot" instead of being asserted and then
+## silently unfulfilled — a claim nobody can check is worse than a plain no.
+func _resolve_shot(rec: Dictionary) -> String:
+	var rel := str(rec.get("shot", ""))
+	var path := ""
+	if rel != "":
+		var candidate := outbox_path.get_base_dir().path_join(rel)
+		# Existence is not enough: a zero-byte PNG is a failed save, and `_put_image` would drop it
+		# anyway. Check here so the flag agrees with what actually gets sent.
+		var f := FileAccess.open(candidate, FileAccess.READ)
+		if f != null:
+			if f.get_length() > 0:
+				path = candidate
+			f.close()
+	rec["shot_attached"] = path != ""
+	if path == "":
+		# Drop a dangling reference so the envelope does not name a file the server will never see.
+		rec.erase("shot")
+	return path
 
 
 ## {kind: sent|discarded|rejected|fail, id, image_accepted}
@@ -127,11 +161,10 @@ func _post_report(rec: Dictionary) -> Dictionary:
 	return {"kind": "fail"}
 
 
-func _put_image(id: String, rel_shot: String) -> void:
+## `path` is ABSOLUTE and already checked by `_resolve_shot` — resolving it twice, in two places,
+## is how the flag and the upload drifted apart in the first place.
+func _put_image(id: String, path: String) -> void:
 	if id == "":
-		return
-	var path := outbox_path.get_base_dir().path_join(rel_shot)
-	if not FileAccess.file_exists(path):
 		return
 	var bytes := FileAccess.get_file_as_bytes(path)
 	if bytes.is_empty():
