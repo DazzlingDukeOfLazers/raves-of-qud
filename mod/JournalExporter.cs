@@ -81,6 +81,10 @@ namespace RavesOfQud
                     if (PopupBridge.JournalHeaderW.TryGetValue(disp, out hw) && hw > 0f)
                         j.Member("hdrW", hw.ToString("0.##",
                             System.Globalization.CultureInfo.InvariantCulture));
+                    // And the FACE it was measured with ("asset|size|style|weight"), so the client
+                    // can stop drawing this header in a font Qud does not use.
+                    if (!string.IsNullOrEmpty(PopupBridge.JournalHeaderFont))
+                        j.Member("hdrFont", PopupBridge.JournalHeaderFont);
                 }
                 catch { }
                 // The CAROUSEL ICON. Qud's category bar is a row of FilterBarCategoryButtons and

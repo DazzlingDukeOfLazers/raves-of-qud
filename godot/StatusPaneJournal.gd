@@ -25,6 +25,14 @@ extends Control
 const HDR_X := 187.5
 const HDR_Y := 182.6
 const HDR_FONT := 24
+## How hard to embolden the header (see _hdr_font). Qud gets its weight from TMP's synthetic bold;
+## this is the dial that matches it, tuned against Qud's own ink density rather than by eye.
+const HDR_EMBOLDEN := 0.4
+## Baseline drop from HDR_Y. Was 22.0, which put the header TWO PIXELS above Qud's: aligning the
+## two glyph bitmaps by brute force put the best fit at dy=+2 and lifted their overlap from 27% to
+## 52%, so the weight was never the main error -- the row was simply drawn high. (This is derived,
+## unlike HDR_X/HDR_Y, which are Qud's own RectTransform values and stay put.)
+const HDR_BASELINE := 24.0
 const LIST_X := 174.5
 const LIST_Y := 250.0
 const LIST_W := 777.5
@@ -228,16 +236,38 @@ func _draw_carousel() -> void:
 ## left of Qud's, ~1.7px per character. Since the mod ships Qud's width for THIS name, the pitch
 ## comes straight out of it -- no tracking constant to carry, and it stays right if Qud restyles.
 func _draw_header_text(name: String, tab: Dictionary) -> void:
+	var f := _hdr_font()
 	var w: float = float(tab.get("hdrW", 0.0))
 	var n := name.length()
 	if w <= 0.0 or n == 0:
-		_content.draw_string(_font, Vector2(HDR_X, HDR_Y + 22.0), name,
+		_content.draw_string(f, Vector2(HDR_X, HDR_Y + HDR_BASELINE), name,
 			HORIZONTAL_ALIGNMENT_LEFT, -1, HDR_FONT, C_HDR)
 		return
 	var pitch := w / float(n)
 	for i in n:
-		_content.draw_string(_font, Vector2(HDR_X + pitch * float(i), HDR_Y + 22.0), name[i],
+		_content.draw_string(f, Vector2(HDR_X + pitch * float(i), HDR_Y + HDR_BASELINE), name[i],
 			HORIZONTAL_ALIGNMENT_LEFT, -1, HDR_FONT, C_HDR)
+
+
+## THE HEADER IS BOLD, and it is bold the way Qud makes it bold. The mod now reports the live
+## component's own face (JournalExporter `hdrFont`, off the TMP the width already came from), and it
+## answers `SourceCodePro-Regular SDF|24|Bold` — the SAME face and size Raves was already using,
+## with TMP's SYNTHETIC bold on top. That is why the mismatch never looked like a font swap: the
+## span matched to the pixel (both 190..~327, ticks dead on 170 and 347) while Qud's glyphs carried
+## half again the ink and ran into each other where ours stayed apart (231 fully inked px against
+## 142; 7 ink groups for 9 letters against our 9).
+##
+## `variation_embolden` is Godot's equivalent knob: it dilates the outline without touching advances,
+## which is what keeps the measured span intact. Built once and cached — a FontVariation per draw
+## would rebuild the atlas every frame.
+var _hdr_bold: FontVariation = null
+
+func _hdr_font() -> Font:
+	if _hdr_bold == null and _font != null:
+		_hdr_bold = FontVariation.new()
+		_hdr_bold.base_font = _font
+		_hdr_bold.variation_embolden = HDR_EMBOLDEN
+	return _hdr_bold if _hdr_bold != null else _font
 
 
 ## A header-styled row (empty state / recipe name), with the leader running to the list's right.

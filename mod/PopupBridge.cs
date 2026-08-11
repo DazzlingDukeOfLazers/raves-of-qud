@@ -244,9 +244,32 @@ namespace RavesOfQud
                     if (JournalHeaderW.ContainsKey(nm)) continue;
                     JournalHeaderW[nm] = tmp.GetPreferredValues(nm).x;
                 }
+                // THE FACE, not just the width. Raves draws this header in Source Code Pro 24 and
+                // Qud's glyphs come out visibly heavier -- same span, same colour, but 231 fully
+                // inked pixels against our 142, enough that Qud's letters touch and ours do not
+                // ("let's make the locations carousel match"). Which font that is, is a question
+                // only the live component can answer, so ask it here rather than fitting a weight
+                // to a screenshot. Same bargain as the width above.
+                try
+                {
+                    JournalHeaderFont = string.Format("{0}|{1}|{2}",
+                        tmp.font != null ? tmp.font.name : "?",
+                        tmp.fontSize.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture),
+                        tmp.fontStyle);
+                }
+                catch (System.Exception e)
+                {
+                    // NOT silent. The poll returns early once the widths exist, so a throw here
+                    // happens once and then never retries -- exactly how this read came back empty
+                    // with nothing to say why.
+                    Log("[journal] header font read failed: " + e.Message);
+                }
             }
             catch { }
         }
+
+        /// <summary>The journal header's FONT, as "asset|size|style|weight" — see PollJournalHeader.</summary>
+        public static string JournalHeaderFont = "";
 
         /// <summary>The ability bar's per-cell WIDTHS, in bar order, as a CSV.
         ///
