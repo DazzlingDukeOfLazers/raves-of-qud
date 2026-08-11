@@ -11,6 +11,12 @@ WHAT IT WILL NOT DO IS GUESS. `app_version` is genuinely unknown for these — t
 field, and stamping them with today's version would put a lie in the one column whose whole job is
 to pin a report to a build. They go out as "pre-0.8", which is true and sorts sensibly.
 
+`shot_attached` is the one field here that is DERIVED rather than defaulted, and it is worth knowing
+why: these records predate it, absent reads as false, and the submitter decides whether to upload
+from `shot` instead — so the first run of this tool put 28 reports in the store flagged "no
+screenshot" that then uploaded one. The file on disk is the only thing that settles it, so this asks
+the file.
+
     python3 tools/feedback_migrate.py            # report what would move
     python3 tools/feedback_migrate.py --apply    # move it back into the outbox
 """
@@ -32,7 +38,7 @@ def install_id():
     return "unknown"
 
 
-def upgrade(rec, iid):
+def upgrade(rec, iid, base):
     out = dict(rec)
     out.setdefault("v", 1)
     out.setdefault("app", "Raves of Qud")
@@ -40,6 +46,20 @@ def upgrade(rec, iid):
     out.setdefault("app_version", "pre-0.8")
     out.setdefault("platform", "macOS")
     out.setdefault("install_id", iid)
+
+    # DERIVED, NOT DEFAULTED. `shot_attached` is the field the server stores, and these records
+    # predate it entirely -- so the first run of this tool sent 28 reports flagged "no screenshot"
+    # that then uploaded one, because the submitter decides from `shot` and the server records the
+    # flag. setdefault would repeat that exactly: absent stays absent, and absent reads as false.
+    # The file on disk is the only thing that settles it, so ask the file. Same rule as
+    # FeedbackSubmitter._resolve_shot, including demoting a claim with nothing behind it: a
+    # zero-byte PNG is a failed save, and a promise nobody can check is worse than a plain no.
+    rel = str(out.get("shot", "") or "")
+    path = os.path.join(base, rel) if rel else ""
+    have = bool(path) and os.path.isfile(path) and os.path.getsize(path) > 0
+    out["shot_attached"] = have
+    if not have:
+        out.pop("shot", None)
     return out
 
 
@@ -64,7 +84,11 @@ def main():
             bad += 1
 
     iid = install_id()
-    up = [upgrade(r, iid) for r in recs]
+    # Relative `shot` paths resolve against the OUTBOX's directory, because that is where the
+    # submitter resolves them from (`outbox_path.get_base_dir()`). Deriving it from the flag rather
+    # than hardcoding SUPPORT keeps a custom --outbox honest instead of quietly wrong.
+    base = os.path.dirname(os.path.abspath(a.outbox))
+    up = [upgrade(r, iid, base) for r in recs]
     # A record with a note the server would still refuse is worth NAMING, not quietly re-queuing
     # into a loop: it would come straight back to .rejected and look like the migration failed.
     empty = [r for r in up if not str(r.get("text", "")).strip()]
@@ -76,6 +100,15 @@ def main():
     if empty:
         print("  %d with an empty note -- the server requires one; left in place" % len(empty))
     print("  %d ready to re-queue as app_version='pre-0.8'" % len(ready))
+    shots = sum(1 for r in ready if r.get("shot_attached"))
+    # Counted against the ORIGINALS: `upgrade` drops the dangling key, so by then the record no
+    # longer remembers it ever named a file.
+    lost = sum(1 for before, after in zip(recs, up)
+               if str(before.get("shot", "") or "").strip() and not after.get("shot_attached"))
+    if shots:
+        print("    %d of them with a screenshot on disk" % shots)
+    if lost:
+        print("    %d named a screenshot that is missing or empty -- going out without it" % lost)
 
     if not a.apply:
         print("\n(dry run -- pass --apply to move them into the outbox)")
