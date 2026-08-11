@@ -180,6 +180,11 @@ func close(sync_qud := true) -> void:
 func _unhandled_input(e: InputEvent) -> void:
 	if not visible:
 		return
+	# TYPING GUARD. Not "free" here -- see TypingGuard: a field consumes the keys it has a USE
+	# for and lets the rest fall through, and the feedback form can be open over ANY screen.
+	# Esc still passes: the form takes its own in _input before this runs.
+	if TypingGuard.typing(get_viewport()) and not e.is_action_pressed("ui_cancel"):
+		return
 	# CAPTURE MODE: the selected cell owns the next keypress (Esc cancels; bare
 	# modifiers wait for the real key — same feel as Qud's own capture)
 	if _capture:

@@ -404,8 +404,10 @@ func _toggle() -> void:
 	_apply_selection()
 
 func _unhandled_input(e: InputEvent) -> void:
-	# The filter field consumes its own keys in the GUI pass (this is _unhandled_input, so it is
-	# guarded for free — see TypingGuard) but arrows/Esc still arrive; don't navigate while typing.
+	# The filter field consumes its own keys in the GUI pass, but that is NOT the same as being
+	# guarded — this comment used to claim `_unhandled_input` was "guarded for free", which is the
+	# half-truth TypingGuard's own note was written to correct: a field consumes the keys it has a
+	# USE for and everything else falls straight through. Hence the explicit check.
 	if TypingGuard.typing(get_viewport()) and not e.is_action_pressed("ui_cancel"):
 		return
 	if e.is_action_pressed("ui_down"):

@@ -1003,6 +1003,11 @@ func _confirm() -> void:
 		chose.emit(selected)
 
 func _unhandled_input(e: InputEvent) -> void:
+	# TYPING GUARD. Not "free" here -- see TypingGuard: a field consumes the keys it has a USE
+	# for and lets the rest fall through, and the feedback form can be open over ANY screen.
+	# Esc still passes: the form takes its own in _input before this runs.
+	if TypingGuard.typing(get_viewport()) and not e.is_action_pressed("ui_cancel"):
+		return
 	if e.is_action_pressed("ui_cancel"):
 		closed.emit(); accept_event()
 	elif e.is_action_pressed("ui_right"):
