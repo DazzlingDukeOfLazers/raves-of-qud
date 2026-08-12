@@ -62,6 +62,7 @@ func one_to_one() -> bool:
 const QOL_FEATURES := {
 	"titlebar": ["Window titlebar", false],
 	"cameras": ["User cameras (Compass / Follow / First person / …)", false],
+	"tiles3d": ["3D tiles (voxel walls + upright sprites)", false],
 }
 
 func qud_shape(feature := "") -> bool:

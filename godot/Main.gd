@@ -745,6 +745,12 @@ func is_one_to_one() -> bool:
 func _cam_locked() -> bool:
 	return Settings.qud_shape("cameras")
 
+## Is the TILE MODEL locked to Qud's flat rendering? The third face of the old `_one_to_one`
+## (after camera and lighting), split out for the `tiles3d` QoL feature. Locked = flat, as loaded,
+## live zone only; unlocked = the viewer's own 3D/flat choice (the O key), neighbours in 3D.
+func _tiles_locked() -> bool:
+	return Settings.qud_shape("tiles3d")
+
 func set_one_to_one(on: bool, chosen := false) -> void:
 	if on == _one_to_one:
 		return
@@ -764,18 +770,26 @@ func set_one_to_one(on: bool, chosen := false) -> void:
 	# Lighting half: 1:1 uses Qud's rectangular model (see ZoneRenderer) — no glow pools, flames,
 	# smoke or motes are LOADED, unexplored cells draw nothing, explored-dark cells get the flat
 	# memory dim. Set BEFORE the flat rebuild below so the rebuild uses the 1:1 light rules.
+	# The renderer asks the TILES question, not the mode. Its 1:1 is not merely a light table --
+	# it is the flat render architecture itself: statics (the voxel walls) are never BUILT in 1:1,
+	# every cell draws in the per-turn winner-only pass, and the ghost/memory recolour lives inside
+	# that pass. "Voxel walls under 1:1 rendering" is not a mode that exists, so loading tiles3d
+	# back necessarily brings the renderer's user world model (glow pools, per-sprite dim) with it.
 	if renderer != null:
-		renderer.set_one_to_one(on)
+		renderer.set_one_to_one(_tiles_locked())
 	# Tile half: Qud renders every tile FLAT, as loaded — the voxel walls / stretched-UV 3D look is a
 	# user-mode feature. 1:1 forces the flat path (which also renders ONLY the live zone — see
 	# _neighbor_zones); leaving 1:1 restores whatever the user had. Ordered after the camera flip so
 	# the rebuild happens under the final top-down stretch. (Set _one_to_one first — _toggle_flat_2d
 	# is locked while on, so go through _apply_flat_2d directly.)
-	if on:
+	# Asks _tiles_locked(), not `on`: with `tiles3d` loaded back, user mode keeps Qud's lighting
+	# while the voxel walls return. The rebuild still happens either way — the LIGHT rules changed
+	# above, and the geometry must be rebuilt under them.
+	if _tiles_locked():
 		_saved_flat_2d = _flat_2d
 		_apply_flat_2d(true)               # rebuild even if already flat — the light rules changed
 	else:
-		_apply_flat_2d(_saved_flat_2d)     # ditto on exit
+		_apply_flat_2d(_saved_flat_2d)     # the viewer's own tile mode (3D by default)
 	one_to_one_changed.emit(on, chosen)
 
 func toggle_one_to_one() -> void:
@@ -956,8 +970,8 @@ var _flat_2d := false   # false = 3D upright billboards, true = everything flat 
 ## 1:1 FORCES flat (Qud renders tiles flat, as loaded — the 3D wall stretch/UV mapping is a user-mode
 ## feature), so the toggle is locked out while 1:1 is on, like the camera modes.
 func _toggle_flat_2d() -> void:
-	if _one_to_one:
-		return                       # 1:1 owns the tile mode (flat); O is a no-op until user mode
+	if _tiles_locked():
+		return                       # Qud's shape owns the tile mode (flat) until tiles3d is loaded back
 	_apply_flat_2d(not _flat_2d)
 
 ## The shared apply path (O toggle + the 1:1 master switch): set the renderer mode, rebuild the
