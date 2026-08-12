@@ -689,7 +689,7 @@ func _refresh_enabled() -> void:
 		row["btn"].disabled = not enabled
 		if act == "continue" and row.get("sub") != null:
 			var sl: Label = row["sub"]
-			var txt := _continue_label()
+			var txt := _continue_label(sl)
 			sl.text = txt
 			sl.visible = txt != ""
 			sl.add_theme_color_override("font_color", MUTED)
@@ -728,14 +728,37 @@ func _newest_save() -> Dictionary:
 
 ## Continue's label. 1:1 keeps Qud's bare "Continue" -- Qud names no save there, and the title
 ## screen is on the parity scoreboard. User mode gets the save it will actually open.
-func _continue_label() -> String:
+## TRIM THE NAME, KEEP THE LEVEL. The label is one line in Qud's narrow box, and left to the Label's
+## own OVERRUN_TRIM_ELLIPSIS the tail goes first -- which is the level, i.e. exactly the half the
+## request named ("Show the save's character name AND level here"). Measured on the live save
+## `true-kin-cybernetics-menu-chaos-monkey` at level 188: the button read
+## "true-kin-cybernetics-menu-chaos-mo…" and the 188 was nowhere on screen.
+##
+## So the ellipsis is applied HERE, to the name only, against the label's real width and font. A
+## short suffix always survives; a long name degrades. Before layout `size.x` is 0 and there is
+## nothing to measure against -- return the whole string and let the Label's own overrun handle that
+## frame, since the next refresh (this runs on every menu update) measures properly.
+func _continue_label(sl: Label = null) -> String:
 	if Settings.one_to_one():
 		return ""            # Qud names no save here, and the title is on the parity scoreboard
 	var sv := _newest_save()
 	var nm := str(sv.get("name", ""))
 	if nm == "":
 		return ""
-	return "%s · lvl %d" % [nm, int(sv.get("level", 0))]
+	var suffix := " · lvl %d" % int(sv.get("level", 0))
+	if sl == null or sl.size.x <= 0.0:
+		return nm + suffix
+	var f := sl.get_theme_font("font")
+	var fs := sl.get_theme_font_size("font_size")
+	if f == null:
+		return nm + suffix
+	var room := sl.size.x - f.get_string_size(suffix, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+	if f.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x <= room:
+		return nm + suffix
+	while nm.length() > 1 and \
+			f.get_string_size(nm + "…", HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > room:
+		nm = nm.substr(0, nm.length() - 1)
+	return nm + "…" + suffix
 
 static var _saves_warned := false
 
