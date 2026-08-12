@@ -604,7 +604,10 @@ func _hotkey_cell_tag(a: Dictionary, slot: int) -> String:
 ## which is what the 1-9 keys activate in 1:1. Matches Qud's " <1>".. quick-slot labels.
 func _hotkey_label(a: Dictionary, slot: int) -> String:
 	var hk := String(a.get("hotkey", ""))
-	if hk == "" and slot >= 1 and slot <= 9:
+	# The positional <N> only exists while the digits actually activate the bar (see
+	# _unhandled_key_input). With the cameras feature on, 1-9 switch cameras, and a hint
+	# advertising a key that does something ELSE is worse than no hint.
+	if hk == "" and slot >= 1 and slot <= 9 and Settings.qud_shape("cameras"):
 		hk = str(slot)
 	return " <%s>" % hk if hk != "" else ""
 
@@ -661,6 +664,12 @@ func _unhandled_key_input(e: InputEvent) -> void:
 	if e.keycode == KEY_TAB and e.ctrl_pressed and _pages.size() > 1:
 		_flip_page(-1 if e.shift_pressed else 1)
 		get_viewport().set_input_as_handled()
+		return
+	# THE DIGITS BELONG TO WHOEVER OWNS THEM. With the `cameras` QoL feature loaded back, 1-9 are
+	# the user camera keys again (Main._unhandled_input, which runs AFTER this pass -- that order is
+	# exactly how this bar silently ate the camera keys when user mode became a 1:1 clone: "fix
+	# first person mode", 2026-08-12). Locked cameras = Qud's behaviour, digits activate the bar.
+	if not Settings.qud_shape("cameras"):
 		return
 	var slot := -1
 	if e.keycode >= KEY_1 and e.keycode <= KEY_9:
