@@ -696,6 +696,7 @@ func _ghost_obj(obj: Dictionary) -> Dictionary:
 ## build INCREMENTALLY: pass 1 (cheap wall grouping) up front, then a chunk of cells per frame in
 ## _ib_step, flushing each chunk's floors as we go. Also removes the 1–3s transition freeze.
 func _build_static(id: String, cells: Array) -> void:
+	_cell_top_static.clear()   # sprites die with the old subtree; live cell coords collide across zones
 	var sub := Node3D.new()
 	_remembered_root.add_child(sub)
 	_static_zones[id] = sub
@@ -775,7 +776,10 @@ func _ib_abort() -> void:
 ## Re-place ONLY the live zone's creatures, every step, into _dynamic_root (cleared
 ## first). Few objects, so this is the cheap per-step cost that replaced the ~69ms
 ## full rebuild. Not noted (the inspector's _placed holds the static zone).
+var _occupied := {}   # creature cells this turn (Vector2i -> true), for the winner rule
+
 func _rebuild_dynamics(cells: Array) -> void:
+	_occupied.clear()
 	for c in _dynamic_root.get_children():
 		c.free()
 	_orbiters.clear()           # those orbiter roots were children of _dynamic_root (just freed)
@@ -847,14 +851,12 @@ func _rebuild_dynamics(cells: Array) -> void:
 						Transform3D(Basis(), Vector3(cx, FLOOR_Y + 0.5 * LAYER_LIFT, cy)))
 				_place_nonwall(win, cx, cy, 0, false, sink, wet, false, false, lf)
 			continue
-		var ranks := _stack_ranks(cell)
 		var idx := 0
 		for obj in cell.get("objs", []):
 			var od: Dictionary = obj
 			if not _is_prism(od) and _is_creature(od):
-				var rk: Dictionary = ranks.get(idx, {})
-				_place_nonwall(od, cx, cy, idx, false, sink, wet, false, false, lf,
-					int(rk.get("rank", -1)), int(rk.get("below", 0)))
+				_occupied[Vector2i(cx, cy)] = true
+				_place_nonwall(od, cx, cy, idx, false, sink, wet, false, false, lf)
 				# A lit creature (NPC with a torch/glowsphere) carries its light with it —
 				# placed here every step so it tracks the creature. No smoke: a moving torch
 				# shouldn't trail a plume. (_live_build is false during dynamics, so this doesn't
@@ -867,6 +869,12 @@ func _rebuild_dynamics(cells: Array) -> void:
 					_make_orbiters(cx, cy)     # bioluminescent bugs circling the fish
 			idx += 1
 	_placing_player = false
+	# Winner rule, dynamic half: a creature is its cell's face — the static winner under
+	# it hides for the turn and pops back the turn the creature moves off. No rebuilds.
+	for c in _cell_top_static:
+		var sp: Sprite3D = _cell_top_static[c]
+		if is_instance_valid(sp):
+			sp.visible = not _occupied.has(c)
 	# Target-highlight blink: a bg fill under the current combat target's cell, toggled by the
 	# animator in Qud's ~250ms windows (Cell.RenderTarget; colour = disposition, from the wire).
 	if _one_to_one and not _anim_target.is_empty():
@@ -1056,6 +1064,7 @@ func _drop_static(id: String) -> void:
 		_static_zones.erase(id)
 
 func _drop_all_static() -> void:
+	_cell_top_static.clear()
 	if _ib_active:
 		_ib_abort()             # every subtree is about to be freed
 	for id in _static_zones:
@@ -2184,27 +2193,28 @@ func _should_glow(obj: Dictionary) -> bool:
 		return true
 	return _glow_overrides.has(tile_family(tile))
 
-# ── STACK RANKS (Daniel, 2026-08-12, at the (70,19) cushion-under-Tam pile) ────────
-# "Let's make the NPC at the top. Let's apply the depth filter to any other item below
-# it. N layers below, N tiles away." Two consequences, both per CELL:
-#  1. ORDER: billboards sort by (creature, layer, wire idx) — a creature tops its pile
-#     regardless of layer, and the stack LIFT follows this rank, not wire order.
-#  2. DEPTH-CUE DARKENING: an object N ranks below its stack's top is tinted as if it
-#     stood N tiles inside the cue ramp — same span/strength/curve as the fullscreen
-#     pass (read live from SkyGrade, so the ` menu sliders tune both). `start` is
-#     deliberately ignored: within a stack only the RELATIVE distance means anything.
-# Ranks span the WHOLE cell list even though statics and dynamics place different
-# subsets of it — the cushion (static) must know Tam (dynamic) sits above it.
+# ── WINNER PER CELL (Daniel, 2026-08-12): "stop fighting and just do what Qud does.
+# Hide the items underneath the top item (NPC > pretty much everything else)." ──────
+# Qud renders ONE object per cell; user mode now does the same instead of stacking
+# billboards. Two halves, because statics build once and creatures move every turn:
+#  - The STATIC pass ranks the cell's non-creature billboards (layer, wire idx) and
+#    places only the winner; everything beneath it notes HIDDEN and never spawns.
+#    Creatures are deliberately NOT in these ranks — a static decision based on a
+#    creature goes stale the moment it walks away (the cushion would stay invisible).
+#  - The DYNAMIC pass draws creatures over that static winner, and hides/reveals the
+#    winner AT RUNTIME per turn: occupied cell -> static winner invisible (the NPC is
+#    the cell's face), creature leaves -> winner pops back. No rebuilds involved.
+# Connectors (fences, pipes) and prisms are architecture, outside the contest.
 func _stack_ranks(cell: Dictionary) -> Dictionary:
-	var members := []   # [{i: wire idx, key: [creature, layer, idx]}]
+	var members := []
 	var i := 0
 	for obj in cell.get("objs", []):
 		var o: Dictionary = obj
-		if float(o.get("layer", 0)) >= 1.0 and not _is_prism(o):
-			members.append({"i": i, "c": 1 if _is_creature(o) else 0, "l": float(o.get("layer", 0))})
+		if float(o.get("layer", 0)) >= 1.0 and not _is_prism(o) and not _is_creature(o) \
+				and not _is_connector(o, String(o.get("tile", ""))):
+			members.append({"i": i, "l": float(o.get("layer", 0))})
 		i += 1
 	members.sort_custom(func(a, b):
-		if a["c"] != b["c"]: return a["c"] < b["c"]
 		if a["l"] != b["l"]: return a["l"] < b["l"]
 		return a["i"] < b["i"])
 	var out := {}
@@ -2212,27 +2222,10 @@ func _stack_ranks(cell: Dictionary) -> Dictionary:
 		out[members[r]["i"]] = {"rank": r, "below": members.size() - 1 - r}
 	return out
 
-## The cue curve, mirrored from _DEPTHCUE_SHADER (keep the two in sync).
-func _cue_k(t: float, mode: int) -> float:
-	t = clampf(t, 0.0, 1.0)
-	match mode:
-		1: return log(1.0 + 9.0 * t) / log(10.0)
-		2: return (exp(3.0 * t) - 1.0) / (exp(3.0) - 1.0)
-		3: return t * t * (3.0 - 2.0 * t)
-		_: return t
-
-var _sky_ref: Node = null
-## Darkening factor for an object `below` ranks under its stack top: the depth cue
-## evaluated at below*1.0m into the ramp. 1.0 (no-op) when the feature is off.
-func _stack_dark(below: int) -> float:
-	if below <= 0 or Settings.qud_shape("depthcue"):
-		return 1.0
-	if _sky_ref == null or not is_instance_valid(_sky_ref):
-		_sky_ref = get_tree().get_first_node_in_group("sky_grade") if is_inside_tree() else null
-	if _sky_ref == null:
-		return 1.0
-	var pr: Vector3 = _sky_ref.depthcue_params()   # (start, span, max_dark)
-	return 1.0 - pr.z * _cue_k(float(below) / maxf(pr.y, 0.5), _sky_ref.depthcue_curve())
+## LIVE zone's static winner sprite per cell, so the dynamic pass can hide it under a
+## creature and reveal it again — cleared with every live static (re)build: live-zone
+## cell coords collide across zones, and the sprites die with the subtree anyway.
+var _cell_top_static := {}   # Vector2i -> Sprite3D
 
 func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, sink := 0.0, wet := false, skip_creatures := false, stair_cell := false, light_frac := 1.0, rank := -1, below := 0) -> void:
 	# Static builds exclude creatures (they render per step in _rebuild_dynamics);
@@ -2470,6 +2463,12 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 				"post" if dirs == "" else dirs, ph,
 				" filled-bg" if solid else "", "  floated" if floated else ""], yc)
 		else:
+			# Qud's winner rule (user mode): a BILLBOARD beneath its cell's top never
+			# renders. Only billboards contest — floors, water, decks, connectors and
+			# stairs always place, so a hidden vine never punches a hole in its river.
+			if below > 0 and not _one_to_one:
+				_note(cx, cy, idx, "HIDDEN beneath the cell's top object (Qud winner rule)", 0.0)
+				return
 			# Gaps *enclosed* by the art read as the cell background, the way Qud
 			# draws them; everything outside the silhouette stays see-through.
 			var btex := _colored_tex_rgb(tile, _obj_main(obj), _obj_detail(obj),
@@ -2484,8 +2483,7 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			# light (the floor overlay can't cover a standing sprite). Sprite3D.modulate
 			# works here since there's no material_override — unless it glows, and a
 			# bioluminescent thing should stay bright anyway.
-			var mtint := light_frac * _stack_dark(below)
-			s.modulate = Color(mtint, mtint, mtint) if mtint < 0.999 else Color.WHITE
+			s.modulate = Color(light_frac, light_frac, light_frac) if light_frac < 0.999 else Color.WHITE
 			var submerged: bool = sink > 0.0 and bool(obj.get("sinks", false))
 			_seat(s, btex, tile, cx, cy, sink if submerged else 0.0, position_for(tile) == "float")
 			# STACK ORDER: same-cell billboards seat at the same (x,z), so a pile's quads are
@@ -2497,23 +2495,11 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			# so a near-horizontal first-person view still sees distinct depths from any heading.
 			# NOT in 1:1: it renders one winner per cell (no stacks) and its pixels are
 			# parity-measured against Qud.
-			var lift_n := rank if rank >= 0 else idx
-			if not _one_to_one and lift_n > 0:
-				# Rank separation, two parts. VERTICAL is the backbone: higher rank = higher,
-				# which is nearer for ANY downward-pitched camera and neutral for a level one.
-				# The horizontal part must point AT the camera — the first version used a fixed
-				# world diagonal, and depth-along-a-fixed-axis flips sign with the compass
-				# heading: at Daniel's heading it out-pulled the vertical and put Tam BEHIND
-				# his cushion ("maybe the logic is reversed?" — it was, for half the headings).
-				# Placement-time direction is fresh every turn for creatures (dynamics) — and
-				# the creature is the top of the pile, the one sprite that must always win.
-				s.position.y += 0.014 * float(lift_n)
-				var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
-				if cam != null:
-					var pull := cam.global_position - s.position
-					pull.y = 0.0
-					if pull.length() > 0.01:
-						s.position += pull.normalized() * (0.008 * float(lift_n))
+			# Creatures draw over the cell's static winner from a hair above it — vertical
+			# only, safe for every camera pitch; there is exactly one static billboard per
+			# cell now, so same-cell coplanar stacks (the z-flicker source) no longer exist.
+			if not _one_to_one and _is_creature(obj):
+				s.position.y += 0.02
 			s.visible = true
 			if _placing_player and WM_STANDING_CARDS:
 				# "You are here": the player card ignores depth and sorts last, so it's always the
@@ -2542,11 +2528,10 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			var names := ["none", "all", "interior", "fill-holes"]
 			var fname: String = names[fmode] if fmode < names.size() else str(fmode)
 			var stk := ""
-			if rank >= 0 and (rank > 0 or below > 0):
-				stk = "  stack r%d" % rank
-				var sd := _stack_dark(below)
-				if sd < 0.999:
-					stk += " dim=%.2f (%d below top)" % [sd, below]
+			if rank >= 0 and below == 0 and rank > 0:
+				stk = "  cell winner (%d hidden beneath)" % rank
+			if _live_build and rank >= 0 and below == 0 and not _one_to_one:
+				_cell_top_static[Vector2i(cx, cy)] = s   # the dynamic pass hides this under a creature
 			_note(cx, cy, idx, "%s, fill=%s %dpx%s" % [kind, fname, gaps, stk], s.position.y)
 	else:
 		var l := _take_label()
