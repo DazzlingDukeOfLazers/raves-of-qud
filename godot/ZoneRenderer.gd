@@ -773,15 +773,6 @@ func _ib_abort() -> void:
 ## first). Few objects, so this is the cheap per-step cost that replaced the ~69ms
 ## full rebuild. Not noted (the inspector's _placed holds the static zone).
 func _rebuild_dynamics(cells: Array) -> void:
-	# Readability: the camera-side pull direction is read fresh each dynamic build, so the
-	# creature/player separation tracks whatever camera the viewer is in (see ROLE_PULL).
-	_dyn_pass = true
-	var _bias_cam := get_viewport().get_camera_3d() if is_inside_tree() else null
-	if _bias_cam != null:
-		var flat := _bias_cam.global_position - Vector3(40.0, 0.0, 12.5)
-		flat.y = 0.0
-		if flat.length() > 0.01:
-			_bias_dir = flat.normalized()
 	for c in _dynamic_root.get_children():
 		c.free()
 	_orbiters.clear()           # those orbiter roots were children of _dynamic_root (just freed)
@@ -857,10 +848,7 @@ func _rebuild_dynamics(cells: Array) -> void:
 		for obj in cell.get("objs", []):
 			var od: Dictionary = obj
 			if not _is_prism(od) and _is_creature(od):
-				# stair_cell is REAL here too: without it the dynamic pass planted the player's
-				# contact shadow over the stair shaft (fixture-caught, 2026-08-12).
-				_place_nonwall(od, cx, cy, idx, false, sink, wet, false,
-					_cell_has_stairs_down(cell), lf)
+				_place_nonwall(od, cx, cy, idx, false, sink, wet, false, false, lf)
 				# A lit creature (NPC with a torch/glowsphere) carries its light with it —
 				# placed here every step so it tracks the creature. No smoke: a moving torch
 				# shouldn't trail a plume. (_live_build is false during dynamics, so this doesn't
@@ -873,7 +861,6 @@ func _rebuild_dynamics(cells: Array) -> void:
 					_make_orbiters(cx, cy)     # bioluminescent bugs circling the fish
 			idx += 1
 	_placing_player = false
-	_dyn_pass = false
 	# Target-highlight blink: a bg fill under the current combat target's cell, toggled by the
 	# animator in Qud's ~250ms windows (Cell.RenderTarget; colour = disposition, from the wire).
 	if _one_to_one and not _anim_target.is_empty():
@@ -2177,109 +2164,6 @@ func _landmark_sprite(tile: String, main_c: String, detail_c: String, pos: Vecto
 func _is_creature(obj: Dictionary) -> bool:
 	return bool(obj.get("creature", obj.get("sinks", false)))
 
-# ── READABILITY STACK (2026-08-12) ─────────────────────────────────────────────────
-# "The main problem is not missing detail. It is missing hierarchy." Same-cell sprites
-# were coplanar camouflage (every billboard seats at the same x/z), edges were equally
-# hard everywhere, and nothing anchored a sprite to the floor. Three treatments, by
-# SEMANTIC ROLE, 3D-upright user mode only — 1:1 and the flat path never reach them.
-#
-#   scenery    contact shadow (small)
-#   furniture  shadow + light keyline
-#   items      shadow + medium keyline
-#   creatures  shadow + strong two-tone keyline + camera-side depth pull
-#   player     creature treatment, strongest pull
-#
-# The role comes from data already on the wire, stated as the approximation it is:
-# creature flag, solid/occluding for furniture, Qud's render layer for loose items
-# (>=5 sits above ground clutter) and the player (100).
-enum Role { SCENERY, FURNITURE, ITEM, CREATURE, PLAYER }
-
-func _role(obj: Dictionary) -> int:
-	if int(obj.get("layer", 0)) >= 90:
-		return Role.PLAYER
-	if _is_creature(obj):
-		return Role.CREATURE
-	if bool(obj.get("solid", false)) or bool(obj.get("occluding", false)):
-		return Role.FURNITURE
-	if int(obj.get("layer", 0)) >= 5:
-		# Qud's own furniture/item split: Physics.Takeable (a chest is not, a dagger is).
-		# Fixture-caught: the chest classified ITEM on flags alone -- wall/occluding/solid/
-		# sinks are all zero on it, identical to a dropped knife. Absent (old mod) reads
-		# takeable, which degrades to the pre-takeable guess rather than inventing furniture.
-		return Role.ITEM if bool(obj.get("takeable", true)) else Role.FURNITURE
-	return Role.SCENERY
-
-## Camera-side pull per role, world units. DYNAMICS ONLY: creatures and the player are
-## rebuilt every turn, so the pull direction is read fresh off the live camera each
-## _rebuild_dynamics and stays honest; statics are frozen and cannot know the camera, so
-## they stay put — the conflicts that matter (creature over furniture, player over item)
-## are always dynamic-over-static. The sprites depth-write (ALPHA_CUT_DISCARD), so only a
-## real positional offset along the view axis separates coplanar quads; sorting tricks
-## apply to the transparent pipeline these sprites are not in. A rotation between turns
-## leaves the pull one turn stale — worst case is the old z-fight until the next step.
-const ROLE_PULL := { Role.CREATURE: 0.045, Role.PLAYER: 0.07 }
-var _bias_dir := Vector3(0, 0, 1)   # horizontal unit vector from the zone toward the camera
-var _dyn_pass := false              # true while _rebuild_dynamics places (gates the pull)
-
-## Keyline strength per role. With ALPHA_CUT_DISCARD the texture's alpha is a MASK, not a
-## blend — anything below the cut vanishes and anything above lands opaque — so "weaker"
-## keylines are encoded as TONE (closer to the field colour), never as partial alpha.
-const KEYLINE := { Role.CREATURE: 3, Role.PLAYER: 3, Role.ITEM: 2, Role.FURNITURE: 1 }
-
-## Contact shadow: width = the sprite art's opaque width x this, per role. "Pixel-art
-## ambient occlusion, not a soft modern drop shadow" — a hard-edged low-res ellipse,
-## NEAREST-filtered, sitting under the darkness overlay so it dims with the cell.
-const SHADOW_W := { Role.SCENERY: 0.4, Role.FURNITURE: 0.8, Role.ITEM: 0.3,
-	Role.CREATURE: 0.55, Role.PLAYER: 0.55 }
-const SHADOW_A := { Role.SCENERY: 0.18, Role.FURNITURE: 0.30, Role.ITEM: 0.22,
-	Role.CREATURE: 0.32, Role.PLAYER: 0.32 }
-const SHADOW_Y := 0.063        # above every lifted floor (<=0.06), below DARK_FLOOR_Y (0.07)
-const SHADOW_DEPTH := 0.16     # north-south extent, cells
-var _shadow_tex: ImageTexture = null
-var _shadow_mats := {}         # role -> shared StandardMaterial3D (one per alpha)
-
-## The opaque HORIZONTAL band of the art, as (left fraction, width fraction) — the
-## sideways twin of _opaque_v, for shadow widths.
-func _opaque_h(img: Image) -> Vector2:
-	if img == null:
-		return Vector2(0, 1)
-	var w := img.get_width()
-	var h := img.get_height()
-	var first := -1
-	var last := -1
-	for x in w:
-		for y in h:
-			if img.get_pixel(x, y).a >= 0.5:
-				if first < 0: first = x
-				last = x
-				break
-	if first < 0:
-		return Vector2(0, 1)
-	return Vector2(float(first) / w, float(last - first + 1) / w)
-
-func _shadow_material(role: int) -> StandardMaterial3D:
-	if _shadow_mats.has(role):
-		return _shadow_mats[role]
-	if _shadow_tex == null:
-		# 16x8 hard ellipse, white-on-transparent; the material's albedo colours it.
-		var img := Image.create(16, 8, false, Image.FORMAT_RGBA8)
-		img.fill(Color(0, 0, 0, 0))
-		for y in 8:
-			var ny := (float(y) + 0.5) / 8.0 * 2.0 - 1.0
-			var half := 8.0 * sqrt(maxf(0.0, 1.0 - ny * ny))
-			for x in 16:
-				if absf(float(x) + 0.5 - 8.0) <= half:
-					img.set_pixel(x, y, Color(1, 1, 1, 1))
-		_shadow_tex = ImageTexture.create_from_image(img)
-	var m := StandardMaterial3D.new()
-	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	m.albedo_texture = _shadow_tex
-	m.albedo_color = Color(0.02, 0.05, 0.05, float(SHADOW_A.get(role, 0.2)))
-	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	_shadow_mats[role] = m
-	return m
-
 ## Glowfish specifically: the orbiting "bug" motes are theirs alone (that's what the fish
 ## do in Qud). Keyed on the tile name — the blueprint isn't always in the per-object payload.
 func _is_glowfish(obj: Dictionary) -> bool:
@@ -2532,21 +2416,11 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 		else:
 			# Gaps *enclosed* by the art read as the cell background, the way Qud
 			# draws them; everything outside the silhouette stays see-through.
-			# Readability (see the stack above _role): 3D-upright user mode only. 1:1 has its
-			# own winner path and the flat mode routes through floor quads, but the gate is
-			# explicit — a texture with a baked contour must never reach a parity capture.
-			var role := _role(obj)
-			var kl: int = KEYLINE.get(role, 0) if (not _one_to_one and not _flat_2d) else 0
 			var btex := _colored_tex_rgb(tile, _obj_main(obj), _obj_detail(obj),
-				_color_key(obj), _fill_for(tile, Fill.INTERIOR), kl)
+				_color_key(obj), _fill_for(tile, Fill.INTERIOR))
 			if btex == null:
 				btex = tex
-				kl = 0
 			var s := _take_sprite()
-			# EXPLICIT both ways: the pool recycles sprites, and a keylined texture is baked
-			# at 3x — its sprite renders at a third of the pixel size to land the same world
-			# size, and a recycled sprite must never keep the other variant's value.
-			s.pixel_size = (PIXEL_SIZE / KEYLINE_SCALE) if kl > 0 else PIXEL_SIZE
 			s.texture = btex
 			s.flip_h = bool(obj.get("hflip", false))
 			s.flip_v = bool(obj.get("vflip", false))
@@ -2557,25 +2431,6 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			s.modulate = Color(light_frac, light_frac, light_frac) if light_frac < 0.999 else Color.WHITE
 			var submerged: bool = sink > 0.0 and bool(obj.get("sinks", false))
 			_seat(s, btex, tile, cx, cy, sink if submerged else 0.0, position_for(tile) == "float")
-			# Same-cell depth: pull dynamics (creatures, the player) a few centimetres toward
-			# the camera so they consistently win against the static furniture they stand on.
-			# idx keeps two same-cell creatures apart from each other.
-			if _dyn_pass and not _one_to_one and not _flat_2d and ROLE_PULL.has(role):
-				s.position += _bias_dir * (float(ROLE_PULL[role]) + idx * 0.008)
-			# Contact shadow: anchors the sprite to the floor. Skipped where it would lie —
-			# underwater, floating, over a stair shaft, inside a wall, on the world map.
-			if not _one_to_one and not _flat_2d and not _world_map and not in_wall 					and not submerged and not stair_cell and sink <= 0.0 					and position_for(tile) != "float":
-				var oh := _opaque_h(_mask(tile))
-				var sw: float = oh.y * btex.get_width() * s.pixel_size * float(SHADOW_W.get(role, 0.4))
-				if sw > 0.05:
-					var sq := _take_floor()
-					sq.material_override = _shadow_material(role)
-					sq.scale = Vector3(sw, 1.0, SHADOW_DEPTH)
-					sq.position = Vector3(cx, SHADOW_Y, cy)
-					sq.visible = true
-					_track(sq)
-					_note(cx, cy, idx, "shadow(role=%d w=%.2f a=%.2f)" % [
-						role, sw, float(SHADOW_A.get(role, 0.2))], SHADOW_Y)
 			s.visible = true
 			if _placing_player and WM_STANDING_CARDS:
 				# "You are here": the player card ignores depth and sorts last, so it's always the
@@ -3436,16 +3291,13 @@ func _colored_tex(tile: String, main_c: String, detail_c: String, fill := Fill.N
 		"%s|%s" % [main_c, detail_c], fill)
 
 ## Same, but with colours already resolved (the painted-ConsoleChar path).
-func _colored_tex_rgb(tile: String, main: Color, detail: Color, ckey: String, fill := Fill.NONE, keyline := 0) -> ImageTexture:
+func _colored_tex_rgb(tile: String, main: Color, detail: Color, ckey: String, fill := Fill.NONE) -> ImageTexture:
 	if tile.is_empty() or _tiles_dir.is_empty():
 		return null
 	# _wall_bg keys the FILL colour (gap pixels paint _wall_bg_color()), so it
 	# must key the cache too — a gold-fill Starship texture must not be served
 	# for a world-fill wall that shares tile+colours.
-	# `keyline` keys it too: the same chest coloured with and without a contour
-	# is two different textures, and serving one for the other is the exact
-	# collision the ckey rule above exists to prevent.
-	var key := "%s|%s|%d|%s|k%d" % [tile, ckey, fill, _wall_bg, keyline]
+	var key := "%s|%s|%d|%s" % [tile, ckey, fill, _wall_bg]
 	if _tex_cache.has(key):
 		return _tex_cache[key]
 	var mask := _mask(tile)
@@ -3481,53 +3333,8 @@ func _colored_tex_rgb(tile: String, main: Color, detail: Color, ckey: String, fi
 	elif fill == Fill.SPAN:
 		inner = _fill_holes(tile)
 	var tex := _recolor_rgb(mask, main, detail, fill, inner)
-	if keyline > 0 and tex != null:
-		tex = _bake_keyline(tex, keyline)
 	_tex_cache[key] = tex
 	return tex
-
-## THE SILHOUETTE KEYLINE, baked into the texture at 3x — "a thin rendered contour...
-## not a one-texture-pixel dilation": one original texel is enormous at render scale, so
-## the contour is drawn on a nearest-upscaled copy and lands 1/3 texel thin. Baking (vs
-## outline duplicate nodes) is what makes it correct from every camera azimuth: these
-## sprites depth-write, and a separate outline quad either z-fights its parent or swaps
-## in front of it the moment the camera crosses the sprite plane.
-##
-## Two-tone, fixed light convention (up-left, matching the classic sprite read): DARK
-## contour on the lit side, PALE on the shadow side, so the line cannot vanish against
-## both a dark wall and a bright floor at once. Strength is TONE, not alpha — see KEYLINE.
-const KEYLINE_SCALE := 3
-const _KL_DARK := { 3: Color(0.03, 0.06, 0.06), 2: Color(0.10, 0.14, 0.14), 1: Color(0.16, 0.22, 0.22) }
-const _KL_PALE := Color(0.80, 0.85, 0.82)
-
-func _bake_keyline(tex: ImageTexture, strength: int) -> ImageTexture:
-	var img := tex.get_image()
-	if img == null:
-		return tex
-	var w := img.get_width() * KEYLINE_SCALE
-	var h := img.get_height() * KEYLINE_SCALE
-	img.resize(w, h, Image.INTERPOLATE_NEAREST)
-	var dark: Color = _KL_DARK.get(strength, _KL_DARK[1])
-	var use_pale := strength >= 3
-	# One pass over an opacity snapshot (writing while reading would let the line grow).
-	var solid := PackedByteArray()
-	solid.resize(w * h)
-	for y in h:
-		for x in w:
-			solid[y * w + x] = 1 if img.get_pixel(x, y).a >= 0.5 else 0
-	for y in h:
-		for x in w:
-			if solid[y * w + x] == 1:
-				continue
-			# Art to the right/below -> this pixel sits on the up-left (lit) side: dark.
-			# Art to the left/above  -> down-right (shadow) side: pale. Dark wins corners.
-			var lit: bool = (x + 1 < w and solid[y * w + x + 1] == 1) 				or (y + 1 < h and solid[(y + 1) * w + x] == 1)
-			var sha: bool = (x > 0 and solid[y * w + x - 1] == 1) 				or (y > 0 and solid[(y - 1) * w + x] == 1)
-			if lit:
-				img.set_pixel(x, y, dark)
-			elif sha and use_pale:
-				img.set_pixel(x, y, _KL_PALE)
-	return ImageTexture.create_from_image(img)
 
 # Which transparent pixels are INSIDE the art rather than around it.
 #
