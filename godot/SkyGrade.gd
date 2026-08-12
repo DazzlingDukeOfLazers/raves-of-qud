@@ -75,6 +75,24 @@ void fragment() {
 }"
 var _depthcue: MeshInstance3D = null
 
+## The depth-cue tuning knobs, as (start, span, max_dark). Live shader values — the ` menu's
+## sliders write them, Main's view file persists them across runs.
+func depthcue_params() -> Vector3:
+	if _depthcue == null or _depthcue.material_override == null:
+		return Vector3(1.5, 14.0, 0.25)   # the shader defaults, for callers before setup()
+	var m: ShaderMaterial = _depthcue.material_override
+	return Vector3(float(m.get_shader_parameter("start_dist")),
+		float(m.get_shader_parameter("span")),
+		float(m.get_shader_parameter("max_dark")))
+
+func set_depthcue_params(start: float, span: float, dark: float) -> void:
+	if _depthcue == null or _depthcue.material_override == null:
+		return
+	var m: ShaderMaterial = _depthcue.material_override
+	m.set_shader_parameter("start_dist", start)
+	m.set_shader_parameter("span", maxf(span, 0.5))   # 0 span would divide by zero
+	m.set_shader_parameter("max_dark", clampf(dark, 0.0, 1.0))
+
 var day_frac := 0.5
 var dawn_h := 6.5
 var dusk_h := 20.0
@@ -151,6 +169,12 @@ func setup(embedded: bool, renderer_ref: Node) -> void:
 	var dc_mat := ShaderMaterial.new()
 	dc_mat.shader = dc_sh
 	dc_mat.render_priority = -10       # first among transparents: glows and smoke stay bright
+	# Mirror the shader's uniform defaults EXPLICITLY: get_shader_parameter returns null for
+	# a uniform that was never set, so the ` menu's sliders would read (0,0,0) and a first
+	# drag would stomp the other two knobs with zeros.
+	dc_mat.set_shader_parameter("start_dist", 1.5)
+	dc_mat.set_shader_parameter("span", 14.0)
+	dc_mat.set_shader_parameter("max_dark", 0.25)
 	_depthcue = MeshInstance3D.new()
 	var dc_mesh := QuadMesh.new()
 	dc_mesh.size = Vector2(2, 2)

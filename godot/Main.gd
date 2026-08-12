@@ -245,7 +245,7 @@ func _ready() -> void:
 	# stays here (the O key + persistent button share it), and it mirrors the flat state back via refresh_flat_2d.
 	_dbg_menu = load("res://DebugMenu.gd").new()
 	add_child(_dbg_menu)
-	_dbg_menu.build(_cam_rig, renderer, _multiview, _MODE_NAMES, {
+	_dbg_menu.build(_cam_rig, renderer, _sky_grade, _multiview, _MODE_NAMES, {
 		"set_mode": _set_mode,
 		"toggle_flat_2d": _toggle_flat_2d,
 		"font_ruler": _toggle_font_preview,
@@ -1077,6 +1077,9 @@ func _notification(what: int) -> void:
 		_save_settings()
 
 ## Persist the view/render settings a run should remember.
+func _dc_to_array(v: Vector3) -> Array:
+	return [v.x, v.y, v.z]
+
 func _save_settings() -> void:
 	# The view file belongs to USER mode. A 1:1 run forces the stage's camera (TOP_FOLLOW),
 	# window and zoom, and writing ANY of that back hands the next user-mode launch state it
@@ -1105,6 +1108,7 @@ func _save_settings() -> void:
 		"fp_height": _cam_rig._fp_height,
 		"water_depth": (renderer.deep_water_depth if renderer != null else 0.6),
 		"level_height": (renderer.level_height if renderer != null else 4.0),
+		"depthcue": (_dc_to_array(_sky_grade.depthcue_params()) if _sky_grade != null else [1.5, 14.0, 0.25]),
 		"win": (keep_win if keep_win != null else [sz.x, sz.y]),
 	}
 	var f := FileAccess.open(SETTINGS_PATH, FileAccess.WRITE)
@@ -1130,6 +1134,9 @@ func _load_settings() -> void:
 	if renderer != null:
 		renderer.deep_water_depth = clampf(float(d.get("water_depth", renderer.deep_water_depth)), 0.0, 1.0)
 		renderer.level_height = clampf(float(d.get("level_height", renderer.level_height)), 0.0, 16.0)
+	var dc = d.get("depthcue", null)
+	if dc is Array and dc.size() == 3 and _sky_grade != null:
+		_sky_grade.set_depthcue_params(float(dc[0]), float(dc[1]), float(dc[2]))
 	var win = d.get("win", null)
 	# Skip in launch-qud mode: QudLauncher owns the window geometry there (borderless
 	# quadrant), and a saved size would fight it when entering gameplay.

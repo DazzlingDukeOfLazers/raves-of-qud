@@ -14,6 +14,8 @@ const MODES := [0, 1, 2, 3, 4, 5, 6]
 
 var _cam_rig                       # CameraRig: _fp_height, _compass_45, _look_head, _mode
 var _renderer                      # ZoneRenderer: deep_water_depth / level_height slider init values
+var _sky                           # SkyGrade: depth-cue knobs (sliders talk to it directly)
+var _dc_toggle: Button
 var _panel: PanelContainer
 var _title: Label
 var _mode_buttons := {}
@@ -22,9 +24,10 @@ var _look_btn: Button
 var _wm_face_btn: Button
 
 ## `callbacks` = {set_mode(int), toggle_flat_2d(), font_ruler(), water_changed(float), level_changed(float)}.
-func build(cam_rig, renderer_ref, multiview, mode_names: Dictionary, callbacks: Dictionary) -> void:
+func build(cam_rig, renderer_ref, sky_grade, multiview, mode_names: Dictionary, callbacks: Dictionary) -> void:
 	_cam_rig = cam_rig
 	_renderer = renderer_ref
+	_sky = sky_grade
 	var layer := CanvasLayer.new()
 	layer.layer = 2
 	add_child(layer)
@@ -93,6 +96,18 @@ func build(cam_rig, renderer_ref, multiview, mode_names: Dictionary, callbacks: 
 	lsld.focus_mode = Control.FOCUS_NONE
 	lsld.value_changed.connect(callbacks["level_changed"])
 	vb.add_child(lsld)
+	# DEPTH CUE (QoL "depthcue"): the on/off + the three shader knobs, applied live via
+	# SkyGrade (no re-render needed — they are shader uniforms). Persisted by Main's view
+	# file on exit, alongside the water/level sliders' owners.
+	_dc_toggle = Button.new()
+	_dc_toggle.focus_mode = Control.FOCUS_NONE
+	_dc_toggle.pressed.connect(_toggle_depthcue)
+	vb.add_child(_dc_toggle)
+	_refresh_dc_toggle()
+	var dc0: Vector3 = _sky.depthcue_params() if _sky != null else Vector3(1.5, 14.0, 0.25)
+	_dc_slider(vb, "depth cue start (m)", 0.0, 8.0, 0.25, dc0.x, 0)
+	_dc_slider(vb, "depth cue fade span (m)", 2.0, 40.0, 1.0, dc0.y, 1)
+	_dc_slider(vb, "depth cue strength", 0.0, 0.6, 0.02, dc0.z, 2)
 	# COMPASS Q/E rotation step: 45° (8-way) or 90° (cardinal)
 	_compass_step_btn = Button.new()
 	_compass_step_btn.focus_mode = Control.FOCUS_NONE
@@ -162,3 +177,35 @@ func _toggle_look_target() -> void:
 func _toggle_compass_step() -> void:
 	_cam_rig._compass_45 = not _cam_rig._compass_45
 	_refresh_compass_step_btn()
+
+## One labelled depth-cue slider; `which` picks the component of SkyGrade's (start, span, dark).
+func _dc_slider(vb: VBoxContainer, label: String, lo: float, hi: float, step: float, init: float, which: int) -> void:
+	var l := Label.new()
+	l.text = label
+	vb.add_child(l)
+	var s := HSlider.new()
+	s.min_value = lo
+	s.max_value = hi
+	s.step = step
+	s.value = init
+	s.custom_minimum_size = Vector2(160, 0)
+	s.focus_mode = Control.FOCUS_NONE   # drag-only; keep arrows for the player
+	s.value_changed.connect(func(v):
+		if _sky == null:
+			return
+		var pr: Vector3 = _sky.depthcue_params()
+		pr[which] = v
+		_sky.set_depthcue_params(pr.x, pr.y, pr.z))
+	vb.add_child(s)
+
+## The QoL toggle, from the menu: same store as the Options row (qol_depthcue), so the two
+## stay one switch. SkyGrade._process reads it per frame — flipping here applies next frame.
+func _toggle_depthcue() -> void:
+	var on := not bool(Settings.get_value("qol_depthcue", false))
+	Settings.set_value("qol_depthcue", on)
+	Settings.save()
+	_refresh_dc_toggle()
+
+func _refresh_dc_toggle() -> void:
+	if _dc_toggle != null:
+		_dc_toggle.text = "depth cue: %s" % ("on" if bool(Settings.get_value("qol_depthcue", false)) else "off")
