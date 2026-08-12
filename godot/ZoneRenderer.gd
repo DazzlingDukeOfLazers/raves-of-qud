@@ -645,11 +645,14 @@ func _place_cell(cell: Dictionary, offset: Vector2i, wall_cells: Dictionary, ski
 	# recoloured to the K/k GHOST — fg 'K', detail 'k' — Qud's "partially lit" look.
 	if _one_to_one:
 		lf = 1.0   # no per-sprite dim in 1:1 — the ghost recolour IS the memory look
+	var ranks := _stack_ranks(cell)
 	var idx := 0
 	for obj in cell.get("objs", []):
 		var o: Dictionary = obj
 		if not _is_prism(o):
-			_place_nonwall(o, cx, cy, idx, in_wall, sink, wet, skip_creatures, stair_cell, lf)
+			var rk: Dictionary = ranks.get(idx, {})
+			_place_nonwall(o, cx, cy, idx, in_wall, sink, wet, skip_creatures, stair_cell, lf,
+				int(rk.get("rank", -1)), int(rk.get("below", 0)))
 		# Creature lights are placed in the DYNAMIC pass so they follow the creature;
 		# here (static) we only place fixed lights (sconces, braziers, lit terrain).
 		if o.has("lightRadius") and not (skip_creatures and _is_creature(o)):
@@ -844,11 +847,14 @@ func _rebuild_dynamics(cells: Array) -> void:
 						Transform3D(Basis(), Vector3(cx, FLOOR_Y + 0.5 * LAYER_LIFT, cy)))
 				_place_nonwall(win, cx, cy, 0, false, sink, wet, false, false, lf)
 			continue
+		var ranks := _stack_ranks(cell)
 		var idx := 0
 		for obj in cell.get("objs", []):
 			var od: Dictionary = obj
 			if not _is_prism(od) and _is_creature(od):
-				_place_nonwall(od, cx, cy, idx, false, sink, wet, false, false, lf)
+				var rk: Dictionary = ranks.get(idx, {})
+				_place_nonwall(od, cx, cy, idx, false, sink, wet, false, false, lf,
+					int(rk.get("rank", -1)), int(rk.get("below", 0)))
 				# A lit creature (NPC with a torch/glowsphere) carries its light with it —
 				# placed here every step so it tracks the creature. No smoke: a moving torch
 				# shouldn't trail a plume. (_live_build is false during dynamics, so this doesn't
@@ -2178,7 +2184,57 @@ func _should_glow(obj: Dictionary) -> bool:
 		return true
 	return _glow_overrides.has(tile_family(tile))
 
-func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, sink := 0.0, wet := false, skip_creatures := false, stair_cell := false, light_frac := 1.0) -> void:
+# ── STACK RANKS (Daniel, 2026-08-12, at the (70,19) cushion-under-Tam pile) ────────
+# "Let's make the NPC at the top. Let's apply the depth filter to any other item below
+# it. N layers below, N tiles away." Two consequences, both per CELL:
+#  1. ORDER: billboards sort by (creature, layer, wire idx) — a creature tops its pile
+#     regardless of layer, and the stack LIFT follows this rank, not wire order.
+#  2. DEPTH-CUE DARKENING: an object N ranks below its stack's top is tinted as if it
+#     stood N tiles inside the cue ramp — same span/strength/curve as the fullscreen
+#     pass (read live from SkyGrade, so the ` menu sliders tune both). `start` is
+#     deliberately ignored: within a stack only the RELATIVE distance means anything.
+# Ranks span the WHOLE cell list even though statics and dynamics place different
+# subsets of it — the cushion (static) must know Tam (dynamic) sits above it.
+func _stack_ranks(cell: Dictionary) -> Dictionary:
+	var members := []   # [{i: wire idx, key: [creature, layer, idx]}]
+	var i := 0
+	for obj in cell.get("objs", []):
+		var o: Dictionary = obj
+		if float(o.get("layer", 0)) >= 1.0 and not _is_prism(o):
+			members.append({"i": i, "c": 1 if _is_creature(o) else 0, "l": float(o.get("layer", 0))})
+		i += 1
+	members.sort_custom(func(a, b):
+		if a["c"] != b["c"]: return a["c"] < b["c"]
+		if a["l"] != b["l"]: return a["l"] < b["l"]
+		return a["i"] < b["i"])
+	var out := {}
+	for r in members.size():
+		out[members[r]["i"]] = {"rank": r, "below": members.size() - 1 - r}
+	return out
+
+## The cue curve, mirrored from _DEPTHCUE_SHADER (keep the two in sync).
+func _cue_k(t: float, mode: int) -> float:
+	t = clampf(t, 0.0, 1.0)
+	match mode:
+		1: return log(1.0 + 9.0 * t) / log(10.0)
+		2: return (exp(3.0 * t) - 1.0) / (exp(3.0) - 1.0)
+		3: return t * t * (3.0 - 2.0 * t)
+		_: return t
+
+var _sky_ref: Node = null
+## Darkening factor for an object `below` ranks under its stack top: the depth cue
+## evaluated at below*1.0m into the ramp. 1.0 (no-op) when the feature is off.
+func _stack_dark(below: int) -> float:
+	if below <= 0 or Settings.qud_shape("depthcue"):
+		return 1.0
+	if _sky_ref == null or not is_instance_valid(_sky_ref):
+		_sky_ref = get_tree().get_first_node_in_group("sky_grade") if is_inside_tree() else null
+	if _sky_ref == null:
+		return 1.0
+	var pr: Vector3 = _sky_ref.depthcue_params()   # (start, span, max_dark)
+	return 1.0 - pr.z * _cue_k(float(below) / maxf(pr.y, 0.5), _sky_ref.depthcue_curve())
+
+func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, sink := 0.0, wet := false, skip_creatures := false, stair_cell := false, light_frac := 1.0, rank := -1, below := 0) -> void:
 	# Static builds exclude creatures (they render per step in _rebuild_dynamics);
 	# remembered zones drop them entirely (they've wandered off since last live).
 	if skip_creatures and _is_creature(obj):
@@ -2428,7 +2484,8 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			# light (the floor overlay can't cover a standing sprite). Sprite3D.modulate
 			# works here since there's no material_override — unless it glows, and a
 			# bioluminescent thing should stay bright anyway.
-			s.modulate = Color(light_frac, light_frac, light_frac) if light_frac < 0.999 else Color.WHITE
+			var mtint := light_frac * _stack_dark(below)
+			s.modulate = Color(mtint, mtint, mtint) if mtint < 0.999 else Color.WHITE
 			var submerged: bool = sink > 0.0 and bool(obj.get("sinks", false))
 			_seat(s, btex, tile, cx, cy, sink if submerged else 0.0, position_for(tile) == "float")
 			# STACK ORDER: same-cell billboards seat at the same (x,z), so a pile's quads are
@@ -2440,8 +2497,9 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			# so a near-horizontal first-person view still sees distinct depths from any heading.
 			# NOT in 1:1: it renders one winner per cell (no stacks) and its pixels are
 			# parity-measured against Qud.
-			if not _one_to_one and idx > 0:
-				s.position += Vector3(0.006, 0.014, 0.010) * float(idx)
+			var lift_n := rank if rank >= 0 else idx
+			if not _one_to_one and lift_n > 0:
+				s.position += Vector3(0.006, 0.014, 0.010) * float(lift_n)
 			s.visible = true
 			if _placing_player and WM_STANDING_CARDS:
 				# "You are here": the player card ignores depth and sorts last, so it's always the
@@ -2469,7 +2527,13 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 				kind = "billboard(painted cover, stood up)"
 			var names := ["none", "all", "interior", "fill-holes"]
 			var fname: String = names[fmode] if fmode < names.size() else str(fmode)
-			_note(cx, cy, idx, "%s, fill=%s %dpx" % [kind, fname, gaps], s.position.y)
+			var stk := ""
+			if rank >= 0 and (rank > 0 or below > 0):
+				stk = "  stack r%d" % rank
+				var sd := _stack_dark(below)
+				if sd < 0.999:
+					stk += " dim=%.2f (%d below top)" % [sd, below]
+			_note(cx, cy, idx, "%s, fill=%s %dpx%s" % [kind, fname, gaps, stk], s.position.y)
 	else:
 		var l := _take_label()
 		l.text = _cp437(String(obj.get("glyph", "?")))

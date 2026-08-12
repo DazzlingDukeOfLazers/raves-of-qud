@@ -124,6 +124,7 @@ var dusk_h := 20.0
 ## chrome on a negative CanvasLayer); `renderer_ref` receives the daylight fraction.
 func setup(embedded: bool, renderer_ref: Node) -> void:
 	_renderer = renderer_ref
+	add_to_group("sky_grade")   # ZoneRenderer reads the live depth-cue knobs for stack darkening
 
 	var we := WorldEnvironment.new()
 	var env := Environment.new()
