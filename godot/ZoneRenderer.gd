@@ -2431,6 +2431,17 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			s.modulate = Color(light_frac, light_frac, light_frac) if light_frac < 0.999 else Color.WHITE
 			var submerged: bool = sink > 0.0 and bool(obj.get("sinks", false))
 			_seat(s, btex, tile, cx, cy, sink if submerged else 0.0, position_for(tile) == "float")
+			# STACK ORDER: same-cell billboards seat at the same (x,z), so a pile's quads are
+			# COPLANAR — their depths tie per pixel and the winner flips with every camera nudge
+			# (measured: residual 7-13px shimmer after each lerp settle; reads as items "trading
+			# z-height"). A deterministic sub-art-pixel offset per stack index fixes the order:
+			# mostly vertical (invisible — one art pixel is ~62mm — but it IS the view axis in
+			# flat/top-down and dominates any pitched camera), plus a small unequal x/z diagonal
+			# so a near-horizontal first-person view still sees distinct depths from any heading.
+			# NOT in 1:1: it renders one winner per cell (no stacks) and its pixels are
+			# parity-measured against Qud.
+			if not _one_to_one and idx > 0:
+				s.position += Vector3(0.006, 0.014, 0.010) * float(idx)
 			s.visible = true
 			if _placing_player and WM_STANDING_CARDS:
 				# "You are here": the player card ignores depth and sorts last, so it's always the
