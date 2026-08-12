@@ -57,7 +57,7 @@ func setup(embedded: bool, renderer_ref: Node) -> void:
 	env.ambient_light_energy = 0.72
 	# Depth fog fades distant/remembered zones into the sky (colour tracks the sky, updated in _process).
 	# Off in the minimal 1:1 test (fog is a lighting/atmosphere effect Qud doesn't have).
-	env.fog_enabled = bool(Settings.get_value("fx_lighting", false)) and not Settings.qud_shape()
+	env.fog_enabled = not Settings.qud_shape("lighting")
 	env.fog_mode = Environment.FOG_MODE_DEPTH
 	env.fog_depth_begin = 60.0
 	env.fog_depth_end = 240.0
@@ -113,10 +113,13 @@ func update(t: Dictionary, depth: int, zone_center: Vector3) -> void:
 	_update_time(t)
 
 func _process(dt: float) -> void:
-	# 1:1 test: lighting off -> no day/night MULTIPLY grade (true tile colours), no sky bodies.
-	# 1:1 (parity) HARD-forces this off regardless of the user's fx_lighting — Qud's lighting is
-	# the rectangular per-cell model in ZoneRenderer; the grade/sun/fog are user-mode features.
-	if Settings.qud_shape() or not bool(Settings.get_value("fx_lighting", false)):
+	# Lighting off -> no day/night MULTIPLY grade (true tile colours), no sky bodies, no fog.
+	# ONE gate now: the `lighting` QoL feature. It used to be fx_lighting AND not qud_shape() --
+	# fx_lighting was the older load-it-back experiment ("1:1 test · 3D lighting"), and once the
+	# QoL registry existed the pair meant two switches for one divergence, which is the
+	# half-exists confusion the registry was built to end. 1:1 still forces off via qud_shape's
+	# short-circuit; Qud's lighting is the rectangular per-cell model in ZoneRenderer.
+	if Settings.qud_shape("lighting"):
 		if _grade != null:
 			_grade.color = Color.WHITE
 		if _sun != null:
@@ -125,7 +128,10 @@ func _process(dt: float) -> void:
 			_moon.visible = false
 		# 1:1: the clear colour IS Qud's letterbox/area colour (measured 17,33,38 — everything
 		# outside the 80x25 stage, which the clipped field plane now leaves exposed).
-		if Settings.qud_shape() and _env != null:
+		# The letterbox belongs to the TILES question, not lighting: it is the area colour
+		# around the CLIPPED 1:1 stage, and with tiles3d loaded back the huge user ground
+		# replaces that stage -- painting the letterbox under it would tint the sky instead.
+		if Settings.qud_shape("tiles3d") and _env != null:
 			# Compensated like every other measured-from-Qud colour: the composited frame goes
 			# through the same curve, which sagged a bare 17,33,38 to 18,30,34 on the glass.
 			_env.background_color = QudChrome.q8(17, 33, 38)
@@ -217,8 +223,8 @@ func _update_sky(hour: float, dawn: float, dusk: float) -> void:
 	if _sun_light != null:
 		var d := (_zone_center - _sun.position).normalized()
 		_sun_light.rotation = Vector3(asin(clampf(d.y, -1.0, 1.0)), atan2(d.x, d.z), 0.0)
-		# 1:1 / fx-off: the directional sun stays dark (rectangular per-cell light only)
-		var fx_on := bool(Settings.get_value("fx_lighting", false)) and not Settings.qud_shape()
+		# lighting off: the directional sun stays dark (rectangular per-cell light only)
+		var fx_on := not Settings.qud_shape("lighting")
 		_sun_light.light_energy = (sun_a * 0.6) if fx_on else 0.0
 
 ## A body's world position for arc progress 0(rise)..1(set), tilted so it clears the horizon.
