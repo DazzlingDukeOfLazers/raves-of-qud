@@ -309,6 +309,27 @@ func _populate_body() -> void:
 			col.add_child(rrow)
 			rrows.append(_row_meta(rrow, str(item.get("label", "")),
 				str(item.get("label", "")) + " " + str(item.get("key", "")), false))
+		# QoL FEATURES — the divergences from Qud, one row each, off by default.
+		#
+		# User mode renders as a 1:1 clone (Settings.qud_shape) and these are how a difference is
+		# loaded back in. They are listed ONLY in user mode: in 1:1 every one of them is overridden
+		# anyway, and a control that cannot change what you are looking at is worse than an absent
+		# one — it reads as a setting that does not work.
+		#
+		# Built from Settings.QOL_FEATURES rather than restated here, so registering a feature is a
+		# one-line edit in ONE file and cannot half-exist (a gate with no switch, or a switch that
+		# gates nothing). The key is `qol_<name>`, which is exactly what Settings.qol_on reads.
+		if not Settings.one_to_one():
+			for fname in Settings.QOL_FEATURES:
+				var spec: Array = Settings.QOL_FEATURES[fname]
+				var qitem := {"key": "qol_" + str(fname), "type": "toggle",
+					"label": "QoL · " + str(spec[0])}
+				var qrow := _build_raves_setting(qitem)
+				qrow.set_meta("feedback_label", "option · " + str(qitem["label"]))
+				qrow.set_meta("feedback_action", "load back the QoL feature: " + str(spec[0]))
+				col.add_child(qrow)
+				rrows.append(_row_meta(qrow, str(qitem["label"]),
+					str(qitem["label"]) + " qol " + str(fname), false))
 		var rsp := _spacer(12)
 		col.add_child(rsp)
 		_sections.append({"header": rheader, "spacer": rsp, "rows": rrows})
@@ -697,6 +718,13 @@ func _current_raves_settings() -> Dictionary:
 	var out := {}
 	for k in RAVES_KEYS:
 		out[k] = Settings.get_value(k, null)
+	# The QoL flags travel with a preset too. RAVES_KEYS cannot list them -- it is a const and they
+	# come from Settings.QOL_FEATURES -- and leaving them out would make a preset SILENTLY partial:
+	# it would restore the mode and every fx toggle while dropping the divergences you had loaded
+	# back, which is the sort of half-restore you only notice much later and blame on something else.
+	for fname in Settings.QOL_FEATURES:
+		var k := "qol_" + str(fname)
+		out[k] = Settings.get_value(k, bool(Settings.QOL_FEATURES[fname][1]))
 	return out
 
 func _current_qud_values() -> Dictionary:
