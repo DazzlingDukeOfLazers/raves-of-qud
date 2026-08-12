@@ -2164,105 +2164,6 @@ func _landmark_sprite(tile: String, main_c: String, detail_c: String, pos: Vecto
 func _is_creature(obj: Dictionary) -> bool:
 	return bool(obj.get("creature", obj.get("sinks", false)))
 
-## Who gets the depth rim: creatures, furniture and ground items. Layer is the clean
-## seam in this zone's data: terrain 0, plants 3, loot 5, furniture 6, NPCs 10, player
-## 100 — so "layer >= 5" is furniture-and-up, and a vine field stays bare (a rim on
-## every plant is noise, and thousands of extra quads besides).
-func _halo_eligible(obj: Dictionary) -> bool:
-	return _is_creature(obj) or float(obj.get("layer", 0)) >= 5.0
-
-# ── DEPTH HALO (2026-08-12, QoL feature "halo", default OFF) ───────────────────────
-# "a shadow behind each sprite, so when you look at them dead on or overlapping, there
-# is some sort of differentiation." A dilated silhouette quad behind each CREATURE that
-# compares its own view-space depth against the opaque scene's (hint_depth_texture) and
-# paints a dark rim ONLY where something opaque sits close behind — a wall one cell
-# back, a chest in the next cell, furniture underfoot. Open floor metres behind reads
-# fully transparent, so nothing gains a permanent outline; the differentiation exists
-# exactly when the overlap does, which is the failure the flat always-on treatments had
-# (reverted in bb4129d — the depth-debugging tag anchors that state).
-#
-# The DEAD ZONE (dz < ~2cm reads as "myself") is what stops the halo washing over its
-# own sprite — and it is also why creatures get a small camera-side PULL: an NPC and a
-# chest in one cell are coplanar (dz = 0), inside the dead zone, invisible to the halo.
-# A few centimetres of pull lifts the pair past it. The pull is applied to sprite AND
-# halo together, so they stay coplanar with each other.
-const HALO_PULL := 0.05          # creatures; the player gets a touch more
-const HALO_PULL_PLAYER := 0.07
-const HALO_PULL_FURNITURE := 0.03  # dressers/tables/loot: enough to rim over the wall behind
-const HALO_DILATE := 2           # rim thickness, source texels (chunky, art-scale)
-const _HALO_SHADER := "
-shader_type spatial;
-render_mode unshaded, blend_mix, depth_draw_never, cull_disabled;
-uniform sampler2D silhouette : source_color, filter_nearest;
-uniform vec4 tint : source_color = vec4(0.02, 0.05, 0.05, 0.55);
-uniform float dead_zone = 0.02;
-uniform float reach = 1.6;
-uniform sampler2D depth_tex : hint_depth_texture;
-
-void fragment() {
-	float a = texture(silhouette, UV).a;
-	if (a < 0.5) { discard; }
-	float d = texture(depth_tex, SCREEN_UV).x;
-	vec3 ndc = vec3(SCREEN_UV * 2.0 - 1.0, d);
-	vec4 vw = INV_PROJECTION_MATRIX * vec4(ndc, 1.0);
-	vw.xyz /= vw.w;
-	float scene_z = -vw.z;   // metres in front of the camera, at this fragment
-	float my_z = -VERTEX.z;
-	float dz = scene_z - my_z;   // how far BEHIND me the opaque scene is
-	// Fade in past the dead zone (self / true-coplanar suppression), fade out toward
-	// `reach` so distant floor never rims. One cell is 1.0 world units.
-	float k = smoothstep(dead_zone, dead_zone * 3.0, dz) * (1.0 - smoothstep(reach * 0.6, reach, dz));
-	ALPHA = tint.a * k;
-	ALBEDO = tint.rgb;
-}"
-var _halo_shader: Shader = null
-var _halo_mats := {}    # tile -> ShaderMaterial (silhouette uniform bound)
-var _halo_texs := {}    # tile -> dilated band-cropped silhouette ImageTexture
-
-## The dilated silhouette for a tile, cropped to the same opaque band _seat shows, so the
-## halo quad and the sprite quad cover the same world rect. White where (dilated) opaque.
-func _halo_tex(tile: String) -> ImageTexture:
-	if _halo_texs.has(tile):
-		return _halo_texs[tile]
-	var mask := _mask(tile)
-	if mask == null:
-		return null
-	var w := mask.get_width()
-	var h := mask.get_height()
-	var vr := _opaque_v(mask)
-	var top := int(vr.x * h)
-	var band := maxi(1, int(vr.y * h))
-	var img := Image.create(w, band, false, Image.FORMAT_RGBA8)
-	img.fill(Color(0, 0, 0, 0))
-	for y in band:
-		for x in w:
-			var hit := false
-			for dy in range(-HALO_DILATE, HALO_DILATE + 1):
-				for dx in range(-HALO_DILATE, HALO_DILATE + 1):
-					var sx := x + dx
-					var sy := top + y + dy
-					if sx >= 0 and sx < w and sy >= 0 and sy < h 							and mask.get_pixel(sx, sy).a >= 0.5:
-						hit = true
-						break
-				if hit: break
-			if hit:
-				img.set_pixel(x, y, Color(1, 1, 1, 1))
-	var tex := ImageTexture.create_from_image(img)
-	_halo_texs[tile] = tex
-	return tex
-
-func _halo_material(tile: String) -> ShaderMaterial:
-	if _halo_mats.has(tile):
-		return _halo_mats[tile]
-	if _halo_shader == null:
-		_halo_shader = Shader.new()
-		_halo_shader.code = _HALO_SHADER
-	var m := ShaderMaterial.new()
-	m.shader = _halo_shader
-	m.set_shader_parameter("silhouette", _halo_texs.get(tile))
-	_halo_mats[tile] = m
-	return m
-
 ## Glowfish specifically: the orbiting "bug" motes are theirs alone (that's what the fish
 ## do in Qud). Keyed on the tile name — the blueprint isn't always in the per-object payload.
 func _is_glowfish(obj: Dictionary) -> bool:
@@ -2520,7 +2421,6 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			if btex == null:
 				btex = tex
 			var s := _take_sprite()
-			s.material_override = null   # halos override pooled sprites; never inherit one
 			s.texture = btex
 			s.flip_h = bool(obj.get("hflip", false))
 			s.flip_v = bool(obj.get("vflip", false))
@@ -2531,50 +2431,6 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			s.modulate = Color(light_frac, light_frac, light_frac) if light_frac < 0.999 else Color.WHITE
 			var submerged: bool = sink > 0.0 and bool(obj.get("sinks", false))
 			_seat(s, btex, tile, cx, cy, sink if submerged else 0.0, position_for(tile) == "float")
-			# DEPTH HALO — see the section above _halo_tex. Creatures, furniture and ground
-			# items (_halo_eligible); live zone only — remembered neighbours are dim ghosts
-			# and a rim there reads as dirt; needs the qol toggle on. NOT gated on the camera:
-			# statics never rebuild on a mode change, so a place-time camera gate bakes one
-			# mode's answer into the zone (measured: statics built under TOP_FOLLOW kept no
-			# rims in first person). Halos place always and top-down HIDES them at runtime
-			# (set_top_down, group "halo_quad"). When the toggle is on but a halo is skipped,
-			# the inspector says WHY — the skip reasons are part of the report, not a mystery.
-			if not Settings.qud_shape("halo") and _halo_eligible(obj):
-				var skip := ""
-				if _one_to_one: skip = "1:1"
-				elif _flat_2d: skip = "flat-2d"
-				elif _world_map: skip = "world-map"
-				elif not (_live_build or _dyn_noting): skip = "neighbour/remembered build"
-				elif sink > 0.0: skip = "submerged"
-				elif position_for(tile) == "float": skip = "floats"
-				if skip != "":
-					_note(cx, cy, idx, "halo SKIPPED (%s)" % skip, s.position.y)
-				else:
-					# The pull that lifts same-cell coplanarity past the shader's dead zone,
-					# toward the live camera. Applied to sprite and halo TOGETHER.
-					var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
-					if cam != null:
-						var pull_dir := cam.global_position - s.position
-						pull_dir.y = 0.0
-						if pull_dir.length() > 0.01:
-							var lay := int(obj.get("layer", 0))
-							var amt := HALO_PULL_PLAYER if lay >= 90 								else (HALO_PULL if _is_creature(obj) else HALO_PULL_FURNITURE)
-							# stagger > dead_zone so ADJACENT stack indices differentiate, not just idx±3
-							s.position += pull_dir.normalized() * (amt + idx * 0.025)
-					var ht := _halo_tex(tile)
-					if ht != null:
-						var halo := _take_sprite()
-						halo.pixel_size = PIXEL_SIZE
-						halo.texture = ht                      # sizes the quad + UVs
-						halo.material_override = _halo_material(tile)
-						halo.flip_h = bool(obj.get("hflip", false))
-						halo.flip_v = false
-						halo.region_enabled = false            # silhouette is pre-cropped
-						halo.modulate = Color.WHITE
-						halo.position = s.position             # coplanar with its sprite
-						halo.add_to_group("halo_quad")         # set_top_down hides/shows these
-						halo.visible = not _top_down
-						_note(cx, cy, idx, "halo(depth rim)%s" % (" hidden(top-down)" if _top_down else ""), halo.position.y)
 			s.visible = true
 			if _placing_player and WM_STANDING_CARDS:
 				# "You are here": the player card ignores depth and sorts last, so it's always the
@@ -3804,12 +3660,6 @@ func set_top_down(on: bool) -> void:
 	for n in get_tree().get_nodes_in_group("tile_sprite"):
 		if is_instance_valid(n):
 			(n as Sprite3D).billboard = mode
-	# Depth halos are meaningless face-up (every sprite would rim against the floor
-	# below it) — hide them all in top-down, show them again on the way out. Placement
-	# is camera-independent; THIS is the only place the camera touches halos.
-	for n in get_tree().get_nodes_in_group("halo_quad"):
-		if is_instance_valid(n):
-			(n as Sprite3D).visible = not on
 	_apply_wm_orient()   # world-map cards lie flat in top-down, stand up again otherwise (wins over the loop above)
 
 func _take_sprite() -> Sprite3D:
