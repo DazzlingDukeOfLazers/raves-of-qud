@@ -135,6 +135,30 @@ unhandled pass only needs guarding where the key is one a text field does NOT ea
 function keys, dispatchers into Qud). Widening it to every screen is the "ten blanket guards" the
 script's own comment warns against.
 
+### Verifying the version stamp before a tag
+
+`Brand.RAVES_VERSION` is what stamps `app_version` on every feedback report, so a release should
+confirm it in the RUNNING build, not just in the source. Neither title mode shows it — 1:1 mirrors
+Qud's own version corner by design, and user mode shows the same corner — but the **feedback form
+says it out loud**, in the consent line it must show before anything leaves the machine:
+
+```bash
+hv click raves 960 577 --right --mod cmd     # Cmd+Right-click any element
+# the form's consent line reads:
+#   "Sends: your note, the element you picked, and Raves of Qud 0.8.2 on macOS."
+```
+
+Type a note starting `[deleteme]`, save, and the whole pipeline is exercised end to end: the outbox
+drains to zero and the store gains NO row, because the server discards test reports at the door.
+That is the only check that covers the client's marker, the submitter and the server's guard
+together — a curl to `/v1/report` proves only the last of the three.
+
+**`hv click` has `--right`, `--middle`, `--double`, `--hover` and `--mod` (cmd/meta/ctrl/alt/shift).**
+Recorded because the 0.8.2 commit and tag claim this was a missing highvisor capability: it is not.
+`--button right` is simply not the flag's name, and an argparse error was read as an absent feature
+instead of a misremembered spelling. Check `hv <cmd> --help` before concluding a tool cannot do
+something.
+
 ---
 
 ## Running SPOT on another machine
