@@ -61,6 +61,7 @@ func one_to_one() -> bool:
 ## user mode starts as a 1:1 clone and features are loaded back one at a time.
 const QOL_FEATURES := {
 	"titlebar": ["Window titlebar", false],
+	"cameras": ["User cameras (Compass / Follow / First person / …)", false],
 }
 
 func qud_shape(feature := "") -> bool:

@@ -1248,12 +1248,16 @@ func _report_overflow() -> void:
 # The Holodeck owns the master switch + camera (hotkey / highvisor / preset flip it there and
 # emit one_to_one_changed); here we swap the side panels to their Qud-faithful variant and
 # persist the choice so the next launch (and presets) stick.
-func _on_one_to_one_changed(on: bool) -> void:
+func _on_one_to_one_changed(on: bool, chosen: bool) -> void:
 	_set_panels_one_to_one(on)
 	_apply_layout_mode(on)
-	# a --one-to-one LOCKED run isn't a user choice — persisting it made every later
-	# UNFLAGGED launch come up 1:1 too (the lock leaked into settings.json)
-	if not Settings.one_to_one_only:
+	# ONLY A CHOICE IS PERSISTED. Two ways this arrives: the viewer pressed Ctrl+M, or Raves simply
+	# APPLIED the shape at startup. Writing the second one back is how a stored mode gets rewritten
+	# by merely playing — and it just did: since user mode began rendering as a 1:1 clone, entering
+	# the Holodeck called set_one_to_one(qud_shape()) = true and this line saved "1to1", so a user
+	# session came back 1:1 next launch. Same failure the note below already records for the
+	# --one-to-one lock, reached by a different road.
+	if chosen and not Settings.one_to_one_only:
 		Settings.set_value("mode", "1to1" if on else "user")
 		Settings.save()
 

@@ -117,7 +117,7 @@ func _ui_font_size() -> int:
 func _apply_ui_fonts() -> void:
 	# Re-assert the 1:1 (parity) camera span on any window resize — a resize otherwise reverts the
 	# top-down ortho span toward user-mode framing, which breaks the 1:1 match at a fixed size.
-	if _one_to_one and render_3d and _cam_rig != null:
+	if _cam_locked() and render_3d and _cam_rig != null:
 		_cam_rig.set_one_to_one(true)
 		_cam_rig.set_right_inset(_ui_right_inset)   # the inset is a fraction of the window — track resizes
 	UiFont.refresh_theme(_ui_theme, get_viewport())   # keep the project-wide default in sync with the window
@@ -295,7 +295,7 @@ func _ready() -> void:
 func set_render_3d(on: bool) -> void:
 	render_3d = on
 	if on:
-		if _one_to_one:
+		if _cam_locked():
 			_cam_rig.set_one_to_one(true)         # robust: 1:1 span even if already TOP_FOLLOW
 			_cam_rig.set_right_inset(_ui_right_inset)   # recentre the view in the play hole
 			_set_mode(CamMode.TOP_FOLLOW, true)   # enter the 1:1 camera as the viewport comes up
@@ -712,7 +712,7 @@ func _set_mode(m: int, force := false) -> void:
 	# 1:1 (parity) mode locks the camera to the Qud-faithful top-down view — user camera
 	# switches (number keys, Shift+C/K/F, multi-view) are ignored until 1:1 is turned off.
 	# `force` is the internal path (set_one_to_one) that is allowed to change it.
-	if _one_to_one and not force:
+	if _cam_locked() and not force:
 		return
 	if _multiview.is_on():
 		_multiview.toggle()   # picking a mode leaves the multi-view grid
@@ -728,7 +728,9 @@ func _set_mode(m: int, force := false) -> void:
 var _one_to_one := false
 var _saved_cam_mode := -1      # user-mode camera, restored when leaving 1:1
 var _saved_flat_2d := false    # user-mode tile mode (3D vs flat), restored when leaving 1:1
-signal one_to_one_changed(on: bool)
+## `chosen` = the viewer asked for this (Ctrl+M / the highvisor button), as opposed to Raves
+## APPLYING a mode at startup. Only a choice is persisted — see MainFrame._on_one_to_one_changed.
+signal one_to_one_changed(on: bool, chosen: bool)
 ## Qud moved to a different CurrentGameView — its legacy screens (the Looker) arrive here, on the
 ## popup mirror's channel rather than the snapshot, because those screens stop snapshots.
 signal qud_view_changed(name: String)
@@ -736,14 +738,24 @@ signal qud_view_changed(name: String)
 func is_one_to_one() -> bool:
 	return _one_to_one
 
-func set_one_to_one(on: bool) -> void:
+## Is the CAMERA locked to Qud's top-down? Its own question, because `_one_to_one` answers three at
+## once -- camera, lighting model and flat-tile rendering -- and the first QoL feature loaded back
+## (Daniel, 2026-08-12: "let's restore the user-mode cameras") wants exactly one of them. 1:1 mode
+## still locks it: `qud_shape` short-circuits on the mode before it ever looks at the feature.
+func _cam_locked() -> bool:
+	return Settings.qud_shape("cameras")
+
+func set_one_to_one(on: bool, chosen := false) -> void:
 	if on == _one_to_one:
 		return
 	_one_to_one = on
-	_cam_rig.set_one_to_one(on)   # 1:1 vs user ortho span (safe in data-only; guards a null camera)
-	# Camera half — only meaningful with the 3D viewport up (data-only mode has no camera to
-	# flip); set_render_3d re-applies TOP_FOLLOW when the viewport comes on.
-	if on:
+	# Camera half — asks _cam_locked(), NOT `on`: with the `cameras` QoL feature loaded back, user
+	# mode keeps Qud's lighting and flat tiles while the viewer drives their own camera again.
+	var cam := _cam_locked()
+	_cam_rig.set_one_to_one(cam)   # 1:1 vs user ortho span (safe in data-only; guards a null camera)
+	# Only meaningful with the 3D viewport up (data-only mode has no camera to flip);
+	# set_render_3d re-applies TOP_FOLLOW when the viewport comes on.
+	if cam:
 		_saved_cam_mode = _cam_rig._mode
 		if render_3d:
 			_set_mode(CamMode.TOP_FOLLOW, true)   # the Qud-faithful 1:1 top-down (ONE_TO_ONE_SPAN)
@@ -764,10 +776,10 @@ func set_one_to_one(on: bool) -> void:
 		_apply_flat_2d(true)               # rebuild even if already flat — the light rules changed
 	else:
 		_apply_flat_2d(_saved_flat_2d)     # ditto on exit
-	one_to_one_changed.emit(on)
+	one_to_one_changed.emit(on, chosen)
 
 func toggle_one_to_one() -> void:
-	set_one_to_one(not _one_to_one)
+	set_one_to_one(not _one_to_one, true)   # a viewer choice: this one sticks
 
 ## MainFrame tells us how much of the window the 1:1 side panels cover (0..~0.4). The camera shifts its
 ## lens so the zone-fit centres in the visible play hole (left of the sidebar), not the full window.
@@ -1219,7 +1231,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.keycode == KEY_5: _set_mode(CamMode.MOUSE); return
 		if event.keycode == KEY_6: _set_mode(CamMode.KEYBOARD); return
 		if event.keycode == KEY_7: _set_mode(CamMode.TOP_FOLLOW); return
-		if event.keycode == KEY_0 and not _one_to_one: _multiview.toggle(); return   # 0 = all-views grid (locked out in 1:1)
+		if event.keycode == KEY_0 and not _cam_locked(): _multiview.toggle(); return   # 0 = all-views grid (a camera feature)
 		if event.keycode == KEY_QUOTELEFT:      # ` toggles the debug menu
 			_dbg_menu.toggle(); return
 		# B: "become anything" character-creator menu (pick a blueprint to embody)
@@ -1239,9 +1251,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		# camera like the player. Discrete per press; pairs with S/D vertical pan. Not
 		# in FLY (WASD drives the free camera there), and not in 1:1 — Qud's camera is
 		# the letterbox model only (zoom + clamped player follow), never a free dolly.
-		if _cam_rig._mode != CamMode.KEYBOARD and not _one_to_one and event.keycode == KEY_W:
+		if _cam_rig._mode != CamMode.KEYBOARD and not _cam_locked() and event.keycode == KEY_W:
 			_cam_rig._cam_pan += _cam_rig.cam_forward() * _cam_rig.CAM_STEP; return
-		if _cam_rig._mode != CamMode.KEYBOARD and not _one_to_one and event.keycode == KEY_X:
+		if _cam_rig._mode != CamMode.KEYBOARD and not _cam_locked() and event.keycode == KEY_X:
 			_cam_rig._cam_pan -= _cam_rig.cam_forward() * _cam_rig.CAM_STEP; return
 		# S / D = go UP / DOWN stairs (Qud's climb commands CmdMoveU / CmdMoveD; Down also
 		# pulls down from the world map). Direct command injection — NOT a raw keymap
@@ -1283,12 +1295,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.keycode == KEY_P:
 			_dump_profile(); return   # P: macOS grabs F9 (Mission Control)
 		if event.keycode == KEY_MINUS or event.keycode == KEY_KP_SUBTRACT:
-			if _one_to_one and _cam_rig._mode == CamMode.TOP_FOLLOW:
+			if _cam_locked() and _cam_rig._mode == CamMode.TOP_FOLLOW:
 				_cam_rig.zoom_1to1_step(-1); return   # Qud's CmdZoomOut (quarter step, floor = fit)
 			inspector.nudge_font(-2)
 			reporter.nudge_font(-2); return
 		if event.keycode == KEY_EQUAL or event.keycode == KEY_KP_ADD:
-			if _one_to_one and _cam_rig._mode == CamMode.TOP_FOLLOW:
+			if _cam_locked() and _cam_rig._mode == CamMode.TOP_FOLLOW:
 				_cam_rig.zoom_1to1_step(1); return    # Qud's CmdZoomIn (quarter step)
 			inspector.nudge_font(2)
 			reporter.nudge_font(2); return
@@ -1369,7 +1381,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				_cam_rig._panning = event.pressed and _cam_rig._mode == CamMode.MOUSE
 			MOUSE_BUTTON_WHEEL_UP:
 				if event.pressed:
-					if _one_to_one and _cam_rig._mode == CamMode.TOP_FOLLOW:
+					if _cam_locked() and _cam_rig._mode == CamMode.TOP_FOLLOW:
 						_cam_rig.zoom_1to1_step(1)     # Qud's quarter-step zoom in (min factor 1.0 = fit)
 					elif _cam_rig._mode == CamMode.TOP_FOLLOW:
 						_cam_rig._top_zoom = clampf(_cam_rig._top_zoom * 0.9, _cam_rig.TOP_ZOOM_MIN, _cam_rig.TOP_ZOOM_MAX)
@@ -1377,7 +1389,7 @@ func _unhandled_input(event: InputEvent) -> void:
 						_cam_rig._dist = clampf(_cam_rig._dist * 0.9, _cam_rig.DIST_MIN, _cam_rig.DIST_MAX)
 			MOUSE_BUTTON_WHEEL_DOWN:
 				if event.pressed:
-					if _one_to_one and _cam_rig._mode == CamMode.TOP_FOLLOW:
+					if _cam_locked() and _cam_rig._mode == CamMode.TOP_FOLLOW:
 						_cam_rig.zoom_1to1_step(-1)    # Qud's quarter-step zoom out (stops at the zone fit)
 					elif _cam_rig._mode == CamMode.TOP_FOLLOW:
 						_cam_rig._top_zoom = clampf(_cam_rig._top_zoom * 1.1, _cam_rig.TOP_ZOOM_MIN, _cam_rig.TOP_ZOOM_MAX)
