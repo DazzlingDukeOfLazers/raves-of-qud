@@ -2,11 +2,21 @@
   "_comment": "Standing render rules, keyed by tile family. Written by the in-viewer report form; read live by ZoneRenderer every frame. Safe to hand-edit. CONFIG, not a ticket queue. A reference copy is committed at overrides.seed.json.",
   "version": 1,
   "tiles": {
-    "sw_axle": { "position": "POS: FLOAT centered in the tile" },
-    "sw_millstone": { "fill": "FILL: fill the holes with BACKGROUND" },
-    "sw_waterwheel": {
-      "shape": "ORIENTED PANEL running E–W (faces N/S)",
+    "sw_axle": {
+      "position": "POS: FLOAT centered in the tile"
+    },
+    "sw_millstone": {
       "fill": "FILL: fill the holes with BACKGROUND"
+    },
+    "sw_waterwheel": {
+      "shape": "ORIENTED PANEL running E\u2013W (faces N/S)",
+      "fill": "FILL: fill the holes with BACKGROUND"
+    },
+    "sw_dromad": {
+      "fill": "make the neck gaps TRANSPARENT (see-through)"
+    },
+    "sw_basket": {
+      "fill": "FILL: keep only the SMALL POCKETS (weave shadows); the big arch goes clear"
     }
   }
 }

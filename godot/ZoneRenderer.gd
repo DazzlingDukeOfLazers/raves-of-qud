@@ -76,7 +76,7 @@ var _dark_mat: StandardMaterial3D
 ##             within a row. Neither alone is a superset — a wheel's open paddle
 ##             bottoms fill only by row-span, a millstone's pinched notches only by
 ##             enclosure — so the "more fill" mode is both. Always >= INTERIOR.
-enum Fill { NONE, ALL, INTERIOR, SPAN }
+enum Fill { NONE, ALL, INTERIOR, SPAN, POCKETS }
 
 # Widest horizontal transparent run still treated as a seam in the art rather
 # than a genuine opening. Tuned against sw_chest (1px channels beside its bands,
@@ -1187,6 +1187,7 @@ func tile_fill_px(tile: String, mode: int) -> int:
 	match mode:
 		Fill.INTERIOR: mask = _interior(tile)
 		Fill.SPAN:     mask = _fill_holes(tile)
+		Fill.POCKETS:  mask = _pockets(tile)
 		_: return 0
 	var n := 0
 	for row in mask:
@@ -1278,6 +1279,7 @@ const VERDICT_KEYS := [
 ## keep parsing and TileReport's wording can change freely. Order matters where one
 ## phrase contains another: "enclosed" is checked before "background".
 const FILL_KEYS := [
+	["small pockets", Fill.POCKETS],   # keep tiny weave/shadow gaps, open the big arches
 	["enclosed", Fill.INTERIOR],       # the conservative option, if asked for by name
 	["background", Fill.SPAN],         # "fill the holes" — the common intent
 	["fill the holes", Fill.SPAN],
@@ -1402,7 +1404,7 @@ func override_summary(tile: String) -> String:
 	if _overrides.has(fam):
 		parts.append("shape=" + String(_overrides[fam]))
 	if _fill_overrides.has(fam):
-		var names := ["none", "all", "interior", "fill-holes"]
+		var names := ["none", "all", "interior", "fill-holes", "pockets"]
 		var m := int(_fill_overrides[fam])
 		parts.append("fill=" + (names[m] if m < names.size() else str(m)))
 	if _position_overrides.has(fam):
@@ -2525,7 +2527,7 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 				kind = "billboard(submerged %d%%)" % roundi(sink * 100.0)
 			elif upright_ground:
 				kind = "billboard(painted cover, stood up)"
-			var names := ["none", "all", "interior", "fill-holes"]
+			var names := ["none", "all", "interior", "fill-holes", "pockets"]
 			var fname: String = names[fmode] if fmode < names.size() else str(fmode)
 			var stk := ""
 			if rank >= 0 and below == 0 and rank > 0:
@@ -3520,6 +3522,44 @@ func _interior(tile: String) -> Array:
 ## side notches (enclosure) and the pinched neck between its cap and body (column).
 ## None is a superset of the others, so "fill it in more" is all three. Always fills
 ## at least as much as INTERIOR, never less. Squares nothing off — that\'s Fill.ALL.
+const POCKET_MAX_PX := 8   # an enclosed region bigger than this reads as an opening, not a shadow
+
+## "Small pockets only" — the INTERIOR fill minus its LARGE regions. A 1-2px enclosed
+## gap is a shadow drawn into the art (a basket's weave); a ~60px enclosed arch is the
+## world showing through (Daniel, 2026-08-12: the basket hoop's arch goes clear, the
+## weave shadows stay). Connected components over POCKET_MAX_PX are dropped.
+func _pockets(tile: String) -> Array:
+	var fname := tile_filename(tile) + "|pockets"
+	if _interior_cache.has(fname):
+		return _interior_cache[fname]
+	var inner := _interior(tile)
+	var out := []
+	for row in inner:
+		out.append((row as Array).duplicate())
+	var h := out.size()
+	var w: int = 0 if h == 0 else (out[0] as Array).size()
+	var seen := {}
+	for y in h:
+		for x in w:
+			if out[y][x] and not seen.has(Vector2i(x, y)):
+				var comp := [Vector2i(x, y)]
+				seen[Vector2i(x, y)] = true
+				var qi := 0
+				while qi < comp.size():
+					var c: Vector2i = comp[qi]
+					qi += 1
+					for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+						var n: Vector2i = c + d
+						if n.x >= 0 and n.x < w and n.y >= 0 and n.y < h \
+								and out[n.y][n.x] and not seen.has(n):
+							seen[n] = true
+							comp.append(n)
+				if comp.size() > POCKET_MAX_PX:
+					for c2 in comp:
+						out[c2.y][c2.x] = false
+	_interior_cache[fname] = out
+	return out
+
 func _fill_holes(tile: String) -> Array:
 	var fname := tile_filename(tile) + "|holes"
 	if _interior_cache.has(fname):
