@@ -2499,7 +2499,21 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			# parity-measured against Qud.
 			var lift_n := rank if rank >= 0 else idx
 			if not _one_to_one and lift_n > 0:
-				s.position += Vector3(0.006, 0.014, 0.010) * float(lift_n)
+				# Rank separation, two parts. VERTICAL is the backbone: higher rank = higher,
+				# which is nearer for ANY downward-pitched camera and neutral for a level one.
+				# The horizontal part must point AT the camera — the first version used a fixed
+				# world diagonal, and depth-along-a-fixed-axis flips sign with the compass
+				# heading: at Daniel's heading it out-pulled the vertical and put Tam BEHIND
+				# his cushion ("maybe the logic is reversed?" — it was, for half the headings).
+				# Placement-time direction is fresh every turn for creatures (dynamics) — and
+				# the creature is the top of the pile, the one sprite that must always win.
+				s.position.y += 0.014 * float(lift_n)
+				var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
+				if cam != null:
+					var pull := cam.global_position - s.position
+					pull.y = 0.0
+					if pull.length() > 0.01:
+						s.position += pull.normalized() * (0.008 * float(lift_n))
 			s.visible = true
 			if _placing_player and WM_STANDING_CARDS:
 				# "You are here": the player card ignores depth and sorts last, so it's always the
