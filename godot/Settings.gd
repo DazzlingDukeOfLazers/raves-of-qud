@@ -63,6 +63,7 @@ const QOL_FEATURES := {
 	"tiles3d": ["3D tiles (voxel walls + upright sprites)", false],
 	"lighting": ["Day/night lighting (grade + sun/moon + fog)", false],
 	"particles": ["Smoke plumes (sconces & torches at night)", false],
+	"depthcue": ["Depth cue (farther is slightly darker)", false],
 }
 
 func qud_shape(feature := "") -> bool:

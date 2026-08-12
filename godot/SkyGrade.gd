@@ -37,6 +37,44 @@ var _underground := false
 
 # Read by Main's mode label / debug HUD.
 var time_label := ""
+# DEPTH CUE (QoL "depthcue") — "make objects further away slightly darker". One fullscreen
+# quad in the transparent pass reads the opaque depth buffer and mixes toward black with
+# view distance. Camera-correct every frame in every mode (no per-sprite bookkeeping, no
+# placement-time camera state — the depth-halo experiment's trap), and our sprites depth-write
+# (ALPHA_CUT_DISCARD) so they participate like the walls do. The sky (far plane) is skipped;
+# glows/smoke draw AFTER it (render_priority) so emissives are not dimmed.
+const _DEPTHCUE_SHADER := "
+shader_type spatial;
+render_mode unshaded, blend_mix, depth_draw_never, depth_test_disabled, cull_disabled, fog_disabled;
+uniform sampler2D depth_tex : hint_depth_texture;
+uniform float start_dist = 1.5;   // metres from the camera where darkening begins
+uniform float span = 14.0;        // metres over which it ramps to max_dark
+uniform float max_dark = 0.25;    // fraction of black mixed in at full distance
+// Scale measured in-world (probe: dist/40 ramp): in first person MOST of the frame is
+// under 8m — a 7m start confined the whole effect to a thin horizon strip (banded diff
+// +0.98 there, 0.0 everywhere else). The ramp has to live inside 2..15m to separate
+// one object from the next, not just near from far-horizon.
+
+void vertex() {
+	// z=0.5: comfortably inside NDC depth either side of the reversed-z change — exactly
+	// ON the near plane (the documented 1.0) clipped the whole quad here and the pass
+	// silently did nothing. Depth test is disabled, so the value only has to survive clip.
+	POSITION = vec4(VERTEX.xy, 0.5, 1.0);
+}
+
+void fragment() {
+	float d = texture(depth_tex, SCREEN_UV).x;
+	if (d <= 0.000001) { discard; }   // reversed-z far plane: the sky keeps its colour
+	vec3 ndc = vec3(SCREEN_UV * 2.0 - 1.0, d);
+	vec4 vw = INV_PROJECTION_MATRIX * vec4(ndc, 1.0);
+	vw.xyz /= vw.w;
+	float dist = -vw.z;
+	float k = clamp((dist - start_dist) / span, 0.0, 1.0);
+	ALPHA = max_dark * k;
+	ALBEDO = vec3(0.0);
+}"
+var _depthcue: MeshInstance3D = null
+
 var day_frac := 0.5
 var dawn_h := 6.5
 var dusk_h := 20.0
@@ -105,6 +143,25 @@ func setup(embedded: bool, renderer_ref: Node) -> void:
 	_sun_light.shadow_normal_bias = 1.5
 	add_child(_sun_light)
 
+	# The depth-cue pass (see the shader const). Always built; VISIBILITY is the live gate,
+	# re-read each _process so the Options toggle applies without a rebuild and 1:1 forces
+	# it off through qud_shape's short-circuit.
+	var dc_sh := Shader.new()
+	dc_sh.code = _DEPTHCUE_SHADER
+	var dc_mat := ShaderMaterial.new()
+	dc_mat.shader = dc_sh
+	dc_mat.render_priority = -10       # first among transparents: glows and smoke stay bright
+	_depthcue = MeshInstance3D.new()
+	var dc_mesh := QuadMesh.new()
+	dc_mesh.size = Vector2(2, 2)
+	_depthcue.mesh = dc_mesh
+	_depthcue.material_override = dc_mat
+	# The vertex shader pins it fullscreen regardless of transform; the AABB just has to
+	# survive frustum culling from anywhere.
+	_depthcue.custom_aabb = AABB(Vector3(-1e6, -1e6, -1e6), Vector3(2e6, 2e6, 2e6))
+	_depthcue.visible = false
+	add_child(_depthcue)
+
 ## Fed each snapshot: Qud time dict, the player's stratum, and the live zone's centre (for the arc).
 func update(t: Dictionary, depth: int, zone_center: Vector3) -> void:
 	_depth = depth
@@ -113,6 +170,9 @@ func update(t: Dictionary, depth: int, zone_center: Vector3) -> void:
 	_update_time(t)
 
 func _process(dt: float) -> void:
+	# Depth cue first: independent of the lighting feature, so it must precede that early return.
+	if _depthcue != null:
+		_depthcue.visible = not Settings.qud_shape("depthcue")
 	# Lighting off -> no day/night MULTIPLY grade (true tile colours), no sky bodies, no fog.
 	# ONE gate now: the `lighting` QoL feature. It used to be fx_lighting AND not qud_shape() --
 	# fx_lighting was the older load-it-back experiment ("1:1 test · 3D lighting"), and once the
