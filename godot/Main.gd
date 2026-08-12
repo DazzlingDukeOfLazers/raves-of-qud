@@ -946,8 +946,11 @@ const _MODE_NAMES := {
 	CamMode.FOLLOW: "FOLLOW — trails your heading · arrows move (↑=fwd) · R/F zoom · S/D height · W/X dolly",
 	CamMode.FIRST_PERSON: "FIRST-PERSON — ↑↓ move · ←→ turn · Ctrl+Shift+←→ strafe · Shift+arrows diagonal",
 	CamMode.CINEMATIC: "CINEMATIC — frames you + selected tile",
-	CamMode.MOUSE: "ORBIT — drag around the selected tile",
-	CamMode.KEYBOARD: "FLY — WASD move, arrows aim",
+	# Named as the ENUM and the Options "Default camera" list name them. These heads are the
+	# multiview pane captions and the HUD mode hint, and they read ORBIT / FLY for years after
+	# the modes were renamed -- two names for one camera, in the two places a viewer compares.
+	CamMode.MOUSE: "MOUSE — drag orbits the selected tile",
+	CamMode.KEYBOARD: "KEYBOARD — WASD move, arrows aim",
 	CamMode.TOP_FOLLOW: "TOP-DOWN FOLLOW — classic overhead · north up · tracks you · R/F zoom",
 }
 
