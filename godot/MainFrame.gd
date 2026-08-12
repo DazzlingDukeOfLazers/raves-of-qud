@@ -1140,6 +1140,10 @@ func _open_options_overlay() -> void:
 	_options.layer = 90            # the status-screen / control-mapping band, under the CRT
 	var scn: Control = scr.new()
 	scn.closed.connect(_close_options_overlay)
+	# In-game, "Default camera" applies to the LIVE Holodeck too (see OptionsScreen.apply_camera_cb).
+	scn.apply_camera_cb = func(m: int) -> void:
+		if _holo != null and _holo.has_method("set_camera_mode"):
+			_holo.set_camera_mode(m)
 	_options.add_child(scn)
 	add_child(_options)
 	UiState.set_scene("options")

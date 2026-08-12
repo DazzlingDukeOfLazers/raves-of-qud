@@ -792,6 +792,12 @@ func set_one_to_one(on: bool, chosen := false) -> void:
 		_apply_flat_2d(_saved_flat_2d)     # the viewer's own tile mode (3D by default)
 	one_to_one_changed.emit(on, chosen)
 
+## The Options overlay's "Default camera" row, applied LIVE (MainFrame wires this through
+## OptionsScreen.apply_camera_cb). Same path as the number keys, same lock: while the cameras
+## feature is off, _set_mode ignores it and the setting simply waits for the next build.
+func set_camera_mode(m: int) -> void:
+	_set_mode(clampi(m, 0, CamMode.TOP_FOLLOW))
+
 func toggle_one_to_one() -> void:
 	set_one_to_one(not _one_to_one, true)   # a viewer choice: this one sticks
 

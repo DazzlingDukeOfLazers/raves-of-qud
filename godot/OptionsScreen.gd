@@ -36,6 +36,13 @@ const RAVES_ITEMS := [
 	{"key": "bridge_port", "label": "Port", "type": "text"},
 ]
 
+## Set by MainFrame when this screen opens as the IN-GAME overlay: applies a "camera" change to
+## the LIVE Holodeck. The row already persisted, but CameraRig reads the setting once, at build --
+## so from in-game the change looked like it did nothing until the next launch ("setting the
+## camera in options doesn't change the actual view", 2026-08-12). Unset on the title screen,
+## where there is no Holodeck and the next build picking it up is the correct behaviour.
+var apply_camera_cb: Callable = Callable()
+
 var _scroll: ScrollContainer
 var _body_col: VBoxContainer            # the reloadable option column (rebuilt on refresh)
 var _anchors: Dictionary = {}          # category name -> its header Control (sidebar jumps)
@@ -531,6 +538,8 @@ func _raves_options(item: Dictionary) -> Control:
 		var idx := i
 		b.pressed.connect(func():
 			Settings.set_value(item["key"], idx); Settings.save()
+			if str(item["key"]) == "camera" and apply_camera_cb.is_valid():
+				apply_camera_cb.call(idx)   # live, when a Holodeck exists (see the member's note)
 			for j in range(btns.size()):
 				btns[j].add_theme_color_override("font_color", SEL if j == idx else DIM))
 		btns.append(b); h.add_child(b)
