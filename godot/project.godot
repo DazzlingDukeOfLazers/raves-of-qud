@@ -48,6 +48,14 @@ window/size/viewport_width=1600
 window/size/viewport_height=900
 window/dpi/allow_hidpi=false
 
+[display]
+
+# Popups (OptionButton dropdowns, context menus) render INSIDE the main window instead of
+# as native OS windows. Visually equivalent for a full-window app, and it makes dropdowns
+# part of the one window highvisor drives and captures — a native popup was invisible to
+# `hv ls`/`hv click`, so the ` menu's curve pulldown could not be driven or verified.
+window/subwindows/embed_subwindows=true
+
 [rendering]
 
 textures/vram_compression/import_etc2_astc=true

@@ -53,6 +53,11 @@ add a one-liner (symptom → rule).
   keep using the mod's `PushCommand`.
 
 ### Renderer (ZoneRenderer)
+- **Godot popups are NATIVE OS windows unless `embed_subwindows=true`** (now set in project.godot):
+  a native OptionButton dropdown is invisible to `hv ls` and un-clickable by `hv click`. Embedded,
+  the popup still selects only via KEYBOARD from the harness (open, then plain `hv key raves DOWN
+  ... RETURN` — no `--focus`, activate closes it; the popup opens unfocused so the FIRST down lands
+  on item 0). Posted clicks close it without selecting — drive dropdowns by keys.
 - **Never gate STATIC placement on the live camera** (`_top_down` etc.) — statics build once per zone
   and a camera-state gate bakes that moment's answer in forever. Place camera-independently and toggle
   VISIBILITY at runtime (the depth-halo experiment hit this; the halo is reverted, the rule stands).

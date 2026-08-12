@@ -50,6 +50,7 @@ uniform sampler2D depth_tex : hint_depth_texture;
 uniform float start_dist = 1.5;   // metres from the camera where darkening begins
 uniform float span = 14.0;        // metres over which it ramps to max_dark
 uniform float max_dark = 0.25;    // fraction of black mixed in at full distance
+uniform int curve_mode = 0;       // 0 linear · 1 natural log · 2 exponential · 3 smoothstep
 // Scale measured in-world (probe: dist/40 ramp): in first person MOST of the frame is
 // under 8m — a 7m start confined the whole effect to a thin horizon strip (banded diff
 // +0.98 there, 0.0 everywhere else). The ramp has to live inside 2..15m to separate
@@ -69,7 +70,14 @@ void fragment() {
 	vec4 vw = INV_PROJECTION_MATRIX * vec4(ndc, 1.0);
 	vw.xyz /= vw.w;
 	float dist = -vw.z;
-	float k = clamp((dist - start_dist) / span, 0.0, 1.0);
+	float t = clamp((dist - start_dist) / span, 0.0, 1.0);
+	// The curve shapes WHERE the darkening lives inside the ramp: log front-loads it
+	// (separates the near-to-mid field), exponential back-loads it (only the far end
+	// dims), smoothstep eases both ends. All meet k=0 at start and k=1 at start+span.
+	float k = t;
+	if (curve_mode == 1) { k = log(1.0 + 9.0 * t) / log(10.0); }
+	else if (curve_mode == 2) { k = (exp(3.0 * t) - 1.0) / (exp(3.0) - 1.0); }
+	else if (curve_mode == 3) { k = t * t * (3.0 - 2.0 * t); }
 	ALPHA = max_dark * k;
 	ALBEDO = vec3(0.0);
 }"
@@ -92,6 +100,16 @@ func set_depthcue_params(start: float, span: float, dark: float) -> void:
 	m.set_shader_parameter("start_dist", start)
 	m.set_shader_parameter("span", maxf(span, 0.5))   # 0 span would divide by zero
 	m.set_shader_parameter("max_dark", clampf(dark, 0.0, 1.0))
+
+## The falloff curve, as the shader's curve_mode int (order matches DebugMenu's dropdown).
+func depthcue_curve() -> int:
+	if _depthcue == null or _depthcue.material_override == null:
+		return 0
+	return int(_depthcue.material_override.get_shader_parameter("curve_mode"))
+
+func set_depthcue_curve(mode: int) -> void:
+	if _depthcue != null and _depthcue.material_override != null:
+		_depthcue.material_override.set_shader_parameter("curve_mode", clampi(mode, 0, 3))
 
 var day_frac := 0.5
 var dawn_h := 6.5
@@ -175,6 +193,7 @@ func setup(embedded: bool, renderer_ref: Node) -> void:
 	dc_mat.set_shader_parameter("start_dist", 1.5)
 	dc_mat.set_shader_parameter("span", 14.0)
 	dc_mat.set_shader_parameter("max_dark", 0.25)
+	dc_mat.set_shader_parameter("curve_mode", 0)
 	_depthcue = MeshInstance3D.new()
 	var dc_mesh := QuadMesh.new()
 	dc_mesh.size = Vector2(2, 2)

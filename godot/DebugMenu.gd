@@ -108,6 +108,19 @@ func build(cam_rig, renderer_ref, sky_grade, multiview, mode_names: Dictionary, 
 	_dc_slider(vb, "depth cue start (m)", 0.0, 8.0, 0.25, dc0.x, 0)
 	_dc_slider(vb, "depth cue fade span (m)", 2.0, 40.0, 1.0, dc0.y, 1)
 	_dc_slider(vb, "depth cue strength", 0.0, 0.6, 0.02, dc0.z, 2)
+	# falloff curve: how darkening is distributed across the start..start+span ramp
+	var cl := Label.new()
+	cl.text = "depth cue curve"
+	vb.add_child(cl)
+	var curve := OptionButton.new()
+	curve.focus_mode = Control.FOCUS_NONE
+	for name in ["linear", "natural log (near-weighted)", "exponential (far-weighted)", "smoothstep (eased)"]:
+		curve.add_item(name)
+	curve.selected = _sky.depthcue_curve() if _sky != null else 0
+	curve.item_selected.connect(func(i):
+		if _sky != null:
+			_sky.set_depthcue_curve(i))
+	vb.add_child(curve)
 	# COMPASS Q/E rotation step: 45° (8-way) or 90° (cardinal)
 	_compass_step_btn = Button.new()
 	_compass_step_btn.focus_mode = Control.FOCUS_NONE
