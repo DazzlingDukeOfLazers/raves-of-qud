@@ -1078,12 +1078,17 @@ func _notification(what: int) -> void:
 
 ## Persist the view/render settings a run should remember.
 func _save_settings() -> void:
+	# The view file belongs to USER mode. A 1:1 run forces the stage's camera (TOP_FOLLOW),
+	# window and zoom, and writing ANY of that back hands the next user-mode launch state it
+	# never chose. The `win` key learned this first (a parity run's stage size overwrote the
+	# user's); `mode` had the same leak and its bite was subtler — the restore put the
+	# renderer top-down before the first static build, so depth halos placed hidden and
+	# statics never rebuild on a camera change. One guard now covers the whole file.
+	if Settings.one_to_one():
+		return
 	var sz := DisplayServer.window_get_size()
-	# In 1:1 mode the window size is the STAGE's, not the user's, so writing it back would
-	# quietly overwrite the size they chose in user mode with whatever the last parity run
-	# happened to use. Carry the stored value through instead of recording the stage's.
 	var keep_win: Variant = null
-	if Settings.qud_shape() and FileAccess.file_exists(SETTINGS_PATH):
+	if FileAccess.file_exists(SETTINGS_PATH):
 		var pf := FileAccess.open(SETTINGS_PATH, FileAccess.READ)
 		if pf != null:
 			var prev: Variant = JSON.parse_string(pf.get_as_text())

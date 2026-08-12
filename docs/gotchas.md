@@ -53,6 +53,13 @@ add a one-liner (symptom → rule).
   keep using the mod's `PushCommand`.
 
 ### Renderer (ZoneRenderer)
+- **Never gate STATIC placement on the live camera** (`_top_down` etc.) — statics build once per zone
+  and a camera-state gate bakes that moment's answer in forever. Place camera-independently and toggle
+  VISIBILITY at runtime (see depth halos + `set_top_down`, group `halo_quad`).
+- **1:1 runs must not write user-view state.** `Main._save_settings` returns early in `one_to_one()`:
+  a parity run's TOP_FOLLOW leaked into `user://raves_settings.json` as `mode: 6` and every user-mode
+  launch restored a top-down renderer the user never chose (symptom: depth halos placed hidden,
+  Options camera "ignored"). The `win` key had the same bug earlier; the guard now covers the file.
 - **LIVE STATIC geometry is built ONCE per zone and frozen** — walls, furniture, sprites, lights. Only
   creatures rebuild per step. A new/changed static object won't render mid-zone unless `_static_signature`
   changes, and that signature must include every state that matters (name AND `lightRadius`, since light lags).

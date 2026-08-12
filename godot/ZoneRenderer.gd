@@ -2164,6 +2164,13 @@ func _landmark_sprite(tile: String, main_c: String, detail_c: String, pos: Vecto
 func _is_creature(obj: Dictionary) -> bool:
 	return bool(obj.get("creature", obj.get("sinks", false)))
 
+## Who gets the depth rim: creatures, furniture and ground items. Layer is the clean
+## seam in this zone's data: terrain 0, plants 3, loot 5, furniture 6, NPCs 10, player
+## 100 — so "layer >= 5" is furniture-and-up, and a vine field stays bare (a rim on
+## every plant is noise, and thousands of extra quads besides).
+func _halo_eligible(obj: Dictionary) -> bool:
+	return _is_creature(obj) or float(obj.get("layer", 0)) >= 5.0
+
 # ── DEPTH HALO (2026-08-12, QoL feature "halo", default OFF) ───────────────────────
 # "a shadow behind each sprite, so when you look at them dead on or overlapping, there
 # is some sort of differentiation." A dilated silhouette quad behind each CREATURE that
@@ -2181,6 +2188,7 @@ func _is_creature(obj: Dictionary) -> bool:
 # halo together, so they stay coplanar with each other.
 const HALO_PULL := 0.05          # creatures; the player gets a touch more
 const HALO_PULL_PLAYER := 0.07
+const HALO_PULL_FURNITURE := 0.03  # dressers/tables/loot: enough to rim over the wall behind
 const HALO_DILATE := 2           # rim thickness, source texels (chunky, art-scale)
 const _HALO_SHADER := "
 shader_type spatial;
@@ -2523,31 +2531,50 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			s.modulate = Color(light_frac, light_frac, light_frac) if light_frac < 0.999 else Color.WHITE
 			var submerged: bool = sink > 0.0 and bool(obj.get("sinks", false))
 			_seat(s, btex, tile, cx, cy, sink if submerged else 0.0, position_for(tile) == "float")
-			# DEPTH HALO — see the section above _halo_tex. Creatures (and the player, layer
-			# 100) only; 3D-upright user mode only; needs the qol toggle on.
-			if not _one_to_one and not _flat_2d and not _top_down and not _world_map 					and not Settings.qud_shape("halo") and _is_creature(obj) 					and sink <= 0.0 and position_for(tile) != "float":
-				# The pull that lifts same-cell coplanarity past the shader's dead zone,
-				# toward the live camera. Applied to sprite and halo TOGETHER.
-				var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
-				if cam != null:
-					var pull_dir := cam.global_position - s.position
-					pull_dir.y = 0.0
-					if pull_dir.length() > 0.01:
-						var amt := HALO_PULL_PLAYER if int(obj.get("layer", 0)) >= 90 else HALO_PULL
-						s.position += pull_dir.normalized() * (amt + idx * 0.008)
-				var ht := _halo_tex(tile)
-				if ht != null:
-					var halo := _take_sprite()
-					halo.pixel_size = PIXEL_SIZE
-					halo.texture = ht                      # sizes the quad + UVs
-					halo.material_override = _halo_material(tile)
-					halo.flip_h = bool(obj.get("hflip", false))
-					halo.flip_v = false
-					halo.region_enabled = false            # silhouette is pre-cropped
-					halo.modulate = Color.WHITE
-					halo.position = s.position             # coplanar with its sprite
-					halo.visible = true
-					_note(cx, cy, idx, "halo(depth rim)", halo.position.y)
+			# DEPTH HALO — see the section above _halo_tex. Creatures, furniture and ground
+			# items (_halo_eligible); live zone only — remembered neighbours are dim ghosts
+			# and a rim there reads as dirt; needs the qol toggle on. NOT gated on the camera:
+			# statics never rebuild on a mode change, so a place-time camera gate bakes one
+			# mode's answer into the zone (measured: statics built under TOP_FOLLOW kept no
+			# rims in first person). Halos place always and top-down HIDES them at runtime
+			# (set_top_down, group "halo_quad"). When the toggle is on but a halo is skipped,
+			# the inspector says WHY — the skip reasons are part of the report, not a mystery.
+			if not Settings.qud_shape("halo") and _halo_eligible(obj):
+				var skip := ""
+				if _one_to_one: skip = "1:1"
+				elif _flat_2d: skip = "flat-2d"
+				elif _world_map: skip = "world-map"
+				elif not (_live_build or _dyn_noting): skip = "neighbour/remembered build"
+				elif sink > 0.0: skip = "submerged"
+				elif position_for(tile) == "float": skip = "floats"
+				if skip != "":
+					_note(cx, cy, idx, "halo SKIPPED (%s)" % skip, s.position.y)
+				else:
+					# The pull that lifts same-cell coplanarity past the shader's dead zone,
+					# toward the live camera. Applied to sprite and halo TOGETHER.
+					var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
+					if cam != null:
+						var pull_dir := cam.global_position - s.position
+						pull_dir.y = 0.0
+						if pull_dir.length() > 0.01:
+							var lay := int(obj.get("layer", 0))
+							var amt := HALO_PULL_PLAYER if lay >= 90 								else (HALO_PULL if _is_creature(obj) else HALO_PULL_FURNITURE)
+							# stagger > dead_zone so ADJACENT stack indices differentiate, not just idx±3
+							s.position += pull_dir.normalized() * (amt + idx * 0.025)
+					var ht := _halo_tex(tile)
+					if ht != null:
+						var halo := _take_sprite()
+						halo.pixel_size = PIXEL_SIZE
+						halo.texture = ht                      # sizes the quad + UVs
+						halo.material_override = _halo_material(tile)
+						halo.flip_h = bool(obj.get("hflip", false))
+						halo.flip_v = false
+						halo.region_enabled = false            # silhouette is pre-cropped
+						halo.modulate = Color.WHITE
+						halo.position = s.position             # coplanar with its sprite
+						halo.add_to_group("halo_quad")         # set_top_down hides/shows these
+						halo.visible = not _top_down
+						_note(cx, cy, idx, "halo(depth rim)%s" % (" hidden(top-down)" if _top_down else ""), halo.position.y)
 			s.visible = true
 			if _placing_player and WM_STANDING_CARDS:
 				# "You are here": the player card ignores depth and sorts last, so it's always the
@@ -3777,6 +3804,12 @@ func set_top_down(on: bool) -> void:
 	for n in get_tree().get_nodes_in_group("tile_sprite"):
 		if is_instance_valid(n):
 			(n as Sprite3D).billboard = mode
+	# Depth halos are meaningless face-up (every sprite would rim against the floor
+	# below it) — hide them all in top-down, show them again on the way out. Placement
+	# is camera-independent; THIS is the only place the camera touches halos.
+	for n in get_tree().get_nodes_in_group("halo_quad"):
+		if is_instance_valid(n):
+			(n as Sprite3D).visible = not on
 	_apply_wm_orient()   # world-map cards lie flat in top-down, stand up again otherwise (wins over the loop above)
 
 func _take_sprite() -> Sprite3D:
