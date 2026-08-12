@@ -1,0 +1,28 @@
+{
+ "screen": "status_journal",
+ "pin": {
+  "save": "sync-raves-and-qud",
+  "mode": "Wander",
+  "zone": "JoppaWorld.11.22.1.1.10 (Joppa)",
+  "screen": "status_journal",
+  "stable": "second Qud capture"
+ },
+ "leaves": {
+  "outer_frame": {
+   "kind": "frame",
+   "diff": 3.69
+  },
+  "cat_strip": {
+   "kind": "composite",
+   "diff": 3.53
+  },
+  "worldmap": {
+   "kind": "composite",
+   "diff": 12.56
+  },
+  "empty_state": {
+   "kind": "composite",
+   "diff": 26.51
+  }
+ }
+}

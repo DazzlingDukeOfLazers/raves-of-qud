@@ -1,0 +1,24 @@
+{
+ "screen": "status_skills",
+ "pin": {
+  "save": "sync-raves-and-qud",
+  "mode": "Wander",
+  "zone": "JoppaWorld.11.22.1.1.10 (Joppa)",
+  "screen": "status_skills",
+  "stable": "second Qud capture"
+ },
+ "leaves": {
+  "outer_frame": {
+   "kind": "frame",
+   "diff": 3.45
+  },
+  "list_item": {
+   "kind": "composite",
+   "diff": 2.05
+  },
+  "list_next": {
+   "kind": "composite",
+   "diff": 1.82
+  }
+ }
+}

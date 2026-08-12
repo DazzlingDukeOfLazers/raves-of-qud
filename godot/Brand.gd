@@ -15,7 +15,7 @@ const GAME_NAME := "Raves of Qud"
 ## Shown in the 1:1 title version corner under Qud's build — and, since 2026-08-10, stamped into
 ## every feedback report as `app_version`. A report you cannot pin to an exact build is close to
 ## worthless, so this has to be bumped WITH the tag, not after it.
-const RAVES_VERSION := "0.8.1"
+const RAVES_VERSION := "0.8.2"
 const GAME_TAGLINE := "a 3D viewer for Caves of Qud"
 ## Spelled "Mutant Factory" — two words, matching mutantfactory.net and the 13 uses on the site.
 ## The GitHub org is `TheMutantFactory` -- `MutantFactory` and `mutantfactory` are both taken by

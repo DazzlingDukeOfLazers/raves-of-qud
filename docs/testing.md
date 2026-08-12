@@ -102,6 +102,39 @@ not identified. **Reload the fixture between raises rather than cancelling and r
 
 FULL is allowed to need judgement. SPOT is not.
 
+### Two ways these runs lie to you (both hit on 2026-08-11)
+
+**RESTART RAVES BEFORE SCORING PARITY.** A status screen is drawn over the live playfield, so every
+leaf that shows world through a scrim is only meaningful while Raves' camera matches Qud's. One
+stray wheel event over the playfield during a session is enough to zoom it, and nothing in the
+output says so — the 0.8.2 run scored SIX equipment leaves regressed by up to +3.0 until the app was
+relaunched, after which three of them vanished and the kind-means came back flat. Qud's filter strip
+was sitting over water where Raves' sat over dry ground.
+
+**SCORE SPOT ON EXIT CODES, not on a phrase.** The suite's scripts do not share a success string:
+`journal_carousel` prints `journal_carousel: OK` where the Godot scenes print `0 checks failed`. A
+runner that greps for one of them reports the others as failures — which is the same defect as a
+check that cannot fail, wearing the other face.
+
+### What "FULL 1 passes" is allowed to mean
+
+FULL 1 says "type into the field and check no menu fires". That outcome is ALSO what you get when
+the keystroke never arrived, and when the key could never have reached the handler in the first
+place. Both happened on 2026-08-11:
+
+- a first run typed into the journal search and concluded the guard held; the field still showed its
+  placeholder, so nothing had been delivered. `hv key --focus` delivers it. **Check the character
+  LANDED before reading anything into the menu not moving.**
+- a second run typed `e` and `7`, saw them land and no menu fire, and called ten new guards
+  verified. A focused LineEdit eats letters and digits, so that result was identical before the
+  change — see 94dd987. **A post-state alone cannot distinguish a fix from a no-op; the pre-state
+  carries the information.**
+
+The audit's scope is deliberate and documented in `tools/regression/typing_guard_audit.py`: the
+unhandled pass only needs guarding where the key is one a text field does NOT eat (modifier combos,
+function keys, dispatchers into Qud). Widening it to every screen is the "ten blanket guards" the
+script's own comment warns against.
+
 ---
 
 ## Running SPOT on another machine
