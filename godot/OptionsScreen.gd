@@ -30,7 +30,6 @@ const RAVES_ITEMS := [
 	# 1:1 test — visual effects, minimal by default; turn on to build up toward Qud (apply on relaunch).
 	{"key": "fx_scanlines", "label": "1:1 test · CRT scanlines", "type": "toggle"},
 	{"key": "fx_vignette", "label": "1:1 test · CRT vignette", "type": "toggle"},
-	{"key": "fx_particles", "label": "1:1 test · 3D particles", "type": "toggle"},
 	{"key": "camera", "label": "Default camera", "type": "options",
 		"options": ["Compass", "Follow", "First person", "Cinematic", "Mouse", "Keyboard", "Top follow"]},
 	{"key": "bridge_host", "label": "Host", "type": "text"},
@@ -663,7 +662,7 @@ func _exit_tree() -> void:
 
 # ── option presets (save/load a whole options set) ──────────────────────────────────
 
-const RAVES_KEYS := ["font_scale", "fullscreen", "full_info", "fx_scanlines", "fx_vignette", "fx_particles", "camera", "mode", "bridge_host", "bridge_port"]
+const RAVES_KEYS := ["font_scale", "fullscreen", "full_info", "fx_scanlines", "fx_vignette", "camera", "mode", "bridge_host", "bridge_port"]
 
 func _build_preset_bar() -> void:
 	var save_b := _preset_bar_button("Save preset", 0.155, 0.285)

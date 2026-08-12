@@ -17,7 +17,6 @@ const DEFAULTS := {
 	# where Raves diverges from Qud. Each applies on (re)launch; toggle in Options.
 	"fx_scanlines": false,      # CRT scanline interlace
 	"fx_vignette": false,       # CRT corner vignette (Qud's HUD has none)
-	"fx_particles": false,      # 3D smoke / particle plumes
 	"camera": 0,                # default CameraRig.CamMode index (user mode)
 	"mode": "user",             # "user" = QoL Holodeck · "1to1" = Qud-faithful parity mode
 	                            # (1to1 hard-overrides camera + panels; see MainFrame._apply_one_to_one)
@@ -63,6 +62,7 @@ const QOL_FEATURES := {
 	"cameras": ["User cameras (Compass / Follow / First person / …)", false],
 	"tiles3d": ["3D tiles (voxel walls + upright sprites)", false],
 	"lighting": ["Day/night lighting (grade + sun/moon + fog)", false],
+	"particles": ["Smoke plumes (sconces & torches at night)", false],
 }
 
 func qud_shape(feature := "") -> bool:

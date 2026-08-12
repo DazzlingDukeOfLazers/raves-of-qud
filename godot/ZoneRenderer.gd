@@ -1499,7 +1499,11 @@ const SMOKE_OFF_SUN := 0.5      # emit only when sun_a is below this; 0.5 == the
 ## Should the sconce smoke be emitting right now? It's a night-only effect (the flame
 ## fully fades by day), so it runs only in full night and stops once day breaks.
 func _smoke_on() -> bool:
-	return bool(Settings.get_value("fx_particles", false)) and _daylight < SMOKE_OFF_SUN
+	# The `particles` QoL feature (fx_particles folded in, like fx_lighting before it). This gate
+	# covers the NIGHT plumes on sconces and standing torches; an on-fire object's smoke emits
+	# unconditionally (see _place_light) and travels with the tiles3d bundle instead -- a real fire
+	# smokes whether or not the viewer opted into ambience.
+	return not Settings.qud_shape("particles") and _daylight < SMOKE_OFF_SUN
 
 ## Build the shared draw-mesh + process material once; every sconce's emitter reuses them
 ## (each GPUParticles3D still has its own seed, so plumes aren't in lockstep).
