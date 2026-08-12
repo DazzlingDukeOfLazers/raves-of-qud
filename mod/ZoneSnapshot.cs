@@ -1813,6 +1813,11 @@ namespace RavesOfQud
                             .Member("layer", r.RenderLayer)
                             .Member("wall", go.IsWall())
                             .Member("solid", phys != null && phys.Solid)
+                            // Furniture vs loose item, for the client's readability roles: a chest
+                            // and a dagger are identical on every flag above (non-solid, layer ~6),
+                            // and Qud's own distinction is Physics.Takeable. Absent on old exports;
+                            // the client treats absent as takeable and degrades to the old guess.
+                            .Member("takeable", phys != null && phys.Takeable)
                             .Member("occluding", r.Occluding)
                             // deck: a walkable surface laid over whatever is beneath it
                             // (bridges are RenderLayer 3, so without this flag Godot
