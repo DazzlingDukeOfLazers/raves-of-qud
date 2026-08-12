@@ -74,6 +74,10 @@ func _ready() -> void:
 	_rt.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_rt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	v.add_child(_rt)
+	# The viewer's own scrolling is the ONLY thing that decides follow-vs-hold — see _on_log_scrolled.
+	var vsb := _rt.get_v_scroll_bar()
+	if vsb != null:
+		vsb.value_changed.connect(_on_log_scrolled)
 	_apply_log_style()
 
 ## Uniform panel entry (MainFrame feeds every panel via set_snapshot).
@@ -311,7 +315,49 @@ func set_notice(markup: String) -> void:
 	_notice = markup
 	_rerender()
 
+## How close to the end still counts as "at the bottom". One line of slack, so a rounding error in
+## the scrollbar's page size cannot strand the viewer one pixel short and silently stop following.
+const AT_BOTTOM_SLACK := 24.0
+
+## Is the viewer reading the newest line, or have they scrolled back?
+func _at_bottom() -> bool:
+	var vs := _rt.get_v_scroll_bar() if _rt != null else null
+	if vs == null:
+		return true
+	return vs.value >= vs.max_value - vs.page - AT_BOTTOM_SLACK
+
+## Whether the viewer is reading the newest line (follow) or has scrolled back (hold). THE DECISION
+## IS REMEMBERED, NOT RE-READ. Asking the scrollbar "are we at the bottom?" at the top of a rerender
+## looks right and is a race: `clear()` inside the SAME rerender resets the bar, so the next
+## rerender reads a bar that is at the bottom for our own reason and concludes the viewer went
+## there. Measured — scrolling worked, then the next message threw the view somewhere that was
+## neither where the viewer left it nor the bottom.
+var _follow := true
+var _keep := 0.0      # where the viewer was, while not following
+var _syncing := false   # our own scroll writes must never be read as the viewer moving
+
+func _on_log_scrolled(_v: float) -> void:
+	if _syncing:
+		return
+	_follow = _at_bottom()
+	if not _follow:
+		var vs := _rt.get_v_scroll_bar()
+		if vs != null:
+			_keep = vs.value
+
 func _rerender() -> void:
+	# KEEP THE VIEWER'S PLACE. This rebuilds the WHOLE label -- clear() then re-append every line --
+	# and it runs on every snapshot, which is every turn. With `scroll_following` left on, each
+	# rebuild snapped the view back to the newest line, so scrolling up to re-read something was
+	# undone before the next frame. Measured: a wheel scroll over the log moved the panel by ZERO
+	# pixels while the same scroll over the Holodeck zoomed it -- the input arrived, the position
+	# did not survive. That reads exactly as "the log needs a scrollbar" (2026-08-10): it HAS one, a
+	# thin bar at the right edge; it could not hold a position.
+	#
+	# Follow only while the viewer is at the bottom: the ordinary log contract, where new messages
+	# keep arriving under you until the moment you scroll back, and then you stay put.
+	_syncing = true
+	_rt.scroll_following = _follow
 	if _filter:
 		_render_filter()
 	else:
@@ -319,6 +365,21 @@ func _rerender() -> void:
 	if _notice != "":
 		# separated from the message flow and pinned last, so it doesn't scroll away like a game message
 		_rt.append_text("\n" + _notice)
+	if _follow:
+		_syncing = false
+	else:
+		_restore_scroll(_keep)
+
+## Put the scrollbar back where it was. DEFERRED past a frame on purpose: the label's content height
+## is only recomputed after the re-append has been laid out, and assigning `value` before that
+## clamps against the OLD maximum and lands somewhere else.
+func _restore_scroll(v: float) -> void:
+	await get_tree().process_frame
+	var vs := _rt.get_v_scroll_bar() if _rt != null else null
+	if vs != null:
+		vs.value = v
+	await get_tree().process_frame   # let the clamp settle before listening again
+	_syncing = false
 
 func _render_verbatim() -> void:
 	var src: Array = _last_msgs
