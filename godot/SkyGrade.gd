@@ -47,14 +47,14 @@ const _DEPTHCUE_SHADER := "
 shader_type spatial;
 render_mode unshaded, blend_mix, depth_draw_never, depth_test_disabled, cull_disabled, fog_disabled;
 uniform sampler2D depth_tex : hint_depth_texture;
-uniform float start_dist = 1.5;   // metres from the camera where darkening begins
-uniform float span = 14.0;        // metres over which it ramps to max_dark
-uniform float max_dark = 0.25;    // fraction of black mixed in at full distance
-uniform int curve_mode = 0;       // 0 linear · 1 natural log · 2 exponential · 3 smoothstep
-// Scale measured in-world (probe: dist/40 ramp): in first person MOST of the frame is
-// under 8m — a 7m start confined the whole effect to a thin horizon strip (banded diff
-// +0.98 there, 0.0 everywhere else). The ramp has to live inside 2..15m to separate
-// one object from the next, not just near from far-horizon.
+uniform float start_dist = 0.25;  // metres from the camera where darkening begins
+uniform float span = 5.0;         // metres over which it ramps to max_dark
+uniform float max_dark = 0.58;    // fraction of black mixed in at full distance
+uniform int curve_mode = 3;       // 0 linear · 1 natural log · 2 exponential · 3 smoothstep
+// Defaults are Daniel's live-tuned values (2026-08-12, read off the ` menu sliders):
+// a strong, tight near-field ramp with smoothstep easing — "still need work, but much
+// better". Earlier lesson stands: first-person frames put most pixels under 8m, so the
+// ramp must live in the near field to separate one object from the next.
 
 void vertex() {
 	// z=0.5: comfortably inside NDC depth either side of the reversed-z change — exactly
@@ -87,7 +87,7 @@ var _depthcue: MeshInstance3D = null
 ## sliders write them, Main's view file persists them across runs.
 func depthcue_params() -> Vector3:
 	if _depthcue == null or _depthcue.material_override == null:
-		return Vector3(1.5, 14.0, 0.25)   # the shader defaults, for callers before setup()
+		return Vector3(0.25, 5.0, 0.58)   # the shader defaults, for callers before setup()
 	var m: ShaderMaterial = _depthcue.material_override
 	return Vector3(float(m.get_shader_parameter("start_dist")),
 		float(m.get_shader_parameter("span")),
@@ -190,10 +190,10 @@ func setup(embedded: bool, renderer_ref: Node) -> void:
 	# Mirror the shader's uniform defaults EXPLICITLY: get_shader_parameter returns null for
 	# a uniform that was never set, so the ` menu's sliders would read (0,0,0) and a first
 	# drag would stomp the other two knobs with zeros.
-	dc_mat.set_shader_parameter("start_dist", 1.5)
-	dc_mat.set_shader_parameter("span", 14.0)
-	dc_mat.set_shader_parameter("max_dark", 0.25)
-	dc_mat.set_shader_parameter("curve_mode", 0)
+	dc_mat.set_shader_parameter("start_dist", 0.25)
+	dc_mat.set_shader_parameter("span", 5.0)
+	dc_mat.set_shader_parameter("max_dark", 0.58)
+	dc_mat.set_shader_parameter("curve_mode", 3)
 	_depthcue = MeshInstance3D.new()
 	var dc_mesh := QuadMesh.new()
 	dc_mesh.size = Vector2(2, 2)

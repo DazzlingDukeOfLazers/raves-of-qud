@@ -104,10 +104,10 @@ func build(cam_rig, renderer_ref, sky_grade, multiview, mode_names: Dictionary, 
 	_dc_toggle.pressed.connect(_toggle_depthcue)
 	vb.add_child(_dc_toggle)
 	_refresh_dc_toggle()
-	var dc0: Vector3 = _sky.depthcue_params() if _sky != null else Vector3(1.5, 14.0, 0.25)
+	var dc0: Vector3 = _sky.depthcue_params() if _sky != null else Vector3(0.25, 5.0, 0.58)
 	_dc_slider(vb, "depth cue start (m)", 0.0, 8.0, 0.25, dc0.x, 0)
 	_dc_slider(vb, "depth cue fade span (m)", 2.0, 40.0, 1.0, dc0.y, 1)
-	_dc_slider(vb, "depth cue strength", 0.0, 0.6, 0.02, dc0.z, 2)
+	_dc_slider(vb, "depth cue strength", 0.0, 0.8, 0.02, dc0.z, 2)   # ceiling raised: 0.58 sat one step from the old 0.6 cap
 	# falloff curve: how darkening is distributed across the start..start+span ramp
 	var cl := Label.new()
 	cl.text = "depth cue curve"

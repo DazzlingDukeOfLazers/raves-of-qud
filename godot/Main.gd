@@ -1108,7 +1108,7 @@ func _save_settings() -> void:
 		"fp_height": _cam_rig._fp_height,
 		"water_depth": (renderer.deep_water_depth if renderer != null else 0.6),
 		"level_height": (renderer.level_height if renderer != null else 4.0),
-		"depthcue": (_dc_to_array(_sky_grade.depthcue_params()) + [_sky_grade.depthcue_curve()] if _sky_grade != null else [1.5, 14.0, 0.25, 0]),
+		"depthcue": (_dc_to_array(_sky_grade.depthcue_params()) + [_sky_grade.depthcue_curve()] if _sky_grade != null else [0.25, 5.0, 0.58, 3]),
 		"win": (keep_win if keep_win != null else [sz.x, sz.y]),
 	}
 	var f := FileAccess.open(SETTINGS_PATH, FileAccess.WRITE)
