@@ -23,7 +23,8 @@ needs pixels or a live game.
 | Nearby-row hit test | `Godot --headless --path godot/ --quit-after 400 res://tests/nearby_rows.tscn` | a click resolving to the WRONG row's object — off-by-one row arithmetic looks fine on screen and opens the wrong menu, which is worse than opening none |
 | Popup report, multi-source | `Godot --headless --path godot/ --quit-after 400 res://tests/popup_report.tscn` | one overlay's popup report clobbering another's — three sources share the `popup` field, and closing a Qud modal used to wipe the feedback form's while the form was still up |
 | State-graph panel render | `Godot --headless --path godot/ --script res://tests/state_graph_render.gd` | the panel's text builders against a fixture AND the real gametree.json — rows, markers, empty/null trees |
-| Godot parse + `_ready` | `Godot --headless --path godot/ --quit-after 120` | parse errors, autoload/`_ready` failures |
+| Godot parse + `_ready` | `Godot --headless --path godot/ --quit-after 120` | parse errors, autoload/`_ready` failures — but ONLY in scripts that load at the main menu |
+| parse ALL scripts | `python3 tools/regression/parse_all_audit.py` | a parse error in a Connect-only script (SkyGrade, ZoneRenderer, …) — the exported app ships it silently and the Holodeck dies with an empty playfield (2026-08-12: one double quote inside a shader-string comment) |
 | Main.gd deep check | `Godot --headless --path godot/ --check-only --script res://Main.gd` | a `class_name` parse error that would silently kill the Holodeck in the export |
 | mod API drift | `dotnet build mod/RavesOfQudBridge.csproj` | Qud API changes, C# errors |
 

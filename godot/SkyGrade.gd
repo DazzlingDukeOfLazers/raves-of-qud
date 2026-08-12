@@ -52,9 +52,14 @@ uniform float span = 5.0;         // metres over which it ramps to max_dark
 uniform float max_dark = 0.58;    // fraction of black mixed in at full distance
 uniform int curve_mode = 3;       // 0 linear · 1 natural log · 2 exponential · 3 smoothstep
 // Defaults are Daniel's live-tuned values (2026-08-12, read off the ` menu sliders):
-// a strong, tight near-field ramp with smoothstep easing — "still need work, but much
-// better". Earlier lesson stands: first-person frames put most pixels under 8m, so the
+// a strong, tight near-field ramp with smoothstep easing — better, not final, per his
+// judgement. Earlier lesson stands: first-person frames put most pixels under 8m, so the
 // ramp must live in the near field to separate one object from the next.
+// NO DOUBLE QUOTES anywhere in this shader string: it is a double-quoted GDScript
+// constant, and one stray quote in a comment truncates the string and kills the whole
+// file at parse — which the per-commit headless check does NOT see, because SkyGrade
+// only loads when the Holodeck is created (measured: the exported app came up with an
+// empty playfield and every panel blank).
 
 void vertex() {
 	// z=0.5: comfortably inside NDC depth either side of the reversed-z change — exactly
