@@ -32,11 +32,50 @@ const DEFAULTS := {
 ## as the pressure valve that flushes out user-mode UI elements missing a 1:1 gate.
 var one_to_one_only := false
 
-## True when the parity/1:1 mode is selected (overrides user-mode camera + panels).
+## THE LITERAL MODE. Use this only where the answer must be "which mode did the viewer pick" —
+## reporting it (UiState, the feedback record and its badge) and offering the way BACK from it
+## (OptionsScreen, which builds a different screen per mode and is the only route to the toggle).
+## For "should this surface take Qud's shape", use `qud_shape` below.
 func one_to_one() -> bool:
 	if one_to_one_only:
 		return true
 	return str(get_value("mode", "user")) == "1to1"
+
+## USER MODE STARTS AS A 1:1 CLONE — Daniel, 2026-08-12: "Let's copy all the 1:1 settings to
+## usermode. We'll load back in features 1 at a time."
+##
+## User mode had accumulated its own shape screen by screen, and testing it meant meeting those
+## divergences one surprise at a time: a save name under Continue that Qud does not show, an
+## in-game field Qud does not have, a "turn on viewport" step left over from before the 1:1 flow
+## existed. Each was defensible alone and the pile was not, because nothing said what the pile
+## contained — 55 call sites across 16 files, and no list of them anywhere.
+##
+## So the DEFAULT flips. A surface asks `qud_shape()` and gets Qud's form in both modes; a QoL
+## feature comes back only when it is named here and switched on, which makes the set of
+## divergences a list you can read instead of a thing you discover.
+##
+## `feature` is that name. Unnamed sites can never opt out, which is deliberate for now: they are
+## the ones nobody has argued for yet.
+## name -> [label, default]. EVERY entry is a divergence from Qud someone chose on purpose, and
+## being in this dictionary is what makes it choosable rather than merely present. Off by default:
+## user mode starts as a 1:1 clone and features are loaded back one at a time.
+const QOL_FEATURES := {
+	"titlebar": ["Window titlebar", false],
+}
+
+func qud_shape(feature := "") -> bool:
+	if one_to_one():
+		return true
+	if feature != "" and qol_on(feature):
+		return false      # this QoL feature has been loaded back in
+	return true           # user mode: Qud's shape until told otherwise
+
+## Is a named QoL feature switched back on? Unknown names are always off -- a typo must not
+## silently re-enable a divergence.
+func qol_on(feature: String) -> bool:
+	if not QOL_FEATURES.has(feature):
+		return false
+	return bool(get_value("qol_" + feature, bool(QOL_FEATURES[feature][1])))
 
 var _data: Dictionary = {}
 var _rect_mtime := -1.0
@@ -128,10 +167,14 @@ func apply_global() -> void:
 	var want := DisplayServer.WINDOW_MODE_FULLSCREEN if fs else DisplayServer.WINDOW_MODE_WINDOWED
 	if DisplayServer.window_get_mode() != want:
 		DisplayServer.window_set_mode(want)
-	# 1:1 runs CHROMELESS, matching Qud's -popupwindow: the macOS title strip ate
-	# ~28px of the frame, shifting all content down vs Qud and ghosting every
-	# parity diff (2026-08-03 menu baseline). User mode keeps the titlebar.
-	DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_BORDERLESS, one_to_one())
+	# CHROMELESS, matching Qud's -popupwindow: the macOS title strip eats 32px of the frame and
+	# shifts all content down, which ghosts every parity diff (2026-08-03 menu baseline) — measured
+	# again 2026-08-12, when it was the ONLY thing left between the two modes' title screens. With
+	# it aligned away they were pixel-identical, 0 of 1,950,720.
+	#
+	# It used to be 1:1 only ("user mode keeps the titlebar"). It is now the first named QoL
+	# feature instead: off by default like the rest, switch `titlebar` on to get it back.
+	DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_BORDERLESS, qud_shape("titlebar"))
 
 func _path() -> String:
 	return InputModel.support_dir().path_join("settings.json")

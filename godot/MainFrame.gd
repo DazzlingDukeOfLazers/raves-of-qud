@@ -241,7 +241,7 @@ func _on_resize() -> void:
 	UiFont.refresh_theme(theme, get_viewport())
 	pass  # CRT logical_h is pushed in _process
 	# The 1:1 sidebar is a fraction of the window, and the camera inset derives from it — re-apply both.
-	if Settings.one_to_one():
+	if Settings.qud_shape():
 		_apply_layout_mode(true)
 	else:
 		_apply_vitals_mode(false)   # user mode: inset the vitals bar + keep bright colours (overlay defaults to 1:1)
@@ -270,7 +270,7 @@ func _input(e: InputEvent) -> void:
 	if e is InputEventKey and e.pressed and not e.echo and e.keycode == KEY_F12:
 		_shot()
 	if e is InputEventKey and e.pressed and not e.echo and _status != null \
-			and Settings.one_to_one() and not e.alt_pressed \
+			and Settings.qud_shape() and not e.alt_pressed \
 			and not get_viewport().is_input_handled():
 		var ctrl: bool = e.ctrl_pressed or e.meta_pressed
 		if e.keycode == KEY_F and ctrl and not e.shift_pressed:
@@ -294,7 +294,7 @@ const STATUS_TAB_KEYS := {KEY_K: "skills", KEY_X: "attributes", KEY_TAB: "attrib
 	KEY_Q: "quests"}
 
 func _toggle_status() -> void:
-	if _status == null or not Settings.one_to_one():
+	if _status == null or not Settings.qud_shape():
 		return
 	if _status.visible:
 		_status.close()
@@ -770,7 +770,7 @@ func _relayout_topbar() -> void:
 	# and each sep lays out at exactly 648.43/3 = 216.14. The run starts at x20 (avatar) and ends at
 	# x1904 (zone's right edge, 1920 - padR 16). Fitted boxes can never track that: the sep width
 	# moves with the content widths, which move with the live stats.
-	if Settings.one_to_one():
+	if Settings.qud_shape():
 		var off := _topbar.get_global_rect().position.x
 		var x_left := 20.0 - off
 		var x_rend := 1904.0 - off
@@ -862,7 +862,7 @@ func _row_vitals_menu() -> Control:
 	# Qud's nav icons hug the window's right edge; trim this strip's right inset so the cluster sits
 	# flush like Qud's (the default 8px panel margin left it ~7px shy of Qud's last icon).
 	_menu_strip = menu
-	_style_menu_strip(Settings.one_to_one())
+	_style_menu_strip(Settings.qud_shape())
 
 	_menu_verbose = HBoxContainer.new()
 	_menu_verbose.add_theme_constant_override("separation", 4)
@@ -1159,7 +1159,7 @@ func _close_options_overlay() -> void:
 ## The two panels whose 1:1 visibility follows Qud's overlay options (Qud's own toggle
 ## buttons persist the same ids, so the pair stays congruent). Safe to call any time.
 func _refresh_overlay_panels() -> void:
-	var on := Settings.one_to_one()
+	var on := Settings.qud_shape()
 	if _minimap != null:
 		_minimap.visible = (not on) or _qud_option_on("OptionOverlayMinimap")
 	if _nearby != null:
@@ -1172,7 +1172,7 @@ func _toggle_qud_overlay(id: String) -> void:
 	var want := not _qud_option_on(id)
 	if _holo != null:
 		_holo.request_setoption(id, "Yes" if want else "No")
-	if Settings.one_to_one():
+	if Settings.qud_shape():
 		if id == "OptionOverlayMinimap" and _minimap != null:
 			_minimap.visible = want
 		if id == "OptionOverlayNearbyObjects" and _nearby != null:
@@ -1312,7 +1312,7 @@ func _apply_layout_mode(on: bool) -> void:
 ## (dragged left) widens the log. Clamped between a readable min and half the window; the camera play
 ## inset follows so the zone re-fits the shrinking/growing hole. Transient (not persisted).
 func _on_sidebar_drag(dx: float) -> void:
-	if not Settings.one_to_one() or _side == null:
+	if not Settings.qud_shape() or _side == null:
 		return
 	var w := float(get_viewport().get_visible_rect().size.x)
 	_side.custom_minimum_size.x = clampf(_side.custom_minimum_size.x - dx, 120.0, w * 0.5)
@@ -1333,7 +1333,7 @@ func _make_row_bg() -> ColorRect:
 func _layout_row_bgs() -> void:
 	if _top_bg == null or _bottom_bg == null or _row_split == null:
 		return
-	var on := Settings.one_to_one()
+	var on := Settings.qud_shape()
 	_top_bg.visible = on
 	_bottom_bg.visible = on
 	if not on:
@@ -1575,7 +1575,7 @@ func _holodeck_cell() -> Control:
 	# The 1:1 camera fits Qud's stage into this rect, so any late layout settle (chrome rows collapsing
 	# on a mode switch, a sidebar drag, a window resize) must re-push it — the deferred push in
 	# _push_play_inset alone can catch the rect mid-settle and leave the stage mis-fit by a few px.
-	_holo_hole.item_rect_changed.connect(func() -> void: _push_play_hole(Settings.one_to_one()))
+	_holo_hole.item_rect_changed.connect(func() -> void: _push_play_hole(Settings.qud_shape()))
 	var center := CenterContainer.new()
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1628,8 +1628,8 @@ func _connect_holodeck() -> void:
 	UiState.set_scene("in_game")                # highvisor state report: the gameplay frame is up
 	# Apply the saved 1:1 / user mode now that the Holodeck (camera owner) exists. When 1:1, this
 	# emits one_to_one_changed → _on_one_to_one_changed pushes the 1:1 variant to the panels too.
-	_holo.set_one_to_one(Settings.one_to_one())
-	if Settings.one_to_one():
+	_holo.set_one_to_one(Settings.qud_shape())
+	if Settings.qud_shape():
 		_set_panels_one_to_one(true)            # ensure panels match on a 1:1 launch
 		_apply_layout_mode(true)                # widen sidebar, compact menu, drop dev strip, recentre cam
 		_enable_viewport.call_deferred()        # 1:1 is a parity view — bring the 3D up automatically
@@ -1719,7 +1719,7 @@ func _apply_stats(data: Dictionary) -> void:
 	var hp := int(s.get("hp", 0))
 	var hpmax := maxi(1, int(s.get("hpMax", 1)))
 	if _l_hp != null:
-		if Settings.one_to_one():
+		if Settings.qud_shape():
 			# Qud's spacing, and colour ONLY the current-HP number by health % (rest white). BBCode.
 			_l_hp.text = "HP: [color=#%s]%d[/color] / %d" % [_hp_color(hp, hpmax).to_html(false), hp, hpmax]
 		else:
@@ -1733,7 +1733,7 @@ func _apply_stats(data: Dictionary) -> void:
 		var xp_floor := int(s.get("xpFloor", 0))
 		var xp_next := maxi(xp_floor + 1, int(s.get("xpNext", xp_floor + 1)))
 		if _l_exp != null:
-			_l_exp.text = ("LVL: %d Exp: %d / %d" if Settings.one_to_one() else "LVL: %d   EXP: %d/%d") % [lvl, xp, xp_next]
+			_l_exp.text = ("LVL: %d Exp: %d / %d" if Settings.qud_shape() else "LVL: %d   EXP: %d/%d") % [lvl, xp, xp_next]
 		if _bar_exp != null:
 			_bar_exp.min_value = xp_floor
 			_bar_exp.max_value = xp_next
@@ -1795,7 +1795,7 @@ func _check_mod_version(data: Dictionary) -> void:
 			# mirror mode it is just a message Qud's log does not contain -- it measured as the
 			# single largest band in the log panel (mean 14.23 against 0.26 elsewhere). The two
 			# WARNINGS below stay in both modes: a version mismatch is worth breaking parity for.
-			if Settings.one_to_one():
+			if Settings.qud_shape():
 				_msglog.set_notice("")
 			else:
 				_msglog.set_notice("[color=#6fcf6f]✓ Raves mod v%d — up to date[/color]" % proto)

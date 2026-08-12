@@ -522,7 +522,7 @@ func _draw_cyber_hint(c: CanvasItem) -> void:
 	var f: Font = _root.get_theme_default_font()
 	if f == null:
 		return
-	if not Settings.one_to_one():
+	if not Settings.qud_shape():
 		# USER MODE: the LIVE "Toggle" binding(s) from the control-mapping export.
 		# Qud's own caption renders only the primary slot, so a player who ADDS a
 		# binding (F7) without replacing slot 1 reads a stale Ctrl+Tab forever

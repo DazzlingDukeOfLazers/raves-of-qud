@@ -74,7 +74,7 @@ func anim_code(kind: String, phase: int) -> String:
 ## Phase for right now — pinned in 1:1 mode, running off the wall clock otherwise. Deliberately
 ## NOT the frame counter: Godot's frame rate is not Qud's, and the cycle is defined in Qud frames.
 func anim_phase() -> int:
-	if Settings.one_to_one():
+	if Settings.qud_shape():
 		return ANIM_PIN_PHASE
 	return int(Time.get_ticks_msec() / ANIM_FRAME_MS) % ANIM_PERIOD
 

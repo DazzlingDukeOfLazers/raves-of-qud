@@ -486,8 +486,17 @@ func _open_form() -> void:
 	v.add_theme_constant_override("separation", 8)
 	panel.add_child(v)
 
+	# THE MODE, IN THE HEADER. The report has always carried it (`mode` in the record), but the form
+	# never said so -- and a parity report filed in user mode means something different from the same
+	# report filed in 1:1, because half the divergences are user-mode features Qud has no equivalent
+	# for. Asked for at the start of a user-mode testing pass, which is exactly when getting it wrong
+	# is easiest and costliest.
+	#
+	# Spelled "1:1 MODE" / "USER MODE", never a bare "1:1": the crop viewer's zoom buttons directly
+	# below are labelled "Fit" and "1:1", and two different 1:1s a few rows apart is how a reader
+	# learns to distrust both.
 	var title := Label.new()
-	title.text = "FEEDBACK"
+	title.text = "FEEDBACK · %s" % ("1:1 MODE" if Settings.one_to_one() else "USER MODE")
 	title.add_theme_color_override("font_color", QudChrome.q8(207, 192, 65))   # Qud gold
 	v.add_child(title)
 
@@ -530,8 +539,11 @@ func _open_form() -> void:
 	# raw element_key is both long enough to wrap the panel off the bottom of the screen and
 	# meaningless to the person being asked to consent to it.
 	var manifest := Label.new()
-	manifest.text = "Sends: your note, the element you picked, and %s %s on %s." % [
-		Brand.GAME_NAME, Brand.RAVES_VERSION, OS.get_name()]
+	# The mode is named here too, because it IS sent -- the header badge is for the reporter's eye,
+	# this line is the consent, and the consent has to list what actually leaves the machine.
+	manifest.text = "Sends: your note, the element you picked, and %s %s in %s mode on %s." % [
+		Brand.GAME_NAME, Brand.RAVES_VERSION,
+		"1:1" if Settings.one_to_one() else "user", OS.get_name()]
 	manifest.add_theme_color_override("font_color", QudChrome.q8(96, 156, 170))
 	manifest.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(manifest)

@@ -1173,7 +1173,7 @@ func _populate_palette(dropped: int) -> void:
 		_count_note.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(_count_note)
 	# never a silent cap — say what was left undrawn (user mode only; Qud has no such line)
-	if Settings.one_to_one():
+	if Settings.qud_shape():
 		_count_note.text = ""
 	elif _blueprints.is_empty():
 		_count_note.text = "no blueprints.json — run the bridge export"

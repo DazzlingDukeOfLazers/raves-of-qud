@@ -75,7 +75,7 @@ func _ready() -> void:
 	theme = UiFont.make_theme(get_viewport())
 	_mods = _load_mods()
 
-	if Settings.one_to_one():
+	if Settings.qud_shape():
 		_build_1to1()
 	else:
 		var scrim := ColorRect.new()
@@ -141,7 +141,7 @@ func _send_bridge(msg: Dictionary) -> void:
 ## Reload the mod list from disk and rebuild the left column, preserving the selection if possible.
 func _reload_mods() -> void:
 	_mods = _load_mods()
-	if Settings.one_to_one():
+	if Settings.qud_shape():
 		if _list_1to1 == null:
 			return
 		_populate_1to1()
@@ -427,7 +427,7 @@ func _select(idx: int) -> void:
 	_apply_selection()
 
 func _apply_selection() -> void:
-	if Settings.one_to_one():
+	if Settings.qud_shape():
 		for i in range(_rows.size()):
 			_style_row_1to1(_rows[i]["panel"], i == _sel)
 		_apply_selection_1to1()

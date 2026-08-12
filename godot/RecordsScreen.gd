@@ -58,7 +58,7 @@ func _ready() -> void:
 		_palette[code] = "#" + Color(QUD_COLORS[code]).to_html(false)
 	_records = _load_records()
 
-	if Settings.one_to_one():
+	if Settings.qud_shape():
 		_build_1to1()
 	else:
 		var scrim := ColorRect.new()
@@ -124,7 +124,7 @@ func _send_bridge(msg: Dictionary) -> void:
 ## Reload the records from disk and rebuild the left column, preserving the selection if possible.
 func _reload_records() -> void:
 	_records = _load_records()
-	if Settings.one_to_one():
+	if Settings.qud_shape():
 		if _list_1to1 == null:
 			return
 		_populate_1to1()
@@ -369,7 +369,7 @@ func _select(idx: int) -> void:
 	_apply_selection()
 
 func _apply_selection() -> void:
-	if Settings.one_to_one():
+	if Settings.qud_shape():
 		for i in range(_rows.size()):
 			_style_entry_1to1(_rows[i]["panel"], i == _sel)
 		return

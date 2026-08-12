@@ -1048,7 +1048,7 @@ func _save_settings() -> void:
 	# quietly overwrite the size they chose in user mode with whatever the last parity run
 	# happened to use. Carry the stored value through instead of recording the stage's.
 	var keep_win: Variant = null
-	if Settings.one_to_one() and FileAccess.file_exists(SETTINGS_PATH):
+	if Settings.qud_shape() and FileAccess.file_exists(SETTINGS_PATH):
 		var pf := FileAccess.open(SETTINGS_PATH, FileAccess.READ)
 		if pf != null:
 			var prev: Variant = JSON.parse_string(pf.get_as_text())
@@ -1102,7 +1102,7 @@ func _load_settings() -> void:
 	# 4267x2400, so captures came back 2400 tall against a 1080-tall spec and the blame
 	# went to the restart racing the window. It was this, on a completely different clock.
 	if win is Array and win.size() == 2 and int(win[0]) > 200 and int(win[1]) > 200 \
-			and not QudLauncher.active and not Settings.one_to_one():
+			and not QudLauncher.active and not Settings.qud_shape():
 		DisplayServer.window_set_size(Vector2i(int(win[0]), int(win[1])))
 	var m := int(d.get("mode", _cam_rig._mode))
 	if m >= 0 and m <= CamMode.TOP_FOLLOW:
