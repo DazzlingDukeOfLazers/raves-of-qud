@@ -90,7 +90,8 @@ const MAX_SLOT_PX := 2
 var _overrides := {}        # tile family -> shape verdict
 var _fill_overrides := {}   # tile family -> Fill mode
 var _position_overrides := {} # tile family -> "float" (default is ground-seated)
-var _glow_overrides := {}   # tile family -> true (user tagged it bioluminescent GLOW)
+var _glow_overrides := {}
+var _cutout_overrides := {}   # family -> true: the darker of main/detail renders TRANSPARENT   # tile family -> true (user tagged it bioluminescent GLOW)
 var _stairdir_overrides := {} # tile family -> "n"/"e"/"s"/"w" (descent the user picked)
 var _overrides_raw := "?"   # last overrides.json text, to skip re-parsing
 var _overrides_dirty := false  # overrides.json changed -> frozen static needs a rebuild
@@ -1310,6 +1311,7 @@ func _load_overrides() -> void:
 	_overrides_dirty = true         # rules changed -> force a static rebuild (see render_snapshot)
 	_overrides.clear()
 	_fill_overrides.clear()
+	_cutout_overrides.clear()
 	_position_overrides.clear()
 	_glow_overrides.clear()
 	_stairdir_overrides.clear()
@@ -1336,6 +1338,10 @@ func _load_overrides() -> void:
 			_position_overrides[fam] = pos
 		if String(entry.get("effect", "")).to_lower().contains("glow"):
 			_glow_overrides[fam] = true
+		# "cutout": drop OPAQUE pixels of the tile's darker colour to transparent —
+		# the opposite axis from "fill" (which paints transparent pixels opaque).
+		if String(entry.get("cutout", "")).to_lower().contains("darkest"):
+			_cutout_overrides[fam] = true
 		var sd := _match_stairdir(String(entry.get("stairDir", "")))
 		if sd != "":
 			_stairdir_overrides[fam] = sd
@@ -1413,7 +1419,14 @@ func override_summary(tile: String) -> String:
 		parts.append("pos=" + String(_position_overrides[fam]))
 	if _glow_overrides.has(fam):
 		parts.append("effect=glow")
+	if _cutout_overrides.has(fam):
+		parts.append("cutout=darkest")
 	return "" if parts.is_empty() else "  ".join(parts)
+
+## Does this tile family drop its darker colour to transparent? (Daniel, watervines:
+## "all the darkest squares should be transparent".)
+func _cutout_for(tile: String) -> bool:
+	return not _cutout_overrides.is_empty() and tile != "" and _cutout_overrides.has(tile_family(tile))
 
 func _override_for(tile: String) -> String:
 	if _overrides.is_empty() or tile == "":
@@ -2900,7 +2913,7 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			# Gaps *enclosed* by the art read as the cell background, the way Qud
 			# draws them; everything outside the silhouette stays see-through.
 			var btex := _colored_tex_rgb(tile, _obj_main(obj), _obj_detail(obj),
-				_color_key(obj), _fill_for(tile, Fill.INTERIOR))
+				_color_key(obj), _fill_for(tile, Fill.INTERIOR), _cutout_for(tile))
 			if btex == null:
 				btex = tex
 			var s := _take_sprite()
@@ -3793,13 +3806,13 @@ func _colored_tex(tile: String, main_c: String, detail_c: String, fill := Fill.N
 		"%s|%s" % [main_c, detail_c], fill)
 
 ## Same, but with colours already resolved (the painted-ConsoleChar path).
-func _colored_tex_rgb(tile: String, main: Color, detail: Color, ckey: String, fill := Fill.NONE) -> ImageTexture:
+func _colored_tex_rgb(tile: String, main: Color, detail: Color, ckey: String, fill := Fill.NONE, cutout := false) -> ImageTexture:
 	if tile.is_empty() or _tiles_dir.is_empty():
 		return null
 	# _wall_bg keys the FILL colour (gap pixels paint _wall_bg_color()), so it
 	# must key the cache too — a gold-fill Starship texture must not be served
 	# for a world-fill wall that shares tile+colours.
-	var key := "%s|%s|%d|%s" % [tile, ckey, fill, _wall_bg]
+	var key := "%s|%s|%d|%s|%d" % [tile, ckey, fill, _wall_bg, 1 if cutout else 0]
 	if _tex_cache.has(key):
 		return _tex_cache[key]
 	var mask := _mask(tile)
@@ -3835,6 +3848,32 @@ func _colored_tex_rgb(tile: String, main: Color, detail: Color, ckey: String, fi
 	elif fill == Fill.SPAN:
 		inner = _fill_holes(tile)
 	var tex := _recolor_rgb(mask, main, detail, fill, inner)
+	# CUTOUT: the darker of the two tile colours goes TRANSPARENT (stricter than the
+	# art's own alpha). The bmp is a 2-colour mask — black px paint MAIN, white px
+	# DETAIL — so membership comes from the mask, not from comparing painted pixels.
+	if cutout and tex != null:
+		var lm := main.r * 0.299 + main.g * 0.587 + main.b * 0.114
+		var ld := detail.r * 0.299 + detail.g * 0.587 + detail.b * 0.114
+		var drop_main := lm <= ld
+		var ci := tex.get_image()
+		for cy2 in mask.get_height():
+			for cx2 in mask.get_width():
+				var mp := mask.get_pixel(cx2, cy2)
+				if mp.a < 0.5:
+					continue
+				var is_main := (mp.r + mp.g + mp.b) / 3.0 <= 0.5
+				if is_main == drop_main:
+					# clear the WHOLE texture block this mask px maps to (the texture
+					# may be upscaled; a centre-only clear would leave a lattice)
+					var bx0 := cx2 * ci.get_width() / mask.get_width()
+					var bx1 := (cx2 + 1) * ci.get_width() / mask.get_width()
+					var by0 := cy2 * ci.get_height() / mask.get_height()
+					var by1 := (cy2 + 1) * ci.get_height() / mask.get_height()
+					for scy in range(by0, by1):
+						for scx in range(bx0, bx1):
+							var pc := ci.get_pixel(scx, scy)
+							ci.set_pixel(scx, scy, Color(pc.r, pc.g, pc.b, 0.0))
+		tex = ImageTexture.create_from_image(ci)
 	_tex_cache[key] = tex
 	return tex
 
