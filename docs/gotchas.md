@@ -62,6 +62,11 @@ add a one-liner (symptom → rule).
   the popup still selects only via KEYBOARD from the harness (open, then plain `hv key raves DOWN
   ... RETURN` — no `--focus`, activate closes it; the popup opens unfocused so the FIRST down lands
   on item 0). Posted clicks close it without selecting — drive dropdowns by keys.
+- **Walls are ONE watertight voxel volume per cell** (`_wall_cell_mesh`; proven in
+  `tools/capture/voxwall.py` — run it after any wall-builder change). Full block, cap art carves
+  the roof, face art carves exposed faces, carves never enter the shell beside a wall neighbour.
+  Do NOT reintroduce separate skins/cores/patch passes: every historical see-through, z-fight and
+  Escher bug lived in the gaps between those pieces.
 - **A wall variant's art band below `_wall_split` is a real elevation ONLY when that variant's own
   face is open** — heavily-connected variants (`-11111111` and friends) are pure interior fill,
   measured one flat colour per row. Cropping a per-cell "effective" variant's band onto side faces

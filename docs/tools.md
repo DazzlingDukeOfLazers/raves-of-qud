@@ -74,9 +74,17 @@ python3 tools/capture/tile.py --list water
 Legend: `#` opaque-dark → main · `o` opaque-light → detail · `.` transparent → bg. Flags line-art
 (mostly transparent → needs fill) and the 16×24 wall/floor split.
 
-## Python: algorithm prototyping — `fill.py`, `voxel.py`
+## Python: algorithm prototyping — `fill.py`, `voxwall.py`, `voxel.py`
 
 These mirror GDScript algorithms so they can be verified without a screenshot.
+
+### `voxwall.py` (LIVE — the wall-volume proof harness)
+Mirrors `ZoneRenderer._wall_cell_mesh` (the watertight per-cell voxel wall). Builds real
+arrangements (isolated / run / corner / 2x2 / mixed-family) from the actual exported art and
+asserts: watertight interior, flush wall-to-wall boundaries, faces emitted once-only, and a
+random-ray sweep. `--previews` writes top/south elevation PNGs (Qud-art derivatives — they land
+in CWD; do not commit them). Run it after ANY change to the wall builder, and keep the Python
+and GDScript in step.
 
 ### `fill.py`
 A/B's the interior-fill rules (`column AND row`, `row only`, `AND + narrow slots`) side-by-side as

@@ -3081,7 +3081,7 @@ func _wall_bg_color() -> Color:
 	return _world_bg
 
 ## The cap band's GAP pattern for a variant tile — true where the RECOLOURED cap
-## pixel equals the wall background: the exact predicate _voxel_cap_mesh carves by.
+## pixel equals the wall background: the exact predicate _wall_cell_mesh carves by.
 ## (The first version tested art ALPHA — wall art is fully opaque, so no gap ever
 ## registered, no seam wall was ever emitted, and every carved edge opened into the
 ## hollow behind the skin: the "Escher" build.) Requires the TYPE's colour context
@@ -3222,72 +3222,41 @@ func _rebuild_walls(wall_types: Dictionary) -> void:
 		_wall_tile = t["tile"]; _wall_main = t["main"]; _wall_detail = t["detail"]; _wall_bg = t["bg"]
 		var cells: Dictionary = t["cells"]
 
-		# SOLID CORE: a dark box filling each cell, just inside the voxel skin, so
-		# the relief has something behind it. Without it you see straight through the
-		# gaps between protruding columns into the empty cell. Coloured a darker
-		# shade of the wall's darkest colour, so recesses read as deep shadow.
-		var core_mat := _wall_core_material(_live_build)
-		# Side gaps bottom out on the core's outer faces (0.5 - SIDE_CARVE). Its TOP
-		# sits just below the cap's carved gap floor (WALL_H - CAP_CARVE) so it never
-		# pokes up through a roof gap; the cap draws its own recess-coloured floors.
-		var core_half := 0.5 - SIDE_CARVE
-		var core_top := WALL_H - CAP_CARVE - 0.01
-		for k in cells:
-			var core := MeshInstance3D.new()
-			var bm := BoxMesh.new()
-			bm.size = Vector3(core_half * 2.0, core_top, core_half * 2.0)
-			core.mesh = bm
-			core.material_override = core_mat
-			core.position = Vector3(k.x, core_top * 0.5, k.y)
-			_wall_parent().add_child(core)
-			_track_wall(k, core)
-
-		# ROOFS are per-cell, grouped by autotile variant. Merging them under one
-		# texture drew the fully-bordered isolated tile on every cell, so a run of
-		# wall read as a grid of separate framed squares instead of one continuous
-		# surface. Qud already solved this: the -XXXXXXXX suffix says which edges
-		# have a neighbour, and its art omits the border there. Use each cell's own.
-		var by_variant := {}
+		# ONE WATERTIGHT VOXEL VOLUME PER CELL (Daniel: "like a minecraft creation,
+		# made of blocks. The facade and roof are defined by the artwork and there's
+		# a solid core"). Full solid block; the CAP art carves the roof down by
+		# CAP_CARVE where it is background; each EXPOSED face's art carves inward by
+		# SIDE_CARVE_PX pixels; wall-to-wall boundaries below the cap row never
+		# carve, so adjacent cells tile flush-solid. Faces exist only where solid
+		# meets air, emitted once — the see-through channels of the old hybrid
+		# (inset core + floating skins) cannot exist by construction. Cap-row
+		# boundary gaps are still closed by the seam pass (flush side owns).
+		# Algorithm PROVEN in tools/capture/voxwall.py — run it before changing this.
 		for k in cells:
 			var v := String(cells[k])
-			if not by_variant.has(v):
-				by_variant[v] = []
-			by_variant[v].append(k)
-		for v in by_variant:
-			var vmesh: ArrayMesh = _voxel_cap_mesh(v)
-			for k in by_variant[v]:
-				if vmesh != null:
-					var rmi := MeshInstance3D.new()
-					rmi.mesh = vmesh
-					rmi.material_override = _wall_skin_material()
-					rmi.position = Vector3(k.x, 0.0, k.y)
-					_wall_parent().add_child(rmi)
-					_track_wall(k, rmi)
-				# a voxel side on each edge whose orthogonal neighbour isn't this wall.
-				# The side mesh faces +Z (south) and rotates onto each edge, so the
-				# art's +x axis lands on a different world direction per face
-				# (+90° about Y maps +X onto −Z): the continuation bits handed to
-				# _face_variant follow the ROTATED axis, not world E/W.
-				var wn := all_wall_cells.has(Vector2i(k.x, k.y - 1))
-				var ws := all_wall_cells.has(Vector2i(k.x, k.y + 1))
-				var we := all_wall_cells.has(Vector2i(k.x + 1, k.y))
-				var ww := all_wall_cells.has(Vector2i(k.x - 1, k.y))
-				if not ws: _place_side(_side_voxel_mesh(_face_variant(v, we, ww)), k, 0.0)     # S: art +x = E
-				if not we: _place_side(_side_voxel_mesh(_face_variant(v, wn, ws)), k, 90.0)    # E: art +x = N
-				if not wn: _place_side(_side_voxel_mesh(_face_variant(v, ww, we)), k, 180.0)   # N: art +x = W
-				if not ww: _place_side(_side_voxel_mesh(_face_variant(v, ws, wn)), k, 270.0)   # W: art +x = S
-				_emit_seam_walls(k, v, all_wall_cells)
-
-func _place_side(mesh: ArrayMesh, k: Vector2i, deg: float) -> void:
-	if mesh == null:
-		return
-	var mi := MeshInstance3D.new()
-	mi.mesh = mesh
-	mi.material_override = _wall_skin_material()
-	mi.position = Vector3(k.x, 0.0, k.y)
-	mi.rotation = Vector3(0, deg_to_rad(deg), 0)
-	_wall_parent().add_child(mi)
-	_track_wall(k, mi)
+			var wn := all_wall_cells.has(Vector2i(k.x, k.y - 1))
+			var ws := all_wall_cells.has(Vector2i(k.x, k.y + 1))
+			var we := all_wall_cells.has(Vector2i(k.x + 1, k.y))
+			var ww := all_wall_cells.has(Vector2i(k.x - 1, k.y))
+			# face art per EXPOSED direction ("" = wall neighbour there): the
+			# run-tile whose along-face continuation matches. The art's +x axis
+			# differs per face (S=world E, E=world N, N=world W, W=world S), so
+			# the continuation bits follow the face's own axis, not world E/W.
+			var fv := {
+				"s": "" if ws else _face_variant(v, we, ww),
+				"e": "" if we else _face_variant(v, wn, ws),
+				"n": "" if wn else _face_variant(v, ww, we),
+				"w": "" if ww else _face_variant(v, ws, wn),
+			}
+			var mesh: ArrayMesh = _wall_cell_mesh(v, fv)
+			if mesh != null:
+				var mi := MeshInstance3D.new()
+				mi.mesh = mesh
+				mi.material_override = _wall_skin_material()
+				mi.position = Vector3(k.x, 0.0, k.y)
+				_wall_parent().add_child(mi)
+				_track_wall(k, mi)
+			_emit_seam_walls(k, v, all_wall_cells)
 
 ## Register a live-zone wall node under its cell so the camera cutaway can fade it. Only
 ## the LIVE zone (_live_build) — neighbours are far/dim and never between you and the camera.
@@ -3446,155 +3415,195 @@ func _stair_bar(grp: Node3D, mat: Material, size: Vector3, pos: Vector3) -> void
 	mi.position = pos
 	grp.add_child(mi)
 
-# --- voxel wall caps --------------------------------------------------------
+# --- voxel walls ------------------------------------------------------------
 
 const CAP_CARVE := 0.10     # how deep a background gap recesses DOWN into the roof
-const SIDE_CARVE := 0.10    # how deep a background gap recesses INTO the wall face
-var _voxel_cache := {}      # cap key -> ArrayMesh
+const SIDE_CARVE_PX := 2    # facade recess depth, in ART pixels (~0.13 cells at 16px art)
+var _voxel_cache := {}      # cell-mesh key -> ArrayMesh
 var _voxel_mat: StandardMaterial3D
 
-## Cap relief for a wall variant, centred on its cell. Same flush-and-carve model
-## as the wall sides, vertical: every NON-background pixel (red main AND detail)
-## sits flush at the roof surface (WALL_H); only the background gaps carve DOWN by
-## CAP_CARVE, their floors filled with the dark recess colour. No protruding detail
-## — the cap reads as a solid top with recessed pits, matching the faces. Cached
-## per variant+colour, built once and instanced per cell.
-func _voxel_cap_mesh(variant_tile: String) -> ArrayMesh:
-	# reuse the recoloured, fully-framed cap the flat path already produced
-	var tex := _cap_tex(variant_tile)
-	if tex == null:
+## ONE cell's wall as a watertight voxel volume ("minecraft" walls; algorithm and
+## its proofs live in tools/capture/voxwall.py — keep the two in step).
+##
+##   - full solid block over the whole cell footprint, 0..WALL_H;
+##   - row 0 is the cap layer [WALL_H-CAP_CARVE, WALL_H], carved where the CAP art
+##     is background (the same _cap_gaps grid the seam pass reads);
+##   - rows below map to the face art's rows; each EXPOSED direction carves its
+##     art's background pixels inward by SIDE_CARVE_PX, never entering the
+##     SIDE_CARVE_PX shell beside a wall neighbour (a gap column running to the
+##     tile edge must not hollow the flush boundary the neighbour relies on);
+##   - faces are emitted only between solid and air, from the solid side, once.
+##     Wall-to-wall boundaries below the cap row are flush-solid on both sides, so
+##     nothing is emitted there; cap-row boundary gaps are closed by the seam pass.
+##
+## The interior can never open: carves are at most SIDE_CARVE_PX deep on a 16px
+## cell, so a solid core survives every combination — the see-through sightlines
+## of the old core+skins hybrid are impossible by construction.
+##
+## `fv` maps direction -> face-variant tile for EXPOSED directions, "" where a
+## wall neighbour sits. Cached per (variant, faces, colours); cells sharing a
+## neighbourhood shape share the mesh.
+func _wall_cell_mesh(variant_tile: String, fv: Dictionary) -> ArrayMesh:
+	var cap_tex := _cap_tex(variant_tile)
+	if cap_tex == null:
 		return null
-	var img := tex.get_image()
-	if img == null:
+	var cap_img := cap_tex.get_image()
+	if cap_img == null:
 		return null
-	var key := "%s|%s|%s|%s" % [variant_tile, _wall_main, _wall_detail, _wall_bg]
+	var key := "cell|%s|%s|%s|%s|%s|%s|%s|%s" % [variant_tile, fv["s"], fv["e"],
+		fv["n"], fv["w"], _wall_main, _wall_detail, _wall_bg]
 	if _voxel_cache.has(key):
 		return _voxel_cache[key]
-
-	var w := img.get_width()
-	var h := img.get_height()
+	var W := cap_img.get_width()
+	var caph := cap_img.get_height()
+	var gaps: Array = _cap_gaps(variant_tile)
 	var bg := _wall_bg_color().to_html(false)
-	var recess := _wall_recess_color()
-	var mainc := _qud_color(_wall_main)     # material colour for boundary-closing walls
-	# top height per pixel: flush at WALL_H (material) or carved down (background gap)
-	var top := []
-	for y in h:
-		var row := []
-		for x in w:
-			row.append(WALL_H - CAP_CARVE if img.get_pixel(x, y).to_html(false) == bg else WALL_H)
-		top.append(row)
+	# face art per exposed direction (recoloured band; 1:1 with the mask, no scale)
+	var f_img := {}
+	var F := WALL_FACE_ROWS
+	for d in ["s", "e", "n", "w"]:
+		if String(fv[d]) == "":
+			continue
+		var t := _wall_region_tex("side", String(fv[d]))
+		if t != null:
+			var im := t.get_image()
+			if im != null:
+				f_img[d] = im
+				F = im.get_height()
+	# y planes, descending: WALL_H, the cap floor, then the face-row boundaries
+	# below it, ending at 0. Row r spans planes[r+1]..planes[r].
+	var rh := WALL_H / float(F)
+	var planes: Array[float] = [WALL_H, WALL_H - CAP_CARVE]
+	for i in range(1, F + 1):
+		var yy := WALL_H - i * rh
+		if yy < WALL_H - CAP_CARVE - 0.0001:
+			planes.append(maxf(yy, 0.0))
+	if planes[planes.size() - 1] > 0.0001:
+		planes.append(0.0)
+	var R := planes.size() - 1
 
+	var solid := PackedByteArray()
+	solid.resize(R * W * W)
+	solid.fill(1)
+	# cap carve (row 0)
+	for z in W:
+		var az := mini(caph - 1, z * caph / W)
+		for x in W:
+			if bool(gaps[az][x]):
+				solid[z * W + x] = 0
+	# the no-carve shell beside every wall neighbour
+	var prot := PackedByteArray()
+	prot.resize(W * W)
+	for d in ["s", "e", "n", "w"]:
+		if String(fv[d]) != "":
+			continue
+		for depth in SIDE_CARVE_PX:
+			for a in W:
+				match d:
+					"s": prot[(W - 1 - depth) * W + a] = 1
+					"n": prot[depth * W + a] = 1
+					"e": prot[a * W + (W - 1 - depth)] = 1
+					"w": prot[a * W + depth] = 1
+	# facade carves. Art x along the face: S face a=x -> ax=a; N: ax=W-1-a;
+	# E face a=z -> ax=W-1-a; W: ax=a (each face's art reads left-to-right as
+	# seen from OUTSIDE that face).
+	for d in f_img:
+		var im: Image = f_img[d]
+		var fh := im.get_height()
+		for r in range(1, R):
+			var mid := (planes[r] + planes[r + 1]) * 0.5
+			var fr := clampi(int((WALL_H - mid) / rh), 0, fh - 1)
+			for a in W:
+				var ax: int = a if (d == "s" or d == "w") else W - 1 - a
+				if im.get_pixel(mini(ax, im.get_width() - 1), fr).to_html(false) != bg:
+					continue
+				for depth in SIDE_CARVE_PX:
+					var cz: int
+					var cx: int
+					match d:
+						"s": cz = W - 1 - depth; cx = a
+						"n": cz = depth; cx = a
+						"e": cz = a; cx = W - 1 - depth
+						"w": cz = a; cx = depth
+					if prot[cz * W + cx] == 0:
+						solid[(r * W + cz) * W + cx] = 0
+
+	# emission: every solid voxel face against air, once
+	var recess := _wall_recess_color()
+	var mainc := _qud_color(_wall_main)
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var ps := 1.0 / w
-	for y in h:
-		for x in w:
-			var col := img.get_pixel(x, y)
-			var yt: float = top[y][x]
-			var x0 := -0.5 + x * ps
-			var x1 := x0 + ps
-			var z0 := -0.5 + y * ps
+	var ps := 1.0 / W
+	for r in R:
+		var yb: float = planes[r + 1]
+		var yt: float = planes[r]
+		for z in W:
+			var az := mini(caph - 1, z * caph / W)
+			var z0 := -0.5 + z * ps
 			var z1 := z0 + ps
-			# flush pixels show their own colour; a carved gap floor shows the recess
-			if yt >= WALL_H:
-				_vc_top(st, x0, x1, z0, z1, yt, col)
-			else:
-				_vc_top(st, x0, x1, z0, z1, yt, recess)
-			# walls of the carved gaps (+ close boundary gaps up to the neighbour cap)
-			_vc_step(st, x, y, yt, top, w, h, x0, x1, z0, z1, col, mainc)
+			for x in W:
+				if solid[(r * W + z) * W + x] == 0:
+					continue
+				var x0 := -0.5 + x * ps
+				var x1 := x0 + ps
+				var capc := cap_img.get_pixel(x, az)
+				# +Y: the cap surface (art colour) or a carved pocket's floor
+				if r == 0:
+					_vc_top(st, x0, x1, z0, z1, yt, capc)
+				elif solid[((r - 1) * W + z) * W + x] == 0:
+					_vc_top(st, x0, x1, z0, z1, yt, recess)
+				# -Y: underside over a pocket below (rare; reads as shadow)
+				if r + 1 < R and solid[((r + 1) * W + z) * W + x] == 0:
+					for p in [Vector3(x0, yb, z0), Vector3(x1, yb, z0), Vector3(x1, yb, z1),
+							  Vector3(x0, yb, z0), Vector3(x1, yb, z1), Vector3(x0, yb, z1)]:
+						st.set_normal(Vector3.DOWN)
+						st.set_color(recess)
+						st.add_vertex(p)
+				# laterals: skip toward wall neighbours (flush below the cap; the
+				# seam pass owns the cap row), emit toward carved pockets and the
+				# exposed outside
+				for s in [[0, 1, "s"], [0, -1, "n"], [1, 0, "e"], [-1, 0, "w"]]:
+					var nx: int = x + s[0]
+					var nz: int = z + s[1]
+					var dirname := String(s[2])
+					var outside: bool = nx < 0 or nx >= W or nz < 0 or nz >= W
+					if outside:
+						if String(fv[dirname]) == "":
+							continue          # wall neighbour: flush / seam-owned
+					elif solid[(r * W + nz) * W + nx] == 1:
+						continue
+					var col := mainc
+					if r == 0:
+						col = capc            # cap-row trench walls match the cap
+					elif outside:
+						# flush skin on the exposed plane: the face art pixel
+						var im2: Image = f_img.get(dirname)
+						if im2 != null:
+							var mid2 := (yt + yb) * 0.5
+							var fr2 := clampi(int((WALL_H - mid2) / rh), 0, im2.get_height() - 1)
+							var a2: int = x if s[1] != 0 else z
+							var ax2: int = a2 if (dirname == "s" or dirname == "w") else W - 1 - a2
+							var pc := im2.get_pixel(mini(ax2, im2.get_width() - 1), fr2)
+							col = pc if pc.to_html(false) != bg else mainc
+					elif String(fv[dirname]) != "":
+						col = recess          # a carved pocket's back wall
+					var nrm := Vector3(s[0], 0, s[1])
+					var pa: Vector3
+					var pb: Vector3
+					if s[0] > 0:      pa = Vector3(x1, yb, z0); pb = Vector3(x1, yb, z1)
+					elif s[0] < 0:    pa = Vector3(x0, yb, z1); pb = Vector3(x0, yb, z0)
+					elif s[1] > 0:    pa = Vector3(x0, yb, z1); pb = Vector3(x1, yb, z1)
+					else:             pa = Vector3(x1, yb, z0); pb = Vector3(x0, yb, z0)
+					var pat := Vector3(pa.x, yt, pa.z)
+					var pbt := Vector3(pb.x, yt, pb.z)
+					for p in [pa, pbt, pat, pa, pb, pbt]:
+						st.set_normal(nrm)
+						st.set_color(col)
+						st.add_vertex(p)
 	var mesh := ArrayMesh.new()
 	st.commit(mesh)
 	_voxel_cache[key] = mesh
 	return mesh
-
-## Voxel relief for ONE wall face, in local cell space facing +Z (the south edge):
-## the front-face art extruded OUTWARD per colour rank, so the wall's surface reads
-## as bumpy stone that catches the sun. Qud uses the same south-face art on all four
-## sides, so this one cached mesh is instanced+rotated onto each exposed edge.
-var _side_cache := {}
-func _side_voxel_mesh(variant_tile: String) -> ArrayMesh:
-	var tex := _wall_region_tex("side", variant_tile)
-	if tex == null:
-		return null
-	var img := tex.get_image()
-	if img == null:
-		return null
-	var key := "%s|%s|%s|%s" % [variant_tile, _wall_main, _wall_detail, _wall_bg]
-	if _side_cache.has(key):
-		return _side_cache[key]
-	var w := img.get_width()
-	var h := img.get_height()
-	var bg := _wall_bg_color().to_html(false)
-	var mainc := _qud_color(_wall_main)     # material colour for boundary-closing walls
-	# Depth per pixel: every NON-background pixel (red main AND blue detail) shares
-	# ONE flush depth at the cell boundary (z=0.5), so the highlight sits at the same
-	# depth as the red body, and the flush skins of adjacent faces meet cleanly at the
-	# corners (south edge and east edge both land on the corner line). Only the
-	# background (the gaps/rivet holes) carves INWARD, revealing the dark core.
-	var dep := []
-	for y in h:
-		var row := []
-		for x in w:
-			row.append(0.5 - SIDE_CARVE if img.get_pixel(x, y).to_html(false) == bg else 0.5)
-		dep.append(row)
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var pw := 1.0 / w
-	var ph := WALL_H / h
-	for y in h:
-		for x in w:
-			var col := img.get_pixel(x, y)
-			var d: float = dep[y][x]
-			var xa := -0.5 + x * pw                       # along the edge
-			var xb := xa + pw
-			var yt: float = WALL_H - y * ph               # row 0 = top of the wall
-			var yb: float = yt - ph
-			# Flush material pixels get an outward face; a GAP pixel gets NONE — its
-			# hole bottoms out on the dark core, so you see the recess colour, not a
-			# background-coloured quad floating at the carve depth.
-			if d >= 0.5:
-				for p in [Vector3(xa, yb, d), Vector3(xb, yb, d), Vector3(xb, yt, d),
-						  Vector3(xa, yb, d), Vector3(xb, yt, d), Vector3(xa, yt, d)]:
-					st.set_normal(Vector3(0, 0, 1)); st.set_color(col); st.add_vertex(p)
-			# walls of the carved gaps (+ close boundary gaps out to the neighbour face)
-			_side_step(st, x, y, d, dep, w, h, xa, xb, yt, yb, col, mainc)
-	var mesh := ArrayMesh.new()
-	st.commit(mesh)
-	_side_cache[key] = mesh
-	return mesh
-
-## Walls of a carved-in background gap. In-cell: for each neighbour DEEPER than this
-## pixel, draw the face from the neighbour's depth out to this pixel's (the more
-## forward pixel owns it). At a CELL BOUNDARY along a straight run the checker runs
-## to the edge, so a gap edge pixel's flush neighbour lives in the next cell's mesh
-## and won't close the pit — leaving it open sideways. So when we ARE the gap at a
-## boundary, close our own wall out to the neighbour's flush face, in the material
-## colour (`mainc`) to match the in-cell trench walls.
-func _side_step(st: SurfaceTool, x: int, y: int, d: float, dep: Array, w: int, h: int,
-		xa: float, xb: float, yt: float, yb: float, col: Color, mainc: Color) -> void:
-	for dir in [[1, 0], [-1, 0], [0, 1], [0, -1]]:
-		var nx: int = x + dir[0]
-		var ny: int = y + dir[1]
-		var inb := nx >= 0 and nx < w and ny >= 0 and ny < h
-		var otherz: float; var wcol: Color
-		if inb:
-			var nd := float(dep[ny][nx])
-			if nd >= d:
-				continue                               # neighbour not deeper -> no wall
-			otherz = nd; wcol = col                    # this pixel forward, wall back to it
-		else:
-			if d >= 0.5:
-				continue                               # flush edge: next cell's face abuts
-			otherz = 0.5; wcol = mainc                 # gap at boundary: close out to flush
-		var a: Vector3; var b: Vector3; var nrm: Vector3
-		if dir == [1, 0]:      a = Vector3(xb, yb, 0); b = Vector3(xb, yt, 0); nrm = Vector3(1, 0, 0)
-		elif dir == [-1, 0]:   a = Vector3(xa, yt, 0); b = Vector3(xa, yb, 0); nrm = Vector3(-1, 0, 0)
-		elif dir == [0, 1]:    a = Vector3(xb, yb, 0); b = Vector3(xa, yb, 0); nrm = Vector3(0, -1, 0)
-		else:                  a = Vector3(xa, yt, 0); b = Vector3(xb, yt, 0); nrm = Vector3(0, 1, 0)
-		var af := Vector3(a.x, a.y, d); var bf := Vector3(b.x, b.y, d)
-		var an := Vector3(a.x, a.y, otherz); var bn := Vector3(b.x, b.y, otherz)
-		for p in [an, bf, af, an, bn, bf]:
-			st.set_normal(nrm); st.set_color(wcol); st.add_vertex(p)
 
 ## Shared material for voxel caps:
 
@@ -3605,18 +3614,9 @@ func _side_step(st: SurfaceTool, x: int, y: int, d: float, dep: Array, w: int, h
 ## requested — so gaps read as deep shadow in the material rather than a teal hole.
 ## Colour of a recess (carved gap floor, solid core): the wall's own red, darkened,
 ## with only a faint ambient nudge — reads as the material in shadow, not a foreign
-## hole. Shared by the core box and the cap's carved gap floors so they match.
+## hole. Shared by the carved pocket floors and backs so they match.
 func _wall_recess_color() -> Color:
 	return _qud_color(_wall_main).darkened(0.5).lerp(_world_bg, 0.12)
-
-func _wall_core_material(fade := false) -> StandardMaterial3D:
-	var m := StandardMaterial3D.new()
-	m.albedo_color = _wall_recess_color()
-	m.roughness = 0.95
-	if fade:   # live zone only — fade-capable so the core dissolves with the skin in the cutaway
-		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS
-	m.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL if SHADED_WORLD else BaseMaterial3D.SHADING_MODE_UNSHADED
-	return m
 
 func _voxel_material() -> StandardMaterial3D:
 	if _voxel_mat != null:
@@ -3661,44 +3661,6 @@ func _vc_top(st: SurfaceTool, x0: float, x1: float, z0: float, z1: float, y: flo
 	for p in [Vector3(x0, y, z0), Vector3(x1, y, z1), Vector3(x1, y, z0),
 			  Vector3(x0, y, z0), Vector3(x0, y, z1), Vector3(x1, y, z1)]:
 		st.set_normal(Vector3.UP); st.set_color(c); st.add_vertex(p)
-
-## Walls of a carved-down background gap on the cap. In-cell: for each neighbour
-## that sits LOWER, draw the face from the neighbour's height up to this pixel's
-## (the higher pixel owns the wall, so it's drawn once). At a CELL BOUNDARY the
-## art's checker runs to the edge, so an edge pixel can be a gap whose flush
-## neighbour lives in the next cell's mesh — that cell can't see us and won't close
-## it, leaving the pit open sideways (a dark groove along the seam). So when we ARE
-## the gap at a boundary, close our own wall up to the neighbour's flush cap, in the
-## material colour (`mainc`) so it matches the in-cell trench walls.
-func _vc_step(st: SurfaceTool, x: int, y: int, yt: float, top: Array, w: int, h: int,
-		x0: float, x1: float, z0: float, z1: float, c: Color, mainc: Color) -> void:
-	for d in [[1, 0], [-1, 0], [0, 1], [0, -1]]:
-		var nx: int = x + d[0]
-		var ny: int = y + d[1]
-		var inb := nx >= 0 and nx < w and ny >= 0 and ny < h
-		var ylo: float; var yhi: float; var wcol: Color
-		if inb:
-			var nyt := float(top[ny][nx])
-			if nyt >= yt:
-				continue                               # neighbour not lower -> no wall
-			ylo = nyt; yhi = yt; wcol = c              # this pixel higher, wall down to it
-		else:
-			# CELL BOUNDARY: never self-close here. Both neighbours closing their own
-			# matching edge gaps produced TWO coplanar quads in the seam plane — the
-			# "flat plane perpendicular to the wall, doubled at the corners" (Daniel).
-			# Seam walls are emitted ONCE, per cell, by the flush side, in
-			# _rebuild_walls' seam pass — with the real neighbour's edge examined.
-			continue
-		var a: Vector3; var b: Vector3
-		if d == [1, 0]:    a = Vector3(x1, 0, z0); b = Vector3(x1, 0, z1)
-		elif d == [-1, 0]: a = Vector3(x0, 0, z1); b = Vector3(x0, 0, z0)
-		elif d == [0, 1]:  a = Vector3(x1, 0, z1); b = Vector3(x0, 0, z1)
-		else:              a = Vector3(x0, 0, z0); b = Vector3(x1, 0, z0)
-		var at := Vector3(a.x, yhi, a.z); var bt := Vector3(b.x, yhi, b.z)
-		var ab := Vector3(a.x, ylo, a.z); var bb := Vector3(b.x, ylo, b.z)
-		var nrm := Vector3(d[0], 0, d[1])
-		for p in [ab, bt, at, ab, bb, bt]:
-			st.set_normal(nrm); st.set_color(wcol); st.add_vertex(p)
 
 ## The top-down cap of ONE autotile variant, recoloured. Borders appear only on
 ## the edges that variant says are exposed, so adjacent cells join seamlessly.

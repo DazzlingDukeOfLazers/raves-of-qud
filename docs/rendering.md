@@ -94,24 +94,31 @@ recess. Consequences: the highlight sits at the same depth as the body, and **co
 flush skin lands exactly on the cell boundary, so a face's edge column and the perpendicular face's
 edge column share the corner line.
 
-### The pieces per wall cell
-| piece | fn | geometry |
-|---|---|---|
-| **Cap** | `_voxel_cap_mesh` | top-down art. Non-bg flush at `WALL_H`; bg carves DOWN by `CAP_CARVE`, its floor drawn in the recess colour. |
-| **Sides** | `_side_voxel_mesh` | south front-face art, flush at the cell edge (`z=0.5`); bg carves INWARD by `SIDE_CARVE`, bottoming on the core. One cached mesh (facing +Z), instanced and **rotated** onto each exposed edge (S/E/N/W). "Exposed" = the orthogonal neighbour isn't wall. |
-| **Core** | `_wall_core_material` | a `BoxMesh` (`(0.5−SIDE_CARVE)·2` wide) filling the cell just behind the skins, so side gaps bottom out on it. Its top sits just below the cap's gap floor (`WALL_H−CAP_CARVE`) so it can't poke up through a roof gap. |
+### One watertight voxel volume per cell (2026-08-13)
+Walls are built like a Minecraft creation: **one boolean voxel volume per cell**, meshed in
+`_wall_cell_mesh` (the earlier cap + side skins + inset core + seam patches hybrid is gone — its
+hollow channels were the see-through points).
 
-`_wall_recess_color()` is shared by the cap gap floors and the core: the wall's own `main`, darkened
-and nudged ~12% toward the scene ambient — a recess *in the material*, not a foreign hole.
+- Start from a **full solid block** over the whole cell footprint, `0..WALL_H`.
+- The **cap art** carves the roof DOWN by `CAP_CARVE` where it is background (`_cap_gaps`);
+  flush cap tops draw the art pixel, carved floors draw the recess colour.
+- Each **exposed** face's art carves INWARD by `SIDE_CARVE_PX` art pixels where it is background.
+  Face art per direction comes from `_face_variant` (the horizontal-run tile whose along-face
+  continuation matches; the art's +x axis is the face's own left-to-right, not world E/W).
+- Carves never enter the `SIDE_CARVE_PX` shell beside a wall neighbour, so **wall-to-wall
+  boundaries below the cap row are flush-solid on both sides** and nothing is emitted there.
+  Cap-row boundary gaps are still closed once, by the flush side, in `_emit_seam_walls`.
+- Faces are emitted **only between solid and air, from the solid side, once**. Flush skin faces
+  wear the face-art pixel, pocket backs and floors the recess colour, trench sides the main colour.
 
-### Carve walls & the cell-seam fix (`_vc_step` / `_side_step`)
-A carved gap draws its trench walls toward any lower/deeper neighbour — the higher (flush) pixel
-owns the wall, so it's drawn once. At a **cell boundary** the art's checker runs to the edge, so an
-edge pixel can be a gap whose flush neighbour lives in the *next cell's mesh*, which can't see it and
-won't close it. Left unhandled that opened the pit sideways onto the dark background — the dark
-grooves that showed along roof seams. **Fix:** when a pixel IS the gap at a boundary, it closes its
-own wall up to the neighbour's (assumed flush) surface, in the material colour so it matches the
-in-cell walls. Applied to both cap and sides. Normals are explicit; material is `CULL_DISABLED`.
+**Why it cannot leak:** carves are at most `SIDE_CARVE_PX` (2px) deep on a 16px cell, so a solid
+core always survives; boundaries are flush; every face is emitted exactly once. The algorithm and
+these proofs (watertight interior, flush boundaries, once-only faces, a random-ray sweep — run on
+the real exported art, including a mixed brinestalk/metal run) live in **`tools/capture/voxwall.py`**;
+run it before changing the builder, and keep the two implementations in step.
+
+`_wall_recess_color()` colours every carved surface: the wall's own `main`, darkened and nudged
+~12% toward the scene ambient — a recess *in the material*, not a foreign hole.
 
 ### Colour is sRGB (a gotcha)
 The wall meshes bake colour into **vertices**, so `_voxel_material` sets `vertex_color_is_srgb =
@@ -120,8 +127,7 @@ palette reds into a pale tan (measured #805840 sat 0.50 vs palette #993326 sat 0
 an albedo *texture* are unaffected. See CLAUDE.md's debugging rules.
 
 ### Constants to tune
-`CAP_CARVE` (roof gap depth) · `SIDE_CARVE` (face gap depth) · the core sizing (half-width
-`0.5−SIDE_CARVE`, top at `WALL_H−CAP_CARVE`) · the recess mix in `_wall_recess_color` ·
+`CAP_CARVE` (roof gap depth) · `SIDE_CARVE_PX` (face gap depth, art px) · the recess mix in `_wall_recess_color` ·
 `SHADED_WORLD` (flip to the flat unshaded look).
 
 ### Ideas / next steps
