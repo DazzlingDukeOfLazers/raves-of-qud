@@ -3080,26 +3080,32 @@ func _wall_bg_color() -> Color:
 		return _qud_color("&" + _wall_bg)
 	return _world_bg
 
-## The cap band's GAP pattern for a variant tile — true where the art is transparent
-## (those pixels recolour to background = the carved checker). Colour-independent, so
-## it works across wall types/families; cached per tile name.
+## The cap band's GAP pattern for a variant tile — true where the RECOLOURED cap
+## pixel equals the wall background: the exact predicate _voxel_cap_mesh carves by.
+## (The first version tested art ALPHA — wall art is fully opaque, so no gap ever
+## registered, no seam wall was ever emitted, and every carved edge opened into the
+## hollow behind the skin: the "Escher" build.) Requires the TYPE's colour context
+## (_wall_main/_wall_bg set), so callers compute it inside the type loop; cached by
+## the same key ingredients as the cap texture.
 var _cap_gap_cache := {}
 func _cap_gaps(variant_tile: String) -> Array:
-	if _cap_gap_cache.has(variant_tile):
-		return _cap_gap_cache[variant_tile]
-	var mask := _mask(variant_tile)
-	if mask == null:
+	var key := "gaps|%s|%s|%s|%s" % [variant_tile, _wall_main, _wall_detail, _wall_bg]
+	if _cap_gap_cache.has(key):
+		return _cap_gap_cache[key]
+	var tex := _cap_tex(variant_tile)
+	if tex == null:
 		return []
-	var split := _wall_split(mask)
-	var w := mask.get_width()
-	var hh: int = split.x
+	var img := tex.get_image()
+	if img == null:
+		return []
+	var bg := _wall_bg_color().to_html(false)
 	var out := []
-	for y in hh:
+	for y in img.get_height():
 		var row := []
-		for x in w:
-			row.append(mask.get_pixel(x, y).a < 0.5)
+		for x in img.get_width():
+			row.append(img.get_pixel(x, y).to_html(false) == bg)
 		out.append(row)
-	_cap_gap_cache[variant_tile] = out
+	_cap_gap_cache[key] = out
 	return out
 
 ## SEAM WALLS between adjacent wall cells, emitted ONCE per seam by the FLUSH side —
@@ -3108,7 +3114,7 @@ func _cap_gaps(variant_tile: String) -> Array:
 ## Where both edges are gaps the pit continues and no wall belongs there at all —
 ## which is exactly the doubled "flat plane perpendicular to the wall" this replaces.
 func _emit_seam_walls(k: Vector2i, variant_tile: String, all_wall_cells: Dictionary) -> void:
-	var g_my := _cap_gaps(variant_tile)
+	var g_my: Array = all_wall_cells.get(k, [])
 	if g_my.is_empty():
 		return
 	var w: int = (g_my[0] as Array).size()
@@ -3121,7 +3127,7 @@ func _emit_seam_walls(k: Vector2i, variant_tile: String, all_wall_cells: Diction
 		var n := Vector2i(k.x + d[0], k.y + d[1])
 		if not all_wall_cells.has(n):
 			continue
-		var g_nb := _cap_gaps(String(all_wall_cells[n]))
+		var g_nb: Array = all_wall_cells[n]
 		if g_nb.is_empty():
 			continue
 		var count: int = hh if d[0] != 0 else w
@@ -3184,8 +3190,12 @@ func _rebuild_walls(wall_types: Dictionary) -> void:
 	# wall type makes the seam interior; no side belongs there at all.
 	var all_wall_cells := {}
 	for key in wall_types:
-		for k in wall_types[key]["cells"]:
-			all_wall_cells[k] = String(wall_types[key]["cells"][k])   # cell -> variant tile
+		var t0 = wall_types[key]
+		_wall_tile = t0["tile"]; _wall_main = t0["main"]; _wall_detail = t0["detail"]; _wall_bg = t0["bg"]
+		for k in t0["cells"]:
+			# each cell's gap pattern, computed under ITS OWN type's colours — the
+			# seam pass then compares patterns directly, across types and families
+			all_wall_cells[k] = _cap_gaps(String(t0["cells"][k]))
 	for key in wall_types:
 		var t = wall_types[key]
 		_wall_tile = t["tile"]; _wall_main = t["main"]; _wall_detail = t["detail"]; _wall_bg = t["bg"]
