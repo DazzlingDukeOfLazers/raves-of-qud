@@ -2320,17 +2320,19 @@ func _place_signpost(obj: Dictionary, tile: String, cx: int, cy: int, light_frac
 	bw = hi - lo + 1
 	var bh: int = b1 - b0 + 1
 	var slab_y0: float = (bottom + 1 - (b1 + 1)) * ps
-	var sc_probe := img.get_pixel(int((lo + 0.5) * sx), int((b0 + 1.5) * sy))
-	var slab_c := sc_probe if sc_probe.a > 0.1 else Color(0.1, 0.1, 0.1)
-	var slab := BoxMesh.new()
-	slab.size = Vector3(bw * ps, bh * ps, 1.0 * ps)
-	var smi := MeshInstance3D.new()
-	smi.mesh = slab
-	smi.material_override = _color_material(slab_c * lfc)
-	var slab_center := base + Vector3((lo + bw * 0.5 - w * 0.5) * ps, slab_y0 + bh * ps * 0.5, 0.0)
-	smi.position = slab_center
-	_spawn_parent().add_child(smi)
-	_track(smi)
+	# Slab edges in the board's OWN colour — sample the first raw-opaque frame pixel
+	# (the fixed corner probe used to land on a transparent pixel and fall back to
+	# near-black; Daniel: sides should be the same brown as the front).
+	var slab_c := Color(0.45, 0.25, 0.2)
+	var sc_found := false
+	for y in range(b0, b1 + 1):
+		for x in range(lo, hi + 1):
+			if mask.get_pixel(x, y).a >= 0.5:
+				slab_c = img.get_pixel(int((x + 0.5) * sx), int((y + 0.5) * sy))
+				sc_found = true
+				break
+		if sc_found:
+			break
 	# A REAL crop: AtlasTexture regions are IGNORED by 3D materials (StandardMaterial3D
 	# samples the whole atlas), which put the entire tile — dark fill and all — on the
 	# board quad. Cut the board rect out of the image instead.
@@ -2343,17 +2345,29 @@ func _place_signpost(obj: Dictionary, tile: String, cx: int, cy: int, light_frac
 	qmat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	qmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
 	qmat.alpha_scissor_threshold = 0.5
-	for side in [1.0, -1.0]:
-		var q := QuadMesh.new()
-		q.size = Vector2(bw * ps, bh * ps)
-		var qmi := MeshInstance3D.new()
-		qmi.mesh = q
-		qmi.material_override = qmat
-		qmi.position = slab_center + Vector3(0.0, 0.0, side * (0.5 * ps + 0.001))
-		if side < 0.0:
-			qmi.rotation.y = PI   # back face: same art, mirrored to face south
-		_spawn_parent().add_child(qmi)
-		_track(qmi)
+	# TWO slabs sandwiching the posts (Daniel: one faces north, one faces south) —
+	# posts sit at +1.5px between them, so both outer faces read from their side.
+	for zoff in [0.0, 3.0 * ps]:
+		var slab := BoxMesh.new()
+		slab.size = Vector3(bw * ps, bh * ps, 1.0 * ps)
+		var smi := MeshInstance3D.new()
+		smi.mesh = slab
+		smi.material_override = _color_material(slab_c * lfc)
+		var slab_center := base + Vector3((lo + bw * 0.5 - w * 0.5) * ps, slab_y0 + bh * ps * 0.5, zoff)
+		smi.position = slab_center
+		_spawn_parent().add_child(smi)
+		_track(smi)
+		for side in [1.0, -1.0]:
+			var q := QuadMesh.new()
+			q.size = Vector2(bw * ps, bh * ps)
+			var qmi := MeshInstance3D.new()
+			qmi.mesh = q
+			qmi.material_override = qmat
+			qmi.position = slab_center + Vector3(0.0, 0.0, side * (0.5 * ps + 0.001))
+			if side < 0.0:
+				qmi.rotation.y = PI   # back face: same art, mirrored
+			_spawn_parent().add_child(qmi)
+			_track(qmi)
 	return true
 
 # ── WINNER PER CELL (Daniel, 2026-08-12): "stop fighting and just do what Qud does.
@@ -2489,7 +2503,7 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 
 	if verdict == "signpost" and not _flat_2d and not _one_to_one:
 		if _place_signpost(obj, tile, cx, cy, light_frac):
-			_note(cx, cy, idx, "signpost(slab + 2 posts, faces N-S, user verdict)", 0.5)
+			_note(cx, cy, idx, "signpost(2 slabs + 2 posts, faces N and S, user verdict)", 0.5)
 			return
 		# fall through to the billboard path if the art defeats the mesh derivation
 
