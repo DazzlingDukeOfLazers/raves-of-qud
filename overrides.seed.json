@@ -20,6 +20,33 @@
     },
     "sw_sign_goods": {
       "shape": "build it as a SIGNPOST (two posts + slab)"
+    },
+    "sw_honey_sign": {
+      "shape": "build it as a SIGNPOST (two posts + slab)"
+    },
+    "sw_hookah_sign": {
+      "shape": "build it as a SIGNPOST (two posts + slab)"
+    },
+    "sw_sign_bottle": {
+      "shape": "build it as a SIGNPOST (two posts + slab)"
+    },
+    "sw_sign_datadisc": {
+      "shape": "build it as a SIGNPOST (two posts + slab)"
+    },
+    "sw_sign_graveyard": {
+      "shape": "build it as a SIGNPOST (two posts + slab)"
+    },
+    "sw_sign_gutsmonger": {
+      "shape": "build it as a SIGNPOST (two posts + slab)"
+    },
+    "sw_sign_liquid": {
+      "shape": "build it as a SIGNPOST (two posts + slab)"
+    },
+    "sw_sign_pepper": {
+      "shape": "build it as a SIGNPOST (two posts + slab)"
+    },
+    "sw_sign_wine": {
+      "shape": "build it as a SIGNPOST (two posts + slab)"
     }
   }
 }
