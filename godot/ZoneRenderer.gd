@@ -1580,6 +1580,14 @@ func _build_smoke_resources() -> void:
 	sm.billboard_keep_scale = true
 	sm.vertex_color_use_as_albedo = true                # let the color-ramp (below) drive colour+alpha
 	sm.cull_mode = BaseMaterial3D.CULL_DISABLED
+	# Draw AFTER the walls, always. The live wall skin is ALPHA_DEPTH_PRE_PASS (the
+	# cutaway fade), which puts the whole zone-sized merged wall mesh in the
+	# transparent queue — and transparent-vs-transparent sort against a mesh that
+	# big flips per frame, so smoke popped behind/in front of wall faces at block
+	# corners ("flickering around the corners/edges"; measured: zero wall flicker
+	# with particles off). A fixed priority makes the order deterministic; the
+	# wall's pre-pass depth still occludes smoke that is genuinely behind it.
+	sm.render_priority = 2
 	_smoke_mesh = QuadMesh.new()
 	_smoke_mesh.size = Vector2(SMOKE_SQUARE, SMOKE_SQUARE)
 	_smoke_mesh.material = sm
