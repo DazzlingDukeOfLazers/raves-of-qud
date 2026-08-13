@@ -2330,15 +2330,18 @@ func _place_tentwall(obj: Dictionary, tile: String, cx: int, cy: int, light_frac
 			pm.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 			pm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
 			pm.alpha_scissor_threshold = 0.5
+			# The art STRETCHES over the whole half-slab face. Art pixels are smaller than
+			# architecture (a 16px tile is 0.67 cells at PIXEL_SIZE), so an art-sized quad
+			# covered only half its slab and the runs alternated hide with plain filler
+			# (measured; Daniel: "the slabs don't look correct"). Full-face quads make a
+			# continuous hide from pole to pole.
 			for side in [1.0, -1.0]:
 				var q := QuadMesh.new()
-				q.size = Vector2(r3.size.x * ps, r3.size.y * ps)
+				q.size = Vector2(0.5, wall_h)
 				var qmi := MeshInstance3D.new()
 				qmi.mesh = q
 				qmi.material_override = pm
-				qmi.position = base + off + Vector3(0.0,
-					(bottom + 1 - (r3.position.y + r3.size.y)) * ps + r3.size.y * ps * 0.5,
-					side * (0.75 * ps + 0.001))
+				qmi.position = base + off + Vector3(0.0, wall_h * 0.5, side * (0.75 * ps + 0.001))
 				if side < 0.0:
 					qmi.rotation.y = PI
 				_spawn_parent().add_child(qmi)
