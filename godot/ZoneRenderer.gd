@@ -3080,6 +3080,96 @@ func _wall_bg_color() -> Color:
 		return _qud_color("&" + _wall_bg)
 	return _world_bg
 
+## The cap band's GAP pattern for a variant tile — true where the art is transparent
+## (those pixels recolour to background = the carved checker). Colour-independent, so
+## it works across wall types/families; cached per tile name.
+var _cap_gap_cache := {}
+func _cap_gaps(variant_tile: String) -> Array:
+	if _cap_gap_cache.has(variant_tile):
+		return _cap_gap_cache[variant_tile]
+	var mask := _mask(variant_tile)
+	if mask == null:
+		return []
+	var split := _wall_split(mask)
+	var w := mask.get_width()
+	var hh: int = split.x
+	var out := []
+	for y in hh:
+		var row := []
+		for x in w:
+			row.append(mask.get_pixel(x, y).a < 0.5)
+		out.append(row)
+	_cap_gap_cache[variant_tile] = out
+	return out
+
+## SEAM WALLS between adjacent wall cells, emitted ONCE per seam by the FLUSH side —
+## the same higher-pixel-owns rule the in-cell cap steps use, applied across the
+## boundary with the REAL neighbour's edge pattern (its own variant art, any type).
+## Where both edges are gaps the pit continues and no wall belongs there at all —
+## which is exactly the doubled "flat plane perpendicular to the wall" this replaces.
+func _emit_seam_walls(k: Vector2i, variant_tile: String, all_wall_cells: Dictionary) -> void:
+	var g_my := _cap_gaps(variant_tile)
+	if g_my.is_empty():
+		return
+	var w: int = (g_my[0] as Array).size()
+	var hh: int = g_my.size()
+	var ps := 1.0 / w
+	var lo := WALL_H - CAP_CARVE
+	var st: SurfaceTool = null
+	var mainc := _qud_color(_wall_main)
+	for d in [[1, 0], [-1, 0], [0, 1], [0, -1]]:
+		var n := Vector2i(k.x + d[0], k.y + d[1])
+		if not all_wall_cells.has(n):
+			continue
+		var g_nb := _cap_gaps(String(all_wall_cells[n]))
+		if g_nb.is_empty():
+			continue
+		var count: int = hh if d[0] != 0 else w
+		for i in count:
+			var my_gap: bool
+			var nb_gap: bool
+			if d == [1, 0]:      my_gap = g_my[i][w - 1]; nb_gap = g_nb[i][0]
+			elif d == [-1, 0]:   my_gap = g_my[i][0];     nb_gap = g_nb[i][w - 1]
+			elif d == [0, 1]:    my_gap = g_my[hh - 1][i]; nb_gap = g_nb[0][i]
+			else:                my_gap = g_my[0][i];     nb_gap = g_nb[hh - 1][i]
+			# I own the seam wall only when I am flush and the neighbour is carved.
+			if my_gap or not nb_gap:
+				continue
+			if st == null:
+				st = SurfaceTool.new()
+				st.begin(Mesh.PRIMITIVE_TRIANGLES)
+			var a: Vector3
+			var b: Vector3
+			if d == [1, 0]:
+				a = Vector3(k.x + 0.5, 0, k.y - 0.5 + i * ps)
+				b = Vector3(k.x + 0.5, 0, k.y - 0.5 + (i + 1) * ps)
+			elif d == [-1, 0]:
+				a = Vector3(k.x - 0.5, 0, k.y - 0.5 + (i + 1) * ps)
+				b = Vector3(k.x - 0.5, 0, k.y - 0.5 + i * ps)
+			elif d == [0, 1]:
+				a = Vector3(k.x - 0.5 + (i + 1) * ps, 0, k.y + 0.5)
+				b = Vector3(k.x - 0.5 + i * ps, 0, k.y + 0.5)
+			else:
+				a = Vector3(k.x - 0.5 + i * ps, 0, k.y - 0.5)
+				b = Vector3(k.x - 0.5 + (i + 1) * ps, 0, k.y - 0.5)
+			var nrm := Vector3(d[0], 0, d[1])
+			var at := Vector3(a.x, WALL_H, a.z)
+			var bt := Vector3(b.x, WALL_H, b.z)
+			var ab := Vector3(a.x, lo, a.z)
+			var bb := Vector3(b.x, lo, b.z)
+			for pv in [ab, bt, at, ab, bb, bt]:
+				st.set_normal(nrm)
+				st.set_color(mainc)
+				st.add_vertex(pv)
+	if st != null:
+		var mesh := ArrayMesh.new()
+		st.commit(mesh)
+		var mi := MeshInstance3D.new()
+		mi.mesh = mesh
+		mi.material_override = _wall_skin_material()
+		_wall_parent().add_child(mi)
+		_track_wall(k, mi)
+
 func _rebuild_walls(wall_types: Dictionary) -> void:
 	# Live rebuild clears _wall_root; when banking into a fresh neighbour subtree
 	# (_sync_neighbors), there is nothing to clear, so don't wipe it mid-build.
@@ -3095,7 +3185,7 @@ func _rebuild_walls(wall_types: Dictionary) -> void:
 	var all_wall_cells := {}
 	for key in wall_types:
 		for k in wall_types[key]["cells"]:
-			all_wall_cells[k] = true
+			all_wall_cells[k] = String(wall_types[key]["cells"][k])   # cell -> variant tile
 	for key in wall_types:
 		var t = wall_types[key]
 		_wall_tile = t["tile"]; _wall_main = t["main"]; _wall_detail = t["detail"]; _wall_bg = t["bg"]
@@ -3150,6 +3240,7 @@ func _rebuild_walls(wall_types: Dictionary) -> void:
 					if not all_wall_cells.has(Vector2i(k.x + 1, k.y)): _place_side(smesh, k, 90.0)    # E
 					if not all_wall_cells.has(Vector2i(k.x, k.y - 1)): _place_side(smesh, k, 180.0)   # N
 					if not all_wall_cells.has(Vector2i(k.x - 1, k.y)): _place_side(smesh, k, 270.0)   # W
+				_emit_seam_walls(k, v, all_wall_cells)
 
 func _place_side(mesh: ArrayMesh, k: Vector2i, deg: float) -> void:
 	var mi := MeshInstance3D.new()
@@ -3554,9 +3645,12 @@ func _vc_step(st: SurfaceTool, x: int, y: int, yt: float, top: Array, w: int, h:
 				continue                               # neighbour not lower -> no wall
 			ylo = nyt; yhi = yt; wcol = c              # this pixel higher, wall down to it
 		else:
-			if yt >= WALL_H:
-				continue                               # flush edge: next cell's cap abuts
-			ylo = yt; yhi = WALL_H; wcol = mainc       # gap at boundary: close it up to flush
+			# CELL BOUNDARY: never self-close here. Both neighbours closing their own
+			# matching edge gaps produced TWO coplanar quads in the seam plane — the
+			# "flat plane perpendicular to the wall, doubled at the corners" (Daniel).
+			# Seam walls are emitted ONCE, per cell, by the flush side, in
+			# _rebuild_walls' seam pass — with the real neighbour's edge examined.
+			continue
 		var a: Vector3; var b: Vector3
 		if d == [1, 0]:    a = Vector3(x1, 0, z0); b = Vector3(x1, 0, z1)
 		elif d == [-1, 0]: a = Vector3(x0, 0, z1); b = Vector3(x0, 0, z0)
