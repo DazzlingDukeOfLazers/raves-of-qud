@@ -2269,94 +2269,51 @@ func _tent_panels_of(tile: String, obj: Dictionary) -> Dictionary:
 
 func _place_tentwall(obj: Dictionary, tile: String, cx: int, cy: int, light_frac: float) -> bool:
 	var dirs = _connector_dirs(tile)
-	var mask := _mask(tile)
-	var ctex := _colored_tex_rgb(tile, _obj_main(obj), _obj_detail(obj), _color_key(obj))
-	if dirs == null or mask == null or ctex == null:
+	if dirs == null:
 		return false
-	var w := mask.get_width()
-	var h := mask.get_height()
-	var img := ctex.get_image()
-	var sx := ctex.get_width() / float(w)
-	var sy := ctex.get_height() / float(h)
+	# ALL geometry derives from the family's _ew variant — the canonical elevation.
+	# Variant art bands include the OTHER arm drawn edge-on (tent_sw's pole column
+	# runs rows 7-22 vs tent_ew's 7-16), which skewed vscale per variant: corner
+	# fabric hems hung at different heights than their neighbours ("we need to fix
+	# corners"). One canon = every variant renders identical proportions, differing
+	# only in which directions exist.
+	var ew_tile := tile.replace("_" + String(dirs) + ".", "_ew.")
+	var canon := _tent_panels_of(ew_tile, obj)
+	if canon.is_empty():
+		canon = _tent_panels_of(tile, obj)
+	if canon.is_empty():
+		return false
+	var img: Image = canon["img"]
+	var sx: float = canon["sx"]
+	var sy: float = canon["sy"]
+	var top: int = canon["top"]
+	var bottom: int = canon["bottom"]
+	var band: int = canon["band"]
+	var pole_x0: int = canon["px0"]
+	var pole_x1: int = canon["px1"]
+	var panels: Dictionary = canon["panels"]
 	var ps := PIXEL_SIZE
 	var lfc := Color(light_frac, light_frac, light_frac)
-	var top := -1
-	var bottom := -1
-	for y in h:
-		for x in w:
-			if mask.get_pixel(x, y).a >= 0.5:
-				bottom = y
-				if top < 0:
-					top = y
-				break
-	if bottom < 0:
-		return false
-	var band := bottom - top + 1
-	# The pole: the NARROW, centre-most run of tall columns. Height alone cannot
-	# separate pole from skin — a skin panel is 9 of 10 rows tall itself, and the
-	# first version's run tracking let the "pole" swallow a whole panel (measured:
-	# half-cell-fat cylinder lobes). Collect the tall runs properly, then pick the
-	# one that is <=3px wide and nearest the tile centre; the wide runs are skins.
-	var runs := []
-	var rs := -1
-	var need_h := int(ceil(band * 0.8))
-	for x in w:
-		var n := 0
-		for y in range(top, bottom + 1):
-			if mask.get_pixel(x, y).a >= 0.5:
-				n += 1
-		if n >= need_h:
-			if rs < 0:
-				rs = x
-		else:
-			if rs >= 0:
-				runs.append([rs, x - 1])
-				rs = -1
-	if rs >= 0:
-		runs.append([rs, w - 1])
-	var pole_x0 := -1
-	var pole_x1 := -1
-	var bestd := 1e9
-	for r in runs:
-		if r[1] - r[0] + 1 <= 3:
-			var dc: float = absf((r[0] + r[1]) * 0.5 - w * 0.5)
-			if dc < bestd:
-				bestd = dc
-				pole_x0 = r[0]
-				pole_x1 = r[1]
 	var base := Vector3(cx, 0.0, cy)
-	# As tall as the wall blocks around them (Daniel): the POLE tops out at WALL_H —
-	# same height as a voxel prism — and everything else (cap, fabric extent, gaps)
-	# keeps its art-derived proportion through vscale. Art-pixel height would leave
-	# the tents at a third of the neighbouring brinestalk walls.
+	# As tall as the wall blocks around them: the POLE tops out at WALL_H, everything
+	# else keeps its art-derived proportion through vscale.
 	var wall_h := WALL_H / 1.12
+	var vscale: float = wall_h / float(band)
 	var skin_c := Color(0.75, 0.65, 0.5)
 	var pole_c := Color(0.45, 0.35, 0.25)
 	if pole_x0 >= 0:
 		pole_c = img.get_pixel(int((pole_x0 + 0.5) * sx), int((top + band * 0.5) * sy))
 		skin_c = pole_c
-	# skin panels: raw-opaque bounding boxes left and right of the pole (1px gap excluded)
-	var panels := {}   # "w"/"e" -> Rect2i in art px
-	if pole_x0 >= 1:
-		var r := _opaque_bbox(mask, 0, pole_x0 - 2, top, bottom)
-		if r.size.x > 0:
-			panels["w"] = r
-	if pole_x1 >= 0 and pole_x1 + 2 < w:
-		var r2 := _opaque_bbox(mask, pole_x1 + 2, w - 1, top, bottom)
-		if r2.size.x > 0:
-			panels["e"] = r2
 	if panels.has("w"):
 		skin_c = img.get_pixel(int((panels["w"].position.x + panels["w"].size.x * 0.5) * sx),
 			int((panels["w"].position.y + panels["w"].size.y * 0.5) * sy))
 	elif panels.has("e"):
 		skin_c = img.get_pixel(int((panels["e"].position.x + panels["e"].size.x * 0.5) * sx),
 			int((panels["e"].position.y + panels["e"].size.y * 0.5) * sy))
-	# THE POLE: two stacked cylinders — the body, and a CAP in the art's own top
-	# colour (Qud's side view: "poles have a red top"). The cap height is the run of
-	# rows from the pole's top whose colour matches the top pixel.
+	# THE POLE: body + CAP in the art's own top colour (the cap is the run of rows
+	# from the pole top whose colour matches the top pixel — Qud: "poles have a red top").
 	var pole_w: float = (pole_x1 - pole_x0 + 1) * ps if pole_x0 >= 0 else 2.0 * ps
 	var pole_h: float = wall_h * 1.12
-	var vscale: float = wall_h / float(band)
 	var cap_px := 0
 	var cap_c := pole_c
 	if pole_x0 >= 0:
@@ -2369,7 +2326,7 @@ func _place_tentwall(obj: Dictionary, tile: String, cx: int, cy: int, light_frac
 			else:
 				break
 		if cap_px >= band:
-			cap_px = 0   # single-colour pole: no distinct cap
+			cap_px = 0
 		pole_c = img.get_pixel(pcx, int((top + cap_px + 1.0) * sy)) if cap_px > 0 else pole_c
 	var cap_h: float = cap_px * vscale
 	var body_h: float = pole_h - cap_h
@@ -2396,11 +2353,9 @@ func _place_tentwall(obj: Dictionary, tile: String, cx: int, cy: int, light_frac
 		cci.position = base + Vector3(0.0, body_h + cap_h * 0.5, 0.0)
 		_spawn_parent().add_child(cci)
 		_track(cci)
-	# HALF-SLABS of fabric toward each connected direction. Qud's side view is the
-	# spec: a GAP between pole and fabric (the art's transparent flanking columns)
-	# and a GAP between fabric and ground (the art's fabric bbox ends above the
-	# pole's bottom row). Both derive from the art through vscale.
-	var gapw := 0.5 / 8.0   # one art px, in half-cell units (8 art px = half a cell)
+	# FABRIC: hung (art bbox through vscale = the ground gap), off the pole (one art
+	# px gap), spanning to the cell edge.
+	var gapw := 0.5 / 8.0
 	var fab_y0 := vscale * 1.0
 	var fab_h: float = wall_h - fab_y0
 	var fref: Rect2i = panels["w"] if panels.has("w") else (panels["e"] if panels.has("e") else Rect2i(0, 0, 0, 0))
@@ -2411,8 +2366,6 @@ func _place_tentwall(obj: Dictionary, tile: String, cx: int, cy: int, light_frac
 	var skin_mat := _color_material(skin_c * lfc)
 	for d in dirs:
 		var horiz: bool = d == "e" or d == "w"
-		var slab := BoxMesh.new()
-		slab.size = Vector3(fab_len, fab_h, 1.5 * ps) if horiz else Vector3(1.5 * ps, fab_h, fab_len)
 		var fmid: float = pole_w * 0.5 + gapw + fab_len * 0.5
 		var off := Vector3.ZERO
 		match d:
@@ -2420,22 +2373,14 @@ func _place_tentwall(obj: Dictionary, tile: String, cx: int, cy: int, light_frac
 			"w": off = Vector3(-fmid, 0, 0)
 			"n": off = Vector3(0, 0, -fmid)
 			"s": off = Vector3(0, 0, fmid)
-		# Which art half serves this direction: the fence path's proven convention —
-		# E-half for e AND s, W-half for w AND n (see _fence_half) — keeps runs
-		# continuous and corners clean on both axes.
+		# Half-assignment: the fence path's convention (E-half for e AND s, W-half
+		# for w AND n; see _fence_half) — runs compose and corners join cleanly.
 		var ad: String = "e" if (d == "e" or d == "s") else "w"
 		var adback: String = "w" if ad == "e" else "e"
-		# Panels from the tile's own art or, when a variant lacks a half (tent_ns has
-		# neither; tent_e no W), from the family's _ew variant.
-		var ew := {}
-		if not panels.has(ad) or not panels.has(adback):
-			var suffix = _connector_dirs(tile)
-			if suffix != null:
-				ew = _tent_panels_of(tile.replace("_" + String(suffix) + ".", "_ew."), obj)
-		var have_art: bool = panels.has(ad) or (not ew.is_empty() and (ew["panels"] as Dictionary).has(ad))
-		# The backing box only when NO face art exists at all — the art's dark areas
-		# are TRANSPARENT holes, and a box behind the quads paints them shut.
-		if not have_art:
+		if not panels.has(ad):
+			# canon without that panel (family has no _ew art at all): plain slab
+			var slab := BoxMesh.new()
+			slab.size = Vector3(fab_len, fab_h, 1.5 * ps) if horiz else Vector3(1.5 * ps, fab_h, fab_len)
 			var smi := MeshInstance3D.new()
 			smi.mesh = slab
 			smi.material_override = skin_mat
@@ -2443,27 +2388,13 @@ func _place_tentwall(obj: Dictionary, tile: String, cx: int, cy: int, light_frac
 			_spawn_parent().add_child(smi)
 			_track(smi)
 			continue
-		# Art quads on both faces. FRONT (south face on E-W runs, east face on N-S)
-		# wears this half's art; BACK wears the OPPOSITE half — a rotated quad shows
-		# its texture mirrored, and per-half mirroring splits the between-pole motif
-		# into ][ (the phase bug, twice measured).
+		# Art quads on both faces; the BACK face wears the OPPOSITE half (a rotated
+		# quad mirrors its texture; per-half mirroring splits the motif into ][ ).
 		for side in [1.0, -1.0]:
-			var use_d: String = ad if side > 0.0 else adback
-			var use_img: Image = img
-			var use_sx: float = sx
-			var use_sy: float = sy
-			var r3 := Rect2i(0, 0, 0, 0)
-			if panels.has(use_d):
-				r3 = panels[use_d]
-			elif not ew.is_empty() and (ew["panels"] as Dictionary).has(use_d):
-				r3 = ew["panels"][use_d]
-				use_img = ew["img"]
-				use_sx = ew["sx"]
-				use_sy = ew["sy"]
-			else:
-				continue
-			var sub := use_img.get_region(Rect2i(int(r3.position.x * use_sx), int(r3.position.y * use_sy),
-				int(r3.size.x * use_sx), int(r3.size.y * use_sy)))
+			var use_d: String = ad if side > 0.0 else (adback if panels.has(adback) else ad)
+			var r3: Rect2i = panels[use_d]
+			var sub := img.get_region(Rect2i(int(r3.position.x * sx), int(r3.position.y * sy),
+				int(r3.size.x * sx), int(r3.size.y * sy)))
 			var pt := ImageTexture.create_from_image(sub)
 			var pm := StandardMaterial3D.new()
 			pm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
