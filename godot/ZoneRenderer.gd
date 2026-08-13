@@ -2420,69 +2420,73 @@ func _place_tentwall(obj: Dictionary, tile: String, cx: int, cy: int, light_frac
 			"w": off = Vector3(-fmid, 0, 0)
 			"n": off = Vector3(0, 0, -fmid)
 			"s": off = Vector3(0, 0, fmid)
-		# The backing box exists only for runs WITHOUT face art (N/S). Where the art
-		# panel exists, the fabric is the two quads alone: the art's dark areas are
-		# TRANSPARENT (Daniel, with the pattern crop) — ragged cut cloth with holes —
-		# and a solid box behind the quads would paint every hole shut.
-		if not (horiz and panels.has(d)):
+		# Which art half serves this direction: the fence path's proven convention —
+		# E-half for e AND s, W-half for w AND n (see _fence_half) — keeps runs
+		# continuous and corners clean on both axes.
+		var ad: String = "e" if (d == "e" or d == "s") else "w"
+		var adback: String = "w" if ad == "e" else "e"
+		# Panels from the tile's own art or, when a variant lacks a half (tent_ns has
+		# neither; tent_e no W), from the family's _ew variant.
+		var ew := {}
+		if not panels.has(ad) or not panels.has(adback):
+			var suffix = _connector_dirs(tile)
+			if suffix != null:
+				ew = _tent_panels_of(tile.replace("_" + String(suffix) + ".", "_ew."), obj)
+		var have_art: bool = panels.has(ad) or (not ew.is_empty() and (ew["panels"] as Dictionary).has(ad))
+		# The backing box only when NO face art exists at all — the art's dark areas
+		# are TRANSPARENT holes, and a box behind the quads paints them shut.
+		if not have_art:
 			var smi := MeshInstance3D.new()
 			smi.mesh = slab
 			smi.material_override = skin_mat
 			smi.position = base + off + Vector3(0.0, fab_y0 + fab_h * 0.5, 0.0)
 			_spawn_parent().add_child(smi)
 			_track(smi)
-		# E/W half-slabs wear panel art on both faces, STRETCHED over the whole face
-		# (art px are smaller than architecture). FRONT (south) face = the slab's own
-		# panel; BACK (north) face = the OPPOSITE panel: a rotated quad shows its
-		# texture mirrored, and per-half mirroring split the between-pole motif into
-		# ][ (Daniel: "the art looks out of phase"). The opposite panel under the same
-		# mirror restores |[]|[] from the north as well.
-		if horiz and panels.has(d):
-			var dback := "w" if d == "e" else "e"
-			# An end/corner variant's art may LACK the opposite panel (tent_e has no W
-			# half); falling back to the tile's own art mirrored-in-place reintroduced
-			# the ][ split on exactly that half (Daniel: "the right-half of the
-			# right-half"). Borrow the missing panel from the family's _ew variant.
-			var ew := {}
-			if not panels.has(dback):
-				var suffix = _connector_dirs(tile)
-				if suffix != null:
-					ew = _tent_panels_of(tile.replace("_" + String(suffix) + ".", "_ew."), obj)
-			for side in [1.0, -1.0]:
-				var use_d: String = d if side > 0.0 else dback
-				var use_img: Image = img
-				var use_sx: float = sx
-				var use_sy: float = sy
-				var r3: Rect2i
-				if panels.has(use_d):
-					r3 = panels[use_d]
-				elif not ew.is_empty() and (ew["panels"] as Dictionary).has(use_d):
-					r3 = ew["panels"][use_d]
-					use_img = ew["img"]
-					use_sx = ew["sx"]
-					use_sy = ew["sy"]
-				else:
-					r3 = panels[d]   # last resort: the old behaviour
-				var sub := use_img.get_region(Rect2i(int(r3.position.x * use_sx), int(r3.position.y * use_sy),
-					int(r3.size.x * use_sx), int(r3.size.y * use_sy)))
-				var pt := ImageTexture.create_from_image(sub)
-				var pm := StandardMaterial3D.new()
-				pm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-				pm.albedo_texture = pt
-				pm.albedo_color = lfc
-				pm.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-				pm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
-				pm.alpha_scissor_threshold = 0.5
-				var q := QuadMesh.new()
-				q.size = Vector2(fab_len, fab_h)
-				var qmi := MeshInstance3D.new()
-				qmi.mesh = q
-				qmi.material_override = pm
-				qmi.position = base + off + Vector3(0.0, fab_y0 + fab_h * 0.5, side * (0.75 * ps + 0.001))
+			continue
+		# Art quads on both faces. FRONT (south face on E-W runs, east face on N-S)
+		# wears this half's art; BACK wears the OPPOSITE half — a rotated quad shows
+		# its texture mirrored, and per-half mirroring splits the between-pole motif
+		# into ][ (the phase bug, twice measured).
+		for side in [1.0, -1.0]:
+			var use_d: String = ad if side > 0.0 else adback
+			var use_img: Image = img
+			var use_sx: float = sx
+			var use_sy: float = sy
+			var r3 := Rect2i(0, 0, 0, 0)
+			if panels.has(use_d):
+				r3 = panels[use_d]
+			elif not ew.is_empty() and (ew["panels"] as Dictionary).has(use_d):
+				r3 = ew["panels"][use_d]
+				use_img = ew["img"]
+				use_sx = ew["sx"]
+				use_sy = ew["sy"]
+			else:
+				continue
+			var sub := use_img.get_region(Rect2i(int(r3.position.x * use_sx), int(r3.position.y * use_sy),
+				int(r3.size.x * use_sx), int(r3.size.y * use_sy)))
+			var pt := ImageTexture.create_from_image(sub)
+			var pm := StandardMaterial3D.new()
+			pm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			pm.albedo_texture = pt
+			pm.albedo_color = lfc
+			pm.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+			pm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+			pm.alpha_scissor_threshold = 0.5
+			var q := QuadMesh.new()
+			q.size = Vector2(fab_len, fab_h)
+			var qmi := MeshInstance3D.new()
+			qmi.mesh = q
+			qmi.material_override = pm
+			var fdepth: float = 0.75 * ps + 0.001
+			if horiz:
+				qmi.position = base + off + Vector3(0.0, fab_y0 + fab_h * 0.5, side * fdepth)
 				if side < 0.0:
 					qmi.rotation.y = PI
-				_spawn_parent().add_child(qmi)
-				_track(qmi)
+			else:
+				qmi.position = base + off + Vector3(side * fdepth, fab_y0 + fab_h * 0.5, 0.0)
+				qmi.rotation.y = -PI * 0.5 if side > 0.0 else PI * 0.5
+			_spawn_parent().add_child(qmi)
+			_track(qmi)
 	return true
 
 ## Raw-opaque bounding box within a column range, as a Rect2i (size.x == 0 when empty).
