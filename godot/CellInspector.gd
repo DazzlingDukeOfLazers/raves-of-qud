@@ -242,6 +242,11 @@ func build_report(cx: int, cy: int, hit: Vector3) -> String:
 			var ov := _renderer.override_summary(tile)
 			if ov != "":
 				L.append("     OVERRIDE %s  (from overrides.json)" % ov)
+			# ART EXPORT: every inspect drops the topmost tile's source next to this
+			# report as tile_out.png — edit it and place the replacement (same
+			# flattened name) in tiles_custom/ to override the art in-game, live.
+			if i == objs.size() - 1:
+				L.append("     art      %s" % _export_art(tile))
 		if acts.has(i):
 			for p in acts[i]:
 				L.append("     RENDERED %s  y=%.3f" % [p["kind"], p["y"]])
@@ -292,6 +297,27 @@ func _png_line(tile: String) -> String:
 
 func _q(s: String) -> String:
 	return "'%s'" % s
+
+## Copy the tile's current art (custom overlay first, else the export cache) to
+## <support>/tile_out.png. Returns the report line describing where things went.
+func _export_art(tile: String) -> String:
+	if _renderer == null:
+		return "(no renderer)"
+	var fname := tile.replace("/", "_").replace("\\", "_").replace(":", "_")
+	var dir := _renderer.tiles_dir().get_base_dir()
+	var custom := dir.path_join("tiles_custom").path_join(fname)
+	var srcp := custom if FileAccess.file_exists(custom) else _renderer.tiles_dir().path_join(fname)
+	if not FileAccess.file_exists(srcp):
+		return "(source art not found)"
+	var bytes := FileAccess.get_file_as_bytes(srcp)
+	var out := FileAccess.open(dir.path_join("tile_out.png"), FileAccess.WRITE)
+	if out == null:
+		return "(could not write tile_out.png)"
+	out.store_buffer(bytes)
+	out.close()
+	DirAccess.make_dir_recursive_absolute(dir.path_join("tiles_custom"))
+	return "exported -> tile_out.png · replacement goes to tiles_custom/%s%s" % [
+		fname, "  (CUSTOM ART ACTIVE)" if FileAccess.file_exists(custom) else ""]
 
 # --- output sinks -----------------------------------------------------------
 

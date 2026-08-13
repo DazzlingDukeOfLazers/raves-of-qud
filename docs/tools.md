@@ -451,3 +451,17 @@ build scoring list_item 5.70 and 9.00) therefore comes from the game STATE diffe
 runs, not from animation, and the cure is fixture discipline -- reload the same save, do not move
 -- which `fixture.py` now makes routine. The flag is kept for screens that do animate; the
 finding is recorded so nobody re-derives it.
+
+
+## Custom tile art (the replacement loop)
+
+Cmd+click any tile: the inspector's `art` line exports its current source to
+`<support>/RavesOfQud/tile_out.png` and names the replacement path. Edit the png
+(any editor; keep 16x24) and drop it at
+`<support>/RavesOfQud/tiles_custom/<flattened-name>` — the name from the report's
+`png` line, e.g. `Creatures_npc-mehmet.bmp` (png bytes regardless of extension,
+same as the export cache). The replacement renders AS-AUTHORED: full colour, no
+main/detail recolouring; alpha drives seating and fills as usual. Edits hot-reload
+(mtime-keyed caches + the overrides poll watches the directory). Ignored in 1:1 —
+parity measures Qud's art. Custom files live in the support dir, NOT the repo:
+they are derivatives of Qud's assets (same rule as the export cache).

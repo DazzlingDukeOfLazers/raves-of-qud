@@ -1197,6 +1197,27 @@ func tile_fill_px(tile: String, mode: int) -> int:
 	return n
 
 ## The on-disk filename a tile path maps to under tilesDir.
+# ── CUSTOM TILE ART (Daniel, 2026-08-13: "select a tile, save a png locally, and
+# then upload the replacement") ─────────────────────────────────────────────────────
+# Drop a file into <support>/RavesOfQud/tiles_custom/ under the tile's FLATTENED name
+# (as shown in the inspector's `png` line, e.g. Creatures_npc-mehmet.bmp — png bytes
+# regardless of extension, same as the export cache). It replaces the art AND renders
+# AS-AUTHORED: full colour, no main/detail recolouring — what you paint is what you
+# get. Alpha still drives seating, fill machinery and the depth pipeline. Ignored in
+# 1:1 (parity measures Qud's art, not ours). Edits hot-reload: caches key on mtime
+# and the overrides poll watches the directory, forcing a static rebuild on change.
+var _custom_sig := ""
+
+func _custom_dir() -> String:
+	return "" if _tiles_dir == "" else _tiles_dir.get_base_dir().path_join("tiles_custom")
+
+func _custom_tile_path(tile: String) -> String:
+	if _one_to_one or tile == "" or _tiles_dir == "":
+		return ""
+	var fname := tile.replace("/", "_").replace("\\", "_").replace(":", "_")
+	var path := _custom_dir().path_join(fname)
+	return path if FileAccess.file_exists(path) else ""
+
 func tile_filename(tile: String) -> String:
 	return tile.replace("/", "_").replace("\\", "_").replace(":", "_")
 
@@ -1305,6 +1326,16 @@ func _load_overrides() -> void:
 		return
 	var path := _tiles_dir.get_base_dir().path_join("overrides.json")
 	var text := FileAccess.get_file_as_string(path) if FileAccess.file_exists(path) else ""
+	# custom tile art: a changed/added/removed file forces the same static rebuild the
+	# overrides use — textures self-invalidate via mtime keys, but baked statics don't.
+	var csig := ""
+	var cd := DirAccess.open(_custom_dir())
+	if cd != null:
+		for f2 in cd.get_files():
+			csig += "%s|%d;" % [f2, FileAccess.get_modified_time(_custom_dir().path_join(f2))]
+	if csig != _custom_sig:
+		_custom_sig = csig
+		_overrides_dirty = true
 	if text == _overrides_raw:
 		return                      # unchanged since last frame — skip the re-parse
 	_overrides_raw = text
@@ -3813,6 +3844,19 @@ func _colored_tex_rgb(tile: String, main: Color, detail: Color, ckey: String, fi
 	# must key the cache too — a gold-fill Starship texture must not be served
 	# for a world-fill wall that shares tile+colours.
 	var key := "%s|%s|%d|%s|%d" % [tile, ckey, fill, _wall_bg, 1 if cutout else 0]
+	# Custom art renders AS-AUTHORED: full colour straight from the file, no recolour,
+	# no fill, no cutout. mtime in the key = edits invalidate themselves.
+	var custom := _custom_tile_path(tile)
+	if custom != "":
+		key = "%s|custom|%d" % [key, FileAccess.get_modified_time(custom)]
+		if _tex_cache.has(key):
+			return _tex_cache[key]
+		var cimg := _mask(tile)   # _mask already loads the custom file
+		if cimg == null:
+			return null
+		var ctex2 := ImageTexture.create_from_image(cimg)
+		_tex_cache[key] = ctex2
+		return ctex2
 	if _tex_cache.has(key):
 		return _tex_cache[key]
 	var mask := _mask(tile)
@@ -4167,9 +4211,12 @@ func _is_binary(s: String) -> bool:
 
 func _mask(tile: String) -> Image:
 	var fname := tile.replace("/", "_").replace("\\", "_").replace(":", "_")
+	var custom := _custom_tile_path(tile)
+	if custom != "":
+		fname = "%s|custom|%d" % [fname, FileAccess.get_modified_time(custom)]
 	if _mask_cache.has(fname):
 		return _mask_cache[fname]
-	var path := _tiles_dir.path_join(fname)
+	var path := custom if custom != "" else _tiles_dir.path_join(tile.replace("/", "_").replace("\\", "_").replace(":", "_"))
 	if not FileAccess.file_exists(path):
 		if _live_build: _static_saw_missing = true   # export race — retry the static build later
 		return null
