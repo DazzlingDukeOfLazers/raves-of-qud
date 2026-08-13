@@ -4963,6 +4963,17 @@ func qud_palette_color(ch: String) -> Color:
 		return Color(String(_palette[ch]))
 	return COLORS.get(ch, Color.WHITE)
 
+## A COPY of the tile's image as it displays for this object — the custom art if
+## one exists, else the mask recoloured with the object's own colours. The editor
+## paints on this (reverting to "Qud art" must show the recoloured render, not the
+## raw black/white mask).
+func tile_display_image(tile: String, obj: Dictionary) -> Image:
+	var tex := _colored_tex_rgb(tile, _obj_main(obj), _obj_detail(obj), _color_key(obj))
+	if tex == null:
+		return null
+	var img := tex.get_image()
+	return img.duplicate() if img != null else null
+
 func _qud_color(code: String) -> Color:
 	var ch := _fg_letter(code)
 	if ch == "":

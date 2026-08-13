@@ -345,7 +345,10 @@ func _build() -> void:
 	edit_btn.focus_mode = Control.FOCUS_NONE
 	edit_btn.pressed.connect(func():
 		if _tile != "" and _editor != null:
-			_editor.open(_tile))
+			var obj := {}
+			if _subject.selected >= 0 and _subject.selected < _objects.size():
+				obj = _objects[_subject.selected]
+			_editor.open(_tile, obj))
 	row.add_child(edit_btn)
 
 	_cancel = Button.new()

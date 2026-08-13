@@ -26,12 +26,17 @@ var _palette_ctl: Control
 var _preview_qud: TextureRect
 var _preview_alpha: TextureRect
 var _status: Label
+var _drop_btn: Button
 var _img: Image
 var _tile := ""
 var _colors := []          # [[letter, Color], ...] in palette order
-var _sel := 0              # selected swatch index; -1 = eraser
+var _sel := 0              # selected swatch index; -1 = eraser; -2 = picked colour
+var _picked := Color.WHITE # the eyedropped colour when _sel == -2
+var _dropper := false      # next canvas click picks instead of painting
 var _painting := false
 var _dirty := false
+var _obj := {}             # the inspected object (colours for the recoloured base)
+var _undo := []            # stroke-level snapshots (Image), newest last
 
 const LETTERS := ["r", "R", "o", "O", "w", "W", "y", "Y", "g", "G",
 	"b", "B", "c", "C", "m", "M", "k", "K"]
@@ -79,6 +84,12 @@ func setup(renderer: ZoneRenderer, host: CanvasLayer) -> void:
 	_status = Label.new()
 	_status.text = ""
 	col.add_child(_status)
+	var tools := HBoxContainer.new()
+	tools.add_theme_constant_override("separation", 6)
+	col.add_child(tools)
+	_drop_btn = _make_button("Eyedrop", _toggle_dropper)
+	tools.add_child(_drop_btn)
+	tools.add_child(_make_button("Undo", _undo_stroke))
 	col.add_child(_make_button("Save -> game", _save))
 	col.add_child(_make_button("Revert to Qud art", _revert))
 	col.add_child(_make_button("Close", close))
@@ -119,30 +130,29 @@ func _make_preview_box(caption: String, qud_bg: bool) -> VBoxContainer:
 		_preview_alpha = tr
 	return box
 
-func open(tile: String) -> void:
+func open(tile: String, obj := {}) -> void:
 	if _renderer == null or tile == "":
 		return
 	_tile = tile
+	_obj = obj
 	_colors = []
 	for ch in LETTERS:
 		_colors.append([ch, _renderer.qud_palette_color(ch)])
 	_sel = 0
-	var fname := _flat(tile)
-	var base := _renderer.tiles_dir().get_base_dir()
-	var custom := base.path_join("tiles_custom").path_join(fname)
-	var srcp := custom if FileAccess.file_exists(custom) else _renderer.tiles_dir().path_join(fname)
+	_dropper = false
+	_undo = []
+	# The editing base comes RECOLOURED through the renderer (custom art as-is, else
+	# the mask painted with this object's colours) — loading the raw file showed the
+	# black/white mask, which is what "it goes black and white" was.
 	_img = null
-	if FileAccess.file_exists(srcp):
-		var bytes := FileAccess.get_file_as_bytes(srcp)
-		var im := Image.new()
-		if im.load_png_from_buffer(bytes) == OK:
-			im.convert(Image.FORMAT_RGBA8)
-			if im.get_width() == ART_W and im.get_height() == ART_H:
-				_img = im
+	var im: Image = _renderer.tile_display_image(tile, obj)
+	if im != null and im.get_width() == ART_W and im.get_height() == ART_H:
+		im.convert(Image.FORMAT_RGBA8)
+		_img = im
 	if _img == null:
 		_img = Image.create(ART_W, ART_H, false, Image.FORMAT_RGBA8)
 	_dirty = false
-	_status.text = fname
+	_status.text = _flat(tile)
 	_panel.visible = true
 	_refresh()
 
@@ -188,11 +198,19 @@ func _draw_canvas() -> void:
 func _canvas_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		_canvas.accept_event()
-		if event.button_index == MOUSE_BUTTON_LEFT:
+		if event.button_index == MOUSE_BUTTON_MIDDLE and event.pressed:
+			_pick_at(event.position)   # middle-click always eyedrops
+		elif event.button_index == MOUSE_BUTTON_LEFT:
+			if event.pressed and _dropper:
+				_pick_at(event.position)
+				_toggle_dropper()      # one pick per activation
+				return
 			_painting = event.pressed
 			if event.pressed:
+				_push_undo()
 				_paint_at(event.position, false)
 		elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
+			_push_undo()
 			_paint_at(event.position, true)   # right-click always erases
 	elif event is InputEventMouseMotion and _painting:
 		_canvas.accept_event()
@@ -204,9 +222,44 @@ func _paint_at(pos: Vector2, erase: bool) -> void:
 	if x < 0 or x >= ART_W or y < 0 or y >= ART_H or _img == null:
 		return
 	var c := Color(0, 0, 0, 0)
-	if not erase and _sel >= 0:
-		c = _colors[_sel][1]
+	if not erase:
+		if _sel >= 0:
+			c = _colors[_sel][1]
+		elif _sel == -2:
+			c = _picked
 	_img.set_pixel(x, y, c)
+	_dirty = true
+	_refresh()
+
+func _pick_at(pos: Vector2) -> void:
+	var x := int(pos.x / CELL)
+	var y := int(pos.y / CELL)
+	if x < 0 or x >= ART_W or y < 0 or y >= ART_H or _img == null:
+		return
+	var c := _img.get_pixel(x, y)
+	if c.a < 0.01:
+		_sel = -1   # picking a transparent pixel selects the eraser
+	else:
+		_picked = c
+		_sel = -2
+	_refresh()
+
+func _toggle_dropper() -> void:
+	_dropper = not _dropper
+	if _drop_btn != null:
+		_drop_btn.text = "Eyedrop ON" if _dropper else "Eyedrop"
+
+func _push_undo() -> void:
+	if _img == null:
+		return
+	_undo.append(_img.duplicate())
+	if _undo.size() > 40:
+		_undo.pop_front()
+
+func _undo_stroke() -> void:
+	if _undo.is_empty():
+		return
+	_img = _undo.pop_back()
 	_dirty = true
 	_refresh()
 
@@ -230,6 +283,11 @@ func _draw_palette() -> void:
 				Color(0.32, 0.32, 0.34) if on else Color(0.18, 0.18, 0.20))
 	if _sel == -1:
 		_palette_ctl.draw_rect(er.grow(1), Color.WHITE, false, 2.0)
+	# the eyedropped colour, as a chip after the eraser
+	if _sel == -2:
+		var pr := _swatch_rect(_colors.size() + 1)
+		_palette_ctl.draw_rect(pr, _picked)
+		_palette_ctl.draw_rect(pr.grow(1), Color.WHITE, false, 2.0)
 
 func _swatch_rect(i: int) -> Rect2:
 	return Rect2(Vector2((i % 6) * SW, int(i / 6.0) * SW), Vector2(SW - 2, SW - 2))
@@ -274,5 +332,5 @@ func _revert() -> void:
 	var path := _renderer.tiles_dir().get_base_dir().path_join("tiles_custom").path_join(_flat(_tile))
 	if FileAccess.file_exists(path):
 		DirAccess.remove_absolute(path)
+		open(_tile, _obj)   # reload the original, RECOLOURED (not the raw mask)
 		_status.text = "custom art removed — Qud's art restored"
-		open(_tile)   # reload the original
