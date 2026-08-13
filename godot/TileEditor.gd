@@ -14,7 +14,7 @@ extends Node
 ## Revert deletes the custom file, restoring Qud's art. Mouse-only: no text fields,
 ## every control FOCUS_NONE (the movement-arrows rule).
 
-const CELL := 16          # canvas pixels per art pixel
+const CELL := 32          # canvas pixels per art pixel (doubled 2026-08-13: "same pixel size, just bigger")
 const ART_W := 16
 const ART_H := 24
 const QUD_BG := Color8(17, 33, 38)   # the measured letterbox/cell background
