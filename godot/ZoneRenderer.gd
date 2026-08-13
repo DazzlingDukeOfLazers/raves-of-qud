@@ -2286,35 +2286,79 @@ func _place_tentwall(obj: Dictionary, tile: String, cx: int, cy: int, light_frac
 	elif panels.has("e"):
 		skin_c = img.get_pixel(int((panels["e"].position.x + panels["e"].size.x * 0.5) * sx),
 			int((panels["e"].position.y + panels["e"].size.y * 0.5) * sy))
-	# THE POLE: a cylinder, a touch taller than the skins so the tip reads
-	var cyl := CylinderMesh.new()
+	# THE POLE: two stacked cylinders — the body, and a CAP in the art's own top
+	# colour (Qud's side view: "poles have a red top"). The cap height is the run of
+	# rows from the pole's top whose colour matches the top pixel.
 	var pole_w: float = (pole_x1 - pole_x0 + 1) * ps if pole_x0 >= 0 else 2.0 * ps
-	cyl.top_radius = pole_w * 0.5
-	cyl.bottom_radius = pole_w * 0.5
-	cyl.height = wall_h * 1.12
-	cyl.radial_segments = 10
+	var pole_h: float = wall_h * 1.12
+	var vscale: float = wall_h / float(band)
+	var cap_px := 0
+	var cap_c := pole_c
+	if pole_x0 >= 0:
+		var pcx := int((pole_x0 + 0.5) * sx)
+		cap_c = img.get_pixel(pcx, int((top + 0.5) * sy))
+		for y in range(top, bottom + 1):
+			var c := img.get_pixel(pcx, int((y + 0.5) * sy))
+			if c.is_equal_approx(cap_c) or (abs(c.r - cap_c.r) + abs(c.g - cap_c.g) + abs(c.b - cap_c.b)) < 0.12:
+				cap_px += 1
+			else:
+				break
+		if cap_px >= band:
+			cap_px = 0   # single-colour pole: no distinct cap
+		pole_c = img.get_pixel(pcx, int((top + cap_px + 1.0) * sy)) if cap_px > 0 else pole_c
+	var cap_h: float = cap_px * vscale
+	var body_h: float = pole_h - cap_h
+	var cylb := CylinderMesh.new()
+	cylb.top_radius = pole_w * 0.5
+	cylb.bottom_radius = pole_w * 0.5
+	cylb.height = body_h
+	cylb.radial_segments = 10
 	var cmi := MeshInstance3D.new()
-	cmi.mesh = cyl
+	cmi.mesh = cylb
 	cmi.material_override = _color_material(pole_c * lfc)
-	cmi.position = base + Vector3(0.0, cyl.height * 0.5, 0.0)
+	cmi.position = base + Vector3(0.0, body_h * 0.5, 0.0)
 	_spawn_parent().add_child(cmi)
 	_track(cmi)
-	# HALF-SLABS of skin toward each connected direction
+	if cap_h > 0.0:
+		var cylc := CylinderMesh.new()
+		cylc.top_radius = pole_w * 0.5
+		cylc.bottom_radius = pole_w * 0.5
+		cylc.height = cap_h
+		cylc.radial_segments = 10
+		var cci := MeshInstance3D.new()
+		cci.mesh = cylc
+		cci.material_override = _color_material(cap_c * lfc)
+		cci.position = base + Vector3(0.0, body_h + cap_h * 0.5, 0.0)
+		_spawn_parent().add_child(cci)
+		_track(cci)
+	# HALF-SLABS of fabric toward each connected direction. Qud's side view is the
+	# spec: a GAP between pole and fabric (the art's transparent flanking columns)
+	# and a GAP between fabric and ground (the art's fabric bbox ends above the
+	# pole's bottom row). Both derive from the art through vscale.
+	var gapw := 0.5 / 8.0   # one art px, in half-cell units (8 art px = half a cell)
+	var fab_y0 := vscale * 1.0
+	var fab_h: float = wall_h - fab_y0
+	var fref: Rect2i = panels["w"] if panels.has("w") else (panels["e"] if panels.has("e") else Rect2i(0, 0, 0, 0))
+	if fref.size.y > 0:
+		fab_y0 = (bottom + 1 - (fref.position.y + fref.size.y)) * vscale
+		fab_h = fref.size.y * vscale
+	var fab_len: float = 0.5 - pole_w * 0.5 - gapw
 	var skin_mat := _color_material(skin_c * lfc)
 	for d in dirs:
 		var horiz: bool = d == "e" or d == "w"
 		var slab := BoxMesh.new()
-		slab.size = Vector3(0.5, wall_h, 1.5 * ps) if horiz else Vector3(1.5 * ps, wall_h, 0.5)
+		slab.size = Vector3(fab_len, fab_h, 1.5 * ps) if horiz else Vector3(1.5 * ps, fab_h, fab_len)
+		var fmid: float = pole_w * 0.5 + gapw + fab_len * 0.5
 		var off := Vector3.ZERO
 		match d:
-			"e": off = Vector3(0.25, 0, 0)
-			"w": off = Vector3(-0.25, 0, 0)
-			"n": off = Vector3(0, 0, -0.25)
-			"s": off = Vector3(0, 0, 0.25)
+			"e": off = Vector3(fmid, 0, 0)
+			"w": off = Vector3(-fmid, 0, 0)
+			"n": off = Vector3(0, 0, -fmid)
+			"s": off = Vector3(0, 0, fmid)
 		var smi := MeshInstance3D.new()
 		smi.mesh = slab
 		smi.material_override = skin_mat
-		smi.position = base + off + Vector3(0.0, wall_h * 0.5, 0.0)
+		smi.position = base + off + Vector3(0.0, fab_y0 + fab_h * 0.5, 0.0)
 		_spawn_parent().add_child(smi)
 		_track(smi)
 		# E/W half-slabs wear their own panel art on both faces
@@ -2337,11 +2381,11 @@ func _place_tentwall(obj: Dictionary, tile: String, cx: int, cy: int, light_frac
 			# continuous hide from pole to pole.
 			for side in [1.0, -1.0]:
 				var q := QuadMesh.new()
-				q.size = Vector2(0.5, wall_h)
+				q.size = Vector2(fab_len, fab_h)
 				var qmi := MeshInstance3D.new()
 				qmi.mesh = q
 				qmi.material_override = pm
-				qmi.position = base + off + Vector3(0.0, wall_h * 0.5, side * (0.75 * ps + 0.001))
+				qmi.position = base + off + Vector3(0.0, fab_y0 + fab_h * 0.5, side * (0.75 * ps + 0.001))
 				if side < 0.0:
 					qmi.rotation.y = PI
 				_spawn_parent().add_child(qmi)
