@@ -2355,12 +2355,17 @@ func _place_tentwall(obj: Dictionary, tile: String, cx: int, cy: int, light_frac
 			"w": off = Vector3(-fmid, 0, 0)
 			"n": off = Vector3(0, 0, -fmid)
 			"s": off = Vector3(0, 0, fmid)
-		var smi := MeshInstance3D.new()
-		smi.mesh = slab
-		smi.material_override = skin_mat
-		smi.position = base + off + Vector3(0.0, fab_y0 + fab_h * 0.5, 0.0)
-		_spawn_parent().add_child(smi)
-		_track(smi)
+		# The backing box exists only for runs WITHOUT face art (N/S). Where the art
+		# panel exists, the fabric is the two quads alone: the art's dark areas are
+		# TRANSPARENT (Daniel, with the pattern crop) — ragged cut cloth with holes —
+		# and a solid box behind the quads would paint every hole shut.
+		if not (horiz and panels.has(d)):
+			var smi := MeshInstance3D.new()
+			smi.mesh = slab
+			smi.material_override = skin_mat
+			smi.position = base + off + Vector3(0.0, fab_y0 + fab_h * 0.5, 0.0)
+			_spawn_parent().add_child(smi)
+			_track(smi)
 		# E/W half-slabs wear their own panel art on both faces
 		if horiz and panels.has(d):
 			var r3: Rect2i = panels[d]
