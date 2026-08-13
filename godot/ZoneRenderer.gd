@@ -2325,7 +2325,11 @@ func _place_tentwall(obj: Dictionary, tile: String, cx: int, cy: int, light_frac
 				pole_x0 = r[0]
 				pole_x1 = r[1]
 	var base := Vector3(cx, 0.0, cy)
-	var wall_h := band * ps
+	# As tall as the wall blocks around them (Daniel): the POLE tops out at WALL_H —
+	# same height as a voxel prism — and everything else (cap, fabric extent, gaps)
+	# keeps its art-derived proportion through vscale. Art-pixel height would leave
+	# the tents at a third of the neighbouring brinestalk walls.
+	var wall_h := WALL_H / 1.12
 	var skin_c := Color(0.75, 0.65, 0.5)
 	var pole_c := Color(0.45, 0.35, 0.25)
 	if pole_x0 >= 0:
