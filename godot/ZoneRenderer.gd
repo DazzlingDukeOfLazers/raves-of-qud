@@ -3086,6 +3086,16 @@ func _rebuild_walls(wall_types: Dictionary) -> void:
 	if _bank == null:
 		for c in _wall_root.get_children():
 			c.queue_free()
+	# The union of EVERY type's cells, for the side-face neighbour test below. Each
+	# type builds separately, and testing "is my neighbour this wall" against only
+	# the type's own cells emitted BOTH sides of every boundary between two wall
+	# types — two coplanar skins on the shared plane, z-fighting under any camera
+	# motion (Daniel: "the meshes in the wall are fighting"). A neighbour of ANY
+	# wall type makes the seam interior; no side belongs there at all.
+	var all_wall_cells := {}
+	for key in wall_types:
+		for k in wall_types[key]["cells"]:
+			all_wall_cells[k] = true
 	for key in wall_types:
 		var t = wall_types[key]
 		_wall_tile = t["tile"]; _wall_main = t["main"]; _wall_detail = t["detail"]; _wall_bg = t["bg"]
@@ -3136,10 +3146,10 @@ func _rebuild_walls(wall_types: Dictionary) -> void:
 				# a voxel side on each edge whose orthogonal neighbour isn't this wall.
 				# the side mesh faces +Z (south); rotate it onto each exposed edge.
 				if smesh != null:
-					if not cells.has(Vector2i(k.x, k.y + 1)): _place_side(smesh, k, 0.0)     # S
-					if not cells.has(Vector2i(k.x + 1, k.y)): _place_side(smesh, k, 90.0)    # E
-					if not cells.has(Vector2i(k.x, k.y - 1)): _place_side(smesh, k, 180.0)   # N
-					if not cells.has(Vector2i(k.x - 1, k.y)): _place_side(smesh, k, 270.0)   # W
+					if not all_wall_cells.has(Vector2i(k.x, k.y + 1)): _place_side(smesh, k, 0.0)     # S
+					if not all_wall_cells.has(Vector2i(k.x + 1, k.y)): _place_side(smesh, k, 90.0)    # E
+					if not all_wall_cells.has(Vector2i(k.x, k.y - 1)): _place_side(smesh, k, 180.0)   # N
+					if not all_wall_cells.has(Vector2i(k.x - 1, k.y)): _place_side(smesh, k, 270.0)   # W
 
 func _place_side(mesh: ArrayMesh, k: Vector2i, deg: float) -> void:
 	var mi := MeshInstance3D.new()
