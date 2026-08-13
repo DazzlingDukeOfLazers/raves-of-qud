@@ -1272,6 +1272,7 @@ const VERDICT_KEYS := [
 	["e–w", "panel_ew"],
 	["billboard", "billboard"],
 	["signpost", "signpost"],
+	["tent", "tentwall"],
 	["flat", "floor"],
 	["not be drawn", "skip"],
 ]
@@ -2196,6 +2197,169 @@ func _should_glow(obj: Dictionary) -> bool:
 		return true
 	return _glow_overrides.has(tile_family(tile))
 
+# ── TENT WALL (Daniel, 2026-08-12: "These textures are a mixture of tent poles and
+# animal skins. Let's turn the vertical rectangles into cylinders and the animal skin
+# into a slab.") ────────────────────────────────────────────────────────────────────
+# The tent_<dirs> family (Tam's canvas walls) uses connection-set naming like fences.
+# Per tile: ONE pole — the narrow full-band vertical run in the art — becomes a
+# CYLINDER at the cell centre; each connected direction grows a HALF-SLAB of skin from
+# the pole to that cell edge. E/W half-slabs carry the art's own side panels (each is
+# exactly 6px = half a cell); N/S runs have no face art in the tile, so they get a
+# plain canvas-coloured slab sampled from the art. Heights come from the art's band.
+func _place_tentwall(obj: Dictionary, tile: String, cx: int, cy: int, light_frac: float) -> bool:
+	var dirs = _connector_dirs(tile)
+	var mask := _mask(tile)
+	var ctex := _colored_tex_rgb(tile, _obj_main(obj), _obj_detail(obj), _color_key(obj))
+	if dirs == null or mask == null or ctex == null:
+		return false
+	var w := mask.get_width()
+	var h := mask.get_height()
+	var img := ctex.get_image()
+	var sx := ctex.get_width() / float(w)
+	var sy := ctex.get_height() / float(h)
+	var ps := PIXEL_SIZE
+	var lfc := Color(light_frac, light_frac, light_frac)
+	var top := -1
+	var bottom := -1
+	for y in h:
+		for x in w:
+			if mask.get_pixel(x, y).a >= 0.5:
+				bottom = y
+				if top < 0:
+					top = y
+				break
+	if bottom < 0:
+		return false
+	var band := bottom - top + 1
+	# The pole: the NARROW, centre-most run of tall columns. Height alone cannot
+	# separate pole from skin — a skin panel is 9 of 10 rows tall itself, and the
+	# first version's run tracking let the "pole" swallow a whole panel (measured:
+	# half-cell-fat cylinder lobes). Collect the tall runs properly, then pick the
+	# one that is <=3px wide and nearest the tile centre; the wide runs are skins.
+	var runs := []
+	var rs := -1
+	var need_h := int(ceil(band * 0.8))
+	for x in w:
+		var n := 0
+		for y in range(top, bottom + 1):
+			if mask.get_pixel(x, y).a >= 0.5:
+				n += 1
+		if n >= need_h:
+			if rs < 0:
+				rs = x
+		else:
+			if rs >= 0:
+				runs.append([rs, x - 1])
+				rs = -1
+	if rs >= 0:
+		runs.append([rs, w - 1])
+	var pole_x0 := -1
+	var pole_x1 := -1
+	var bestd := 1e9
+	for r in runs:
+		if r[1] - r[0] + 1 <= 3:
+			var dc: float = absf((r[0] + r[1]) * 0.5 - w * 0.5)
+			if dc < bestd:
+				bestd = dc
+				pole_x0 = r[0]
+				pole_x1 = r[1]
+	var base := Vector3(cx, 0.0, cy)
+	var wall_h := band * ps
+	var skin_c := Color(0.75, 0.65, 0.5)
+	var pole_c := Color(0.45, 0.35, 0.25)
+	if pole_x0 >= 0:
+		pole_c = img.get_pixel(int((pole_x0 + 0.5) * sx), int((top + band * 0.5) * sy))
+		skin_c = pole_c
+	# skin panels: raw-opaque bounding boxes left and right of the pole (1px gap excluded)
+	var panels := {}   # "w"/"e" -> Rect2i in art px
+	if pole_x0 >= 1:
+		var r := _opaque_bbox(mask, 0, pole_x0 - 2, top, bottom)
+		if r.size.x > 0:
+			panels["w"] = r
+	if pole_x1 >= 0 and pole_x1 + 2 < w:
+		var r2 := _opaque_bbox(mask, pole_x1 + 2, w - 1, top, bottom)
+		if r2.size.x > 0:
+			panels["e"] = r2
+	if panels.has("w"):
+		skin_c = img.get_pixel(int((panels["w"].position.x + panels["w"].size.x * 0.5) * sx),
+			int((panels["w"].position.y + panels["w"].size.y * 0.5) * sy))
+	elif panels.has("e"):
+		skin_c = img.get_pixel(int((panels["e"].position.x + panels["e"].size.x * 0.5) * sx),
+			int((panels["e"].position.y + panels["e"].size.y * 0.5) * sy))
+	# THE POLE: a cylinder, a touch taller than the skins so the tip reads
+	var cyl := CylinderMesh.new()
+	var pole_w: float = (pole_x1 - pole_x0 + 1) * ps if pole_x0 >= 0 else 2.0 * ps
+	cyl.top_radius = pole_w * 0.5
+	cyl.bottom_radius = pole_w * 0.5
+	cyl.height = wall_h * 1.12
+	cyl.radial_segments = 10
+	var cmi := MeshInstance3D.new()
+	cmi.mesh = cyl
+	cmi.material_override = _color_material(pole_c * lfc)
+	cmi.position = base + Vector3(0.0, cyl.height * 0.5, 0.0)
+	_spawn_parent().add_child(cmi)
+	_track(cmi)
+	# HALF-SLABS of skin toward each connected direction
+	var skin_mat := _color_material(skin_c * lfc)
+	for d in dirs:
+		var horiz: bool = d == "e" or d == "w"
+		var slab := BoxMesh.new()
+		slab.size = Vector3(0.5, wall_h, 1.5 * ps) if horiz else Vector3(1.5 * ps, wall_h, 0.5)
+		var off := Vector3.ZERO
+		match d:
+			"e": off = Vector3(0.25, 0, 0)
+			"w": off = Vector3(-0.25, 0, 0)
+			"n": off = Vector3(0, 0, -0.25)
+			"s": off = Vector3(0, 0, 0.25)
+		var smi := MeshInstance3D.new()
+		smi.mesh = slab
+		smi.material_override = skin_mat
+		smi.position = base + off + Vector3(0.0, wall_h * 0.5, 0.0)
+		_spawn_parent().add_child(smi)
+		_track(smi)
+		# E/W half-slabs wear their own panel art on both faces
+		if horiz and panels.has(d):
+			var r3: Rect2i = panels[d]
+			var sub := img.get_region(Rect2i(int(r3.position.x * sx), int(r3.position.y * sy),
+				int(r3.size.x * sx), int(r3.size.y * sy)))
+			var pt := ImageTexture.create_from_image(sub)
+			var pm := StandardMaterial3D.new()
+			pm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			pm.albedo_texture = pt
+			pm.albedo_color = lfc
+			pm.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+			pm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+			pm.alpha_scissor_threshold = 0.5
+			for side in [1.0, -1.0]:
+				var q := QuadMesh.new()
+				q.size = Vector2(r3.size.x * ps, r3.size.y * ps)
+				var qmi := MeshInstance3D.new()
+				qmi.mesh = q
+				qmi.material_override = pm
+				qmi.position = base + off + Vector3(0.0,
+					(bottom + 1 - (r3.position.y + r3.size.y)) * ps + r3.size.y * ps * 0.5,
+					side * (0.75 * ps + 0.001))
+				if side < 0.0:
+					qmi.rotation.y = PI
+				_spawn_parent().add_child(qmi)
+				_track(qmi)
+	return true
+
+## Raw-opaque bounding box within a column range, as a Rect2i (size.x == 0 when empty).
+func _opaque_bbox(mask: Image, x0: int, x1: int, y0: int, y1: int) -> Rect2i:
+	var lo := Vector2i(1 << 20, 1 << 20)
+	var hi := Vector2i(-1, -1)
+	for y in range(y0, y1 + 1):
+		for x in range(maxi(x0, 0), x1 + 1):
+			if mask.get_pixel(x, y).a >= 0.5:
+				lo.x = mini(lo.x, x)
+				lo.y = mini(lo.y, y)
+				hi.x = maxi(hi.x, x)
+				hi.y = maxi(hi.y, y)
+	if hi.x < 0:
+		return Rect2i(0, 0, 0, 0)
+	return Rect2i(lo.x, lo.y, hi.x - lo.x + 1, hi.y - lo.y + 1)
+
 # ── SIGNPOST (Daniel, 2026-08-12: "turn the selected sign into voxels. Two posts and
 # then a slab for the pboard") ──────────────────────────────────────────────────────
 # A tile-derived 3D shape, verdict "signpost" in overrides.json. Geometry comes from
@@ -2506,6 +2670,12 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			_note(cx, cy, idx, "signpost(2 slabs + 2 posts, faces N and S, user verdict)", 0.5)
 			return
 		# fall through to the billboard path if the art defeats the mesh derivation
+
+	if verdict == "tentwall" and not _flat_2d and not _one_to_one:
+		if _place_tentwall(obj, tile, cx, cy, light_frac):
+			_note(cx, cy, idx, "tentwall(pole cylinder + skin half-slabs, user verdict)", 0.4)
+			return
+		# fall through (connector panels) if the art defeats the derivation
 
 	# Stairs down: a shaft into the level below, not a flat tile. Qud's StairsDown is
 	# a vertical connector with no lateral facing, so unless a direction is supplied

@@ -47,6 +47,9 @@
     },
     "sw_sign_wine": {
       "shape": "build it as a SIGNPOST (two posts + slab)"
+    },
+    "tent": {
+      "shape": "build it as a TENT (pole cylinder + skin slabs)"
     }
   }
 }
