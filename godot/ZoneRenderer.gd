@@ -2366,25 +2366,27 @@ func _place_tentwall(obj: Dictionary, tile: String, cx: int, cy: int, light_frac
 			smi.position = base + off + Vector3(0.0, fab_y0 + fab_h * 0.5, 0.0)
 			_spawn_parent().add_child(smi)
 			_track(smi)
-		# E/W half-slabs wear their own panel art on both faces
+		# E/W half-slabs wear panel art on both faces, STRETCHED over the whole face
+		# (art px are smaller than architecture). FRONT (south) face = the slab's own
+		# panel; BACK (north) face = the OPPOSITE panel: a rotated quad shows its
+		# texture mirrored, and per-half mirroring split the between-pole motif into
+		# ][ (Daniel: "the art looks out of phase"). The opposite panel under the same
+		# mirror restores |[]|[] from the north as well.
 		if horiz and panels.has(d):
-			var r3: Rect2i = panels[d]
-			var sub := img.get_region(Rect2i(int(r3.position.x * sx), int(r3.position.y * sy),
-				int(r3.size.x * sx), int(r3.size.y * sy)))
-			var pt := ImageTexture.create_from_image(sub)
-			var pm := StandardMaterial3D.new()
-			pm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-			pm.albedo_texture = pt
-			pm.albedo_color = lfc
-			pm.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-			pm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
-			pm.alpha_scissor_threshold = 0.5
-			# The art STRETCHES over the whole half-slab face. Art pixels are smaller than
-			# architecture (a 16px tile is 0.67 cells at PIXEL_SIZE), so an art-sized quad
-			# covered only half its slab and the runs alternated hide with plain filler
-			# (measured; Daniel: "the slabs don't look correct"). Full-face quads make a
-			# continuous hide from pole to pole.
+			var dback := "w" if d == "e" else "e"
 			for side in [1.0, -1.0]:
+				var use_d: String = d if side > 0.0 else (dback if panels.has(dback) else d)
+				var r3: Rect2i = panels[use_d]
+				var sub := img.get_region(Rect2i(int(r3.position.x * sx), int(r3.position.y * sy),
+					int(r3.size.x * sx), int(r3.size.y * sy)))
+				var pt := ImageTexture.create_from_image(sub)
+				var pm := StandardMaterial3D.new()
+				pm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+				pm.albedo_texture = pt
+				pm.albedo_color = lfc
+				pm.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+				pm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+				pm.alpha_scissor_threshold = 0.5
 				var q := QuadMesh.new()
 				q.size = Vector2(fab_len, fab_h)
 				var qmi := MeshInstance3D.new()
