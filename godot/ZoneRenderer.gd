@@ -3176,6 +3176,37 @@ func _emit_seam_walls(k: Vector2i, variant_tile: String, all_wall_cells: Diction
 		_wall_parent().add_child(mi)
 		_track_wall(k, mi)
 
+## The variant name matching a cell's ACTUAL wall neighbourhood — any family counts.
+## Qud's own autotile connects only same-blueprint walls, so a mixed ruin reports
+## mostly-isolated variants and every side keeps its framed border columns: the thin
+## vertical seam channel at each boundary. Bit order [N,NE,E,SE,S,SW,W,NW], verified
+## against live data (00101000 = E+S at (3,17), 00000110 = SW+W at (4,17)).
+## Falls back: exact variant art -> cardinals-only -> the cell's own tile.
+func _effective_wall_variant(tile: String, k: Vector2i, all_wall_cells: Dictionary) -> String:
+	var dash := tile.rfind("-")
+	if dash < 0:
+		return tile
+	var dot := tile.rfind(".")
+	if dot < dash:
+		return tile
+	var base := tile.substr(0, dash)
+	var ext := tile.substr(dot)
+	var offs := [Vector2i(0, -1), Vector2i(1, -1), Vector2i(1, 0), Vector2i(1, 1),
+		Vector2i(0, 1), Vector2i(-1, 1), Vector2i(-1, 0), Vector2i(-1, -1)]
+	var bits := ""
+	var card := ""
+	for i in offs.size():
+		var on := all_wall_cells.has(k + offs[i])
+		bits += "1" if on else "0"
+		card += ("1" if on else "0") if (i % 2 == 0) else "0"
+	var cand := base + "-" + bits + ext
+	if _mask(cand) != null:
+		return cand
+	cand = base + "-" + card + ext
+	if _mask(cand) != null:
+		return cand
+	return tile
+
 func _rebuild_walls(wall_types: Dictionary) -> void:
 	# Live rebuild clears _wall_root; when banking into a fresh neighbour subtree
 	# (_sync_neighbors), there is nothing to clear, so don't wipe it mid-build.
@@ -3234,8 +3265,10 @@ func _rebuild_walls(wall_types: Dictionary) -> void:
 			by_variant[v].append(k)
 		for v in by_variant:
 			var vmesh: ArrayMesh = _voxel_cap_mesh(v)
-			var smesh: ArrayMesh = _side_voxel_mesh(v)
 			for k in by_variant[v]:
+				# side art follows the cell's REAL neighbourhood, not Qud's
+				# same-blueprint autotile (caps keep Qud's variant: top-view parity)
+				var smesh: ArrayMesh = _side_voxel_mesh(_effective_wall_variant(v, k, all_wall_cells))
 				if vmesh != null:
 					var rmi := MeshInstance3D.new()
 					rmi.mesh = vmesh
@@ -3485,7 +3518,7 @@ func _voxel_cap_mesh(variant_tile: String) -> ArrayMesh:
 ## sides, so this one cached mesh is instanced+rotated onto each exposed edge.
 var _side_cache := {}
 func _side_voxel_mesh(variant_tile: String) -> ArrayMesh:
-	var tex := _wall_region_tex("side")
+	var tex := _wall_region_tex("side", variant_tile)
 	if tex == null:
 		return null
 	var img := tex.get_image()
@@ -3825,10 +3858,10 @@ func _wall_split(img: Image) -> Vector2i:
 	var start: int = maxi(1, h - WALL_FACE_ROWS)
 	return Vector2i(start, start)
 
-func _wall_region_tex(kind: String) -> ImageTexture:
+func _wall_region_tex(kind: String, face_variant := "") -> ImageTexture:
 	if _wall_tile == "":
 		return null
-	var key := "%s|%s|%s|%s|%s" % [kind, _wall_tile, _wall_main, _wall_detail, _wall_bg]
+	var key := "%s|%s|%s|%s|%s|%s" % [kind, _wall_tile, _wall_main, _wall_detail, _wall_bg, face_variant]
 	if _wallmat_cache.has(key):
 		return _wallmat_cache[key]
 	var iso := _wall_tile.replace("-11111111", "-00000000")  # isolated wall: real border on all 4 sides
@@ -3847,8 +3880,13 @@ func _wall_region_tex(kind: String) -> ImageTexture:
 				var region := mask.get_region(Rect2i(0, 0, w, _wall_split(mask).x))
 				tex = _framed_top(region)
 	else:
-		# front-face strip: prefer the isolated tile's face, else a south-open variant
+		# front-face strip: the EFFECTIVE variant's face when given (its art drops the
+		# frame columns on connected edges — the per-cell fix for the thin vertical
+		# seam channels Daniel spotted along mixed-family runs), else the isolated
+		# tile's framed face, else a south-open variant.
 		var face_tile := iso
+		if face_variant != "" and _mask(face_variant) != null:
+			face_tile = face_variant
 		var mask := _mask(face_tile)
 		if mask == null:
 			face_tile = _wall_tile.replace("-11111111", "-11100000")
