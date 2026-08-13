@@ -2217,33 +2217,33 @@ func _place_signpost(obj: Dictionary, tile: String, cx: int, cy: int, light_frac
 		return false
 	var w := mask.get_width()
 	var h := mask.get_height()
-	# Widths measured on the INTERIOR-FILLED mask: this art's board face is lettering
-	# over open frame, so raw opaque counts drop below the width test on the letter
-	# rows — the board shrank to its top strip and the post probe landed INSIDE the
-	# lettering, spawning a post per letter stroke (measured: five red slats).
-	var inner := _interior(tile)
-	var widths := []
+	# Board rows are detected by raw row SPAN (first..last opaque), not opaque count
+	# and not the filled mask. Count fails on lettering-over-frame faces (five slats,
+	# one per letter stroke); the filled mask fails the other way — the slot pass
+	# bridges the gap BETWEEN the post tops, those rows read wide, and the slab
+	# stretched to the full art height (Daniel: "crop the sign to the rectangular
+	# sign-part"). The board's frame runs edge to edge on every one of its rows; the
+	# posts never span more than ~60%. 70% of the tile width splits them cleanly.
+	var widths := []   # per-row SPAN in px
 	var bottom := -1
 	var top := -1
 	for y in h:
-		var n := 0
-		for x in w:
-			if mask.get_pixel(x, y).a >= 0.5 or (y < inner.size() and x < (inner[y] as Array).size() and inner[y][x]):
-				n += 1
-		widths.append(n)
-		var raw := false
+		var lo_x := -1
+		var hi_x := -1
 		for x in w:
 			if mask.get_pixel(x, y).a >= 0.5:
-				raw = true
-				break
-		if raw:
+				if lo_x < 0:
+					lo_x = x
+				hi_x = x
+		widths.append(0 if lo_x < 0 else hi_x - lo_x + 1)
+		if lo_x >= 0:
 			bottom = y
 			if top < 0:
 				top = y
 	if bottom < 0:
 		return false
-	# board = the longest contiguous run of wide rows
-	var need := int(ceil(w * 0.6))
+	# board = the longest contiguous run of wide-SPAN rows
+	var need := int(ceil(w * 0.7))
 	var b0 := -1; var b1 := -1; var r0 := -1
 	for y in h + 1:
 		var wide: bool = y < h and widths[y] >= need
@@ -2331,12 +2331,14 @@ func _place_signpost(obj: Dictionary, tile: String, cx: int, cy: int, light_frac
 	smi.position = slab_center
 	_spawn_parent().add_child(smi)
 	_track(smi)
-	var at := AtlasTexture.new()
-	at.atlas = ctex
-	at.region = Rect2(lo * sx, b0 * sy, bw * sx, bh * sy)
+	# A REAL crop: AtlasTexture regions are IGNORED by 3D materials (StandardMaterial3D
+	# samples the whole atlas), which put the entire tile — dark fill and all — on the
+	# board quad. Cut the board rect out of the image instead.
+	var sub := img.get_region(Rect2i(int(lo * sx), int(b0 * sy), int(bw * sx), int(bh * sy)))
+	var board_tex := ImageTexture.create_from_image(sub)
 	var qmat := StandardMaterial3D.new()
 	qmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	qmat.albedo_texture = at
+	qmat.albedo_texture = board_tex
 	qmat.albedo_color = lfc
 	qmat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	qmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR

@@ -53,6 +53,10 @@ add a one-liner (symptom → rule).
   keep using the mod's `PushCommand`.
 
 ### Renderer (ZoneRenderer)
+- **AtlasTexture regions are IGNORED by 3D materials** — `StandardMaterial3D.albedo_texture`
+  samples the WHOLE atlas (measured: the signpost quad showed the entire tile, dark fill and
+  all). To texture 3D geometry with a sub-rect, crop for real: `img.get_region(...)` ->
+  `ImageTexture.create_from_image(...)`.
 - **Godot popups are NATIVE OS windows unless `embed_subwindows=true`** (now set in project.godot):
   a native OptionButton dropdown is invisible to `hv ls` and un-clickable by `hv click`. Embedded,
   the popup still selects only via KEYBOARD from the harness (open, then plain `hv key raves DOWN
