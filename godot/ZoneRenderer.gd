@@ -4956,6 +4956,13 @@ func _fg_letter(code: String) -> String:
 		return ""
 	return c.substr(c.length() - 1, 1)
 
+## The live Qud palette colour for a bare letter (the editor's swatches) — the same
+## map sprites recolour with: Qud's wire palette first, COLORS as fallback.
+func qud_palette_color(ch: String) -> Color:
+	if _palette.has(ch):
+		return Color(String(_palette[ch]))
+	return COLORS.get(ch, Color.WHITE)
+
 func _qud_color(code: String) -> Color:
 	var ch := _fg_letter(code)
 	if ch == "":

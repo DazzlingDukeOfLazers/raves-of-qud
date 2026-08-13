@@ -76,6 +76,7 @@ var _cx := -1
 var _cy := -1
 var _zone := ""
 var _tile := ""
+var _editor            # TileEditor: the 16x24 paint program (Edit art button)
 var _report := ""
 
 func setup(renderer: ZoneRenderer) -> void:
@@ -255,6 +256,9 @@ func _reports_dir() -> String:
 func _build() -> void:
 	var layer := CanvasLayer.new()
 	add_child(layer)
+	_editor = load("res://TileEditor.gd").new()
+	add_child(_editor)
+	_editor.setup(_renderer, layer)
 
 	_panel = PanelContainer.new()
 	# Pin the BOTTOM-RIGHT corner and grow up/left to fit the content. The panel
@@ -334,6 +338,15 @@ func _build() -> void:
 	_send.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_send.pressed.connect(_submit)
 	row.add_child(_send)
+
+	# the 16x24 paint editor for the selected tile (TileEditor.gd)
+	var edit_btn := Button.new()
+	edit_btn.text = "Edit art"
+	edit_btn.focus_mode = Control.FOCUS_NONE
+	edit_btn.pressed.connect(func():
+		if _tile != "" and _editor != null:
+			_editor.open(_tile))
+	row.add_child(edit_btn)
 
 	_cancel = Button.new()
 	_cancel.text = "Cancel"

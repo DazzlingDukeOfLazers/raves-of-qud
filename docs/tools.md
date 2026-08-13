@@ -455,6 +455,13 @@ finding is recorded so nobody re-derives it.
 
 ## Custom tile art (the replacement loop)
 
+Or skip the external editor entirely: the report form's **Edit art** button opens a
+16x24 paint program (TileEditor.gd) — the Qud palette as swatches, an eraser,
+right-click erases, and two live previews (one over the Qud background colour, one
+over checker). **Save -> game** writes tiles_custom/ and the world updates at once;
+**Revert to Qud art** deletes the custom file.
+
+
 Cmd+click any tile: the inspector's `art` line exports its current source to
 `<support>/RavesOfQud/tile_out.png` and names the replacement path. Edit the png
 (any editor; keep 16x24) and drop it at
