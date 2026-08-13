@@ -64,6 +64,7 @@ const QOL_FEATURES := {
 	"lighting": ["Day/night lighting (grade + sun/moon + fog)", false],
 	"particles": ["Smoke plumes (sconces & torches at night)", false],
 	"depthcue": ["Depth cue (farther is slightly darker)", false],
+	"cutaway": ["Wall cutaway (fade rock between camera and you)", false],
 }
 
 func qud_shape(feature := "") -> bool:

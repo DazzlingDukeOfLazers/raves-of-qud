@@ -183,10 +183,13 @@ func process(dt: float, multiview_on: bool) -> void:
 			and not Input.is_key_pressed(KEY_SHIFT):
 		if Input.is_key_pressed(KEY_R): _dist = clampf(_dist * (1.0 - dt), DIST_MIN, DIST_MAX)
 	_update_camera(dt)
-	# Fade walls between the camera and the player so rock doesn't block the view. Off in top-down
-	# (looking straight down), first-person (you're inside it), free-fly, and the multi-view grid.
+	# Fade walls between the camera and the player so rock doesn't block the view. A QoL
+	# feature ("cutaway"), and also off in top-down (looking straight down), first-person
+	# (you're inside it), free-fly, and the multi-view grid. When it turns off mid-fade,
+	# apply_cutaway still runs and eases every faded wall back to solid.
 	if _renderer != null:
-		var cut := not multiview_on and _mode != CamMode.TOP_FOLLOW \
+		var cut := not Settings.qud_shape("cutaway") \
+			and not multiview_on and _mode != CamMode.TOP_FOLLOW \
 			and _mode != CamMode.FIRST_PERSON and _mode != CamMode.KEYBOARD
 		_renderer.apply_cutaway(_cam.global_position, _player + Vector3(0, look_h(), 0), dt, cut)
 

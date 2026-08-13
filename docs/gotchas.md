@@ -62,6 +62,13 @@ add a one-liner (symptom → rule).
   the popup still selects only via KEYBOARD from the harness (open, then plain `hv key raves DOWN
   ... RETURN` — no `--focus`, activate closes it; the popup opens unfocused so the FIRST down lands
   on item 0). Posted clicks close it without selecting — drive dropdowns by keys.
+- **A wall variant's art band below `_wall_split` is a real elevation ONLY when that variant's own
+  face is open** — heavily-connected variants (`-11111111` and friends) are pure interior fill,
+  measured one flat colour per row. Cropping a per-cell "effective" variant's band onto side faces
+  dressed walls in the cap pattern ("some of the walls look like the ceiling"). Side art is per
+  FACE: `_face_variant` picks from the four horizontal-run tiles (own face open, only the art-E/W
+  continuation bits set), and the continuation bits follow the ROTATED art axis, not world E/W
+  (+90° about Y maps art +x onto −Z).
 - **Never gate STATIC placement on the live camera** (`_top_down` etc.) — statics build once per zone
   and a camera-state gate bakes that moment's answer in forever. Place camera-independently and toggle
   VISIBILITY at runtime (the depth-halo experiment hit this; the halo is reverted, the rule stands).

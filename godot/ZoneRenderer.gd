@@ -3177,32 +3177,22 @@ func _emit_seam_walls(k: Vector2i, variant_tile: String, all_wall_cells: Diction
 		_track_wall(k, mi)
 
 ## The variant name matching a cell's ACTUAL wall neighbourhood — any family counts.
-## Qud's own autotile connects only same-blueprint walls, so a mixed ruin reports
-## mostly-isolated variants and every side keeps its framed border columns: the thin
-## vertical seam channel at each boundary. Bit order [N,NE,E,SE,S,SW,W,NW], verified
-## against live data (00101000 = E+S at (3,17), 00000110 = SW+W at (4,17)).
-## Falls back: exact variant art -> cardinals-only -> the cell's own tile.
-func _effective_wall_variant(tile: String, k: Vector2i, all_wall_cells: Dictionary) -> String:
+## Side art for ONE exposed face. Only the along-face continuation matters: the variant
+## keeps its own face OPEN (the art's S bit 0) and sets just the art-E/art-W bits — one
+## of the four horizontal-run tiles, whose band below _wall_split is always a genuine
+## elevation. Choosing a single per-cell "effective" variant from the full neighbourhood
+## picked mostly-checker interior art for well-connected cells, and _wall_split cropped
+## that checker into the side band: "some of the walls look like the ceiling"
+## (2026-08-13). Bit order [N,NE,E,SE,S,SW,W,NW], verified against live data
+## (00101000 = E+S at (3,17), 00000110 = SW+W at (4,17)). Falls back to the cell's own
+## Qud variant when the family lacks the run tiles.
+func _face_variant(tile: String, e_on: bool, w_on: bool) -> String:
 	var dash := tile.rfind("-")
-	if dash < 0:
-		return tile
 	var dot := tile.rfind(".")
-	if dot < dash:
+	if dash < 0 or dot < dash:
 		return tile
-	var base := tile.substr(0, dash)
-	var ext := tile.substr(dot)
-	var offs := [Vector2i(0, -1), Vector2i(1, -1), Vector2i(1, 0), Vector2i(1, 1),
-		Vector2i(0, 1), Vector2i(-1, 1), Vector2i(-1, 0), Vector2i(-1, -1)]
-	var bits := ""
-	var card := ""
-	for i in offs.size():
-		var on := all_wall_cells.has(k + offs[i])
-		bits += "1" if on else "0"
-		card += ("1" if on else "0") if (i % 2 == 0) else "0"
-	var cand := base + "-" + bits + ext
-	if _mask(cand) != null:
-		return cand
-	cand = base + "-" + card + ext
+	var bits := "00" + ("1" if e_on else "0") + "000" + ("1" if w_on else "0") + "0"
+	var cand := tile.substr(0, dash) + "-" + bits + tile.substr(dot)
 	if _mask(cand) != null:
 		return cand
 	return tile
@@ -3266,9 +3256,6 @@ func _rebuild_walls(wall_types: Dictionary) -> void:
 		for v in by_variant:
 			var vmesh: ArrayMesh = _voxel_cap_mesh(v)
 			for k in by_variant[v]:
-				# side art follows the cell's REAL neighbourhood, not Qud's
-				# same-blueprint autotile (caps keep Qud's variant: top-view parity)
-				var smesh: ArrayMesh = _side_voxel_mesh(_effective_wall_variant(v, k, all_wall_cells))
 				if vmesh != null:
 					var rmi := MeshInstance3D.new()
 					rmi.mesh = vmesh
@@ -3277,15 +3264,23 @@ func _rebuild_walls(wall_types: Dictionary) -> void:
 					_wall_parent().add_child(rmi)
 					_track_wall(k, rmi)
 				# a voxel side on each edge whose orthogonal neighbour isn't this wall.
-				# the side mesh faces +Z (south); rotate it onto each exposed edge.
-				if smesh != null:
-					if not all_wall_cells.has(Vector2i(k.x, k.y + 1)): _place_side(smesh, k, 0.0)     # S
-					if not all_wall_cells.has(Vector2i(k.x + 1, k.y)): _place_side(smesh, k, 90.0)    # E
-					if not all_wall_cells.has(Vector2i(k.x, k.y - 1)): _place_side(smesh, k, 180.0)   # N
-					if not all_wall_cells.has(Vector2i(k.x - 1, k.y)): _place_side(smesh, k, 270.0)   # W
+				# The side mesh faces +Z (south) and rotates onto each edge, so the
+				# art's +x axis lands on a different world direction per face
+				# (+90° about Y maps +X onto −Z): the continuation bits handed to
+				# _face_variant follow the ROTATED axis, not world E/W.
+				var wn := all_wall_cells.has(Vector2i(k.x, k.y - 1))
+				var ws := all_wall_cells.has(Vector2i(k.x, k.y + 1))
+				var we := all_wall_cells.has(Vector2i(k.x + 1, k.y))
+				var ww := all_wall_cells.has(Vector2i(k.x - 1, k.y))
+				if not ws: _place_side(_side_voxel_mesh(_face_variant(v, we, ww)), k, 0.0)     # S: art +x = E
+				if not we: _place_side(_side_voxel_mesh(_face_variant(v, wn, ws)), k, 90.0)    # E: art +x = N
+				if not wn: _place_side(_side_voxel_mesh(_face_variant(v, ww, we)), k, 180.0)   # N: art +x = W
+				if not ww: _place_side(_side_voxel_mesh(_face_variant(v, ws, wn)), k, 270.0)   # W: art +x = S
 				_emit_seam_walls(k, v, all_wall_cells)
 
 func _place_side(mesh: ArrayMesh, k: Vector2i, deg: float) -> void:
+	if mesh == null:
+		return
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh
 	mi.material_override = _wall_skin_material()
