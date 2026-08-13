@@ -17,6 +17,9 @@
     },
     "sw_basket": {
       "fill": "FILL: keep only the SMALL POCKETS (weave shadows); the big arch goes clear"
+    },
+    "sw_sign_goods": {
+      "shape": "build it as a SIGNPOST (two posts + slab)"
     }
   }
 }

@@ -1271,6 +1271,7 @@ const VERDICT_KEYS := [
 	["n–s", "panel_ns"],
 	["e–w", "panel_ew"],
 	["billboard", "billboard"],
+	["signpost", "signpost"],
 	["flat", "floor"],
 	["not be drawn", "skip"],
 ]
@@ -2195,6 +2196,164 @@ func _should_glow(obj: Dictionary) -> bool:
 		return true
 	return _glow_overrides.has(tile_family(tile))
 
+# ── SIGNPOST (Daniel, 2026-08-12: "turn the selected sign into voxels. Two posts and
+# then a slab for the pboard") ──────────────────────────────────────────────────────
+# A tile-derived 3D shape, verdict "signpost" in overrides.json. Geometry comes from
+# the MASK, not constants: the BOARD is the contiguous band of rows whose opaque width
+# is >= 60% of the tile, the POSTS are the opaque column-runs in the rows outside that
+# band, running ground to the posts' topmost row. The slab is a solid box (frame
+# colour sampled from the art) with the recoloured board art on front and back quads —
+# transparent lettering pixels punch through to the box face a millimetre behind, so
+# letters read as carved, not as holes. Faces N-S (the panel verdicts' convention).
+func _place_signpost(obj: Dictionary, tile: String, cx: int, cy: int, light_frac: float) -> bool:
+	var mask := _mask(tile)
+	# The FILLED texture, same as the billboard path: this art's board face is mostly
+	# TRANSPARENT (a frame plus lettering), and an unfilled quad under alpha-scissor
+	# discards the face down to red slats (measured). Interior fill gives the solid
+	# board the billboard always had; the fill override channel still applies.
+	var ctex := _colored_tex_rgb(tile, _obj_main(obj), _obj_detail(obj), _color_key(obj),
+		_fill_for(tile, Fill.INTERIOR))
+	if mask == null or ctex == null:
+		return false
+	var w := mask.get_width()
+	var h := mask.get_height()
+	# Widths measured on the INTERIOR-FILLED mask: this art's board face is lettering
+	# over open frame, so raw opaque counts drop below the width test on the letter
+	# rows — the board shrank to its top strip and the post probe landed INSIDE the
+	# lettering, spawning a post per letter stroke (measured: five red slats).
+	var inner := _interior(tile)
+	var widths := []
+	var bottom := -1
+	var top := -1
+	for y in h:
+		var n := 0
+		for x in w:
+			if mask.get_pixel(x, y).a >= 0.5 or (y < inner.size() and x < (inner[y] as Array).size() and inner[y][x]):
+				n += 1
+		widths.append(n)
+		var raw := false
+		for x in w:
+			if mask.get_pixel(x, y).a >= 0.5:
+				raw = true
+				break
+		if raw:
+			bottom = y
+			if top < 0:
+				top = y
+	if bottom < 0:
+		return false
+	# board = the longest contiguous run of wide rows
+	var need := int(ceil(w * 0.6))
+	var b0 := -1; var b1 := -1; var r0 := -1
+	for y in h + 1:
+		var wide: bool = y < h and widths[y] >= need
+		if wide and r0 < 0:
+			r0 = y
+		if not wide and r0 >= 0:
+			if b0 < 0 or (y - r0) > (b1 - b0 + 1):
+				b0 = r0; b1 = y - 1
+			r0 = -1
+	if b0 < 0:
+		return false
+	# posts = column-run GROUPS across every raw-opaque row below the board (falling
+	# back to the rows above it): runs that overlap in x merge into one post, so a
+	# 1px ankle row and a 2px foot row make one 2px post, not two.
+	var post_rows := []
+	for y in range(b1 + 1, bottom + 1):
+		post_rows.append(y)
+	if post_rows.is_empty():
+		for y in range(top, b0):
+			post_rows.append(y)
+	var posts := []   # [ [x_start, x_end] ]
+	var probe := -1
+	for y in post_rows:
+		probe = y   # colour sample row: the last real post row
+		var x := 0
+		while x < w:
+			if mask.get_pixel(x, y).a >= 0.5:
+				var run := x
+				while run < w and mask.get_pixel(run, y).a >= 0.5:
+					run += 1
+				var merged := false
+				for pr in posts:
+					if x <= pr[1] + 1 and run - 1 >= pr[0] - 1:
+						pr[0] = mini(pr[0], x)
+						pr[1] = maxi(pr[1], run - 1)
+						merged = true
+						break
+				if not merged:
+					posts.append([x, run - 1])
+				x = run
+			else:
+				x += 1
+	var img := ctex.get_image()
+	# The recoloured texture may be UPSCALED from the 16x24 art — every pixel sample and
+	# the atlas region below must map mask coords through this scale, or the quad shows
+	# a stretched corner window of the art (measured: red slats + letter strokes).
+	var sx := ctex.get_width() / float(w)
+	var sy := ctex.get_height() / float(h)
+	var lfc := Color(light_frac, light_frac, light_frac)
+	var ps := PIXEL_SIZE
+	var base := Vector3(cx, 0.0, cy)
+	# posts first: sample their colour from the art at the probe row
+	var post_top_y: float = (bottom + 1 - top) * ps
+	for pr in posts:
+		var px := int((pr[0] + pr[1]) / 2.0)
+		var pc := img.get_pixel(int((px + 0.5) * sx), int((probe + 0.5) * sy)) if probe >= 0 else Color(0.3, 0.25, 0.2)
+		var box := BoxMesh.new()
+		box.size = Vector3((pr[1] - pr[0] + 1) * ps, post_top_y, 2.0 * ps)
+		var mi := MeshInstance3D.new()
+		mi.mesh = box
+		mi.material_override = _color_material(pc * lfc)
+		# posts sit BEHIND the slab (the art shows them only above/below the board:
+		# the board is nailed to the posts' front), so they never poke through the face
+		mi.position = base + Vector3((pr[0] + (pr[1] - pr[0] + 1) * 0.5 - w * 0.5) * ps, post_top_y * 0.5, 1.5 * ps)
+		_spawn_parent().add_child(mi)
+		_track(mi)
+	# the slab: solid box + art quads front and back
+	var bw: int = w
+	var lo := w; var hi := -1
+	for y in range(b0, b1 + 1):
+		for x in w:
+			if mask.get_pixel(x, y).a >= 0.5:
+				lo = mini(lo, x); hi = maxi(hi, x)
+	bw = hi - lo + 1
+	var bh: int = b1 - b0 + 1
+	var slab_y0: float = (bottom + 1 - (b1 + 1)) * ps
+	var sc_probe := img.get_pixel(int((lo + 0.5) * sx), int((b0 + 1.5) * sy))
+	var slab_c := sc_probe if sc_probe.a > 0.1 else Color(0.1, 0.1, 0.1)
+	var slab := BoxMesh.new()
+	slab.size = Vector3(bw * ps, bh * ps, 1.0 * ps)
+	var smi := MeshInstance3D.new()
+	smi.mesh = slab
+	smi.material_override = _color_material(slab_c * lfc)
+	var slab_center := base + Vector3((lo + bw * 0.5 - w * 0.5) * ps, slab_y0 + bh * ps * 0.5, 0.0)
+	smi.position = slab_center
+	_spawn_parent().add_child(smi)
+	_track(smi)
+	var at := AtlasTexture.new()
+	at.atlas = ctex
+	at.region = Rect2(lo * sx, b0 * sy, bw * sx, bh * sy)
+	var qmat := StandardMaterial3D.new()
+	qmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	qmat.albedo_texture = at
+	qmat.albedo_color = lfc
+	qmat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	qmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	qmat.alpha_scissor_threshold = 0.5
+	for side in [1.0, -1.0]:
+		var q := QuadMesh.new()
+		q.size = Vector2(bw * ps, bh * ps)
+		var qmi := MeshInstance3D.new()
+		qmi.mesh = q
+		qmi.material_override = qmat
+		qmi.position = slab_center + Vector3(0.0, 0.0, side * (0.5 * ps + 0.001))
+		if side < 0.0:
+			qmi.rotation.y = PI   # back face: same art, mirrored to face south
+		_spawn_parent().add_child(qmi)
+		_track(qmi)
+	return true
+
 # ── WINNER PER CELL (Daniel, 2026-08-12): "stop fighting and just do what Qud does.
 # Hide the items underneath the top item (NPC > pretty much everything else)." ──────
 # Qud renders ONE object per cell; user mode now does the same instead of stacking
@@ -2325,6 +2484,12 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 				_fill_for(tile, Fill.ALL if bool(obj.get("occluding", false)) else Fill.NONE), -1.0, light_frac)
 			_note(cx, cy, idx, "connector panels [%s] h=%.2f (user verdict)" % [axis, vh], vh * 0.5)
 			return
+
+	if verdict == "signpost" and not _flat_2d and not _one_to_one:
+		if _place_signpost(obj, tile, cx, cy, light_frac):
+			_note(cx, cy, idx, "signpost(slab + 2 posts, faces N-S, user verdict)", 0.5)
+			return
+		# fall through to the billboard path if the art defeats the mesh derivation
 
 	# Stairs down: a shaft into the level below, not a flat tile. Qud's StairsDown is
 	# a vertical connector with no lateral facing, so unless a direction is supplied
