@@ -2206,6 +2206,67 @@ func _should_glow(obj: Dictionary) -> bool:
 # the pole to that cell edge. E/W half-slabs carry the art's own side panels (each is
 # exactly 6px = half a cell); N/S runs have no face art in the tile, so they get a
 # plain canvas-coloured slab sampled from the art. Heights come from the art's band.
+## Panel bboxes + colour image for a tent tile variant — used for the tile itself and,
+## when a variant's art lacks the opposite panel (tent_e has no W half), for the
+## family's _ew variant, which always carries both. {} on failure.
+func _tent_panels_of(tile: String, obj: Dictionary) -> Dictionary:
+	var mask := _mask(tile)
+	var ctex := _colored_tex_rgb(tile, _obj_main(obj), _obj_detail(obj), _color_key(obj))
+	if mask == null or ctex == null:
+		return {}
+	var w := mask.get_width()
+	var h := mask.get_height()
+	var top := -1
+	var bottom := -1
+	for y in h:
+		for x in w:
+			if mask.get_pixel(x, y).a >= 0.5:
+				bottom = y
+				if top < 0:
+					top = y
+				break
+	if bottom < 0:
+		return {}
+	var band := bottom - top + 1
+	var runs := []
+	var rs := -1
+	var need_h := int(ceil(band * 0.8))
+	for x in w:
+		var n := 0
+		for y in range(top, bottom + 1):
+			if mask.get_pixel(x, y).a >= 0.5:
+				n += 1
+		if n >= need_h:
+			if rs < 0:
+				rs = x
+		else:
+			if rs >= 0:
+				runs.append([rs, x - 1])
+				rs = -1
+	if rs >= 0:
+		runs.append([rs, w - 1])
+	var px0 := -1
+	var px1 := -1
+	var bestd := 1e9
+	for r in runs:
+		if r[1] - r[0] + 1 <= 3:
+			var dc: float = absf((r[0] + r[1]) * 0.5 - w * 0.5)
+			if dc < bestd:
+				bestd = dc
+				px0 = r[0]
+				px1 = r[1]
+	var panels := {}
+	if px0 >= 1:
+		var r := _opaque_bbox(mask, 0, px0 - 2, top, bottom)
+		if r.size.x > 0:
+			panels["w"] = r
+	if px1 >= 0 and px1 + 2 < w:
+		var r2 := _opaque_bbox(mask, px1 + 2, w - 1, top, bottom)
+		if r2.size.x > 0:
+			panels["e"] = r2
+	return {"img": ctex.get_image(), "sx": ctex.get_width() / float(w), "sy": ctex.get_height() / float(h),
+		"top": top, "bottom": bottom, "band": band, "px0": px0, "px1": px1, "panels": panels}
+
 func _place_tentwall(obj: Dictionary, tile: String, cx: int, cy: int, light_frac: float) -> bool:
 	var dirs = _connector_dirs(tile)
 	var mask := _mask(tile)
@@ -2374,11 +2435,32 @@ func _place_tentwall(obj: Dictionary, tile: String, cx: int, cy: int, light_frac
 		# mirror restores |[]|[] from the north as well.
 		if horiz and panels.has(d):
 			var dback := "w" if d == "e" else "e"
+			# An end/corner variant's art may LACK the opposite panel (tent_e has no W
+			# half); falling back to the tile's own art mirrored-in-place reintroduced
+			# the ][ split on exactly that half (Daniel: "the right-half of the
+			# right-half"). Borrow the missing panel from the family's _ew variant.
+			var ew := {}
+			if not panels.has(dback):
+				var suffix = _connector_dirs(tile)
+				if suffix != null:
+					ew = _tent_panels_of(tile.replace("_" + String(suffix) + ".", "_ew."), obj)
 			for side in [1.0, -1.0]:
-				var use_d: String = d if side > 0.0 else (dback if panels.has(dback) else d)
-				var r3: Rect2i = panels[use_d]
-				var sub := img.get_region(Rect2i(int(r3.position.x * sx), int(r3.position.y * sy),
-					int(r3.size.x * sx), int(r3.size.y * sy)))
+				var use_d: String = d if side > 0.0 else dback
+				var use_img: Image = img
+				var use_sx: float = sx
+				var use_sy: float = sy
+				var r3: Rect2i
+				if panels.has(use_d):
+					r3 = panels[use_d]
+				elif not ew.is_empty() and (ew["panels"] as Dictionary).has(use_d):
+					r3 = ew["panels"][use_d]
+					use_img = ew["img"]
+					use_sx = ew["sx"]
+					use_sy = ew["sy"]
+				else:
+					r3 = panels[d]   # last resort: the old behaviour
+				var sub := use_img.get_region(Rect2i(int(r3.position.x * use_sx), int(r3.position.y * use_sy),
+					int(r3.size.x * use_sx), int(r3.size.y * use_sy)))
 				var pt := ImageTexture.create_from_image(sub)
 				var pm := StandardMaterial3D.new()
 				pm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
