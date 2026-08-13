@@ -52,7 +52,6 @@
       "shape": "build it as a TENT (pole cylinder + skin slabs)"
     },
     "sw_watervine": {
-      "cutout": "the DARKEST squares render transparent",
       "fill": "make the gaps see-through"
     }
   }
