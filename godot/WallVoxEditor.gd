@@ -57,6 +57,9 @@ var _group := []           # the current group's tile names (save/revert hit all
 # them all; Save writes the edited band into each of the four VERBATIM, so the
 # design tiles uniformly through run ends and corners (one-direction wrap).
 var _face_img: Image       # the family-wide face band being edited (W x F)
+var _face_dirty := false   # face painted this session? A roof-only save must
+                           # NOT rewrite the family's faces: a stale surface
+                           # stomped Daniel's newer design (design A over B)
 var _colors := []
 var _sel := 0
 var _picked := Color.WHITE
@@ -307,6 +310,7 @@ func _load_face(tile: String) -> void:
 			break
 	if _face_img == null:
 		_face_img = Image.create(16, 10, false, Image.FORMAT_RGBA8)
+	_face_dirty = false
 	_face.custom_minimum_size = Vector2(_face_img.get_width() * C, _face_img.get_height() * C)
 
 ## The band Save writes into EVERY run variant: the edited surface, VERBATIM.
@@ -440,6 +444,8 @@ func _paint_at(pos: Vector2, which: String, erase: bool) -> void:
 		elif _sel == -2:
 			c = _picked
 	img.set_pixel(x, y, c)
+	if which == "face":
+		_face_dirty = true
 	_refresh()
 
 func _pick_at(pos: Vector2, which: String) -> void:
@@ -475,6 +481,7 @@ func _undo_stroke() -> void:
 	var s: Dictionary = _undo.pop_back()
 	_img = s["img"]
 	_face_img = s["face"]
+	_face_dirty = true
 	_refresh()
 
 # --- palette (the TileEditor look) ------------------------------------------
@@ -666,20 +673,26 @@ func _save() -> void:
 			wrote += 1
 			written[t] = true
 	# FACE: the family-wide surface lands on all four run variants (the only
-	# face sources), each keeping its own cap art and its own frame pixels.
+	# face sources) — but ONLY when the face was painted this session. Fanning
+	# out an untouched surface let one session's stale face overwrite a newer
+	# design saved by another (design A stomped design B).
 	var faces_written := 0
-	for t in _run_tiles():
-		if written.has(t):
-			faces_written += 1
-			continue
-		var base := _full_image_of(t, true)
-		if base == null:
-			continue
-		if _composed(base, _merged_band(t)).save_png(_custom_dir().path_join(_flat(t))) == OK:
-			faces_written += 1
+	if _face_dirty:
+		for t in _run_tiles():
+			if written.has(t):
+				faces_written += 1
+				continue
+			var base := _full_image_of(t, true)
+			if base == null:
+				continue
+			if _composed(base, _merged_band(t)).save_png(_custom_dir().path_join(_flat(t))) == OK:
+				faces_written += 1
 	if wrote > 0 or faces_written > 0:
-		_status.text = "saved: roof -> %d name%s, face -> %d run variant%s (game reloads live)" \
-			% [wrote, "" if wrote == 1 else "s", faces_written, "" if faces_written == 1 else "s"]
+		var facemsg := ("face -> %d run variant%s" % [faces_written, "" if faces_written == 1 else "s"]) \
+			if _face_dirty else "face untouched (not rewritten)"
+		_status.text = "saved: roof -> %d name%s, %s (game reloads live)" \
+			% [wrote, "" if wrote == 1 else "s", facemsg]
+		_face_dirty = false
 	else:
 		_status.text = "SAVE FAILED"
 
