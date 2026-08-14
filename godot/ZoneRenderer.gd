@@ -3741,7 +3741,12 @@ func _wall_cell_faces(inp: Dictionary) -> Array:
 							var a2: int = x if s[1] != 0 else z
 							var ax2: int = a2 if (dirname == "s" or dirname == "w") else W - 1 - a2
 							var pc := im2.get_pixel(mini(ax2, im2.get_width() - 1), fr2)
-							col = pc if pc.to_html(false) != bg else mainc
+							# a SOLID voxel where the art says CAVITY exists only
+							# in the no-carve zones (cap band, foundation row,
+							# corners, neighbour shells). Painting it the wall
+							# main read as flush red where Daniel had ERASED —
+							# the recess colour reads as the cavity's mouth.
+							col = pc if pc.to_html(false) != bg else recess
 					elif r == 0:
 						col = capc.darkened(0.35)   # roof trench walls, in shadow
 					elif String(fv[dirname]) != "":
