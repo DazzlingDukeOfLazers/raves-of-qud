@@ -48,10 +48,18 @@ var _arr_btns := {}
 
 var _tile := ""            # the variant being edited (its group's representative)
 var _obj := {}
-var _img: Image            # the full 16x24 working buffer
+var _img: Image            # the full 16x24 working buffer (ROOF edits live here)
 var _split := Vector2i(16, 16)
 var _variants := []        # GROUPS of pixel-identical variant names, first-seen order
 var _group := []           # the current group's tile names (save/revert hit all)
+# The face is FAMILY-WIDE: every face of every cell renders from just the four
+# horizontal-run variants (mid-run, end-framed x2, isolated), which differ only
+# in their end-frame pixels. One surface edits them all; Save writes the edited
+# band into each of the four with that variant's own frame pixels preserved
+# (frame = where its stock band differs from the stock mid-run band).
+var _face_img: Image       # the family-wide face band being edited (W x F)
+var _face_stock := {}      # run tile -> its STOCK band (frame preservation)
+var _face_stock_mid: Image # the stock mid-run band (the diff base)
 var _colors := []
 var _sel := 0
 var _picked := Color.WHITE
@@ -85,9 +93,8 @@ func setup(renderer: ZoneRenderer, host: CanvasLayer) -> void:
 	_roof = _make_canvas(func(): _draw_band(_roof, 0, _split.x),
 		func(ev): _band_input(ev, "roof"))
 	left.add_child(_roof)
-	left.add_child(_caption("face (all four sides wear this)"))
-	_face = _make_canvas(func(): _draw_band(_face, _split.y, 24),
-		func(ev): _band_input(ev, "face"))
+	left.add_child(_caption("face (family-wide: every face of every wall)"))
+	_face = _make_canvas(_draw_face, func(ev): _band_input(ev, "face"))
 	left.add_child(_face)
 	# right: variant, palette, tools, preview, core, io
 	var col := VBoxContainer.new()
@@ -192,6 +199,7 @@ func open(tile: String, obj := {}) -> void:
 	_sel = 0
 	_dropper = false
 	_scan_variants(tile)
+	_load_face(tile)
 	_load_variant(tile)
 	_panel.visible = true
 
@@ -258,27 +266,98 @@ func _hop_variant(dir: int) -> void:
 	i = (i + dir + _variants.size()) % _variants.size()
 	_load_variant(_variants[i][0])
 
+## The full 16x24 image for a tile: the custom file when present (and wanted),
+## else Qud's art recoloured for this object. Null if neither exists.
+func _full_image_of(tile: String, custom_first: bool) -> Image:
+	if custom_first:
+		var custom := _custom_dir().path_join(_flat(tile))
+		if FileAccess.file_exists(custom):
+			var im := Image.new()
+			if im.load_png_from_buffer(FileAccess.get_file_as_bytes(custom)) == OK:
+				im.convert(Image.FORMAT_RGBA8)
+				return im
+	var im2: Image = _renderer.tile_display_image(tile, _obj)
+	if im2 != null:
+		im2.convert(Image.FORMAT_RGBA8)
+	return im2
+
+## A tile image's face band (the rows below the cap/face split).
+func _band_of(img: Image) -> Image:
+	var sp: Vector2i = _renderer.wall_art_split(img)
+	if sp.y >= img.get_height():
+		return Image.create(img.get_width(), 1, false, Image.FORMAT_RGBA8)
+	return img.get_region(Rect2i(0, sp.y, img.get_width(), img.get_height() - sp.y))
+
+func _with_bits(tile: String, bits: String) -> String:
+	return tile.substr(0, tile.rfind("-") + 1) + bits + tile.substr(tile.rfind("."))
+
+## The four tiles every face renders from (see _face_variant in ZoneRenderer).
+func _run_tiles() -> Array:
+	var out := []
+	for bits in ["00100010", "00100000", "00000010", "00000000"]:
+		out.append(_with_bits(_tile, bits))
+	return out
+
+## Load the FAMILY-WIDE face surface: the mid-run band (custom-first), falling
+## back to the isolated tile, then the current variant. Also captures each run
+## variant's STOCK band so Save can preserve its end-frame pixels.
+func _load_face(tile: String) -> void:
+	_tile = tile
+	_face_stock = {}
+	_face_stock_mid = null
+	_face_img = null
+	for t in _run_tiles():
+		var st := _full_image_of(t, false)
+		if st != null:
+			_face_stock[t] = _band_of(st)
+	_face_stock_mid = _face_stock.get(_with_bits(tile, "00100010"),
+		_face_stock.get(_with_bits(tile, "00000000")))
+	for cand in [_with_bits(tile, "00100010"), _with_bits(tile, "00000000"), tile]:
+		var im := _full_image_of(cand, true)
+		if im != null:
+			_face_img = _band_of(im)
+			break
+	if _face_img == null:
+		_face_img = Image.create(16, 10, false, Image.FORMAT_RGBA8)
+	_face.custom_minimum_size = Vector2(_face_img.get_width() * C, _face_img.get_height() * C)
+
+## The band Save writes into one run variant: the edited surface, with the
+## variant's own frame pixels (where its stock band differs from stock mid-run)
+## kept — so end frames survive a family-wide repaint.
+func _merged_band(t: String) -> Image:
+	var out: Image = _face_img.duplicate()
+	var st: Image = _face_stock.get(t)
+	if st == null or _face_stock_mid == null or st == _face_stock_mid:
+		return out
+	var w := mini(out.get_width(), mini(st.get_width(), _face_stock_mid.get_width()))
+	var h := mini(out.get_height(), mini(st.get_height(), _face_stock_mid.get_height()))
+	for y in h:
+		for x in w:
+			if not st.get_pixel(x, y).is_equal_approx(_face_stock_mid.get_pixel(x, y)):
+				out.set_pixel(x, y, st.get_pixel(x, y))
+	return out
+
+## A full 16x24 file image: `cap_src`'s cap band over `band` as the face band.
+func _composed(cap_src: Image, band: Image) -> Image:
+	var out: Image = cap_src.duplicate()
+	var sp: Vector2i = _renderer.wall_art_split(cap_src)
+	for y in band.get_height():
+		var fy := sp.y + y
+		if fy >= out.get_height():
+			break
+		for x in mini(band.get_width(), out.get_width()):
+			out.set_pixel(x, fy, band.get_pixel(x, y))
+	return out
+
 func _load_variant(tile: String) -> void:
 	_tile = tile
 	_undo = []
-	_img = null
-	var custom := _custom_dir().path_join(_flat(tile))
-	if FileAccess.file_exists(custom):
-		var im := Image.new()
-		if im.load_png_from_buffer(FileAccess.get_file_as_bytes(custom)) == OK:
-			im.convert(Image.FORMAT_RGBA8)
-			_img = im
-	if _img == null:
-		var im2: Image = _renderer.tile_display_image(tile, _obj)
-		if im2 != null:
-			im2.convert(Image.FORMAT_RGBA8)
-			_img = im2
+	_img = _full_image_of(tile, true)
 	if _img == null:
 		_img = Image.create(16, 24, false, Image.FORMAT_RGBA8)
 	_split = _renderer.wall_art_split(_img)
 	var w := _img.get_width()
 	_roof.custom_minimum_size = Vector2(w * C, _split.x * C)
-	_face.custom_minimum_size = Vector2(w * C, maxi(1, 24 - _split.y) * C)
 	var gi := _group_index()
 	_group = _variants[gi] if gi >= 0 else [tile]
 	var any_custom := false
@@ -307,11 +386,24 @@ func _custom_dir() -> String:
 
 # --- band canvases ----------------------------------------------------------
 
+## The ROOF canvas edits _img's cap band; the FACE canvas edits the family-wide
+## _face_img. `_edit_target(which)` -> [Image, row offset into it].
+func _edit_target(which: String) -> Array:
+	if which == "roof":
+		return [_img, 0, _split.x]              # image, row0, row count
+	return [_face_img, 0, _face_img.get_height() if _face_img != null else 0]
+
 func _draw_band(ctl: Control, row0: int, row1: int) -> void:
-	if _img == null:
+	_draw_grid(ctl, _img, row0, mini(row1, _img.get_height() if _img != null else 0) - row0)
+
+func _draw_face() -> void:
+	if _face_img != null:
+		_draw_grid(_face, _face_img, 0, _face_img.get_height())
+
+func _draw_grid(ctl: Control, img: Image, row0: int, rows: int) -> void:
+	if img == null or rows <= 0:
 		return
-	var w := _img.get_width()
-	var rows := mini(row1, _img.get_height()) - row0
+	var w := img.get_width()
 	var sq := C / 2
 	for y in rows * 2:
 		for x in w * 2:
@@ -320,7 +412,7 @@ func _draw_band(ctl: Control, row0: int, row1: int) -> void:
 				Color(0.32, 0.32, 0.34) if on else Color(0.18, 0.18, 0.20))
 	for y in rows:
 		for x in w:
-			var c := _img.get_pixel(x, row0 + y)
+			var c := img.get_pixel(x, row0 + y)
 			if c.a > 0.01:
 				ctl.draw_rect(Rect2(x * C, y * C, C, C), c)
 	for x in w + 1:
@@ -330,34 +422,34 @@ func _draw_band(ctl: Control, row0: int, row1: int) -> void:
 
 func _band_input(event: InputEvent, which: String) -> void:
 	var ctl: Control = _roof if which == "roof" else _face
-	var row0: int = 0 if which == "roof" else _split.y
 	if event is InputEventMouseButton:
 		ctl.accept_event()
 		if event.button_index == MOUSE_BUTTON_MIDDLE and event.pressed:
-			_pick_at(ctl, event.position, row0)
+			_pick_at(event.position, which)
 		elif event.button_index == MOUSE_BUTTON_LEFT:
 			if event.pressed and _dropper:
-				_pick_at(ctl, event.position, row0)
+				_pick_at(event.position, which)
 				_toggle_dropper()
 				return
 			_painting = event.pressed
 			_paint_target = which
 			if event.pressed:
 				_push_undo()
-				_paint_at(ctl, event.position, row0, false)
+				_paint_at(event.position, which, false)
 		elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
 			_push_undo()
-			_paint_at(ctl, event.position, row0, true)
+			_paint_at(event.position, which, true)
 	elif event is InputEventMouseMotion and _painting and _paint_target == which:
 		ctl.accept_event()
-		_paint_at(ctl, event.position, row0, false)
+		_paint_at(event.position, which, false)
 
-func _paint_at(ctl: Control, pos: Vector2, row0: int, erase: bool) -> void:
+func _paint_at(pos: Vector2, which: String, erase: bool) -> void:
+	var t := _edit_target(which)
+	var img: Image = t[0]
 	var x := int(pos.x / C)
-	var y := row0 + int(pos.y / C)
-	if _img == null or x < 0 or x >= _img.get_width() or y < row0 or y >= _img.get_height():
-		return
-	if int(pos.y / C) >= int(ctl.custom_minimum_size.y / C):
+	var y: int = t[1] + int(pos.y / C)
+	if img == null or x < 0 or x >= img.get_width() \
+			or int(pos.y / C) < 0 or int(pos.y / C) >= int(t[2]):
 		return
 	var c := Color(0, 0, 0, 0)
 	if not erase:
@@ -365,15 +457,18 @@ func _paint_at(ctl: Control, pos: Vector2, row0: int, erase: bool) -> void:
 			c = _colors[_sel][1]
 		elif _sel == -2:
 			c = _picked
-	_img.set_pixel(x, y, c)
+	img.set_pixel(x, y, c)
 	_refresh()
 
-func _pick_at(ctl: Control, pos: Vector2, row0: int) -> void:
+func _pick_at(pos: Vector2, which: String) -> void:
+	var t := _edit_target(which)
+	var img: Image = t[0]
 	var x := int(pos.x / C)
-	var y := row0 + int(pos.y / C)
-	if _img == null or x < 0 or x >= _img.get_width() or y < row0 or y >= _img.get_height():
+	var y: int = t[1] + int(pos.y / C)
+	if img == null or x < 0 or x >= img.get_width() \
+			or int(pos.y / C) < 0 or int(pos.y / C) >= int(t[2]):
 		return
-	var c := _img.get_pixel(x, y)
+	var c := img.get_pixel(x, y)
 	if c.a < 0.01:
 		_sel = -1
 	else:
@@ -387,15 +482,17 @@ func _toggle_dropper() -> void:
 		_drop_btn.text = "Eyedrop ON" if _dropper else "Eyedrop"
 
 func _push_undo() -> void:
-	if _img != null:
-		_undo.append(_img.duplicate())
+	if _img != null and _face_img != null:
+		_undo.append({"img": _img.duplicate(), "face": _face_img.duplicate()})
 		if _undo.size() > 40:
 			_undo.pop_front()
 
 func _undo_stroke() -> void:
 	if _undo.is_empty():
 		return
-	_img = _undo.pop_back()
+	var s: Dictionary = _undo.pop_back()
+	_img = s["img"]
+	_face_img = s["face"]
 	_refresh()
 
 # --- palette (the TileEditor look) ------------------------------------------
@@ -448,8 +545,11 @@ func _set_arrangement(a: String) -> void:
 func _draw_preview() -> void:
 	if _img == null or _renderer == null or _tile == "":
 		return
+	var fo := {}
+	for t in _run_tiles():
+		fo[t] = _merged_band(t)
 	var faces: Array = _renderer.wall_preview_arrangement(_tile, _obj,
-		ARRANGEMENTS[_arrangement], _img, _tile)
+		ARRANGEMENTS[_arrangement], _img, _tile, fo)
 	if faces.is_empty():
 		return
 	var cells: Array = ARRANGEMENTS[_arrangement]
@@ -573,28 +673,50 @@ func _save() -> void:
 	if _img == null or _tile == "":
 		return
 	DirAccess.make_dir_recursive_absolute(_custom_dir())
-	# every name in the group: visually-identical cells must never disagree
-	# over an invisible diagonal bit
+	# ROOF: every name in the current group — visually-identical cells must
+	# never disagree over an invisible diagonal bit. Each file also carries the
+	# family face band (merged for run tiles so their end frames survive).
 	var wrote := 0
+	var written := {}
 	for t in (_group if not _group.is_empty() else [_tile]):
-		if _img.save_png(_custom_dir().path_join(_flat(t))) == OK:
+		var band: Image = _merged_band(t) if _face_stock.has(t) else _face_img
+		if _composed(_img, band).save_png(_custom_dir().path_join(_flat(t))) == OK:
 			wrote += 1
-	if wrote > 0:
-		_status.text = "saved -> %d equivalent variant name%s (game reloads live)" \
-			% [wrote, "" if wrote == 1 else "s"]
+			written[t] = true
+	# FACE: the family-wide surface lands on all four run variants (the only
+	# face sources), each keeping its own cap art and its own frame pixels.
+	var faces_written := 0
+	for t in _run_tiles():
+		if written.has(t):
+			faces_written += 1
+			continue
+		var base := _full_image_of(t, true)
+		if base == null:
+			continue
+		if _composed(base, _merged_band(t)).save_png(_custom_dir().path_join(_flat(t))) == OK:
+			faces_written += 1
+	if wrote > 0 or faces_written > 0:
+		_status.text = "saved: roof -> %d name%s, face -> %d run variant%s (game reloads live)" \
+			% [wrote, "" if wrote == 1 else "s", faces_written, "" if faces_written == 1 else "s"]
 	else:
 		_status.text = "SAVE FAILED"
 
 func _revert() -> void:
 	if _tile == "":
 		return
-	var removed := 0
+	var targets := {}
 	for t in (_group if not _group.is_empty() else [_tile]):
+		targets[t] = true
+	for t in _run_tiles():
+		targets[t] = true
+	var removed := 0
+	for t in targets:
 		var path := _custom_dir().path_join(_flat(t))
 		if FileAccess.file_exists(path):
 			DirAccess.remove_absolute(path)
 			removed += 1
 	if removed > 0:
+		_load_face(_tile)
 		_load_variant(_tile)
 		_status.text = "custom art removed from %d name%s — Qud's art restored" \
 			% [removed, "" if removed == 1 else "s"]

@@ -3479,8 +3479,11 @@ func _wall_cell_mesh(variant_tile: String, fv: Dictionary) -> ArrayMesh:
 ## The art inputs for one cell's volume: recoloured cap image + its gap grid and
 ## the face image per exposed direction. `edit_img` (with `edit_variant`)
 ## substitutes UNSAVED voxel-editor art for that variant — the preview path;
-## the game build passes null and gets the cached textures.
-func _wall_cell_inputs(variant_tile: String, fv: Dictionary, edit_img: Image, edit_variant: String) -> Dictionary:
+## the game build passes null and gets the cached textures. `face_overrides`
+## (face tile name -> band Image) substitutes unsaved FAMILY-WIDE face edits —
+## faces render from only the four run variants, so the editor previews its
+## one face surface by overriding those four.
+func _wall_cell_inputs(variant_tile: String, fv: Dictionary, edit_img: Image, edit_variant: String, face_overrides := {}) -> Dictionary:
 	var editing := edit_img != null and variant_tile == edit_variant
 	var cap_img: Image = null
 	if editing:
@@ -3507,7 +3510,9 @@ func _wall_cell_inputs(variant_tile: String, fv: Dictionary, edit_img: Image, ed
 		if String(fv[d]) == "":
 			continue
 		var im: Image = null
-		if edit_img != null and String(fv[d]) == edit_variant:
+		if face_overrides.has(String(fv[d])):
+			im = _as_authored(face_overrides[String(fv[d])]).get_image()
+		elif edit_img != null and String(fv[d]) == edit_variant:
 			var sp := _wall_split(edit_img)
 			if sp.y < edit_img.get_height():
 				var region2 := edit_img.get_region(Rect2i(0, sp.y,
@@ -3665,9 +3670,11 @@ func _wall_cell_faces(inp: Dictionary) -> Array:
 ## Vector2i cell coords; `obj` supplies the colour context exactly as
 ## _rebuild_walls derives it. `edit_img` (16x24 or null) substitutes unsaved
 ## editor art wherever the arrangement resolves to `edit_variant` — cap AND
-## face bands. Returns [{q: [4 world-space Vector3], n: Vector3, c: Color}].
+## face bands. `face_overrides` (face tile -> band Image) substitutes the
+## editor's family-wide face surface on the four run variants every face
+## renders from. Returns [{q: [4 world-space Vector3], n: Vector3, c: Color}].
 func wall_preview_arrangement(sel_tile: String, obj: Dictionary, layout: Array,
-		edit_img: Image, edit_variant: String) -> Array:
+		edit_img: Image, edit_variant: String, face_overrides := {}) -> Array:
 	_wall_tile = _canon_wall_tile(sel_tile)
 	_wall_main = _pick_color_string(obj)
 	_wall_detail = String(obj.get("detail", ""))
@@ -3693,7 +3700,7 @@ func wall_preview_arrangement(sel_tile: String, obj: Dictionary, layout: Array,
 			"n": "" if wn else _face_variant(v, ww, we),
 			"w": "" if ww else _face_variant(v, ws, wn),
 		}
-		var inp := _wall_cell_inputs(v, fv, edit_img, edit_variant)
+		var inp := _wall_cell_inputs(v, fv, edit_img, edit_variant, face_overrides)
 		if inp.is_empty():
 			continue
 		for f in _wall_cell_faces(inp):
