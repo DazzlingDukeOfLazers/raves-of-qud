@@ -89,7 +89,10 @@ hop to them. The FACE canvas is FAMILY-WIDE: every face of every cell renders fr
 four horizontal-run variants, which differ only in end-frame pixels — so the editor edits one
 face surface (the mid-run band) and Save writes it into all four, each keeping its own frame
 pixels (frame = where its stock band differs from stock mid-run). Paint one pixel, save once,
-every wall face in the game wears it. Also: a rotatable dimetric
+every wall face in the game wears it. The art WRAPS the block: S reads W->E, E continues S->N
+MIRRORED, N reads E->W, W continues N->S mirrored — every corner column is shared by both its
+faces, so patterns run continuously around corners (verified with marker art; the fence/tent
+mirroring lesson). Also: a rotatable dimetric
 preview drawn from the renderer's OWN volume rules (`wall_preview_arrangement`) with
 single/run/corner/block arrangements, and a **core colour** row writing
 `overrides.json tiles[<family>].core`. Save writes `tiles_custom/<variant>`; wall custom art

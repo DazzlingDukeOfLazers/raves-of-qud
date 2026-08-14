@@ -3247,14 +3247,15 @@ func _rebuild_walls(wall_types: Dictionary) -> void:
 			var we := all_wall_cells.has(Vector2i(k.x + 1, k.y))
 			var ww := all_wall_cells.has(Vector2i(k.x - 1, k.y))
 			# face art per EXPOSED direction ("" = wall neighbour there): the
-			# run-tile whose along-face continuation matches. The art's +x axis
-			# differs per face (S=world E, E=world N, N=world W, W=world S), so
-			# the continuation bits follow the face's own axis, not world E/W.
+			# run-tile whose along-face continuation matches. The art WRAPS the
+			# block (E/W faces mirrored for corner continuity), so the art's +x
+			# axis is S=world E, E=world S, N=world W, W=world N — the
+			# continuation bits follow the face's own axis, not world E/W.
 			var fv := {
 				"s": "" if ws else _face_variant(v, we, ww),
-				"e": "" if we else _face_variant(v, wn, ws),
+				"e": "" if we else _face_variant(v, ws, wn),
 				"n": "" if wn else _face_variant(v, ww, we),
-				"w": "" if ww else _face_variant(v, ws, wn),
+				"w": "" if ww else _face_variant(v, wn, ws),
 			}
 			var mesh: ArrayMesh = _wall_cell_mesh(v, fv)
 			if mesh != null:
@@ -3574,9 +3575,12 @@ func _wall_cell_faces(inp: Dictionary) -> Array:
 					"n": prot[depth * W + a] = 1
 					"e": prot[a * W + (W - 1 - depth)] = 1
 					"w": prot[a * W + depth] = 1
-	# facade carves. Art x along the face: S face a=x -> ax=a; N: ax=W-1-a;
-	# E face a=z -> ax=W-1-a; W: ax=a (each face's art reads left-to-right as
-	# seen from OUTSIDE that face).
+	# facade carves. The art WRAPS the block so corners are continuous (Daniel's
+	# marker test: the S face's last column and the E face's first column meet at
+	# one physical corner and must show the SAME art column). S reads W->E
+	# (ax=a), E continues S->N MIRRORED (ax=a), N reads E->W (ax=W-1-a), W
+	# continues N->S mirrored (ax=W-1-a): every corner column is shared by both
+	# its faces — the fence/tent mirroring lesson, applied to walls.
 	for d in f_img:
 		var im: Image = f_img[d]
 		var fh := im.get_height()
@@ -3584,7 +3588,7 @@ func _wall_cell_faces(inp: Dictionary) -> Array:
 			var mid := (planes[r] + planes[r + 1]) * 0.5
 			var fr := clampi(int((WALL_H - mid) / rh), 0, fh - 1)
 			for a in W:
-				var ax: int = a if (d == "s" or d == "w") else W - 1 - a
+				var ax: int = a if (d == "s" or d == "e") else W - 1 - a
 				if im.get_pixel(mini(ax, im.get_width() - 1), fr).to_html(false) != bg:
 					continue
 				for depth in SIDE_CARVE_PX:
@@ -3649,7 +3653,7 @@ func _wall_cell_faces(inp: Dictionary) -> Array:
 							var mid2 := (yt + yb) * 0.5
 							var fr2 := clampi(int((WALL_H - mid2) / rh), 0, im2.get_height() - 1)
 							var a2: int = x if s[1] != 0 else z
-							var ax2: int = a2 if (dirname == "s" or dirname == "w") else W - 1 - a2
+							var ax2: int = a2 if (dirname == "s" or dirname == "e") else W - 1 - a2
 							var pc := im2.get_pixel(mini(ax2, im2.get_width() - 1), fr2)
 							col = pc if pc.to_html(false) != bg else mainc
 					elif String(fv[dirname]) != "":
@@ -3696,9 +3700,9 @@ func wall_preview_arrangement(sel_tile: String, obj: Dictionary, layout: Array,
 		var ww: bool = cells.has(k + Vector2i(-1, 0))
 		var fv := {
 			"s": "" if ws else _face_variant(v, we, ww),
-			"e": "" if we else _face_variant(v, wn, ws),
+			"e": "" if we else _face_variant(v, ws, wn),
 			"n": "" if wn else _face_variant(v, ww, we),
-			"w": "" if ww else _face_variant(v, ws, wn),
+			"w": "" if ww else _face_variant(v, wn, ws),
 		}
 		var inp := _wall_cell_inputs(v, fv, edit_img, edit_variant, face_overrides)
 		if inp.is_empty():

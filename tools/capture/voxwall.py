@@ -151,12 +151,15 @@ class CellVox:
         return min(self.F - 1, max(0, int((WALL_H - mid) / rh)))
 
 
-# direction -> (dz/dx step into the cell, art-x mapping fn(x, z, W))
+# direction -> (dz/dx step into the cell, art-x mapping fn(x, z, W)).
+# The art WRAPS the block: S reads W->E, E continues S->N MIRRORED, N reads
+# E->W, W continues N->S mirrored — every corner column is shared by both its
+# faces (Daniel's marker test; the fence/tent mirroring lesson).
 DIRS = {
-    "s": ((0, 1), lambda x, z, W: x),           # viewed from south: art +x = east
-    "n": ((0, -1), lambda x, z, W: W - 1 - x),  # from north: art +x = west
-    "e": ((1, 0), lambda x, z, W: W - 1 - z),   # from east: art +x = north
-    "w": ((-1, 0), lambda x, z, W: z),          # from west: art +x = south
+    "s": ((0, 1), lambda x, z, W: x),           # art +x = east
+    "n": ((0, -1), lambda x, z, W: W - 1 - x),  # art +x = west
+    "e": ((1, 0), lambda x, z, W: z),           # MIRRORED: art +x = south
+    "w": ((-1, 0), lambda x, z, W: W - 1 - z),  # MIRRORED: art +x = north
 }
 
 
@@ -195,7 +198,7 @@ def build_cell(vt, cells, k, family):
         # along-face continuation (any wall family), rotated-axis mapping
         cont = {
             "s": ((1, 0), (-1, 0)), "n": ((-1, 0), (1, 0)),
-            "e": ((0, -1), (0, 1)), "w": ((0, 1), (0, -1)),
+            "e": ((0, 1), (0, -1)), "w": ((0, -1), (0, 1)),
         }[d]
         e_on = (k[0] + cont[0][0], k[1] + cont[0][1]) in cells
         w_on = (k[0] + cont[1][0], k[1] + cont[1][1]) in cells
@@ -292,10 +295,13 @@ def arrangement(vt_by_family, layout):
                     assert v.solid[r][z][x], f"boundary carved at {k} dir={d} r={r} a={a}"
 
     # 4. ray sweep: below the cap plane no ray runs > shell depth through the
-    # footprint without hitting solid (shell = carve depth + a corner diagonal).
+    # footprint without hitting solid. Corner-continuous art (E/W mirrored)
+    # ALIGNS carve columns at corners, so a grazing diagonal can pass two
+    # aligned shells back-to-back — still shell-only travel (the 12px interior
+    # of assert 1 stays impassable), hence two shells + slack.
     rng = random.Random(7)
     W = next(iter(vox.values()))[0].W
-    max_free = (SIDE_CARVE_PX * 2 + 2) / W          # in cell units
+    max_free = (SIDE_CARVE_PX * 4) / W              # in cell units
     xs = [c[0] for c in cells]; ys = [c[1] for c in cells]
     lo = (min(xs) - 1.0, min(ys) - 1.0)
     hi = (max(xs) + 1.0, max(ys) + 1.0)
