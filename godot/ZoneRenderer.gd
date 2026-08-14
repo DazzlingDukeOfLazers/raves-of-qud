@@ -3575,6 +3575,19 @@ func _wall_cell_faces(inp: Dictionary) -> Array:
 					"n": prot[depth * W + a] = 1
 					"e": prot[a * W + (W - 1 - depth)] = 1
 					"w": prot[a * W + depth] = 1
+	# CORNERS where two EXPOSED faces meet keep their solid edge. The wrap puts
+	# the SAME art column on both corner faces, so an edge gap column would
+	# carve from both directions and delete the whole corner column — a chunk
+	# bitten out of the building edge (Daniel's report). Relief starts one
+	# shell in from the corner, like a real block edge.
+	for pair in [["n", "e"], ["e", "s"], ["s", "w"], ["w", "n"]]:
+		if String(fv[pair[0]]) == "" or String(fv[pair[1]]) == "":
+			continue
+		for i in SIDE_CARVE_PX:
+			for j in SIDE_CARVE_PX:
+				var pz: int = i if pair.has("n") else W - 1 - i
+				var px: int = j if pair.has("w") else W - 1 - j
+				prot[pz * W + px] = 1
 	# facade carves. The art WRAPS the block so corners are continuous (Daniel's
 	# marker test: the S face's last column and the E face's first column meet at
 	# one physical corner and must show the SAME art column). S reads W->E

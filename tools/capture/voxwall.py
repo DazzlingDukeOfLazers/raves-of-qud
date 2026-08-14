@@ -190,6 +190,18 @@ def build_cell(vt, cells, k, family):
                 elif dz == -1: prot[depth][a] = True
                 elif dx == 1: prot[a][W - 1 - depth] = True
                 else:         prot[a][depth] = True
+    # CORNERS where two EXPOSED faces meet keep their solid edge: the wrap puts
+    # the same art column on both corner faces, so an edge gap would carve from
+    # both directions and delete the whole corner column (the missing-chunk
+    # report). Relief starts one shell in from the corner.
+    for pair in (("n", "e"), ("e", "s"), ("s", "w"), ("w", "n")):
+        if any((k[0] + DIRS[d][0][0], k[1] + DIRS[d][0][1]) in cells for d in pair):
+            continue
+        for i in range(SIDE_CARVE_PX):
+            for j in range(SIDE_CARVE_PX):
+                pz = i if "n" in pair else W - 1 - i
+                px = j if "w" in pair else W - 1 - j
+                prot[pz][px] = True
     for d, ((dx, dz), artx) in DIRS.items():
         nb = (k[0] + dx, k[1] + dz)
         exposure[d] = nb not in cells

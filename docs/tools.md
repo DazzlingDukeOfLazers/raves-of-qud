@@ -92,7 +92,9 @@ pixels (frame = where its stock band differs from stock mid-run). Paint one pixe
 every wall face in the game wears it. The art WRAPS the block: S reads W->E, E continues S->N
 MIRRORED, N reads E->W, W continues N->S mirrored — every corner column is shared by both its
 faces, so patterns run continuously around corners (verified with marker art; the fence/tent
-mirroring lesson). Also: a rotatable dimetric
+mirroring lesson). Corners where two exposed faces meet keep their SOLID edge — the wrap aligns
+gap columns at corners, and letting both faces carve there deleted the whole corner column (the
+missing-chunk report); relief starts one shell in from the edge. Also: a rotatable dimetric
 preview drawn from the renderer's OWN volume rules (`wall_preview_arrangement`) with
 single/run/corner/block arrangements, and a **core colour** row writing
 `overrides.json tiles[<family>].core`. Save writes `tiles_custom/<variant>`; wall custom art
