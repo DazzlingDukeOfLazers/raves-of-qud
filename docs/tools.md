@@ -89,12 +89,14 @@ hop to them. The FACE canvas is FAMILY-WIDE: every face of every cell renders fr
 four horizontal-run variants, which differ only in end-frame pixels — so the editor edits one
 face surface (the mid-run band) and Save writes it into all four, each keeping its own frame
 pixels (frame = where its stock band differs from stock mid-run). Paint one pixel, save once,
-every wall face in the game wears it. The art WRAPS the block: S reads W->E, E continues S->N
-MIRRORED, N reads E->W, W continues N->S mirrored — every corner column is shared by both its
-faces, so patterns run continuously around corners (verified with marker art; the fence/tent
-mirroring lesson). Corners where two exposed faces meet keep their SOLID edge — the wrap aligns
-gap columns at corners, and letting both faces carve there deleted the whole corner column (the
-missing-chunk report); relief starts one shell in from the edge. Also: a rotatable dimetric
+every wall face in the game wears it. The art WRAPS the building in ONE direction — wallpaper
+applied clockwise seen from above: S reads W->E, E continues S->N, N reads E->W, W continues
+N->S. Every face shows the art UNMIRRORED left-to-right from outside, and every corner is a
+col15|col0 joint — the same joint as any cell seam along a run, so tileable art turns corners
+seamlessly. Corners where two exposed faces meet keep their SOLID edge — edge gap columns can
+coincide at a corner, and letting both faces carve there deleted the whole corner column (the
+missing-chunk report); relief starts one shell in from the edge. The bottom voxel row is
+FOUNDATION and never carves (base pockets were open underneath — the light-leak dashes). Also: a rotatable dimetric
 preview drawn from the renderer's OWN volume rules (`wall_preview_arrangement`) with
 single/run/corner/block arrangements, and a **core colour** row writing
 `overrides.json tiles[<family>].core`. Save writes `tiles_custom/<variant>`; wall custom art

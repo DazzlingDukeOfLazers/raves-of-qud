@@ -152,14 +152,15 @@ class CellVox:
 
 
 # direction -> (dz/dx step into the cell, art-x mapping fn(x, z, W)).
-# The art WRAPS the block: S reads W->E, E continues S->N MIRRORED, N reads
-# E->W, W continues N->S mirrored — every corner column is shared by both its
-# faces (Daniel's marker test; the fence/tent mirroring lesson).
+# The art WRAPS the building in ONE direction — wallpaper applied clockwise
+# seen from above: S reads W->E, E continues S->N, N reads E->W, W continues
+# N->S. Every face shows the art unmirrored left-to-right from outside; every
+# corner is a col15|col0 joint, the same joint as any cell seam along a run.
 DIRS = {
     "s": ((0, 1), lambda x, z, W: x),           # art +x = east
     "n": ((0, -1), lambda x, z, W: W - 1 - x),  # art +x = west
-    "e": ((1, 0), lambda x, z, W: z),           # MIRRORED: art +x = south
-    "w": ((-1, 0), lambda x, z, W: W - 1 - z),  # MIRRORED: art +x = north
+    "e": ((1, 0), lambda x, z, W: W - 1 - z),   # art +x = north
+    "w": ((-1, 0), lambda x, z, W: z),          # art +x = south
 }
 
 
@@ -210,7 +211,7 @@ def build_cell(vt, cells, k, family):
         # along-face continuation (any wall family), rotated-axis mapping
         cont = {
             "s": ((1, 0), (-1, 0)), "n": ((-1, 0), (1, 0)),
-            "e": ((0, 1), (0, -1)), "w": ((0, -1), (0, 1)),
+            "e": ((0, -1), (0, 1)), "w": ((0, 1), (0, -1)),
         }[d]
         e_on = (k[0] + cont[0][0], k[1] + cont[0][1]) in cells
         w_on = (k[0] + cont[1][0], k[1] + cont[1][1]) in cells
