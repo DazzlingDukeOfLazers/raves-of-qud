@@ -77,6 +77,7 @@ var _cy := -1
 var _zone := ""
 var _tile := ""
 var _editor            # TileEditor: the 16x24 paint program (Edit art button)
+var _voxeditor         # WallVoxEditor: the wall voxel editor (Voxel edit button)
 var _report := ""
 
 func setup(renderer: ZoneRenderer) -> void:
@@ -259,6 +260,9 @@ func _build() -> void:
 	_editor = load("res://TileEditor.gd").new()
 	add_child(_editor)
 	_editor.setup(_renderer, layer)
+	_voxeditor = load("res://WallVoxEditor.gd").new()
+	add_child(_voxeditor)
+	_voxeditor.setup(_renderer, layer)
 
 	_panel = PanelContainer.new()
 	# Pin the BOTTOM-RIGHT corner and grow up/left to fit the content. The panel
@@ -350,6 +354,22 @@ func _build() -> void:
 				obj = _objects[_subject.selected]
 			_editor.open(_tile, obj))
 	row.add_child(edit_btn)
+
+	# the wall VOXEL editor (WallVoxEditor.gd) — autotile wall variants only
+	var vox_btn := Button.new()
+	vox_btn.text = "Voxel edit"
+	vox_btn.focus_mode = Control.FOCUS_NONE
+	vox_btn.pressed.connect(func():
+		if _tile == "" or _voxeditor == null:
+			return
+		if not _voxeditor.is_wall_variant(_tile):
+			_status.text = "not a wall tile — Voxel edit needs a -XXXXXXXX wall variant"
+			return
+		var obj := {}
+		if _subject.selected >= 0 and _subject.selected < _objects.size():
+			obj = _objects[_subject.selected]
+		_voxeditor.open(_tile, obj))
+	row.add_child(vox_btn)
 
 	_cancel = Button.new()
 	_cancel.text = "Cancel"

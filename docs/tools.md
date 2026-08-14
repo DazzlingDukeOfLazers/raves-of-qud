@@ -78,6 +78,15 @@ Legend: `#` opaque-dark → main · `o` opaque-light → detail · `.` transpare
 
 These mirror GDScript algorithms so they can be verified without a screenshot.
 
+### The wall VOXEL editor (in-app)
+Select a wall, report form -> **Voxel edit**: roof + face canvases editing the tile art's two
+bands per autotile variant (prev/next hops variants — corners included), a rotatable dimetric
+preview drawn from the renderer's OWN volume rules (`wall_preview_arrangement`) with
+single/run/corner/block arrangements, and a **core colour** row writing
+`overrides.json tiles[<family>].core`. Save writes `tiles_custom/<variant>`; wall custom art
+renders AS-AUTHORED (transparent = carve) and hot-reloads (the custom watch clears the wall
+caches). The 2D `Edit art` button remains for sprites.
+
 ### `voxwall.py` (LIVE — the wall-volume proof harness)
 Mirrors `ZoneRenderer._wall_cell_mesh` (the watertight per-cell voxel wall). Builds real
 arrangements (isolated / run / corner / 2x2 / mixed-family) from the actual exported art and

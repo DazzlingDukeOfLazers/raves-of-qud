@@ -93,6 +93,7 @@ var _position_overrides := {} # tile family -> "float" (default is ground-seated
 var _glow_overrides := {}
 var _cutout_overrides := {}   # family -> true: the darker of main/detail renders TRANSPARENT   # tile family -> true (user tagged it bioluminescent GLOW)
 var _stairdir_overrides := {} # tile family -> "n"/"e"/"s"/"w" (descent the user picked)
+var _core_overrides := {}   # tile family -> Color: the wall recess/core colour (voxel editor)
 var _overrides_raw := "?"   # last overrides.json text, to skip re-parsing
 var _overrides_dirty := false  # overrides.json changed -> frozen static needs a rebuild
 # Export race: the mod exports tiles ON SIGHT (a frame after the snapshot that first
@@ -1336,12 +1337,15 @@ func _load_overrides() -> void:
 	if csig != _custom_sig:
 		_custom_sig = csig
 		_overrides_dirty = true
+		_wall_caches_clear()        # wall textures/gaps/meshes bake custom art in
 	if text == _overrides_raw:
 		return                      # unchanged since last frame — skip the re-parse
 	_overrides_raw = text
 	_overrides_dirty = true         # rules changed -> force a static rebuild (see render_snapshot)
+	_wall_caches_clear()            # the core colour rule bakes into cached wall meshes
 	_overrides.clear()
 	_fill_overrides.clear()
+	_core_overrides.clear()
 	_cutout_overrides.clear()
 	_position_overrides.clear()
 	_glow_overrides.clear()
@@ -1376,6 +1380,10 @@ func _load_overrides() -> void:
 		var sd := _match_stairdir(String(entry.get("stairDir", "")))
 		if sd != "":
 			_stairdir_overrides[fam] = sd
+		# "core": "#rrggbb" — the wall recess/core colour (set from the voxel editor)
+		var core := String(entry.get("core", ""))
+		if core.begins_with("#") and core.length() >= 7:
+			_core_overrides[fam] = Color.html(core)
 
 ## Verdict phrase -> shape key, or "" if none matches.
 func _match_shape(verdict: String) -> String:
@@ -3441,35 +3449,92 @@ var _voxel_mat: StandardMaterial3D
 ## of the old core+skins hybrid are impossible by construction.
 ##
 ## `fv` maps direction -> face-variant tile for EXPOSED directions, "" where a
-## wall neighbour sits. Cached per (variant, faces, colours); cells sharing a
-## neighbourhood shape share the mesh.
+## wall neighbour sits. The volume/emission lives in _wall_cell_faces (shared
+## with the voxel editor's preview); this wrapper meshes it, cached per
+## (variant, faces, colours) so cells sharing a neighbourhood share the mesh.
 func _wall_cell_mesh(variant_tile: String, fv: Dictionary) -> ArrayMesh:
-	var cap_tex := _cap_tex(variant_tile)
-	if cap_tex == null:
-		return null
-	var cap_img := cap_tex.get_image()
-	if cap_img == null:
-		return null
 	var key := "cell|%s|%s|%s|%s|%s|%s|%s|%s" % [variant_tile, fv["s"], fv["e"],
 		fv["n"], fv["w"], _wall_main, _wall_detail, _wall_bg]
 	if _voxel_cache.has(key):
 		return _voxel_cache[key]
-	var W := cap_img.get_width()
-	var caph := cap_img.get_height()
-	var gaps: Array = _cap_gaps(variant_tile)
-	var bg := _wall_bg_color().to_html(false)
-	# face art per exposed direction (recoloured band; 1:1 with the mask, no scale)
+	var inp := _wall_cell_inputs(variant_tile, fv, null, "")
+	if inp.is_empty():
+		return null
+	var faces: Array = _wall_cell_faces(inp)
+	if faces.is_empty():
+		return null
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for f in faces:
+		var q: Array = f["q"]
+		for idx in [0, 1, 2, 0, 2, 3]:
+			st.set_normal(f["n"])
+			st.set_color(f["c"])
+			st.add_vertex(q[idx])
+	var mesh := ArrayMesh.new()
+	st.commit(mesh)
+	_voxel_cache[key] = mesh
+	return mesh
+
+## The art inputs for one cell's volume: recoloured cap image + its gap grid and
+## the face image per exposed direction. `edit_img` (with `edit_variant`)
+## substitutes UNSAVED voxel-editor art for that variant — the preview path;
+## the game build passes null and gets the cached textures.
+func _wall_cell_inputs(variant_tile: String, fv: Dictionary, edit_img: Image, edit_variant: String) -> Dictionary:
+	var editing := edit_img != null and variant_tile == edit_variant
+	var cap_img: Image = null
+	if editing:
+		var region := edit_img.get_region(Rect2i(0, 0, edit_img.get_width(), _wall_split(edit_img).x))
+		cap_img = _as_authored(region).get_image()
+	else:
+		var t := _cap_tex(variant_tile)
+		if t != null:
+			cap_img = t.get_image()
+	if cap_img == null:
+		return {}
+	var gaps := []
+	if editing:
+		var bg := _wall_bg_color().to_html(false)
+		for y in cap_img.get_height():
+			var row := []
+			for x in cap_img.get_width():
+				row.append(cap_img.get_pixel(x, y).to_html(false) == bg)
+			gaps.append(row)
+	else:
+		gaps = _cap_gaps(variant_tile)
 	var f_img := {}
-	var F := WALL_FACE_ROWS
 	for d in ["s", "e", "n", "w"]:
 		if String(fv[d]) == "":
 			continue
-		var t := _wall_region_tex("side", String(fv[d]))
-		if t != null:
-			var im := t.get_image()
-			if im != null:
-				f_img[d] = im
-				F = im.get_height()
+		var im: Image = null
+		if edit_img != null and String(fv[d]) == edit_variant:
+			var sp := _wall_split(edit_img)
+			if sp.y < edit_img.get_height():
+				var region2 := edit_img.get_region(Rect2i(0, sp.y,
+					edit_img.get_width(), edit_img.get_height() - sp.y))
+				im = _as_authored(region2).get_image()
+		else:
+			var t2 := _wall_region_tex("side", String(fv[d]))
+			if t2 != null:
+				im = t2.get_image()
+		if im != null:
+			f_img[d] = im
+	return {"cap": cap_img, "gaps": gaps, "faces": f_img, "fv": fv}
+
+## Volume + emission for one cell, cell-local coords. Returns face quads
+## [{q: [4 Vector3], n: Vector3, c: Color}] — meshed by _wall_cell_mesh, drawn
+## directly by the voxel editor's preview. ONE implementation for both.
+func _wall_cell_faces(inp: Dictionary) -> Array:
+	var cap_img: Image = inp["cap"]
+	var gaps: Array = inp["gaps"]
+	var f_img: Dictionary = inp["faces"]
+	var fv: Dictionary = inp["fv"]
+	var W := cap_img.get_width()
+	var caph := cap_img.get_height()
+	var bg := _wall_bg_color().to_html(false)
+	var F := WALL_FACE_ROWS
+	for d in f_img:
+		F = (f_img[d] as Image).get_height()
 	# y planes, descending: WALL_H, the cap floor, then the face-row boundaries
 	# below it, ending at 0. Row r spans planes[r+1]..planes[r].
 	var rh := WALL_H / float(F)
@@ -3524,15 +3589,14 @@ func _wall_cell_mesh(variant_tile: String, fv: Dictionary) -> ArrayMesh:
 						"s": cz = W - 1 - depth; cx = a
 						"n": cz = depth; cx = a
 						"e": cz = a; cx = W - 1 - depth
-						"w": cz = a; cx = depth
+						_: cz = a; cx = depth
 					if prot[cz * W + cx] == 0:
 						solid[(r * W + cz) * W + cx] = 0
 
 	# emission: every solid voxel face against air, once
 	var recess := _wall_recess_color()
 	var mainc := _qud_color(_wall_main)
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var out := []
 	var ps := 1.0 / W
 	for r in R:
 		var yb: float = planes[r + 1]
@@ -3548,17 +3612,15 @@ func _wall_cell_mesh(variant_tile: String, fv: Dictionary) -> ArrayMesh:
 				var x1 := x0 + ps
 				var capc := cap_img.get_pixel(x, az)
 				# +Y: the cap surface (art colour) or a carved pocket's floor
-				if r == 0:
-					_vc_top(st, x0, x1, z0, z1, yt, capc)
-				elif solid[((r - 1) * W + z) * W + x] == 0:
-					_vc_top(st, x0, x1, z0, z1, yt, recess)
+				if r == 0 or solid[((r - 1) * W + z) * W + x] == 0:
+					out.append({"q": [Vector3(x0, yt, z0), Vector3(x1, yt, z0),
+						Vector3(x1, yt, z1), Vector3(x0, yt, z1)],
+						"n": Vector3.UP, "c": capc if r == 0 else recess})
 				# -Y: underside over a pocket below (rare; reads as shadow)
 				if r + 1 < R and solid[((r + 1) * W + z) * W + x] == 0:
-					for p in [Vector3(x0, yb, z0), Vector3(x1, yb, z0), Vector3(x1, yb, z1),
-							  Vector3(x0, yb, z0), Vector3(x1, yb, z1), Vector3(x0, yb, z1)]:
-						st.set_normal(Vector3.DOWN)
-						st.set_color(recess)
-						st.add_vertex(p)
+					out.append({"q": [Vector3(x0, yb, z0), Vector3(x0, yb, z1),
+						Vector3(x1, yb, z1), Vector3(x1, yb, z0)],
+						"n": Vector3.DOWN, "c": recess})
 				# laterals: skip toward wall neighbours (flush below the cap; the
 				# seam pass owns the cap row), emit toward carved pockets and the
 				# exposed outside
@@ -3594,16 +3656,77 @@ func _wall_cell_mesh(variant_tile: String, fv: Dictionary) -> ArrayMesh:
 					elif s[0] < 0:    pa = Vector3(x0, yb, z1); pb = Vector3(x0, yb, z0)
 					elif s[1] > 0:    pa = Vector3(x0, yb, z1); pb = Vector3(x1, yb, z1)
 					else:             pa = Vector3(x1, yb, z0); pb = Vector3(x0, yb, z0)
-					var pat := Vector3(pa.x, yt, pa.z)
-					var pbt := Vector3(pb.x, yt, pb.z)
-					for p in [pa, pbt, pat, pa, pb, pbt]:
-						st.set_normal(nrm)
-						st.set_color(col)
-						st.add_vertex(p)
-	var mesh := ArrayMesh.new()
-	st.commit(mesh)
-	_voxel_cache[key] = mesh
-	return mesh
+					out.append({"q": [pa, pb, Vector3(pb.x, yt, pb.z), Vector3(pa.x, yt, pa.z)],
+						"n": nrm, "c": col})
+	return out
+
+## Faces for an ARRANGEMENT of same-family wall cells — the voxel editor's
+## preview, built by the SAME volume rules as the game. `layout` is an Array of
+## Vector2i cell coords; `obj` supplies the colour context exactly as
+## _rebuild_walls derives it. `edit_img` (16x24 or null) substitutes unsaved
+## editor art wherever the arrangement resolves to `edit_variant` — cap AND
+## face bands. Returns [{q: [4 world-space Vector3], n: Vector3, c: Color}].
+func wall_preview_arrangement(sel_tile: String, obj: Dictionary, layout: Array,
+		edit_img: Image, edit_variant: String) -> Array:
+	_wall_tile = _canon_wall_tile(sel_tile)
+	_wall_main = _pick_color_string(obj)
+	_wall_detail = String(obj.get("detail", ""))
+	_wall_bg = _parse_bg(_bg_source(obj))
+	var cells := {}
+	for k in layout:
+		cells[k] = true
+	var offs := [Vector2i(0, -1), Vector2i(1, -1), Vector2i(1, 0), Vector2i(1, 1),
+		Vector2i(0, 1), Vector2i(-1, 1), Vector2i(-1, 0), Vector2i(-1, -1)]
+	var out := []
+	for k in layout:
+		var bits := ""
+		for o in offs:
+			bits += "1" if cells.has(k + o) else "0"
+		var v := _variant_for_bits(_wall_tile, bits)
+		var wn: bool = cells.has(k + Vector2i(0, -1))
+		var ws: bool = cells.has(k + Vector2i(0, 1))
+		var we: bool = cells.has(k + Vector2i(1, 0))
+		var ww: bool = cells.has(k + Vector2i(-1, 0))
+		var fv := {
+			"s": "" if ws else _face_variant(v, we, ww),
+			"e": "" if we else _face_variant(v, wn, ws),
+			"n": "" if wn else _face_variant(v, ww, we),
+			"w": "" if ww else _face_variant(v, ws, wn),
+		}
+		var inp := _wall_cell_inputs(v, fv, edit_img, edit_variant)
+		if inp.is_empty():
+			continue
+		for f in _wall_cell_faces(inp):
+			var q := []
+			for p in f["q"]:
+				q.append(p + Vector3(k.x, 0.0, k.y))
+			out.append({"q": q, "n": f["n"], "c": f["c"]})
+	return out
+
+## Public face of _wall_split for the voxel editor: where a 16x24 wall art's
+## cap band ends and its face band begins.
+func wall_art_split(img: Image) -> Vector2i:
+	return _wall_split(img)
+
+## The exported variant name matching an autotile bit pattern: exact art, else
+## cardinals-only, else the tile unchanged.
+func _variant_for_bits(tile: String, bits: String) -> String:
+	var dash := tile.rfind("-")
+	var dot := tile.rfind(".")
+	if dash < 0 or dot < dash:
+		return tile
+	var base := tile.substr(0, dash)
+	var ext := tile.substr(dot)
+	var cand := base + "-" + bits + ext
+	if _mask(cand) != null:
+		return cand
+	var card := ""
+	for i in bits.length():
+		card += bits[i] if i % 2 == 0 else "0"
+	cand = base + "-" + card + ext
+	if _mask(cand) != null:
+		return cand
+	return tile
 
 ## Shared material for voxel caps:
 
@@ -3616,7 +3739,17 @@ func _wall_cell_mesh(variant_tile: String, fv: Dictionary) -> ArrayMesh:
 ## with only a faint ambient nudge — reads as the material in shadow, not a foreign
 ## hole. Shared by the carved pocket floors and backs so they match.
 func _wall_recess_color() -> Color:
+	var fam := tile_family(_wall_tile)
+	if _core_overrides.has(fam):
+		return _core_overrides[fam]
 	return _qud_color(_wall_main).darkened(0.5).lerp(_world_bg, 0.12)
+
+## Clear every cache that bakes wall art or the core colour into textures/meshes.
+## Called when tiles_custom changes or overrides.json is re-parsed.
+func _wall_caches_clear() -> void:
+	_wallmat_cache.clear()
+	_cap_gap_cache.clear()
+	_voxel_cache.clear()
 
 func _voxel_material() -> StandardMaterial3D:
 	if _voxel_mat != null:
@@ -3657,10 +3790,6 @@ func _voxel_material_live() -> StandardMaterial3D:
 func _wall_skin_material() -> StandardMaterial3D:
 	return _voxel_material_live() if _live_build else _voxel_material()
 
-func _vc_top(st: SurfaceTool, x0: float, x1: float, z0: float, z1: float, y: float, c: Color) -> void:
-	for p in [Vector3(x0, y, z0), Vector3(x1, y, z1), Vector3(x1, y, z0),
-			  Vector3(x0, y, z0), Vector3(x0, y, z1), Vector3(x1, y, z1)]:
-		st.set_normal(Vector3.UP); st.set_color(c); st.add_vertex(p)
 
 ## The top-down cap of ONE autotile variant, recoloured. Borders appear only on
 ## the edges that variant says are exposed, so adjacent cells join seamlessly.
@@ -3672,9 +3801,23 @@ func _cap_tex(tile: String) -> ImageTexture:
 	if mask == null:
 		return _wall_top_material_tex()      # fall back to the isolated tile
 	var region := mask.get_region(Rect2i(0, 0, mask.get_width(), _wall_split(mask).x))
-	var tex := _recolor_image(region, _wall_main, _wall_detail, Fill.ALL)
+	# custom art renders AS-AUTHORED (polychrome); the mask recolour would crush it
+	var tex := _as_authored(region) if _custom_tile_path(tile) != "" \
+		else _recolor_image(region, _wall_main, _wall_detail, Fill.ALL)
 	_wallmat_cache[key] = tex
 	return tex
+
+## A custom-art band, as painted: opaque pixels keep their colour, transparent
+## pixels become the wall background — which is exactly the carve predicate
+## (_cap_gaps tests px == bg), so painting transparent means "carve here".
+func _as_authored(img: Image) -> ImageTexture:
+	var out := Image.create(img.get_width(), img.get_height(), false, Image.FORMAT_RGBA8)
+	var bg := _wall_bg_color()
+	for y in img.get_height():
+		for x in img.get_width():
+			var p := img.get_pixel(x, y)
+			out.set_pixel(x, y, p if p.a >= 0.5 else bg)
+	return ImageTexture.create_from_image(out)
 
 func _wall_top_material_tex() -> ImageTexture:
 	return _wall_region_tex("top")
@@ -3854,7 +3997,8 @@ func _wall_region_tex(kind: String, face_variant := "") -> ImageTexture:
 			var split := _wall_split(mask)
 			if split.y < h:
 				var region := mask.get_region(Rect2i(0, split.y, w, h - split.y))
-				tex = _recolor_image(region, _wall_main, _wall_detail, Fill.ALL)
+				tex = _as_authored(region) if _custom_tile_path(face_tile) != "" \
+					else _recolor_image(region, _wall_main, _wall_detail, Fill.ALL)
 	if tex != null:
 		_wallmat_cache[key] = tex
 	return tex

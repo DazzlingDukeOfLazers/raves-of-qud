@@ -62,6 +62,10 @@ add a one-liner (symptom → rule).
   the popup still selects only via KEYBOARD from the harness (open, then plain `hv key raves DOWN
   ... RETURN` — no `--focus`, activate closes it; the popup opens unfocused so the FIRST down lands
   on item 0). Posted clicks close it without selecting — drive dropdowns by keys.
+- **Wall CUSTOM art is as-authored; transparent = carve.** `_cap_tex`/`_wall_region_tex` skip
+  the mask recolour for tiles_custom files and fill transparency with the wall bg — which IS the
+  carve predicate. The custom watch must clear `_wallmat_cache`/`_cap_gap_cache`/`_voxel_cache`
+  (`_wall_caches_clear`) or edits go stale; overrides re-parse clears them too (core colour).
 - **Walls are ONE watertight voxel volume per cell** (`_wall_cell_mesh`; proven in
   `tools/capture/voxwall.py` — run it after any wall-builder change). Full block, cap art carves
   the roof, face art carves exposed faces, carves never enter the shell beside a wall neighbour.
