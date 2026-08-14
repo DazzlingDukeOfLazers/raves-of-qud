@@ -4591,8 +4591,14 @@ func _mask(tile: String) -> Image:
 		return null
 	var img := Image.new()
 	if img.load_png_from_buffer(bytes) != OK:
-		if _live_build: _static_saw_missing = true   # partial PNG mid-export
-		return null
+		# Qud names some PNGs .bmp, so PNG is the norm — but an EXTERNAL tool
+		# writing tiles_custom can honour the extension and produce a real BMP
+		# (PIL did: the four face sources silently failed to load and every
+		# wall face fell back to its own stock checker band — "roof pattern on
+		# the side"). Accept genuine BMP bytes rather than failing silently.
+		if img.load_bmp_from_buffer(bytes) != OK:
+			if _live_build: _static_saw_missing = true   # partial file mid-export
+			return null
 	if img.get_format() != Image.FORMAT_RGBA8:
 		img.convert(Image.FORMAT_RGBA8)
 	_mask_cache[fname] = img

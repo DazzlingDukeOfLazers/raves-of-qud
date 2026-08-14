@@ -68,6 +68,11 @@ add a one-liner (symptom → rule).
   seam pass sampling the neighbour's edge with MY row count walked off the end — a silent runtime
   error in the exported app that aborted the seam mid-cell and left holes at wall boundaries.
   Sample by scaled index (`i * nb_h / hh`), like the cap az mapping.
+- **Tile files are PNG BYTES regardless of the .bmp extension** (Qud's naming quirk), and every
+  loader reads them as PNG. An external tool that honours the extension (PIL `im.save(path)`)
+  writes a REAL BMP — `_mask` then fails silently and wall faces fall back to each cell's own
+  stock band ("roof pattern on the side"). Write `format="PNG"` explicitly; `_mask` now also
+  accepts genuine BMP bytes as a backstop.
 - **Wall CUSTOM art is as-authored; transparent = carve.** `_cap_tex`/`_wall_region_tex` skip
   the mask recolour for tiles_custom files and fill transparency with the wall bg — which IS the
   carve predicate. The custom watch must clear `_wallmat_cache`/`_cap_gap_cache`/`_voxel_cache`
