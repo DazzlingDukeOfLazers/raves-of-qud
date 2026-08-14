@@ -3138,14 +3138,26 @@ func _emit_seam_walls(k: Vector2i, variant_tile: String, all_wall_cells: Diction
 		var g_nb: Array = all_wall_cells[n]
 		if g_nb.is_empty():
 			continue
+		# grids can differ in size ACROSS cells — cap band heights vary per
+		# VARIANT (a couple of opaque frame pixels in the separator row push
+		# _wall_split to its fallback: metal 00100000 is 14 rows to 00000000's
+		# 13) and per FAMILY (brinestalk 15). Indexing the neighbour's edge with
+		# MY row count walked off the end: a runtime error that aborted the
+		# seam pass mid-cell and left a HOLE in the wall at the boundary
+		# (Daniel's report at Joppa (8,17)). Sample the neighbour's edge by
+		# SCALED index instead — same normalization the cap az mapping uses.
+		var nb_h: int = g_nb.size()
+		var nb_w: int = (g_nb[0] as Array).size()
 		var count: int = hh if d[0] != 0 else w
 		for i in count:
 			var my_gap: bool
 			var nb_gap: bool
-			if d == [1, 0]:      my_gap = g_my[i][w - 1]; nb_gap = g_nb[i][0]
-			elif d == [-1, 0]:   my_gap = g_my[i][0];     nb_gap = g_nb[i][w - 1]
-			elif d == [0, 1]:    my_gap = g_my[hh - 1][i]; nb_gap = g_nb[0][i]
-			else:                my_gap = g_my[0][i];     nb_gap = g_nb[hh - 1][i]
+			var ni_h: int = mini(nb_h - 1, i * nb_h / hh)
+			var ni_w: int = mini(nb_w - 1, i * nb_w / w)
+			if d == [1, 0]:      my_gap = g_my[i][w - 1]; nb_gap = g_nb[ni_h][0]
+			elif d == [-1, 0]:   my_gap = g_my[i][0];     nb_gap = g_nb[ni_h][nb_w - 1]
+			elif d == [0, 1]:    my_gap = g_my[hh - 1][i]; nb_gap = g_nb[0][ni_w]
+			else:                my_gap = g_my[0][i];     nb_gap = g_nb[nb_h - 1][ni_w]
 			# I own the seam wall only when I am flush and the neighbour is carved.
 			if my_gap or not nb_gap:
 				continue

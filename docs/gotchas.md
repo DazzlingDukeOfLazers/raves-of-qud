@@ -62,6 +62,12 @@ add a one-liner (symptom → rule).
   the popup still selects only via KEYBOARD from the harness (open, then plain `hv key raves DOWN
   ... RETURN` — no `--focus`, activate closes it; the popup opens unfocused so the FIRST down lands
   on item 0). Posted clicks close it without selecting — drive dropdowns by keys.
+- **Cap-gap grids differ in size BETWEEN cells — never index a neighbour's grid with your own
+  dimensions.** `_wall_split` is per-variant: a couple of opaque frame pixels in the separator row
+  push it to the fallback (metal: 15 variants at 13 cap rows, 93 at 14; brinestalk 15), so the
+  seam pass sampling the neighbour's edge with MY row count walked off the end — a silent runtime
+  error in the exported app that aborted the seam mid-cell and left holes at wall boundaries.
+  Sample by scaled index (`i * nb_h / hh`), like the cap az mapping.
 - **Wall CUSTOM art is as-authored; transparent = carve.** `_cap_tex`/`_wall_region_tex` skip
   the mask recolour for tiles_custom files and fill transparency with the wall bg — which IS the
   carve predicate. The custom watch must clear `_wallmat_cache`/`_cap_gap_cache`/`_voxel_cache`
