@@ -3633,6 +3633,38 @@ func _wall_cell_faces(inp: Dictionary) -> Array:
 					if prot[cz * W + cx] == 0:
 						solid[(r * W + cz) * W + cx] = 0
 
+	# A SKIN voxel wears its art pixel on EVERY face it shows — outer skin,
+	# step sides, pocket-floor top, roof edge (Daniel: "blue on the face, but
+	# not on the side (nor the top)"). Precompute each shell voxel's art colour
+	# PER OWNING FACE: a corner voxel sits in two shells, and a step side with
+	# normal ±X belongs to the s/n relief while ±Z belongs to e/w — sampling
+	# the wrong face's art painted blue voxels red. ring_col is the depth-0
+	# skin only (the roof's outermost ring follows it).
+	var shell_col := {"s": {}, "n": {}, "e": {}, "w": {}}
+	var ring_col := {}
+	for d in f_img:
+		var im: Image = f_img[d]
+		var fh := im.get_height()
+		for r in R:
+			var midy := (planes[r] + planes[r + 1]) * 0.5
+			var frr := clampi(int((WALL_H - midy) / rh), 0, fh - 1)
+			for a in W:
+				var ax: int = a if (d == "s" or d == "w") else W - 1 - a
+				var pc := im.get_pixel(mini(ax, im.get_width() - 1), frr)
+				if pc.to_html(false) == bg:
+					continue
+				for depth in SIDE_CARVE_PX:
+					var cz: int
+					var cx: int
+					match String(d):
+						"s": cz = W - 1 - depth; cx = a
+						"n": cz = depth; cx = a
+						"e": cz = a; cx = W - 1 - depth
+						_: cz = a; cx = depth
+					shell_col[d][Vector3i(cx, cz, r)] = pc
+					if depth == 0 and r == 0:
+						ring_col[Vector2i(cx, cz)] = pc
+
 	# emission: every solid voxel face against air, once
 	var recess := _wall_recess_color()
 	var mainc := _qud_color(_wall_main)
@@ -3651,11 +3683,22 @@ func _wall_cell_faces(inp: Dictionary) -> Array:
 				var x0 := -0.5 + x * ps
 				var x1 := x0 + ps
 				var capc := cap_img.get_pixel(x, az)
-				# +Y: the cap surface (art colour) or a carved pocket's floor
+				# +Y: the cap surface, a carved pocket's floor — or a skin
+				# voxel's TOP: the roof's outermost ring follows the face art
+				# ("the blue voxels on the top row should have blue tops"), and
+				# a pocket floor on a skin voxel keeps that voxel's colour.
 				if r == 0 or solid[((r - 1) * W + z) * W + x] == 0:
+					var tc := recess
+					if r == 0:
+						tc = ring_col.get(Vector2i(x, z), capc)
+					else:
+						for d3 in ["s", "e", "n", "w"]:
+							if shell_col[d3].has(Vector3i(x, z, r)):
+								tc = (shell_col[d3][Vector3i(x, z, r)] as Color).darkened(0.1)
+								break
 					out.append({"q": [Vector3(x0, yt, z0), Vector3(x1, yt, z0),
 						Vector3(x1, yt, z1), Vector3(x0, yt, z1)],
-						"n": Vector3.UP, "c": capc if r == 0 else recess})
+						"n": Vector3.UP, "c": tc})
 				# -Y: underside over a pocket below (rare; reads as shadow)
 				if r + 1 < R and solid[((r + 1) * W + z) * W + x] == 0:
 					out.append({"q": [Vector3(x0, yb, z0), Vector3(x0, yb, z1),
@@ -3696,29 +3739,17 @@ func _wall_cell_faces(inp: Dictionary) -> Array:
 						col = recess          # a carved pocket's back wall
 					else:
 						# the SIDE of a relief step: the owning voxel's own
-						# surface colour, shadowed — a blue voxel is blue on its
-						# sides too, and the baked shading gives the relief its
-						# depth (both from Daniel's review). Find the exposed
-						# face whose shell holds this voxel and sample its art.
+						# surface colour, shadowed — a blue voxel is blue on
+						# its sides too, and the baked shading gives the relief
+						# its depth. A ±X side belongs to the s/n relief, a ±Z
+						# side to e/w — the axis-consistent shell owns the face.
+						var key := Vector3i(x, z, r)
+						var dirs2: Array = ["s", "n"] if s[0] != 0 else ["e", "w"]
 						var sc := Color(0, 0, 0, 0)
-						for d2v in f_img:
-							var d2 := String(d2v)
-							var depth2: int
-							match d2:
-								"s": depth2 = W - 1 - z
-								"n": depth2 = z
-								"e": depth2 = W - 1 - x
-								_: depth2 = x
-							if depth2 >= SIDE_CARVE_PX:
-								continue
-							var im3: Image = f_img[d2v]
-							var a3: int = x if (d2 == "s" or d2 == "n") else z
-							var ax3: int = a3 if (d2 == "s" or d2 == "w") else W - 1 - a3
-							var fr3 := clampi(int((WALL_H - (yt + yb) * 0.5) / rh), 0, im3.get_height() - 1)
-							var pc3 := im3.get_pixel(mini(ax3, im3.get_width() - 1), fr3)
-							if pc3.to_html(false) != bg:
-								sc = pc3
-							break
+						for d3 in dirs2:
+							if shell_col[d3].has(key):
+								sc = shell_col[d3][key]
+								break
 						col = (sc if sc.a > 0.0 else mainc).darkened(0.35)
 					var nrm := Vector3(s[0], 0, s[1])
 					var pa: Vector3
