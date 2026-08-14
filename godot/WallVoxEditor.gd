@@ -46,11 +46,12 @@ var _core_chip: Control
 var _drop_btn: Button
 var _arr_btns := {}
 
-var _tile := ""            # the variant being edited
+var _tile := ""            # the variant being edited (its group's representative)
 var _obj := {}
 var _img: Image            # the full 16x24 working buffer
 var _split := Vector2i(16, 16)
-var _variants := []        # every exported variant of the family, sorted
+var _variants := []        # GROUPS of pixel-identical variant names, first-seen order
+var _group := []           # the current group's tile names (save/revert hit all)
 var _colors := []
 var _sel := 0
 var _picked := Color.WHITE
@@ -194,32 +195,68 @@ func open(tile: String, obj := {}) -> void:
 	_load_variant(tile)
 	_panel.visible = true
 
+## Variants are grouped by DISTINCT PIXEL CONTENT, not by name. Qud names wall
+## art by the raw 8-bit neighbourhood byte, but a diagonal only changes the
+## drawing when both flanking cardinals are walls — so the export cache holds
+## many pixel-identical files under different names (measured: 108 wall_metal
+## names, 37 distinct images). The hopper walks the distinct drawings; Save
+## writes the edit to EVERY name in the group, so visually-identical cells
+## can never disagree over an invisible diagonal.
 func _scan_variants(tile: String) -> void:
 	_variants = []
 	var flat_base := _flat(tile).substr(0, _flat(tile).rfind("-") + 1)
 	var ext := tile.substr(tile.rfind("."))
-	var seen := {}
-	for dir in [_renderer.tiles_dir(), _custom_dir()]:
-		var da := DirAccess.open(dir)
-		if da == null:
-			continue
-		for f in da.get_files():
-			if f.begins_with(flat_base) and f.ends_with(ext) and not seen.has(f):
-				seen[f] = true
-	var names := seen.keys()
-	names.sort()
-	# store as TILE names (the un-flattened prefix survives only in `tile`); the
-	# flat name IS the tile name for our purposes since _flat is stable
 	var prefix := tile.substr(0, tile.rfind("-") + 1)
+	var tiles_dir: String = _renderer.tiles_dir()
+	var names := []
+	var da := DirAccess.open(tiles_dir)
+	if da != null:
+		for f in da.get_files():
+			if f.begins_with(flat_base) and f.ends_with(ext):
+				names.append(f)
+	names.sort()
+	var by_key := {}
+	var order := []
+	var known := {}
 	for f in names:
-		_variants.append(prefix + f.substr(flat_base.length()))
+		known[f] = true
+		# group by decoded pixel identity of the QUD art (custom edits must not
+		# change which group a name belongs to)
+		var key := 0
+		var img := Image.new()
+		if img.load_png_from_buffer(FileAccess.get_file_as_bytes(tiles_dir.path_join(f))) == OK:
+			img.convert(Image.FORMAT_RGBA8)
+			key = hash(img.get_data()) * 31 + img.get_width()
+		else:
+			key = f.hash()
+		if not by_key.has(key):
+			by_key[key] = []
+			order.append(key)
+		by_key[key].append(prefix + f.substr(flat_base.length()))
+	# custom-only names (edits whose Qud art never exported) stand alone
+	var dc := DirAccess.open(_custom_dir())
+	if dc != null:
+		for f in dc.get_files():
+			if f.begins_with(flat_base) and f.ends_with(ext) and not known.has(f):
+				var key2: int = ("custom|" + f).hash()
+				by_key[key2] = [prefix + f.substr(flat_base.length())]
+				order.append(key2)
+	for k in order:
+		_variants.append(by_key[k])
+
+## The group (Array of equivalent tile names) the current tile belongs to.
+func _group_index() -> int:
+	for i in _variants.size():
+		if (_variants[i] as Array).has(_tile):
+			return i
+	return -1
 
 func _hop_variant(dir: int) -> void:
 	if _variants.is_empty():
 		return
-	var i := _variants.find(_tile)
+	var i := _group_index()
 	i = (i + dir + _variants.size()) % _variants.size()
-	_load_variant(_variants[i])
+	_load_variant(_variants[i][0])
 
 func _load_variant(tile: String) -> void:
 	_tile = tile
@@ -242,10 +279,18 @@ func _load_variant(tile: String) -> void:
 	var w := _img.get_width()
 	_roof.custom_minimum_size = Vector2(w * C, _split.x * C)
 	_face.custom_minimum_size = Vector2(w * C, maxi(1, 24 - _split.y) * C)
+	var gi := _group_index()
+	_group = _variants[gi] if gi >= 0 else [tile]
+	var any_custom := false
+	for t in _group:
+		if FileAccess.file_exists(_custom_dir().path_join(_flat(t))):
+			any_custom = true
+			break
 	var bits := tile.substr(tile.rfind("-") + 1)
-	_variant_lbl.text = "%s  (%d/%d)" % [bits.substr(0, bits.find(".")),
-		_variants.find(tile) + 1, _variants.size()]
-	_status.text = _flat(tile) + ("  (CUSTOM)" if FileAccess.file_exists(custom) else "")
+	var extra := " +%d alike" % (_group.size() - 1) if _group.size() > 1 else ""
+	_variant_lbl.text = "%s%s  (%d/%d)" % [bits.substr(0, bits.find(".")),
+		extra, gi + 1, _variants.size()]
+	_status.text = _flat(tile) + ("  (CUSTOM)" if any_custom else "")
 	_refresh()
 
 func close() -> void:
@@ -528,17 +573,28 @@ func _save() -> void:
 	if _img == null or _tile == "":
 		return
 	DirAccess.make_dir_recursive_absolute(_custom_dir())
-	var path := _custom_dir().path_join(_flat(_tile))
-	if _img.save_png(path) == OK:
-		_status.text = "saved -> %s (game reloads live)" % _flat(_tile)
+	# every name in the group: visually-identical cells must never disagree
+	# over an invisible diagonal bit
+	var wrote := 0
+	for t in (_group if not _group.is_empty() else [_tile]):
+		if _img.save_png(_custom_dir().path_join(_flat(t))) == OK:
+			wrote += 1
+	if wrote > 0:
+		_status.text = "saved -> %d equivalent variant name%s (game reloads live)" \
+			% [wrote, "" if wrote == 1 else "s"]
 	else:
 		_status.text = "SAVE FAILED"
 
 func _revert() -> void:
 	if _tile == "":
 		return
-	var path := _custom_dir().path_join(_flat(_tile))
-	if FileAccess.file_exists(path):
-		DirAccess.remove_absolute(path)
+	var removed := 0
+	for t in (_group if not _group.is_empty() else [_tile]):
+		var path := _custom_dir().path_join(_flat(t))
+		if FileAccess.file_exists(path):
+			DirAccess.remove_absolute(path)
+			removed += 1
+	if removed > 0:
 		_load_variant(_tile)
-		_status.text = "custom art removed — Qud's art restored"
+		_status.text = "custom art removed from %d name%s — Qud's art restored" \
+			% [removed, "" if removed == 1 else "s"]

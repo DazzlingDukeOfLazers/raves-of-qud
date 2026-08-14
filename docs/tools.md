@@ -80,7 +80,12 @@ These mirror GDScript algorithms so they can be verified without a screenshot.
 
 ### The wall VOXEL editor (in-app)
 Select a wall, report form -> **Voxel edit**: roof + face canvases editing the tile art's two
-bands per autotile variant (prev/next hops variants — corners included), a rotatable dimetric
+bands per autotile variant. The prev/next hopper walks DISTINCT DRAWINGS, not names — Qud names
+wall art by the raw 8-bit neighbourhood byte, so the export cache holds many pixel-identical
+files (measured: 108 wall_metal names, 37 images; a diagonal only changes the art when both
+flanking cardinals are walls) — and Save/Revert covers every equivalent name in the group, so
+identical-looking cells can never disagree over an invisible diagonal. Corners are variants;
+hop to them. Also: a rotatable dimetric
 preview drawn from the renderer's OWN volume rules (`wall_preview_arrangement`) with
 single/run/corner/block arrangements, and a **core colour** row writing
 `overrides.json tiles[<family>].core`. Save writes `tiles_custom/<variant>`; wall custom art
