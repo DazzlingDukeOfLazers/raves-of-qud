@@ -3606,10 +3606,15 @@ func _wall_cell_faces(inp: Dictionary) -> Array:
 	# (ax=a), E continues S->N MIRRORED (ax=a), N reads E->W (ax=W-1-a), W
 	# continues N->S mirrored (ax=W-1-a): every corner column is shared by both
 	# its faces — the fence/tent mirroring lesson, applied to walls.
+	# The BOTTOM voxel row is FOUNDATION and never carves: floors are skipped
+	# under walls and pockets have no floor of their own, so a base-row carve
+	# was open underneath — sconce light from the far side leaked through the
+	# wall's ground line as bright dashes ("missing voxels", Daniel at Joppa
+	# (3,17)). The art's bottom-row gaps stay surface colour instead.
 	for d in f_img:
 		var im: Image = f_img[d]
 		var fh := im.get_height()
-		for r in range(1, R):
+		for r in range(1, R - 1):
 			var mid := (planes[r] + planes[r + 1]) * 0.5
 			var fr := clampi(int((WALL_H - mid) / rh), 0, fh - 1)
 			for a in W:

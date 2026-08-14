@@ -216,7 +216,9 @@ def build_cell(vt, cells, k, family):
         w_on = (k[0] + cont[1][0], k[1] + cont[1][1]) in cells
         fa = vt(face_variant_bits(e_on, w_on)) or vt("00000000") or cap_art
         faces_art[d] = fa
-        for r in range(1, v.R):
+        # the bottom row is FOUNDATION: never carved (no floor under walls, no
+        # pocket floors — a base carve would be open underneath)
+        for r in range(1, v.R - 1):
             fr = v.face_row_of(r)
             for a in range(W):
                 x, z = (a, None) if dx == 0 else (None, a)
