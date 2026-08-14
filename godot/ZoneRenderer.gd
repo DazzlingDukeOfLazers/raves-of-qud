@@ -3675,10 +3675,13 @@ func _wall_cell_faces(inp: Dictionary) -> Array:
 					elif solid[(r * W + nz) * W + nx] == 1:
 						continue
 					var col := mainc
-					if r == 0:
-						col = capc            # cap-row trench walls match the cap
-					elif outside:
-						# flush skin on the exposed plane: the face art pixel
+					if outside:
+						# flush skin on the exposed plane: the face art pixel.
+						# The CAP ROW's outer faces sample it too (art row 0) —
+						# colouring them from the cap art painted the top tenth
+						# of every face body-red, leaving only a sliver of the
+						# art's top row visible ("the rest of the top row is
+						# just red"). The art's top row now runs full height.
 						var im2: Image = f_img.get(dirname)
 						if im2 != null:
 							var mid2 := (yt + yb) * 0.5
@@ -3687,8 +3690,36 @@ func _wall_cell_faces(inp: Dictionary) -> Array:
 							var ax2: int = a2 if (dirname == "s" or dirname == "w") else W - 1 - a2
 							var pc := im2.get_pixel(mini(ax2, im2.get_width() - 1), fr2)
 							col = pc if pc.to_html(false) != bg else mainc
+					elif r == 0:
+						col = capc.darkened(0.35)   # roof trench walls, in shadow
 					elif String(fv[dirname]) != "":
 						col = recess          # a carved pocket's back wall
+					else:
+						# the SIDE of a relief step: the owning voxel's own
+						# surface colour, shadowed — a blue voxel is blue on its
+						# sides too, and the baked shading gives the relief its
+						# depth (both from Daniel's review). Find the exposed
+						# face whose shell holds this voxel and sample its art.
+						var sc := Color(0, 0, 0, 0)
+						for d2v in f_img:
+							var d2 := String(d2v)
+							var depth2: int
+							match d2:
+								"s": depth2 = W - 1 - z
+								"n": depth2 = z
+								"e": depth2 = W - 1 - x
+								_: depth2 = x
+							if depth2 >= SIDE_CARVE_PX:
+								continue
+							var im3: Image = f_img[d2v]
+							var a3: int = x if (d2 == "s" or d2 == "n") else z
+							var ax3: int = a3 if (d2 == "s" or d2 == "w") else W - 1 - a3
+							var fr3 := clampi(int((WALL_H - (yt + yb) * 0.5) / rh), 0, im3.get_height() - 1)
+							var pc3 := im3.get_pixel(mini(ax3, im3.get_width() - 1), fr3)
+							if pc3.to_html(false) != bg:
+								sc = pc3
+							break
+						col = (sc if sc.a > 0.0 else mainc).darkened(0.35)
 					var nrm := Vector3(s[0], 0, s[1])
 					var pa: Vector3
 					var pb: Vector3
