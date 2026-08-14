@@ -53,13 +53,10 @@ var _split := Vector2i(16, 16)
 var _variants := []        # GROUPS of pixel-identical variant names, first-seen order
 var _group := []           # the current group's tile names (save/revert hit all)
 # The face is FAMILY-WIDE: every face of every cell renders from just the four
-# horizontal-run variants (mid-run, end-framed x2, isolated), which differ only
-# in their end-frame pixels. One surface edits them all; Save writes the edited
-# band into each of the four with that variant's own frame pixels preserved
-# (frame = where its stock band differs from the stock mid-run band).
+# horizontal-run variants (mid-run, end-framed x2, isolated). One surface edits
+# them all; Save writes the edited band into each of the four VERBATIM, so the
+# design tiles uniformly through run ends and corners (one-direction wrap).
 var _face_img: Image       # the family-wide face band being edited (W x F)
-var _face_stock := {}      # run tile -> its STOCK band (frame preservation)
-var _face_stock_mid: Image # the stock mid-run band (the diff base)
 var _colors := []
 var _sel := 0
 var _picked := Color.WHITE
@@ -299,19 +296,10 @@ func _run_tiles() -> Array:
 	return out
 
 ## Load the FAMILY-WIDE face surface: the mid-run band (custom-first), falling
-## back to the isolated tile, then the current variant. Also captures each run
-## variant's STOCK band so Save can preserve its end-frame pixels.
+## back to the isolated tile, then the current variant.
 func _load_face(tile: String) -> void:
 	_tile = tile
-	_face_stock = {}
-	_face_stock_mid = null
 	_face_img = null
-	for t in _run_tiles():
-		var st := _full_image_of(t, false)
-		if st != null:
-			_face_stock[t] = _band_of(st)
-	_face_stock_mid = _face_stock.get(_with_bits(tile, "00100010"),
-		_face_stock.get(_with_bits(tile, "00000000")))
 	for cand in [_with_bits(tile, "00100010"), _with_bits(tile, "00000000"), tile]:
 		var im := _full_image_of(cand, true)
 		if im != null:
@@ -321,21 +309,15 @@ func _load_face(tile: String) -> void:
 		_face_img = Image.create(16, 10, false, Image.FORMAT_RGBA8)
 	_face.custom_minimum_size = Vector2(_face_img.get_width() * C, _face_img.get_height() * C)
 
-## The band Save writes into one run variant: the edited surface, with the
-## variant's own frame pixels (where its stock band differs from stock mid-run)
-## kept — so end frames survive a family-wide repaint.
-func _merged_band(t: String) -> Image:
-	var out: Image = _face_img.duplicate()
-	var st: Image = _face_stock.get(t)
-	if st == null or _face_stock_mid == null or st == _face_stock_mid:
-		return out
-	var w := mini(out.get_width(), mini(st.get_width(), _face_stock_mid.get_width()))
-	var h := mini(out.get_height(), mini(st.get_height(), _face_stock_mid.get_height()))
-	for y in h:
-		for x in w:
-			if not st.get_pixel(x, y).is_equal_approx(_face_stock_mid.get_pixel(x, y)):
-				out.set_pixel(x, y, st.get_pixel(x, y))
-	return out
+## The band Save writes into EVERY run variant: the edited surface, VERBATIM.
+## An earlier version preserved each variant's stock end-frame pixels, but run
+## ends and corners wear exactly the framed variants — so the design's last
+## columns were swapped back to stock right where the wall turns, breaking the
+## tiling rhythm (Daniel's annotated screenshot). Under the one-direction
+## wallpaper wrap the design tiles UNIFORMLY: every cell shows the identical
+## 16 columns; paint your own frames if you want them.
+func _merged_band(_t: String) -> Image:
+	return _face_img.duplicate()
 
 ## A full 16x24 file image: `cap_src`'s cap band over `band` as the face band.
 func _composed(cap_src: Image, band: Image) -> Image:
@@ -679,7 +661,7 @@ func _save() -> void:
 	var wrote := 0
 	var written := {}
 	for t in (_group if not _group.is_empty() else [_tile]):
-		var band: Image = _merged_band(t) if _face_stock.has(t) else _face_img
+		var band: Image = _face_img
 		if _composed(_img, band).save_png(_custom_dir().path_join(_flat(t))) == OK:
 			wrote += 1
 			written[t] = true
