@@ -29,6 +29,11 @@ in-game build depends on:
 
 It also renders top/south elevation PNGs per arrangement for the eyeball pass.
 
+NOTE: the GDScript builder additionally supports HARD gaps (alpha-erased pixels
+in CUSTOM art carve through the protected zones, with closure faces at wall
+boundaries and pocket floors at the base). This harness models the STOCK/soft
+path only — the protection proofs here remain the invariants for stock art.
+
     python3 tools/capture/voxwall.py            # run all arrangements + asserts
     python3 tools/capture/voxwall.py --previews # also write PNGs next to CWD
 """

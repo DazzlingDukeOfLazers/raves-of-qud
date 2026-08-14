@@ -3519,25 +3519,52 @@ func _wall_cell_inputs(variant_tile: String, fv: Dictionary, edit_img: Image, ed
 	else:
 		gaps = _cap_gaps(variant_tile)
 	var f_img := {}
+	var f_hard := {}
 	for d in ["s", "e", "n", "w"]:
 		if String(fv[d]) == "":
 			continue
 		var im: Image = null
+		var hard_src: Image = null
 		if face_overrides.has(String(fv[d])):
-			im = _as_authored(face_overrides[String(fv[d])]).get_image()
+			hard_src = face_overrides[String(fv[d])]
+			im = _as_authored(hard_src).get_image()
 		elif edit_img != null and String(fv[d]) == edit_variant:
 			var sp := _wall_split(edit_img)
 			if sp.y < edit_img.get_height():
 				var region2 := edit_img.get_region(Rect2i(0, sp.y,
 					edit_img.get_width(), edit_img.get_height() - sp.y))
+				hard_src = region2
 				im = _as_authored(region2).get_image()
 		else:
 			var t2 := _wall_region_tex("side", String(fv[d]))
 			if t2 != null:
 				im = t2.get_image()
+			# HARD gaps exist only in CUSTOM art: an alpha-erased pixel means
+			# "remove the voxel, I mean it" (Daniel) and carves straight through
+			# the protected zones. Stock art (and bg-COLOURED custom pixels)
+			# stays soft — the protections exist for those accidents.
+			if _custom_tile_path(String(fv[d])) != "":
+				var m := _mask(String(fv[d]))
+				if m != null:
+					var sp2 := _wall_split(m)
+					if sp2.y < m.get_height():
+						hard_src = m.get_region(Rect2i(0, sp2.y,
+							m.get_width(), m.get_height() - sp2.y))
 		if im != null:
 			f_img[d] = im
-	return {"cap": cap_img, "gaps": gaps, "faces": f_img, "fv": fv}
+			if hard_src != null:
+				f_hard[d] = _alpha_grid(hard_src)
+	return {"cap": cap_img, "gaps": gaps, "faces": f_img, "fv": fv, "hard": f_hard}
+
+## Boolean grid of a band's alpha-erased pixels (true = deliberately removed).
+func _alpha_grid(img: Image) -> Array:
+	var out := []
+	for y in img.get_height():
+		var row := []
+		for x in img.get_width():
+			row.append(img.get_pixel(x, y).a < 0.5)
+		out.append(row)
+	return out
 
 ## Volume + emission for one cell, cell-local coords. Returns face quads
 ## [{q: [4 Vector3], n: Vector3, c: Color}] — meshed by _wall_cell_mesh, drawn
@@ -3624,13 +3651,23 @@ func _wall_cell_faces(inp: Dictionary) -> Array:
 	for d in f_img:
 		var im: Image = f_img[d]
 		var fh := im.get_height()
-		for r in range(1, R - 1):
+		var hard: Array = (inp.get("hard", {}) as Dictionary).get(d, [])
+		for r in R:
 			var mid := (planes[r] + planes[r + 1]) * 0.5
 			var fr := clampi(int((WALL_H - mid) / rh), 0, fh - 1)
 			for a in W:
 				var ax: int = a if (d == "s" or d == "w") else W - 1 - a
-				if im.get_pixel(mini(ax, im.get_width() - 1), fr).to_html(false) != bg:
-					continue
+				var axc := mini(ax, im.get_width() - 1)
+				# HARD gap (alpha-erased custom pixel): "remove the voxel, I
+				# mean it" — carves every row (cap band, foundation) and every
+				# protected zone. SOFT gap (bg colour): rows 1..R-2, protected.
+				var is_hard: bool = not hard.is_empty() and fr < hard.size() \
+					and bool(hard[fr][axc])
+				if not is_hard:
+					if r == 0 or r == R - 1:
+						continue
+					if im.get_pixel(axc, fr).to_html(false) != bg:
+						continue
 				for depth in SIDE_CARVE_PX:
 					var cz: int
 					var cx: int
@@ -3639,7 +3676,7 @@ func _wall_cell_faces(inp: Dictionary) -> Array:
 						"n": cz = depth; cx = a
 						"e": cz = a; cx = W - 1 - depth
 						_: cz = a; cx = depth
-					if prot[cz * W + cx] == 0:
+					if is_hard or prot[cz * W + cx] == 0:
 						solid[(r * W + cz) * W + cx] = 0
 
 	# A SKIN voxel wears its art pixel on EVERY face it shows — outer skin,
@@ -3774,6 +3811,60 @@ func _wall_cell_faces(inp: Dictionary) -> Array:
 					else:             pa = Vector3(x1, yb, z0); pb = Vector3(x0, yb, z0)
 					out.append({"q": [pa, pb, Vector3(pb.x, yt, pb.z), Vector3(pa.x, yt, pa.z)],
 						"n": nrm, "c": col})
+	# CLOSURES for hard carves — removal stays visually sealed. A pocket that
+	# reaches a WALL NEIGHBOUR gets its back wall at the boundary plane (the
+	# neighbour's mesh assumes a flush boundary and emits nothing there), and
+	# a pocket in the bottom row gets a floor (no ground exists under walls —
+	# the base light-leak would return).
+	for z in W:
+		var z0 := -0.5 + z * ps
+		for x in W:
+			if solid[((R - 1) * W + z) * W + x] == 1:
+				continue
+			var x0 := -0.5 + x * ps
+			out.append({"q": [Vector3(x0, 0.0, z0), Vector3(x0 + ps, 0.0, z0),
+				Vector3(x0 + ps, 0.0, z0 + ps), Vector3(x0, 0.0, z0 + ps)],
+				"n": Vector3.UP, "c": recess})
+	for d in ["s", "e", "n", "w"]:
+		if String(fv[d]) != "":
+			continue          # exposed: pockets open to air, no closure
+		for r in R:
+			var byb: float = planes[r + 1]
+			var byt: float = planes[r]
+			for a in W:
+				var cz: int
+				var cx: int
+				match String(d):
+					"s": cz = W - 1; cx = a
+					"n": cz = 0; cx = a
+					"e": cz = a; cx = W - 1
+					_: cz = a; cx = 0
+				if solid[(r * W + cz) * W + cx] == 1:
+					continue
+				if r == 0 and bool(gaps[mini(caph - 1, cz * caph / W)][cx]):
+					continue  # cap-art gap: the SEAM PASS owns this plane
+				var pa2: Vector3
+				var pb2: Vector3
+				var nrm2: Vector3
+				match String(d):
+					"s":
+						pa2 = Vector3(-0.5 + cx * ps, byb, 0.5)
+						pb2 = Vector3(-0.5 + (cx + 1) * ps, byb, 0.5)
+						nrm2 = Vector3(0, 0, -1)
+					"n":
+						pa2 = Vector3(-0.5 + cx * ps, byb, -0.5)
+						pb2 = Vector3(-0.5 + (cx + 1) * ps, byb, -0.5)
+						nrm2 = Vector3(0, 0, 1)
+					"e":
+						pa2 = Vector3(0.5, byb, -0.5 + cz * ps)
+						pb2 = Vector3(0.5, byb, -0.5 + (cz + 1) * ps)
+						nrm2 = Vector3(-1, 0, 0)
+					_:
+						pa2 = Vector3(-0.5, byb, -0.5 + cz * ps)
+						pb2 = Vector3(-0.5, byb, -0.5 + (cz + 1) * ps)
+						nrm2 = Vector3(1, 0, 0)
+				out.append({"q": [pa2, pb2, Vector3(pb2.x, byt, pb2.z), Vector3(pa2.x, byt, pa2.z)],
+					"n": nrm2, "c": recess})
 	return out
 
 ## Faces for an ARRANGEMENT of same-family wall cells — the voxel editor's
