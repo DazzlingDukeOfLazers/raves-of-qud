@@ -3568,11 +3568,20 @@ func _wall_cell_faces(inp: Dictionary) -> Array:
 	var solid := PackedByteArray()
 	solid.resize(R * W * W)
 	solid.fill(1)
-	# cap carve (row 0)
+	# cap carve (row 0). The outermost ring beside an EXPOSED face never
+	# carves: cap-art gaps on the perimeter notched the face's top edge into
+	# an alternating "zipper" (Daniel) — the wall's rim stays a solid line and
+	# roof relief starts one pixel in, like the foundation and corner rules.
 	for z in W:
 		var az := mini(caph - 1, z * caph / W)
 		for x in W:
-			if bool(gaps[az][x]):
+			if not bool(gaps[az][x]):
+				continue
+			var rim: bool = (String(fv["s"]) != "" and z == W - 1) \
+				or (String(fv["n"]) != "" and z == 0) \
+				or (String(fv["e"]) != "" and x == W - 1) \
+				or (String(fv["w"]) != "" and x == 0)
+			if not rim:
 				solid[z * W + x] = 0
 	# the no-carve shell beside every wall neighbour
 	var prot := PackedByteArray()

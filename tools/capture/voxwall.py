@@ -171,10 +171,16 @@ def build_cell(vt, cells, k, family):
     F = len(cap_art["face"]) or WALL_FACE_ROWS
     v = CellVox(W, F)
     caph = len(cap_art["cap"])
+    # the roof's outermost ring beside an EXPOSED face never carves (the
+    # face-top "zipper" fix): the rim stays a solid line
+    expo = {d: (k[0] + DIRS[d][0][0], k[1] + DIRS[d][0][1]) not in cells for d in DIRS}
     for z in range(W):
         az = min(caph - 1, z * caph // W)
         for x in range(W):
-            if cap_art["cap"][az][x]:
+            if not cap_art["cap"][az][x]:
+                continue
+            rim = (expo["s"] and z == W - 1) or (expo["n"] and z == 0)                 or (expo["e"] and x == W - 1) or (expo["w"] and x == 0)
+            if not rim:
                 v.solid[0][z][x] = False
     exposure = {}
     faces_art = {}
