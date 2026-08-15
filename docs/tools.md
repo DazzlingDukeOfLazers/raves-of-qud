@@ -127,6 +127,15 @@ resolves to the cardinal custom itself (`_cap_variant`), so the derivation never
 enumerate 256 names. Re-run after every platonic edit; writes to `tiles_custom` only.
 
 ### `wall2vox.py` (wall variant -> MagicaVoxel .vox)
+**The project's blessed external voxel editor is [vengi](https://github.com/vengi-voxel/vengi)
+(MIT)** — open the .vox files below in its voxedit; contributors install vengi, nothing else.
+Start NEW designs from `vox_template.py`'s 16x16x24 canvas (Qud's 18 colours in palette
+slots 1..18, code order r R o O w W g G b B c C m M k K y Y; freeform/V4-era authoring —
+it does NOT bake through the wall band grammar). `vox2wall.py --selftest` mocks the file
+shapes editors save (scene-graph chunks, reordered palettes, version 200) and proves the
+importer decodes them all identically; the one thing a mock can't prove is an editor that
+re-origins XYZI coordinates — confirm with one real save per editor.
+
 The bridge from band-driven walls to free voxel tooling: builds the variant's volume with
 voxwall's builder from CUSTOM art first (as-authored, canonical split, `_cap_variant`
 cardinal fallback) and writes `<support>/vox/<family>-<bits>.vox` — a Qud-art derivative,

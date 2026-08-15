@@ -206,13 +206,99 @@ def watch():
         time.sleep(1)
 
 
+def selftest():
+    """Mock the file shapes real editors save and prove read_vox decodes
+    them all identically: plain (our writer), scene-graph (MagicaVoxel /
+    vengi wrap the model in nTRN/nGRP/nSHP and add MATL/LAYR chunks — the
+    reader must SKIP by chunk size without desyncing), reordered palette
+    (editors rewrite palette order; only index->RGBA fidelity matters),
+    and a version-200 header. What a mock cannot prove: an editor that
+    re-origins XYZI coordinates — confirm with one real save per editor."""
+    import struct
+    import tempfile
+
+    cells = wall2vox.cells_for_bits("00100010")
+    vt = wall2vox.variant_fn("wall_metal")
+    v, _e, farts, cap_art = voxwall.build_cell(vt, cells, (0, 0), "wall_metal")
+    colors = wall2vox.voxel_colors(v, cap_art, farts)
+    with tempfile.TemporaryDirectory() as td:
+        plain = f"{td}/plain.vox"
+        wall2vox.write_vox(plain, (v.W, v.W, v.R), colors)
+        want, dims = read_vox(plain)
+        raw = open(plain, "rb").read()
+
+        def chunk(cid, content, children=b""):
+            return cid + struct.pack("<ii", len(content), len(children)) \
+                + content + children
+
+        def vdict(pairs):
+            out = struct.pack("<i", len(pairs))
+            for k, val in pairs:
+                out += struct.pack("<i", len(k)) + k
+                out += struct.pack("<i", len(val)) + val
+            return out
+
+        # scene-graph mock: same SIZE/XYZI/RGBA plus the wrapper chunks
+        body = raw[8:]
+        main_len = struct.unpack_from("<ii", body, 4)[1]
+        children = body[12:12 + main_len]
+        extra = (
+            chunk(b"nTRN", struct.pack("<i", 0) + vdict([(b"_name", b"wall")])
+                  + struct.pack("<iiii", 1, -1, 0, 1)
+                  + vdict([(b"_t", b"0 0 0")]))
+            + chunk(b"nGRP", struct.pack("<ii", 1, 0) + struct.pack("<i", 2))
+            + chunk(b"nSHP", struct.pack("<i", 2) + vdict([])
+                    + struct.pack("<ii", 1, 0) + vdict([]))
+            + chunk(b"MATL", struct.pack("<i", 1)
+                    + vdict([(b"_type", b"_diffuse")]))
+            + chunk(b"LAYR", struct.pack("<i", 0) + vdict([]) + struct.pack("<i", -1))
+        )
+        scene = f"{td}/scene.vox"
+        open(scene, "wb").write(
+            b"VOX " + struct.pack("<i", 150) + chunk(b"MAIN", b"", children + extra))
+
+        # reordered-palette mock: shift every colour 50 slots up
+        vox2, _ = read_vox(plain)
+        pal = {}
+        voxels = []
+        for (x, y, z), rgb in sorted(vox2.items()):
+            if rgb not in pal:
+                pal[rgb] = len(pal) + 51   # 1-based, offset 50
+            voxels.append((x, y, z, pal[rgb]))
+        rgba = bytearray(b"\x00\x00\x00\xff" * 256)
+        for rgb, idx in pal.items():
+            rgba[(idx - 1) * 4:(idx - 1) * 4 + 3] = bytes(rgb)
+        shifted = f"{td}/shifted.vox"
+        open(shifted, "wb").write(
+            b"VOX " + struct.pack("<i", 150) + chunk(b"MAIN", b"", chunk(
+                b"SIZE", struct.pack("<iii", *dims))
+                + chunk(b"XYZI", struct.pack("<i", len(voxels))
+                        + b"".join(struct.pack("<BBBB", *vx) for vx in voxels))
+                + chunk(b"RGBA", bytes(rgba))))
+
+        # version-200 mock
+        v200 = f"{td}/v200.vox"
+        open(v200, "wb").write(b"VOX " + struct.pack("<i", 200) + raw[8:])
+
+        for name, p in (("scene-graph", scene), ("reordered-palette", shifted),
+                        ("version-200", v200)):
+            got, gdims = read_vox(p)
+            assert gdims == dims, f"{name}: dims {gdims} != {dims}"
+            assert got == want, f"{name}: {len(got)} voxels decode differently"
+            print(f"selftest {name}: OK ({len(got)} voxels identical)")
+    print("selftest: reader handles all mocked editor file shapes")
+
+
 def main():
     if "--watch" in sys.argv:
         watch()
         return
+    if "--selftest" in sys.argv:
+        selftest()
+        return
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     if not args:
-        sys.exit("usage: vox2wall.py <bits> | --watch")
+        sys.exit("usage: vox2wall.py <bits> | --watch | --selftest")
     bake(args[0])
 
 
