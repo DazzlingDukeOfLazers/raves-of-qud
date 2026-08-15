@@ -618,20 +618,56 @@ func _draw_preview() -> void:
 ## the channel for reporting exactly which face is wrong (Daniel: "add the
 ## ability to select tiles on the 3d view so I can communicate the issues").
 func _preview_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		_preview.accept_event()
-		for i in range(_pv_items.size() - 1, -1, -1):
-			var it: Dictionary = _pv_items[i]
-			var pts := PackedVector2Array()
-			for p in it["pts"]:
-				pts.append(p * _pv_scale + _pv_off)
-			if Geometry2D.is_point_in_polygon(event.position, pts):
+	if not (event is InputEventMouseButton and event.pressed):
+		return
+	if event.button_index != MOUSE_BUTTON_LEFT and event.button_index != MOUSE_BUTTON_RIGHT:
+		return
+	_preview.accept_event()
+	for i in range(_pv_items.size() - 1, -1, -1):
+		var it: Dictionary = _pv_items[i]
+		var pts := PackedVector2Array()
+		for p in it["pts"]:
+			pts.append(p * _pv_scale + _pv_off)
+		if Geometry2D.is_point_in_polygon(event.position, pts):
+			if event.button_index == MOUSE_BUTTON_LEFT:
 				_pick = it
 				_write_pick_report(it)
-				_preview.queue_redraw()
-				return
+			else:
+				_erase_picked(it)
+			_preview.queue_redraw()
+			return
+	_pick = {}
+	_preview.queue_redraw()
+
+## RIGHT-CLICK a face in the 3D preview to ERASE its art pixel (Daniel tried
+## exactly this before it existed). Skin faces carry their art coords and edit
+## the family-wide face surface; roof tops edit the current variant's cap
+## canvas (only when the picked cell wears this group's variant). Other kinds
+## have no single owning pixel — erase those on the 2D canvases.
+func _erase_picked(it: Dictionary) -> void:
+	var m: Dictionary = it.get("m", {})
+	var kind := String(m.get("k", ""))
+	if kind.begins_with("skin") and m.has("ax"):
+		_push_undo()
+		_face_img.set_pixel(int(m["ax"]), int(m["fr"]), Color(0, 0, 0, 0))
+		_face_dirty = true
 		_pick = {}
-		_preview.queue_redraw()
+		_status.text = "erased face px (%d,%d) — Save to apply to the game" % [int(m["ax"]), int(m["fr"])]
+		_refresh()
+	elif kind == "cap-top" or kind == "ring-top":
+		if not _group.has(String(m.get("variant", ""))):
+			_status.text = "that cell wears %s — hop to its group to edit its roof" 				% String(m.get("variant", "?")).get_file()
+			return
+		var v: Vector3i = m.get("v", Vector3i.ZERO)
+		var caph := _split.x
+		var az := mini(caph - 1, v.y * caph / _img.get_width())
+		_push_undo()
+		_img.set_pixel(v.x, az, Color(0, 0, 0, 0))
+		_pick = {}
+		_status.text = "erased roof px (%d,%d) — Save to apply to the game" % [v.x, az]
+		_refresh()
+	else:
+		_status.text = "%s has no single art pixel — erase it on the 2D canvas" % kind
 
 func _write_pick_report(it: Dictionary) -> void:
 	var m: Dictionary = it.get("m", {})

@@ -92,7 +92,10 @@ uniformly through run ends and corners (stock end-frame pixels are NOT preserved
 own frames if you want them). Paint one pixel, save once, every wall face in the game wears it. CLICK a face in the 3D
 preview to SELECT it: it highlights and writes `voxel_selection.txt` next to overrides.json —
 voxel coords, face kind (skin/side/back/top/ring/trench/closure), owning face, art pixel, baked
-colour — the channel for reporting exactly which face renders wrong. The art WRAPS the building in ONE direction — wallpaper
+colour — the channel for reporting exactly which face renders wrong. RIGHT-CLICK a preview face to
+ERASE its art pixel: skin faces edit the family-wide face surface (hard carve), roof tops edit
+the current group's cap canvas; backs/sides/floors have no single owning pixel — erase those on
+the 2D canvases. Save applies to the game as usual. The art WRAPS the building in ONE direction — wallpaper
 applied clockwise seen from above: S reads W->E, E continues S->N, N reads E->W, W continues
 N->S. Every face shows the art UNMIRRORED left-to-right from outside, and every corner is a
 col15|col0 joint — the same joint as any cell seam along a run, so tileable art turns corners
