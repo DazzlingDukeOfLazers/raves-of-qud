@@ -3935,13 +3935,14 @@ func _wall_cell_faces(inp: Dictionary) -> Array:
 						fkind = "roof-trench"
 						var shade0 := _interior_shade(Vector3(s[0], 0, s[1]))
 						col = Color(capc.r * shade0, capc.g * shade0, capc.b * shade0, 1.0)
-					elif (carver[(r * W + nz) * W + nx] & (1 << dir_names.find(dirname))) != 0:
-						# a BACK closes a pocket carved FROM dirname: the EMPTY
-						# beyond the face was CARVED by that direction. Nearest-
-						# face ownership mislabels corner pockets (an east-
-						# carved void positionally closest to south) — the
-						# carver bitmask is the truth; double-carved corner
-						# voids are backs from both axes.
+					elif (carver[(r * W + nz) * W + nx] & (1 << dir_names.find(dirname))) != 0 \
+							and own_dir[nz * W + nx] == dir_names.find(dirname):
+						# a DEEP BACK is a pocket receding into its OWN face:
+						# the empty was carved by dirname AND positionally
+						# belongs to dirname's shell. An east-carved slot
+						# running along the SOUTH skin is south-face relief —
+						# its end wall grades as a SIDE (Daniel's make-1-like-2
+						# pick pair: back(e) #502416 vs side(owner=s) #883d26).
 						fkind = "back(%s)" % dirname
 						col = backc
 					else:
