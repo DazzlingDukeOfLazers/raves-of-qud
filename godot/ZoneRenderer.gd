@@ -3260,8 +3260,15 @@ func _carve_closure_quads(cells: Dictionary) -> Dictionary:
 							pa = Vector3(k.x - 0.5, yb, k.y - 0.5 + a * ps)
 							pb = Vector3(k.x - 0.5, yb, k.y - 0.5 + (a + 1) * ps)
 							nrm = Vector3(1, 0, 0)
+					# a closure plane is a SIDE WALL of the pocket, not a
+					# back: perpendicular to the wall face, it wears the SOLID
+					# neighbour's material with the same orientation shading as
+					# any in-cell side (Daniel's pink circle: seam-edge pockets
+					# showed a back-dark wall where a lit side belongs).
+					var nmain: Color = nb["main"]
+					var sh := _interior_shade(nrm)
 					quads.append({"q": [pa, pb, Vector3(pb.x, yt, pb.z), Vector3(pa.x, yt, pa.z)],
-						"n": nrm, "c": me["recess"]})
+						"n": nrm, "c": Color(nmain.r * sh, nmain.g * sh, nmain.b * sh, 1.0)})
 		if not quads.is_empty():
 			out[k] = quads
 	return out
@@ -3367,7 +3374,7 @@ func _rebuild_walls(wall_types: Dictionary) -> void:
 				_wall_parent().add_child(mi)
 				_track_wall(k, mi)
 				closure_cells[k] = {"prof": entry["prof"], "planes": entry["planes"],
-					"W": entry["W"], "recess": _wall_back_color()}
+					"W": entry["W"], "main": _qud_color(_wall_main)}
 			_emit_seam_walls(k, v, all_wall_cells)
 	_emit_carve_closures(closure_cells)
 
@@ -3981,7 +3988,7 @@ func wall_preview_arrangement(sel_tile: String, obj: Dictionary, layout: Array,
 				q.append(p + Vector3(k.x, 0.0, k.y))
 			out.append({"q": q, "n": f["n"], "c": f["c"]})
 		closure_cells[k] = {"prof": _last_faces_prof, "planes": _last_faces_planes,
-			"W": (inp["cap"] as Image).get_width(), "recess": _wall_back_color()}
+			"W": (inp["cap"] as Image).get_width(), "main": _qud_color(_wall_main)}
 	for quads in _carve_closure_quads(closure_cells).values():
 		for f in quads:
 			out.append(f)
