@@ -89,7 +89,10 @@ hop to them. The FACE canvas is FAMILY-WIDE: every face of every cell renders fr
 four horizontal-run variants, which differ only in end-frame pixels — so the editor edits one
 face surface (the mid-run band) and Save writes it into all four VERBATIM — the design tiles
 uniformly through run ends and corners (stock end-frame pixels are NOT preserved; paint your
-own frames if you want them). Paint one pixel, save once, every wall face in the game wears it. The art WRAPS the building in ONE direction — wallpaper
+own frames if you want them). Paint one pixel, save once, every wall face in the game wears it. CLICK a face in the 3D
+preview to SELECT it: it highlights and writes `voxel_selection.txt` next to overrides.json —
+voxel coords, face kind (skin/side/back/top/ring/trench/closure), owning face, art pixel, baked
+colour — the channel for reporting exactly which face renders wrong. The art WRAPS the building in ONE direction — wallpaper
 applied clockwise seen from above: S reads W->E, E continues S->N, N reads E->W, W continues
 N->S. Every face shows the art UNMIRRORED left-to-right from outside, and every corner is a
 col15|col0 joint — the same joint as any cell seam along a run, so tileable art turns corners

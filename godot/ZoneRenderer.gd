@@ -3269,7 +3269,8 @@ func _carve_closure_quads(cells: Dictionary) -> Dictionary:
 					var nc: Color = nec[nr * nW + na]
 					var sh := _interior_shade(nrm)
 					quads.append({"q": [pa, pb, Vector3(pb.x, yt, pb.z), Vector3(pa.x, yt, pa.z)],
-						"n": nrm, "c": Color(nc.r * sh, nc.g * sh, nc.b * sh, 1.0)})
+						"n": nrm, "c": Color(nc.r * sh, nc.g * sh, nc.b * sh, 1.0),
+						"m": {"k": "closure-side(%s)" % d, "edge_a": a, "row": r, "cell": k}})
 		if not quads.is_empty():
 			out[k] = quads
 	return out
@@ -3865,20 +3866,25 @@ func _wall_cell_faces(inp: Dictionary) -> Array:
 				# a pocket floor on a skin voxel keeps that voxel's colour.
 				if r == 0 or solid[((r - 1) * W + z) * W + x] == 0:
 					var tc := recess
+					var tk := "recess-floor"
 					if r == 0:
+						tk = "ring-top" if ring_col.has(Vector2i(x, z)) else "cap-top"
 						tc = ring_col.get(Vector2i(x, z), capc)
 					else:
 						var oi := own_dir[z * W + x]
 						if oi >= 0 and shell_col[dir_names[oi]].has(Vector3i(x, z, r)):
 							tc = (shell_col[dir_names[oi]][Vector3i(x, z, r)] as Color).darkened(0.1)
+							tk = "pocket-top(%s)" % dir_names[oi]
 					out.append({"q": [Vector3(x0, yt, z0), Vector3(x1, yt, z0),
 						Vector3(x1, yt, z1), Vector3(x0, yt, z1)],
-						"n": Vector3.UP, "c": tc})
+						"n": Vector3.UP, "c": tc,
+						"m": {"k": tk, "v": Vector3i(x, z, r)}})
 				# -Y: underside over a pocket below (rare; reads as shadow)
 				if r + 1 < R and solid[((r + 1) * W + z) * W + x] == 0:
 					out.append({"q": [Vector3(x0, yb, z0), Vector3(x0, yb, z1),
 						Vector3(x1, yb, z1), Vector3(x1, yb, z0)],
-						"n": Vector3.DOWN, "c": recess})
+						"n": Vector3.DOWN, "c": recess,
+						"m": {"k": "underside", "v": Vector3i(x, z, r)}})
 				# laterals: skip toward wall neighbours (flush below the cap; the
 				# seam pass owns the cap row), emit toward carved pockets and the
 				# exposed outside
@@ -3893,7 +3899,10 @@ func _wall_cell_faces(inp: Dictionary) -> Array:
 					elif solid[(r * W + nz) * W + nx] == 1:
 						continue
 					var col := mainc
+					var fkind := "side"
+					var fmeta := {}
 					if outside:
+						fkind = "skin(%s)" % dirname
 						# flush skin on the exposed plane: the face art pixel.
 						# The CAP ROW's outer faces sample it too (art row 0) —
 						# colouring them from the cap art painted the top tenth
@@ -3907,6 +3916,7 @@ func _wall_cell_faces(inp: Dictionary) -> Array:
 							var a2: int = x if s[1] != 0 else z
 							var ax2: int = a2 if (dirname == "s" or dirname == "w") else W - 1 - a2
 							var pc := im2.get_pixel(mini(ax2, im2.get_width() - 1), fr2)
+							fmeta = {"ax": mini(ax2, im2.get_width() - 1), "fr": fr2}
 							# a SOLID voxel where the art says CAVITY exists only
 							# in the no-carve zones (cap band, foundation row,
 							# corners, neighbour shells). Painting it the wall
@@ -3914,6 +3924,7 @@ func _wall_cell_faces(inp: Dictionary) -> Array:
 							# the recess colour reads as the cavity's mouth.
 							col = pc if pc.to_html(false) != bg else recess
 					elif r == 0:
+						fkind = "roof-trench"
 						var shade0 := _interior_shade(Vector3(s[0], 0, s[1]))
 						col = Color(capc.r * shade0, capc.g * shade0, capc.b * shade0, 1.0)
 					elif own_dir[nz * W + nx] == dir_names.find(dirname):
@@ -3922,6 +3933,7 @@ func _wall_cell_faces(inp: Dictionary) -> Array:
 						# corner overlap an empty can lie in two shells; its
 						# owner (nearest face) decides — a face closing another
 						# face's pocket is a SIDE, not a back.
+						fkind = "back(%s)" % dirname
 						col = backc
 					else:
 						# the SIDE of a relief step: the owning voxel's own
@@ -3932,6 +3944,7 @@ func _wall_cell_faces(inp: Dictionary) -> Array:
 						var key := Vector3i(x, z, r)
 						var sc := Color(0, 0, 0, 0)
 						var oi2 := own_dir[z * W + x]
+						fkind = "side(owner=%s)" % (dir_names[oi2] if oi2 >= 0 else "none")
 						if oi2 >= 0 and shell_col[dir_names[oi2]].has(key):
 							sc = shell_col[dir_names[oi2]][key]
 						var base := sc if sc.a > 0.0 else mainc
@@ -3944,8 +3957,11 @@ func _wall_cell_faces(inp: Dictionary) -> Array:
 					elif s[0] < 0:    pa = Vector3(x0, yb, z1); pb = Vector3(x0, yb, z0)
 					elif s[1] > 0:    pa = Vector3(x0, yb, z1); pb = Vector3(x1, yb, z1)
 					else:             pa = Vector3(x1, yb, z0); pb = Vector3(x0, yb, z0)
+					var fm := {"k": fkind, "v": Vector3i(x, z, r)}
+					for mk in fmeta:
+						fm[mk] = fmeta[mk]
 					out.append({"q": [pa, pb, Vector3(pb.x, yt, pb.z), Vector3(pa.x, yt, pa.z)],
-						"n": nrm, "c": col})
+						"n": nrm, "c": col, "m": fm})
 	# Boundary CLOSURES for hard carves are cross-cell: a pocket stopping at a
 	# flush neighbour needs its back wall, but a pocket CONTINUING through the
 	# seam (both sides carved — Daniel's slot) must stay open. A cached
@@ -4028,7 +4044,10 @@ func wall_preview_arrangement(sel_tile: String, obj: Dictionary, layout: Array,
 			var q := []
 			for p in f["q"]:
 				q.append(p + Vector3(k.x, 0.0, k.y))
-			out.append({"q": q, "n": f["n"], "c": f["c"]})
+			var fm2: Dictionary = (f.get("m", {}) as Dictionary).duplicate()
+			fm2["cell"] = k
+			fm2["variant"] = v
+			out.append({"q": q, "n": f["n"], "c": f["c"], "m": fm2})
 		closure_cells[k] = {"prof": _last_faces_prof, "ecol": _last_faces_ecol,
 			"planes": _last_faces_planes, "W": (inp["cap"] as Image).get_width()}
 	for quads in _carve_closure_quads(closure_cells).values():

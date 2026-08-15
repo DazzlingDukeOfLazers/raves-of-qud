@@ -69,6 +69,10 @@ var _paint_target := ""    # "roof" | "face" while a stroke is live
 var _undo := []
 var _arrangement := "single"
 var _yaw := 0.0            # preview rotation, degrees, 90 steps
+var _pv_items := []        # last projected faces (for picking)
+var _pv_scale := 1.0
+var _pv_off := Vector2.ZERO
+var _pick := {}            # the picked face item ({} = none)
 
 func setup(renderer: ZoneRenderer, host: CanvasLayer) -> void:
 	_renderer = renderer
@@ -122,6 +126,7 @@ func setup(renderer: ZoneRenderer, host: CanvasLayer) -> void:
 	tools.add_child(_make_button("Undo", _undo_stroke))
 	tools.add_child(_make_button("Rotate", func():
 		_yaw = fmod(_yaw + 90.0, 360.0)
+		_pick = {}
 		_preview.queue_redraw()))
 	var arow := HBoxContainer.new()
 	arow.add_theme_constant_override("separation", 6)
@@ -132,7 +137,9 @@ func setup(renderer: ZoneRenderer, host: CanvasLayer) -> void:
 		arow.add_child(b)
 	_preview = Control.new()
 	_preview.custom_minimum_size = Vector2(470, 430)
+	_preview.mouse_filter = Control.MOUSE_FILTER_STOP
 	_preview.draw.connect(_draw_preview)
+	_preview.gui_input.connect(_preview_input)
 	col.add_child(_preview)
 	var crow := HBoxContainer.new()
 	crow.add_theme_constant_override("separation", 6)
@@ -338,6 +345,7 @@ func _composed(cap_src: Image, band: Image) -> Image:
 func _load_variant(tile: String) -> void:
 	_tile = tile
 	_undo = []
+	_pick = {}
 	_img = _full_image_of(tile, true)
 	if _img == null:
 		_img = Image.create(16, 24, false, Image.FORMAT_RGBA8)
@@ -524,6 +532,7 @@ func _palette_input(event: InputEvent) -> void:
 
 func _set_arrangement(a: String) -> void:
 	_arrangement = a
+	_pick = {}
 	for k in _arr_btns:
 		_arr_btns[k].modulate = Color(1, 1, 1) if k != a else Color(0.6, 1.0, 0.7)
 	_preview.queue_redraw()
@@ -580,18 +589,69 @@ func _draw_preview() -> void:
 		else: shade = 0.62
 		var col: Color = f["c"]
 		items.append({"pts": pts, "d": depth / 4.0 + (ymid / 4.0) * 0.001,
-			"c": Color(col.r * shade, col.g * shade, col.b * shade, 1.0)})
+			"c": Color(col.r * shade, col.g * shade, col.b * shade, 1.0),
+			"m": f.get("m", {}), "c0": col})
 	items.sort_custom(func(a, b): return a["d"] < b["d"])
 	var size := _preview.custom_minimum_size
 	var span := hi - lo
 	var scale := minf((size.x - 20) / maxf(span.x, 0.01), (size.y - 20) / maxf(span.y, 0.01))
 	var off := (size - span * scale) * 0.5 - lo * scale
+	_pv_items = items
+	_pv_scale = scale
+	_pv_off = off
 	_preview.draw_rect(Rect2(Vector2.ZERO, size), Color(0.05, 0.08, 0.08))
 	for it in items:
 		var pts2 := PackedVector2Array()
 		for p in it["pts"]:
 			pts2.append(p * scale + off)
 		_preview.draw_colored_polygon(pts2, it["c"])
+	# picked-face highlight, re-projected with the current transform
+	if not _pick.is_empty():
+		var hp := PackedVector2Array()
+		for p in _pick["pts"]:
+			hp.append(p * scale + off)
+		hp.append(hp[0])
+		_preview.draw_polyline(hp, Color(1.0, 1.0, 0.3), 2.0)
+
+## Click a face in the 3D preview to SELECT it: highlights it and writes
+## voxel_selection.txt (voxel coords, face kind, owner, art pixel, colour) —
+## the channel for reporting exactly which face is wrong (Daniel: "add the
+## ability to select tiles on the 3d view so I can communicate the issues").
+func _preview_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		_preview.accept_event()
+		for i in range(_pv_items.size() - 1, -1, -1):
+			var it: Dictionary = _pv_items[i]
+			var pts := PackedVector2Array()
+			for p in it["pts"]:
+				pts.append(p * _pv_scale + _pv_off)
+			if Geometry2D.is_point_in_polygon(event.position, pts):
+				_pick = it
+				_write_pick_report(it)
+				_preview.queue_redraw()
+				return
+		_pick = {}
+		_preview.queue_redraw()
+
+func _write_pick_report(it: Dictionary) -> void:
+	var m: Dictionary = it.get("m", {})
+	var path := _renderer.tiles_dir().get_base_dir().path_join("voxel_selection.txt")
+	var f := FileAccess.open(path, FileAccess.WRITE)
+	if f == null:
+		return
+	var c0: Color = it.get("c0", Color.BLACK)
+	var c: Color = it.get("c", Color.BLACK)
+	f.store_line("=== voxel pick (editor 3D preview) ===")
+	f.store_line("editing   %s" % _tile)
+	f.store_line("arrangement %s   yaw %d   cell %s" % [_arrangement, int(_yaw), str(m.get("cell", "?"))])
+	f.store_line("variant   %s" % String(m.get("variant", "?")))
+	f.store_line("face kind %s" % String(m.get("k", "?")))
+	f.store_line("voxel     %s  (x, z, row; row 0 = cap layer)" % str(m.get("v", m.get("edge_a", "?"))))
+	if m.has("ax"):
+		f.store_line("art px    col %d, band row %d" % [int(m["ax"]), int(m["fr"])])
+	f.store_line("colour    #%s baked, #%s with preview shade" % [c0.to_html(false), c.to_html(false)])
+	f.close()
+	_status.text = "picked %s %s -> voxel_selection.txt" % [String(m.get("k", "?")), str(m.get("v", ""))]
 
 # --- core colour ------------------------------------------------------------
 
