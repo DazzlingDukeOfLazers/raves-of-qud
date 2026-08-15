@@ -3203,6 +3203,88 @@ func _emit_seam_walls(k: Vector2i, variant_tile: String, all_wall_cells: Diction
 		_track_wall(k, mi)
 
 ## The variant name matching a cell's ACTUAL wall neighbourhood — any family counts.
+## Cross-cell closure walls for HARD carves at wall-to-wall boundaries,
+## emitted by the CARVED side only where the neighbour's matching edge voxel is
+## SOLID — a pocket continuing through the seam stays open (Daniel's carved
+## slot grew a plane mesh when each side closed it blindly). Rows and columns
+## pair by scaled index (grids differ per family); the cap row belongs to the
+## seam pass. Returns world-space quads per cell.
+func _carve_closure_quads(cells: Dictionary) -> Dictionary:
+	var opp := {"e": "w", "w": "e", "s": "n", "n": "s"}
+	var step := {"e": Vector2i(1, 0), "w": Vector2i(-1, 0),
+		"s": Vector2i(0, 1), "n": Vector2i(0, -1)}
+	var out := {}
+	for k in cells:
+		var me: Dictionary = cells[k]
+		var W: int = me["W"]
+		var planes: Array = me["planes"]
+		var R: int = planes.size() - 1
+		var ps := 1.0 / W
+		var quads := []
+		for d in ["e", "w", "s", "n"]:
+			var nk: Vector2i = k + step[d]
+			if not cells.has(nk):
+				continue
+			var nb: Dictionary = cells[nk]
+			var nprof: PackedByteArray = nb["prof"][opp[d]]
+			var nW: int = nb["W"]
+			var nR: int = (nb["planes"] as Array).size() - 1
+			var mprof: PackedByteArray = me["prof"][d]
+			for r in range(1, R):
+				var yb: float = planes[r + 1]
+				var yt: float = planes[r]
+				for a in W:
+					if mprof[r * W + a] == 1:
+						continue          # my edge solid: nothing to close
+					var nr: int = mini(nR - 1, r * nR / R)
+					var na: int = mini(nW - 1, a * nW / W)
+					if nprof[nr * nW + na] == 0:
+						continue          # both carved: the pocket continues
+					var pa: Vector3
+					var pb: Vector3
+					var nrm: Vector3
+					match String(d):
+						"s":
+							pa = Vector3(k.x - 0.5 + a * ps, yb, k.y + 0.5)
+							pb = Vector3(k.x - 0.5 + (a + 1) * ps, yb, k.y + 0.5)
+							nrm = Vector3(0, 0, -1)
+						"n":
+							pa = Vector3(k.x - 0.5 + a * ps, yb, k.y - 0.5)
+							pb = Vector3(k.x - 0.5 + (a + 1) * ps, yb, k.y - 0.5)
+							nrm = Vector3(0, 0, 1)
+						"e":
+							pa = Vector3(k.x + 0.5, yb, k.y - 0.5 + a * ps)
+							pb = Vector3(k.x + 0.5, yb, k.y - 0.5 + (a + 1) * ps)
+							nrm = Vector3(-1, 0, 0)
+						_:
+							pa = Vector3(k.x - 0.5, yb, k.y - 0.5 + a * ps)
+							pb = Vector3(k.x - 0.5, yb, k.y - 0.5 + (a + 1) * ps)
+							nrm = Vector3(1, 0, 0)
+					quads.append({"q": [pa, pb, Vector3(pb.x, yt, pb.z), Vector3(pa.x, yt, pa.z)],
+						"n": nrm, "c": me["recess"]})
+		if not quads.is_empty():
+			out[k] = quads
+	return out
+
+func _emit_carve_closures(cells: Dictionary) -> void:
+	var per := _carve_closure_quads(cells)
+	for k in per:
+		var st := SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		for f in per[k]:
+			var q: Array = f["q"]
+			for idx in [0, 1, 2, 0, 2, 3]:
+				st.set_normal(f["n"])
+				st.set_color(f["c"])
+				st.add_vertex(q[idx])
+		var mesh := ArrayMesh.new()
+		st.commit(mesh)
+		var mi := MeshInstance3D.new()
+		mi.mesh = mesh
+		mi.material_override = _wall_skin_material()
+		_wall_parent().add_child(mi)
+		_track_wall(k, mi)
+
 ## Side art for ONE exposed face. Only the along-face continuation matters: the variant
 ## keeps its own face OPEN (the art's S bit 0) and sets just the art-E/art-W bits — one
 ## of the four horizontal-run tiles, whose band below _wall_split is always a genuine
@@ -3243,6 +3325,7 @@ func _rebuild_walls(wall_types: Dictionary) -> void:
 			# each cell's gap pattern, computed under ITS OWN type's colours — the
 			# seam pass then compares patterns directly, across types and families
 			all_wall_cells[k] = _cap_gaps(String(t0["cells"][k]))
+	var closure_cells := {}
 	for key in wall_types:
 		var t = wall_types[key]
 		_wall_tile = t["tile"]; _wall_main = t["main"]; _wall_detail = t["detail"]; _wall_bg = t["bg"]
@@ -3275,15 +3358,18 @@ func _rebuild_walls(wall_types: Dictionary) -> void:
 				"n": "" if wn else _face_variant(v, ww, we),
 				"w": "" if ww else _face_variant(v, ws, wn),
 			}
-			var mesh: ArrayMesh = _wall_cell_mesh(v, fv)
-			if mesh != null:
+			var entry := _wall_cell_mesh(v, fv)
+			if not entry.is_empty():
 				var mi := MeshInstance3D.new()
-				mi.mesh = mesh
+				mi.mesh = entry["mesh"]
 				mi.material_override = _wall_skin_material()
 				mi.position = Vector3(k.x, 0.0, k.y)
 				_wall_parent().add_child(mi)
 				_track_wall(k, mi)
+				closure_cells[k] = {"prof": entry["prof"], "planes": entry["planes"],
+					"W": entry["W"], "recess": _wall_recess_color()}
 			_emit_seam_walls(k, v, all_wall_cells)
+	_emit_carve_closures(closure_cells)
 
 ## Register a live-zone wall node under its cell so the camera cutaway can fade it. Only
 ## the LIVE zone (_live_build) — neighbours are far/dim and never between you and the camera.
@@ -3446,8 +3532,10 @@ func _stair_bar(grp: Node3D, mat: Material, size: Vector3, pos: Vector3) -> void
 
 const CAP_CARVE := 0.10     # how deep a background gap recesses DOWN into the roof
 const SIDE_CARVE_PX := 2    # facade recess depth, in ART pixels (~0.13 cells at 16px art)
-var _voxel_cache := {}      # cell-mesh key -> ArrayMesh
+var _voxel_cache := {}      # cell-mesh key -> {mesh, prof, planes}
 var _voxel_mat: StandardMaterial3D
+var _last_faces_prof := {}          # stashed by _wall_cell_faces for the cache
+var _last_faces_planes: Array[float] = []
 
 ## ONE cell's wall as a watertight voxel volume ("minecraft" walls; algorithm and
 ## its proofs live in tools/capture/voxwall.py — keep the two in step).
@@ -3471,17 +3559,17 @@ var _voxel_mat: StandardMaterial3D
 ## wall neighbour sits. The volume/emission lives in _wall_cell_faces (shared
 ## with the voxel editor's preview); this wrapper meshes it, cached per
 ## (variant, faces, colours) so cells sharing a neighbourhood share the mesh.
-func _wall_cell_mesh(variant_tile: String, fv: Dictionary) -> ArrayMesh:
+func _wall_cell_mesh(variant_tile: String, fv: Dictionary) -> Dictionary:
 	var key := "cell|%s|%s|%s|%s|%s|%s|%s|%s" % [variant_tile, fv["s"], fv["e"],
 		fv["n"], fv["w"], _wall_main, _wall_detail, _wall_bg]
 	if _voxel_cache.has(key):
 		return _voxel_cache[key]
 	var inp := _wall_cell_inputs(variant_tile, fv, null, "")
 	if inp.is_empty():
-		return null
+		return {}
 	var faces: Array = _wall_cell_faces(inp)
 	if faces.is_empty():
-		return null
+		return {}
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for f in faces:
@@ -3492,8 +3580,10 @@ func _wall_cell_mesh(variant_tile: String, fv: Dictionary) -> ArrayMesh:
 			st.add_vertex(q[idx])
 	var mesh := ArrayMesh.new()
 	st.commit(mesh)
-	_voxel_cache[key] = mesh
-	return mesh
+	var entry := {"mesh": mesh, "prof": _last_faces_prof,
+		"planes": _last_faces_planes, "W": (inp["cap"] as Image).get_width()}
+	_voxel_cache[key] = entry
+	return entry
 
 ## The art inputs for one cell's volume: recoloured cap image + its gap grid and
 ## the face image per exposed direction. `edit_img` (with `edit_variant`)
@@ -3817,52 +3907,29 @@ func _wall_cell_faces(inp: Dictionary) -> Array:
 					else:             pa = Vector3(x1, yb, z0); pb = Vector3(x0, yb, z0)
 					out.append({"q": [pa, pb, Vector3(pb.x, yt, pb.z), Vector3(pa.x, yt, pa.z)],
 						"n": nrm, "c": col})
-	# CLOSURES for hard carves — removal stays visually sealed. A pocket that
-	# reaches a WALL NEIGHBOUR gets its back wall at the boundary plane (the
-	# neighbour's mesh assumes a flush boundary and emits nothing there).
-	# Bottom-row pockets need no floor here: a bottom-carved wall's cell
-	# renders its REAL GROUND (see _wall_bottom_open_at) — a closure plate
-	# where the dirt should show was Daniel's report.
-	for d in ["s", "e", "n", "w"]:
-		if String(fv[d]) != "":
-			continue          # exposed: pockets open to air, no closure
+	# Boundary CLOSURES for hard carves are cross-cell: a pocket stopping at a
+	# flush neighbour needs its back wall, but a pocket CONTINUING through the
+	# seam (both sides carved — Daniel's slot) must stay open. A cached
+	# per-cell mesh cannot know the neighbour's edge, so faces() only STASHES
+	# this cell's boundary-solidity profile; _emit_carve_closures pairs the two
+	# cells' profiles after every cell is built.
+	var prof := {}
+	for d2 in ["s", "n", "e", "w"]:
+		var pb := PackedByteArray()
+		pb.resize(R * W)
 		for r in R:
-			var byb: float = planes[r + 1]
-			var byt: float = planes[r]
 			for a in W:
 				var cz: int
 				var cx: int
-				match String(d):
+				match String(d2):
 					"s": cz = W - 1; cx = a
 					"n": cz = 0; cx = a
 					"e": cz = a; cx = W - 1
 					_: cz = a; cx = 0
-				if solid[(r * W + cz) * W + cx] == 1:
-					continue
-				if r == 0 and bool(gaps[mini(caph - 1, cz * caph / W)][cx]):
-					continue  # cap-art gap: the SEAM PASS owns this plane
-				var pa2: Vector3
-				var pb2: Vector3
-				var nrm2: Vector3
-				match String(d):
-					"s":
-						pa2 = Vector3(-0.5 + cx * ps, byb, 0.5)
-						pb2 = Vector3(-0.5 + (cx + 1) * ps, byb, 0.5)
-						nrm2 = Vector3(0, 0, -1)
-					"n":
-						pa2 = Vector3(-0.5 + cx * ps, byb, -0.5)
-						pb2 = Vector3(-0.5 + (cx + 1) * ps, byb, -0.5)
-						nrm2 = Vector3(0, 0, 1)
-					"e":
-						pa2 = Vector3(0.5, byb, -0.5 + cz * ps)
-						pb2 = Vector3(0.5, byb, -0.5 + (cz + 1) * ps)
-						nrm2 = Vector3(-1, 0, 0)
-					_:
-						pa2 = Vector3(-0.5, byb, -0.5 + cz * ps)
-						pb2 = Vector3(-0.5, byb, -0.5 + (cz + 1) * ps)
-						nrm2 = Vector3(1, 0, 0)
-				out.append({"q": [pa2, pb2, Vector3(pb2.x, byt, pb2.z), Vector3(pa2.x, byt, pa2.z)],
-					"n": nrm2, "c": recess})
+				pb[r * W + a] = solid[(r * W + cz) * W + cx]
+		prof[d2] = pb
+	_last_faces_prof = prof
+	_last_faces_planes = planes
 	return out
 
 ## Faces for an ARRANGEMENT of same-family wall cells — the voxel editor's
@@ -3885,6 +3952,7 @@ func wall_preview_arrangement(sel_tile: String, obj: Dictionary, layout: Array,
 	var offs := [Vector2i(0, -1), Vector2i(1, -1), Vector2i(1, 0), Vector2i(1, 1),
 		Vector2i(0, 1), Vector2i(-1, 1), Vector2i(-1, 0), Vector2i(-1, -1)]
 	var out := []
+	var closure_cells := {}
 	for k in layout:
 		var bits := ""
 		for o in offs:
@@ -3908,6 +3976,11 @@ func wall_preview_arrangement(sel_tile: String, obj: Dictionary, layout: Array,
 			for p in f["q"]:
 				q.append(p + Vector3(k.x, 0.0, k.y))
 			out.append({"q": q, "n": f["n"], "c": f["c"]})
+		closure_cells[k] = {"prof": _last_faces_prof, "planes": _last_faces_planes,
+			"W": (inp["cap"] as Image).get_width(), "recess": _wall_recess_color()}
+	for quads in _carve_closure_quads(closure_cells).values():
+		for f in quads:
+			out.append(f)
 	return out
 
 ## Public face of _wall_split for the voxel editor: where a 16x24 wall art's
