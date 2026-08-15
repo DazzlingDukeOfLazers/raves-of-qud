@@ -1934,3 +1934,16 @@ and re-filed from Artifacts into Cybernetic Implants. No drop.
 (`hv state` reports `popup=menu` vs `popup=message`) and aim each key at the popup that is actually
 up. Same family as the torch: a bug reported against the app that measurement dissolves into the
 way it was being measured.
+
+## Wall cap art: the 14×14 roof invariant (2026-08-15)
+
+The roof of every wall cell is a **14×14 interior inside the 16×16 base** — the perimeter ring's
+identity comes from the FACE art (row 0 → `ring_col`), never the cap band. So the cap band maps
+**1:1 onto the interior** (`_cap_az`: voxel z 1..14 → band row z-1; ring rows clamp) instead of
+being stretched over all 16 rows — the old mapping spent band rows on rings that don't read them
+and doubled a mid-tray row (Daniel's "checkerboard stops alternating" report). A 14-row band is
+identity; other heights still resample over the interior only. **Custom wall art always splits
+canonically** (`_wall_layout`: cap = all rows above the 10 face rows) — the blank-separator scan
+(`_wall_split`) is for STOCK art layouts only, so a custom variant with an accidentally blank row
+can never fall out of layout with its family. The seam pass iterates voxel rows and maps into each
+side's band via the same `_cap_az`. Python mirror: `tools/capture/voxwall.py::cap_az`.

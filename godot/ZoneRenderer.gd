@@ -3154,16 +3154,20 @@ func _emit_seam_walls(k: Vector2i, variant_tile: String, all_wall_cells: Diction
 		# SCALED index instead — same normalization the cap az mapping uses.
 		var nb_h: int = g_nb.size()
 		var nb_w: int = (g_nb[0] as Array).size()
-		var count: int = hh if d[0] != 0 else w
-		for i in count:
+		# iterate VOXEL rows/columns and map each into the two cells' art
+		# grids (band heights differ per variant and family): the gap test
+		# and the emitted span then stay exactly aligned with the carve
+		# mapping (_cap_az's 14x14-interior invariant) on BOTH sides.
+		for i in w:
 			var my_gap: bool
 			var nb_gap: bool
-			var ni_h: int = mini(nb_h - 1, i * nb_h / hh)
+			var mr: int = _cap_az(i, hh, w)
+			var nr: int = _cap_az(i, nb_h, w)
 			var ni_w: int = mini(nb_w - 1, i * nb_w / w)
-			if d == [1, 0]:      my_gap = g_my[i][w - 1]; nb_gap = g_nb[ni_h][0]
-			elif d == [-1, 0]:   my_gap = g_my[i][0];     nb_gap = g_nb[ni_h][nb_w - 1]
+			if d == [1, 0]:      my_gap = g_my[mr][w - 1]; nb_gap = g_nb[nr][0]
+			elif d == [-1, 0]:   my_gap = g_my[mr][0];     nb_gap = g_nb[nr][nb_w - 1]
 			elif d == [0, 1]:    my_gap = g_my[hh - 1][i]; nb_gap = g_nb[0][ni_w]
-			else:                my_gap = g_my[0][i];     nb_gap = g_nb[nb_h - 1][ni_w]
+			else:                my_gap = g_my[0][i];      nb_gap = g_nb[nb_h - 1][ni_w]
 			# I own the seam wall only when I am flush and the neighbour is carved.
 			if my_gap or not nb_gap:
 				continue
@@ -3606,7 +3610,7 @@ func _wall_cell_inputs(variant_tile: String, fv: Dictionary, edit_img: Image, ed
 	var editing := edit_img != null and variant_tile == edit_variant
 	var cap_img: Image = null
 	if editing:
-		var region := edit_img.get_region(Rect2i(0, 0, edit_img.get_width(), _wall_split(edit_img).x))
+		var region := edit_img.get_region(Rect2i(0, 0, edit_img.get_width(), _wall_layout(edit_img).x))
 		cap_img = _as_authored(region).get_image()
 	else:
 		var t := _cap_tex(variant_tile)
@@ -3635,7 +3639,7 @@ func _wall_cell_inputs(variant_tile: String, fv: Dictionary, edit_img: Image, ed
 			hard_src = face_overrides[String(fv[d])]
 			im = _as_authored(hard_src).get_image()
 		elif edit_img != null and String(fv[d]) == edit_variant:
-			var sp := _wall_split(edit_img)
+			var sp := _wall_layout(edit_img)
 			if sp.y < edit_img.get_height():
 				var region2 := edit_img.get_region(Rect2i(0, sp.y,
 					edit_img.get_width(), edit_img.get_height() - sp.y))
@@ -3652,7 +3656,7 @@ func _wall_cell_inputs(variant_tile: String, fv: Dictionary, edit_img: Image, ed
 			if _custom_tile_path(String(fv[d])) != "":
 				var m := _mask(String(fv[d]))
 				if m != null:
-					var sp2 := _wall_split(m)
+					var sp2 := _wall_layout(m)
 					if sp2.y < m.get_height():
 						hard_src = m.get_region(Rect2i(0, sp2.y,
 							m.get_width(), m.get_height() - sp2.y))
@@ -3712,7 +3716,7 @@ func _wall_cell_faces(inp: Dictionary) -> Array:
 	# an alternating "zipper" (Daniel) — the wall's rim stays a solid line and
 	# roof relief starts one pixel in, like the foundation and corner rules.
 	for z in W:
-		var az := mini(caph - 1, z * caph / W)
+		var az := _cap_az(z, caph, W)
 		for x in W:
 			if not bool(gaps[az][x]):
 				continue
@@ -3859,7 +3863,7 @@ func _wall_cell_faces(inp: Dictionary) -> Array:
 		var yb: float = planes[r + 1]
 		var yt: float = planes[r]
 		for z in W:
-			var az := mini(caph - 1, z * caph / W)
+			var az := _cap_az(z, caph, W)
 			var z0 := -0.5 + z * ps
 			var z1 := z0 + ps
 			for x in W:
@@ -4078,10 +4082,12 @@ func wall_preview_arrangement(sel_tile: String, obj: Dictionary, layout: Array,
 			out.append(f)
 	return out
 
-## Public face of _wall_split for the voxel editor: where a 16x24 wall art's
-## cap band ends and its face band begins.
+## Public face of the wall-art layout for the voxel editor: where a 16x24
+## wall art's cap band ends and its face band begins. The editor authors
+## CANONICAL layout (14-row cap over 10-row face) — never the stock scan —
+## so a saved variant can't drift out of layout with its family.
 func wall_art_split(img: Image) -> Vector2i:
-	return _wall_split(img)
+	return _wall_layout(img)
 
 ## The exported variant name matching an autotile bit pattern: exact art, else
 ## cardinals-only, else the tile unchanged.
@@ -4177,7 +4183,7 @@ func _wall_bottom_open_at(k: Vector2i, wall_cells: Dictionary) -> bool:
 		var m := _mask(String(t))
 		if m == null:
 			continue
-		var sp := _wall_split(m)
+		var sp := _wall_layout(m)
 		if sp.y >= m.get_height():
 			continue
 		var by := m.get_height() - 1
@@ -4239,7 +4245,7 @@ func _cap_tex(tile: String) -> ImageTexture:
 	var mask := _mask(tile)
 	if mask == null:
 		return _wall_top_material_tex()      # fall back to the isolated tile
-	var region := mask.get_region(Rect2i(0, 0, mask.get_width(), _wall_split(mask).x))
+	var region := mask.get_region(Rect2i(0, 0, mask.get_width(), _wall_split_for(tile, mask).x))
 	# custom art renders AS-AUTHORED (polychrome); the mask recolour would crush it
 	var tex := _as_authored(region) if _custom_tile_path(tile) != "" \
 		else _recolor_image(region, _wall_main, _wall_detail, Fill.ALL)
@@ -4397,6 +4403,35 @@ func _wall_split(img: Image) -> Vector2i:
 	var start: int = maxi(1, h - WALL_FACE_ROWS)
 	return Vector2i(start, start)
 
+## The CANONICAL layout for wall art WE author (the voxel editor's world):
+## the roof is ALWAYS a 14x14 interior inside the 16x16 base (Daniel's
+## invariant), so the cap band is everything above the face band — fixed, no
+## content sniffing. Stock Qud art keeps the _wall_split SCAN: its layouts
+## genuinely vary (metal 13 rows, brinestalk 15), and a blank separator row
+## swallowed into a cap band would carve a trench across the roof.
+func _wall_layout(img: Image) -> Vector2i:
+	var start: int = maxi(1, img.get_height() - WALL_FACE_ROWS)
+	return Vector2i(start, start)
+
+## The split for a NAMED tile: canonical for our own (custom) art, scanned
+## for stock — so a custom variant with an accidentally blank row can never
+## fall out of layout with its family.
+func _wall_split_for(tile: String, img: Image) -> Vector2i:
+	if _custom_tile_path(tile) != "":
+		return _wall_layout(img)
+	return _wall_split(img)
+
+## Cap-art row for a voxel row: the band maps 1:1 onto the 14x14 roof
+## INTERIOR (z 1..W-2). The ring rows carry no cap art of their own — their
+## identity is the FACE art — and just clamp to the nearest band row (which
+## also keeps edge semantics at wall-to-wall seams: ring and last interior
+## row read the same band row there). A 14-row band on the 16 grid is
+## IDENTITY — no resampling, no doubled checker row (Daniel's report); other
+## heights scale over the interior only (13: one doubled row; 15: one skip).
+func _cap_az(z: int, caph: int, W: int) -> int:
+	var iz: int = clampi(z - 1, 0, W - 3)
+	return mini(caph - 1, iz * caph / (W - 2))
+
 func _wall_region_tex(kind: String, face_variant := "") -> ImageTexture:
 	if _wall_tile == "":
 		return null
@@ -4410,13 +4445,13 @@ func _wall_region_tex(kind: String, face_variant := "") -> ImageTexture:
 		if iso_mask != null:
 			# REAL fully-framed tile — recolor its top square as-is (real crenellated border)
 			var w := iso_mask.get_width()
-			var region := iso_mask.get_region(Rect2i(0, 0, w, _wall_split(iso_mask).x))
+			var region := iso_mask.get_region(Rect2i(0, 0, w, _wall_split_for(iso, iso_mask).x))
 			tex = _recolor_image(region, _wall_main, _wall_detail, Fill.ALL)
 		else:
 			var mask := _mask(_wall_tile)  # fallback: synthetic frame on the interior checker
 			if mask != null:
 				var w := mask.get_width()
-				var region := mask.get_region(Rect2i(0, 0, w, _wall_split(mask).x))
+				var region := mask.get_region(Rect2i(0, 0, w, _wall_split_for(_wall_tile, mask).x))
 				tex = _framed_top(region)
 	else:
 		# front-face strip: the EFFECTIVE variant's face when given (its art drops the
@@ -4433,7 +4468,7 @@ func _wall_region_tex(kind: String, face_variant := "") -> ImageTexture:
 		if mask != null:
 			var w := mask.get_width()
 			var h := mask.get_height()
-			var split := _wall_split(mask)
+			var split := _wall_split_for(face_tile, mask)
 			if split.y < h:
 				var region := mask.get_region(Rect2i(0, split.y, w, h - split.y))
 				tex = _as_authored(region) if _custom_tile_path(face_tile) != "" \

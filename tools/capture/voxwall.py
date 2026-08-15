@@ -58,6 +58,14 @@ DETAIL = (0xff, 0xff, 0xff)    # 'Y'
 RECESS = (0x2f, 0x33, 0x33)
 
 
+
+def cap_az(z, caph, W):
+    """Cap-art row for voxel row z — mirrors ZoneRenderer._cap_az: the band
+    maps 1:1 onto the 14x14 roof INTERIOR (z 1..W-2); ring rows carry no cap
+    art (their identity is the face art) and clamp to the nearest band row."""
+    iz = max(0, min(z - 1, W - 3))
+    return min(caph - 1, iz * caph // (W - 2))
+
 def load(name):
     return decode(resolve(name))
 
@@ -180,7 +188,7 @@ def build_cell(vt, cells, k, family):
     # face-top "zipper" fix): the rim stays a solid line
     expo = {d: (k[0] + DIRS[d][0][0], k[1] + DIRS[d][0][1]) not in cells for d in DIRS}
     for z in range(W):
-        az = min(caph - 1, z * caph // W)
+        az = cap_az(z, caph, W)
         for x in range(W):
             if not cap_art["cap"][az][x]:
                 continue
@@ -388,7 +396,7 @@ def previews(tag, vox, cells):
         ox, oz = xs.index(cx) * W, zs.index(cz) * W
         caph = len(cap["cap"])
         for z in range(W):
-            az = min(caph - 1, z * caph // W)
+            az = cap_az(z, caph, W)
             for x in range(W):
                 top[oz + z][ox + x] = RECESS if not v.solid[0][z][x] else cap["capcol"][az][x]
     write_png(f"voxwall_{tag}_top.png", top)
