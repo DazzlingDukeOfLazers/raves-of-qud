@@ -134,7 +134,11 @@ slots 1..18, code order r R o O w W g G b B c C m M k K y Y; freeform/V4-era aut
 it does NOT bake through the wall band grammar). `vox2wall.py --selftest` mocks the file
 shapes editors save (scene-graph chunks, reordered palettes, version 200) and proves the
 importer decodes them all identically; the one thing a mock can't prove is an editor that
-re-origins XYZI coordinates — confirm with one real save per editor.
+re-origins XYZI coordinates — confirm with one real save per editor. **vengi: CERTIFIED
+2026-08-15** — a real voxedit save of the platonic run tile baked as a 0-change no-op
+(coords preserved absolute, scene translations "0 0 0", +NOTE/256 MATL/LAYR chunks all
+skipped clean). vengi draws its ground grid through the model's vertical centre, so the
+wall sits "below the horizon" in the viewport — that is presentation, not data.
 
 The bridge from band-driven walls to free voxel tooling: builds the variant's volume with
 voxwall's builder from CUSTOM art first (as-authored, canonical split, `_cap_variant`
