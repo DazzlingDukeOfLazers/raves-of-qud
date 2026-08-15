@@ -3136,7 +3136,16 @@ func _emit_seam_walls(k: Vector2i, variant_tile: String, all_wall_cells: Diction
 	var ps := 1.0 / w
 	var lo := WALL_H - CAP_CARVE
 	var st: SurfaceTool = null
-	var mainc := _qud_color(_wall_main)
+	# the closing wall wears MY edge voxel's block colour at the in-cell
+	# interior shade — a boundary pit wall must be indistinguishable from an
+	# in-cell one (Daniel: "the roof seam is using different shading than the
+	# central checkerboard"; flat unshaded main-colour read as a seam).
+	var capt := _cap_tex(variant_tile)
+	if capt == null:
+		return
+	var capim := capt.get_image()
+	if capim == null:
+		return
 	for d in [[1, 0], [-1, 0], [0, 1], [0, -1]]:
 		var n := Vector2i(k.x + d[0], k.y + d[1])
 		if not all_wall_cells.has(n):
@@ -3193,9 +3202,20 @@ func _emit_seam_walls(k: Vector2i, variant_tile: String, all_wall_cells: Diction
 			var bt := Vector3(b.x, WALL_H, b.z)
 			var ab := Vector3(a.x, lo, a.z)
 			var bb := Vector3(b.x, lo, b.z)
+			var ac: int
+			var ar: int
+			if d[0] != 0:
+				ac = (w - 1) if d == [1, 0] else 0
+				ar = mr
+			else:
+				ac = i
+				ar = _cap_az(w - 1, hh, w) if d == [0, 1] else _cap_az(0, hh, w)
+			var px := capim.get_pixel(ac, ar)
+			var sh := _interior_shade(nrm)
+			var segc := Color(px.r * sh, px.g * sh, px.b * sh, 1.0)
 			for pv in [ab, bt, at, ab, bb, bt]:
 				st.set_normal(nrm)
-				st.set_color(mainc)
+				st.set_color(segc)
 				st.add_vertex(pv)
 	if st != null:
 		var mesh := ArrayMesh.new()
