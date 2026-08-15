@@ -131,11 +131,11 @@ The bridge from band-driven walls to free voxel tooling: builds the variant's vo
 voxwall's builder from CUSTOM art first (as-authored, canonical split, `_cap_variant`
 cardinal fallback) and writes `<support>/vox/<family>-<bits>.vox` — a Qud-art derivative,
 NEVER committed. Colours: cap art on the top slab, nearest exposed face art below, main red
-inside. Open in MagicaVoxel/vengi, or in the GODOT EDITOR via the vendored Voxel-Core
-plugin (`godot/addons/voxel-core`, MIT, branch 4.0.0 @ eeff040e + our patches — see its
-PATCHES.md: 34 unported Godot-3 leftovers pruned, the .vox reader ported by us, including a
-Godot-3 `continue`-in-`match` fallthrough that Godot 4 turns into a stream desync). SPOT:
-`godot/tests/vox_roundtrip.gd` proves writer and reader agree.
+inside. Open in MagicaVoxel or vengi (both understand .vox v150). The writer is validated
+by vox2wall's Python reader on every bake (the round-trip report). History note: a
+Voxel-Core Godot plugin was vendored briefly (fa82a90) and removed — its editing UI lives
+in the GODOT EDITOR, which end users of Raves never see (Daniel: user-centric only); the
+external-editor loop below needs no Godot-side voxel code at all.
 
 ### `vox2wall.py` (external-editor loop: bake .vox edits back into the bands)
 The LOAD half: `wall2vox.py <bits>` -> edit `<support>/vox/wall_metal-<bits>.vox` in

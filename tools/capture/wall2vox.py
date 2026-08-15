@@ -6,8 +6,8 @@ volume is built by voxwall.py's builder (the proof-harness mirror of
 ZoneRenderer._wall_cell_mesh) from CUSTOM art first — as-authored polychrome,
 canonical 14-cap/10-face split, `_cap_variant` cardinal fallback — so what
 lands in the .vox is what the game carves. Open the file in MagicaVoxel or
-vengi, or load it in the Godot editor via the vendored Voxel-Core plugin
-(`VoxReader.read_file`).
+vengi; vox2wall.py bakes edits back (and its reader validates this writer
+on every bake).
 
     python3 tools/capture/wall2vox.py 00100010            # one variant
     python3 tools/capture/wall2vox.py --family wall_metal # all customs

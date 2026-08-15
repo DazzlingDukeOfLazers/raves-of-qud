@@ -42,15 +42,6 @@ file_logging/enable_file_logging=true
 file_logging/log_path="user://logs/raves.log"
 file_logging/max_log_files=5
 
-[editor_plugins]
-
-; Voxel-Core (MIT, vendored from ClarkThyLord/Voxel-Core branch 4.0.0 @ eeff040e) —
-; voxel editing tools inside the GODOT EDITOR (add/sub/fill/swap/pick on a
-; VoxelMeshInstance3D) + a MagicaVoxel .vox reader. The bridge from the game's
-; band-driven walls is tools/capture/wall2vox.py (variant -> .vox). Editor-only:
-; the exported app never loads plugin.cfg.
-enabled=PackedStringArray("res://addons/voxel-core/plugin.cfg")
-
 [display]
 
 window/size/viewport_width=1600
