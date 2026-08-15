@@ -3939,9 +3939,15 @@ func _wall_cell_faces(inp: Dictionary) -> Array:
 							# the recess colour reads as the cavity's mouth.
 							col = pc if pc.to_html(false) != bg else recess
 					elif r == 0:
+						# a cap-row voxel's lateral wears its BLOCK colour: for
+						# RING voxels that is the face-art row-0 pixel (what
+						# the ring top and skin show), not the cap art — a
+						# blue ring block is blue on its inner lip too
+						# (Daniel's lip picks: ring top blue, lip red).
 						fkind = "roof-trench"
+						var bc0: Color = ring_col.get(Vector2i(x, z), capc)
 						var shade0 := _interior_shade(Vector3(s[0], 0, s[1]))
-						col = Color(capc.r * shade0, capc.g * shade0, capc.b * shade0, 1.0)
+						col = Color(bc0.r * shade0, bc0.g * shade0, bc0.b * shade0, 1.0)
 					elif (carver[(r * W + nz) * W + nx] & (1 << dir_names.find(dirname))) != 0 \
 							and own_dir[nz * W + nx] == dir_names.find(dirname):
 						# a DEEP BACK is a pocket receding into its OWN face:
