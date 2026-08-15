@@ -135,8 +135,22 @@ inside. Open in MagicaVoxel/vengi, or in the GODOT EDITOR via the vendored Voxel
 plugin (`godot/addons/voxel-core`, MIT, branch 4.0.0 @ eeff040e + our patches — see its
 PATCHES.md: 34 unported Godot-3 leftovers pruned, the .vox reader ported by us, including a
 Godot-3 `continue`-in-`match` fallthrough that Godot 4 turns into a stream desync). SPOT:
-`godot/tests/vox_roundtrip.gd` proves writer and reader agree. One-way for now — vox2wall
-(bake edits back into bands, flagging what the band grammar can't hold) is the next slice.
+`godot/tests/vox_roundtrip.gd` proves writer and reader agree.
+
+### `vox2wall.py` (external-editor loop: bake .vox edits back into the bands)
+The LOAD half: `wall2vox.py <bits>` -> edit `<support>/vox/wall_metal-<bits>.vox` in
+MagicaVoxel/vengi -> `vox2wall.py <bits>` (or leave `--watch` running: bakes on every save,
+and the game's custom-art watch hot-reloads the wall — no restart, no app changes).
+**THE BASELINE PRINCIPLE**: edits are found by diffing the .vox against the volume REBUILT
+from current art via voxwall's builder — never by inferring "expected" state from the art,
+which meant re-implementing every forward carve rule backwards (each missed protection
+surfaced as a phantom edit; measured 45 phantom band px on an untouched cell). Only diffs
+bake: cap-layer -> cap band (identity at 14 rows), depth-0 exposed skins -> face band (run
+carriers only, wrap-mapped, canonical dir s>e>n>w). Unrepresentable edits are COUNTED AND
+NAMED (interior / ring-row / face-conflict / face-carrier), never dropped silently; the
+report also round-trips the bake and states voxels lost/regained — a baked gap carves its
+RULE's shape (2-deep face relief), not just the voxel removed. Pristine art bakes as a
+0-change no-op (verified).
 
 ### `voxwall.py` (LIVE — the wall-volume proof harness)
 Mirrors `ZoneRenderer._wall_cell_mesh` (the watertight per-cell voxel wall). Builds real
