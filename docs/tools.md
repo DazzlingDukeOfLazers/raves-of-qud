@@ -117,8 +117,12 @@ E/W ends verbatim, the N/S set (`10001000`/`10000000`/`00001000`) with the cap's
 interior TRANSPOSED (a 90-degree turn that, unlike true rotation on an even grid, preserves
 the global seam phase — the checker stays continuous at every join; `TRANSPOSE = False` for
 chiral art), ring columns at the family phase, face band verbatim (faces are vertical and do
-not turn). Without the N/S customs those cells fell back to STOCK art — flush dark squares
-instead of carved pits. Re-run after every platonic edit; writes to `tiles_custom` only.
+not turn). Junctions (pure-cardinal corners, tees, the cross) derive verbatim as placeholders
+awaiting their own platonic decision — the point is that ALL 16 cardinal signatures resolve
+to custom art: any signature without a custom file falls back to STOCK art (flush dark
+squares instead of carved pits — the trap both the N/S run and the junctions were in). Exact
+diagonal-variant customs still win over the derived cardinals. Re-run after every platonic
+edit; writes to `tiles_custom` only.
 
 ### `voxwall.py` (LIVE — the wall-volume proof harness)
 Mirrors `ZoneRenderer._wall_cell_mesh` (the watertight per-cell voxel wall). Builds real

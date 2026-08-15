@@ -29,6 +29,17 @@ BASE = "Assets_Content_Textures_Tiles_wall_metal"
 PLATONIC = "00100010"
 EW_SET = ["00100000", "00000010"]
 NS_SET = ["10001000", "10000000", "00001000"]
+# Junctions (pure-cardinal corners, tees, the cross) derive VERBATIM for now —
+# placeholders that keep every possible neighbourhood on CUSTOM art (a cell
+# whose cardinal signature has no custom file falls back to STOCK art — the
+# flush-dark-squares trap the N/S run was in). They await their own platonic
+# decision once the roof art goes directional. Exact diagonal-variant customs
+# still win over these (variant resolution tries exact bits first).
+JUNCTION_SET = [
+    "10100000", "00101000", "00001010", "10000010",   # corners NE SE SW NW
+    "10101000", "00101010", "10001010", "10100010",   # tees   NES ESW SWN WNE
+    "10101010",                                        # cross
+]
 FACE_ROWS = 10
 TRANSPOSE = True   # False = true 90-degree rotation (chiral art; breaks checker phase)
 RED = (166, 74, 46, 255)
@@ -51,13 +62,14 @@ def main():
             out.putpixel((15, r), RED if (15 + r) % 2 == 1 else (0, 0, 0, 0))
         return out
 
-    for bits in EW_SET:
+    for bits in EW_SET + JUNCTION_SET:
         src.save(f"{DIR}/{BASE}-{bits}.bmp", format="PNG")
     ns = turned()
     for bits in NS_SET:
         ns.save(f"{DIR}/{BASE}-{bits}.bmp", format="PNG")
     print(f"derived from {PLATONIC}: {' '.join(EW_SET)} (verbatim), "
-          f"{' '.join(NS_SET)} ({'transposed' if TRANSPOSE else 'rotated'})")
+          f"{' '.join(NS_SET)} ({'transposed' if TRANSPOSE else 'rotated'}), "
+          f"{' '.join(JUNCTION_SET)} (junction placeholders, verbatim)")
 
 
 if __name__ == "__main__":
