@@ -3260,15 +3260,16 @@ func _carve_closure_quads(cells: Dictionary) -> Dictionary:
 							pa = Vector3(k.x - 0.5, yb, k.y - 0.5 + a * ps)
 							pb = Vector3(k.x - 0.5, yb, k.y - 0.5 + (a + 1) * ps)
 							nrm = Vector3(1, 0, 0)
-					# a closure plane is a SIDE WALL of the pocket, not a
-					# back: perpendicular to the wall face, it wears the SOLID
-					# neighbour's material with the same orientation shading as
-					# any in-cell side (Daniel's pink circle: seam-edge pockets
-					# showed a back-dark wall where a lit side belongs).
-					var nmain: Color = nb["main"]
+					# a closure plane is a SIDE WALL of the pocket: it wears
+					# the SOLID neighbour's edge ART pixel (cyan where the
+					# design is cyan) with the same orientation shading as any
+					# in-cell side — seam sides are pixel-identical to native
+					# ones (Daniel's green-vs-pink pockets).
+					var nec: PackedColorArray = nb["ecol"][opp[d]]
+					var nc: Color = nec[nr * nW + na]
 					var sh := _interior_shade(nrm)
 					quads.append({"q": [pa, pb, Vector3(pb.x, yt, pb.z), Vector3(pa.x, yt, pa.z)],
-						"n": nrm, "c": Color(nmain.r * sh, nmain.g * sh, nmain.b * sh, 1.0)})
+						"n": nrm, "c": Color(nc.r * sh, nc.g * sh, nc.b * sh, 1.0)})
 		if not quads.is_empty():
 			out[k] = quads
 	return out
@@ -3373,8 +3374,8 @@ func _rebuild_walls(wall_types: Dictionary) -> void:
 				mi.position = Vector3(k.x, 0.0, k.y)
 				_wall_parent().add_child(mi)
 				_track_wall(k, mi)
-				closure_cells[k] = {"prof": entry["prof"], "planes": entry["planes"],
-					"W": entry["W"], "main": _qud_color(_wall_main)}
+				closure_cells[k] = {"prof": entry["prof"], "ecol": entry["ecol"],
+					"planes": entry["planes"], "W": entry["W"]}
 			_emit_seam_walls(k, v, all_wall_cells)
 	_emit_carve_closures(closure_cells)
 
@@ -3542,6 +3543,7 @@ const SIDE_CARVE_PX := 2    # facade recess depth, in ART pixels (~0.13 cells at
 var _voxel_cache := {}      # cell-mesh key -> {mesh, prof, planes}
 var _voxel_mat: StandardMaterial3D
 var _last_faces_prof := {}          # stashed by _wall_cell_faces for the cache
+var _last_faces_ecol := {}          # boundary voxels' art colours, per dir
 var _last_faces_planes: Array[float] = []
 
 ## ONE cell's wall as a watertight voxel volume ("minecraft" walls; algorithm and
@@ -3587,7 +3589,7 @@ func _wall_cell_mesh(variant_tile: String, fv: Dictionary) -> Dictionary:
 			st.add_vertex(q[idx])
 	var mesh := ArrayMesh.new()
 	st.commit(mesh)
-	var entry := {"mesh": mesh, "prof": _last_faces_prof,
+	var entry := {"mesh": mesh, "prof": _last_faces_prof, "ecol": _last_faces_ecol,
 		"planes": _last_faces_planes, "W": (inp["cap"] as Image).get_width()}
 	_voxel_cache[key] = entry
 	return entry
@@ -3925,9 +3927,15 @@ func _wall_cell_faces(inp: Dictionary) -> Array:
 	# this cell's boundary-solidity profile; _emit_carve_closures pairs the two
 	# cells' profiles after every cell is built.
 	var prof := {}
+	var ecol := {}
 	for d2 in ["s", "n", "e", "w"]:
 		var pb := PackedByteArray()
 		pb.resize(R * W)
+		var pc := PackedColorArray()
+		pc.resize(R * W)
+		# a boundary voxel's visible SIDE colour comes from the perpendicular
+		# exposed face's shell art — same rule as in-cell sides
+		var perp: Array = ["s", "n"] if (d2 == "e" or d2 == "w") else ["e", "w"]
 		for r in R:
 			for a in W:
 				var cz: int
@@ -3938,8 +3946,16 @@ func _wall_cell_faces(inp: Dictionary) -> Array:
 					"e": cz = a; cx = W - 1
 					_: cz = a; cx = 0
 				pb[r * W + a] = solid[(r * W + cz) * W + cx]
+				var c := mainc
+				for d3 in perp:
+					if shell_col[d3].has(Vector3i(cx, cz, r)):
+						c = shell_col[d3][Vector3i(cx, cz, r)]
+						break
+				pc[r * W + a] = c
 		prof[d2] = pb
+		ecol[d2] = pc
 	_last_faces_prof = prof
+	_last_faces_ecol = ecol
 	_last_faces_planes = planes
 	return out
 
@@ -3987,8 +4003,8 @@ func wall_preview_arrangement(sel_tile: String, obj: Dictionary, layout: Array,
 			for p in f["q"]:
 				q.append(p + Vector3(k.x, 0.0, k.y))
 			out.append({"q": q, "n": f["n"], "c": f["c"]})
-		closure_cells[k] = {"prof": _last_faces_prof, "planes": _last_faces_planes,
-			"W": (inp["cap"] as Image).get_width(), "main": _qud_color(_wall_main)}
+		closure_cells[k] = {"prof": _last_faces_prof, "ecol": _last_faces_ecol,
+			"planes": _last_faces_planes, "W": (inp["cap"] as Image).get_width()}
 	for quads in _carve_closure_quads(closure_cells).values():
 		for f in quads:
 			out.append(f)
