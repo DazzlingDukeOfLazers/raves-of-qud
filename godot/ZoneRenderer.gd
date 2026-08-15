@@ -4238,7 +4238,30 @@ func _wall_skin_material() -> StandardMaterial3D:
 
 ## The top-down cap of ONE autotile variant, recoloured. Borders appear only on
 ## the edges that variant says are exposed, so adjacent cells join seamlessly.
+## The variant whose CAP art a cell renders: the exact (Qud-reported) name
+## when it has CUSTOM art, else the cardinal projection when THAT does — the
+## platonic derivation covers all 16 cardinal signatures, but Qud reports
+## DIAGONAL-flavoured names (00100011, 01100010) that would silently fall
+## back to STOCK art (Daniel: "6,21 has 2 neighbors that should match it").
+## Stock stays stock: with no custom family the exact variant is correct.
+func _cap_variant(tile: String) -> String:
+	if _custom_tile_path(tile) != "":
+		return tile
+	var dash := tile.rfind("-")
+	var dot := tile.rfind(".")
+	if dash < 0 or dot < dash:
+		return tile
+	var bits := tile.substr(dash + 1, dot - dash - 1)
+	var card := ""
+	for i in bits.length():
+		card += bits[i] if i % 2 == 0 else "0"
+	var cand := tile.substr(0, dash) + "-" + card + tile.substr(dot)
+	if _custom_tile_path(cand) != "":
+		return cand
+	return tile
+
 func _cap_tex(tile: String) -> ImageTexture:
+	tile = _cap_variant(tile)
 	var key := "cap|%s|%s|%s|%s" % [tile, _wall_main, _wall_detail, _wall_bg]
 	if _wallmat_cache.has(key):
 		return _wallmat_cache[key]

@@ -121,8 +121,10 @@ not turn). Junctions (pure-cardinal corners, tees, the cross) derive verbatim as
 awaiting their own platonic decision — the point is that ALL 16 cardinal signatures resolve
 to custom art: any signature without a custom file falls back to STOCK art (flush dark
 squares instead of carved pits — the trap both the N/S run and the junctions were in). Exact
-diagonal-variant customs still win over the derived cardinals. Re-run after every platonic
-edit; writes to `tiles_custom` only.
+diagonal-variant customs still win over the derived cardinals; for every OTHER
+diagonal-flavoured name Qud reports (00100011 beside 00100010), the renderer's cap path
+resolves to the cardinal custom itself (`_cap_variant`), so the derivation never needs to
+enumerate 256 names. Re-run after every platonic edit; writes to `tiles_custom` only.
 
 ### `voxwall.py` (LIVE — the wall-volume proof harness)
 Mirrors `ZoneRenderer._wall_cell_mesh` (the watertight per-cell voxel wall). Builds real
