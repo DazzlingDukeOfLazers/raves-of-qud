@@ -618,7 +618,9 @@ func _group_wall_cells(cells: Array, offset: Vector2i, wall_types: Dictionary, w
 			# variant encodes which neighbours are walls, which is exactly what
 			# decides whether the roof draws a border on each edge.
 			wall_types[key]["cells"][Vector2i(cx, cy)] = String(obj.get("tile", ""))
-			wall_cells[Vector2i(cx, cy)] = true
+			# the VARIANT TILE, not just true: the floor pass asks whether this
+			# wall's custom art hard-carves its bottom row (ground shows through)
+			wall_cells[Vector2i(cx, cy)] = String(obj.get("tile", ""))
 
 ## Pass 2 for ONE cell — floors + verticals (skip walls). This is the heavy, GPU-touching part
 ## (texture recolour, sprites, floor-batch entries); the incremental build calls it in chunks.
@@ -632,6 +634,10 @@ func _place_cell(cell: Dictionary, offset: Vector2i, wall_cells: Dictionary, ski
 	var cx := int(cell.get("x", 0)) + offset.x
 	var cy := int(cell.get("y", 0)) + offset.y
 	var in_wall: bool = wall_cells.has(Vector2i(cx, cy))
+	# a wall whose custom art hard-carves its BOTTOM ROW shows the ground through
+	# the openings (Daniel: "carve those out too") — its cell floor renders after
+	# all, sitting under the wall volume like anywhere else
+	var ground_show: bool = in_wall and _wall_bottom_open_at(Vector2i(cx, cy), wall_cells)
 	var sink := _cell_sink(cell)
 	var wet: bool = bool(cell.get("wade", false)) or bool(cell.get("swim", false))
 	# A stair-down cell's own floor/ground quad would cap the shaft from above, so
@@ -654,7 +660,7 @@ func _place_cell(cell: Dictionary, offset: Vector2i, wall_cells: Dictionary, ski
 		if not _is_prism(o):
 			var rk: Dictionary = ranks.get(idx, {})
 			_place_nonwall(o, cx, cy, idx, in_wall, sink, wet, skip_creatures, stair_cell, lf,
-				int(rk.get("rank", -1)), int(rk.get("below", 0)))
+				int(rk.get("rank", -1)), int(rk.get("below", 0)), ground_show)
 		# Creature lights are placed in the DYNAMIC pass so they follow the creature;
 		# here (static) we only place fixed lights (sconces, braziers, lit terrain).
 		if o.has("lightRadius") and not (skip_creatures and _is_creature(o)):
@@ -2703,7 +2709,7 @@ func _stack_ranks(cell: Dictionary) -> Dictionary:
 ## cell coords collide across zones, and the sprites die with the subtree anyway.
 var _cell_top_static := {}   # Vector2i -> Sprite3D
 
-func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, sink := 0.0, wet := false, skip_creatures := false, stair_cell := false, light_frac := 1.0, rank := -1, below := 0) -> void:
+func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, sink := 0.0, wet := false, skip_creatures := false, stair_cell := false, light_frac := 1.0, rank := -1, below := 0, ground_show := false) -> void:
 	# Static builds exclude creatures (they render per step in _rebuild_dynamics);
 	# remembered zones drop them entirely (they've wandered off since last live).
 	if skip_creatures and _is_creature(obj):
@@ -2907,7 +2913,7 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 	var as_floor: bool = _flat_2d or (layer <= FLOOR_LAYER_MAX and not upright_ground) or verdict == "floor"
 
 	if as_floor:
-		if in_wall:
+		if in_wall and not ground_show:
 			_note(cx, cy, idx, "skipped(under wall)", 0.0)
 			return  # hidden under a wall; don't bother
 		if stair_cell:
@@ -3813,18 +3819,10 @@ func _wall_cell_faces(inp: Dictionary) -> Array:
 						"n": nrm, "c": col})
 	# CLOSURES for hard carves — removal stays visually sealed. A pocket that
 	# reaches a WALL NEIGHBOUR gets its back wall at the boundary plane (the
-	# neighbour's mesh assumes a flush boundary and emits nothing there), and
-	# a pocket in the bottom row gets a floor (no ground exists under walls —
-	# the base light-leak would return).
-	for z in W:
-		var z0 := -0.5 + z * ps
-		for x in W:
-			if solid[((R - 1) * W + z) * W + x] == 1:
-				continue
-			var x0 := -0.5 + x * ps
-			out.append({"q": [Vector3(x0, 0.0, z0), Vector3(x0 + ps, 0.0, z0),
-				Vector3(x0 + ps, 0.0, z0 + ps), Vector3(x0, 0.0, z0 + ps)],
-				"n": Vector3.UP, "c": recess})
+	# neighbour's mesh assumes a flush boundary and emits nothing there).
+	# Bottom-row pockets need no floor here: a bottom-carved wall's cell
+	# renders its REAL GROUND (see _wall_bottom_open_at) — a closure plate
+	# where the dirt should show was Daniel's report.
 	for d in ["s", "e", "n", "w"]:
 		if String(fv[d]) != "":
 			continue          # exposed: pockets open to air, no closure
@@ -3959,6 +3957,48 @@ func _wall_caches_clear() -> void:
 	_wallmat_cache.clear()
 	_cap_gap_cache.clear()
 	_voxel_cache.clear()
+	_bottom_open_cache.clear()
+
+## Does this wall cell's custom art hard-carve its BOTTOM row on any exposed
+## face? If so the ground shows through the openings and the floor pass renders
+## the cell's ground instead of skipping it (and the wall emits no closure
+## floors — the real ground is the floor). Cached per (variant, neighbourhood).
+var _bottom_open_cache := {}
+func _wall_bottom_open_at(k: Vector2i, wall_cells: Dictionary) -> bool:
+	var tile := String(wall_cells.get(k, ""))
+	if tile == "":
+		return false
+	var wn := wall_cells.has(Vector2i(k.x, k.y - 1))
+	var ws := wall_cells.has(Vector2i(k.x, k.y + 1))
+	var we := wall_cells.has(Vector2i(k.x + 1, k.y))
+	var ww := wall_cells.has(Vector2i(k.x - 1, k.y))
+	var key := "%s|%s%s%s%s" % [tile, wn, ws, we, ww]
+	if _bottom_open_cache.has(key):
+		return _bottom_open_cache[key]
+	var fvs := []
+	if not ws: fvs.append(_face_variant(tile, we, ww))
+	if not we: fvs.append(_face_variant(tile, wn, ws))
+	if not wn: fvs.append(_face_variant(tile, ww, we))
+	if not ww: fvs.append(_face_variant(tile, ws, wn))
+	var open := false
+	for t in fvs:
+		if _custom_tile_path(String(t)) == "":
+			continue
+		var m := _mask(String(t))
+		if m == null:
+			continue
+		var sp := _wall_split(m)
+		if sp.y >= m.get_height():
+			continue
+		var by := m.get_height() - 1
+		for x in m.get_width():
+			if m.get_pixel(x, by).a < 0.5:
+				open = true
+				break
+		if open:
+			break
+	_bottom_open_cache[key] = open
+	return open
 
 func _voxel_material() -> StandardMaterial3D:
 	if _voxel_mat != null:
