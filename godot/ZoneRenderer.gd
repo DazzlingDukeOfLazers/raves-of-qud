@@ -3784,13 +3784,37 @@ func _wall_cell_faces(inp: Dictionary) -> Array:
 					if is_hard or prot[cz * W + cx] == 0:
 						solid[(r * W + cz) * W + cx] = 0
 
+	# OWNERSHIP: in the corner overlap a column sits in TWO exposed shells and
+	# every colour heuristic turns ambiguous — which art to wear, what counts
+	# as a back, who paints the roof ring (Daniel's corner cluster). Each
+	# column has ONE owning face: the exposed dir it is SHALLOWEST in
+	# (ties break s,e,n,w). All colour rules key off the owner.
+	var dir_names := ["s", "e", "n", "w"]
+	var own_dir := PackedInt32Array()
+	own_dir.resize(W * W)
+	for z in W:
+		for x in W:
+			var best := -1
+			var bestd := SIDE_CARVE_PX
+			for di in 4:
+				if String(fv[dir_names[di]]) == "":
+					continue
+				var dep: int
+				match di:
+					0: dep = W - 1 - z
+					1: dep = W - 1 - x
+					2: dep = z
+					_: dep = x
+				if dep < bestd:
+					bestd = dep
+					best = di
+			own_dir[z * W + x] = best
+
 	# A SKIN voxel wears its art pixel on EVERY face it shows — outer skin,
 	# step sides, pocket-floor top, roof edge (Daniel: "blue on the face, but
 	# not on the side (nor the top)"). Precompute each shell voxel's art colour
-	# PER OWNING FACE: a corner voxel sits in two shells, and a step side with
-	# normal ±X belongs to the s/n relief while ±Z belongs to e/w — sampling
-	# the wrong face's art painted blue voxels red. ring_col is the depth-0
-	# skin only (the roof's outermost ring follows it).
+	# PER OWNING FACE. ring_col is the depth-0 skin only (the roof's outermost
+	# ring follows it), written by each column's OWNER alone.
 	var shell_col := {"s": {}, "n": {}, "e": {}, "w": {}}
 	var ring_col := {}
 	for d in f_img:
@@ -3813,7 +3837,7 @@ func _wall_cell_faces(inp: Dictionary) -> Array:
 						"e": cz = a; cx = W - 1 - depth
 						_: cz = a; cx = depth
 					shell_col[d][Vector3i(cx, cz, r)] = pc
-					if depth == 0 and r == 0:
+					if depth == 0 and r == 0 and own_dir[cz * W + cx] == dir_names.find(String(d)):
 						ring_col[Vector2i(cx, cz)] = pc
 
 	# emission: every solid voxel face against air, once
@@ -3844,10 +3868,9 @@ func _wall_cell_faces(inp: Dictionary) -> Array:
 					if r == 0:
 						tc = ring_col.get(Vector2i(x, z), capc)
 					else:
-						for d3 in ["s", "e", "n", "w"]:
-							if shell_col[d3].has(Vector3i(x, z, r)):
-								tc = (shell_col[d3][Vector3i(x, z, r)] as Color).darkened(0.1)
-								break
+						var oi := own_dir[z * W + x]
+						if oi >= 0 and shell_col[dir_names[oi]].has(Vector3i(x, z, r)):
+							tc = (shell_col[dir_names[oi]][Vector3i(x, z, r)] as Color).darkened(0.1)
 					out.append({"q": [Vector3(x0, yt, z0), Vector3(x1, yt, z0),
 						Vector3(x1, yt, z1), Vector3(x0, yt, z1)],
 						"n": Vector3.UP, "c": tc})
@@ -3893,17 +3916,12 @@ func _wall_cell_faces(inp: Dictionary) -> Array:
 					elif r == 0:
 						var shade0 := _interior_shade(Vector3(s[0], 0, s[1]))
 						col = Color(capc.r * shade0, capc.g * shade0, capc.b * shade0, 1.0)
-					elif String(fv[dirname]) != "" and (
-							(dirname == "s" and nz >= W - SIDE_CARVE_PX)
-							or (dirname == "n" and nz < SIDE_CARVE_PX)
-							or (dirname == "e" and nx >= W - SIDE_CARVE_PX)
-							or (dirname == "w" and nx < SIDE_CARVE_PX)):
-						# a BACK closes a pocket carved FROM dirname: the empty
-						# beyond the face sits in that direction's own shell. A
-						# face whose normal merely POINTS toward some exposed
-						# dir is a SIDE — on two-exposure corner cells every
-						# east-facing side was misread as an east-pocket back
-						# (Daniel: "It should be blue. It's deeeep red.")
+					elif own_dir[nz * W + nx] == dir_names.find(dirname):
+						# a BACK closes a pocket carved FROM dirname: the EMPTY
+						# beyond the face is OWNED by that direction. In the
+						# corner overlap an empty can lie in two shells; its
+						# owner (nearest face) decides — a face closing another
+						# face's pocket is a SIDE, not a back.
 						col = backc
 					else:
 						# the SIDE of a relief step: the owning voxel's own
@@ -3912,12 +3930,10 @@ func _wall_cell_faces(inp: Dictionary) -> Array:
 						# its depth. A ±X side belongs to the s/n relief, a ±Z
 						# side to e/w — the axis-consistent shell owns the face.
 						var key := Vector3i(x, z, r)
-						var dirs2: Array = ["s", "n"] if s[0] != 0 else ["e", "w"]
 						var sc := Color(0, 0, 0, 0)
-						for d3 in dirs2:
-							if shell_col[d3].has(key):
-								sc = shell_col[d3][key]
-								break
+						var oi2 := own_dir[z * W + x]
+						if oi2 >= 0 and shell_col[dir_names[oi2]].has(key):
+							sc = shell_col[dir_names[oi2]][key]
 						var base := sc if sc.a > 0.0 else mainc
 						var shade := _interior_shade(Vector3(s[0], 0, s[1]))
 						col = Color(base.r * shade, base.g * shade, base.b * shade, 1.0)
