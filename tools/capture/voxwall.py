@@ -62,8 +62,13 @@ RECESS = (0x2f, 0x33, 0x33)
 def cap_az(z, caph, W):
     """Cap-art row for voxel row z — mirrors ZoneRenderer._cap_az: the band
     maps 1:1 onto the 14x14 roof INTERIOR (z 1..W-2); ring rows carry no cap
-    art (their identity is the face art) and clamp to the nearest band row."""
-    iz = max(0, min(z - 1, W - 3))
+    art (their identity is the face art) and REFLECT into the band (parity-
+    true continuation for period-2 patterns at N/S seams)."""
+    iz = z - 1
+    if iz < 0:
+        iz = min(1, W - 3)
+    elif iz > W - 3:
+        iz = max(W - 4, 0)
     return min(caph - 1, iz * caph // (W - 2))
 
 def load(name):

@@ -3166,8 +3166,8 @@ func _emit_seam_walls(k: Vector2i, variant_tile: String, all_wall_cells: Diction
 			var ni_w: int = mini(nb_w - 1, i * nb_w / w)
 			if d == [1, 0]:      my_gap = g_my[mr][w - 1]; nb_gap = g_nb[nr][0]
 			elif d == [-1, 0]:   my_gap = g_my[mr][0];     nb_gap = g_nb[nr][nb_w - 1]
-			elif d == [0, 1]:    my_gap = g_my[hh - 1][i]; nb_gap = g_nb[0][ni_w]
-			else:                my_gap = g_my[0][i];      nb_gap = g_nb[nb_h - 1][ni_w]
+			elif d == [0, 1]:    my_gap = g_my[_cap_az(w - 1, hh, w)][i]; nb_gap = g_nb[_cap_az(0, nb_h, w)][ni_w]
+			else:                my_gap = g_my[_cap_az(0, hh, w)][i];      nb_gap = g_nb[_cap_az(w - 1, nb_h, w)][ni_w]
 			# I own the seam wall only when I am flush and the neighbour is carved.
 			if my_gap or not nb_gap:
 				continue
@@ -4423,13 +4423,19 @@ func _wall_split_for(tile: String, img: Image) -> Vector2i:
 
 ## Cap-art row for a voxel row: the band maps 1:1 onto the 14x14 roof
 ## INTERIOR (z 1..W-2). The ring rows carry no cap art of their own — their
-## identity is the FACE art — and just clamp to the nearest band row (which
-## also keeps edge semantics at wall-to-wall seams: ring and last interior
-## row read the same band row there). A 14-row band on the 16 grid is
-## IDENTITY — no resampling, no doubled checker row (Daniel's report); other
+## identity is the FACE art — and REFLECT into the band (second /
+## second-to-last row) rather than clamp: clamping duplicates the edge
+## row's parity, which broke a period-2 pattern at every N/S wall-to-wall
+## seam (Daniel's continuous-checkerboard round); reflection continues the
+## alternation outward and stays local for arbitrary art. A 14-row band on
+## the 16 grid is IDENTITY — no resampling, no doubled checker row; other
 ## heights scale over the interior only (13: one doubled row; 15: one skip).
 func _cap_az(z: int, caph: int, W: int) -> int:
-	var iz: int = clampi(z - 1, 0, W - 3)
+	var iz: int = z - 1
+	if iz < 0:
+		iz = mini(1, W - 3)
+	elif iz > W - 3:
+		iz = maxi(W - 4, 0)
 	return mini(caph - 1, iz * caph / (W - 2))
 
 func _wall_region_tex(kind: String, face_variant := "") -> ImageTexture:
