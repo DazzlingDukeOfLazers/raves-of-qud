@@ -3893,8 +3893,18 @@ func _wall_cell_faces(inp: Dictionary) -> Array:
 					elif r == 0:
 						var shade0 := _interior_shade(Vector3(s[0], 0, s[1]))
 						col = Color(capc.r * shade0, capc.g * shade0, capc.b * shade0, 1.0)
-					elif String(fv[dirname]) != "":
-						col = backc           # a carved pocket's back wall
+					elif String(fv[dirname]) != "" and (
+							(dirname == "s" and nz >= W - SIDE_CARVE_PX)
+							or (dirname == "n" and nz < SIDE_CARVE_PX)
+							or (dirname == "e" and nx >= W - SIDE_CARVE_PX)
+							or (dirname == "w" and nx < SIDE_CARVE_PX)):
+						# a BACK closes a pocket carved FROM dirname: the empty
+						# beyond the face sits in that direction's own shell. A
+						# face whose normal merely POINTS toward some exposed
+						# dir is a SIDE — on two-exposure corner cells every
+						# east-facing side was misread as an east-pocket back
+						# (Daniel: "It should be blue. It's deeeep red.")
+						col = backc
 					else:
 						# the SIDE of a relief step: the owning voxel's own
 						# surface colour, shadowed — a blue voxel is blue on
