@@ -3701,6 +3701,12 @@ func _wall_cell_faces(inp: Dictionary) -> Array:
 	var solid := PackedByteArray()
 	solid.resize(R * W * W)
 	solid.fill(1)
+	# which face(s) CARVED each empty voxel (bitmask by dir_names index): the
+	# back-vs-side verdict follows the carver, not the nearest face — a south
+	# wall closing an EAST-carved pocket is that pocket's SIDE (Daniel's
+	# corner picks: "dark red, not darker red")
+	var carver := PackedByteArray()
+	carver.resize(R * W * W)
 	# cap carve (row 0). The outermost ring beside an EXPOSED face never
 	# carves: cap-art gaps on the perimeter notched the face's top edge into
 	# an alternating "zipper" (Daniel) — the wall's rim stays a solid line and
@@ -3758,6 +3764,7 @@ func _wall_cell_faces(inp: Dictionary) -> Array:
 		var im: Image = f_img[d]
 		var fh := im.get_height()
 		var hard: Array = (inp.get("hard", {}) as Dictionary).get(d, [])
+		var dbit: int = 1 << ["s", "e", "n", "w"].find(String(d))
 		for r in R:
 			var mid := (planes[r] + planes[r + 1]) * 0.5
 			var fr := clampi(int((WALL_H - mid) / rh), 0, fh - 1)
@@ -3784,6 +3791,7 @@ func _wall_cell_faces(inp: Dictionary) -> Array:
 						_: cz = a; cx = depth
 					if is_hard or prot[cz * W + cx] == 0:
 						solid[(r * W + cz) * W + cx] = 0
+						carver[(r * W + cz) * W + cx] |= dbit
 
 	# OWNERSHIP: in the corner overlap a column sits in TWO exposed shells and
 	# every colour heuristic turns ambiguous — which art to wear, what counts
@@ -3927,12 +3935,13 @@ func _wall_cell_faces(inp: Dictionary) -> Array:
 						fkind = "roof-trench"
 						var shade0 := _interior_shade(Vector3(s[0], 0, s[1]))
 						col = Color(capc.r * shade0, capc.g * shade0, capc.b * shade0, 1.0)
-					elif own_dir[nz * W + nx] == dir_names.find(dirname):
+					elif (carver[(r * W + nz) * W + nx] & (1 << dir_names.find(dirname))) != 0:
 						# a BACK closes a pocket carved FROM dirname: the EMPTY
-						# beyond the face is OWNED by that direction. In the
-						# corner overlap an empty can lie in two shells; its
-						# owner (nearest face) decides — a face closing another
-						# face's pocket is a SIDE, not a back.
+						# beyond the face was CARVED by that direction. Nearest-
+						# face ownership mislabels corner pockets (an east-
+						# carved void positionally closest to south) — the
+						# carver bitmask is the truth; double-carved corner
+						# voids are backs from both axes.
 						fkind = "back(%s)" % dirname
 						col = backc
 					else:
