@@ -73,6 +73,7 @@ var _pv_items := []        # last projected faces (for picking)
 var _pv_scale := 1.0
 var _pv_off := Vector2.ZERO
 var _pick := {}            # the picked face item ({} = none)
+var _pick2 := {}           # the REFERENCE face ("make 1 like 2"), shift+click
 
 func setup(renderer: ZoneRenderer, host: CanvasLayer) -> void:
 	_renderer = renderer
@@ -127,6 +128,7 @@ func setup(renderer: ZoneRenderer, host: CanvasLayer) -> void:
 	tools.add_child(_make_button("Rotate", func():
 		_yaw = fmod(_yaw + 90.0, 360.0)
 		_pick = {}
+		_pick2 = {}
 		_preview.queue_redraw()))
 	var arow := HBoxContainer.new()
 	arow.add_theme_constant_override("separation", 6)
@@ -346,6 +348,7 @@ func _load_variant(tile: String) -> void:
 	_tile = tile
 	_undo = []
 	_pick = {}
+	_pick2 = {}
 	_img = _full_image_of(tile, true)
 	if _img == null:
 		_img = Image.create(16, 24, false, Image.FORMAT_RGBA8)
@@ -533,6 +536,7 @@ func _palette_input(event: InputEvent) -> void:
 func _set_arrangement(a: String) -> void:
 	_arrangement = a
 	_pick = {}
+	_pick2 = {}
 	for k in _arr_btns:
 		_arr_btns[k].modulate = Color(1, 1, 1) if k != a else Color(0.6, 1.0, 0.7)
 	_preview.queue_redraw()
@@ -605,13 +609,17 @@ func _draw_preview() -> void:
 		for p in it["pts"]:
 			pts2.append(p * scale + off)
 		_preview.draw_colored_polygon(pts2, it["c"])
-	# picked-face highlight, re-projected with the current transform
-	if not _pick.is_empty():
+	# picked-face highlights, re-projected with the current transform:
+	# [1] selected = yellow, [2] reference = green ("make 1 like 2")
+	for pk in [[_pick, Color(1.0, 1.0, 0.3)], [_pick2, Color(0.4, 1.0, 0.4)]]:
+		var pd: Dictionary = pk[0]
+		if pd.is_empty():
+			continue
 		var hp := PackedVector2Array()
-		for p in _pick["pts"]:
+		for p in pd["pts"]:
 			hp.append(p * scale + off)
 		hp.append(hp[0])
-		_preview.draw_polyline(hp, Color(1.0, 1.0, 0.3), 2.0)
+		_preview.draw_polyline(hp, pk[1], 2.0)
 
 ## Click a face in the 3D preview to SELECT it: highlights it and writes
 ## voxel_selection.txt (voxel coords, face kind, owner, art pixel, colour) —
@@ -630,13 +638,17 @@ func _preview_input(event: InputEvent) -> void:
 			pts.append(p * _pv_scale + _pv_off)
 		if Geometry2D.is_point_in_polygon(event.position, pts):
 			if event.button_index == MOUSE_BUTTON_LEFT:
-				_pick = it
-				_write_pick_report(it)
+				if event.shift_pressed:
+					_pick2 = it     # the reference: "make 1 like 2"
+				else:
+					_pick = it
+				_write_pick_report(_pick)
 			else:
 				_erase_picked(it)
 			_preview.queue_redraw()
 			return
 	_pick = {}
+	_pick2 = {}
 	_preview.queue_redraw()
 
 ## RIGHT-CLICK a face in the 3D preview to ERASE its art pixel (Daniel tried
@@ -669,25 +681,41 @@ func _erase_picked(it: Dictionary) -> void:
 	else:
 		_status.text = "%s has no single art pixel — erase it on the 2D canvas" % kind
 
-func _write_pick_report(it: Dictionary) -> void:
+func _pick_section(f: FileAccess, label: String, it: Dictionary) -> void:
 	var m: Dictionary = it.get("m", {})
+	var c0: Color = it.get("c0", Color.BLACK)
+	var c: Color = it.get("c", Color.BLACK)
+	f.store_line(label)
+	f.store_line("  variant   %s   cell %s" % [String(m.get("variant", "?")), str(m.get("cell", "?"))])
+	f.store_line("  face kind %s" % String(m.get("k", "?")))
+	f.store_line("  voxel     %s  (x, z, row; row 0 = cap layer)" % str(m.get("v", m.get("edge_a", "?"))))
+	if m.has("ax"):
+		f.store_line("  art px    col %d, band row %d" % [int(m["ax"]), int(m["fr"])])
+	f.store_line("  colour    #%s baked, #%s with preview shade" % [c0.to_html(false), c.to_html(false)])
+
+func _write_pick_report(_it: Dictionary) -> void:
 	var path := _renderer.tiles_dir().get_base_dir().path_join("voxel_selection.txt")
 	var f := FileAccess.open(path, FileAccess.WRITE)
 	if f == null:
 		return
-	var c0: Color = it.get("c0", Color.BLACK)
-	var c: Color = it.get("c", Color.BLACK)
 	f.store_line("=== voxel pick (editor 3D preview) ===")
 	f.store_line("editing   %s" % _tile)
-	f.store_line("arrangement %s   yaw %d   cell %s" % [_arrangement, int(_yaw), str(m.get("cell", "?"))])
-	f.store_line("variant   %s" % String(m.get("variant", "?")))
-	f.store_line("face kind %s" % String(m.get("k", "?")))
-	f.store_line("voxel     %s  (x, z, row; row 0 = cap layer)" % str(m.get("v", m.get("edge_a", "?"))))
-	if m.has("ax"):
-		f.store_line("art px    col %d, band row %d" % [int(m["ax"]), int(m["fr"])])
-	f.store_line("colour    #%s baked, #%s with preview shade" % [c0.to_html(false), c.to_html(false)])
+	f.store_line("arrangement %s   yaw %d" % [_arrangement, int(_yaw)])
+	if not _pick.is_empty():
+		_pick_section(f, "[1] SELECTED", _pick)
+	if not _pick2.is_empty():
+		_pick_section(f, "[2] REFERENCE (make 1 like 2)", _pick2)
+	if not _pick.is_empty() and not _pick2.is_empty():
+		var m1: Dictionary = _pick.get("m", {})
+		var m2: Dictionary = _pick2.get("m", {})
+		var c1: Color = _pick.get("c0", Color.BLACK)
+		var c2: Color = _pick2.get("c0", Color.BLACK)
+		f.store_line("DIFF  kind %s vs %s   colour #%s vs #%s" % [
+			String(m1.get("k", "?")), String(m2.get("k", "?")),
+			c1.to_html(false), c2.to_html(false)])
 	f.close()
-	_status.text = "picked %s %s -> voxel_selection.txt" % [String(m.get("k", "?")), str(m.get("v", ""))]
+	var n := (0 if _pick.is_empty() else 1) + (0 if _pick2.is_empty() else 1)
+	_status.text = "%d pick%s -> voxel_selection.txt (shift+click sets the reference)" 		% [n, "" if n == 1 else "s"]
 
 # --- core colour ------------------------------------------------------------
 
