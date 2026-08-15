@@ -1,0 +1,63 @@
+[gd_scene load_steps=3 format=3 uid="uid://cr6qbn4h3qaed"]
+
+[ext_resource type="PackedScene" uid="uid://d11bdvjcyfcvm" path="res://addons/voxel-core/engine/voxel_viewer/voxel_viewer.tscn" id="1_40jvm"]
+[ext_resource type="Script" path="res://addons/voxel-core/engine/voxel_editor/voxel_editor.gd" id="1_xacsi"]
+
+[node name="VoxelEditor" type="VBoxContainer"]
+custom_minimum_size = Vector2(256, 0)
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+script = ExtResource("1_xacsi")
+
+[node name="HBoxContainer" type="HBoxContainer" parent="."]
+layout_mode = 2
+
+[node name="IDLabel" type="Label" parent="HBoxContainer"]
+layout_mode = 2
+text = "ID:
+"
+
+[node name="VoxelIDLineEdit" type="LineEdit" parent="HBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="NameLabel" type="Label" parent="HBoxContainer"]
+layout_mode = 2
+text = "Name:
+"
+
+[node name="VoxelNameLineEdit" type="LineEdit" parent="HBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="VoxelViewer" parent="." instance=ExtResource("1_40jvm")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="VoxelIdChangeConfirmationDialog" type="ConfirmationDialog" parent="."]
+unique_name_in_owner = true
+initial_position = 1
+dialog_text = "Change voxel id?"
+
+[node name="VoxelNameChangeConfirmationDialog" type="ConfirmationDialog" parent="."]
+unique_name_in_owner = true
+initial_position = 1
+dialog_text = "Change voxel name?"
+
+[connection signal="focus_exited" from="HBoxContainer/VoxelIDLineEdit" to="." method="_on_voxel_id_line_edit_focus_exited"]
+[connection signal="text_submitted" from="HBoxContainer/VoxelIDLineEdit" to="." method="_on_voxel_id_line_edit_text_submitted"]
+[connection signal="focus_exited" from="HBoxContainer/VoxelNameLineEdit" to="." method="_on_voxel_name_line_edit_focus_exited"]
+[connection signal="text_submitted" from="HBoxContainer/VoxelNameLineEdit" to="." method="_on_voxel_name_line_edit_text_submitted"]
+[connection signal="about_to_popup" from="VoxelIdChangeConfirmationDialog" to="." method="_on_voxel_id_change_confirmation_dialog_about_to_popup"]
+[connection signal="canceled" from="VoxelIdChangeConfirmationDialog" to="." method="_on_voxel_id_change_confirmation_dialog_canceled"]
+[connection signal="confirmed" from="VoxelIdChangeConfirmationDialog" to="." method="_on_voxel_id_change_confirmation_dialog_confirmed"]
+[connection signal="about_to_popup" from="VoxelNameChangeConfirmationDialog" to="." method="_on_voxel_id_change_confirmation_dialog_about_to_popup"]
+[connection signal="canceled" from="VoxelNameChangeConfirmationDialog" to="." method="_on_voxel_name_change_confirmation_dialog_canceled"]
+[connection signal="confirmed" from="VoxelNameChangeConfirmationDialog" to="." method="_on_voxel_name_change_confirmation_dialog_confirmed"]

@@ -126,6 +126,18 @@ diagonal-flavoured name Qud reports (00100011 beside 00100010), the renderer's c
 resolves to the cardinal custom itself (`_cap_variant`), so the derivation never needs to
 enumerate 256 names. Re-run after every platonic edit; writes to `tiles_custom` only.
 
+### `wall2vox.py` (wall variant -> MagicaVoxel .vox)
+The bridge from band-driven walls to free voxel tooling: builds the variant's volume with
+voxwall's builder from CUSTOM art first (as-authored, canonical split, `_cap_variant`
+cardinal fallback) and writes `<support>/vox/<family>-<bits>.vox` — a Qud-art derivative,
+NEVER committed. Colours: cap art on the top slab, nearest exposed face art below, main red
+inside. Open in MagicaVoxel/vengi, or in the GODOT EDITOR via the vendored Voxel-Core
+plugin (`godot/addons/voxel-core`, MIT, branch 4.0.0 @ eeff040e + our patches — see its
+PATCHES.md: 34 unported Godot-3 leftovers pruned, the .vox reader ported by us, including a
+Godot-3 `continue`-in-`match` fallthrough that Godot 4 turns into a stream desync). SPOT:
+`godot/tests/vox_roundtrip.gd` proves writer and reader agree. One-way for now — vox2wall
+(bake edits back into bands, flagging what the band grammar can't hold) is the next slice.
+
 ### `voxwall.py` (LIVE — the wall-volume proof harness)
 Mirrors `ZoneRenderer._wall_cell_mesh` (the watertight per-cell voxel wall). Builds real
 arrangements (isolated / run / corner / 2x2 / mixed-family) from the actual exported art and
