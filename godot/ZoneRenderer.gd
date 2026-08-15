@@ -3879,8 +3879,15 @@ func _wall_cell_faces(inp: Dictionary) -> Array:
 						tk = "ring-top" if ring_col.has(Vector2i(x, z)) else "cap-top"
 						tc = ring_col.get(Vector2i(x, z), capc)
 					else:
+						# owner art ONLY under FACE-carved voids (a skin
+						# voxel's top in a face pocket). A void carved from
+						# the ROOF gets a pit floor — recess — even inside a
+						# face's shell: Daniel's edge channel floors wore
+						# north-face art ("red and blue, not black").
+						var above := ((r - 1) * W + z) * W + x
 						var oi := own_dir[z * W + x]
-						if oi >= 0 and shell_col[dir_names[oi]].has(Vector3i(x, z, r)):
+						if carver[above] != 0 and oi >= 0 \
+								and shell_col[dir_names[oi]].has(Vector3i(x, z, r)):
 							tc = (shell_col[dir_names[oi]][Vector3i(x, z, r)] as Color).darkened(0.1)
 							tk = "pocket-top(%s)" % dir_names[oi]
 					out.append({"q": [Vector3(x0, yt, z0), Vector3(x1, yt, z0),
