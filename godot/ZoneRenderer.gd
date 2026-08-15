@@ -3367,7 +3367,7 @@ func _rebuild_walls(wall_types: Dictionary) -> void:
 				_wall_parent().add_child(mi)
 				_track_wall(k, mi)
 				closure_cells[k] = {"prof": entry["prof"], "planes": entry["planes"],
-					"W": entry["W"], "recess": _wall_recess_color()}
+					"W": entry["W"], "recess": _wall_back_color()}
 			_emit_seam_walls(k, v, all_wall_cells)
 	_emit_carve_closures(closure_cells)
 
@@ -3809,6 +3809,7 @@ func _wall_cell_faces(inp: Dictionary) -> Array:
 
 	# emission: every solid voxel face against air, once
 	var recess := _wall_recess_color()
+	var backc := _wall_back_color()
 	var mainc := _qud_color(_wall_main)
 	var out := []
 	var ps := 1.0 / W
@@ -3883,7 +3884,7 @@ func _wall_cell_faces(inp: Dictionary) -> Array:
 					elif r == 0:
 						col = capc.darkened(0.35)   # roof trench walls, in shadow
 					elif String(fv[dirname]) != "":
-						col = recess          # a carved pocket's back wall
+						col = backc           # a carved pocket's back wall
 					else:
 						# the SIDE of a relief step: the owning voxel's own
 						# surface colour, shadowed — a blue voxel is blue on
@@ -3977,7 +3978,7 @@ func wall_preview_arrangement(sel_tile: String, obj: Dictionary, layout: Array,
 				q.append(p + Vector3(k.x, 0.0, k.y))
 			out.append({"q": q, "n": f["n"], "c": f["c"]})
 		closure_cells[k] = {"prof": _last_faces_prof, "planes": _last_faces_planes,
-			"W": (inp["cap"] as Image).get_width(), "recess": _wall_recess_color()}
+			"W": (inp["cap"] as Image).get_width(), "recess": _wall_back_color()}
 	for quads in _carve_closure_quads(closure_cells).values():
 		for f in quads:
 			out.append(f)
@@ -4018,6 +4019,16 @@ func _variant_for_bits(tile: String, bits: String) -> String:
 ## Colour of a recess (carved gap floor, solid core): the wall's own red, darkened,
 ## with only a faint ambient nudge — reads as the material in shadow, not a foreign
 ## hole. Shared by the carved pocket floors and backs so they match.
+## Colour of a carved pocket's BACK wall: the material in shadow, the same
+## grade as the side steps (Daniel: "shouldn't it be a shaded version of the
+## red wall face?"). A family's explicit core override still wins — showing
+## the chosen core IS that feature.
+func _wall_back_color() -> Color:
+	var fam := tile_family(_wall_tile)
+	if _core_overrides.has(fam):
+		return _core_overrides[fam]
+	return _qud_color(_wall_main).darkened(0.35)
+
 func _wall_recess_color() -> Color:
 	var fam := tile_family(_wall_tile)
 	if _core_overrides.has(fam):
