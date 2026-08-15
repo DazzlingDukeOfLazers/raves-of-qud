@@ -3882,7 +3882,8 @@ func _wall_cell_faces(inp: Dictionary) -> Array:
 							# the recess colour reads as the cavity's mouth.
 							col = pc if pc.to_html(false) != bg else recess
 					elif r == 0:
-						col = capc.darkened(0.35)   # roof trench walls, in shadow
+						var shade0 := _interior_shade(Vector3(s[0], 0, s[1]))
+						col = Color(capc.r * shade0, capc.g * shade0, capc.b * shade0, 1.0)
 					elif String(fv[dirname]) != "":
 						col = backc           # a carved pocket's back wall
 					else:
@@ -3898,7 +3899,9 @@ func _wall_cell_faces(inp: Dictionary) -> Array:
 							if shell_col[d3].has(key):
 								sc = shell_col[d3][key]
 								break
-						col = (sc if sc.a > 0.0 else mainc).darkened(0.35)
+						var base := sc if sc.a > 0.0 else mainc
+						var shade := _interior_shade(Vector3(s[0], 0, s[1]))
+						col = Color(base.r * shade, base.g * shade, base.b * shade, 1.0)
 					var nrm := Vector3(s[0], 0, s[1])
 					var pa: Vector3
 					var pb: Vector3
@@ -4019,15 +4022,27 @@ func _variant_for_bits(tile: String, bits: String) -> String:
 ## Colour of a recess (carved gap floor, solid core): the wall's own red, darkened,
 ## with only a faint ambient nudge — reads as the material in shadow, not a foreign
 ## hole. Shared by the carved pocket floors and backs so they match.
-## Colour of a carved pocket's BACK wall: the material in shadow, the same
-## grade as the side steps (Daniel: "shouldn't it be a shaded version of the
-## red wall face?"). A family's explicit core override still wins — showing
-## the chosen core IS that feature.
+## Colour of a carved pocket's BACK wall (parallel to the wall face): the
+## material in DEEP shadow — clearly darker than any perpendicular side, so
+## the pocket's form reads (Daniel: "the back section is the same color as
+## the section perpendicular"). A family's explicit core override still wins.
 func _wall_back_color() -> Color:
 	var fam := tile_family(_wall_tile)
 	if _core_overrides.has(fam):
 		return _core_overrides[fam]
-	return _qud_color(_wall_main).darkened(0.35)
+	return _qud_color(_wall_main).darkened(0.52)
+
+## Baked light for INTERIOR faces (pocket sides, roof trenches): a fixed sun
+## from the upper south-east, so differently-oriented surfaces always separate
+## even under flat scene lighting — the same trick the editor preview uses.
+func _interior_shade(n: Vector3) -> float:
+	if n.x > 0.5:
+		return 0.82
+	if n.z > 0.5:
+		return 0.76
+	if n.x < -0.5:
+		return 0.66
+	return 0.60
 
 func _wall_recess_color() -> Color:
 	var fam := tile_family(_wall_tile)
