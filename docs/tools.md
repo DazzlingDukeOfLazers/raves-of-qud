@@ -111,6 +111,15 @@ single/run/corner/block arrangements, and a **core colour** row writing
 renders AS-AUTHORED (transparent = carve) and hot-reloads (the custom watch clears the wall
 caches). The 2D `Edit art` button remains for sprites.
 
+### `derive_runs.py` (the platonic run tile)
+The E/W run variant (`00100010`) is THE run design (Daniel's model); this derives the rest:
+E/W ends verbatim, the N/S set (`10001000`/`10000000`/`00001000`) with the cap's 14x14
+interior TRANSPOSED (a 90-degree turn that, unlike true rotation on an even grid, preserves
+the global seam phase — the checker stays continuous at every join; `TRANSPOSE = False` for
+chiral art), ring columns at the family phase, face band verbatim (faces are vertical and do
+not turn). Without the N/S customs those cells fell back to STOCK art — flush dark squares
+instead of carved pits. Re-run after every platonic edit; writes to `tiles_custom` only.
+
 ### `voxwall.py` (LIVE — the wall-volume proof harness)
 Mirrors `ZoneRenderer._wall_cell_mesh` (the watertight per-cell voxel wall). Builds real
 arrangements (isolated / run / corner / 2x2 / mixed-family) from the actual exported art and
