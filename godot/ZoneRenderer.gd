@@ -2961,20 +2961,18 @@ func _place_tentwall(obj: Dictionary, tile: String, cx: int, cy: int, light_frac
 					var a1: float = a0 + pw
 					var y1f: float = fab_h - j * phh
 					var y0f: float = y1f - phh
-					# [neighbour di, dj, shade, the wall's 4 corners in (a, y, d)]
+					# [shade, the wall's 4 corners in (a, y, d)]
 					var walls := []
-					# The RUN-CONTINUATION end (at the cell edge, where the
-					# neighbour cell's panel carries on) emits NO end wall — a
-					# full-height wall column there planed over the whole seam
-					# (Daniel: "a plane that extends the whole seam, when there
-					# should be an air-gap"). Only the pole-side end keeps its
-					# edge — that gap is designed. Which end is which follows
-					# the art half: "e" halves run pole->edge, "w" edge->pole.
-					var outer_right: bool = ad == "e" and i == nx - 1
-					var outer_left: bool = ad == "w" and i == 0
-					if not _tent_px(fsub, sx, sy, i - 1, j, nx, ny) and not outer_left:
+					# SIDE walls only close INTERIOR holes (a transparent run
+					# bounded by opaque pixels on both sides — the hem dashes).
+					# A run that opens to the panel edge is DESIGNED AIR — the
+					# pole gap, the notch beside it, the cell-edge seam — and
+					# its 1px of air sits in front of a 1.5px-deep wall, so any
+					# wall there reads as a plane filling the gap (Daniel: "a
+					# seam-plane on the east side", "should be an air-gap").
+					if not _tent_px(fsub, sx, sy, i - 1, j, nx, ny) and _tent_hole(fsub, sx, sy, i - 1, j, nx, ny, -1):
 						walls.append([0.72, [[a0, y0f, -fd], [a0, y0f, fd], [a0, y1f, fd], [a0, y1f, -fd]]])
-					if not _tent_px(fsub, sx, sy, i + 1, j, nx, ny) and not outer_right:
+					if not _tent_px(fsub, sx, sy, i + 1, j, nx, ny) and _tent_hole(fsub, sx, sy, i + 1, j, nx, ny, 1):
 						walls.append([0.72, [[a1, y0f, -fd], [a1, y0f, fd], [a1, y1f, fd], [a1, y1f, -fd]]])
 					if not _tent_px(fsub, sx, sy, i, j - 1, nx, ny):
 						walls.append([0.92, [[a0, y1f, -fd], [a1, y1f, -fd], [a1, y1f, fd], [a0, y1f, fd]]])
@@ -3004,6 +3002,17 @@ func _place_tentwall(obj: Dictionary, tile: String, cx: int, cy: int, light_frac
 				_spawn_parent().add_child(wmi)
 				_track(wmi)
 	return true
+
+## Walking from panel-grid (i, j) in direction step, is this transparent run an
+## INTERIOR hole (bounded by an opaque pixel before the panel edge)? Edge-open
+## runs are designed air gaps and get no side wall (see the walls block above).
+func _tent_hole(sub: Image, sxs: float, sys_: float, i: int, j: int, nx: int, ny: int, step: int) -> bool:
+	var k := i
+	while k >= 0 and k < nx:
+		if _tent_px(sub, sxs, sys_, k, j, nx, ny):
+			return true
+		k += step
+	return false
 
 ## Is the art pixel at panel-grid (i, j) opaque? Out of bounds = transparent
 ## (the silhouette edge gets a wall).
