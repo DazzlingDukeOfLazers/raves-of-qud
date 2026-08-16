@@ -19,6 +19,13 @@ var _rt: RichTextLabel
 var _palette := {}
 
 func _ready() -> void:
+	# DISPLAY-ONLY: this panel handles no clicks, so it must never STOP them.
+	# Its RTL's rect was found lying over the COMMAND BAR below (hover-probe,
+	# Daniel: "I'm not able to click and activate abilities") — a default-STOP
+	# RichTextLabel silently ate every ability click whenever the player had
+	# active effects. Input-transparent root to leaf; layout can wander
+	# without taking the bar down with it.
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = QudPalette.CHROME
 	sb.set_border_width_all(1)
@@ -32,6 +39,7 @@ func _ready() -> void:
 
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 4)
+	v.mouse_filter = Control.MOUSE_FILTER_IGNORE   # display-only, whole subtree
 	add_child(v)
 	_title = Label.new()
 	_title.text = "Active effects"
@@ -44,6 +52,7 @@ func _ready() -> void:
 	_rt.focus_mode = Control.FOCUS_NONE   # reaching the player (the command-bar rule)
 	_rt.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_rt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_rt.mouse_filter = Control.MOUSE_FILTER_IGNORE   # display-only (see _ready)
 	v.add_child(_rt)
 
 ## Uniform panel entry (MainFrame feeds every panel via set_snapshot).

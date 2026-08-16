@@ -213,6 +213,8 @@ func _ready() -> void:
 
 ## MainFrame calls this each snapshot with the full data (needs abilities + palette + tilesDir).
 func set_snapshot(data: Dictionary) -> void:
+	if not is_node_ready():
+		await ready   # a snapshot can beat _ready on a cold connect (see set_one_to_one)
 	_last_data = data
 	var pal: Dictionary = data.get("palette", {})
 	if not pal.is_empty():
@@ -241,7 +243,17 @@ func set_snapshot(data: Dictionary) -> void:
 
 ## 1:1 (parity) mode: spread abilities in equal-width bordered cells across the bar, like Qud (vs the
 ## QoL inline list). Master switch is MainFrame/Holodeck; here we swap the layout + re-render.
+##
+## MUST TOLERATE A PRE-READY CALL: since user mode starts as a 1:1 clone
+## (Daniel, 2026-08-12), _connect_holodeck pushes the shape at startup —
+## and it can arrive BEFORE _ready has built _rt/_cellwrap/_cells. The
+## un-guarded call crashed on a Nil _rt, leaving _one_to_one=true with the
+## user-mode layout half-standing: a zero-height ghost of a bar that drew
+## fine and clicked as nothing (Daniel: "I'm not able to click and activate
+## abilities"). Every snapshot's _render_cells then died on Nil too.
 func set_one_to_one(on: bool) -> void:
+	if not is_node_ready():
+		await ready
 	if on == _one_to_one:
 		return
 	_one_to_one = on
