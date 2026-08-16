@@ -2992,6 +2992,17 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 		var fkind := "floor"
 		if tex != null:
 			fmat = _mesh_material(tile, main_c, detail_c, tex)
+			# WATER reads as a surface you can see INTO, not a painted floor:
+			# genuinely translucent over an opaque near-black depths backing
+			# (Daniel: "if the fish below the waterline is visible, then the
+			# water-floor is too opaque" — the submerged glow ghost implies
+			# translucency, so the surface must honour it). USER mode only:
+			# 1:1 and flat-2D keep the opaque floor Qud parity is measured on.
+			if _is_world_water(tile) and not _one_to_one and not _flat_2d and not _world_map:
+				fmat = _water_surface_material(tile, main_c, detail_c, tex)
+				_floor_batch_add(_color_material(Color(0.03, 0.10, 0.10)),
+					Transform3D(Basis(), Vector3(cx, y - 0.012, cy)))
+				fkind = "floor(water surface, translucent over depths)"
 		else:
 			fmat = _color_material(_qud_color(String(obj.get("color", ""))))
 			fscale = Vector3(0.5, 1.0, 0.5)
@@ -5097,6 +5108,24 @@ func _mesh_material(tile: String, main_c: String, detail_c: String, tex: ImageTe
 	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
 	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_texmat_cache[key] = m
+	return m
+
+## Water surface (USER mode): the floor art alpha-blended so the depths
+## backing and any submerged glow read through it. Separate cache key from
+## the opaque floor material — 1:1 keeps that one.
+func _water_surface_material(tile: String, main_c: String, detail_c: String, tex: ImageTexture) -> StandardMaterial3D:
+	var key := "water|%s|%s|%s" % [tile, main_c, detail_c]
+	if _texmat_cache.has(key):
+		return _texmat_cache[key]
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.albedo_texture = tex
+	m.albedo_color = Color(1, 1, 1, 0.72)
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.render_priority = -2   # the surface draws before other transparents (glow ghosts add on top)
 	_texmat_cache[key] = m
 	return m
 
