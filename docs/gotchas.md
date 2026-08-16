@@ -1962,24 +1962,25 @@ experiment). Also: blooms attach as sprite CHILDREN and _add_glow REPLACES any e
 one — pooled sprites re-seat across turns, and a stale bloom carries the old seat's
 region.
 
-## Extruding sprite art: side walls stop at the panel BOUNDARY (2026-08-16)
+## Extruding sprite art: three kinds of transparent neighbour (2026-08-16)
 
-Per-pixel extrusion (the tent fabric's depth) must not wall every alpha boundary. A side
-wall belongs wherever the art's own edge steps back INSIDE the panel — an interior hole
-(the hem dashes) or an inset silhouette (the notch drawn beside the pole). A run that
-reaches the panel boundary is fabric that CONTINUES: across the seam into the neighbour
-cell, or flush into the 1px pole gap. Walling those planes the gap shut — the wall is
-1.5px deep against 1px of air, so edge-on it reads as a solid sheet ("a plane that
-extends the whole seam"). One line does it: require the empty neighbour to be in bounds
-(`i > 0`, `i < nx - 1`). Top/bottom need no test — art has no designed air above or below
-a panel.
+Per-pixel extrusion (the tent fabric's depth) must not wall every alpha boundary. A
+transparent neighbour is one of three things and each wants a different answer:
 
-The trap is assuming the two halves are mirror images. `tent_ew`'s EAST half is notched
-one pixel at its pole end (rows 10-14) while the WEST half is flush, so the correct
-output is asymmetric: a cap on one side of every pole and none on the other. Three
-successive rules failed because each was symmetric — suppress by column position (fixed
-one end), then suppress every edge-open run (killed the drawn notch too, leaving an open
-shell: "the western side of the E-W tent flaps are missing faces"). Let the ART decide.
+- an **interior hole** the sheet encloses (the hem dashes) — cap it;
+- the **free end** of the sheet, at the pole-side panel boundary — cap it, or the shell
+  is open and you can see between the two art quads ("the ends not capped");
+- the **seam** boundary, where the neighbouring cell's panel carries the sheet on — leave
+  it open, or the cap planes the whole seam;
+- and a run that stays transparent all the way OUT to the pole-side boundary is a
+  **drawn recess**, not an edge — capping it plugs a gap the artist meant to read as air.
+
+The trap that cost four rounds: assuming the two halves are mirror images. `tent_ew` holds
+its EAST panel 2px off the pole at rows 10-14 (a recess) where the WEST panel is flush all
+the way down. So the correct output is asymmetric — the west flap wants a full-height cap
+at its pole end, the east flap wants one only on its flush rows. Every symmetric rule
+fixed one end and broke the other: suppress by column position (left the recess plugged),
+then suppress every edge-open run (opened both free ends). Let the ART decide, per row.
 
 ## Colour-coding debug geometry beats staring at it (2026-08-16)
 

@@ -2970,22 +2970,29 @@ func _place_tentwall(obj: Dictionary, tile: String, cx: int, cy: int, light_frac
 					# its 1px of air sits in front of a 1.5px-deep wall, so any
 					# wall there reads as a plane filling the gap (Daniel: "a
 					# seam-plane on the east side", "should be an air-gap").
-					# A SIDE wall closes the sheet only where the art's own edge
-					# steps back INSIDE the panel — an interior hole (the hem
-					# dashes) or an inset silhouette (the notch the artist drew
-					# beside the pole). A run that reaches the panel BOUNDARY is
-					# fabric that continues: into the neighbour cell across the
-					# seam, or flush into the pole gap. Walling those planed the
-					# gap shut (Daniel: "a plane that extends the whole seam",
-					# then "a seam-plane on the east side" — the west flap's art
-					# is flush at the pole, so its cap ran full height); walling
-					# NEITHER left the drawn notch open (Daniel: "the western
-					# side of the E-W tent flaps are missing faces"). The panels
-					# are not mirror images, which is why one end needs the cap
-					# and the other must not have it.
-					if i > 0 and not _tent_px(fsub, sx, sy, i - 1, j, nx, ny):
+					# A SIDE wall closes the sheet at a REAL fabric edge, and
+					# nowhere else. Three kinds of transparent neighbour, three
+					# answers:
+					#   · an INTERIOR hole (the hem dashes) — cap it.
+					#   · the POLE-side panel boundary — the fabric ends there,
+					#     so cap it (Daniel: "the ends not capped").
+					#   · the CELL-edge boundary — the neighbour tent's panel
+					#     carries the sheet on, so leave it open, or the cap
+					#     planes the whole seam (Daniel's first report).
+					# And a run that is transparent all the way OUT to the
+					# pole-side boundary is the RECESS the artist drew (tent_ew
+					# holds the east panel 2px off the pole at rows 10-14 where
+					# the west panel is flush): capping that plugs a gap meant to
+					# read as air, which is the "seam-plane on the east side".
+					# The halves are NOT mirror images — the west flap wants a
+					# full-height cap at its pole end and the east flap wants
+					# one only on its flush rows.
+					var pole_left: bool = ad == "e"   # this half runs pole -> cell edge
+					if not _tent_px(fsub, sx, sy, i - 1, j, nx, ny) \
+							and ((i > 0 and _tent_hole(fsub, sx, sy, i - 1, j, nx, ny, -1)) or (i == 0 and pole_left)):
 						walls.append([0.72, [[a0, y0f, -fd], [a0, y0f, fd], [a0, y1f, fd], [a0, y1f, -fd]]])
-					if i < nx - 1 and not _tent_px(fsub, sx, sy, i + 1, j, nx, ny):
+					if not _tent_px(fsub, sx, sy, i + 1, j, nx, ny) \
+							and ((i < nx - 1 and _tent_hole(fsub, sx, sy, i + 1, j, nx, ny, 1)) or (i == nx - 1 and not pole_left)):
 						walls.append([0.72, [[a1, y0f, -fd], [a1, y0f, fd], [a1, y1f, fd], [a1, y1f, -fd]]])
 					if not _tent_px(fsub, sx, sy, i, j - 1, nx, ny):
 						walls.append([0.92, [[a0, y1f, -fd], [a1, y1f, -fd], [a1, y1f, fd], [a0, y1f, fd]]])
@@ -3015,6 +3022,18 @@ func _place_tentwall(obj: Dictionary, tile: String, cx: int, cy: int, light_frac
 				_spawn_parent().add_child(wmi)
 				_track(wmi)
 	return true
+
+## Walking outward from panel-grid (i, j), does this transparent run close
+## against opaque art before the panel edge? True = an interior hole the sheet
+## encloses; false = it opens onto the boundary (a seam, or the drawn recess
+## beside the pole). See the walls block in _place_tentwall.
+func _tent_hole(sub: Image, sxs: float, sys_: float, i: int, j: int, nx: int, ny: int, step: int) -> bool:
+	var k := i
+	while k >= 0 and k < nx:
+		if _tent_px(sub, sxs, sys_, k, j, nx, ny):
+			return true
+		k += step
+	return false
 
 ## Is the art pixel at panel-grid (i, j) opaque? Out of bounds = transparent
 ## (the silhouette edge gets a wall).
