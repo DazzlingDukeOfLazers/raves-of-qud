@@ -2880,7 +2880,6 @@ func _place_tentwall(obj: Dictionary, tile: String, cx: int, cy: int, light_frac
 		# Half-assignment: the fence path's convention (E-half for e AND s, W-half
 		# for w AND n; see _fence_half) — runs compose and corners join cleanly.
 		var ad: String = "e" if (d == "e" or d == "s") else "w"
-		var adback: String = "w" if ad == "e" else "e"
 		if not panels.has(ad):
 			# canon without that panel (family has no _ew art at all): plain slab
 			var slab := BoxMesh.new()
@@ -2892,148 +2891,75 @@ func _place_tentwall(obj: Dictionary, tile: String, cx: int, cy: int, light_frac
 			_spawn_parent().add_child(smi)
 			_track(smi)
 			continue
-		# Art quads on both faces; the BACK face wears the OPPOSITE half (a rotated
-		# quad mirrors its texture; per-half mirroring splits the motif into ][ ).
-		for side in [1.0, -1.0]:
-			# Which half each face wears: horiz keeps the original assignment;
-			# vertical SWAPS it — the N-S rotations below now face OUTWARD
-			# (they faced inward, which "worked" only because you saw the FAR
-			# quad through the paper-thin gap; the new extrusion walls occlude
-			# it — Daniel: "a shell missing a face"), so each viewer now sees
-			# the NEAR quad and it must wear what the far one used to.
-			var use_d: String
-			if horiz:
-				use_d = ad if side > 0.0 else (adback if panels.has(adback) else ad)
-			else:
-				use_d = (adback if panels.has(adback) else ad) if side > 0.0 else ad
-			var r3: Rect2i = panels[use_d]
-			var sub := img.get_region(Rect2i(int(r3.position.x * sx), int(r3.position.y * sy),
-				int(r3.size.x * sx), int(r3.size.y * sy)))
-			var pt := ImageTexture.create_from_image(sub)
-			var pm := StandardMaterial3D.new()
-			pm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-			pm.albedo_texture = pt
-			pm.albedo_color = lfc
-			pm.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-			pm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
-			pm.alpha_scissor_threshold = 0.5
-			var q := QuadMesh.new()
-			q.size = Vector2(fab_len, fab_h)
-			var qmi := MeshInstance3D.new()
-			qmi.mesh = q
-			qmi.material_override = pm
-			var fdepth: float = 0.75 * ps + 0.001
-			if horiz:
-				qmi.position = base + off + Vector3(0.0, fab_y0 + fab_h * 0.5, side * fdepth)
-				if side < 0.0:
-					qmi.rotation.y = PI
-			else:
-				qmi.position = base + off + Vector3(side * fdepth, fab_y0 + fab_h * 0.5, 0.0)
-				# face OUTWARD: +x side faces +x (rot +PI/2), -x side faces -x
-				qmi.rotation.y = PI * 0.5 if side > 0.0 else -PI * 0.5
-			_spawn_parent().add_child(qmi)
-			_track(qmi)
-		# DEPTH (Daniel: "add depth to the tent animal skin — extrude? voxel?"):
-		# the two art faces sit 1.5px apart but the EDGES were hollow — from
-		# the side, the top, or through the art's holes you saw the gap between
-		# the sheets. Extrude per art pixel: a side wall along every alpha
-		# boundary (silhouette AND holes), wearing its pixel's own colour under
-		# the fixed-sun shades. Boundaries follow the FRONT half's art (the
-		# halves are near-mirrors; a differing back hole keeps the front's wall).
+		# VOXEL FABRIC (Daniel: "would it be easier to construct these as
+		# 'minecraft' blocks ... trying to construct geometric areas to cover the
+		# edges of the rectangular prisms"). One block per opaque art pixel, one
+		# art px deep, and a face wherever the neighbouring block is absent.
+		# Watertight by construction — the silhouette, the hem holes and the recess
+		# beside the pole all close themselves — so there is no rule about WHICH
+		# edges to cap. Four hand-written rules got that wrong in a row, each
+		# guessing at the art (the halves are not mirror images: tent_ew holds its
+		# east panel 2px off the pole at rows 10-14 where the west panel is flush).
+		# The seam needs no rule either: at a join the neighbour tent's blocks abut
+		# in the same plane, so those faces are buried, and at the end of a run they
+		# are exposed and the run caps itself.
 		var rfr: Rect2i = panels[ad]
 		var fsub := img.get_region(Rect2i(int(rfr.position.x * sx), int(rfr.position.y * sy),
 			int(rfr.size.x * sx), int(rfr.size.y * sy)))
 		var nx: int = rfr.size.x
 		var ny: int = rfr.size.y
-		if nx > 0 and ny > 0:
-			var pw: float = fab_len / float(nx)
-			var phh: float = fab_h / float(ny)
-			var fd: float = 0.75 * ps + 0.001
-			var stw := SurfaceTool.new()
-			stw.begin(Mesh.PRIMITIVE_TRIANGLES)
-			var quads_emitted := 0
-			for j in ny:
-				for i in nx:
-					var c := fsub.get_pixel(int((i + 0.5) * sx), int((j + 0.5) * sy))
-					if c.a < 0.5:
-						continue
-					var a0: float = i * pw
-					var a1: float = a0 + pw
-					var y1f: float = fab_h - j * phh
-					var y0f: float = y1f - phh
-					# [shade, the wall's 4 corners in (a, y, d)]
-					var walls := []
-					# SIDE walls only close INTERIOR holes (a transparent run
-					# bounded by opaque pixels on both sides — the hem dashes).
-					# A run that opens to the panel edge is DESIGNED AIR — the
-					# pole gap, the notch beside it, the cell-edge seam — and
-					# its 1px of air sits in front of a 1.5px-deep wall, so any
-					# wall there reads as a plane filling the gap (Daniel: "a
-					# seam-plane on the east side", "should be an air-gap").
-					# A SIDE wall closes the sheet at a REAL fabric edge, and
-					# nowhere else. Three kinds of transparent neighbour, three
-					# answers:
-					#   · an INTERIOR hole (the hem dashes) — cap it.
-					#   · the POLE-side panel boundary — the fabric ends there,
-					#     so cap it (Daniel: "the ends not capped").
-					#   · the CELL-edge boundary — the neighbour tent's panel
-					#     carries the sheet on, so leave it open, or the cap
-					#     planes the whole seam (Daniel's first report).
-					# And a run that is transparent all the way OUT to the
-					# pole-side boundary is the RECESS the artist drew (tent_ew
-					# holds the east panel 2px off the pole at rows 10-14 where
-					# the west panel is flush): capping that plugs a gap meant to
-					# read as air, which is the "seam-plane on the east side".
-					# The halves are NOT mirror images — the west flap wants a
-					# full-height cap at its pole end and the east flap wants
-					# one only on its flush rows.
-					var pole_left: bool = ad == "e"   # this half runs pole -> cell edge
-					if not _tent_px(fsub, sx, sy, i - 1, j, nx, ny) \
-							and ((i > 0 and _tent_hole(fsub, sx, sy, i - 1, j, nx, ny, -1)) or (i == 0 and pole_left)):
-						walls.append([0.72, [[a0, y0f, -fd], [a0, y0f, fd], [a0, y1f, fd], [a0, y1f, -fd]]])
-					if not _tent_px(fsub, sx, sy, i + 1, j, nx, ny) \
-							and ((i < nx - 1 and _tent_hole(fsub, sx, sy, i + 1, j, nx, ny, 1)) or (i == nx - 1 and not pole_left)):
-						walls.append([0.72, [[a1, y0f, -fd], [a1, y0f, fd], [a1, y1f, fd], [a1, y1f, -fd]]])
-					if not _tent_px(fsub, sx, sy, i, j - 1, nx, ny):
-						walls.append([0.92, [[a0, y1f, -fd], [a1, y1f, -fd], [a1, y1f, fd], [a0, y1f, fd]]])
-					if not _tent_px(fsub, sx, sy, i, j + 1, nx, ny):
-						walls.append([0.50, [[a0, y0f, -fd], [a1, y0f, -fd], [a1, y0f, fd], [a0, y0f, fd]]])
-					for wdef in walls:
-						var shade: float = wdef[0]
-						var wc := Color(c.r * shade, c.g * shade, c.b * shade) * lfc
-						var q4: Array = wdef[1]
-						for k in [0, 1, 2, 0, 2, 3]:
-							var v: Array = q4[k]
-							var p: Vector3
-							if horiz:
-								p = base + off + Vector3(v[0] - fab_len * 0.5, fab_y0 + v[1], v[2])
-							else:
-								p = base + off + Vector3(v[2], fab_y0 + v[1], v[0] - fab_len * 0.5)
-							stw.set_color(wc)
-							stw.set_normal(Vector3.UP)
-							stw.add_vertex(p)
-						quads_emitted += 1
-			if quads_emitted > 0:
-				var wmesh := ArrayMesh.new()
-				stw.commit(wmesh)
-				var wmi := MeshInstance3D.new()
-				wmi.mesh = wmesh
-				wmi.material_override = _wall_skin_material()
-				_spawn_parent().add_child(wmi)
-				_track(wmi)
+		if nx <= 0 or ny <= 0:
+			continue
+		var pw: float = fab_len / float(nx)
+		var phh: float = fab_h / float(ny)
+		var hd: float = 0.75 * ps
+		var stw := SurfaceTool.new()
+		stw.begin(Mesh.PRIMITIVE_TRIANGLES)
+		for j in ny:
+			for i in nx:
+				var c := fsub.get_pixel(int((i + 0.5) * sx), int((j + 0.5) * sy))
+				if c.a < 0.5:
+					continue
+				var a0: float = i * pw
+				var a1: float = a0 + pw
+				var y1f: float = fab_h - j * phh
+				var y0f: float = y1f - phh
+				# [shade, the face's 4 corners in (a, y, d)]. The sheet is ONE block
+				# deep, so both broad faces always show; the four rims are neighbour-gated.
+				var faces: Array = [
+					[1.00, [[a0, y0f, hd], [a1, y0f, hd], [a1, y1f, hd], [a0, y1f, hd]]],
+					[1.00, [[a1, y0f, -hd], [a0, y0f, -hd], [a0, y1f, -hd], [a1, y1f, -hd]]],
+				]
+				if not _tent_px(fsub, sx, sy, i - 1, j, nx, ny):
+					faces.append([0.72, [[a0, y0f, -hd], [a0, y0f, hd], [a0, y1f, hd], [a0, y1f, -hd]]])
+				if not _tent_px(fsub, sx, sy, i + 1, j, nx, ny):
+					faces.append([0.72, [[a1, y0f, hd], [a1, y0f, -hd], [a1, y1f, -hd], [a1, y1f, hd]]])
+				if not _tent_px(fsub, sx, sy, i, j - 1, nx, ny):
+					faces.append([0.92, [[a0, y1f, hd], [a1, y1f, hd], [a1, y1f, -hd], [a0, y1f, -hd]]])
+				if not _tent_px(fsub, sx, sy, i, j + 1, nx, ny):
+					faces.append([0.50, [[a0, y0f, -hd], [a1, y0f, -hd], [a1, y0f, hd], [a0, y0f, hd]]])
+				for fdef in faces:
+					var shade: float = fdef[0]
+					var wc := Color(c.r * shade, c.g * shade, c.b * shade) * lfc
+					var q4: Array = fdef[1]
+					for k in [0, 1, 2, 0, 2, 3]:
+						var v: Array = q4[k]
+						var p3: Vector3
+						if horiz:
+							p3 = base + off + Vector3(v[0] - fab_len * 0.5, fab_y0 + v[1], v[2])
+						else:
+							p3 = base + off + Vector3(v[2], fab_y0 + v[1], v[0] - fab_len * 0.5)
+						stw.set_color(wc)
+						stw.set_normal(Vector3.UP)
+						stw.add_vertex(p3)
+		var fmesh := ArrayMesh.new()
+		stw.commit(fmesh)
+		var fmi := MeshInstance3D.new()
+		fmi.mesh = fmesh
+		fmi.material_override = _wall_skin_material()
+		_spawn_parent().add_child(fmi)
+		_track(fmi)
 	return true
-
-## Walking outward from panel-grid (i, j), does this transparent run close
-## against opaque art before the panel edge? True = an interior hole the sheet
-## encloses; false = it opens onto the boundary (a seam, or the drawn recess
-## beside the pole). See the walls block in _place_tentwall.
-func _tent_hole(sub: Image, sxs: float, sys_: float, i: int, j: int, nx: int, ny: int, step: int) -> bool:
-	var k := i
-	while k >= 0 and k < nx:
-		if _tent_px(sub, sxs, sys_, k, j, nx, ny):
-			return true
-		k += step
-	return false
 
 ## Is the art pixel at panel-grid (i, j) opaque? Out of bounds = transparent
 ## (the silhouette edge gets a wall).

@@ -1962,25 +1962,29 @@ experiment). Also: blooms attach as sprite CHILDREN and _add_glow REPLACES any e
 one — pooled sprites re-seat across turns, and a stale bloom carries the old seat's
 region.
 
-## Extruding sprite art: three kinds of transparent neighbour (2026-08-16)
+## Build sprite-derived solids as VOXELS, not extruded sheets (2026-08-16)
 
-Per-pixel extrusion (the tent fabric's depth) must not wall every alpha boundary. A
-transparent neighbour is one of three things and each wants a different answer:
+If a tile needs thickness, make one block per opaque art pixel and emit a face wherever
+the neighbouring block is absent. Do NOT build two art quads and then try to close the
+gap between them with hand-placed rim geometry — every "which edges need covering" rule
+is a guess about the art, and the tent fabric burned four of them in a row:
 
-- an **interior hole** the sheet encloses (the hem dashes) — cap it;
-- the **free end** of the sheet, at the pole-side panel boundary — cap it, or the shell
-  is open and you can see between the two art quads ("the ends not capped");
-- the **seam** boundary, where the neighbouring cell's panel carries the sheet on — leave
-  it open, or the cap planes the whole seam;
-- and a run that stays transparent all the way OUT to the pole-side boundary is a
-  **drawn recess**, not an edge — capping it plugs a gap the artist meant to read as air.
+1. wall every alpha boundary → planes across the seams;
+2. suppress the cell-edge column → fixed one end, left the other;
+3. wall only runs enclosed by opaque art → opened both free ends;
+4. wall only where the art steps back inside the panel → capped the recess (which is
+   drawn air) and left the free ends open.
 
-The trap that cost four rounds: assuming the two halves are mirror images. `tent_ew` holds
-its EAST panel 2px off the pole at rows 10-14 (a recess) where the WEST panel is flush all
-the way down. So the correct output is asymmetric — the west flap wants a full-height cap
-at its pole end, the east flap wants one only on its flush rows. Every symmetric rule
-fixed one end and broke the other: suppress by column position (left the recess plugged),
-then suppress every edge-open run (opened both free ends). Let the ART decide, per row.
+The art defeats symmetric rules because it is not symmetric: `tent_ew` holds its EAST
+panel 2px off the pole at rows 10-14 where the WEST panel is flush, so the correct output
+genuinely differs end to end. A voxel build never asks the question — the silhouette, the
+hem holes and the recess all close themselves. The seam needs no rule either: where two
+tents join, the neighbour's blocks abut in the same plane and those faces are buried; at
+the end of a run they are exposed, so the run caps itself for free. ~260 quads per cell.
+
+`_place_tentwall` is the reference; the voxel walls (`_wall_cell_mesh`) and doors already
+worked this way. Note `_voxel_material` sets `cull_mode = CULL_DISABLED`, so face winding
+does not have to survive the x/z axis swap that orients N-S panels.
 
 ## Colour-coding debug geometry beats staring at it (2026-08-16)
 
