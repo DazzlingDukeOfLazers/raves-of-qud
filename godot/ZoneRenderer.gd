@@ -2057,12 +2057,18 @@ func _door_span_ew(cx: int, cy: int) -> bool:
 ## frame colour (the signpost edge-sampling pattern). Height = WALL_H: a
 ## derived shape that REPLACES a wall sizes against the wall, not art px.
 func _place_door(tile: String, main_c: String, detail_c: String, cx: int, cy: int, idx: int, light_frac: float, closed := false) -> void:
-	# a CLOSED door is opaque: its art's transparent background fills with
-	# the bg colour, so the back face never shows through the front (Daniel:
-	# "it looks like there are two doors"). An open door keeps its holes —
-	# the doorway really is open there.
-	var btex := _colored_tex(tile, main_c, detail_c, Fill.ALL if closed else Fill.NONE)
-	var mask := _mask(tile)
+	# ONE door, two poses (Daniel: "the open door [is] the same as the closed
+	# door, but the door rotates on the hinge"): the slab always wears the
+	# CLOSED art, opaque (the _open art is a hole — we want the door ITSELF).
+	# Closed: in the wall plane. Open: the same slab swung 90 degrees on its
+	# hinge jamb, standing perpendicular to the frame; the jambs stay put.
+	var art_tile := tile
+	if not closed:
+		var ct := tile.replace("_open", "")
+		if _mask(ct) != null:
+			art_tile = ct
+	var btex := _colored_tex(art_tile, main_c, detail_c, Fill.ALL)
+	var mask := _mask(art_tile)
 	if btex == null or mask == null:
 		return
 	var img := btex.get_image()
@@ -2071,6 +2077,13 @@ func _place_door(tile: String, main_c: String, detail_c: String, cx: int, cy: in
 	var ps := 1.0 / 16.0
 	var hw := (8.0 - DOOR_JAMB_PX) * ps          # panel half-width: 14px span
 	var hd := DOOR_DEPTH_PX * 0.5 * ps
+	# panel pose: closed lies along the wall span, centred; open lies along
+	# the PERPENDICULAR axis, hinged at the span-negative jamb and swinging
+	# to the positive side (south of an E-W wall, east of an N-S wall)
+	var pew := ew if closed else not ew
+	var poff := Vector3.ZERO
+	if not closed:
+		poff = Vector3(-hw, 0.0, hw) if ew else Vector3(hw, 0.0, -hw)
 	var u0 := 1.0 / 16.0                          # art cols 1..14 on the panel;
 	var u1 := 15.0 / 16.0                         # the edge columns live in the jambs
 	var v0: float = vr.x
@@ -2097,16 +2110,16 @@ func _place_door(tile: String, main_c: String, detail_c: String, cx: int, cy: in
 			var vy: float = float(corner[1])       # 0..1 up the door
 			var a: float = lerpf(-hw, hw, ua if dsign > 0 else 1.0 - ua)
 			var y: float = vy * WALL_H
-			var p := Vector3(a, y, dsign * hd) if ew else Vector3(dsign * hd, y, a)
+			var p := (Vector3(a, y, dsign * hd) if pew else Vector3(dsign * hd, y, a)) + poff
 			var un := lerpf(u0, u1, (1.0 - ua) if urev else ua)
-			stf.set_normal((Vector3(0, 0, dsign) if ew else Vector3(dsign, 0, 0)))
+			stf.set_normal((Vector3(0, 0, dsign) if pew else Vector3(dsign, 0, 0)))
 			stf.set_uv(Vector2(un, lerpf(v1, v0, vy)))
 			stf.add_vertex(p)
 	var fmesh := ArrayMesh.new()
 	stf.commit(fmesh)
 	var fmi := MeshInstance3D.new()
 	fmi.mesh = fmesh
-	var fmat: StandardMaterial3D = _mesh_material(tile, main_c, detail_c, btex).duplicate()
+	var fmat: StandardMaterial3D = _mesh_material(art_tile, main_c, detail_c, btex).duplicate()
 	fmat.albedo_color = Color(lf, lf, lf)         # per-instance dim (the fence idiom)
 	fmi.material_override = fmat
 	fmi.position = Vector3(cx, 0, cy)
@@ -2117,17 +2130,18 @@ func _place_door(tile: String, main_c: String, detail_c: String, cx: int, cy: in
 	var stt := SurfaceTool.new()
 	stt.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var boxes := [
-		# [a0, a1, d0, d1, y0, y1] in span/depth/up space
-		[-hw, -hw, -hd, hd, 0.0, WALL_H, -1],     # west/panel-end strip (plane)
-		[hw, hw, -hd, hd, 0.0, WALL_H, 1],        # east end strip
+		# [a0, a1, d0, d1, y0, y1] in the PANEL's span/depth/up space
+		[-hw, -hw, -hd, hd, 0.0, WALL_H, -1],     # panel-end strip (plane)
+		[hw, hw, -hd, hd, 0.0, WALL_H, 1],        # other end strip
 		[-hw, hw, -hd, hd, WALL_H, WALL_H, 0],    # top cap (plane)
 	]
 	for b in boxes:
-		_door_trim_quad(stt, b, ew, trim_c)
+		_door_trim_quad(stt, b, pew, trim_c, poff)   # trim follows the panel's pose
 	for js in [-1, 1]:
-		# jamb: 1px along the span, IN the door's own plane (same 3px depth),
+		# jamb: 1px along the span, IN the frame's plane (same 3px depth),
 		# reaching the cell edge — the door extends planarly to its walls,
-		# never a perpendicular full-depth cap (Daniel's report)
+		# never a perpendicular full-depth cap (Daniel's report). Jambs stay
+		# in the WALL plane in both poses; only the panel swings.
 		var a0: float = js * hw
 		var a1: float = js * 0.5
 		_door_trim_box(stt, a0, a1, -hd, hd, 0.0, WALL_H, ew, trim_c)
@@ -2148,7 +2162,7 @@ func _place_door(tile: String, main_c: String, detail_c: String, cx: int, cy: in
 		int(_door_wall_cells.has(Vector2i(cx, cy - 1))),
 		int(_door_wall_cells.has(Vector2i(cx, cy + 1)))], WALL_H * 0.5)
 
-func _door_trim_quad(st: SurfaceTool, b: Array, ew: bool, c: Color) -> void:
+func _door_trim_quad(st: SurfaceTool, b: Array, ew: bool, c: Color, off := Vector3.ZERO) -> void:
 	# one plane: a-extent [b0,b1], depth [b2,b3], y [b4,b5]; b6 = normal hint
 	var quads := []
 	if b[4] == b[5]:      # horizontal cap
@@ -2164,7 +2178,7 @@ func _door_trim_quad(st: SurfaceTool, b: Array, ew: bool, c: Color) -> void:
 				p = Vector3(p.z, p.y, p.x)
 			st.set_color(c)
 			st.set_normal(Vector3.UP)
-			st.add_vertex(p)
+			st.add_vertex(p + off)
 
 func _door_trim_box(st: SurfaceTool, a0: float, a1: float, d0: float, d1: float, y0: float, y1: float, ew: bool, c: Color) -> void:
 	# a box in span/depth/up space: 4 sides + top (bottom sits on the ground)
