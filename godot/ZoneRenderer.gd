@@ -2083,7 +2083,10 @@ func _place_door(tile: String, main_c: String, detail_c: String, cx: int, cy: in
 	var pew := ew if closed else not ew
 	var poff := Vector3.ZERO
 	if not closed:
-		poff = Vector3(-hw, 0.0, hw) if ew else Vector3(hw, 0.0, -hw)
+		# hinged INSIDE the jamb: the slab sits flush against the jamb's inner
+		# face (+hd inward), never crossing the cell edge into the neighbour
+		# wall (Daniel: "the open door is overlapping the tile wall next to it")
+		poff = Vector3(-hw + hd, 0.0, hw) if ew else Vector3(hw, 0.0, -hw + hd)
 	var u0 := 1.0 / 16.0                          # art cols 1..14 on the panel;
 	var u1 := 15.0 / 16.0                         # the edge columns live in the jambs
 	var v0: float = vr.x
