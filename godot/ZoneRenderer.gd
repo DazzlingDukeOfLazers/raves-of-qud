@@ -706,6 +706,7 @@ func _ghost_obj(obj: Dictionary) -> Dictionary:
 ## _ib_step, flushing each chunk's floors as we go. Also removes the 1–3s transition freeze.
 func _build_static(id: String, cells: Array) -> void:
 	_cell_top_static.clear()   # sprites die with the old subtree; live cell coords collide across zones
+	_door_static.clear()       # same story for the static door registry
 	var sub := Node3D.new()
 	_remembered_root.add_child(sub)
 	_static_zones[id] = sub
@@ -863,6 +864,15 @@ func _rebuild_dynamics(cells: Array) -> void:
 		var idx := 0
 		for obj in cell.get("objs", []):
 			var od: Dictionary = obj
+			if not _is_prism(od) and _is_door(String(od.get("tile", ""))):
+				# doors are stateful statics: hide the baked one, draw the
+				# CURRENT state fresh (open art after a bump, closed after)
+				for n in _door_static.get(Vector2i(cx, cy), []):
+					if is_instance_valid(n):
+						(n as Node3D).visible = false
+				_place_nonwall(od, cx, cy, idx, false, sink, wet, false, false, lf)
+				idx += 1
+				continue
 			if not _is_prism(od) and _is_creature(od):
 				_occupied[Vector2i(cx, cy)] = true
 				_place_nonwall(od, cx, cy, idx, false, sink, wet, false, false, lf)
@@ -2018,6 +2028,12 @@ func _family_ew(tile: String) -> String:
 const DOOR_DEPTH_PX := 3.0    # slab thickness in art pixels (Daniel's spec)
 const DOOR_JAMB_PX := 1.0     # wall continuing into the doorway at each end
 var _door_wall_cells := {}    # cell -> wall variant, stashed per static build
+# cell -> the STATIC door's nodes. Doors change state (open/close) but bake
+# into the static pass — the live zone's dynamic pass hides the static pair
+# and redraws the door from the CURRENT wire state each turn (Daniel: "you
+# can walk through it, but it looks closed" — the bake predated the open).
+# Same pattern as the creature winner-visibility registry.
+var _door_static := {}
 
 ## Is this tile a door? Family-name test (sw_door_*, security doors, ...);
 ## the report form's "door" verdict can force or override it per family.
@@ -2123,6 +2139,8 @@ func _place_door(tile: String, main_c: String, detail_c: String, cx: int, cy: in
 	tmi.position = Vector3(cx, 0, cy)
 	_spawn_parent().add_child(tmi)
 	_track(tmi)
+	if _live_build:
+		_door_static[Vector2i(cx, cy)] = [fmi, tmi]   # dynamics hide + redraw per turn
 	_note(cx, cy, idx, "door slab %s (%dpx deep, %dpx jambs) walls e%d w%d n%d s%d" % [
 		"E-W" if ew else "N-S", int(DOOR_DEPTH_PX), int(DOOR_JAMB_PX),
 		int(_door_wall_cells.has(Vector2i(cx + 1, cy))),
