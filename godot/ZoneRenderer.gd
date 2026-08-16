@@ -3619,6 +3619,7 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			if btex == null:
 				btex = tex
 			var s := _take_sprite()
+			s.pixel_size = PIXEL_SIZE * _tree_scale(tile)
 			s.texture = btex
 			s.flip_h = bool(obj.get("hflip", false))
 			s.flip_v = bool(obj.get("vflip", false))
@@ -3711,7 +3712,9 @@ func _seat(s: Sprite3D, tex: ImageTexture, tile: String, cx: int, cy: int, sink:
 	if float_center:
 		cy_center = FLOAT_Y
 	else:
-		cy_center = (WATER_LINE_Y if sink > 0.0 else 0.0) + PIXEL_SIZE * shown * 0.5
+		# s.pixel_size, NOT the constant: a scaled sprite (see _tree_scale) must still
+		# seat its band's BOTTOM on the floor, or it grows down through the ground.
+		cy_center = (WATER_LINE_Y if sink > 0.0 else 0.0) + s.pixel_size * shown * 0.5
 	s.position = Vector3(cx, cy_center, cy)
 
 # --- greedy-meshed walls ----------------------------------------------------
@@ -5806,6 +5809,24 @@ func set_top_down(on: bool) -> void:
 						"y_lock", 0.0 if on else 1.0)
 	_apply_wm_orient()   # world-map cards lie flat in top-down, stand up again otherwise (wins over the loop above)
 
+## How much to enlarge this tile's billboard. Trees only, and only in the 3D user view:
+## Qud draws a tree inside one cell because a grid has nowhere else to put it, and at 1x a
+## 3D tree reads as a shrub beside a wall that is a whole cell tall. Gated OUT of 1:1 (its
+## pixels are parity-measured against Qud), flat-2D (the tile grid) and the world map.
+## Matching on "tree" covers the whole set — fattree1-3, talltree1-2, starappletree
+## (Daniel's strapple), tree_bulbs, tree_crystal, plastic_tree — and nothing else.
+## _seat reads s.pixel_size, so a scaled tree still stands ON the ground rather than
+## sinking half its trunk.
+const TREE_SCALE := 2.0
+
+func _tree_scale(tile: String) -> float:
+	if _one_to_one or _flat_2d or _world_map:
+		return 1.0
+	if not tile.to_lower().contains("tree"):
+		return 1.0
+	return TREE_SCALE if Settings.qol_on("bigtrees") else 1.0
+
+
 func _take_sprite() -> Sprite3D:
 	var s: Sprite3D
 	if _bank == null and _sprite_pool.size() > 0:
@@ -5823,6 +5844,7 @@ func _take_sprite() -> Sprite3D:
 	# sprites need the defaults back. In top-down the tile faces up (full billboard).
 	for c in s.get_children():
 		c.queue_free()          # a glow bloom from the sprite's previous user
+	s.pixel_size = PIXEL_SIZE   # a TREE's 2x scale must not ride the pool into a rock
 	s.billboard = BaseMaterial3D.BILLBOARD_ENABLED if _top_down else BaseMaterial3D.BILLBOARD_FIXED_Y
 	s.rotation = Vector3.ZERO
 	s.region_enabled = false

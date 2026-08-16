@@ -65,6 +65,10 @@ const QOL_FEATURES := {
 	"particles": ["Smoke plumes (sconces & torches at night)", false],
 	"depthcue": ["Depth cue (farther is slightly darker)", false],
 	"cutaway": ["Wall cutaway (fade rock between camera and you)", false],
+	# ON by default, unlike its neighbours: Qud draws a tree in one cell because it has
+	# only one cell to draw it in, and at 1x a 3D tree reads as a shrub. 1:1 mode is
+	# unaffected — the renderer gates the scale out there, where pixels are measured.
+	"bigtrees": ["Trees at 2x scale", true],
 }
 
 func qud_shape(feature := "") -> bool:

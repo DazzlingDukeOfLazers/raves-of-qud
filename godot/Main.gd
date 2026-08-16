@@ -1100,7 +1100,11 @@ func _save_settings() -> void:
 				keep_win = prev.get("win", null)
 	var d := {
 		"mode": _cam_rig._mode,
-		"compass_yaw": _cam_rig._compass_yaw,
+		"cam_ver": 2,                      # bumped when COMPASS_YAW_DEFAULT flipped to north
+		# NORMALISED. Q/E accumulate without wrapping, so a well-used session stores things
+		# like 4*PI — mathematically south, but not a value any comparison would recognise
+		# as the default (that is exactly what defeated the cam_ver 2 migration first try).
+		"compass_yaw": fposmod(_cam_rig._compass_yaw, TAU),
 		"compass_45": _cam_rig._compass_45,
 		"look_head": _cam_rig._look_head,
 		"dist": _cam_rig._dist,
@@ -1125,7 +1129,14 @@ func _load_settings() -> void:
 	var d = JSON.parse_string(FileAccess.get_file_as_string(SETTINGS_PATH))
 	if typeof(d) != TYPE_DICTIONARY:
 		return
-	_cam_rig._compass_yaw = float(d.get("compass_yaw", _cam_rig._compass_yaw))
+	# A view file written before cam_ver 2 stored the OLD default heading (0.0 = facing
+	# south) whether or not its owner ever chose it, so restoring it verbatim would keep
+	# every existing user pointing south forever. Treat exactly-the-old-default as unset
+	# and take the new one; any yaw they actually turned to survives untouched.
+	var yaw := fposmod(float(d.get("compass_yaw", _cam_rig._compass_yaw)), TAU)
+	if int(d.get("cam_ver", 1)) < 2 and minf(yaw, TAU - yaw) < 0.01:
+		yaw = _cam_rig.COMPASS_YAW_DEFAULT
+	_cam_rig._compass_yaw = yaw
 	_cam_rig._compass_45 = bool(d.get("compass_45", _cam_rig._compass_45))
 	_cam_rig._look_head = bool(d.get("look_head", _cam_rig._look_head))
 	_cam_rig._dist = clampf(float(d.get("dist", _cam_rig._dist)), _cam_rig.DIST_MIN, _cam_rig.DIST_MAX)

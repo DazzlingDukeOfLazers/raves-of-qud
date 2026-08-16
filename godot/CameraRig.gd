@@ -64,7 +64,13 @@ const CAM_STEP := 1.0           # one tile per W/X press
 const COMPASS_PITCH := 0.61     # ~35° above the ground: the low, dramatic FAR/default angle
 const COMPASS_PITCH_NEAR := 1.30 # ~74° at closest zoom: overhead, looking down at the head
 const COMPASS_CLOSE_DIST := 8.0  # only BELOW this does the arc lift toward overhead; above it stays at COMPASS_PITCH
-var _compass_yaw := 0.0         # locked heading in radians; Q/E rotate in _compass_step steps
+## The default LOCKED heading. Cells map to world (x, 0, y) with Qud's y growing SOUTH,
+## so +Z is south: yaw 0 aims the camera along +Z and parks it NORTH of the player looking
+## south. PI aims it north, which is the orientation every other map in Qud is drawn in
+## (the minimap, the world map, TOP_FOLLOW's "NORTH up") — Daniel: "the default Raves view
+## is facing south, can we make that facing north".
+const COMPASS_YAW_DEFAULT := PI
+var _compass_yaw := COMPASS_YAW_DEFAULT   # locked heading in radians; Q/E rotate in _compass_step steps
 var _compass_45 := true         # Q/E step: 45° (true, default — the 8-way) or 90°
 func compass_step() -> float:
 	return (PI * 0.25) if _compass_45 else (PI * 0.5)
