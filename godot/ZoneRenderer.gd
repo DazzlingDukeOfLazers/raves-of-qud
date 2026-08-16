@@ -1722,7 +1722,8 @@ uniform float body_amt = 0.4;
 uniform float body_tint = 0.22;
 uniform float halo_amt = 1.0;
 uniform float water_v = 1.0;
-uniform float under_amt = 0.55;
+uniform float under_amt = 0.9;
+uniform float flat_mode = 0.0;
 uniform float halo_uv = 0.12;
 uniform float strength = 1.3;
 uniform float pulse_speed = 2.5;
@@ -1740,7 +1741,9 @@ void vertex() {
 			   vec4(0.0, length(MODEL_MATRIX[1].xyz), 0.0, 0.0),
 			   vec4(0.0, 0.0, length(MODEL_MATRIX[2].xyz), 0.0),
 			   vec4(0.0, 0.0, 0.0, 1.0));
-	if (y_lock > 0.5) {
+	if (flat_mode > 0.5) {
+		// the flat underwater projection LIES on the water — no billboard
+	} else if (y_lock > 0.5) {
 		vec3 fwd = normalize(vec3(INV_VIEW_MATRIX[2].x, 0.0, INV_VIEW_MATRIX[2].z));
 		vec3 side = normalize(cross(vec3(0.0, 1.0, 0.0), fwd));
 		MODELVIEW_MATRIX = VIEW_MATRIX
@@ -1782,9 +1785,17 @@ void fragment() {
 	// the underwater half seen through the water instead of amputated.
 	vec3 col;
 	float a;
-	if (f.y > water_v) {
-		col = (fish_rgb * here + glow_color * around) * under_amt;
-		a = pulse * 0.6;
+	if (flat_mode > 0.5) {
+		// the submerged BODY projected flat on the water surface: the fish's
+		// own pixels dimmed + a soft glow edge — readable through the water
+		col = (fish_rgb * here * 0.85 + glow_color * around * 0.35) * under_amt;
+		a = pulse * 0.8;
+	} else if (f.y > water_v) {
+		// the billboard stops at the waterline; the flat projection takes
+		// over below it (a vertical quad under the terrain plane is occluded
+		// by the ground — the first "diffuse ghost" was invisibly thin)
+		col = vec3(0.0);
+		a = 0.0;
 	} else {
 		col = fish_rgb * here * body_amt + glow_color * here * body_tint
 			+ glow_color * halo * halo_amt;
@@ -1842,6 +1853,32 @@ func _add_glow(s: Sprite3D, tex: Texture2D, tile := "") -> void:
 	# child it follows every later move; _take_sprite clears it on reuse.
 	q.position = Vector3(0.0, -(full.size.y - rr.size.y) * 0.5 * s.pixel_size, 0.0)
 	s.add_child(q)
+	# the submerged body, PROJECTED FLAT on the water like a refracted image
+	# (Daniel: "I still can't see the bottom of the glowfish through the
+	# water") — a horizontal quad just above the surface carrying the art
+	# rows below the waterline. A vertical ghost cannot work: below the
+	# waterline is below the TERRAIN plane in this flat-water model, so the
+	# opaque depths quad swallowed it within half an art row.
+	if water_v < 1.0:
+		var under_h := full.size.y - rr.size.y
+		var fmat2 := ShaderMaterial.new()
+		fmat2.shader = _glow_shader
+		fmat2.set_shader_parameter("fish_tex", tex)
+		fmat2.set_shader_parameter("uv_min",
+			Vector2(full.position.x / tw, (full.position.y + rr.size.y) / th))
+		fmat2.set_shader_parameter("uv_size",
+			Vector2(full.size.x / tw, under_h / th))
+		fmat2.set_shader_parameter("pad", GLOW_PAD)
+		fmat2.set_shader_parameter("flat_mode", 1.0)
+		var fq := MeshInstance3D.new()
+		var pm := PlaneMesh.new()
+		pm.size = Vector2(full.size.x * s.pixel_size, under_h * s.pixel_size) * GLOW_PAD
+		fq.mesh = pm
+		fq.material_override = fmat2
+		# centred under the fish, a hair above the water surface (the sprite's
+		# base IS the waterline: half the crop below the sprite centre)
+		fq.position = Vector3(0.0, -rr.size.y * 0.5 * s.pixel_size + 0.012, 0.0)
+		s.add_child(fq)
 
 ## Flicker: jitter each light's brightness a little every frame, so torches read
 ## as fire rather than steady lamps. Cheap — modulate the additive quads' alpha.
