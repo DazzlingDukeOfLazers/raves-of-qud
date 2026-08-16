@@ -185,6 +185,9 @@ var _flame_tex: Texture2D
 var _fire_tex: Texture2D          # a drawn flame SHAPE (alpha-blended) for on-fire objects (campfires) — reads by day
 var _smoke_pm: ParticleProcessMaterial   # shared across every sconce's smoke emitter
 var _smoke_mesh: QuadMesh                 # shared grey square, billboarded
+var _fire_pm: ParticleProcessMaterial     # particle FIRE (torch), the smoke's sibling rig
+var _fire_pm_big: ParticleProcessMaterial # campfire variant: wider base
+var _fire_mesh: QuadMesh                  # shared fire square, billboarded, additive
 var _mote_tex: Texture2D                  # small glowing dot for glowfish orbiters
 var _glow_shader: Shader                  # crisp bioluminescent bloom over the fish silhouette
 var _lights: Array = []           # [{glow, flame, smoke, energy}]
@@ -1518,22 +1521,39 @@ func _place_light(cx: int, cy: int, radius: float, smokes := true, on_fire := fa
 	glow.material_override = _fx_material(_glow_tex)
 	lp.add_child(glow)
 
-	var flame := Sprite3D.new()
-	flame.texture = _fire_tex if on_fire else _flame_tex
-	flame.pixel_size = 0.006 if on_fire else 0.03         # small drawn flame (~0.4 tile), sits ABOVE the logs
-	flame.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	flame.shaded = false
-	flame.transparent = true
-	# on-fire: ALPHA (a solid flame that reads on any background); else ADDITIVE (a glowing torch core).
-	flame.material_override = _fx_material_alpha(flame.texture) if on_fire else _fx_material(_flame_tex)
-	flame.position = Vector3(cx, 0.55 if on_fire else 0.7, cy)   # sits just above the campfire's pixel logs
-	lp.add_child(flame)
+	# THE FLAME. Live zone: PARTICLE FIRE (Daniel: the drawn flame was "not
+	# on-theme" — this is the 1:1 fire program's 3D voice, the smoke's
+	# sibling rig). Remembered zones keep the old drawn sprite: emitters are
+	# live-zone-only (the bounded-particle doctrine), and a frozen memory
+	# with a baked flame reads better than one with no fire at all.
+	# Glow-critters (smokes=false, not on_fire) also keep the faint sprite —
+	# a glowfish must not literally catch fire.
+	var flame: Node3D
+	var particle_fire: bool = _live_build and (smokes or on_fire)
+	if particle_fire:
+		var pf := _make_fire(on_fire)
+		pf.position = Vector3(cx, 0.42 if on_fire else 0.62, cy)   # tongues rise from the base
+		lp.add_child(pf)
+		flame = pf
+	else:
+		var fsp := Sprite3D.new()
+		fsp.texture = _fire_tex if on_fire else _flame_tex
+		fsp.pixel_size = 0.006 if on_fire else 0.03       # small drawn flame (~0.4 tile)
+		fsp.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		fsp.shaded = false
+		fsp.transparent = true
+		# on-fire: ALPHA (reads on any background); else ADDITIVE (a glowing torch core).
+		fsp.material_override = _fx_material_alpha(fsp.texture) if on_fire else _fx_material(_flame_tex)
+		fsp.position = Vector3(cx, 0.55 if on_fire else 0.7, cy)
+		lp.add_child(fsp)
+		flame = fsp
 
 	# Rising smoke plume. Only the LIVE zone gets emitters (keeps the particle count bounded). A torch's
 	# smoke is a NIGHT effect (its flame fades by day). A FIRE (campfire) burns day + night, so its smoke
 	# emits always — `fire_smoke` tells set_daylight not to switch it off at dawn.
 	if _live_build:
-		var entry := {"glow": glow, "flame": flame, "energy": 1.0, "on_fire": on_fire}
+		var entry := {"glow": glow, "flame": flame, "energy": 1.0, "on_fire": on_fire,
+			"particle_fire": particle_fire}
 		if smokes:
 			var smoke := _make_smoke()
 			smoke.position = Vector3(cx, 0.85, cy)   # just above the flame
@@ -1547,7 +1567,7 @@ func _place_light(cx: int, cy: int, radius: float, smokes := true, on_fire := fa
 		glow.transparency = clampf(1.0 - (_fire_glow_mul() if on_fire else _glow_mul()) * 0.6, 0.0, 1.0)
 		# NB: a Sprite3D's `modulate` is IGNORED once material_override is set, so dim via transparency.
 		# A drawn fire flame stays fully visible (it's the only fire cue by day); a torch flame fades.
-		flame.transparency = 0.0 if on_fire else clampf(1.0 - _flame_mul(), 0.0, 1.0)
+		(flame as Sprite3D).transparency = 0.0 if on_fire else clampf(1.0 - _flame_mul(), 0.0, 1.0)
 
 ## Unshaded + additive: brightens whatever is behind it, no scene lighting needed.
 func _fx_material(tex: Texture2D) -> StandardMaterial3D:
@@ -1651,6 +1671,85 @@ func _build_smoke_resources() -> void:
 	var gt := GradientTexture1D.new(); gt.gradient = grad
 	pm.color_ramp = gt
 	_smoke_pm = pm
+
+const FIRE_AMOUNT := 12         # tongues alive per torch
+const FIRE_AMOUNT_BIG := 22     # per campfire (wider base, same particle size)
+const FIRE_LIFETIME := 0.65
+const FIRE_RISE := 0.55
+const FIRE_SQUARE := 0.075      # smaller squares than the smoke: pixel tongues
+
+## PARTICLE FIRE — the smoke's sibling (Daniel: the drawn flame is "not
+## on-theme... restore/port the particle fire from 1:1 mode; the smoke is
+## great"). Same square-particle language as the smoke, but ADDITIVE on
+## Qud's fire ramp: white-hot at birth, orange, red, gone — tongues taper
+## as they rise. The 1:1 fire program (red embers / yellow tongues / grey
+## smoke overlay quads) is top-down flatland; this is its 3D voice.
+func _build_fire_resources() -> void:
+	var fm := StandardMaterial3D.new()
+	fm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	fm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	fm.blend_mode = BaseMaterial3D.BLEND_MODE_ADD        # fire BRIGHTENS (unlike the smoke)
+	fm.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	fm.billboard_keep_scale = true
+	fm.vertex_color_use_as_albedo = true
+	fm.cull_mode = BaseMaterial3D.CULL_DISABLED
+	fm.render_priority = 2                               # after the walls (the smoke-sort rule)
+	_fire_mesh = QuadMesh.new()
+	_fire_mesh.size = Vector2(FIRE_SQUARE, FIRE_SQUARE)
+	_fire_mesh.material = fm
+
+	for big in [false, true]:
+		var pm := ParticleProcessMaterial.new()
+		pm.direction = Vector3(0, 1, 0)
+		pm.spread = 8.0
+		pm.initial_velocity_min = FIRE_RISE * 0.75
+		pm.initial_velocity_max = FIRE_RISE * 1.2
+		pm.gravity = Vector3.ZERO
+		pm.damping_min = 0.1
+		pm.damping_max = 0.3
+		pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+		pm.emission_box_extents = Vector3(0.14, 0.02, 0.14) if big else Vector3(0.05, 0.02, 0.05)
+		pm.scale_min = 0.7
+		pm.scale_max = 1.25
+		var sc := Curve.new()                            # tongues TAPER as they rise
+		sc.add_point(Vector2(0.0, 1.0))
+		sc.add_point(Vector2(0.6, 0.7))
+		sc.add_point(Vector2(1.0, 0.25))
+		var sct := CurveTexture.new(); sct.curve = sc
+		pm.scale_curve = sct
+		pm.turbulence_enabled = true                     # a little lick, less than the smoke's sway
+		pm.turbulence_noise_strength = 0.35
+		pm.turbulence_noise_scale = 1.6
+		pm.turbulence_influence_min = 0.05
+		pm.turbulence_influence_max = 0.15
+		var grad := Gradient.new()                       # Qud's fire ramp: W -> O -> r -> out
+		grad.offsets = PackedFloat32Array([0.0, 0.22, 0.6, 1.0])
+		grad.colors = PackedColorArray([
+			Color(1.0, 0.92, 0.45, 0.95),
+			Color(1.0, 0.55, 0.10, 0.85),
+			Color(0.85, 0.16, 0.05, 0.55),
+			Color(0.40, 0.05, 0.02, 0.0)])
+		var gt := GradientTexture1D.new(); gt.gradient = grad
+		pm.color_ramp = gt
+		if big:
+			_fire_pm_big = pm
+		else:
+			_fire_pm = pm
+
+## One light's fire emitter (shares the resources above).
+func _make_fire(big: bool) -> GPUParticles3D:
+	if _fire_pm == null:
+		_build_fire_resources()
+	var p := GPUParticles3D.new()
+	p.amount = FIRE_AMOUNT_BIG if big else FIRE_AMOUNT
+	p.lifetime = FIRE_LIFETIME
+	p.preprocess = FIRE_LIFETIME     # born mid-burn, not from a cold start
+	p.randomness = 0.6
+	p.process_material = _fire_pm_big if big else _fire_pm
+	p.draw_pass_1 = _fire_mesh
+	p.local_coords = false
+	p.visibility_aabb = AABB(Vector3(-0.6, -0.3, -0.6), Vector3(1.2, FIRE_RISE * FIRE_LIFETIME + 1.0, 1.2))
+	return p
 
 ## One sconce's smoke emitter (shares the resources built above).
 func _make_smoke() -> GPUParticles3D:
@@ -1941,13 +2040,23 @@ func _process(_dt: float) -> void:
 		var g: float = _fire_glow_mul() if L.get("on_fire", false) else gmul
 		(L["glow"] as MeshInstance3D).transparency = clampf(1.0 - a * g * 0.6, 0.0, 1.0)
 		var fs: float = 0.9 + a * 0.25
-		var flame := L["flame"] as Sprite3D
-		flame.scale = Vector3(fs, fs * (0.95 + randf() * 0.2), fs)
-		# transparency, NOT modulate: modulate is ignored under material_override (which the
-		# flame has, for additive blend), so the flicker/daylight fade never reached the ball.
-		# A drawn fire flame (alpha) stays fully visible day + night — it's the only daytime fire cue;
-		# a torch flame (additive) still fades out by day.
-		flame.transparency = 0.0 if L.get("on_fire", false) else clampf(1.0 - a * fmul, 0.0, 1.0)
+		if L.get("particle_fire", false):
+			# particle fire flickers through emission: speed jitters with the
+			# energy, and daylight thins the tongue count (a campfire burns
+			# full day + night — it's the daytime fire cue).
+			var pf := L["flame"] as GPUParticles3D
+			pf.speed_scale = 0.85 + a * 0.35
+			var ratio: float = 1.0 if L.get("on_fire", false) else clampf(a * fmul, 0.0, 1.0)
+			pf.amount_ratio = ratio
+			pf.emitting = ratio > 0.03
+		else:
+			var flame := L["flame"] as Sprite3D
+			flame.scale = Vector3(fs, fs * (0.95 + randf() * 0.2), fs)
+			# transparency, NOT modulate: modulate is ignored under material_override (which the
+			# flame has, for additive blend), so the flicker/daylight fade never reached the ball.
+			# A drawn fire flame (alpha) stays fully visible day + night — it's the only daytime fire cue;
+			# a torch flame (additive) still fades out by day.
+			flame.transparency = 0.0 if L.get("on_fire", false) else clampf(1.0 - a * fmul, 0.0, 1.0)
 
 	# Glowfish "bugs": drive each mote's local position from GLOBAL time, so a per-step
 	# dynamic rebuild resumes the orbit exactly where it should be (no reset flicker).
