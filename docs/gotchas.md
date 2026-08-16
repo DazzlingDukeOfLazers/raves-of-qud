@@ -1961,3 +1961,25 @@ the shader exposed the plane intersection; a fixed nudge MOVED the line — the 
 experiment). Also: blooms attach as sprite CHILDREN and _add_glow REPLACES any existing
 one — pooled sprites re-seat across turns, and a stale bloom carries the old seat's
 region.
+
+## Extruding sprite art: wall only the INTERIOR holes (2026-08-16)
+
+Per-pixel extrusion (the tent fabric's depth) must not wall every alpha boundary. Art
+that meets a neighbour cell, or stands off a pole, carries a transparent run that is
+DESIGNED AIR — often only 1 art px wide, in front of a sheet 1.5px deep. A side wall
+there fills the gap edge-on and reads as a solid plane running the whole seam, which is
+exactly what a viewer reports as "there should be an air-gap". Emit a side wall only when
+scanning outward from the empty neighbour hits an opaque pixel before the panel edge
+(`_tent_hole`) — i.e. the run is a hole the sheet encloses, not an opening. Top/bottom
+walls need no such test: art has no designed air above or below a panel. Suppressing by
+POSITION instead (the first attempt keyed on the cell-edge column) fixes one end and
+leaves the other; the rule has to be about what the run opens onto.
+
+## Colour-coding debug geometry beats staring at it (2026-08-16)
+
+Two rounds of reasoning about the tent seam from art dumps got the wrong end. Painting
+each extrusion direction its own flat colour (cyan/yellow/green/blue) and counting pixels
+in the screenshot named the culprit in one build: the plane was cyan, so it was the
+LEFT-neighbour wall of the east panel's pole column — not the cell-edge column already
+suppressed. The same shot then served as the before/after measurement (2105 of 2429
+former plane pixels became background).
