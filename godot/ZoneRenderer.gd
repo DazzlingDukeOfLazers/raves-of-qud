@@ -1724,14 +1724,32 @@ uniform float halo_amt = 1.0;
 uniform float halo_uv = 0.12;
 uniform float strength = 1.3;
 uniform float pulse_speed = 2.5;
+uniform float y_lock = 1.0;
 void vertex() {
-	// billboard (Godot's documented snippet) with scale preserved
-	MODELVIEW_MATRIX = VIEW_MATRIX
-		* mat4(INV_VIEW_MATRIX[0], INV_VIEW_MATRIX[1], INV_VIEW_MATRIX[2], MODEL_MATRIX[3])
-		* mat4(vec4(length(MODEL_MATRIX[0].xyz), 0.0, 0.0, 0.0),
+	// billboard EXACTLY like the sprite this quad glows for: Y-LOCKED when the
+	// sprite is (normal cameras), FULL in top-down. A full-billboard quad over
+	// a Y-locked sprite gave two planes meeting on a horizontal line through
+	// the shared centre — the far half lost the depth test against the
+	// depth-writing sprite (Daniel's "cropped effect": glow below the line,
+	// bare art above; a fixed nudge only MOVED the line, confirming the
+	// mechanism). Parallel planes + a 4cm camera-ward tie-break = the whole
+	// silhouette glows at every pitch; walls still occlude normally.
+	mat4 sc = mat4(vec4(length(MODEL_MATRIX[0].xyz), 0.0, 0.0, 0.0),
 			   vec4(0.0, length(MODEL_MATRIX[1].xyz), 0.0, 0.0),
 			   vec4(0.0, 0.0, length(MODEL_MATRIX[2].xyz), 0.0),
 			   vec4(0.0, 0.0, 0.0, 1.0));
+	if (y_lock > 0.5) {
+		vec3 fwd = normalize(vec3(INV_VIEW_MATRIX[2].x, 0.0, INV_VIEW_MATRIX[2].z));
+		vec3 side = normalize(cross(vec3(0.0, 1.0, 0.0), fwd));
+		MODELVIEW_MATRIX = VIEW_MATRIX
+			* mat4(vec4(side, 0.0), vec4(0.0, 1.0, 0.0, 0.0), vec4(fwd, 0.0),
+				   MODEL_MATRIX[3]) * sc;
+	} else {
+		MODELVIEW_MATRIX = VIEW_MATRIX
+			* mat4(INV_VIEW_MATRIX[0], INV_VIEW_MATRIX[1], INV_VIEW_MATRIX[2],
+				   MODEL_MATRIX[3]) * sc;
+	}
+	MODELVIEW_MATRIX[3].z += 0.04;
 }
 float fish_a(vec2 f) {
 	if (f.x < 0.0 || f.x > 1.0 || f.y < 0.0 || f.y > 1.0) return 0.0;
@@ -1767,6 +1785,13 @@ void fragment() {
 ## Hang the glow bloom over a glowfish sprite `s`, matched to its cropped region so the
 ## glowing shape lines up with the fish exactly.
 func _add_glow(s: Sprite3D, tex: Texture2D) -> void:
+	# REPLACE, never stack: the sprite is pooled and re-seated across turns —
+	# a bloom built for an earlier seat carries that seat's region (measured:
+	# a full-band window twice the height of the submerged crop, the "cropped
+	# effect" Daniel chased across three rounds). One bloom per placement,
+	# always the placement's own geometry.
+	for c in s.get_children():
+		c.queue_free()
 	var rr := s.region_rect if s.region_enabled else Rect2(0, 0, tex.get_width(), tex.get_height())
 	var tw := float(tex.get_width())
 	var th := float(tex.get_height())
@@ -1776,6 +1801,7 @@ func _add_glow(s: Sprite3D, tex: Texture2D) -> void:
 	mat.set_shader_parameter("uv_min", Vector2(rr.position.x / tw, rr.position.y / th))
 	mat.set_shader_parameter("uv_size", Vector2(rr.size.x / tw, rr.size.y / th))
 	mat.set_shader_parameter("pad", GLOW_PAD)
+	mat.set_shader_parameter("y_lock", 0.0 if _top_down else 1.0)
 	var q := MeshInstance3D.new()
 	var qm := QuadMesh.new()
 	qm.size = Vector2(rr.size.x * s.pixel_size, rr.size.y * s.pixel_size) * GLOW_PAD
@@ -5087,6 +5113,12 @@ func set_top_down(on: bool) -> void:
 	for n in get_tree().get_nodes_in_group("tile_sprite"):
 		if is_instance_valid(n):
 			(n as Sprite3D).billboard = mode
+			# a glow bloom child mirrors its sprite's billboard mode live
+			for c in n.get_children():
+				var mi := c as MeshInstance3D
+				if mi != null and mi.material_override is ShaderMaterial:
+					(mi.material_override as ShaderMaterial).set_shader_parameter(
+						"y_lock", 0.0 if on else 1.0)
 	_apply_wm_orient()   # world-map cards lie flat in top-down, stand up again otherwise (wins over the loop above)
 
 func _take_sprite() -> Sprite3D:
