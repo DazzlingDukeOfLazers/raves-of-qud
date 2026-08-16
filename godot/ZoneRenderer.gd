@@ -631,6 +631,7 @@ func _place_cell(cell: Dictionary, offset: Vector2i, wall_cells: Dictionary, ski
 	# state). Statics contribute nothing in 1:1.
 	if _one_to_one:
 		return
+	_door_wall_cells = wall_cells   # doors orient by the walls around them
 	var cx := int(cell.get("x", 0)) + offset.x
 	var cy := int(cell.get("y", 0)) + offset.y
 	var in_wall: bool = wall_cells.has(Vector2i(cx, cy))
@@ -1302,6 +1303,7 @@ const VERDICT_KEYS := [
 	["billboard", "billboard"],
 	["signpost", "signpost"],
 	["tent", "tentwall"],
+	["door", "door"],
 	["flat", "floor"],
 	["not be drawn", "skip"],
 ]
@@ -2012,6 +2014,153 @@ func _family_ew(tile: String) -> String:
 	if us < 0 or dot < 0 or dot < us:
 		return tile
 	return tile.substr(0, us + 1) + "ew" + tile.substr(dot)
+
+const DOOR_DEPTH_PX := 3.0    # slab thickness in art pixels (Daniel's spec)
+const DOOR_JAMB_PX := 1.0     # wall continuing into the doorway at each end
+var _door_wall_cells := {}    # cell -> wall variant, stashed per static build
+
+## Is this tile a door? Family-name test (sw_door_*, security doors, ...);
+## the report form's "door" verdict can force or override it per family.
+func _is_door(tile: String) -> bool:
+	return tile_family(tile).contains("door")
+
+## Which way does a door span? The axis with MORE adjacent walls wins: a
+## door in an E-W run has walls east+west and spans E-W (its faces look
+## N/S). Pairs beat singles, singles beat none, and ties go E-W — a door
+## continues its run, whatever its art claims.
+func _door_span_ew(cx: int, cy: int) -> bool:
+	var e := int(_door_wall_cells.has(Vector2i(cx + 1, cy)))
+	var w := int(_door_wall_cells.has(Vector2i(cx - 1, cy)))
+	var n := int(_door_wall_cells.has(Vector2i(cx, cy - 1)))
+	var s := int(_door_wall_cells.has(Vector2i(cx, cy + 1)))
+	return e + w >= n + s
+
+## A door as a voxel slab set into its wall run: a 14px panel, DOOR_DEPTH_PX
+## deep, wearing the door art on BOTH faces (each reading unmirrored — the
+## twin-slab rule), edge/top trim + 1px full-depth jambs in the art's own
+## frame colour (the signpost edge-sampling pattern). Height = WALL_H: a
+## derived shape that REPLACES a wall sizes against the wall, not art px.
+func _place_door(tile: String, main_c: String, detail_c: String, cx: int, cy: int, idx: int, light_frac: float) -> void:
+	var btex := _colored_tex(tile, main_c, detail_c, Fill.NONE)
+	var mask := _mask(tile)
+	if btex == null or mask == null:
+		return
+	var img := btex.get_image()
+	var vr := _opaque_v(mask)
+	var ew := _door_span_ew(cx, cy)
+	var ps := 1.0 / 16.0
+	var hw := (8.0 - DOOR_JAMB_PX) * ps          # panel half-width: 14px span
+	var hd := DOOR_DEPTH_PX * 0.5 * ps
+	var u0 := 1.0 / 16.0                          # art cols 1..14 on the panel;
+	var u1 := 15.0 / 16.0                         # the edge columns live in the jambs
+	var v0: float = vr.x
+	var v1: float = vr.x + vr.y
+	var lf := clampf(light_frac, 0.0, 1.0)
+	var midv := int(clampf((v0 + v1) * 0.5, 0.0, 0.999) * img.get_height())
+	var edge := img.get_pixel(0, midv)
+	if edge.a < 0.5:
+		edge = _qud_color(main_c).darkened(0.2)
+	var trim_c := Color(edge.r * lf, edge.g * lf, edge.b * lf)
+
+	# textured faces: both sides of the slab, art unmirrored on each
+	var stf := SurfaceTool.new()
+	stf.begin(Mesh.PRIMITIVE_TRIANGLES)
+	# a: along the span (x for EW, z for NS); d: across the depth
+	var face_quads := [[+1, false], [-1, true]]   # [depth sign, u reversed]
+	var face_corners: Array = [[0, 0], [1, 0], [1, 1], [0, 0], [1, 1], [0, 1]]
+	for fq in face_quads:
+		var dsign: int = fq[0]
+		var urev: bool = fq[1]
+		for i in 6:
+			var corner: Array = face_corners[i]
+			var ua: float = float(corner[0])       # 0..1 along the span
+			var vy: float = float(corner[1])       # 0..1 up the door
+			var a: float = lerpf(-hw, hw, ua if dsign > 0 else 1.0 - ua)
+			var y: float = vy * WALL_H
+			var p := Vector3(a, y, dsign * hd) if ew else Vector3(dsign * hd, y, a)
+			var un := lerpf(u0, u1, (1.0 - ua) if urev else ua)
+			stf.set_normal((Vector3(0, 0, dsign) if ew else Vector3(dsign, 0, 0)))
+			stf.set_uv(Vector2(un, lerpf(v1, v0, vy)))
+			stf.add_vertex(p)
+	var fmesh := ArrayMesh.new()
+	stf.commit(fmesh)
+	var fmi := MeshInstance3D.new()
+	fmi.mesh = fmesh
+	var fmat: StandardMaterial3D = _mesh_material(tile, main_c, detail_c, btex).duplicate()
+	fmat.albedo_color = Color(lf, lf, lf)         # per-instance dim (the fence idiom)
+	fmi.material_override = fmat
+	fmi.position = Vector3(cx, 0, cy)
+	_spawn_parent().add_child(fmi)
+	_track(fmi)
+
+	# trim: panel end strips + top cap + the two jambs (vertex-coloured)
+	var stt := SurfaceTool.new()
+	stt.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var boxes := [
+		# [a0, a1, d0, d1, y0, y1] in span/depth/up space
+		[-hw, -hw, -hd, hd, 0.0, WALL_H, -1],     # west/panel-end strip (plane)
+		[hw, hw, -hd, hd, 0.0, WALL_H, 1],        # east end strip
+		[-hw, hw, -hd, hd, WALL_H, WALL_H, 0],    # top cap (plane)
+	]
+	for b in boxes:
+		_door_trim_quad(stt, b, ew, trim_c)
+	for js in [-1, 1]:
+		# jamb: 1px along the span, FULL cell across the depth, wall height
+		var a0: float = js * hw
+		var a1: float = js * 0.5
+		_door_trim_box(stt, a0, a1, -0.5, 0.5, 0.0, WALL_H, ew, trim_c)
+	var tmesh := ArrayMesh.new()
+	stt.commit(tmesh)
+	var tmi := MeshInstance3D.new()
+	tmi.mesh = tmesh
+	tmi.material_override = _wall_skin_material()
+	tmi.position = Vector3(cx, 0, cy)
+	_spawn_parent().add_child(tmi)
+	_track(tmi)
+	_note(cx, cy, idx, "door slab %s (%dpx deep, %dpx jambs) walls e%d w%d n%d s%d" % [
+		"E-W" if ew else "N-S", int(DOOR_DEPTH_PX), int(DOOR_JAMB_PX),
+		int(_door_wall_cells.has(Vector2i(cx + 1, cy))),
+		int(_door_wall_cells.has(Vector2i(cx - 1, cy))),
+		int(_door_wall_cells.has(Vector2i(cx, cy - 1))),
+		int(_door_wall_cells.has(Vector2i(cx, cy + 1)))], WALL_H * 0.5)
+
+func _door_trim_quad(st: SurfaceTool, b: Array, ew: bool, c: Color) -> void:
+	# one plane: a-extent [b0,b1], depth [b2,b3], y [b4,b5]; b6 = normal hint
+	var quads := []
+	if b[4] == b[5]:      # horizontal cap
+		quads = [[Vector3(b[0], b[4], b[2]), Vector3(b[1], b[4], b[2]),
+			Vector3(b[1], b[4], b[3]), Vector3(b[0], b[4], b[3])]]
+	else:                 # vertical end strip at a = b0 (== b1)
+		quads = [[Vector3(b[0], b[4], b[2]), Vector3(b[0], b[4], b[3]),
+			Vector3(b[0], b[5], b[3]), Vector3(b[0], b[5], b[2])]]
+	for q in quads:
+		for i in [0, 1, 2, 0, 2, 3]:
+			var p: Vector3 = q[i]
+			if not ew:
+				p = Vector3(p.z, p.y, p.x)
+			st.set_color(c)
+			st.set_normal(Vector3.UP)
+			st.add_vertex(p)
+
+func _door_trim_box(st: SurfaceTool, a0: float, a1: float, d0: float, d1: float, y0: float, y1: float, ew: bool, c: Color) -> void:
+	# a box in span/depth/up space: 4 sides + top (bottom sits on the ground)
+	var lo := minf(a0, a1)
+	var hi := maxf(a0, a1)
+	var corners := [
+		[Vector3(lo, y0, d0), Vector3(hi, y0, d0), Vector3(hi, y1, d0), Vector3(lo, y1, d0)],
+		[Vector3(hi, y0, d1), Vector3(lo, y0, d1), Vector3(lo, y1, d1), Vector3(hi, y1, d1)],
+		[Vector3(lo, y0, d1), Vector3(lo, y0, d0), Vector3(lo, y1, d0), Vector3(lo, y1, d1)],
+		[Vector3(hi, y0, d0), Vector3(hi, y0, d1), Vector3(hi, y1, d1), Vector3(hi, y1, d0)],
+		[Vector3(lo, y1, d0), Vector3(hi, y1, d0), Vector3(hi, y1, d1), Vector3(lo, y1, d1)],
+	]
+	for q in corners:
+		for i in [0, 1, 2, 0, 2, 3]:
+			var p: Vector3 = q[i]
+			if not ew:
+				p = Vector3(p.z, p.y, p.x)
+			st.set_color(c)
+			st.set_normal(Vector3.UP)
+			st.add_vertex(p)
 
 func _place_connector(tile: String, main_c: String, detail_c: String, cx: int, cy: int, dirs: String, h := FENCE_H, fill := Fill.NONE, y_center := -1.0, light_frac := 1.0) -> void:
 	if dirs == "":
@@ -3053,6 +3202,14 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 		_floor_batch_add(fmat, Transform3D(Basis().scaled(fscale), Vector3(cx, y, cy)))
 		_note(cx, cy, idx, fkind, y)
 	elif tex != null:
+		# DOORS become voxel slabs set into their wall run (Daniel's spec: a
+		# 3px-deep panel with 1px of wall jamb either side — the door-shaped
+		# cousin of the 14-inside-16 roof invariant), oriented by the walls
+		# around them. USER mode only; an explicit verdict still wins.
+		if (verdict == "door" or (verdict == "" and _is_door(tile))) \
+				and not _one_to_one and not _flat_2d and not _world_map and not in_wall:
+			_place_door(tile, main_c, detail_c, cx, cy, idx, light_frac)
+			return
 		# directional connectors (fences, pipes, axles: family_<dirs>) ->
 		# orientation-locked standing panels, not billboards.
 		var dirs = _connector_dirs(tile) if _is_connector(obj, tile) else null
