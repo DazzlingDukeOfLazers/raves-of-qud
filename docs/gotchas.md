@@ -1947,3 +1947,17 @@ canonically** (`_wall_layout`: cap = all rows above the 10 face rows) — the bl
 (`_wall_split`) is for STOCK art layouts only, so a custom variant with an accidentally blank row
 can never fall out of layout with its family. The seam pass iterates voxel rows and maps into each
 side's band via the same `_cap_az`. Python mirror: `tools/capture/voxwall.py::cap_az`.
+
+## Paired geometry must share its sprite's billboard MODE (2026-08-15)
+
+Any quad that overlays a Sprite3D (glow blooms, future outlines/auras) must billboard
+EXACTLY like that sprite — Y-locked with Y-locked, full with full — plus a small
+camera-ward tie-break. A full-billboard quad over a Y-locked sprite gives two planes
+meeting on a horizontal line through the shared centre; the far half loses the depth test
+against the depth-writing sprite and the effect visibly cuts at MID-SPRITE. The cut
+tracks the sprite's centre at every pitch, so it masquerades as art-anchored (the
+glowfish "cropped effect": three fixes aimed at texture alignment before a debug frame in
+the shader exposed the plane intersection; a fixed nudge MOVED the line — the confirming
+experiment). Also: blooms attach as sprite CHILDREN and _add_glow REPLACES any existing
+one — pooled sprites re-seat across turns, and a stale bloom carries the old seat's
+region.
