@@ -667,7 +667,13 @@ func _place_cell(cell: Dictionary, offset: Vector2i, wall_cells: Dictionary, ski
 				int(rk.get("rank", -1)), int(rk.get("below", 0)), ground_show)
 		# Creature lights are placed in the DYNAMIC pass so they follow the creature;
 		# here (static) we only place fixed lights (sconces, braziers, lit terrain).
-		if o.has("lightRadius") and not (skip_creatures and _is_creature(o)):
+		# A torch wearing its NOFIRE tile is Qud saying "unlit" — daytime
+		# aboveground torches get NO rig at all: no fire, no smoke, no pool
+		# (Daniel: "Torches aboveground should not have fire or smoke during
+		# the day"). First-party: underground torches never wear nofire, and
+		# campfires (onFire) always burn — you cook in the daytime.
+		if o.has("lightRadius") and not (skip_creatures and _is_creature(o)) \
+				and not String(o.get("tile", "")).contains("nofire"):
 			_place_light(cx, cy, float(o["lightRadius"]), not _is_creature(o), bool(o.get("onFire", false)))
 		idx += 1
 
