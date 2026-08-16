@@ -1986,6 +1986,23 @@ the end of a run they are exposed, so the run caps itself for free. ~260 quads p
 worked this way. Note `_voxel_material` sets `cull_mode = CULL_DISABLED`, so face winding
 does not have to survive the x/z axis swap that orients N-S panels.
 
+## Tile-derived solids: one builder, three shapes (2026-08-16)
+
+Tent fabric, tent poles and the signpost all build the same way now — mark the solid cells,
+then call `_vox_block` per cell with its six neighbours flagged, and commit one mesh on
+`_vox_skin_material`. What each shape contributes is only its solid set:
+
+- fabric: opaque art pixels, one block deep;
+- pole: a `pn x 24 x pn` column, art columns wide;
+- signpost: 4 deep — `[face][core][core][face]` — where board pixels the raw mask leaves
+  TRANSPARENT keep only the CORE layers, so the lettering is CARVED 1px into both faces
+  and its walls and floor are real geometry. The posts occupy the core layers only, which
+  is what used to be a hand-placed z offset putting them "behind the slab".
+
+The box build faked the carve with an alpha-scissor quad over a backing box a millimetre
+behind. Whenever you catch yourself layering a quad over a box to imply depth, that is the
+signal to build the volume instead. Sign: 624 voxels, 796 exposed faces, 48 carved pixels.
+
 ## A flat sheet must not be LIT by orientation (2026-08-16)
 
 `_voxel_material` is `SHADING_MODE_PER_PIXEL` under `SHADED_WORLD`, which is right for

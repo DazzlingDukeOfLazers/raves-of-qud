@@ -2860,7 +2860,7 @@ func _place_tentwall(obj: Dictionary, tile: String, cx: int, cy: int, light_frac
 	pst.commit(pmesh)
 	var cmi := MeshInstance3D.new()
 	cmi.mesh = pmesh
-	cmi.material_override = _tent_skin_material()
+	cmi.material_override = _vox_skin_material()
 	_spawn_parent().add_child(cmi)
 	_track(cmi)
 	# FABRIC: hung (art bbox through vscale = the ground gap), off the pole (one art
@@ -2962,7 +2962,7 @@ func _place_tentwall(obj: Dictionary, tile: String, cx: int, cy: int, light_frac
 		stw.commit(fmesh)
 		var fmi := MeshInstance3D.new()
 		fmi.mesh = fmesh
-		fmi.material_override = _tent_skin_material()
+		fmi.material_override = _vox_skin_material()
 		_spawn_parent().add_child(fmi)
 		_track(fmi)
 	return true
@@ -3088,34 +3088,18 @@ func _place_signpost(obj: Dictionary, tile: String, cx: int, cy: int, light_frac
 	var lfc := Color(light_frac, light_frac, light_frac)
 	var ps := PIXEL_SIZE
 	var base := Vector3(cx, 0.0, cy)
-	# posts first: sample their colour from the art at the probe row
-	var post_top_y: float = (bottom + 1 - top) * ps
-	for pr in posts:
-		var px := int((pr[0] + pr[1]) / 2.0)
-		var pc := img.get_pixel(int((px + 0.5) * sx), int((probe + 0.5) * sy)) if probe >= 0 else Color(0.3, 0.25, 0.2)
-		var box := BoxMesh.new()
-		box.size = Vector3((pr[1] - pr[0] + 1) * ps, post_top_y, 2.0 * ps)
-		var mi := MeshInstance3D.new()
-		mi.mesh = box
-		mi.material_override = _color_material(pc * lfc)
-		# posts sit BEHIND the slab (the art shows them only above/below the board:
-		# the board is nailed to the posts' front), so they never poke through the face
-		mi.position = base + Vector3((pr[0] + (pr[1] - pr[0] + 1) * 0.5 - w * 0.5) * ps, post_top_y * 0.5, 1.5 * ps)
-		_spawn_parent().add_child(mi)
-		_track(mi)
-	# the slab: solid box + art quads front and back
-	var bw: int = w
-	var lo := w; var hi := -1
+	# Board rect + the board's own frame colour (sampled from the first raw-opaque
+	# pixel; a fixed corner probe used to land on transparent and fall back to
+	# near-black — Daniel: sides should be the same brown as the front).
+	var lo := w
+	var hi := -1
 	for y in range(b0, b1 + 1):
 		for x in w:
 			if mask.get_pixel(x, y).a >= 0.5:
-				lo = mini(lo, x); hi = maxi(hi, x)
-	bw = hi - lo + 1
-	var bh: int = b1 - b0 + 1
-	var slab_y0: float = (bottom + 1 - (b1 + 1)) * ps
-	# Slab edges in the board's OWN colour — sample the first raw-opaque frame pixel
-	# (the fixed corner probe used to land on a transparent pixel and fall back to
-	# near-black; Daniel: sides should be the same brown as the front).
+				lo = mini(lo, x)
+				hi = maxi(hi, x)
+	if hi < lo:
+		return false
 	var slab_c := Color(0.45, 0.25, 0.2)
 	var sc_found := false
 	for y in range(b0, b1 + 1):
@@ -3126,41 +3110,59 @@ func _place_signpost(obj: Dictionary, tile: String, cx: int, cy: int, light_frac
 				break
 		if sc_found:
 			break
-	# A REAL crop: AtlasTexture regions are IGNORED by 3D materials (StandardMaterial3D
-	# samples the whole atlas), which put the entire tile — dark fill and all — on the
-	# board quad. Cut the board rect out of the image instead.
-	var sub := img.get_region(Rect2i(int(lo * sx), int(b0 * sy), int(bw * sx), int(bh * sy)))
-	var board_tex := ImageTexture.create_from_image(sub)
-	var qmat := StandardMaterial3D.new()
-	qmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	qmat.albedo_texture = board_tex
-	qmat.albedo_color = lfc
-	qmat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	qmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
-	qmat.alpha_scissor_threshold = 0.5
-	# TWO slabs sandwiching the posts (Daniel: one faces north, one faces south) —
-	# posts sit at +1.5px between them, so both outer faces read from their side.
-	for zoff in [0.0, 3.0 * ps]:
-		var slab := BoxMesh.new()
-		slab.size = Vector3(bw * ps, bh * ps, 1.0 * ps)
-		var smi := MeshInstance3D.new()
-		smi.mesh = slab
-		smi.material_override = _color_material(slab_c * lfc)
-		var slab_center := base + Vector3((lo + bw * 0.5 - w * 0.5) * ps, slab_y0 + bh * ps * 0.5, zoff)
-		smi.position = slab_center
-		_spawn_parent().add_child(smi)
-		_track(smi)
-		for side in [1.0, -1.0]:
-			var q := QuadMesh.new()
-			q.size = Vector2(bw * ps, bh * ps)
-			var qmi := MeshInstance3D.new()
-			qmi.mesh = q
-			qmi.material_override = qmat
-			qmi.position = slab_center + Vector3(0.0, 0.0, side * (0.5 * ps + 0.001))
-			if side < 0.0:
-				qmi.rotation.y = PI   # back face: same art, mirrored
-			_spawn_parent().add_child(qmi)
-			_track(qmi)
+	# VOXEL BUILD (Daniel: "let's voxelize the signpost the same way"). One block per
+	# art pixel over a 4px depth — [face][core][core][face] — so the two boards still
+	# sandwich the posts exactly as the box build did, and _vox_block culls every
+	# interior face. Two things fall out that the box build had to fake:
+	#  · pixels the raw mask leaves TRANSPARENT inside the board keep only the CORE
+	#    layers, so the lettering is carved 1px into both faces and its walls and floor
+	#    are real geometry. The box build painted an alpha-scissor quad over a backing
+	#    box a millimetre behind to imply the same thing.
+	#  · posts occupy the core layers only, which is what put them "behind the slab"
+	#    before — now it is the same lattice rather than a hand-placed z offset.
+	# Row y sits at world (bottom - y) * ps, so the art's own baseline lands on the
+	# ground and the board keeps the height the slab had.
+	var post_c := Color(0.3, 0.25, 0.2)
+	if probe >= 0 and not posts.is_empty():
+		var ppx: int = int((posts[0][0] + posts[0][1]) / 2.0)
+		post_c = img.get_pixel(int((ppx + 0.5) * sx), int((probe + 0.5) * sy))
+	var solid := {}
+	for y in range(top, bottom + 1):
+		for x in w:
+			var in_board: bool = y >= b0 and y <= b1 and x >= lo and x <= hi
+			var in_post := false
+			for pr in posts:
+				if x >= pr[0] and x <= pr[1]:
+					in_post = true
+					break
+			if not in_board and not in_post:
+				continue
+			var c := img.get_pixel(int((x + 0.5) * sx), int((y + 0.5) * sy))
+			if c.a < 0.5:
+				c = post_c if not in_board else slab_c
+			var faced: bool = in_board and mask.get_pixel(x, y).a >= 0.5
+			for k in ([0, 1, 2, 3] if faced else [1, 2]):
+				solid[Vector3i(x, y, k)] = c
+	if solid.is_empty():
+		return false
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for key in solid:
+		var v: Vector3i = key
+		# world +Y is the PREVIOUS art row, so the up/down neighbours are y-1 / y+1
+		_vox_block(st,
+			base + Vector3((v.x - w * 0.5) * ps, (bottom - v.y) * ps, (v.z - 0.5) * ps),
+			Vector3(ps, ps, ps), solid[key] * lfc,
+			[not solid.has(v + Vector3i(-1, 0, 0)), not solid.has(v + Vector3i(1, 0, 0)),
+			 not solid.has(v + Vector3i(0, 1, 0)), not solid.has(v + Vector3i(0, -1, 0)),
+			 not solid.has(v + Vector3i(0, 0, -1)), not solid.has(v + Vector3i(0, 0, 1))])
+	var smesh := ArrayMesh.new()
+	st.commit(smesh)
+	var smi := MeshInstance3D.new()
+	smi.mesh = smesh
+	smi.material_override = _vox_skin_material()
+	_spawn_parent().add_child(smi)
+	_track(smi)
 	return true
 
 # ── WINNER PER CELL (Daniel, 2026-08-12): "stop fighting and just do what Qud does.
@@ -5580,7 +5582,7 @@ func _deck_material(tile: String, main_c: String, detail_c: String, tex: ImageTe
 ## only where its neighbour is absent, so a volume built by calling this per cell is
 ## watertight and carries no interior geometry. Shades match the tent fabric's table
 ## (1.00 on Z, 0.72 on X, 0.92 top, 0.50 underside) so a pole and the sheet it holds
-## up agree, and they are BAKED into the vertex colour — see _tent_skin_material.
+## up agree, and they are BAKED into the vertex colour — see _vox_skin_material.
 func _vox_block(st: SurfaceTool, o: Vector3, s: Vector3, col: Color, open: Array) -> void:
 	var x0: float = o.x
 	var x1: float = o.x + s.x
@@ -5609,24 +5611,24 @@ func _vox_block(st: SurfaceTool, o: Vector3, s: Vector3, col: Color, open: Array
 			st.add_vertex(quad[k])
 
 
-## Vertex-coloured and UNSHADED, for tile-derived solids that bake their own shading
-## into the vertex colours (the tent fabric's face table: 1.00 broad, 0.92 top, 0.72
+## Vertex-coloured and UNSHADED, for every tile-derived solid built out of _vox_block;
+## they bake their own shading into the vertex colours (the face table: 1.00 broad, 0.92 top, 0.72
 ## rim, 0.50 underside). The voxel-WALL material is SHADED_WORLD-lit, and lighting a
 ## flat sheet by orientation made an east-west tent read darker than a north-south one
 ## for no reason the player can see (Daniel). The fabric's old art quads were unshaded
 ## too, so a tent looked the same whichever way it ran; per-cell light still lands via
 ## the light_frac the vertex colours are multiplied by.
-var _tent_mat: StandardMaterial3D
+var _vox_skin_mat: StandardMaterial3D
 
-func _tent_skin_material() -> StandardMaterial3D:
-	if _tent_mat != null:
-		return _tent_mat
+func _vox_skin_material() -> StandardMaterial3D:
+	if _vox_skin_mat != null:
+		return _vox_skin_mat
 	var m := StandardMaterial3D.new()
 	m.vertex_color_use_as_albedo = true
 	m.vertex_color_is_srgb = true      # same sRGB caveat as _voxel_material
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	m.cull_mode = BaseMaterial3D.CULL_DISABLED
-	_tent_mat = m
+	_vox_skin_mat = m
 	return m
 
 
