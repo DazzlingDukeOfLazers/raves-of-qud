@@ -1704,7 +1704,7 @@ void fragment() {
 	float core = pow(nd, 1.5);
 	float hi = pow(clamp(dot(NORMAL, normalize(vec3(0.45, 0.8, 0.35))), 0.0, 1.0), 10.0);
 	ALBEDO = mix(rim_col, core_col, core) + vec3(0.9) * hi * 0.5;
-	ALPHA = 0.55 + 0.45 * core;
+	ALPHA = 0.22 + 0.30 * core;   // ghostly: the water and fish read through the orb
 }
 """
 	_mote_mat = ShaderMaterial.new()
