@@ -2833,30 +2833,36 @@ func _place_tentwall(obj: Dictionary, tile: String, cx: int, cy: int, light_frac
 			cap_px = 0
 		pole_c = img.get_pixel(pcx, int((top + cap_px + 1.0) * sy)) if cap_px > 0 else pole_c
 	var cap_h: float = cap_px * vscale
-	var body_h: float = pole_h - cap_h
-	var cylb := CylinderMesh.new()
-	cylb.top_radius = pole_w * 0.5
-	cylb.bottom_radius = pole_w * 0.5
-	cylb.height = body_h
-	cylb.radial_segments = 10
+	# THE POLE: a 2x2x24 voxel column, not a cylinder (Daniel: "turn the cylinder
+	# poles into a 2x2x24 voxel pole. Same colors — it fits better with the
+	# aesthetic — it should help generalize the algorithm"). 24 stacked voxels span
+	# the height the cylinder had (pole_h == WALL_H), matching the walls' 24 rows;
+	# the cross-section is the art's own pole COLUMNS at PIXEL_SIZE, the scale the
+	# fabric uses, so the pole stays exactly as thick and tall as before and only
+	# its section changes. (The wall lattice is 24 rows too but its footprint fills
+	# the 1-unit cell, not 16 art px — the two agree vertically, not across.) A
+	# family with a 3px pole builds 3x3 with no change here, and the art's red top
+	# becomes the top run of voxels.
+	var pn: int = maxi(1, pole_x1 - pole_x0 + 1) if pole_x0 >= 0 else 2
+	var vh: float = pole_h / 24.0
+	var cap_v: int = clampi(int(round(cap_h / vh)), 0, 24)
+	var pst := SurfaceTool.new()
+	pst.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for vy in 24:
+		var vc: Color = cap_c if vy >= 24 - cap_v else pole_c
+		for vx in pn:
+			for vz in pn:
+				_vox_block(pst,
+					base + Vector3((vx - pn * 0.5) * ps, vy * vh, (vz - pn * 0.5) * ps),
+					Vector3(ps, vh, ps), vc * lfc,
+					[vx == 0, vx == pn - 1, vy == 0, vy == 23, vz == 0, vz == pn - 1])
+	var pmesh := ArrayMesh.new()
+	pst.commit(pmesh)
 	var cmi := MeshInstance3D.new()
-	cmi.mesh = cylb
-	cmi.material_override = _color_material(pole_c * lfc)
-	cmi.position = base + Vector3(0.0, body_h * 0.5, 0.0)
+	cmi.mesh = pmesh
+	cmi.material_override = _tent_skin_material()
 	_spawn_parent().add_child(cmi)
 	_track(cmi)
-	if cap_h > 0.0:
-		var cylc := CylinderMesh.new()
-		cylc.top_radius = pole_w * 0.5
-		cylc.bottom_radius = pole_w * 0.5
-		cylc.height = cap_h
-		cylc.radial_segments = 10
-		var cci := MeshInstance3D.new()
-		cci.mesh = cylc
-		cci.material_override = _color_material(cap_c * lfc)
-		cci.position = base + Vector3(0.0, body_h + cap_h * 0.5, 0.0)
-		_spawn_parent().add_child(cci)
-		_track(cci)
 	# FABRIC: hung (art bbox through vscale = the ground gap), off the pole (one art
 	# px gap), spanning to the cell edge.
 	var gapw := 0.5 / 8.0
@@ -5568,6 +5574,40 @@ func _deck_material(tile: String, main_c: String, detail_c: String, tex: ImageTe
 	m.cull_mode = BaseMaterial3D.CULL_DISABLED
 	_texmat_cache[key] = m
 	return m
+
+## ONE voxel's exposed faces, for tile-derived solids built on the wall lattice.
+## `open` flags the six neighbours in order -X, +X, -Y, +Y, -Z, +Z; a face is emitted
+## only where its neighbour is absent, so a volume built by calling this per cell is
+## watertight and carries no interior geometry. Shades match the tent fabric's table
+## (1.00 on Z, 0.72 on X, 0.92 top, 0.50 underside) so a pole and the sheet it holds
+## up agree, and they are BAKED into the vertex colour — see _tent_skin_material.
+func _vox_block(st: SurfaceTool, o: Vector3, s: Vector3, col: Color, open: Array) -> void:
+	var x0: float = o.x
+	var x1: float = o.x + s.x
+	var y0: float = o.y
+	var y1: float = o.y + s.y
+	var z0: float = o.z
+	var z1: float = o.z + s.z
+	var faces: Array = [
+		[0.72, [Vector3(x0, y0, z0), Vector3(x0, y0, z1), Vector3(x0, y1, z1), Vector3(x0, y1, z0)]],
+		[0.72, [Vector3(x1, y0, z1), Vector3(x1, y0, z0), Vector3(x1, y1, z0), Vector3(x1, y1, z1)]],
+		[0.50, [Vector3(x0, y0, z0), Vector3(x1, y0, z0), Vector3(x1, y0, z1), Vector3(x0, y0, z1)]],
+		[0.92, [Vector3(x0, y1, z1), Vector3(x1, y1, z1), Vector3(x1, y1, z0), Vector3(x0, y1, z0)]],
+		[1.00, [Vector3(x1, y0, z0), Vector3(x0, y0, z0), Vector3(x0, y1, z0), Vector3(x1, y1, z0)]],
+		[1.00, [Vector3(x0, y0, z1), Vector3(x1, y0, z1), Vector3(x1, y1, z1), Vector3(x0, y1, z1)]],
+	]
+	for fi in faces.size():
+		if not bool(open[fi]):
+			continue
+		var fdef: Array = faces[fi]
+		var sh: float = fdef[0]
+		var fc := Color(col.r * sh, col.g * sh, col.b * sh, col.a)
+		var quad: Array = fdef[1]
+		for k in [0, 1, 2, 0, 2, 3]:
+			st.set_color(fc)
+			st.set_normal(Vector3.UP)
+			st.add_vertex(quad[k])
+
 
 ## Vertex-coloured and UNSHADED, for tile-derived solids that bake their own shading
 ## into the vertex colours (the tent fabric's face table: 1.00 broad, 0.92 top, 0.72
