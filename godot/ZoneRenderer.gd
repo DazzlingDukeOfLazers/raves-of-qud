@@ -19,6 +19,7 @@ const WALL_H := 1.2
 const SHADED_WORLD := true
 const WALL_NORMAL_SCALE := 4.0   # strength of the tile-derived wall relief (cranked to confirm it applies)
 const FENCE_H := 0.6  # standing height of fence/pipe panels (content, sat on ground)
+const FENCE_VOX_D := 2   # voxel fences: blocks of thickness across the run (2 art px)
 const FLOAT_Y := WALL_H * 0.5  # cell mid-height, where a "float" verdict centres a tile
 const PIXEL_SIZE := 0.042
 const FLOOR_Y := 0.02
@@ -2362,6 +2363,9 @@ func _place_connector(tile: String, main_c: String, detail_c: String, cx: int, c
 # so runs are continuous and corners form a clean L. Used for every directional
 # family: picket fences, pipes, and tent walls (which differ only in height).
 func _fence_half(cx: int, cy: int, d: String, tile: String, main_c: String, detail_c: String, h := FENCE_H, fill := Fill.NONE, y_center := -1.0, light_frac := 1.0) -> void:
+	if _fence_is_voxel(tile):
+		_fence_half_vox(cx, cy, d, tile, main_c, detail_c, h, fill, y_center, light_frac)
+		return
 	var mi := _take_fence()
 	var half := "r" if (d == "e" or d == "s") else "l"
 	# Per-INSTANCE material (a shallow dup — texture is shared) so this panel can be dimmed
@@ -2390,6 +2394,121 @@ func _fence_half(cx: int, cy: int, d: String, tile: String, main_c: String, deta
 	mi.position = pos
 	mi.visible = true
 	_track(mi)
+
+## Which connector families build as VOXELS. FENCES only for now (Daniel: "let's
+## voxelize fences next") — pipes, wires and axles keep the flat-quad path; the
+## builder below is family-agnostic, so widening this predicate is the whole change
+## when we want them too.
+func _fence_is_voxel(tile: String) -> bool:
+	return tile.contains("fence") and not _one_to_one and not _flat_2d and not _world_map
+
+
+## One fence half-panel as VOXELS: a block per opaque art pixel, FENCE_VOX_D blocks
+## deep, faces only where the neighbour block is absent (_vox_block). It keeps every
+## convention of the quad path it replaces, which is what makes runs still line up:
+## cell A's "e" half carries art columns 8..15 and B's "w" half carries 0..7, so a run
+## reproduces the full 16-wide elevation across the shared edge and the two halves abut
+## with their facing blocks BURIED — the seam closes itself, exactly as the tent's does.
+## Light stays live: the face shade is baked into the vertex colours, but light_frac
+## rides on a per-instance material's albedo_color (which multiplies vertex colour), so
+## the panel re-lights per turn through _lit_meshes like the quads did.
+func _fence_half_vox(cx: int, cy: int, d: String, tile: String, main_c: String, detail_c: String,
+		h: float, fill: int, y_center: float, light_frac: float) -> void:
+	var art := _panel_art(tile)
+	var mask := _mask(art)
+	if mask == null:
+		return
+	var tex := _colored_tex(art, main_c, detail_c, fill)
+	if tex == null:
+		return
+	var img := tex.get_image()
+	var w := mask.get_width()
+	var mh := mask.get_height()
+	if w < 2 or mh < 1:
+		return
+	var sx: float = img.get_width() / float(w)
+	var sy: float = img.get_height() / float(mh)
+	# Vertical crop to the RAW mask's opaque band. Measured on the mask, not the
+	# coloured texture, for the same reason the quad path does it: under Fill.ALL every
+	# pixel is opaque and the art's empty padding would become slab.
+	var top := -1
+	var bot := -1
+	for y in mh:
+		var any_px := false
+		for x in w:
+			if mask.get_pixel(x, y).a >= 0.5:
+				any_px = true
+				break
+		if any_px:
+			if top < 0:
+				top = y
+			bot = y
+	if top < 0:
+		return
+	var hw: int = w / 2
+	var ny: int = bot - top + 1
+	var pw: float = 0.5 / float(hw)          # one art px along the run
+	var phh: float = h / float(ny)
+	var yc: float = y_center if y_center >= 0.0 else h * 0.5
+	var y0: float = yc - h * 0.5
+	# Which half of the elevation, and where its first column sits — the quad path's
+	# convention (E-half for e AND s, W-half for w AND n) so corners join as an L.
+	var is_ew: bool = d == "e" or d == "w"
+	var is_ns: bool = d == "n" or d == "s"
+	var right_half: bool = d == "e" or d == "s"
+	var u0: int = hw if right_half else 0
+	var a0: float = 0.0 if right_half else -0.5
+	if not is_ew and not is_ns:
+		u0 = 0                                # a lone POST: centred, art's left half
+		a0 = -0.25
+	var solid := {}
+	for j in range(top, bot + 1):
+		for k in hw:
+			var c := img.get_pixel(int((u0 + k + 0.5) * sx), int((j + 0.5) * sy))
+			if c.a < 0.5:
+				continue
+			for dz in FENCE_VOX_D:
+				solid[Vector3i(k, j, dz)] = c
+	if solid.is_empty():
+		return
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var half_d: float = FENCE_VOX_D * pw * 0.5
+	for key in solid:
+		var v: Vector3i = key
+		var a: float = a0 + v.x * pw                    # along the run, from the cell centre
+		var yy: float = y0 + (bot - v.y) * phh          # world +Y is the PREVIOUS art row
+		var dep: float = -half_d + v.z * pw             # across it
+		var o: Vector3
+		if is_ns:
+			o = Vector3(cx + dep, yy, cy + a)
+		else:
+			o = Vector3(cx + a, yy, cy + dep)
+		var size := Vector3(pw, phh, pw)   # square section: one art px each way
+		# neighbours: the run axis is X for e/w/post and Z for n/s, so the -X/+X flags
+		# follow the ART columns and the -Z/+Z flags follow depth (and swap for N-S).
+		var oa := not solid.has(v + Vector3i(-1, 0, 0))
+		var ob := not solid.has(v + Vector3i(1, 0, 0))
+		var oy0 := not solid.has(v + Vector3i(0, 1, 0))
+		var oy1 := not solid.has(v + Vector3i(0, -1, 0))
+		var od0 := not solid.has(v + Vector3i(0, 0, -1))
+		var od1 := not solid.has(v + Vector3i(0, 0, 1))
+		if is_ns:
+			_vox_block(st, o, size, solid[key], [od0, od1, oy0, oy1, oa, ob])
+		else:
+			_vox_block(st, o, size, solid[key], [oa, ob, oy0, oy1, od0, od1])
+	var mesh := ArrayMesh.new()
+	st.commit(mesh)
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	var fm: StandardMaterial3D = _vox_skin_material().duplicate()
+	fm.albedo_color = Color(light_frac, light_frac, light_frac)
+	mi.material_override = fm
+	_spawn_parent().add_child(mi)
+	if _live_build:
+		_lit_meshes.append({"mi": mi, "cell": Vector2i(cx, cy)})
+	_track(mi)
+
 
 func _take_fence() -> MeshInstance3D:
 	if _bank == null and _fence_pool.size() > 0:
