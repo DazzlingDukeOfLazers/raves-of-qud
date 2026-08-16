@@ -1719,6 +1719,7 @@ uniform vec2 uv_size = vec2(1.0);
 uniform float pad = 1.5;
 uniform vec3 glow_color = vec3(0.4, 1.0, 0.85);
 uniform float body_amt = 0.4;
+uniform float body_tint = 0.45;
 uniform float halo_amt = 1.0;
 uniform float halo_uv = 0.12;
 uniform float strength = 1.3;
@@ -1751,9 +1752,13 @@ void fragment() {
 	around /= 16.0;
 	float halo = clamp(around - here, 0.0, 1.0);
 	float pulse = 0.65 + 0.35 * sin(TIME * pulse_speed);
-	// body: gentle glow in the FISH'S OWN colour (never a flat cyan fill, so it can't become
-	// an opaque block); halo: the crisp cyan outline. Additive: contribution = ALBEDO * ALPHA.
-	vec3 col = fish_rgb * here * body_amt + glow_color * halo * halo_amt;
+	// body: the fish's own colour boosted PLUS the glow-colour wash over the whole
+	// silhouette (Daniel: the watery-glow look must cover the entire fish — without
+	// the tint, only the part washed by the flat light POOL glowed, and the pool's
+	// edge cut a camera-dependent line across the body). Additive keeps the art
+	// readable underneath; halo: the crisp cyan outline.
+	vec3 col = fish_rgb * here * body_amt + glow_color * here * body_tint
+		+ glow_color * halo * halo_amt;
 	ALBEDO = col * strength;
 	ALPHA = pulse;
 }
