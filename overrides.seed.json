@@ -1,61 +1,94 @@
 {
-  "_comment": "Standing render rules, keyed by tile family. Written by the in-viewer report form; read live by ZoneRenderer every frame. Safe to hand-edit. CONFIG, not a ticket queue. A reference copy is committed at overrides.seed.json.",
-  "version": 1,
-  "tiles": {
-    "sw_axle": {
-      "position": "POS: FLOAT centered in the tile"
-    },
-    "sw_millstone": {
-      "fill": "FILL: fill the holes with BACKGROUND"
-    },
-    "sw_waterwheel": {
-      "shape": "ORIENTED PANEL running E\u2013W (faces N/S)",
-      "fill": "FILL: fill the holes with BACKGROUND"
-    },
-    "sw_dromad": {
-      "fill": "make the neck gaps TRANSPARENT (see-through)"
-    },
-    "sw_basket": {
-      "fill": "FILL: keep only the SMALL POCKETS (weave shadows); the big arch goes clear"
-    },
-    "sw_sign_goods": {
-      "shape": "build it as a SIGNPOST (two posts + slab)"
-    },
-    "sw_honey_sign": {
-      "shape": "build it as a SIGNPOST (two posts + slab)"
-    },
-    "sw_hookah_sign": {
-      "shape": "build it as a SIGNPOST (two posts + slab)"
-    },
-    "sw_sign_bottle": {
-      "shape": "build it as a SIGNPOST (two posts + slab)"
-    },
-    "sw_sign_datadisc": {
-      "shape": "build it as a SIGNPOST (two posts + slab)"
-    },
-    "sw_sign_graveyard": {
-      "shape": "build it as a SIGNPOST (two posts + slab)"
-    },
-    "sw_sign_gutsmonger": {
-      "shape": "build it as a SIGNPOST (two posts + slab)"
-    },
-    "sw_sign_liquid": {
-      "shape": "build it as a SIGNPOST (two posts + slab)"
-    },
-    "sw_sign_pepper": {
-      "shape": "build it as a SIGNPOST (two posts + slab)"
-    },
-    "sw_sign_wine": {
-      "shape": "build it as a SIGNPOST (two posts + slab)"
-    },
-    "tent": {
-      "shape": "build it as a TENT (pole cylinder + skin slabs)"
-    },
-    "sw_watervine": {
-      "fill": "make the gaps see-through"
-    },
-    "npc-mehmet": {
-      "fill": "make the gaps see-through"
-    }
+ "_comment": "Standing render rules, keyed by tile family. Written by the in-viewer report form; read live by ZoneRenderer every frame. Safe to hand-edit. CONFIG, not a ticket queue. A reference copy is committed at overrides.seed.json.",
+ "version": 1,
+ "tiles": {
+  "npc-mehmet": {
+   "fill": "make the gaps see-through"
+  },
+  "sw_axle": {
+   "position": "POS: FLOAT centered in the tile"
+  },
+  "sw_basket": {
+   "fill": "FILL: keep only the SMALL POCKETS (weave shadows); the big arch goes clear"
+  },
+  "sw_dromad": {
+   "fill": "make the neck gaps TRANSPARENT (see-through)"
+  },
+  "sw_honey_sign": {
+   "shape": "build it as a SIGNPOST (two posts + slab)"
+  },
+  "sw_hookah_sign": {
+   "shape": "build it as a SIGNPOST (two posts + slab)"
+  },
+  "sw_millstone": {
+   "fill": "FILL: fill the holes with BACKGROUND"
+  },
+  "sw_sign_apple": {
+   "shape": "build it as a SIGNPOST (two posts + slab)"
+  },
+  "sw_sign_body": {
+   "shape": "build it as a SIGNPOST (two posts + slab)"
+  },
+  "sw_sign_bombs": {
+   "shape": "build it as a SIGNPOST (two posts + slab)"
+  },
+  "sw_sign_book": {
+   "shape": "build it as a SIGNPOST (two posts + slab)"
+  },
+  "sw_sign_boot": {
+   "shape": "build it as a SIGNPOST (two posts + slab)"
+  },
+  "sw_sign_bottle": {
+   "shape": "build it as a SIGNPOST (two posts + slab)"
+  },
+  "sw_sign_cloak": {
+   "shape": "build it as a SIGNPOST (two posts + slab)"
+  },
+  "sw_sign_datadisc": {
+   "shape": "build it as a SIGNPOST (two posts + slab)"
+  },
+  "sw_sign_glove": {
+   "shape": "build it as a SIGNPOST (two posts + slab)"
+  },
+  "sw_sign_goods": {
+   "shape": "build it as a SIGNPOST (two posts + slab)"
+  },
+  "sw_sign_graveyard": {
+   "shape": "build it as a SIGNPOST (two posts + slab)"
+  },
+  "sw_sign_gun": {
+   "shape": "build it as a SIGNPOST (two posts + slab)"
+  },
+  "sw_sign_gutsmonger": {
+   "shape": "build it as a SIGNPOST (two posts + slab)"
+  },
+  "sw_sign_hat": {
+   "shape": "build it as a SIGNPOST (two posts + slab)"
+  },
+  "sw_sign_jeweler": {
+   "shape": "build it as a SIGNPOST (two posts + slab)"
+  },
+  "sw_sign_liquid": {
+   "shape": "build it as a SIGNPOST (two posts + slab)"
+  },
+  "sw_sign_pepper": {
+   "shape": "build it as a SIGNPOST (two posts + slab)"
+  },
+  "sw_sign_west": {
+   "shape": "build it as a SIGNPOST (two posts + slab)"
+  },
+  "sw_sign_wine": {
+   "shape": "build it as a SIGNPOST (two posts + slab)"
+  },
+  "sw_watervine": {
+   "fill": "make the gaps see-through"
+  },
+  "sw_waterwheel": {
+   "shape": "ORIENTED PANEL running E–W (faces N/S)",
+   "fill": "FILL: fill the holes with BACKGROUND"
+  },
+  "tent": {
+   "shape": "build it as a TENT (pole cylinder + skin slabs)"
   }
+ }
 }
