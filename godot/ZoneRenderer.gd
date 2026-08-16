@@ -1681,21 +1681,53 @@ func _fish_rand(cx: int, cy: int, i: int, salt: int) -> float:
 
 ## A cluster of glowing motes on tilted, elliptical, varied-speed orbits — "bugs circling
 ## in weird orbits". Positions are animated in _process; here we just spawn + seed them.
+var _mote_mat: ShaderMaterial
+var _mote_mesh: SphereMesh
+
+## The motes are 3D ORBS, not flat billboards (Daniel: "I was hoping we could
+## make them 3d orbs"). An unshaded sphere would read as a disc, so the form
+## comes from two cues in the shader: limb darkening (bright core falling to
+## a dim rim by NORMAL·VIEW) and a small specular highlight from the fixed
+## interior sun — the same light the wall pockets use. Additive keeps the
+## bioluminescent glow.
+func _mote_material() -> ShaderMaterial:
+	if _mote_mat != null:
+		return _mote_mat
+	var sh := Shader.new()
+	sh.code = """
+shader_type spatial;
+render_mode unshaded, blend_add, cull_back, depth_draw_never;
+uniform vec3 core_col = vec3(0.65, 1.0, 0.85);
+uniform vec3 rim_col = vec3(0.10, 0.45, 0.40);
+void fragment() {
+	float nd = clamp(dot(NORMAL, VIEW), 0.0, 1.0);
+	float core = pow(nd, 1.5);
+	float hi = pow(clamp(dot(NORMAL, normalize(vec3(0.45, 0.8, 0.35))), 0.0, 1.0), 10.0);
+	ALBEDO = mix(rim_col, core_col, core) + vec3(0.9) * hi * 0.5;
+	ALPHA = 0.55 + 0.45 * core;
+}
+"""
+	_mote_mat = ShaderMaterial.new()
+	_mote_mat.shader = sh
+	return _mote_mat
+
 func _make_orbiters(cx: int, cy: int) -> void:
 	if _one_to_one:
 		return   # 1:1: no particle motes — Qud draws only the glowfish tile
+	if _mote_mesh == null:
+		_mote_mesh = SphereMesh.new()
+		_mote_mesh.radius = 0.028
+		_mote_mesh.height = 0.056
+		_mote_mesh.radial_segments = 12   # tiny orbs; no need for the default 64
+		_mote_mesh.rings = 6
 	var root := Node3D.new()
 	root.position = Vector3(cx, ORBIT_CENTER_Y, cy)
 	var motes: Array = []
 	var fish_rot: float = _fish_rand(cx, cy, 0, 9) * TAU   # whole-cluster rotation, varies per fish
 	for i in ORBIT_COUNT:
-		var s := Sprite3D.new()
-		s.texture = _mote_tex
-		s.pixel_size = 0.006
-		s.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-		s.shaded = false
-		s.transparent = true
-		s.material_override = _fx_material(_mote_tex)   # additive glow
+		var s := MeshInstance3D.new()
+		s.mesh = _mote_mesh
+		s.material_override = _mote_material()
 		root.add_child(s)
 		var prime: int = ORBIT_PRIMES[i % ORBIT_PRIMES.size()]
 		motes.append({
@@ -1928,7 +1960,7 @@ func _process(_dt: float) -> void:
 				var z: float = m["radius"] * m["ellip"] * sin(ang)
 				var y: float = m["yamp"] * sin(ang * 2.0 + m["phase"])   # figure-8 bob -> "weird"
 				var ct: float = cos(m["tilt"]); var st: float = sin(m["tilt"])
-				(m["s"] as Sprite3D).position = Vector3(x * ct - z * st, y, x * st + z * ct)
+				(m["s"] as Node3D).position = Vector3(x * ct - z * st, y, x * st + z * ct)
 
 
 func _is_prism(obj: Dictionary) -> bool:
