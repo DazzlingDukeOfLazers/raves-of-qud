@@ -2922,7 +2922,75 @@ func _place_tentwall(obj: Dictionary, tile: String, cx: int, cy: int, light_frac
 				qmi.rotation.y = -PI * 0.5 if side > 0.0 else PI * 0.5
 			_spawn_parent().add_child(qmi)
 			_track(qmi)
+		# DEPTH (Daniel: "add depth to the tent animal skin — extrude? voxel?"):
+		# the two art faces sit 1.5px apart but the EDGES were hollow — from
+		# the side, the top, or through the art's holes you saw the gap between
+		# the sheets. Extrude per art pixel: a side wall along every alpha
+		# boundary (silhouette AND holes), wearing its pixel's own colour under
+		# the fixed-sun shades. Boundaries follow the FRONT half's art (the
+		# halves are near-mirrors; a differing back hole keeps the front's wall).
+		var rfr: Rect2i = panels[ad]
+		var fsub := img.get_region(Rect2i(int(rfr.position.x * sx), int(rfr.position.y * sy),
+			int(rfr.size.x * sx), int(rfr.size.y * sy)))
+		var nx: int = rfr.size.x
+		var ny: int = rfr.size.y
+		if nx > 0 and ny > 0:
+			var pw: float = fab_len / float(nx)
+			var phh: float = fab_h / float(ny)
+			var fd: float = 0.75 * ps + 0.001
+			var stw := SurfaceTool.new()
+			stw.begin(Mesh.PRIMITIVE_TRIANGLES)
+			var quads_emitted := 0
+			for j in ny:
+				for i in nx:
+					var c := fsub.get_pixel(int((i + 0.5) * sx), int((j + 0.5) * sy))
+					if c.a < 0.5:
+						continue
+					var a0: float = i * pw
+					var a1: float = a0 + pw
+					var y1f: float = fab_h - j * phh
+					var y0f: float = y1f - phh
+					# [neighbour di, dj, shade, the wall's 4 corners in (a, y, d)]
+					var walls := []
+					if not _tent_px(fsub, sx, sy, i - 1, j, nx, ny):
+						walls.append([0.72, [[a0, y0f, -fd], [a0, y0f, fd], [a0, y1f, fd], [a0, y1f, -fd]]])
+					if not _tent_px(fsub, sx, sy, i + 1, j, nx, ny):
+						walls.append([0.72, [[a1, y0f, -fd], [a1, y0f, fd], [a1, y1f, fd], [a1, y1f, -fd]]])
+					if not _tent_px(fsub, sx, sy, i, j - 1, nx, ny):
+						walls.append([0.92, [[a0, y1f, -fd], [a1, y1f, -fd], [a1, y1f, fd], [a0, y1f, fd]]])
+					if not _tent_px(fsub, sx, sy, i, j + 1, nx, ny):
+						walls.append([0.50, [[a0, y0f, -fd], [a1, y0f, -fd], [a1, y0f, fd], [a0, y0f, fd]]])
+					for wdef in walls:
+						var shade: float = wdef[0]
+						var wc := Color(c.r * shade, c.g * shade, c.b * shade) * lfc
+						var q4: Array = wdef[1]
+						for k in [0, 1, 2, 0, 2, 3]:
+							var v: Array = q4[k]
+							var p: Vector3
+							if horiz:
+								p = base + off + Vector3(v[0] - fab_len * 0.5, fab_y0 + v[1], v[2])
+							else:
+								p = base + off + Vector3(v[2], fab_y0 + v[1], v[0] - fab_len * 0.5)
+							stw.set_color(wc)
+							stw.set_normal(Vector3.UP)
+							stw.add_vertex(p)
+						quads_emitted += 1
+			if quads_emitted > 0:
+				var wmesh := ArrayMesh.new()
+				stw.commit(wmesh)
+				var wmi := MeshInstance3D.new()
+				wmi.mesh = wmesh
+				wmi.material_override = _wall_skin_material()
+				_spawn_parent().add_child(wmi)
+				_track(wmi)
 	return true
+
+## Is the art pixel at panel-grid (i, j) opaque? Out of bounds = transparent
+## (the silhouette edge gets a wall).
+func _tent_px(sub: Image, sxs: float, sys_: float, i: int, j: int, nx: int, ny: int) -> bool:
+	if i < 0 or j < 0 or i >= nx or j >= ny:
+		return false
+	return sub.get_pixel(int((i + 0.5) * sxs), int((j + 0.5) * sys_)).a >= 0.5
 
 ## Raw-opaque bounding box within a column range, as a Rect2i (size.x == 0 when empty).
 func _opaque_bbox(mask: Image, x0: int, x1: int, y0: int, y1: int) -> Rect2i:
