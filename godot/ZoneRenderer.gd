@@ -1781,8 +1781,14 @@ func _add_glow(s: Sprite3D, tex: Texture2D) -> void:
 	qm.size = Vector2(rr.size.x * s.pixel_size, rr.size.y * s.pixel_size) * GLOW_PAD
 	q.mesh = qm
 	q.material_override = mat
-	q.position = s.position                   # centred on the visible fish
-	_bank.add_child(q)   # into _dynamic_root, freed + rebuilt each step
+	# CHILD of the sprite, local origin: alignment BY CONSTRUCTION. A detached
+	# quad snapshotting s.position drifted ~4 art rows below the fish (Daniel's
+	# sharp horizontal line: sprite + offset bloom-copy overlapped below the
+	# line, pale ghost past the tail) — sprites are POOLED and re-seated, and
+	# any position applied after the snapshot leaves the quad behind. As a
+	# child it follows every later move; _take_sprite clears it on reuse.
+	q.position = Vector3.ZERO
+	s.add_child(q)
 
 ## Flicker: jitter each light's brightness a little every frame, so torches read
 ## as fire rather than steady lamps. Cheap — modulate the additive quads' alpha.
@@ -5098,6 +5104,8 @@ func _take_sprite() -> Sprite3D:
 		_spawn_parent().add_child(s)
 	# reset per take — fence panels and submerged actors override these, normal
 	# sprites need the defaults back. In top-down the tile faces up (full billboard).
+	for c in s.get_children():
+		c.queue_free()          # a glow bloom from the sprite's previous user
 	s.billboard = BaseMaterial3D.BILLBOARD_ENABLED if _top_down else BaseMaterial3D.BILLBOARD_FIXED_Y
 	s.rotation = Vector3.ZERO
 	s.region_enabled = false
