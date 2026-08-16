@@ -519,6 +519,11 @@ func _make_cell(a: Dictionary, icon_px: int, slot: int, selected: bool, cell_w :
 		frame.draw.connect(func() -> void:
 			frame.draw_rect(Rect2(1.0, (frame.size.y - 42.0) * 0.5, 1.0, 42.0), CELL_DIVIDER_1TO1))
 	var work := PanelContainer.new()                          # Qud's WorkableArea
+	# IGNORE like every other cell child: a default-STOP inner panel wins the
+	# hit-test over the FRAME (the node with the click handler) and consumes
+	# every click silently — the ability bar's "can't activate" bug (hover-
+	# probed to exactly this node). The click must fall through to the frame.
+	work.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	work.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	work.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	frame.add_child(work)
@@ -616,10 +621,12 @@ func _hotkey_cell_tag(a: Dictionary, slot: int) -> String:
 ## which is what the 1-9 keys activate in 1:1. Matches Qud's " <1>".. quick-slot labels.
 func _hotkey_label(a: Dictionary, slot: int) -> String:
 	var hk := String(a.get("hotkey", ""))
-	# The positional <N> only exists while the digits actually activate the bar (see
-	# _unhandled_key_input). With the cameras feature on, 1-9 switch cameras, and a hint
-	# advertising a key that does something ELSE is worse than no hint.
-	if hk == "" and slot >= 1 and slot <= 9 and Settings.qud_shape("cameras"):
+	# The positional <N>: whenever the bar renders Qud's cells, the digits
+	# belong to the BAR (the bar's _unhandled_key_input runs before the
+	# camera's handler, so it wins them regardless) — the old cameras-feature
+	# gate hid the label while the key still worked, a hint worse than the
+	# stale hint it feared (Daniel: "it's missing the hotkey number").
+	if hk == "" and slot >= 1 and slot <= 9:
 		hk = str(slot)
 	return " <%s>" % hk if hk != "" else ""
 
