@@ -2404,6 +2404,15 @@ func _fence_half(cx: int, cy: int, d: String, tile: String, main_c: String, deta
 ## the quad path; nobody has asked and their art is three bare bars.
 const VOX_CONNECTORS := {"fence": 2, "pipe": 2, "wire": 1}
 
+## What the inspector should SAY this connector was built as. The report is the only
+## first-party account of what the renderer did, so it has to track the builder: the tent
+## note still read "pole cylinder + skin half-slabs" for a whole session after the tents
+## became voxels, which is a comment that lies with extra steps.
+func _connector_note(tile: String) -> String:
+	var d := _connector_vox_depth(tile)
+	return "voxel %d deep" % d if d > 0 else "flat quad"
+
+
 ## Blocks of thickness for this connector, or 0 to keep the flat quad.
 func _connector_vox_depth(tile: String) -> int:
 	if _one_to_one or _flat_2d or _world_map:
@@ -3423,18 +3432,18 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			var vh := _panel_height(obj, tile)
 			_place_connector(tile, main_c, detail_c, cx, cy, axis, vh,
 				_fill_for(tile, Fill.ALL if bool(obj.get("occluding", false)) else Fill.NONE), -1.0, light_frac)
-			_note(cx, cy, idx, "connector panels [%s] h=%.2f (user verdict)" % [axis, vh], vh * 0.5)
+			_note(cx, cy, idx, "connector panels [%s] h=%.2f %s (user verdict)" % [axis, vh, _connector_note(tile)], vh * 0.5)
 			return
 
 	if verdict == "signpost" and not _flat_2d and not _one_to_one:
 		if _place_signpost(obj, tile, cx, cy, light_frac):
-			_note(cx, cy, idx, "signpost(2 slabs + 2 posts, faces N and S, user verdict)", 0.5)
+			_note(cx, cy, idx, "signpost(voxel: board 4 deep, lettering carved, posts in the core, user verdict)", 0.5)
 			return
 		# fall through to the billboard path if the art defeats the mesh derivation
 
 	if verdict == "tentwall" and not _flat_2d and not _one_to_one:
 		if _place_tentwall(obj, tile, cx, cy, light_frac):
-			_note(cx, cy, idx, "tentwall(pole cylinder + skin half-slabs, user verdict)", 0.4)
+			_note(cx, cy, idx, "tentwall(voxel: fabric 1 block deep + 2x2x24 pole columns, user verdict)", 0.4)
 			return
 		# fall through (connector panels) if the art defeats the derivation
 
@@ -3520,8 +3529,8 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 		var cyc: float = FLOAT_Y if position_for(tile) == "float" else cph * 0.5
 		_place_connector(tile, main_c, detail_c, cx, cy, cd, cph,
 			Fill.ALL if csolid else Fill.NONE, cyc, light_frac)
-		_note(cx, cy, idx, "connector panels [%s] h=%.2f (stood up)" % [
-			"post" if cd == "" else cd, cph], cyc)
+		_note(cx, cy, idx, "connector panels [%s] h=%.2f %s (stood up)" % [
+			"post" if cd == "" else cd, cph, _connector_note(tile)], cyc)
 		return
 
 	# Qud's painted ground layer is flat by default — dirt, gravel, cracked earth.
@@ -3593,8 +3602,8 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			var floated: bool = position_for(tile) == "float"
 			var yc: float = FLOAT_Y if floated else ph * 0.5
 			_place_connector(tile, main_c, detail_c, cx, cy, dirs, ph, pfill, yc, light_frac)
-			_note(cx, cy, idx, "connector panels [%s] h=%.2f%s%s" % [
-				"post" if dirs == "" else dirs, ph,
+			_note(cx, cy, idx, "connector panels [%s] h=%.2f %s%s%s" % [
+				"post" if dirs == "" else dirs, ph, _connector_note(tile),
 				" filled-bg" if solid else "", "  floated" if floated else ""], yc)
 		else:
 			# Qud's winner rule (user mode): a BILLBOARD beneath its cell's top never
