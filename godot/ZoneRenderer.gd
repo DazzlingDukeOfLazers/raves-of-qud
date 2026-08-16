@@ -19,7 +19,6 @@ const WALL_H := 1.2
 const SHADED_WORLD := true
 const WALL_NORMAL_SCALE := 4.0   # strength of the tile-derived wall relief (cranked to confirm it applies)
 const FENCE_H := 0.6  # standing height of fence/pipe panels (content, sat on ground)
-const FENCE_VOX_D := 2   # voxel fences: blocks of thickness across the run (2 art px)
 const FLOAT_Y := WALL_H * 0.5  # cell mid-height, where a "float" verdict centres a tile
 const PIXEL_SIZE := 0.042
 const FLOOR_Y := 0.02
@@ -2363,8 +2362,9 @@ func _place_connector(tile: String, main_c: String, detail_c: String, cx: int, c
 # so runs are continuous and corners form a clean L. Used for every directional
 # family: picket fences, pipes, and tent walls (which differ only in height).
 func _fence_half(cx: int, cy: int, d: String, tile: String, main_c: String, detail_c: String, h := FENCE_H, fill := Fill.NONE, y_center := -1.0, light_frac := 1.0) -> void:
-	if _fence_is_voxel(tile):
-		_fence_half_vox(cx, cy, d, tile, main_c, detail_c, h, fill, y_center, light_frac)
+	var vox_d := _connector_vox_depth(tile)
+	if vox_d > 0:
+		_fence_half_vox(cx, cy, d, tile, main_c, detail_c, h, fill, y_center, light_frac, vox_d)
 		return
 	var mi := _take_fence()
 	var half := "r" if (d == "e" or d == "s") else "l"
@@ -2395,15 +2395,26 @@ func _fence_half(cx: int, cy: int, d: String, tile: String, main_c: String, deta
 	mi.visible = true
 	_track(mi)
 
-## Which connector families build as VOXELS. FENCES only for now (Daniel: "let's
-## voxelize fences next") — pipes, wires and axles keep the flat-quad path; the
-## builder below is family-agnostic, so widening this predicate is the whole change
-## when we want them too.
-func _fence_is_voxel(tile: String) -> bool:
-	return tile.contains("fence") and not _one_to_one and not _flat_2d and not _world_map
+## Which connector families build as VOXELS, and HOW THICK. Not one predicate, because
+## the families are not one shape: a wire is a CABLE and gets ONE block, where a fence or
+## a pipe gets two. Measured off the art before widening this (tools/capture/voxpreview.py
+## renders the volume straight from a tile): a wire half is 32 voxels in EIGHT
+## face-disconnected pieces — the art is a dashed zigzag that only reads continuous in 2D —
+## and at two blocks deep it comes out a chain of dice rather than a cable. Axles stay on
+## the quad path; nobody has asked and their art is three bare bars.
+const VOX_CONNECTORS := {"fence": 2, "pipe": 2, "wire": 1}
+
+## Blocks of thickness for this connector, or 0 to keep the flat quad.
+func _connector_vox_depth(tile: String) -> int:
+	if _one_to_one or _flat_2d or _world_map:
+		return 0
+	for k in VOX_CONNECTORS:
+		if tile.contains(k):
+			return int(VOX_CONNECTORS[k])
+	return 0
 
 
-## One fence half-panel as VOXELS: a block per opaque art pixel, FENCE_VOX_D blocks
+## One connector half-panel as VOXELS: a block per opaque art pixel, `depth` blocks
 ## deep, faces only where the neighbour block is absent (_vox_block). It keeps every
 ## convention of the quad path it replaces, which is what makes runs still line up:
 ## cell A's "e" half carries art columns 8..15 and B's "w" half carries 0..7, so a run
@@ -2413,7 +2424,7 @@ func _fence_is_voxel(tile: String) -> bool:
 ## rides on a per-instance material's albedo_color (which multiplies vertex colour), so
 ## the panel re-lights per turn through _lit_meshes like the quads did.
 func _fence_half_vox(cx: int, cy: int, d: String, tile: String, main_c: String, detail_c: String,
-		h: float, fill: int, y_center: float, light_frac: float) -> void:
+		h: float, fill: int, y_center: float, light_frac: float, depth: int) -> void:
 	var art := _panel_art(tile)
 	var mask := _mask(art)
 	if mask == null:
@@ -2467,13 +2478,13 @@ func _fence_half_vox(cx: int, cy: int, d: String, tile: String, main_c: String, 
 			var c := img.get_pixel(int((u0 + k + 0.5) * sx), int((j + 0.5) * sy))
 			if c.a < 0.5:
 				continue
-			for dz in FENCE_VOX_D:
+			for dz in depth:
 				solid[Vector3i(k, j, dz)] = c
 	if solid.is_empty():
 		return
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var half_d: float = FENCE_VOX_D * pw * 0.5
+	var half_d: float = depth * pw * 0.5
 	for key in solid:
 		var v: Vector3i = key
 		var a: float = a0 + v.x * pw                    # along the run, from the cell centre

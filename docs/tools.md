@@ -567,3 +567,19 @@ main/detail recolouring; alpha drives seating and fills as usual. Edits hot-relo
 (mtime-keyed caches + the overrides poll watches the directory). Ignored in 1:1 —
 parity measures Qud's art. Custom files live in the support dir, NOT the repo:
 they are derivatives of Qud's assets (same rule as the export cache).
+
+## `voxpreview.py` — see a connector's voxel volume without the game
+
+    python3 tools/capture/voxpreview.py fence_ew sw_wire_ew --out /tmp/prev.png
+
+Renders the same solid set `ZoneRenderer._fence_half_vox` builds — half-panel, per-family
+depth, a face only where the neighbour block is absent — as an isometric PNG, and prints the
+voxel count and the number of FACE-CONNECTED pieces. Raw 2-colour masks, so the preview is
+black/white: it answers what the volume looks like, not what it will be coloured.
+
+It exists because the in-game check for a connector family costs a build, a relaunch and a
+walk to wherever that family happens to exist — and it may not exist in the save at all
+(Joppa has 125 fence panels, 3 wire posts and zero pipes). The piece count is the number
+worth reading before voxelizing anything: a wire half is EIGHT face-disconnected pieces,
+because the art is a dashed zigzag that only reads continuous in 2D, and that is what set
+wires to one block of depth instead of two.
