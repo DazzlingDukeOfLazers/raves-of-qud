@@ -148,26 +148,51 @@ func inspect_at(cam: Camera3D, mp: Vector2, zscale := 1.0) -> void:
 func _occupied(c: Vector2i) -> bool:
 	return _by_cell.has(c) and (_by_cell[c].get("objs", []) as Array).size() > 0
 
-## Ground-plane picking lands the ray on the cell the ray reaches at y=0. For a
-## raised wall that is the empty cell BEHIND it (away from the camera) — the parallax
-## noted on _ground_hit. Because that overshoot is always away from the camera, when
-## the hit cell is empty we march the hit point back TOWARD the camera and snap to the
-## first occupied cell: the wall the user actually clicked. Accurate picks (overhead,
-## or clicking bare ground with nothing between) return the hit cell unchanged.
+## Roughly how far a cell's contents STAND UP, in world units. Painted ground is
+## flat and contributes nothing — that is the whole point: `_occupied` counted any
+## object at all, and every outdoor cell carries a ground tile, so the correction
+## below never fired once in the life of this function (a click on the signpost
+## reported the bare ground cell behind it). Walls fill the cell; anything else
+## that stands up is about a tile tall. An approximation is enough — the test only
+## has to separate "the ray was still above this" from "the ray was inside it".
+func _cell_stand_h(c: Vector2i) -> float:
+	if not _by_cell.has(c):
+		return 0.0
+	var h := 0.0
+	for o in _by_cell[c].get("objs", []):
+		if bool(o.get("ground", false)):
+			continue
+		if bool(o.get("wall", false)):
+			h = maxf(h, 1.2)                  # ZoneRenderer.WALL_H
+		elif bool(o.get("creature", false)) or float(o.get("layer", 0)) >= 1.0:
+			h = maxf(h, 1.0)                  # one tile
+	return h
+
+## Ground-plane picking lands the ray on the cell the ray reaches at y=0. Anything
+## standing between the camera and that point was in the way first, so the cell the
+## user actually clicked is nearer the camera — a wall's face, a tent, the signpost.
+## Walk back up the ray and take the FIRST cell (nearest the camera) whose contents
+## reach the ray's height there: near-to-far order gives correct occlusion, and the
+## rising ray self-limits, since a few cells back it is metres up and nothing reaches
+## it. Bare ground with nothing in front returns the hit cell unchanged.
 func _pick_cell(hit: Vector3, cam: Camera3D, mp: Vector2) -> Vector2i:
 	var cell := Vector2i(roundi(hit.x), roundi(hit.z))
-	if _occupied(cell) or cam == null:
+	if cam == null:
 		return cell
 	var dir := cam.project_ray_normal(mp)
-	var back := Vector2(-dir.x, -dir.z)      # toward the camera, on the ground plane
-	if back.length() < 1e-6:
+	var horiz := Vector2(dir.x, dir.z).length()
+	if horiz < 1e-6:
+		return cell                           # straight down: the hit cell IS the pick
+	var back := Vector2(-dir.x, -dir.z).normalized()
+	var rise := -dir.y / horiz                # ray height gained per unit walked back
+	if rise <= 0.0:
 		return cell
-	back = back.normalized()
 	var p := Vector2(hit.x, hit.z)
-	const STEP := 0.34
-	for i in range(1, 13):                    # up to ~4 cells toward the camera
-		var c := Vector2i(roundi(p.x + back.x * STEP * i), roundi(p.y + back.y * STEP * i))
-		if c != cell and _occupied(c):
+	const STEP := 0.25
+	for i in range(24, 0, -1):                # nearest the camera first
+		var s := STEP * i
+		var c := Vector2i(roundi(p.x + back.x * s), roundi(p.y + back.y * s))
+		if s * rise <= _cell_stand_h(c):
 			return c
 	return cell
 
