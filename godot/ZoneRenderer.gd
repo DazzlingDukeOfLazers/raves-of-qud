@@ -2956,7 +2956,7 @@ func _place_tentwall(obj: Dictionary, tile: String, cx: int, cy: int, light_frac
 		stw.commit(fmesh)
 		var fmi := MeshInstance3D.new()
 		fmi.mesh = fmesh
-		fmi.material_override = _wall_skin_material()
+		fmi.material_override = _tent_skin_material()
 		_spawn_parent().add_child(fmi)
 		_track(fmi)
 	return true
@@ -5568,6 +5568,27 @@ func _deck_material(tile: String, main_c: String, detail_c: String, tex: ImageTe
 	m.cull_mode = BaseMaterial3D.CULL_DISABLED
 	_texmat_cache[key] = m
 	return m
+
+## Vertex-coloured and UNSHADED, for tile-derived solids that bake their own shading
+## into the vertex colours (the tent fabric's face table: 1.00 broad, 0.92 top, 0.72
+## rim, 0.50 underside). The voxel-WALL material is SHADED_WORLD-lit, and lighting a
+## flat sheet by orientation made an east-west tent read darker than a north-south one
+## for no reason the player can see (Daniel). The fabric's old art quads were unshaded
+## too, so a tent looked the same whichever way it ran; per-cell light still lands via
+## the light_frac the vertex colours are multiplied by.
+var _tent_mat: StandardMaterial3D
+
+func _tent_skin_material() -> StandardMaterial3D:
+	if _tent_mat != null:
+		return _tent_mat
+	var m := StandardMaterial3D.new()
+	m.vertex_color_use_as_albedo = true
+	m.vertex_color_is_srgb = true      # same sRGB caveat as _voxel_material
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_tent_mat = m
+	return m
+
 
 func _color_material(col: Color) -> StandardMaterial3D:
 	var key := col.to_html()

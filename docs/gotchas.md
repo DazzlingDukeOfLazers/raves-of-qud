@@ -1986,6 +1986,20 @@ the end of a run they are exposed, so the run caps itself for free. ~260 quads p
 worked this way. Note `_voxel_material` sets `cull_mode = CULL_DISABLED`, so face winding
 does not have to survive the x/z axis swap that orients N-S panels.
 
+## A flat sheet must not be LIT by orientation (2026-08-16)
+
+`_voxel_material` is `SHADING_MODE_PER_PIXEL` under `SHADED_WORLD`, which is right for
+walls (a cube reads as a cube because its faces catch different light) and wrong for a
+sheet: the whole tent is one plane, so lighting multiplies the entire object by one
+factor that depends only on which way it happens to run. An east-west tent came out
+maroon next to an orange north-south one, ~1.67x apart on the red band, for no reason a
+player can see. Tile-derived solids that bake their own shading into vertex colours want
+`_tent_skin_material` — vertex-coloured and UNSHADED — with the face table (1.00 broad,
+0.92 top, 0.72 rim, 0.50 underside) carrying the depth cue and `light_frac` carrying the
+per-cell light. The fabric's pre-voxel art quads were unshaded for exactly this reason,
+so switching them to the wall material was a silent regression; `_color_material` (the
+poles) is unshaded too, which is why the poles stayed bright while the fabric went dark.
+
 ## Colour-coding debug geometry beats staring at it (2026-08-16)
 
 Two rounds of reasoning about the tent seam from art dumps got the wrong end. Painting
