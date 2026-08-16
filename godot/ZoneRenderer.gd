@@ -2895,7 +2895,17 @@ func _place_tentwall(obj: Dictionary, tile: String, cx: int, cy: int, light_frac
 		# Art quads on both faces; the BACK face wears the OPPOSITE half (a rotated
 		# quad mirrors its texture; per-half mirroring splits the motif into ][ ).
 		for side in [1.0, -1.0]:
-			var use_d: String = ad if side > 0.0 else (adback if panels.has(adback) else ad)
+			# Which half each face wears: horiz keeps the original assignment;
+			# vertical SWAPS it — the N-S rotations below now face OUTWARD
+			# (they faced inward, which "worked" only because you saw the FAR
+			# quad through the paper-thin gap; the new extrusion walls occlude
+			# it — Daniel: "a shell missing a face"), so each viewer now sees
+			# the NEAR quad and it must wear what the far one used to.
+			var use_d: String
+			if horiz:
+				use_d = ad if side > 0.0 else (adback if panels.has(adback) else ad)
+			else:
+				use_d = (adback if panels.has(adback) else ad) if side > 0.0 else ad
 			var r3: Rect2i = panels[use_d]
 			var sub := img.get_region(Rect2i(int(r3.position.x * sx), int(r3.position.y * sy),
 				int(r3.size.x * sx), int(r3.size.y * sy)))
@@ -2919,7 +2929,8 @@ func _place_tentwall(obj: Dictionary, tile: String, cx: int, cy: int, light_frac
 					qmi.rotation.y = PI
 			else:
 				qmi.position = base + off + Vector3(side * fdepth, fab_y0 + fab_h * 0.5, 0.0)
-				qmi.rotation.y = -PI * 0.5 if side > 0.0 else PI * 0.5
+				# face OUTWARD: +x side faces +x (rot +PI/2), -x side faces -x
+				qmi.rotation.y = PI * 0.5 if side > 0.0 else -PI * 0.5
 			_spawn_parent().add_child(qmi)
 			_track(qmi)
 		# DEPTH (Daniel: "add depth to the tent animal skin — extrude? voxel?"):
@@ -2952,9 +2963,18 @@ func _place_tentwall(obj: Dictionary, tile: String, cx: int, cy: int, light_frac
 					var y0f: float = y1f - phh
 					# [neighbour di, dj, shade, the wall's 4 corners in (a, y, d)]
 					var walls := []
-					if not _tent_px(fsub, sx, sy, i - 1, j, nx, ny):
+					# The RUN-CONTINUATION end (at the cell edge, where the
+					# neighbour cell's panel carries on) emits NO end wall — a
+					# full-height wall column there planed over the whole seam
+					# (Daniel: "a plane that extends the whole seam, when there
+					# should be an air-gap"). Only the pole-side end keeps its
+					# edge — that gap is designed. Which end is which follows
+					# the art half: "e" halves run pole->edge, "w" edge->pole.
+					var outer_right: bool = ad == "e" and i == nx - 1
+					var outer_left: bool = ad == "w" and i == 0
+					if not _tent_px(fsub, sx, sy, i - 1, j, nx, ny) and not outer_left:
 						walls.append([0.72, [[a0, y0f, -fd], [a0, y0f, fd], [a0, y1f, fd], [a0, y1f, -fd]]])
-					if not _tent_px(fsub, sx, sy, i + 1, j, nx, ny):
+					if not _tent_px(fsub, sx, sy, i + 1, j, nx, ny) and not outer_right:
 						walls.append([0.72, [[a1, y0f, -fd], [a1, y0f, fd], [a1, y1f, fd], [a1, y1f, -fd]]])
 					if not _tent_px(fsub, sx, sy, i, j - 1, nx, ny):
 						walls.append([0.92, [[a0, y1f, -fd], [a1, y1f, -fd], [a1, y1f, fd], [a0, y1f, fd]]])
