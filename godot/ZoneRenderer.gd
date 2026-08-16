@@ -2970,9 +2970,22 @@ func _place_tentwall(obj: Dictionary, tile: String, cx: int, cy: int, light_frac
 					# its 1px of air sits in front of a 1.5px-deep wall, so any
 					# wall there reads as a plane filling the gap (Daniel: "a
 					# seam-plane on the east side", "should be an air-gap").
-					if not _tent_px(fsub, sx, sy, i - 1, j, nx, ny) and _tent_hole(fsub, sx, sy, i - 1, j, nx, ny, -1):
+					# A SIDE wall closes the sheet only where the art's own edge
+					# steps back INSIDE the panel — an interior hole (the hem
+					# dashes) or an inset silhouette (the notch the artist drew
+					# beside the pole). A run that reaches the panel BOUNDARY is
+					# fabric that continues: into the neighbour cell across the
+					# seam, or flush into the pole gap. Walling those planed the
+					# gap shut (Daniel: "a plane that extends the whole seam",
+					# then "a seam-plane on the east side" — the west flap's art
+					# is flush at the pole, so its cap ran full height); walling
+					# NEITHER left the drawn notch open (Daniel: "the western
+					# side of the E-W tent flaps are missing faces"). The panels
+					# are not mirror images, which is why one end needs the cap
+					# and the other must not have it.
+					if i > 0 and not _tent_px(fsub, sx, sy, i - 1, j, nx, ny):
 						walls.append([0.72, [[a0, y0f, -fd], [a0, y0f, fd], [a0, y1f, fd], [a0, y1f, -fd]]])
-					if not _tent_px(fsub, sx, sy, i + 1, j, nx, ny) and _tent_hole(fsub, sx, sy, i + 1, j, nx, ny, 1):
+					if i < nx - 1 and not _tent_px(fsub, sx, sy, i + 1, j, nx, ny):
 						walls.append([0.72, [[a1, y0f, -fd], [a1, y0f, fd], [a1, y1f, fd], [a1, y1f, -fd]]])
 					if not _tent_px(fsub, sx, sy, i, j - 1, nx, ny):
 						walls.append([0.92, [[a0, y1f, -fd], [a1, y1f, -fd], [a1, y1f, fd], [a0, y1f, fd]]])
@@ -3002,17 +3015,6 @@ func _place_tentwall(obj: Dictionary, tile: String, cx: int, cy: int, light_frac
 				_spawn_parent().add_child(wmi)
 				_track(wmi)
 	return true
-
-## Walking from panel-grid (i, j) in direction step, is this transparent run an
-## INTERIOR hole (bounded by an opaque pixel before the panel edge)? Edge-open
-## runs are designed air gaps and get no side wall (see the walls block above).
-func _tent_hole(sub: Image, sxs: float, sys_: float, i: int, j: int, nx: int, ny: int, step: int) -> bool:
-	var k := i
-	while k >= 0 and k < nx:
-		if _tent_px(sub, sxs, sys_, k, j, nx, ny):
-			return true
-		k += step
-	return false
 
 ## Is the art pixel at panel-grid (i, j) opaque? Out of bounds = transparent
 ## (the silhouette edge gets a wall).

@@ -1962,18 +1962,24 @@ experiment). Also: blooms attach as sprite CHILDREN and _add_glow REPLACES any e
 one — pooled sprites re-seat across turns, and a stale bloom carries the old seat's
 region.
 
-## Extruding sprite art: wall only the INTERIOR holes (2026-08-16)
+## Extruding sprite art: side walls stop at the panel BOUNDARY (2026-08-16)
 
-Per-pixel extrusion (the tent fabric's depth) must not wall every alpha boundary. Art
-that meets a neighbour cell, or stands off a pole, carries a transparent run that is
-DESIGNED AIR — often only 1 art px wide, in front of a sheet 1.5px deep. A side wall
-there fills the gap edge-on and reads as a solid plane running the whole seam, which is
-exactly what a viewer reports as "there should be an air-gap". Emit a side wall only when
-scanning outward from the empty neighbour hits an opaque pixel before the panel edge
-(`_tent_hole`) — i.e. the run is a hole the sheet encloses, not an opening. Top/bottom
-walls need no such test: art has no designed air above or below a panel. Suppressing by
-POSITION instead (the first attempt keyed on the cell-edge column) fixes one end and
-leaves the other; the rule has to be about what the run opens onto.
+Per-pixel extrusion (the tent fabric's depth) must not wall every alpha boundary. A side
+wall belongs wherever the art's own edge steps back INSIDE the panel — an interior hole
+(the hem dashes) or an inset silhouette (the notch drawn beside the pole). A run that
+reaches the panel boundary is fabric that CONTINUES: across the seam into the neighbour
+cell, or flush into the 1px pole gap. Walling those planes the gap shut — the wall is
+1.5px deep against 1px of air, so edge-on it reads as a solid sheet ("a plane that
+extends the whole seam"). One line does it: require the empty neighbour to be in bounds
+(`i > 0`, `i < nx - 1`). Top/bottom need no test — art has no designed air above or below
+a panel.
+
+The trap is assuming the two halves are mirror images. `tent_ew`'s EAST half is notched
+one pixel at its pole end (rows 10-14) while the WEST half is flush, so the correct
+output is asymmetric: a cap on one side of every pole and none on the other. Three
+successive rules failed because each was symmetric — suppress by column position (fixed
+one end), then suppress every edge-open run (killed the drawn notch too, leaving an open
+shell: "the western side of the E-W tent flaps are missing faces"). Let the ART decide.
 
 ## Colour-coding debug geometry beats staring at it (2026-08-16)
 
