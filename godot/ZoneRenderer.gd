@@ -1719,8 +1719,10 @@ uniform vec2 uv_size = vec2(1.0);
 uniform float pad = 1.5;
 uniform vec3 glow_color = vec3(0.4, 1.0, 0.85);
 uniform float body_amt = 0.4;
-uniform float body_tint = 0.45;
+uniform float body_tint = 0.22;
 uniform float halo_amt = 1.0;
+uniform float water_v = 1.0;
+uniform float under_amt = 0.55;
 uniform float halo_uv = 0.12;
 uniform float strength = 1.3;
 uniform float pulse_speed = 2.5;
@@ -1774,17 +1776,28 @@ void fragment() {
 	// silhouette (Daniel: the watery-glow look must cover the entire fish — without
 	// the tint, only the part washed by the flat light POOL glowed, and the pool's
 	// edge cut a camera-dependent line across the body). Additive keeps the art
-	// readable underneath; halo: the crisp cyan outline.
-	vec3 col = fish_rgb * here * body_amt + glow_color * here * body_tint
-		+ glow_color * halo * halo_amt;
+	// readable underneath; halo: the crisp cyan outline. BELOW the waterline
+	// (f.y > water_v) the sprite is submersion-cropped away — render the body
+	// there as a DIFFUSE additive ghost (the dilated average, no crisp pixels):
+	// the underwater half seen through the water instead of amputated.
+	vec3 col;
+	float a;
+	if (f.y > water_v) {
+		col = (fish_rgb * here + glow_color * around) * under_amt;
+		a = pulse * 0.6;
+	} else {
+		col = fish_rgb * here * body_amt + glow_color * here * body_tint
+			+ glow_color * halo * halo_amt;
+		a = pulse;
+	}
 	ALBEDO = col * strength;
-	ALPHA = pulse;
+	ALPHA = a;
 }
 """
 
 ## Hang the glow bloom over a glowfish sprite `s`, matched to its cropped region so the
 ## glowing shape lines up with the fish exactly.
-func _add_glow(s: Sprite3D, tex: Texture2D) -> void:
+func _add_glow(s: Sprite3D, tex: Texture2D, tile := "") -> void:
 	# REPLACE, never stack: the sprite is pooled and re-seated across turns —
 	# a bloom built for an earlier seat carries that seat's region (measured:
 	# a full-band window twice the height of the submerged crop, the "cropped
@@ -1793,18 +1806,32 @@ func _add_glow(s: Sprite3D, tex: Texture2D) -> void:
 	for c in s.get_children():
 		c.queue_free()
 	var rr := s.region_rect if s.region_enabled else Rect2(0, 0, tex.get_width(), tex.get_height())
+	# the quad covers the FULL art band even when the sprite is submersion-
+	# cropped: the part below the waterline renders as a DIFFUSE glow ghost
+	# seen through the water (Daniel: "we should see the bottom with a more
+	# diffuse glow" — the crop amputated it). Bands align at the TOP (the crop
+	# keeps the band's top rows), so the quad shifts down by half the cut.
+	var full := rr
+	if tile != "":
+		var m := _mask(tile)
+		if m != null:
+			var vr := _opaque_v(m)
+			var h := float(tex.get_height())
+			full = Rect2(rr.position.x, vr.x * h, rr.size.x, maxf(vr.y * h, rr.size.y))
+	var water_v: float = clampf(rr.size.y / full.size.y, 0.0, 1.0)
 	var tw := float(tex.get_width())
 	var th := float(tex.get_height())
 	var mat := ShaderMaterial.new()
 	mat.shader = _glow_shader
 	mat.set_shader_parameter("fish_tex", tex)
-	mat.set_shader_parameter("uv_min", Vector2(rr.position.x / tw, rr.position.y / th))
-	mat.set_shader_parameter("uv_size", Vector2(rr.size.x / tw, rr.size.y / th))
+	mat.set_shader_parameter("uv_min", Vector2(full.position.x / tw, full.position.y / th))
+	mat.set_shader_parameter("uv_size", Vector2(full.size.x / tw, full.size.y / th))
 	mat.set_shader_parameter("pad", GLOW_PAD)
 	mat.set_shader_parameter("y_lock", 0.0 if _top_down else 1.0)
+	mat.set_shader_parameter("water_v", water_v)
 	var q := MeshInstance3D.new()
 	var qm := QuadMesh.new()
-	qm.size = Vector2(rr.size.x * s.pixel_size, rr.size.y * s.pixel_size) * GLOW_PAD
+	qm.size = Vector2(full.size.x * s.pixel_size, full.size.y * s.pixel_size) * GLOW_PAD
 	q.mesh = qm
 	q.material_override = mat
 	# CHILD of the sprite, local origin: alignment BY CONSTRUCTION. A detached
@@ -1813,7 +1840,7 @@ func _add_glow(s: Sprite3D, tex: Texture2D) -> void:
 	# line, pale ghost past the tail) — sprites are POOLED and re-seated, and
 	# any position applied after the snapshot leaves the quad behind. As a
 	# child it follows every later move; _take_sprite clears it on reuse.
-	q.position = Vector3.ZERO
+	q.position = Vector3(0.0, -(full.size.y - rr.size.y) * 0.5 * s.pixel_size, 0.0)
 	s.add_child(q)
 
 ## Flicker: jitter each light's brightness a little every frame, so torches read
@@ -3042,7 +3069,7 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 				s.render_priority = 20
 			var glowing: bool = _should_glow(obj)
 			if glowing:
-				_add_glow(s, btex)              # crisp bioluminescent bloom (glowfish, glowpad, tagged tiles)
+				_add_glow(s, btex, tile)        # crisp bioluminescent bloom (glowfish, glowpad, tagged tiles)
 			_track(s)
 			# STATIC plant/scenery billboard (tree, brinestalk): register it to be dimmed by
 			# its cell's light EACH TURN (creatures get modulate directly; static sprites don't,
