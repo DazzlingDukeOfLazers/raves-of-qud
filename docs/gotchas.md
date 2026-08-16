@@ -1986,18 +1986,29 @@ the end of a run they are exposed, so the run caps itself for free. ~260 quads p
 worked this way. Note `_voxel_material` sets `cull_mode = CULL_DISABLED`, so face winding
 does not have to survive the x/z axis swap that orients N-S panels.
 
-## Tile-derived solids: one builder, three shapes (2026-08-16)
+## Tile-derived solids: one builder, four shapes (2026-08-16)
 
-Tent fabric, tent poles and the signpost all build the same way now — mark the solid cells,
-then call `_vox_block` per cell with its six neighbours flagged, and commit one mesh on
+Tent fabric, tent poles, the signpost and fences all build the same way now — mark the solid
+cells, then call `_vox_block` per cell with its six neighbours flagged, and commit one mesh on
 `_vox_skin_material`. What each shape contributes is only its solid set:
 
 - fabric: opaque art pixels, one block deep;
 - pole: a `pn x 24 x pn` column, art columns wide;
+- fence: a half-panel's opaque art pixels, `FENCE_VOX_D` blocks thick, keeping the quad path's
+  half convention (A's "e" half is art cols 8..15, B's "w" half is 0..7) so a run reproduces the
+  full elevation across the shared edge and the halves abut with their facing blocks buried;
 - signpost: 4 deep — `[face][core][core][face]` — where board pixels the raw mask leaves
   TRANSPARENT keep only the CORE layers, so the lettering is CARVED 1px into both faces
   and its walls and floor are real geometry. The posts occupy the core layers only, which
   is what used to be a hand-placed z offset putting them "behind the slab".
+
+LIGHTING DIFFERS BY SHAPE, and it is not an accident of the voxel work. Fences carry
+`light_frac` on a per-instance material's `albedo_color` (which MULTIPLIES vertex colour) and stay
+registered in `_lit_meshes`, so they re-light every turn — that is what the quad path did and the
+voxel branch preserves it. Tents and the signpost BAKE `light_frac` into the vertex colours, so
+their light is fixed until the next static rebuild — also what those paths did before voxelizing
+(checked against e8b9f82^: the fabric's art quads set `albedo_color` but never registered). Match
+whatever the shape did before; do not assume the family shares one answer.
 
 The box build faked the carve with an alpha-scissor quad over a backing box a millimetre
 behind. Whenever you catch yourself layering a quad over a box to imply depth, that is the
