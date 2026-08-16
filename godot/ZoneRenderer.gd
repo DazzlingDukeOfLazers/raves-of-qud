@@ -2040,8 +2040,12 @@ func _door_span_ew(cx: int, cy: int) -> bool:
 ## twin-slab rule), edge/top trim + 1px full-depth jambs in the art's own
 ## frame colour (the signpost edge-sampling pattern). Height = WALL_H: a
 ## derived shape that REPLACES a wall sizes against the wall, not art px.
-func _place_door(tile: String, main_c: String, detail_c: String, cx: int, cy: int, idx: int, light_frac: float) -> void:
-	var btex := _colored_tex(tile, main_c, detail_c, Fill.NONE)
+func _place_door(tile: String, main_c: String, detail_c: String, cx: int, cy: int, idx: int, light_frac: float, closed := false) -> void:
+	# a CLOSED door is opaque: its art's transparent background fills with
+	# the bg colour, so the back face never shows through the front (Daniel:
+	# "it looks like there are two doors"). An open door keeps its holes —
+	# the doorway really is open there.
+	var btex := _colored_tex(tile, main_c, detail_c, Fill.ALL if closed else Fill.NONE)
 	var mask := _mask(tile)
 	if btex == null or mask == null:
 		return
@@ -2105,10 +2109,12 @@ func _place_door(tile: String, main_c: String, detail_c: String, cx: int, cy: in
 	for b in boxes:
 		_door_trim_quad(stt, b, ew, trim_c)
 	for js in [-1, 1]:
-		# jamb: 1px along the span, FULL cell across the depth, wall height
+		# jamb: 1px along the span, IN the door's own plane (same 3px depth),
+		# reaching the cell edge — the door extends planarly to its walls,
+		# never a perpendicular full-depth cap (Daniel's report)
 		var a0: float = js * hw
 		var a1: float = js * 0.5
-		_door_trim_box(stt, a0, a1, -0.5, 0.5, 0.0, WALL_H, ew, trim_c)
+		_door_trim_box(stt, a0, a1, -hd, hd, 0.0, WALL_H, ew, trim_c)
 	var tmesh := ArrayMesh.new()
 	stt.commit(tmesh)
 	var tmi := MeshInstance3D.new()
@@ -3208,7 +3214,8 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 		# around them. USER mode only; an explicit verdict still wins.
 		if (verdict == "door" or (verdict == "" and _is_door(tile))) \
 				and not _one_to_one and not _flat_2d and not _world_map and not in_wall:
-			_place_door(tile, main_c, detail_c, cx, cy, idx, light_frac)
+			_place_door(tile, main_c, detail_c, cx, cy, idx, light_frac,
+				bool(obj.get("occluding", false)))
 			return
 		# directional connectors (fences, pipes, axles: family_<dirs>) ->
 		# orientation-locked standing panels, not billboards.
