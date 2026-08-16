@@ -2032,7 +2032,12 @@ func _add_glow(s: Sprite3D, tex: Texture2D, tile := "") -> void:
 ## Flicker: jitter each light's brightness a little every frame, so torches read
 ## as fire rather than steady lamps. Cheap — modulate the additive quads' alpha.
 func _process(_dt: float) -> void:
-	if _one_to_one:
+	# The driver runs in BOTH modes now. It used to be 1:1-only, which is why nothing
+	# in the user view ever animated — registering sprite frames there (see
+	# _register_sprite_anim) was half a feature until this guard came off. Safe in user
+	# mode because the 1:1-only kinds are registered by _register_anim, which is still
+	# gated to full_1to1: user mode puts nothing but "tileframes" in the list.
+	if _one_to_one or not _anim_items.is_empty():
 		_animate_1to1()          # Qud's per-frame render programs (blinks, flashes, sparkles)
 	if _ib_active:
 		_ib_step()               # advance the incremental live-static build one chunk per frame
@@ -3630,6 +3635,8 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			s.modulate = Color(light_frac, light_frac, light_frac) if light_frac < 0.999 else Color.WHITE
 			var submerged: bool = sink > 0.0 and bool(obj.get("sinks", false))
 			_seat(s, btex, tile, cx, cy, sink if submerged else 0.0, position_for(tile) == "float")
+			if not _one_to_one:
+				_register_sprite_anim(obj, s, tile, btex)
 			# STACK ORDER: same-cell billboards seat at the same (x,z), so a pile's quads are
 			# COPLANAR — their depths tie per pixel and the winner flips with every camera nudge
 			# (measured: residual 7-13px shimmer after each lerp settle; reads as items "trading
@@ -5872,6 +5879,51 @@ func _floor_batch_add(mat: Material, xform: Transform3D) -> void:
 # --- 1:1 animator ------------------------------------------------------------------
 ## Register the placed winner's animation programs (called from the 1:1 winner path,
 ## visible+lit cells only). Overlays are individual quads over the batched steady base.
+## USER-MODE tile animation. The 1:1 animator below drives OVERLAY QUADS laid flat over
+## a tile, which means nothing to a 3D billboard — and it is called only under full_1to1,
+## so in the user view NOTHING animated at all. Daniel, on Joppa's millstone: "in Qud the
+## millstone is a multi-frame animation. Can we capture all the frames and animate the
+## sprite in Raves?" A billboard wants the simpler thing: swap the Sprite3D's own texture
+## on Qud's schedule.
+##
+## The wire already carries everything needed — the mod ships "len|f=tile;colour;detail|…"
+## with the thresholds pre-scaled to a plain 60fps clock and the part's condition ladder
+## already evaluated, and it calls TileExporter.Ensure on every frame tile, so the art is
+## on disk. Millstone: "176|0=;;|59=Items/sw_millstone_2.bmp;;|118=Items/sw_millstone_3.bmp;;"
+## — three frames of a 300-tick cycle at SpeedMultiplier 1.7, about 0.98s each.
+##
+## COLOUR-only schedules are skipped: that is the torch flicker, and user mode already
+## gives torches particle fire, so modulating the sprite would fight the per-cell light.
+## The sprite keeps the BASE tile's region_rect, so a frame whose opaque band differs
+## swaps art without the billboard jumping on its seat.
+func _register_sprite_anim(obj: Dictionary, s: Sprite3D, tile: String, base_tex: Texture2D) -> void:
+	var spec := String(obj.get("animSched", ""))
+	if spec == "":
+		return
+	var parts := spec.split("|")
+	if parts.size() < 3:
+		return
+	var alen := maxi(int(parts[0]), 1)
+	var sched: Array = []
+	var any_tile := false
+	for i in range(1, parts.size()):
+		var kv := parts[i].split("=")
+		if kv.size() != 2:
+			continue
+		var axes := String(kv[1]).split(";")
+		var ftile := String(axes[0]) if axes.size() > 0 else ""
+		var tex: Texture2D = base_tex
+		if ftile != "" and ftile != tile:
+			var ft := _colored_tex_rgb(ftile, _obj_main(obj), _obj_detail(obj),
+				"animspr~" + ftile + "~" + _color_key(obj), _fill_for(ftile, Fill.INTERIOR))
+			if ft != null:
+				tex = ft
+				any_tile = true
+		sched.append({"f": int(kv[0]), "tex": tex})
+	if any_tile and sched.size() > 1:
+		_anim_items.append({"kind": "tileframes", "sprite": s, "len": alen, "sched": sched})
+
+
 func _register_anim(win: Dictionary, cx: int, cy: int) -> void:
 	var tile := String(win.get("tile", ""))
 	if tile == "":
@@ -6169,6 +6221,20 @@ func _animate_1to1() -> void:
 				var fn := sched[si]["node"] as MeshInstance3D
 				if fn != null and is_instance_valid(fn):
 					fn.visible = si == active
+		elif kind == "tileframes":
+			# Same step rule and same 60fps clock as "frames" above; the only
+			# difference is that the frame IS the sprite's texture, not an overlay.
+			var sp := it["sprite"] as Sprite3D
+			if sp != null and is_instance_valid(sp):
+				var tf := int(ms * 0.06) % int(it["len"])
+				var tsched: Array = it["sched"]
+				var tact := 0
+				for si in tsched.size():
+					if tf >= int(tsched[si]["f"]):
+						tact = si
+				var want: Texture2D = tsched[tact]["tex"]
+				if sp.texture != want:
+					sp.texture = want
 		elif kind == "glowpulse":
 			# TreeGlow breathing: two incommensurate sines so the pulse never
 			# phase-locks with the capture cadence (measured amplitude ~±3%).
