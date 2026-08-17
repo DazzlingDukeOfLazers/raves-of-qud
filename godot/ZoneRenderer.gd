@@ -2607,6 +2607,12 @@ func _conduit_frame_tile(tile: String, digit: int) -> String:
 ## Rows of housing carried above the axle opening, so the gearbox is not just a collar.
 const BOX_ABOVE := 3
 
+## How much SLOWER the beam turns than Qud steps its frames. Qud's cadence is a revolution a
+## second, which is right for three flat frames flicking past and far too fast for a solid
+## beam actually turning — the eye reads the frames as texture, the rotation as a machine
+## (Daniel: "slow down the axle spin rate by 10"). One turn per ten seconds.
+const AXLE_SPIN_SLOW := 10.0
+
 ## Is this connector a junction — anything that is not a straight run? "ew"/"ns" carry
 ## straight through and stay shafts; a corner, tee or cross is a gearbox.
 func _conduit_is_junction(dirs: String) -> bool:
@@ -2865,7 +2871,8 @@ func _fence_half_prism(cx: int, cy: int, d: String, tile: String, main_c: String
 		_lit_meshes.append({"mi": mi, "cell": Vector2i(cx, cy)})
 		if anim != "":
 			# one revolution per animation cycle — the cadence Qud steps its frames at
-			_anim_sprites.append({"spin": mi, "base": B, "period": maxf(0.1, _anim_len(anim) / 60.0)})
+			_anim_sprites.append({"spin": mi, "base": B,
+				"period": maxf(0.1, _anim_len(anim) / 60.0) * AXLE_SPIN_SLOW})
 	_track(mi)
 
 
