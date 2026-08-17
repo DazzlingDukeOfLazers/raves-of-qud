@@ -339,9 +339,16 @@ namespace RavesOfQud
                 { at = i + 1; digit = cur[i + 1] - '0'; }
             if (at < 0 || digit > n) return null;
 
+            // UNITS. Qud's clock here is XRLCore.CurrentFrameLong, which is
+            // `elapsed.TotalMilliseconds % 1000` — MILLISECONDS wrapping every second, not a
+            // frame count. So the whole cycle is ONE SECOND and each of the n frames holds
+            // 1000/n ms. The client animates on a plain 60fps frame clock (same contract as
+            // AnimGenericSchedule), so convert: one second is 60 of its ticks. Shipping the
+            // raw 1000 made the axles turn 16.7x too slowly — Daniel: "I see them rotate.
+            // Just very slowly."
             var sb = new System.Text.StringBuilder();
-            int step = 1000 / n;                       // Qud's own bucket width
-            sb.Append(1000);
+            const int len60 = 60;                      // one second on the client's clock
+            sb.Append(len60);
             for (int f = 1; f <= n; f++)
             {
                 string frame = cur.Substring(0, at) + (char)('0' + f) + cur.Substring(at + 1);
@@ -350,7 +357,7 @@ namespace RavesOfQud
                 // missing simply yields no texture client-side, where the registrar keeps
                 // the base tile for that entry rather than registering a broken frame.
                 TileExporter.Ensure(frame);
-                sb.Append('|').Append((f - 1) * step).Append('=').Append(frame).Append(";;");
+                sb.Append('|').Append((f - 1) * len60 / n).Append('=').Append(frame).Append(";;");
             }
             return sb.ToString();
         }

@@ -1986,6 +1986,23 @@ the end of a run they are exposed, so the run caps itself for free. ~260 quads p
 worked this way. Note `_voxel_material` sets `cull_mode = CULL_DISABLED`, so face winding
 does not have to survive the x/z axis swap that orients N-S panels.
 
+## Qud has TWO animation clocks and they are not the same unit (2026-08-16)
+
+`XRLCore.CurrentFrame` is `(elapsed.TotalMilliseconds % 1000) / 16` — a ~60fps frame count
+wrapping each second. `XRLCore.CurrentFrameLong` is `elapsed.TotalMilliseconds % 1000` —
+MILLISECONDS, also wrapping each second. A schedule written against one and animated
+against the other runs 16.7x wrong, in whichever direction you got it backwards.
+
+That is exactly what happened to the axles. `IPowerTransmission`'s tile builder divides
+`CurrentFrameLong` into `1000 / N` buckets, so N frames fill ONE SECOND; shipping the raw
+1000 as the cycle length, to a client whose animator ticks `int(ms * 0.06)` — 60fps frames
+— stretched a one-second turn into 16.7 seconds (Daniel: "I see them rotate. Just very
+slowly"). The wire's contract is 60fps frames, so the mod converts: one second is 60 ticks.
+`AnimGenericSchedule` was already right about this — it divides by SpeedMultiplier because
+its source clock is `GetCurrentFrameAtFPS(60, …)` — which is why the millstone looked fine
+while the axles crawled. When adding a new animation source, find which clock it reads
+before assuming the units.
+
 ## A SHAPE override moves an object off the billboard path (2026-08-16)
 
 Per-object features hooked into the billboard placement code silently skip anything with a
