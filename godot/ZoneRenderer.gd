@@ -2673,7 +2673,8 @@ func _fence_half_prism(cx: int, cy: int, d: String, tile: String, main_c: String
 	var u0: int = hw if right_half else 0
 	var horiz: bool = d == "e" or d == "w"
 	var yc: float = y_center if y_center >= 0.0 else h * 0.5
-	var vs: float = PIXEL_SIZE                   # one voxel, cubed, in ART pixels
+	var vs: float = PIXEL_SIZE                   # section: one ART pixel per voxel
+	var vlen: float = 0.5 / float(hw)            # length: a half spans exactly half a cell
 	var lead: float = 0.25 if right_half else -0.25
 	var yaw: float = 0.0 if horiz else PI * 0.5
 	var B := Basis(Vector3.UP, yaw)
@@ -2708,12 +2709,14 @@ func _fence_half_prism(cx: int, cy: int, d: String, tile: String, main_c: String
 					var frac: float = float(band - 1 - vy) / float(maxi(1, band - 1))
 					var row: int = bt + int(round(frac * float(bb - bt)))
 					var c := im.get_pixel(int((u0 + a + 0.5) * sx), int((row + 0.5) * sy))
-					var o := Vector3(a * vs, (vy - band * 0.5) * vs, (vz - band * 0.5) * vs)
-					if right_half:
-						o.x = a * vs
-					else:
-						o.x = -0.5 + a * vs
-					_vox_block(st, o, Vector3(vs, vs, vs), c,
+					# LENGTH runs on the cell's own scale, not the art's. A half must span
+					# exactly half a cell so it meets its partner at the centre and the
+					# neighbour cell's half at the edge; at PIXEL_SIZE the 8 columns came to
+					# 0.336 and left a gap at both ends (Daniel: "increase their lengths
+					# until their seams abutt"). THICKNESS stays art-true.
+					var o := Vector3((0.0 if right_half else -0.5) + a * vlen,
+						(vy - band * 0.5) * vs, (vz - band * 0.5) * vs)
+					_vox_block(st, o, Vector3(vlen, vs, vs), c,
 						[a == 0, a == hw - 1, vy == 0, vy == band - 1, vz == 0, vz == band - 1])
 		var mesh := ArrayMesh.new()
 		st.commit(mesh)
