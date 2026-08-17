@@ -1167,6 +1167,11 @@ func _dark_material() -> StandardMaterial3D:
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	m.blend_mode = BaseMaterial3D.BLEND_MODE_MIX        # alpha-black OVER the scene = darken
 	m.vertex_color_use_as_albedo = true                # per-cell vertex alpha drives darkness
+	# REQUIRED now that the vertex colour is not always black. Godot reads vertex colour as
+	# LINEAR without this, so #155352 was converted up to a bright turquoise — the overlay
+	# glowed instead of dimming. Black hid the omission for as long as black was all it carried:
+	# 0 is 0 in either space. Same trap as the palette meshes (docs/gotchas.md).
+	m.vertex_color_is_srgb = true
 	m.cull_mode = BaseMaterial3D.CULL_DISABLED
 	m.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED   # overlay: test depth but don't write
 	_dark_mat = m

@@ -2185,3 +2185,16 @@ touched the grade.
 
 Measure hue RATIOS, not brightness, when checking this — a near-black pixel that is still
 g,b > r is the ghost surviving the grade, not an absence of geometry.
+
+## `vertex_color_is_srgb` — a black-only vertex colour hides its absence
+
+`_dark_material()` sets `vertex_color_use_as_albedo` but not `vertex_color_is_srgb`, and that was
+harmless for as long as the darkness overlay carried nothing but BLACK: 0 is 0 in either colour
+space. The first real colour through it — the memory ghost #155352 — was read as LINEAR and
+converted up to roughly rgb(90,159,158), so the overlay meant to dim the world glowed turquoise
+over 40% of the playfield instead.
+
+The rule from the palette meshes applies to EVERY vertex-coloured material, not just the obvious
+ones: set `vertex_color_is_srgb = true`. And the wider point — a material that has only ever
+carried black, white or a single hue is untested for colour, so adding one is a change to the
+material as much as to the caller.
