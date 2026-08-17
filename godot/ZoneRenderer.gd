@@ -2703,8 +2703,7 @@ func _place_conduit_box(tile: String, main_c: String, detail_c: String, cx: int,
 	var dark := img.get_pixel(0, 0)
 	if dark.a < 0.5:
 		dark = Color(0.06, 0.12, 0.12)
-	var n_h: int = jw                       # full cell across, so neighbours abut
-	var vlen: float = 1.0 / float(n_h)
+	var vlen: float = 1.0 / float(jw)       # a voxel is one art column of the cell
 	var vs: float = PIXEL_SIZE
 	var yc: float = y_center if y_center >= 0.0 else FLOAT_Y
 	# The opening is WIDER than the shaft that enters it — Daniel: "the hole is deep
@@ -2719,13 +2718,25 @@ func _place_conduit_box(tile: String, main_c: String, detail_c: String, cx: int,
 	# stands on the floor like the machine it is. So the rows are counted from the ground
 	# (row 0 sits on the floor), the hole is centred on the SHAFT's line wherever that
 	# falls, and BOX_ABOVE rows of housing carry on over it.
-	var hole_w: int = mini(srows * 2, n_h - 2)
+	var hole_w: int = mini(srows * 2, jw - 2)
 	var hcen: int = int(round(yc / vs))                # the shaft's centre, in rows off the floor
 	var hole_h: int = mini(srows * 2, maxi(2, hcen - 1))   # keep at least a one-row sill
 	var vlo: int = maxi(1, hcen - int(floor(hole_h * 0.5)))
 	var vhi: int = vlo + hole_h - 1
 	var n_rows: int = vhi + 1 + BOX_ABOVE
-	var lo: int = int(floor((n_h - hole_w) * 0.5))     # centred on the face
+	# THE SIDES ARE PULLED IN so the lip beside the opening matches the lip above it —
+	# Daniel: "I'd like the lip at the sides of the hole to match the lip at the top of the
+	# hole. However much you pull-in the n/s faces, make the symmetrical change on the
+	# east-west walls."
+	#
+	# The two lips are measured in different units, which is why they looked unequal: a row
+	# is PIXEL_SIZE tall (0.042) and a column is a sixteenth of a cell wide (0.0625). Match
+	# them in WORLD units — the top lip is BOX_ABOVE rows, so the side lip is however many
+	# columns come nearest that same distance — and the box is then hole + two lips across,
+	# no longer the full cell. Applied to BOTH horizontal axes so the housing stays square.
+	var lip_cols: int = maxi(1, int(round(BOX_ABOVE * vs / vlen)))
+	var n_h: int = hole_w + 2 * lip_cols               # box width in voxels, both axes
+	var lo: int = lip_cols                             # centred on the face by construction
 	var hi: int = lo + hole_w - 1
 	var solid := {}
 	for ax in n_h:
@@ -2749,7 +2760,9 @@ func _place_conduit_box(tile: String, main_c: String, detail_c: String, cx: int,
 	stool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for key in solid:
 		var v: Vector3i = key
-		var o := Vector3(cx - 0.5 + v.x * vlen, v.y * vs, cy - 0.5 + v.z * vlen)   # row 0 on the floor
+		# centred in the cell now that the sides are pulled in; row 0 still on the floor
+		var half_w: float = n_h * vlen * 0.5
+		var o := Vector3(cx - half_w + v.x * vlen, v.y * vs, cy - half_w + v.z * vlen)
 		_vox_block(stool, o, Vector3(vlen, vs, vlen), solid[key],
 			[not solid.has(v + Vector3i(-1, 0, 0)), not solid.has(v + Vector3i(1, 0, 0)),
 			 not solid.has(v + Vector3i(0, -1, 0)), not solid.has(v + Vector3i(0, 1, 0)),
