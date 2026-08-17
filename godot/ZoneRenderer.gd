@@ -2604,6 +2604,9 @@ func _conduit_frame_tile(tile: String, digit: int) -> String:
 	return tile.substr(0, at) + str(digit) + tile.substr(at + 1)
 
 
+## Rows of housing carried above the axle opening, so the gearbox is not just a collar.
+const BOX_ABOVE := 3
+
 ## Is this connector a junction — anything that is not a straight run? "ew"/"ns" carry
 ## straight through and stay shafts; a corner, tee or cross is a gearbox.
 func _conduit_is_junction(dirs: String) -> bool:
@@ -2655,7 +2658,6 @@ func _place_conduit_box(tile: String, main_c: String, detail_c: String, cx: int,
 			break
 	if btop < 0:
 		return
-	var box_rows: int = bbot - btop + 1
 	# the shaft's own section, from the straight canon — the hole must match what arrives
 	# The hole must match the shaft that ARRIVES, and the straight variant's frames are not
 	# all the same height (_2 is a 2-row band where _1 and _3 are 4). Reading whichever one
@@ -2703,17 +2705,25 @@ func _place_conduit_box(tile: String, main_c: String, detail_c: String, cx: int,
 	# enough, it's not wide enough. it has to be at least 2x the size of the axle endcap".
 	# A hole the same size as the endcap reads as the shaft simply stopping; twice the
 	# section leaves a visible margin of darkness around it, which is what sells the shaft
-	# running on into the housing. Clamped to leave a one-voxel rim, so the box keeps its
-	# edges: the housing band is only 7 rows tall, so the height takes what fits.
+	# running on into the housing.
+	#
+	# The housing itself runs from the GROUND up past that opening — Daniel: "make the
+	# entire gearbox a little taller above the hole and extend the box to the ground". It
+	# was a slab floating at the shaft's height, which read as hanging in the air; now it
+	# stands on the floor like the machine it is. So the rows are counted from the ground
+	# (row 0 sits on the floor), the hole is centred on the SHAFT's line wherever that
+	# falls, and BOX_ABOVE rows of housing carry on over it.
 	var hole_w: int = mini(srows * 2, n_h - 2)
-	var hole_h: int = mini(srows * 2, box_rows - 2)
+	var hcen: int = int(round(yc / vs))                # the shaft's centre, in rows off the floor
+	var hole_h: int = mini(srows * 2, maxi(2, hcen - 1))   # keep at least a one-row sill
+	var vlo: int = maxi(1, hcen - int(floor(hole_h * 0.5)))
+	var vhi: int = vlo + hole_h - 1
+	var n_rows: int = vhi + 1 + BOX_ABOVE
 	var lo: int = int(floor((n_h - hole_w) * 0.5))     # centred on the face
 	var hi: int = lo + hole_w - 1
-	var vlo: int = int(floor((box_rows - hole_h) * 0.5))
-	var vhi: int = vlo + hole_h - 1
 	var solid := {}
 	for ax in n_h:
-		for vy in box_rows:
+		for vy in n_rows:
 			for az in n_h:
 				var in_hole_e: bool = dirs.contains("e") and ax == n_h - 1 and az >= lo and az <= hi and vy >= vlo and vy <= vhi
 				var in_hole_w: bool = dirs.contains("w") and ax == 0 and az >= lo and az <= hi and vy >= vlo and vy <= vhi
@@ -2733,7 +2743,7 @@ func _place_conduit_box(tile: String, main_c: String, detail_c: String, cx: int,
 	stool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for key in solid:
 		var v: Vector3i = key
-		var o := Vector3(cx - 0.5 + v.x * vlen, yc + (v.y - box_rows * 0.5) * vs, cy - 0.5 + v.z * vlen)
+		var o := Vector3(cx - 0.5 + v.x * vlen, v.y * vs, cy - 0.5 + v.z * vlen)   # row 0 on the floor
 		_vox_block(stool, o, Vector3(vlen, vs, vlen), solid[key],
 			[not solid.has(v + Vector3i(-1, 0, 0)), not solid.has(v + Vector3i(1, 0, 0)),
 			 not solid.has(v + Vector3i(0, -1, 0)), not solid.has(v + Vector3i(0, 1, 0)),
