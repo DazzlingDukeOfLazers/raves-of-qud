@@ -3117,11 +3117,17 @@ func _place_waterwheel(obj: Dictionary, tile: String, cx: int, cy: int, light_fr
 			var dy: float = py - c
 			var d: float = sqrt(dx * dx + dy * dy)
 			var radial: bool = false
-			var carry: bool = false            # runs the wheel's WIDTH, not just the endcap
-			var col := Color(0, 0, 0, 0)
+			var col := Color(0, 0, 0, 0)         # what the ENDCAP shows
+			var mid := Color(0, 0, 0, 0)         # what runs BETWEEN the two endcaps
 			if d <= c:
 				var ang: float = (atan2(dy, dx) + PI) / TAU
-				var ph: float = fposmod(ang * WHEEL_PANELS, 1.0)
+				# MIRRORED (Daniel: "Move the blue water to the other side of the waterwheel
+				# cutout/channel. It's currently 'floating' against the waterwheel panels.
+				# Roughly the equivalent of flipping it 180 and rotating the opposite
+				# direction"). Negating the phase swings water and lip onto the other face of
+				# every vane, so the buckets open the other way round the wheel — the same
+				# result reversing the spin would give, done in the profile instead.
+				var ph: float = fposmod(-ang * WHEEL_PANELS, 1.0)
 				var hub: bool = d < c * WHEEL_HUB
 				var rim: bool = d > c * WHEEL_RIM
 				radial = hub or ph < WHEEL_SPOKE_W
@@ -3130,17 +3136,23 @@ func _place_waterwheel(obj: Dictionary, tile: String, cx: int, cy: int, light_fr
 				var lip: bool = not rim and not hub and d > c * WHEEL_LIP_R \
 					and ph >= WHEEL_SPOKE_W + WHEEL_WATER_W \
 					and ph < WHEEL_SPOKE_W + WHEEL_WATER_W + WHEEL_LIP_W
+				var fill := lblue if int(floor(c * WHEEL_RIM - d)) == 1 else bg
 				if radial or rim or lip:
 					col = wood
+					# the RIM is a hoop on each face only — it never ran the width, and that is
+					# what keeps the middle open. Wall and lip do run it.
+					mid = wood if (radial or lip) else Color(0, 0, 0, 0)
 				elif wet:
-					col = wblue
+					# THE ENDCAPS DO NOT SHOW THE WATER (Daniel: "The endcaps don't get the
+					# water-blue layer, just the area between the pizzas"). The face wears the
+					# plain slice fill here; the blue lives only in the space between the discs,
+					# so it reads as water held INSIDE the wheel rather than painted on its side.
+					col = fill
+					mid = wblue
 				else:
-					col = lblue if int(floor(c * WHEEL_RIM - d)) == 1 else bg
-				# the bucket — wall, water and lip — is the wheel's structure and runs its whole
-				# width; the endcap's background fill and light-blue ring are face decoration only
-				carry = radial or wet or lip
+					col = fill
 			face.set_pixel(px, py, col)
-			spok.set_pixel(px, py, col if carry else Color(0, 0, 0, 0))
+			spok.set_pixel(px, py, mid)
 	var mi := MeshInstance3D.new()
 	mi.mesh = _wheel_extrude_mesh(face, spok, r, thick)
 	var wm: StandardMaterial3D = _vox_skin_material().duplicate()
