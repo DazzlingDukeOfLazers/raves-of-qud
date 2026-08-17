@@ -2978,6 +2978,12 @@ func _place_conduit_box(tile: String, main_c: String, detail_c: String, cx: int,
 ## tools/capture/wheelmap.py is the same derivation with a preview sheet; change one, change both.
 const WHEEL_PANELS := 12
 
+## Twice what the tile measures — Daniel: "We need to double the size of the waterwheel,
+## otherwise it won't dip into the water." A wheel derived at its art size is 0.92 of a cell
+## across, so hung on the axle line its lowest point sits ABOVE the surface and the thing spins
+## dry. Doubling puts the bottom third under water, which is what a waterwheel is for.
+const WHEEL_SCALE := 2.0
+
 ## One revolution in the time the shafts take. The wheel and the axle run are ONE shaft, direct
 ## drive with no gearing between them, so they turn at the same rate or the machine reads as
 ## broken. Qud has the wheel at ~35s and the shafts at 1s, which is fine for two flat tiles
@@ -3038,9 +3044,14 @@ func _place_waterwheel(obj: Dictionary, tile: String, cx: int, cy: int, light_fr
 	var wood := img.get_pixel(int((wc.x + 0.5) * sx), int(((top + bot) * 0.5) * sy))
 	# DIAMETER runs on the ART's scale (rows) and THICKNESS on the CELL's (columns) — the same
 	# split every shape here uses, and the one that has cost the most when conflated.
-	var r: float = (bot - top + 1) * PIXEL_SIZE * 0.5
-	var thick: float = (wc.y - wc.x + 1) / float(mask.get_width())
-	var yc: float = maxf(r, FLOAT_Y)
+	var r: float = (bot - top + 1) * PIXEL_SIZE * 0.5 * WHEEL_SCALE
+	var thick: float = (wc.y - wc.x + 1) / float(mask.get_width()) * WHEEL_SCALE
+	# ON THE AXLE LINE, and deliberately NOT clamped above the ground. This was maxf(r, FLOAT_Y),
+	# which is invisible at the art's own size (r < FLOAT_Y) and silently defeats the whole point
+	# at double: it would LIFT the wheel until its lowest point rested on the surface, leaving it
+	# dry AND pulling the hub off the shaft it is supposed to share. The dip IS the part below
+	# the surface, so the centre stays where the axle is and the bottom goes under.
+	var yc: float = FLOAT_Y
 	var root := Node3D.new()
 	root.transform = Transform3D(Basis(), Vector3(cx, yc, cy))
 	# TREAD: one panel per paddle, alpha where the art has no wood so you see BETWEEN the
