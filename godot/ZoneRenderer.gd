@@ -2631,6 +2631,14 @@ func _gearbox_span(srows: int, jw: int) -> int:
 ## (Daniel: "slow down the axle spin rate by 10"). One turn per ten seconds.
 const AXLE_SPIN_SLOW := 10.0
 
+## The ROOF VANE's slow factor — half the shafts', and not a taste call. The vane is a LINE,
+## and a line has 180-degree symmetry, so one trip through the art's three frames is half a
+## revolution rather than a whole one. Slowing it by the shafts' factor therefore spun it at
+## half their rate (Daniel: "I would double the speed"); halving the factor puts every moving
+## part of the machine on the same rotational speed.
+const VANE_SPIN_SLOW := AXLE_SPIN_SLOW * 0.5
+
+
 ## Is this connector a junction — anything that is not a straight run? "ew"/"ns" carry
 ## straight through and stay shafts; a corner, tee or cross is a gearbox.
 func _conduit_is_junction(dirs: String) -> bool:
@@ -2898,14 +2906,15 @@ func _place_conduit_box(tile: String, main_c: String, detail_c: String, cx: int,
 	# _anim_marks already hands back the driver's sched shape, parallel to _anim_frame_tiles
 	var marks := _anim_marks(anim)
 	if _live_build and roof.size() > 1 and marks.size() == roof.size():
-		# SLOWED to the shafts' cadence, for the same reason they were: Qud steps this cycle
-		# three times a second, which reads as texture on a flat tile and as a flicker on solid
-		# geometry. The vane and the shafts are one machine and must turn like it.
+		# SLOWED, for the same reason the shafts were: Qud steps this cycle three times a
+		# second, which reads as texture on a flat tile and as a flicker on solid geometry.
+		# The vane and the shafts are one machine and must turn like it — see VANE_SPIN_SLOW
+		# for why that means half the shafts' factor, not the same one.
 		var rsched: Array = []
 		for mk in marks:
-			rsched.append({"f": int(round(float(mk["f"]) * AXLE_SPIN_SLOW))})
+			rsched.append({"f": int(round(float(mk["f"]) * VANE_SPIN_SLOW))})
 		_anim_sprites.append({"nodes": roof, "sched": rsched,
-			"len": int(maxi(_anim_len(anim), 1) * AXLE_SPIN_SLOW)})
+			"len": int(maxi(_anim_len(anim), 1) * VANE_SPIN_SLOW)})
 
 	# A HOLE WITH NOTHING IN IT. The housing's connection set says a shaft leaves in every
 	# direction of `dirs`, but only a neighbouring axle OBJECT ever drew one — and at the

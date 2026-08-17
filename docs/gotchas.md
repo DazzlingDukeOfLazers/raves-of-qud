@@ -2095,8 +2095,9 @@ former plane pixels became background).
 (`Main.gd:1294`). In-game they do nothing: `MainFrame.gd:293` maps `KEY_Q` -> quests and
 `KEY_E` -> equipment, and the chrome sees the key first. R/F (zoom) are unclaimed and do work.
 
-So **you cannot rotate the view from a script**, which matters whenever a fix has to be
-photographed from a particular side. What actually works:
+So Q/E rotation is unreachable while the chrome has the key. Daniel's workaround, which is
+the one to use: **switch to FIRST_PERSON (mode 3), rotate there, then switch to the view you
+want** — the heading carries across. Beyond that:
 
 - **mode 7 (TOP_FOLLOW)** — orthographic, straight down, north up, tracks the player, and R/F
   zoom. Deterministic: move the player next to the thing and it is a fixed offset from centre.
