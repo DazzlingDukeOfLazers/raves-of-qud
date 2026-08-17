@@ -3156,7 +3156,7 @@ func _place_waterwheel(obj: Dictionary, tile: String, cx: int, cy: int, light_fr
 			face.set_pixel(px, py, col)
 			spok.set_pixel(px, py, mid)
 	var mi := MeshInstance3D.new()
-	mi.mesh = _wheel_extrude_mesh(face, spok, r, thick)
+	mi.mesh = _wheel_extrude_mesh(face, spok, r, thick, bg)
 	var wm: StandardMaterial3D = _vox_skin_material().duplicate()
 	wm.albedo_color = Color(light_frac, light_frac, light_frac)
 	mi.material_override = wm
@@ -3337,7 +3337,7 @@ func _wheel_spill(obj: Dictionary, tile: String, mask: Image, img: Image, top: i
 ## slab tests against the WHOLE disc. That pairing is what keeps it hole-free — an end slab
 ## beside a spoke is correctly buried (the spoke's box covers that depth), while a spoke beside
 ## a rim-only pixel still draws its long side, of which only the slab's depth is hidden.
-func _wheel_extrude_mesh(face: Image, spok: Image, r: float, thick: float) -> ArrayMesh:
+func _wheel_extrude_mesh(face: Image, spok: Image, r: float, thick: float, bg: Color) -> ArrayMesh:
 	var fs := face.get_width()
 	var step: float = 2.0 * r / float(fs)
 	var cap: float = minf(step, thick * 0.4)      # each end disc is one profile voxel deep
@@ -3348,8 +3348,14 @@ func _wheel_extrude_mesh(face: Image, spok: Image, r: float, thick: float) -> Ar
 			var cf := face.get_pixel(px, py)
 			if cf.a >= 0.5:
 				disc[Vector2i(px, py)] = cf
-			if spok.get_pixel(px, py).a >= 0.5:
-				rad[Vector2i(px, py)] = cf
+			# THE SPAN WEARS `spok`'S OWN COLOUR, not the face's. This read `cf` — so the two
+			# profiles agreed on WHERE the middle was solid and the face silently decided what
+			# colour it was. That is how the light blue got into the span: wherever a full-depth
+			# voxel happened to sit on the endcap's ring radius, the ring's colour was extruded
+			# the whole way through the wheel.
+			var cs := spok.get_pixel(px, py)
+			if cs.a >= 0.5:
+				rad[Vector2i(px, py)] = cs
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var mid: float = (fs - 1) * 0.5
@@ -3358,17 +3364,31 @@ func _wheel_extrude_mesh(face: Image, spok: Image, r: float, thick: float) -> Ar
 		# image +y runs DOWN and world +y runs UP, so the row flips; the column maps to z as is
 		var wy: float = -(k.y - mid) * step - step * 0.5
 		var wz: float = (k.x - mid) * step - step * 0.5
+		var half: float = cap * 0.5
+		var nb := [not disc.has(k + Vector2i(0, 1)), not disc.has(k + Vector2i(0, -1)),
+			not disc.has(k + Vector2i(-1, 0)), not disc.has(k + Vector2i(1, 0))]
+		# EVERY column is face-colour at the two ends and span-colour in between. A single
+		# full-depth box cannot serve both: it reaches the very ends, so it IS the face where it
+		# sits, and a wall painted for the span turned the endcap back into a brown lattice —
+		# undoing "change the brown voxels inside the outer ring to Qud background color".
+		# Splitting is what lets the face be a dark disc while the span keeps its timber.
+		_vox_block(st, Vector3(-thick * 0.5, wy, wz), Vector3(half, step, step), disc[k],
+			[true, true, nb[0], nb[1], nb[2], nb[3]])
+		_vox_block(st, Vector3(thick * 0.5 - half, wy, wz), Vector3(half, step, step), disc[k],
+			[true, true, nb[0], nb[1], nb[2], nb[3]])
 		if rad.has(k):
-			_vox_block(st, Vector3(-thick * 0.5, wy, wz), Vector3(thick, step, step), disc[k],
+			# the bucket's timber and its water, running the span between the two discs
+			_vox_block(st, Vector3(-thick * 0.5 + half, wy, wz),
+				Vector3(thick - 2.0 * half, step, step), rad[k],
 				[true, true,
 				 not rad.has(k + Vector2i(0, 1)), not rad.has(k + Vector2i(0, -1)),
 				 not rad.has(k + Vector2i(-1, 0)), not rad.has(k + Vector2i(1, 0))])
 		else:
-			for x0 in [-thick * 0.5, thick * 0.5 - cap]:
-				_vox_block(st, Vector3(x0, wy, wz), Vector3(cap, step, step), disc[k],
-					[true, true,
-					 not disc.has(k + Vector2i(0, 1)), not disc.has(k + Vector2i(0, -1)),
-					 not disc.has(k + Vector2i(-1, 0)), not disc.has(k + Vector2i(1, 0))])
+			# no structure here, so line the inside of each disc with background: without it the
+			# ring and the hoop would be read from within the span as well as from outside
+			for x0 in [-thick * 0.5 + half, thick * 0.5 - cap]:
+				_vox_block(st, Vector3(x0, wy, wz), Vector3(half, step, step), bg,
+					[true, true, nb[0], nb[1], nb[2], nb[3]])
 	var m := ArrayMesh.new()
 	st.commit(m)
 	return m
