@@ -2978,11 +2978,12 @@ func _place_conduit_box(tile: String, main_c: String, detail_c: String, cx: int,
 ## tools/capture/wheelmap.py is the same derivation with a preview sheet; change one, change both.
 const WHEEL_PANELS := 12
 
-## Twice what the tile measures — Daniel: "We need to double the size of the waterwheel,
-## otherwise it won't dip into the water." A wheel derived at its art size is 0.92 of a cell
-## across, so hung on the axle line its lowest point sits ABOVE the surface and the thing spins
-## dry. Doubling puts the bottom third under water, which is what a waterwheel is for.
-const WHEEL_SCALE := 2.0
+## Half again what the tile measures. A wheel derived at its art size is 0.92 of a cell across,
+## so hung on the axle line its lowest point sits ABOVE the surface and the thing spins dry
+## (Daniel: "otherwise it won't dip into the water"). 2.0 put 18% of the wheel under; 1.5 —
+## where Daniel settled it — puts the lowest 7% under, so it still breaks the surface but reads
+## a good deal less monumental.
+const WHEEL_SCALE := 1.5
 
 ## One revolution in the time the shafts take. The wheel and the axle run are ONE shaft, direct
 ## drive with no gearing between them, so they turn at the same rate or the machine reads as
@@ -3171,9 +3172,10 @@ func _wheel_spill(obj: Dictionary, tile: String, mask: Image, img: Image, top: i
 	pm.gravity = Vector3(0, -g, 0)
 	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
 	# A STREAM, not a sheet. The art draws the water as a narrow column four art columns wide,
-	# and spreading it across half the wheel's N-S span turned it into scattered specks seen
-	# through the spokes instead of falling water. Keep the N-S extent close to the drawn width.
-	pm.emission_box_extents = Vector3(wwide * 0.5, 0.03, wwide * 0.9)
+	# and spreading it across half the wheel's span turned it into scattered specks seen through
+	# the spokes instead of falling water. Widths stay near the drawn one; the LONGER of the two
+	# now runs east-west, across the viewer, since the curtain faces south.
+	pm.emission_box_extents = Vector3(wwide * 0.9, 0.03, wwide * 0.5)
 	pm.scale_min = 0.6
 	pm.scale_max = 1.35
 	var grad := Gradient.new()
@@ -3196,7 +3198,13 @@ func _wheel_spill(obj: Dictionary, tile: String, mask: Image, img: Image, top: i
 	pt.visibility_aabb = AABB(Vector3(-1.0, -fall - 0.5, -1.0), Vector3(2.0, fall + 1.5, 2.0))
 	# NOT a child of the wheel root — that node SPINS, and water dragged round with the rim
 	# would orbit instead of fall. It hangs off the spawn parent at the cell instead.
-	pt.position = Vector3(cx + thick * 0.5 + wwide * 0.5, y_top, cy)
+	#
+	# ON THE SOUTH SIDE (Daniel: "move the waterfall to the south face of the waterwheel"). The
+	# tile draws it EAST of the wheel, which is where it started, and east is the one place the
+	# default north-looking camera cannot see it — the wheel's own body is in the way. South is
+	# the wheel's southern tangent, z = cy + r, so the water leaves the rim at its widest point
+	# and falls clear, in front of the wheel from the usual view.
+	pt.position = Vector3(cx, y_top, cy + r)
 	_spawn_parent().add_child(pt)
 	_track(pt)
 

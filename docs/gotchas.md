@@ -2124,3 +2124,17 @@ The rule generalises: when art shows a repeating sub-feature, measure the FEATUR
 the housing's centre row) and scale that onto the voxel footprint. The number of cells is the
 structure; the cell size is data. Same family as the canonical-frame rule above — every time a
 proportion gets invented instead of measured, it costs a build.
+
+## snap.py hanging usually means QUD is on a modal screen — check `hv state` first
+
+`tools/capture/snap.py` blocks until the player takes a turn, so anything that stops Qud taking
+turns reads as a hang, not as an error. The usual cause is a stray key: **`hv key raves <k>`
+still reaches QUD** (the long-standing trap), and Raves' own camera keys collide with Qud's
+commands — an `f` meant to zoom the Holodeck out puts Qud in `FireMissileWeapon` and every
+later `control.py move` and `snap.py` silently does nothing.
+
+Symptom to remember: moves appear to succeed, the player never moves, snaps time out. Run
+`hv state` — it names the screen — and `hv back` returns Qud to play.
+
+And in Raves, **F is Fire now, not zoom-out**. Zoom the Holodeck with `hv scroll raves <x> <y>
+--dy <n>`; R still zooms in. See the camera-keys entry above for why Q/E rotation is unreachable.
