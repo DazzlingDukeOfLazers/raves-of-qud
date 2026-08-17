@@ -2699,10 +2699,18 @@ func _place_conduit_box(tile: String, main_c: String, detail_c: String, cx: int,
 	var vlen: float = 1.0 / float(n_h)
 	var vs: float = PIXEL_SIZE
 	var yc: float = y_center if y_center >= 0.0 else FLOAT_Y
-	var lo: int = int(floor((n_h - srows) * 0.5))   # the hole, centred on the face
-	var hi: int = lo + srows - 1
-	var vlo: int = int(floor((box_rows - srows) * 0.5))
-	var vhi: int = vlo + srows - 1
+	# The opening is WIDER than the shaft that enters it — Daniel: "the hole is deep
+	# enough, it's not wide enough. it has to be at least 2x the size of the axle endcap".
+	# A hole the same size as the endcap reads as the shaft simply stopping; twice the
+	# section leaves a visible margin of darkness around it, which is what sells the shaft
+	# running on into the housing. Clamped to leave a one-voxel rim, so the box keeps its
+	# edges: the housing band is only 7 rows tall, so the height takes what fits.
+	var hole_w: int = mini(srows * 2, n_h - 2)
+	var hole_h: int = mini(srows * 2, box_rows - 2)
+	var lo: int = int(floor((n_h - hole_w) * 0.5))     # centred on the face
+	var hi: int = lo + hole_w - 1
+	var vlo: int = int(floor((box_rows - hole_h) * 0.5))
+	var vhi: int = vlo + hole_h - 1
 	var solid := {}
 	for ax in n_h:
 		for vy in box_rows:
@@ -2721,8 +2729,6 @@ func _place_conduit_box(tile: String, main_c: String, detail_c: String, cx: int,
 				solid[Vector3i(ax, vy, az)] = dark if behind else brown
 	if solid.is_empty():
 		return
-	print("[gearbox] cell (%d,%d) dirs=%s box=%dx%dx%d hole cols %d..%d rows %d..%d vox=%d" % [
-		cx, cy, dirs, n_h, box_rows, n_h, lo, hi, vlo, vhi, solid.size()])   # DEBUG
 	var stool := SurfaceTool.new()
 	stool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for key in solid:
