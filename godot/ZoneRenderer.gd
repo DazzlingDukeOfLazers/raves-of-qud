@@ -2990,6 +2990,15 @@ const WHEEL_WATER_W := 0.22
 const WHEEL_LIP_W := 0.10
 const WHEEL_LIP_R := 0.55      # the lip stands from this radius out to the rim
 
+## The endcap ring is DASHED — six arcs with background between them (Daniel: "add Qud bg color
+## to the blue ring at intervals to divide the blue ring into 6 sections. Like a dashed line
+## perimeter."). Six divides the twelve vanes, so a gap lands on every other one instead of
+## drifting against the structure. It also gives the face 6-fold symmetry where a continuous
+## ring had rotational INVARIANCE — which is what makes the wheel look like it is turning again
+## when you are square on to it.
+const WHEEL_RING_DASHES := 6.0
+const WHEEL_RING_GAP := 0.16   # fraction of each arc that is background
+
 const WHEEL_HUB := 0.16
 const WHEEL_RIM := 0.86
 
@@ -3136,19 +3145,18 @@ func _place_waterwheel(obj: Dictionary, tile: String, cx: int, cy: int, light_fr
 				var lip: bool = not rim and not hub and d > c * WHEEL_LIP_R \
 					and ph >= WHEEL_SPOKE_W + WHEEL_WATER_W \
 					and ph < WHEEL_SPOKE_W + WHEEL_WATER_W + WHEEL_LIP_W
-				# THE FACE IS THE OUTER RING AND NOTHING ELSE (Daniel: "change the brown voxels
-				# inside the outer ring to Qud background color. Keep the light blue on the
-				# pizzas."). Wall, hub and lip still EXIST on the face — they are the same
-				# geometry — they simply stop being brown there, so the pizza reads as a dark
-				# disc inside one wooden hoop, with the pale ring its only accent.
+				# THE FACE IS SOLID TIMBER with one dashed ring on it (Daniel: "The inside of
+				# the pizzas are colored Qud BG. Can we change those to the brown wood?"). Wall,
+				# hub and lip still EXIST on the face — same geometry — they just stop being a
+				# separate colour from the boards around them, so the pizza reads as a plank
+				# disc rather than a skeleton.
 				#
-				# The ring is drawn across everything inside the rim now, structure included.
-				# Once the walls are background too, a ring broken by them would be chopped by
-				# something the eye cannot see the reason for.
-				if rim:
-					col = wood
+				# The ring runs across everything inside the rim, structure included, and is
+				# broken into WHEEL_RING_DASHES arcs by background gaps.
+				if int(floor(c * WHEEL_RIM - d)) == 1 and not rim:
+					col = bg if fposmod(-ang * WHEEL_RING_DASHES, 1.0) < WHEEL_RING_GAP else lblue
 				else:
-					col = lblue if int(floor(c * WHEEL_RIM - d)) == 1 else bg
+					col = wood
 				# BETWEEN the discs: the walls and lip keep their wood, and the water goes to
 				# background (Daniel: "Change the light blue inside the waterwheel column to Qud
 				# bg color") — so the bucket still has its shape and its shading, but no colour.
