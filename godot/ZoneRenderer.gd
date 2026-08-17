@@ -3081,10 +3081,125 @@ func _place_waterwheel(obj: Dictionary, tile: String, cx: int, cy: int, light_fr
 	_add_wheel_surface(root, _wheel_side_mesh(r, thick), tread, light_frac)
 	_add_wheel_surface(root, _wheel_cap_mesh(r, thick), face, light_frac)
 	_spawn_parent().add_child(root)
+	_wheel_spill(obj, tile, mask, img, top, bot, r, thick, cx, cy)
 	if _live_build:
 		_anim_sprites.append({"spin": root, "base": Basis(), "period": WHEEL_REV_SEC})
 	_track(root)
 	return true
+
+## The water the wheel throws off — the fire and smoke rigs' sibling.
+##
+## Columns 9..12 of the tile are the one part that is neither wheel nor frame: a vertical
+## curtain immediately EAST of the rim, running from near the top down to the surface. Every
+## detail (white) pixel in the file lives there. It is emphatically NOT wheel surface, which is
+## why the cylinder ignores those columns and this reads them instead.
+const SPILL_AMOUNT := 70        # droplets alive in the curtain
+const SPILL_LIFETIME := 1.1     # seconds; gravity is solved so the fall lands on the surface
+const SPILL_SQUARE := 0.075     # edge of one droplet square, before per-particle scale
+const SPILL_FALL := 0.5         # initial downward speed; gravity supplies the rest
+
+func _wheel_spill(obj: Dictionary, tile: String, mask: Image, img: Image, top: int, bot: int,
+		r: float, thick: float, cx: int, cy: int) -> void:
+	if Settings.qud_shape("particles"):
+		return
+	# The curtain is the UNION of the detail pixels over EVERY frame, not whichever phase the
+	# object is wearing. Qud animates the droplets DOWN the column, so any single frame covers
+	# only part of the run — the canonical-frame rule, which has now bitten in four shapes.
+	var wx0 := 9999
+	var wx1 := -1
+	var wy0 := 9999
+	var wy1 := -1
+	for ft in _anim_frame_tiles(String(obj.get("animSched", "")), tile):
+		var fm := _mask(String(ft))
+		if fm == null:
+			continue
+		for y in fm.get_height():
+			for x in fm.get_width():
+				var px := fm.get_pixel(x, y)
+				if px.a >= 0.5 and px.r >= 0.5:      # opaque AND detail — the water
+					wx0 = mini(wx0, x)
+					wx1 = maxi(wx1, x)
+					wy0 = mini(wy0, y)
+					wy1 = maxi(wy1, y)
+	if wx1 < 0:
+		return
+	var rows: float = float(bot - top + 1)
+	var dia: float = 2.0 * r
+	var wheel_top: float = FLOAT_Y + r
+	var y_top: float = wheel_top - (wy0 - top) / rows * dia
+	var y_bot: float = wheel_top - (wy1 - top + 1) / rows * dia
+	var fall: float = maxf(0.15, y_top - y_bot)
+	# WIDTH stays on the art's own scale — the spill is water, not wheel, so WHEEL_SCALE has no
+	# business here; it hangs just clear of the east face wherever that face ended up.
+	var wwide: float = (wx1 - wx0 + 1) / float(mask.get_width())
+	# Sample a pixel that IS water in the BASE frame. The union's corner need not be one —
+	# it was not, so this silently fell through to the colour fallback every time.
+	var sxr: float = img.get_width() / float(mask.get_width())
+	var syr: float = img.get_height() / float(mask.get_height())
+	var wcol := _qud_color(String(obj.get("detail", "")))
+	for y in mask.get_height():
+		var hit := false
+		for x in mask.get_width():
+			var mp := mask.get_pixel(x, y)
+			if mp.a >= 0.5 and mp.r >= 0.5:
+				var c2 := img.get_pixel(int((x + 0.5) * sxr), int((y + 0.5) * syr))
+				if c2.a >= 0.5:
+					wcol = c2
+					hit = true
+					break
+		if hit:
+			break
+	var qm := QuadMesh.new()
+	qm.size = Vector2(SPILL_SQUARE, SPILL_SQUARE)
+	var dm := StandardMaterial3D.new()
+	dm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	dm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	dm.blend_mode = BaseMaterial3D.BLEND_MODE_MIX        # water TINTS; it is not a light source
+	dm.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	dm.billboard_keep_scale = true
+	dm.vertex_color_use_as_albedo = true
+	dm.cull_mode = BaseMaterial3D.CULL_DISABLED
+	dm.render_priority = 2                               # after the walls (the smoke-sort rule)
+	qm.material = dm
+	var pm := ParticleProcessMaterial.new()
+	pm.direction = Vector3(0, -1, 0)
+	pm.spread = 5.0
+	pm.initial_velocity_min = SPILL_FALL * 0.7
+	pm.initial_velocity_max = SPILL_FALL * 1.3
+	# solved so a droplet covers exactly the drawn run in one lifetime: fall = v*t + g*t*t/2
+	var g: float = maxf(0.5, 2.0 * (fall - SPILL_FALL * SPILL_LIFETIME) / (SPILL_LIFETIME * SPILL_LIFETIME))
+	pm.gravity = Vector3(0, -g, 0)
+	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	# A STREAM, not a sheet. The art draws the water as a narrow column four art columns wide,
+	# and spreading it across half the wheel's N-S span turned it into scattered specks seen
+	# through the spokes instead of falling water. Keep the N-S extent close to the drawn width.
+	pm.emission_box_extents = Vector3(wwide * 0.5, 0.03, wwide * 0.9)
+	pm.scale_min = 0.6
+	pm.scale_max = 1.35
+	var grad := Gradient.new()
+	grad.offsets = PackedFloat32Array([0.0, 0.7, 1.0])
+	grad.colors = PackedColorArray([
+		Color(wcol.r, wcol.g, wcol.b, 0.95),
+		Color(wcol.r, wcol.g, wcol.b, 0.7),
+		Color(wcol.r, wcol.g, wcol.b, 0.0)])            # fades out as it reaches the surface
+	var gt := GradientTexture1D.new()
+	gt.gradient = grad
+	pm.color_ramp = gt
+	var pt := GPUParticles3D.new()
+	pt.amount = SPILL_AMOUNT
+	pt.lifetime = SPILL_LIFETIME
+	pt.preprocess = SPILL_LIFETIME    # a curtain already falling, not one starting dry
+	pt.randomness = 0.5
+	pt.process_material = pm
+	pt.draw_pass_1 = qm
+	pt.local_coords = false
+	pt.visibility_aabb = AABB(Vector3(-1.0, -fall - 0.5, -1.0), Vector3(2.0, fall + 1.5, 2.0))
+	# NOT a child of the wheel root — that node SPINS, and water dragged round with the rim
+	# would orbit instead of fall. It hangs off the spawn parent at the cell instead.
+	pt.position = Vector3(cx + thick * 0.5 + wwide * 0.5, y_top, cy)
+	_spawn_parent().add_child(pt)
+	_track(pt)
+
 
 ## The 12 tread panels, as a prism about local +X (the axle line). U runs around the rim so the
 ## tread map tiles once per panel; V runs along the axle.
