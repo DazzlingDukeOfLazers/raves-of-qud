@@ -2376,6 +2376,9 @@ func _place_connector(tile: String, main_c: String, detail_c: String, cx: int, c
 # so runs are continuous and corners form a clean L. Used for every directional
 # family: picket fences, pipes, and tent walls (which differ only in height).
 func _fence_half(cx: int, cy: int, d: String, tile: String, main_c: String, detail_c: String, h := FENCE_H, fill := Fill.NONE, y_center := -1.0, light_frac := 1.0, anim := "") -> void:
+	if _connector_is_prism(tile):
+		_fence_half_prism(cx, cy, d, tile, main_c, detail_c, h, fill, y_center, light_frac, anim)
+		return
 	var vox_d := _connector_vox_depth(tile)
 	if vox_d > 0:
 		_fence_half_vox(cx, cy, d, tile, main_c, detail_c, h, fill, y_center, light_frac, vox_d)
@@ -2555,7 +2558,7 @@ func _fence_half_vox(cx: int, cy: int, d: String, tile: String, main_c: String, 
 ## texture. Swapping only the texture keeps the material's uv1_scale/offset, which is
 ## what crops the art to the opaque band and picks the left/right half.
 func _register_panel_anim(anim: String, fm: StandardMaterial3D, base_tile: String,
-		main_c: String, detail_c: String, fill: int) -> void:
+		main_c: String, detail_c: String, fill: int, phase := 0) -> void:
 	if anim == "" or fm == null:
 		return
 	var parts := anim.split("|")
@@ -2578,7 +2581,71 @@ func _register_panel_anim(anim: String, fm: StandardMaterial3D, base_tile: Strin
 				any_tile = true
 		sched.append({"f": int(kv[0]), "tex": tex})
 	if any_tile and sched.size() > 1:
-		_anim_sprites.append({"mat": fm, "len": alen, "sched": sched})
+		_anim_sprites.append({"mat": fm, "len": alen, "sched": sched, "phase": phase})
+
+
+## Connector families built as a turning PRISM rather than a flat panel. Axles only:
+## Qud draws a shaft as a 4-row band whose lit rows shift between frames — surface
+## markings at three rotation phases — and a flat quad can only slide those markings
+## sideways. Daniel: "let's use the animation cycles to build the UV map. It's basically
+## a rectangular prism."
+const PRISM_CONNECTORS := ["axle"]
+
+func _connector_is_prism(tile: String) -> bool:
+	if _one_to_one or _flat_2d or _world_map:
+		return false
+	for k in PRISM_CONNECTORS:
+		if tile.contains(k):
+			return true
+	return false
+
+
+## One half-shaft as a square prism: four long faces around the axis, each carrying the
+## SAME animated strip but a different PHASE of the cycle.
+##
+## That phase offset is the whole idea, and it answers the corner question. A quarter turn
+## about the axis carries one face onto the next, so the face one quarter further round is
+## showing the shaft a quarter turn later — which in Qud's art is simply the next frame.
+## Give face k the cycle at (frame + k), and four fixed quads read as one shaft turning:
+## no seam to hide, because each face is its own quad with the panel material's own uv1
+## crop, and the corners are just the edges where two of them meet.
+##
+## The faces are laid out in SHAFT-LOCAL space (+x along the shaft) and then yawed as a
+## unit for a north-south axle, so one description serves both axes.
+func _fence_half_prism(cx: int, cy: int, d: String, tile: String, main_c: String, detail_c: String,
+		h: float, fill: int, y_center: float, light_frac: float, anim: String) -> void:
+	var horiz: bool = d == "e" or d == "w"
+	var half := "r" if (d == "e" or d == "s") else "l"
+	var yc: float = y_center if y_center >= 0.0 else h * 0.5
+	var r: float = h * 0.5
+	var lead: float = 0.25 if (d == "e" or d == "s") else -0.25
+	var yaw: float = 0.0 if horiz else PI * 0.5
+	var B := Basis(Vector3.UP, yaw)
+	# top, bottom, near, far — a quarter turn apart, in that order round the axis
+	var faces := [
+		[Vector3(0.0, r, 0.0), Vector3(-PI * 0.5, 0.0, 0.0)],
+		[Vector3(0.0, -r, 0.0), Vector3(PI * 0.5, 0.0, 0.0)],
+		[Vector3(0.0, 0.0, r), Vector3.ZERO],
+		[Vector3(0.0, 0.0, -r), Vector3(0.0, PI, 0.0)],
+	]
+	for fi in faces.size():
+		var fpos: Vector3 = faces[fi][0]
+		var frot: Vector3 = faces[fi][1]
+		var q := QuadMesh.new()
+		q.size = Vector2(0.5, h)
+		var mi := MeshInstance3D.new()
+		mi.mesh = q
+		var fm: StandardMaterial3D = _fence_material(_panel_art(tile), main_c, detail_c, half, fill).duplicate()
+		fm.albedo_color = Color(light_frac, light_frac, light_frac)
+		fm.cull_mode = BaseMaterial3D.CULL_DISABLED
+		mi.material_override = fm
+		mi.transform = Transform3D(B * Basis.from_euler(frot),
+			Vector3(cx, yc, cy) + B * (Vector3(lead, 0.0, 0.0) + fpos))
+		_spawn_parent().add_child(mi)
+		if _live_build:
+			_lit_meshes.append({"mi": mi, "cell": Vector2i(cx, cy)})
+			_register_panel_anim(anim, fm, _panel_art(tile), main_c, detail_c, fill, fi)
+		_track(mi)
 
 
 func _take_fence() -> MeshInstance3D:
@@ -6255,6 +6322,10 @@ func _animate_1to1() -> void:
 		for si in tsched.size():
 			if tf >= int(tsched[si]["f"]):
 				tact = si
+		# A prism face is a QUARTER TURN around the shaft from its neighbour, so it shows
+		# the cycle a step further on — that phase offset is what makes four static quads
+		# read as one turning axle (see _fence_half_prism).
+		tact = (tact + int(a.get("phase", 0))) % tsched.size()
 		var want: Texture2D = tsched[tact]["tex"]
 		if sp != null:
 			if sp.texture != want:

@@ -295,6 +295,66 @@ namespace RavesOfQud
         /// 60fps clock, so the client needs no multiplier. Empty fields mean
         /// "the object's base art/colours". Null when nothing animates.
         /// </summary>
+        /// <summary>A PAINTED CONDUIT's spin, as an animSched — Joppa's axles.
+        ///
+        /// These do not use AnimatedMaterialGeneric at all, which is why they never showed up
+        /// on the wire: IPowerTransmission builds its own tile name every render, appending
+        /// "_1".."_N" from a 1000-frame clock (IPowerTransmission, the TileAnimateWhenPowered
+        /// block): value = min(1 + clock/(1000/N), N). So N frames hold 1000/N frames each,
+        /// and the CADENCE here is Qud's own arithmetic, not a guess.
+        ///
+        /// The frame NAMES are pattern-derived, and that part is a compromise worth naming:
+        /// Qud assembles them in a StringBuilder from PaintedFence tags, the direction suffix
+        /// and the extension, and re-entering that is far more machinery than swapping the
+        /// digit in the tile the object is ALREADY wearing (…sw_axle_1_ew.png -> _2_, _3_).
+        /// Each candidate is only shipped if Qud's own sprite manager can supply it, so a
+        /// family whose frames are not named that way ships nothing rather than a broken
+        /// path. Thresholds are pre-scaled to the plain 60fps clock the client animates on,
+        /// matching AnimGenericSchedule's contract.</summary>
+        private static string PaintedConduitSchedule(GameObject go, Render r)
+        {
+            // GetPart<T>() matches the EXACT type, not an assignable one, so asking for the
+            // abstract IPowerTransmission returns null even on an object carrying a
+            // MechanicalPowerTransmission — measured, and it is why axles shipped nothing.
+            // Walk the parts list and take the first that IS one (AnimGenericOf does the same).
+            IPowerTransmission pt = null;
+            foreach (var prt in go.PartsList)
+                if (prt is IPowerTransmission ipt) { pt = ipt; break; }
+            if (pt == null) return null;
+            bool powered;
+            try { powered = pt.AnyChargeActivity(0L); } catch { return null; }
+            bool animate = powered ? pt.TileAnimateWhenPowered : pt.TileAnimateWhenUnpowered;
+            if (!animate) return null;
+            if (pt.TileAnimateSuppressWhenBroken && pt.IsBroken()) return null;
+            int n = powered ? pt.TileAnimatePoweredFrames : pt.TileAnimateUnpoweredFrames;
+            if (n < 2) return null;
+
+            string cur = r == null ? null : r.Tile;
+            if (string.IsNullOrEmpty(cur)) return null;
+            // find the "_<digit>" group that carries the frame number
+            int digit = -1, at = -1;
+            for (int i = 0; i + 1 < cur.Length; i++)
+                if (cur[i] == '_' && cur[i + 1] >= '1' && cur[i + 1] <= '9'
+                    && (i + 2 >= cur.Length || !char.IsDigit(cur[i + 2])))
+                { at = i + 1; digit = cur[i + 1] - '0'; }
+            if (at < 0 || digit > n) return null;
+
+            var sb = new System.Text.StringBuilder();
+            int step = 1000 / n;                       // Qud's own bucket width
+            sb.Append(1000);
+            for (int f = 1; f <= n; f++)
+            {
+                string frame = cur.Substring(0, at) + (char)('0' + f) + cur.Substring(at + 1);
+                // No existence probe: that would be a Unity call from the turn thread.
+                // Ensure() queues the export on the UI thread, and a frame whose art is
+                // missing simply yields no texture client-side, where the registrar keeps
+                // the base tile for that entry rather than registering a broken frame.
+                TileExporter.Ensure(frame);
+                sb.Append('|').Append((f - 1) * step).Append('=').Append(frame).Append(";;");
+            }
+            return sb.ToString();
+        }
+
         private static string AnimGenericSchedule(GameObject go, Render r, AnimatedMaterialGeneric amg)
         {
             System.Collections.Generic.List<int> tT, cT, tcT, dT;
@@ -1883,6 +1943,10 @@ namespace RavesOfQud
                             var amg = AnimGenericOf(go);
                             if (amg != null && AnimGenericActive(go, amg))
                                 animSched = AnimGenericSchedule(go, r, amg);
+                            // Painted conduits (axles) animate through IPowerTransmission's
+                            // own tile builder, not AnimatedMaterialGeneric — see above.
+                            if (animSched == null)
+                                animSched = PaintedConduitSchedule(go, r);
                         }
                         catch { }
                         // (ConveyorPad deliberately ships NO schedule: measured on the
