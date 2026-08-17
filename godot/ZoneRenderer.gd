@@ -4657,7 +4657,17 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			# water-floor is too opaque" — the submerged glow ghost implies
 			# translucency, so the surface must honour it). USER mode only:
 			# 1:1 and flat-2D keep the opaque floor Qud parity is measured on.
-			if _is_world_water(tile) and not _one_to_one and not _flat_2d and not _world_map:
+			#
+			# THE TEST IS THE WIRE'S OWN `liquid` FLAG, not the tile name. It used to be
+			# _is_world_water(), which lowercases the FILE NAME and looks for "water" — but a
+			# zone liquid is Liquids/Water/deep-00100010.png, whose file name is
+			# "deep-00100010.png". The word lives in the DIRECTORY, and get_file() throws that
+			# away, so this whole branch was dead for every river and every puddle in the game
+			# and only ever fired for world-map cards. Qud marks liquids outright; ask it, per
+			# the standing rule about Qud predicates over tile-name inference. The world-map
+			# test stays OR'd in so those cards keep the treatment they already had.
+			if (bool(obj.get("liquid", false)) or _is_world_water(tile)) \
+					and not _one_to_one and not _flat_2d and not _world_map:
 				fmat = _water_surface_material(tile, main_c, detail_c, tex)
 				_floor_batch_add(_color_material(Color(0.03, 0.10, 0.10)),
 					Transform3D(Basis(), Vector3(cx, y - 0.012, cy)))
