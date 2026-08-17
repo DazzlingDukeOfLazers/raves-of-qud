@@ -2110,3 +2110,16 @@ solid objects (a gearbox stub running into a wall) is occluded from BOTH of the 
 along its own axis by construction. Verify it from the builder — a `print()` reaches
 `~/Library/Application Support/Godot/app_userdata/Raves of Qud/logs/raves.log` in the exported
 app — and use the picture for looks, not for existence.
+
+## Derive a sub-grid's CELL SIZE from the art — don't divide the footprint by three
+
+The gearbox roof's vane is a 3x3 grid, so the obvious code splits the 10-voxel footprint into
+three bands (3/4/3). That is wrong and it looks wrong: the art's line is **2 of the housing's
+10 columns**, and its three positions cover **6** of them, leaving 2 columns of margin each
+side. Dividing by three gives a vane twice the drawn width with no margin at all — the roof
+reads as two slabs with a canyon between them rather than a groove.
+
+The rule generalises: when art shows a repeating sub-feature, measure the FEATURE (its width at
+the housing's centre row) and scale that onto the voxel footprint. The number of cells is the
+structure; the cell size is data. Same family as the canonical-frame rule above — every time a
+proportion gets invented instead of measured, it costs a build.

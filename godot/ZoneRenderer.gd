@@ -2643,6 +2643,76 @@ func _conduit_is_junction(dirs: String) -> bool:
 	return has_ew and has_ns or dirs.length() > 2
 
 
+## The vane's 3x3 grid, MEASURED off the art: the line's own width at the housing's centre
+## row, scaled from the art's housing width onto the voxel footprint. Returns (cell, offset).
+##
+## Splitting the footprint into equal thirds instead — which is the obvious thing to write and
+## is wrong — gives a vane twice the width the art draws and leaves it no margin at all. The
+## art's line is 2 of the housing's 10 columns and its three positions cover 6 of them, so the
+## grid is 6 wide inside a 10-wide roof with 2 columns spare on each side. Daniel's structure
+## (a 3x3 with the pattern rotating around it) was right; the cell size had to come from the
+## art, not from dividing by three.
+func _vane_grid(ftile: String, btop: int, bbot: int, x0: int, x1: int, n: int) -> Vector2i:
+	var cell := 1
+	var m := _mask(ftile)
+	if m != null:
+		var rc: int = int((btop + bbot) * 0.5)
+		var wid := 0
+		for x in range(x0, x1 + 1):
+			if m.get_pixel(x, rc).a < 0.5:
+				wid += 1
+		if wid > 0:
+			cell = maxi(1, int(round(float(wid) * float(n) / float(x1 - x0 + 1))))
+	cell = mini(cell, maxi(1, n / 3))
+	return Vector2i(cell, int((n - 3 * cell) / 2))
+
+
+## Which way the roof's vane lies in THIS frame, read off the art rather than assumed: the mean
+## column of the transparent line one row above centre versus one row below. +1 leans the way
+## the art's "\" does (column grows with row, i.e. x grows with z), -1 the other, 0 straight
+## along z. The art shows 3 of the 4 orientations a line can take on a 3x3 — never the
+## horizontal — so this reports what is drawn and invents no fourth frame.
+func _gearbox_vane_dir(ftile: String, btop: int, bbot: int, x0: int, x1: int) -> int:
+	var m := _mask(ftile)
+	if m == null:
+		return 0
+	var rc: int = int((btop + bbot) * 0.5)
+	var mean := []
+	for r in [rc - 1, rc + 1]:
+		if r < 0 or r >= m.get_height():
+			return 0
+		var tot := 0.0
+		var n := 0
+		for x in range(x0, x1 + 1):
+			if m.get_pixel(x, r).a < 0.5:
+				tot += x
+				n += 1
+		if n == 0:
+			return 0
+		mean.append(tot / float(n))
+	var d: float = float(mean[1]) - float(mean[0])
+	if absf(d) < 0.5:
+		return 0
+	return 1 if d > 0.0 else -1
+
+
+## The footprint voxels the vane covers, as a set of (ax, az) — the centre band cell plus the
+## two opposite corner/edge cells its orientation picks out of the 3x3.
+func _vane_cells(vdir: int, cell: int, off: int) -> Dictionary:
+	var pairs: Array = [Vector2i(1, 0), Vector2i(1, 1), Vector2i(1, 2)]
+	if vdir > 0:
+		pairs = [Vector2i(0, 0), Vector2i(1, 1), Vector2i(2, 2)]
+	elif vdir < 0:
+		pairs = [Vector2i(2, 0), Vector2i(1, 1), Vector2i(0, 2)]
+	var out := {}
+	for pr in pairs:
+		var bc: Vector2i = pr
+		for ax in range(off + bc.x * cell, off + (bc.x + 1) * cell):
+			for az in range(off + bc.y * cell, off + (bc.y + 1) * cell):
+				out[Vector2i(ax, az)] = true
+	return out
+
+
 ## The gearbox at a shaft junction: a solid brown prism spanning the cell, with a HOLE in
 ## each face a shaft arrives at (Daniel: "a brown rectangular prism with a 'hole' on the
 ## south and east sides. The hole is just 1 layer of the face cutout and the core is the
@@ -2682,6 +2752,14 @@ func _place_conduit_box(tile: String, main_c: String, detail_c: String, cx: int,
 			break
 	if btop < 0:
 		return
+	# the housing's column span — the window the vane is read from, and solid across row btop
+	var hx0 := -1
+	var hx1 := -1
+	for x in jw:
+		if jmask.get_pixel(x, btop).a >= 0.5:
+			if hx0 < 0:
+				hx0 = x
+			hx1 = x
 	# the shaft's own section, from the straight canon — the hole must match what arrives
 	# The hole must match the shaft that ARRIVES, and the straight variant's frames are not
 	# all the same height (_2 is a 2-row band where _1 and _3 are 4). Reading whichever one
@@ -2755,46 +2833,79 @@ func _place_conduit_box(tile: String, main_c: String, detail_c: String, cx: int,
 	var n_h: int = _gearbox_span(srows, jw)            # box width in voxels, both axes
 	var lo: int = int((n_h - hole_w) / 2)              # centred on the face by construction
 	var hi: int = lo + hole_w - 1
-	var solid := {}
-	for ax in n_h:
-		for vy in n_rows:
-			for az in n_h:
-				var in_hole_e: bool = dirs.contains("e") and ax == n_h - 1 and az >= lo and az <= hi and vy >= vlo and vy <= vhi
-				var in_hole_w: bool = dirs.contains("w") and ax == 0 and az >= lo and az <= hi and vy >= vlo and vy <= vhi
-				var in_hole_s: bool = dirs.contains("s") and az == n_h - 1 and ax >= lo and ax <= hi and vy >= vlo and vy <= vhi
-				var in_hole_n: bool = dirs.contains("n") and az == 0 and ax >= lo and ax <= hi and vy >= vlo and vy <= vhi
-				if in_hole_e or in_hole_w or in_hole_s or in_hole_n:
-					continue                # the cut-away outer layer
-				# the layer directly behind a hole is the darkness you see into
-				var behind: bool = (dirs.contains("e") and ax == n_h - 2 and az >= lo and az <= hi and vy >= vlo and vy <= vhi) \
-					or (dirs.contains("w") and ax == 1 and az >= lo and az <= hi and vy >= vlo and vy <= vhi) \
-					or (dirs.contains("s") and az == n_h - 2 and ax >= lo and ax <= hi and vy >= vlo and vy <= vhi) \
-					or (dirs.contains("n") and az == 1 and ax >= lo and ax <= hi and vy >= vlo and vy <= vhi)
-				solid[Vector3i(ax, vy, az)] = dark if behind else brown
-	if solid.is_empty():
-		return
-	var stool := SurfaceTool.new()
-	stool.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for key in solid:
-		var v: Vector3i = key
-		# centred in the cell now that the sides are pulled in; row 0 still on the floor
-		var half_w: float = n_h * vlen * 0.5
-		var o := Vector3(cx - half_w + v.x * vlen, v.y * vs, cy - half_w + v.z * vlen)
-		_vox_block(stool, o, Vector3(vlen, vs, vlen), solid[key],
-			[not solid.has(v + Vector3i(-1, 0, 0)), not solid.has(v + Vector3i(1, 0, 0)),
-			 not solid.has(v + Vector3i(0, -1, 0)), not solid.has(v + Vector3i(0, 1, 0)),
-			 not solid.has(v + Vector3i(0, 0, -1)), not solid.has(v + Vector3i(0, 0, 1))])
-	var mesh := ArrayMesh.new()
-	stool.commit(mesh)
-	var mi := MeshInstance3D.new()
-	mi.mesh = mesh
-	var bm: StandardMaterial3D = _vox_skin_material().duplicate()
-	bm.albedo_color = Color(light_frac, light_frac, light_frac)
-	mi.material_override = bm
-	_spawn_parent().add_child(mi)
-	if _live_build:
-		_lit_meshes.append({"mi": mi, "cell": Vector2i(cx, cy)})
-	_track(mi)
+	# THE ROOF'S TURNING VANE. This tile is a PLAN, not an elevation — the east stub runs right
+	# and the south stub runs down — so the housing's interior is the roof seen from above, and
+	# the transparent line pivoting about its centre is a vane turning (Daniel: "It's a 3x3 grid
+	# of 3 pixel wide cells. The pattern rotates around the cell"). Transparent means the cell
+	# background shows through, so the vane is cut as a GROOVE with darkness at the bottom of
+	# it: the shaft opening's trick, one surface up.
+	#
+	# One whole housing per frame, stepped by visibility, because a groove is grid-aligned
+	# geometry — unlike the shafts, which rotate continuously, a roof that spun off its own
+	# lattice would poke out past the housing's edges.
+	var frames := _anim_frame_tiles(anim, tile)
+	var grid := _vane_grid(String(frames[0]), btop, bbot, hx0, hx1, n_h)
+	var roof: Array = []
+	for fi in frames.size():
+		var groove := _vane_cells(_gearbox_vane_dir(String(frames[fi]), btop, bbot, hx0, hx1),
+			grid.x, grid.y)
+		var solid := {}
+		for ax in n_h:
+			for vy in n_rows:
+				for az in n_h:
+					var in_hole_e: bool = dirs.contains("e") and ax == n_h - 1 and az >= lo and az <= hi and vy >= vlo and vy <= vhi
+					var in_hole_w: bool = dirs.contains("w") and ax == 0 and az >= lo and az <= hi and vy >= vlo and vy <= vhi
+					var in_hole_s: bool = dirs.contains("s") and az == n_h - 1 and ax >= lo and ax <= hi and vy >= vlo and vy <= vhi
+					var in_hole_n: bool = dirs.contains("n") and az == 0 and ax >= lo and ax <= hi and vy >= vlo and vy <= vhi
+					if in_hole_e or in_hole_w or in_hole_s or in_hole_n:
+						continue                # the cut-away outer layer
+					var in_vane: bool = groove.has(Vector2i(ax, az))
+					if vy == n_rows - 1 and in_vane:
+						continue                # the groove itself
+					# the layer directly behind a hole is the darkness you see into
+					var behind: bool = (dirs.contains("e") and ax == n_h - 2 and az >= lo and az <= hi and vy >= vlo and vy <= vhi) \
+						or (dirs.contains("w") and ax == 1 and az >= lo and az <= hi and vy >= vlo and vy <= vhi) \
+						or (dirs.contains("s") and az == n_h - 2 and ax >= lo and ax <= hi and vy >= vlo and vy <= vhi) \
+						or (dirs.contains("n") and az == 1 and ax >= lo and ax <= hi and vy >= vlo and vy <= vhi) \
+						or (vy == n_rows - 2 and in_vane)
+					solid[Vector3i(ax, vy, az)] = dark if behind else brown
+		if solid.is_empty():
+			return
+		var stool := SurfaceTool.new()
+		stool.begin(Mesh.PRIMITIVE_TRIANGLES)
+		for key in solid:
+			var v: Vector3i = key
+			# centred in the cell now that the sides are pulled in; row 0 still on the floor
+			var half_w: float = n_h * vlen * 0.5
+			var o := Vector3(cx - half_w + v.x * vlen, v.y * vs, cy - half_w + v.z * vlen)
+			_vox_block(stool, o, Vector3(vlen, vs, vlen), solid[key],
+				[not solid.has(v + Vector3i(-1, 0, 0)), not solid.has(v + Vector3i(1, 0, 0)),
+				 not solid.has(v + Vector3i(0, -1, 0)), not solid.has(v + Vector3i(0, 1, 0)),
+				 not solid.has(v + Vector3i(0, 0, -1)), not solid.has(v + Vector3i(0, 0, 1))])
+		var mesh := ArrayMesh.new()
+		stool.commit(mesh)
+		var mi := MeshInstance3D.new()
+		mi.mesh = mesh
+		var bm: StandardMaterial3D = _vox_skin_material().duplicate()
+		bm.albedo_color = Color(light_frac, light_frac, light_frac)
+		mi.material_override = bm
+		mi.visible = fi == 0
+		_spawn_parent().add_child(mi)
+		if _live_build:
+			_lit_meshes.append({"mi": mi, "cell": Vector2i(cx, cy)})
+		roof.append(mi)
+		_track(mi)
+	# _anim_marks already hands back the driver's sched shape, parallel to _anim_frame_tiles
+	var marks := _anim_marks(anim)
+	if _live_build and roof.size() > 1 and marks.size() == roof.size():
+		# SLOWED to the shafts' cadence, for the same reason they were: Qud steps this cycle
+		# three times a second, which reads as texture on a flat tile and as a flicker on solid
+		# geometry. The vane and the shafts are one machine and must turn like it.
+		var rsched: Array = []
+		for mk in marks:
+			rsched.append({"f": int(round(float(mk["f"]) * AXLE_SPIN_SLOW))})
+		_anim_sprites.append({"nodes": roof, "sched": rsched,
+			"len": int(maxi(_anim_len(anim), 1) * AXLE_SPIN_SLOW)})
 
 	# A HOLE WITH NOTHING IN IT. The housing's connection set says a shaft leaves in every
 	# direction of `dirs`, but only a neighbouring axle OBJECT ever drew one — and at the
