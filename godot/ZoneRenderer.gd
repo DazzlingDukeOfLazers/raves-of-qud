@@ -538,6 +538,8 @@ func render_snapshot(data: Dictionary, neighbors: Array = []) -> void:
 		_placed.clear()
 		_lights.clear()                # the old live zone's torches stop flickering
 		_lit_sprites.clear()           # the old zone's plant/scenery sprites, re-lit each turn
+		_anim_sprites.clear()          # and its multi-frame sprites — cleared here because
+		                               # _build_static follows immediately and re-registers them
 		_lit_meshes.clear()            # and its connector panels (fences/pipes)
 		_wall_cutaway.clear()          # and its wall nodes tracked for camera cutaway
 		_drop_static(live_id)          # replace any stale (neighbour-built) copy
@@ -795,6 +797,13 @@ func _ib_abort() -> void:
 ## Re-place ONLY the live zone's creatures, every step, into _dynamic_root (cleared
 ## first). Few objects, so this is the cheap per-step cost that replaced the ~69ms
 ## full rebuild. Not noted (the inspector's _placed holds the static zone).
+## Multi-frame STATIC billboards (millstone, water wheel). Deliberately NOT in
+## _anim_items: that list is cleared by _rebuild_dynamics every turn because its nodes
+## are _dynamic_root children, and a static sprite is not — registering there meant the
+## millstone animated until the first turn and then stopped dead. Cleared with the other
+## static registries when the zone rebuilds.
+var _anim_sprites: Array = []
+
 var _occupied := {}   # creature cells this turn (Vector2i -> true), for the winner rule
 
 func _rebuild_dynamics(cells: Array) -> void:
@@ -2037,7 +2046,7 @@ func _process(_dt: float) -> void:
 	# _register_sprite_anim) was half a feature until this guard came off. Safe in user
 	# mode because the 1:1-only kinds are registered by _register_anim, which is still
 	# gated to full_1to1: user mode puts nothing but "tileframes" in the list.
-	if _one_to_one or not _anim_items.is_empty():
+	if _one_to_one or not _anim_sprites.is_empty():
 		_animate_1to1()          # Qud's per-frame render programs (blinks, flashes, sparkles)
 	if _ib_active:
 		_ib_step()               # advance the incremental live-static build one chunk per frame
@@ -5897,6 +5906,12 @@ func _floor_batch_add(mat: Material, xform: Transform3D) -> void:
 ## The sprite keeps the BASE tile's region_rect, so a frame whose opaque band differs
 ## swaps art without the billboard jumping on its seat.
 func _register_sprite_anim(obj: Dictionary, s: Sprite3D, tile: String, base_tex: Texture2D) -> void:
+	# STATIC pass only. The dynamic pass re-places creatures every turn, so registering
+	# from there both churns the registry and points it at pooled sprites that get reused
+	# under it. Static scenery — millstone, water wheel, box grill — is what has a
+	# multi-frame tile schedule worth driving.
+	if not _live_build:
+		return
 	var spec := String(obj.get("animSched", ""))
 	if spec == "":
 		return
@@ -5921,7 +5936,7 @@ func _register_sprite_anim(obj: Dictionary, s: Sprite3D, tile: String, base_tex:
 				any_tile = true
 		sched.append({"f": int(kv[0]), "tex": tex})
 	if any_tile and sched.size() > 1:
-		_anim_items.append({"kind": "tileframes", "sprite": s, "len": alen, "sched": sched})
+		_anim_sprites.append({"sprite": s, "len": alen, "sched": sched})
 
 
 func _register_anim(win: Dictionary, cx: int, cy: int) -> void:
@@ -6185,6 +6200,22 @@ func _overlay_quad(tex: Texture2D, cx: int, cy: int, y: float, flip := false, co
 ## phases can't sync with Qud's counter, but every duty cycle and period matches.
 func _animate_1to1() -> void:
 	var ms := Time.get_ticks_msec()
+	# STATIC multi-frame billboards, in BOTH modes. Same step rule and same 60fps clock
+	# as the "frames" kind below; the difference is that the frame IS the sprite's own
+	# texture, not an overlay quad laid over a flat tile.
+	for a in _anim_sprites:
+		var sp := a["sprite"] as Sprite3D
+		if sp == null or not is_instance_valid(sp):
+			continue
+		var tf := int(ms * 0.06) % int(a["len"])
+		var tsched: Array = a["sched"]
+		var tact := 0
+		for si in tsched.size():
+			if tf >= int(tsched[si]["f"]):
+				tact = si
+		var want: Texture2D = tsched[tact]["tex"]
+		if sp.texture != want:
+			sp.texture = want
 	var qf := int(ms * 0.06) % 60
 	if _anim_tnode != null and is_instance_valid(_anim_tnode):
 		_anim_tnode.visible = (qf < 15) or (qf >= 30 and qf < 45)   # RenderTarget's blink windows
@@ -6221,20 +6252,6 @@ func _animate_1to1() -> void:
 				var fn := sched[si]["node"] as MeshInstance3D
 				if fn != null and is_instance_valid(fn):
 					fn.visible = si == active
-		elif kind == "tileframes":
-			# Same step rule and same 60fps clock as "frames" above; the only
-			# difference is that the frame IS the sprite's texture, not an overlay.
-			var sp := it["sprite"] as Sprite3D
-			if sp != null and is_instance_valid(sp):
-				var tf := int(ms * 0.06) % int(it["len"])
-				var tsched: Array = it["sched"]
-				var tact := 0
-				for si in tsched.size():
-					if tf >= int(tsched[si]["f"]):
-						tact = si
-				var want: Texture2D = tsched[tact]["tex"]
-				if sp.texture != want:
-					sp.texture = want
 		elif kind == "glowpulse":
 			# TreeGlow breathing: two incommensurate sines so the pulse never
 			# phase-locks with the capture cadence (measured amplitude ~±3%).
