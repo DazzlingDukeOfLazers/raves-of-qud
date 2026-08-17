@@ -2983,7 +2983,7 @@ const WHEEL_PANELS := 12
 ## (Daniel: "otherwise it won't dip into the water"). 2.0 put 18% of the wheel under; 1.5 —
 ## where Daniel settled it — puts the lowest 7% under, so it still breaks the surface but reads
 ## a good deal less monumental.
-const WHEEL_SCALE := 1.5
+const WHEEL_SCALE := 1.2
 
 ## One revolution in the time the shafts take. The wheel and the axle run are ONE shaft, direct
 ## drive with no gearing between them, so they turn at the same rate or the machine reads as
@@ -3055,17 +3055,8 @@ func _place_waterwheel(obj: Dictionary, tile: String, cx: int, cy: int, light_fr
 	var yc: float = FLOAT_Y
 	var root := Node3D.new()
 	root.transform = Transform3D(Basis(), Vector3(cx, yc, cy))
-	# TREAD: one panel per paddle, alpha where the art has no wood so you see BETWEEN the
-	# paddles — a paddle wheel is open there, and painting it dark would read as a drum.
-	var period: int = maxi(2, int(round((bot - top + 1) / float(WHEEL_PANELS) * PI)))
-	var tread := Image.create(period, wc.y - wc.x + 1, false, Image.FORMAT_RGBA8)
-	var y0: int = int((top + bot) * 0.5) - period / 2
-	for u in period:
-		for v in (wc.y - wc.x + 1):
-			var mrow: int = clampi(y0 + u, 0, mask.get_height() - 1)
-			var on: bool = mask.get_pixel(wc.x + v, mrow).a >= 0.5
-			tread.set_pixel(u, v, wood if on else Color(0, 0, 0, 0))
-	# FACE: the proposal half — WHEEL_PANELS spokes, a hub and a rim band, in the tread's colour
+	# The CROSS-SECTION: WHEEL_PANELS spokes, a hub and a rim band, in the wood's colour. It was
+	# the end cap of a cylinder; it is now the profile the whole wheel is extruded from.
 	var fs: int = bot - top + 1
 	var face := Image.create(fs, fs, false, Image.FORMAT_RGBA8)
 	var c: float = (fs - 1) * 0.5
@@ -3079,8 +3070,12 @@ func _place_waterwheel(obj: Dictionary, tile: String, cx: int, cy: int, light_fr
 				var ang: float = (atan2(dy, dx) + PI) / TAU
 				on2 = d < c * 0.16 or d > c * 0.86 or fposmod(ang * WHEEL_PANELS, 1.0) < 0.30
 			face.set_pixel(px, py, wood if on2 else Color(0, 0, 0, 0))
-	_add_wheel_surface(root, _wheel_side_mesh(r, thick), tread, light_frac)
-	_add_wheel_surface(root, _wheel_cap_mesh(r, thick), face, light_frac)
+	var mi := MeshInstance3D.new()
+	mi.mesh = _wheel_extrude_mesh(face, r, thick)
+	var wm: StandardMaterial3D = _vox_skin_material().duplicate()
+	wm.albedo_color = Color(light_frac, light_frac, light_frac)
+	mi.material_override = wm
+	root.add_child(mi)
 	_spawn_parent().add_child(root)
 	_wheel_spill(obj, tile, mask, img, top, bot, r, thick, cx, cy)
 	if _live_build:
@@ -3209,59 +3204,44 @@ func _wheel_spill(obj: Dictionary, tile: String, mask: Image, img: Image, top: i
 	_track(pt)
 
 
-## The 12 tread panels, as a prism about local +X (the axle line). U runs around the rim so the
-## tread map tiles once per panel; V runs along the axle.
-func _wheel_side_mesh(r: float, thick: float) -> ArrayMesh:
+## The wheel as its cross-section EXTRUDED along the axle, not as a cylinder.
+##
+## Daniel: "Instead of a cylinder, is it possible to take the endcap pattern and extrude it the
+## length of the waterwheel? The current cylinder round 'side' is less visually close to what
+## we want. The endcaps are very close to what we want."
+##
+## So spokes, hub and rim become plates running the full thickness, and the gaps between them
+## become holes you see straight through. What goes away is the tread: a smooth round band
+## wearing a texture, which was the one surface that never looked like the drawing. The wheel
+## is voxels now, like every other derived shape here, so it picks up the same baked face
+## shading and needs no alpha at all — the holes are absent geometry rather than clear pixels.
+func _wheel_extrude_mesh(face: Image, r: float, thick: float) -> ArrayMesh:
+	var fs := face.get_width()
+	var step: float = 2.0 * r / float(fs)
+	var on := {}
+	for py in fs:
+		for px in fs:
+			var c := face.get_pixel(px, py)
+			if c.a >= 0.5:
+				on[Vector2i(px, py)] = c
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var hx: float = thick * 0.5
-	for i in WHEEL_PANELS:
-		var a0: float = i * TAU / WHEEL_PANELS
-		var a1: float = (i + 1) * TAU / WHEEL_PANELS
-		var p0 := Vector3(0.0, r * sin(a0), r * cos(a0))
-		var p1 := Vector3(0.0, r * sin(a1), r * cos(a1))
-		var quad := [[Vector3(-hx, p0.y, p0.z), Vector2(0, 0)], [Vector3(hx, p0.y, p0.z), Vector2(0, 1)],
-			[Vector3(hx, p1.y, p1.z), Vector2(1, 1)], [Vector3(-hx, p1.y, p1.z), Vector2(1, 0)]]
-		for k in [0, 1, 2, 0, 2, 3]:
-			st.set_uv(quad[k][1])
-			st.set_normal(Vector3(0, p0.y, p0.z).normalized())
-			st.add_vertex(quad[k][0])
+	var mid: float = (fs - 1) * 0.5
+	for key in on:
+		var k: Vector2i = key
+		# image +y runs DOWN and world +y runs UP, so the row flips; the column maps to z as is
+		var o := Vector3(-thick * 0.5,
+			-(k.y - mid) * step - step * 0.5,
+			(k.x - mid) * step - step * 0.5)
+		# [-X, +X, -Y, +Y, -Z, +Z]: the two ends of the extrusion are always exposed, and the
+		# four in-plane faces are buried wherever the profile has a neighbour
+		_vox_block(st, o, Vector3(thick, step, step), on[k],
+			[true, true,
+			 not on.has(k + Vector2i(0, 1)), not on.has(k + Vector2i(0, -1)),
+			 not on.has(k + Vector2i(-1, 0)), not on.has(k + Vector2i(1, 0))])
 	var m := ArrayMesh.new()
 	st.commit(m)
 	return m
-
-## Both end caps as fans, UV'd into the square face map so the disc lands inscribed.
-func _wheel_cap_mesh(r: float, thick: float) -> ArrayMesh:
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for side in [-1.0, 1.0]:
-		var hx: float = thick * 0.5 * side
-		for i in WHEEL_PANELS:
-			var a0: float = i * TAU / WHEEL_PANELS
-			var a1: float = (i + 1) * TAU / WHEEL_PANELS
-			var tri := [[Vector3(hx, 0, 0), Vector2(0.5, 0.5)],
-				[Vector3(hx, r * sin(a0), r * cos(a0)), Vector2(0.5 + 0.5 * cos(a0), 0.5 + 0.5 * sin(a0))],
-				[Vector3(hx, r * sin(a1), r * cos(a1)), Vector2(0.5 + 0.5 * cos(a1), 0.5 + 0.5 * sin(a1))]]
-			for k in ([0, 1, 2] if side > 0.0 else [0, 2, 1]):
-				st.set_uv(tri[k][1])
-				st.set_normal(Vector3(side, 0, 0))
-				st.add_vertex(tri[k][0])
-	var m := ArrayMesh.new()
-	st.commit(m)
-	return m
-
-func _add_wheel_surface(root: Node3D, mesh: ArrayMesh, img: Image, light_frac: float) -> void:
-	var mi := MeshInstance3D.new()
-	mi.mesh = mesh
-	var m := StandardMaterial3D.new()
-	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	m.cull_mode = BaseMaterial3D.CULL_DISABLED
-	m.albedo_texture = ImageTexture.create_from_image(img)
-	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
-	m.albedo_color = Color(light_frac, light_frac, light_frac)
-	mi.material_override = m
-	root.add_child(mi)
 
 
 ## Connector families built as a turning PRISM rather than a flat panel. Axles only:
@@ -4343,7 +4323,7 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 
 	if verdict == "waterwheel" and not _flat_2d and not _one_to_one:
 		if _place_waterwheel(obj, tile, cx, cy, light_frac):
-			_note(cx, cy, idx, "waterwheel(%d-panel cylinder on an E-W axle, tread+face UV from the art, user verdict)" % WHEEL_PANELS, 0.5)
+			_note(cx, cy, idx, "waterwheel(%d-spoke profile EXTRUDED along an E-W axle, voxel, user verdict)" % WHEEL_PANELS, 0.5)
 			return
 		# fall through to the billboard path if the art defeats the derivation
 
