@@ -58,6 +58,14 @@ var _underground := false
 var _world_map := false           # zone.z < 0: the parasang overview — flat & lit, no torch glows
 const SURFACE_Z := 10
 const DARK_MAX := 0.94          # deepest per-cell darkening (never pure black — faint memory)
+
+## Qud's remembered ground, MEASURED off the wire: every one of Joppa's 1107 painted-ground
+## entries reports memColor "&K" / memDetail "k" — #155352 — whatever it looks like when lit
+## (tan, pale, green, bright green all collapse to it). Out-of-sight ground is therefore MIXED
+## toward that flat colour rather than darkened toward black: a multiply cannot reach a flat
+## target, and tan ground times a teal tint lands olive, not teal.
+const GHOST_GROUND := Color("#155352")
+const GHOST_MIX := 0.88         # a trace of the tile still shows under the ghost, as Qud's does
 const DARK_FLOOR_Y := 0.07      # darkness quad sits just above the floor tiles
 const DARK_ROOF_Y := WALL_H + 0.02   # and just above wall roofs, to dun unlit rock tops
 var _dark_mat: StandardMaterial3D
@@ -1060,14 +1068,23 @@ func _view_tint(cell: Dictionary) -> Color:
 ## a zone they've LEFT it must be erased or it hangs there as a cropped light. Left invalid
 ## (default) for the live zone, whose player disc is real and should stay.
 const FROZEN_LIGHT_CLEAR_R := 7.0    # radius of player sight-disc to blank out in frozen zones
+## The overlay's colour AND alpha for one cell: darkness toward black while the cell is SEEN,
+## the remembered ghost once it is not. Memory does not dim with the cell's current light.
+func _dark_layer(k: Vector2i, frac: Dictionary, seen: Dictionary, fallback: float) -> Color:
+	if not bool(seen.get(k, true)):
+		return Color(GHOST_GROUND.r, GHOST_GROUND.g, GHOST_GROUND.b, GHOST_MIX)
+	return Color(0, 0, 0, (1.0 - float(frac.get(k, fallback))) * DARK_MAX)
+
 func _build_darkness(cells: Array, parent: Node, clear_player := Vector2i(-9999, -9999)) -> void:
 	var clearing: bool = clear_player.x > -9000
 	var cpf := Vector2(clear_player)
 	# pass 1: per-cell light fraction + which cells are walls (to find exposed faces).
 	var frac := {}
 	var walls := {}
+	var seen := {}
 	for cell in cells:
 		var k := Vector2i(int(cell.get("x", 0)), int(cell.get("y", 0)))
+		seen[k] = _cell_seen(cell)
 		var f := _view_frac(cell)      # light AND fog, so the ground matches what stands on it
 		if clearing and (Vector2(k) - cpf).length() <= FROZEN_LIGHT_CLEAR_R:
 			f = 0.0                      # erase the departed player's sight-disc
@@ -1095,20 +1112,21 @@ func _build_darkness(cells: Array, parent: Node, clear_player := Vector2i(-9999,
 		var k := Vector2i(int(cell.get("x", 0)), int(cell.get("y", 0)))
 		var cx := float(k.x)
 		var cy := float(k.y)
+		var c := _dark_layer(k, frac, seen, 1.0)
 		if walls.has(k):
-			var a := (1.0 - float(frac[k])) * DARK_MAX
-			if a >= 0.02:
-				_dark_quad(st, cx, cy, DARK_ROOF_Y, a); any = true
+			if c.a >= 0.02:
+				_dark_quad(st, cx, cy, DARK_ROOF_Y, c); any = true
 			for d in sides:
 				if walls.has(k + d):
 					continue                       # interior face: not visible
-				var sa := (1.0 - float(frac.get(k + d, frac[k]))) * DARK_MAX
-				if sa >= 0.02:
-					_dark_side(st, cx, cy, d, sa); any = true
+				# a face takes the state of the OPEN cell it faces — that is what lights it,
+				# and that is what the player would or would not be seeing
+				var sc := _dark_layer(k + d, frac, seen, float(frac[k]))
+				if sc.a >= 0.02:
+					_dark_side(st, cx, cy, d, sc); any = true
 		else:
-			var a := (1.0 - float(frac[k])) * DARK_MAX
-			if a >= 0.02:
-				_dark_quad(st, cx, cy, DARK_FLOOR_Y, a); any = true
+			if c.a >= 0.02:
+				_dark_quad(st, cx, cy, DARK_FLOOR_Y, c); any = true
 	if not any:
 		return
 	var mi := MeshInstance3D.new()
@@ -1116,9 +1134,9 @@ func _build_darkness(cells: Array, parent: Node, clear_player := Vector2i(-9999,
 	mi.material_override = _dark_material()
 	parent.add_child(mi)
 
-## One black quad (two tris) over cell (cx,cy) at height y, vertex alpha = a.
-func _dark_quad(st: SurfaceTool, cx: float, cy: float, y: float, a: float) -> void:
-	var c := Color(0, 0, 0, a)
+## One overlay quad (two tris) over cell (cx,cy) at height y, in vertex colour `c` — black to
+## darken a lit cell, the remembered ghost for a cell out of sight.
+func _dark_quad(st: SurfaceTool, cx: float, cy: float, y: float, c: Color) -> void:
 	for p in [Vector3(cx - 0.5, y, cy - 0.5), Vector3(cx + 0.5, y, cy - 0.5), Vector3(cx + 0.5, y, cy + 0.5),
 			Vector3(cx - 0.5, y, cy - 0.5), Vector3(cx + 0.5, y, cy + 0.5), Vector3(cx - 0.5, y, cy + 0.5)]:
 		st.set_color(c)
@@ -1126,8 +1144,7 @@ func _dark_quad(st: SurfaceTool, cx: float, cy: float, y: float, a: float) -> vo
 
 ## A vertical dark quad on cell (cx,cy)'s face toward d (full cell width, 0..WALL_H),
 ## nudged just OUTSIDE the wall face so it darkens it from the open side without z-fight.
-func _dark_side(st: SurfaceTool, cx: float, cy: float, d: Vector2i, a: float) -> void:
-	var c := Color(0, 0, 0, a)
+func _dark_side(st: SurfaceTool, cx: float, cy: float, d: Vector2i, c: Color) -> void:
 	var e := 0.01
 	var v: Array
 	if d.x != 0:

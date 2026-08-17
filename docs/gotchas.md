@@ -2170,3 +2170,18 @@ which is exactly what it turned out to be.
 
 **Qud draws one thing per cell: the highest `layer`.** Any question of the form "what does Qud
 show here" must be answered from `layer`, never from array position.
+
+## Qud's memory ghost is NOT dimmed by time of day; Raves' overlay is
+
+Qud draws a remembered cell in its ghost colours (`memColor` "&K" / `memDetail` "k", #155352 —
+measured: all 1107 of Joppa's painted-ground entries report it, whatever the ground looks like
+lit) at a FIXED level. Memory does not get darker at night; you remember the room.
+
+Raves paints the ghost with the per-cell overlay, which then goes through the day/night grade
+like everything else, so at hour 22 the remembered ground lands near rgb(1,15,18) — teal-hued
+but effectively black. That is the "big black bands" in a night top-down view, and it is why
+they survived both withdrawing the unexplored gate and flattening the memory level: neither
+touched the grade.
+
+Measure hue RATIOS, not brightness, when checking this — a near-black pixel that is still
+g,b > r is the ghost surviving the grade, not an absence of geometry.
