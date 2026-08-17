@@ -636,7 +636,7 @@ func _place_cell(cell: Dictionary, offset: Vector2i, wall_cells: Dictionary, ski
 	# state). Statics contribute nothing in 1:1.
 	if _one_to_one:
 		return
-	_door_wall_cells = wall_cells   # doors orient by the walls around them
+	_zone_wall_cells = wall_cells   # doors orient by it; gearboxes ask what they back onto
 	var cx := int(cell.get("x", 0)) + offset.x
 	var cy := int(cell.get("y", 0)) + offset.y
 	var in_wall: bool = wall_cells.has(Vector2i(cx, cy))
@@ -2188,7 +2188,7 @@ func _family_ew(tile: String) -> String:
 
 const DOOR_DEPTH_PX := 3.0    # slab thickness in art pixels (Daniel's spec)
 const DOOR_JAMB_PX := 1.0     # wall continuing into the doorway at each end
-var _door_wall_cells := {}    # cell -> wall variant, stashed per static build
+var _zone_wall_cells := {}    # cell -> wall variant, stashed per static build
 # cell -> the STATIC door's nodes. Doors change state (open/close) but bake
 # into the static pass — the live zone's dynamic pass hides the static pair
 # and redraws the door from the CURRENT wire state each turn (Daniel: "you
@@ -2206,10 +2206,10 @@ func _is_door(tile: String) -> bool:
 ## N/S). Pairs beat singles, singles beat none, and ties go E-W — a door
 ## continues its run, whatever its art claims.
 func _door_span_ew(cx: int, cy: int) -> bool:
-	var e := int(_door_wall_cells.has(Vector2i(cx + 1, cy)))
-	var w := int(_door_wall_cells.has(Vector2i(cx - 1, cy)))
-	var n := int(_door_wall_cells.has(Vector2i(cx, cy - 1)))
-	var s := int(_door_wall_cells.has(Vector2i(cx, cy + 1)))
+	var e := int(_zone_wall_cells.has(Vector2i(cx + 1, cy)))
+	var w := int(_zone_wall_cells.has(Vector2i(cx - 1, cy)))
+	var n := int(_zone_wall_cells.has(Vector2i(cx, cy - 1)))
+	var s := int(_zone_wall_cells.has(Vector2i(cx, cy + 1)))
 	return e + w >= n + s
 
 ## A door as a voxel slab set into its wall run: a 14px panel, DOOR_DEPTH_PX
@@ -2321,10 +2321,10 @@ func _place_door(tile: String, main_c: String, detail_c: String, cx: int, cy: in
 		_door_static[Vector2i(cx, cy)] = [fmi, tmi]   # dynamics hide + redraw per turn
 	_note(cx, cy, idx, "door slab %s (%dpx deep, %dpx jambs) walls e%d w%d n%d s%d" % [
 		"E-W" if ew else "N-S", int(DOOR_DEPTH_PX), int(DOOR_JAMB_PX),
-		int(_door_wall_cells.has(Vector2i(cx + 1, cy))),
-		int(_door_wall_cells.has(Vector2i(cx - 1, cy))),
-		int(_door_wall_cells.has(Vector2i(cx, cy - 1))),
-		int(_door_wall_cells.has(Vector2i(cx, cy + 1)))], WALL_H * 0.5)
+		int(_zone_wall_cells.has(Vector2i(cx + 1, cy))),
+		int(_zone_wall_cells.has(Vector2i(cx - 1, cy))),
+		int(_zone_wall_cells.has(Vector2i(cx, cy - 1))),
+		int(_zone_wall_cells.has(Vector2i(cx, cy + 1)))], WALL_H * 0.5)
 
 func _door_trim_quad(st: SurfaceTool, b: Array, ew: bool, c: Color, off := Vector3.ZERO) -> void:
 	# one plane: a-extent [b0,b1], depth [b2,b3], y [b4,b5]; b6 = normal hint
@@ -2369,7 +2369,7 @@ func _place_connector(tile: String, main_c: String, detail_c: String, cx: int, c
 	# housing (rows 6-12) with stubs leaving east and south, not an L of bare axle. Straight
 	# runs stay shafts; anything that turns or branches gets the box.
 	if _connector_is_prism(tile) and _conduit_is_junction(dirs):
-		_place_conduit_box(tile, main_c, detail_c, cx, cy, dirs, fill, y_center, light_frac)
+		_place_conduit_box(tile, main_c, detail_c, cx, cy, dirs, fill, y_center, light_frac, anim)
 		return
 	if dirs == "":
 		_fence_half(cx, cy, "post", tile, main_c, detail_c, h, fill, y_center, light_frac, anim)
@@ -2658,7 +2658,7 @@ func _conduit_is_junction(dirs: String) -> bool:
 ## The housing's height comes from the junction art's own box band. The spinny interior is
 ## not modelled yet; this is the basic geometry.
 func _place_conduit_box(tile: String, main_c: String, detail_c: String, cx: int, cy: int,
-		dirs: String, fill: int, y_center: float, light_frac: float) -> void:
+		dirs: String, fill: int, y_center: float, light_frac: float, anim: String) -> void:
 	var art := _panel_art(tile)
 	var jmask := _mask(tile)          # the JUNCTION art, not the straight canon
 	if jmask == null:
@@ -2796,6 +2796,46 @@ func _place_conduit_box(tile: String, main_c: String, detail_c: String, cx: int,
 		_lit_meshes.append({"mi": mi, "cell": Vector2i(cx, cy)})
 	_track(mi)
 
+	# A HOLE WITH NOTHING IN IT. The housing's connection set says a shaft leaves in every
+	# direction of `dirs`, but only a neighbouring axle OBJECT ever drew one — and at the
+	# Joppa mill the gearbox's south neighbour is a brinestalk wall, so that opening stared
+	# out at nothing (Daniel: "add another rotating i-beam coming from the gearbox to the
+	# wall block. N-S"). The gearbox grows the missing beam itself.
+	#
+	# ONLY where the neighbour is a wall, which is the whole point of the test: a wall cell
+	# never draws a shaft, while an axle neighbour already reaches into this recess. Emit in
+	# both cases and the two beams would occupy the same opening, z-fighting AND turning out
+	# of phase with each other, since nothing locks their clocks together.
+	var svs: float = srows * PIXEL_SIZE / 3.0     # the section _fence_half_prism builds
+	var half_w2: float = n_h * vlen * 0.5
+	var hy: float = (vlo + hole_h * 0.5) * vs     # dead centre of the opening, not merely near it
+	for d in dirs:
+		var step := Vector2i(1 if d == "e" else (-1 if d == "w" else 0),
+			1 if d == "s" else (-1 if d == "n" else 0))
+		if step == Vector2i.ZERO or not _zone_wall_cells.has(Vector2i(cx, cy) + step):
+			continue
+		# from the darkness behind the opening out to the cell edge, then one voxel INTO the
+		# wall, so the end cap is buried instead of showing as a disc stuck on the wall's face
+		var s0: float = half_w2 - vlen
+		var s1: float = 0.5 + vlen
+		var smi := MeshInstance3D.new()
+		smi.mesh = _ibeam_mesh(s1 - s0, svs, brown, dark)
+		var sm: StandardMaterial3D = _vox_skin_material().duplicate()
+		sm.albedo_color = Color(light_frac, light_frac, light_frac)
+		smi.material_override = sm
+		var shoriz: bool = d == "e" or d == "w"
+		var sb := Basis(Vector3.UP, 0.0 if shoriz else -PI * 0.5)
+		var mid: float = (s0 + s1) * 0.5 * (1.0 if (d == "e" or d == "s") else -1.0)
+		smi.transform = Transform3D(sb, Vector3(cx, hy, cy)
+			+ (Vector3(mid, 0.0, 0.0) if shoriz else Vector3(0.0, 0.0, mid)))
+		_spawn_parent().add_child(smi)
+		if _live_build:
+			_lit_meshes.append({"mi": smi, "cell": Vector2i(cx, cy)})
+			if anim != "":
+				_anim_sprites.append({"spin": smi, "base": sb,
+					"period": maxf(0.1, _anim_len(anim) / 60.0) * AXLE_SPIN_SLOW})
+		_track(smi)
+
 
 ## Connector families built as a turning PRISM rather than a flat panel. Axles only:
 ## Qud draws a shaft as a 4-row band whose lit rows shift between frames — surface
@@ -2811,6 +2851,36 @@ func _connector_is_prism(tile: String) -> bool:
 		if tile.contains(k):
 			return true
 	return false
+
+
+## The I-beam solid itself: a run of length `seg` with the section
+##
+##     b b b      flanges, `brown`
+##       D        the web, `dark` — and AIR in the two notches
+##     b b b
+##
+## Built in SHAFT-LOCAL space centred on the origin with local +x along the run, which is
+## what lets the caller yaw it onto a cell axis and the driver spin it about local +x. Both
+## ends are capped: a shaft's ends are buried in the recess it enters, and a gearbox stub's
+## far end is buried in the wall, so a cap is never the thing you see.
+func _ibeam_mesh(seg: float, vs: float, brown: Color, dark: Color) -> ArrayMesh:
+	var sec := {}
+	for col in 3:
+		sec[Vector2i(0, col)] = brown
+		sec[Vector2i(2, col)] = brown
+	sec[Vector2i(1, 1)] = dark
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for key in sec:
+		var rc: Vector2i = key
+		var o := Vector3(-seg * 0.5, (rc.x - 1.5) * vs, (rc.y - 1.5) * vs)
+		_vox_block(st, o, Vector3(seg, vs, vs), sec[key],
+			[true, true,
+			 not sec.has(rc + Vector2i(-1, 0)), not sec.has(rc + Vector2i(1, 0)),
+			 not sec.has(rc + Vector2i(0, -1)), not sec.has(rc + Vector2i(0, 1))])
+	var mesh := ArrayMesh.new()
+	st.commit(mesh)
+	return mesh
 
 
 ## One half-shaft as an I-BEAM of voxel blocks, spun about its own axis.
@@ -2868,12 +2938,6 @@ func _fence_half_prism(cx: int, cy: int, d: String, tile: String, main_c: String
 	var vs: float = band * PIXEL_SIZE / 3.0        # three voxels across, same total thickness
 	var horiz: bool = d == "e" or d == "w"
 	var yc: float = y_center if y_center >= 0.0 else FLOAT_Y
-	# the section, bottom row first: flange, web, flange
-	var sec := {}
-	for col in 3:
-		sec[Vector2i(0, col)] = brown
-		sec[Vector2i(2, col)] = brown
-	sec[Vector2i(1, 1)] = dark
 	# REACH INTO THE RECESS. A half used to stop dead on the cell boundary, which was right
 	# when the housing spanned the whole cell and wrong now that it is pulled in: the beam
 	# ended in mid-air an eighth of a cell short of the face it is supposed to enter
@@ -2884,19 +2948,8 @@ func _fence_half_prism(cx: int, cy: int, d: String, tile: String, main_c: String
 	var jw2: int = amask.get_width() if amask != null else 16
 	var reach: float = (1.0 - _gearbox_span(band, jw2) / float(jw2)) * 0.5 + 1.0 / float(jw2)
 	var seg: float = 0.5 + reach
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for key in sec:
-		var rc: Vector2i = key
-		var o := Vector3(-seg * 0.5, (rc.x - 1.5) * vs, (rc.y - 1.5) * vs)
-		_vox_block(st, o, Vector3(seg, vs, vs), sec[key],
-			[true, true,
-			 not sec.has(rc + Vector2i(-1, 0)), not sec.has(rc + Vector2i(1, 0)),
-			 not sec.has(rc + Vector2i(0, -1)), not sec.has(rc + Vector2i(0, 1))])
-	var mesh := ArrayMesh.new()
-	st.commit(mesh)
 	var mi := MeshInstance3D.new()
-	mi.mesh = mesh
+	mi.mesh = _ibeam_mesh(seg, vs, brown, dark)
 	var fm: StandardMaterial3D = _vox_skin_material().duplicate()
 	fm.albedo_color = Color(light_frac, light_frac, light_frac)
 	mi.material_override = fm

@@ -2088,3 +2088,25 @@ in the screenshot named the culprit in one build: the plane was cyan, so it was 
 LEFT-neighbour wall of the east panel's pole column — not the cell-edge column already
 suppressed. The same shot then served as the before/after measurement (2105 of 2429
 former plane pixels became background).
+
+## Camera keys are shadowed by the chrome's hotkeys — Q/E never reach the camera
+
+`docs/cameras.md` says Q/E rotate the compass heading, and `Main.gd` does handle them
+(`Main.gd:1294`). In-game they do nothing: `MainFrame.gd:293` maps `KEY_Q` -> quests and
+`KEY_E` -> equipment, and the chrome sees the key first. R/F (zoom) are unclaimed and do work.
+
+So **you cannot rotate the view from a script**, which matters whenever a fix has to be
+photographed from a particular side. What actually works:
+
+- **mode 7 (TOP_FOLLOW)** — orthographic, straight down, north up, tracks the player, and R/F
+  zoom. Deterministic: move the player next to the thing and it is a fixed offset from centre.
+  This is the reliable one.
+- **mode 4 (CINEMATIC)** — auto-orbits, so shooting every ~2s walks all the way round. R/F do
+  NOT zoom here, so it only ever gives you the wide framing.
+- **mode 5 (MOUSE)** — documented as drag-to-orbit; synthetic `hv drag` did not move it.
+
+And before spending rounds on framing at all: geometry that sits in a narrow slot between two
+solid objects (a gearbox stub running into a wall) is occluded from BOTH of the directions
+along its own axis by construction. Verify it from the builder — a `print()` reaches
+`~/Library/Application Support/Godot/app_userdata/Raves of Qud/logs/raves.log` in the exported
+app — and use the picture for looks, not for existence.
