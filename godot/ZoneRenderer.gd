@@ -3145,18 +3145,21 @@ func _place_waterwheel(obj: Dictionary, tile: String, cx: int, cy: int, light_fr
 				var lip: bool = not rim and not hub and d > c * WHEEL_LIP_R \
 					and ph >= WHEEL_SPOKE_W + WHEEL_WATER_W \
 					and ph < WHEEL_SPOKE_W + WHEEL_WATER_W + WHEEL_LIP_W
-				# THE FACE IS SOLID TIMBER with one dashed ring on it (Daniel: "The inside of
-				# the pizzas are colored Qud BG. Can we change those to the brown wood?"). Wall,
-				# hub and lip still EXIST on the face — same geometry — they just stop being a
-				# separate colour from the boards around them, so the pizza reads as a plank
-				# disc rather than a skeleton.
+				# THE OUTWARD FACE IS BACKGROUND but for two rings (Daniel: "The outer 1px wood
+				# ring stays. The light blue stays. Change the rest of the brown on the wheel to
+				# qud bg color."). Wall, hub and lip still EXIST here — same geometry, still
+				# split so the span keeps its own timber — they just stop being drawn in wood on
+				# the face.
 				#
-				# The ring runs across everything inside the rim, structure included, and is
-				# broken into WHEEL_RING_DASHES arcs by background gaps.
-				if int(floor(c * WHEEL_RIM - d)) == 1 and not rim:
+				# The wooden hoop is ONE voxel now, counted from the disc's own edge rather than
+				# from WHEEL_RIM, which was giving it closer to two. The blue stays exactly where
+				# it sat, two rings further in, still broken into WHEEL_RING_DASHES arcs.
+				if int(floor(c - d)) == 0:
+					col = wood
+				elif int(floor(c * WHEEL_RIM - d)) == 1:
 					col = bg if fposmod(-ang * WHEEL_RING_DASHES, 1.0) < WHEEL_RING_GAP else lblue
 				else:
-					col = wood
+					col = bg
 				# BETWEEN the discs: the walls and lip keep their wood, and the water goes to
 				# background (Daniel: "Change the light blue inside the waterwheel column to Qud
 				# bg color") — so the bucket still has its shape and its shading, but no colour.
