@@ -1325,6 +1325,7 @@ func _all_dirs(suf: String) -> bool:
 ## SHAPE verdicts (what geometry to build) and FILL verdicts (how to treat the
 ## art's transparent pixels) are independent axes — a tile can carry one of each.
 const VERDICT_KEYS := [
+	["waterwheel", "waterwheel"],
 	["wall", "wall"],
 	["n–s", "panel_ns"],
 	["e–w", "panel_ew"],
@@ -2957,6 +2958,178 @@ func _place_conduit_box(tile: String, main_c: String, detail_c: String, cx: int,
 		_track(smi)
 
 
+## The waterwheel: a 12-PANEL cylinder turning on an east-west axle.
+##
+## Daniel: "The waterwheel is a cylinder with the faces going east-west ... let's try and make
+## the UV map for the sides and faces" / "12 panels sounds great".
+##
+## THE MILL FIXES THE AXIS before the art gets a vote: the E-W axle run at (3,7)..(5,7) ends at
+## the wheel's cell (6,7), and a wheel drives the axle along its OWN axis. The old standing rule
+## ("ORIENTED PANEL running E-W (faces N/S)") is 90 degrees off — a guess from before there was
+## a mill to check it against.
+##
+## So the tile is the wheel seen EDGE-ON, which is why its wood pattern TRANSLATES vertically
+## between frames rather than rotating about a centre. That single observation decides which of
+## the two maps is real: the art hands us the TREAD directly and says nothing whatever about the
+## END, so the face is built from the tread's own colour and panel count. Columns split the tile
+## three ways — 1..8 wood only (the wheel, half a cell thick), 9..12 every detail pixel (water
+## falling off the east side, NOT wheel surface, not modelled here), 13..14 the far frame.
+##
+## tools/capture/wheelmap.py is the same derivation with a preview sheet; change one, change both.
+const WHEEL_PANELS := 12
+
+## One revolution in the time the shafts take. The wheel and the axle run are ONE shaft, direct
+## drive with no gearing between them, so they turn at the same rate or the machine reads as
+## broken. Qud has the wheel at ~35s and the shafts at 1s, which is fine for two flat tiles
+## animating independently and wrong for one turning assembly.
+const WHEEL_REV_SEC := AXLE_SPIN_SLOW
+
+## The wheel's own columns: opaque, and carrying NO detail pixels. That is what separates wood
+## from the falling water rather than a hardcoded column range, so a repainted tile still splits.
+func _wheel_cols(mask: Image) -> Vector2i:
+	var lo := -1
+	var hi := -1
+	for x in mask.get_width():
+		var opaque := false
+		var detail := false
+		for y in mask.get_height():
+			var px := mask.get_pixel(x, y)
+			if px.a < 0.5:
+				continue
+			opaque = true
+			if px.r >= 0.5:
+				detail = true
+		if opaque and not detail:
+			if lo < 0:
+				lo = x
+			elif x > hi + 1 and hi >= 0:
+				break            # a second wood run (the far frame) — stop at the first
+			hi = x
+		elif lo >= 0:
+			break
+	return Vector2i(lo, hi)
+
+func _place_waterwheel(obj: Dictionary, tile: String, cx: int, cy: int, light_frac: float) -> bool:
+	var mask := _mask(tile)
+	if mask == null:
+		return false
+	var wc := _wheel_cols(mask)
+	if wc.x < 0 or wc.y <= wc.x:
+		return false
+	var top := -1
+	var bot := -1
+	for y in mask.get_height():
+		for x in range(wc.x, wc.y + 1):
+			if mask.get_pixel(x, y).a >= 0.5:
+				if top < 0:
+					top = y
+				bot = y
+				break
+	if top < 0:
+		return false
+	# colour STRINGS here — _colored_tex parses them; _colored_tex_rgb is the one taking Colors
+	var tex := _colored_tex(tile, _pick_color_string(obj), String(obj.get("detail", "")), Fill.NONE)
+	if tex == null:
+		return false
+	var img := tex.get_image()
+	var sx: float = img.get_width() / float(mask.get_width())
+	var sy: float = img.get_height() / float(mask.get_height())
+	# the wood, sampled from a wheel column rather than the tile centre (which is water)
+	var wood := img.get_pixel(int((wc.x + 0.5) * sx), int(((top + bot) * 0.5) * sy))
+	# DIAMETER runs on the ART's scale (rows) and THICKNESS on the CELL's (columns) — the same
+	# split every shape here uses, and the one that has cost the most when conflated.
+	var r: float = (bot - top + 1) * PIXEL_SIZE * 0.5
+	var thick: float = (wc.y - wc.x + 1) / float(mask.get_width())
+	var yc: float = maxf(r, FLOAT_Y)
+	var root := Node3D.new()
+	root.transform = Transform3D(Basis(), Vector3(cx, yc, cy))
+	# TREAD: one panel per paddle, alpha where the art has no wood so you see BETWEEN the
+	# paddles — a paddle wheel is open there, and painting it dark would read as a drum.
+	var period: int = maxi(2, int(round((bot - top + 1) / float(WHEEL_PANELS) * PI)))
+	var tread := Image.create(period, wc.y - wc.x + 1, false, Image.FORMAT_RGBA8)
+	var y0: int = int((top + bot) * 0.5) - period / 2
+	for u in period:
+		for v in (wc.y - wc.x + 1):
+			var mrow: int = clampi(y0 + u, 0, mask.get_height() - 1)
+			var on: bool = mask.get_pixel(wc.x + v, mrow).a >= 0.5
+			tread.set_pixel(u, v, wood if on else Color(0, 0, 0, 0))
+	# FACE: the proposal half — WHEEL_PANELS spokes, a hub and a rim band, in the tread's colour
+	var fs: int = bot - top + 1
+	var face := Image.create(fs, fs, false, Image.FORMAT_RGBA8)
+	var c: float = (fs - 1) * 0.5
+	for py in fs:
+		for px in fs:
+			var dx: float = px - c
+			var dy: float = py - c
+			var d: float = sqrt(dx * dx + dy * dy)
+			var on2: bool = false
+			if d <= c:
+				var ang: float = (atan2(dy, dx) + PI) / TAU
+				on2 = d < c * 0.16 or d > c * 0.86 or fposmod(ang * WHEEL_PANELS, 1.0) < 0.30
+			face.set_pixel(px, py, wood if on2 else Color(0, 0, 0, 0))
+	_add_wheel_surface(root, _wheel_side_mesh(r, thick), tread, light_frac)
+	_add_wheel_surface(root, _wheel_cap_mesh(r, thick), face, light_frac)
+	_spawn_parent().add_child(root)
+	if _live_build:
+		_anim_sprites.append({"spin": root, "base": Basis(), "period": WHEEL_REV_SEC})
+	_track(root)
+	return true
+
+## The 12 tread panels, as a prism about local +X (the axle line). U runs around the rim so the
+## tread map tiles once per panel; V runs along the axle.
+func _wheel_side_mesh(r: float, thick: float) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var hx: float = thick * 0.5
+	for i in WHEEL_PANELS:
+		var a0: float = i * TAU / WHEEL_PANELS
+		var a1: float = (i + 1) * TAU / WHEEL_PANELS
+		var p0 := Vector3(0.0, r * sin(a0), r * cos(a0))
+		var p1 := Vector3(0.0, r * sin(a1), r * cos(a1))
+		var quad := [[Vector3(-hx, p0.y, p0.z), Vector2(0, 0)], [Vector3(hx, p0.y, p0.z), Vector2(0, 1)],
+			[Vector3(hx, p1.y, p1.z), Vector2(1, 1)], [Vector3(-hx, p1.y, p1.z), Vector2(1, 0)]]
+		for k in [0, 1, 2, 0, 2, 3]:
+			st.set_uv(quad[k][1])
+			st.set_normal(Vector3(0, p0.y, p0.z).normalized())
+			st.add_vertex(quad[k][0])
+	var m := ArrayMesh.new()
+	st.commit(m)
+	return m
+
+## Both end caps as fans, UV'd into the square face map so the disc lands inscribed.
+func _wheel_cap_mesh(r: float, thick: float) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for side in [-1.0, 1.0]:
+		var hx: float = thick * 0.5 * side
+		for i in WHEEL_PANELS:
+			var a0: float = i * TAU / WHEEL_PANELS
+			var a1: float = (i + 1) * TAU / WHEEL_PANELS
+			var tri := [[Vector3(hx, 0, 0), Vector2(0.5, 0.5)],
+				[Vector3(hx, r * sin(a0), r * cos(a0)), Vector2(0.5 + 0.5 * cos(a0), 0.5 + 0.5 * sin(a0))],
+				[Vector3(hx, r * sin(a1), r * cos(a1)), Vector2(0.5 + 0.5 * cos(a1), 0.5 + 0.5 * sin(a1))]]
+			for k in ([0, 1, 2] if side > 0.0 else [0, 2, 1]):
+				st.set_uv(tri[k][1])
+				st.set_normal(Vector3(side, 0, 0))
+				st.add_vertex(tri[k][0])
+	var m := ArrayMesh.new()
+	st.commit(m)
+	return m
+
+func _add_wheel_surface(root: Node3D, mesh: ArrayMesh, img: Image, light_frac: float) -> void:
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.albedo_texture = ImageTexture.create_from_image(img)
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	m.albedo_color = Color(light_frac, light_frac, light_frac)
+	mi.material_override = m
+	root.add_child(mi)
+
+
 ## Connector families built as a turning PRISM rather than a flat panel. Axles only:
 ## Qud draws a shaft as a 4-row band whose lit rows shift between frames — surface
 ## markings at three rotation phases — and a flat quad can only slide those markings
@@ -4033,6 +4206,12 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			_note(cx, cy, idx, "signpost(voxel: board 4 deep, lettering carved, posts in the core, user verdict)", 0.5)
 			return
 		# fall through to the billboard path if the art defeats the mesh derivation
+
+	if verdict == "waterwheel" and not _flat_2d and not _one_to_one:
+		if _place_waterwheel(obj, tile, cx, cy, light_frac):
+			_note(cx, cy, idx, "waterwheel(%d-panel cylinder on an E-W axle, tread+face UV from the art, user verdict)" % WHEEL_PANELS, 0.5)
+			return
+		# fall through to the billboard path if the art defeats the derivation
 
 	if verdict == "tentwall" and not _flat_2d and not _one_to_one:
 		if _place_tentwall(obj, tile, cx, cy, light_frac):
@@ -6786,7 +6965,7 @@ func _animate_1to1() -> void:
 	for a in _anim_sprites:
 		var spin = a.get("spin", null)
 		if spin != null:
-			var smi := spin as MeshInstance3D
+			var smi := spin as Node3D
 			if is_instance_valid(smi):
 				# turn about the shaft's own axis; local +x is the run, so the spin is
 				# applied INSIDE the yaw that put the beam on its cell axis

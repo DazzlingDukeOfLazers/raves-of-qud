@@ -84,7 +84,7 @@
    "fill": "make the gaps see-through"
   },
   "sw_waterwheel": {
-   "shape": "ORIENTED PANEL running E–W (faces N/S)",
+   "shape": "WATERWHEEL: 12-panel cylinder on an east-west axle",
    "fill": "FILL: fill the holes with BACKGROUND"
   },
   "tent": {
