@@ -2600,52 +2600,146 @@ func _connector_is_prism(tile: String) -> bool:
 	return false
 
 
-## One half-shaft as a square prism: four long faces around the axis, each carrying the
-## SAME animated strip but a different PHASE of the cycle.
+## One half-shaft as a SOLID VOXEL prism — one mesh per animation frame, one visible
+## at a time.
 ##
-## That phase offset is the whole idea, and it answers the corner question. A quarter turn
-## about the axis carries one face onto the next, so the face one quarter further round is
-## showing the shaft a quarter turn later — which in Qud's art is simply the next frame.
-## Give face k the cycle at (frame + k), and four fixed quads read as one shaft turning:
-## no seam to hide, because each face is its own quad with the panel material's own uv1
-## crop, and the corners are just the edges where two of them meet.
+## It began as four textured quads, which is a hollow shell: the art's transparent rows
+## (axle_1 lights rows 10,11,13 and leaves 12 clear) showed straight through it, and the
+## cut ends were open. Daniel: "use the same voxel building techniques. There is a
+## transparent section we should color as the default background color. That should
+## solve the hollow and capping issues." Both fall out of building the volume: every
+## exposed face is emitted by _vox_block, so the ends cap themselves, and sampling the
+## art through Fill.ALL paints those clear rows with the cell background instead of
+## leaving holes.
 ##
-## The faces are laid out in SHAFT-LOCAL space (+x along the shaft) and then yawed as a
-## unit for a north-south axle, so one description serves both axes.
+## THE CORNERS, still the good part: a quarter turn about the axis carries one face onto
+## the next, so the face a quarter further round shows the shaft a quarter turn later —
+## the next frame in Qud's cycle. Each mesh bakes that offset in (near face = frame f,
+## top = f+1, far = f+2, bottom = f+3), so stepping meshes turns every face together and
+## the shaft reads as rotating rather than flickering. Baked per mesh rather than driven
+## per face, because a voxel mesh carries its colours in its vertices.
+##
+## Section is BAND x BAND voxels (the art's own 4-row band), length is half a cell.
 func _fence_half_prism(cx: int, cy: int, d: String, tile: String, main_c: String, detail_c: String,
 		h: float, fill: int, y_center: float, light_frac: float, anim: String) -> void:
+	var art := _panel_art(tile)
+	var mask := _mask(art)
+	if mask == null:
+		return
+	# the art's opaque band: its height IS the shaft's thickness, in voxels
+	var mw := mask.get_width()
+	var mh := mask.get_height()
+	var top := -1
+	var bot := -1
+	for y in mh:
+		for x in mw:
+			if mask.get_pixel(x, y).a >= 0.5:
+				if top < 0:
+					top = y
+				bot = y
+				break
+	if top < 0:
+		return
+	var band: int = bot - top + 1
+	var hw: int = mw / 2
+	var frames := _anim_frame_tiles(anim, art)
+	var imgs: Array = []
+	for ft in frames:
+		# Fill.ALL: the clear rows inside the shaft become the cell background, which is
+		# what makes each frame a SOLID slice instead of a comb with gaps.
+		# _colored_tex, not _colored_tex_rgb: this path carries Qud's colour STRINGS
+		# ('&w', 'w'), and handing those to the Color overload renders the whole shaft
+		# black — measured.
+		var t := _colored_tex(String(ft), main_c, detail_c, Fill.ALL)
+		imgs.append(null if t == null else t.get_image())
+	if imgs.is_empty() or imgs[0] == null:
+		return
+	var right_half: bool = d == "e" or d == "s"
+	var u0: int = hw if right_half else 0
 	var horiz: bool = d == "e" or d == "w"
-	var half := "r" if (d == "e" or d == "s") else "l"
 	var yc: float = y_center if y_center >= 0.0 else h * 0.5
-	var r: float = h * 0.5
-	var lead: float = 0.25 if (d == "e" or d == "s") else -0.25
+	var vs: float = h / float(band)              # one voxel, cubed
+	var lead: float = 0.25 if right_half else -0.25
 	var yaw: float = 0.0 if horiz else PI * 0.5
 	var B := Basis(Vector3.UP, yaw)
-	# top, bottom, near, far — a quarter turn apart, in that order round the axis
-	var faces := [
-		[Vector3(0.0, r, 0.0), Vector3(-PI * 0.5, 0.0, 0.0)],
-		[Vector3(0.0, -r, 0.0), Vector3(PI * 0.5, 0.0, 0.0)],
-		[Vector3(0.0, 0.0, r), Vector3.ZERO],
-		[Vector3(0.0, 0.0, -r), Vector3(0.0, PI, 0.0)],
-	]
-	for fi in faces.size():
-		var fpos: Vector3 = faces[fi][0]
-		var frot: Vector3 = faces[fi][1]
-		var q := QuadMesh.new()
-		q.size = Vector2(0.5, h)
+	var img0: Image = imgs[0]
+	var sx: float = img0.get_width() / float(mw)
+	var sy: float = img0.get_height() / float(mh)
+	var nodes: Array = []
+	for f in imgs.size():
+		var st := SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		for a in hw:                                   # along the shaft
+			for vy in band:                            # up
+				for vz in band:                        # across
+					# a surface voxel wears the face it lies on; interior ones are never
+					# seen, so any colour does (they emit no faces at all)
+					var src: int = f
+					if vy == band - 1: src = (f + 1) % imgs.size()          # top
+					elif vz == 0: src = (f + 2) % imgs.size()               # far
+					elif vy == 0: src = (f + 3) % imgs.size()               # bottom
+					var im: Image = imgs[src]
+					if im == null:
+						im = img0
+					# rows run top-down in the art; the shaft's top is the band's first row
+					var row: int = top + (band - 1 - vy)
+					var c := im.get_pixel(int((u0 + a + 0.5) * sx), int((row + 0.5) * sy))
+					var o := Vector3(a * vs, (vy - band * 0.5) * vs, (vz - band * 0.5) * vs)
+					if right_half:
+						o.x = a * vs
+					else:
+						o.x = -0.5 + a * vs
+					_vox_block(st, o, Vector3(vs, vs, vs), c,
+						[a == 0, a == hw - 1, vy == 0, vy == band - 1, vz == 0, vz == band - 1])
+		var mesh := ArrayMesh.new()
+		st.commit(mesh)
 		var mi := MeshInstance3D.new()
-		mi.mesh = q
-		var fm: StandardMaterial3D = _fence_material(_panel_art(tile), main_c, detail_c, half, fill).duplicate()
+		mi.mesh = mesh
+		var fm: StandardMaterial3D = _vox_skin_material().duplicate()
 		fm.albedo_color = Color(light_frac, light_frac, light_frac)
-		fm.cull_mode = BaseMaterial3D.CULL_DISABLED
 		mi.material_override = fm
-		mi.transform = Transform3D(B * Basis.from_euler(frot),
-			Vector3(cx, yc, cy) + B * (Vector3(lead, 0.0, 0.0) + fpos))
+		mi.transform = Transform3D(B, Vector3(cx, yc, cy) + B * Vector3(0.0, 0.0, 0.0))
+		mi.visible = f == 0
 		_spawn_parent().add_child(mi)
 		if _live_build:
 			_lit_meshes.append({"mi": mi, "cell": Vector2i(cx, cy)})
-			_register_panel_anim(anim, fm, _panel_art(tile), main_c, detail_c, fill, fi)
 		_track(mi)
+		nodes.append(mi)
+	if nodes.size() > 1 and _live_build:
+		_anim_sprites.append({"nodes": nodes, "len": _anim_len(anim), "sched": _anim_marks(anim)})
+
+
+## The cycle's tile list, in order, from an animSched — or just the base tile when the
+## object has no schedule (a lone unpowered axle still wants its solid prism).
+func _anim_frame_tiles(anim: String, base_tile: String) -> Array:
+	if anim == "":
+		return [base_tile]
+	var out: Array = []
+	var parts := anim.split("|")
+	for i in range(1, parts.size()):
+		var kv := parts[i].split("=")
+		if kv.size() != 2:
+			continue
+		var ftile := String(String(kv[1]).split(";")[0])
+		out.append(ftile if ftile != "" else base_tile)
+	return out if not out.is_empty() else [base_tile]
+
+func _anim_len(anim: String) -> int:
+	if anim == "":
+		return 60
+	return maxi(int(anim.split("|")[0]), 1)
+
+## The cycle's thresholds, parallel to _anim_frame_tiles.
+func _anim_marks(anim: String) -> Array:
+	var out: Array = []
+	if anim == "":
+		return [{"f": 0}]
+	var parts := anim.split("|")
+	for i in range(1, parts.size()):
+		var kv := parts[i].split("=")
+		if kv.size() == 2:
+			out.append({"f": int(kv[0])})
+	return out if not out.is_empty() else [{"f": 0}]
 
 
 func _take_fence() -> MeshInstance3D:
@@ -6310,6 +6404,20 @@ func _animate_1to1() -> void:
 	# as the "frames" kind below; the difference is that the frame IS the sprite's own
 	# texture, not an overlay quad laid over a flat tile.
 	for a in _anim_sprites:
+		var anodes = a.get("nodes", null)
+		if anodes != null:
+			# one whole MESH per frame (the voxel axle): step visibility, not texture
+			var nf := int(ms * 0.06) % int(a["len"])
+			var nsched: Array = a["sched"]
+			var nact := 0
+			for si in nsched.size():
+				if nf >= int(nsched[si]["f"]):
+					nact = si
+			for si in (anodes as Array).size():
+				var nn = (anodes as Array)[si]
+				if is_instance_valid(nn):
+					nn.visible = si == nact
+			continue
 		var sp: Sprite3D = a.get("sprite", null) as Sprite3D
 		var fmat: StandardMaterial3D = a.get("mat", null) as StandardMaterial3D
 		if sp != null and not is_instance_valid(sp):
