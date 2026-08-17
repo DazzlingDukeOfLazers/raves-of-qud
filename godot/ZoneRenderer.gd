@@ -958,33 +958,38 @@ func _rebuild_dynamics(cells: Array) -> void:
 func _relight_static_sprites(cells: Array) -> void:
 	if _lit_sprites.is_empty() and _lit_meshes.is_empty():
 		return
-	var frac := {}
+	var lit := {}
+	var tint := {}
 	var seen := {}
-	var known := {}
 	for cell in cells:
 		var k := Vector2i(int(cell.get("x", 0)), int(cell.get("y", 0)))
-		frac[k] = _view_tint(cell)
+		lit[k] = _light_frac(cell)
+		tint[k] = _view_tint(cell)
 		seen[k] = _cell_seen(cell)
-		known[k] = _cell_explored(cell)
 	for e in _lit_sprites:
 		var s = e["s"]
 		if is_instance_valid(s):
 			var k1: Vector2i = e["cell"]
-			var lf: Color = frac.get(k1, Color.WHITE)
+			var vis: bool = bool(seen.get(k1, true))
 			# HIDE VIA ALPHA, never via `visible`: the dynamic pass already toggles a static
 			# winner's visibility under creatures, and two writers of one flag fight. Alpha 0
 			# multiplies the texture to nothing and the alpha-scissor discards it.
-			# hideDark objects vanish out of sight, exactly as Qud never draws them there.
-			# UNEXPLORED cells are NOT hidden — see the note on _cell_explored.
-			if bool(e.get("hide_dark", false)) and not seen.get(k1, true):
+			if bool(e.get("hide_dark", false)) and not vis:
 				s.modulate = Color(0, 0, 0, 0)
-			else:
-				s.modulate = lf
+				continue
+			# the SWAP is the memory; the modulate is only the cell's light
+			var gt = e.get("ghost", null)
+			if gt != null:
+				var want: Texture2D = (e["live"] if vis else gt)
+				if s.texture != want:
+					s.texture = want
+			var lf: float = float(lit.get(k1, 1.0))
+			s.modulate = Color(lf, lf, lf) if lf < 0.999 else Color.WHITE
 	for e in _lit_meshes:
 		var mi = e["mi"]
 		if is_instance_valid(mi) and mi.material_override != null:
-			var k2: Vector2i = e["cell"]
-			mi.material_override.albedo_color = frac.get(k2, Color.WHITE)
+			# derived shapes are vertex-coloured, so no texture to swap — they keep the tint
+			mi.material_override.albedo_color = tint.get(e["cell"], Color.WHITE)
 
 ## Restore full brightness to the tracked static sprites/meshes — called once when a zone
 ## goes from having dark cells to fully lit (e.g. dawn), since _relight is then skipped.
@@ -4832,8 +4837,17 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			# its cell's light EACH TURN (creatures get modulate directly; static sprites don't,
 			# so they'd stay lit at night). Glowing things emit light — leave them bright.
 			if _live_build and not glowing:
+				# QUD'S MEMORY IS A PALETTE SWAP, not a dim: out of sight it redraws the tile in
+				# K/k (#155352 / #0f3b3a), the same pair _ghost_obj uses for 1:1 and the same
+				# one the wire reports as memColor for every painted-ground cell. A modulate can
+				# only MULTIPLY, so it could never land on that flat colour — it gave every
+				# remembered object its own dark hue instead. Build the ghost texture once (the
+				# recolour cache keeps it) and swap the pointer each turn.
+				var gtex := _colored_tex_rgb(tile, _qud_color("K"), _qud_color("k"),
+					_color_key(obj) + "~ghost", _fill_for(tile, Fill.INTERIOR), _cutout_for(tile))
 				_lit_sprites.append({"s": s, "cell": Vector2i(cx, cy),
-					"hide_dark": bool(obj.get("hideDark", false))})
+					"hide_dark": bool(obj.get("hideDark", false)),
+					"live": btex, "ghost": gtex})
 			var fmode := _fill_for(tile, Fill.INTERIOR)
 			var gaps := tile_fill_px(tile, fmode)
 			var kind := "billboard"

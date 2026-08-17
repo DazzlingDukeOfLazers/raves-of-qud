@@ -2198,3 +2198,20 @@ The rule from the palette meshes applies to EVERY vertex-coloured material, not 
 ones: set `vertex_color_is_srgb = true`. And the wider point — a material that has only ever
 carried black, white or a single hue is untested for colour, so adding one is a change to the
 material as much as to the caller.
+
+## Qud's memory is a PALETTE SWAP, not a dim — and the ground tile is nearly empty
+
+Two facts that together decide how remembered cells must be drawn:
+
+1. Out of sight Qud REDRAWS the tile in K/k (#155352 / #0f3b3a) — the pair `_ghost_obj` uses for
+   1:1, and the one the wire reports as `memColor` for every painted-ground cell in the zone. A
+   `modulate` can only MULTIPLY, so it can never land on a flat colour: it gives each remembered
+   object its own dark hue instead of the one Qud uses. Swap the TEXTURE (the recolour cache
+   already holds a ghost variant per tile+colour) and keep modulate for the cell's light alone.
+2. `Tiles/tile-dirt1.png` is **1 opaque pixel in 384**. Painted ground draws essentially nothing,
+   so a Qud cell is ~99.7% BACKGROUND. Any attempt to render remembered ground by washing the
+   cell — a tinted overlay, say — fills something Qud leaves empty and reads far too bright.
+   What is legible in Qud's memory is its OBJECTS, not its floor.
+
+So: objects get the ghost texture; the ground's remembered look is a background question, not a
+floor-quad one.
