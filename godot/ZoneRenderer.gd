@@ -2983,7 +2983,7 @@ const WHEEL_PANELS := 12
 ## (Daniel: "otherwise it won't dip into the water"). 2.0 put 18% of the wheel under; 1.5 —
 ## where Daniel settled it — puts the lowest 7% under, so it still breaks the surface but reads
 ## a good deal less monumental.
-const WHEEL_SCALE := 1.2
+const WHEEL_SCALE := 1.3
 
 ## One revolution in the time the shafts take. The wheel and the axle run are ONE shaft, direct
 ## drive with no gearing between them, so they turn at the same rate or the machine reads as
@@ -3057,21 +3057,30 @@ func _place_waterwheel(obj: Dictionary, tile: String, cx: int, cy: int, light_fr
 	root.transform = Transform3D(Basis(), Vector3(cx, yc, cy))
 	# The CROSS-SECTION: WHEEL_PANELS spokes, a hub and a rim band, in the wood's colour. It was
 	# the end cap of a cylinder; it is now the profile the whole wheel is extruded from.
+	# TWO profiles, because only one of them runs the whole length (Daniel: "keep the entire
+	# circle on the waterwheel endcaps ... only extrude the radial lines ... like two pizzas held
+	# together by 6 intersecting walls"). `face` is the whole disc and lives at the ends only;
+	# `spok` is the radial lines plus the hub they cross at, and that is what spans the middle.
+	# WHEEL_PANELS is 12 spokes, which is 6 diameters — Daniel's six walls.
 	var fs: int = bot - top + 1
 	var face := Image.create(fs, fs, false, Image.FORMAT_RGBA8)
+	var spok := Image.create(fs, fs, false, Image.FORMAT_RGBA8)
 	var c: float = (fs - 1) * 0.5
 	for py in fs:
 		for px in fs:
 			var dx: float = px - c
 			var dy: float = py - c
 			var d: float = sqrt(dx * dx + dy * dy)
+			var radial: bool = false
 			var on2: bool = false
 			if d <= c:
 				var ang: float = (atan2(dy, dx) + PI) / TAU
-				on2 = d < c * 0.16 or d > c * 0.86 or fposmod(ang * WHEEL_PANELS, 1.0) < 0.30
+				radial = d < c * 0.16 or fposmod(ang * WHEEL_PANELS, 1.0) < 0.30
+				on2 = radial or d > c * 0.86
 			face.set_pixel(px, py, wood if on2 else Color(0, 0, 0, 0))
+			spok.set_pixel(px, py, wood if radial else Color(0, 0, 0, 0))
 	var mi := MeshInstance3D.new()
-	mi.mesh = _wheel_extrude_mesh(face, r, thick)
+	mi.mesh = _wheel_extrude_mesh(face, spok, r, thick)
 	var wm: StandardMaterial3D = _vox_skin_material().duplicate()
 	wm.albedo_color = Color(light_frac, light_frac, light_frac)
 	mi.material_override = wm
@@ -3204,41 +3213,54 @@ func _wheel_spill(obj: Dictionary, tile: String, mask: Image, img: Image, top: i
 	_track(pt)
 
 
-## The wheel as its cross-section EXTRUDED along the axle, not as a cylinder.
+## The wheel as TWO END DISCS held apart by its radial walls.
 ##
-## Daniel: "Instead of a cylinder, is it possible to take the endcap pattern and extrude it the
-## length of the waterwheel? The current cylinder round 'side' is less visually close to what
-## we want. The endcaps are very close to what we want."
+## Daniel: "keep the entire circle on the waterwheel endcaps. Let's only extrude the radial
+## lines. That means the circle is only present at the endcaps. Like two pizzas held together
+## by 6 intersecting walls."
 ##
-## So spokes, hub and rim become plates running the full thickness, and the gaps between them
-## become holes you see straight through. What goes away is the tread: a smooth round band
-## wearing a texture, which was the one surface that never looked like the drawing. The wheel
-## is voxels now, like every other derived shape here, so it picks up the same baked face
-## shading and needs no alpha at all — the holes are absent geometry rather than clear pixels.
-func _wheel_extrude_mesh(face: Image, r: float, thick: float) -> ArrayMesh:
+## So a pixel on a radial line (a spoke, or the hub they all cross at) becomes ONE box running
+## the whole thickness, and every other disc pixel — the rim band above all — becomes two thin
+## slabs, one at each end, with open air between them. The rim therefore reads as a hoop at each
+## face rather than a drum, which is the whole point: the cylinder's round side is gone and what
+## is left is the drawing, twice, with structure between.
+##
+## Culling: a full-depth box tests its in-plane neighbours against the RADIAL profile and an end
+## slab tests against the WHOLE disc. That pairing is what keeps it hole-free — an end slab
+## beside a spoke is correctly buried (the spoke's box covers that depth), while a spoke beside
+## a rim-only pixel still draws its long side, of which only the slab's depth is hidden.
+func _wheel_extrude_mesh(face: Image, spok: Image, r: float, thick: float) -> ArrayMesh:
 	var fs := face.get_width()
 	var step: float = 2.0 * r / float(fs)
-	var on := {}
+	var cap: float = minf(step, thick * 0.4)      # each end disc is one profile voxel deep
+	var disc := {}
+	var rad := {}
 	for py in fs:
 		for px in fs:
-			var c := face.get_pixel(px, py)
-			if c.a >= 0.5:
-				on[Vector2i(px, py)] = c
+			var cf := face.get_pixel(px, py)
+			if cf.a >= 0.5:
+				disc[Vector2i(px, py)] = cf
+			if spok.get_pixel(px, py).a >= 0.5:
+				rad[Vector2i(px, py)] = cf
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var mid: float = (fs - 1) * 0.5
-	for key in on:
+	for key in disc:
 		var k: Vector2i = key
 		# image +y runs DOWN and world +y runs UP, so the row flips; the column maps to z as is
-		var o := Vector3(-thick * 0.5,
-			-(k.y - mid) * step - step * 0.5,
-			(k.x - mid) * step - step * 0.5)
-		# [-X, +X, -Y, +Y, -Z, +Z]: the two ends of the extrusion are always exposed, and the
-		# four in-plane faces are buried wherever the profile has a neighbour
-		_vox_block(st, o, Vector3(thick, step, step), on[k],
-			[true, true,
-			 not on.has(k + Vector2i(0, 1)), not on.has(k + Vector2i(0, -1)),
-			 not on.has(k + Vector2i(-1, 0)), not on.has(k + Vector2i(1, 0))])
+		var wy: float = -(k.y - mid) * step - step * 0.5
+		var wz: float = (k.x - mid) * step - step * 0.5
+		if rad.has(k):
+			_vox_block(st, Vector3(-thick * 0.5, wy, wz), Vector3(thick, step, step), disc[k],
+				[true, true,
+				 not rad.has(k + Vector2i(0, 1)), not rad.has(k + Vector2i(0, -1)),
+				 not rad.has(k + Vector2i(-1, 0)), not rad.has(k + Vector2i(1, 0))])
+		else:
+			for x0 in [-thick * 0.5, thick * 0.5 - cap]:
+				_vox_block(st, Vector3(x0, wy, wz), Vector3(cap, step, step), disc[k],
+					[true, true,
+					 not disc.has(k + Vector2i(0, 1)), not disc.has(k + Vector2i(0, -1)),
+					 not disc.has(k + Vector2i(-1, 0)), not disc.has(k + Vector2i(1, 0))])
 	var m := ArrayMesh.new()
 	st.commit(m)
 	return m
