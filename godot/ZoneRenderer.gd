@@ -90,8 +90,9 @@ const MAX_SLOT_PX := 2
 var _overrides := {}        # tile family -> shape verdict
 var _fill_overrides := {}   # tile family -> Fill mode
 var _position_overrides := {} # tile family -> "float" (default is ground-seated)
-var _glow_overrides := {}
-var _cutout_overrides := {}   # family -> true: the darker of main/detail renders TRANSPARENT   # tile family -> true (user tagged it bioluminescent GLOW)
+var _glow_overrides := {}   # tile family -> true (user tagged it bioluminescent GLOW)
+var _cutout_overrides := {} # family -> true: the darker of main/detail renders TRANSPARENT
+var _recolor_overrides := {} # family -> {source colour code: replacement code}
 var _stairdir_overrides := {} # tile family -> "n"/"e"/"s"/"w" (descent the user picked)
 var _core_overrides := {}   # tile family -> Color: the wall recess/core colour (voxel editor)
 var _overrides_raw := "?"   # last overrides.json text, to skip re-parsing
@@ -1384,6 +1385,7 @@ func _load_overrides() -> void:
 	_fill_overrides.clear()
 	_core_overrides.clear()
 	_cutout_overrides.clear()
+	_recolor_overrides.clear()
 	_position_overrides.clear()
 	_glow_overrides.clear()
 	_stairdir_overrides.clear()
@@ -1414,6 +1416,17 @@ func _load_overrides() -> void:
 		# the opposite axis from "fill" (which paints transparent pixels opaque).
 		if String(entry.get("cutout", "")).to_lower().contains("darkest"):
 			_cutout_overrides[fam] = true
+		# "recolor": {"K": "y"} — swap one Qud colour code for another on this family. Keyed by
+		# the SOURCE code, which is what lets it separate two objects that SHARE a tile: salt-
+		# encrusted watervines and plain ones are the same sw_watervine art and differ only in
+		# their detail code (K against g), so a K->y rule reaches the salted ones alone. A
+		# family-keyed rule with no source test could not tell them apart at all.
+		var rc = entry.get("recolor", null)
+		if typeof(rc) == TYPE_DICTIONARY and not (rc as Dictionary).is_empty():
+			var map := {}
+			for k in rc:
+				map[_fg_letter(String(k))] = _fg_letter(String(rc[k]))
+			_recolor_overrides[fam] = map
 		var sd := _match_stairdir(String(entry.get("stairDir", "")))
 		if sd != "":
 			_stairdir_overrides[fam] = sd
@@ -1497,6 +1510,10 @@ func override_summary(tile: String) -> String:
 		parts.append("effect=glow")
 	if _cutout_overrides.has(fam):
 		parts.append("cutout=darkest")
+	if _recolor_overrides.has(fam):
+		var rm: Dictionary = _recolor_overrides[fam]
+		for k in rm:
+			parts.append("recolor=%s->%s" % [k, rm[k]])
 	return "" if parts.is_empty() else "  ".join(parts)
 
 ## Does this tile family drop its darker colour to transparent? (Daniel, watervines:
@@ -7608,11 +7625,21 @@ func _pick_color_string(obj: Dictionary) -> String:
 	var c := String(obj.get("tilecolor", ""))
 	return c if c != "" else full
 
+## Apply a family's "recolor" rule to one colour code. Returns the code unchanged when no rule
+## names it, so this is safe to wrap every colour lookup in.
+func _recolor(obj: Dictionary, code: String) -> String:
+	if _recolor_overrides.is_empty() or code == "":
+		return code
+	var m = _recolor_overrides.get(tile_family(String(obj.get("tile", ""))), null)
+	if m == null:
+		return code
+	return String((m as Dictionary).get(code, code))
+
 func _obj_main(obj: Dictionary) -> Color:
 	var hex := String(obj.get("fgHex", ""))
 	if hex != "":
 		return Color(hex)
-	return _qud_color(_pick_color_string(obj))
+	return _qud_color(_recolor(obj, _fg_letter(_pick_color_string(obj))))
 
 func _obj_detail(obj: Dictionary) -> Color:
 	var hex := String(obj.get("detailHex", ""))
@@ -7624,7 +7651,7 @@ func _obj_detail(obj: Dictionary) -> Color:
 		# (measured on painted-ground flowers: Qud draws the whole sprite fg; the white
 		# came from our fallback). Keep the copies in sync: QudTiles.detail_color.
 		return _obj_main(obj)
-	return _qud_color(d)
+	return _qud_color(_recolor(obj, _fg_letter(d)))
 
 ## Cache key for an object's colours — the painted rgb when present, else the
 ## colour codes. Must distinguish the two, or a painted and an unpainted object

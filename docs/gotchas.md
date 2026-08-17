@@ -2138,3 +2138,21 @@ Symptom to remember: moves appear to succeed, the player never moves, snaps time
 
 And in Raves, **F is Fire now, not zoom-out**. Zoom the Holodeck with `hv scroll raves <x> <y>
 --dy <n>`; R still zooms in. See the camera-keys entry above for why Q/E rotation is unreachable.
+
+## `recolor`: swap one Qud colour code for another, keyed by the SOURCE colour
+
+`overrides.json` channels are keyed by tile FAMILY, which is useless when two different objects
+share one tile and differ only in colour. Salt-encrusted watervines and plain ones are both
+`sw_watervine` art: the salted ones carry detail `K` (#155352, a dark teal-green) and the plain
+ones carry `g`. No family rule can tell them apart.
+
+    "sw_watervine": { "recolor": {"K": "y"} }
+
+`recolor` is keyed by the source code, so it reaches only objects already wearing that colour —
+the salted vines go pale (`y`, #b1c9c3) and the plain ones are untouched by construction, not by
+a second rule. Applied in `_obj_main` / `_obj_detail`, the one place billboards resolve colour,
+and safe to wrap around any lookup because an unnamed code returns unchanged. Values run through
+`_fg_letter`, so `"K"`, `"&K"` and a compound all key the same. It is config, so it hot-reloads.
+
+The general point: when a rule cannot separate two things, look for a property they already
+DIFFER on and key on that, rather than adding a discriminator to the data.

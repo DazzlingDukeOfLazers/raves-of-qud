@@ -81,7 +81,10 @@
    "shape": "build it as a SIGNPOST (two posts + slab)"
   },
   "sw_watervine": {
-   "fill": "make the gaps see-through"
+   "fill": "make the gaps see-through",
+   "recolor": {
+    "K": "y"
+   }
   },
   "sw_waterwheel": {
    "shape": "WATERWHEEL: 12-panel cylinder on an east-west axle",
