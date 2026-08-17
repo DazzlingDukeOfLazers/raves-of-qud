@@ -2590,6 +2590,20 @@ func _register_panel_anim(anim: String, fm: StandardMaterial3D, base_tile: Strin
 		_anim_sprites.append({"mat": fm, "len": alen, "sched": sched, "phase": phase})
 
 
+## The same tile with its frame digit swapped ("…sw_axle_1_ew.png" -> _2_, _3_). Qud builds
+## these names in a StringBuilder from tags; substituting the digit is how the mod finds the
+## cycle too, and it keeps both sides agreeing on what a frame is called.
+func _conduit_frame_tile(tile: String, digit: int) -> String:
+	var at := -1
+	for i in range(tile.length() - 1):
+		if tile[i] == "_" and tile[i + 1] >= "1" and tile[i + 1] <= "9" \
+				and (i + 2 >= tile.length() or not (tile[i + 2] >= "0" and tile[i + 2] <= "9")):
+			at = i + 1
+	if at < 0:
+		return tile
+	return tile.substr(0, at) + str(digit) + tile.substr(at + 1)
+
+
 ## Is this connector a junction — anything that is not a straight run? "ew"/"ns" carry
 ## straight through and stay shafts; a corner, tee or cross is a gearbox.
 func _conduit_is_junction(dirs: String) -> bool:
@@ -2643,20 +2657,30 @@ func _place_conduit_box(tile: String, main_c: String, detail_c: String, cx: int,
 		return
 	var box_rows: int = bbot - btop + 1
 	# the shaft's own section, from the straight canon — the hole must match what arrives
-	var smask := _mask(art)
-	var srows := 4
-	if smask != null:
-		var st0 := -1
-		var sb0 := -1
-		for y in smask.get_height():
-			for x in smask.get_width():
-				if smask.get_pixel(x, y).a >= 0.5:
-					if st0 < 0:
-						st0 = y
-					sb0 = y
+	# The hole must match the shaft that ARRIVES, and the straight variant's frames are not
+	# all the same height (_2 is a 2-row band where _1 and _3 are 4). Reading whichever one
+	# _panel_art resolves to gave a 2x2 hole in a 16-wide face — invisible. Take the WIDEST
+	# band across the cycle's frames, which is the section _fence_half_prism actually builds.
+	# Third time this canonical-frame rule has bitten; it is in docs/gotchas.md now.
+	var srows := 0
+	for dgt in range(1, 10):
+		var cand := _conduit_frame_tile(art, dgt)
+		var cmask := _mask(cand)
+		if cmask == null:
+			continue
+		var ct := -1
+		var cb := -1
+		for y in cmask.get_height():
+			for x in cmask.get_width():
+				if cmask.get_pixel(x, y).a >= 0.5:
+					if ct < 0:
+						ct = y
+					cb = y
 					break
-		if st0 >= 0:
-			srows = sb0 - st0 + 1
+		if ct >= 0:
+			srows = maxi(srows, cb - ct + 1)
+	if srows <= 0:
+		srows = 4
 	var tex := _colored_tex(tile, main_c, detail_c, Fill.ALL)
 	if tex == null:
 		return
@@ -2697,6 +2721,8 @@ func _place_conduit_box(tile: String, main_c: String, detail_c: String, cx: int,
 				solid[Vector3i(ax, vy, az)] = dark if behind else brown
 	if solid.is_empty():
 		return
+	print("[gearbox] cell (%d,%d) dirs=%s box=%dx%dx%d hole cols %d..%d rows %d..%d vox=%d" % [
+		cx, cy, dirs, n_h, box_rows, n_h, lo, hi, vlo, vhi, solid.size()])   # DEBUG
 	var stool := SurfaceTool.new()
 	stool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for key in solid:
