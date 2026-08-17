@@ -2607,6 +2607,24 @@ func _conduit_frame_tile(tile: String, digit: int) -> String:
 ## Rows of housing carried above the axle opening, so the gearbox is not just a collar.
 const BOX_ABOVE := 3
 
+## Voxels the housing is pulled in on each cardinal side, past the lip-matching width
+## (Daniel: "Pull the gearbox in by 1px in all cardinal directions"). Deliberately makes the
+## side lip one column narrower than the top lip: the side faces are seen at a slant, so a
+## lip that measures equal reads heavier than the top one.
+const BOX_INSET := 1
+
+## The housing's footprint in voxels for a shaft of `srows` section. ONE definition, because
+## two things need it and they must agree: the gearbox sizes itself by it, and the SHAFT
+## works out from it how far to reach so its end lands inside the recess rather than stopping
+## at the cell boundary. `jw` is the art's width in columns.
+func _gearbox_span(srows: int, jw: int) -> int:
+	var vlen: float = 1.0 / float(jw)
+	var hole_w: int = mini(srows * 2, jw - 2)
+	# top lip and side lip matched in WORLD units (a row is PIXEL_SIZE, a column is 1/jw),
+	# then pulled in by BOX_INSET
+	var lip: int = maxi(1, int(round(BOX_ABOVE * PIXEL_SIZE / vlen)) - BOX_INSET)
+	return hole_w + 2 * lip
+
 ## How much SLOWER the beam turns than Qud steps its frames. Qud's cadence is a revolution a
 ## second, which is right for three flat frames flicking past and far too fast for a solid
 ## beam actually turning — the eye reads the frames as texture, the rotation as a machine
@@ -2734,9 +2752,8 @@ func _place_conduit_box(tile: String, main_c: String, detail_c: String, cx: int,
 	# them in WORLD units — the top lip is BOX_ABOVE rows, so the side lip is however many
 	# columns come nearest that same distance — and the box is then hole + two lips across,
 	# no longer the full cell. Applied to BOTH horizontal axes so the housing stays square.
-	var lip_cols: int = maxi(1, int(round(BOX_ABOVE * vs / vlen)))
-	var n_h: int = hole_w + 2 * lip_cols               # box width in voxels, both axes
-	var lo: int = lip_cols                             # centred on the face by construction
+	var n_h: int = _gearbox_span(srows, jw)            # box width in voxels, both axes
+	var lo: int = int((n_h - hole_w) / 2)              # centred on the face by construction
 	var hi: int = lo + hole_w - 1
 	var solid := {}
 	for ax in n_h:
@@ -2857,12 +2874,22 @@ func _fence_half_prism(cx: int, cy: int, d: String, tile: String, main_c: String
 		sec[Vector2i(0, col)] = brown
 		sec[Vector2i(2, col)] = brown
 	sec[Vector2i(1, 1)] = dark
+	# REACH INTO THE RECESS. A half used to stop dead on the cell boundary, which was right
+	# when the housing spanned the whole cell and wrong now that it is pulled in: the beam
+	# ended in mid-air an eighth of a cell short of the face it is supposed to enter
+	# (Daniel: "extend the shaft into the recess"). Reach the housing's inset plus one voxel,
+	# so the end sits inside the opening. Where the neighbour is another shaft rather than a
+	# gearbox the two simply overlap, and the buried end caps are never seen.
+	var amask := _mask(art)
+	var jw2: int = amask.get_width() if amask != null else 16
+	var reach: float = (1.0 - _gearbox_span(band, jw2) / float(jw2)) * 0.5 + 1.0 / float(jw2)
+	var seg: float = 0.5 + reach
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for key in sec:
 		var rc: Vector2i = key
-		var o := Vector3(-0.25, (rc.x - 1.5) * vs, (rc.y - 1.5) * vs)
-		_vox_block(st, o, Vector3(0.5, vs, vs), sec[key],
+		var o := Vector3(-seg * 0.5, (rc.x - 1.5) * vs, (rc.y - 1.5) * vs)
+		_vox_block(st, o, Vector3(seg, vs, vs), sec[key],
 			[true, true,
 			 not sec.has(rc + Vector2i(-1, 0)), not sec.has(rc + Vector2i(1, 0)),
 			 not sec.has(rc + Vector2i(0, -1)), not sec.has(rc + Vector2i(0, 1))])
@@ -2876,7 +2903,7 @@ func _fence_half_prism(cx: int, cy: int, d: String, tile: String, main_c: String
 	# local +x runs along the shaft; yaw turns that onto the cell's axis
 	var yaw: float = 0.0 if horiz else -PI * 0.5
 	var B := Basis(Vector3.UP, yaw)
-	var lead: float = 0.25 if (d == "e" or d == "s") else -0.25
+	var lead: float = seg * 0.5 if (d == "e" or d == "s") else -seg * 0.5
 	var centre := Vector3(cx, yc, cy) + (Vector3(lead, 0.0, 0.0) if horiz else Vector3(0.0, 0.0, lead))
 	mi.transform = Transform3D(B, centre)
 	_spawn_parent().add_child(mi)
