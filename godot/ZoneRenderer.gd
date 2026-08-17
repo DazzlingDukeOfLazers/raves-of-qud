@@ -2980,6 +2980,16 @@ const WHEEL_PANELS := 12
 
 ## Profile radii, as fractions of the disc: the hub the radial lines cross at, and the inner
 ## edge of the rim hoop. The filled slices live between them.
+## Angular widths inside one slice, as fractions of it: the radial wall, the water lying on it,
+## and the lip that retains the water. Daniel: "add a layer of blue water on the spokes. In the
+## direction of rotation, the layer would lay flat on the spoke. Also, try and add a lip counter
+## to the direction of motion to 'hold the water in'." Spoke + water + lip is a BUCKET: the wall
+## is its floor, the lip its outer wall, and the water sits between them.
+const WHEEL_SPOKE_W := 0.30
+const WHEEL_WATER_W := 0.22
+const WHEEL_LIP_W := 0.10
+const WHEEL_LIP_R := 0.55      # the lip stands from this radius out to the rim
+
 const WHEEL_HUB := 0.16
 const WHEEL_RIM := 0.86
 
@@ -3091,8 +3101,12 @@ func _place_waterwheel(obj: Dictionary, tile: String, cx: int, cy: int, light_fr
 	#
 	# Both colours are Qud's own: k (#0f3b3a) is the default background — Daniel's "dark green"
 	# from the I-beam web — and B (#0096ff) is the light blue.
+	# TWO blues, because they are two different things. The endcap ring is LIGHT blue (Daniel:
+	# "turn the blue on the endcaps to light blue") — C, #77bfcf; the water carried on the spokes
+	# is blue proper — B, #0096ff. k (#0f3b3a) is Qud's default background.
 	var bg := _qud_color("k")
-	var lblue := _qud_color("B")
+	var lblue := _qud_color("C")
+	var wblue := _qud_color("B")
 	var fs: int = bot - top + 1
 	var face := Image.create(fs, fs, false, Image.FORMAT_RGBA8)
 	var spok := Image.create(fs, fs, false, Image.FORMAT_RGBA8)
@@ -3103,16 +3117,30 @@ func _place_waterwheel(obj: Dictionary, tile: String, cx: int, cy: int, light_fr
 			var dy: float = py - c
 			var d: float = sqrt(dx * dx + dy * dy)
 			var radial: bool = false
+			var carry: bool = false            # runs the wheel's WIDTH, not just the endcap
 			var col := Color(0, 0, 0, 0)
 			if d <= c:
 				var ang: float = (atan2(dy, dx) + PI) / TAU
-				radial = d < c * WHEEL_HUB or fposmod(ang * WHEEL_PANELS, 1.0) < 0.30
-				if radial or d > c * WHEEL_RIM:
+				var ph: float = fposmod(ang * WHEEL_PANELS, 1.0)
+				var hub: bool = d < c * WHEEL_HUB
+				var rim: bool = d > c * WHEEL_RIM
+				radial = hub or ph < WHEEL_SPOKE_W
+				var wet: bool = not rim and not hub \
+					and ph >= WHEEL_SPOKE_W and ph < WHEEL_SPOKE_W + WHEEL_WATER_W
+				var lip: bool = not rim and not hub and d > c * WHEEL_LIP_R \
+					and ph >= WHEEL_SPOKE_W + WHEEL_WATER_W \
+					and ph < WHEEL_SPOKE_W + WHEEL_WATER_W + WHEEL_LIP_W
+				if radial or rim or lip:
 					col = wood
+				elif wet:
+					col = wblue
 				else:
 					col = lblue if int(floor(c * WHEEL_RIM - d)) == 1 else bg
+				# the bucket — wall, water and lip — is the wheel's structure and runs its whole
+				# width; the endcap's background fill and light-blue ring are face decoration only
+				carry = radial or wet or lip
 			face.set_pixel(px, py, col)
-			spok.set_pixel(px, py, wood if radial else Color(0, 0, 0, 0))
+			spok.set_pixel(px, py, col if carry else Color(0, 0, 0, 0))
 	var mi := MeshInstance3D.new()
 	mi.mesh = _wheel_extrude_mesh(face, spok, r, thick)
 	var wm: StandardMaterial3D = _vox_skin_material().duplicate()
@@ -3136,6 +3164,8 @@ const SPILL_AMOUNT := 70        # droplets alive in the curtain
 const SPILL_LIFETIME := 1.1     # seconds; gravity is solved so the fall lands on the surface
 const SPILL_SQUARE := 0.075     # edge of one droplet square, before per-particle scale
 const SPILL_FALL := 0.5         # initial downward speed; gravity supplies the rest
+const SPLASH_AMOUNT := 26       # droplets alive in the burst where the column lands
+const SPLASH_LIFETIME := 0.55
 
 func _wheel_spill(obj: Dictionary, tile: String, mask: Image, img: Image, top: int, bot: int,
 		r: float, thick: float, cx: int, cy: int) -> void:
@@ -3167,6 +3197,9 @@ func _wheel_spill(obj: Dictionary, tile: String, mask: Image, img: Image, top: i
 	var wheel_top: float = FLOAT_Y + r
 	var y_top: float = wheel_top - (wy0 - top) / rows * dia
 	var y_bot: float = wheel_top - (wy1 - top + 1) / rows * dia
+	# HALVED (Daniel: "Lower the falling water by half") — the top comes down to the midpoint of
+	# the drawn run and the landing stays put, so the column is shorter and starts lower.
+	y_top = (y_top + y_bot) * 0.5
 	var fall: float = maxf(0.15, y_top - y_bot)
 	# WIDTH stays on the art's own scale — the spill is water, not wheel, so WHEEL_SCALE has no
 	# business here; it hangs just clear of the east face wherever that face ended up.
@@ -3245,6 +3278,33 @@ func _wheel_spill(obj: Dictionary, tile: String, mask: Image, img: Image, top: i
 	pt.position = Vector3(cx, y_top, cy + r)
 	_spawn_parent().add_child(pt)
 	_track(pt)
+
+	# THE SPLASH where the column lands (Daniel: "Add the splash"). Same colour, same droplet,
+	# opposite sign: a short burst thrown UP and OUT of the surface rather than a long fall, so
+	# the water breaks on arrival instead of just fading out as it did before.
+	var spm := ParticleProcessMaterial.new()
+	spm.direction = Vector3(0, 1, 0)
+	spm.spread = 70.0
+	spm.initial_velocity_min = SPILL_FALL * 0.45
+	spm.initial_velocity_max = SPILL_FALL * 1.3
+	spm.gravity = Vector3(0, -g * 1.6, 0)     # falls back faster than it rose
+	spm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	spm.emission_box_extents = Vector3(wwide * 0.7, 0.02, wwide * 0.7)
+	spm.scale_min = 0.35
+	spm.scale_max = 0.85
+	spm.color_ramp = gt
+	var sp := GPUParticles3D.new()
+	sp.amount = SPLASH_AMOUNT
+	sp.lifetime = SPLASH_LIFETIME
+	sp.preprocess = SPLASH_LIFETIME
+	sp.randomness = 0.75
+	sp.process_material = spm
+	sp.draw_pass_1 = qm
+	sp.local_coords = false
+	sp.visibility_aabb = AABB(Vector3(-1.0, -0.5, -1.0), Vector3(2.0, 2.0, 2.0))
+	sp.position = Vector3(cx, y_bot, cy + r)
+	_spawn_parent().add_child(sp)
+	_track(sp)
 
 
 ## The wheel as TWO END DISCS held apart by its radial walls.
