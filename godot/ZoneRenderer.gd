@@ -2364,18 +2364,18 @@ func _door_trim_box(st: SurfaceTool, a0: float, a1: float, d0: float, d1: float,
 			st.set_normal(Vector3.UP)
 			st.add_vertex(p)
 
-func _place_connector(tile: String, main_c: String, detail_c: String, cx: int, cy: int, dirs: String, h := FENCE_H, fill := Fill.NONE, y_center := -1.0, light_frac := 1.0) -> void:
+func _place_connector(tile: String, main_c: String, detail_c: String, cx: int, cy: int, dirs: String, h := FENCE_H, fill := Fill.NONE, y_center := -1.0, light_frac := 1.0, anim := "") -> void:
 	if dirs == "":
-		_fence_half(cx, cy, "post", tile, main_c, detail_c, h, fill, y_center, light_frac)
+		_fence_half(cx, cy, "post", tile, main_c, detail_c, h, fill, y_center, light_frac, anim)
 		return
 	for d in dirs:
-		_fence_half(cx, cy, d, tile, main_c, detail_c, h, fill, y_center, light_frac)
+		_fence_half(cx, cy, d, tile, main_c, detail_c, h, fill, y_center, light_frac, anim)
 
 # One upright half-panel from the cell centre out to the edge in direction d, using
 # the family's E-W elevation art. Adjacent cells' halves meet at the shared edge,
 # so runs are continuous and corners form a clean L. Used for every directional
 # family: picket fences, pipes, and tent walls (which differ only in height).
-func _fence_half(cx: int, cy: int, d: String, tile: String, main_c: String, detail_c: String, h := FENCE_H, fill := Fill.NONE, y_center := -1.0, light_frac := 1.0) -> void:
+func _fence_half(cx: int, cy: int, d: String, tile: String, main_c: String, detail_c: String, h := FENCE_H, fill := Fill.NONE, y_center := -1.0, light_frac := 1.0, anim := "") -> void:
 	var vox_d := _connector_vox_depth(tile)
 	if vox_d > 0:
 		_fence_half_vox(cx, cy, d, tile, main_c, detail_c, h, fill, y_center, light_frac, vox_d)
@@ -2391,6 +2391,11 @@ func _fence_half(cx: int, cy: int, d: String, tile: String, main_c: String, deta
 	mi.material_override = fm
 	if _live_build:
 		_lit_meshes.append({"mi": mi, "cell": Vector2i(cx, cy)})
+		# A multi-frame PANEL (Joppa's water wheel: shape=ORIENTED PANEL, so it never
+		# touches the billboard path _register_sprite_anim hooks). Only the texture
+		# swaps — the material keeps its own uv1 crop and the half's offset, so the
+		# frame lands in exactly the same window as the base.
+		_register_panel_anim(anim, fm, _panel_art(tile), main_c, detail_c, fill)
 	mi.scale = Vector3(0.5, h, 1.0)
 	var pos := Vector3(cx, (y_center if y_center >= 0.0 else h * 0.5), cy)
 	var rot := 0.0
@@ -2542,6 +2547,38 @@ func _fence_half_vox(cx: int, cy: int, d: String, tile: String, main_c: String, 
 	if _live_build:
 		_lit_meshes.append({"mi": mi, "cell": Vector2i(cx, cy)})
 	_track(mi)
+
+
+## Frame-swap registration for a connector PANEL. Same schedule and same clock as
+## _register_sprite_anim; the difference is where the frame goes — a panel is a quad
+## wearing a material, so the frame is the material's albedo_texture, not a sprite's
+## texture. Swapping only the texture keeps the material's uv1_scale/offset, which is
+## what crops the art to the opaque band and picks the left/right half.
+func _register_panel_anim(anim: String, fm: StandardMaterial3D, base_tile: String,
+		main_c: String, detail_c: String, fill: int) -> void:
+	if anim == "" or fm == null:
+		return
+	var parts := anim.split("|")
+	if parts.size() < 3:
+		return
+	var alen := maxi(int(parts[0]), 1)
+	var sched: Array = []
+	var any_tile := false
+	for i in range(1, parts.size()):
+		var kv := parts[i].split("=")
+		if kv.size() != 2:
+			continue
+		var axes := String(kv[1]).split(";")
+		var ftile := String(axes[0]) if axes.size() > 0 else ""
+		var tex: Texture2D = fm.albedo_texture
+		if ftile != "" and ftile != base_tile:
+			var ft := _colored_tex(ftile, main_c, detail_c, fill)
+			if ft != null:
+				tex = ft
+				any_tile = true
+		sched.append({"f": int(kv[0]), "tex": tex})
+	if any_tile and sched.size() > 1:
+		_anim_sprites.append({"mat": fm, "len": alen, "sched": sched})
 
 
 func _take_fence() -> MeshInstance3D:
@@ -3445,7 +3482,8 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			var axis := "ew" if verdict == "panel_ew" else "ns"
 			var vh := _panel_height(obj, tile)
 			_place_connector(tile, main_c, detail_c, cx, cy, axis, vh,
-				_fill_for(tile, Fill.ALL if bool(obj.get("occluding", false)) else Fill.NONE), -1.0, light_frac)
+				_fill_for(tile, Fill.ALL if bool(obj.get("occluding", false)) else Fill.NONE), -1.0, light_frac,
+				String(obj.get("animSched", "")))
 			_note(cx, cy, idx, "connector panels [%s] h=%.2f %s (user verdict)" % [axis, vh, _connector_note(tile)], vh * 0.5)
 			return
 
@@ -3542,7 +3580,7 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 		var cph := _panel_height(obj, tile)
 		var cyc: float = FLOAT_Y if position_for(tile) == "float" else cph * 0.5
 		_place_connector(tile, main_c, detail_c, cx, cy, cd, cph,
-			Fill.ALL if csolid else Fill.NONE, cyc, light_frac)
+			Fill.ALL if csolid else Fill.NONE, cyc, light_frac, String(obj.get("animSched", "")))
 		_note(cx, cy, idx, "connector panels [%s] h=%.2f %s (stood up)" % [
 			"post" if cd == "" else cd, cph, _connector_note(tile)], cyc)
 		return
@@ -3615,7 +3653,8 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			var ph := _panel_height(obj, tile)
 			var floated: bool = position_for(tile) == "float"
 			var yc: float = FLOAT_Y if floated else ph * 0.5
-			_place_connector(tile, main_c, detail_c, cx, cy, dirs, ph, pfill, yc, light_frac)
+			_place_connector(tile, main_c, detail_c, cx, cy, dirs, ph, pfill, yc, light_frac,
+				String(obj.get("animSched", "")))
 			_note(cx, cy, idx, "connector panels [%s] h=%.2f %s%s%s" % [
 				"post" if dirs == "" else dirs, ph, _connector_note(tile),
 				" filled-bg" if solid else "", "  floated" if floated else ""], yc)
@@ -6204,8 +6243,11 @@ func _animate_1to1() -> void:
 	# as the "frames" kind below; the difference is that the frame IS the sprite's own
 	# texture, not an overlay quad laid over a flat tile.
 	for a in _anim_sprites:
-		var sp := a["sprite"] as Sprite3D
-		if sp == null or not is_instance_valid(sp):
+		var sp: Sprite3D = a.get("sprite", null) as Sprite3D
+		var fmat: StandardMaterial3D = a.get("mat", null) as StandardMaterial3D
+		if sp != null and not is_instance_valid(sp):
+			continue
+		if sp == null and fmat == null:
 			continue
 		var tf := int(ms * 0.06) % int(a["len"])
 		var tsched: Array = a["sched"]
@@ -6214,8 +6256,11 @@ func _animate_1to1() -> void:
 			if tf >= int(tsched[si]["f"]):
 				tact = si
 		var want: Texture2D = tsched[tact]["tex"]
-		if sp.texture != want:
-			sp.texture = want
+		if sp != null:
+			if sp.texture != want:
+				sp.texture = want
+		elif fmat.albedo_texture != want:
+			fmat.albedo_texture = want
 	var qf := int(ms * 0.06) % 60
 	if _anim_tnode != null and is_instance_valid(_anim_tnode):
 		_anim_tnode.visible = (qf < 15) or (qf >= 30 and qf < 45)   # RenderTarget's blink windows

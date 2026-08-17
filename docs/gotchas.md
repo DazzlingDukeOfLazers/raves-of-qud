@@ -1986,6 +1986,22 @@ the end of a run they are exposed, so the run caps itself for free. ~260 quads p
 worked this way. Note `_voxel_material` sets `cull_mode = CULL_DISABLED`, so face winding
 does not have to survive the x/z axis swap that orients N-S panels.
 
+## A SHAPE override moves an object off the billboard path (2026-08-16)
+
+Per-object features hooked into the billboard placement code silently skip anything with a
+`shape` verdict in overrides.json — the object is built by `_place_connector`,
+`_place_tentwall`, `_place_signpost` or the door path instead, and never reaches the hook.
+That is why Joppa's millstone animated the moment the sprite animator landed but the water
+wheel did not: the wheel is ruled `ORIENTED PANEL running E-W`, so it is a connector quad,
+not a Sprite3D. Nothing was wrong with its schedule — the wire had been carrying
+`176|0=;;|59=Items/sw_waterwheel_2.bmp;;|118=Items/sw_waterwheel_3.bmp;;` the whole time.
+
+When adding anything per-object, check `overrides.json` for families that divert, and cover
+the diverted builders too. For frame animation that meant a second registrar: a panel wears
+a MATERIAL, so the frame is `albedo_texture`, not `Sprite3D.texture` — and swapping only the
+texture preserves the material's `uv1_scale`/`uv1_offset`, which crop the art to its opaque
+band and pick the half. Both register into one `_anim_sprites` list and one driver.
+
 ## Tile-derived solids: one builder, four shapes (2026-08-16)
 
 Tent fabric, tent poles, the signpost and fences all build the same way now — mark the solid
