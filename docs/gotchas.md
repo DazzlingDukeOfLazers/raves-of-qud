@@ -1986,6 +1986,25 @@ the end of a run they are exposed, so the run caps itself for free. ~260 quads p
 worked this way. Note `_voxel_material` sets `cull_mode = CULL_DISABLED`, so face winding
 does not have to survive the x/z axis swap that orients N-S panels.
 
+## Animation frames are not all the same SIZE (2026-08-16)
+
+`sw_axle_1` and `_3` are 4-row bands; `sw_axle_2` is 2 rows. Any geometry derived from
+"the tile this object is currently wearing" therefore changes with the frame, and two
+symptoms follow that look unrelated:
+
+- neighbouring axles render at different thicknesses, because each was built while wearing
+  a different frame (`_panel_height` scales with the opaque row count, so even the height
+  differed);
+- a thin frame shows a dark PLANE across the shaft, because the section was sized for 4
+  rows and the two rows outside that frame's band sample as the `Fill.ALL` background.
+
+Derive geometry from ONE canonical frame — the widest band across the cycle — and size the
+voxel in art pixels so every instance matches regardless of where in the cycle it starts.
+Then sample each frame through its OWN band, stretched onto the canonical section, so a
+2-row frame paints its material across the whole shaft instead of leaving background. This
+is the tent's canonical-`_ew` lesson in another costume: derive proportions from one
+variant, never from the live one.
+
 ## Qud has TWO animation clocks and they are not the same unit (2026-08-16)
 
 `XRLCore.CurrentFrame` is `(elapsed.TotalMilliseconds % 1000) / 16` — a ~60fps frame count

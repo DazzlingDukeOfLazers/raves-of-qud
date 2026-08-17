@@ -2626,23 +2626,38 @@ func _fence_half_prism(cx: int, cy: int, d: String, tile: String, main_c: String
 	var mask := _mask(art)
 	if mask == null:
 		return
-	# the art's opaque band: its height IS the shaft's thickness, in voxels
 	var mw := mask.get_width()
 	var mh := mask.get_height()
-	var top := -1
-	var bot := -1
-	for y in mh:
-		for x in mw:
-			if mask.get_pixel(x, y).a >= 0.5:
-				if top < 0:
-					top = y
-				bot = y
-				break
-	if top < 0:
-		return
-	var band: int = bot - top + 1
 	var hw: int = mw / 2
 	var frames := _anim_frame_tiles(anim, art)
+	# GEOMETRY COMES FROM A CANONICAL FRAME, and that is the whole of two bugs Daniel found.
+	# Qud's frames are not the same height: axle_2 is a 2-row band where _1 and _3 are 4.
+	# Sizing the section from whichever frame the object happens to be WEARING made
+	# neighbouring axles different thicknesses ("the tile to the east has a different axle
+	# rendering"), and on a thin frame the rows outside its band sampled as the Fill.ALL
+	# background — the dark plane across the shaft, not the ice cream rotating out. So take
+	# the WIDEST frame's band as the section and size a voxel in ART pixels, which makes
+	# every axle identical whatever frame it happens to start on. Same lesson as the tent's
+	# canonical _ew elevation: derive proportions from ONE variant, never the live one.
+	var bands: Array = []          # [top, bottom] per frame, in art rows
+	var band: int = 0
+	for ft in frames:
+		var fmask := _mask(String(ft))
+		var ftop := -1
+		var fbot := -1
+		if fmask != null:
+			for y in fmask.get_height():
+				for x in fmask.get_width():
+					if fmask.get_pixel(x, y).a >= 0.5:
+						if ftop < 0:
+							ftop = y
+						fbot = y
+						break
+		bands.append([ftop, fbot])
+		if ftop >= 0:
+			band = maxi(band, fbot - ftop + 1)
+	if band <= 0:
+		return
 	var imgs: Array = []
 	for ft in frames:
 		# Fill.ALL: the clear rows inside the shaft become the cell background, which is
@@ -2658,7 +2673,7 @@ func _fence_half_prism(cx: int, cy: int, d: String, tile: String, main_c: String
 	var u0: int = hw if right_half else 0
 	var horiz: bool = d == "e" or d == "w"
 	var yc: float = y_center if y_center >= 0.0 else h * 0.5
-	var vs: float = h / float(band)              # one voxel, cubed
+	var vs: float = PIXEL_SIZE                   # one voxel, cubed, in ART pixels
 	var lead: float = 0.25 if right_half else -0.25
 	var yaw: float = 0.0 if horiz else PI * 0.5
 	var B := Basis(Vector3.UP, yaw)
@@ -2681,8 +2696,17 @@ func _fence_half_prism(cx: int, cy: int, d: String, tile: String, main_c: String
 					var im: Image = imgs[src]
 					if im == null:
 						im = img0
-					# rows run top-down in the art; the shaft's top is the band's first row
-					var row: int = top + (band - 1 - vy)
+					# Map this voxel row through the SOURCE FRAME'S OWN band, stretched onto
+					# the canonical section, so a 2-row frame paints wood across all four
+					# rows instead of leaving the two outside its band as background.
+					var bnd: Array = bands[src]
+					var bt: int = int(bnd[0])
+					var bb: int = int(bnd[1])
+					if bt < 0:
+						bt = 0
+						bb = mh - 1
+					var frac: float = float(band - 1 - vy) / float(maxi(1, band - 1))
+					var row: int = bt + int(round(frac * float(bb - bt)))
 					var c := im.get_pixel(int((u0 + a + 0.5) * sx), int((row + 0.5) * sy))
 					var o := Vector3(a * vs, (vy - band * 0.5) * vs, (vz - band * 0.5) * vs)
 					if right_half:
