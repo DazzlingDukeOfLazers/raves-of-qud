@@ -2365,6 +2365,12 @@ func _door_trim_box(st: SurfaceTool, a0: float, a1: float, d0: float, d1: float,
 			st.add_vertex(p)
 
 func _place_connector(tile: String, main_c: String, detail_c: String, cx: int, cy: int, dirs: String, h := FENCE_H, fill := Fill.NONE, y_center := -1.0, light_frac := 1.0, anim := "") -> void:
+	# A JUNCTION in a shaft family is a gearbox, not two shafts crossing: Qud's _se art is a
+	# housing (rows 6-12) with stubs leaving east and south, not an L of bare axle. Straight
+	# runs stay shafts; anything that turns or branches gets the box.
+	if _connector_is_prism(tile) and _conduit_is_junction(dirs):
+		_place_conduit_box(tile, main_c, detail_c, cx, cy, dirs, fill, y_center, light_frac)
+		return
 	if dirs == "":
 		_fence_half(cx, cy, "post", tile, main_c, detail_c, h, fill, y_center, light_frac, anim)
 		return
@@ -2582,6 +2588,135 @@ func _register_panel_anim(anim: String, fm: StandardMaterial3D, base_tile: Strin
 		sched.append({"f": int(kv[0]), "tex": tex})
 	if any_tile and sched.size() > 1:
 		_anim_sprites.append({"mat": fm, "len": alen, "sched": sched, "phase": phase})
+
+
+## Is this connector a junction — anything that is not a straight run? "ew"/"ns" carry
+## straight through and stay shafts; a corner, tee or cross is a gearbox.
+func _conduit_is_junction(dirs: String) -> bool:
+	if dirs.length() < 2:
+		return false
+	var has_ew: bool = dirs.contains("e") or dirs.contains("w")
+	var has_ns: bool = dirs.contains("n") or dirs.contains("s")
+	if dirs.length() == 2 and ((dirs.contains("e") and dirs.contains("w")) or (dirs.contains("n") and dirs.contains("s"))):
+		return false
+	return has_ew and has_ns or dirs.length() > 2
+
+
+## The gearbox at a shaft junction: a solid brown prism spanning the cell, with a HOLE in
+## each face a shaft arrives at (Daniel: "a brown rectangular prism with a 'hole' on the
+## south and east sides. The hole is just 1 layer of the face cutout and the core is the
+## default background color. It will appear as if the axels are going into darkness").
+##
+## The hole is exactly that: the outer layer of voxels inside the shaft's cross-section is
+## omitted, and the layer behind it is painted the cell background, so the opening reads as
+## depth rather than as a dark decal. The box spans the FULL cell so the neighbouring
+## half-shafts — which run to the shared edge — meet its face with no gap, the same
+## abutment rule the shafts themselves now follow.
+##
+## Footprint is on the CELL's scale and thickness on the ART's, matching _fence_half_prism.
+## The housing's height comes from the junction art's own box band. The spinny interior is
+## not modelled yet; this is the basic geometry.
+func _place_conduit_box(tile: String, main_c: String, detail_c: String, cx: int, cy: int,
+		dirs: String, fill: int, y_center: float, light_frac: float) -> void:
+	var art := _panel_art(tile)
+	var jmask := _mask(tile)          # the JUNCTION art, not the straight canon
+	if jmask == null:
+		return
+	var jw := jmask.get_width()
+	var jh := jmask.get_height()
+	# the housing = the widest contiguous run of rows (the stubs are narrow)
+	var wide := int(ceil(jw * 0.5))
+	var btop := -1
+	var bbot := -1
+	for y in jh:
+		var n := 0
+		for x in jw:
+			if jmask.get_pixel(x, y).a >= 0.5:
+				n += 1
+		if n >= wide:
+			if btop < 0:
+				btop = y
+			bbot = y
+		elif btop >= 0:
+			break
+	if btop < 0:
+		return
+	var box_rows: int = bbot - btop + 1
+	# the shaft's own section, from the straight canon — the hole must match what arrives
+	var smask := _mask(art)
+	var srows := 4
+	if smask != null:
+		var st0 := -1
+		var sb0 := -1
+		for y in smask.get_height():
+			for x in smask.get_width():
+				if smask.get_pixel(x, y).a >= 0.5:
+					if st0 < 0:
+						st0 = y
+					sb0 = y
+					break
+		if st0 >= 0:
+			srows = sb0 - st0 + 1
+	var tex := _colored_tex(tile, main_c, detail_c, Fill.ALL)
+	if tex == null:
+		return
+	var img := tex.get_image()
+	var sxr: float = img.get_width() / float(jw)
+	var syr: float = img.get_height() / float(jh)
+	var brown := img.get_pixel(int((jw * 0.5) * sxr), int((btop + 0.5) * syr))
+	# The darkness inside the hole is the SAME background Fill.ALL paints, taken from the
+	# texture itself (a corner pixel lies outside the art, so it is pure fill). Asking
+	# _wall_bg_color() instead returns the wall gap-fill colour, which is a different
+	# question and came back close enough to the wood that the recess was invisible.
+	var dark := img.get_pixel(0, 0)
+	if dark.a < 0.5:
+		dark = Color(0.06, 0.12, 0.12)
+	var n_h: int = jw                       # full cell across, so neighbours abut
+	var vlen: float = 1.0 / float(n_h)
+	var vs: float = PIXEL_SIZE
+	var yc: float = y_center if y_center >= 0.0 else FLOAT_Y
+	var lo: int = int(floor((n_h - srows) * 0.5))   # the hole, centred on the face
+	var hi: int = lo + srows - 1
+	var vlo: int = int(floor((box_rows - srows) * 0.5))
+	var vhi: int = vlo + srows - 1
+	var solid := {}
+	for ax in n_h:
+		for vy in box_rows:
+			for az in n_h:
+				var in_hole_e: bool = dirs.contains("e") and ax == n_h - 1 and az >= lo and az <= hi and vy >= vlo and vy <= vhi
+				var in_hole_w: bool = dirs.contains("w") and ax == 0 and az >= lo and az <= hi and vy >= vlo and vy <= vhi
+				var in_hole_s: bool = dirs.contains("s") and az == n_h - 1 and ax >= lo and ax <= hi and vy >= vlo and vy <= vhi
+				var in_hole_n: bool = dirs.contains("n") and az == 0 and ax >= lo and ax <= hi and vy >= vlo and vy <= vhi
+				if in_hole_e or in_hole_w or in_hole_s or in_hole_n:
+					continue                # the cut-away outer layer
+				# the layer directly behind a hole is the darkness you see into
+				var behind: bool = (dirs.contains("e") and ax == n_h - 2 and az >= lo and az <= hi and vy >= vlo and vy <= vhi) \
+					or (dirs.contains("w") and ax == 1 and az >= lo and az <= hi and vy >= vlo and vy <= vhi) \
+					or (dirs.contains("s") and az == n_h - 2 and ax >= lo and ax <= hi and vy >= vlo and vy <= vhi) \
+					or (dirs.contains("n") and az == 1 and ax >= lo and ax <= hi and vy >= vlo and vy <= vhi)
+				solid[Vector3i(ax, vy, az)] = dark if behind else brown
+	if solid.is_empty():
+		return
+	var stool := SurfaceTool.new()
+	stool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for key in solid:
+		var v: Vector3i = key
+		var o := Vector3(cx - 0.5 + v.x * vlen, yc + (v.y - box_rows * 0.5) * vs, cy - 0.5 + v.z * vlen)
+		_vox_block(stool, o, Vector3(vlen, vs, vlen), solid[key],
+			[not solid.has(v + Vector3i(-1, 0, 0)), not solid.has(v + Vector3i(1, 0, 0)),
+			 not solid.has(v + Vector3i(0, -1, 0)), not solid.has(v + Vector3i(0, 1, 0)),
+			 not solid.has(v + Vector3i(0, 0, -1)), not solid.has(v + Vector3i(0, 0, 1))])
+	var mesh := ArrayMesh.new()
+	stool.commit(mesh)
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	var bm: StandardMaterial3D = _vox_skin_material().duplicate()
+	bm.albedo_color = Color(light_frac, light_frac, light_frac)
+	mi.material_override = bm
+	_spawn_parent().add_child(mi)
+	if _live_build:
+		_lit_meshes.append({"mi": mi, "cell": Vector2i(cx, cy)})
+	_track(mi)
 
 
 ## Connector families built as a turning PRISM rather than a flat panel. Axles only:
