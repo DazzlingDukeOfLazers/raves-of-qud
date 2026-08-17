@@ -3119,6 +3119,7 @@ func _place_waterwheel(obj: Dictionary, tile: String, cx: int, cy: int, light_fr
 	var fs: int = bot - top + 1
 	var face := Image.create(fs, fs, false, Image.FORMAT_RGBA8)
 	var spok := Image.create(fs, fs, false, Image.FORMAT_RGBA8)
+	var inner := Image.create(fs, fs, false, Image.FORMAT_RGBA8)
 	var c: float = (fs - 1) * 0.5
 	for py in fs:
 		for px in fs:
@@ -3166,8 +3167,16 @@ func _place_waterwheel(obj: Dictionary, tile: String, cx: int, cy: int, light_fr
 				mid = wood if (radial or lip) else (bg if wet else Color(0, 0, 0, 0))
 			face.set_pixel(px, py, col)
 			spok.set_pixel(px, py, mid)
+			# THE INNER SURFACES — the two disc faces that look at each other across the span
+			# (Daniel: "change just the inside of the pizzas, the sides facing each other ...
+			# change the outer 1px border to brown"). Background but for one voxel of timber at
+			# the rim, so the span is bounded by a wooden edge at each end. A THIRD profile
+			# rather than a rule inside the mesher: every colour decision for this shape belongs
+			# here beside the other two, and the mesher stays a mesher.
+			if d <= c:
+				inner.set_pixel(px, py, wood if int(floor(c - d)) == 0 else bg)
 	var mi := MeshInstance3D.new()
-	mi.mesh = _wheel_extrude_mesh(face, spok, r, thick, bg)
+	mi.mesh = _wheel_extrude_mesh(face, spok, inner, r, thick)
 	var wm: StandardMaterial3D = _vox_skin_material().duplicate()
 	wm.albedo_color = Color(light_frac, light_frac, light_frac)
 	mi.material_override = wm
@@ -3189,6 +3198,7 @@ const SPILL_AMOUNT := 70        # droplets alive in the curtain
 const SPILL_LIFETIME := 1.1     # seconds; gravity is solved so the fall lands on the surface
 const SPILL_SQUARE := 0.075     # edge of one droplet square, before per-particle scale
 const SPILL_FALL := 0.5         # initial downward speed; gravity supplies the rest
+const SPILL_HEIGHT := 0.375     # of the run the art draws: halved, then three quarters of that
 const SPLASH_AMOUNT := 26       # droplets alive in the burst where the column lands
 const SPLASH_LIFETIME := 0.55
 
@@ -3222,9 +3232,10 @@ func _wheel_spill(obj: Dictionary, tile: String, mask: Image, img: Image, top: i
 	var wheel_top: float = FLOAT_Y + r
 	var y_top: float = wheel_top - (wy0 - top) / rows * dia
 	var y_bot: float = wheel_top - (wy1 - top + 1) / rows * dia
-	# HALVED (Daniel: "Lower the falling water by half") — the top comes down to the midpoint of
-	# the drawn run and the landing stays put, so the column is shorter and starts lower.
-	y_top = (y_top + y_bot) * 0.5
+	# SHORTENED TWICE OVER, from the top, with the landing point fixed: halved first (Daniel:
+	# "Lower the falling water by half"), then taken to three quarters of that ("Move the falling
+	# water height down to 0.75 it's current height"). 0.375 of the run the art draws.
+	y_top = y_bot + (y_top - y_bot) * SPILL_HEIGHT
 	var fall: float = maxf(0.15, y_top - y_bot)
 	# WIDTH stays on the art's own scale — the spill is water, not wheel, so WHEEL_SCALE has no
 	# business here; it hangs just clear of the east face wherever that face ended up.
@@ -3348,7 +3359,7 @@ func _wheel_spill(obj: Dictionary, tile: String, mask: Image, img: Image, top: i
 ## slab tests against the WHOLE disc. That pairing is what keeps it hole-free — an end slab
 ## beside a spoke is correctly buried (the spoke's box covers that depth), while a spoke beside
 ## a rim-only pixel still draws its long side, of which only the slab's depth is hidden.
-func _wheel_extrude_mesh(face: Image, spok: Image, r: float, thick: float, bg: Color) -> ArrayMesh:
+func _wheel_extrude_mesh(face: Image, spok: Image, inner: Image, r: float, thick: float) -> ArrayMesh:
 	var fs := face.get_width()
 	var step: float = 2.0 * r / float(fs)
 	var cap: float = minf(step, thick * 0.4)      # each end disc is one profile voxel deep
@@ -3395,10 +3406,11 @@ func _wheel_extrude_mesh(face: Image, spok: Image, r: float, thick: float, bg: C
 				 not rad.has(k + Vector2i(0, 1)), not rad.has(k + Vector2i(0, -1)),
 				 not rad.has(k + Vector2i(-1, 0)), not rad.has(k + Vector2i(1, 0))])
 		else:
-			# no structure here, so line the inside of each disc with background: without it the
-			# ring and the hoop would be read from within the span as well as from outside
+			# no structure here, so each disc gets its INNER lining: without it the ring and
+			# the hoop would be read from within the span as well as from outside
+			var lin := inner.get_pixel(k.x, k.y)
 			for x0 in [-thick * 0.5 + half, thick * 0.5 - cap]:
-				_vox_block(st, Vector3(x0, wy, wz), Vector3(half, step, step), bg,
+				_vox_block(st, Vector3(x0, wy, wz), Vector3(half, step, step), lin,
 					[true, true, nb[0], nb[1], nb[2], nb[3]])
 	var m := ArrayMesh.new()
 	st.commit(m)
