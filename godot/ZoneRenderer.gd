@@ -2810,7 +2810,7 @@ func _place_conduit_box(tile: String, main_c: String, detail_c: String, cx: int,
 		dark = Color(0.06, 0.12, 0.12)
 	var vlen: float = 1.0 / float(jw)       # a voxel is one art column of the cell
 	var vs: float = PIXEL_SIZE
-	var yc: float = y_center if y_center >= 0.0 else FLOAT_Y
+	var yc: float = _mill_y(y_center)
 	# The opening is WIDER than the shaft that enters it — Daniel: "the hole is deep
 	# enough, it's not wide enough. it has to be at least 2x the size of the axle endcap".
 	# A hole the same size as the endcap reads as the shaft simply stopping; twice the
@@ -2978,12 +2978,32 @@ func _place_conduit_box(tile: String, main_c: String, detail_c: String, cx: int,
 ## tools/capture/wheelmap.py is the same derivation with a preview sheet; change one, change both.
 const WHEEL_PANELS := 12
 
+## Profile radii, as fractions of the disc: the hub the radial lines cross at, and the inner
+## edge of the rim hoop. The filled slices live between them.
+const WHEEL_HUB := 0.16
+const WHEEL_RIM := 0.86
+
 ## Half again what the tile measures. A wheel derived at its art size is 0.92 of a cell across,
 ## so hung on the axle line its lowest point sits ABOVE the surface and the thing spins dry
 ## (Daniel: "otherwise it won't dip into the water"). 2.0 put 18% of the wheel under; 1.5 —
 ## where Daniel settled it — puts the lowest 7% under, so it still breaks the surface but reads
 ## a good deal less monumental.
 const WHEEL_SCALE := 1.3
+
+## How far the whole mill assembly hangs below FLOAT_Y. Daniel: "drop the height of the
+## waterwheel, the axels, the hole in the gearbox. I'd like the wheel to dip into the water,
+## but it's already at aesthetically max size" — so the dip comes from lowering the axle line
+## rather than from growing the wheel again.
+##
+## Applied to EVERY part of the machine, which is the only way it can be applied: wheel, shafts
+## and the gearbox's opening share one line, and dropping the wheel alone would pull its hub off
+## the shaft it turns. 0.2 puts the wheel's lowest 17% under water at 1.3x — the submersion 2.0x
+## used to give, at the size Daniel wants.
+const MILL_DROP := 0.2
+
+## The mill's axle line. Floored just above the ground so a shallower cell can never bury it.
+func _mill_y(y_center: float) -> float:
+	return maxf(0.05, (y_center if y_center >= 0.0 else FLOAT_Y) - MILL_DROP)
 
 ## One revolution in the time the shafts take. The wheel and the axle run are ONE shaft, direct
 ## drive with no gearing between them, so they turn at the same rate or the machine reads as
@@ -3052,7 +3072,7 @@ func _place_waterwheel(obj: Dictionary, tile: String, cx: int, cy: int, light_fr
 	# at double: it would LIFT the wheel until its lowest point rested on the surface, leaving it
 	# dry AND pulling the hub off the shaft it is supposed to share. The dip IS the part below
 	# the surface, so the centre stays where the axle is and the bottom goes under.
-	var yc: float = FLOAT_Y
+	var yc: float = _mill_y(-1.0)
 	var root := Node3D.new()
 	root.transform = Transform3D(Basis(), Vector3(cx, yc, cy))
 	# The CROSS-SECTION: WHEEL_PANELS spokes, a hub and a rim band, in the wood's colour. It was
@@ -3062,6 +3082,17 @@ func _place_waterwheel(obj: Dictionary, tile: String, cx: int, cy: int, light_fr
 	# together by 6 intersecting walls"). `face` is the whole disc and lives at the ends only;
 	# `spok` is the radial lines plus the hub they cross at, and that is what spans the middle.
 	# WHEEL_PANELS is 12 spokes, which is 6 diameters — Daniel's six walls.
+	# THE SLICES ARE FILLED now (Daniel: "From the outer edge, inward, in each 'pizza slice', add
+	# one row of the default background color, one row of light blue, and the rest the background
+	# color. Keep the brown radial lines."). Rings are counted inward from the slice's OUTER edge,
+	# so the blue sits one row in — which is where water would stand in a bucket, held by the rim.
+	# Read as ADDITIVE: the rim hoop and the radial lines stay brown and the fill goes in the gaps
+	# between them, since "fill in" and "keep the brown radial lines" both point that way.
+	#
+	# Both colours are Qud's own: k (#0f3b3a) is the default background — Daniel's "dark green"
+	# from the I-beam web — and B (#0096ff) is the light blue.
+	var bg := _qud_color("k")
+	var lblue := _qud_color("B")
 	var fs: int = bot - top + 1
 	var face := Image.create(fs, fs, false, Image.FORMAT_RGBA8)
 	var spok := Image.create(fs, fs, false, Image.FORMAT_RGBA8)
@@ -3072,12 +3103,15 @@ func _place_waterwheel(obj: Dictionary, tile: String, cx: int, cy: int, light_fr
 			var dy: float = py - c
 			var d: float = sqrt(dx * dx + dy * dy)
 			var radial: bool = false
-			var on2: bool = false
+			var col := Color(0, 0, 0, 0)
 			if d <= c:
 				var ang: float = (atan2(dy, dx) + PI) / TAU
-				radial = d < c * 0.16 or fposmod(ang * WHEEL_PANELS, 1.0) < 0.30
-				on2 = radial or d > c * 0.86
-			face.set_pixel(px, py, wood if on2 else Color(0, 0, 0, 0))
+				radial = d < c * WHEEL_HUB or fposmod(ang * WHEEL_PANELS, 1.0) < 0.30
+				if radial or d > c * WHEEL_RIM:
+					col = wood
+				else:
+					col = lblue if int(floor(c * WHEEL_RIM - d)) == 1 else bg
+			face.set_pixel(px, py, col)
 			spok.set_pixel(px, py, wood if radial else Color(0, 0, 0, 0))
 	var mi := MeshInstance3D.new()
 	mi.mesh = _wheel_extrude_mesh(face, spok, r, thick)
@@ -3366,7 +3400,7 @@ func _fence_half_prism(cx: int, cy: int, d: String, tile: String, main_c: String
 		dark = Color(0.06, 0.12, 0.12)
 	var vs: float = band * PIXEL_SIZE / 3.0        # three voxels across, same total thickness
 	var horiz: bool = d == "e" or d == "w"
-	var yc: float = y_center if y_center >= 0.0 else FLOAT_Y
+	var yc: float = _mill_y(y_center)
 	# REACH INTO THE RECESS. A half used to stop dead on the cell boundary, which was right
 	# when the housing spanned the whole cell and wrong now that it is pulled in: the beam
 	# ended in mid-air an eighth of a cell short of the face it is supposed to enter
