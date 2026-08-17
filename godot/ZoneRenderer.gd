@@ -931,7 +931,9 @@ func _rebuild_dynamics(cells: Array) -> void:
 	# dark? If not, skip it all (and un-dim once, in case we just came out of the dark).
 	var any_dark := false
 	for cell in cells:
-		if int(cell.get("light", 200)) < 199:   # anything below full Light(200) dims -> full path
+		# ALSO the fog: a fully-lit zone still needs the pass if any cell is unexplored or out
+		# of sight, or the fog would never be applied on a bright surface zone at midday.
+		if int(cell.get("light", 200)) < 199 or not _cell_explored(cell) or not _cell_seen(cell):
 			any_dark = true
 			break
 	if any_dark:
@@ -956,18 +958,32 @@ func _relight_static_sprites(cells: Array) -> void:
 	if _lit_sprites.is_empty() and _lit_meshes.is_empty():
 		return
 	var frac := {}
+	var seen := {}
+	var known := {}
 	for cell in cells:
-		frac[Vector2i(int(cell.get("x", 0)), int(cell.get("y", 0)))] = _light_frac(cell)
+		var k := Vector2i(int(cell.get("x", 0)), int(cell.get("y", 0)))
+		frac[k] = _view_tint(cell)
+		seen[k] = _cell_seen(cell)
+		known[k] = _cell_explored(cell)
 	for e in _lit_sprites:
 		var s = e["s"]
 		if is_instance_valid(s):
-			var lf: float = frac.get(e["cell"], 1.0)
-			s.modulate = Color(lf, lf, lf) if lf < 0.999 else Color.WHITE
+			var k1: Vector2i = e["cell"]
+			var lf: Color = frac.get(k1, Color.WHITE)
+			# HIDE VIA ALPHA, never via `visible`: the dynamic pass already toggles a static
+			# winner's visibility under creatures, and two writers of one flag fight. Alpha 0
+			# multiplies the texture to nothing and the alpha-scissor discards it.
+			# hideDark objects vanish out of sight, exactly as Qud never draws them there.
+			# UNEXPLORED cells are NOT hidden — see the note on _cell_explored.
+			if bool(e.get("hide_dark", false)) and not seen.get(k1, true):
+				s.modulate = Color(0, 0, 0, 0)
+			else:
+				s.modulate = lf
 	for e in _lit_meshes:
 		var mi = e["mi"]
 		if is_instance_valid(mi) and mi.material_override != null:
-			var lf: float = frac.get(e["cell"], 1.0)
-			mi.material_override.albedo_color = Color(lf, lf, lf)
+			var k2: Vector2i = e["cell"]
+			mi.material_override.albedo_color = frac.get(k2, Color.WHITE)
 
 ## Restore full brightness to the tracked static sprites/meshes — called once when a zone
 ## goes from having dark cells to fully lit (e.g. dawn), since _relight is then skipped.
@@ -985,6 +1001,51 @@ func _reset_static_light() -> void:
 func _light_frac(cell: Dictionary) -> float:
 	var lv := int(cell.get("light", 200))   # default full: surface, or an older mod w/o the field
 	return clampf(float(lv - 1) / 199.0, 0.0, 1.0)
+
+## FOG OF WAR, in USER mode. Qud shows an unexplored cell as black and an explored-but-unseen
+## one as a grey memory ghost; Raves drew both at full colour, which is why more of the zone was
+## visible here than in Qud. All three gates for this existed already but sat inside `if
+## _one_to_one:` blocks, because 1:1 redraws every cell each turn while user mode bakes statics.
+## They fit user mode anyway: _relight_static_sprites already walks every tracked sprite each
+## turn, so this is the same per-turn write and nothing goes stale.
+##
+## Qud's ghost is a flat dim TEAL (its K/k pair, #155352/#0f3b3a) regardless of an object's own
+## colour. A neutral dim came out darker than Qud AND kept every hue, so it read wrong twice
+## over. A modulate cannot desaturate, but a TINTED multiply can lean everything the same way:
+## crush red, keep most of green and blue, and the result lands close to Qud's memory without
+## costing more than the write already being made. Scaled by the cell's own light besides, so a
+## dark unseen cell does not come out brighter than it is today.
+const MEMORY_TINT := Color(0.32, 0.58, 0.55)
+const MEMORY_DIM := 0.48        # the tint's rough luminance, for the flat ground overlay
+
+## NOT USED AS A GATE, deliberately. `c.IsExplored()` reports 356 of Joppa's 2000 cells
+## unexplored, but Qud DRAWS terrain in that same region — so hiding on this flag blacks out
+## bands Qud shows as memory, which is over-hiding rather than parity. Kept because the field is
+## real and the discrepancy is worth chasing; the fog currently rests on `visible` alone.
+func _cell_explored(cell: Dictionary) -> bool:
+	return bool(cell.get("explored", true))
+
+## Currently in the player's sight AND lit. Mirrors 1:1's `full_1to1` exactly.
+func _cell_seen(cell: Dictionary) -> bool:
+	# the mod omits `visible` when it is TRUE, so an absent key means seen — never read it as false
+	return bool(cell.get("visible", true)) and int(cell.get("light", 200)) > 1
+
+## What a cell's contents are multiplied by this turn — a flat float, for the ground overlay,
+## which can only darken.
+func _view_frac(cell: Dictionary) -> float:
+	# MEMORY DOES NOT DIM WITH DARKNESS. Qud draws remembered terrain in its ghost colours
+	# whether or not that cell is lit right now — you remember the room, the room is not dark in
+	# your head. Raves multiplied memory by the CURRENT light, so Joppa's 895 unlit cells went
+	# pure black where Qud shows them teal. Seen cells still take the light, because you really
+	# cannot see into an unlit cell you are looking at.
+	return _light_frac(cell) if _cell_seen(cell) else MEMORY_DIM
+
+## The same decision as a COLOUR, for anything that takes a modulate: out of sight leans teal.
+func _view_tint(cell: Dictionary) -> Color:
+	if not _cell_seen(cell):
+		return MEMORY_TINT           # flat, for the same reason as _view_frac
+	var f := _light_frac(cell)
+	return Color(f, f, f)
 
 ## Per-cell darkness overlay (cavern lighting). ONE vertex-coloured MIX-black mesh: a quad
 ## over each cell's floor (and its roof, for wall cells) whose ALPHA is how DARK the cell is
@@ -1007,7 +1068,7 @@ func _build_darkness(cells: Array, parent: Node, clear_player := Vector2i(-9999,
 	var walls := {}
 	for cell in cells:
 		var k := Vector2i(int(cell.get("x", 0)), int(cell.get("y", 0)))
-		var f := _light_frac(cell)
+		var f := _view_frac(cell)      # light AND fog, so the ground matches what stands on it
 		if clearing and (Vector2(k) - cpf).length() <= FROZEN_LIGHT_CLEAR_R:
 			f = 0.0                      # erase the departed player's sight-disc
 		frac[k] = f
@@ -4768,7 +4829,8 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			# its cell's light EACH TURN (creatures get modulate directly; static sprites don't,
 			# so they'd stay lit at night). Glowing things emit light — leave them bright.
 			if _live_build and not glowing:
-				_lit_sprites.append({"s": s, "cell": Vector2i(cx, cy)})
+				_lit_sprites.append({"s": s, "cell": Vector2i(cx, cy),
+					"hide_dark": bool(obj.get("hideDark", false))})
 			var fmode := _fill_for(tile, Fill.INTERIOR)
 			var gaps := tile_fill_px(tile, fmode)
 			var kind := "billboard"
