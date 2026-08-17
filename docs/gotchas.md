@@ -2156,3 +2156,17 @@ and safe to wrap around any lookup because an unnamed code returns unchanged. Va
 
 The general point: when a rule cannot separate two things, look for a property they already
 DIFFER on and key on that, rather than adding a discriminator to the data.
+
+## The objects array is NOT ordered by layer — use `layer` to find a cell's winner
+
+The inspector prints a cell's contents "bottom -> top", and the snapshot's `objs` array looks
+like it is in that order. It is not sorted by `layer`. At Joppa (8,5) the watervine (layer 3)
+sits at index 0 and the puddle it covers (layer 2) at index 1.
+
+Counting "is this object the cell's top?" as `index == len(objs)-1` therefore gives the wrong
+answer, and gave it silently: it reported 3 covered liquid cells where counting by `layer` finds
+9. That wrong count was used to rule OUT the winner rule as the cause of Raves' extra puddles —
+which is exactly what it turned out to be.
+
+**Qud draws one thing per cell: the highest `layer`.** Any question of the form "what does Qud
+show here" must be answered from `layer`, never from array position.

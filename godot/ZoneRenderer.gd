@@ -3690,6 +3690,12 @@ func _is_vegetation(tile: String) -> bool:
 ## stays FLAT (see the world-map card branch): a standing blue card reads as a wall. Mangrove is
 ## excluded: it's trees standing IN water, so it keeps the upright card.
 const WM_WATER_KEYS := ["river", "lake", "water", "ocean", "marsh", "duskwater"]
+## A standalone splash (Liquids/<kind>/puddle_N) rather than an AUTOTILED body of water, whose
+## deep-/shallow- name carries an 8-bit neighbour signature. The distinction is the whole reason
+## one can be dropped under a cell winner and the other cannot.
+func _is_standalone_puddle(tile: String) -> bool:
+	return tile.replace("\\", "/").to_lower().get_file().begins_with("puddle")
+
 func _is_world_water(tile: String) -> bool:
 	var name := tile.replace("\\", "/").to_lower().get_file()
 	if name.contains("mangrove"):
@@ -4624,6 +4630,18 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 		if stair_cell:
 			_note(cx, cy, idx, "skipped(floor over stair opening)", 0.0)
 			return  # would cap the shaft; the frame lip is the floor here
+		# A STANDALONE PUDDLE OBEYS THE WINNER RULE. Qud draws one thing per cell, so the puddle
+		# under the watervine at (8,5) is not on screen there at all — Raves drew both, because
+		# floors are exempt from the contest, and that is where the "extra puddles" came from.
+		#
+		# AUTOTILED water keeps the exemption. deep-/shallow- carry an 8-bit neighbour signature:
+		# they are a connected body you stand IN, and dropping the river under a bridge, under
+		# the mill's axles, or under a submerged glowfish would look broken — that exemption was
+		# put there for exactly those. puddle_N has no neighbours and is precisely the detail Qud
+		# discards. 9 of 60 liquid cells in Joppa are covered; only 2 are standalone puddles.
+		if below > 0 and not _one_to_one and not _flat_2d and _is_standalone_puddle(tile):
+			_note(cx, cy, idx, "puddle HIDDEN beneath the cell's winner (Qud winner rule)", 0.0)
+			return
 		# Floors were one MeshInstance3D per cell — 2000 draw calls on the world map, which
 		# tanked the framerate. Batch them by material into a MultiMesh instead (flushed at the
 		# end of the build): one draw call per tile type. Floors are static, so this is free.
