@@ -69,6 +69,18 @@ const DARK_MAX := 0.94          # deepest per-cell darkening (never pure black �
 ## drove it, including the request to go darker, described a render this constant never touched.
 const MEMORY_GROUND := 0.84
 
+## How bright NEVER-SEEN ground stays — the fog of war. Qud's own answer is "no darkening at all":
+## a histogram of its playfield contains 0.00% near-black pixels (max channel < 12), because Qud
+## paints CAMERA_BACKGROUND across the whole 80x25 stage and simply draws no glyphs on cells you
+## have not seen. Its darkest real ground is rgb(11,33,33) — still the field family, and that floor
+## is its LIGHT gradient, which Raves models separately through this same overlay.
+##
+## So the fog is not a colour of its own, it is the field seen dimmer. This sits a little under
+## MEMORY_GROUND so the frontier is still legible in 3D, where the camera shows far more of the
+## world at once than Qud's stage does; 1.0 would be literal Qud. Raves drew it at black (f = 0.0,
+## alpha 0.94) before, which is the one thing Qud never does.
+const FOG_GROUND := 0.70
+
 const DARK_FLOOR_Y := 0.07      # darkness quad sits just above the floor tiles
 const DARK_ROOF_Y := WALL_H + 0.02   # and just above wall roofs, to dun unlit rock tops
 var _dark_mat: StandardMaterial3D
@@ -1091,7 +1103,7 @@ func _build_darkness(cells: Array, parent: Node, clear_player := Vector2i(-9999,
 		# days" — this is that: black, alpha = 1 - light.
 		var f := _light_frac(cell)
 		if not _cell_explored(cell):
-			f = 0.0        # NEVER SEEN -> black, exactly as Qud leaves it
+			f = minf(f, FOG_GROUND)   # NEVER SEEN — see FOG_GROUND; NOT black, Qud has no black
 		elif not _cell_seen(cell):
 			# REMEMBERED, not in sight. Without this the ground makes no distinction at all:
 			# the memory treatment reaches only sprites and meshes, floors are batched and never
