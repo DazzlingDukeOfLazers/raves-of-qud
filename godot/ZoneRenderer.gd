@@ -58,10 +58,11 @@ var _underground := false
 var _world_map := false           # zone.z < 0: the parasang overview — flat & lit, no torch glows
 const SURFACE_Z := 10
 const DARK_MAX := 0.94          # deepest per-cell darkening (never pure black — faint memory)
-## How bright REMEMBERED ground stays: dim enough that the line-of-sight edge is legible, light
-## enough that the terrain still reads. Black overlay, not a tint — a wash of colour fills a cell
-## Qud leaves ~99.7% background (tile-dirt1.png is 1 opaque pixel in 384) and comes out too bright.
-const MEMORY_GROUND := 0.55
+## How bright REMEMBERED ground stays: dim enough that the line-of-sight edge is unmistakable,
+## light enough that the terrain still reads. Black overlay, not a tint — a wash of colour fills a
+## cell Qud leaves ~99.7% background (tile-dirt1.png is 1 opaque pixel in 384) and comes out too
+## bright. Daniel took this from 0.55 to 0.35: overlay alpha 0.42 -> 0.61, half again as dark.
+const MEMORY_GROUND := 0.35
 
 const DARK_FLOOR_Y := 0.07      # darkness quad sits just above the floor tiles
 const DARK_ROOF_Y := WALL_H + 0.02   # and just above wall roofs, to dun unlit rock tops
