@@ -1162,14 +1162,22 @@ func _view_tint(cell: Dictionary) -> Color:
 ## `parent` is where the one darkness mesh lands: _dynamic_root for the live zone (rebuilt
 ## each turn, tracks moving light) or a neighbour's frozen subtree (baked once from that
 ## zone's remembered light, so remembered zones darken to match instead of staying lit).
-## `clear_player`: for a FROZEN zone, the cell the player stood on when it was last live.
-## Qud lights a disc around the player so they can see; that disc follows the player, so in
-## a zone they've LEFT it must be erased or it hangs there as a cropped light. Left invalid
-## (default) for the live zone, whose player disc is real and should stay.
-const FROZEN_LIGHT_CLEAR_R := 7.0    # radius of player sight-disc to blank out in frozen zones
-func _build_darkness(cells: Array, parent: Node, clear_player := Vector2i(-9999, -9999)) -> void:
-	var clearing: bool = clear_player.x > -9000
-	var cpf := Vector2(clear_player)
+##
+## THERE IS NO SIGHT-DISC CLEAR. A zone the player had left used to force f = 0.0 for every cell
+## within FROZEN_LIGHT_CLEAR_R = 7 of the departure point, meaning to erase the bright pool Qud
+## lights around the player — which would otherwise hang in a departed zone as a cropped light.
+## But f = 0.0 is not "no light", it is FULL DARKNESS (alpha 0.94 of black), so it erased that
+## hanging light by punching a hole in the exact shape of it. Daniel: "when you leave a zone,
+## there is a negative light cone where you had a positive light cone." 6.3% of the playfield
+## near-black across one crossing; 0.0% once removed.
+##
+## DO NOT re-solve the leftover bright pool with an `if frozen: f = minf(f, MEMORY_GROUND)` here.
+## It is the obvious next move and it CRASHES: every neighbour zone then carries a full sheet of
+## alpha-blended quads, and zooming out with several on screen dies in _platform_memmove, 3 runs
+## of 3. Run-length merging the quads does not help — it cuts vertices, not blended fill — which
+## is the tell that this is the overdraw failure mode in CLAUDE.md. A frozen zone's memory look
+## has to be baked into its OWN geometry, the way walls get _ghost_wall_mesh, not laid over it.
+func _build_darkness(cells: Array, parent: Node) -> void:
 	# pass 1: per-cell light fraction + which cells are walls (to find exposed faces).
 	var frac := {}
 	var walls := {}
@@ -1343,10 +1351,9 @@ func _sync_neighbors(neighbors: Array) -> void:
 		var znode: Node3D = _static_zones[id]
 		if not znode.has_meta("dark_baked"):
 			znode.set_meta("dark_baked", true)
-			# erase the player's sight-disc: they've left this zone (its stored player
-			# position is where they crossed out, at the edge)
-			var pp := Vector2i(int(nb.get("px", -9999)), int(nb.get("py", -9999)))
-			_build_darkness(nb.get("cells", []), znode, pp)
+			# No sight-disc clear: see _build_darkness for the hole that one punched into
+			# every zone the player left.
+			_build_darkness(nb.get("cells", []), znode)
 		# Vertical stacking: a neighbour `dz` strata below the live zone drops by
 		# dz * level_height, so deeper levels sit under the current one with an
 		# arbitrary, user-set gap. Same-stratum neighbours (dz==0) stay coplanar.
