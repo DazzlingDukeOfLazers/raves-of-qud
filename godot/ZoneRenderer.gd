@@ -3762,6 +3762,11 @@ const WM_WATER_KEYS := ["river", "lake", "water", "ocean", "marsh", "duskwater"]
 ## A standalone splash (Liquids/<kind>/puddle_N) rather than an AUTOTILED body of water, whose
 ## deep-/shallow- name carries an 8-bit neighbour signature. The distinction is the whole reason
 ## one can be dropped under a cell winner and the other cannot.
+## DEEP water — a body you look INTO — as against a shallow film or a standalone puddle, which
+## lie ON the ground. Only the deep kind gets the dark depths plate beneath its surface.
+func _is_deep_liquid(tile: String) -> bool:
+	return tile.replace("\\", "/").to_lower().get_file().begins_with("deep")
+
 func _is_standalone_puddle(tile: String) -> bool:
 	return tile.replace("\\", "/").to_lower().get_file().begins_with("puddle")
 
@@ -4735,7 +4740,12 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			# and only ever fired for world-map cards. Qud marks liquids outright; ask it, per
 			# the standing rule about Qud predicates over tile-name inference. The world-map
 			# test stays OR'd in so those cards keep the treatment they already had.
-			if (bool(obj.get("liquid", false)) or _is_world_water(tile)) \
+			# DEEP water only. The backing below is an OPAQUE near-black plate under a
+			# translucent surface: right for a river, wrong under a puddle of dilute salt, which
+			# lies on the ground and came out looking like a black hole in it. shallow- and
+			# puddle_ keep the plain opaque floor they had before zone liquids reached this
+			# branch at all — over-reach on my part when the liquid test was fixed.
+			if ((bool(obj.get("liquid", false)) and _is_deep_liquid(tile)) or _is_world_water(tile)) \
 					and not _one_to_one and not _flat_2d and not _world_map:
 				fmat = _water_surface_material(tile, main_c, detail_c, tex)
 				_floor_batch_add(_color_material(Color(0.03, 0.10, 0.10)),
