@@ -2215,3 +2215,32 @@ Two facts that together decide how remembered cells must be drawn:
 
 So: objects get the ghost texture; the ground's remembered look is a background question, not a
 floor-quad one.
+
+## Check `hv state` for `mode=` before believing ANY appearance measurement
+
+`hv launch raves_solo` passes `--one-to-one`, and the mode also PERSISTS into
+`~/Library/Application Support/RavesOfQud/settings.json`, so it survives the next launch. A Raves
+left in 1:1 renders a different world: `_build_darkness` returns immediately, `_relight_static_sprites`
+is gated off, and the ground plane is the fixed `QUD_FIELD_1TO1` — so every user-mode lighting
+constant is inert and every screenshot looks plausible while proving nothing. This cost several
+rounds of tuning `MEMORY_GROUND` and a "the change had no effect" diagnosis before `hv state`
+reported `mode=1to1`.
+
+- **`hv launch raves_user`** is the user-mode launcher (`raves` = the pair, `raves_solo` = 1:1 locked).
+- `hv state` prints the mode; read it, don't assume it.
+- Same shape as the "checks that cannot fail" family: the render was fine, the SUBJECT was wrong.
+
+## Qud's remembered GROUND is barely darker than lit ground
+
+Following from the palette-swap note above: since the cell is ~99.7% background and memory swaps only
+the glyphs, the background hardly changes. Measured on one zone — lit field `rgb(17,53,52)`,
+remembered `rgb(15,45,44)`: a ratio of **0.85**. `MEMORY_GROUND` encodes that ratio through the
+overlay. A value tuned by eye toward "obviously darker" is wrong by Qud's own numbers.
+
+## The ground plane must stay UNSHADED in both modes
+
+It is one flat horizontal plane, so `SHADING_MODE_PER_PIXEL` adds no variation — only a constant
+ambient multiply, on top of the per-cell darkness overlay that already encodes Qud's light model.
+Shaded, palette k `#0f3b3a` rendered `rgb(5,17,15)` against Qud's `rgb(17,53,52)`: the whole world
+three times too dark. SkyGrade's sun is `light_energy = 0` unless the FX toggle is on; it is the hook
+for shadows once WALLS become shaded, and shading the ground buys nothing until then.
