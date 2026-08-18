@@ -4870,17 +4870,24 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			# and only ever fired for world-map cards. Qud marks liquids outright; ask it, per
 			# the standing rule about Qud predicates over tile-name inference. The world-map
 			# test stays OR'd in so those cards keep the treatment they already had.
-			# DEEP water only. The backing below is an OPAQUE near-black plate under a
-			# translucent surface: right for a river, wrong under a puddle of dilute salt, which
-			# lies on the ground and came out looking like a black hole in it. shallow- and
-			# puddle_ keep the plain opaque floor they had before zone liquids reached this
+			# DEEP water only. The backing below is the opaque plate the translucent surface
+			# composites against, and it is _world_bg -- WHAT QUD PAINTS BEHIND EVERYTHING. It was
+			# a hand-picked near-black (0.03, 0.10, 0.10) meant to read as depth under a river, and
+			# it drew a black halo a half-cell wide around every pool: the water tile does not reach
+			# its cell edges, so the PLATE, not the field, was what showed there. Measured on this
+			# build: ring rgb(4,15,15) against lit ground rgb(9,33,32). Daniel: "I'm standing in
+			# water and there is a dark border around it. It should be the background color." Depth
+			# is the SURFACE material's job (_water_surface_material); the backing only has to be the
+			# colour a cell is when nothing covers it. (It was already wrong under a puddle of
+			# dilute salt, which lies on the ground and looked like a black hole in it.) shallow-
+			# and puddle_ keep the plain opaque floor they had before zone liquids reached this
 			# branch at all — over-reach on my part when the liquid test was fixed.
 			if ((bool(obj.get("liquid", false)) and _is_deep_liquid(tile)) or _is_world_water(tile)) \
 					and not _one_to_one and not _flat_2d and not _world_map:
 				fmat = _water_surface_material(tile, main_c, detail_c, tex)
-				_floor_batch_add(_color_material(Color(0.03, 0.10, 0.10)),
+				_floor_batch_add(_color_material(_world_bg),
 					Transform3D(Basis(), Vector3(cx, y - 0.012, cy)))
-				fkind = "floor(water surface, translucent over depths)"
+				fkind = "floor(water surface, translucent over field-colour backing)"
 		else:
 			fmat = _color_material(_qud_color(String(obj.get("color", ""))))
 			fscale = Vector3(0.5, 1.0, 0.5)
