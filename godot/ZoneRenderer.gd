@@ -1191,8 +1191,6 @@ func _build_darkness(cells: Array, parent: Node, clear_player := Vector2i(-9999,
 			# ground, and only their plants differed. Black at a modest alpha, which is the
 			# colour and transparency this overlay has always used.
 			f = minf(f, MEMORY_GROUND)
-		if clearing and (Vector2(k) - cpf).length() <= FROZEN_LIGHT_CLEAR_R:
-			f = 0.0                      # erase the departed player's sight-disc
 		frac[k] = f
 		# A wall the player has never seen is HIDDEN now (see _relight_static_sprites), so it must
 		# not be treated as a wall here either: its darkness would be a roof quad at WALL_H and a
