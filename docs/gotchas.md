@@ -2244,3 +2244,31 @@ ambient multiply, on top of the per-cell darkness overlay that already encodes Q
 Shaded, palette k `#0f3b3a` rendered `rgb(5,17,15)` against Qud's `rgb(17,53,52)`: the whole world
 three times too dark. SkyGrade's sun is `light_energy = 0` unless the FX toggle is on; it is the hook
 for shadows once WALLS become shaded, and shading the ground buys nothing until then.
+
+## An appearance measurement needs a WORLD-PRESENT check, not just a screenshot
+
+Two ways a capture comes back looking fine while showing nothing, both hit in one session:
+
+- **The bridge died.** `nc -z 127.0.0.1 48710` said CLOSED while `hv state` still reported
+  `qud In-Game scene=play` — Qud was up, its mod listener was not, so Raves rendered an empty
+  field. Qud's `Player.log` shows the churn (`[raves] client connected/disconnected`). Only a Qud
+  RESTART brings the listener back.
+- **The camera was pointing at the sky.** Driving zoom with repeated `hv scroll` left the camera
+  somewhere useless; the shot was a clean picture of the sun. `python3 tools/capture/control.py
+  cam <1-7>` sets it deterministically — prefer it over scroll events for a reproducible framing.
+
+Either way the playfield goes uniform, and *any* "is it dark?" statistic reads 0%. Gate the
+measurement on the image itself:
+
+    top colour < 85% of sampled pixels AND > 200 distinct colours  -> a world is rendering
+
+Several "0.0% near-black, fixed!" readings in this session were an empty field. Same family as the
+1:1-mode trap above: the render was fine, the SUBJECT was wrong.
+
+## A stability trial only counts if the thing under test actually ran
+
+Deep-zoom crash trials compared a change against HEAD. The change died 3/3 and HEAD "survived" —
+but HEAD's runs were in 1:1 (no neighbour zones) or against a dead bridge (no world), so nothing
+was being rendered to crash. **A crash proves rendering happened; an ALIVE proves nothing until
+you check the app was in the right mode with a live bridge.** Pin the mode, assert the bridge, and
+confirm a world is on screen before counting a survival.
