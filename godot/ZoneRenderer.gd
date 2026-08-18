@@ -961,11 +961,13 @@ func _relight_static_sprites(cells: Array) -> void:
 	var lit := {}
 	var tint := {}
 	var seen := {}
+	var known := {}
 	for cell in cells:
 		var k := Vector2i(int(cell.get("x", 0)), int(cell.get("y", 0)))
 		lit[k] = _light_frac(cell)
 		tint[k] = _view_tint(cell)
 		seen[k] = _cell_seen(cell)
+		known[k] = _cell_explored(cell)
 	for e in _lit_sprites:
 		var s = e["s"]
 		if is_instance_valid(s):
@@ -974,7 +976,9 @@ func _relight_static_sprites(cells: Array) -> void:
 			# HIDE VIA ALPHA, never via `visible`: the dynamic pass already toggles a static
 			# winner's visibility under creatures, and two writers of one flag fight. Alpha 0
 			# multiplies the texture to nothing and the alpha-scissor discards it.
-			if bool(e.get("hide_dark", false)) and not vis:
+			# NEVER SEEN, or a RenderIfDark object out of sight: not drawn at all, as Qud
+			# does not draw either. Alpha, not `visible` — the winner rule owns that flag.
+			if not bool(known.get(k1, true)) or (bool(e.get("hide_dark", false)) and not vis):
 				s.modulate = Color(0, 0, 0, 0)
 				continue
 			# the SWAP is the memory; the modulate is only the cell's light
@@ -988,7 +992,9 @@ func _relight_static_sprites(cells: Array) -> void:
 	for e in _lit_meshes:
 		var mi = e["mi"]
 		if is_instance_valid(mi) and mi.material_override != null:
-			# derived shapes are vertex-coloured, so no texture to swap — they keep the tint
+			# derived shapes are vertex-coloured, so no texture to swap — they keep the tint.
+			# Nothing else drives their visibility, so the flag is safe on these.
+			mi.visible = bool(known.get(e["cell"], true))
 			mi.material_override.albedo_color = tint.get(e["cell"], Color.WHITE)
 
 ## Restore full brightness to the tracked static sprites/meshes — called once when a zone
@@ -1072,6 +1078,8 @@ func _build_darkness(cells: Array, parent: Node, clear_player := Vector2i(-9999,
 		# ghost made it glow. Daniel: "revert it to the color/transparency we've been using for
 		# days" — this is that: black, alpha = 1 - light.
 		var f := _light_frac(cell)
+		if not _cell_explored(cell):
+			f = 0.0        # NEVER SEEN -> black, exactly as Qud leaves it
 		if clearing and (Vector2(k) - cpf).length() <= FROZEN_LIGHT_CLEAR_R:
 			f = 0.0                      # erase the departed player's sight-disc
 		frac[k] = f
