@@ -139,7 +139,21 @@ func _render() -> void:
 
 	# Then the weapon(s) INLINE on the same row (Qud-style: "… fire  reload  <sprite> name [?]"). One
 	# row, so it can't be scrolled/clipped out of the panel. Perceived icon by default, real in full mode.
+	# CLAMPED TO THE STRIP. An inline image taller than the line does NOT grow the row -- row 3's
+	# height is pinned by custom_minimum_size (28 in Qud's shape) -- it pushes the whole line's
+	# baseline down and draws straight through the ability bar below, which clips it. And 2.2x the
+	# body is measured off the UNSCALED viewport font, so it stays ~46px even here, where
+	# set_one_to_one has scaled this panel's own text to ROW3_FONT_SCALE. Measured before this
+	# clamp, user mode at 1920x1080: the RichTextLabel got 23px (y=995..1018) inside a 28px cell,
+	# a 46px sprite put the "[F] fire [R] reload" ink at y=1013..1017+ against Qud's 1000..1010,
+	# and everything past the cell edge was cut -- Daniel: "the [F] fire [R] reload are cropped".
 	var img_h := int(UiFont.px(get_viewport(), "body") * 2.2)
+	var avail := size.y
+	var _sb := get_theme_stylebox("panel")
+	if _sb != null:
+		avail -= _sb.content_margin_top + _sb.content_margin_bottom
+	if avail >= 8.0:
+		img_h = mini(img_h, int(avail))
 	var img_w := int(round(img_h * 16.0 / 24.0))   # Qud tiles are 16x24
 	for w in weapons:
 		var tex: Texture2D = _tiles.texture_for(w, _full)
