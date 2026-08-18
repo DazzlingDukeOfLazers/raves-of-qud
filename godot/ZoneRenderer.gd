@@ -143,7 +143,12 @@ var _plane: PlaneMesh
 var _fence_quad: QuadMesh          # unit quad; scaled per fence half-panel
 var _fence_pool: Array[MeshInstance3D] = []
 var _fencemat_cache := {}          # "ewtile|main|detail|half" -> StandardMaterial3D
-var _wall_root: Node3D   # one MeshInstance per wall TYPE, rebuilt per snapshot
+# Rebuilt per snapshot. Wall TYPES only group the build (_rebuild_walls walks type by type so
+# each cell's voxel volume is carved under its own colours); what lands here is one MeshInstance
+# PER CELL, positioned at (k.x, 0, k.y), plus that cell's seam fills and carve closures. Per-cell
+# is what lets the camera cutaway fade individual walls and the fog hide or ghost them —
+# see _track_wall, which registers every one of those meshes under its cell in _wall_cutaway.
+var _wall_root: Node3D
 
 # set per wall-type while building that type's mesh
 var _wall_tile := ""
