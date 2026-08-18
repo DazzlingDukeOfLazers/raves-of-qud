@@ -1044,17 +1044,19 @@ func _relight_static_sprites(cells: Array) -> void:
 			wmi.visible = kn
 			if not kn:
 				continue
-			var live_m = wmi.get_meta("live_mesh", null)
-			if live_m == null:
-				live_m = wmi.mesh
-				wmi.set_meta("live_mesh", live_m)
+			# has_meta FIRST. `get_meta(name, null)` does NOT quietly return the default:
+			# Godot treats a null default as "no default given" and pushes an error, so the
+			# absent-on-first-visit case — which is EVERY wall, on its first relight — spat two
+			# error lines per mesh per turn into raves.log. It still worked, which is why only
+			# a FULL run caught it: the log was drowning while the render was fine.
+			if not wmi.has_meta("live_mesh"):
+				wmi.set_meta("live_mesh", wmi.mesh)
+			var live_m: Mesh = wmi.get_meta("live_mesh")
 			var want: Mesh = live_m
 			if not wvis:
-				var g = wmi.get_meta("ghost_mesh", null)
-				if g == null:
-					g = _ghost_wall_mesh(live_m)      # built once, on first remembering
-					wmi.set_meta("ghost_mesh", g)
-				want = g
+				if not wmi.has_meta("ghost_mesh"):
+					wmi.set_meta("ghost_mesh", _ghost_wall_mesh(live_m))   # once, on first remembering
+				want = wmi.get_meta("ghost_mesh")
 			if wmi.mesh != want:
 				wmi.mesh = want
 
@@ -1106,8 +1108,10 @@ func _reset_static_light() -> void:
 			if not is_instance_valid(wmi):
 				continue
 			wmi.visible = true
-			var live_m = wmi.get_meta("live_mesh", null)
-			if live_m != null and wmi.mesh != live_m:
+			if not wmi.has_meta("live_mesh"):
+				continue          # never ghosted, so its mesh is already the live one
+			var live_m: Mesh = wmi.get_meta("live_mesh")
+			if wmi.mesh != live_m:
 				wmi.mesh = live_m
 
 ## Qud LightLevel byte (per cell) -> 0..1 brightness. None(1)/Blackout(0) -> 0 (dark);
