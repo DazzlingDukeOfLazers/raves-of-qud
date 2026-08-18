@@ -2272,3 +2272,21 @@ but HEAD's runs were in 1:1 (no neighbour zones) or against a dead bridge (no wo
 was being rendered to crash. **A crash proves rendering happened; an ALIVE proves nothing until
 you check the app was in the right mode with a live bridge.** Pin the mode, assert the bridge, and
 confirm a world is on screen before counting a survival.
+
+## Window geometry is computed against the CURRENT displays, and those change mid-session
+
+A FULL run on 2026-08-18 saw the display set change three times (a second monitor going off and
+back on): 4K at a negative origin, then a single 3840x2160 at (0,0), then a 1512x982 main at (0,0)
+plus the 4K back at (-1177,-2160). Every rect computed before a change was wrong after it, and the
+failure does not announce itself — the apps keep running and reporting state while their windows
+are nowhere on screen.
+
+- `hv layout pair` docks Raves ABOVE Qud with gap 0. With Qud at y=0 that is y=-1080, which is
+  off the top of a SINGLE display at the origin. It wrote exactly that into `window_rect.json`.
+- `hv state` then says `off ... via=no-window` while the app's own heartbeat still reports its
+  scene. **A live heartbeat plus no window means a placement problem, not a dead app.**
+- A 1920x1080 pair does not fit a 1512x982 built-in at all; the pair has to live on the 4K.
+
+Before any capture run: `hv raw '{"op":"displays"}'` first, then place, then confirm with `hv ls`
+that BOTH windows are listed at the size the spec expects. Re-check after anything that restarts an
+app — `hv loadsave` and the tour's restart edges both re-apply a saved layout.
