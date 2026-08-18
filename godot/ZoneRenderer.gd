@@ -980,7 +980,7 @@ func _rebuild_dynamics(cells: Array) -> void:
 ## lit. Cheap — a modulate write per tracked sprite, no geometry rebuild. Mirrors the
 ## creature modulate; the flat darkness overlay can't cover a standing sprite.
 func _relight_static_sprites(cells: Array) -> void:
-	if _lit_sprites.is_empty() and _lit_meshes.is_empty():
+	if _lit_sprites.is_empty() and _lit_meshes.is_empty() and _wall_cutaway.is_empty():
 		return
 	var lit := {}
 	var tint := {}
@@ -1020,6 +1020,69 @@ func _relight_static_sprites(cells: Array) -> void:
 			# Nothing else drives their visibility, so the flag is safe on these.
 			mi.visible = bool(known.get(e["cell"], true))
 			mi.material_override.albedo_color = tint.get(e["cell"], Color.WHITE)
+	# VOXEL WALLS. They are in neither list: walls are built per cell straight into
+	# _wall_cutaway, which is already the per-cell registry of EVERY mesh a wall owns — body,
+	# seam fills and carve closures alike, all three creation sites call _track_wall — so reuse
+	# it rather than keep a fourth. Untracked, walls were drawn at full colour whatever the
+	# player knew: of 199 wall cells in Joppa only 15 were in sight, so 122 unexplored buildings
+	# Qud draws NOTHING for, and 62 it ghosts, were all shown solid and brown. That is the
+	# largest single reason more of the zone reads as visible here than in Qud.
+	#
+	# `visible` is safe on these (the winner rule governs static SPRITES, not walls) and the
+	# camera cutaway writes `transparency`, a different channel.
+	for k in _wall_cutaway:
+		var kn: bool = bool(known.get(k, true))
+		var wvis: bool = bool(seen.get(k, true))
+		for wmi in _wall_cutaway[k]:
+			if not is_instance_valid(wmi):
+				continue
+			wmi.visible = kn
+			if not kn:
+				continue
+			var live_m = wmi.get_meta("live_mesh", null)
+			if live_m == null:
+				live_m = wmi.mesh
+				wmi.set_meta("live_mesh", live_m)
+			var want: Mesh = live_m
+			if not wvis:
+				var g = wmi.get_meta("ghost_mesh", null)
+				if g == null:
+					g = _ghost_wall_mesh(live_m)      # built once, on first remembering
+					wmi.set_meta("ghost_mesh", g)
+				want = g
+			if wmi.mesh != want:
+				wmi.mesh = want
+
+## The remembered form of a wall mesh — Qud's memory is a PALETTE SWAP, and a vertex-coloured
+## voxel wall cannot reach one by multiplying: brown times any tint is a darker brown, never
+## #155352. So walls get what sprites get, a GHOST VARIANT swapped in whole (see _ghost_obj).
+##
+## Built by remapping the finished mesh's vertex colours onto Qud's 'K' while keeping each
+## vertex's RELATIVE brightness, so the baked face shades (1.00 broad / 0.92 top / 0.72 rim /
+## 0.50 underside) survive as relief instead of flattening to a teal silhouette. Qud's own ghost
+## is two-tone, K over k, for the same reason: the structure still has to read.
+func _ghost_wall_mesh(src: Mesh) -> ArrayMesh:
+	var out := ArrayMesh.new()
+	var gc := _qud_color("K")
+	for si in src.get_surface_count():
+		var arr: Array = src.surface_get_arrays(si)
+		var cols: PackedColorArray = arr[Mesh.ARRAY_COLOR]
+		if cols.is_empty():
+			out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+			continue
+		var vmax := 0.0
+		for c in cols:
+			vmax = maxf(vmax, maxf(c.r, maxf(c.g, c.b)))
+		if vmax <= 0.0:
+			vmax = 1.0
+		var ng := PackedColorArray()
+		ng.resize(cols.size())
+		for i in cols.size():
+			var v: float = maxf(cols[i].r, maxf(cols[i].g, cols[i].b)) / vmax
+			ng[i] = Color(gc.r * v, gc.g * v, gc.b * v, cols[i].a)
+		arr[Mesh.ARRAY_COLOR] = ng
+		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+	return out
 
 ## Restore full brightness to the tracked static sprites/meshes — called once when a zone
 ## goes from having dark cells to fully lit (e.g. dawn), since _relight is then skipped.
@@ -1030,6 +1093,17 @@ func _reset_static_light() -> void:
 	for e in _lit_meshes:
 		if is_instance_valid(e["mi"]) and e["mi"].material_override != null:
 			e["mi"].material_override.albedo_color = Color.WHITE
+	# Walls back to live art and shown. Safe to do unconditionally: this runs only when EVERY
+	# cell is lit, explored and in sight (see the any_dark scan), which is exactly the state in
+	# which no wall should be hidden or ghosted.
+	for k in _wall_cutaway:
+		for wmi in _wall_cutaway[k]:
+			if not is_instance_valid(wmi):
+				continue
+			wmi.visible = true
+			var live_m = wmi.get_meta("live_mesh", null)
+			if live_m != null and wmi.mesh != live_m:
+				wmi.mesh = live_m
 
 ## Qud LightLevel byte (per cell) -> 0..1 brightness. None(1)/Blackout(0) -> 0 (dark);
 ## Light(200)+ -> 1 (full). The low senses (darkvision 10 .. safelight 30) map to a dim
@@ -1115,6 +1189,12 @@ func _build_darkness(cells: Array, parent: Node, clear_player := Vector2i(-9999,
 		if clearing and (Vector2(k) - cpf).length() <= FROZEN_LIGHT_CLEAR_R:
 			f = 0.0                      # erase the departed player's sight-disc
 		frac[k] = f
+		# A wall the player has never seen is HIDDEN now (see _relight_static_sprites), so it must
+		# not be treated as a wall here either: its darkness would be a roof quad at WALL_H and a
+		# ring of side faces, left hanging in the air over nothing. Unexplored wall cells fall
+		# through to the open-cell branch and darken the ground, which is what you can actually see.
+		if not _cell_explored(cell):
+			continue
 		for obj in cell.get("objs", []):
 			if _is_prism(obj):
 				walls[k] = true
