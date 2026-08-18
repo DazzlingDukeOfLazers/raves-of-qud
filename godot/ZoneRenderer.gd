@@ -58,11 +58,16 @@ var _underground := false
 var _world_map := false           # zone.z < 0: the parasang overview — flat & lit, no torch glows
 const SURFACE_Z := 10
 const DARK_MAX := 0.94          # deepest per-cell darkening (never pure black — faint memory)
-## How bright REMEMBERED ground stays: dim enough that the line-of-sight edge is unmistakable,
-## light enough that the terrain still reads. Black overlay, not a tint — a wash of colour fills a
-## cell Qud leaves ~99.7% background (tile-dirt1.png is 1 opaque pixel in 384) and comes out too
-## bright. Daniel took this from 0.55 to 0.35: overlay alpha 0.42 -> 0.61, half again as dark.
-const MEMORY_GROUND := 0.35
+## How bright REMEMBERED ground stays. MEASURED OFF QUD, not chosen: Qud barely darkens remembered
+## ground at all, because its memory is a PALETTE SWAP of the glyphs (&K/k) and a cell is ~99.7%
+## background (tile-dirt1.png is 1 opaque pixel in 384) — so the background it swaps nothing about
+## dominates. Native captures of the same zone: lit field rgb(17,53,52), remembered rgb(15,45,44),
+## a ratio of 0.85. This value is that ratio through the overlay: alpha = (1-f)*DARK_MAX = 0.15.
+##
+## It was 0.35 (alpha 0.61, near-black ground) on the strength of screenshots taken while Raves was
+## stuck in 1:1 mode, where _build_darkness returns before doing anything — so every reading that
+## drove it, including the request to go darker, described a render this constant never touched.
+const MEMORY_GROUND := 0.84
 
 const DARK_FLOOR_Y := 0.07      # darkness quad sits just above the floor tiles
 const DARK_ROOF_Y := WALL_H + 0.02   # and just above wall roofs, to dun unlit rock tops
@@ -327,17 +332,12 @@ func set_one_to_one(on: bool) -> void:
 	if on == _one_to_one:
 		return
 	_one_to_one = on
-	# The ground plane IS Qud's field in 1:1: unshaded (the per-pixel ambient darkened it to
-	# ~(6,30,30)) at the measured field colour, and CLIPPED to the stage rect — Qud's field exists
-	# only inside the 80x25 stage; the letterbox around it is the AREA colour (17,33,38), which the
-	# env clear provides (see SkyGrade). User mode restores the huge shaded palette-k ground.
+	# The ground plane IS Qud's field in 1:1: at the measured field colour, and CLIPPED to the stage
+	# rect — Qud's field exists only inside the 80x25 stage; the letterbox around it is the AREA
+	# colour (17,33,38), which the env clear provides (see SkyGrade). User mode restores the huge
+	# palette-k ground. Only the COLOUR and the SIZE differ now; both modes are unshaded (see _ready).
 	if _ground_mat != null:
-		if on:
-			_ground_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-			_ground_mat.albedo_color = QUD_FIELD_1TO1
-		else:
-			_ground_mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL if SHADED_WORLD else BaseMaterial3D.SHADING_MODE_UNSHADED
-			_ground_mat.albedo_color = _world_bg
+		_ground_mat.albedo_color = QUD_FIELD_1TO1 if on else _world_bg
 	if _ground_plane != null and _ground != null:
 		if on:
 			_ground_plane.size = Vector2(80, 25)          # exactly the zone footprint
@@ -367,7 +367,14 @@ func _ready() -> void:
 	_ground = ground
 	_ground_plane = gpm
 	var gm := StandardMaterial3D.new()
-	gm.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL if SHADED_WORLD else BaseMaterial3D.SHADING_MODE_UNSHADED
+	# UNSHADED IN BOTH MODES. The field is Qud's flat background colour, and the per-cell darkness
+	# overlay is what encodes Qud's light model — running the plane through SHADED_WORLD as well
+	# dimmed it a second time by a constant ambient (it is one flat horizontal plane, so shading
+	# adds no variation, only that factor). Measured in user mode: palette k #0f3b3a came out
+	# rgb(5,17,15) against Qud's own rgb(17,53,52) — the whole world three times too dark, lit
+	# cells included. Nothing is lost: SkyGrade's sun sits at light_energy 0 unless the FX toggle
+	# is on, and it exists as the hook for shadows once WALLS move to a shaded material.
+	gm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	gm.albedo_color = _world_bg
 	_ground_mat = gm
 	ground.material_override = gm
