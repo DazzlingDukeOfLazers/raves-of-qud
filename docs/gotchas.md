@@ -2290,3 +2290,35 @@ are nowhere on screen.
 Before any capture run: `hv raw '{"op":"displays"}'` first, then place, then confirm with `hv ls`
 that BOTH windows are listed at the size the spec expects. Re-check after anything that restarts an
 app — `hv loadsave` and the tour's restart edges both re-apply a saved layout.
+
+## Driving Raves away from in_game restarts it on a CLASSIC character — by design
+
+`hv goto raves title` (and anything routed through it, like `options`/`records`/`mods`) uses the
+direct `in_game -> title` edge, which quits via Qud's own `CmdQuit`. On a Classic save that raises
+a THIRD confirm — Qud's `AskString` "type ABANDON to confirm" — because completing it quits
+WITHOUT SAVING and ends a permadeath run. The edge deliberately refuses to type it and cancels the
+prompt instead (highvisor's `gametree.json` edge `raves:in_game->title#31`, `"refuse": "..."`).
+
+The planner reads that refusal as "this edge cannot work from here", excludes it, and re-plans —
+the cheapest remaining route to `title` is the `* -> title` **restart** edge. So `hv goto raves
+options` from `in_game` on a Classic character:
+
+1. tries the direct quit, hits the ABANDON prompt, cancels it (edge REFUSED, not failed)
+2. re-plans excluding that edge -> lands on `restart: raves`
+3. kills Raves (`pkill -9`, so **no crash report** — this is not a crash), relaunches via
+   `raves_user`, waits for `title`
+4. continues the ORIGINAL route from there: `title -> options`
+
+This is SAFE — `_restart_app("raves")` only touches the Raves process. Qud (and the live
+character) are never touched; verified across a restart: Qud's pid, zone and player position were
+identical before and after. The `hv goto` JSON says so explicitly: `"this route RESTARTS raves --
+after 1 refused edge(s)... Unsaved progress is discarded; the save file is untouched."`
+
+**What this is not**: a hang, a broken route, or data loss. What it looks like if you don't know
+this: the app "stops responding" for 15-20s (kill + full relaunch + reconnect), and a NEW pid
+appears — easy to mistake for a crash when compounded with anything else flaky in the same window
+(display topology changing mid-session was the actual confound the one time this got misdiagnosed).
+
+If you want to reach `options`/`records`/`mods` WITHOUT paying the restart, either answer from
+`title` to begin with, or run against a Wander/Roleplay save (checkpointing is on, so `CmdQuit` is
+only two confirms and the direct edge succeeds) — `sync-raves-and-qud` is the golden for this.
