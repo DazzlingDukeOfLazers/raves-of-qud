@@ -58,6 +58,10 @@ var _underground := false
 var _world_map := false           # zone.z < 0: the parasang overview — flat & lit, no torch glows
 const SURFACE_Z := 10
 const DARK_MAX := 0.94          # deepest per-cell darkening (never pure black — faint memory)
+## How bright REMEMBERED ground stays: dim enough that the line-of-sight edge is legible, light
+## enough that the terrain still reads. Black overlay, not a tint — a wash of colour fills a cell
+## Qud leaves ~99.7% background (tile-dirt1.png is 1 opaque pixel in 384) and comes out too bright.
+const MEMORY_GROUND := 0.55
 
 const DARK_FLOOR_Y := 0.07      # darkness quad sits just above the floor tiles
 const DARK_ROOF_Y := WALL_H + 0.02   # and just above wall roofs, to dun unlit rock tops
@@ -1080,6 +1084,14 @@ func _build_darkness(cells: Array, parent: Node, clear_player := Vector2i(-9999,
 		var f := _light_frac(cell)
 		if not _cell_explored(cell):
 			f = 0.0        # NEVER SEEN -> black, exactly as Qud leaves it
+		elif not _cell_seen(cell):
+			# REMEMBERED, not in sight. Without this the ground makes no distinction at all:
+			# the memory treatment reaches only sprites and meshes, floors are batched and never
+			# touched, and in daylight (light=200) the overlay contributes nothing to an
+			# explored cell — so a cell in line of sight and one merely remembered had the SAME
+			# ground, and only their plants differed. Black at a modest alpha, which is the
+			# colour and transparency this overlay has always used.
+			f = minf(f, MEMORY_GROUND)
 		if clearing and (Vector2(k) - cpf).length() <= FROZEN_LIGHT_CLEAR_R:
 			f = 0.0                      # erase the departed player's sight-disc
 		frac[k] = f
