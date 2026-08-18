@@ -2322,3 +2322,23 @@ appears — easy to mistake for a crash when compounded with anything else flaky
 If you want to reach `options`/`records`/`mods` WITHOUT paying the restart, either answer from
 `title` to begin with, or run against a Wander/Roleplay save (checkpointing is on, so `CmdQuit` is
 only two confirms and the direct edge succeeds) — `sync-raves-and-qud` is the golden for this.
+
+## `hv text` silently no-ops on Raves' status-screen fields; use `hv key` per character
+
+`hv text "Raves of Qud" "ejqxn12"` returned ok with detail `activate + CGEvent typing, HID tap
+(tier1: no editable AX element found)` and **nothing appeared in the field** — while the caret was
+visibly blinking in it, so focus was correct. The same field takes `hv key "Raves of Qud" e` fine.
+
+The tell is in the detail string: `no editable AX element found`. Godot draws its own `LineEdit`
+without exposing an AX text element, so `hv text` falls through to a raw HID tap that this screen
+does not pick up. `hv key` uses the focused-key path and lands.
+
+The Options screen's search/host/port fields DO take `hv text` (they are reached through a
+different focus path), so this is not "hv text is broken" — it is per-field, and the only reliable
+signal is reading the field back from a screenshot. **Never trust `ok: true` from `hv text` as
+proof the characters arrived.** For FULL 1 (live typing guard), drive with a per-character loop:
+
+    for k in e j q x n 1 2; do hv key "Raves of Qud" "$k"; done
+
+Then screenshot the field and confirm both halves: the characters landed AND `hv state` did not
+change screen (no ability/menu fired).
