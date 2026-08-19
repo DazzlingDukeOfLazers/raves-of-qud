@@ -1395,13 +1395,23 @@ func _build_unexplored(parent: Node) -> void:
 				_dark_quad(sto, float(wx), float(wy), DARK_SOLID_Y, 1.0); any_solid = true
 			elif a >= 0.02:
 				_dark_quad(st, float(wx), float(wy), DARK_FLOOR_Y, a); any = true
-	# 2. SOLID beyond the band: one rect per empty 3x3 slot, then a frame past the 3x3 out to the
-	#    ground plane's reach. Rects, not cells — this is the bulk of the area and it is uniform.
+	# 2. SOLID beyond the band: the empty 3x3 slots MINUS the band, then a frame past the 3x3 out
+	#    to the ground plane's reach. Rects, not cells — this is the bulk of the area and uniform.
+	#
+	#    MINUS THE BAND, and that subtraction is the whole point. A slot rect covers the strip the
+	#    ramp was just drawn into, and it is opaque, so it painted straight over the gradient: the
+	#    fade existed and could not be seen, and unexplored ground read as a hard black edge butted
+	#    against the zone. Daniel: "standing at a corner where there should be gradient tiles
+	#    outside the zone. Even if a zone is unexplored, I'd still like the gradient."
+	var bx0 := -r
+	var by0 := -r
+	var bx1 := zw + r
+	var by1 := zh + r
 	for sy in range(-1, 2):
 		for sx in range(-1, 2):
 			if taken.has(Vector2i(sx, sy)):
 				continue
-			_dark_rect(sto, sx * zw, sy * zh, zw, zh, DARK_SOLID_Y)
+			_dark_rect_minus(sto, sx * zw, sy * zh, zw, zh, bx0, by0, bx1, by1, DARK_SOLID_Y)
 			any_solid = true
 	var far := 260
 	_dark_rect(sto, -far, -far, far * 2 + zw, far - zh, DARK_SOLID_Y)               # north of the 3x3
@@ -1419,6 +1429,26 @@ func _build_unexplored(parent: Node) -> void:
 		mo.mesh = sto.commit()
 		mo.material_override = _dark_solid_material()
 		parent.add_child(mo)
+
+
+## A solid rect with a hole cut for the ramp band: the parts of [x,y,w,h) that fall OUTSIDE the
+## rect [ex0,ey0)-(ex1,ey1). Up to four pieces — left, right, then the top and bottom of what is
+## left in between. Keeps the gradient visible instead of burying it under an opaque slab.
+func _dark_rect_minus(st: SurfaceTool, x: int, y: int, w: int, h: int,
+		ex0: int, ey0: int, ex1: int, ey1: int, yy: float) -> void:
+	var x1 := x + w
+	var y1 := y + h
+	if x >= ex1 or x1 <= ex0 or y >= ey1 or y1 <= ey0:
+		_dark_rect(st, x, y, w, h, yy)          # no overlap at all
+		return
+	var mx0: int = maxi(x, ex0)
+	var mx1: int = mini(x1, ex1)
+	_dark_rect(st, x, y, mx0 - x, h, yy)                    # left of the band
+	_dark_rect(st, mx1, y, x1 - mx1, h, yy)                 # right of it
+	var my0: int = maxi(y, ey0)
+	var my1: int = mini(y1, ey1)
+	_dark_rect(st, mx0, y, mx1 - mx0, my0 - y, yy)          # above, within the x-overlap
+	_dark_rect(st, mx0, my1, mx1 - mx0, y1 - my1, yy)       # and below
 
 ## Which zone slot a world coordinate falls in, flooring toward negative so -1 is the slot BEFORE 0
 ## rather than 0 itself (integer division truncates toward zero and would merge them).
