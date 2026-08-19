@@ -1275,7 +1275,18 @@ func _build_darkness(cells: Array, parent: Node, frozen_off := NOT_FROZEN) -> vo
 			# colour and transparency this overlay has always used.
 			f = minf(f, MEMORY_GROUND)
 		if frozen:
-			f = minf(f, _frozen_light(k, frozen_off))
+			# THE RAMP IS THE WHOLE ANSWER FOR A DEPARTED ZONE — not a floor under its stored
+			# light. Taking the darker of the two let the zone's own lighting swamp the gradient:
+			# at dusk its cells report light=1, i.e. 0.94 of black, so the boundary went straight
+			# to black and the penumbra never rendered. Daniel, having clicked (2,-1), one tile
+			# outside the zone: "the shadow is overwriting the zone penumbra."
+			#
+			# Dropping the stored light here is also the more faithful rule, not just the
+			# better-looking one: Qud's memory of a place does not dim with the time of day (see
+			# docs/gotchas.md). What you remember is the place, not how lit it was when you left.
+			f = _frozen_light(k, frozen_off)
+			if not _cell_explored(cell):
+				f = minf(f, FOG_GROUND)   # never SHOW something you have not seen, penumbra or not
 		elif not _cell_seen(cell):
 			# THE LIVE ZONE'S EDGE FADE ONLY DIMS WHAT YOU CANNOT SEE. It exists to blend the zone
 			# into the dark beyond it, and that is an OUT-OF-SIGHT effect — applied to cells in
