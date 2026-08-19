@@ -58,6 +58,9 @@ func _ready() -> void:
 	_rt.focus_mode = Control.FOCUS_NONE   # reaching the player (the command-bar rule)
 	_rt.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_rt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	# NO UNDERLINE. A [url] is underlined by default, and Qud draws none on its own strip -- its
+	# "[F] fire  [R] reload" is plain text. The links stay clickable; only the rule goes.
+	_rt.meta_underlined = false
 	_rt.meta_clicked.connect(_on_meta)     # fire / reload / [?] are clickable [url] links
 	v.add_child(_rt)
 
