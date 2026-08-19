@@ -203,7 +203,7 @@ func _ready() -> void:
 	# Pane clicks call back into Main._multiview_inspect (Main owns the inspector + report form).
 	_multiview = load("res://Multiview.gd").new()
 	add_child(_multiview)
-	_multiview.setup(_cam_rig, _MODE_NAMES, _multiview_inspect)
+	_multiview.setup(_cam_rig, _MODE_NAMES, _multiview_inspect, _set_mode)
 
 	# Remote-command channel (the godot_cmd file poller for control.py). Driven from _process; the dispatch
 	# (_exec_godot_cmd) stays here since each command drives a Main subsystem.
@@ -720,6 +720,9 @@ func _set_mode(m: int, force := false) -> void:
 	if _cam_rig.set_mode(m):
 		_update_mode_label()
 		_refresh_wm_cards_btn()   # keep the 2D/3D button label in sync
+		# Announce ONLY on a real change (set_mode reports it), so re-picking the current camera
+		# does not re-print its controls.
+		camera_changed.emit(m, String(_MODE_NAMES.get(m, "")))
 
 # --- 1:1 (parity) mode ------------------------------------------------------
 # The master switch that flips Raves between the QoL "user" experience and a Qud-faithful
@@ -734,6 +737,10 @@ signal one_to_one_changed(on: bool, chosen: bool)
 ## Qud moved to a different CurrentGameView — its legacy screens (the Looker) arrive here, on the
 ## popup mirror's channel rather than the snapshot, because those screens stop snapshots.
 signal qud_view_changed(name: String)
+
+## A camera mode actually CHANGED (the rig confirmed it). Carries the mode and its controls line
+## from _MODE_NAMES, so MainFrame can print the controls without keeping its own copy of them.
+signal camera_changed(mode: int, controls: String)
 
 func is_one_to_one() -> bool:
 	return _one_to_one
@@ -797,6 +804,13 @@ func set_one_to_one(on: bool, chosen := false) -> void:
 ## feature is off, _set_mode ignores it and the setting simply waits for the next build.
 func set_camera_mode(m: int) -> void:
 	_set_mode(clampi(m, 0, CamMode.TOP_FOLLOW))
+
+## Open/close the camera grid — what `0` does, exposed for MainFrame's toolbar button. Honours the
+## 1:1 camera lock for the same reason the key does: in parity mode the camera is not the viewer's.
+func toggle_camera_menu() -> void:
+	if _cam_locked():
+		return
+	_multiview.toggle()
 
 func toggle_one_to_one() -> void:
 	set_one_to_one(not _one_to_one, true)   # a viewer choice: this one sticks

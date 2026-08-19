@@ -335,6 +335,31 @@ func _ensure_clocks() -> void:
 		_clock_tex = arr
 
 ## Load a nav-bar icon (nav_<key>.png in the title dir), extracted from Qud's ActiveButtons.
+## The camera icon, DRAWN rather than extracted. Every other cell in the strip lifts its sprite from
+## Qud's ActiveButtons, but Qud has no camera concept, so there is nothing to lift. Matches what the
+## extracted icons are: one colour -- the rgb(129,154,154) every nav_*.png uses -- at their ~20x14
+## native size, so the strip's shared `iscale` renders it at the same scale as the rest.
+## Shape settled in Python first (the repo's pixel-algorithm rule): body, viewfinder hump, lens ring.
+func _camera_icon_tex() -> Texture2D:
+	var w := 20
+	var h := 14
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var ink := Color8(129, 154, 154)
+	var cx := 10.5
+	var cy := 8.0
+	for y in h:
+		for x in w:
+			var in_body := y >= 3
+			var in_hump := y >= 1 and y < 3 and x >= 4 and x <= 9
+			if not (in_body or in_hump):
+				continue
+			# the lens reads as a RING: a gap in the body with a filled pupil inside it
+			var d := Vector2(float(x) - cx, float(y) - cy).length()
+			if d > 3.4 or d <= 1.7:
+				img.set_pixel(x, y, ink)
+	return ImageTexture.create_from_image(img)
+
 func _load_nav_icon(key: String) -> Texture2D:
 	return _load_title_png("nav_%s.png" % key)
 
@@ -899,6 +924,7 @@ func _row_vitals_menu() -> Control:
 	# Qud's action honestly) — hover UX, and the feedback tool harvests it as the element's action.
 	var nav_actions := {
 		"system": "System menu (checkpoints, options, save and quit) — Esc",
+		"cam": "Cameras — pick a view (0)",
 		"wlock": "Lock / unlock Qud's windows",
 		"map": "Toggle the minimap overlay (Qud's Overlay Minimap option)",
 		"find": "Toggle the nearby objects overlay (Qud's Overlay Nearby Objects option)",
@@ -919,7 +945,9 @@ func _row_vitals_menu() -> Control:
 	# Window lock has NO Qud option — it is a live UI flag on the button itself — so the icons are
 	# driven by what Qud reports (`navButtons`), not by our idea of the state. That covers all
 	# three with one mechanism and keeps the lock honest instead of guessing at it.
-	for key in ["system", "wlock", "map", "find", "look", "rest", "char", "poi", "explore", "down", "up"]:
+	# "cam" sits second, immediately right of the hamburger, and is RAVES-ONLY: Qud has no camera,
+	# so this is the one cell in the strip with no ActiveButton behind it (hence the drawn icon).
+	for key in ["system", "cam", "wlock", "map", "find", "look", "rest", "char", "poi", "explore", "down", "up"]:
 		var cell := Control.new()
 		# Hand-named per action so feedback reads "NavUp", never "TextureRect".
 		cell.name = "Nav" + str(key).capitalize()
@@ -937,6 +965,14 @@ func _row_vitals_menu() -> Control:
 				if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
 					if _holo != null:
 						_holo.request_command("CmdSystemMenu"))
+		if key == "cam":
+			# The camera grid — the same view `0` opens. Clicking a pane's TITLE there picks that
+			# camera (Multiview), and the pick prints its controls to the message log.
+			cell.mouse_filter = Control.MOUSE_FILTER_STOP
+			cell.gui_input.connect(func(e: InputEvent) -> void:
+				if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+					if _holo != null and _holo.has_method("toggle_camera_menu"):
+						_holo.toggle_camera_menu())
 		if key == "char":
 			# the person icon opens the 8-tab status screens — Qud's own opener
 			cell.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -1001,6 +1037,8 @@ func _row_vitals_menu() -> Control:
 		var on_tex: Texture2D = _load_title_png("nav/%s__active.png" % NAV_ACTIVE_BUTTONS[key]) \
 			if NAV_ACTIVE_BUTTONS.has(key) else null
 		var tex := _load_nav_icon(key)
+		if tex == null and key == "cam":
+			tex = _camera_icon_tex()      # Raves-only control: no extracted sprite to load
 		if off_tex != null and on_tex != null:
 			tex = off_tex                     # replaced the moment the first snapshot lands
 		var ic := TextureRect.new()
@@ -1027,6 +1065,21 @@ func _row_vitals_menu() -> Control:
 
 	h.add_child(menu)
 	return h
+
+## A camera mode changed -> print its controls to the message log. The controls text comes WITH the
+## signal (Main owns _MODE_NAMES, which is already the per-mode control list the HUD hint and the
+## multiview captions use), so there is no second copy here to drift from it.
+func _on_camera_changed(_mode: int, controls: String) -> void:
+	if _msglog == null or controls == "":
+		return
+	# Split on the em dash the mode strings use: NAME on the left, its controls on the right.
+	var parts := controls.split(" — ")
+	var cam_name := parts[0]
+	var keys := parts[1] if parts.size() > 1 else ""
+	var line := "[color=#8fd3ff]camera:[/color] [color=#ffd24a]%s[/color]" % cam_name
+	if keys != "":
+		line += "  [color=#8a8f9a]%s[/color]" % keys
+	_msglog.set_hint(line)
 
 ## Up/Down nav (top-bar buttons + the s/d keys in Main): Qud's own climb commands —
 ## CmdMoveU / CmdMoveD (stairs; Down also pulls down from the world map). Injected via
@@ -1611,6 +1664,7 @@ func _connect_holodeck() -> void:
 	# Qud's CurrentGameView, off the popup mirror's channel — the legacy screens it reports (the
 	# Looker) park the turn thread, so this cannot ride the snapshot. See PopupBridge.PollView.
 	_holo.connect("qud_view_changed", _apply_qud_view)
+	_holo.connect("camera_changed", _on_camera_changed)   # print the new camera's controls to the log
 	# a system-menu pick of "Control Mapping" mirrors into Raves' own screen (Qud
 	# opens its KeybindsScreen from the same answer). BOTH modes — user mode gets
 	# the extra RAVES section (golden restore) that 1:1 hides.

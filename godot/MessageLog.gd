@@ -35,6 +35,7 @@ var _landmark_index := {}        # lowercased landmark/biome name -> world-terra
 var _player_obj := {}            # the player's render, for the "you" pictograph
 var _full := false               # perceived icons (default) vs real — driven by MainFrame's top-menu toggle
 var _notice := ""                # sticky status line (BBCode) pinned at the BOTTOM — e.g. the mod-version check
+var _hint := ""                  # sticky HINT line above the notice — the current camera's controls
 
 func _ready() -> void:
 	_tiles = load("res://QudTiles.gd").new()
@@ -309,6 +310,14 @@ func _seed_from(lines: Array) -> void:
 
 ## A sticky status line pinned at the BOTTOM of the log (always visible under scroll_following) — used
 ## for the mod-version check. Pass "" to clear it. Idempotent, so callers can set it every snapshot.
+## The camera hint: BBCode pinned just above the notice, replaced (not accumulated) on each change,
+## because only the CURRENT camera's controls are worth reading.
+func set_hint(markup: String) -> void:
+	if markup == _hint:
+		return
+	_hint = markup
+	_rerender()
+
 func set_notice(markup: String) -> void:
 	if markup == _notice:
 		return
@@ -362,6 +371,12 @@ func _rerender() -> void:
 		_render_filter()
 	else:
 		_render_verbatim()
+	# PINNED, not appended into the flow. A line pushed into the messages themselves is rebuilt away
+	# on the next snapshot (this function re-appends Qud's lines from scratch every turn), so it
+	# would vanish within a turn of being printed. Its own slot -- NOT _notice, which carries the
+	# mod-version warning and must not be overwritten by a camera hint.
+	if _hint != "":
+		_rt.append_text("\n" + _hint)
 	if _notice != "":
 		# separated from the message flow and pinned last, so it doesn't scroll away like a game message
 		_rt.append_text("\n" + _notice)

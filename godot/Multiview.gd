@@ -14,16 +14,19 @@ const MODES := [0, 1, 2, 3, 4, 5, 6]   # CamMode order: COMPASS, FOLLOW, FIRST_P
 var _cam_rig                       # CameraRig: per-pane eye/look math + shared cam fov
 var _mode_names: Dictionary        # mode int -> label string (Main's _MODE_NAMES), for the pane captions
 var _on_pane_inspect: Callable     # Main._multiview_inspect(cam, pos) — it owns the inspector/reporter
+var _on_pick_mode: Callable        # Main._set_mode(mode) — clicking a pane's TITLE switches to it
 var _layer: CanvasLayer
 var _on := false
 var _cams: Array = []              # [{mode, cam, sv}]
 
 ## Build the grid. Call once, after the CameraRig's camera exists (we read its fov) and while in the tree
 ## (we bind the shared World3D off get_viewport()).
-func setup(cam_rig, mode_names: Dictionary, on_pane_inspect: Callable) -> void:
+func setup(cam_rig, mode_names: Dictionary, on_pane_inspect: Callable,
+		on_pick_mode := Callable()) -> void:
 	_cam_rig = cam_rig
 	_mode_names = mode_names
 	_on_pane_inspect = on_pane_inspect
+	_on_pick_mode = on_pick_mode
 	_layer = CanvasLayer.new()
 	_layer.layer = 4
 	_layer.visible = false
@@ -53,10 +56,24 @@ func setup(cam_rig, mode_names: Dictionary, on_pane_inspect: Callable) -> void:
 		sv.add_child(cam)
 		cam.current = true   # the active camera for this sub-viewport
 		cell.add_child(svc)
+		# THE TITLE PICKS THE CAMERA; the pane body still inspects (below). Two actions on one
+		# pane, split by where you click -- the caption is the only part of a live 3D view that is
+		# safe to claim for a click, and "click the name of the camera you want" is what the name
+		# already looks like it means.
 		var lbl := Label.new()
 		lbl.text = "%d  %s" % [m + 1, String(_mode_names.get(m, "?")).split(" —")[0]]
 		lbl.add_theme_color_override("font_color", Color(0.8, 1.0, 0.8))
 		lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		if _on_pick_mode.is_valid():
+			lbl.mouse_filter = Control.MOUSE_FILTER_STOP   # STOP, so the pane's inspect never also fires
+			lbl.tooltip_text = "Switch to this camera"
+			lbl.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+			var pick_mode: int = m
+			lbl.gui_input.connect(func(e: InputEvent):
+				if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+					# _set_mode closes this grid itself (picking a mode leaves the multi-view), so
+					# there is no toggle to do here -- doing one as well would reopen it.
+					_on_pick_mode.call(pick_mode))
 		cell.add_child(lbl)
 		# Left-click a pane = inspect the tile under the cursor with THAT pane's camera; the marker lives
 		# in the shared world, so it appears in every pane at once. Number keys (1-7) still switch full-screen.
