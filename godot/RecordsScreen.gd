@@ -58,6 +58,7 @@ func _ready() -> void:
 		_palette[code] = "#" + Color(QUD_COLORS[code]).to_html(false)
 	_records = _load_records()
 
+	# QUD-SHAPE-OK: Records screen is a 1:1 parity target; the else is the pre-clone QoL layout
 	if Settings.qud_shape():
 		_build_1to1()
 	else:
@@ -124,6 +125,7 @@ func _send_bridge(msg: Dictionary) -> void:
 ## Reload the records from disk and rebuild the left column, preserving the selection if possible.
 func _reload_records() -> void:
 	_records = _load_records()
+	# QUD-SHAPE-OK: Records screen is a 1:1 parity target; the else is the pre-clone QoL layout
 	if Settings.qud_shape():
 		if _list_1to1 == null:
 			return

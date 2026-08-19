@@ -241,6 +241,7 @@ func _on_resize() -> void:
 	UiFont.refresh_theme(theme, get_viewport())
 	pass  # CRT logical_h is pushed in _process
 	# The 1:1 sidebar is a fraction of the window, and the camera inset derives from it — re-apply both.
+	# QUD-SHAPE-OK: user mode takes the 1:1 layout path; the else is pre-clone legacy
 	if Settings.qud_shape():
 		_apply_layout_mode(true)
 	else:
@@ -1514,18 +1515,23 @@ func _apply_panel_sizing(on: bool) -> void:
 	_refresh_overlay_panels()
 	if _msglog != null:
 		_msglog.size_flags_vertical = Control.SIZE_EXPAND_FILL   # always the space-filler; dominant in 1:1
-	# Row 4 (Active effects | Target | Context menu). Qud keeps this a thin single-line strip; the QoL
-	# layout reserves taller boxes. 1:1 slims them (context a touch taller for the equipped-weapon sprite),
-	# which also hands the freed height to the play hole above.
-	# The bottom budget is EXACT in 1:1: sep(4) + row4(28) + sep(4) + bar(54) = the 90px
-	# bottom chrome Qud has — anything taller CLIPS the zoomed stage (the field stopped at
-	# y=939 instead of 989 until the row-4 panels went single-line).
+	# Row 4 (Active effects | Target | Context menu): Qud's thin single-line strip, in BOTH modes.
+	# The bottom budget is EXACT: sep(4) + row4(28) + sep(4) + bar(54) = the 90px bottom chrome Qud
+	# has — anything taller CLIPS the zoomed stage (the field stopped at y=939 instead of 989 until
+	# these panels went single-line).
+	#
+	# The taller QoL boxes (90/90/104) that used to sit on the other arm of these were DEAD, and had
+	# been for as long as user mode cloned Qud: every caller of _apply_layout_mode passes true in
+	# user mode, because it reads Settings.qud_shape(). They cost a real bug rather than nothing --
+	# the context strip asked for 104, got 28, and the weapon sprite sized for the box it never got
+	# clipped "[F] fire [R] reload" (a041f83). Row 4 has no QoL feature and wants none: 28 IS the
+	# right height, and the sprite is now sized to the row instead of to a box that never existed.
 	if _effects != null:
-		_effects.custom_minimum_size = Vector2(0, 28 if on else 90)
+		_effects.custom_minimum_size = Vector2(0, 28)
 	if _target != null:
-		_target.custom_minimum_size = Vector2(0, 28 if on else 90)
+		_target.custom_minimum_size = Vector2(0, 28)
 	if _context != null:
-		_context.custom_minimum_size = Vector2(0, 28 if on else 104)
+		_context.custom_minimum_size = Vector2(0, 28)
 
 ## Tell the Holodeck camera what fraction of the window the sidebar now covers, so the 1:1 zone-fit
 ## recentres the view in the visible play hole (left of the sidebar) instead of the full window.
@@ -1798,6 +1804,7 @@ func _apply_stats(data: Dictionary) -> void:
 	var hp := int(s.get("hp", 0))
 	var hpmax := maxi(1, int(s.get("hpMax", 1)))
 	if _l_hp != null:
+		# QUD-SHAPE-OK: HP text: user mode uses Qud's spacing and health colour too
 		if Settings.qud_shape():
 			# Qud's spacing, and colour ONLY the current-HP number by health % (rest white). BBCode.
 			_l_hp.text = "HP: [color=#%s]%d[/color] / %d" % [_hp_color(hp, hpmax).to_html(false), hp, hpmax]
@@ -1812,6 +1819,7 @@ func _apply_stats(data: Dictionary) -> void:
 		var xp_floor := int(s.get("xpFloor", 0))
 		var xp_next := maxi(xp_floor + 1, int(s.get("xpNext", xp_floor + 1)))
 		if _l_exp != null:
+			# QUD-SHAPE-OK: EXP text: user mode uses Qud's spacing too
 			_l_exp.text = ("LVL: %d Exp: %d / %d" if Settings.qud_shape() else "LVL: %d   EXP: %d/%d") % [lvl, xp, xp_next]
 		if _bar_exp != null:
 			_bar_exp.min_value = xp_floor
@@ -1874,6 +1882,7 @@ func _check_mod_version(data: Dictionary) -> void:
 			# mirror mode it is just a message Qud's log does not contain -- it measured as the
 			# single largest band in the log panel (mean 14.23 against 0.26 elsewhere). The two
 			# WARNINGS below stay in both modes: a version mismatch is worth breaking parity for.
+			# QUD-SHAPE-OK: the up-to-date tick is a QoL extra; both modes stay quiet, only WARNINGS show
 			if Settings.qud_shape():
 				_msglog.set_notice("")
 			else:

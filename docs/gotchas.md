@@ -2342,3 +2342,33 @@ proof the characters arrived.** For FULL 1 (live typing guard), drive with a per
 
 Then screenshot the field and confirm both halves: the characters landed AND `hv state` did not
 change screen (no ability/menu fired).
+
+## WHERE USER MODE STOPS CLONING 1:1 — the rule, and how it is enforced
+
+User mode renders as a **1:1 clone of Qud**, and diverges ONLY where a QoL feature says so. That is
+deliberate (Daniel, 2026-08-12: "copy all the 1:1 settings to usermode, we'll load back in features
+1 at a time"), and `Settings.qud_shape(feature)` is how a surface asks:
+
+    qud_shape("msglog")   # Qud's shape UNLESS this feature has been loaded back
+    qud_shape()           # Qud's shape, full stop — no user-mode alternative exists
+
+**The bare form is an assertion, not a shortcut.** With no feature name it can never be false in
+user mode, so an `else` hanging off it is unreachable in *both* modes. The user-mode half is
+written, shipped, and can never run — and it reads exactly like a working feature.
+
+That cost three features, each of which looked deleted and was only unreachable:
+
+| lost | was really |
+|---|---|
+| message log grouping identical messages | `set_one_to_one` still had the whole user-mode half; the toggle was just hidden |
+| Nearby objects' larger icons | same shape — the QoL list existed, nothing could select it |
+| row 4's user-mode heights (90/90/104) | dead so long it caused a REAL bug: the context strip asked 104, got 28, and the weapon sprite sized for the box it never got clipped "[F] fire [R] reload" |
+
+**So: to give a surface a user-mode form, register a QoL feature.** `Settings.QOL_FEATURES` is the
+one list; Options and presets both enumerate it, so a new entry surfaces in the UI with no further
+wiring. To keep a surface identical in both modes, that is a decision — say so with
+`# QUD-SHAPE-OK: <reason>` on the gate line or the line above.
+
+`tools/regression/qud_shape_audit.py` (SPOT) enforces exactly this and nothing else: it fails on a
+bare gate that has an `else`. It cannot see a branch killed by its CALLER always passing true —
+row 4 died that way — so when a mode flag is threaded through a parameter, check the call sites too.

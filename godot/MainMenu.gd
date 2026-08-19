@@ -347,6 +347,7 @@ func _build_menu() -> void:
 	# middle (the header eats the top, so Qud centres the items a touch low).
 	var opts := VBoxContainer.new()
 	opts.alignment = BoxContainer.ALIGNMENT_CENTER
+	# QUD-SHAPE-OK: title screen is a 1:1 parity target; the else is pre-clone QoL spacing
 	opts.add_theme_constant_override("separation", 7 if Settings.qud_shape() else 2)   # ElliotSans pitch 46 like Qud
 	opts.anchor_left = 0.09
 	opts.anchor_right = 0.91
@@ -599,6 +600,7 @@ func _highlight_box() -> StyleBox:
 func _build_links() -> void:
 	var v := VBoxContainer.new()
 	v.alignment = BoxContainer.ALIGNMENT_BEGIN
+	# QUD-SHAPE-OK: title screen is a 1:1 parity target; the else is pre-clone QoL spacing
 	v.add_theme_constant_override("separation", 14 if Settings.qud_shape() else 6)
 	for txt in LINK_ITEMS:
 		var l := _label(txt, MUTED, "title")
@@ -655,6 +657,7 @@ func _apply_selection() -> void:
 		var col: Color = SEL if on else MUTED
 		for role in ["font_color", "font_hover_color", "font_pressed_color", "font_disabled_color"]:
 			b.add_theme_color_override(role, col)
+		# QUD-SHAPE-OK: title screen is a 1:1 parity target; the else is the pre-clone QoL layout
 		if Settings.qud_shape():
 			# Qud's selection = two THIN BRIGHT ragged bars hugging the item's top and
 			# bottom edges, only slightly wider than the text (measured: ~2px tall,
@@ -684,6 +687,7 @@ func _refresh_enabled() -> void:
 			# on every build, so the permission silently lapses. When it does, DirAccess.open
 			# returns null, Continue greys out, and the app sits at the title looking like a
 			# BRIDGE failure when the bridge is fine. A live game is reason enough to continue.
+			# QUD-SHAPE-OK: Continue enablement follows Qud in both modes (a save OR a live game)
 			enabled = (_saves_exist() or _game_live) if Settings.qud_shape() else _game_live
 		row["enabled"] = enabled
 		row["btn"].disabled = not enabled
@@ -798,6 +802,7 @@ func _build_hint() -> void:
 	var gold := "#%s" % GOLD.to_html(false)
 	var dim := "#%s" % HINT.to_html(false)
 	var tail := "[color=%s] navigate      [/color][color=%s][lb]Space[rb][/color][color=%s] select      [/color][color=%s][lb]Esc[rb][/color][color=%s] quit[/color]" % [dim, gold, dim, gold, dim]
+	# QUD-SHAPE-OK: title screen is a 1:1 parity target; the else is the pre-clone QoL layout
 	if Settings.qud_shape():
 		# Qud: BOLD hint text; the arrow-keys icon and each keycap sit inside WHITE
 		# [ ] brackets; the d-pad keys carry dark directional arrows.
@@ -1140,6 +1145,7 @@ func _activate(idx: int) -> void:
 			# with a running game, so a live game means "attach to it" (also, the mod
 			# refuses loadsave mid-game — the picker would dead-end). User mode keeps
 			# the direct attach-to-running-game jump.
+			# QUD-SHAPE-OK: title screen is a 1:1 parity target; the else is pre-clone QoL behaviour
 			if Settings.qud_shape() and not _game_live:
 				_open_overlay("res://LoadGameScreen.gd")
 			else:
