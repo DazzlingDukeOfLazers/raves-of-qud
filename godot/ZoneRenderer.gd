@@ -221,6 +221,15 @@ var _live_static_id := ""       # which zone's static is currently built as "liv
 var _live_static_sig := 0       # signature of the live zone's static objects; a change (e.g. a placed
 								# campfire, a dug wall) forces a static rebuild within the same zone
 var _bank: Node3D = null        # non-null while building a zone's geometry INTO it
+## True ONLY while building a REMEMBERED NEIGHBOUR's geometry — a zone the player is not in, whose
+## art is drawn in Qud's memory pair. Explicit, because the two flags nearby do not say this and
+## every way of deriving it from them is wrong in a way that ships:
+##   _live_build  is false during the DYNAMICS pass too, so keying off it ghosted every creature —
+##                the player included, who then stood in his own lit zone looking fogged.
+##   _bank        is non-null for the LIVE zone's static build as well, so keying off that would
+##                ghost the zone you are standing in.
+## The pair `_bank != null and not _live_build` is correct and unreadable; this is that, named.
+var _remembered_build := false
 var _noting := true             # whether _note records (off during dynamic-only rebuilds)
 var _live_build := false        # true only while building the LIVE zone's static (its
                                 # torches register for the _process flicker; neighbours don't)
@@ -1588,10 +1597,12 @@ func _sync_neighbors(neighbors: Array) -> void:
 			_static_zones[id] = sub
 			_bank = sub
 			_noting = false     # neighbours aren't inspected; don't touch _placed
+			_remembered_build = true    # ...and its art is drawn in Qud's memory pair
 			var wt := {}
 			_build_zone(nb.get("cells", []), Vector2i.ZERO, true, wt)   # local coords
 			_rebuild_walls(wt)     # _bank set -> into the subtree, no clear
 			_flush_floor_batch()   # batched floor MultiMeshes into the neighbour subtree
+			_remembered_build = false
 			_noting = true
 			_bank = null
 		# Bake this remembered zone's darkness from its stored light, so a dark cavern or
@@ -4933,7 +4944,7 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 	# _art_colors. The water surface builds its material from these rather than from the texture,
 	# so without this a pool one step over the border stayed frankly blue while everything around
 	# it had gone to memory. "K"/"k" are Qud's own memory pair, the same two _art_colors uses.
-	if not _live_build:
+	if _remembered_build:
 		main_c = "K"
 		detail_c = "k"
 	var layer := int(obj.get("layer", 99))
@@ -5682,7 +5693,7 @@ func _rebuild_walls(wall_types: Dictionary) -> void:
 				# is built ghosted rather than left at full colour. The live zone's walls swap to
 				# this per turn through _wall_cutaway; a frozen one cannot change while frozen, so
 				# it is baked once here.
-				mi.mesh = entry["mesh"] if _live_build else _ghost_wall_mesh(entry["mesh"])
+				mi.mesh = _ghost_wall_mesh(entry["mesh"]) if _remembered_build else entry["mesh"]
 				mi.material_override = _wall_skin_material()
 				mi.position = Vector3(k.x, 0.0, k.y)
 				_wall_parent().add_child(mi)
@@ -8198,7 +8209,7 @@ func _recolor(obj: Dictionary, code: String) -> String:
 ## textures SEPARATELY, and fixing only the floors left a departed zone with dark ground and
 ## full-colour plants standing on it — which is the bug this was meant to fix.
 func _art_colors(obj: Dictionary) -> Array:
-	if _live_build:
+	if not _remembered_build:
 		return [_obj_main(obj), _obj_detail(obj), _color_key(obj)]
 	return [_qud_color("K"), _qud_color("k"), _color_key(obj) + "~ghost"]
 
