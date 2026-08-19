@@ -106,6 +106,20 @@ const LIVE_EDGE_FADE := 4
 const DARK_SOLID_A := 0.995
 const DARK_FLOOR_Y := 0.07      # darkness quad sits just above the floor tiles
 const DARK_ROOF_Y := WALL_H + 0.02   # and just above wall roofs, to dun unlit rock tops
+## FULLY-DARK ground sits at FLOOR height, like every other darkness quad.
+##
+## Raising it above the sprites was tried, to stop trees and grass glowing out of a region that is
+## meant to be unseen, and it works — but it trades one artifact for a worse one: an opaque plane a
+## metre off the ground can be seen UNDER, and at any oblique angle a bright strip of untouched
+## ground plane appears along the whole boundary. Measured at both WALL_H + 0.6 and WALL_H + 0.02;
+## the strip is there either way, because the camera does not have to be far off the horizontal to
+## get beneath it.
+##
+## So the unexplored surround (which has no assets to expose — those zones are never loaded) is
+## clean at floor height, and a VISITED zone's far side still shows its plants through the dark.
+## Fixing that needs the sprites hidden rather than covered, which is per-cell work on a frozen
+## subtree that nothing currently tracks.
+const DARK_SOLID_Y := DARK_FLOOR_Y
 var _dark_mat: StandardMaterial3D
 
 # How a tile's TRANSPARENT pixels are treated when recolouring.
@@ -991,6 +1005,7 @@ func _rebuild_dynamics(cells: Array) -> void:
 			break
 	if any_dark:
 		_build_darkness(cells, _dynamic_root)          # fall off to black around light sources
+		_build_unexplored(_dynamic_root)               # ...and the never-visited world beyond
 		if not _one_to_one:
 			_relight_static_sprites(cells)             # dim trees/brinestalks/fences by cell light
 	elif _was_dark:
@@ -1278,7 +1293,7 @@ func _build_darkness(cells: Array, parent: Node, frozen_off := NOT_FROZEN) -> vo
 		if walls.has(k):
 			var a := (1.0 - float(frac[k])) * amax
 			if a >= DARK_SOLID_A:
-				_dark_quad(sto, cx, cy, DARK_ROOF_Y, 1.0); any_solid = true
+				_dark_quad(sto, cx, cy, DARK_SOLID_Y, 1.0); any_solid = true
 			elif a >= 0.02:
 				_dark_quad(st, cx, cy, DARK_ROOF_Y, a); any = true
 			for d in sides:
@@ -1292,7 +1307,7 @@ func _build_darkness(cells: Array, parent: Node, frozen_off := NOT_FROZEN) -> vo
 		else:
 			var a := (1.0 - float(frac[k])) * amax
 			if a >= DARK_SOLID_A:
-				_dark_quad(sto, cx, cy, DARK_FLOOR_Y, 1.0); any_solid = true
+				_dark_quad(sto, cx, cy, DARK_SOLID_Y, 1.0); any_solid = true
 			elif a >= 0.02:
 				_dark_quad(st, cx, cy, DARK_FLOOR_Y, a); any = true
 	if any:
@@ -1324,6 +1339,97 @@ func _frozen_light(k: Vector2i, off: Vector2i) -> float:
 	var t: float = clampf(float(d - 1) / float(maxi(1, FROZEN_DARK_IN - 1)), 0.0, 1.0)
 	var a: float = lerpf(FROZEN_EDGE_DIM, 1.0, t)   # alpha
 	return 1.0 - a                                  # ...as a light fraction
+
+
+## THE WORLD YOU HAVE NEVER BEEN TO. Everything outside the zones you have visited is still the
+## ground plane at full field colour — a bright expanse running to the horizon, which is the one
+## part of the view that does not answer to the fog. Daniel: "change the unexplored zones to be the
+## same dark colour as unexplored tiles ... the same 3 tile gradient ... but don't expose any of the
+## unexplored zone's assets."
+##
+## Nothing here draws a zone: unexplored zones are not loaded and this does not load them. It lays
+## darkness over the empty ground — the ramp near the live zone, solid beyond — so the fog reaches
+## the places there is no data for, which is exactly where it should be thickest.
+##
+## Cheap by construction. The ramp is per-cell only within FROZEN_DARK_IN of the live zone; past
+## that it is a handful of big solid rects, and solid means opaque (see DARK_SOLID_A). A loaded
+## neighbour draws its own darkness, so its footprint is skipped — otherwise this would paint over
+## the explored world as well as the unknown one.
+func _build_unexplored(parent: Node) -> void:
+	if _one_to_one or _world_map:
+		return
+	var zw := int(_live_w)
+	var zh := int(_live_h)
+	# Grid slots covered by something we HAVE visited: the live zone at (0,0) plus each neighbour.
+	var taken := {Vector2i(0, 0): true}
+	for id in _static_zones:
+		var zn: Node3D = _static_zones[id]
+		if zn.has_meta("dark_off"):
+			var o: Vector2i = zn.get_meta("dark_off")
+			taken[Vector2i(int(round(float(o.x) / float(zw))), int(round(float(o.y) / float(zh))))] = true
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var sto := SurfaceTool.new()
+	sto.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var any := false
+	var any_solid := false
+	# 1. the RAMP: per-cell, only in the band within FROZEN_DARK_IN of the live zone, and only
+	#    where no visited zone already covers it.
+	var r := FROZEN_DARK_IN
+	for wy in range(-r, zh + r):
+		for wx in range(-r, zw + r):
+			if wx >= 0 and wx < zw and wy >= 0 and wy < zh:
+				continue                                  # the live zone itself
+			if taken.has(Vector2i(_slot(wx, zw), _slot(wy, zh))):
+				continue                                  # a visited zone owns this ground
+			var a: float = 1.0 - _frozen_light(Vector2i(wx, wy), Vector2i.ZERO)
+			if a >= DARK_SOLID_A:
+				_dark_quad(sto, float(wx), float(wy), DARK_SOLID_Y, 1.0); any_solid = true
+			elif a >= 0.02:
+				_dark_quad(st, float(wx), float(wy), DARK_FLOOR_Y, a); any = true
+	# 2. SOLID beyond the band: one rect per empty 3x3 slot, then a frame past the 3x3 out to the
+	#    ground plane's reach. Rects, not cells — this is the bulk of the area and it is uniform.
+	for sy in range(-1, 2):
+		for sx in range(-1, 2):
+			if taken.has(Vector2i(sx, sy)):
+				continue
+			_dark_rect(sto, sx * zw, sy * zh, zw, zh, DARK_SOLID_Y)
+			any_solid = true
+	var far := 260
+	_dark_rect(sto, -far, -far, far * 2 + zw, far - zh, DARK_SOLID_Y)               # north of the 3x3
+	_dark_rect(sto, -far, 2 * zh, far * 2 + zw, far, DARK_SOLID_Y)                  # south
+	_dark_rect(sto, -far, -zh, far - zw, 3 * zh, DARK_SOLID_Y)                      # west
+	_dark_rect(sto, 2 * zw, -zh, far, 3 * zh, DARK_SOLID_Y)                         # east
+	any_solid = true
+	if any:
+		var mi := MeshInstance3D.new()
+		mi.mesh = st.commit()
+		mi.material_override = _dark_material()
+		parent.add_child(mi)
+	if any_solid:
+		var mo := MeshInstance3D.new()
+		mo.mesh = sto.commit()
+		mo.material_override = _dark_solid_material()
+		parent.add_child(mo)
+
+## Which zone slot a world coordinate falls in, flooring toward negative so -1 is the slot BEFORE 0
+## rather than 0 itself (integer division truncates toward zero and would merge them).
+func _slot(v: int, size: int) -> int:
+	return int(floor(float(v) / float(size)))
+
+## One solid quad over a rect of cells, in cell coordinates (x,y = its corner cell).
+func _dark_rect(st: SurfaceTool, x: int, y: int, w: int, h: int, yy: float) -> void:
+	if w <= 0 or h <= 0:
+		return
+	var c := Color(0, 0, 0, 1)
+	var l := float(x) - 0.5
+	var rr := float(x + w) - 0.5
+	var t := float(y) - 0.5
+	var b := float(y + h) - 0.5
+	for p in [Vector3(l, yy, t), Vector3(rr, yy, t), Vector3(rr, yy, b),
+			Vector3(l, yy, t), Vector3(rr, yy, b), Vector3(l, yy, b)]:
+		st.set_color(c)
+		st.add_vertex(p)
 
 ## The LIVE zone's own edge fade: how lit a cell stays by how far it is from the nearest zone edge.
 ## Mirrors _frozen_light across the boundary — the outermost row sits at FROZEN_EDGE_DIM, matching

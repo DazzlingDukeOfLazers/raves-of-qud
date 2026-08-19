@@ -40,6 +40,7 @@ import re
 import socket
 import subprocess
 import sys
+import threading
 import time
 
 LOG = os.path.expanduser(
@@ -65,26 +66,49 @@ def kick():
     subprocess.run(["hv", "bridge", "wait"], capture_output=True, text=True, timeout=30)
 
 
-def snapshot(timeout=25.0):
-    """One bridge frame — the LIVE zone. (Neighbours are client-side; see the module doc.)"""
+def snapshot(timeout=25.0, kick_first=True):
+    """One bridge frame — the LIVE zone. (Neighbours are client-side; see the module doc.)
+
+    CONNECT, THEN take the turn. The mod BROADCASTS when a turn resolves and does not replay for a
+    client that arrives afterwards, so kicking first and connecting second misses the frame.
+
+    The wire is LENGTH-PREFIXED -- [4-byte big-endian length][JSON] -- the same framing
+    tools/capture/snap.py reads. Treating it as newline-delimited JSON (which an earlier version of
+    this file did) mostly returns nothing, because the length bytes sit in front of the object.
+    """
+    import struct
     s = socket.create_connection(("127.0.0.1", 48710), 10)
     s.settimeout(timeout)
-    buf = b""
-    end = time.time() + timeout
+    if kick_first:
+        threading.Thread(target=kick, daemon=True).start()
+
+    def recvn(n):
+        buf = b""
+        while len(buf) < n:
+            try:
+                chunk = s.recv(n - len(buf))
+            except socket.timeout:
+                return None
+            if not chunk:
+                return None
+            buf += chunk
+        return buf
+
     try:
+        end = time.time() + timeout
         while time.time() < end:
-            d = s.recv(1 << 20)
-            if not d:
-                break
-            buf += d
-            for line in buf.decode("utf8", "ignore").splitlines():
-                try:
-                    j = json.loads(line)
-                except Exception:
-                    continue
-                if isinstance(j, dict) and j.get("cells") is not None:
-                    return j
-            buf = b""
+            head = recvn(4)
+            if head is None:
+                return None
+            body = recvn(struct.unpack(">I", head)[0])
+            if body is None:
+                return None
+            try:
+                j = json.loads(body.decode("utf8", "ignore"))
+            except Exception:
+                continue
+            if isinstance(j, dict) and j.get("cells") is not None:
+                return j
     finally:
         s.close()
     return None
@@ -124,15 +148,25 @@ def check(_step, tries=3):
     """
     snap = None
     for _ in range(max(1, tries)):
-        try:
-            kick()
-        except Exception:
-            pass
         snap = snapshot(timeout=12.0)
         if snap is not None:
             break
     if snap is None:
-        return None, None, ["no snapshot after %d turns — is Qud in-game?" % tries]
+        # SAY WHY. The bridge publishes on a TURN, and the commonest reason turns stop is a POPUP
+        # parking the turn thread -- a journal notice waiting on [Space] will sit there forever.
+        # "is Qud in-game?" sent us both looking at the wrong thing; the state report knows.
+        why = "no snapshot after %d turns" % tries
+        try:
+            st = subprocess.run(["hv", "state"], capture_output=True, text=True, timeout=20).stdout
+            for line in st.splitlines():
+                if line.startswith("qud"):
+                    if "popup=" in line:
+                        why += " — QUD IS ON A POPUP, which parks the turn thread: %s" % line.strip()
+                    else:
+                        why += " — qud: %s" % line.strip()
+        except Exception:
+            pass
+        return None, None, [why]
     live = str(snap.get("zone", {}).get("id", "?"))
     lxy = zone_xy(live)
     if lxy is None:
@@ -161,7 +195,11 @@ def main(argv=None):
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--steps", type=int, default=4,
                     help="crossings to make (default 4 = once around the corner)")
-    ap.add_argument("--dist", type=int, default=26, help="tiles per crossing")
+    # PER AXIS, because a zone is 80 WIDE and 25 TALL. One distance for both meant the E/W legs
+    # never crossed anything and the walk just bounced between two zones -- reporting PASS while
+    # never once reaching the corner it exists to test.
+    ap.add_argument("--dist-x", type=int, default=82, help="tiles per E/W crossing (zone is 80 wide)")
+    ap.add_argument("--dist-y", type=int, default=27, help="tiles per N/S crossing (zone is 25 tall)")
     a = ap.parse_args(argv)
 
     # Around a corner, so a zone is an EDGE neighbour at one step and a DIAGONAL one at the next
@@ -177,7 +215,7 @@ def main(argv=None):
     for i in range(a.steps):
         d = route[i % len(route)]
         print("\nstep %d/%d: walking %s" % (i + 1, a.steps, d))
-        move(d, a.dist)
+        move(d, a.dist_x if d in ("E", "W") else a.dist_y)
         time.sleep(4)                      # let the neighbour sync + re-bake land
         live, seen, problems = check(i + 1)
         if seen is None:
