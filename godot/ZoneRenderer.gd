@@ -4920,6 +4920,13 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 	# ('&c^C&K', fg K) collide with a plain soup pool ('&c') and serve the wrong material.
 	var main_c := _pick_color_string(obj)
 	var detail_c := String(obj.get("detail", ""))
+	# The COLOUR-STRING pair, ghosted for a zone you are not in — the string counterpart of
+	# _art_colors. The water surface builds its material from these rather than from the texture,
+	# so without this a pool one step over the border stayed frankly blue while everything around
+	# it had gone to memory. "K"/"k" are Qud's own memory pair, the same two _art_colors uses.
+	if not _live_build:
+		main_c = "K"
+		detail_c = "k"
 	var layer := int(obj.get("layer", 99))
 
 	# Anything flagged Bridge (bridge, walkway, hut floor) is a DECK, not scenery:
@@ -4953,8 +4960,14 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 	# gaps: their Qud render shows the terrain through, and 213 bright-baseline
 	# walls pass on exactly that behaviour.
 	var wall_fill := Fill.ALL if _wall_bg != "" else Fill.NONE
-	var tex := _colored_tex_rgb(tile, _obj_main(obj), _obj_detail(obj), _color_key(obj),
-		_fill_for(tile, wall_fill))
+	# THE ONE PLACE A NEIGHBOUR'S COLOURS ARE DECIDED. Everything _place_cell builds for a zone you
+	# are not standing in — floors, water surfaces, derived meshes, billboards — is recoloured to
+	# Qud's memory pair here, so the whole zone reads as out of sight rather than only its sprites.
+	# Doing it at the TEXTURE is what catches the batched floors: they are MultiMeshes keyed by
+	# material, so there is no per-cell node to tint afterwards. A water tile one step over the
+	# border was the tell — still frankly blue under a ramp that had only dimmed it 18%.
+	var ac: Array = _art_colors(obj)
+	var tex := _colored_tex_rgb(tile, ac[0], ac[1], ac[2], _fill_for(tile, wall_fill))
 
 	# A filed verdict overrides everything below it. This is how facts that are not
 	# in Qud's data get in: nothing in `sw_waterwheel_1` says the wheel runs
@@ -5198,8 +5211,9 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 				return
 			# Gaps *enclosed* by the art read as the cell background, the way Qud
 			# draws them; everything outside the silhouette stays see-through.
-			var btex := _colored_tex_rgb(tile, _obj_main(obj), _obj_detail(obj),
-				_color_key(obj), _fill_for(tile, Fill.INTERIOR), _cutout_for(tile))
+			var bac: Array = _art_colors(obj)
+			var btex := _colored_tex_rgb(tile, bac[0], bac[1], bac[2],
+				_fill_for(tile, Fill.INTERIOR), _cutout_for(tile))
 			if btex == null:
 				btex = tex
 			var s := _take_sprite()
@@ -5246,6 +5260,19 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			# STATIC plant/scenery billboard (tree, brinestalk): register it to be dimmed by
 			# its cell's light EACH TURN (creatures get modulate directly; static sprites don't,
 			# so they'd stay lit at night). Glowing things emit light — leave them bright.
+			# A ZONE YOU ARE NOT IN IS OUT OF SIGHT, ALL OF IT. A neighbour's sprites used to keep
+			# whatever look they had when that zone was last live — ghosted if they happened to be
+			# out of LOS at the moment you left, full colour if they were not — so a departed zone
+			# showed a mix, and the lit half read as though you could still see it. Daniel: "the
+			# zone to the west has some objects out of the line of sight and some items (watervine)
+			# that are visible. Anything in a zone you're not in should be dark like it's out of
+			# line of sight." Ghosted at BUILD time, not per turn: while a zone is frozen this
+			# cannot change, so there is nothing to track and nothing to re-apply.
+			#
+			# GLOWING included, deliberately. In the live zone a glowing thing stays bright because
+			# it emits its own light, but you are not standing in this zone to see it glow.
+			# (A neighbour's sprite is ALREADY ghosted — its texture was built from the memory
+			# pair at the choke point above — so there is nothing to register or swap here.)
 			if _live_build and not glowing:
 				# QUD'S MEMORY IS A PALETTE SWAP, not a dim: out of sight it redraws the tile in
 				# K/k (#155352 / #0f3b3a), the same pair _ghost_obj uses for 1:1 and the same
@@ -5642,7 +5669,11 @@ func _rebuild_walls(wall_types: Dictionary) -> void:
 			var entry := _wall_cell_mesh(v, fv)
 			if not entry.is_empty():
 				var mi := MeshInstance3D.new()
-				mi.mesh = entry["mesh"]
+				# Same rule as the sprites: a wall in a zone you are not in is out of sight, so it
+				# is built ghosted rather than left at full colour. The live zone's walls swap to
+				# this per turn through _wall_cutaway; a frozen one cannot change while frozen, so
+				# it is baked once here.
+				mi.mesh = entry["mesh"] if _live_build else _ghost_wall_mesh(entry["mesh"])
 				mi.material_override = _wall_skin_material()
 				mi.position = Vector3(k.x, 0.0, k.y)
 				_wall_parent().add_child(mi)
@@ -8151,6 +8182,16 @@ func _recolor(obj: Dictionary, code: String) -> String:
 	if m == null:
 		return code
 	return String((m as Dictionary).get(code, code))
+
+## An object's (main, detail, cache-key) — ALREADY SWAPPED to Qud's memory pair when this is a zone
+## the player is not standing in. Every path that colours a cell's art goes through here, because
+## the alternative is remembering to do it at each one: the floors and the billboards build their
+## textures SEPARATELY, and fixing only the floors left a departed zone with dark ground and
+## full-colour plants standing on it — which is the bug this was meant to fix.
+func _art_colors(obj: Dictionary) -> Array:
+	if _live_build:
+		return [_obj_main(obj), _obj_detail(obj), _color_key(obj)]
+	return [_qud_color("K"), _qud_color("k"), _color_key(obj) + "~ghost"]
 
 func _obj_main(obj: Dictionary) -> Color:
 	var hex := String(obj.get("fgHex", ""))
