@@ -1003,9 +1003,17 @@ func _rebuild_dynamics(cells: Array) -> void:
 		if int(cell.get("light", 200)) < 199 or not _cell_explored(cell) or not _cell_seen(cell):
 			any_dark = true
 			break
+	# THE SURROUND IS NOT GATED ON any_dark, and that is not an oversight. any_dark asks whether
+	# THIS zone has a dark, unexplored or unseen cell in it — a question about the zone you are
+	# standing in, which says nothing about the world outside it. Gated, the never-visited ground
+	# stopped being drawn the moment a zone happened to be wholly lit and wholly seen, and the bare
+	# ground plane came back at full field colour. Daniel: "walking from 77,0 to 76,0, the
+	# unexplored area changes colour from dark to Qud default colour ... and the opposite
+	# direction" — one step either way across the threshold where the last unseen cell appears or
+	# disappears. Outside the zone is always unvisited; it always needs its darkness.
+	_build_unexplored(_dynamic_root)
 	if any_dark:
 		_build_darkness(cells, _dynamic_root)          # fall off to black around light sources
-		_build_unexplored(_dynamic_root)               # ...and the never-visited world beyond
 		if not _one_to_one:
 			_relight_static_sprites(cells)             # dim trees/brinestalks/fences by cell light
 	elif _was_dark:
