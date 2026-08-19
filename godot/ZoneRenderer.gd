@@ -90,6 +90,12 @@ const FOG_GROUND := 0.70
 ## zone, and the darkness reaches full by FROZEN_DARK_IN tiles in.
 const FROZEN_EDGE_DIM := 0.18   # alpha on the row touching the live zone — just off clear
 const FROZEN_DARK_IN := 4       # fully dark this many tiles past the boundary
+## ...and the LIVE zone fades toward its own edges, so the world does not simply stop at a hard
+## line. Daniel: "the current zone should always fade out in all cardinal directions." The
+## outermost row lands on FROZEN_EDGE_DIM — the same value the neighbour's first row carries — so
+## the two halves meet at one brightness and the seam reads as one continuous fade rather than two
+## ramps that happen to be adjacent. Clear again LIVE_EDGE_FADE tiles in.
+const LIVE_EDGE_FADE := 4
 
 ## Above this alpha a darkness quad is drawn OPAQUE instead of blended. Not cosmetic — it is what
 ## makes the frozen-zone ramp affordable. A full sheet of alpha-blended quads over every neighbour
@@ -1227,6 +1233,8 @@ func _build_darkness(cells: Array, parent: Node, frozen_off := NOT_FROZEN) -> vo
 			f = minf(f, MEMORY_GROUND)
 		if frozen:
 			f = minf(f, _frozen_light(k, frozen_off))
+		else:
+			f = minf(f, _live_edge_light(k))
 		frac[k] = f
 		# A wall the player has never seen is HIDDEN now (see _relight_static_sprites), so it must
 		# not be treated as a wall here either: its darkness would be a roof quad at WALL_H and a
@@ -1291,11 +1299,13 @@ func _build_darkness(cells: Array, parent: Node, frozen_off := NOT_FROZEN) -> vo
 		var mi := MeshInstance3D.new()
 		mi.mesh = st.commit()
 		mi.material_override = _dark_material()
+		mi.set_meta("is_darkness", true)      # so a re-bake can find and drop it
 		parent.add_child(mi)
 	if any_solid:
 		var mo := MeshInstance3D.new()
 		mo.mesh = sto.commit()
 		mo.material_override = _dark_solid_material()
+		mo.set_meta("is_darkness", true)
 		parent.add_child(mo)
 
 ## The distance ramp for a departed zone: how LIT a cell is allowed to stay, by how far past the
@@ -1314,6 +1324,17 @@ func _frozen_light(k: Vector2i, off: Vector2i) -> float:
 	var t: float = clampf(float(d - 1) / float(maxi(1, FROZEN_DARK_IN - 1)), 0.0, 1.0)
 	var a: float = lerpf(FROZEN_EDGE_DIM, 1.0, t)   # alpha
 	return 1.0 - a                                  # ...as a light fraction
+
+## The LIVE zone's own edge fade: how lit a cell stays by how far it is from the nearest zone edge.
+## Mirrors _frozen_light across the boundary — the outermost row sits at FROZEN_EDGE_DIM, matching
+## the neighbour's first row, and clears LIVE_EDGE_FADE tiles inward. Cardinal by construction: it
+## takes the nearest of the four edges, so all four fade and a corner fades from both at once.
+func _live_edge_light(k: Vector2i) -> float:
+	var din: int = mini(mini(k.x, int(_live_w - 1.0) - k.x), mini(k.y, int(_live_h - 1.0) - k.y))
+	if din >= LIVE_EDGE_FADE:
+		return 1.0
+	var t: float = clampf(float(din) / float(maxi(1, LIVE_EDGE_FADE)), 0.0, 1.0)
+	return 1.0 - lerpf(FROZEN_EDGE_DIM, 0.0, t)
 
 ## One black quad (two tris) over cell (cx,cy) at height y, vertex alpha = a.
 func _dark_quad(st: SurfaceTool, cx: float, cy: float, y: float, a: float) -> void:
@@ -1427,13 +1448,31 @@ func _sync_neighbors(neighbors: Array) -> void:
 		# static, no darkness), and its per-turn darkness vanished with _dynamic_root. On
 		# re-entry _drop_static frees the subtree + meta, so it re-bakes as a neighbour.
 		var znode: Node3D = _static_zones[id]
-		if not znode.has_meta("dark_baked"):
-			znode.set_meta("dark_baked", true)
+		# RE-BAKE WHEN THE RELATIONSHIP CHANGES, not once per subtree. The ramp is measured from
+		# the LIVE zone, so a neighbour's correct fade depends on where it sits RELATIVE to the
+		# zone you are standing in — and that changes as you walk. Baking once meant a zone kept
+		# whichever orientation it happened to have when first seen: walk SE -> S -> N and the SE
+		# zone still wore the ramp it earned as an EAST neighbour of S, a lit band down a whole
+		# edge, when as a DIAGONAL neighbour of Joppa centre it should fade only from its corner.
+		# Daniel: "the SE zone is showing a light all around the zone, when it should just be the
+		# corner." Keying the guard on the OFFSET re-bakes exactly when it matters and never
+		# otherwise — a zone you walk past without changing its relation is left alone.
+		var nb_off := Vector2i(nb.get("offset", Vector2i.ZERO))
+		if not znode.has_meta("dark_off") or Vector2i(znode.get_meta("dark_off")) != nb_off:
+			znode.set_meta("dark_off", nb_off)
+			for old_dark in znode.get_children():
+				if old_dark.has_meta("is_darkness"):
+					old_dark.queue_free()          # drop the previous orientation's mesh
 			# No sight-disc clear: see _build_darkness for the hole that one punched into
 			# every zone the player left. The OFFSET turns on the distance ramp — this zone is
 			# behind you now, so it fades from its shared edge the way anything out of sight does.
-			_build_darkness(nb.get("cells", []), znode,
-				Vector2i(nb.get("offset", Vector2i.ZERO)))
+			_build_darkness(nb.get("cells", []), znode, nb_off)
+			# ONE LINE PER RE-BAKE, which is once per zone per change of relationship — not per
+			# turn, not per frame. It is what tools/capture/zonewalk.py asserts against: the ramp
+			# a neighbour is WEARING, so a stale orientation is visible in the log instead of only
+			# on the glass, where "a lit band down one edge" and "a corner fade" look alike until
+			# you know which one you are owed.
+			print("[zonefade] %s off=(%d,%d)" % [str(id), nb_off.x, nb_off.y])
 		# Vertical stacking: a neighbour `dz` strata below the live zone drops by
 		# dz * level_height, so deeper levels sit under the current one with an
 		# arbitrary, user-set gap. Same-stratum neighbours (dz==0) stay coplanar.

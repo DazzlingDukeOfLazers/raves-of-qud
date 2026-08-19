@@ -67,7 +67,14 @@ Needs both apps: `hv launch raves`, both in-game.
      of them (see `reports/2026-08-05-item-popup/README.md`). One capture would have hidden both.
 3. **Menu recipes.** `hv goto raves <node>` + `hv assert` across records/options/mods/load, both
    apps.
-4. **Mod round-trip.** Popups mirror and answer; `statustab`; the nav commands (autoexplore, POI,
+4. **Zone-crossing fade.** `python3 tools/capture/zonewalk.py` — walks a FOUR-ZONE corner and
+   asserts every adjacent zone wears the fade its id says it is owed from where the player now
+   stands (edge neighbours fade along a side, diagonal ones only from their corner). Checks the
+   builder's `[zonefade]` log against arithmetic on the zone ids, not pixels — neighbours are not
+   on the wire at all, they live in the client's WorldStore. A corner is the case a there-and-back
+   walk never reaches, which is why it goes around one. PROVEN TO FAIL: reinstating the bake-once
+   guard makes it report 6 stale zones naming edge-vs-corner.
+5. **Mod round-trip.** Popups mirror and answer; `statustab`; the nav commands (autoexplore, POI,
    wait) each reach Qud.
 
 ### Raising each popup KIND, deterministically
