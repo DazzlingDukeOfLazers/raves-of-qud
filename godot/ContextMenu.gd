@@ -3,6 +3,10 @@ extends PanelContainer
 ## Qud's row-3 face against our body size, measured off its strip.
 const ROW3_FONT_SCALE := 0.667
 
+## Qud draws the equipped-weapon tile at 2x in its bottom strip. Measured off its own capture: the
+## chrome revolver's ink is 16x24 there, from an 8x12 opaque rect in a 16x24 tile.
+const QUD_TILE_ZOOM := 2.0
+
 ## Context menu view — its own scene in MainFrame's row-4 right cell. Mirrors Qud's bottom missile-weapon
 ## area (the mod's `context` block): each equipped missile weapon as its recoloured tile + coloured name
 ## + ammo (remaining/total), then the actions with their Qud hotkeys ("[F] fire   [R] reload").
@@ -20,6 +24,7 @@ const KEY := "#ffd200"      # hotkey letter — UI yellow
 const LABEL := "#8fd3ff"    # action label — light blue
 
 var _tiles: RefCounted     # shared tile recolouring for the weapon sprites (set in _ready)
+var _trim_cache := {}      # Texture2D -> AtlasTexture cropped to its opaque rect
 var _rt: RichTextLabel
 var _palette := {}
 var _full := false         # perceived (default) vs full icon — driven by MainFrame's top-menu toggle
@@ -89,7 +94,11 @@ func set_one_to_one(on: bool) -> void:
 			# line spans 306px against its 305 over 32 glyph runs), the whole run just started 3
 			# short. Per view, because each cell's own inset differs.
 			f.content_margin_left = 9
-			f.content_margin_top = 5
+			# 3, not 5. Qud's own strip runs 990..1018 with its weapon ink at 993..1016 -- three
+			# above, two below -- so three is what leaves room for a 24px sprite in a 28px row.
+			# The old 5 was tuned when the sprite was oversized and dragging the whole line's
+			# baseline down with it; with the sprite at Qud's size the text needs the 2px back.
+			f.content_margin_top = 3
 			# ZERO at the bottom, not 2. Row 3 is anchored to the ability bar above it, so its TOP
 			# moves with its height: padding above the text buys nothing (the row grows upward by the
 			# same amount), and only the bottom padding decides how far the text sits off the bar.
@@ -139,25 +148,31 @@ func _render() -> void:
 
 	# Then the weapon(s) INLINE on the same row (Qud-style: "… fire  reload  <sprite> name [?]"). One
 	# row, so it can't be scrolled/clipped out of the panel. Perceived icon by default, real in full mode.
-	# CLAMPED TO THE STRIP. An inline image taller than the line does NOT grow the row -- row 3's
-	# height is pinned by custom_minimum_size (28 in Qud's shape) -- it pushes the whole line's
-	# baseline down and draws straight through the ability bar below, which clips it. And 2.2x the
-	# body is measured off the UNSCALED viewport font, so it stays ~46px even here, where
-	# set_one_to_one has scaled this panel's own text to ROW3_FONT_SCALE. Measured before this
-	# clamp, user mode at 1920x1080: the RichTextLabel got 23px (y=995..1018) inside a 28px cell,
-	# a 46px sprite put the "[F] fire [R] reload" ink at y=1013..1017+ against Qud's 1000..1010,
-	# and everything past the cell edge was cut -- Daniel: "the [F] fire [R] reload are cropped".
-	var img_h := int(UiFont.px(get_viewport(), "body") * 2.2)
+	# SIZED OFF QUD, AND TRIMMED FIRST. Measured on its own strip at 1920x1080: Qud's chrome
+	# revolver ink is 16 wide x 24 tall (x 1477..1492, y 993..1016) inside the same 28px row, where
+	# ours was 7x11. Qud is not drawing a bigger tile -- it draws the SAME 16x24 tile at 2x. The
+	# catch is that the art does not fill its tile: items_sw_revolver.bmp is opaque only on rows
+	# 6..17, about 8x12, so the full tile at 2x is a 32x48 BOX for 16x24 of ink, and a 48px box in
+	# a 28px row is the clipping this just came out of.
+	#
+	# So trim to the opaque rect and scale THAT: 8x12 at 2x is a 16x24 box that is all ink, which
+	# is Qud's size exactly and fits the row with room to spare. The cap is the row rather than a
+	# constant, so a weapon whose art DOES fill its tile shrinks to fit instead of drawing through
+	# the ability bar below -- Qud gets away with the overhang because Unity does not clip there
+	# and a Godot RichTextLabel does.
 	var avail := size.y
 	var _sb := get_theme_stylebox("panel")
 	if _sb != null:
 		avail -= _sb.content_margin_top + _sb.content_margin_bottom
-	if avail >= 8.0:
-		img_h = mini(img_h, int(avail))
-	var img_w := int(round(img_h * 16.0 / 24.0))   # Qud tiles are 16x24
+	if avail < 8.0:
+		avail = 24.0                     # pre-layout (size.y is 0 on the first build): Qud's ink height
 	for w in weapons:
-		var tex: Texture2D = _tiles.texture_for(w, _full)
+		var tex: Texture2D = _trimmed(_tiles.texture_for(w, _full))
 		if tex != null:
+			var ah := float(tex.get_height())
+			var scale: float = minf(QUD_TILE_ZOOM, avail / maxf(ah, 1.0))
+			var img_h := maxi(1, int(round(ah * scale)))
+			var img_w := maxi(1, int(round(float(tex.get_width()) * scale)))
 			_rt.add_image(tex, img_w, img_h)
 		else:
 			_rt.append_text(_tiles.glyph_for(w, _full).replace("[", "[lb]"))
@@ -169,6 +184,28 @@ func _render() -> void:
 			# "[?]" — click to change this weapon's energy cell (ReplaceSocketCell).
 			_rt.append_text("   [url=cell:%s][color=%s][lb]?][/color][/url]" % [String(w.get("id", "")), KEY])
 		_rt.append_text("    ")   # gap before the next weapon (rare) / trailing padding
+
+
+## The tile cropped to its OPAQUE rect, as an AtlasTexture over the same source (no pixel copy).
+## Qud tiles are a fixed 16x24 canvas and most items sit in a fraction of it, so scaling the whole
+## canvas to fill a row makes the item itself tiny -- the revolver read 7x11 against Qud's 16x24.
+## Cached on the texture, which QudTiles already caches per tile+colour, so this runs once each.
+func _trimmed(tex: Texture2D) -> Texture2D:
+	if tex == null:
+		return null
+	if _trim_cache.has(tex):
+		return _trim_cache[tex]
+	var out: Texture2D = tex
+	var img := tex.get_image()
+	if img != null:
+		var r := img.get_used_rect()
+		if r.size.x > 0 and r.size.y > 0 and r.size != img.get_size():
+			var at := AtlasTexture.new()
+			at.atlas = tex
+			at.region = Rect2(r.position, r.size)
+			out = at
+	_trim_cache[tex] = out
+	return out
 
 ## A fire/reload/[?] link was clicked — decode its meta and ask MainFrame to send it to Qud.
 func _on_meta(meta: Variant) -> void:
