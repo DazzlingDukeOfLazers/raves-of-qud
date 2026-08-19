@@ -81,6 +81,23 @@ const MEMORY_GROUND := 0.84
 ## alpha 0.94) before, which is the one thing Qud never does.
 const FOG_GROUND := 0.70
 
+## THE ZONE YOU LEFT, fading with distance. Daniel: "the zone you left ... shaded as if they were
+## no longer in the line of sight ... the edge row a little dim and fully dark by 4 tiles in. It's
+## the same as if a building or something is in the way."
+##
+## The ramp is measured from the LIVE zone's boundary, not from the player: what matters is how far
+## past the edge of what you can see a cell sits. FROZEN_EDGE_DIM is the row butted against the live
+## zone, and the darkness reaches full by FROZEN_DARK_IN tiles in.
+const FROZEN_EDGE_DIM := 0.18   # alpha on the row touching the live zone — just off clear
+const FROZEN_DARK_IN := 4       # fully dark this many tiles past the boundary
+
+## Above this alpha a darkness quad is drawn OPAQUE instead of blended. Not cosmetic — it is what
+## makes the frozen-zone ramp affordable. A full sheet of alpha-blended quads over every neighbour
+## is the thing that crashed in _platform_memmove (see _build_darkness), and the ramp would be
+## exactly that if its solid interior blended too. Past the ramp every cell is FULLY dark, and
+## "fully dark" needs no blending — it is a black surface. So the blended fill stays capped at the
+## FROZEN_DARK_IN-deep band along the shared edge whatever the zone's size.
+const DARK_SOLID_A := 0.995
 const DARK_FLOOR_Y := 0.07      # darkness quad sits just above the floor tiles
 const DARK_ROOF_Y := WALL_H + 0.02   # and just above wall roofs, to dun unlit rock tops
 var _dark_mat: StandardMaterial3D
@@ -1181,7 +1198,12 @@ func _view_tint(cell: Dictionary) -> Color:
 ## of 3. Run-length merging the quads does not help — it cuts vertices, not blended fill — which
 ## is the tell that this is the overdraw failure mode in CLAUDE.md. A frozen zone's memory look
 ## has to be baked into its OWN geometry, the way walls get _ghost_wall_mesh, not laid over it.
-func _build_darkness(cells: Array, parent: Node) -> void:
+## `frozen_off`: for a zone the player has LEFT, its cell offset from the live zone. Turns on the
+## distance ramp (see FROZEN_EDGE_DIM). Left at the sentinel for the live zone, which has no
+## boundary to fade from.
+const NOT_FROZEN := Vector2i(-99999, -99999)
+func _build_darkness(cells: Array, parent: Node, frozen_off := NOT_FROZEN) -> void:
+	var frozen: bool = frozen_off != NOT_FROZEN
 	# pass 1: per-cell light fraction + which cells are walls (to find exposed faces).
 	var frac := {}
 	var walls := {}
@@ -1203,6 +1225,8 @@ func _build_darkness(cells: Array, parent: Node) -> void:
 			# ground, and only their plants differed. Black at a modest alpha, which is the
 			# colour and transparency this overlay has always used.
 			f = minf(f, MEMORY_GROUND)
+		if frozen:
+			f = minf(f, _frozen_light(k, frozen_off))
 		frac[k] = f
 		# A wall the player has never seen is HIDDEN now (see _relight_static_sprites), so it must
 		# not be treated as a wall here either: its darkness would be a roof quad at WALL_H and a
@@ -1222,7 +1246,17 @@ func _build_darkness(cells: Array, parent: Node) -> void:
 	var sides := [Vector2i(0, 1), Vector2i(1, 0), Vector2i(0, -1), Vector2i(-1, 0)]
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	# TWO meshes, split by alpha. Anything at DARK_SOLID_A or above goes in the OPAQUE one: at full
+	# darkness there is nothing to blend, and this is what keeps the frozen ramp affordable — the
+	# blended half stays a FROZEN_DARK_IN-deep band along the shared edge however big the zone is.
+	# A full sheet of blended quads per neighbour is the thing that crashed (see the note above).
+	var sto := SurfaceTool.new()
+	sto.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var any := false
+	var any_solid := false
+	# A departed zone is allowed to reach FULL black; the live zone keeps DARK_MAX's faint floor
+	# ("never pure black"), which is what makes its unlit corners read as gloom rather than a hole.
+	var amax: float = 1.0 if frozen else DARK_MAX
 	# 1:1: Qud's model needs no overlay — the K/k ghost recolour at place time is the
 	# whole memory look (see _ghost_obj); unexplored cells draw nothing at all.
 	if _one_to_one:
@@ -1234,25 +1268,52 @@ func _build_darkness(cells: Array, parent: Node) -> void:
 		var cx := float(k.x)
 		var cy := float(k.y)
 		if walls.has(k):
-			var a := (1.0 - float(frac[k])) * DARK_MAX
-			if a >= 0.02:
+			var a := (1.0 - float(frac[k])) * amax
+			if a >= DARK_SOLID_A:
+				_dark_quad(sto, cx, cy, DARK_ROOF_Y, 1.0); any_solid = true
+			elif a >= 0.02:
 				_dark_quad(st, cx, cy, DARK_ROOF_Y, a); any = true
 			for d in sides:
 				if walls.has(k + d):
 					continue                       # interior face: not visible
-				var sa := (1.0 - float(frac.get(k + d, frac[k]))) * DARK_MAX
-				if sa >= 0.02:
+				var sa := (1.0 - float(frac.get(k + d, frac[k]))) * amax
+				if sa >= DARK_SOLID_A:
+					_dark_side(sto, cx, cy, d, 1.0); any_solid = true
+				elif sa >= 0.02:
 					_dark_side(st, cx, cy, d, sa); any = true
 		else:
-			var a := (1.0 - float(frac[k])) * DARK_MAX
-			if a >= 0.02:
+			var a := (1.0 - float(frac[k])) * amax
+			if a >= DARK_SOLID_A:
+				_dark_quad(sto, cx, cy, DARK_FLOOR_Y, 1.0); any_solid = true
+			elif a >= 0.02:
 				_dark_quad(st, cx, cy, DARK_FLOOR_Y, a); any = true
-	if not any:
-		return
-	var mi := MeshInstance3D.new()
-	mi.mesh = st.commit()
-	mi.material_override = _dark_material()
-	parent.add_child(mi)
+	if any:
+		var mi := MeshInstance3D.new()
+		mi.mesh = st.commit()
+		mi.material_override = _dark_material()
+		parent.add_child(mi)
+	if any_solid:
+		var mo := MeshInstance3D.new()
+		mo.mesh = sto.commit()
+		mo.material_override = _dark_solid_material()
+		parent.add_child(mo)
+
+## The distance ramp for a departed zone: how LIT a cell is allowed to stay, by how far past the
+## live zone's boundary it sits. Chebyshev distance to the live rect, so the row butted against it
+## is 1 and a diagonal neighbour fades from its corner the same way an edge one fades from its edge.
+## Returns a light fraction (1 = untouched), so the caller can min() it against the cell's own.
+func _frozen_light(k: Vector2i, off: Vector2i) -> float:
+	var wx: int = k.x + off.x
+	var wy: int = k.y + off.y
+	var dx: int = maxi(0, maxi(-wx, wx - int(_live_w - 1.0)))
+	var dy: int = maxi(0, maxi(-wy, wy - int(_live_h - 1.0)))
+	var d: int = maxi(dx, dy)
+	if d <= 0:
+		return 1.0                                  # inside the live rect: not ours to dim
+	# d = 1 is the edge row -> a little dim; d = FROZEN_DARK_IN -> fully dark.
+	var t: float = clampf(float(d - 1) / float(maxi(1, FROZEN_DARK_IN - 1)), 0.0, 1.0)
+	var a: float = lerpf(FROZEN_EDGE_DIM, 1.0, t)   # alpha
+	return 1.0 - a                                  # ...as a light fraction
 
 ## One black quad (two tris) over cell (cx,cy) at height y, vertex alpha = a.
 func _dark_quad(st: SurfaceTool, cx: float, cy: float, y: float, a: float) -> void:
@@ -1279,6 +1340,19 @@ func _dark_side(st: SurfaceTool, cx: float, cy: float, d: Vector2i, a: float) ->
 	for i in [0, 1, 2, 0, 2, 3]:
 		st.set_color(c)
 		st.add_vertex(v[i])
+
+## The OPAQUE twin of _dark_material, for quads at full darkness. Same look at alpha 1, none of the
+## blending cost, and it writes depth — so it also hides what it covers instead of tinting it.
+var _dark_solid_mat: StandardMaterial3D
+func _dark_solid_material() -> StandardMaterial3D:
+	if _dark_solid_mat != null:
+		return _dark_solid_mat
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.albedo_color = Color(0, 0, 0)
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_dark_solid_mat = m
+	return m
 
 func _dark_material() -> StandardMaterial3D:
 	if _dark_mat != null:
@@ -1356,8 +1430,10 @@ func _sync_neighbors(neighbors: Array) -> void:
 		if not znode.has_meta("dark_baked"):
 			znode.set_meta("dark_baked", true)
 			# No sight-disc clear: see _build_darkness for the hole that one punched into
-			# every zone the player left.
-			_build_darkness(nb.get("cells", []), znode)
+			# every zone the player left. The OFFSET turns on the distance ramp — this zone is
+			# behind you now, so it fades from its shared edge the way anything out of sight does.
+			_build_darkness(nb.get("cells", []), znode,
+				Vector2i(nb.get("offset", Vector2i.ZERO)))
 		# Vertical stacking: a neighbour `dz` strata below the live zone drops by
 		# dz * level_height, so deeper levels sit under the current one with an
 		# arbitrary, user-set gap. Same-stratum neighbours (dz==0) stay coplanar.
