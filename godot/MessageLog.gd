@@ -35,7 +35,11 @@ var _landmark_index := {}        # lowercased landmark/biome name -> world-terra
 var _player_obj := {}            # the player's render, for the "you" pictograph
 var _full := false               # perceived icons (default) vs real — driven by MainFrame's top-menu toggle
 var _notice := ""                # sticky status line (BBCode) pinned at the BOTTOM — e.g. the mod-version check
-var _hint := ""                  # sticky HINT line above the notice — the current camera's controls
+## LOCAL lines — ours, not Qud's (the camera hint). Each is anchored to a position in Qud's message
+## stream so it renders IN the flow and scrolls away like a game message, rather than being pinned.
+## [{at: int, text: String}], `at` = Qud's total when it was added, i.e. it sits just before the line
+## that arrives next. Pruned once the sliding tail moves past it.
+var _local: Array = []
 
 func _ready() -> void:
 	_tiles = load("res://QudTiles.gd").new()
@@ -310,12 +314,16 @@ func _seed_from(lines: Array) -> void:
 
 ## A sticky status line pinned at the BOTTOM of the log (always visible under scroll_following) — used
 ## for the mod-version check. Pass "" to clear it. Idempotent, so callers can set it every snapshot.
-## The camera hint: BBCode pinned just above the notice, replaced (not accumulated) on each change,
-## because only the CURRENT camera's controls are worth reading.
-func set_hint(markup: String) -> void:
-	if markup == _hint:
+## Print one of OUR OWN lines into the log, in the flow, where it ages out like a game message.
+## Anchored at the current stream position rather than appended at render time: appended, it would
+## re-pin itself to the bottom on every snapshot and never scroll. Bounded so a viewer cycling
+## cameras cannot grow it without limit.
+func add_message(markup: String) -> void:
+	if markup == "":
 		return
-	_hint = markup
+	_local.append({"at": maxi(_seen_total, 0), "text": markup})
+	if _local.size() > 16:
+		_local = _local.slice(_local.size() - 16)
 	_rerender()
 
 func set_notice(markup: String) -> void:
@@ -371,12 +379,6 @@ func _rerender() -> void:
 		_render_filter()
 	else:
 		_render_verbatim()
-	# PINNED, not appended into the flow. A line pushed into the messages themselves is rebuilt away
-	# on the next snapshot (this function re-appends Qud's lines from scratch every turn), so it
-	# would vanish within a turn of being printed. Its own slot -- NOT _notice, which carries the
-	# mod-version warning and must not be overwritten by a camera hint.
-	if _hint != "":
-		_rt.append_text("\n" + _hint)
 	if _notice != "":
 		# separated from the message flow and pinned last, so it doesn't scroll away like a game message
 		_rt.append_text("\n" + _notice)
@@ -405,14 +407,42 @@ func _render_verbatim() -> void:
 	if src.size() > MAX_LINES:
 		src = src.slice(src.size() - MAX_LINES)
 	_rt.clear()
-	for m in src:
-		_append_line(String(m))
+	# INTERLEAVED BY POSITION. `src` is a sliding tail of Qud's stream, so line i sits at stream
+	# index base+i; one of our own lines anchored at `at` belongs immediately before the line that
+	# arrived at that index. That is what makes it scroll: every later Qud message renders after it.
+	var base: int = maxi(_seen_total - src.size(), 0)
+	_prune_local(base)
+	for i in src.size():
+		for e in _local:
+			if int(e["at"]) == base + i:
+				_append_line(String(e["text"]), false)
+		_append_line(String(src[i]))
+	# anchored past the last line we have (added since the newest message): still the newest thing
+	for e in _local:
+		if int(e["at"]) >= base + src.size():
+			_append_line(String(e["text"]), false)
+
+## Forget local lines the sliding tail has moved past -- they have scrolled out of the log's history
+## and would otherwise pile up at the top of every render.
+func _prune_local(base: int) -> void:
+	if _local.is_empty():
+		return
+	var keep := []
+	for e in _local:
+		if int(e["at"]) >= base:
+			keep.append(e)
+	_local = keep
 
 func _render_filter() -> void:
 	_rt.clear()
 	for e in _entries:
 		var c: int = e["count"]
 		_append_line(String(e["text"]) + ("  (x%d)" % c if c > 1 else ""))
+	# FILTER mode has no stream positions to interleave against -- it is a set of unique messages,
+	# not a history -- so ours go last, which is where the most recent belongs here anyway. Without
+	# this the line would simply not exist in filter mode, which reads as the feature being broken.
+	for e in _local:
+		_append_line(String(e["text"]), false)
 
 ## Qud's sidebar prefixes every log line with ":: " in a dim neutral grey (measured #818181), then the
 ## message in its own colour. Only in 1:1 mode — user mode keeps the clean, prefix-free QoL log.
@@ -420,8 +450,11 @@ const LOG_PREFIX_1TO1 := "[color=#818181]:: [/color]"
 
 ## Append one log line: if its text names a zone object, inline that object's icon first (perceived
 ## or real per the global toggle), then the coloured text.
-func _append_line(markup: String) -> void:
-	if not _one_to_one:   # QoL only: inline the object/landmark pictograph. Qud's log is plain text.
+## `with_icons` false for OUR OWN lines: _icons_for matches on words, and a camera's controls
+## ("frames you + selected tile") contains "you", which would inline the player's portrait into what
+## is a UI hint, not an event about the player.
+func _append_line(markup: String, with_icons := true) -> void:
+	if with_icons and not _one_to_one:   # QoL only: inline the object/landmark pictograph. Qud's log is plain text.
 		var img_h := UiFont.px(get_viewport(), "body") * 2   # doubled — chunky inline pictographs
 		var img_w := int(round(img_h * 16.0 / 24.0))
 		for obj in _icons_for(markup):

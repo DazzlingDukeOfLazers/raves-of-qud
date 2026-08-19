@@ -1076,10 +1076,12 @@ func _on_camera_changed(_mode: int, controls: String) -> void:
 	var parts := controls.split(" — ")
 	var cam_name := parts[0]
 	var keys := parts[1] if parts.size() > 1 else ""
-	var line := "[color=#8fd3ff]camera:[/color] [color=#ffd24a]%s[/color]" % cam_name
+	# QUD MARKUP, not BBCode: the log renders every line through QudText.to_bbcode, which ESCAPES
+	# bare BBCode -- a "[color=...]" line printed itself out literally, brackets and all.
+	var line := "{{C|camera:}} {{W|%s}}" % cam_name
 	if keys != "":
-		line += "  [color=#8a8f9a]%s[/color]" % keys
-	_msglog.set_hint(line)
+		line += "  {{y|%s}}" % keys
+	_msglog.add_message(line)
 
 ## Up/Down nav (top-bar buttons + the s/d keys in Main): Qud's own climb commands —
 ## CmdMoveU / CmdMoveD (stairs; Down also pulls down from the world map). Injected via
