@@ -193,7 +193,7 @@ func _build_back() -> void:
 ## exactly how many were left off (never cap silently). Qud has NO such line, so 1:1 mode omits it;
 ## user mode keeps it. Same gating discipline as every other Raves QoL addition.
 func _build_note() -> void:
-	if Settings.qud_shape():
+	if Settings.clone_of_qud():
 		return
 	_note = Label.new()
 	_note.add_theme_font_size_override("font_size", 13)

@@ -1176,7 +1176,7 @@ func _load_settings() -> void:
 	# 4267x2400, so captures came back 2400 tall against a 1080-tall spec and the blame
 	# went to the restart racing the window. It was this, on a completely different clock.
 	if win is Array and win.size() == 2 and int(win[0]) > 200 and int(win[1]) > 200 \
-			and not QudLauncher.active and not Settings.qud_shape():
+			and not QudLauncher.active and not Settings.clone_of_qud():
 		DisplayServer.window_set_size(Vector2i(int(win[0]), int(win[1])))
 	var m := int(d.get("mode", _cam_rig._mode))
 	if m >= 0 and m <= CamMode.TOP_FOLLOW:

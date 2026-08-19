@@ -78,12 +78,40 @@ const QOL_FEATURES := {
 	"nearby": ["Nearby objects: larger icons", true],
 }
 
-func qud_shape(feature := "") -> bool:
+## WHERE USER MODE STOPS CLONING 1:1 — the two questions, and they are NOT the same question.
+##
+## User mode renders as a 1:1 CLONE of Qud and diverges only where a QoL feature says so. So a
+## surface asking "do I take Qud's shape here?" is really asking one of two things, and the answer
+## in user mode differs:
+##
+##   qud_shape("msglog")   Qud's shape UNLESS that feature has been loaded back — it HAS a
+##                         user-mode form, and this is what selects between them.
+##   clone_of_qud()        identical in both modes, by decision — there is no user-mode form.
+##
+## They used to be one call with an optional argument, and the bare form was the trap: with no
+## feature it can never be false in user mode, so an `else` hanging off it was unreachable in BOTH
+## modes. Three features were written, shipped and unreachable that way (the message log's grouping,
+## Nearby's larger icons, row 4's user-mode heights) — each read as a deleted feature and was only
+## a dead branch. The feature name is now REQUIRED, so the ambiguous form cannot be written at all,
+## and the decision is legible in the call itself rather than in a comment beside it.
+func qud_shape(feature: String) -> bool:
 	if one_to_one():
 		return true
 	if feature != "" and qol_on(feature):
 		return false      # this QoL feature has been loaded back in
 	return true           # user mode: Qud's shape until told otherwise
+
+## "This surface is Qud's shape in BOTH modes." An assertion, not a shortcut — say it only where
+## there is genuinely no user-mode alternative. If you find yourself wanting an `else` here, what
+## you actually want is a QoL feature: register it in QOL_FEATURES and call qud_shape(name), which
+## is the one path that makes a user-mode form reachable (and puts it in Options and presets for
+## free, since both enumerate the registry).
+func clone_of_qud() -> bool:
+	# CONSTANT TRUE, and deliberately so: both modes are Qud's shape here, which is the whole claim.
+	# It stays a call rather than becoming an `if true` at 48 sites because it is the ONE lever if
+	# that policy ever changes, and because the name is what makes the claim legible where it is
+	# made. qud_shape(feature) is the only gate that can answer false in user mode.
+	return true
 
 ## Is a named QoL feature switched back on? Unknown names are always off -- a typo must not
 ## silently re-enable a divergence.

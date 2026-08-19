@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""A bare `Settings.qud_shape()` must not guard a user-mode branch.
+"""`Settings.clone_of_qud()` must not guard a user-mode branch, and the ambiguous gate must not exist.
 
 THE SEAM THIS CLOSES
 --------------------
@@ -38,7 +38,9 @@ import re
 import sys
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "godot")
-BARE = re.compile(r"Settings\.qud_shape\(\s*\)")
+CLONE = re.compile(r"Settings\.clone_of_qud\(\s*\)")
+# the ambiguous gate, in either spelling — a bare call or an empty feature name
+AMBIG = re.compile(r"Settings\.qud_shape\(\s*(\)|[\"\']\s*[\"\']\s*\))")
 OK = "QUD-SHAPE-OK"
 
 
@@ -52,7 +54,12 @@ def scan(path):
     with open(path, encoding="utf8") as fh:
         lines = fh.read().split("\n")
     for i, line in enumerate(lines):
-        if not BARE.search(line):
+        if AMBIG.search(line) and not line.strip().startswith("#"):
+            out.append((i + 1, line.strip(),
+                        "AMBIGUOUS GATE: qud_shape needs a feature name; say clone_of_qud() "
+                        "if both modes are the same"))
+            continue
+        if not CLONE.search(line):
             continue
         stripped = line.strip()
         if stripped.startswith("#"):
@@ -94,17 +101,19 @@ def main():
         if hits:
             bad[name] = hits
     if not bad:
-        print("qud_shape: no bare gate guards a user-mode branch (%d scripts)" % n_files)
+        print("qud_shape: no clone_of_qud() guards a user-mode branch, and no ambiguous gates "
+              "(%d scripts)" % n_files)
         return 0
-    print("BARE qud_shape() WITH AN UNREACHABLE USER-MODE BRANCH\n")
+    print("UNREACHABLE USER-MODE BRANCHES / AMBIGUOUS GATES\n")
     total = 0
     for name in sorted(bad):
         for ln, src, why in bad[name]:
             total += 1
             print("  %s:%d  %s" % (name, ln, why))
             print("      %s" % src)
-    print("\n%d site(s). Each must either name a QoL feature -- qud_shape(\"<feature>\") -- or"
-          "\ncarry a `# %s: <reason>` on the gate line or the line above." % (total, OK))
+    print("\n%d site(s). Each must either name a QoL feature -- qud_shape(\"<feature>\"), which is"
+          "\nthe only gate that can answer false in user mode -- or carry a `# %s: <reason>`"
+          "\non the gate line or the line above." % (total, OK))
     return 1
 
 

@@ -770,7 +770,7 @@ func _detail_code(d: Dictionary, sampled: String) -> String:
 ## Repaint on the QUARTER, not the frame: the cycle only has four distinct colours, so four
 ## repaints a second is the whole animation and anything more is wasted canvas work.
 func _process(_delta: float) -> void:
-	if not _has_anim or not visible or Settings.qud_shape():
+	if not _has_anim or not visible or Settings.clone_of_qud():
 		return
 	var step: int = _tiles.anim_step(_tiles.anim_phase())
 	if step == _anim_step:

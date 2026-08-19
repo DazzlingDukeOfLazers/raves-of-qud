@@ -223,7 +223,7 @@ func _process(dt: float) -> void:
 	if _depthcue != null:
 		_depthcue.visible = not Settings.qud_shape("depthcue")
 	# Lighting off -> no day/night MULTIPLY grade (true tile colours), no sky bodies, no fog.
-	# ONE gate now: the `lighting` QoL feature. It used to be fx_lighting AND not qud_shape() --
+	# ONE gate now: the `lighting` QoL feature. It used to be fx_lighting AND not clone_of_qud() --
 	# fx_lighting was the older load-it-back experiment ("1:1 test · 3D lighting"), and once the
 	# QoL registry existed the pair meant two switches for one divergence, which is the
 	# half-exists confusion the registry was built to end. 1:1 still forces off via qud_shape's

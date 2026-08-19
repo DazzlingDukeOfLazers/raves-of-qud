@@ -138,7 +138,7 @@ func _ready() -> void:
 	UiState.set_scene("title")
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	theme = UiFont.make_theme(get_viewport())
-	if Settings.qud_shape():
+	if Settings.clone_of_qud():
 		# 1:1: Qud's title labels sit on NO background — clear the Label panel (base + role
 		# variations) so the bottom-left list (Redeem Code … Help) and the version render as
 		# plain text like Qud. User mode keeps Raves' framed look.
@@ -348,7 +348,7 @@ func _build_menu() -> void:
 	var opts := VBoxContainer.new()
 	opts.alignment = BoxContainer.ALIGNMENT_CENTER
 	# QUD-SHAPE-OK: title screen is a 1:1 parity target; the else is pre-clone QoL spacing
-	opts.add_theme_constant_override("separation", 7 if Settings.qud_shape() else 2)   # ElliotSans pitch 46 like Qud
+	opts.add_theme_constant_override("separation", 7 if Settings.clone_of_qud() else 2)   # ElliotSans pitch 46 like Qud
 	opts.anchor_left = 0.09
 	opts.anchor_right = 0.91
 	opts.anchor_top = 0.2195   # decoupled from HEADER_H_FRAC: rows measured aligned to Qud
@@ -399,7 +399,7 @@ func _place_box(c: Control) -> void:
 ## A small note just under the option box, shown only when Qud is up but no game is live (see
 ## _update_continue_hint). Pure fractional anchors, so it tracks the box across window resizes.
 func _build_continue_hint() -> void:
-	if Settings.qud_shape():
+	if Settings.clone_of_qud():
 		return   # Qud shows no such hint — it just greys Continue (mirrored via _refresh_enabled)
 	_continue_hint = _label("Load a game in Caves of Qud to continue", MUTED, "caption")
 	_continue_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -601,7 +601,7 @@ func _build_links() -> void:
 	var v := VBoxContainer.new()
 	v.alignment = BoxContainer.ALIGNMENT_BEGIN
 	# QUD-SHAPE-OK: title screen is a 1:1 parity target; the else is pre-clone QoL spacing
-	v.add_theme_constant_override("separation", 14 if Settings.qud_shape() else 6)
+	v.add_theme_constant_override("separation", 14 if Settings.clone_of_qud() else 6)
 	for txt in LINK_ITEMS:
 		var l := _label(txt, MUTED, "title")
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -618,7 +618,7 @@ func _build_links() -> void:
 		v.add_child(l)
 	add_child(v)
 	_place(v, "links")
-	if Settings.qud_shape():
+	if Settings.clone_of_qud():
 		# MEASURED 2026-08-07 at 1920x1080: Qud's rows top at y 855/894/932/972, ours at
 		# 895/934/975/1015 — a full row pitch (40 px) low, which is why this column's glyph
 		# overlap against Qud was 0.0% even with the right face loaded: the rows could not
@@ -658,7 +658,7 @@ func _apply_selection() -> void:
 		for role in ["font_color", "font_hover_color", "font_pressed_color", "font_disabled_color"]:
 			b.add_theme_color_override(role, col)
 		# QUD-SHAPE-OK: title screen is a 1:1 parity target; the else is the pre-clone QoL layout
-		if Settings.qud_shape():
+		if Settings.clone_of_qud():
 			# Qud's selection = two THIN BRIGHT ragged bars hugging the item's top and
 			# bottom edges, only slightly wider than the text (measured: ~2px tall,
 			# text+24 wide, peak (224,216,189)) — not a full-width sprite wash.
@@ -688,7 +688,7 @@ func _refresh_enabled() -> void:
 			# returns null, Continue greys out, and the app sits at the title looking like a
 			# BRIDGE failure when the bridge is fine. A live game is reason enough to continue.
 			# QUD-SHAPE-OK: Continue enablement follows Qud in both modes (a save OR a live game)
-			enabled = (_saves_exist() or _game_live) if Settings.qud_shape() else _game_live
+			enabled = (_saves_exist() or _game_live) if Settings.clone_of_qud() else _game_live
 		row["enabled"] = enabled
 		row["btn"].disabled = not enabled
 		if act == "continue" and row.get("sub") != null:
@@ -743,7 +743,7 @@ func _newest_save() -> Dictionary:
 ## nothing to measure against -- return the whole string and let the Label's own overrun handle that
 ## frame, since the next refresh (this runs on every menu update) measures properly.
 func _continue_label(sl: Label = null) -> String:
-	if Settings.qud_shape():
+	if Settings.clone_of_qud():
 		return ""            # Qud names no save here, and the title is on the parity scoreboard
 	var sv := _newest_save()
 	var nm := str(sv.get("name", ""))
@@ -803,7 +803,7 @@ func _build_hint() -> void:
 	var dim := "#%s" % HINT.to_html(false)
 	var tail := "[color=%s] navigate      [/color][color=%s][lb]Space[rb][/color][color=%s] select      [/color][color=%s][lb]Esc[rb][/color][color=%s] quit[/color]" % [dim, gold, dim, gold, dim]
 	# QUD-SHAPE-OK: title screen is a 1:1 parity target; the else is the pre-clone QoL layout
-	if Settings.qud_shape():
+	if Settings.clone_of_qud():
 		# Qud: BOLD hint text; the arrow-keys icon and each keycap sit inside WHITE
 		# [ ] brackets; the d-pad keys carry dark directional arrows.
 		var ih := int(round(UiFont.px(get_viewport(), "caption") * 1.15))
@@ -834,11 +834,11 @@ func _build_hint() -> void:
 		l.text = "[center][color=%s]↑↓ navigate      [/color][color=%s][lb]Space[rb][/color][color=%s] select      [/color][color=%s][lb]Esc[rb][/color][color=%s] quit[/color][/center]" % [dim, gold, dim, gold, dim]
 	add_child(l)
 	_place(l, "hint")
-	if Settings.qud_shape():
+	if Settings.clone_of_qud():
 		l.offset_top += 6      # measured: Qud's hint inks at y 1036, the seeded rect put ours at 1030
 		l.offset_bottom += 6
 func _build_version() -> void:
-	if Settings.qud_shape():
+	if Settings.clone_of_qud():
 		_build_version_qud()
 		return
 	var l := _label("%s\nbuild %s" % [Brand.GAME_NAME, Brand.LICENSE], MUTED, "caption")
@@ -912,7 +912,7 @@ func _confirm_quit() -> void:
 		return
 	_quit_sel = 0
 	_quit_opts = []
-	if Settings.qud_shape():
+	if Settings.clone_of_qud():
 		_confirm_quit_1to1()   # Qud's compact over-the-box prompt
 		return
 	var layer := Control.new()
@@ -1146,7 +1146,7 @@ func _activate(idx: int) -> void:
 			# refuses loadsave mid-game — the picker would dead-end). User mode keeps
 			# the direct attach-to-running-game jump.
 			# QUD-SHAPE-OK: title screen is a 1:1 parity target; the else is pre-clone QoL behaviour
-			if Settings.qud_shape() and not _game_live:
+			if Settings.clone_of_qud() and not _game_live:
 				_open_overlay("res://LoadGameScreen.gd")
 			else:
 				_enter_viewer()
@@ -1508,7 +1508,7 @@ func _elliot(weight: String) -> FontFile:
 
 ## Apply ElliotSans to a control in 1:1 mode (no-op otherwise / when not extracted).
 func _apply_elliot(c: Control, weight: String, size: int) -> void:
-	if not Settings.qud_shape():
+	if not Settings.clone_of_qud():
 		return
 	var f := _elliot(weight)
 	if f == null:

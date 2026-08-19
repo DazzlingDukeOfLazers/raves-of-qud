@@ -242,7 +242,7 @@ func _on_resize() -> void:
 	pass  # CRT logical_h is pushed in _process
 	# The 1:1 sidebar is a fraction of the window, and the camera inset derives from it — re-apply both.
 	# QUD-SHAPE-OK: user mode takes the 1:1 layout path; the else is pre-clone legacy
-	if Settings.qud_shape():
+	if Settings.clone_of_qud():
 		_apply_layout_mode(true)
 	else:
 		_apply_vitals_mode(false)   # user mode: inset the vitals bar + keep bright colours (overlay defaults to 1:1)
@@ -271,7 +271,7 @@ func _input(e: InputEvent) -> void:
 	if e is InputEventKey and e.pressed and not e.echo and e.keycode == KEY_F12:
 		_shot()
 	if e is InputEventKey and e.pressed and not e.echo and _status != null \
-			and Settings.qud_shape() and not e.alt_pressed \
+			and Settings.clone_of_qud() and not e.alt_pressed \
 			and not get_viewport().is_input_handled():
 		var ctrl: bool = e.ctrl_pressed or e.meta_pressed
 		if e.keycode == KEY_F and ctrl and not e.shift_pressed:
@@ -295,7 +295,7 @@ const STATUS_TAB_KEYS := {KEY_K: "skills", KEY_X: "attributes", KEY_TAB: "attrib
 	KEY_Q: "quests"}
 
 func _toggle_status() -> void:
-	if _status == null or not Settings.qud_shape():
+	if _status == null or not Settings.clone_of_qud():
 		return
 	if _status.visible:
 		_status.close()
@@ -796,7 +796,7 @@ func _relayout_topbar() -> void:
 	# and each sep lays out at exactly 648.43/3 = 216.14. The run starts at x20 (avatar) and ends at
 	# x1904 (zone's right edge, 1920 - padR 16). Fitted boxes can never track that: the sep width
 	# moves with the content widths, which move with the live stats.
-	if Settings.qud_shape():
+	if Settings.clone_of_qud():
 		var off := _topbar.get_global_rect().position.x
 		var x_left := 20.0 - off
 		var x_rend := 1904.0 - off
@@ -888,7 +888,7 @@ func _row_vitals_menu() -> Control:
 	# Qud's nav icons hug the window's right edge; trim this strip's right inset so the cluster sits
 	# flush like Qud's (the default 8px panel margin left it ~7px shy of Qud's last icon).
 	_menu_strip = menu
-	_style_menu_strip(Settings.qud_shape())
+	_style_menu_strip(Settings.clone_of_qud())
 
 	_menu_verbose = HBoxContainer.new()
 	_menu_verbose.add_theme_constant_override("separation", 4)
@@ -1219,7 +1219,7 @@ func _close_options_overlay() -> void:
 ## The two panels whose 1:1 visibility follows Qud's overlay options (Qud's own toggle
 ## buttons persist the same ids, so the pair stays congruent). Safe to call any time.
 func _refresh_overlay_panels() -> void:
-	var on := Settings.qud_shape()
+	var on := Settings.clone_of_qud()
 	if _minimap != null:
 		_minimap.visible = (not on) or _qud_option_on("OptionOverlayMinimap")
 	if _nearby != null:
@@ -1232,7 +1232,7 @@ func _toggle_qud_overlay(id: String) -> void:
 	var want := not _qud_option_on(id)
 	if _holo != null:
 		_holo.request_setoption(id, "Yes" if want else "No")
-	if Settings.qud_shape():
+	if Settings.clone_of_qud():
 		if id == "OptionOverlayMinimap" and _minimap != null:
 			_minimap.visible = want
 		if id == "OptionOverlayNearbyObjects" and _nearby != null:
@@ -1314,7 +1314,7 @@ func _on_one_to_one_changed(on: bool, chosen: bool) -> void:
 	# ONLY A CHOICE IS PERSISTED. Two ways this arrives: the viewer pressed Ctrl+M, or Raves simply
 	# APPLIED the shape at startup. Writing the second one back is how a stored mode gets rewritten
 	# by merely playing — and it just did: since user mode began rendering as a 1:1 clone, entering
-	# the Holodeck called set_one_to_one(qud_shape()) = true and this line saved "1to1", so a user
+	# the Holodeck called set_one_to_one(clone_of_qud()) = true and this line saved "1to1", so a user
 	# session came back 1:1 next launch. Same failure the note below already records for the
 	# --one-to-one lock, reached by a different road.
 	if chosen and not Settings.one_to_one_only:
@@ -1323,12 +1323,18 @@ func _on_one_to_one_changed(on: bool, chosen: bool) -> void:
 
 ## PER PANEL, not one switch for all of them. User mode renders as a 1:1 clone until a QoL feature
 ## is loaded back (Settings.qud_shape), and these two panels have one each — so a panel whose
-## feature is on keeps its QoL shape while the rest stay Qud's. In literal 1:1, qud_shape()
+## feature is on keeps its QoL shape while the rest stay Qud's. In literal 1:1, qud_shape(feature)
 ## short-circuits true for EVERY feature, so nothing diverges there.
 func _set_panels_one_to_one(on: bool) -> void:
 	for p in _panels:
 		if p.has_method("set_one_to_one"):
-			p.set_one_to_one(on and Settings.qud_shape(_panel_feature(p)))
+			# A panel with no feature has no user-mode form: that is clone_of_qud, said outright
+			# rather than smuggled in as an empty feature name (which is the ambiguity the split
+			# exists to remove).
+			var feat := _panel_feature(p)
+			var qud_shaped: bool = Settings.clone_of_qud() if feat == "" \
+				else Settings.qud_shape(feat)
+			p.set_one_to_one(on and qud_shaped)
 
 ## The QoL feature that owns a panel's shape, "" for panels with no opt-out yet.
 func _panel_feature(p: Object) -> String:
@@ -1388,7 +1394,7 @@ func _apply_layout_mode(on: bool) -> void:
 ## (dragged left) widens the log. Clamped between a readable min and half the window; the camera play
 ## inset follows so the zone re-fits the shrinking/growing hole. Transient (not persisted).
 func _on_sidebar_drag(dx: float) -> void:
-	if not Settings.qud_shape() or _side == null:
+	if not Settings.clone_of_qud() or _side == null:
 		return
 	var w := float(get_viewport().get_visible_rect().size.x)
 	_side.custom_minimum_size.x = clampf(_side.custom_minimum_size.x - dx, 120.0, w * 0.5)
@@ -1409,7 +1415,7 @@ func _make_row_bg() -> ColorRect:
 func _layout_row_bgs() -> void:
 	if _top_bg == null or _bottom_bg == null or _row_split == null:
 		return
-	var on := Settings.qud_shape()
+	var on := Settings.clone_of_qud()
 	_top_bg.visible = on
 	_bottom_bg.visible = on
 	if not on:
@@ -1522,7 +1528,7 @@ func _apply_panel_sizing(on: bool) -> void:
 	#
 	# The taller QoL boxes (90/90/104) that used to sit on the other arm of these were DEAD, and had
 	# been for as long as user mode cloned Qud: every caller of _apply_layout_mode passes true in
-	# user mode, because it reads Settings.qud_shape(). They cost a real bug rather than nothing --
+	# user mode, because it reads Settings.clone_of_qud(). They cost a real bug rather than nothing --
 	# the context strip asked for 104, got 28, and the weapon sprite sized for the box it never got
 	# clipped "[F] fire [R] reload" (a041f83). Row 4 has no QoL feature and wants none: 28 IS the
 	# right height, and the sprite is now sized to the row instead of to a box that never existed.
@@ -1659,7 +1665,7 @@ func _holodeck_cell() -> Control:
 	# The 1:1 camera fits Qud's stage into this rect, so any late layout settle (chrome rows collapsing
 	# on a mode switch, a sidebar drag, a window resize) must re-push it — the deferred push in
 	# _push_play_inset alone can catch the rect mid-settle and leave the stage mis-fit by a few px.
-	_holo_hole.item_rect_changed.connect(func() -> void: _push_play_hole(Settings.qud_shape()))
+	_holo_hole.item_rect_changed.connect(func() -> void: _push_play_hole(Settings.clone_of_qud()))
 	var center := CenterContainer.new()
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1713,8 +1719,8 @@ func _connect_holodeck() -> void:
 	UiState.set_scene("in_game")                # highvisor state report: the gameplay frame is up
 	# Apply the saved 1:1 / user mode now that the Holodeck (camera owner) exists. When 1:1, this
 	# emits one_to_one_changed → _on_one_to_one_changed pushes the 1:1 variant to the panels too.
-	_holo.set_one_to_one(Settings.qud_shape())
-	if Settings.qud_shape():
+	_holo.set_one_to_one(Settings.clone_of_qud())
+	if Settings.clone_of_qud():
 		_set_panels_one_to_one(true)            # ensure panels match on a 1:1 launch
 		_apply_layout_mode(true)                # widen sidebar, compact menu, drop dev strip, recentre cam
 		_enable_viewport.call_deferred()        # 1:1 is a parity view — bring the 3D up automatically
@@ -1805,7 +1811,7 @@ func _apply_stats(data: Dictionary) -> void:
 	var hpmax := maxi(1, int(s.get("hpMax", 1)))
 	if _l_hp != null:
 		# QUD-SHAPE-OK: HP text: user mode uses Qud's spacing and health colour too
-		if Settings.qud_shape():
+		if Settings.clone_of_qud():
 			# Qud's spacing, and colour ONLY the current-HP number by health % (rest white). BBCode.
 			_l_hp.text = "HP: [color=#%s]%d[/color] / %d" % [_hp_color(hp, hpmax).to_html(false), hp, hpmax]
 		else:
@@ -1820,7 +1826,7 @@ func _apply_stats(data: Dictionary) -> void:
 		var xp_next := maxi(xp_floor + 1, int(s.get("xpNext", xp_floor + 1)))
 		if _l_exp != null:
 			# QUD-SHAPE-OK: EXP text: user mode uses Qud's spacing too
-			_l_exp.text = ("LVL: %d Exp: %d / %d" if Settings.qud_shape() else "LVL: %d   EXP: %d/%d") % [lvl, xp, xp_next]
+			_l_exp.text = ("LVL: %d Exp: %d / %d" if Settings.clone_of_qud() else "LVL: %d   EXP: %d/%d") % [lvl, xp, xp_next]
 		if _bar_exp != null:
 			_bar_exp.min_value = xp_floor
 			_bar_exp.max_value = xp_next
@@ -1883,7 +1889,7 @@ func _check_mod_version(data: Dictionary) -> void:
 			# single largest band in the log panel (mean 14.23 against 0.26 elsewhere). The two
 			# WARNINGS below stay in both modes: a version mismatch is worth breaking parity for.
 			# QUD-SHAPE-OK: the up-to-date tick is a QoL extra; both modes stay quiet, only WARNINGS show
-			if Settings.qud_shape():
+			if Settings.clone_of_qud():
 				_msglog.set_notice("")
 			else:
 				_msglog.set_notice("[color=#6fcf6f]✓ Raves mod v%d — up to date[/color]" % proto)

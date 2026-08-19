@@ -260,7 +260,7 @@ func _draw_rows() -> void:
 			#
 			# User mode keeps a band, because a list you drive with the keyboard wants one; it now
 			# stops at Qud's own category right edge so it cannot reach the divider either.
-			if not Settings.qud_shape():
+			if not Settings.clone_of_qud():
 				_content.draw_rect(Rect2(0, y, RIGHT_EDGE - LIST_X, ROW_H - 2), C_SEL)
 			_content.draw_string(_font, Vector2(6, y + 15), ">", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, C_GOLD)
 		var is_skill := str(n.get("kind", "")) == "skill"

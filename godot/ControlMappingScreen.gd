@@ -464,7 +464,7 @@ func _relayout() -> void:
 	# USER MODE ONLY (hidden in 1:1 — no Qud counterpart): a Raves category with
 	# the golden-restore action (the mod snapshots the original map before the
 	# first Raves-side edit; this puts it back wholesale).
-	if not Settings.qud_shape() and not _cats.is_empty() and _filter == "":
+	if not Settings.clone_of_qud() and not _cats.is_empty() and _filter == "":
 		_blocks.append({"y": y, "cat": _cats.size(), "title": "[-] RAVES", "plain": true})
 		y += HEADER_H
 		_blocks[_blocks.size() - 1]["rows_y0"] = y
@@ -546,7 +546,7 @@ func _draw_static() -> void:
 		_rail_rects.append(Rect2(149, ry - 14, 146, lines.size() * 21 + 6))
 		ry += lines.size() * 21 + 9
 	# the user-mode-only RAVES section's rail entry (see _relayout)
-	if not Settings.qud_shape() and not _cats.is_empty():
+	if not Settings.clone_of_qud() and not _cats.is_empty():
 		var rw := fnt.get_string_size("Raves", HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
 		_static.draw_string(fnt, Vector2(279 - rw, ry), "Raves",
 			HORIZONTAL_ALIGNMENT_LEFT, -1, 16, C_RAIL)

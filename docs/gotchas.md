@@ -2347,14 +2347,20 @@ change screen (no ability/menu fired).
 
 User mode renders as a **1:1 clone of Qud**, and diverges ONLY where a QoL feature says so. That is
 deliberate (Daniel, 2026-08-12: "copy all the 1:1 settings to usermode, we'll load back in features
-1 at a time"), and `Settings.qud_shape(feature)` is how a surface asks:
+1 at a time"). Two calls, because these are two different questions:
 
-    qud_shape("msglog")   # Qud's shape UNLESS this feature has been loaded back
-    qud_shape()           # Qud's shape, full stop — no user-mode alternative exists
+    Settings.qud_shape("msglog")   # Qud's shape UNLESS this feature has been loaded back —
+                                   # this surface HAS a user-mode form, and this selects between them
+    Settings.clone_of_qud()        # identical in BOTH modes, by decision — no user-mode form exists
 
-**The bare form is an assertion, not a shortcut.** With no feature name it can never be false in
-user mode, so an `else` hanging off it is unreachable in *both* modes. The user-mode half is
-written, shipped, and can never run — and it reads exactly like a working feature.
+**`clone_of_qud()` is an assertion, not a shortcut**, and it is constant true — so an `else` hanging
+off it is unreachable in *both* modes. The user-mode half is written, shipped, and can never run —
+and it reads exactly like a working feature.
+
+They used to be one call with an optional feature, where the bare `qud_shape()` meant what
+`clone_of_qud()` means now. That spelling made the claim invisible at the call site, which is how
+the three losses below went unnoticed. The feature name is now **required**, so the ambiguous form
+cannot be written at all.
 
 That cost three features, each of which looked deleted and was only unreachable:
 
@@ -2370,5 +2376,6 @@ wiring. To keep a surface identical in both modes, that is a decision — say so
 `# QUD-SHAPE-OK: <reason>` on the gate line or the line above.
 
 `tools/regression/qud_shape_audit.py` (SPOT) enforces exactly this and nothing else: it fails on a
-bare gate that has an `else`. It cannot see a branch killed by its CALLER always passing true —
+`clone_of_qud()` that has an `else`, and on any attempt to write the ambiguous gate back (a bare
+`qud_shape()` or an empty feature name). It cannot see a branch killed by its CALLER always passing true —
 row 4 died that way — so when a mode flag is threaded through a parameter, check the call sites too.

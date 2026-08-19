@@ -1174,7 +1174,7 @@ func _populate_palette(dropped: int) -> void:
 		add_child(_count_note)
 	# never a silent cap — say what was left undrawn (user mode only; Qud has no such line)
 	# QUD-SHAPE-OK: Raves-only screen, drawn in Qud's shape in both modes
-	if Settings.qud_shape():
+	if Settings.clone_of_qud():
 		_count_note.text = ""
 	elif _blueprints.is_empty():
 		_count_note.text = "no blueprints.json — run the bridge export"

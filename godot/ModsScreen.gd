@@ -76,7 +76,7 @@ func _ready() -> void:
 	_mods = _load_mods()
 
 	# QUD-SHAPE-OK: Mods screen is a 1:1 parity target; the else is the pre-clone QoL layout
-	if Settings.qud_shape():
+	if Settings.clone_of_qud():
 		_build_1to1()
 	else:
 		var scrim := ColorRect.new()
@@ -143,7 +143,7 @@ func _send_bridge(msg: Dictionary) -> void:
 func _reload_mods() -> void:
 	_mods = _load_mods()
 	# QUD-SHAPE-OK: Mods screen is a 1:1 parity target; the else is the pre-clone QoL layout
-	if Settings.qud_shape():
+	if Settings.clone_of_qud():
 		if _list_1to1 == null:
 			return
 		_populate_1to1()
@@ -429,7 +429,7 @@ func _select(idx: int) -> void:
 	_apply_selection()
 
 func _apply_selection() -> void:
-	if Settings.qud_shape():
+	if Settings.clone_of_qud():
 		for i in range(_rows.size()):
 			_style_row_1to1(_rows[i]["panel"], i == _sel)
 		_apply_selection_1to1()
