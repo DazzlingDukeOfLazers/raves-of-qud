@@ -69,6 +69,13 @@ const QOL_FEATURES := {
 	# only one cell to draw it in, and at 1x a 3D tree reads as a shrub. 1:1 mode is
 	# unaffected — the renderer gates the scale out there, where pixels are measured.
 	"bigtrees": ["Trees at 2x scale", true],
+	# THE TWO SIDE PANELS, also ON by default. Both had working user-mode halves that had become
+	# unreachable: every panel was switched by the bare qud_shape(), which is TRUE in user mode, so
+	# the log's grouping toggle and Nearby's larger icons could not be turned on from anywhere.
+	# Daniel asked for both back, and neither costs parity — 1:1 short-circuits qud_shape() for
+	# every feature, so the Qud-faithful shape is untouched there.
+	"msglog": ["Message log: group repeats (xN) + inline pictographs", true],
+	"nearby": ["Nearby objects: larger icons", true],
 }
 
 func qud_shape(feature := "") -> bool:

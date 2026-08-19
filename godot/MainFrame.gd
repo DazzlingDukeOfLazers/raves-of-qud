@@ -1320,10 +1320,22 @@ func _on_one_to_one_changed(on: bool, chosen: bool) -> void:
 		Settings.set_value("mode", "1to1" if on else "user")
 		Settings.save()
 
+## PER PANEL, not one switch for all of them. User mode renders as a 1:1 clone until a QoL feature
+## is loaded back (Settings.qud_shape), and these two panels have one each — so a panel whose
+## feature is on keeps its QoL shape while the rest stay Qud's. In literal 1:1, qud_shape()
+## short-circuits true for EVERY feature, so nothing diverges there.
 func _set_panels_one_to_one(on: bool) -> void:
 	for p in _panels:
 		if p.has_method("set_one_to_one"):
-			p.set_one_to_one(on)
+			p.set_one_to_one(on and Settings.qud_shape(_panel_feature(p)))
+
+## The QoL feature that owns a panel's shape, "" for panels with no opt-out yet.
+func _panel_feature(p: Object) -> String:
+	if p == _msglog:
+		return "msglog"
+	if p == _nearby:
+		return "nearby"
+	return ""
 
 ## Reshape the chrome to match Qud (1:1) or restore the QoL layout (user). Three moves: widen the side
 ## column, swap the top menu to Qud's compact icons, and drop the dev strip. Idempotent + re-run on
@@ -1494,7 +1506,10 @@ func _apply_panel_sizing(on: bool) -> void:
 	if _nearby != null:
 		# 1:1: size to content (no dead gap) — the panel itself fits its rows via set_one_to_one.
 		# User: expand to share the leftover height with the log.
-		_nearby.size_flags_vertical = Control.SIZE_SHRINK_BEGIN if on else Control.SIZE_EXPAND_FILL
+		# Follows the panel's OWN gate: sized to content is Qud's shape, and a Nearby panel showing
+		# the larger QoL icons needs the expanding share of the column to show them in.
+		_nearby.size_flags_vertical = Control.SIZE_SHRINK_BEGIN \
+			if (on and Settings.qud_shape("nearby")) else Control.SIZE_EXPAND_FILL
 	# 1:1: honour Qud's overlay options for both panels — hidden when off. User mode always shows.
 	_refresh_overlay_panels()
 	if _msglog != null:
