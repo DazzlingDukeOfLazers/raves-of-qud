@@ -1256,7 +1256,16 @@ func _build_darkness(cells: Array, parent: Node, frozen_off := NOT_FROZEN) -> vo
 			f = minf(f, MEMORY_GROUND)
 		if frozen:
 			f = minf(f, _frozen_light(k, frozen_off))
-		else:
+		elif not _cell_seen(cell):
+			# THE LIVE ZONE'S EDGE FADE ONLY DIMS WHAT YOU CANNOT SEE. It exists to blend the zone
+			# into the dark beyond it, and that is an OUT-OF-SIGHT effect — applied to cells in
+			# line of sight it dims the ground you are standing on, and standing at the zone's
+			# edge it dims YOU. Daniel: "my character seems to be in discovered fog-of-war",
+			# reported from (0,24), the corner cell, where the fade is at its deepest.
+			#
+			# Gating on _cell_seen also makes the seam self-correcting: walk to the edge and the
+			# fade retreats ahead of your line of sight, which is what a fade into the unknown
+			# should do anyway.
 			f = minf(f, _live_edge_light(k))
 		frac[k] = f
 		# A wall the player has never seen is HIDDEN now (see _relight_static_sprites), so it must
