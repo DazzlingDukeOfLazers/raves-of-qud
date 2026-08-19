@@ -619,6 +619,17 @@ func render_snapshot(data: Dictionary, neighbors: Array = []) -> void:
 		                               # _build_static follows immediately and re-registers them
 		_lit_meshes.clear()            # and its connector panels (fences/pipes)
 		_wall_cutaway.clear()          # and its wall nodes tracked for camera cutaway
+		# DROP THE ZONE WE ARE LEAVING, so it is rebuilt as a REMEMBERED one. Its subtree was
+		# built with _live_build true — full colour, because you were standing in it — and
+		# _sync_neighbors only builds a zone it does not already have, so left in place it stayed
+		# at full brightness for as long as it remained a neighbour. Daniel: "the zone I moved out
+		# of (north) shows most of the sprites at full brightness."
+		#
+		# The ramp hides this at first glance: the rows nearest the boundary are only 18% dark, so
+		# a full-colour zone reads as merely bright rather than as wrong, which is why it survived
+		# several crossings before it was obvious.
+		if _live_static_id != "" and _live_static_id != live_id:
+			_drop_static(_live_static_id)
 		_drop_static(live_id)          # replace any stale (neighbour-built) copy
 		_noting = true
 		_static_saw_missing = false
@@ -5657,6 +5668,15 @@ func _rebuild_walls(wall_types: Dictionary) -> void:
 	for key in wall_types:
 		var t = wall_types[key]
 		_wall_tile = t["tile"]; _wall_main = t["main"]; _wall_detail = t["detail"]; _wall_bg = t["bg"]
+		if _remembered_build:
+			# BUILT in the memory pair rather than re-cut afterwards. _ghost_wall_mesh exists for
+			# the LIVE zone, where a wall has to switch between live and remembered art per turn
+			# and the mesh already exists — it takes a finished mesh apart and puts it back. Doing
+			# that for every wall of every neighbour was array surgery per wall per zone, and at a
+			# deep zoom with several zones loaded it died in _platform_memmove, the same overdraw/
+			# churn signature as before. A remembered zone never switches back, so its walls can
+			# simply be BUILT in K/k: same result, no surgery, nothing to allocate twice.
+			_wall_main = "K"; _wall_detail = "k"
 		var cells: Dictionary = t["cells"]
 
 		# ONE WATERTIGHT VOXEL VOLUME PER CELL (Daniel: "like a minecraft creation,
@@ -5693,7 +5713,7 @@ func _rebuild_walls(wall_types: Dictionary) -> void:
 				# is built ghosted rather than left at full colour. The live zone's walls swap to
 				# this per turn through _wall_cutaway; a frozen one cannot change while frozen, so
 				# it is baked once here.
-				mi.mesh = _ghost_wall_mesh(entry["mesh"]) if _remembered_build else entry["mesh"]
+				mi.mesh = entry["mesh"]    # already in K/k when this is a remembered zone
 				mi.material_override = _wall_skin_material()
 				mi.position = Vector3(k.x, 0.0, k.y)
 				_wall_parent().add_child(mi)
