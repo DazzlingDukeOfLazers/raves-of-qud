@@ -972,6 +972,14 @@ func _rebuild_dynamics(cells: Array) -> void:
 				if lay > win_layer:
 					win = wd
 					win_layer = lay
+			if not full_1to1:
+				# ON FIRE: check the whole cell, not just the winner. A burning creature is
+				# usually the top layer, but the thing alight can be under something — and Qud
+				# flickers whatever is burning, whichever draws.
+				for obj in cell.get("objs", []):
+					if _is_burning(obj):
+						_place_burning(cx, cy)
+						break
 			if not win.is_empty():
 				if not full_1to1:
 					win = _ghost_obj(win)
@@ -2382,6 +2390,83 @@ func _override_for(tile: String) -> String:
 # --- torch / fire light ------------------------------------------------------
 
 ## An additive warm glow on the ground (the "light") plus a small flickering flame
+## Is this object ON FIRE, read off Qud's own render animation?
+##
+## Qud has no "burning" flag on the wire, but it does not need one: a Flaming object's
+## RenderEvent flickers, and the mod sweeps 60 frames of that into `animSched` already (see
+## AnimFrameSweep). Burning comes through as a COLOUR-ONLY schedule — no tile ever changes —
+## whose entries pair a fire foreground with a flashing cell BACKGROUND:
+##
+##     60|0=;&r^k;|1=;;|2=;&r^k;|7=;&r^W;|11=;&r^W;|12=;&r^k;|...
+##
+## which is red-on-black alternating with red-on-white and plain frames between. Reading the
+## animation rather than adding a flag means this works for EVERY burning thing Qud renders, not
+## just the player — the Mechanimist pilgrim who catches light beside you smokes too — and needs
+## no mod rebuild, which matters because deploying one costs a full Qud restart.
+##
+## Deliberately narrow. `^` alone is not fire: Asleep floods `^c` behind its art the same way. The
+## foreground has to be a flame colour AND a background has to flash, and it has to happen on at
+## least two distinct frames, or a single steady tint would qualify.
+const FIRE_FG := ["r", "R", "W", "Y"]
+const FIRE_BG := ["W", "R", "r", "Y"]
+func _is_burning(obj: Dictionary) -> bool:
+	var spec := String(obj.get("animSched", ""))
+	if spec == "" or spec.find("^") < 0:
+		return false
+	var parts := spec.split("|")
+	var seen := {}
+	for i in range(1, parts.size()):
+		var kv := parts[i].split("=")
+		if kv.size() != 2:
+			continue
+		var axes := String(kv[1]).split(";")
+		if axes.size() != 3:
+			continue
+		if axes[0] != "":
+			return false          # a tile swap: some other animation (the dawnglider's flying icon)
+		var col := String(axes[1])
+		var cut := col.find("^")
+		if cut < 0:
+			continue
+		var fg := col.substr(0, cut).replace("&", "")
+		var bg := col.substr(cut + 1)
+		if fg.length() != 1 or bg.length() != 1:
+			continue
+		if FIRE_FG.has(fg) and FIRE_BG.has(bg):
+			seen[col] = true
+	return seen.size() >= 1
+
+## Fire and a smoke plume on a BURNING creature's cell, for the turn it is burning.
+##
+## The emitters are the sconce/campfire rig — same _make_fire / _make_smoke, so a creature alight
+## reads like the other fires in the world rather than a second, unrelated effect. They go into
+## _bank, which during the dynamic pass IS _dynamic_root, so they are freed with everything else
+## next turn: a creature that stops burning, dies or walks out of sight takes its fire with it and
+## there is nothing to track. That is also why this does not register in _lights — that list is for
+## the STATIC zone's flicker driver, and a dynamic entry in it would outlive the node it names.
+##
+## Unconditional, not behind the particles ambience toggle: _smoke_on's own rule is that a real
+## fire smokes whether or not the viewer opted into ambience. 1:1 renders Qud's flicker instead
+## (see _register_anim) and must not grow a 3D flame.
+func _place_burning(cx: int, cy: int) -> void:
+	if _one_to_one or _world_map:
+		return
+	var lp: Node = _bank if _bank != null else _dynamic_root
+	if lp == null:
+		return
+	var pf := _make_fire(false)                       # slim tongues, not a campfire's wide base
+	pf.position = Vector3(cx, 0.42, cy)
+	lp.add_child(pf)
+	var sm := _make_smoke()
+	sm.position = Vector3(cx, 0.85, cy)               # just above the flame, as a sconce's does
+	sm.emitting = true
+	lp.add_child(sm)
+	# ONE LINE PER BURNING CELL PER TURN, the way [zonefade] reports a re-bake. Fire is rare and
+	# short: the flame that prompted this was beaten out by hand two turns after it was seen, before
+	# a build finished. A log line means the next one confirms the path fired without anybody having
+	# to be watching the glass at the right moment.
+	print("[burning] cell (%d,%d)" % [cx, cy])
+
 ## above the sconce. Qud's radius is in cells; 1 cell == 1 world unit.
 func _place_light(cx: int, cy: int, radius: float, smokes := true, on_fire := false) -> void:
 	if _one_to_one:
