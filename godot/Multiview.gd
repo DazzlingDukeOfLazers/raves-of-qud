@@ -17,6 +17,7 @@ var _cam_rig                       # CameraRig: per-pane eye/look math + shared 
 var _mode_names: Dictionary        # mode int -> label string (Main's _MODE_NAMES), for the pane captions
 var _on_pane_inspect: Callable     # Main._multiview_inspect(cam, pos) — it owns the inspector/reporter
 var _on_pick_mode: Callable        # Main._set_mode(mode) — clicking a pane's TITLE switches to it
+var _on_move: Callable             # Main: send a Qud move in a COMPASS direction ("N", "SE", …)
 var _layer: CanvasLayer
 var _on := false
 var _cams: Array = []              # [{mode, cam, sv, st}] — st is this pane's own yaw/zoom
@@ -25,11 +26,12 @@ var _cells: Array = []             # the Control per pane, for hanging per-pane 
 ## Build the grid. Call once, after the CameraRig's camera exists (we read its fov) and while in the tree
 ## (we bind the shared World3D off get_viewport()).
 func setup(cam_rig, mode_names: Dictionary, on_pane_inspect: Callable,
-		on_pick_mode := Callable()) -> void:
+		on_pick_mode := Callable(), on_move := Callable()) -> void:
 	_cam_rig = cam_rig
 	_mode_names = mode_names
 	_on_pane_inspect = on_pane_inspect
 	_on_pick_mode = on_pick_mode
+	_on_move = on_move
 	_layer = CanvasLayer.new()
 	_layer.layer = 4
 	_layer.visible = false
@@ -98,9 +100,159 @@ func setup(cam_rig, mode_names: Dictionary, on_pane_inspect: Callable,
 		# {yaw 0, zoom 1}, i.e. exactly the camera this pane showed before there was any state.
 		# Cinematic panes get a phase offset so two of them do not orbit in lockstep.
 		_cams.append({"mode": m, "cam": cam, "sv": sv,
-			"st": _cam_rig.pane_state(0.0, 1.0, float(m) * 0.7)})
+			"st": _cam_rig.pane_state(0.0, 1.0, float(m) * 0.7),
+			"btns": [], "cine_speed": 1.0})
 		_cells.append(cell)
+		_build_pane_ui(cell, _cams.size() - 1, m)
 
+
+# --- per-pane widgets -----------------------------------------------------------
+#
+# Every pane carries its own controls because every pane now has its own camera state (see
+# pane_state). They are deliberately small and cornered: a pane is 320x200 at minimum and the
+# VIEW is the point — controls that crowd it would defeat the grid they sit in.
+
+const DIR_NAMES := ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
+## The 3x3 ring, clockwise from the top-left cell, with the centre skipped. Index into DIR_NAMES
+## is the SCREEN direction; which WORLD direction that is depends on where the pane is looking,
+## which is the whole point of "normalize the arrows to the compass".
+const RING := [[7, 0, 1], [6, -1, 2], [5, 4, 3]]
+const ARROWS := ["↑", "↗", "→", "↘", "↓", "↙", "←", "↖"]
+
+func _small_btn(txt: String, tip: String, w := 26.0, h := 20.0) -> Button:
+	var b := Button.new()
+	b.text = txt
+	b.tooltip_text = tip
+	b.custom_minimum_size = Vector2(w, h)
+	b.focus_mode = Control.FOCUS_NONE      # MainFrame's rule: never steal the movement keys
+	b.add_theme_font_size_override("font_size", 10)
+	return b
+
+func _build_pane_ui(cell: Control, i: int, m: int) -> void:
+	# COMPASS RING, bottom-left. Eight buttons around an empty centre; each MOVES the player in
+	# the world direction that lies that way ON SCREEN in this pane, and is LABELLED with the
+	# cardinal that turns out to be. Rotate the pane and the letters follow, which is what makes
+	# the ring readable when two panes face different ways.
+	var ring := GridContainer.new()
+	ring.columns = 3
+	ring.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	ring.position = Vector2(6, -74)
+	ring.add_theme_constant_override("h_separation", 1)
+	ring.add_theme_constant_override("v_separation", 1)
+	var btns: Array = []
+	for row in RING:
+		for d in row:
+			if d < 0:
+				var spacer := Control.new()
+				spacer.custom_minimum_size = Vector2(26, 20)
+				ring.add_child(spacer)
+				btns.append(null)
+				continue
+			var b := _small_btn("", "move")
+			var screen_dir: int = d
+			var pane_i: int = i
+			b.pressed.connect(func(): _pane_move(pane_i, screen_dir))
+			ring.add_child(b)
+			btns.append(b)
+	cell.add_child(ring)
+	_cams[i]["btns"] = btns
+
+	# ROTATE + ZOOM, bottom-right. Rotation is per pane by design; the slider multiplies whatever
+	# distance this pane's MODE computes, so it means the same thing in every pane without any
+	# mode needing to know about it.
+	var col := VBoxContainer.new()
+	col.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	col.position = Vector2(-116, -52)
+	col.add_theme_constant_override("separation", 1)
+	var rot := HBoxContainer.new()
+	rot.add_theme_constant_override("separation", 1)
+	for step in [-90, -45, 45, 90]:
+		var deg: float = float(step)
+		var lb := ("%d°" % step) if step < 0 else ("+%d°" % step)
+		var rb := _small_btn(lb, "turn this view %d°" % step, 27.0, 18.0)
+		var pi2: int = i
+		rb.pressed.connect(func(): pane_rotate(pi2, deg))
+		rot.add_child(rb)
+	col.add_child(rot)
+	var zs := HSlider.new()
+	zs.min_value = PANE_ZOOM_MIN
+	zs.max_value = PANE_ZOOM_MAX
+	zs.step = 0.05
+	zs.value = 1.0
+	zs.custom_minimum_size = Vector2(112, 14)
+	zs.focus_mode = Control.FOCUS_NONE
+	zs.tooltip_text = "zoom this view"
+	var pi3: int = i
+	zs.value_changed.connect(func(v: float): pane_zoom(pi3, v))
+	col.add_child(zs)
+
+	# CINEMATIC gets a speed control, pause included (0 = held still). Its own phase already keeps
+	# two cinematic panes out of lockstep; this is how fast that phase advances.
+	if m == 3:   # CamMode.CINEMATIC
+		var ss := HSlider.new()
+		ss.min_value = 0.0
+		ss.max_value = 3.0
+		ss.step = 0.05
+		ss.value = 1.0
+		ss.custom_minimum_size = Vector2(112, 14)
+		ss.focus_mode = Control.FOCUS_NONE
+		ss.tooltip_text = "orbit speed — drag to 0 to pause"
+		var pi4: int = i
+		ss.value_changed.connect(func(v: float): _cams[pi4]["cine_speed"] = v)
+		col.add_child(ss)
+	cell.add_child(col)
+
+	# MOUSE gets a GLOBE: drag it to swing the view. A pane is not the focused viewport, so an
+	# orbit you can drag has to live in a widget rather than in the pane's own mouse handling —
+	# dragging the pane itself is already the inspector's gesture.
+	if m == 4:   # CamMode.MOUSE
+		var globe := _small_btn("🜨", "drag to turn this view", 30.0, 30.0)
+		globe.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+		globe.position = Vector2(-150, -34)
+		globe.mouse_default_cursor_shape = Control.CURSOR_MOVE
+		var pi5: int = i
+		globe.gui_input.connect(func(e: InputEvent):
+			if e is InputEventMouseMotion and (e.button_mask & MOUSE_BUTTON_MASK_LEFT) != 0:
+				pane_rotate(pi5, -(e.relative.x) * 0.6))
+		cell.add_child(globe)
+
+## Move the player in whichever WORLD direction lies `screen_dir` away on this pane's screen.
+func _pane_move(i: int, screen_dir: int) -> void:
+	if not _on_move.is_valid():
+		return
+	var d := _world_dir_for(i, screen_dir)
+	if d != "":
+		_on_move.call(d)
+
+## The compass name for a screen direction in one pane: take the pane's own heading, rotate it by
+## the screen offset, and ask the rig what that is. Going through dir_to_compass rather than
+## rounding a yaw keeps ONE definition of which way "SE" is.
+func _world_dir_for(i: int, screen_dir: int) -> String:
+	if i < 0 or i >= _cams.size():
+		return ""
+	var v: Dictionary = _cams[i]
+	var el: Array = _cam_rig.eye_look_for(int(v["mode"]), v["st"])
+	var fwd: Vector3 = (el[1] - el[0])
+	fwd.y = 0.0
+	if fwd.length() < 0.001:
+		fwd = _cam_rig.NORTH
+	fwd = fwd.normalized().rotated(Vector3.UP, -deg_to_rad(45.0 * float(screen_dir)))
+	return _cam_rig.dir_to_compass(fwd)
+
+## Re-letter every ring after the cameras have been placed, so the labels track the pane's heading.
+func _refresh_rings() -> void:
+	for i in _cams.size():
+		var btns: Array = _cams[i].get("btns", [])
+		for sd in DIR_NAMES.size():
+			var b = btns[RING_INDEX[sd]] if sd < RING_INDEX.size() else null
+			if b == null:
+				continue
+			var nm := _world_dir_for(i, sd)
+			(b as Button).text = "%s%s" % [ARROWS[sd], nm]
+			(b as Button).tooltip_text = "move %s" % nm
+
+## Where each screen direction sits in the flattened 3x3 ring.
+const RING_INDEX := [1, 2, 5, 8, 7, 6, 3, 0]
 
 ## --- per-pane controls (what the camera menu's widgets drive) ---------------------
 ##
@@ -152,6 +304,10 @@ func toggle() -> void:
 
 ## Per-frame while on: point each preview camera at its mode's view, off the shared rig math.
 func update() -> void:
+	var dt := get_process_delta_time()
+	for v in _cams:
+		if int(v["mode"]) == 3:                      # CINEMATIC: its own speed, 0 = paused
+			v["st"]["cine"] = float(v["st"].get("cine", 0.0)) + dt * float(v.get("cine_speed", 1.0))
 	for v in _cams:
 		var m: int = v["mode"]
 		var cam: Camera3D = v["cam"]
@@ -165,3 +321,4 @@ func update() -> void:
 		cam.position = eye
 		if eye.distance_to(look) > 0.001:
 			cam.look_at(look, _cam_rig.NORTH if top else Vector3.UP)
+	_refresh_rings()

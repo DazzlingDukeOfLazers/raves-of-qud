@@ -203,7 +203,11 @@ func _ready() -> void:
 	# Pane clicks call back into Main._multiview_inspect (Main owns the inspector + report form).
 	_multiview = load("res://Multiview.gd").new()
 	add_child(_multiview)
-	_multiview.setup(_cam_rig, _MODE_NAMES, _multiview_inspect, _set_mode)
+	# The last argument is how a pane's compass ring moves the player: it hands back a COMPASS
+	# NAME ("N", "SE", …) already resolved for that pane's heading, so this end stays the one
+	# place that talks to the bridge about movement.
+	_multiview.setup(_cam_rig, _MODE_NAMES, _multiview_inspect, _set_mode,
+		func(d: String): client.send_command("move", {"dir": d}))
 
 	# Remote-command channel (the godot_cmd file poller for control.py). Driven from _process; the dispatch
 	# (_exec_godot_cmd) stays here since each command drives a Main subsystem.
