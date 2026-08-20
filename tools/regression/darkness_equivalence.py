@@ -158,3 +158,55 @@ if bad:
     for b in bad[:10]: print("   ", b)
     raise SystemExit(1)
 print("\nPASS: the only divergence is live + never-seen + light < FOG_GROUND (the fix)")
+
+
+# --- uniform-cell collapse: same picture, far fewer quads (2026-08-19) ---
+FLAT_ALPHA = 1.0/255.0
+D = 16
+
+def frozen_light_at(x, y):
+    dx = max(0.0, -0.5 - x, x - (W - 0.5)); dy = max(0.0, -0.5 - y, y - (H - 0.5))
+    d = max(dx, dy)
+    if d <= 0.0: return 1.0
+    return 1.0 - lerp(EDGE, 1.0, clamp((d - 1.0)/max(1, R), 0.0, 1.0))
+
+def veil_bounds(kx, ky, ox, oy):
+    lo, hi = 1.0, 0.0
+    for dy in (-0.5, 0.5):
+        for dx in (-0.5, 0.5):
+            v = 1.0 - frozen_light_at(kx + dx + ox, ky + dy + oy)
+            lo = min(lo, v); hi = max(hi, v)
+    return lo, hi
+
+print("\n=== uniform-cell collapse (frozen zone, D=%d) ===" % D)
+for ox, oy, lbl in ((W, 0, "adjacent east"), (3*W, 0, "3 zones east"), (5*W, 2*H, "far diagonal")):
+    old_q = new_q = 0; bad = 0; worst = 0.0
+    for kx in range(W):
+        for ky in range(H):
+            t = 1.0 - MEM
+            v = 1.0 - frozen_light(kx, ky, ox, oy)
+            if not (v > 0.0 and v + veil_step(True) >= t):
+                old_q += 1; new_q += 1; continue
+            old_q += D*D
+            lo, hi = veil_bounds(kx, ky, ox, oy)
+            a_lo, a_hi = max(t, lo)*1.0, max(t, hi)*1.0
+            if a_lo >= SOLID_A or (a_hi - a_lo) <= FLAT_ALPHA:
+                new_q += 1
+                # every sub-sample must agree with the one quad we emit instead
+                for iy in range(D):
+                    for ix in range(D):
+                        x = kx - 0.5 + (ix+0.5)/D; y = ky - 0.5 + (iy+0.5)/D
+                        a = max(t, 1.0 - frozen_light_at(x+ox, y+oy))
+                        ref = 1.0 if a_lo >= SOLID_A else a_hi
+                        if a_lo >= SOLID_A:
+                            if a < SOLID_A: bad += 1
+                        else:
+                            worst = max(worst, abs(a - ref))
+                            if abs(a - ref) > FLAT_ALPHA: bad += 1
+            else:
+                new_q += D*D
+    print("  %-15s quads %7d -> %6d  (%.0fx)   mismatched sub-samples: %d  worst da %.5f"
+          % (lbl, old_q, new_q, old_q/max(1,new_q), bad, worst))
+    if bad:
+        raise SystemExit("FAIL: collapse changed the picture in %d sub-samples" % bad)
+print("\nPASS: every collapsed cell was uniform to within 1/255 -- same picture")

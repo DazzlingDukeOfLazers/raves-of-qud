@@ -2479,3 +2479,33 @@ offset. Between them you can tell a frontier zone (few visited neighbours — so
 not a bug) from a real fault, before touching a screenshot. **Pick the game dir by checking which
 one holds the CURRENT zone AND is most recent** — several dirs can contain the same zone id from
 different playthroughs, and taking the first match had me analysing a stale game.
+
+## Per-crossing cost must not scale with everywhere you have BEEN (2026-08-19)
+
+Every remembered neighbour re-bakes when its offset changes — i.e. on every zone crossing — so
+anything paid per neighbour is paid again for every zone in the world store, forever. Twenty-one
+zones in, a single step cost 10.7 MILLION quads and `render.remembered` peaked at **18,759ms**.
+Daniel: "the zones are taking longer and longer to load when you transition." Three fixes, each
+about not doing work whose result is already known:
+
+- **A uniform cell is one quad.** Subdividing is for GRADIENTS. Past the ramp every sample in a
+  cell returns the same alpha, so `divisions=16` emitted 256 identical stacked quads. The ramps are
+  monotone in distance to a rectangle, so a cell's four CORNERS bracket every sample inside it
+  (`_veil_bounds`) — if that bracket is opaque, or flat to within 1/255, one quad is the same
+  picture. 512,000 quads to 27,500 for an adjacent zone, to 2,000 for a distant one.
+- **A zone wholly past the ramp is one rectangle, and its mesh does not depend on the offset.** So
+  it never needs re-baking when the player moves (`_zone_beyond_ramp`). Only the 3x3 does work now,
+  whatever the store holds — measured 52 bakes over 6 crossings, i.e. nine each.
+- **Do not build what nothing can show.** Beyond-the-ramp is exactly outside-the-3x3, which
+  `_build_unexplored`'s far frame already covers edge to edge, so those zones' ART was assembled and
+  hidden — ~300ms each, once per zone ever visited. Skipped, lazily: walk back toward one and it
+  builds then. (Deeper strata are exempt — they hang below the frame.)
+
+Net `render.remembered`: max 18,759ms -> 2,035ms, avg 557ms -> 146ms, and flat in the number of
+zones explored rather than linear in it.
+
+**Measure which HALF before optimising.** The first two fixes cut quads 160x and bought only 3x
+wall-clock, because the remaining cost was the art build, not the darkness — invisible until
+`remembered.art` and `remembered.dark` were separate profiler phases. `profile.txt` (P key, or
+every 40 turns) had been recording the 18.8s max for the whole session; **read it before theorising
+about a slowdown.** `neighbors` at 0.10ms also ruled out the list-building immediately.

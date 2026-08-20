@@ -113,6 +113,10 @@ const LIVE_EDGE_FADE := 4
 ## "fully dark" needs no blending — it is a black surface. So the blended fill stays capped at the
 ## FROZEN_DARK_IN-deep band along the shared edge whatever the zone's size.
 const DARK_SOLID_A := 0.995
+## Alpha difference across a cell below which subdividing it cannot change the picture: a vertex
+## colour is 8-bit, so anything under 1/255 quantises to the same byte. The gate that turns a
+## 256-quad gradient back into one quad (see _veil_bounds).
+const FLAT_ALPHA := 1.0 / 255.0
 ## THE MEMORY WASH. A remembered cell is not "the floor, dimmed" — in Qud it is the FIELD, because
 ## a cell is ~99.7% background and memory only repaints the sparse glyph in K/k. Measured on Qud at
 ## dusk: its playfield is the field colour throughout, with water showing only as a lighter teal
@@ -1276,6 +1280,22 @@ func _build_darkness(cells: Array, parent: Node, frozen_off := NOT_FROZEN) -> vo
 	var frozen: bool = frozen_off != NOT_FROZEN
 	penumbra_radius = maxi(1, int(Settings.get_value("penumbra_radius", penumbra_radius)))
 	penumbra_divisions = clampi(int(Settings.get_value("penumbra_divisions", penumbra_divisions)), 1, 16)
+	# A ZONE WHOLLY PAST THE RAMP IS ONE RECTANGLE. Every cell in it is fully opaque, so the 2000
+	# per-cell quads (or, at divisions=16, the 512,000 sub-quads) all carry the same black. Emitting
+	# them was most of what made a zone crossing hitch: every neighbour re-bakes when its offset
+	# changes, i.e. on every crossing, and a 21-zone walk was rebuilding 10.7 MILLION quads for one
+	# step — profiler render.remembered max 18,759ms. Daniel: "the zones are taking longer and
+	# longer to load when you transition." One quad carries the identical picture.
+	if frozen and not _one_to_one and _zone_beyond_ramp(frozen_off):
+		var sfar := SurfaceTool.new()
+		sfar.begin(Mesh.PRIMITIVE_TRIANGLES)
+		_dark_rect(sfar, 0, 0, int(_live_w), int(_live_h), DARK_SOLID_Y)
+		var mfar := MeshInstance3D.new()
+		mfar.mesh = sfar.commit()
+		mfar.material_override = _dark_solid_material()
+		mfar.set_meta("is_darkness", true)
+		parent.add_child(mfar)
+		return
 	# PASS 1 — TWO INDEPENDENT ANSWERS PER CELL, never one value they have to fight over.
 	#
 	# THE RESTRUCTURE THIS BLOCK EXISTS TO REMEMBER. Each cell is asked two questions that have
@@ -1419,14 +1439,35 @@ func _build_darkness(cells: Array, parent: Node, frozen_off := NOT_FROZEN) -> vo
 				any = true
 			var a := float(dark[k]) * amax
 			if penumbra_divisions > 1 and veil_kind.has(k):
-				# SUBDIVIDED: part of this cell's darkness is a DISTANCE, so it can be resampled inside
-				# the tile instead of standing as one flat step. The tone rides along as a floor, so a
-				# sub-quad is never lighter than what the cell IS — the same max, evaluated per sample.
-				# Frozen zones bake once; the live zone's edge band is the only per-turn cost.
-				var res: Array = _emit_fade_cell(st, sto, k, int(veil_kind[k]), frozen_off, amax,
-					float(tone[k]))
-				any = any or bool(res[0])
-				any_solid = any_solid or bool(res[1])
+				# SUBDIVIDE ONLY A CELL THAT IS ACTUALLY A GRADIENT. Part of this cell's darkness is
+				# a DISTANCE, so it CAN be resampled inside the tile — but "can" is not "must", and
+				# assuming it must was costing whole seconds per zone crossing. Beyond the ramp a
+				# frozen zone is uniformly opaque, so all D x D samples come back identical and get
+				# emitted as identical stacked quads: at divisions=16 that is 256 quads per cell,
+				# 512,000 per zone, and every neighbour is re-baked on every crossing because its
+				# offset changed. 21 zones deep into a walk that was 10.7 MILLION quads for one step
+				# — profiler render.remembered avg 557ms, max 18,759ms. Daniel: "the zones are taking
+				# longer and longer to load when you transition."
+				#
+				# The ramp is monotone in distance to a rectangle, so the cell's CORNERS bracket
+				# every sample inside it. If that bracket is already opaque, or flat to within what
+				# an 8-bit alpha can even represent, one quad carries the same picture.
+				var b := _veil_bounds(k, int(veil_kind[k]), frozen_off)
+				var t_k := float(tone[k])
+				var a_lo: float = maxf(t_k, b.x) * amax
+				var a_hi: float = maxf(t_k, b.y) * amax
+				if a_lo >= DARK_SOLID_A:
+					_dark_quad(sto, cx, cy, DARK_SOLID_Y, 1.0); any_solid = true   # uniformly opaque
+				elif a_hi - a_lo <= FLAT_ALPHA:
+					if a_hi >= 0.02:
+						_dark_quad(st, cx, cy, DARK_FLOOR_Y, a_hi); any = true     # uniform, one step
+				else:
+					# a real gradient: the tone rides along as a floor, so a sub-quad is never
+					# lighter than what the cell IS — the same max, evaluated per sample.
+					var res: Array = _emit_fade_cell(st, sto, k, int(veil_kind[k]), frozen_off, amax,
+						t_k)
+					any = any or bool(res[0])
+					any_solid = any_solid or bool(res[1])
 			elif a >= DARK_SOLID_A:
 				_dark_quad(sto, cx, cy, DARK_SOLID_Y, 1.0); any_solid = true
 			elif a >= 0.02:
@@ -1452,6 +1493,28 @@ func _build_darkness(cells: Array, parent: Node, frozen_off := NOT_FROZEN) -> vo
 ## cell when divisions > 1. Distance is measured to the live rect's OUTER edge (-0.5 / +size-0.5)
 ## How much the veil ramp rises across ONE tile — the margin for the subdivision gate above.
 ## Mirrors the two ramps exactly: _frozen_light spreads (1 - FROZEN_EDGE_DIM) over penumbra_radius
+## Is this whole zone past the end of the distance ramp, at the given offset?
+##
+## Minimum Chebyshev distance from ANY of its cells to the live rect. The ramp saturates at
+## penumbra_radius, so past that every cell is fully opaque and the zone is one flat black
+## rectangle — no gradient anywhere in it, and nothing about that depends on WHICH direction or
+## how far away it sits. Both facts are load-bearing: it collapses to one quad, and it never needs
+## re-baking when the player moves (see _sync_neighbors).
+func _zone_beyond_ramp(off: Vector2i) -> bool:
+	var zw := int(_live_w)
+	var zh := int(_live_h)
+	var dx := 0
+	if off.x + zw - 1 < 0:
+		dx = -(off.x + zw - 1)          # entirely west: nearest cell is its east column
+	elif off.x > zw - 1:
+		dx = off.x - (zw - 1)           # entirely east: nearest is its west column
+	var dy := 0
+	if off.y + zh - 1 < 0:
+		dy = -(off.y + zh - 1)
+	elif off.y > zh - 1:
+		dy = off.y - (zh - 1)
+	return maxi(dx, dy) >= penumbra_radius + 1
+
 ## tiles, _live_edge_light spreads FROZEN_EDGE_DIM over penumbra_radius + 1.
 func _veil_step(frozen: bool) -> float:
 	if frozen:
@@ -1633,6 +1696,26 @@ func _live_edge_light(k: Vector2i) -> float:
 ## `tone_floor`: the cell's TONE as a darkness alpha (see _build_darkness pass 1). The veil is
 ## resampled per sub-quad; the tone is uniform across the tile, so it rides along as a floor and
 ## the same max(tone, veil) rule holds at every sample. Without it a subdivided cell would come
+## Veil alpha range [min, max] across ONE cell, sampled at its four corners.
+##
+## Both ramps are monotone in a distance to a rectangle, so the corners BRACKET every sample inside
+## the tile — which is what lets the caller decide whether a cell is a gradient worth subdividing or
+## a flat step that one quad renders identically. Cheap: four evaluations against 256.
+func _veil_bounds(k: Vector2i, kind: int, off: Vector2i) -> Vector2:
+	var lo := 1.0
+	var hi := 0.0
+	for dy in [-0.5, 0.5]:
+		for dx in [-0.5, 0.5]:
+			var lf: float
+			if kind == 1:
+				lf = _frozen_light_at(float(k.x) + dx + float(off.x), float(k.y) + dy + float(off.y))
+			else:
+				lf = _live_edge_light_at(float(k.x) + dx, float(k.y) + dy)
+			var v := 1.0 - lf
+			lo = minf(lo, v)
+			hi = maxf(hi, v)
+	return Vector2(lo, hi)
+
 ## out LIGHTER than the same cell unsubdivided wherever the tone is the darker of the two.
 func _emit_fade_cell(st: SurfaceTool, sto: SurfaceTool, k: Vector2i, kind: int,
 		off: Vector2i, amax: float, tone_floor := 0.0) -> Array:
@@ -1802,6 +1885,20 @@ func _sync_neighbors(neighbors: Array) -> void:
 	# ensure each wanted neighbour is built once, then position it by its offset
 	for id in want:
 		var nb: Dictionary = want[id]
+		# DO NOT BUILD WHAT NOTHING CAN SHOW. A same-stratum zone past the ramp is exactly a zone
+		# outside the 3x3, and _build_unexplored's far frame already covers that ground edge to
+		# edge — so its art is assembled, banked and hidden, every sprite of it invisible. That is
+		# the half of a crossing that kept GROWING: the darkness bake is bounded at nine zones now,
+		# but the art build was still paid once for every zone the player had ever walked through,
+		# ~300ms each, and it is all discarded. Deeper strata are exempt: they hang BELOW the live
+		# level, where the frame does not reach.
+		#
+		# Lazy, not permanent — walk back toward one and it falls through to the normal path and
+		# builds then, which is also why the node stays in _static_zones once created.
+		if int(nb.get("dz", 0)) == 0 and _zone_beyond_ramp(Vector2i(nb.get("offset", Vector2i.ZERO))):
+			if _static_zones.has(id):
+				_static_zones[id].visible = false
+			continue
 		if not _static_zones.has(id):
 			var sub := Node3D.new()
 			_remembered_root.add_child(sub)
@@ -1810,9 +1907,11 @@ func _sync_neighbors(neighbors: Array) -> void:
 			_noting = false     # neighbours aren't inspected; don't touch _placed
 			_remembered_build = true    # ...and its art is drawn in Qud's memory pair
 			var wt := {}
+			Profiler.begin("remembered.art")
 			_build_zone(nb.get("cells", []), Vector2i.ZERO, true, wt)   # local coords
 			_rebuild_walls(wt)     # _bank set -> into the subtree, no clear
 			_flush_floor_batch()   # batched floor MultiMeshes into the neighbour subtree
+			Profiler.done("remembered.art")
 			_remembered_build = false
 			_noting = true
 			_bank = null
@@ -1833,7 +1932,16 @@ func _sync_neighbors(neighbors: Array) -> void:
 		# corner." Keying the guard on the OFFSET re-bakes exactly when it matters and never
 		# otherwise — a zone you walk past without changing its relation is left alone.
 		var nb_off := Vector2i(nb.get("offset", Vector2i.ZERO))
-		if not znode.has_meta("dark_off") or Vector2i(znode.get_meta("dark_off")) != nb_off:
+		# FAR STAYS FAR: a zone past the ramp bakes to one offset-independent rectangle, so when it
+		# was already beyond it and still is, the mesh a re-bake would produce is byte-for-byte the
+		# one already hanging there. Record the new offset and move on. This is what stops the cost
+		# of a crossing growing with everywhere you have ever been: only the zones actually touching
+		# the live one — at most eight — do any work.
+		var was_far: bool = znode.has_meta("dark_off") \
+				and _zone_beyond_ramp(Vector2i(znode.get_meta("dark_off")))
+		if was_far and _zone_beyond_ramp(nb_off):
+			znode.set_meta("dark_off", nb_off)
+		elif not znode.has_meta("dark_off") or Vector2i(znode.get_meta("dark_off")) != nb_off:
 			znode.set_meta("dark_off", nb_off)
 			for old_dark in znode.get_children():
 				if old_dark.has_meta("is_darkness"):
@@ -1841,7 +1949,9 @@ func _sync_neighbors(neighbors: Array) -> void:
 			# No sight-disc clear: see _build_darkness for the hole that one punched into
 			# every zone the player left. The OFFSET turns on the distance ramp — this zone is
 			# behind you now, so it fades from its shared edge the way anything out of sight does.
+			Profiler.begin("remembered.dark")
 			_build_darkness(nb.get("cells", []), znode, nb_off)
+			Profiler.done("remembered.dark")
 			# ONE LINE PER RE-BAKE, which is once per zone per change of relationship — not per
 			# turn, not per frame. It is what tools/capture/zonewalk.py asserts against: the ramp
 			# a neighbour is WEARING, so a stale orientation is visible in the log instead of only
