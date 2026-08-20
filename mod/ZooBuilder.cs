@@ -210,15 +210,37 @@ namespace RavesOfQud
                     // At runtime that matched 4064 blueprints, where the XML suggested ~470: the
                     // difference is bodies, not armouries. Requiring Item ancestry keeps the
                     // things a player can actually pick up and swing.
-                    return bp.InheritsFrom("Item")
-                        && (bp.HasPart("MeleeWeapon") || bp.HasPart("MissileWeapon")
-                            || bp.InheritsFrom("Ammo"));
+                    return (bp.InheritsFrom("Item")
+                            && (bp.HasPart("MeleeWeapon") || bp.HasPart("MissileWeapon")))
+                        || Match(bp, "ammo") || Match(bp, "grenades");
                 case "ammo":
-                    // Qud has a real `Ammo` base blueprint, so this is an ancestor test rather
-                    // than a part sniff — arrows, slugs, shells, cells and grenades all hang off
-                    // it. Used by the `loadout` chest, which wants everything that FEEDS a weapon
-                    // as well as the weapons.
-                    return bp.InheritsFrom("Ammo");
+                    // THERE IS NO `Ammo` BLUEPRINT. I wrote this as InheritsFrom("Ammo") on the
+                    // strength of seeing the string in the data, and it matched zero -- `Ammo` is
+                    // a PART name prefix, not a base object. Which means the big "everything
+                    // wieldable" chest had been shipping with no ammo in it at all, silently,
+                    // because a category that matches nothing looks exactly like a category whose
+                    // items are already covered. Carryable ammo carries one of these parts.
+                    return bp.HasPart("AmmoArrow") || bp.HasPart("AmmoSlug")
+                        || bp.HasPart("AmmoShotgunShell") || bp.HasPart("AmmoMissile")
+                        || bp.HasPart("AmmoGrenade") || bp.HasPart("AmmoDart")
+                        || bp.HasPart("LiquidAmmoLoader") || bp.HasPart("MagazineAmmoLoader");
+                // ---- narrow slices, so a chest is something Qud and Raves can actually hold ----
+                // "weapons + ammo" is 1732 objects, which Daniel found too much for both apps.
+                // Same Item-gated test, split by what the thing IS, so a chest can be ~60 grenades
+                // rather than a whole armoury.
+                case "melee":
+                    return bp.InheritsFrom("Item") && bp.HasPart("MeleeWeapon");
+                case "missile":
+                    return bp.InheritsFrom("Item") && bp.HasPart("MissileWeapon");
+                case "grenades":
+                    // NO Item GATE HERE, and that is not an oversight. Grenade inherits
+                    // BaseThrownWeapon, which inherits InorganicObject -- not Item. Gating on
+                    // Item matched ZERO of the 59 grenades in the data. `Grenade` is a specific
+                    // enough ancestor to stand on its own; the Item gate exists to keep creature
+                    // body parts out of the weapon slices, and no body part inherits Grenade.
+                    return bp.InheritsFrom("Grenade");
+                case "armor":
+                    return bp.InheritsFrom("Item") && bp.HasPart("Armor");
                 case "items":
                     return bp.InheritsFrom("Item")
                         && !bp.HasPart("MeleeWeapon") && !bp.HasPart("MissileWeapon")
