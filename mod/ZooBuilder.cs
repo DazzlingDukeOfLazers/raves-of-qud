@@ -203,6 +203,22 @@ namespace RavesOfQud
                     // Pool/puddle blueprints (open liquid on the floor), not
                     // liquid CONTAINERS (waterskins etc. stay in "items").
                     return bp.InheritsFrom("LiquidPool") || bp.InheritsFrom("Water");
+                case "loadout":
+                    // WIELDABLE weapons and their ammo, which is not the same set as "weapons".
+                    // The plain category is a part sniff, and MeleeWeapon is carried by every
+                    // creature's natural weapon too -- claws, horns, stingers, a snapjaw's jaws.
+                    // At runtime that matched 4064 blueprints, where the XML suggested ~470: the
+                    // difference is bodies, not armouries. Requiring Item ancestry keeps the
+                    // things a player can actually pick up and swing.
+                    return bp.InheritsFrom("Item")
+                        && (bp.HasPart("MeleeWeapon") || bp.HasPart("MissileWeapon")
+                            || bp.InheritsFrom("Ammo"));
+                case "ammo":
+                    // Qud has a real `Ammo` base blueprint, so this is an ancestor test rather
+                    // than a part sniff — arrows, slugs, shells, cells and grenades all hang off
+                    // it. Used by the `loadout` chest, which wants everything that FEEDS a weapon
+                    // as well as the weapons.
+                    return bp.InheritsFrom("Ammo");
                 case "items":
                     return bp.InheritsFrom("Item")
                         && !bp.HasPart("MeleeWeapon") && !bp.HasPart("MissileWeapon")

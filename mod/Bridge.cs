@@ -441,6 +441,7 @@ namespace RavesOfQud
             // turn thread and this tick stops firing, so arming here alone could never cover the
             // case it exists for. StartupHook's heartbeat is the arming path (see PopupBridge.Ensure).
             PopupBridge.Ensure();
+            LoadoutStep(player);            // fill a pending loadout chest a few items per frame
             bool applied = false;
             while (server.Incoming.TryDequeue(out string json))
             {
@@ -1628,6 +1629,74 @@ namespace RavesOfQud
             catch (Exception e) { try { Server.Log("pushkey error: " + e.Message); } catch { } }
         }
 
+
+        // ---- loadout: fill the chest a FEW ITEMS PER FRAME -----------------------------
+        //
+        // One of every weapon is ~470 objects, and each CreateObject can fire its own inventory
+        // spec while each AddObject fires more. Doing that in a single frame threw Qud's own
+        // "exceeded event pool size 4000" out of GameObjectFactory -- the pool is per-frame, so
+        // the fix is not a bigger try/catch but fewer objects per frame. Same shape as the
+        // renderer's incremental static build: keep a queue, drain a slice, come back next frame.
+        private const int LOADOUT_PER_FRAME = 12;
+        private const int LOADOUT_SPHERES = 24;   // useful loose; the CHEST carries a Suspensor
+        private static readonly List<string> LoadoutQueue = new List<string>();
+        private static GameObject LoadoutChest;
+        private static XRL.World.Parts.Inventory LoadoutInv;
+        private static double LoadoutWeight;
+        private static int LoadoutDone;
+
+        private static void LoadoutStep(GameObject player)
+        {
+            if (LoadoutQueue.Count == 0 || LoadoutInv == null) return;
+            int n = 0;
+            while (n < LOADOUT_PER_FRAME && LoadoutQueue.Count > 0)
+            {
+                string bpn = LoadoutQueue[0];
+                LoadoutQueue.RemoveAt(0);
+                n++;
+                GameObject it = null;
+                try { it = GameObjectFactory.Factory.CreateObject(bpn); } catch { continue; }
+                if (it == null) continue;
+                try { LoadoutInv.AddObject(it); LoadoutWeight += it.Weight; LoadoutDone++; }
+                catch { }
+            }
+            if (LoadoutQueue.Count > 0) return;
+            // CANCEL THE LOAD ON THE CHEST, not with a pile of spheres.
+            //
+            // Offsetting by sphere count is arithmetically fine and practically absurd: each
+            // Small Sphere of Negative Weight nets -10 lb (Suspensor subtracts 200% of its own
+            // 10 lb), and one of every wieldable weapon and ammo came to 200,013 lb -- so
+            // "enough spheres" was TWENTY THOUSAND objects, which is worse for the game than the
+            // weight ever was. The sphere is just a delivery vehicle for the part; the part can
+            // go straight on the chest. Suspensor at 100% zeroes the total weight it is asked
+            // about, contents included, because AdjustTotalWeightEvent is fired for the whole.
+            //
+            // A handful of spheres go in anyway -- they are what Daniel asked for and they are
+            // useful loose, to hang the same trick on something else.
+            try
+            {
+                var susp = new XRL.World.Parts.Suspensor();
+                susp.PercentageForce = 100;
+                susp.ChargeUse = 0;
+                LoadoutChest.AddPart(susp);
+            }
+            catch (Exception se) { Server.Log("[loadout] suspensor: " + se.Message); }
+            int made = 0;
+            for (int i = 0; i < LOADOUT_SPHERES; i++)
+            {
+                GameObject sp = null;
+                try { sp = GameObjectFactory.Factory.CreateObject("Small Sphere of Negative Weight"); }
+                catch { break; }
+                if (sp == null) break;
+                try { LoadoutInv.AddObject(sp); made++; } catch { }
+            }
+            Server.Log("[loadout] done: " + LoadoutDone + " items (" + (int)LoadoutWeight
+                       + " lb), chest suspended to 0, + " + made + " spheres loose");
+            LoadoutChest = null;
+            LoadoutInv = null;
+            ForcePublishSoon = true;
+        }
+
         private static void Apply(GameObject player, string json)
         {
             var f = MiniJson.ParseFlat(json);
@@ -1863,6 +1932,53 @@ namespace RavesOfQud
                         }
                     }
                     catch (Exception e) { Server.Log("itemaction error: " + e.Message); }
+                    break;
+                case "loadout":
+                    // A CHEST OF EVERYTHING THAT SHOOTS, weightless enough to actually carry.
+                    // `zoo weapons` already exists and scatters one of each across the zone,
+                    // which is right for LOOKING at art and useless for equipping: you cannot
+                    // pick a zone up. This packs weapons + ammo into one Chest at the player's
+                    // feet instead.
+                    //
+                    // THE SPHERE COUNT IS COMPUTED, NOT GUESSED. Suspensor does
+                    // `E.Weight -= E.Weight * PercentageForce / 100`, and a Small Sphere of
+                    // Negative Weight carries PercentageForce=200 over its own 10 lb, so each
+                    // one reports -10 lb net. Ceil(total/10) of them cancels the load, plus one
+                    // for the rounding. Deriving it from the part means the count stays right if
+                    // the blueprint is ever retuned.
+                    //
+                    // MAIN-THREAD ONLY, like `zoo` and `wish`: this creates GameObjects.
+                    try
+                    {
+                        f.TryGetValue("cat", out string ldCat);
+                        var ldFactory = GameObjectFactory.Factory;
+                        GameObject chest = ldFactory.CreateObject("Chest");
+                        if (chest == null)
+                        {
+                            Server.Log("[loadout] could not create Chest");
+                            break;
+                        }
+                        XRL.World.Parts.Inventory chestInv = chest.GetPart<XRL.World.Parts.Inventory>();
+                        if (chestInv == null)
+                        {
+                            Server.Log("[loadout] Chest has no Inventory part");
+                            break;
+                        }
+                        var cats = new List<string>();
+                        if (string.IsNullOrEmpty(ldCat)) { cats.Add("loadout"); }
+                        else cats.Add(ldCat);
+                        LoadoutQueue.Clear();
+                        foreach (string cat in cats) LoadoutQueue.AddRange(ZooBuilder.Select(cat));
+                        LoadoutChest = chest;
+                        LoadoutInv = chestInv;
+                        LoadoutWeight = 0;
+                        LoadoutDone = 0;
+                        Cell here = player.CurrentCell;
+                        if (here != null) here.AddObject(chest);
+                        Server.Log("[loadout] priming " + LoadoutQueue.Count
+                                   + " blueprints into a Chest, " + LOADOUT_PER_FRAME + " per frame");
+                    }
+                    catch (Exception e) { Server.Log("loadout error: " + e.Message); }
                     break;
                 case "zonetp":
                     // TELEPORT TO A ZONE, and nothing else. Qud's own wishes that reach the Tomb
