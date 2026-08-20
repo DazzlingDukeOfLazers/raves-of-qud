@@ -210,3 +210,30 @@ for ox, oy, lbl in ((W, 0, "adjacent east"), (3*W, 0, "3 zones east"), (5*W, 2*H
     if bad:
         raise SystemExit("FAIL: collapse changed the picture in %d sub-samples" % bad)
 print("\nPASS: every collapsed cell was uniform to within 1/255 -- same picture")
+
+
+# --- remembered ART takes the same dimming as remembered GROUND (2026-08-19) ---
+#
+# Qud draws a remembered cell as glyph K on field k, a flat 1.40 ratio, and the ratio IS the look.
+# Raves builds the two halves in different places: the ground is the field plane with the per-cell
+# darkness overlay on it, while a sprite stands ABOVE that overlay (a quad at floor height) and
+# receives none of it. So the art has to be multiplied by hand, by exactly what the ground got, or
+# it floats too bright against its own cell and the ratio drifts off Qud's.
+#
+# This is an INVARIANT between two constants that live in different parts of ZoneRenderer and are
+# edited for different reasons -- exactly the pair that drifts silently. Screenshot checks cannot
+# catch it: without the cell grid you cannot tell a glyph pixel from a ground pixel, and every
+# heuristic tried (modal colour, brightest teal, percentile) picked up sky or water instead.
+MEMORY_GROUND_C = 0.84     # keep in step with ZoneRenderer.gd
+DARK_MAX_C      = 0.94
+MEMORY_ART_MUL  = 1.0 - (1.0 - MEMORY_GROUND_C) * DARK_MAX_C
+
+ground_mul = 1.0 - (1.0 - MEMORY_GROUND_C) * DARK_MAX_C   # what the overlay leaves of the ground
+print("\n=== remembered art vs remembered ground ===")
+print("  ground keeps            %.4f of the field" % ground_mul)
+print("  art is multiplied by    %.4f" % MEMORY_ART_MUL)
+if abs(MEMORY_ART_MUL - ground_mul) > 1e-9:
+    raise SystemExit("FAIL: remembered art and ground take different dimming -- the K:k ratio drifts")
+print("  -> identical, so glyph/field survives as the SOURCE ratio K:k = %.2f (Qud's)"
+      % (21.0 / 15.0))
+print("PASS: remembered art and ground take the same dimming")

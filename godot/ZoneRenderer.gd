@@ -129,6 +129,18 @@ const FLAT_ALPHA := 1.0 / 255.0
 ## showing through is what keeps a remembered river reading as a river-shaped thing rather than
 ## flat ground, which is also what Qud's sparse K/k glyphs do.
 const REMEMBER_COVER := 0.92
+## What a REMEMBERED cell's ground ends up multiplied by, and therefore what its ART must be
+## multiplied by too.
+##
+## Qud draws a remembered cell as glyph K on field k — a flat 1.40 ratio, and the ratio is the
+## whole look. Raves gets the two halves from different places: the ground is the field plane with
+## the per-cell darkness overlay on top, while a sprite STANDS ABOVE that overlay (it is a quad at
+## floor height) and receives none of it. Leave the art at full brightness and it floats 1/0.85 =
+## 1.18x too bright against its own ground — measured 1.68 against Qud's 1.41, which is that
+## factor to within a percent. So the art takes the same dimming the ground took, and the ratio
+## survives. NOT the cell's light: memory does not follow the time of day (docs/gotchas.md), which
+## is the rule this whole path exists to honour.
+const MEMORY_ART_MUL := 1.0 - (1.0 - MEMORY_GROUND) * DARK_MAX
 const DARK_FLOOR_Y := 0.07      # darkness quad sits just above the floor tiles
 const DARK_ROOF_Y := WALL_H + 0.02   # and just above wall roofs, to dun unlit rock tops
 ## FULLY-DARK ground sits at FLOOR height, like every other darkness quad.
@@ -1124,7 +1136,7 @@ func _relight_static_sprites(cells: Array) -> void:
 				# Same rule the mesh branch below has always had via _view_tint, and the same one
 				# _wall_cutaway follows by swapping a ghost MESH and never modulating it. This
 				# path was the one that still multiplied.
-				s.modulate = Color.WHITE
+				s.modulate = Color(MEMORY_ART_MUL, MEMORY_ART_MUL, MEMORY_ART_MUL)
 			else:
 				var lf: float = float(lit.get(k1, 1.0))
 				s.modulate = Color(lf, lf, lf) if lf < 0.999 else Color.WHITE
@@ -1151,7 +1163,10 @@ func _relight_static_sprites(cells: Array) -> void:
 				var gm: Mesh = mi.get_meta("ghost_mesh")
 				if mi.mesh != gm:
 					mi.mesh = gm
-				mi.material_override.albedo_color = Color.WHITE   # the mesh IS the memory look
+				# The mesh IS the memory look; MEMORY_ART_MUL is only the ground's own dimming
+				# applied to it as well, so glyph and field keep Qud's ratio (see the constant).
+				mi.material_override.albedo_color = Color(MEMORY_ART_MUL, MEMORY_ART_MUL,
+					MEMORY_ART_MUL)
 				continue
 			if vc and mi.has_meta("live_mesh"):
 				var lm: Mesh = mi.get_meta("live_mesh")
@@ -5648,6 +5663,14 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			if glowing:
 				_add_glow(s, btex, tile)        # crisp bioluminescent bloom (glowfish, glowpad, tagged tiles)
 			_track(s)
+			if _remembered_build:
+				# A NEIGHBOUR'S GHOST TAKES THE SAME DIMMING AS THE LIVE ZONE'S, so the two still
+				# match exactly — Daniel's earlier test, "the shadowed watervine in my zone should
+				# be the same colour as the watervine outside my zone", which is a property of the
+				# ART and must not be undone by fixing the ratio. Its GROUND is darker (the frozen
+				# ramp, not the memory tone), so a neighbour's glyph-to-field ratio still climbs
+				# with depth into the zone; that is the ramp doing its job, not this drifting.
+				s.modulate = Color(MEMORY_ART_MUL, MEMORY_ART_MUL, MEMORY_ART_MUL)
 			# STATIC plant/scenery billboard (tree, brinestalk): register it to be dimmed by
 			# its cell's light EACH TURN (creatures get modulate directly; static sprites don't,
 			# so they'd stay lit at night). Glowing things emit light — leave them bright.
