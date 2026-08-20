@@ -2460,6 +2460,79 @@ func _is_burning(obj: Dictionary) -> bool:
 			seen[col] = true
 	return seen.size() >= 1
 
+## A BODY ON FIRE IS NOT A TORCH. The sconce rig emits from a 0.05-unit box at one point, which on
+## a creature reads as a single flame stuck to one spot; and its smoke is sized for ambience over a
+## wall bracket. Daniel: "the fire is only in one place on the body, let's spread it around" and
+## "the smoke should be bigger and spread much higher/wider -- when you're on fire, we make it more
+## dramatic." So burning gets its own numbers rather than sharing the torch's.
+const BURN_FIRE_AMOUNT := 44        # against a torch's 12 — the whole body alight, not one tongue
+const BURN_FIRE_SQUARE := 0.11      # bigger tongues than the torch's 0.075
+const BURN_FIRE_LIFETIME := 0.8
+const BURN_FIRE_RISE := 0.85
+## Emission volume: roughly a body. The Y extent is what spreads flame UP the creature instead of
+## pooling it at the feet — the emitter sits at BURN_FIRE_Y, so tongues start anywhere in the box
+## around it rather than all from one point.
+const BURN_FIRE_BOX := Vector3(0.30, 0.30, 0.30)
+const BURN_FIRE_Y := 0.40
+const BURN_SMOKE_AMOUNT := 40       # against a sconce's 14
+const BURN_SMOKE_SQUARE := 0.36     # against 0.16 — big soft billows, not a thin wisp
+const BURN_SMOKE_LIFETIME := 5.0    # against 3.4; with the faster rise, a much taller column
+const BURN_SMOKE_RISE := 1.6        # against 0.95
+const BURN_SMOKE_SWAY := 0.75       # against 0.28 — it spreads WIDE as it climbs
+const BURN_SMOKE_BOX := Vector3(0.24, 0.10, 0.24)
+const BURN_SMOKE_Y := 0.95
+var _burn_fire_mesh: QuadMesh = null
+var _burn_smoke_mesh: QuadMesh = null
+var _burn_fire_pm: ParticleProcessMaterial = null
+var _burn_smoke_pm: ParticleProcessMaterial = null
+
+## Build the burning variants ONCE, from the sconce rigs so the look stays in the same family —
+## same materials, same colour ramps, opened up.
+func _build_burn_resources() -> void:
+	if _burn_smoke_pm != null:
+		return
+	if _fire_pm == null:
+		_build_fire_resources()
+	_burn_fire_mesh = QuadMesh.new()
+	_burn_fire_mesh.size = Vector2(BURN_FIRE_SQUARE, BURN_FIRE_SQUARE)
+	_burn_fire_mesh.material = _fire_mesh.material
+	_burn_smoke_mesh = QuadMesh.new()
+	_burn_smoke_mesh.size = Vector2(BURN_SMOKE_SQUARE, BURN_SMOKE_SQUARE)
+	# SOFT-EDGED, because SIZE IS WHAT EXPOSES A BARE QUAD. A sconce's particle is 0.16 across and
+	# reads as a speck of soot whatever its shape; at 0.36 the same untextured quad is unmistakably a
+	# grey SLAB, and forty of them look like falling debris rather than smoke. A radial alpha falloff
+	# is what the rest of Raves' FX already use (the glow pool, the torch flame), so this stays in
+	# the same family. The colour ramp still drives hue and alpha -- the texture only shapes the edge.
+	var bmat: StandardMaterial3D = (_smoke_mesh.material as StandardMaterial3D).duplicate()
+	bmat.albedo_texture = _make_radial(48, Color(1, 1, 1), 1.25)
+	bmat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
+	_burn_smoke_mesh.material = bmat
+	_burn_fire_pm = _fire_pm.duplicate()
+	_burn_fire_pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	_burn_fire_pm.emission_box_extents = BURN_FIRE_BOX
+	_burn_fire_pm.initial_velocity_min = BURN_FIRE_RISE * 0.7
+	_burn_fire_pm.initial_velocity_max = BURN_FIRE_RISE * 1.25
+	_burn_fire_pm.spread = 18.0                      # tongues lean outward, not one vertical jet
+	_burn_smoke_pm = _smoke_pm.duplicate()
+	_burn_smoke_pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	_burn_smoke_pm.emission_box_extents = BURN_SMOKE_BOX
+	_burn_smoke_pm.initial_velocity_min = BURN_SMOKE_RISE * 0.75
+	_burn_smoke_pm.initial_velocity_max = BURN_SMOKE_RISE * 1.2
+	_burn_smoke_pm.spread = 14.0
+	_burn_smoke_pm.turbulence_noise_strength = BURN_SMOKE_SWAY
+	# Strong sway, but MODERATE influence: the plume has to climb more than it wanders. Cranking
+	# both spread it through the ground plane instead, which under this camera reads as smoke
+	# drifting sideways and DOWN rather than a column going up.
+	_burn_smoke_pm.turbulence_influence_min = 0.15
+	_burn_smoke_pm.turbulence_influence_max = 0.32
+	# grows as it climbs, harder than the sconce's — a billow, not a thread
+	var bc := Curve.new()
+	bc.add_point(Vector2(0.0, 0.6))
+	bc.add_point(Vector2(1.0, 2.6))
+	var bct := CurveTexture.new()
+	bct.curve = bc
+	_burn_smoke_pm.scale_curve = bct
+
 ## Fire and a smoke plume on a BURNING creature's cell, for the turn it is burning.
 ##
 ## The emitters are the sconce/campfire rig — same _make_fire / _make_smoke, so a creature alight
@@ -2478,11 +2551,30 @@ func _place_burning(cx: int, cy: int) -> void:
 	var lp: Node = _bank if _bank != null else _dynamic_root
 	if lp == null:
 		return
-	var pf := _make_fire(false)                       # slim tongues, not a campfire's wide base
-	pf.position = Vector3(cx, 0.42, cy)
+	_build_burn_resources()
+	var pf := GPUParticles3D.new()
+	pf.amount = BURN_FIRE_AMOUNT
+	pf.lifetime = BURN_FIRE_LIFETIME
+	pf.preprocess = BURN_FIRE_LIFETIME               # already burning, not just lit
+	pf.randomness = 0.7
+	pf.process_material = _burn_fire_pm
+	pf.draw_pass_1 = _burn_fire_mesh
+	pf.local_coords = false
+	pf.visibility_aabb = AABB(Vector3(-1.2, -0.6, -1.2), Vector3(2.4, 3.0, 2.4))
+	pf.position = Vector3(cx, BURN_FIRE_Y, cy)
 	lp.add_child(pf)
-	var sm := _make_smoke()
-	sm.position = Vector3(cx, 0.85, cy)               # just above the flame, as a sconce's does
+	var sm := GPUParticles3D.new()
+	sm.amount = BURN_SMOKE_AMOUNT
+	sm.lifetime = BURN_SMOKE_LIFETIME
+	sm.preprocess = BURN_SMOKE_LIFETIME              # a column already standing, not starting empty
+	sm.randomness = 0.6
+	sm.process_material = _burn_smoke_pm
+	sm.draw_pass_1 = _burn_smoke_mesh
+	sm.local_coords = false
+	# tall and wide enough that the column is not culled when the burning cell leaves the frustum
+	sm.visibility_aabb = AABB(Vector3(-4.0, -1.0, -4.0),
+		Vector3(8.0, BURN_SMOKE_RISE * BURN_SMOKE_LIFETIME + 3.0, 8.0))
+	sm.position = Vector3(cx, BURN_SMOKE_Y, cy)
 	sm.emitting = true
 	lp.add_child(sm)
 	# ONE LINE PER BURNING CELL PER TURN, the way [zonefade] reports a re-bake. Fire is rare and
@@ -8123,7 +8215,18 @@ func _register_anim(win: Dictionary, cx: int, cy: int) -> void:
 			if axes.size() != 3:
 				continue
 			var node: MeshInstance3D = null
-			if axes[0] != "" or axes[1] != "" or axes[2] != "":
+			# A COLOUR-ONLY FRAME MUST NOT BECOME A SECOND BILLBOARD. With no tile of its own a
+			# frame re-tints the object's OWN tile, which in 1:1 lands exactly over the flat cell
+			# it modifies -- that IS the cell, recoloured. Stood up in user mode it is a whole
+			# extra copy of the creature hanging beside itself, flashing. Daniel, on his burning
+			# character: "Raves is displaying a second image of the player. The second image has
+			# the flashing light. Let's get rid of both." In user mode the fire itself carries
+			# what the flash was for, so only frames that genuinely SWAP A TILE (the dawnglider's
+			# flying icon) earn an overlay.
+			var swaps_tile: bool = axes[0] != "" and String(axes[0]) != tile
+			var want_node: bool = (axes[0] != "" or axes[1] != "" or axes[2] != "") \
+					if _one_to_one else swaps_tile
+			if want_node:
 				var stile := String(axes[0]) if axes[0] != "" else tile
 				var smain := _qud_color(String(axes[1])) if axes[1] != "" else _obj_main(win)
 				var sdet: Color = _qud_color("&" + String(axes[2])) if axes[2] != "" else _obj_detail(win)
