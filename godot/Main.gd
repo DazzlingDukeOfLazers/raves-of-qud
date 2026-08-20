@@ -407,8 +407,15 @@ func _on_snapshot(data: Dictionary) -> void:
 		Profiler.done("neighbors")
 		# first-person: hide the player creature (the camera sits on its cell)
 		var pc: Dictionary = data.get("player", {})
-		renderer.set_hidden_cell(Vector2i(int(pc.get("x", -1)), int(pc.get("y", -1)))
-				if _cam_rig._mode == CamMode.FIRST_PERSON else Vector2i(-9999, -9999))
+		# FIRST PERSON HIDES THE PLAYER WITH A CULL MASK, not by skipping his cell. Skipping is a
+		# property of the WORLD and first person is a property of one CAMERA -- the difference did
+		# not matter until multiview put seven cameras on the same world, and then it showed up as
+		# the player standing in front of the first-person view. ZoneRenderer tags his cell onto
+		# PLAYER_LAYER; dropping that bit is all "first person" means here.
+		if _cam_rig._mode == CamMode.FIRST_PERSON:
+			_cam_rig._cam.cull_mask &= ~ZoneRenderer.PLAYER_LAYER
+		else:
+			_cam_rig._cam.cull_mask |= ZoneRenderer.PLAYER_LAYER
 		Profiler.begin("render")
 		renderer.render_snapshot(store.live_snapshot(), nbs)
 		Profiler.done("render")

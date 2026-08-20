@@ -53,6 +53,13 @@ func setup(cam_rig, mode_names: Dictionary, on_pane_inspect: Callable,
 		svc.add_child(sv)
 		var cam := Camera3D.new()
 		cam.fov = _cam_rig._cam.fov
+		# THE FIRST-PERSON PANE DROPS THE PLAYER, and only that pane. All seven panes render out
+		# of ONE World3D, so the old trick -- not PLACING the player's cell while in first person
+		# -- could only ever be right for every pane at once: it hid him from all seven, and with
+		# any other mode active it left him standing in front of this camera. ZoneRenderer tags
+		# the player's cell onto PLAYER_LAYER for exactly this.
+		if m == 2:   # CamMode.FIRST_PERSON
+			cam.cull_mask &= ~ZoneRenderer.PLAYER_LAYER
 		sv.add_child(cam)
 		cam.current = true   # the active camera for this sub-viewport
 		cell.add_child(svc)

@@ -262,6 +262,42 @@ var _hidden_cell := Vector2i(-9999, -9999)   # a live cell whose creature is not
 var _player_cell := Vector2i(-9999, -9999)   # the player's cell this snapshot (from data.player), for the world-map "on top" rule
 var _placing_player := false                 # true while placing the player's own sprite in the dynamic pass
 
+## The visual layer the PLAYER'S OWN CELL is drawn on, so a camera can drop it without anything
+## else having to change.
+##
+## First person used to hide the player by SKIPPING placement of that cell (see _hidden_cell), and
+## that cannot work once more than one camera looks at the same world: multiview renders seven
+## panes out of ONE World3D, so skipping hid the player from all seven, and not skipping stood him
+## in front of the first-person camera. Daniel: "first person seems to have moved the player in
+## front of the camera on occasion. Like right now." Neither is a placement question -- it is a
+## per-camera one, and Godot answers it with layers and cull_mask.
+const PLAYER_LAYER := 1 << 9
+
+## Put every VisualInstance3D in a subtree on a layer (bit OR'd in, so it keeps rendering to
+
+## Put everything standing on the player's own cell onto PLAYER_LAYER, so a first-person camera
+## can drop it. Runs after the dynamic pass, over the whole per-turn subtree.
+func _tag_player_cell() -> void:
+	if _dynamic_root == null:
+		return
+	var px := float(_player_cell.x)
+	var pz := float(_player_cell.y)
+	for c in _dynamic_root.get_children():
+		var n3 := c as Node3D
+		if n3 == null:
+			continue
+		# half a cell either way: a billboard is seated on the cell centre, and its children
+		# (glow quads, particle emitters) sit within it.
+		if absf(n3.position.x - px) <= 0.5 and absf(n3.position.z - pz) <= 0.5:
+			_tag_layer(n3, PLAYER_LAYER)
+
+## cameras that do not cull it).
+func _tag_layer(n: Node, bit: int) -> void:
+	if n is VisualInstance3D:
+		(n as VisualInstance3D).layers |= bit
+	for c in n.get_children():
+		_tag_layer(c, bit)
+
 func set_hidden_cell(c: Vector2i) -> void:
 	_hidden_cell = c
 
@@ -941,8 +977,9 @@ func _rebuild_dynamics(cells: Array) -> void:
 	for cell in cells:
 		var cx := int(cell.get("x", 0))
 		var cy := int(cell.get("y", 0))
-		if Vector2i(cx, cy) == _hidden_cell:
-			continue     # first-person hides the player (the camera sits on this cell)
+		# NO LONGER SKIPPED. The player's cell is placed like any other and tagged after the pass
+		# (see the PLAYER_LAYER walk below), so a first-person camera can cull it while the other
+		# six panes still show him.
 		var sink := _cell_sink(cell)
 		var wet: bool = bool(cell.get("wade", false)) or bool(cell.get("swim", false))
 		var lf: float = _light_frac(cell)   # dim creatures in the dark (night or cavern)
@@ -1050,6 +1087,12 @@ func _rebuild_dynamics(cells: Array) -> void:
 				if _is_glowfish(od):
 					_make_orbiters(cx, cy)     # bioluminescent bugs circling the fish
 			idx += 1
+	# TAG BY POSITION, not by which children are new. Sprites come from a POOL, so the player's
+	# billboard is usually an EXISTING child of _dynamic_root that got re-seated this turn --
+	# a "children added since we started this cell" range misses exactly the node that matters,
+	# which is how the player kept appearing in front of the first-person camera after the first
+	# fix. Where a node IS cannot be faked by pooling.
+	_tag_player_cell()
 	_placing_player = false
 	# Winner rule, dynamic half: a creature is its cell's face — the static winner under
 	# it hides for the turn and pops back the turn the creature moves off. No rebuilds.
