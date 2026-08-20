@@ -1482,6 +1482,7 @@ func _set_game_live(live: bool) -> void:
 	if live == _game_live:
 		return
 	_game_live = live
+	UiState.set_game_live(live)   # so a driver can wait for it instead of sleeping at it
 	_refresh_enabled()
 	if live and _pending_load:
 		_pending_load = false

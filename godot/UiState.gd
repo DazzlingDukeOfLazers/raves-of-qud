@@ -35,6 +35,7 @@ var _popups := {}
 ## where it failed the quit route on a step that had in fact worked. The serial makes
 ## "a DIFFERENT popup is up now" observable without inventing popup ids.
 var _popup_n := 0
+var _game_live := false      # a live Qud game has been seen (title screen included)
 var _snap_ts := 0    # unix time of the last APPLIED snapshot (0 = none yet):
                      # proves the wire is flowing, not just that the UI is alive
 
@@ -76,7 +77,24 @@ func note_world_map(on: bool) -> void:
 
 func note_snapshot() -> void:
 	_snap_ts = int(Time.get_unix_time_from_system())
+	_game_live = true      # a snapshot IS the proof; nothing else needs to say so
 	# no _write(): snapshots can arrive every turn — the 2s heartbeat carries it
+
+## Whether a LIVE Qud game has been seen — reported from the TITLE SCREEN too, which is the
+## whole point of it existing separately from `snap_ts`.
+##
+## `snap_ts` is written by the viewer, so at the title it is absent, and "absent" there is
+## ambiguous in the one way that matters: it looks identical whether Qud is sitting at its own
+## menu or is mid-game with a character standing in it. MainMenu already knows the difference —
+## it keeps its own bridge connection and the mod publishes a snapshot on connect when a game is
+## live — it simply never told anyone. Continue BRANCHES on this (attach to the running game, or
+## open the save picker), so a driver that cannot see it can only guess at the timing and will
+## eventually guess wrong. See highvisor's gametree `raves title -> in_game`.
+func set_game_live(live: bool) -> void:
+	if live == _game_live:
+		return
+	_game_live = live
+	_write()
 
 ## The current scene, for tools that annotate with it (FeedbackTool).
 func scene() -> String:
@@ -235,6 +253,9 @@ func _write() -> void:
 	# heartbeat from a client that is connected but receiving nothing.
 	if _snap_ts > 0:
 		d["snap_ts"] = _snap_ts
+	# Always present, unlike snap_ts — a driver has to be able to tell "no live game" from
+	# "this screen does not report it", and an absent key cannot say the first of those.
+	d["game_live"] = _game_live
 	# Written to BOTH the shared path and this process's own sidecar — see _pid_path().
 	var payload := JSON.stringify(d)
 	for p in [_path(), _pid_path()]:
