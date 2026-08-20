@@ -2467,8 +2467,12 @@ func _is_burning(obj: Dictionary) -> bool:
 ## dramatic." So burning gets its own numbers rather than sharing the torch's.
 const BURN_FIRE_AMOUNT := 44        # against a torch's 12 — the whole body alight, not one tongue
 const BURN_FIRE_SQUARE := 0.11      # bigger tongues than the torch's 0.075
-const BURN_FIRE_LIFETIME := 0.8
-const BURN_FIRE_RISE := 0.85
+const BURN_FIRE_LIFETIME := 0.95    # a little longer alive, so a tongue reaches further up
+const BURN_FIRE_RISE := 1.25        # was 0.85 — flames climb rather than bloom outward
+## Tongues are drawn TALLER than they are wide. A square particle reads as an ember; the same
+## quad stretched vertically reads as flame, and it costs nothing — the billboard keeps facing
+## the camera either way. Daniel: "can we make the particles flame vertically a little more?"
+const BURN_FIRE_TALL := 1.7
 ## Emission volume: roughly a body. The Y extent is what spreads flame UP the creature instead of
 ## pooling it at the feet — the emitter sits at BURN_FIRE_Y, so tongues start anywhere in the box
 ## around it rather than all from one point.
@@ -2481,6 +2485,18 @@ const BURN_SMOKE_RISE := 1.6        # against 0.95
 const BURN_SMOKE_SWAY := 0.75       # against 0.28 — it spreads WIDE as it climbs
 const BURN_SMOKE_BOX := Vector3(0.24, 0.10, 0.24)
 const BURN_SMOKE_Y := 0.95
+## STANDING WIND, blowing to the NORTH-EAST. A cell's north is (0,-1) and its east is (1,0)
+## (see the `step` table), and a cell maps to world as Vector3(x, h, y) — so north-east is +X, -Z.
+##
+## Applied as the particle system's GRAVITY, which is otherwise zero for smoke. That gives a
+## constant sideways ACCELERATION, and against the plume's damping it settles into a steady lean:
+## the column still leaves the body vertically and bends downwind as it climbs, which is how smoke
+## actually behaves. A fixed velocity offset would shear the whole plume sideways from the first
+## frame instead, wind-sock rather than smoke.
+##
+## Constant for now, by request — real weather syncing comes later, and when it does this is the
+## one value to drive: point it wherever the zone's wind blows and everything downstream follows.
+const BURN_WIND := Vector3(0.42, 0.0, -0.42)
 var _burn_fire_mesh: QuadMesh = null
 var _burn_smoke_mesh: QuadMesh = null
 var _burn_fire_pm: ParticleProcessMaterial = null
@@ -2494,7 +2510,7 @@ func _build_burn_resources() -> void:
 	if _fire_pm == null:
 		_build_fire_resources()
 	_burn_fire_mesh = QuadMesh.new()
-	_burn_fire_mesh.size = Vector2(BURN_FIRE_SQUARE, BURN_FIRE_SQUARE)
+	_burn_fire_mesh.size = Vector2(BURN_FIRE_SQUARE, BURN_FIRE_SQUARE * BURN_FIRE_TALL)
 	_burn_fire_mesh.material = _fire_mesh.material
 	_burn_smoke_mesh = QuadMesh.new()
 	_burn_smoke_mesh.size = Vector2(BURN_SMOKE_SQUARE, BURN_SMOKE_SQUARE)
@@ -2512,13 +2528,15 @@ func _build_burn_resources() -> void:
 	_burn_fire_pm.emission_box_extents = BURN_FIRE_BOX
 	_burn_fire_pm.initial_velocity_min = BURN_FIRE_RISE * 0.7
 	_burn_fire_pm.initial_velocity_max = BURN_FIRE_RISE * 1.25
-	_burn_fire_pm.spread = 18.0                      # tongues lean outward, not one vertical jet
+	_burn_fire_pm.spread = 8.0                       # narrow: they go UP, spread comes from the box
 	_burn_smoke_pm = _smoke_pm.duplicate()
 	_burn_smoke_pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
 	_burn_smoke_pm.emission_box_extents = BURN_SMOKE_BOX
 	_burn_smoke_pm.initial_velocity_min = BURN_SMOKE_RISE * 0.75
 	_burn_smoke_pm.initial_velocity_max = BURN_SMOKE_RISE * 1.2
-	_burn_smoke_pm.spread = 14.0
+	_burn_smoke_pm.direction = Vector3(0, 1, 0)      # leaves the body VERTICALLY...
+	_burn_smoke_pm.spread = 11.0
+	_burn_smoke_pm.gravity = BURN_WIND               # ...and leans downwind as it climbs
 	_burn_smoke_pm.turbulence_noise_strength = BURN_SMOKE_SWAY
 	# Strong sway, but MODERATE influence: the plume has to climb more than it wanders. Cranking
 	# both spread it through the ground plane instead, which under this camera reads as smoke
