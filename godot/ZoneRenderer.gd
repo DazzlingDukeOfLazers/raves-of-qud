@@ -1103,18 +1103,60 @@ func _relight_static_sprites(cells: Array) -> void:
 				continue
 			# the SWAP is the memory; the modulate is only the cell's light
 			var gt = e.get("ghost", null)
+			var ghosted := false
 			if gt != null:
 				var want: Texture2D = (e["live"] if vis else gt)
 				if s.texture != want:
 					s.texture = want
-			var lf: float = float(lit.get(k1, 1.0))
-			s.modulate = Color(lf, lf, lf) if lf < 0.999 else Color.WHITE
+				ghosted = not vis
+			if ghosted:
+				# THE GHOST TEXTURE IS THE WHOLE MEMORY LOOK — do not then dim it by the cell's
+				# light. Qud's memory is a PALETTE SWAP and it does not follow the time of day
+				# (docs/gotchas.md): what you remember is the thing, not how lit it was. The swap
+				# above already redraws the tile in K/k, and multiplying THAT by the light of an
+				# unlit cell drags a flat #155352 down toward black — so a remembered watervine
+				# standing in shadow inside the live zone came out darker, and a different colour,
+				# from the identical watervine one zone over, which is built in the same pair and
+				# never dimmed. Daniel: "the shadowed watervine in my zone should be the same
+				# colour as the watervine outside my zone -- that's the closest to the way Qud
+				# shows watervine in darkness."
+				#
+				# Same rule the mesh branch below has always had via _view_tint, and the same one
+				# _wall_cutaway follows by swapping a ghost MESH and never modulating it. This
+				# path was the one that still multiplied.
+				s.modulate = Color.WHITE
+			else:
+				var lf: float = float(lit.get(k1, 1.0))
+				s.modulate = Color(lf, lf, lf) if lf < 0.999 else Color.WHITE
 	for e in _lit_meshes:
 		var mi = e["mi"]
 		if is_instance_valid(mi) and mi.material_override != null:
-			# derived shapes are vertex-coloured, so no texture to swap — they keep the tint.
 			# Nothing else drives their visibility, so the flag is safe on these.
 			mi.visible = bool(known.get(e["cell"], true))
+			# A VERTEX-COLOURED SOLID GETS WHAT WALLS AND SPRITES GET: a ghost variant swapped in
+			# whole, not a tint. "No texture to swap" -- which is what this comment used to say --
+			# is true and was the wrong conclusion: the colour is in the MESH, exactly as a wall's
+			# is, so _ghost_wall_mesh remaps it. The same argument that built that function applies
+			# here, brown times MEMORY_TINT is a darker brown and never #155352, so a remembered
+			# voxel object kept its own hue while the sprite beside it went flat teal. Daniel, on
+			# the shadowed watervine: "this is probably an everything thing, not just watervine."
+			# Cached on the instance, built once on first remembering -- the wall path's shape.
+			var mvis: bool = bool(seen.get(e["cell"], true))
+			var vc: bool = bool(mi.material_override.vertex_color_use_as_albedo)
+			if vc and mi.mesh != null and not mvis:
+				if not mi.has_meta("live_mesh"):
+					mi.set_meta("live_mesh", mi.mesh)
+				if not mi.has_meta("ghost_mesh"):
+					mi.set_meta("ghost_mesh", _ghost_wall_mesh(mi.get_meta("live_mesh")))
+				var gm: Mesh = mi.get_meta("ghost_mesh")
+				if mi.mesh != gm:
+					mi.mesh = gm
+				mi.material_override.albedo_color = Color.WHITE   # the mesh IS the memory look
+				continue
+			if vc and mi.has_meta("live_mesh"):
+				var lm: Mesh = mi.get_meta("live_mesh")
+				if mi.mesh != lm:
+					mi.mesh = lm                                  # back in sight: restore the art
 			mi.material_override.albedo_color = tint.get(e["cell"], Color.WHITE)
 	# VOXEL WALLS. They are in neither list: walls are built per cell straight into
 	# _wall_cutaway, which is already the per-cell registry of EVERY mesh a wall owns — body,
