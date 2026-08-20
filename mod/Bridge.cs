@@ -1864,6 +1864,45 @@ namespace RavesOfQud
                     }
                     catch (Exception e) { Server.Log("itemaction error: " + e.Message); }
                     break;
+                case "zonetp":
+                    // TELEPORT TO A ZONE, and nothing else. Qud's own wishes that reach the Tomb
+                    // ("tombbeta", "tombbetainside", "fastforwardtomb") are fast-forwards, not
+                    // travel: they award 240,000 XP, complete A Canticle for Barathrum, Decoding
+                    // the Signal, The Earl of Omonporch, A Call to Arms and more, and set game
+                    // state. Daniel wanted to stand in the Tomb to watch its flame jets, not to
+                    // have his questline finished, and that is not reversible short of reloading.
+                    //
+                    // The sequence is Qud's own, copied from Wishing: settle on the world map
+                    // first, then the target zone, then place the player and pull the party. A
+                    // bare SetActiveZone leaves the player in the OLD zone's cell list.
+                    // MAIN-THREAD ONLY, like `wish` above -- this builds zones.
+                    try
+                    {
+                        f.TryGetValue("zone", out string tpZone);
+                        f.TryGetValue("x", out string tpX);
+                        f.TryGetValue("y", out string tpY);
+                        if (!string.IsNullOrEmpty(tpZone))
+                        {
+                            int cx = MapEditorDriver.ParseInt(tpX);
+                            int cy = MapEditorDriver.ParseInt(tpY);
+                            The.ZoneManager.SetActiveZone("JoppaWorld");
+                            The.ZoneManager.SetActiveZone(tpZone);
+                            var tpCell = The.ZoneManager.ActiveZone.GetCell(cx, cy);
+                            if (tpCell == null)
+                            {
+                                Server.Log("[zonetp] no cell " + cx + "," + cy + " in " + tpZone);
+                            }
+                            else
+                            {
+                                tpCell.AddObject(player);
+                                The.ZoneManager.ProcessGoToPartyLeader();
+                                ForcePublishSoon = true;
+                                Server.Log("[zonetp] " + tpZone + " (" + cx + "," + cy + ")");
+                            }
+                        }
+                    }
+                    catch (Exception e) { Server.Log("zonetp error: " + e.Message); }
+                    break;
                 case "wish":
                     // Grant a Qud wish (the Ctrl+Shift+W prompt) from Raves — the user types the wish text
                     // in Raves and we run it through Qud's own handler, no on-screen prompt. MAIN-THREAD
