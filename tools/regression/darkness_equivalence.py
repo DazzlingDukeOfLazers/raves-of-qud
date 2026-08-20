@@ -212,28 +212,30 @@ for ox, oy, lbl in ((W, 0, "adjacent east"), (3*W, 0, "3 zones east"), (5*W, 2*H
 print("\nPASS: every collapsed cell was uniform to within 1/255 -- same picture")
 
 
-# --- remembered ART takes the same dimming as remembered GROUND (2026-08-19) ---
+# --- remembered art vs remembered field: Qud's K:k ratio (2026-08-19) ---
 #
-# Qud draws a remembered cell as glyph K on field k, a flat 1.40 ratio, and the ratio IS the look.
-# Raves builds the two halves in different places: the ground is the field plane with the per-cell
-# darkness overlay on it, while a sprite stands ABOVE that overlay (a quad at floor height) and
-# receives none of it. So the art has to be multiplied by hand, by exactly what the ground got, or
-# it floats too bright against its own cell and the ratio drifts off Qud's.
+# Qud draws a remembered cell as glyph K on field k. The 1.40 between them IS the look, and it
+# only survives if the art is ONE flat colour: _recolor_rgb lerps main->detail by the source art's
+# LUMINANCE, so a K->k ghost paints its own brightest pixels k -- which is _world_bg, the field --
+# and a remembered plant disappears into the ground it stands on. Measured on the watervine at
+# (3,15): brightest pixel 0.85 of its own ground, where Qud puts it at 1.40.
 #
-# This is an INVARIANT between two constants that live in different parts of ZoneRenderer and are
-# edited for different reasons -- exactly the pair that drifts silently. Screenshot checks cannot
-# catch it: without the cell grid you cannot tell a glyph pixel from a ground pixel, and every
-# heuristic tried (modal colour, brightest teal, percentile) picked up sky or water instead.
-MEMORY_GROUND_C = 0.84     # keep in step with ZoneRenderer.gd
-DARK_MAX_C      = 0.94
-MEMORY_ART_MUL  = 1.0 - (1.0 - MEMORY_GROUND_C) * DARK_MAX_C
+# Nor may the art carry extra dimming "to match the ground": the field already supplies the
+# contrast. Both halves of that were got wrong in one session, in opposite directions, off a
+# screenshot harness that could not tell a glyph pixel from a ground pixel.
+K_RGB = (21, 83, 82)   # Qud '&K', the memory foreground -- keep in step with the wire palette
+k_RGB = (15, 59, 58)   # Qud '&k', the memory field == ZoneRenderer._world_bg
+GHOST_MAIN = K_RGB     # ZoneRenderer: _art_colors + the _build_zone ghost texture
+GHOST_DETAIL = K_RGB   # ...both ends, so the lerp cannot reach the field colour
+GHOST_ART_MUL = 1.0    # ...and no extra dimming on top
 
-ground_mul = 1.0 - (1.0 - MEMORY_GROUND_C) * DARK_MAX_C   # what the overlay leaves of the ground
-print("\n=== remembered art vs remembered ground ===")
-print("  ground keeps            %.4f of the field" % ground_mul)
-print("  art is multiplied by    %.4f" % MEMORY_ART_MUL)
-if abs(MEMORY_ART_MUL - ground_mul) > 1e-9:
-    raise SystemExit("FAIL: remembered art and ground take different dimming -- the K:k ratio drifts")
-print("  -> identical, so glyph/field survives as the SOURCE ratio K:k = %.2f (Qud's)"
-      % (21.0 / 15.0))
-print("PASS: remembered art and ground take the same dimming")
+print("\n=== remembered art vs the field it stands on ===")
+if GHOST_DETAIL == k_RGB:
+    raise SystemExit("FAIL: ghost detail is the FIELD colour -- bright art pixels vanish into it")
+ratio = tuple(GHOST_MAIN[i] * GHOST_ART_MUL / k_RGB[i] for i in range(3))
+print("  ghost art / field: %.2f %.2f %.2f" % ratio)
+print("  Qud K:k target:    %.2f %.2f %.2f" % tuple(K_RGB[i] / k_RGB[i] for i in range(3)))
+for i in range(3):
+    if abs(ratio[i] - K_RGB[i] / k_RGB[i]) > 0.01:
+        raise SystemExit("FAIL: remembered art no longer sits at Qud's K:k above the field")
+print("PASS: remembered art sits at Qud's K:k above the field")
