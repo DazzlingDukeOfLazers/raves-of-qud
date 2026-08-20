@@ -2476,21 +2476,24 @@ const BURN_FIRE_TALL := 1.7
 ## Emission volume: roughly a body. The Y extent is what spreads flame UP the creature instead of
 ## pooling it at the feet — the emitter sits at BURN_FIRE_Y, so tongues start anywhere in the box
 ## around it rather than all from one point.
-const BURN_FIRE_BOX := Vector3(0.30, 0.30, 0.30)
+## Tighter than it was (0.30 cubed). The wide box spread flame across the whole tile, which read
+## as a bonfire the creature happened to stand in rather than a body alight. Narrow in X and Z so
+## the tongues hug the torso; the Y extent is the one that stays generous, because that is what
+## puts flame UP the body instead of pooling it at the feet. Daniel: "the flames are great, but
+## can we tighten them up?"
+const BURN_FIRE_BOX := Vector3(0.15, 0.26, 0.15)
 const BURN_FIRE_Y := 0.40
 const BURN_SMOKE_AMOUNT := 40       # against a sconce's 14
 const BURN_SMOKE_SQUARE := 0.36     # against 0.16 — big soft billows, not a thin wisp
 const BURN_SMOKE_LIFETIME := 5.0    # against 3.4; with the faster rise, a much taller column
 const BURN_SMOKE_RISE := 3.4        # 0.95 -> 1.6 -> here; it LEAVES, it does not seep
-## ...and then brakes. Smoke off a burning body goes up hard while the heat under it is still
-## pushing, and slows once it has climbed out of that column — Daniel: "it can slow down once
-## it's 4 tiles high." A particle system has no notion of height, only of age, so the height is
-## converted: at BURN_SMOKE_RISE units per second a particle passes four tiles at
-## BURN_SMOKE_BRAKE_TILES / BURN_SMOKE_RISE seconds, and that instant as a FRACTION of the
-## lifetime is where damping switches on. Deriving it rather than writing the fraction down means
-## the brake stays at four tiles when the speed or the lifetime is next tuned.
-const BURN_SMOKE_BRAKE_TILES := 4.0
-const BURN_SMOKE_BRAKE := 5.0       # how hard it brakes once it is up there
+## AND IT KEEPS GOING. There was a brake here — damping that switched on once a particle had
+## climbed four tiles, so the plume slowed at the top. It measured exactly as designed (density
+## piled up across tiles 1-4 and fell off a cliff above) and looked wrong doing it: decelerating
+## particles bunch, and a bunch reads as a lid on the column rather than smoke thinning out.
+## Daniel: "let's make the smoke particles keep rising, the slowdown looks not good." Rising all
+## the way and fading on the colour ramp's alpha is what smoke does — it does not stop, it stops
+## being visible.
 const BURN_SMOKE_SWAY := 0.75       # against 0.28 — it spreads WIDE as it climbs
 const BURN_SMOKE_BOX := Vector3(0.24, 0.10, 0.24)
 const BURN_SMOKE_Y := 0.95
@@ -2537,7 +2540,7 @@ func _build_burn_resources() -> void:
 	_burn_fire_pm.emission_box_extents = BURN_FIRE_BOX
 	_burn_fire_pm.initial_velocity_min = BURN_FIRE_RISE * 0.7
 	_burn_fire_pm.initial_velocity_max = BURN_FIRE_RISE * 1.25
-	_burn_fire_pm.spread = 8.0                       # narrow: they go UP, spread comes from the box
+	_burn_fire_pm.spread = 4.0                       # near-vertical; the little width comes from the box
 	_burn_smoke_pm = _smoke_pm.duplicate()
 	_burn_smoke_pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
 	_burn_smoke_pm.emission_box_extents = BURN_SMOKE_BOX
@@ -2552,21 +2555,12 @@ func _build_burn_resources() -> void:
 	# drifting sideways and DOWN rather than a column going up.
 	_burn_smoke_pm.turbulence_influence_min = 0.15
 	_burn_smoke_pm.turbulence_influence_max = 0.32
-	# FAST, THEN SLOW. Damping is zero for the climb and full once the particle is four tiles up
-	# (see BURN_SMOKE_BRAKE_TILES). The curve scales the min/max damping over the particle's life,
-	# so the two points either side of the brake instant are what make it a knee rather than a fade.
-	var brake: float = clampf((BURN_SMOKE_BRAKE_TILES / BURN_SMOKE_RISE) / BURN_SMOKE_LIFETIME,
-		0.05, 0.9)
-	_burn_smoke_pm.damping_min = BURN_SMOKE_BRAKE * 0.8
-	_burn_smoke_pm.damping_max = BURN_SMOKE_BRAKE
-	var dc := Curve.new()
-	dc.add_point(Vector2(0.0, 0.0))
-	dc.add_point(Vector2(brake, 0.0))
-	dc.add_point(Vector2(minf(brake + 0.08, 1.0), 1.0))
-	dc.add_point(Vector2(1.0, 1.0))
-	var dct := CurveTexture.new()
-	dct.curve = dc
-	_burn_smoke_pm.damping_curve = dct
+	# NO BRAKE. The sconce rig damps a little so its thin plume eases off near the top; a body on
+	# fire should climb the whole way and thin out on the ramp's alpha instead. Explicitly zero
+	# rather than inherited, so it cannot drift back in from the material this was duplicated from.
+	_burn_smoke_pm.damping_min = 0.0
+	_burn_smoke_pm.damping_max = 0.0
+	_burn_smoke_pm.damping_curve = null
 	# grows as it climbs, harder than the sconce's — a billow, not a thread
 	var bc := Curve.new()
 	bc.add_point(Vector2(0.0, 0.6))
