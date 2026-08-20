@@ -113,6 +113,18 @@ const LIVE_EDGE_FADE := 4
 ## "fully dark" needs no blending — it is a black surface. So the blended fill stays capped at the
 ## FROZEN_DARK_IN-deep band along the shared edge whatever the zone's size.
 const DARK_SOLID_A := 0.995
+## THE MEMORY WASH. A remembered cell is not "the floor, dimmed" — in Qud it is the FIELD, because
+## a cell is ~99.7% background and memory only repaints the sparse glyph in K/k. Measured on Qud at
+## dusk: its playfield is the field colour throughout, with water showing only as a lighter teal
+## stipple, never as blue. Painting the field colour gets there without touching the floor batches,
+## which are MultiMeshes keyed by material — a per-cell swap would mean splitting and rebuilding
+## them every turn as sight changes. This is the overlay quad that was already being emitted, in a
+## different colour, with the ordinary darkness still laid over it for the remembered dimming.
+##
+## How completely the memory wash covers a remembered cell. Not 1.0: a trace of the real floor
+## showing through is what keeps a remembered river reading as a river-shaped thing rather than
+## flat ground, which is also what Qud's sparse K/k glyphs do.
+const REMEMBER_COVER := 0.92
 const DARK_FLOOR_Y := 0.07      # darkness quad sits just above the floor tiles
 const DARK_ROOF_Y := WALL_H + 0.02   # and just above wall roofs, to dun unlit rock tops
 ## FULLY-DARK ground sits at FLOOR height, like every other darkness quad.
@@ -1268,6 +1280,7 @@ func _build_darkness(cells: Array, parent: Node, frozen_off := NOT_FROZEN) -> vo
 	var frac := {}
 	var walls := {}
 	var fade := {}          # cell -> 1 frozen ramp, 2 live edge fade; absent = flat, no resampling
+	var remembered := {}    # cell -> true: explored, not in sight. Painted the FIELD colour, not black.
 	for cell in cells:
 		var k := Vector2i(int(cell.get("x", 0)), int(cell.get("y", 0)))
 		# CELL LIGHT ONLY. The overlay is the cavern/night dimmer and nothing else; the memory
@@ -1297,6 +1310,7 @@ func _build_darkness(cells: Array, parent: Node, frozen_off := NOT_FROZEN) -> vo
 			# What you remember is the map, not how lit it was. Cells you can SEE keep their light,
 			# so a genuinely dark room you are standing in still reads as dark.
 			f = MEMORY_GROUND
+			remembered[k] = true
 		if frozen:
 			# THE RAMP IS THE WHOLE ANSWER FOR A DEPARTED ZONE — not a floor under its stored
 			# light. Taking the darker of the two let the zone's own lighting swamp the gradient:
@@ -1382,6 +1396,16 @@ func _build_darkness(cells: Array, parent: Node, frozen_off := NOT_FROZEN) -> vo
 					_dark_side(st, cx, cy, d, sa); any = true
 		else:
 			var a := (1.0 - float(frac[k])) * amax
+			# THE WASH GOES DOWN FIRST, AND IS NOT AN ALTERNATIVE TO THE FADE. It was an `elif`
+			# under the fade branch, so a remembered cell that also sat in the edge band got the
+			# fade INSTEAD — thin black over the real floor, which is how a remembered pool one
+			# tile from the boundary was still rendering bright blue (cell 34,1: explored=true,
+			# visible=false, and inside the band). What the cell IS and how far it is from the
+			# edge are different questions; both answers apply.
+			if remembered.has(k):
+				_dark_quad_col(st, cx, cy, DARK_FLOOR_Y - 0.005,
+					Color(_world_bg.r, _world_bg.g, _world_bg.b, REMEMBER_COVER))
+				any = true
 			if penumbra_divisions > 1 and fade.has(k):
 				# SUBDIVIDED: this cell's darkness comes from a fade, so it can be resampled
 				# inside the tile instead of being one flat step. Frozen zones bake once, so this
@@ -1643,6 +1667,14 @@ func _dark_quad_xy(st: SurfaceTool, x0: float, y0: float, x1: float, y1: float,
 	for p in [Vector3(x0, yy, y0), Vector3(x1, yy, y0), Vector3(x1, yy, y1),
 			Vector3(x0, yy, y0), Vector3(x1, yy, y1), Vector3(x0, yy, y1)]:
 		st.set_color(c)
+		st.add_vertex(p)
+
+## One quad over cell (cx,cy) in an ARBITRARY colour — the memory wash uses it to paint the field
+## colour over a remembered cell instead of veiling the real floor in black.
+func _dark_quad_col(st: SurfaceTool, cx: float, cy: float, y: float, col: Color) -> void:
+	for p in [Vector3(cx - 0.5, y, cy - 0.5), Vector3(cx + 0.5, y, cy - 0.5), Vector3(cx + 0.5, y, cy + 0.5),
+			Vector3(cx - 0.5, y, cy - 0.5), Vector3(cx + 0.5, y, cy + 0.5), Vector3(cx - 0.5, y, cy + 0.5)]:
+		st.set_color(col)
 		st.add_vertex(p)
 
 ## One black quad (two tris) over cell (cx,cy) at height y, vertex alpha = a.
