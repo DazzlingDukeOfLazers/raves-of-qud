@@ -89,7 +89,16 @@ const FOG_GROUND := 0.70
 ## past the edge of what you can see a cell sits. FROZEN_EDGE_DIM is the row butted against the live
 ## zone, and the darkness reaches full by FROZEN_DARK_IN tiles in.
 const FROZEN_EDGE_DIM := 0.18   # alpha on the row touching the live zone — just off clear
-const FROZEN_DARK_IN := 4       # fully dark this many tiles past the boundary
+## RADIUS in tiles, and STEPS PER TILE, both from Settings so they can be tuned and preset without
+## a rebuild (the committed `penumbra-3x1` fixture is the tile-resolution baseline).
+##   radius     3 -> the fade spans 3 tiles and is fully dark on the 4th
+##   divisions  1 -> one flat step per tile. Higher subdivides WITHIN the tile; 16 puts a step on
+##              every pixel column of Qud's 16x24 art, which is as fine as the tile can render.
+## Subdivision is AXIS-AWARE: a cell in an edge band only varies along one axis, so it costs D
+## sub-quads rather than D squared. At D=16 that is 23k quads for a zone's band instead of 231k —
+## the difference between a knob you can turn and the overdraw crash this file already documents.
+var penumbra_radius := 3
+var penumbra_divisions := 1
 ## ...and the LIVE zone fades toward its own edges, so the world does not simply stop at a hard
 ## line. Daniel: "the current zone should always fade out in all cardinal directions." The
 ## outermost row lands on FROZEN_EDGE_DIM — the same value the neighbour's first row carries — so
@@ -1253,9 +1262,12 @@ func _view_tint(cell: Dictionary) -> Color:
 const NOT_FROZEN := Vector2i(-99999, -99999)
 func _build_darkness(cells: Array, parent: Node, frozen_off := NOT_FROZEN) -> void:
 	var frozen: bool = frozen_off != NOT_FROZEN
+	penumbra_radius = maxi(1, int(Settings.get_value("penumbra_radius", penumbra_radius)))
+	penumbra_divisions = clampi(int(Settings.get_value("penumbra_divisions", penumbra_divisions)), 1, 16)
 	# pass 1: per-cell light fraction + which cells are walls (to find exposed faces).
 	var frac := {}
 	var walls := {}
+	var fade := {}          # cell -> 1 frozen ramp, 2 live edge fade; absent = flat, no resampling
 	for cell in cells:
 		var k := Vector2i(int(cell.get("x", 0)), int(cell.get("y", 0)))
 		# CELL LIGHT ONLY. The overlay is the cavern/night dimmer and nothing else; the memory
@@ -1287,6 +1299,8 @@ func _build_darkness(cells: Array, parent: Node, frozen_off := NOT_FROZEN) -> vo
 			f = _frozen_light(k, frozen_off)
 			if not _cell_explored(cell):
 				f = minf(f, FOG_GROUND)   # never SHOW something you have not seen, penumbra or not
+			elif f < 1.0:
+				fade[k] = 1
 		elif not _cell_seen(cell):
 			# THE LIVE ZONE'S EDGE FADE ONLY DIMS WHAT YOU CANNOT SEE. It exists to blend the zone
 			# into the dark beyond it, and that is an OUT-OF-SIGHT effect — applied to cells in
@@ -1297,7 +1311,10 @@ func _build_darkness(cells: Array, parent: Node, frozen_off := NOT_FROZEN) -> vo
 			# Gating on _cell_seen also makes the seam self-correcting: walk to the edge and the
 			# fade retreats ahead of your line of sight, which is what a fade into the unknown
 			# should do anyway.
-			f = minf(f, _live_edge_light(k))
+			var lf := _live_edge_light(k)
+			if lf < 1.0 and lf <= f:
+				fade[k] = 2
+			f = minf(f, lf)
 		frac[k] = f
 		# A wall the player has never seen is HIDDEN now (see _relight_static_sprites), so it must
 		# not be treated as a wall here either: its darkness would be a roof quad at WALL_H and a
@@ -1354,7 +1371,14 @@ func _build_darkness(cells: Array, parent: Node, frozen_off := NOT_FROZEN) -> vo
 					_dark_side(st, cx, cy, d, sa); any = true
 		else:
 			var a := (1.0 - float(frac[k])) * amax
-			if a >= DARK_SOLID_A:
+			if penumbra_divisions > 1 and fade.has(k):
+				# SUBDIVIDED: this cell's darkness comes from a fade, so it can be resampled
+				# inside the tile instead of being one flat step. Frozen zones bake once, so this
+				# is paid once for them; the live zone's edge band is the only per-turn cost.
+				var res: Array = _emit_fade_cell(st, sto, k, int(fade[k]), frozen_off, amax)
+				any = any or bool(res[0])
+				any_solid = any_solid or bool(res[1])
+			elif a >= DARK_SOLID_A:
 				_dark_quad(sto, cx, cy, DARK_SOLID_Y, 1.0); any_solid = true
 			elif a >= 0.02:
 				_dark_quad(st, cx, cy, DARK_FLOOR_Y, a); any = true
@@ -1375,6 +1399,18 @@ func _build_darkness(cells: Array, parent: Node, frozen_off := NOT_FROZEN) -> vo
 ## live zone's boundary it sits. Chebyshev distance to the live rect, so the row butted against it
 ## is 1 and a diagonal neighbour fades from its corner the same way an edge one fades from its edge.
 ## Returns a light fraction (1 = untouched), so the caller can min() it against the cell's own.
+## The ramp at a FLOAT world position — the sub-tile form of _frozen_light, for sampling inside a
+## cell when divisions > 1. Distance is measured to the live rect's OUTER edge (-0.5 / +size-0.5)
+## so a position half a tile past the boundary reads as half a tile, not a whole one.
+func _frozen_light_at(wx: float, wy: float) -> float:
+	var dx: float = maxf(0.0, maxf(-0.5 - wx, wx - (_live_w - 0.5)))
+	var dy: float = maxf(0.0, maxf(-0.5 - wy, wy - (_live_h - 0.5)))
+	var d: float = maxf(dx, dy)
+	if d <= 0.0:
+		return 1.0
+	var t: float = clampf(d / float(maxi(1, penumbra_radius)), 0.0, 1.0)
+	return 1.0 - lerpf(FROZEN_EDGE_DIM, 1.0, t)
+
 func _frozen_light(k: Vector2i, off: Vector2i) -> float:
 	var wx: int = k.x + off.x
 	var wy: int = k.y + off.y
@@ -1384,7 +1420,7 @@ func _frozen_light(k: Vector2i, off: Vector2i) -> float:
 	if d <= 0:
 		return 1.0                                  # inside the live rect: not ours to dim
 	# d = 1 is the edge row -> a little dim; d = FROZEN_DARK_IN -> fully dark.
-	var t: float = clampf(float(d - 1) / float(maxi(1, FROZEN_DARK_IN - 1)), 0.0, 1.0)
+	var t: float = clampf(float(d - 1) / float(maxi(1, penumbra_radius)), 0.0, 1.0)
 	var a: float = lerpf(FROZEN_EDGE_DIM, 1.0, t)   # alpha
 	return 1.0 - a                                  # ...as a light fraction
 
@@ -1406,6 +1442,8 @@ func _frozen_light(k: Vector2i, off: Vector2i) -> float:
 func _build_unexplored(parent: Node) -> void:
 	if _one_to_one or _world_map:
 		return
+	penumbra_radius = maxi(1, int(Settings.get_value("penumbra_radius", penumbra_radius)))
+	penumbra_divisions = clampi(int(Settings.get_value("penumbra_divisions", penumbra_divisions)), 1, 16)
 	var zw := int(_live_w)
 	var zh := int(_live_h)
 	# Grid slots covered by something we HAVE visited: the live zone at (0,0) plus each neighbour.
@@ -1423,18 +1461,16 @@ func _build_unexplored(parent: Node) -> void:
 	var any_solid := false
 	# 1. the RAMP: per-cell, only in the band within FROZEN_DARK_IN of the live zone, and only
 	#    where no visited zone already covers it.
-	var r := FROZEN_DARK_IN
+	var r := penumbra_radius + 1
 	for wy in range(-r, zh + r):
 		for wx in range(-r, zw + r):
 			if wx >= 0 and wx < zw and wy >= 0 and wy < zh:
 				continue                                  # the live zone itself
 			if taken.has(Vector2i(_slot(wx, zw), _slot(wy, zh))):
 				continue                                  # a visited zone owns this ground
-			var a: float = 1.0 - _frozen_light(Vector2i(wx, wy), Vector2i.ZERO)
-			if a >= DARK_SOLID_A:
-				_dark_quad(sto, float(wx), float(wy), DARK_SOLID_Y, 1.0); any_solid = true
-			elif a >= 0.02:
-				_dark_quad(st, float(wx), float(wy), DARK_FLOOR_Y, a); any = true
+			var res: Array = _emit_penumbra_cell(st, sto, wx, wy, DARK_FLOOR_Y)
+			any = any or bool(res[0])
+			any_solid = any_solid or bool(res[1])
 	# 2. SOLID beyond the band: the empty 3x3 slots MINUS the band, then a frame past the 3x3 out
 	#    to the ground plane's reach. Rects, not cells — this is the bulk of the area and uniform.
 	#
@@ -1511,14 +1547,92 @@ func _dark_rect(st: SurfaceTool, x: int, y: int, w: int, h: int, yy: float) -> v
 
 ## The LIVE zone's own edge fade: how lit a cell stays by how far it is from the nearest zone edge.
 ## Mirrors _frozen_light across the boundary — the outermost row sits at FROZEN_EDGE_DIM, matching
-## the neighbour's first row, and clears LIVE_EDGE_FADE tiles inward. Cardinal by construction: it
+## the neighbour's first row, and clears penumbra_radius + 1 tiles inward. Cardinal by construction: it
 ## takes the nearest of the four edges, so all four fade and a corner fades from both at once.
+## Float form of _live_edge_light, for sampling inside a tile when divisions > 1.
+func _live_edge_light_at(wx: float, wy: float) -> float:
+	var din: float = minf(minf(wx + 0.5, (_live_w - 0.5) - wx),
+		minf(wy + 0.5, (_live_h - 0.5) - wy))
+	var lim: float = float(penumbra_radius + 1)
+	if din >= lim:
+		return 1.0
+	return 1.0 - lerpf(FROZEN_EDGE_DIM, 0.0, clampf(din / lim, 0.0, 1.0))
+
 func _live_edge_light(k: Vector2i) -> float:
 	var din: int = mini(mini(k.x, int(_live_w - 1.0) - k.x), mini(k.y, int(_live_h - 1.0) - k.y))
-	if din >= LIVE_EDGE_FADE:
+	if din >= penumbra_radius + 1:
 		return 1.0
-	var t: float = clampf(float(din) / float(maxi(1, LIVE_EDGE_FADE)), 0.0, 1.0)
+	var t: float = clampf(float(din) / float(maxi(1, penumbra_radius + 1)), 0.0, 1.0)
 	return 1.0 - lerpf(FROZEN_EDGE_DIM, 0.0, t)
+
+## One fade cell of a ZONE (frozen ramp or the live zone's edge), resampled per division. Same
+## axis-aware trick as _emit_penumbra_cell: only the axes that actually vary get cut.
+func _emit_fade_cell(st: SurfaceTool, sto: SurfaceTool, k: Vector2i, kind: int,
+		off: Vector2i, amax: float) -> Array:
+	var d: int = maxi(1, penumbra_divisions)
+	var blended := false
+	var solid := false
+	var sw := 1.0 / float(d)
+	for iy in d:
+		for ix in d:
+			var x0 := float(k.x) - 0.5 + float(ix) * sw
+			var y0 := float(k.y) - 0.5 + float(iy) * sw
+			var lf: float
+			if kind == 1:
+				lf = _frozen_light_at(x0 + sw * 0.5 + float(off.x), y0 + sw * 0.5 + float(off.y))
+			else:
+				lf = _live_edge_light_at(x0 + sw * 0.5, y0 + sw * 0.5)
+			var a: float = (1.0 - lf) * amax
+			if a >= DARK_SOLID_A:
+				_dark_quad_xy(sto, x0, y0, x0 + sw, y0 + sw, DARK_SOLID_Y, 1.0)
+				solid = true
+			elif a >= 0.02:
+				_dark_quad_xy(st, x0, y0, x0 + sw, y0 + sw, DARK_FLOOR_Y, a)
+				blended = true
+	return [blended, solid]
+
+## Emit ONE surround cell of the penumbra, subdivided per penumbra_divisions.
+##
+## AXIS-AWARE, which is what makes a fine subdivision affordable: the ramp is a distance to a
+## rectangle, so in an edge band it varies along ONE axis and the cross-axis needs no cuts at all.
+## Only the corner blocks, where both axes are outside the rect, need a full D x D grid — and there
+## are only radius^2 of those per corner. Straight D x D everywhere would be 231k quads at D=16
+## against 23k this way.
+func _emit_penumbra_cell(st: SurfaceTool, sto: SurfaceTool, wx: int, wy: int, yy: float) -> Array:
+	var d: int = maxi(1, penumbra_divisions)
+	var blended := false
+	var solid := false
+	# which axes actually vary here
+	var out_x: bool = wx < 0 or wx >= int(_live_w)
+	var out_y: bool = wy < 0 or wy >= int(_live_h)
+	var nx: int = d if out_x else 1
+	var ny: int = d if out_y else 1
+	if d == 1:
+		nx = 1
+		ny = 1
+	var sw := 1.0 / float(nx)
+	var sh := 1.0 / float(ny)
+	for iy in ny:
+		for ix in nx:
+			var x0 := float(wx) - 0.5 + float(ix) * sw
+			var y0 := float(wy) - 0.5 + float(iy) * sh
+			var a: float = 1.0 - _frozen_light_at(x0 + sw * 0.5, y0 + sh * 0.5)
+			if a >= DARK_SOLID_A:
+				_dark_quad_xy(sto, x0, y0, x0 + sw, y0 + sh, yy, 1.0)
+				solid = true
+			elif a >= 0.02:
+				_dark_quad_xy(st, x0, y0, x0 + sw, y0 + sh, yy, a)
+				blended = true
+	return [blended, solid]
+
+## A black quad over an arbitrary rect in cell coordinates (edges, not centres).
+func _dark_quad_xy(st: SurfaceTool, x0: float, y0: float, x1: float, y1: float,
+		yy: float, a: float) -> void:
+	var c := Color(0, 0, 0, a)
+	for p in [Vector3(x0, yy, y0), Vector3(x1, yy, y0), Vector3(x1, yy, y1),
+			Vector3(x0, yy, y0), Vector3(x1, yy, y1), Vector3(x0, yy, y1)]:
+		st.set_color(c)
+		st.add_vertex(p)
 
 ## One black quad (two tris) over cell (cx,cy) at height y, vertex alpha = a.
 func _dark_quad(st: SurfaceTool, cx: float, cy: float, y: float, a: float) -> void:

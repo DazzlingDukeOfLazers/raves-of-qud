@@ -22,6 +22,13 @@ const DEFAULTS := {
 	                            # (1to1 hard-overrides camera + panels; see MainFrame._apply_one_to_one)
 	"bridge_host": "127.0.0.1", # which Qud to render (BridgeClient)
 	"bridge_port": 48710,
+	# THE PENUMBRA — the gradient between the zone you are in and the dark beyond it.
+	#   radius     how many tiles the fade spans before full darkness
+	#   divisions  steps per tile. 1 = one flat step per tile (a tile-resolution fade).
+	#              Higher subdivides the tile, so the fade steps WITHIN a tile; 16 puts a step on
+	#              every pixel column of Qud's 16x24 tile, which is as fine as the art can show.
+	"penumbra_radius": 3,
+	"penumbra_divisions": 1,
 }
 
 ## True when Raves was launched with --one-to-one (or --1to1): 1:1 is LOCKED for this
