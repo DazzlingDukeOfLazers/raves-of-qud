@@ -2099,3 +2099,35 @@ sample: after one deploy Qud sat at its title reporting `scene=MainMenu` and `hv
 `unknown` — the root of most Qud routes. A clean `hv restart qud` fixed it. The watchdog added here
 re-arms and logs; it did NOT fire in the clean run, so the restart is what recovered detection,
 not the watchdog.
+
+## A standing fire, for anything that burns
+
+Fire in normal play is intermittent and short — a dawnglider's flaming ray lights you for a turn or
+two, then it is out, and by the time a rebuild finishes there is nothing to look at. Several rounds
+of flame/smoke tuning were "verified" against a character who had stopped burning. These zones burn
+on their own; `zonetp` reaches any of them without touching the character sheet:
+
+| zone | what is there |
+|---|---|
+| `JoppaWorld.53.3.2.2.9` | **the flame room** — Crematory: 22 `WalltrapFireCrematory`, 184 conveyor pads, Ashes, Grave Moss, 4 Graverobbers |
+| `JoppaWorld.53.3.1.2.9` | the other Crematory — 180 conveyor pads, 13 animated objects, no walltraps |
+| `JoppaWorld.53.3.0.2.9` | Columbarium — conveyor drives + Crematory Mainframe Status Panels |
+| `JoppaWorld.53.3.0.2.8` | Lower Crypts — graves, Grave Goods, and a **Campfire** (a fire that just stays lit) |
+
+```bash
+hv bridge zonetp zone=JoppaWorld.53.3.2.2.9 x=39 y=14
+```
+
+**The zone id encodes depth: `strata high = 10 - z`**, the last component. `.2.9` is 1 stratum high,
+`.2.6` is 4, `.0.1` is 9. That is how the Crematory was found — the graves sat at z=8 and the room
+"below the graves" is z=9.
+
+**A blocking popup silently eats every bridge command.** The mod refuses them with a reason ("Qud is
+on PopupMessage, where the turn thread is parked and Server.Incoming never drains"), and that
+refusal only reaches Qud's `Player.log` — the caller sees a command that appears to do nothing. A
+hop loop must clear popups BETWEEN hops (`hv back`), not once at the start: a zone arrival can raise
+one. Ten minutes of a survey run went into a wall this way, every command refused, nothing logged
+caller-side.
+
+**Being `wet` resists ignition** — worth knowing when you are standing in a flame room wondering why
+nothing catches.
