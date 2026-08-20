@@ -10,6 +10,7 @@ WITHOUT a human at the keyboard. Two channels:
   2. Godot  — Claude can't send keys to Godot, only to Qud. So Godot polls a small
               command file (<RavesOfQud>/godot_cmd); we write lines it executes:
               `shot` (save shot.png), `cam <1-7>` (camera mode), `fph <h>` (fp height),
+              `pane <i> rot <deg>` / `pane <i> zoom <m>` (ONE multiview pane),
               `onboard [screen]` (open/jump the onboarding UI: devices/ktype/layout/numpad/mouse/close).
 
 Examples:
@@ -206,6 +207,15 @@ def main(argv):
     elif cmd == "fph":
         godot("fph " + argv[1])
         print("godot: fp height", argv[1])
+    elif cmd == "mv":
+        godot("mv")
+        print("godot: multiview toggled")
+    elif cmd == "pane":
+        # `pane <i> rot <deg>` / `pane <i> zoom <mult>` — ONE multiview pane's own camera.
+        # On the command channel so per-pane behaviour can be tested with no mouse: turning
+        # one pane and diffing the grid is the only way to SHOW that the other six held still.
+        godot("pane " + " ".join(argv[1:]))
+        print("godot: pane", " ".join(argv[1:]))
     elif cmd == "onboard":
         # `onboard` opens the chooser; `onboard <screen>` jumps to a screen
         # (devices/ktype/layout/numpad/mouse); `onboard close` dismisses it.

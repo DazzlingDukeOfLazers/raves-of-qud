@@ -205,13 +205,15 @@ func _facing3() -> Vector3:
 	return Vector3(_facing.x, 0, _facing.y).normalized()
 
 ## Behind the player along the facing, raised by the current zoom/pitch.
-func _follow_eye() -> Vector3:
-	var f := _facing3()
-	var back := TILES_BEHIND + _dist * cos(_pitch)
-	return _player - f * back + Vector3(0, _dist * sin(_pitch), 0)
+func _follow_eye(yaw_off := 0.0, zoom := 1.0) -> Vector3:
+	var f := _facing3().rotated(Vector3.UP, yaw_off)
+	var d := _dist * zoom
+	var back := TILES_BEHIND + d * cos(_pitch)
+	return _player - f * back + Vector3(0, d * sin(_pitch), 0)
 
-func _follow_look() -> Vector3:
-	return _player + _facing3() * FOCUS_AHEAD + Vector3(0, look_h(), 0)
+func _follow_look(yaw_off := 0.0) -> Vector3:
+	return _player + _facing3().rotated(Vector3.UP, yaw_off) * FOCUS_AHEAD \
+		+ Vector3(0, look_h(), 0)
 
 ## MOUSE mode orbits whatever tile is selected, so inspecting and then looking around don't fight. Falls
 ## back to the player.
@@ -223,8 +225,8 @@ func _orbit_center() -> Vector3:
 	return c + _pan
 
 # The fixed compass heading as a unit direction (what the camera looks ALONG).
-func _compass_dir() -> Vector3:
-	return Vector3(sin(_compass_yaw), 0, cos(_compass_yaw))
+func _compass_dir(yaw_off := 0.0) -> Vector3:
+	return Vector3(sin(_compass_yaw + yaw_off), 0, cos(_compass_yaw + yaw_off))
 
 ## The camera's forward on the ground plane, for the W/X dolly. COMPASS/FIRST_PERSON use the locked
 ## heading; FOLLOW the player's facing; else the current view direction flattened to horizontal.
@@ -240,10 +242,11 @@ func cam_forward() -> Vector3:
 			return d.normalized() if d.length() > 0.001 else _compass_dir()
 
 # COMPASS: behind the player along the LOCKED heading at a low angle. Follows position, never rotates.
-func _compass_eye() -> Vector3:
+func _compass_eye(yaw_off := 0.0, zoom := 1.0) -> Vector3:
 	var p := _compass_pitch()
-	var back := TILES_BEHIND + _dist * cos(p)
-	return _player - _compass_dir() * back + Vector3(0, _dist * sin(p), 0)
+	var d := _dist * zoom
+	var back := TILES_BEHIND + d * cos(p)
+	return _player - _compass_dir(yaw_off) * back + Vector3(0, d * sin(p), 0)
 
 ## COMPASS pitch varies with zoom: shallow (COMPASS_PITCH) from COMPASS_CLOSE_DIST outward, steepening to
 ## COMPASS_PITCH_NEAR (overhead) as you zoom inside it. Smoothstepped so it arcs up-and-over at the close end.
@@ -274,31 +277,51 @@ func _frame_radius() -> float:
 
 ## Eye + look-at for any camera mode, from the current shared state. The multi-view picker drives one
 ## camera per mode off the same math. Returns [eye, look].
-func eye_look_for(mode: int) -> Array:
+## The eye/look pair for a mode, optionally through ONE PANE'S OWN STATE.
+##
+## PER-PANE STATE IS AN OFFSET, NOT A REPLACEMENT, and that is the whole design. Multiview shows
+## seven cameras on one world and Daniel wants them to "move whenever any view moves" while
+## rotating independently: position comes from the player and is therefore shared for free, and
+## only the HEADING and the DISTANCE are per pane. So a pane carries a yaw OFFSET added to whatever
+## heading its mode already computes, and a zoom MULTIPLIER on that mode's distance — which means a
+## pane at (0, 1) is exactly the camera this function returned before, and the single active view
+## passes nothing at all.
+##
+## `st` is {yaw: float, zoom: float, cine: float}; cine is a separate orbit phase so two cinematic
+## panes are not locked in step.
+static func pane_state(yaw := 0.0, zoom := 1.0, cine := 0.0) -> Dictionary:
+	return {"yaw": yaw, "zoom": zoom, "cine": cine}
+
+func eye_look_for(mode: int, st: Dictionary = {}) -> Array:
+	var yaw_off: float = float(st.get("yaw", 0.0))
+	var zoom: float = maxf(0.05, float(st.get("zoom", 1.0)))
 	match mode:
 		CamMode.KEYBOARD:
-			return [_free_eye, _free_eye + _aim_dir()]
+			return [_free_eye, _free_eye + _aim_dir().rotated(Vector3.UP, yaw_off)]
 		CamMode.MOUSE:
 			var c := _orbit_center()
-			return [c + Vector3(_dist * cos(_pitch) * sin(_yaw), _dist * sin(_pitch),
-				_dist * cos(_pitch) * cos(_yaw)), c]
+			var d := _dist * zoom
+			var y := _yaw + yaw_off
+			return [c + Vector3(d * cos(_pitch) * sin(y), d * sin(_pitch),
+				d * cos(_pitch) * cos(y)), c]
 		CamMode.FOLLOW:
-			return [_follow_eye(), _follow_look()]
+			return [_follow_eye(yaw_off, zoom), _follow_look(yaw_off)]
 		CamMode.FIRST_PERSON:
 			var e := _player + Vector3(0, _fp_height, 0)
-			return [e, e + _compass_dir() + Vector3(0, -0.15, 0)]
+			return [e, e + _compass_dir(yaw_off) + Vector3(0, -0.15, 0)]
 		CamMode.CINEMATIC:
 			var cc := _frame_center()
-			var r := _frame_radius()
-			return [cc + Vector3(r * cos(COMPASS_PITCH) * sin(_cine_t),
-				r * sin(COMPASS_PITCH) + 2.0, r * cos(COMPASS_PITCH) * cos(_cine_t)), cc]
+			var r := _frame_radius() * zoom
+			var t: float = _cine_t + float(st.get("cine", 0.0))
+			return [cc + Vector3(r * cos(COMPASS_PITCH) * sin(t),
+				r * sin(COMPASS_PITCH) + 2.0, r * cos(COMPASS_PITCH) * cos(t)), cc]
 		CamMode.TOP_FOLLOW:
 			if _one_to_one and _play_hole.size.x > 0.0:
 				var c := _one_to_one_center()
 				return [c + Vector3(0, TOP_H, 0), c]
 			return [_player + Vector3(0, TOP_H, 0), _player]
 		_:  # COMPASS — the default, stable, cardinal-locked view
-			return [_compass_eye(), _player + Vector3(0, look_h(), 0)]
+			return [_compass_eye(yaw_off, zoom), _player + Vector3(0, look_h(), 0)]
 
 func _update_camera(dt: float) -> void:
 	var el := eye_look_for(_mode)
@@ -371,7 +394,7 @@ func _apply_top_down_camera(top: bool) -> void:
 	if attrs != null:
 		attrs.dof_blur_far_enabled = not top
 
-func _top_ortho_size() -> float:
+func _top_ortho_size(zoom := 1.0) -> float:
 	if _one_to_one:
 		if _play_hole.size.x > 0.0 and _play_hole.size.y > 0.0:
 			# Qud pixel model: S = fit scale x quarter-stepped zoom; a cell renders 16S x 24S px.

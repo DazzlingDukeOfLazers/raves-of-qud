@@ -608,6 +608,16 @@ func _exec_godot_cmd(cmd: String) -> void:
 				_set_mode(clampi(int(parts[1]) - 1, 0, 7))   # 1-8 -> COMPASS..TOP_FOLLOW
 		"mv":
 			_multiview.toggle()   # all-views grid (same as the 0 key / the ` menu button)
+		"pane":
+			# `pane <i> rot <deg>` / `pane <i> zoom <mult>` — drive ONE pane's own camera state.
+			# The camera menu's widgets will call the same Multiview methods; having them on the
+			# command channel too is what lets the per-pane behaviour be TESTED without a mouse,
+			# which is the only way to show that turning one pane leaves the other six alone.
+			if parts.size() > 3:
+				var pi := int(parts[1])
+				match parts[2]:
+					"rot": _multiview.pane_rotate(pi, float(parts[3]))
+					"zoom": _multiview.pane_zoom(pi, float(parts[3]))
 		"dbg":
 			_dbg_menu.toggle()    # the ` debug menu (for headless UI checks)
 		"fph":

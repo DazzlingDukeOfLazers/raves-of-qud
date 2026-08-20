@@ -9,7 +9,9 @@ extends Node
 ## are plain ints matching CameraRig.CamMode's order.
 
 const TOP_FOLLOW := 6              # CamMode.TOP_FOLLOW — the one orthographic mode (kept enum-free)
-const MODES := [0, 1, 2, 3, 4, 5, 6]   # CamMode order: COMPASS, FOLLOW, FIRST_PERSON, CINEMATIC, MOUSE, KEYBOARD, TOP_FOLLOW
+const MODES := [0, 1, 2, 3, 4, 5, 6]
+const PANE_ZOOM_MIN := 0.25
+const PANE_ZOOM_MAX := 4.0   # CamMode order: COMPASS, FOLLOW, FIRST_PERSON, CINEMATIC, MOUSE, KEYBOARD, TOP_FOLLOW
 
 var _cam_rig                       # CameraRig: per-pane eye/look math + shared cam fov
 var _mode_names: Dictionary        # mode int -> label string (Main's _MODE_NAMES), for the pane captions
@@ -17,7 +19,8 @@ var _on_pane_inspect: Callable     # Main._multiview_inspect(cam, pos) — it ow
 var _on_pick_mode: Callable        # Main._set_mode(mode) — clicking a pane's TITLE switches to it
 var _layer: CanvasLayer
 var _on := false
-var _cams: Array = []              # [{mode, cam, sv}]
+var _cams: Array = []              # [{mode, cam, sv, st}] — st is this pane's own yaw/zoom
+var _cells: Array = []             # the Control per pane, for hanging per-pane UI on
 
 ## Build the grid. Call once, after the CameraRig's camera exists (we read its fov) and while in the tree
 ## (we bind the shared World3D off get_viewport()).
@@ -89,7 +92,47 @@ func setup(cam_rig, mode_names: Dictionary, on_pane_inspect: Callable,
 			if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
 				_on_pane_inspect.call(pane_cam, e.position))
 		grid.add_child(cell)
-		_cams.append({"mode": m, "cam": cam, "sv": sv})
+		# PER-PANE CAMERA STATE. A pane owns its heading and its distance and nothing else: the
+		# position every mode derives from the player is shared for free, which is what makes all
+		# seven panes follow a move together while each can be turned on its own. A fresh pane is
+		# {yaw 0, zoom 1}, i.e. exactly the camera this pane showed before there was any state.
+		# Cinematic panes get a phase offset so two of them do not orbit in lockstep.
+		_cams.append({"mode": m, "cam": cam, "sv": sv,
+			"st": _cam_rig.pane_state(0.0, 1.0, float(m) * 0.7)})
+		_cells.append(cell)
+
+
+## --- per-pane controls (what the camera menu's widgets drive) ---------------------
+##
+## Deliberately by INDEX rather than by mode: two panes could one day show the same mode, and a
+## control belongs to the pane the user is pointing at, not to a mode.
+
+## Turn one pane by `deg` degrees. Rotation is per pane by design — Daniel: "views rotate
+## independently" — so this touches nothing else.
+func pane_rotate(i: int, deg: float) -> void:
+	if i < 0 or i >= _cams.size():
+		return
+	var st: Dictionary = _cams[i]["st"]
+	st["yaw"] = fposmod(float(st.get("yaw", 0.0)) + deg_to_rad(deg), TAU)
+
+## Set one pane's zoom (a multiplier on whatever distance its mode computes).
+func pane_zoom(i: int, z: float) -> void:
+	if i < 0 or i >= _cams.size():
+		return
+	_cams[i]["st"]["zoom"] = clampf(z, PANE_ZOOM_MIN, PANE_ZOOM_MAX)
+
+func pane_zoom_of(i: int) -> float:
+	if i < 0 or i >= _cams.size():
+		return 1.0
+	return float(_cams[i]["st"].get("zoom", 1.0))
+
+func pane_yaw_deg(i: int) -> float:
+	if i < 0 or i >= _cams.size():
+		return 0.0
+	return rad_to_deg(float(_cams[i]["st"].get("yaw", 0.0)))
+
+func pane_count() -> int:
+	return _cams.size()
 
 func is_on() -> bool:
 	return _on
@@ -112,13 +155,13 @@ func update() -> void:
 	for v in _cams:
 		var m: int = v["mode"]
 		var cam: Camera3D = v["cam"]
-		var el: Array = _cam_rig.eye_look_for(m)
+		var el: Array = _cam_rig.eye_look_for(m, v["st"])
 		var eye: Vector3 = el[0]
 		var look: Vector3 = el[1]
 		var top := m == TOP_FOLLOW
 		cam.projection = Camera3D.PROJECTION_ORTHOGONAL if top else Camera3D.PROJECTION_PERSPECTIVE
 		if top:
-			cam.size = _cam_rig._top_ortho_size()
+			cam.size = _cam_rig._top_ortho_size(float(v["st"].get("zoom", 1.0)))
 		cam.position = eye
 		if eye.distance_to(look) > 0.001:
 			cam.look_at(look, _cam_rig.NORTH if top else Vector3.UP)
