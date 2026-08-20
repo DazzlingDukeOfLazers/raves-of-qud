@@ -442,6 +442,7 @@ namespace RavesOfQud
             // case it exists for. StartupHook's heartbeat is the arming path (see PopupBridge.Ensure).
             PopupBridge.Ensure();
             LoadoutStep(player);            // fill a pending loadout chest a few items per frame
+            IdentifyStep();                 // ...and identify a few items per frame
             bool applied = false;
             while (server.Incoming.TryDequeue(out string json))
             {
@@ -1692,9 +1693,83 @@ namespace RavesOfQud
             }
             Server.Log("[loadout] done: " + LoadoutDone + " items (" + (int)LoadoutWeight
                        + " lb), chest suspended to 0, + " + made + " spheres loose");
+            // A chest of 1700 unidentified things is a chest you cannot shop in. Identify what we
+            // just made, on the same drained queue, so it arrives usable.
+            try
+            {
+                foreach (GameObject c in LoadoutInv.GetObjects()) IdentifyQueue.Add(c);
+                Server.Log("[loadout] queued " + IdentifyQueue.Count + " for identify");
+            }
+            catch { }
             LoadoutChest = null;
             LoadoutInv = null;
             ForcePublishSoon = true;
+        }
+
+
+        // ---- identify: drop the "unidentified" disguise, a few items per frame ---------
+        //
+        // Two different mechanisms, and both are needed. Examiner.MakeBlueprintUnderstood is
+        // STATIC and global -- it marks a blueprint known so anything spawned later reads as
+        // identified -- and it is a dictionary write, so the whole blueprint table can be done in
+        // one pass. Examiner.MakeUnderstood is per OBJECT: it sets Understanding to Complexity
+        // and re-checks epistemic status, which is what actually removes the EpistemicDisguise
+        // from an item already sitting in a chest. That one fires events, so 1732 of them in a
+        // frame would blow the same event pool the loadout chest blew; hence the queue.
+        private const int IDENTIFY_PER_FRAME = 25;
+        private static readonly List<GameObject> IdentifyQueue = new List<GameObject>();
+        private static int IdentifyDone;
+
+        private static void IdentifyStep()
+        {
+            if (IdentifyQueue.Count == 0) return;
+            int n = 0;
+            while (n < IDENTIFY_PER_FRAME && IdentifyQueue.Count > 0)
+            {
+                GameObject o = IdentifyQueue[0];
+                IdentifyQueue.RemoveAt(0);
+                n++;
+                if (o == null) continue;
+                try
+                {
+                    var ex = o.GetPart<XRL.World.Parts.Examiner>();
+                    if (ex != null && ex.MakeUnderstood()) IdentifyDone++;
+                }
+                catch { }
+            }
+            if (IdentifyQueue.Count == 0)
+            {
+                Server.Log("[identify] done: " + IdentifyDone + " objects");
+                ForcePublishSoon = true;
+            }
+        }
+
+        /// Every object worth identifying that the player can reach: what they carry, what is in
+        /// the zone, and the CONTENTS of any container in it -- the chest is the whole point.
+        private static void IdentifyCollect(GameObject player)
+        {
+            IdentifyQueue.Clear();
+            IdentifyDone = 0;
+            var seen = new HashSet<GameObject>();
+            System.Action<GameObject> add = null;
+            add = delegate (GameObject o)
+            {
+                if (o == null || !seen.Add(o)) return;
+                IdentifyQueue.Add(o);
+                try
+                {
+                    var inv = o.GetPart<XRL.World.Parts.Inventory>();
+                    if (inv != null) foreach (GameObject c in inv.GetObjects()) add(c);
+                }
+                catch { }
+            };
+            try { add(player); } catch { }
+            try
+            {
+                Zone z = player.CurrentZone;
+                if (z != null) foreach (GameObject o in z.GetObjects()) add(o);
+            }
+            catch { }
         }
 
         private static void Apply(GameObject player, string json)
@@ -1932,6 +2007,34 @@ namespace RavesOfQud
                         }
                     }
                     catch (Exception e) { Server.Log("itemaction error: " + e.Message); }
+                    break;
+                case "identifyall":
+                    // NOT "identify" -- that name is taken by InventoryExporter's single-object
+                    // command (identify one thing by id), which is dispatched first and answered
+                    // this with "no object with id". Two commands, two names.
+                    //
+                    // "I don't want to have to identify every one just to find the flamethrower
+                    // and some oil." Marks every blueprint known (so later spawns arrive
+                    // identified) and queues everything reachable -- inventory, zone, and the
+                    // contents of every container in it -- to have its disguise removed a slice
+                    // at a time. MAIN-THREAD ONLY: it touches objects and fires effects.
+                    try
+                    {
+                        int bpn2 = 0;
+                        foreach (GameObjectBlueprint bp in GameObjectFactory.Factory.Blueprints.Values)
+                        {
+                            if (bp == null || string.IsNullOrEmpty(bp.Name)) continue;
+                            try
+                            {
+                                if (XRL.World.Parts.Examiner.MakeBlueprintUnderstood(bp.Name, 2)) bpn2++;
+                            }
+                            catch { }
+                        }
+                        IdentifyCollect(player);
+                        Server.Log("[identify] " + bpn2 + " blueprints marked known, "
+                                   + IdentifyQueue.Count + " objects queued");
+                    }
+                    catch (Exception e) { Server.Log("identify error: " + e.Message); }
                     break;
                 case "loadout":
                     // A CHEST OF EVERYTHING THAT SHOOTS, weightless enough to actually carry.
