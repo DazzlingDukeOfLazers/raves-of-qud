@@ -795,6 +795,11 @@ func _place_cell(cell: Dictionary, offset: Vector2i, wall_cells: Dictionary, ski
 # Small lift for the dynamic pass's full-colour floor quads so they cover the static ghost
 # quads at the same cell (statics and dynamics share the layer-height scheme otherwise).
 var _dyn_lift_1to1 := 0.0
+var _plane_up: QuadMesh = null    # the standing (billboarded) overlay quad — user mode only
+## Height of a standing overlay's CENTRE above the floor. A billboard's art occupies roughly the
+## first world unit above its cell, so half of that puts the flash over the body rather than at
+## the feet or above the head.
+const OVERLAY_STAND_Y := 0.5
 
 # --- 1:1 animation pass (Qud's per-frame render programs, emulated on wall clock) ---
 # Rebuilt every dynamics pass; overlay nodes are children of _dynamic_root, so the
@@ -972,14 +977,6 @@ func _rebuild_dynamics(cells: Array) -> void:
 				if lay > win_layer:
 					win = wd
 					win_layer = lay
-			if not full_1to1:
-				# ON FIRE: check the whole cell, not just the winner. A burning creature is
-				# usually the top layer, but the thing alight can be under something — and Qud
-				# flickers whatever is burning, whichever draws.
-				for obj in cell.get("objs", []):
-					if _is_burning(obj):
-						_place_burning(cx, cy)
-						break
 			if not win.is_empty():
 				if not full_1to1:
 					win = _ghost_obj(win)
@@ -988,8 +985,10 @@ func _rebuild_dynamics(cells: Array) -> void:
 					# '&y' is the GLYPH colour; Qud draws the player's TILE white main + data detail.
 					win = win.duplicate()
 					win["fgHex"] = "#ffffff"
-				if full_1to1:
-					_register_anim(win, cx, cy)
+				# 1:1's copy, hung off the cell WINNER because that is 1:1's model: one tile
+				# per cell. User mode has no winner -- it places every object as its own
+				# billboard -- so it registers per object further down instead.
+				_register_anim(win, cx, cy)
 				if full_1to1 and win.has("aquaBg"):
 					# Qud's Swimming effect: an aquatic-limited creature (eel, glowfish) renders
 					# over its supporting liquid's background colour, not the bare floor.
@@ -1001,8 +1000,22 @@ func _rebuild_dynamics(cells: Array) -> void:
 				_place_nonwall(win, cx, cy, 0, false, sink, wet, false, false, lf)
 			continue
 		var idx := 0
+		var lit_here := false
 		for obj in cell.get("objs", []):
 			var od: Dictionary = obj
+			# ON FIRE: any object in the cell, not just the creature and not just the top layer —
+			# Qud flickers whatever is burning, whichever draws. Once per cell; two burning things
+			# on one tile is one fire.
+			#
+			# THIS IS THE SECOND TIME THIS EXACT MISTAKE WAS MADE IN ONE SESSION, so it is worth
+			# the ink: the natural-looking place for a per-cell check, up beside the winner
+			# selection, is inside `if _one_to_one:`. That block is 1:1's whole model (one tile
+			# per cell) and user mode never enters it. Code put there reads as running in both
+			# modes and runs in neither. If a check belongs to user mode, it goes in THIS loop,
+			# the one that actually places user mode's objects.
+			if not lit_here and _is_burning(od):
+				_place_burning(cx, cy)
+				lit_here = true
 			if not _is_prism(od) and _is_door(String(od.get("tile", ""))):
 				# doors are stateful statics: hide the baked one, draw the
 				# CURRENT state fresh (open art after a bump, closed after)
@@ -1015,6 +1028,17 @@ func _rebuild_dynamics(cells: Array) -> void:
 			if not _is_prism(od) and _is_creature(od):
 				_occupied[Vector2i(cx, cy)] = true
 				_place_nonwall(od, cx, cy, idx, false, sink, wet, false, false, lf)
+				# QUD'S PER-FRAME RENDER PROGRAMS, IN USER MODE TOO. What a thing DOES is part
+				# of what it IS: a burning creature flickers, a sleeping one is washed, a
+				# wormhole re-rolls. All of it was gated to 1:1 -- and not by the `if full_1to1`
+				# around the call, which was the obvious suspect and the wrong one. That call
+				# sits inside the WINNER block, which is 1:1's whole model (one tile per cell)
+				# and ends in a `continue` user mode never reaches. Removing the gate changed
+				# nothing and the log proved it: zero registrations. The winner is also the
+				# wrong hook here for a second reason -- user mode SKIPS hideDark objects when
+				# picking one, and the dawnglider that exposed this is hideDark, so it could
+				# never have been the winner however the gate was written.
+				_register_anim(od, cx, cy)
 				# A lit creature (NPC with a torch/glowsphere) carries its light with it —
 				# placed here every step so it tracks the creature. No smoke: a moving torch
 				# shouldn't trail a plume. (_live_build is false during dynamics, so this doesn't
@@ -2997,12 +3021,13 @@ func _add_glow(s: Sprite3D, tex: Texture2D, tile := "") -> void:
 ## Flicker: jitter each light's brightness a little every frame, so torches read
 ## as fire rather than steady lamps. Cheap — modulate the additive quads' alpha.
 func _process(_dt: float) -> void:
-	# The driver runs in BOTH modes now. It used to be 1:1-only, which is why nothing
-	# in the user view ever animated — registering sprite frames there (see
-	# _register_sprite_anim) was half a feature until this guard came off. Safe in user
-	# mode because the 1:1-only kinds are registered by _register_anim, which is still
-	# gated to full_1to1: user mode puts nothing but "tileframes" in the list.
-	if _one_to_one or not _anim_sprites.is_empty():
+	# The driver runs in BOTH modes, on BOTH registries. It was 1:1-only once, and then
+	# ran in user mode over _anim_sprites alone — because _register_anim, which fills
+	# _anim_items, was still gated to full_1to1. That gate is gone (see _rebuild_dynamics),
+	# so user mode now has Qud's flashes, blinks, cycles and frame schedules as well, and
+	# the condition has to notice the list they land in. Daniel: "let's fix the animations
+	# in user mode", having watched himself burn in Qud while the Holodeck stood still.
+	if _one_to_one or not _anim_sprites.is_empty() or not _anim_items.is_empty():
 		_animate_1to1()          # Qud's per-frame render programs (blinks, flashes, sparkles)
 	if _ib_active:
 		_ib_step()               # advance the incremental live-static build one chunk per frame
@@ -8292,6 +8317,25 @@ func _overlay_quad(tex: Texture2D, cx: int, cy: int, y: float, flip := false, co
 		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
 	elif col.a > 0.0:
 		m.albedo_color = col
+	# STAND IT UP IN USER MODE. 1:1 is a flat top-down stage where a cell IS a quad on the
+	# floor, so an overlay lying in the ground plane covers exactly the art it modifies. User
+	# mode stands its art up as billboards, and the same floor quad would lie in front of a
+	# creature's feet flashing at the dirt. Same mesh cell-for-cell, turned to face the camera
+	# and lifted to the billboard's own height, so a flash covers the thing it belongs to.
+	if not _one_to_one:
+		if _plane_up == null:
+			_plane_up = QuadMesh.new()
+			_plane_up.size = Vector2(1, 1)
+		mi.mesh = _plane_up
+		m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+		m.billboard_keep_scale = true
+		mi.material_override = m
+		mi.position = Vector3(cx, FLOOR_Y + OVERLAY_STAND_Y, cy)
+		if flip:
+			mi.scale = Vector3(-1, 1, 1)
+		mi.visible = false
+		_dynamic_root.add_child(mi)
+		return mi
 	mi.material_override = m
 	mi.position = Vector3(cx, y, cy)
 	if flip:
