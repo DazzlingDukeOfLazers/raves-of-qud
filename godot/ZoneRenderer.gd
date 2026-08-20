@@ -2493,9 +2493,13 @@ const BURN_FIRE_TALL := 1.7
 ## can we tighten them up?"
 const BURN_FIRE_BOX := Vector3(0.15, 0.26, 0.15)
 const BURN_FIRE_Y := 0.40
-const BURN_SMOKE_AMOUNT := 40       # against a sconce's 14
+## DENSITY IS WHAT MAKES IT ONE COLUMN. Coherent launch speeds stopped the plume tearing apart,
+## and it still read as a string of separate puffs — because 80 particles spread over a five-second
+## climb simply leaves gaps between them. The fix is more of them over a SHORTER climb: the same
+## column, filled in. (Shorter life also keeps the total on screen sane at this count.)
+const BURN_SMOKE_AMOUNT := 150      # against a sconce's 14
 const BURN_SMOKE_SQUARE := 0.36     # against 0.16 — big soft billows, not a thin wisp
-const BURN_SMOKE_LIFETIME := 5.0    # against 3.4; with the faster rise, a much taller column
+const BURN_SMOKE_LIFETIME := 3.4    # shorter than 5.0 on purpose — see BURN_SMOKE_AMOUNT
 const BURN_SMOKE_RISE := 5.2        # 0.95 -> 1.6 -> 3.4 -> here; it LEAVES, it does not seep
 ## AND IT KEEPS GOING. There was a brake here — damping that switched on once a particle had
 ## climbed four tiles, so the plume slowed at the top. It measured exactly as designed (density
@@ -2559,10 +2563,17 @@ func _build_burn_resources() -> void:
 	_burn_smoke_pm = _smoke_pm.duplicate()
 	_burn_smoke_pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
 	_burn_smoke_pm.emission_box_extents = BURN_SMOKE_BOX
-	_burn_smoke_pm.initial_velocity_min = BURN_SMOKE_RISE * 0.75
-	_burn_smoke_pm.initial_velocity_max = BURN_SMOKE_RISE * 1.2
+	# ONE COLUMN MEANS ONE SPEED. The sconce rig launches over a 0.75-1.2 range, which is right
+	# for a lazy plume off a wall bracket and is what was tearing this one apart: at 5.2 units/s
+	# over a 5s life the slowest and fastest particles end up ELEVEN TILES apart, so what leaves
+	# the body as a column arrives as a scatter of separate puffs. Daniel: "make the smoke hold
+	# together as one column." Nearly-equal launch speeds keep the plume coherent; the width it
+	# gains on the way up should come from the wind and the growth curve, both of which act on
+	# every particle alike, rather than from a lottery at birth.
+	_burn_smoke_pm.initial_velocity_min = BURN_SMOKE_RISE * 0.94
+	_burn_smoke_pm.initial_velocity_max = BURN_SMOKE_RISE * 1.06
 	_burn_smoke_pm.direction = Vector3(0, 1, 0)      # leaves the body VERTICALLY...
-	_burn_smoke_pm.spread = 5.0                      # a column, not a cone
+	_burn_smoke_pm.spread = 2.5                      # a column, not a cone
 	_burn_smoke_pm.gravity = BURN_WIND               # ...and leans downwind as it climbs
 	_burn_smoke_pm.turbulence_noise_strength = BURN_SMOKE_SWAY
 	# Strong sway, but MODERATE influence: the plume has to climb more than it wanders. Cranking
@@ -2570,8 +2581,8 @@ func _build_burn_resources() -> void:
 	# drifting sideways and DOWN rather than a column going up.
 	# Turbulence keeps its STRENGTH (the billows still churn) but takes much less INFLUENCE, so
 	# the churn happens inside a tight column instead of walking particles out of it.
-	_burn_smoke_pm.turbulence_influence_min = 0.06
-	_burn_smoke_pm.turbulence_influence_max = 0.15
+	_burn_smoke_pm.turbulence_influence_min = 0.03
+	_burn_smoke_pm.turbulence_influence_max = 0.08
 	# NO BRAKE. The sconce rig damps a little so its thin plume eases off near the top; a body on
 	# fire should climb the whole way and thin out on the ramp's alpha instead. Explicitly zero
 	# rather than inherited, so it cannot drift back in from the material this was duplicated from.
@@ -2579,9 +2590,11 @@ func _build_burn_resources() -> void:
 	_burn_smoke_pm.damping_max = 0.0
 	_burn_smoke_pm.damping_curve = null
 	# grows as it climbs, harder than the sconce's — a billow, not a thread
+	# Grows, but not so much that neighbours stop overlapping and start reading as separate
+	# billows — the column has to stay one thing.
 	var bc := Curve.new()
-	bc.add_point(Vector2(0.0, 0.6))
-	bc.add_point(Vector2(1.0, 2.6))
+	bc.add_point(Vector2(0.0, 0.8))
+	bc.add_point(Vector2(1.0, 1.9))
 	var bct := CurveTexture.new()
 	bct.curve = bc
 	_burn_smoke_pm.scale_curve = bct
@@ -2620,7 +2633,9 @@ func _place_burning(cx: int, cy: int) -> void:
 	sm.amount = BURN_SMOKE_AMOUNT
 	sm.lifetime = BURN_SMOKE_LIFETIME
 	sm.preprocess = BURN_SMOKE_LIFETIME              # a column already standing, not starting empty
-	sm.randomness = 0.6
+	# Randomness re-rolls lifetime and velocity per particle; at 0.6 it undoes the tight launch
+	# range above. Low enough to keep the plume from looking mechanical, not enough to shred it.
+	sm.randomness = 0.15
 	sm.process_material = _burn_smoke_pm
 	sm.draw_pass_1 = _burn_smoke_mesh
 	sm.local_coords = false
