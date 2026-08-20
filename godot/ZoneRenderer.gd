@@ -1285,7 +1285,18 @@ func _build_darkness(cells: Array, parent: Node, frozen_off := NOT_FROZEN) -> vo
 			# explored cell — so a cell in line of sight and one merely remembered had the SAME
 			# ground, and only their plants differed. Black at a modest alpha, which is the
 			# colour and transparency this overlay has always used.
-			f = minf(f, MEMORY_GROUND)
+			# MEMORY IS THE ANSWER HERE, not a floor under the cell's current light. As a floor it
+			# never applied: an explored cell you cannot currently see is usually UNLIT, so
+			# _light_frac had already returned 0 and minf(0, MEMORY_GROUND) is 0 — full black.
+			# 1836 of this zone's 2000 cells were explored, not visible and dark at dusk, so
+			# nearly the whole discovered map rendered as though it had never been seen. Daniel:
+			# "a tile that is all black but should look more like discovered-fog-of-war."
+			#
+			# Same rule as a departed zone, and the same reason: Qud's memory of a place is a
+			# PALETTE SWAP, not a dim, so it does not follow the time of day (docs/gotchas.md).
+			# What you remember is the map, not how lit it was. Cells you can SEE keep their light,
+			# so a genuinely dark room you are standing in still reads as dark.
+			f = MEMORY_GROUND
 		if frozen:
 			# THE RAMP IS THE WHOLE ANSWER FOR A DEPARTED ZONE — not a floor under its stored
 			# light. Taking the darker of the two let the zone's own lighting swamp the gradient:
