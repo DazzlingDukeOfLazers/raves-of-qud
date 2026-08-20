@@ -2486,7 +2486,7 @@ const BURN_FIRE_Y := 0.40
 const BURN_SMOKE_AMOUNT := 40       # against a sconce's 14
 const BURN_SMOKE_SQUARE := 0.36     # against 0.16 — big soft billows, not a thin wisp
 const BURN_SMOKE_LIFETIME := 5.0    # against 3.4; with the faster rise, a much taller column
-const BURN_SMOKE_RISE := 3.4        # 0.95 -> 1.6 -> here; it LEAVES, it does not seep
+const BURN_SMOKE_RISE := 5.2        # 0.95 -> 1.6 -> 3.4 -> here; it LEAVES, it does not seep
 ## AND IT KEEPS GOING. There was a brake here — damping that switched on once a particle had
 ## climbed four tiles, so the plume slowed at the top. It measured exactly as designed (density
 ## piled up across tiles 1-4 and fell off a cliff above) and looked wrong doing it: decelerating
@@ -2495,7 +2495,12 @@ const BURN_SMOKE_RISE := 3.4        # 0.95 -> 1.6 -> here; it LEAVES, it does no
 ## the way and fading on the colour ramp's alpha is what smoke does — it does not stop, it stops
 ## being visible.
 const BURN_SMOKE_SWAY := 0.75       # against 0.28 — it spreads WIDE as it climbs
-const BURN_SMOKE_BOX := Vector3(0.24, 0.10, 0.24)
+## Tight. A column reads as ONE plume off one body only while the particles stay grouped; born
+## across a wide footprint they read as several small fires. Narrow here and narrow in `spread`
+## below — the width the plume does gain should come from the wind carrying it, which is coherent,
+## rather than from scatter at birth, which is not. Daniel: "make the smoke rise faster and group
+## tighter."
+const BURN_SMOKE_BOX := Vector3(0.11, 0.07, 0.11)
 const BURN_SMOKE_Y := 0.95
 ## STANDING WIND, blowing to the NORTH-EAST. A cell's north is (0,-1) and its east is (1,0)
 ## (see the `step` table), and a cell maps to world as Vector3(x, h, y) — so north-east is +X, -Z.
@@ -2547,14 +2552,16 @@ func _build_burn_resources() -> void:
 	_burn_smoke_pm.initial_velocity_min = BURN_SMOKE_RISE * 0.75
 	_burn_smoke_pm.initial_velocity_max = BURN_SMOKE_RISE * 1.2
 	_burn_smoke_pm.direction = Vector3(0, 1, 0)      # leaves the body VERTICALLY...
-	_burn_smoke_pm.spread = 11.0
+	_burn_smoke_pm.spread = 5.0                      # a column, not a cone
 	_burn_smoke_pm.gravity = BURN_WIND               # ...and leans downwind as it climbs
 	_burn_smoke_pm.turbulence_noise_strength = BURN_SMOKE_SWAY
 	# Strong sway, but MODERATE influence: the plume has to climb more than it wanders. Cranking
 	# both spread it through the ground plane instead, which under this camera reads as smoke
 	# drifting sideways and DOWN rather than a column going up.
-	_burn_smoke_pm.turbulence_influence_min = 0.15
-	_burn_smoke_pm.turbulence_influence_max = 0.32
+	# Turbulence keeps its STRENGTH (the billows still churn) but takes much less INFLUENCE, so
+	# the churn happens inside a tight column instead of walking particles out of it.
+	_burn_smoke_pm.turbulence_influence_min = 0.06
+	_burn_smoke_pm.turbulence_influence_max = 0.15
 	# NO BRAKE. The sconce rig damps a little so its thin plume eases off near the top; a body on
 	# fire should climb the whole way and thin out on the ramp's alpha instead. Explicitly zero
 	# rather than inherited, so it cannot drift back in from the material this was duplicated from.
