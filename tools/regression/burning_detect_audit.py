@@ -16,8 +16,8 @@ step with ZoneRenderer.gd. Stdlib only; no daemon, no apps, no Qud.
 """
 import sys
 
-FIRE_FG = ["r", "R", "W", "Y"]
-FIRE_BG = ["W", "R", "r", "Y"]
+FIRE_BG_FLASH = "W"
+FIRE_BG_BASE = "K"
 
 
 def is_burning(spec):
@@ -38,13 +38,12 @@ def is_burning(spec):
         cut = col.find("^")
         if cut < 0:
             continue
-        fg = col[:cut].replace("&", "")
         bg = col[cut + 1:]
-        if len(fg) != 1 or len(bg) != 1:
+        if len(bg) != 1:
             continue
-        if fg in FIRE_FG and bg in FIRE_BG:
-            seen.add(col)
-    return len(seen) >= 1
+        seen.add(bg.upper())
+    # both halves of the flicker, or a steady tint would qualify
+    return FIRE_BG_FLASH in seen and FIRE_BG_BASE in seen
 
 
 CASES = [
@@ -56,10 +55,15 @@ CASES = [
     ("dawnglider, FLYING (real wire capture)",
      "60|0=;;|5=Tiles2/status_flying.bmp;&y;y|15=;;", False),
     ("asleep floods ^c behind the art", "60|0=;&c^c;|10=;;|20=;&c^c;", False),
-    ("a single steady flame tint still counts", "60|0=;&r^W;", True),
+    ("a single steady flash is NOT fire", "60|0=;&r^W;", False),
+    # the capture that exposed the bug: a level-44 character, green foreground, burning
+    ("level-44 character, &G foreground (real capture)",
+     "60|0=;;|2=;&G^W;|3=;;|5=;&G^k;|6=;;|7=;&G^k;|12=;&G^W;|14=;&G^k;|17=;&G^W;", True),
+    ("&Y foreground (real capture)", "60|0=;;|2=;&Y^W;|4=;&Y^k;|20=;&Y^W;", True),
     ("tile-only cycle (waterwheel)", "60|0=frame1.bmp;;|30=frame2.bmp;;", False),
     ("no animation at all", "", False),
-    ("malformed entries are ignored, not crashed on", "60|junk|0=;&r^W;", True),
+    # tolerance for junk entries, with BOTH halves of the flicker present so it is still fire
+    ("malformed entries are ignored, not crashed on", "60|junk|0=;&r^W;|4=;&r^k;", True),
 ]
 
 fails = 0

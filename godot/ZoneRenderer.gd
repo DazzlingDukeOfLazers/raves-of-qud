@@ -2431,8 +2431,18 @@ func _override_for(tile: String) -> String:
 ## Deliberately narrow. `^` alone is not fire: Asleep floods `^c` behind its art the same way. The
 ## foreground has to be a flame colour AND a background has to flash, and it has to happen on at
 ## least two distinct frames, or a single steady tint would qualify.
-const FIRE_FG := ["r", "R", "W", "Y"]
-const FIRE_BG := ["W", "R", "r", "Y"]
+## THE FLICKER IS IN THE BACKGROUND, NOT THE FOREGROUND. This first read the foreground for a
+## flame colour, which worked on two characters and silently failed on a third: the foreground is
+## the CREATURE'S OWN colour and has nothing to do with being on fire. Three real captures, all
+## burning —
+##     &r^k / &r^W     a Wanderer
+##     &Y^k / &Y^W     the same character later
+##     &G^k / &G^W     a level-44 character, and the one that exposed it
+## — vary in the foreground and agree exactly in the background: Qud flashes the CELL white and
+## back as the thing burns. So the test is the background alternating W and k, and the foreground
+## is not looked at at all.
+const FIRE_BG_FLASH := "W"      # the flash
+const FIRE_BG_BASE := "K"       # ...and what it flashes back to (matched case-insensitively)
 func _is_burning(obj: Dictionary) -> bool:
 	var spec := String(obj.get("animSched", ""))
 	if spec == "" or spec.find("^") < 0:
@@ -2452,13 +2462,13 @@ func _is_burning(obj: Dictionary) -> bool:
 		var cut := col.find("^")
 		if cut < 0:
 			continue
-		var fg := col.substr(0, cut).replace("&", "")
 		var bg := col.substr(cut + 1)
-		if fg.length() != 1 or bg.length() != 1:
+		if bg.length() != 1:
 			continue
-		if FIRE_FG.has(fg) and FIRE_BG.has(bg):
-			seen[col] = true
-	return seen.size() >= 1
+		seen[bg.to_upper()] = true
+	# Both halves of the flicker must be present. One alone is a steady tint — Asleep floods a
+	# single ^c behind its art the same way, and a thing that is merely tinted must not catch fire.
+	return seen.has(FIRE_BG_FLASH) and seen.has(FIRE_BG_BASE)
 
 ## A BODY ON FIRE IS NOT A TORCH. The sconce rig emits from a 0.05-unit box at one point, which on
 ## a creature reads as a single flame stuck to one spot; and its smoke is sized for ambience over a
