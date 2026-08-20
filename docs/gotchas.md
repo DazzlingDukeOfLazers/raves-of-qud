@@ -2448,3 +2448,34 @@ Both produced a confident wrong number in one session, on top of the ones alread
   which sent me looking for a rendering regression that did not exist. `hv move` the window to the
   same slot and confirm the capture dimensions MATCH before comparing. A control helps: re-capture
   the same build twice and require a zero delta first.
+
+## A cull must be INVISIBLE, and distances between zones must be BOX to BOX (2026-08-19)
+
+Two separate faults in `_sync_neighbors`, both showing up as remembered zones winking out on a
+zone crossing — and both direction-dependent, which is the tell.
+
+- **Corner-to-box distance is not symmetric.** The visibility test measured from the live zone's
+  ORIGIN corner (0,0) — its north-west corner — to the neighbour's box, so a west neighbour got the
+  live zone's whole width for free and an east one was charged for it. At `NEIGHBOR_CULL_DIST =
+  330` a zone five west read 320 and stayed while the same zone five east read 400 and was culled;
+  north beat south by a zone height the same way. Use the GAP BETWEEN THE TWO BOXES,
+  `max(0, o.x - w, -(o.x + w))`, which is symmetric by construction.
+- **The solid far frame must out-reach the cull.** It stopped at 260 cells while the cull kept
+  zones out to 330, plus 80 for the zone's own width. Between those radii a remembered zone
+  rendered with nothing behind it, so culling it exposed bare ground instead of the dark that
+  should already have covered it — the cull became a visible flash rather than an optimisation.
+  Size the frame off the cull constant so the two cannot drift apart.
+
+**The general rule: if dropping something changes the picture, it was not a cull.** Whatever a
+culled object was covering has to be covered by something else FIRST. And when a symptom is
+direction-dependent — east differs from west, north from south — look for a distance or bounds
+test that treats one sign differently, not for a rendering bug in what is drawn.
+
+**Reading a walk history is cheap and worth doing first.** `~/Library/Application
+Support/RavesOfQud/world/<gameId>/` holds one JSON per visited zone and `_persist` writes on FIRST
+sight, so mtimes give the walk order; `[zonefade]` lines in `~/Library/Application
+Support/Godot/app_userdata/Raves of Qud/logs/raves.log` give every neighbour re-bake with its
+offset. Between them you can tell a frontier zone (few visited neighbours — solid dark by design,
+not a bug) from a real fault, before touching a screenshot. **Pick the game dir by checking which
+one holds the CURRENT zone AND is most recent** — several dirs can contain the same zone id from
+different playthroughs, and taking the first match had me analysing a stale game.
