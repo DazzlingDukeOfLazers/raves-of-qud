@@ -104,6 +104,8 @@ func setup(cam_rig, mode_names: Dictionary, on_pane_inspect: Callable,
 			"btns": [], "cine_speed": 1.0})
 		_cells.append(cell)
 		_build_pane_ui(cell, _cams.size() - 1, m)
+		for n in (_cams[_cams.size() - 1].get("ui", []) as Array):
+			(n as CanvasItem).visible = false      # revealed on hover; the VIEW is the point
 
 
 # --- per-pane widgets -----------------------------------------------------------
@@ -156,6 +158,7 @@ func _build_pane_ui(cell: Control, i: int, m: int) -> void:
 			btns.append(b)
 	cell.add_child(ring)
 	_cams[i]["btns"] = btns
+	_cams[i]["ui"] = [ring]
 
 	# ROTATE + ZOOM, bottom-right. Rotation is per pane by design; the slider multiplies whatever
 	# distance this pane's MODE computes, so it means the same thing in every pane without any
@@ -201,6 +204,7 @@ func _build_pane_ui(cell: Control, i: int, m: int) -> void:
 		ss.value_changed.connect(func(v: float): _cams[pi4]["cine_speed"] = v)
 		col.add_child(ss)
 	cell.add_child(col)
+	(_cams[i]["ui"] as Array).append(col)
 
 	# MOUSE gets a GLOBE: drag it to swing the view. A pane is not the focused viewport, so an
 	# orbit you can drag has to live in a widget rather than in the pane's own mouse handling —
@@ -215,6 +219,29 @@ func _build_pane_ui(cell: Control, i: int, m: int) -> void:
 			if e is InputEventMouseMotion and (e.button_mask & MOUSE_BUTTON_MASK_LEFT) != 0:
 				pane_rotate(pi5, -(e.relative.x) * 0.6))
 		cell.add_child(globe)
+		(_cams[i]["ui"] as Array).append(globe)
+
+## Show a pane's controls only while the pointer is over that pane.
+##
+## BY GEOMETRY, NOT BY mouse_entered/mouse_exited. Those fire on the HOVERED control, so moving
+## the pointer from the pane onto one of its own buttons makes the pane emit `exited` -- the
+## controls would vanish the instant you reached for them, which is the one moment they must not.
+## A rect test asks the question that was actually meant: is the pointer inside this pane.
+func _update_hover() -> void:
+	if _layer == null or not _on:
+		return
+	var mp := _layer.get_viewport().get_mouse_position()
+	for i in _cams.size():
+		if i >= _cells.size():
+			continue
+		var c: Control = _cells[i]
+		var over := Rect2(c.global_position, c.size).has_point(mp)
+		if bool(_cams[i].get("hover", false)) == over:
+			continue
+		_cams[i]["hover"] = over
+		for n in (_cams[i].get("ui", []) as Array):
+			if is_instance_valid(n):
+				(n as CanvasItem).visible = over
 
 ## Move the player in whichever WORLD direction lies `screen_dir` away on this pane's screen.
 func _pane_move(i: int, screen_dir: int) -> void:
@@ -242,6 +269,8 @@ func _world_dir_for(i: int, screen_dir: int) -> String:
 ## Re-letter every ring after the cameras have been placed, so the labels track the pane's heading.
 func _refresh_rings() -> void:
 	for i in _cams.size():
+		if not bool(_cams[i].get("hover", false)):
+			continue          # nobody can read a hidden ring; do not re-letter it every frame
 		var btns: Array = _cams[i].get("btns", [])
 		for sd in DIR_NAMES.size():
 			var b = btns[RING_INDEX[sd]] if sd < RING_INDEX.size() else null
@@ -321,4 +350,5 @@ func update() -> void:
 		cam.position = eye
 		if eye.distance_to(look) > 0.001:
 			cam.look_at(look, _cam_rig.NORTH if top else Vector3.UP)
+	_update_hover()
 	_refresh_rings()
