@@ -1546,7 +1546,13 @@ func _build_unexplored(parent: Node) -> void:
 				continue
 			_dark_rect_minus(sto, sx * zw, sy * zh, zw, zh, bx0, by0, bx1, by1, DARK_SOLID_Y)
 			any_solid = true
-	var far := 260
+	# THE FAR FRAME MUST OUT-REACH THE CULL, or culling is not invisible. A neighbour is dropped
+	# at NEIGHBOR_CULL_DIST and can extend a further zone beyond that, so a frame of 260 left
+	# remembered zones from ~260 out rendering with nothing behind them: cross a boundary, the zone
+	# culls, and the solid dark that should have covered that ground was never there — the cull
+	# became a visible flash instead of an optimisation. Sized off the cull so the two cannot drift
+	# apart again. Four opaque rects; the extra reach is free.
+	var far := int(NEIGHBOR_CULL_DIST) + maxi(zw, zh) + 40
 	_dark_rect(sto, -far, -far, far * 2 + zw, far - zh, DARK_SOLID_Y)               # north of the 3x3
 	_dark_rect(sto, -far, 2 * zh, far * 2 + zw, far, DARK_SOLID_Y)                  # south
 	_dark_rect(sto, -far, -zh, far - zw, 3 * zh, DARK_SOLID_Y)                      # west
@@ -1848,12 +1854,20 @@ func _sync_neighbors(neighbors: Array) -> void:
 		var o: Vector2i = nb.get("offset", Vector2i.ZERO)
 		var dz: int = int(nb.get("dz", 0))
 		_static_zones[id].position = Vector3(o.x, -float(dz) * level_height, o.y)
-		# Hide neighbours the fog fully hides anyway. Nearest planar distance from the live zone's
-		# origin corner to this neighbour's cell box [o .. o+dims], plus the vertical level gap.
-		var nx: float = clampf(0.0, float(o.x), float(o.x) + _live_w)
-		var nz: float = clampf(0.0, float(o.y), float(o.y) + _live_h)
+		# Hide neighbours the fog fully hides anyway: the gap between the live zone's cell BOX
+		# and this neighbour's, plus the vertical level gap.
+		#
+		# BOX TO BOX, NOT CORNER TO BOX. This measured from the live zone's ORIGIN CORNER (0,0),
+		# which is its north-west corner — so a west neighbour got its whole width for free and an
+		# east one was charged for it. A zone five west read 320 and stayed; the SAME zone five
+		# east read 400 and was culled. Walking one zone east therefore made distant remembered
+		# zones wink out, and walking back west brought them in — Daniel: "when I walk back west,
+		# the lighting returns. When I go back east, the lighting disappears." Same story for
+		# north over south, one zone-height's worth.
+		var gx: float = maxf(0.0, maxf(float(o.x) - _live_w, -(float(o.x) + _live_w)))
+		var gy: float = maxf(0.0, maxf(float(o.y) - _live_h, -(float(o.y) + _live_h)))
 		var vgap: float = absf(float(dz) * level_height)
-		var near: float = sqrt(nx * nx + nz * nz + vgap * vgap)
+		var near: float = sqrt(gx * gx + gy * gy + vgap * vgap)
 		_static_zones[id].visible = near <= NEIGHBOR_CULL_DIST
 
 # --- introspection (for CellInspector) --------------------------------------
