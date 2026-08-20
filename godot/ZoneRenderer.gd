@@ -1276,71 +1276,83 @@ func _build_darkness(cells: Array, parent: Node, frozen_off := NOT_FROZEN) -> vo
 	var frozen: bool = frozen_off != NOT_FROZEN
 	penumbra_radius = maxi(1, int(Settings.get_value("penumbra_radius", penumbra_radius)))
 	penumbra_divisions = clampi(int(Settings.get_value("penumbra_divisions", penumbra_divisions)), 1, 16)
-	# pass 1: per-cell light fraction + which cells are walls (to find exposed faces).
-	var frac := {}
+	# PASS 1 — TWO INDEPENDENT ANSWERS PER CELL, never one value they have to fight over.
+	#
+	# THE RESTRUCTURE THIS BLOCK EXISTS TO REMEMBER. Each cell is asked two questions that have
+	# nothing to do with each other:
+	#
+	#   TONE — what the cell IS. Never seen / remembered / in sight. A fact about the player's
+	#          KNOWLEDGE, uniform across the tile.
+	#   VEIL — how far past the edge of the visible the cell SITS. A DISTANCE to a boundary, so it
+	#          varies across the tile, which is what earns the subdivision.
+	#
+	# They used to be folded into one light fraction `f` by a mix of `minf` and plain assignment,
+	# so every new case had to guess which of the two won — and it guessed wrong FOUR times in one
+	# session (the penumbra swamped by dusk, a departed zone keeping live art, the live map
+	# rendering black, a remembered pool still blue). Each was the same shape: a value meant to
+	# GUARANTEE something, wired as an alternative or a floor, so it never applied. Kept apart they
+	# compose by one rule with no special cases at all:
+	#
+	#     alpha = max(TONE, VEIL) * amax          neither one can LIGHTEN the other
+	#
+	# and that single max reproduces every branch the old if-chain spelled out by hand. Before
+	# adding a case here, ask which of the two questions it answers; if it seems to answer both,
+	# it is two cases.
+	var tone := {}          # k -> darkness alpha from what the cell IS
+	var veil := {}          # k -> darkness alpha from how far past the edge it sits (0 = none)
+	var dark := {}          # k -> the composed max(tone, veil), pre-amax
+	var veil_kind := {}     # k -> 1 frozen ramp, 2 live edge fade; absent = flat, no resampling
+	var wash := {}          # k -> paint the FIELD colour under the darkness (see REMEMBER_COVER)
 	var walls := {}
-	var fade := {}          # cell -> 1 frozen ramp, 2 live edge fade; absent = flat, no resampling
-	var remembered := {}    # cell -> true: explored, not in sight. Painted the FIELD colour, not black.
 	for cell in cells:
 		var k := Vector2i(int(cell.get("x", 0)), int(cell.get("y", 0)))
-		# CELL LIGHT ONLY. The overlay is the cavern/night dimmer and nothing else; the memory
-		# look rides on the sprites' modulate instead. Driving it from the fog made unseen but
-		# LIT ground carry a half-black veil it never used to have, and tinting it toward the
-		# ghost made it glow. Daniel: "revert it to the color/transparency we've been using for
-		# days" — this is that: black, alpha = 1 - light.
-		var f := _light_frac(cell)
+		# --- TONE: what the cell IS ---
+		var t: float
 		if not _cell_explored(cell):
-			f = minf(f, FOG_GROUND)   # NEVER SEEN — see FOG_GROUND; NOT black, Qud has no black
-		elif not _cell_seen(cell):
-			# REMEMBERED, not in sight. Without this the ground makes no distinction at all:
-			# the memory treatment reaches only sprites and meshes, floors are batched and never
-			# touched, and in daylight (light=200) the overlay contributes nothing to an
-			# explored cell — so a cell in line of sight and one merely remembered had the SAME
-			# ground, and only their plants differed. Black at a modest alpha, which is the
-			# colour and transparency this overlay has always used.
-			# MEMORY IS THE ANSWER HERE, not a floor under the cell's current light. As a floor it
-			# never applied: an explored cell you cannot currently see is usually UNLIT, so
-			# _light_frac had already returned 0 and minf(0, MEMORY_GROUND) is 0 — full black.
-			# 1836 of this zone's 2000 cells were explored, not visible and dark at dusk, so
-			# nearly the whole discovered map rendered as though it had never been seen. Daniel:
-			# "a tile that is all black but should look more like discovered-fog-of-war."
+			t = 1.0 - FOG_GROUND      # NEVER SEEN — see FOG_GROUND; NOT black, Qud has no black
+		elif frozen or not _cell_seen(cell):
+			# REMEMBERED. Qud's memory of a place is a PALETTE SWAP, not a dim, so it does not follow
+			# the time of day (docs/gotchas.md): what you remember is the map, not how lit it was.
+			# Hence a flat MEMORY_GROUND rather than the cell's stored light — for the live zone's
+			# out-of-sight cells AND for every explored cell of a departed zone, because you left, so
+			# nothing in it is in sight now whatever it was when you walked out.
 			#
-			# Same rule as a departed zone, and the same reason: Qud's memory of a place is a
-			# PALETTE SWAP, not a dim, so it does not follow the time of day (docs/gotchas.md).
-			# What you remember is the map, not how lit it was. Cells you can SEE keep their light,
-			# so a genuinely dark room you are standing in still reads as dark.
-			f = MEMORY_GROUND
-			remembered[k] = true
+			# Reading the stored light here is the "shadow overwriting the penumbra" bug: at dusk a
+			# departed zone's cells report light=1, i.e. 0.94 of black, which swamps an 0.18 ramp and
+			# takes the boundary straight to black. As a FLOOR it fails the other way — an explored
+			# cell you cannot see is usually unlit, so minf(0, MEMORY_GROUND) is 0 and 1836 of a
+			# zone's 2000 cells render as though never seen. It is neither; it is the answer.
+			t = 1.0 - MEMORY_GROUND
+			wash[k] = true
+		else:
+			# IN SIGHT: the cavern/night dimmer and nothing else. Driving this from the fog gave
+			# unseen but LIT ground a half-black veil it never had. Daniel: "revert it to the
+			# color/transparency we've been using for days" — this is that: black, alpha 1 - light.
+			t = 1.0 - _light_frac(cell)
+		# --- VEIL: how far past the edge of the visible it sits ---
+		var v := 0.0
 		if frozen:
-			# THE RAMP IS THE WHOLE ANSWER FOR A DEPARTED ZONE — not a floor under its stored
-			# light. Taking the darker of the two let the zone's own lighting swamp the gradient:
-			# at dusk its cells report light=1, i.e. 0.94 of black, so the boundary went straight
-			# to black and the penumbra never rendered. Daniel, having clicked (2,-1), one tile
-			# outside the zone: "the shadow is overwriting the zone penumbra."
-			#
-			# Dropping the stored light here is also the more faithful rule, not just the
-			# better-looking one: Qud's memory of a place does not dim with the time of day (see
-			# docs/gotchas.md). What you remember is the place, not how lit it was when you left.
-			f = _frozen_light(k, frozen_off)
-			if not _cell_explored(cell):
-				f = minf(f, FOG_GROUND)   # never SHOW something you have not seen, penumbra or not
-			elif f < 1.0:
-				fade[k] = 1
+			v = 1.0 - _frozen_light(k, frozen_off)   # ramp from the shared boundary, FROZEN_EDGE_DIM
 		elif not _cell_seen(cell):
-			# THE LIVE ZONE'S EDGE FADE ONLY DIMS WHAT YOU CANNOT SEE. It exists to blend the zone
-			# into the dark beyond it, and that is an OUT-OF-SIGHT effect — applied to cells in
-			# line of sight it dims the ground you are standing on, and standing at the zone's
-			# edge it dims YOU. Daniel: "my character seems to be in discovered fog-of-war",
-			# reported from (0,24), the corner cell, where the fade is at its deepest.
-			#
-			# Gating on _cell_seen also makes the seam self-correcting: walk to the edge and the
-			# fade retreats ahead of your line of sight, which is what a fade into the unknown
-			# should do anyway.
-			var lf := _live_edge_light(k)
-			if lf < 1.0 and lf <= f:
-				fade[k] = 2
-			f = minf(f, lf)
-		frac[k] = f
+			# THE LIVE ZONE'S EDGE FADE ONLY DIMS WHAT YOU CANNOT SEE. It blends the zone into the
+			# dark beyond it, and that is an OUT-OF-SIGHT effect: applied to cells in line of sight it
+			# dims the ground you are standing on, and at the zone's edge it dims YOU. Daniel: "my
+			# character seems to be in discovered fog-of-war", reported from (0,24), where it is
+			# deepest. Gating on _cell_seen also makes the seam self-correcting — the fade retreats
+			# ahead of your line of sight, which is what a fade into the unknown should do anyway.
+			v = 1.0 - _live_edge_light(k)
+		# SUBDIVIDE ONLY WHERE THE VEIL CAN ACTUALLY WIN. A cell whose tone is the darker answer
+		# everywhere inside it renders as one flat step whatever the division count, so cutting it
+		# into D x D identical sub-quads buys nothing and costs real fill: the live zone's band is
+		# ~600 cells, ~450 of them tone-dominated, which at 16 divisions is ~115k quads for zero
+		# visual difference — squarely the overdraw failure mode in CLAUDE.md. `v` is sampled at the
+		# cell centre and the ramp keeps climbing across the tile, so allow one tile's worth of rise
+		# before ruling the veil out, or the cell where the two cross would step instead of ramp.
+		if v > 0.0 and v + _veil_step(frozen) >= t:
+			veil_kind[k] = 1 if frozen else 2
+		tone[k] = t
+		veil[k] = v
+		dark[k] = maxf(t, v)
 		# A wall the player has never seen is HIDDEN now (see _relight_static_sprites), so it must
 		# not be treated as a wall here either: its darkness would be a roof quad at WALL_H and a
 		# ring of side faces, left hanging in the air over nothing. Unexplored wall cells fall
@@ -1381,7 +1393,7 @@ func _build_darkness(cells: Array, parent: Node, frozen_off := NOT_FROZEN) -> vo
 		var cx := float(k.x)
 		var cy := float(k.y)
 		if walls.has(k):
-			var a := (1.0 - float(frac[k])) * amax
+			var a := float(dark[k]) * amax
 			if a >= DARK_SOLID_A:
 				_dark_quad(sto, cx, cy, DARK_SOLID_Y, 1.0); any_solid = true
 			elif a >= 0.02:
@@ -1389,28 +1401,30 @@ func _build_darkness(cells: Array, parent: Node, frozen_off := NOT_FROZEN) -> vo
 			for d in sides:
 				if walls.has(k + d):
 					continue                       # interior face: not visible
-				var sa := (1.0 - float(frac.get(k + d, frac[k]))) * amax
+				var sa := float(dark.get(k + d, dark[k])) * amax
 				if sa >= DARK_SOLID_A:
 					_dark_side(sto, cx, cy, d, 1.0); any_solid = true
 				elif sa >= 0.02:
 					_dark_side(st, cx, cy, d, sa); any = true
 		else:
-			var a := (1.0 - float(frac[k])) * amax
-			# THE WASH GOES DOWN FIRST, AND IS NOT AN ALTERNATIVE TO THE FADE. It was an `elif`
-			# under the fade branch, so a remembered cell that also sat in the edge band got the
-			# fade INSTEAD — thin black over the real floor, which is how a remembered pool one
-			# tile from the boundary was still rendering bright blue (cell 34,1: explored=true,
-			# visible=false, and inside the band). What the cell IS and how far it is from the
-			# edge are different questions; both answers apply.
-			if remembered.has(k):
+			# BOTH ANSWERS APPLY, AND IN THIS ORDER. The wash says what the cell IS and goes down
+			# first; the darkness says how dark it ends up and lies over it. The wash was once an
+			# `elif` under the fade branch, so a remembered cell that ALSO sat in the edge band got
+			# the fade INSTEAD — thin black over the real floor, which is how a remembered pool one
+			# tile from the boundary still rendered bright blue (cell 34,1: explored, not visible,
+			# inside the band). Two questions, two layers.
+			if wash.has(k):
 				_dark_quad_col(st, cx, cy, DARK_FLOOR_Y - 0.005,
 					Color(_world_bg.r, _world_bg.g, _world_bg.b, REMEMBER_COVER))
 				any = true
-			if penumbra_divisions > 1 and fade.has(k):
-				# SUBDIVIDED: this cell's darkness comes from a fade, so it can be resampled
-				# inside the tile instead of being one flat step. Frozen zones bake once, so this
-				# is paid once for them; the live zone's edge band is the only per-turn cost.
-				var res: Array = _emit_fade_cell(st, sto, k, int(fade[k]), frozen_off, amax)
+			var a := float(dark[k]) * amax
+			if penumbra_divisions > 1 and veil_kind.has(k):
+				# SUBDIVIDED: part of this cell's darkness is a DISTANCE, so it can be resampled inside
+				# the tile instead of standing as one flat step. The tone rides along as a floor, so a
+				# sub-quad is never lighter than what the cell IS — the same max, evaluated per sample.
+				# Frozen zones bake once; the live zone's edge band is the only per-turn cost.
+				var res: Array = _emit_fade_cell(st, sto, k, int(veil_kind[k]), frozen_off, amax,
+					float(tone[k]))
 				any = any or bool(res[0])
 				any_solid = any_solid or bool(res[1])
 			elif a >= DARK_SOLID_A:
@@ -1436,6 +1450,14 @@ func _build_darkness(cells: Array, parent: Node, frozen_off := NOT_FROZEN) -> vo
 ## Returns a light fraction (1 = untouched), so the caller can min() it against the cell's own.
 ## The ramp at a FLOAT world position — the sub-tile form of _frozen_light, for sampling inside a
 ## cell when divisions > 1. Distance is measured to the live rect's OUTER edge (-0.5 / +size-0.5)
+## How much the veil ramp rises across ONE tile — the margin for the subdivision gate above.
+## Mirrors the two ramps exactly: _frozen_light spreads (1 - FROZEN_EDGE_DIM) over penumbra_radius
+## tiles, _live_edge_light spreads FROZEN_EDGE_DIM over penumbra_radius + 1.
+func _veil_step(frozen: bool) -> float:
+	if frozen:
+		return (1.0 - FROZEN_EDGE_DIM) / float(maxi(1, penumbra_radius))
+	return FROZEN_EDGE_DIM / float(maxi(1, penumbra_radius + 1))
+
 ## so a position half a tile past the boundary reads as half a tile, not a whole one.
 func _frozen_light_at(wx: float, wy: float) -> float:
 	var dx: float = maxf(0.0, maxf(-0.5 - wx, wx - (_live_w - 0.5)))
@@ -1602,8 +1624,12 @@ func _live_edge_light(k: Vector2i) -> float:
 
 ## One fade cell of a ZONE (frozen ramp or the live zone's edge), resampled per division. Same
 ## axis-aware trick as _emit_penumbra_cell: only the axes that actually vary get cut.
+## `tone_floor`: the cell's TONE as a darkness alpha (see _build_darkness pass 1). The veil is
+## resampled per sub-quad; the tone is uniform across the tile, so it rides along as a floor and
+## the same max(tone, veil) rule holds at every sample. Without it a subdivided cell would come
+## out LIGHTER than the same cell unsubdivided wherever the tone is the darker of the two.
 func _emit_fade_cell(st: SurfaceTool, sto: SurfaceTool, k: Vector2i, kind: int,
-		off: Vector2i, amax: float) -> Array:
+		off: Vector2i, amax: float, tone_floor := 0.0) -> Array:
 	var d: int = maxi(1, penumbra_divisions)
 	var blended := false
 	var solid := false
@@ -1617,7 +1643,7 @@ func _emit_fade_cell(st: SurfaceTool, sto: SurfaceTool, k: Vector2i, kind: int,
 				lf = _frozen_light_at(x0 + sw * 0.5 + float(off.x), y0 + sw * 0.5 + float(off.y))
 			else:
 				lf = _live_edge_light_at(x0 + sw * 0.5, y0 + sw * 0.5)
-			var a: float = (1.0 - lf) * amax
+			var a: float = maxf(tone_floor, 1.0 - lf) * amax
 			if a >= DARK_SOLID_A:
 				_dark_quad_xy(sto, x0, y0, x0 + sw, y0 + sw, DARK_SOLID_Y, 1.0)
 				solid = true

@@ -2379,3 +2379,72 @@ wiring. To keep a surface identical in both modes, that is a decision — say so
 `clone_of_qud()` that has an `else`, and on any attempt to write the ambiguous gate back (a bare
 `qud_shape()` or an empty feature name). It cannot see a branch killed by its CALLER always passing true —
 row 4 died that way — so when a mode flag is threaded through a parameter, check the call sites too.
+
+## The darkness overlay asks TWO questions per cell — keep them apart (2026-08-19)
+
+`_build_darkness` computes a cell's darkness from two answers that have nothing to do with each
+other, and the bug shape this file kept producing was folding them into one value:
+
+- **TONE** — what the cell IS. Never seen / remembered / in sight. A fact about the player's
+  KNOWLEDGE, uniform across the tile.
+- **VEIL** — how far past the edge of the visible the cell SITS. A DISTANCE to a boundary, so it
+  varies across the tile — which is what earns the sub-tile subdivision.
+
+They compose by one rule with no special cases: `alpha = max(TONE, VEIL) * amax`. Neither can
+LIGHTEN the other. That single max reproduces every branch the old if-chain spelled out by hand.
+
+Before this they shared one light fraction `f`, written by a mix of `minf` and plain assignment, so
+each new case had to guess which of the two won. **It guessed wrong five times**, always the same
+way — a value meant to GUARANTEE something, wired as an alternative or a floor, so it never applied:
+
+| symptom | the miswiring |
+|---|---|
+| penumbra swamped at dusk | frozen ramp took `min` with the zone's stored light (0.94 at dusk) |
+| departed zone kept live art | `_sync_neighbors` skipped zones it already had |
+| 1836 of 2000 cells rendered black | `minf(0, MEMORY_GROUND)` — memory as a FLOOR under an unlit cell |
+| remembered pool still blue | the wash was an `elif` under the fade branch |
+| **unexplored ground black at night** | `min(light, FOG_GROUND)` — a CEILING ON LIGHT, not a floor on brightness |
+
+The last one the restructure found on its own, and it had been shipping: FOG_GROUND only ever
+worked in daylight. At `light=1` (night, cavern) `min(0, 0.70)` is 0, i.e. alpha 0.94 — the exact
+near-black FOG_GROUND was introduced to remove. **You cannot answer "how lit is it" about a cell you
+have never seen**, so the tone must not be reachable by a lighting value at all.
+
+**Adding a case here → ask which of the two questions it answers.** If it seems to answer both, it
+is two cases. And prove a change with the Python equivalence harness (old chain vs new rule over
+the real 80x25 geometry, all cell states x light levels) before touching the app — it is exhaustive,
+takes a second, and it is what turned "looks fine" into "one divergence class, and it is a fix".
+
+## Subdivide only where the VEIL can win, or the quad count explodes (2026-08-19)
+
+`veil_kind` gates the sub-tile path. Marking every cell whose veil is non-zero looks harmless and
+is not: a cell whose TONE is the darker answer everywhere inside it renders as one flat step at any
+division count, so cutting it into D x D identical sub-quads buys nothing. The live zone's edge band
+is ~600 cells, ~450 of them tone-dominated — at `penumbra_divisions = 16` that is ~115k quads for
+zero visual difference, squarely the overdraw failure mode in CLAUDE.md.
+
+Gate on `v + _veil_step(frozen) >= t`. The one-tile margin matters: `v` is sampled at the cell
+CENTRE and the ramp keeps climbing across the tile, so without it the cell where tone and veil cross
+would step instead of ramp. Measured at D=16: frozen zones byte-identical (22,400 blended + 489,600
+solid), live zone 52,736 -> 103,424 blended quads — but blended AREA only 206 -> 404 cells of 2000,
+and sub-quads do not overlap, so overdraw rises ~10% rather than doubling. **Overdraw is about
+blended AREA, not quad count** — that is the number to check against the SIGBUS history.
+
+## Two more appearance checks that could not fail (2026-08-19)
+
+Both produced a confident wrong number in one session, on top of the ones already listed above.
+
+- **A freshly restarted Raves has NO zone data until a turn happens** — the mod broadcasts
+  snapshots, it does not replay them (docs/protocol.md). The Holodeck then draws a bare field plane,
+  and every darkness statistic reads beautifully: near-black `36.87% -> 0.00%`, which I nearly
+  reported as proof of a fix. The tell is UNIFORMITY — the playfield mean was `(15,46,45)` in all 24
+  regions of a 6x4 grid, *including the cells holding the player and the lit pool*. A real playfield
+  is never uniform. **Sample a grid and count distinct colours before believing any frame** (`< 5`
+  distinct on a 20px grid = no world), then kick a turn and re-capture.
+- **Never diff a downscaled Retina capture against a native one.** `hv shot` returns the display's
+  backing, so the same window is 3840x2160 on one screen and 1920x1080 on another (see the ops
+  quickref). Downscaling averages sparse bright glyphs into their dark neighbours and INFLATES the
+  mean of glyph-rich regions — it invented a uniform `-4` darkening across the whole lit interior,
+  which sent me looking for a rendering regression that did not exist. `hv move` the window to the
+  same slot and confirm the capture dimensions MATCH before comparing. A control helps: re-capture
+  the same build twice and require a zero delta first.
