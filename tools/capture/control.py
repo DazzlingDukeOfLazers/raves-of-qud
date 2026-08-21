@@ -207,6 +207,10 @@ def main(argv):
     elif cmd == "fph":
         godot("fph " + argv[1])
         print("godot: fp height", argv[1])
+    elif cmd == "screenpos":
+        # where does a cell land on screen? printed to raves.log by the viewer
+        godot("screenpos " + argv[1] + " " + argv[2])
+        print("godot: screenpos", argv[1], argv[2])
     elif cmd == "mv":
         godot("mv")
         print("godot: multiview toggled")

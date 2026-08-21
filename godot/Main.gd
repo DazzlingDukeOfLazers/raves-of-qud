@@ -599,6 +599,16 @@ func _exec_godot_cmd(cmd: String) -> void:
 			# deterministic test input: key/wheel injection proved unreliable for sweeps.
 			if parts.size() >= 2 and _cam_rig != null:
 				_cam_rig.set_zoom_1to1(float(parts[1]))
+		"screenpos":
+			# `screenpos CX CY` — print where a zone CELL lands on screen, in window pixels.
+			# The missing half of `inspect`: that says what a cell IS, this says where to LOOK,
+			# so an outside tool can sample the rendered pixel for a named cell instead of
+			# guessing coordinates off a crop. Every appearance question in this project has
+			# eventually needed it.
+			if parts.size() >= 3 and _cam_rig != null and _cam_rig._cam != null:
+				var wq := Vector3(float(parts[1]), 0.0, float(parts[2]) * _cam_rig.zstretch())
+				var sq: Vector2 = _cam_rig._cam.unproject_position(wq)
+				print("[screenpos] cell (%s,%s) -> (%d,%d)" % [parts[1], parts[2], int(sq.x), int(sq.y)])
 		"inspect":
 			# `inspect CX CY` — run the cell inspector at a ZONE CELL from outside (writes
 			# selection.txt like a Ctrl+click). Closes the loop for tooling: no window focus

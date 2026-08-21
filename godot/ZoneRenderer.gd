@@ -258,6 +258,25 @@ var _remembered_build := false
 var _noting := true             # whether _note records (off during dynamic-only rebuilds)
 var _live_build := false        # true only while building the LIVE zone's static (its
                                 # torches register for the _process flicker; neighbours don't)
+## THE COLOUR THE LIVE ZONE'S GROUND ACTUALLY RENDERS AS, which is NOT _world_bg.
+##
+## _world_bg is the bare field plane — what Qud paints behind everything. Inside a zone you almost
+## never see it: every cell carries a painted-ground object whose tile art sits over it, and that
+## art is darker and a slightly different hue. Measured at Daniel's edge, bib rgb(7,29,36) against
+## in-zone rgb(5,23,28) — a ratio of 1.40/1.26/1.29, which is not uniform, so it was never an alpha
+## difference. The surround has no ground objects, so it showed the bare plane and read as another
+## material entirely. Tallied from the wire each turn and used as the colour the penumbra fades
+## FROM. Daniel: "it should be colored the same as (6,1), but with an alpha gradient."
+var _floor_col := Color(0, 0, 0, 0)     # unset until a zone has been seen
+## HOW DARK THE LIVE ZONE'S OWN EDGE IS, so the penumbra can start there instead of at a constant.
+##
+## The ramp began at FROZEN_EDGE_DIM whatever the zone looked like, and the ground inside is
+## darkened by its cells' LIGHT — two different amounts meeting at the boundary. Measured at
+## Daniel's edge: bib rgb(7,29,36) against in-zone rgb(5,23,28), the bib 1.40/1.26/1.29 BRIGHTER,
+## which is what "the start color is much lighter than the tile I'm standing in" looks like from
+## the outside. Starting the ramp at the edge's own alpha makes the two continuous by
+## construction, whatever the hour or the weather does to the zone.
+var _edge_alpha := 0.0
 var _hidden_cell := Vector2i(-9999, -9999)   # a live cell whose creature is not drawn (first-person: the player)
 var _player_cell := Vector2i(-9999, -9999)   # the player's cell this snapshot (from data.player), for the world-map "on top" rule
 var _placing_player := false                 # true while placing the player's own sprite in the dynamic pass
@@ -1443,6 +1462,8 @@ func _build_darkness(cells: Array, parent: Node, frozen_off := NOT_FROZEN) -> vo
 	# and that single max reproduces every branch the old if-chain spelled out by hand. Before
 	# adding a case here, ask which of the two questions it answers; if it seems to answer both,
 	# it is two cases.
+	if not frozen:
+		_tally_floor_colour(cells)
 	var tone := {}          # k -> darkness alpha from what the cell IS
 	var veil := {}          # k -> darkness alpha from how far past the edge it sits (0 = none)
 	var dark := {}          # k -> the composed max(tone, veil), pre-amax
@@ -1520,6 +1541,21 @@ func _build_darkness(cells: Array, parent: Node, frozen_off := NOT_FROZEN) -> vo
 	# light of the OPEN cell it faces, since that's what would light it. So rock beside a
 	# torch stays lit while rock in the dark goes black. Interior faces (wall-to-wall) and
 	# fully-lit cells emit nothing.
+	if not frozen:
+		# The mean darkness along the zone's boundary ring: what the penumbra has to hand over
+		# from. Mean rather than modal — the ring crosses lit and unlit stretches, and the ramp
+		# is one continuous thing, so the average is the honest single number for it.
+		var ring_sum := 0.0
+		var ring_n := 0
+		var zw_i := int(_live_w)
+		var zh_i := int(_live_h)
+		for k in dark:
+			var kk: Vector2i = k
+			if kk.x == 0 or kk.y == 0 or kk.x == zw_i - 1 or kk.y == zh_i - 1:
+				ring_sum += float(dark[k]) * amax
+				ring_n += 1
+		if ring_n > 0:
+			_edge_alpha = clampf(ring_sum / float(ring_n), 0.0, 0.95)
 	var sides := [Vector2i(0, 1), Vector2i(1, 0), Vector2i(0, -1), Vector2i(-1, 0)]
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -1661,7 +1697,7 @@ func _frozen_light_at(wx: float, wy: float) -> float:
 	if d <= 0.0:
 		return 1.0
 	var t: float = clampf(d / float(maxi(1, penumbra_radius)), 0.0, 1.0)
-	return 1.0 - lerpf(FROZEN_EDGE_DIM, 1.0, t)
+	return 1.0 - lerpf(maxf(FROZEN_EDGE_DIM, _edge_alpha), 1.0, t)
 
 func _frozen_light(k: Vector2i, off: Vector2i) -> float:
 	var wx: int = k.x + off.x
@@ -1673,7 +1709,7 @@ func _frozen_light(k: Vector2i, off: Vector2i) -> float:
 		return 1.0                                  # inside the live rect: not ours to dim
 	# d = 1 is the edge row -> a little dim; d = FROZEN_DARK_IN -> fully dark.
 	var t: float = clampf(float(d - 1) / float(maxi(1, penumbra_radius)), 0.0, 1.0)
-	var a: float = lerpf(FROZEN_EDGE_DIM, 1.0, t)   # alpha
+	var a: float = lerpf(maxf(FROZEN_EDGE_DIM, _edge_alpha), 1.0, t)   # alpha
 	return 1.0 - a                                  # ...as a light fraction
 
 
@@ -1690,6 +1726,29 @@ func _frozen_light(k: Vector2i, off: Vector2i) -> float:
 ## Cheap by construction. The ramp is per-cell only within FROZEN_DARK_IN of the live zone; past
 ## that it is a handful of big solid rects, and solid means opaque (see DARK_SOLID_A). A loaded
 ## neighbour draws its own darkness, so its footprint is skipped — otherwise this would paint over
+
+## The modal painted-ground colour of the live zone. Modal rather than mean: a zone is one terrain
+## with a few oddities in it, and averaging a green field with a red splash gives a colour that is
+## in neither.
+func _tally_floor_colour(cells: Array) -> void:
+	var tally := {}
+	for cell in cells:
+		for obj in cell.get("objs", []):
+			if float(obj.get("layer", 99)) > 0.5:
+				continue                       # ground sits at layer 0
+			var cs := String(obj.get("color", ""))
+			if cs == "":
+				continue
+			tally[cs] = int(tally.get(cs, 0)) + 1
+	var best := ""
+	var best_n := 0
+	for k in tally:
+		if int(tally[k]) > best_n:
+			best_n = int(tally[k])
+			best = String(k)
+	if best != "":
+		_floor_col = _qud_color(best)
+
 ## the explored world as well as the unknown one.
 func _build_unexplored(parent: Node) -> void:
 	if _one_to_one or _world_map:
@@ -1732,6 +1791,14 @@ func _build_unexplored(parent: Node) -> void:
 	# came out BRIGHTER than the zone it borders: rgb(9,31,39) against the field's rgb(5,23,29),
 	# a pale band exactly where the ramp should be handing over. Sharing _ground_mat makes them
 	# the same colour by construction rather than by two definitions agreeing.
+	# THE BARE FIELD PLANE, and the floor colour tally above is deliberately NOT used here.
+	#
+	# Filling the surround with the zone's modal ground COLOUR overshoots: that colour string is a
+	# flat fill, while the ground you actually see is sparse tile art over the plane. Measured, it
+	# put the reds 2.4x too high (bib rgb(17,32,37) against in-zone rgb(7,33,41)) — green and blue
+	# landed, red did not, which is the signature of painting a whole cell in something that only
+	# tints part of one. The plane is what Qud paints behind everything and is the honest thing to
+	# fade from; _floor_col stays as the measurement that showed this, for whatever wants it next.
 	bg.material_override = _ground_mat
 	bg.position = Vector3(float(zw) * 0.5 - 0.5, DARK_FLOOR_Y - 0.02, float(zh) * 0.5 - 0.5)
 	bg.set_meta("is_darkness", true)      # cleared with the rest of the surround on a re-bake
