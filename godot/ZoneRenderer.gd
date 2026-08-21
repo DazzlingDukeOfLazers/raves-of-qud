@@ -135,6 +135,44 @@ const ZONE_RAMPS_ON := false
 ## darken the zone you are standing in for nothing — which is the "(0,24) my character seems to be
 ## in discovered fog-of-war" report that gated _live_edge_light on line of sight in the first place.
 const SURROUND_BAND_ON := true
+## A DEPARTED ZONE IS NEVER BRIGHTER THAN THE ZONE YOU ARE STANDING IN.
+##
+## Qud's memory is a palette swap that ignores the time of day, so a remembered zone renders at a
+## flat MEMORY_GROUND however dark it is where you are. In Qud that is invisible -- you only ever
+## see one zone -- but Raves draws the neighbours, and at night the live zone is darker than
+## MEMORY_GROUND, so every departed zone became a bright halo around a dark one. Measured on the
+## Joppa north boundary at night: the neighbour at (9,33,41) against the live zone at (5,24,29).
+## Daniel: "the start color of the penumbra bib ramp is much lighter than the tile I'm standing in."
+##
+## The old ramp could not fix this and no darkness overlay can: going outward the brightness has to
+## INCREASE, and alpha only darkens. So the answer is not a ramp at all -- it is a ceiling. The
+## remembered tone becomes max(1 - MEMORY_GROUND, ambient), which leaves memory alone whenever the
+## world is at least as bright as it (daylight, a lit interior) and clamps it when the world is
+## darker. Applied to the TONE, so it composes by the same "neither one can LIGHTEN the other" max
+## rule as everything else in pass 1 rather than as another layer on top.
+## UNCONFIRMED ON GLASS. The tone changes and the bake fires with it — the probe reports the live
+## zone at 0.2820 and the departed zone moving 0.1600 -> 0.3969, `dark_cap` updated, one darkness
+## mesh present — and the rendered pixels of the departed zone do not move: byte-identical crops
+## between cap 0.2820 and 0.3969, where a 16% brightness change was owed. So something downstream
+## of the tone is deciding a remembered cell's brightness, and this constant is not it.
+##
+## Where the trail ended, for whoever picks it up: a remembered cell is drawn as the memory WASH
+## (_world_bg at REMEMBER_COVER = 0.92, near-opaque) with the darkness quad over it, both in the
+## one blended mesh, wash emitted first. The wash is not scaled by the tone at all — so if it is
+## the wash that is being seen, the tone can be anything and the cell will not move. That is the
+## first thing to test: scale the wash's own colour by the cap and see if the pixels follow.
+##
+## Do not trust a broad-region median to answer it either. The zone used for these measurements is
+## a waterlogged tunnel, and its neighbour crop is water- and wall-dominated: two earlier readings
+## off that crop compared different terrain and read as a brightness difference that was really a
+## content difference. Sample the probe cells (zonereport) on open ground of the same kind.
+const DEPARTED_CAP_ON := true
+## How coarsely the cap is quantised for the re-bake guard. A neighbour's darkness is baked once
+## per relationship, so the cap has to join the key or it goes stale the moment dusk falls while
+## you stand still -- and it must NOT be continuous, or a value that drifts every turn re-bakes all
+## eight neighbours every turn, which is the crossing cost this file spent a session flattening.
+## 1/16 gives a handful of re-bakes across a whole night and none at all while the light holds.
+const CAP_QUANT := 16.0
 
 ## Above this alpha a darkness quad is drawn OPAQUE instead of blended. Not cosmetic — it is what
 ## makes the frozen-zone ramp affordable. A full sheet of alpha-blended quads over every neighbour
@@ -388,6 +426,20 @@ var _edge_tone := {}
 ## screenshot is guesswork -- a band cell and a frozen neighbour's memory-toned ground are similar
 ## colours, and I burned a round assuming a slot was unvisited when it was loaded. Ask the builder.
 var _band_stats := {}
+## THE LIVE ZONE'S AMBIENT DARKNESS this turn — the MEDIAN tone over its cells, and the ceiling on
+## how bright a departed zone may render (see DEPARTED_CAP_ON). Median, not mean and not per-cell:
+## it has to be a property of the zone's ambient light, steady while you walk. A torch, a campfire
+## or the player's own light touches a handful of cells and the median steps over all of them,
+## where a mean would drift with every step and a per-cell cap would make the whole remembered
+## neighbourhood ripple as the light moved along the shared edge.
+var _ambient_tone := 0.0
+## ...and the luminance of its ground art, so the cap can be stated in what the two zones actually
+## RENDER as rather than in the alphas they store. Capping the alpha alone does not work: a departed
+## zone's floor is recoloured to Qud's flat memory pair (K, #155352 — a bright teal) while the live
+## zone's is real art under the night grade, so equal alphas still came out 2.8/1.92/1.96 apart.
+## Measured underground with both zones dark and both tones at 0.2820. Same trap as the old bib:
+## the alpha was never the part that was wrong.
+var _live_lum := 0.0
 # World-map cards: on the parasang map (z < 0) each terrain tile stands UP as a card instead of
 # lying flat, so the tilted compass camera reads the art face-on. Placed as plain Sprite3D
 # billboards (the proven path — a MultiMesh with a billboard material faulted the Metal driver),
@@ -1521,7 +1573,8 @@ func _build_darkness(cells: Array, parent: Node, frozen_off := NOT_FROZEN) -> vo
 			# takes the boundary straight to black. As a FLOOR it fails the other way — an explored
 			# cell you cannot see is usually unlit, so minf(0, MEMORY_GROUND) is 0 and 1836 of a
 			# zone's 2000 cells render as though never seen. It is neither; it is the answer.
-			t = 1.0 - MEMORY_GROUND
+			# ...but never brighter than the zone the player is actually in (see DEPARTED_CAP_ON).
+			t = maxf(1.0 - MEMORY_GROUND, _departed_cap())
 			wash[k] = true
 		# --- VEIL: how far past the edge of the visible it sits ---
 		var v := 0.0
@@ -1743,11 +1796,85 @@ func _on_edge_ring(cx: int, cy: int) -> bool:
 ## Remember the edge ring's tone for this turn. Cheap — the ring, not the zone.
 func _tally_edge_tone(cells: Array, lit_floor: bool) -> void:
 	_edge_tone.clear()
+	var all_tones: Array = []
 	for cell in cells:
 		var cx := int(cell.get("x", 0))
 		var cy := int(cell.get("y", 0))
+		var t: float = _live_cell_tone(cell, lit_floor)
+		all_tones.append(t)
 		if _on_edge_ring(cx, cy):
-			_edge_tone[Vector2i(cx, cy)] = _live_cell_tone(cell, lit_floor)
+			_edge_tone[Vector2i(cx, cy)] = t
+	# ...and the ambient, from the same pass. Over EVERY cell rather than the ring: the ring is 206
+	# cells and a lit stretch along one edge can carry it, while the zone's own median cannot be
+	# moved by anything short of the whole zone changing, which is exactly when the cap should move.
+	if all_tones.is_empty():
+		_ambient_tone = 0.0
+	else:
+		all_tones.sort()
+		_ambient_tone = float(all_tones[all_tones.size() / 2])
+	_live_lum = _modal_ground_luminance(cells)
+
+## The live zone's ground LUMINANCE — the modal painted-ground colour, as one number.
+##
+## An earlier version of this tally was used as a COLOUR, to paint the ground outside the zone, and
+## it was measurably wrong: what renders is the tile ART tinted by the colour string, and the art's
+## own luminance moves the result (reds came out 2.4x high). As a LUMINANCE RATIO against another
+## colour derived the same way it is far more forgiving — both sides carry the same bias and it
+## divides out, which is the only thing it is asked for here.
+##
+## Modal rather than mean: a zone is one terrain with a few oddities in it, and averaging a green
+## field with a red splash gives a colour that is in neither.
+func _modal_ground_luminance(cells: Array) -> float:
+	var tally := {}
+	for cell in cells:
+		for obj in cell.get("objs", []):
+			if float(obj.get("layer", 99)) > 0.5:
+				continue                       # ground sits at layer 0
+			var cs := String(obj.get("color", ""))
+			if cs != "":
+				tally[cs] = int(tally.get(cs, 0)) + 1
+	var best := ""
+	var best_n := 0
+	for k in tally:
+		if int(tally[k]) > best_n:
+			best_n = int(tally[k])
+			best = String(k)
+	if best == "":
+		return 0.0
+	return _luminance(_qud_color(best))
+
+## Rec.709 luminance. The scalar the cap compares brightnesses with, because "brighter" is one
+## question and three channels cannot answer it — and a per-channel cap would tint the memory.
+func _luminance(c: Color) -> float:
+	return 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b
+
+## The ceiling on a departed zone's darkness, as a frozen-pass TONE. Scaled by DARK_MAX because the
+## live zone renders its tone at amax = DARK_MAX while a frozen zone renders at amax = 1.0 — the cap
+## has to match what the live zone LOOKS like, not the number it stores.
+func _departed_cap() -> float:
+	if not DEPARTED_CAP_ON:
+		return 0.0
+	# MEMORY DIMS WITH THE WORLD, by composition rather than by estimation.
+	#
+	# The obvious form of this — work out what each side RENDERS as and solve for the alpha that
+	# equalises them — needs the live ground's luminance, and that cannot be got from the wire. The
+	# modal colour string overstates it badly, because what renders is dark line-work tinted by that
+	# string and mostly not covered by it: predicted 0.2578 against an actual 0.0789, a 3.3x bias.
+	# Worse, the bias does NOT divide out against the memory side (1.5x there), because the memory
+	# recolour lerps toward k by the ART's own luminance. That is the same wall the bib hit and the
+	# same lesson: stop computing the colour.
+	#
+	# So compose instead. Memory keeps its own brightness — MEMORY_GROUND, Qud's palette swap — and
+	# then takes the live zone's ambient darkening on top, multiplicatively. It needs no knowledge
+	# of either side's art, it is exact in the only place that matters (at full darkness the world
+	# goes black and memory goes with it), and it is monotone: the darker where you stand, the
+	# darker what you remember. What it is NOT is a proven ceiling — see DEPARTED_CAP_ON.
+	var amb: float = clampf(_ambient_tone * DARK_MAX, 0.0, 1.0)
+	return clampf(1.0 - MEMORY_GROUND * (1.0 - amb), 0.0, 1.0)
+
+## The cap quantised for the re-bake guard — see CAP_QUANT.
+func _departed_cap_step() -> int:
+	return int(round(_departed_cap() * CAP_QUANT))
 
 ## The live cell a surround cell extends: the nearest one inside the rect. Clamping BOTH axes is
 ## what makes the corners work — a cell off the north-west corner clamps to (0,0) and repeats that
@@ -2196,10 +2323,24 @@ func _sync_neighbors(neighbors: Array) -> void:
 		# the live one — at most eight — do any work.
 		var was_far: bool = znode.has_meta("dark_off") \
 				and _zone_beyond_ramp(Vector2i(znode.get_meta("dark_off")))
+		# THE CAP IS PART OF THE RELATIONSHIP TOO. A departed zone's tone is clamped to the live
+		# zone's ambient (DEPARTED_CAP_ON), and that changes without anyone moving — dusk falls
+		# while you stand still and every neighbour is left wearing the brightness of an hour ago.
+		# Quantised (CAP_QUANT), so it re-keys a handful of times across a night rather than every
+		# turn: a cap that drifted continuously would re-bake all eight neighbours per step, which
+		# is precisely the crossing cost this guard exists to bound.
+		var cap_step: int = _departed_cap_step()
+		var cap_stale: bool = not znode.has_meta("dark_cap") \
+				or int(znode.get_meta("dark_cap")) != cap_step
 		if was_far and _zone_beyond_ramp(nb_off):
 			znode.set_meta("dark_off", nb_off)
-		elif not znode.has_meta("dark_off") or Vector2i(znode.get_meta("dark_off")) != nb_off:
+			# A zone past the ramp bakes to one flat rectangle whatever the cap says, so it is
+			# exempt: re-baking it would produce the same mesh. Record the step and move on.
+			znode.set_meta("dark_cap", cap_step)
+		elif not znode.has_meta("dark_off") or Vector2i(znode.get_meta("dark_off")) != nb_off \
+				or cap_stale:
 			znode.set_meta("dark_off", nb_off)
+			znode.set_meta("dark_cap", cap_step)
 			for old_dark in znode.get_children():
 				if old_dark.has_meta("is_darkness"):
 					old_dark.queue_free()          # drop the previous orientation's mesh
@@ -2214,7 +2355,8 @@ func _sync_neighbors(neighbors: Array) -> void:
 			# a neighbour is WEARING, so a stale orientation is visible in the log instead of only
 			# on the glass, where "a lit band down one edge" and "a corner fade" look alike until
 			# you know which one you are owed.
-			print("[zonefade] %s off=(%d,%d)" % [str(id), nb_off.x, nb_off.y])
+			print("[zonefade] %s off=(%d,%d) cap=%d/%d" % [str(id), nb_off.x, nb_off.y,
+				cap_step, int(CAP_QUANT)])
 		# Vertical stacking: a neighbour `dz` strata below the live zone drops by
 		# dz * level_height, so deeper levels sit under the current one with an
 		# arbitrary, user-set gap. Same-stratum neighbours (dz==0) stay coplanar.

@@ -1601,8 +1601,20 @@ func _write_zone_report() -> void:
 			var sy: int = int(floor(float(dy) / float(zh)))
 			if absi(sx) <= 1 and absi(sy) <= 1 and dz == 0:
 				slot = "(%d,%d)" % [sx, sy]
-		lines.append("  %-34s d=(%+5d,%+5d) dz=%+d  slot %s%s"
-			% [id, dx, dy, dz, slot, "   <-- LIVE" if id == live_id else ""])
+		# What the zone's darkness mesh was actually BAKED with, not what the cap says now. The
+		# two differing is the whole failure mode of a guarded bake, and it is invisible on glass.
+		var baked := ""
+		if renderer._static_zones.has(id):
+			var zn: Node3D = renderer._static_zones[id]
+			var nd := 0
+			for ch in zn.get_children():
+				if ch.has_meta("is_darkness"):
+					nd += 1
+			baked = "  baked[cap=%s off=%s darkmesh=%d]" % [
+				str(zn.get_meta("dark_cap")) if zn.has_meta("dark_cap") else "-",
+				str(zn.get_meta("dark_off")) if zn.has_meta("dark_off") else "-", nd]
+		lines.append("  %-34s d=(%+5d,%+5d) dz=%+d  slot %s%s%s"
+			% [id, dx, dy, dz, slot, baked, "   <-- LIVE" if id == live_id else ""])
 	lines.append("")
 	lines.append("BOUNDARY PROBES — screen pixel for each cell crossing the zone edge, so an outside")
 	lines.append("tool samples the CELL it means instead of a coordinate guessed off a crop. Each row")
@@ -1627,6 +1639,17 @@ func _write_zone_report() -> void:
 				continue
 			row.append("d%+d (%d,%d)@%d,%d" % [d, c.x, c.y, int(sp.x), int(sp.y)])
 		lines.append("  %s: %s" % [edge, "  ".join(PackedStringArray(row))])
+	lines.append("")
+	lines.append("DEPARTED-ZONE CAP (a remembered zone may not render brighter than this one)")
+	lines.append("  ambient_tone (median)      %.4f" % renderer._ambient_tone)
+	lines.append("  live ground luminance      %.4f" % renderer._live_lum)
+	lines.append("  memory pair luminance (K)  %.4f" % renderer._luminance(renderer._qud_color("K")))
+	lines.append("  cap (frozen-pass tone)     %.4f" % renderer._departed_cap())
+	lines.append("  memory tone uncapped       %.4f" % (1.0 - renderer.MEMORY_GROUND))
+	lines.append("  -> departed renders at     %.4f  (live edge renders at %.4f)"
+		% [maxf(1.0 - renderer.MEMORY_GROUND, renderer._departed_cap()),
+		   renderer._ambient_tone * renderer.DARK_MAX])
+	lines.append("  rebake step                %d/%d" % [renderer._departed_cap_step(), int(renderer.CAP_QUANT)])
 	lines.append("")
 	lines.append("SURROUND BAND (_build_unexplored, last turn)")
 	var bs: Dictionary = renderer._band_stats
