@@ -3735,13 +3735,17 @@ const DOOR_LEAF_DEPTH_PX := 2.0
 const DOOR_LEAF_DIM := 0.82
 ## THE COLOUR CAPPING THE INSIDE OF THE FRAME — the reveal, the arch's soffit and the threshold.
 ##
-## MAGENTA RIGHT NOW, ON PURPOSE, and it is not meant to ship that way. The intended value is
-## _world_bg, Qud's field colour, but against a dark doorway at night that is very nearly what an
-## uncapped hole looked like, so "is the cap there and is it the right shape" was not answerable by
-## looking. Daniel: "it's hard to tell. Can you change the cap color to magenta or something?"
-## Set DOOR_CAP_DEBUG false to go back to the field colour.
-const DOOR_CAP_DEBUG := true
+## The field colour, DARKENED — Daniel, after seeing it in magenta: "set the cap back to the bg
+## color, but darker." Darker is what makes it read as depth: undarkened it is the same value as
+## the ground the doorway opens onto, so the reveal flattened into the floor behind it.
+##
+## DOOR_CAP_DEBUG swaps in magenta and skips the per-cell dim, which is how the cap was confirmed
+## to exist and to be the right shape at all — against a dark doorway at night the field colour was
+## very nearly indistinguishable from an uncapped hole. Leave it false; flip it when a cap is in
+## question again.
+const DOOR_CAP_DEBUG := false
 const DOOR_CAP_DEBUG_COLOR := Color(1.0, 0.0, 1.0)
+const DOOR_CAP_DARKEN := 0.45
 ## How far the leaf swings when open — the most it may, before the cell clips it. A leaf spans the
 ## whole doorway (10 of 16px on the basic door, 0.625 of a cell) and is hinged at one jamb, so at a
 ## right angle its far end lands 0.625 from the wall line and 0.125 PAST the cell edge, into the
@@ -3836,8 +3840,49 @@ func _door_model_try(frame: Array[Vector2i], leaf: Array[Vector2i], w: int, h: i
 		if spans:
 			break
 		lyt += 1
+	# THE ARCH CURVE BELONGS TO THE FRAME; THE DOOR'S OWN HOLES DO NOT. The leaf's bounding box is
+	# not its shape — row 5 of the basic door is `.o...######...o.`, leaf only at cols 5..10 — so
+	# extruding the box squares off a top the art draws as an arch. Daniel: "the door is now a
+	# rectangular prism. The door shape at the top is defined by the white voxels. The darker voxels
+	# should be part of the door frame."
+	#
+	# Which empty pixels are arch and which are the door's own is not a matter of where they sit but
+	# of whether they are ENCLOSED. Flood-fill the non-leaf pixels of the box from its border: what
+	# is reached is open to the outside and is the arch's curve, and goes to the frame; what is not
+	# is surrounded by leaf and is the door's own hole. On the basic door that separates 10 px of
+	# arch from the 4 px KNOB at (10,13),(11,13),(11,14),(11,15) — and the knob has to stay a hole,
+	# since it is the very feature the hinge side was derived from.
+	var leaf_set := {}
+	for p in leaf:
+		leaf_set[p] = true
+	var free := {}
+	for y in range(ly0, ly1 + 1):
+		for x in range(lx0, lx1 + 1):
+			if not leaf_set.has(Vector2i(x, y)):
+				free[Vector2i(x, y)] = true
+	var arch := {}
+	var stack: Array = []
+	for k in free:
+		var kk: Vector2i = k
+		if kk.x == lx0 or kk.x == lx1 or kk.y == ly0 or kk.y == ly1:
+			arch[kk] = true
+			stack.append(kk)
+	while not stack.is_empty():
+		var c: Vector2i = stack.pop_back()
+		for n in [Vector2i(c.x + 1, c.y), Vector2i(c.x - 1, c.y),
+				Vector2i(c.x, c.y + 1), Vector2i(c.x, c.y - 1)]:
+			if free.has(n) and not arch.has(n):
+				arch[n] = true
+				stack.append(n)
+	var frame_set := {}
+	for p in frame:
+		frame_set[p] = true
+	for k in arch:
+		frame_set[k] = true
 	var d := {
 		"w": w, "h": h, "lyt": lyt,
+		"frame_boxes": _door_boxes(frame_set, fx0, fx1, fy0, fy1),
+		"leaf_boxes": _door_boxes(leaf_set, lx0, lx1, ly0, ly1),
 		"fx0": fx0, "fx1": fx1, "fy0": fy0, "fy1": fy1,
 		"lx0": lx0, "lx1": lx1, "ly0": ly0, "ly1": ly1,
 		# THE HINGE IS OPPOSITE THE KNOB, and the knob is IN THE ART. Daniel: "the default art puts
@@ -3878,6 +3923,51 @@ func _door_knob_hi(leaf: Array[Vector2i], lx0: int, lx1: int, ly0: int, ly1: int
 	if n == 0:
 		return false                                 # no knob in the art: hinge left, by convention
 	return (sum / float(n)) < (float(lx0 + lx1) * 0.5)   # knob LEFT -> hinge right
+
+## Contiguous horizontal runs of `mask` on row y, within [x0,x1] — the unit the door extrudes.
+func _door_runs(mask: Dictionary, y: int, x0: int, x1: int) -> Array:
+	var out: Array = []
+	for x in range(x0, x1 + 1):
+		if not mask.has(Vector2i(x, y)):
+			continue
+		if not out.is_empty() and int(out[-1][1]) == x - 1:
+			out[-1][1] = x
+		else:
+			out.append([x, x])
+	return out
+
+## Runs merged DOWNWARD into boxes: [x0, x1, y0, y1] inclusive, art coordinates.
+##
+## Per-row quads would work and would be slower for no gain — a door's jambs are the same one-pixel
+## run for eighteen rows, and the arch repeats too. Merging identical runs vertically turns the
+## basic door's frame from ~40 slabs into a handful, which matters because every door in a zone
+## pays it and Joppa has twenty.
+func _door_boxes(mask: Dictionary, x0: int, x1: int, y0: int, y1: int) -> Array:
+	var boxes: Array = []
+	var open_runs: Array = []                        # [x0, x1, ystart] still growing
+	for y in range(y0, y1 + 2):                      # one past the end, to flush
+		var here: Array = _door_runs(mask, y, x0, x1) if y <= y1 else []
+		var keep: Array = []
+		for o in open_runs:
+			var matched := false
+			for r in here:
+				if int(r[0]) == int(o[0]) and int(r[1]) == int(o[1]):
+					matched = true
+					break
+			if matched:
+				keep.append(o)
+			else:
+				boxes.append([int(o[0]), int(o[1]), int(o[2]), y - 1])
+		for r in here:
+			var cont := false
+			for o in keep:
+				if int(o[0]) == int(r[0]) and int(o[1]) == int(r[1]):
+					cont = true
+					break
+			if not cont:
+				keep.append([int(r[0]), int(r[1]), y])
+		open_runs = keep
+	return boxes
 
 func _door_model(tile: String) -> Dictionary:
 	if not _door_models.has(tile):
@@ -3948,18 +4038,17 @@ func _place_door_voxel(tile: String, main_c: String, detail_c: String, cx: int, 
 	# --- FRAME: the art minus the leaf hole, as four strips ---
 	var stf := SurfaceTool.new()
 	stf.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var strips := [
-		[float(m["fx0"]), float(lx0), float(fy0), float(fy1) + 1.0],        # jamb, low side
-		[float(lx1) + 1.0, float(m["fx1"]) + 1.0, float(fy0), float(fy1) + 1.0],  # jamb, high side
-		[float(lx0), float(lx1) + 1.0, float(fy0), float(ly0)],             # arch above the leaf
-		[float(lx0), float(lx1) + 1.0, float(ly1) + 1.0, float(fy1) + 1.0], # sill below it
-	]
-	for sp in strips:
-		if sp[1] <= sp[0] or sp[3] <= sp[2]:
-			continue
-		_door_face(stf, sp[0], sp[1], sp[2], sp[3], fd, ew, col, row, w, h)
-	_door_edges(stf, float(m["fx0"]), float(m["fx1"]) + 1.0, float(fy0), float(fy1) + 1.0,
-		fd, ew, col, row, w, h)
+	# THE FRAME IS ITS OWN SHAPE, box by box — jambs, arch cap, and the arch's inner curve where it
+	# cuts across the leaf's box (see the flood fill in _door_model_try). Four rectangles around a
+	# rectangular hole cannot describe an arch: they either square it off or, if widened to cover
+	# it, swallow the leaf pixels those rows also carry.
+	for b in m["frame_boxes"]:
+		var bx0: float = float(b[0])
+		var bx1: float = float(b[1]) + 1.0
+		var br0: float = float(b[2])
+		var br1: float = float(b[3]) + 1.0
+		_door_face(stf, bx0, bx1, br0, br1, fd, ew, col, row, w, h)
+		_door_edges(stf, bx0, bx1, br0, br1, fd, ew, col, row, w, h)
 	var fmesh_cap := SurfaceTool.new()
 	fmesh_cap.begin(Mesh.PRIMITIVE_TRIANGLES)
 	# CAP THE INSIDE OF THE OPENING. The frame is the art with a hole cut in it, and a hole cut in
@@ -3974,7 +4063,7 @@ func _place_door_voxel(tile: String, main_c: String, detail_c: String, cx: int, 
 	var cmesh := ArrayMesh.new()
 	fmesh_cap.commit(cmesh)
 	cmi.mesh = cmesh
-	var cap_c: Color = DOOR_CAP_DEBUG_COLOR if DOOR_CAP_DEBUG else _world_bg
+	var cap_c: Color = DOOR_CAP_DEBUG_COLOR if DOOR_CAP_DEBUG else _world_bg.darkened(DOOR_CAP_DARKEN)
 	var cmat: StandardMaterial3D = _color_material(cap_c).duplicate()
 	cmat.cull_mode = BaseMaterial3D.CULL_DISABLED   # seen from inside the opening, either side
 	# The debug colour is deliberately NOT dimmed by the cell light — the point is to find it.
@@ -4003,11 +4092,16 @@ func _place_door_voxel(tile: String, main_c: String, detail_c: String, cx: int, 
 	# built relative to the hinge, so rotating the pivot swings it about that edge — and mapped as a
 	# DELTA for the same reason (see _door_face); the pivot holds the absolute position.
 	var span := func(c: float) -> float: return c / w
-	var a0: float = float(lx0) - hinge_c
-	var a1: float = float(lx1) + 1.0 - hinge_c
-	_door_face(stl, a0, a1, float(ly0), float(ly1) + 1.0, ld, ew, span, row, w, h,
-		float(lx0), float(lx1) + 1.0)
-	_door_edges(stl, a0, a1, float(ly0), float(ly1) + 1.0, ld, ew, span, row, w, h)
+	# ...and the leaf likewise, so its top follows the arch instead of squaring off under it. Every
+	# box is hinge-relative, which keeps the whole panel rigid under one rotation.
+	for b in m["leaf_boxes"]:
+		var lb0: float = float(b[0]) - hinge_c
+		var lb1: float = float(b[1]) + 1.0 - hinge_c
+		var lr0: float = float(b[2])
+		var lr1: float = float(b[3]) + 1.0
+		_door_face(stl, lb0, lb1, lr0, lr1, ld, ew, span, row, w, h,
+			float(b[0]), float(b[1]) + 1.0)
+		_door_edges(stl, lb0, lb1, lr0, lr1, ld, ew, span, row, w, h)
 	var lmi := MeshInstance3D.new()
 	var lmesh := ArrayMesh.new()
 	stl.commit(lmesh)
