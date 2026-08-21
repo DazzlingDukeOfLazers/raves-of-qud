@@ -3733,6 +3733,15 @@ const DOOR_FRAME_DEPTH_PX := 4.0
 const DOOR_LEAF_DEPTH_PX := 2.0
 ## How much dimmer the leaf is than its frame — see the note where it is applied.
 const DOOR_LEAF_DIM := 0.82
+## THE COLOUR CAPPING THE INSIDE OF THE FRAME — the reveal, the arch's soffit and the threshold.
+##
+## MAGENTA RIGHT NOW, ON PURPOSE, and it is not meant to ship that way. The intended value is
+## _world_bg, Qud's field colour, but against a dark doorway at night that is very nearly what an
+## uncapped hole looked like, so "is the cap there and is it the right shape" was not answerable by
+## looking. Daniel: "it's hard to tell. Can you change the cap color to magenta or something?"
+## Set DOOR_CAP_DEBUG false to go back to the field colour.
+const DOOR_CAP_DEBUG := true
+const DOOR_CAP_DEBUG_COLOR := Color(1.0, 0.0, 1.0)
 ## How far the leaf swings when open — the most it may, before the cell clips it. A leaf spans the
 ## whole doorway (10 of 16px on the basic door, 0.625 of a cell) and is hinged at one jamb, so at a
 ## right angle its far end lands 0.625 from the wall line and 0.125 PAST the cell edge, into the
@@ -3926,7 +3935,14 @@ func _place_door_voxel(tile: String, main_c: String, detail_c: String, cx: int, 
 	var ld := DOOR_LEAF_DEPTH_PX * 0.5 / w
 	var lx0: int = m["lx0"]
 	var lx1: int = m["lx1"]
-	var ly0: int = m["lyt"]          # the leaf's true top: the arch's corner rows stay with the frame
+	# THE LEAF KEEPS ITS OWN TOP ROWS. Handing them to the frame — which is what "lyt" was for — put
+	# LEAF pixels into the frame, because those rows are not arch: row 5 of the basic door is
+	# `.o...######...o.`, frame at cols 1 and 14, LEAF at 5..10, transparent between. Daniel: "the
+	# open door frame currently has some of the white door in it." The trim was the wrong fix for
+	# the corners; the CAP is the right one. They are transparent in the art, so they stay
+	# transparent on the leaf, and what shows through them is the capped doorway behind — which is
+	# what "bg pixels that should be in the frame" was asking for in the first place.
+	var ly0: int = m["ly0"]
 	var ly1: int = m["ly1"]
 
 	# --- FRAME: the art minus the leaf hole, as four strips ---
@@ -3958,9 +3974,11 @@ func _place_door_voxel(tile: String, main_c: String, detail_c: String, cx: int, 
 	var cmesh := ArrayMesh.new()
 	fmesh_cap.commit(cmesh)
 	cmi.mesh = cmesh
-	var cmat: StandardMaterial3D = _color_material(_world_bg).duplicate()
+	var cap_c: Color = DOOR_CAP_DEBUG_COLOR if DOOR_CAP_DEBUG else _world_bg
+	var cmat: StandardMaterial3D = _color_material(cap_c).duplicate()
 	cmat.cull_mode = BaseMaterial3D.CULL_DISABLED   # seen from inside the opening, either side
-	cmat.albedo_color = Color(_world_bg.r * lf, _world_bg.g * lf, _world_bg.b * lf)
+	# The debug colour is deliberately NOT dimmed by the cell light — the point is to find it.
+	cmat.albedo_color = cap_c if DOOR_CAP_DEBUG else Color(cap_c.r * lf, cap_c.g * lf, cap_c.b * lf)
 	cmi.material_override = cmat
 	cmi.position = Vector3(cx, 0, cy)
 	_spawn_parent().add_child(cmi)
