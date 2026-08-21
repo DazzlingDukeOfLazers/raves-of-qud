@@ -3733,7 +3733,12 @@ const DOOR_FRAME_DEPTH_PX := 4.0
 const DOOR_LEAF_DEPTH_PX := 2.0
 ## How much dimmer the leaf is than its frame — see the note where it is applied.
 const DOOR_LEAF_DIM := 0.82
-## How far the leaf swings when open.
+## How far the leaf swings when open — the most it may, before the cell clips it. A leaf spans the
+## whole doorway (10 of 16px on the basic door, 0.625 of a cell) and is hinged at one jamb, so at a
+## right angle its far end lands 0.625 from the wall line and 0.125 PAST the cell edge, into the
+## neighbour's tile. Daniel reported that against the old slab — "the open door is overlapping the
+## tile wall next to it" — and swinging a longer leaf harder only makes it worse. So the angle is
+## whatever keeps the far end inside the cell, asin(0.5 / leaf_len), and this is only the cap.
 const DOOR_OPEN_DEG := 88.0
 var _door_models := {}          # tile -> the derived model, or {} for "not a frame+leaf door"
 
@@ -3801,14 +3806,48 @@ func _door_model_try(frame: Array[Vector2i], leaf: Array[Vector2i], w: int, h: i
 	var rr := fx1 - lx1 - 1
 	if maxi(rl, rr) < 1:
 		return {}                                    # no reveal either side: no outline to have
-	return {
+	var d := {
 		"w": w, "h": h,
 		"fx0": fx0, "fx1": fx1, "fy0": fy0, "fy1": fy1,
 		"lx0": lx0, "lx1": lx1, "ly0": ly0, "ly1": ly1,
-		# THE HINGE GOES ON THE FLUSH SIDE. A door is hung tight against one jamb and swings clear
-		# of the other, so a reveal on one side only is not a defect — it is which way it opens.
-		"hinge_hi": rl > rr,
+		# THE HINGE IS OPPOSITE THE KNOB, and the knob is IN THE ART. Daniel: "the default art puts
+		# the doorknob on the right and the hinges on the left." On Tiles_sw_door_basic the knob is
+		# the notch at cols 10..11, rows 13..15 — right of the leaf's centre at 7.5 — so the hinge
+		# is on the left. Filled in by _door_knob_hi below; a reveal-based guess got this wrong,
+		# because which side is flush says nothing about which side is hung.
+		"hinge_hi": false,
 	}
+	d["hinge_hi"] = _door_knob_hi(leaf, lx0, lx1, ly0, ly1)
+	return d
+
+## Which side the DOORKNOB is on, as "high column": true = knob left, so hinge right. The hinge is
+## the other side, and the default when there is no knob to find is a hinge on the LEFT — the
+## convention Qud's art follows ("the doorknob on the right and the hinges on the left").
+##
+## The knob shows up as a NOTCH: pixels missing from the middle of the leaf. Two other kinds of hole
+## sit in the same rect and both had to be excluded before the answer came out right —
+##   * the ARCH clips the leaf's top corners, which puts holes on BOTH sides at the top, and
+##   * the leaf's own edge texture leaves gaps in its outermost columns.
+## Taking every hole in the rect gives a centroid of 7.14 against a centre of 7.50 and answers
+## LEFT, which is backwards. Strictly-inside columns, below the top quarter, leaves only the notch:
+## cols 10, 11, 11, 11 -> centroid 10.75, comfortably right of centre.
+func _door_knob_hi(leaf: Array[Vector2i], lx0: int, lx1: int, ly0: int, ly1: int) -> bool:
+	if lx1 - lx0 < 3:
+		return false
+	var have := {}
+	for p in leaf:
+		have[p] = true
+	var y_from: int = ly0 + int(round(0.25 * float(ly1 - ly0)))
+	var sum := 0.0
+	var n := 0
+	for y in range(y_from, ly1 + 1):
+		for x in range(lx0 + 1, lx1):
+			if not have.has(Vector2i(x, y)):
+				sum += float(x)
+				n += 1
+	if n == 0:
+		return false                                 # no knob in the art: hinge left, by convention
+	return (sum / float(n)) < (float(lx0 + lx1) * 0.5)   # knob LEFT -> hinge right
 
 func _door_model(tile: String) -> Dictionary:
 	if not _door_models.has(tile):
@@ -3881,12 +3920,14 @@ func _place_door_voxel(tile: String, main_c: String, detail_c: String, cx: int, 
 	var stl := SurfaceTool.new()
 	stl.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var hinge_c: float = float(lx1) + 1.0 if bool(m["hinge_hi"]) else float(lx0)
-	# built relative to the hinge, so rotating the pivot swings it about that edge
+	# built relative to the hinge, so rotating the pivot swings it about that edge — and mapped as a
+	# DELTA for the same reason (see _door_face); the pivot holds the absolute position.
+	var span := func(c: float) -> float: return c / w
 	var a0: float = float(lx0) - hinge_c
 	var a1: float = float(lx1) + 1.0 - hinge_c
-	_door_face(stl, a0, a1, float(ly0), float(ly1) + 1.0, ld, ew, col, row, w, h,
+	_door_face(stl, a0, a1, float(ly0), float(ly1) + 1.0, ld, ew, span, row, w, h,
 		float(lx0), float(lx1) + 1.0)
-	_door_edges(stl, a0, a1, float(ly0), float(ly1) + 1.0, ld, ew, col, row, w, h)
+	_door_edges(stl, a0, a1, float(ly0), float(ly1) + 1.0, ld, ew, span, row, w, h)
 	var lmi := MeshInstance3D.new()
 	var lmesh := ArrayMesh.new()
 	stl.commit(lmesh)
@@ -3904,7 +3945,24 @@ func _place_door_voxel(tile: String, main_c: String, detail_c: String, cx: int, 
 	# Swing INTO the cell, away from the jamb it is hung on, so it never crosses the cell edge
 	# into the neighbouring wall (an old report: "the open door is overlapping the tile wall").
 	var dir := -1.0 if bool(m["hinge_hi"]) else 1.0
-	pivot.rotation.y = 0.0 if closed else deg_to_rad(DOOR_OPEN_DEG) * dir * (1.0 if ew else -1.0)
+	var leaf_len: float = float(lx1 + 1 - lx0) / w
+	var sense: float = dir * (1.0 if ew else -1.0)
+	var tip_local := Vector3(leaf_len, 0, 0) if ew else Vector3(0, 0, leaf_len)
+	# CLAMP THE SWING ONLY WHERE SOMETHING IS IN THE WAY. A leaf spans its whole doorway — 0.625 of
+	# a cell on the basic door — so hinged at a jamb it cannot reach a right angle without its tip
+	# crossing into the next tile. Crossing into a ROOM is what a real door does and looks right;
+	# crossing into a WALL is the thing Daniel reported against the old slab ("the open door is
+	# overlapping the tile wall next to it"). So ask what is actually there, and only fold the door
+	# back when the answer is masonry. Half the leaf's DEPTH counts too — the far CORNER is what
+	# pokes through, and leaving it out left 0.04 of the panel inside the wall.
+	var open_deg: float = DOOR_OPEN_DEG
+	var tip := Vector3(cx, 0, cy) + Vector3(col.call(hinge_c), 0, 0) if ew else \
+		Vector3(cx, 0, cy) + Vector3(0, 0, col.call(hinge_c))
+	tip += tip_local.rotated(Vector3.UP, deg_to_rad(open_deg) * sense)
+	if _zone_wall_cells.has(Vector2i(int(round(tip.x)), int(round(tip.z)))):
+		var reach: float = maxf(0.0, 0.5 - ld)       # room for the tip, corner allowed for
+		open_deg = minf(open_deg, rad_to_deg(asin(clampf(reach / maxf(leaf_len, 0.001), 0.0, 1.0))))
+	pivot.rotation.y = 0.0 if closed else deg_to_rad(open_deg) * sense
 	pivot.add_child(lmi)
 	_spawn_parent().add_child(pivot)
 	_track(pivot)
@@ -3913,11 +3971,17 @@ func _place_door_voxel(tile: String, main_c: String, detail_c: String, cx: int, 
 		_door_static[Vector2i(cx, cy)] = [fmi, pivot]
 	_note(cx, cy, idx, "door VOXEL %s frame cols %d..%d, leaf %d..%d rows %d..%d, hinge %s, %s" % [
 		"E-W" if ew else "N-S", int(m["fx0"]), int(m["fx1"]), lx0, lx1, ly0, ly1,
-		"high" if bool(m["hinge_hi"]) else "low", "closed" if closed else "OPEN"], WALL_H * 0.5)
+		"high" if bool(m["hinge_hi"]) else "low",
+		"closed" if closed else "OPEN %.0f deg" % open_deg], WALL_H * 0.5)
 	return true
 
 ## Both textured faces of a slab: art columns [a0,a1) x rows [r0,r1), at +/- depth `d`. `ua0/ua1`
 ## override the UV columns when the geometry is hinge-relative (the leaf) rather than art-absolute.
+## `col` maps this call's `a` coordinate to a span position. The FRAME passes absolute art columns
+## and gets the cell-centring form; the LEAF's vertices are relative to its hinge and its pivot node
+## already carries the absolute position, so it passes a pure DELTA. Handing the leaf the absolute
+## mapping applies the -0.5 cell-centring twice and slides the whole panel half a cell out of its
+## doorway — which is what "the closed door isn't closed" looked like.
 func _door_face(st: SurfaceTool, a0: float, a1: float, r0: float, r1: float, d: float,
 		ew: bool, col: Callable, row: Callable, w: float, h: float,
 		ua0 := INF, ua1 := INF) -> void:

@@ -64,6 +64,29 @@ def runs(mask, y):
     return out
 
 
+def knob_hi(leaf, lx0, lx1, ly0, ly1):
+    """True when the DOORKNOB is on the low-column side, i.e. the hinge goes high.
+
+    The hinge is opposite the knob, and the knob is in the art -- Daniel: "the default art puts the
+    doorknob on the right and the hinges on the left." It shows up as a NOTCH, pixels missing from
+    the middle of the leaf. Two other kinds of hole share that rect and both must be excluded: the
+    ARCH clips the leaf's top corners (holes on both sides, at the top), and the leaf's own edge
+    texture gaps its outermost columns. Counting every hole gives centroid 7.14 against a centre of
+    7.50 and answers LEFT, which is backwards. Strictly-inside columns, below the top quarter,
+    leaves just the notch: cols 10, 11, 11, 11 -> 10.75, comfortably right.
+
+    No knob in the art -> False, i.e. hinge on the left, the convention the art follows.
+    """
+    if lx1 - lx0 < 3:
+        return False
+    y_from = ly0 + int(round(0.25 * (ly1 - ly0)))
+    holes = [x for y in range(y_from, ly1 + 1) for x in range(lx0 + 1, lx1)
+             if (x, y) not in leaf]
+    if not holes:
+        return False
+    return (sum(holes) / len(holes)) < (lx0 + lx1) / 2.0
+
+
 def _try(frame, leaf, w, h):
     """Build the model for one assignment of the two colour classes, or (None, why)."""
     fx0 = min(x for x, _ in frame); fx1 = max(x for x, _ in frame)
@@ -91,17 +114,16 @@ def _try(frame, leaf, w, h):
     inside = lambda x, y: lx0 <= x <= lx1 and ly0 <= y <= ly1
     surround = {(x, y) for (x, y) in frame if not inside(x, y)}
     boxes = [(y, r[0], r[1]) for y in range(h) for r in runs(surround, y)]
-    # THE HINGE GOES ON THE FLUSH SIDE. A door is hung tight against one jamb and swings clear of
-    # the other, so a reveal on one side only is not a defect -- it is which way the door opens,
-    # drawn. Only a door with NO reveal at all has lost its outline.
     rl = lx0 - fx0 - 1
     rr = fx1 - lx1 - 1
+    # A reveal on one side only is not a defect -- a door is hung tight against one jamb and swings
+    # clear of the other. Only a door with NO reveal at all has lost its outline.
     return {
         "size": (w, h),
         "frame_boxes": boxes,          # (row, x0, x1) each extruded FRAME_DEPTH_PX deep
         "frame_span": (fx0, fx1),
         "leaf_rect": (lx0, lx1, ly0, ly1),
-        "hinge_x": lx0 if rl <= rr else lx1,   # the flush side; the door swings off the reveal
+        "hinge_x": lx1 if knob_hi(leaf, lx0, lx1, ly0, ly1) else lx0,
         "reveal_left": rl,             # empty columns between jamb and leaf
         "reveal_right": rr,
     }, ""
@@ -147,7 +169,8 @@ def main(argv):
           % (lx0, lx1, ly0, ly1, LEAF_DEPTH_PX))
     print("  reveal       %d px left, %d px right   <- the outline, as a recess not a colour"
           % (m["reveal_left"], m["reveal_right"]))
-    print("  hinge        vertical axis at col %d (the flush side)" % m["hinge_x"])
+    print("  hinge        vertical axis at col %d (%s; knob is opposite)"
+          % (m["hinge_x"], "right" if m["hinge_x"] == lx1 else "left"))
     print("  frame boxes  %d runs" % len(m["frame_boxes"]))
     # INVARIANTS. Each is a way the derived model could be wrong in a way that still renders.
     fails = []

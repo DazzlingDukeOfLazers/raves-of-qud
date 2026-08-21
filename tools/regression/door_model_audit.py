@@ -56,6 +56,12 @@ for n in names:
         bad.append("%s: no reveal either side -- the outline would vanish" % n)
     if m["hinge_x"] not in (lx0, lx1):
         bad.append("%s: hinge %d is not a leaf edge" % (n, m["hinge_x"]))
+    # THE HOUSE CONVENTION, pinned on the tile it was stated about. Daniel: "the default art puts
+    # the doorknob on the right and the hinges on the left." Getting this backwards is invisible in
+    # a still -- the door only looks wrong once it swings -- so assert it rather than eyeball it.
+    if n == "Tiles_sw_door_basic.bmp" and m["hinge_x"] != lx0:
+        bad.append("%s: hinges on the RIGHT; the basic door's knob is at cols 10..11, so the "
+                   "hinge belongs on the left" % n)
 
 now_fallback = set(fallback)
 new_fb = now_fallback - EXPECT_FALLBACK
@@ -70,5 +76,9 @@ if bad:
     for b in bad:
         print("  -", b)
     sys.exit(1)
-print("door_model: %d of %d door tiles derive a frame+leaf voxel model; %d fall back to the slab, "
-      "all expected" % (len(derived), len(names), len(fallback)))
+left = sum(1 for n in derived
+           if door.model(os.path.join(TILES, n))[0]["hinge_x"]
+           == door.model(os.path.join(TILES, n))[0]["leaf_rect"][0])
+print("door_model: %d of %d door tiles derive a frame+leaf voxel model (%d hinge left, %d right, "
+      "from each one's own knob); %d fall back to the slab, all expected"
+      % (len(derived), len(names), left, len(derived) - left, len(fallback)))

@@ -1690,6 +1690,47 @@ func _write_zone_report() -> void:
 	lines.append("  hand-over d=1..%d at t0=0   %s" % [renderer.penumbra_radius + 1,
 		" ".join(PackedStringArray(ho))])
 	lines.append("")
+	lines.append("DOORS (cell -> screen pixel, so a door can be photographed without hunting for it)")
+	var dks: Array = renderer._door_static.keys()
+	dks.sort_custom(func(a, b): return a.y < b.y or (a.y == b.y and a.x < b.x))
+	for dk in dks:
+		var parts: Array = renderer._door_static[dk]
+		var shown := false
+		for nd in parts:
+			if is_instance_valid(nd) and (nd as Node3D).visible:
+				shown = true
+		var dsp: Vector2 = _cell_screen_pos(dk)
+		# THE LEAF'S FOOTPRINT IN ITS OWN CELL, which is the camera-independent way to ask whether a
+		# closed door is actually shut. A leaf built hinge-relative but mapped with the ABSOLUTE
+		# column function picks up the -0.5 cell-centring twice and sits half a cell out of its
+		# doorway; on screen that reads as a vaguely wrong door, in these numbers it is unmissable.
+		# Shut and in-frame means both spans inside +/-0.5, and the thin one is the leaf's depth.
+		var box := ""
+		if parts.size() > 1 and is_instance_valid(parts[1]):
+			var pv: Node3D = parts[1]
+			for ch in pv.get_children():
+				if ch is MeshInstance3D:
+					var ab: AABB = (ch as MeshInstance3D).get_aabb()
+					ab = pv.transform * ab
+					ab.position -= Vector3(dk.x, 0, dk.y)   # cell-relative: the cell spans +/-0.5
+					box = "  leaf x[%+.2f %+.2f] z[%+.2f %+.2f] y[%.2f %.2f]" % [
+						ab.position.x, ab.position.x + ab.size.x,
+						ab.position.z, ab.position.z + ab.size.z,
+						ab.position.y, ab.position.y + ab.size.y]
+					# An OPEN leaf reaching into the next cell is not a fault — that is what a door
+					# does, and the swing is deliberately allowed to when the neighbour is a room.
+					# The fault is reaching into a WALL, which is the thing that looked broken
+					# before. So test what is actually over there, not the arithmetic edge.
+					for nb in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+						var blo := Vector2(ab.position.x, ab.position.z)
+						var bhi := blo + Vector2(ab.size.x, ab.size.z)
+						var into: bool = (nb.x > 0 and bhi.x > 0.5) or (nb.x < 0 and blo.x < -0.5) \
+							or (nb.y > 0 and bhi.y > 0.5) or (nb.y < 0 and blo.y < -0.5)
+						if into and renderer._zone_wall_cells.has(dk + nb):
+							box += "  <-- INTO THE WALL AT (%d,%d)" % [dk.x + nb.x, dk.y + nb.y]
+		lines.append("  (%2d,%2d) @%5d,%5d  %-11s%s" % [dk.x, dk.y, int(dsp.x), int(dsp.y),
+			"visible" if shown else "fog-hidden", box])
+	lines.append("")
 	lines.append("FOG-OF-WAR MESHES (static geometry hidden in never-explored cells)")
 	var mt := 0
 	var mh := 0
