@@ -2509,3 +2509,36 @@ wall-clock, because the remaining cost was the art build, not the darkness — i
 `remembered.art` and `remembered.dark` were separate profiler phases. `profile.txt` (P key, or
 every 40 turns) had been recording the 18.8s max for the whole session; **read it before theorising
 about a slowdown.** `neighbors` at 0.10ms also ruled out the list-building immediately.
+
+## A renderer bug lives where the PIXELS come from, not where the code you found is
+
+Two different code paths can draw the same-looking region, and deleting the one you found changes
+nothing on screen. The zone boundary has three sources — `_build_unexplored`'s surround band (slots
+with NO neighbour loaded), a frozen neighbour's own ramp (slots you HAVE visited), and the live
+zone's inward edge fade — and the "bib" that was on screen was the frozen one. A whole round went
+into removing the surround ramp and reporting the bib gone; it was still there, untouched.
+
+**Before deleting or editing a render path, establish that it is the one producing the pixels.**
+Colour alone will not tell you: a band cell and a loaded neighbour's memory-toned ground are close
+enough to be mistaken for one another. Ask the builder instead — `control.py zonereport` writes
+`zones.txt` with every zone in the store, the 3x3 slot each occupies, what the band actually
+emitted, and the screen pixel of each cell crossing the boundary. `print` is no help: the EXPORTED
+app (the one highvisor launches) flushes no stdout.
+
+## Darkening cannot reconcile two different base colours
+
+The first penumbra design put a black alpha ramp over whatever lay underneath and expected both
+sides of the boundary to meet, because both ramps ended on the same alpha (`FROZEN_EDGE_DIM`). They
+meet at one ALPHA, which is not one brightness: inside the zone the base is painted-ground tile art
+under the night grade, outside a loaded neighbour it was the bare field plane, over a frozen zone it
+is remembered art. Measured 1.8/1.45/1.48 apart — a DIFFERENT FACTOR PER CHANNEL, which no single
+alpha can produce, and the sign that the problem is not the alpha at all.
+
+The fix is to stop computing the far side's colour: the surround band repeats each edge cell's own
+floor material outward and starts its ramp at that same cell's tone, so base and alpha both match
+per-cell by construction (`_build_unexplored`, `SURROUND_BAND_ON`). Verified equal at the hand-over:
+edge row (5,24,26), first band row (5,24,26), in a dark zone.
+
+**Corollary: MEASURE LIGHTING AT NIGHT.** In daylight there is barely a penumbra to get wrong, so a
+daylight check on a fade cannot fail. Underground (`hv bridge zonetp zone=<...z+1> x= y=`) is the
+fast way to a genuinely dark zone without waiting out the game clock.

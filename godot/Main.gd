@@ -599,6 +599,17 @@ func _exec_godot_cmd(cmd: String) -> void:
 			# deterministic test input: key/wheel injection proved unreliable for sweeps.
 			if parts.size() >= 2 and _cam_rig != null:
 				_cam_rig.set_zoom_1to1(float(parts[1]))
+		"zonereport":
+			# `zonereport` — write zones.txt: which zones the store holds, where each lands in the
+			# 3x3 slot grid, and what the SURROUND BAND actually built this turn.
+			#
+			# This exists because reading it off a screenshot does not work. A band cell and a
+			# loaded neighbour's memory-toned ground are near enough in colour to be mistaken for
+			# each other, and I spent a round measuring a boundary I had assumed was unvisited when
+			# the store had it all along -- the same class of error as the frozen ramp that the bib
+			# turned out to be. `print` is no use here either: the EXPORTED app writes no log, and
+			# the exported app is the one highvisor launches. So: a file, first-party, on demand.
+			_write_zone_report()
 		"screenpos":
 			# `screenpos CX CY` — print where a zone CELL lands on screen, in window pixels.
 			# The missing half of `inspect`: that says what a cell IS, this says where to LOOK,
@@ -1557,3 +1568,84 @@ func _close_wish() -> void:
 		_wish_layer.visible = false
 	if _wish_edit != null:
 		_wish_edit.release_focus()
+
+## Write zones.txt beside selection.txt — the store's zones, their 3x3 slots, and the band's stats.
+## See the `zonereport` command for why this is a file rather than a print or a screenshot.
+func _write_zone_report() -> void:
+	if renderer == null:
+		return
+	var dir: String = renderer.tiles_dir().get_base_dir()
+	if dir == "":
+		return
+	var live_id := store.live_id()
+	var live_rec := store.live_record()
+	var lo: Vector3i = live_rec.get("origin", Vector3i.ZERO)
+	var lz: int = int(live_rec.get("stratum", 0))
+	var lines: Array = []
+	lines.append("=== Raves of Qud — zone report ===")
+	lines.append("live %s  origin %s  stratum %d" % [live_id, str(lo), lz])
+	var zw: int = int(renderer._live_w)
+	var zh: int = int(renderer._live_h)
+	lines.append("zone %dx%d" % [zw, zh])
+	lines.append("")
+	lines.append("STORE (every zone the player has visited; slot is the 3x3 cell around the live one)")
+	for id in store.ids():
+		var rec: Dictionary = store.record(id)
+		var o: Vector3i = rec.get("origin", Vector3i.ZERO)
+		var dz: int = int(rec.get("stratum", -9999)) - lz
+		var dx: int = o.x - lo.x
+		var dy: int = o.y - lo.y
+		var slot := "far"
+		if zw > 0 and zh > 0:
+			var sx: int = int(floor(float(dx) / float(zw)))
+			var sy: int = int(floor(float(dy) / float(zh)))
+			if absi(sx) <= 1 and absi(sy) <= 1 and dz == 0:
+				slot = "(%d,%d)" % [sx, sy]
+		lines.append("  %-34s d=(%+5d,%+5d) dz=%+d  slot %s%s"
+			% [id, dx, dy, dz, slot, "   <-- LIVE" if id == live_id else ""])
+	lines.append("")
+	lines.append("BOUNDARY PROBES — screen pixel for each cell crossing the zone edge, so an outside")
+	lines.append("tool samples the CELL it means instead of a coordinate guessed off a crop. Each row")
+	lines.append("runs from 2 cells inside the zone out through the band; d is depth outside the rect.")
+	var pc: Dictionary = store.live_record().get("snapshot", {}).get("player", {})
+	var pxc: int = int(pc.get("x", zw / 2))
+	var pyc: int = int(pc.get("y", zh / 2))
+	var band: int = renderer.penumbra_radius + 1
+	for edge in ["N", "S", "W", "E"]:
+		var row: Array = []
+		for d in range(-2, band + 1):
+			# d < 0 is inside the zone, d >= 1 is the band. d = 0 is the edge row itself, which is
+			# the one the band's first row has to match.
+			var c: Vector2i
+			match edge:
+				"N": c = Vector2i(pxc, -d)
+				"S": c = Vector2i(pxc, (zh - 1) + d)
+				"W": c = Vector2i(-d, pyc)
+				_:   c = Vector2i((zw - 1) + d, pyc)
+			var sp: Vector2 = _cell_screen_pos(c)
+			if sp.x < -9000:
+				continue
+			row.append("d%+d (%d,%d)@%d,%d" % [d, c.x, c.y, int(sp.x), int(sp.y)])
+		lines.append("  %s: %s" % [edge, "  ".join(PackedStringArray(row))])
+	lines.append("")
+	lines.append("SURROUND BAND (_build_unexplored, last turn)")
+	var bs: Dictionary = renderer._band_stats
+	if bs.is_empty():
+		lines.append("  (nothing recorded — the band has not run this session)")
+	else:
+		for k in bs:
+			lines.append("  %-26s %s" % [k, str(bs[k])])
+	DirAccess.make_dir_recursive_absolute(dir)
+	var f := FileAccess.open(dir.path_join("zones.txt"), FileAccess.WRITE)
+	if f != null:
+		f.store_string("\n".join(PackedStringArray(lines)) + "\n")
+		f.close()
+
+## Where a zone cell lands on screen, in window pixels (or x = -9999 if there is no camera).
+## Same projection `screenpos` prints; this is the form the zone report can write to a file,
+## because the EXPORTED app -- the one highvisor launches -- flushes no stdout at all.
+func _cell_screen_pos(c: Vector2i) -> Vector2:
+	if _cam_rig == null or _cam_rig._cam == null:
+		return Vector2(-9999, -9999)
+	var wq := Vector3(float(c.x), 0.0, float(c.y) * _cam_rig.zstretch())
+	return _cam_rig._cam.unproject_position(wq)

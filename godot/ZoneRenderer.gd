@@ -106,36 +106,35 @@ var penumbra_divisions := 1
 ## ramps that happen to be adjacent. Clear again LIVE_EDGE_FADE tiles in.
 const LIVE_EDGE_FADE := 4
 
-## THE MASTER SWITCH FOR BOTH RAMPS ABOVE — currently OFF, and this is the "bib" being started over.
+## THE TWO RAMPS ABOVE ARE OFF, and stay off. They were the first design for the boundary — the
+## "bib" — and what killed them is worth keeping, because it is not a tuning story.
 ##
-## Both ramps land on FROZEN_EDGE_DIM at the shared boundary, which was supposed to make the two
-## halves meet at one brightness. They meet at one ALPHA. That is not the same thing, and it is why
-## four rounds of tuning could not fix it: the alpha is applied over a DIFFERENT BASE COLOUR on each
-## side. Measured at the Joppa north boundary at night, straight down a column of open ground —
+## Both land on FROZEN_EDGE_DIM at the shared boundary, which was meant to make the two halves meet
+## at one brightness. They meet at one ALPHA. That is not the same thing: each side applies that
+## alpha over a DIFFERENT BASE. Measured at the Joppa north boundary at night, straight down a
+## column of open ground —
 ##
 ##     the frozen side ramps  (0,1,2) -> (9,32,40)   brightest at the row touching the live zone
 ##     the live side is flat            (5,23,28)
 ##
-## — so the two rows that are meant to be equal differ by 1.8/1.45/1.48, a different factor per
-## channel. No single alpha produces that, because darkening cannot reconcile two different bases:
-## the live floor is painted-ground tile art under the night grade, the frozen side is remembered
-## art, and past a loaded neighbour it was the bare field plane. Three materials, one ramp.
+## — so the two rows meant to be equal differ by 1.8/1.45/1.48, a different factor per channel. No
+## single alpha produces that, because darkening cannot reconcile two different bases: the live
+## floor is painted-ground tile art under the night grade, the frozen side is remembered art, and
+## past a loaded neighbour it was the bare field plane. Three materials, one ramp.
 ##
-## What a rebuild has to do differently: stop computing the surround's colour and EXTEND the edge
-## cells' own ground quads outward instead, repeating each edge cell's tile and colour for the
-## band's depth and darkening as it goes. Then the base matches by construction at every point
-## along the boundary — including where the edge crosses from sand to water, which one tallied
-## colour could never have handled.
+## MEASURE AT NIGHT. The daylight check that once said the seam matched could not have failed —
+## in full daylight there is barely a penumbra to get wrong.
+const ZONE_RAMPS_ON := false
+## THE REPLACEMENT, and it is on: the surround band in _build_unexplored, which stops computing a
+## colour for the ground outside the zone and repeats the edge cells' own ground quads outward,
+## darkening from each edge cell's own tone. Base and alpha both matched per-cell, by construction.
+## Read the note on _build_unexplored for how it works; this is the switch that turns it off.
 ##
-## Everything the ramp needs is still here and still tested — _frozen_light, _live_edge_light, their
-## _at float forms, _veil_bounds and _emit_fade_cell's axis-aware subdivision. Only the per-cell
-## surround emitter was deleted; git has it (see the note in _build_unexplored). Flipping this back
-## on restores the old look exactly, which is the point: it is a baseline to measure against, not a
-## thing to ship.
-##
-## MEASURE AT NIGHT. The daylight check that said the seam matched could not have failed — in full
-## daylight there is barely a penumbra to get wrong.
-const PENUMBRA_ON := false
+## It replaces the ramps rather than joining them. The live zone must NOT also fade toward its own
+## edges: the band already starts at the edge cell's brightness, so an inward fade on top would
+## darken the zone you are standing in for nothing — which is the "(0,24) my character seems to be
+## in discovered fog-of-war" report that gated _live_edge_light on line of sight in the first place.
+const SURROUND_BAND_ON := true
 
 ## Above this alpha a darkness quad is drawn OPAQUE instead of blended. Not cosmetic — it is what
 ## makes the frozen-zone ramp affordable. A full sheet of alpha-blended quads over every neighbour
@@ -376,6 +375,19 @@ var _lit_meshes: Array = []       # [{mi: MeshInstance3D, cell: Vector2i}]
 # per material (one draw call per tile type, instead of one MeshInstance3D per cell — 2000 of
 # them tanked the world map). Material -> Array[Transform3D]. Flushed per static/neighbour build.
 var _floor_batch := {}
+## THE LIVE ZONE'S OUTERMOST RING OF GROUND QUADS, kept so the surround band can repeat them.
+## Vector2i -> [material, scale, y], captured where the quad is batched (see _place_nonwall).
+## Materials are shared, not copied: repeating one outward adds MultiMesh instances to a batch
+## that already exists, so a band costs transforms, not textures.
+var _edge_floor := {}
+## ...and that ring's TONE, so the band's ramp can START at the darkness of the cell it abuts
+## instead of at a constant. Per-cell, not a mean: the ring crosses lit and unlit stretches, and
+## a mean is exactly what made the old ramp meet a lit edge too dark and an unlit edge too light.
+var _edge_tone := {}
+## What the last _build_unexplored actually did, for the `zonereport` probe. Reading this off a
+## screenshot is guesswork -- a band cell and a frozen neighbour's memory-toned ground are similar
+## colours, and I burned a round assuming a slot was unvisited when it was loaded. Ask the builder.
+var _band_stats := {}
 # World-map cards: on the parasang map (z < 0) each terrain tile stands UP as a card instead of
 # lying flat, so the tilted compass camera reads the art face-on. Placed as plain Sprite3D
 # billboards (the proven path — a MultiMesh with a billboard material faulted the Metal driver),
@@ -1169,6 +1181,9 @@ func _rebuild_dynamics(cells: Array) -> void:
 	# unexplored area changes colour from dark to Qud default colour ... and the opposite
 	# direction" — one step either way across the threshold where the last unseen cell appears or
 	# disappears. Outside the zone is always unvisited; it always needs its darkness.
+	# The band starts at the edge ring's own tone, so that has to be measured before it is built —
+	# and NOT inside _build_darkness, which is skipped entirely when the zone has nothing dark in it.
+	_tally_edge_tone(cells, bool(Settings.get_value("lit_floor", false)))
 	_build_unexplored(_dynamic_root)
 	if any_dark:
 		_build_darkness(cells, _dynamic_root)          # fall off to black around light sources
@@ -1482,16 +1497,24 @@ func _build_darkness(cells: Array, parent: Node, frozen_off := NOT_FROZEN) -> vo
 	var walls := {}
 	for cell in cells:
 		var k := Vector2i(int(cell.get("x", 0)), int(cell.get("y", 0)))
-		# --- TONE: what the cell IS ---
+		# --- TONE: what the cell IS --- (see _live_cell_tone; the surround band reads it too)
 		var t: float
 		if not _cell_explored(cell):
 			t = 1.0 - FOG_GROUND      # NEVER SEEN — see FOG_GROUND; NOT black, Qud has no black
-		elif frozen or not _cell_seen(cell):
-			# REMEMBERED. Qud's memory of a place is a PALETTE SWAP, not a dim, so it does not follow
-			# the time of day (docs/gotchas.md): what you remember is the map, not how lit it was.
-			# Hence a flat MEMORY_GROUND rather than the cell's stored light — for the live zone's
-			# out-of-sight cells AND for every explored cell of a departed zone, because you left, so
-			# nothing in it is in sight now whatever it was when you walked out.
+		elif not frozen:
+			# The live zone's rule lives in _live_cell_tone, because the SURROUND BAND has to start
+			# at exactly this value and a second copy of it would drift. Only the wash bookkeeping
+			# stays here — that is pass 1's own, not part of the tone.
+			t = _live_cell_tone(cell, lit_floor)
+			if not _cell_seen(cell) and not lit_floor:
+				wash[k] = true
+		else:
+			# REMEMBERED — a DEPARTED zone, every explored cell of it. (The live zone's own
+			# out-of-sight cells take the same value, one branch up, inside _live_cell_tone.)
+			# Qud's memory of a place is a PALETTE SWAP, not a dim, so it does not follow the time
+			# of day (docs/gotchas.md): what you remember is the map, not how lit it was. Hence a
+			# flat MEMORY_GROUND rather than the cell's stored light, because you left, so nothing
+			# in it is in sight now whatever it was when you walked out.
 			#
 			# Reading the stored light here is the "shadow overwriting the penumbra" bug: at dusk a
 			# departed zone's cells report light=1, i.e. 0.94 of black, which swamps an 0.18 ramp and
@@ -1500,22 +1523,10 @@ func _build_darkness(cells: Array, parent: Node, frozen_off := NOT_FROZEN) -> vo
 			# zone's 2000 cells render as though never seen. It is neither; it is the answer.
 			t = 1.0 - MEMORY_GROUND
 			wash[k] = true
-			if lit_floor and not frozen:
-				# The ground stays LIT and the art on it still ghosts (that is a sprite swap, not
-				# this overlay), so the shadow reads on the things rather than on the field. Only
-				# in the live zone: a departed zone's ramp is a distance, not a memory tone, and
-				# flattening it would undo the penumbra entirely.
-				t = 0.0
-				wash.erase(k)
-		else:
-			# IN SIGHT: the cavern/night dimmer and nothing else. Driving this from the fog gave
-			# unseen but LIT ground a half-black veil it never had. Daniel: "revert it to the
-			# color/transparency we've been using for days" — this is that: black, alpha 1 - light.
-			t = 1.0 - _light_frac(cell)
 		# --- VEIL: how far past the edge of the visible it sits ---
 		var v := 0.0
-		if not PENUMBRA_ON:
-			pass                                     # the bib is off; every zone renders flat
+		if not ZONE_RAMPS_ON:
+			pass                                 # both old ramps are off; a zone renders flat
 		elif frozen:
 			v = 1.0 - _frozen_light(k, frozen_off)   # ramp from the shared boundary, FROZEN_EDGE_DIM
 		elif not _cell_seen(cell):
@@ -1710,55 +1721,197 @@ func _frozen_light(k: Vector2i, off: Vector2i) -> float:
 	return 1.0 - a                                  # ...as a light fraction
 
 
-## THE WORLD YOU HAVE NEVER BEEN TO. Everything outside the zones you have visited is still the
-## ground plane at full field colour — a bright expanse running to the horizon, which is the one
-## part of the view that does not answer to the fog. Daniel: "change the unexplored zones to be the
-## same dark colour as unexplored tiles ... but don't expose any of the unexplored zone's assets."
-##
-## Nothing here draws a zone: unexplored zones are not loaded and this does not load them. It lays
-## darkness over the empty ground so the fog reaches the places there is no data for, which is
-## exactly where it should be thickest.
-##
-## The gradient that used to soften the boundary — the "bib" — is GONE, along with the per-cell
-## ramp that drew it; see the note in the body for what it got wrong and what to recover from git.
-## What is left is solid and opaque, and cheap for the same reason it always was: a handful of big
-## rects. A loaded neighbour draws its own darkness, so its slot is skipped rather than painted
-## over twice.
+## THE LIVE ZONE'S TONE RULE, alone, so the surround band can start its ramp at exactly the
+## darkness of the cell it abuts. Pass 1 calls this; so does _tally_edge_tone. Two copies of it
+## drifting apart is precisely how the old bib came to meet the zone at a different brightness.
+func _live_cell_tone(cell: Dictionary, lit_floor: bool) -> float:
+	if not _cell_explored(cell):
+		return 1.0 - FOG_GROUND
+	if not _cell_seen(cell):
+		return 0.0 if lit_floor else 1.0 - MEMORY_GROUND
+	return 1.0 - _light_frac(cell)
 
+## Is (cx,cy) on the live zone's OUTERMOST ring? Those are the only cells the band ever repeats:
+## a surround cell clamps to the nearest cell inside the rect, and every clamp lands on the ring.
+func _on_edge_ring(cx: int, cy: int) -> bool:
+	var w := int(_live_w)
+	var h := int(_live_h)
+	if cx < 0 or cy < 0 or cx >= w or cy >= h:
+		return false
+	return cx == 0 or cy == 0 or cx == w - 1 or cy == h - 1
+
+## Remember the edge ring's tone for this turn. Cheap — the ring, not the zone.
+func _tally_edge_tone(cells: Array, lit_floor: bool) -> void:
+	_edge_tone.clear()
+	for cell in cells:
+		var cx := int(cell.get("x", 0))
+		var cy := int(cell.get("y", 0))
+		if _on_edge_ring(cx, cy):
+			_edge_tone[Vector2i(cx, cy)] = _live_cell_tone(cell, lit_floor)
+
+## The live cell a surround cell extends: the nearest one inside the rect. Clamping BOTH axes is
+## what makes the corners work — a cell off the north-west corner clamps to (0,0) and repeats that
+## one cell's ground, which is the only honest answer when there is no data in either direction.
+func _band_src(wx: int, wy: int) -> Vector2i:
+	return Vector2i(clampi(wx, 0, int(_live_w) - 1), clampi(wy, 0, int(_live_h) - 1))
+
+## How far outside the live rect, in tiles. 0 inside; 1 is the first surround row. Chebyshev, so
+## the band is a rectangular ring and a corner is as deep as the sides that meet there.
+func _band_depth(wx: int, wy: int) -> int:
+	var dx: int = maxi(0, maxi(-wx, wx - (int(_live_w) - 1)))
+	var dy: int = maxi(0, maxi(-wy, wy - (int(_live_h) - 1)))
+	return maxi(dx, dy)
+
+## The band's darkness at depth d over a source cell of tone `t0`: starts AT that cell's own tone
+## and reaches full dark at penumbra_radius + 1. d = 1 returns t0 exactly, which is the whole
+## point — the first surround row is the edge cell's brightness, over the edge cell's own art.
+func _band_alpha(d: int, t0: float) -> float:
+	var f: float = clampf(float(d - 1) / float(maxi(1, penumbra_radius)), 0.0, 1.0)
+	return clampf(lerpf(t0, 1.0, f), 0.0, 1.0)
+
+## A solid rect with a hole cut for the ramp band: the parts of [x,y,w,h) that fall OUTSIDE the
+## rect [ex0,ey0)-(ex1,ey1). Up to four pieces — left, right, then the top and bottom of what is
+## left in between. Keeps the gradient visible instead of burying it under an opaque slab.
+func _dark_rect_minus(st: SurfaceTool, x: int, y: int, w: int, h: int,
+		ex0: int, ey0: int, ex1: int, ey1: int, yy: float) -> void:
+	var x1 := x + w
+	var y1 := y + h
+	if x >= ex1 or x1 <= ex0 or y >= ey1 or y1 <= ey0:
+		_dark_rect(st, x, y, w, h, yy)          # no overlap at all
+		return
+	var mx0: int = maxi(x, ex0)
+	var mx1: int = mini(x1, ex1)
+	_dark_rect(st, x, y, mx0 - x, h, yy)                    # left of the band
+	_dark_rect(st, mx1, y, x1 - mx1, h, yy)                 # right of it
+	var my0: int = maxi(y, ey0)
+	var my1: int = mini(y1, ey1)
+	_dark_rect(st, mx0, y, mx1 - mx0, my0 - y, yy)          # above, within the x-overlap
+	_dark_rect(st, mx0, my1, mx1 - mx0, y1 - my1, yy)       # and below
+
+## The edge cell whose ground the band should repeat at `src` — `src` itself when it has one, else
+## the nearest cell ALONG THE SAME EDGE that does.
+##
+## Not every ring cell has a ground quad to lend: a cell under a wall skips its floor, so does a
+## stair cell, and some hold no ground object at all. Measured on Joppa at 80x25, 25 of the ring's
+## 206 cells came up empty. Without this the band over those 25 draws its ramp on nothing and the
+## bare field plane shows through — which is the exact failure the whole rebuild is meant to end,
+## just narrowed from the whole boundary to a quarter of it. Walking the edge (rather than giving
+## up, or reaching into the zone's interior) keeps the substitute a cell the boundary actually runs
+## through, so it is the same terrain the gap is in.
+func _edge_floor_for(src: Vector2i) -> Array:
+	if _edge_floor.has(src):
+		return _edge_floor[src]
+	var w := int(_live_w)
+	var h := int(_live_h)
+	var along_x: bool = src.y == 0 or src.y == h - 1
+	var lim: int = maxi(w, h)
+	for step in range(1, lim):
+		for sgn in [-1, 1]:
+			var c: Vector2i = Vector2i(src.x + step * sgn, src.y) if along_x \
+				else Vector2i(src.x, src.y + step * sgn)
+			if c.x < 0 or c.y < 0 or c.x >= w or c.y >= h:
+				continue
+			if _edge_floor.has(c):
+				return _edge_floor[c]
+	return []
+
+## THE WORLD YOU HAVE NEVER BEEN TO — and the band that hands the live zone over to it.
+##
+## Everything outside the zones you have visited is otherwise the ground plane at full field
+## colour, a bright expanse running to the horizon: the one part of the view that does not answer
+## to the fog. Daniel: "change the unexplored zones to be the same dark colour as unexplored tiles
+## ... but don't expose any of the unexplored zone's assets." Nothing here draws a zone — the
+## unexplored ones are not loaded and this does not load them.
+##
+## THE BAND EXTENDS THE EDGE CELLS' OWN GROUND QUADS OUTWARD, which is the rebuild of the "bib"
+## after the first design was removed. The old one painted a black ramp over whatever happened to
+## be underneath — the bare field plane out here, painted-ground tile art inside the zone. Two
+## different bases under one alpha, so the row that was supposed to match the zone's edge came out
+## 1.8/1.45/1.48 brighter, a different factor per channel, and no amount of tuning the alpha could
+## reconcile it (see ZONE_RAMPS_ON for the measurements).
+##
+## So the band stops computing a colour. Each surround cell clamps to the nearest cell inside the
+## rect and repeats THAT cell's finished floor material (_edge_floor, captured where the quad is
+## batched) at its own position, then darkens from THAT cell's tone (_edge_tone). Both halves of
+## the match are by construction and both are per-cell, so the hand-over holds where the edge runs
+## from sand into water, and at every hour, without a constant anywhere in it. Repeating a material
+## costs a MultiMesh transform, not a texture.
+##
+## Beyond the band it is solid and opaque (see DARK_SOLID_A) — a handful of big rects with the
+## band's footprint cut out of them. A loaded neighbour draws its own zone AND its own darkness, so
+## its slot is skipped entirely: where there is real data, show real data.
 func _build_unexplored(parent: Node) -> void:
 	if _one_to_one or _world_map:
 		return
-	# NO PENUMBRA HERE. The gradient band — the "bib" — that faded the live zone out into unexplored
-	# ground is gone, along with _emit_penumbra_cell (the axis-aware per-cell ramp: a ramp is a
-	# distance to a rectangle, so an edge band varies along ONE axis and only the corner blocks need a
-	# full DxD grid — straight DxD everywhere was 231k quads at D=16) and _dark_rect_minus (the
-	# slot-sized rects around the band, as an exact cover). Git has both; recover, do not rederive.
-	#
-	# THIS ROUTE IS ONLY HALF THE BIB, which is worth knowing before you go looking for the rest of
-	# it. This function draws the slots where NO neighbour is loaded. A slot whose zone you HAVE
-	# visited is a frozen zone that draws its own darkness, ramp included, and that is the band you
-	# actually see north of you in Joppa. Deleting the code here left it fully intact on screen.
-	# The switch that turns off both is PENUMBRA_ON — read the note there for why it is off.
-	#
-	# Unvisited ground is solid dark now and the boundary is a hard edge. Starting point, not a look.
 	var zw := int(_live_w)
 	var zh := int(_live_h)
-	# Grid slots something visited already covers: the live zone at (0,0), plus each static neighbour.
+	# Grid slots something visited already covers: the live zone at (0,0), plus each neighbour.
 	var taken := {Vector2i(0, 0): true}
 	for id in _static_zones:
 		var zn: Node3D = _static_zones[id]
 		if zn.has_meta("dark_off"):
 			var o: Vector2i = zn.get_meta("dark_off")
 			taken[Vector2i(int(round(float(o.x) / float(zw))), int(round(float(o.y) / float(zh))))] = true
-	# One OPAQUE surface for the lot. Overdraw is measured in blended AREA, not quads, and this is
-	# the largest area on screen — it must never be a transparent material.
-	var sto := SurfaceTool.new()
+	var st := SurfaceTool.new()          # the band: blended
+	var sto := SurfaceTool.new()         # everything at full darkness: opaque
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	sto.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var any_blend := false
+	var any_solid := false
+	var n_band := 0
+	var n_ground := 0
+	var n_skipped_taken := 0
+	var n_borrowed := 0
+	var n_bare := 0
+	# --- the band ---
+	var band: int = penumbra_radius + 1
+	var bx0 := -band
+	var by0 := -band
+	var bx1 := zw + band
+	var by1 := zh + band
+	if SURROUND_BAND_ON:
+		for wy in range(by0, by1):
+			for wx in range(bx0, bx1):
+				var d := _band_depth(wx, wy)
+				if d <= 0 or d > band:
+					continue                     # inside the live zone, or past the ramp
+				# A visited neighbour owns this ground and renders it for real.
+				if taken.has(Vector2i(int(floor(float(wx) / float(zw))), int(floor(float(wy) / float(zh))))):
+					n_skipped_taken += 1
+					continue
+				var src := _band_src(wx, wy)
+				var t0: float = float(_edge_tone.get(src, 1.0 - FOG_GROUND))
+				var a := _band_alpha(d, t0)
+				# Repeat the edge cell's ground under the ramp, but only where the ramp is not
+				# already opaque -- under full darkness the quad cannot be seen and is pure fill.
+				n_band += 1
+				if a < DARK_SOLID_A:
+					var fe: Array = _edge_floor_for(src)
+					if not fe.is_empty():
+						_floor_batch_add(fe[0], Transform3D(Basis().scaled(fe[1]), Vector3(wx, float(fe[2]), wy)))
+						n_ground += 1
+						if not _edge_floor.has(src):
+							n_borrowed += 1
+					else:
+						n_bare += 1
+				if a >= DARK_SOLID_A:
+					_dark_quad(sto, wx, wy, DARK_SOLID_Y, 1.0)
+					any_solid = true
+				elif a >= 0.02:
+					_dark_quad(st, wx, wy, DARK_FLOOR_Y, a)
+					any_blend = true
+	# --- solid dark everywhere else ---
+	# Unvisited slots of the 3x3, with the band's footprint cut out so the gradient stays visible
+	# instead of being buried under an opaque slab.
 	for sy in range(-1, 2):
 		for sx in range(-1, 2):
 			if taken.has(Vector2i(sx, sy)):
 				continue
-			_dark_rect(sto, sx * zw, sy * zh, zw, zh, DARK_SOLID_Y)
+			if SURROUND_BAND_ON:
+				_dark_rect_minus(sto, sx * zw, sy * zh, zw, zh, bx0, by0, bx1, by1, DARK_SOLID_Y)
+			else:
+				_dark_rect(sto, sx * zw, sy * zh, zw, zh, DARK_SOLID_Y)
+			any_solid = true
 	# ...and the frame beyond the 3x3, reaching past the neighbour cull so a culled zone never
 	# uncovers bare ground plane at the horizon.
 	var far := int(NEIGHBOR_CULL_DIST) + maxi(zw, zh) + 40
@@ -1766,11 +1919,29 @@ func _build_unexplored(parent: Node) -> void:
 	_dark_rect(sto, -far, 2 * zh, far * 2 + zw, far, DARK_SOLID_Y)
 	_dark_rect(sto, -far, -zh, far - zw, 3 * zh, DARK_SOLID_Y)
 	_dark_rect(sto, 2 * zw, -zh, far, 3 * zh, DARK_SOLID_Y)
-	var mo := MeshInstance3D.new()
-	mo.mesh = sto.commit()
-	mo.material_override = _dark_solid_material()
-	mo.set_meta("is_darkness", true)
-	parent.add_child(mo)
+	any_solid = true
+	if any_solid:
+		var mo := MeshInstance3D.new()
+		mo.mesh = sto.commit()
+		mo.material_override = _dark_solid_material()
+		mo.set_meta("is_darkness", true)
+		parent.add_child(mo)
+	if any_blend:
+		var mb := MeshInstance3D.new()
+		mb.mesh = st.commit()
+		mb.material_override = _dark_material()
+		mb.set_meta("is_darkness", true)
+		parent.add_child(mb)
+	# The band's ground quads went into the shared batch; emit them into the PARENT (the per-turn
+	# dynamic root), not _spawn_parent()'s `self`, which nothing clears.
+	_flush_floor_batch(parent)
+	_band_stats = {
+		"on": SURROUND_BAND_ON, "zone": "%dx%d" % [zw, zh], "radius": penumbra_radius,
+		"band_cells": n_band, "ground_repeated": n_ground, "skipped_loaded_neighbour": n_skipped_taken,
+		"edge_floor_known": _edge_floor.size(), "edge_tone_known": _edge_tone.size(),
+		"ground_borrowed_along_edge": n_borrowed, "ground_BARE_none_found": n_bare,
+		"slots_taken": taken.keys().size(),
+	}
 
 ## Which zone slot a world coordinate falls in, flooring toward negative so -1 is the slot BEFORE 0
 ## rather than 0 itself (integer division truncates toward zero and would merge them).
@@ -5848,6 +6019,13 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			fscale.x = -fscale.x
 			fkind += " hflip"
 		_floor_batch_add(fmat, Transform3D(Basis().scaled(fscale), Vector3(cx, y, cy)))
+		# THE EDGE RING FEEDS THE SURROUND BAND. A cell on the live zone's outermost ring keeps
+		# its finished floor material, so _build_unexplored can repeat THIS quad outward instead
+		# of inventing a colour for the ground beyond the zone. That is the whole fix for the old
+		# bib: the band's base is the edge cell's own art, matched by construction rather than
+		# tallied and then found to be off by a different factor per channel.
+		if not _remembered_build and _on_edge_ring(cx, cy):
+			_edge_floor[Vector2i(cx, cy)] = [fmat, fscale, y]
 		_note(cx, cy, idx, fkind, y)
 	elif tex != null:
 		# DOORS become voxel slabs set into their wall run (Daniel's spec: a
@@ -8787,7 +8965,11 @@ func _take_sparkle() -> MeshInstance3D:
 	_sparkle_pool.append(q)
 	return q
 
-func _flush_floor_batch() -> void:
+## `into` overrides where the MultiMeshes land. It matters for anything rebuilt EVERY TURN: the
+## default _spawn_parent() is `self`, which is never cleared, so a per-turn caller that took the
+## default would add its quads again on every step and never drop the last lot. The surround band
+## is exactly that caller — 904 quads a turn, accumulating.
+func _flush_floor_batch(into: Node = null) -> void:
 	for mat in _floor_batch:
 		var xforms: Array = _floor_batch[mat]
 		var mm := MultiMesh.new()
@@ -8799,7 +8981,7 @@ func _flush_floor_batch() -> void:
 		var mmi := MultiMeshInstance3D.new()
 		mmi.multimesh = mm
 		mmi.material_override = mat
-		_spawn_parent().add_child(mmi)
+		(into if into != null else _spawn_parent()).add_child(mmi)
 	_floor_batch.clear()
 
 ## The Sprite3D billboard mode a world-map card should use right now. Top-down wins: a straight-
