@@ -2542,3 +2542,29 @@ edge row (5,24,26), first band row (5,24,26), in a dark zone.
 **Corollary: MEASURE LIGHTING AT NIGHT.** In daylight there is barely a penumbra to get wrong, so a
 daylight check on a fade cannot fail. Underground (`hv bridge zonetp zone=<...z+1> x= y=`) is the
 fast way to a genuinely dark zone without waiting out the game clock.
+
+## A zone boundary has TWO treatments, and they must agree in more than one way
+
+Whether a boundary is drawn by the surround band or by a departed zone depends only on whether the
+neighbouring slot is LOADED, which flips as the player walks: the edge you are looking at now
+becomes the other kind the moment you cross it. Daniel predicted this from the outside — "as I
+cross to the east it will then render like it is in the north" — and he was right, twice, for two
+different reasons. Both had to be fixed before the two sides matched.
+
+1. **Tone.** A departed zone rendered at a flat `1 - MEMORY_GROUND`, so a live zone at 0.0 stepped
+   to 0.16 and then to black — two hard terraces. `_frozen_tone` now runs the same `_band_alpha`
+   over the same `_band_src`/`_band_depth` the band uses, starting at the tone of the live edge
+   cell it abuts.
+2. **What the ramp lies on.** Matching tones was not enough. The band continues the real ground art
+   and fades it; a departed cell is repainted the field colour first (`REMEMBER_COVER` 0.92), so the
+   same ramp over a flat wash reads flatter and lags a row. Measured at the NE corner: north
+   (7,25,20)/(7,25,20)/(7,25,20)/(4,20,17) against east (9,28,23)/(9,28,23)/(5,23,19)/(2,16,14).
+   The wash is now suppressed inside the hand-over rows and resumes past them.
+
+Both exceptions are licensed by the same fact: **Qud draws one zone at a time**, so cells just
+outside the live zone have no Qud counterpart to be faithful to. Parity applies past the hand-over,
+not inside it. When adding anything else that treats a remembered cell specially, ask whether it
+also needs a hand-over exception, or the seam comes back in a third form.
+
+Check both sides at once with `control.py zonereport`: it names the loaded slots (so you know which
+treatment each edge gets) and gives the screen pixel of every cell crossing the boundary.

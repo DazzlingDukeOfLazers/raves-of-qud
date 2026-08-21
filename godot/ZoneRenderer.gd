@@ -1570,7 +1570,22 @@ func _build_darkness(cells: Array, parent: Node, frozen_off := NOT_FROZEN) -> vo
 			# explored cell you cannot see is usually unlit, so minf(0, MEMORY_GROUND) is 0 and 1836
 			# of a zone's 2000 cells render as though never seen. It is neither; it is the answer.
 			t = _frozen_tone(k, frozen_off)
-			wash[k] = true
+			# ...AND NO MEMORY WASH IN THE HAND-OVER ROWS. Everywhere else a remembered cell is
+			# repainted the FIELD colour (see REMEMBER_COVER) because that is what Qud shows. But the
+			# rows immediately outside the live zone are the seam, and there the wash is the last
+			# thing making the two sides look different: across the boundary the band continues the
+			# real ground art and fades it, while a washed neighbour goes flat field colour at once.
+			# Matching tones was not enough — measured at Daniel's NE corner, north
+			# (7,25,20)/(7,25,20)/(7,25,20)/(4,20,17) against east (9,28,23)/(9,28,23)/(5,23,19)/
+			# (2,16,14): the same rule, one lagging and flatter, because one was painting over art
+			# and the other over a flat wash. Daniel, on crossing east: "it will then render like it
+			# is in the north (incorrect). Every zone I've crossed has changed to the northern style."
+			#
+			# Same licence as dropping the memory floor on these rows: Qud draws one zone at a time,
+			# so these cells have no Qud counterpart to be faithful to. Past the hand-over the wash
+			# resumes and the departed zone reads as memory again.
+			if _band_depth(k.x + frozen_off.x, k.y + frozen_off.y) > penumbra_radius + 1:
+				wash[k] = true
 		# --- VEIL: how far past the edge of the visible it sits ---
 		var v := 0.0
 		if not ZONE_RAMPS_ON:
