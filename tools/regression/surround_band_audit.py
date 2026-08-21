@@ -90,7 +90,37 @@ check(ring_misses == 0, "%d band cells clamp to a non-edge cell" % ring_misses)
 expect = (W + 2 * BAND) * (H + 2 * BAND) - W * H
 check(covered == expect, "band covers %d cells, expected %d" % (covered, expect))
 
-# 7. Corners clamp to the four zone corners, which is the only honest answer with no data in
+# 7. BORROWING IS LOCAL. A band cell whose source has no ground quad may take one from a
+#    neighbour along the same edge, but only within BAND_BORROW_MAX -- past that there is no
+#    ground here and the band goes solid instead. Unbounded, one distant patch of floor got
+#    dragged around a whole cave boundary: measured rings held ground for as few as 4 of 206
+#    cells, and 525 of 904 band cells were borrowing.
+BAND_BORROW_MAX = 3
+
+
+def borrow_targets(src_x, along_x, w, h):
+    """The cells _edge_floor_for will consider, in order, for a source with no ground."""
+    out = []
+    lim = w if along_x else h
+    for step in range(1, BAND_BORROW_MAX + 1):
+        for sgn in (-1, 1):
+            c = src_x + step * sgn
+            if 0 <= c < lim:
+                out.append(c)
+    return out
+
+
+for src_x in (0, 1, 40, 78, 79):
+    t = borrow_targets(src_x, True, W, H)
+    check(all(abs(c - src_x) <= BAND_BORROW_MAX for c in t),
+          "borrow from %d reached beyond BAND_BORROW_MAX" % src_x)
+    check(len(t) <= 2 * BAND_BORROW_MAX,
+          "borrow from %d considered %d cells" % (src_x, len(t)))
+    # nearest-first, so a gap is filled by the closest real ground and not an arbitrary one
+    check(t == sorted(t, key=lambda c: (abs(c - src_x), c)),
+          "borrow from %d is not nearest-first" % src_x)
+
+# 8. Corners clamp to the four zone corners, which is the only honest answer with no data in
 #    either direction -- and the case a per-EDGE (rather than per-cell) design gets wrong.
 for (wx, wy), want in (((-1, -1), (0, 0)), ((W, -1), (W - 1, 0)),
                        ((-1, H), (0, H - 1)), ((W, H), (W - 1, H - 1))):
@@ -103,4 +133,5 @@ if fails:
         print("  -", f)
     sys.exit(1)
 print("surround_band: hand-over is continuous at d=1 for every tone; %d band cells, all "
-      "clamping to the edge ring; ramp monotonic to full dark at d=%d" % (covered, BAND))
+      "clamping to the edge ring; ramp monotonic to full dark at d=%d; borrowing bounded to "
+      "%d cells, nearest first" % (covered, BAND, BAND_BORROW_MAX))

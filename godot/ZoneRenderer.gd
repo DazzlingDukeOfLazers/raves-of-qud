@@ -173,6 +173,20 @@ const DEPARTED_CAP_ON := true
 ## eight neighbours every turn, which is the crossing cost this file spent a session flattening.
 ## 1/16 gives a handful of re-bakes across a whole night and none at all while the light holds.
 const CAP_QUANT := 16.0
+## How far along the edge the band will borrow a ground quad when its own source cell has none.
+##
+## A cave's zone edge is mostly SOLID ROCK, and a wall cell has no floor quad to lend: measured
+## across four underground zones, the 206-cell ring held ground for only 24, 23, 4 and 13 of them.
+## An unbounded search then dragged one distant patch of floor around the whole boundary. Three
+## cells is "the same bit of terrain, just past a gap"; beyond that the honest answer is that there
+## is no ground here, and the band says so by going solid (see the bare branch in _build_unexplored).
+##
+## This is also what made the band inconsistent across zone transitions before _edge_floor was
+## cleared in _build_static: the ring kept whatever the PREVIOUS zones had left in it, so a fresh
+## cave's band was painted with the last surface zone's dirt, and which cells inherited depended on
+## where that zone's walls had fallen. Daniel: "the bibs are very inconsistent when transitioning
+## zones." The cache is cleared now, which is why these counts finally read the truth.
+const BAND_BORROW_MAX := 3
 
 ## Above this alpha a darkness quad is drawn OPAQUE instead of blended. Not cosmetic — it is what
 ## makes the frozen-zone ramp affordable. A full sheet of alpha-blended quads over every neighbour
@@ -418,6 +432,11 @@ var _floor_batch := {}
 ## Materials are shared, not copied: repeating one outward adds MultiMesh instances to a batch
 ## that already exists, so a band costs transforms, not textures.
 var _edge_floor := {}
+## Whether _edge_floor holds the WHOLE of the live zone's ring yet. False while an incremental
+## build is still filling it (see _ib_step), so the band knows its ground is provisional.
+var _ring_complete := false
+## The band's own subtree under _dynamic_root, so it can be rebuilt on its own (see _rebuild_band).
+var _band_root: Node3D = null
 ## ...and that ring's TONE, so the band's ramp can START at the darkness of the cell it abuts
 ## instead of at a constant. Per-cell, not a mean: the ring crosses lit and unlit stretches, and
 ## a mean is exactly what made the old ramp meet a lit edge too dark and an unlit edge too light.
@@ -974,6 +993,13 @@ func _ghost_obj(obj: Dictionary) -> Dictionary:
 func _build_static(id: String, cells: Array) -> void:
 	_cell_top_static.clear()   # sprites die with the old subtree; live cell coords collide across zones
 	_door_static.clear()       # same story for the static door registry
+	# ...and the surround band's edge ring, for exactly the same reason. It is keyed by cell coords
+	# too, and a ring cell that has no floor quad in the NEW zone (under a wall, a stair, no ground
+	# object) simply kept the OLD zone's material — so the band around a fresh zone was painted
+	# partly with the ground of the one before it, and which cells inherited depended on where the
+	# walls happened to fall. Daniel: "the bibs are very inconsistent when transitioning zones."
+	_edge_floor.clear()
+	_ring_complete = false
 	var sub := Node3D.new()
 	_remembered_root.add_child(sub)
 	_static_zones[id] = sub
@@ -1000,6 +1026,7 @@ func _build_static(id: String, cells: Array) -> void:
 	_flush_floor_batch()        # emit this zone's floors as batched MultiMeshes
 	_live_build = false
 	_bank = null
+	_ring_complete = true       # built in one pass, so the band's ring is whole already
 
 # --- incremental live static build (spread a big zone across frames) --------
 const INCREMENTAL_BUILD := true
@@ -1033,6 +1060,12 @@ func _ib_step() -> void:
 		_rebuild_walls(_ib_wall_types)   # walls last; empty/cheap on the world map
 		_ib_active = false
 		_ib_cells = []                   # release the snapshot cells
+		# THE RING IS ONLY COMPLETE NOW, and the band was built from whatever part of it existed
+		# when the turn landed. A big zone builds across ~20 frames while _build_unexplored runs
+		# ONCE per turn, so on the first turn in a zone the band drew from a partly-filled ring and
+		# then stood, wrong, until the player moved again. Rebuild it against the finished ring.
+		_ring_complete = true
+		_rebuild_band()
 	_bank = null
 	_live_build = false
 	_noting = false
@@ -1931,7 +1964,7 @@ func _edge_floor_for(src: Vector2i) -> Array:
 	var w := int(_live_w)
 	var h := int(_live_h)
 	var along_x: bool = src.y == 0 or src.y == h - 1
-	var lim: int = maxi(w, h)
+	var lim: int = BAND_BORROW_MAX + 1
 	for step in range(1, lim):
 		for sgn in [-1, 1]:
 			var c: Vector2i = Vector2i(src.x + step * sgn, src.y) if along_x \
@@ -1941,6 +1974,22 @@ func _edge_floor_for(src: Vector2i) -> Array:
 			if _edge_floor.has(c):
 				return _edge_floor[c]
 	return []
+
+## Rebuild JUST the surround band, in place, without waiting for the next turn.
+##
+## The band is normally built once per turn from _rebuild_dynamics, which is right for anything
+## that follows the player. It is wrong for the one case where the band's INPUT changes without a
+## turn: a big zone's edge ring fills across ~20 frames of incremental building, so the first
+## turn in a new zone draws the band from a partial ring. Called from _ib_step when the ring
+## completes, which is the frame the input actually became correct.
+func _rebuild_band() -> void:
+	if _one_to_one or _world_map:
+		return
+	if not is_instance_valid(_dynamic_root):
+		return
+	# No re-tally: _edge_tone was measured from this turn's cells and has not changed. What was
+	# incomplete is _edge_floor, the ring's MATERIALS, and those are what the rebuild picks up.
+	_build_unexplored(_dynamic_root)
 
 ## THE WORLD YOU HAVE NEVER BEEN TO — and the band that hands the live zone over to it.
 ##
@@ -1970,6 +2019,13 @@ func _edge_floor_for(src: Vector2i) -> Array:
 func _build_unexplored(parent: Node) -> void:
 	if _one_to_one or _world_map:
 		return
+	# Everything below goes into ONE container, so _rebuild_band can replace the band without
+	# disturbing anything else the turn put in _dynamic_root.
+	if is_instance_valid(_band_root):
+		_band_root.queue_free()
+	_band_root = Node3D.new()
+	parent.add_child(_band_root)
+	parent = _band_root
 	var zw := int(_live_w)
 	var zh := int(_live_h)
 	# Grid slots something visited already covers: the live zone at (0,0), plus each neighbour.
@@ -2012,15 +2068,22 @@ func _build_unexplored(parent: Node) -> void:
 				# Repeat the edge cell's ground under the ramp, but only where the ramp is not
 				# already opaque -- under full darkness the quad cannot be seen and is pure fill.
 				n_band += 1
-				if a < DARK_SOLID_A:
-					var fe: Array = _edge_floor_for(src)
-					if not fe.is_empty():
-						_floor_batch_add(fe[0], Transform3D(Basis().scaled(fe[1]), Vector3(wx, float(fe[2]), wy)))
-						n_ground += 1
-						if not _edge_floor.has(src):
-							n_borrowed += 1
-					else:
-						n_bare += 1
+				var fe: Array = _edge_floor_for(src) if a < DARK_SOLID_A else []
+				if a < DARK_SOLID_A and fe.is_empty():
+					# NOTHING TO EXTEND. The cell this one continues is solid rock (or a stair, or
+					# simply holds no ground), so there is no ground here to fade out — and a
+					# translucent ramp with no ground under it is a ramp over the BARE FIELD PLANE,
+					# which is the exact failure this band was built to end. Past a cave wall you
+					# see nothing, so draw nothing: opaque, immediately, no gradient.
+					_dark_quad(sto, wx, wy, DARK_SOLID_Y, 1.0)
+					any_solid = true
+					n_bare += 1
+					continue
+				if not fe.is_empty():
+					_floor_batch_add(fe[0], Transform3D(Basis().scaled(fe[1]), Vector3(wx, float(fe[2]), wy)))
+					n_ground += 1
+					if not _edge_floor.has(src):
+						n_borrowed += 1
 				if a >= DARK_SOLID_A:
 					_dark_quad(sto, wx, wy, DARK_SOLID_Y, 1.0)
 					any_solid = true
@@ -2066,6 +2129,7 @@ func _build_unexplored(parent: Node) -> void:
 		"on": SURROUND_BAND_ON, "zone": "%dx%d" % [zw, zh], "radius": penumbra_radius,
 		"band_cells": n_band, "ground_repeated": n_ground, "skipped_loaded_neighbour": n_skipped_taken,
 		"edge_floor_known": _edge_floor.size(), "edge_tone_known": _edge_tone.size(),
+		"ring_complete": _ring_complete,
 		"ground_borrowed_along_edge": n_borrowed, "ground_BARE_none_found": n_bare,
 		"slots_taken": taken.keys().size(),
 	}
