@@ -3746,6 +3746,11 @@ const DOOR_LEAF_DIM := 0.82
 const DOOR_CAP_DEBUG := false
 const DOOR_CAP_DEBUG_COLOR := Color(1.0, 0.0, 1.0)
 const DOOR_CAP_DARKEN := 0.45
+## How much each narrow SIDE of a door voxel is multiplied down against its face. See _door_edges:
+## nothing in this renderer lights a mesh directionally, so without these a slab reads flat.
+const DOOR_EDGE_TOP := 0.92
+const DOOR_EDGE_SIDE := 0.74
+const DOOR_EDGE_BOTTOM := 0.52
 ## How far the leaf swings when open — the most it may, before the cell clips it. A leaf spans the
 ## whole doorway (10 of 16px on the basic door, 0.625 of a cell) and is hinged at one jamb, so at a
 ## right angle its far end lands 0.625 from the wall line and 0.125 PAST the cell edge, into the
@@ -4068,6 +4073,7 @@ func _place_door_voxel(tile: String, main_c: String, detail_c: String, cx: int, 
 	cmat.cull_mode = BaseMaterial3D.CULL_DISABLED   # seen from inside the opening, either side
 	# The debug colour is deliberately NOT dimmed by the cell light — the point is to find it.
 	cmat.albedo_color = cap_c if DOOR_CAP_DEBUG else Color(cap_c.r * lf, cap_c.g * lf, cap_c.b * lf)
+	cmat.vertex_color_use_as_albedo = true   # the reveal and soffit shade like any other side
 	cmi.material_override = cmat
 	cmi.position = Vector3(cx, 0, cy)
 	_spawn_parent().add_child(cmi)
@@ -4079,6 +4085,7 @@ func _place_door_voxel(tile: String, main_c: String, detail_c: String, cx: int, 
 	fmi.mesh = fmesh
 	var fmat: StandardMaterial3D = _mesh_material(tile, main_c, detail_c, btex).duplicate()
 	fmat.albedo_color = Color(lf, lf, lf)
+	fmat.vertex_color_use_as_albedo = true   # the edge shades ride in as vertex colour
 	fmi.material_override = fmat
 	fmi.position = Vector3(cx, 0, cy)
 	_spawn_parent().add_child(fmi)
@@ -4112,6 +4119,7 @@ func _place_door_voxel(tile: String, main_c: String, detail_c: String, cx: int, 
 	var lmat: StandardMaterial3D = _mesh_material(tile, main_c, detail_c, btex).duplicate()
 	var ll := lf * DOOR_LEAF_DIM
 	lmat.albedo_color = Color(ll, ll, ll)
+	lmat.vertex_color_use_as_albedo = true
 	lmi.material_override = lmat
 	var pivot := Node3D.new()
 	pivot.position = Vector3(cx, 0, cy) + (Vector3(col.call(hinge_c), 0, 0) if ew
@@ -4141,8 +4149,20 @@ func _place_door_voxel(tile: String, main_c: String, detail_c: String, cx: int, 
 	_spawn_parent().add_child(pivot)
 	_track(pivot)
 	_track_door_mesh(pivot, cx, cy)
+		# BORN HIDDEN. _door_static is written only during the LIVE zone's static build, and those
+		# are exactly the doors the dynamic pass redraws every turn — so the bake is never the copy
+		# meant to be seen, and there is no moment where showing it is right.
+		#
+		# It used to be hidden by the redraw instead, which loses a race the first time round: a
+		# client connect forces ONE publish, the dynamic pass runs and hides whatever statics exist
+		# (none yet), and the incremental build then creates them over the following frames. With
+		# the player idle no further snapshot arrives, so the bake sat there next to the fresh copy
+		# until they moved. A neighbour's doors are not affected — they get no dynamic redraw, and
+		# _door_static is not written for them.
 	if _live_build:
 		_door_static[Vector2i(cx, cy)] = [fmi, cmi, pivot]
+		for n in [fmi, cmi, pivot]:
+			(n as Node3D).visible = false
 	_note(cx, cy, idx, "door VOXEL %s frame cols %d..%d, leaf %d..%d rows %d..%d, hinge %s, %s" % [
 		"E-W" if ew else "N-S", int(m["fx0"]), int(m["fx1"]), lx0, lx1, ly0, ly1,
 		"high" if bool(m["hinge_hi"]) else "low",
@@ -4174,6 +4194,9 @@ func _door_face(st: SurfaceTool, a0: float, a1: float, r0: float, r1: float, d: 
 			var p := (Vector3(col.call(aa), row.call(rr), dsign * d) if ew
 				else Vector3(dsign * d, row.call(rr), col.call(aa)))
 			st.set_normal(Vector3(0, 0, dsign) if ew else Vector3(dsign, 0, 0))
+			# WHITE, and not merely omitted: SurfaceTool carries the last set_color forward, so a
+			# face emitted after an edge would silently inherit that edge's shade.
+			st.set_color(Color(1, 1, 1))
 			st.set_uv(Vector2(uu, rr / h))
 			st.add_vertex(p)
 
@@ -4185,17 +4208,32 @@ func _door_edges(st: SurfaceTool, a0: float, a1: float, r0: float, r1: float, d:
 		[a0, a0, r0, r1], [a1, a1, r0, r1],      # the two vertical edges
 		[a0, a1, r0, r0], [a0, a1, r1, r1],      # top and bottom
 	]
-	for q in quads:
+	for qi in quads.size():
+		var q: Array = quads[qi]
 		var pa: Array = []
 		if q[0] == q[1]:
 			pa = [[q[0], r0, -d], [q[0], r0, d], [q[0], r1, d], [q[0], r1, -d]]
 		else:
 			pa = [[a0, q[2], -d], [a1, q[2], -d], [a1, q[2], d], [a0, q[2], d]]
+		# SHADE BY WHICH EDGE THIS IS. The world is faked-lit (a day/night multiply plus a per-cell
+		# overlay, no real light), so a mesh gets no directional shading of its own — a door's four
+		# narrow sides came out the same value as its face and the whole slab read flat. Daniel:
+		# "would you add shading to the sides of the door voxels? Not the face of the door, the
+		# edges." Vertex colour rather than a second material: it keeps the art texture on the
+		# edges (they sample the door's own border pixels) and just multiplies it down.
+		#
+		# Top brightest, then the vertical sides, bottom darkest — the convention that makes a
+		# voxel read as a solid rather than a decal, and the same order the eye expects from a
+		# light that is always overhead.
+		var shade: float = DOOR_EDGE_SIDE
+		if q[0] != q[1]:
+			shade = DOOR_EDGE_TOP if qi == 2 else DOOR_EDGE_BOTTOM
 		for i in [0, 1, 2, 0, 2, 3]:
 			var v: Array = pa[i]
 			var p := (Vector3(col.call(float(v[0])), row.call(float(v[1])), float(v[2])) if ew
 				else Vector3(float(v[2]), row.call(float(v[1])), col.call(float(v[0]))))
 			st.set_normal(Vector3.UP)
+			st.set_color(Color(shade, shade, shade))
 			st.set_uv(Vector2(clampf(float(v[0]) / w, 0.0, 1.0), clampf(float(v[1]) / h, 0.0, 1.0)))
 			st.add_vertex(p)
 
@@ -4277,6 +4315,8 @@ func _place_door(tile: String, main_c: String, detail_c: String, cx: int, cy: in
 	fmi.mesh = fmesh
 	var fmat: StandardMaterial3D = _mesh_material(art_tile, main_c, detail_c, btex).duplicate()
 	fmat.albedo_color = Color(lf, lf, lf)         # per-instance dim (the fence idiom)
+	# Harmless here — the fallback slab's trim never sets a vertex colour, so it stays white.
+	fmat.vertex_color_use_as_albedo = true
 	fmi.material_override = fmat
 	fmi.position = Vector3(cx, 0, cy)
 	_spawn_parent().add_child(fmi)
@@ -4312,6 +4352,8 @@ func _place_door(tile: String, main_c: String, detail_c: String, cx: int, cy: in
 	_track(tmi)
 	if _live_build:
 		_door_static[Vector2i(cx, cy)] = [fmi, tmi]   # dynamics hide + redraw per turn
+		for n in [fmi, tmi]:
+			(n as Node3D).visible = false             # born hidden — see the voxel path's note
 	_note(cx, cy, idx, "door slab %s (%dpx deep, %dpx jambs) walls e%d w%d n%d s%d" % [
 		"E-W" if ew else "N-S", int(DOOR_DEPTH_PX), int(DOOR_JAMB_PX),
 		int(_zone_wall_cells.has(Vector2i(cx + 1, cy))),
