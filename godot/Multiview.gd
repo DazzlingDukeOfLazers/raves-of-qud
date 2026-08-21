@@ -42,6 +42,17 @@ func setup(cam_rig, mode_names: Dictionary, on_pane_inspect: Callable,
 	_layer.layer = 49
 	_layer.visible = false
 	add_child(_layer)
+	# AN OPAQUE BACKDROP, BEHIND THE GRID. Seven panes do not fill a 3x3, so two cells are empty,
+	# and whatever slack the rows leave at the bottom is empty too — all of it transparent, showing
+	# the gameplay chrome underneath. Daniel: "the bottom chrome clipping the last row." The chrome
+	# is not on top (MainFrame inherits layer 0 and the grid is at 49); it was visible THROUGH the
+	# holes. A backdrop is the honest fix: this is a full-screen menu, so it should read as one
+	# rather than as a grid floating over a half-visible game.
+	var back := ColorRect.new()
+	back.color = Color(0.03, 0.04, 0.05)
+	back.set_anchors_preset(Control.PRESET_FULL_RECT)
+	back.mouse_filter = Control.MOUSE_FILTER_IGNORE   # never eat a pane's click
+	_layer.add_child(back)
 	var grid := GridContainer.new()
 	grid.columns = 3
 	grid.set_anchors_preset(Control.PRESET_FULL_RECT)
