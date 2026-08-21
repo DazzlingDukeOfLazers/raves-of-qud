@@ -29,6 +29,11 @@ const DEFAULTS := {
 	#              every pixel column of Qud's 16x24 tile, which is as fine as the art can show.
 	"penumbra_radius": 3,
 	"penumbra_divisions": 1,
+	# SHADOW SHOWS ON THE ART, NOT ON THE GROUND. With this on, a remembered cell's ground keeps
+	# its LIT colour and only the things standing on it carry the memory palette. Daniel, at night
+	# in Joppa: the brinestalk at (21,22) read correctly and the floor read the SAME colour, so the
+	# scene went flat. Off = Qud's own behaviour, where the field itself is the memory colour.
+	"lit_floor": false,
 }
 
 ## True when Raves was launched with --one-to-one (or --1to1): 1:1 is LOCKED for this

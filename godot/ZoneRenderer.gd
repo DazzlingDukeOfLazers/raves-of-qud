@@ -1404,6 +1404,7 @@ func _build_darkness(cells: Array, parent: Node, frozen_off := NOT_FROZEN) -> vo
 	var frozen: bool = frozen_off != NOT_FROZEN
 	penumbra_radius = maxi(1, int(Settings.get_value("penumbra_radius", penumbra_radius)))
 	penumbra_divisions = clampi(int(Settings.get_value("penumbra_divisions", penumbra_divisions)), 1, 16)
+	var lit_floor: bool = bool(Settings.get_value("lit_floor", false))
 	# A ZONE WHOLLY PAST THE RAMP IS ONE RECTANGLE. Every cell in it is fully opaque, so the 2000
 	# per-cell quads (or, at divisions=16, the 512,000 sub-quads) all carry the same black. Emitting
 	# them was most of what made a zone crossing hitch: every neighbour re-bakes when its offset
@@ -1468,6 +1469,13 @@ func _build_darkness(cells: Array, parent: Node, frozen_off := NOT_FROZEN) -> vo
 			# zone's 2000 cells render as though never seen. It is neither; it is the answer.
 			t = 1.0 - MEMORY_GROUND
 			wash[k] = true
+			if lit_floor and not frozen:
+				# The ground stays LIT and the art on it still ghosts (that is a sprite swap, not
+				# this overlay), so the shadow reads on the things rather than on the field. Only
+				# in the live zone: a departed zone's ramp is a distance, not a memory tone, and
+				# flattening it would undo the penumbra entirely.
+				t = 0.0
+				wash.erase(k)
 		else:
 			# IN SIGHT: the cavern/night dimmer and nothing else. Driving this from the fog gave
 			# unseen but LIT ground a half-black veil it never had. Daniel: "revert it to the
