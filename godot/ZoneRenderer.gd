@@ -1711,6 +1711,31 @@ func _build_unexplored(parent: Node) -> void:
 	sto.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var any := false
 	var any_solid := false
+	# 0. THE GROUND THE RAMP FADES FROM. The ramp is black at a rising alpha, so it can only ever
+	#    darken what is ALREADY THERE — and beyond the live zone there is no field plane, so it was
+	#    compositing over the sky. That is why its first row did not match the cell you stand in:
+	#    not a brightness difference but a HUE one. Measured across the north edge at (13,0):
+	#    inside rgb(5,24,29), a cool dark teal; the bib's first row rgb(9,16,15), warmer, more red
+	#    and less blue. Daniel: "we need to start from the default qud bg color and fade out to the
+	#    current fadeout color."
+	#
+	#    One quad of _world_bg — what Qud paints behind everything — under the whole band gives the
+	#    ramp something to fade FROM, and the far frame beyond it is opaque anyway. Below
+	#    DARK_FLOOR_Y so every ramp cell composites over it rather than the other way round.
+	var band := penumbra_radius + 1
+	var bg := MeshInstance3D.new()
+	var bgm := PlaneMesh.new()
+	bgm.size = Vector2(float(zw + 2 * band), float(zh + 2 * band))
+	bg.mesh = bgm
+	# THE SAME MATERIAL AS THE GROUND PLANE, not a fresh one of the same colour. A new
+	# _color_material is unshaded, so it skips the day/night grade the real field receives and
+	# came out BRIGHTER than the zone it borders: rgb(9,31,39) against the field's rgb(5,23,29),
+	# a pale band exactly where the ramp should be handing over. Sharing _ground_mat makes them
+	# the same colour by construction rather than by two definitions agreeing.
+	bg.material_override = _ground_mat
+	bg.position = Vector3(float(zw) * 0.5 - 0.5, DARK_FLOOR_Y - 0.02, float(zh) * 0.5 - 0.5)
+	bg.set_meta("is_darkness", true)      # cleared with the rest of the surround on a re-bake
+	parent.add_child(bg)
 	# 1. the RAMP: per-cell, only in the band within FROZEN_DARK_IN of the live zone, and only
 	#    where no visited zone already covers it.
 	var r := penumbra_radius + 1
