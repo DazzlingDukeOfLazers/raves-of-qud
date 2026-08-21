@@ -2568,3 +2568,26 @@ also needs a hand-over exception, or the seam comes back in a third form.
 
 Check both sides at once with `control.py zonereport`: it names the loaded slots (so you know which
 treatment each edge gets) and gives the screen pixel of every cell crossing the boundary.
+
+## Never write `visible` on a node something else already owns
+
+`_relight_static_sprites` hides never-seen sprites via ALPHA, and the comment there says why: "the
+dynamic pass already toggles a static winner's visibility under creatures, and two writers of one
+flag fight." Adding the mesh half of the fog gate (`_known_meshes`) I used `visible` and walked
+straight into it one commit later.
+
+A door is a STATEFUL STATIC: the dynamic pass hides the baked copy and redraws the door in its
+current state every turn. The fog pass runs AFTER that and set `visible = explored` on everything it
+tracked — which put the baked pose back. Both poses then rendered at once, the stale open door
+behind the fresh closed one. Daniel: "I closed a door. It looks like the open door is also still
+present."
+
+The fix was not a better flag but a smaller claim: the fog gate tracks only the PER-TURN copy, which
+already carries both the current state and the current explored flag, and leaves the bake to the
+branch that owns it. Remembered zones are excluded outright for a related reason — `known` is keyed
+by cell coordinate off the LIVE zone's cells, so a neighbour's door at the same local coordinate
+would be gated by an unrelated cell's exploration.
+
+Before adding any per-turn visibility rule, ask what else writes that flag on the same node.
+`control.py zonereport`'s DOORS section reports the bake as `hidden (ok)` / `VISIBLE (stale!)`,
+because two poses on one cell is invisible in a still unless you know to ask which you are seeing.

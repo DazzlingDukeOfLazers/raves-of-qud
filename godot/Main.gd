@@ -1694,6 +1694,11 @@ func _write_zone_report() -> void:
 	var dks: Array = renderer._door_static.keys()
 	dks.sort_custom(func(a, b): return a.y < b.y or (a.y == b.y and a.x < b.x))
 	for dk in dks:
+		# THE BAKED STATIC MUST BE HIDDEN. A door is redrawn every turn in its current state, and
+		# the bake underneath is put away by that redraw — but anything else that writes `visible`
+		# can bring it back, and then the old pose and the new one are both on screen at once.
+		# That is what "I closed a door, the open door is also still present" looks like, and it is
+		# invisible in a still unless you know to ask which of the two you are looking at.
 		var parts: Array = renderer._door_static[dk]
 		var shown := false
 		for nd in parts:
@@ -1728,8 +1733,8 @@ func _write_zone_report() -> void:
 							or (nb.y > 0 and bhi.y > 0.5) or (nb.y < 0 and blo.y < -0.5)
 						if into and renderer._zone_wall_cells.has(dk + nb):
 							box += "  <-- INTO THE WALL AT (%d,%d)" % [dk.x + nb.x, dk.y + nb.y]
-		lines.append("  (%2d,%2d) @%5d,%5d  %-11s%s" % [dk.x, dk.y, int(dsp.x), int(dsp.y),
-			"visible" if shown else "fog-hidden", box])
+		lines.append("  (%2d,%2d) @%5d,%5d  bake:%-18s%s" % [dk.x, dk.y, int(dsp.x), int(dsp.y),
+			"VISIBLE (stale!)" if shown else "hidden (ok)", box])
 	lines.append("")
 	lines.append("FOG-OF-WAR MESHES (static geometry hidden in never-explored cells)")
 	var mt := 0

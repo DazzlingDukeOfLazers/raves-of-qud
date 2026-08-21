@@ -3854,6 +3854,25 @@ func _door_model(tile: String) -> Dictionary:
 		_door_models[tile] = _derive_door_model(tile)
 	return _door_models[tile]
 
+## Register a door mesh for the fog gate — but ONLY the per-turn copy, never the baked static one.
+##
+## TWO WRITERS OF ONE `visible` FLAG, which this file already warns about for sprites and which I
+## walked straight into for meshes. A door is a stateful static: the dynamic pass hides the baked
+## one and redraws the door in its CURRENT state, and _relight_static_sprites then runs AFTER that
+## and sets visible = known on everything it tracks — un-hiding the pose the redraw had just put
+## away. Daniel: "I closed a door. It looks like the open door is also still present." Both were,
+## the stale open bake and the fresh closed copy, one on top of the other.
+##
+## The per-turn copy is the right thing to gate anyway: it is placed every turn, so it carries the
+## current state AND the current explored flag. The baked static stays hidden by the door branch
+## that owns it, and a REMEMBERED zone's doors are excluded outright — _relight_static_sprites keys
+## `known` by cell coordinate off the LIVE zone's cells, so a neighbour's door at the same local
+## coordinate would be gated by an unrelated cell's exploration.
+func _track_door_mesh(n: Node3D, cx: int, cy: int) -> void:
+	if _live_build or _remembered_build:
+		return
+	_known_meshes.append({"n": n, "cell": Vector2i(cx, cy)})
+
 ## Build the voxel door: a FRAME that never moves, and a LEAF hinged inside it.
 ##
 ## The frame is the art with the leaf's rectangle cut out — four textured strips (two jambs, the
@@ -3914,7 +3933,7 @@ func _place_door_voxel(tile: String, main_c: String, detail_c: String, cx: int, 
 	fmi.position = Vector3(cx, 0, cy)
 	_spawn_parent().add_child(fmi)
 	_track(fmi)
-	_known_meshes.append({"n": fmi, "cell": Vector2i(cx, cy)})
+	_track_door_mesh(fmi, cx, cy)
 
 	# --- LEAF: its own box, on a pivot at the hinge edge ---
 	var stl := SurfaceTool.new()
@@ -3966,7 +3985,7 @@ func _place_door_voxel(tile: String, main_c: String, detail_c: String, cx: int, 
 	pivot.add_child(lmi)
 	_spawn_parent().add_child(pivot)
 	_track(pivot)
-	_known_meshes.append({"n": pivot, "cell": Vector2i(cx, cy)})
+	_track_door_mesh(pivot, cx, cy)
 	if _live_build:
 		_door_static[Vector2i(cx, cy)] = [fmi, pivot]
 	_note(cx, cy, idx, "door VOXEL %s frame cols %d..%d, leaf %d..%d rows %d..%d, hinge %s, %s" % [
@@ -4107,7 +4126,7 @@ func _place_door(tile: String, main_c: String, detail_c: String, cx: int, cy: in
 	fmi.position = Vector3(cx, 0, cy)
 	_spawn_parent().add_child(fmi)
 	_track(fmi)
-	_known_meshes.append({"n": fmi, "cell": Vector2i(cx, cy)})
+	_track_door_mesh(fmi, cx, cy)
 
 	# trim: panel end strips + top cap + the two jambs (vertex-coloured)
 	var stt := SurfaceTool.new()
