@@ -294,7 +294,14 @@ func _tag_player_cell() -> void:
 ## cameras that do not cull it).
 func _tag_layer(n: Node, bit: int) -> void:
 	if n is VisualInstance3D:
-		(n as VisualInstance3D).layers |= bit
+		# MOVE it, do not ADD it. `layers |= bit` left the node on layer 1 as well, and a camera
+		# that drops PLAYER_LAYER still sees layer 1 — so the cull did nothing at all and the
+		# mechanism only ever LOOKED right, because the player is usually out of frame in the
+		# first-person pane anyway. It stopped looking right the moment Daniel caught fire: the
+		# flame and smoke emitters sit on his own cell, which is exactly where that camera is, and
+		# the pane filled with smoke. Every other camera's cull_mask includes PLAYER_LAYER by
+		# default, so moving the node changes nothing for them.
+		(n as VisualInstance3D).layers = bit
 	for c in n.get_children():
 		_tag_layer(c, bit)
 

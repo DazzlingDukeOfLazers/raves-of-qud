@@ -33,7 +33,13 @@ func setup(cam_rig, mode_names: Dictionary, on_pane_inspect: Callable,
 	_on_pick_mode = on_pick_mode
 	_on_move = on_move
 	_layer = CanvasLayer.new()
-	_layer.layer = 4
+	# ABOVE THE FRAME CHROME. At layer 4 the grid sat UNDER MainFrame's panels, so the right-hand
+	# column of panes — first-person among them — was covered by the minimap and Nearby objects.
+	# Daniel: "the first person camera menu view has something occluding the camera." It was not
+	# the camera: the pane was drawing correctly and the chrome was on top of it. The grid is a
+	# full-window overlay and has to sit above the chrome it covers, but below DirectionPicker
+	# (50), which is a modal that must stay reachable, and well below the CRT (100) and toasts.
+	_layer.layer = 49
 	_layer.visible = false
 	add_child(_layer)
 	var grid := GridContainer.new()
