@@ -1552,7 +1552,9 @@ func _build_darkness(cells: Array, parent: Node, frozen_off := NOT_FROZEN) -> vo
 		for k in dark:
 			var kk: Vector2i = k
 			if kk.x == 0 or kk.y == 0 or kk.x == zw_i - 1 or kk.y == zh_i - 1:
-				ring_sum += float(dark[k]) * amax
+				# DARK_MAX, not `amax`: this branch only runs when NOT frozen, which is exactly
+				# when amax is DARK_MAX — and amax itself is not declared until pass 2 below.
+				ring_sum += float(dark[k]) * DARK_MAX
 				ring_n += 1
 		if ring_n > 0:
 			_edge_alpha = clampf(ring_sum / float(ring_n), 0.0, 0.95)
