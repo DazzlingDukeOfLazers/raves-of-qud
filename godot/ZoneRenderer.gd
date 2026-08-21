@@ -258,25 +258,6 @@ var _remembered_build := false
 var _noting := true             # whether _note records (off during dynamic-only rebuilds)
 var _live_build := false        # true only while building the LIVE zone's static (its
                                 # torches register for the _process flicker; neighbours don't)
-## THE COLOUR THE LIVE ZONE'S GROUND ACTUALLY RENDERS AS, which is NOT _world_bg.
-##
-## _world_bg is the bare field plane — what Qud paints behind everything. Inside a zone you almost
-## never see it: every cell carries a painted-ground object whose tile art sits over it, and that
-## art is darker and a slightly different hue. Measured at Daniel's edge, bib rgb(7,29,36) against
-## in-zone rgb(5,23,28) — a ratio of 1.40/1.26/1.29, which is not uniform, so it was never an alpha
-## difference. The surround has no ground objects, so it showed the bare plane and read as another
-## material entirely. Tallied from the wire each turn and used as the colour the penumbra fades
-## FROM. Daniel: "it should be colored the same as (6,1), but with an alpha gradient."
-var _floor_col := Color(0, 0, 0, 0)     # unset until a zone has been seen
-## HOW DARK THE LIVE ZONE'S OWN EDGE IS, so the penumbra can start there instead of at a constant.
-##
-## The ramp began at FROZEN_EDGE_DIM whatever the zone looked like, and the ground inside is
-## darkened by its cells' LIGHT — two different amounts meeting at the boundary. Measured at
-## Daniel's edge: bib rgb(7,29,36) against in-zone rgb(5,23,28), the bib 1.40/1.26/1.29 BRIGHTER,
-## which is what "the start color is much lighter than the tile I'm standing in" looks like from
-## the outside. Starting the ramp at the edge's own alpha makes the two continuous by
-## construction, whatever the hour or the weather does to the zone.
-var _edge_alpha := 0.0
 var _hidden_cell := Vector2i(-9999, -9999)   # a live cell whose creature is not drawn (first-person: the player)
 var _player_cell := Vector2i(-9999, -9999)   # the player's cell this snapshot (from data.player), for the world-map "on top" rule
 var _placing_player := false                 # true while placing the player's own sprite in the dynamic pass
@@ -1462,8 +1443,6 @@ func _build_darkness(cells: Array, parent: Node, frozen_off := NOT_FROZEN) -> vo
 	# and that single max reproduces every branch the old if-chain spelled out by hand. Before
 	# adding a case here, ask which of the two questions it answers; if it seems to answer both,
 	# it is two cases.
-	if not frozen:
-		_tally_floor_colour(cells)
 	var tone := {}          # k -> darkness alpha from what the cell IS
 	var veil := {}          # k -> darkness alpha from how far past the edge it sits (0 = none)
 	var dark := {}          # k -> the composed max(tone, veil), pre-amax
@@ -1541,23 +1520,6 @@ func _build_darkness(cells: Array, parent: Node, frozen_off := NOT_FROZEN) -> vo
 	# light of the OPEN cell it faces, since that's what would light it. So rock beside a
 	# torch stays lit while rock in the dark goes black. Interior faces (wall-to-wall) and
 	# fully-lit cells emit nothing.
-	if not frozen:
-		# The mean darkness along the zone's boundary ring: what the penumbra has to hand over
-		# from. Mean rather than modal — the ring crosses lit and unlit stretches, and the ramp
-		# is one continuous thing, so the average is the honest single number for it.
-		var ring_sum := 0.0
-		var ring_n := 0
-		var zw_i := int(_live_w)
-		var zh_i := int(_live_h)
-		for k in dark:
-			var kk: Vector2i = k
-			if kk.x == 0 or kk.y == 0 or kk.x == zw_i - 1 or kk.y == zh_i - 1:
-				# DARK_MAX, not `amax`: this branch only runs when NOT frozen, which is exactly
-				# when amax is DARK_MAX — and amax itself is not declared until pass 2 below.
-				ring_sum += float(dark[k]) * DARK_MAX
-				ring_n += 1
-		if ring_n > 0:
-			_edge_alpha = clampf(ring_sum / float(ring_n), 0.0, 0.95)
 	var sides := [Vector2i(0, 1), Vector2i(1, 0), Vector2i(0, -1), Vector2i(-1, 0)]
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -1699,7 +1661,7 @@ func _frozen_light_at(wx: float, wy: float) -> float:
 	if d <= 0.0:
 		return 1.0
 	var t: float = clampf(d / float(maxi(1, penumbra_radius)), 0.0, 1.0)
-	return 1.0 - lerpf(maxf(FROZEN_EDGE_DIM, _edge_alpha), 1.0, t)
+	return 1.0 - lerpf(FROZEN_EDGE_DIM, 1.0, t)
 
 func _frozen_light(k: Vector2i, off: Vector2i) -> float:
 	var wx: int = k.x + off.x
@@ -1711,172 +1673,73 @@ func _frozen_light(k: Vector2i, off: Vector2i) -> float:
 		return 1.0                                  # inside the live rect: not ours to dim
 	# d = 1 is the edge row -> a little dim; d = FROZEN_DARK_IN -> fully dark.
 	var t: float = clampf(float(d - 1) / float(maxi(1, penumbra_radius)), 0.0, 1.0)
-	var a: float = lerpf(maxf(FROZEN_EDGE_DIM, _edge_alpha), 1.0, t)   # alpha
+	var a: float = lerpf(FROZEN_EDGE_DIM, 1.0, t)   # alpha
 	return 1.0 - a                                  # ...as a light fraction
 
 
 ## THE WORLD YOU HAVE NEVER BEEN TO. Everything outside the zones you have visited is still the
 ## ground plane at full field colour — a bright expanse running to the horizon, which is the one
 ## part of the view that does not answer to the fog. Daniel: "change the unexplored zones to be the
-## same dark colour as unexplored tiles ... the same 3 tile gradient ... but don't expose any of the
-## unexplored zone's assets."
+## same dark colour as unexplored tiles ... but don't expose any of the unexplored zone's assets."
 ##
 ## Nothing here draws a zone: unexplored zones are not loaded and this does not load them. It lays
-## darkness over the empty ground — the ramp near the live zone, solid beyond — so the fog reaches
-## the places there is no data for, which is exactly where it should be thickest.
+## darkness over the empty ground so the fog reaches the places there is no data for, which is
+## exactly where it should be thickest.
 ##
-## Cheap by construction. The ramp is per-cell only within FROZEN_DARK_IN of the live zone; past
-## that it is a handful of big solid rects, and solid means opaque (see DARK_SOLID_A). A loaded
-## neighbour draws its own darkness, so its footprint is skipped — otherwise this would paint over
+## The gradient that used to soften the boundary — the "bib" — is GONE, along with the per-cell
+## ramp that drew it; see the note in the body for what it got wrong and what to recover from git.
+## What is left is solid and opaque, and cheap for the same reason it always was: a handful of big
+## rects. A loaded neighbour draws its own darkness, so its slot is skipped rather than painted
+## over twice.
 
-## The modal painted-ground colour of the live zone. Modal rather than mean: a zone is one terrain
-## with a few oddities in it, and averaging a green field with a red splash gives a colour that is
-## in neither.
-func _tally_floor_colour(cells: Array) -> void:
-	var tally := {}
-	for cell in cells:
-		for obj in cell.get("objs", []):
-			if float(obj.get("layer", 99)) > 0.5:
-				continue                       # ground sits at layer 0
-			var cs := String(obj.get("color", ""))
-			if cs == "":
-				continue
-			tally[cs] = int(tally.get(cs, 0)) + 1
-	var best := ""
-	var best_n := 0
-	for k in tally:
-		if int(tally[k]) > best_n:
-			best_n = int(tally[k])
-			best = String(k)
-	if best != "":
-		_floor_col = _qud_color(best)
-
-## the explored world as well as the unknown one.
 func _build_unexplored(parent: Node) -> void:
 	if _one_to_one or _world_map:
 		return
-	penumbra_radius = maxi(1, int(Settings.get_value("penumbra_radius", penumbra_radius)))
-	penumbra_divisions = clampi(int(Settings.get_value("penumbra_divisions", penumbra_divisions)), 1, 16)
+	# NO PENUMBRA HERE. There was a gradient band — the "bib" — fading the live zone out into
+	# unexplored ground, and it is gone: after four rounds of trying to make its first row meet the
+	# zone's own edge, "let's remove the bib and start over." What it kept getting wrong is worth
+	# recording, because whatever replaces it has to answer the same thing. The ground INSIDE a zone
+	# is darkened by that zone's cells, so a ramp outside has to hand over from THAT, not from a
+	# constant. Measured at the boundary the bib read rgb(7,29,36) against the zone's rgb(5,23,28) —
+	# brighter, and by 1.40/1.26/1.29, a DIFFERENT ratio per channel, so it was never a matter of
+	# tuning one alpha. Anchoring it to the edge's own measured darkness did make the two equal, but
+	# only in full daylight, where there is barely a penumbra to get wrong — a test that cannot fail.
+	#
+	# Unvisited ground is solid dark now and the boundary is a hard edge. Starting point, not a look.
+	# The removed emitters are in git: _emit_penumbra_cell carried the axis-aware subdivision (a ramp
+	# is a distance to a rectangle, so an edge band varies along ONE axis and only the corner blocks
+	# need a full DxD grid — straight DxD everywhere was 231k quads at D=16), and _dark_rect_minus
+	# cut the slot-sized rects around the band as an exact cover. Recover them rather than rederive.
 	var zw := int(_live_w)
 	var zh := int(_live_h)
-	# Grid slots covered by something we HAVE visited: the live zone at (0,0) plus each neighbour.
+	# Grid slots something visited already covers: the live zone at (0,0), plus each static neighbour.
 	var taken := {Vector2i(0, 0): true}
 	for id in _static_zones:
 		var zn: Node3D = _static_zones[id]
 		if zn.has_meta("dark_off"):
 			var o: Vector2i = zn.get_meta("dark_off")
 			taken[Vector2i(int(round(float(o.x) / float(zw))), int(round(float(o.y) / float(zh))))] = true
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	# One OPAQUE surface for the lot. Overdraw is measured in blended AREA, not quads, and this is
+	# the largest area on screen — it must never be a transparent material.
 	var sto := SurfaceTool.new()
 	sto.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var any := false
-	var any_solid := false
-	# 0. THE GROUND THE RAMP FADES FROM. The ramp is black at a rising alpha, so it can only ever
-	#    darken what is ALREADY THERE — and beyond the live zone there is no field plane, so it was
-	#    compositing over the sky. That is why its first row did not match the cell you stand in:
-	#    not a brightness difference but a HUE one. Measured across the north edge at (13,0):
-	#    inside rgb(5,24,29), a cool dark teal; the bib's first row rgb(9,16,15), warmer, more red
-	#    and less blue. Daniel: "we need to start from the default qud bg color and fade out to the
-	#    current fadeout color."
-	#
-	#    One quad of _world_bg — what Qud paints behind everything — under the whole band gives the
-	#    ramp something to fade FROM, and the far frame beyond it is opaque anyway. Below
-	#    DARK_FLOOR_Y so every ramp cell composites over it rather than the other way round.
-	var band := penumbra_radius + 1
-	var bg := MeshInstance3D.new()
-	var bgm := PlaneMesh.new()
-	bgm.size = Vector2(float(zw + 2 * band), float(zh + 2 * band))
-	bg.mesh = bgm
-	# THE SAME MATERIAL AS THE GROUND PLANE, not a fresh one of the same colour. A new
-	# _color_material is unshaded, so it skips the day/night grade the real field receives and
-	# came out BRIGHTER than the zone it borders: rgb(9,31,39) against the field's rgb(5,23,29),
-	# a pale band exactly where the ramp should be handing over. Sharing _ground_mat makes them
-	# the same colour by construction rather than by two definitions agreeing.
-	# THE BARE FIELD PLANE, and the floor colour tally above is deliberately NOT used here.
-	#
-	# Filling the surround with the zone's modal ground COLOUR overshoots: that colour string is a
-	# flat fill, while the ground you actually see is sparse tile art over the plane. Measured, it
-	# put the reds 2.4x too high (bib rgb(17,32,37) against in-zone rgb(7,33,41)) — green and blue
-	# landed, red did not, which is the signature of painting a whole cell in something that only
-	# tints part of one. The plane is what Qud paints behind everything and is the honest thing to
-	# fade from; _floor_col stays as the measurement that showed this, for whatever wants it next.
-	bg.material_override = _ground_mat
-	bg.position = Vector3(float(zw) * 0.5 - 0.5, DARK_FLOOR_Y - 0.02, float(zh) * 0.5 - 0.5)
-	bg.set_meta("is_darkness", true)      # cleared with the rest of the surround on a re-bake
-	parent.add_child(bg)
-	# 1. the RAMP: per-cell, only in the band within FROZEN_DARK_IN of the live zone, and only
-	#    where no visited zone already covers it.
-	var r := penumbra_radius + 1
-	for wy in range(-r, zh + r):
-		for wx in range(-r, zw + r):
-			if wx >= 0 and wx < zw and wy >= 0 and wy < zh:
-				continue                                  # the live zone itself
-			if taken.has(Vector2i(_slot(wx, zw), _slot(wy, zh))):
-				continue                                  # a visited zone owns this ground
-			var res: Array = _emit_penumbra_cell(st, sto, wx, wy, DARK_FLOOR_Y)
-			any = any or bool(res[0])
-			any_solid = any_solid or bool(res[1])
-	# 2. SOLID beyond the band: the empty 3x3 slots MINUS the band, then a frame past the 3x3 out
-	#    to the ground plane's reach. Rects, not cells — this is the bulk of the area and uniform.
-	#
-	#    MINUS THE BAND, and that subtraction is the whole point. A slot rect covers the strip the
-	#    ramp was just drawn into, and it is opaque, so it painted straight over the gradient: the
-	#    fade existed and could not be seen, and unexplored ground read as a hard black edge butted
-	#    against the zone. Daniel: "standing at a corner where there should be gradient tiles
-	#    outside the zone. Even if a zone is unexplored, I'd still like the gradient."
-	var bx0 := -r
-	var by0 := -r
-	var bx1 := zw + r
-	var by1 := zh + r
 	for sy in range(-1, 2):
 		for sx in range(-1, 2):
 			if taken.has(Vector2i(sx, sy)):
 				continue
-			_dark_rect_minus(sto, sx * zw, sy * zh, zw, zh, bx0, by0, bx1, by1, DARK_SOLID_Y)
-			any_solid = true
-	# THE FAR FRAME MUST OUT-REACH THE CULL, or culling is not invisible. A neighbour is dropped
-	# at NEIGHBOR_CULL_DIST and can extend a further zone beyond that, so a frame of 260 left
-	# remembered zones from ~260 out rendering with nothing behind them: cross a boundary, the zone
-	# culls, and the solid dark that should have covered that ground was never there — the cull
-	# became a visible flash instead of an optimisation. Sized off the cull so the two cannot drift
-	# apart again. Four opaque rects; the extra reach is free.
+			_dark_rect(sto, sx * zw, sy * zh, zw, zh, DARK_SOLID_Y)
+	# ...and the frame beyond the 3x3, reaching past the neighbour cull so a culled zone never
+	# uncovers bare ground plane at the horizon.
 	var far := int(NEIGHBOR_CULL_DIST) + maxi(zw, zh) + 40
-	_dark_rect(sto, -far, -far, far * 2 + zw, far - zh, DARK_SOLID_Y)               # north of the 3x3
-	_dark_rect(sto, -far, 2 * zh, far * 2 + zw, far, DARK_SOLID_Y)                  # south
-	_dark_rect(sto, -far, -zh, far - zw, 3 * zh, DARK_SOLID_Y)                      # west
-	_dark_rect(sto, 2 * zw, -zh, far, 3 * zh, DARK_SOLID_Y)                         # east
-	any_solid = true
-	if any:
-		var mi := MeshInstance3D.new()
-		mi.mesh = st.commit()
-		mi.material_override = _dark_material()
-		parent.add_child(mi)
-	if any_solid:
-		var mo := MeshInstance3D.new()
-		mo.mesh = sto.commit()
-		mo.material_override = _dark_solid_material()
-		parent.add_child(mo)
-
-
-## A solid rect with a hole cut for the ramp band: the parts of [x,y,w,h) that fall OUTSIDE the
-## rect [ex0,ey0)-(ex1,ey1). Up to four pieces — left, right, then the top and bottom of what is
-## left in between. Keeps the gradient visible instead of burying it under an opaque slab.
-func _dark_rect_minus(st: SurfaceTool, x: int, y: int, w: int, h: int,
-		ex0: int, ey0: int, ex1: int, ey1: int, yy: float) -> void:
-	var x1 := x + w
-	var y1 := y + h
-	if x >= ex1 or x1 <= ex0 or y >= ey1 or y1 <= ey0:
-		_dark_rect(st, x, y, w, h, yy)          # no overlap at all
-		return
-	var mx0: int = maxi(x, ex0)
-	var mx1: int = mini(x1, ex1)
-	_dark_rect(st, x, y, mx0 - x, h, yy)                    # left of the band
-	_dark_rect(st, mx1, y, x1 - mx1, h, yy)                 # right of it
-	var my0: int = maxi(y, ey0)
-	var my1: int = mini(y1, ey1)
-	_dark_rect(st, mx0, y, mx1 - mx0, my0 - y, yy)          # above, within the x-overlap
-	_dark_rect(st, mx0, my1, mx1 - mx0, y1 - my1, yy)       # and below
+	_dark_rect(sto, -far, -far, far * 2 + zw, far - zh, DARK_SOLID_Y)
+	_dark_rect(sto, -far, 2 * zh, far * 2 + zw, far, DARK_SOLID_Y)
+	_dark_rect(sto, -far, -zh, far - zw, 3 * zh, DARK_SOLID_Y)
+	_dark_rect(sto, 2 * zw, -zh, far, 3 * zh, DARK_SOLID_Y)
+	var mo := MeshInstance3D.new()
+	mo.mesh = sto.commit()
+	mo.material_override = _dark_solid_material()
+	mo.set_meta("is_darkness", true)
+	parent.add_child(mo)
 
 ## Which zone slot a world coordinate falls in, flooring toward negative so -1 is the slot BEFORE 0
 ## rather than 0 itself (integer division truncates toward zero and would merge them).
@@ -1918,7 +1781,7 @@ func _live_edge_light(k: Vector2i) -> float:
 	return 1.0 - lerpf(FROZEN_EDGE_DIM, 0.0, t)
 
 ## One fade cell of a ZONE (frozen ramp or the live zone's edge), resampled per division. Same
-## axis-aware trick as _emit_penumbra_cell: only the axes that actually vary get cut.
+## axis-aware trick: only the axes that actually vary get cut.
 ## `tone_floor`: the cell's TONE as a darkness alpha (see _build_darkness pass 1). The veil is
 ## resampled per sub-quad; the tone is uniform across the tile, so it rides along as a floor and
 ## the same max(tone, veil) rule holds at every sample. Without it a subdivided cell would come
@@ -1964,40 +1827,6 @@ func _emit_fade_cell(st: SurfaceTool, sto: SurfaceTool, k: Vector2i, kind: int,
 				solid = true
 			elif a >= 0.02:
 				_dark_quad_xy(st, x0, y0, x0 + sw, y0 + sw, DARK_FLOOR_Y, a)
-				blended = true
-	return [blended, solid]
-
-## Emit ONE surround cell of the penumbra, subdivided per penumbra_divisions.
-##
-## AXIS-AWARE, which is what makes a fine subdivision affordable: the ramp is a distance to a
-## rectangle, so in an edge band it varies along ONE axis and the cross-axis needs no cuts at all.
-## Only the corner blocks, where both axes are outside the rect, need a full D x D grid — and there
-## are only radius^2 of those per corner. Straight D x D everywhere would be 231k quads at D=16
-## against 23k this way.
-func _emit_penumbra_cell(st: SurfaceTool, sto: SurfaceTool, wx: int, wy: int, yy: float) -> Array:
-	var d: int = maxi(1, penumbra_divisions)
-	var blended := false
-	var solid := false
-	# which axes actually vary here
-	var out_x: bool = wx < 0 or wx >= int(_live_w)
-	var out_y: bool = wy < 0 or wy >= int(_live_h)
-	var nx: int = d if out_x else 1
-	var ny: int = d if out_y else 1
-	if d == 1:
-		nx = 1
-		ny = 1
-	var sw := 1.0 / float(nx)
-	var sh := 1.0 / float(ny)
-	for iy in ny:
-		for ix in nx:
-			var x0 := float(wx) - 0.5 + float(ix) * sw
-			var y0 := float(wy) - 0.5 + float(iy) * sh
-			var a: float = 1.0 - _frozen_light_at(x0 + sw * 0.5, y0 + sh * 0.5)
-			if a >= DARK_SOLID_A:
-				_dark_quad_xy(sto, x0, y0, x0 + sw, y0 + sh, yy, 1.0)
-				solid = true
-			elif a >= 0.02:
-				_dark_quad_xy(st, x0, y0, x0 + sw, y0 + sh, yy, a)
 				blended = true
 	return [blended, solid]
 
