@@ -3725,6 +3725,242 @@ func _door_span_ew(cx: int, cy: int) -> bool:
 	var s := int(_zone_wall_cells.has(Vector2i(cx, cy + 1)))
 	return e + w >= n + s
 
+## FRAME vs LEAF depths, in art pixels. The frame is DEEPER and the leaf sits CENTRED in it, so the
+## reveal columns the art already draws (empty pixels between jamb and leaf) become a real recess
+## with real shading on both faces. That is what makes the outline read — this door is color='&y'
+## detail='y', the same colour twice, so there is no colour difference to lean on and never was.
+const DOOR_FRAME_DEPTH_PX := 4.0
+const DOOR_LEAF_DEPTH_PX := 2.0
+## How much dimmer the leaf is than its frame — see the note where it is applied.
+const DOOR_LEAF_DIM := 0.82
+## How far the leaf swings when open.
+const DOOR_OPEN_DEG := 88.0
+var _door_models := {}          # tile -> the derived model, or {} for "not a frame+leaf door"
+
+## Derive a door's FRAME and LEAF from its art — the model prototyped in tools/capture/door.py,
+## which is the thing to run when this looks wrong (it prints the derivation for any tile).
+##
+## Qud draws frame and leaf in one sprite, split by the same main/detail classes every tile uses:
+## bright pixels take the object's main colour, dark ones its detail. On Tiles_sw_door_basic that is
+## exactly two 1px jambs plus a stepped arch (bright, cols 1..14) around a panel (dark, cols 3..12,
+## rows 5..21), with columns 2 and 13 empty — the reveal, already drawn in. So nothing is hardcoded
+## per door: classify, check, build.
+##
+## WHICH CLASS IS THE FRAME IS NOT A PROPERTY OF THE PALETTE — it is which one SURROUNDS the other,
+## and terrain_sw_securitydoor draws it the other way round. Both assignments are tried. Containment
+## alone is too easy to satisfy by accident once you do that (a golem sprite passes it with a 3x5
+## "leaf" in the middle of a golem), so the leaf must also FILL its frame — half the width and half
+## the height at least. 23 of the 26 door tiles derive; the rest keep the old flat slab.
+func _derive_door_model(tile: String) -> Dictionary:
+	var img := _mask(tile)
+	if img == null:
+		return {}
+	var w := img.get_width()
+	var h := img.get_height()
+	var bright: Array[Vector2i] = []
+	var dark: Array[Vector2i] = []
+	for y in h:
+		for x in w:
+			var c := img.get_pixel(x, y)
+			if c.a < 0.5:
+				continue
+			if (0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b) >= 0.5:
+				bright.append(Vector2i(x, y))
+			else:
+				dark.append(Vector2i(x, y))
+	if bright.is_empty() or dark.is_empty():
+		return {}
+	var m := _door_model_try(bright, dark, w, h)
+	if m.is_empty():
+		m = _door_model_try(dark, bright, w, h)      # inverted art: the detail colour is the frame
+	return m
+
+## One assignment of the two classes. Empty when this reading is not a frame around a leaf.
+func _door_model_try(frame: Array[Vector2i], leaf: Array[Vector2i], w: int, h: int) -> Dictionary:
+	var fx0 := 9999
+	var fx1 := -1
+	var fy0 := 9999
+	var fy1 := -1
+	for p in frame:
+		fx0 = mini(fx0, p.x); fx1 = maxi(fx1, p.x)
+		fy0 = mini(fy0, p.y); fy1 = maxi(fy1, p.y)
+	var lx0 := 9999
+	var lx1 := -1
+	var ly0 := 9999
+	var ly1 := -1
+	for p in leaf:
+		lx0 = mini(lx0, p.x); lx1 = maxi(lx1, p.x)
+		ly0 = mini(ly0, p.y); ly1 = maxi(ly1, p.y)
+	if not (fx0 < lx0 and lx1 < fx1):
+		return {}
+	var fw := fx1 - fx0 + 1
+	var fh := fy1 - fy0 + 1
+	if (lx1 - lx0 + 1) < 0.5 * float(fw) or (ly1 - ly0 + 1) < 0.5 * float(fh):
+		return {}                                    # a detail in a picture, not a door panel
+	var rl := lx0 - fx0 - 1
+	var rr := fx1 - lx1 - 1
+	if maxi(rl, rr) < 1:
+		return {}                                    # no reveal either side: no outline to have
+	return {
+		"w": w, "h": h,
+		"fx0": fx0, "fx1": fx1, "fy0": fy0, "fy1": fy1,
+		"lx0": lx0, "lx1": lx1, "ly0": ly0, "ly1": ly1,
+		# THE HINGE GOES ON THE FLUSH SIDE. A door is hung tight against one jamb and swings clear
+		# of the other, so a reveal on one side only is not a defect — it is which way it opens.
+		"hinge_hi": rl > rr,
+	}
+
+func _door_model(tile: String) -> Dictionary:
+	if not _door_models.has(tile):
+		_door_models[tile] = _derive_door_model(tile)
+	return _door_models[tile]
+
+## Build the voxel door: a FRAME that never moves, and a LEAF hinged inside it.
+##
+## The frame is the art with the leaf's rectangle cut out — four textured strips (two jambs, the
+## arch above, the sill below), each UV-mapped to its own region, so the arch keeps every pixel of
+## its shading instead of being approximated. The leaf is its own box, thinner and centred in the
+## frame's depth, carried by a pivot node at its hinge edge so opening is a ROTATION rather than the
+## old trick of re-posing the whole slab on the perpendicular axis. Daniel: "Create a voxel door
+## that opens by rotating in-frame."
+##
+## Returns false when the art has no frame/leaf split, and the caller keeps the flat slab.
+func _place_door_voxel(tile: String, main_c: String, detail_c: String, cx: int, cy: int,
+		idx: int, light_frac: float, closed: bool) -> bool:
+	var m := _door_model(tile)
+	if m.is_empty():
+		return false
+	var btex := _colored_tex(tile, main_c, detail_c, Fill.ALL)
+	if btex == null:
+		return false
+	var w: float = float(m["w"])
+	var h: float = float(m["h"])
+	var fy0: int = m["fy0"]
+	var fy1: int = m["fy1"]
+	var ew := _door_span_ew(cx, cy)
+	var lf := clampf(light_frac, 0.0, 1.0)
+	# art column -> span coordinate across the cell; art row -> height, over the FRAME's rows so a
+	# door is as tall as the wall it replaces (a derived shape sizes against the wall, not art px).
+	var col := func(c: float) -> float: return c / w - 0.5
+	var row := func(r: float) -> float: return (float(fy1) + 1.0 - r) / float(fy1 - fy0 + 1) * WALL_H
+	var fd := DOOR_FRAME_DEPTH_PX * 0.5 / w
+	var ld := DOOR_LEAF_DEPTH_PX * 0.5 / w
+	var lx0: int = m["lx0"]
+	var lx1: int = m["lx1"]
+	var ly0: int = m["ly0"]
+	var ly1: int = m["ly1"]
+
+	# --- FRAME: the art minus the leaf hole, as four strips ---
+	var stf := SurfaceTool.new()
+	stf.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var strips := [
+		[float(m["fx0"]), float(lx0), float(fy0), float(fy1) + 1.0],        # jamb, low side
+		[float(lx1) + 1.0, float(m["fx1"]) + 1.0, float(fy0), float(fy1) + 1.0],  # jamb, high side
+		[float(lx0), float(lx1) + 1.0, float(fy0), float(ly0)],             # arch above the leaf
+		[float(lx0), float(lx1) + 1.0, float(ly1) + 1.0, float(fy1) + 1.0], # sill below it
+	]
+	for sp in strips:
+		if sp[1] <= sp[0] or sp[3] <= sp[2]:
+			continue
+		_door_face(stf, sp[0], sp[1], sp[2], sp[3], fd, ew, col, row, w, h)
+	_door_edges(stf, float(m["fx0"]), float(m["fx1"]) + 1.0, float(fy0), float(fy1) + 1.0,
+		fd, ew, col, row, w, h)
+	var fmi := MeshInstance3D.new()
+	var fmesh := ArrayMesh.new()
+	stf.commit(fmesh)
+	fmi.mesh = fmesh
+	var fmat: StandardMaterial3D = _mesh_material(tile, main_c, detail_c, btex).duplicate()
+	fmat.albedo_color = Color(lf, lf, lf)
+	fmi.material_override = fmat
+	fmi.position = Vector3(cx, 0, cy)
+	_spawn_parent().add_child(fmi)
+	_track(fmi)
+	_known_meshes.append({"n": fmi, "cell": Vector2i(cx, cy)})
+
+	# --- LEAF: its own box, on a pivot at the hinge edge ---
+	var stl := SurfaceTool.new()
+	stl.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var hinge_c: float = float(lx1) + 1.0 if bool(m["hinge_hi"]) else float(lx0)
+	# built relative to the hinge, so rotating the pivot swings it about that edge
+	var a0: float = float(lx0) - hinge_c
+	var a1: float = float(lx1) + 1.0 - hinge_c
+	_door_face(stl, a0, a1, float(ly0), float(ly1) + 1.0, ld, ew, col, row, w, h,
+		float(lx0), float(lx1) + 1.0)
+	_door_edges(stl, a0, a1, float(ly0), float(ly1) + 1.0, ld, ew, col, row, w, h)
+	var lmi := MeshInstance3D.new()
+	var lmesh := ArrayMesh.new()
+	stl.commit(lmesh)
+	lmi.mesh = lmesh
+	# THE LEAF IS DIMMER THAN ITS FRAME. With main and detail the same colour the recess alone
+	# carries the outline, and a recess is only visible where the light finds it — a flat-on camera
+	# sees none of it. A small constant step does what a shadow would, from every angle.
+	var lmat: StandardMaterial3D = _mesh_material(tile, main_c, detail_c, btex).duplicate()
+	var ll := lf * DOOR_LEAF_DIM
+	lmat.albedo_color = Color(ll, ll, ll)
+	lmi.material_override = lmat
+	var pivot := Node3D.new()
+	pivot.position = Vector3(cx, 0, cy) + (Vector3(col.call(hinge_c), 0, 0) if ew
+		else Vector3(0, 0, col.call(hinge_c)))
+	# Swing INTO the cell, away from the jamb it is hung on, so it never crosses the cell edge
+	# into the neighbouring wall (an old report: "the open door is overlapping the tile wall").
+	var dir := -1.0 if bool(m["hinge_hi"]) else 1.0
+	pivot.rotation.y = 0.0 if closed else deg_to_rad(DOOR_OPEN_DEG) * dir * (1.0 if ew else -1.0)
+	pivot.add_child(lmi)
+	_spawn_parent().add_child(pivot)
+	_track(pivot)
+	_known_meshes.append({"n": pivot, "cell": Vector2i(cx, cy)})
+	if _live_build:
+		_door_static[Vector2i(cx, cy)] = [fmi, pivot]
+	_note(cx, cy, idx, "door VOXEL %s frame cols %d..%d, leaf %d..%d rows %d..%d, hinge %s, %s" % [
+		"E-W" if ew else "N-S", int(m["fx0"]), int(m["fx1"]), lx0, lx1, ly0, ly1,
+		"high" if bool(m["hinge_hi"]) else "low", "closed" if closed else "OPEN"], WALL_H * 0.5)
+	return true
+
+## Both textured faces of a slab: art columns [a0,a1) x rows [r0,r1), at +/- depth `d`. `ua0/ua1`
+## override the UV columns when the geometry is hinge-relative (the leaf) rather than art-absolute.
+func _door_face(st: SurfaceTool, a0: float, a1: float, r0: float, r1: float, d: float,
+		ew: bool, col: Callable, row: Callable, w: float, h: float,
+		ua0 := INF, ua1 := INF) -> void:
+	var u0: float = (a0 if is_inf(ua0) else ua0) / w
+	var u1: float = (a1 if is_inf(ua1) else ua1) / w
+	var corners: Array = [[0, 0], [1, 0], [1, 1], [0, 0], [1, 1], [0, 1]]
+	for dsign in [1, -1]:
+		for i in 6:
+			var c: Array = corners[i]
+			var fa: float = float(c[0])
+			var fv: float = float(c[1])
+			# wind the far face the other way round so both read unmirrored (the twin-slab rule)
+			var aa: float = lerpf(a0, a1, fa if dsign > 0 else 1.0 - fa)
+			var uu: float = lerpf(u0, u1, fa if dsign > 0 else 1.0 - fa)
+			var rr: float = lerpf(r1, r0, fv)
+			var p := (Vector3(col.call(aa), row.call(rr), dsign * d) if ew
+				else Vector3(dsign * d, row.call(rr), col.call(aa)))
+			st.set_normal(Vector3(0, 0, dsign) if ew else Vector3(dsign, 0, 0))
+			st.set_uv(Vector2(uu, rr / h))
+			st.add_vertex(p)
+
+## The four narrow sides of a slab, sampled from the art's own edge so the recess has a lip to
+## catch the light rather than a hairline. Without these the reveal reads as a seam, not a depth.
+func _door_edges(st: SurfaceTool, a0: float, a1: float, r0: float, r1: float, d: float,
+		ew: bool, col: Callable, row: Callable, w: float, h: float) -> void:
+	var quads := [
+		[a0, a0, r0, r1], [a1, a1, r0, r1],      # the two vertical edges
+		[a0, a1, r0, r0], [a0, a1, r1, r1],      # top and bottom
+	]
+	for q in quads:
+		var pa: Array = []
+		if q[0] == q[1]:
+			pa = [[q[0], r0, -d], [q[0], r0, d], [q[0], r1, d], [q[0], r1, -d]]
+		else:
+			pa = [[a0, q[2], -d], [a1, q[2], -d], [a1, q[2], d], [a0, q[2], d]]
+		for i in [0, 1, 2, 0, 2, 3]:
+			var v: Array = pa[i]
+			var p := (Vector3(col.call(float(v[0])), row.call(float(v[1])), float(v[2])) if ew
+				else Vector3(float(v[2]), row.call(float(v[1])), col.call(float(v[0]))))
+			st.set_normal(Vector3.UP)
+			st.set_uv(Vector2(clampf(float(v[0]) / w, 0.0, 1.0), clampf(float(v[1]) / h, 0.0, 1.0)))
+			st.add_vertex(p)
+
 ## A door as a voxel slab set into its wall run: a 14px panel, DOOR_DEPTH_PX
 ## deep, wearing the door art on BOTH faces (each reading unmirrored — the
 ## twin-slab rule), edge/top trim + 1px full-depth jambs in the art's own
@@ -3741,6 +3977,11 @@ func _place_door(tile: String, main_c: String, detail_c: String, cx: int, cy: in
 		var ct := tile.replace("_open", "")
 		if _mask(ct) != null:
 			art_tile = ct
+	# THE VOXEL DOOR FIRST — a frame that stays put and a leaf that rotates inside it. Everything
+	# below is the older single-slab door, kept for the art the model cannot read (a leaf touching
+	# the tile edge, or a sprite that is not a door at all): 23 of the 26 door tiles derive.
+	if _place_door_voxel(art_tile, main_c, detail_c, cx, cy, idx, light_frac, closed):
+		return
 	var btex := _colored_tex(art_tile, main_c, detail_c, Fill.ALL)
 	var mask := _mask(art_tile)
 	if btex == null or mask == null:
