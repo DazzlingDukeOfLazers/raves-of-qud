@@ -127,6 +127,24 @@ for (wx, wy), want in (((-1, -1), (0, 0)), ((W, -1), (W - 1, 0)),
     check(band_src(wx, wy) == want,
           "corner %s clamped to %s, expected %s" % ((wx, wy), band_src(wx, wy), want))
 
+# 9. THE FROZEN SIDE USES THE SAME RULE. A departed zone's tone is _band_alpha over the same
+#    _band_src / _band_depth, so a boundary against a loaded neighbour hands over exactly as one
+#    against unexplored ground does. This is the whole point of sharing the function: the two
+#    sides cannot drift apart, and everything asserted above holds for both.
+#
+#    Before this, the frozen side was a flat 1 - MEMORY_GROUND = 0.16 while the live zone could
+#    be at 0.0, so the north edge stepped twice -- zone, then neighbour, then black. Daniel: "the
+#    eastern edge of the zone is correct. The northern edge is not." East was a band; north was a
+#    loaded neighbour.
+MEMORY_GROUND = 0.84
+for t0 in (0.0, 0.16, 0.5, 0.94):
+    check(abs(band_alpha(1, t0) - t0) < 1e-9,
+          "frozen hand-over at d=1 is %.4f, not the live edge's %.4f" % (band_alpha(1, t0), t0))
+    # ...and it must not stall at the memory tone, which is the step being removed
+    if t0 < 1.0 - MEMORY_GROUND:
+        check(band_alpha(1, t0) < 1.0 - MEMORY_GROUND + 1e-9,
+              "frozen hand-over floored at the memory tone for a lighter edge (t0=%.2f)" % t0)
+
 if fails:
     print("surround_band: FAIL")
     for f in fails:

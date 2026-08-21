@@ -1640,16 +1640,15 @@ func _write_zone_report() -> void:
 			row.append("d%+d (%d,%d)@%d,%d" % [d, c.x, c.y, int(sp.x), int(sp.y)])
 		lines.append("  %s: %s" % [edge, "  ".join(PackedStringArray(row))])
 	lines.append("")
-	lines.append("DEPARTED-ZONE CAP (a remembered zone may not render brighter than this one)")
+	lines.append("DEPARTED ZONES (their darkness hands over from the live zone's edge)")
 	lines.append("  ambient_tone (median)      %.4f" % renderer._ambient_tone)
-	lines.append("  live ground luminance      %.4f" % renderer._live_lum)
-	lines.append("  memory pair luminance (K)  %.4f" % renderer._luminance(renderer._qud_color("K")))
-	lines.append("  cap (frozen-pass tone)     %.4f" % renderer._departed_cap())
-	lines.append("  memory tone uncapped       %.4f" % (1.0 - renderer.MEMORY_GROUND))
-	lines.append("  -> departed renders at     %.4f  (live edge renders at %.4f)"
-		% [maxf(1.0 - renderer.MEMORY_GROUND, renderer._departed_cap()),
-		   renderer._ambient_tone * renderer.DARK_MAX])
-	lines.append("  rebake step                %d/%d" % [renderer._departed_cap_step(), int(renderer.CAP_QUANT)])
+	lines.append("  rebake step                %d/%d" % [renderer._ambient_step(), int(renderer.CAP_QUANT)])
+	lines.append("  memory tone (art only)     %.4f" % (1.0 - renderer.MEMORY_GROUND))
+	var ho: Array = []
+	for d in range(1, renderer.penumbra_radius + 2):
+		ho.append("%.3f" % renderer._band_alpha(d, 0.0))
+	lines.append("  hand-over d=1..%d at t0=0   %s" % [renderer.penumbra_radius + 1,
+		" ".join(PackedStringArray(ho))])
 	lines.append("")
 	lines.append("SURROUND BAND (_build_unexplored, last turn)")
 	var bs: Dictionary = renderer._band_stats
