@@ -359,6 +359,30 @@ func _on_picker(data: Dictionary) -> void:
 	else:
 		_item_picker.hide_picker()
 
+## The game the saved compass heading belongs to, so a different one can reset it (see below).
+## Empty until a snapshot names one; a pre-gameId mod leaves it empty and nothing resets, which is
+## the right way to fail here — keeping a heading is harmless, losing someone's is not.
+var _cam_game_id := ""
+
+## FACE NORTH IN A GAME THAT IS NOT THE ONE THE HEADING WAS SAVED FROM.
+##
+## The view file is global, so the compass survived into every new character: start a new game and
+## the camera pointed wherever the last session left it. Zoom or mode carrying over is a
+## preference; a HEADING is an orientation in a particular world, and in a new one it refers to
+## nothing. The wire has carried `gameId` all along (WorldStore keys its zone cache by it, for the
+## same reason: a new game must not render a previous game's zones) — this is the camera's half of
+## that rule.
+##
+## Only the heading resets. Distance, zoom, mode and the rest are how the player likes to look at
+## the game, not where they were pointing in it, so they carry over as before.
+func _check_camera_game(data: Dictionary) -> void:
+	var gid := String(data.get("gameId", ""))
+	if gid == "" or gid == _cam_game_id:
+		return
+	if _cam_game_id != "" and _cam_rig != null:
+		_cam_rig._compass_yaw = _cam_rig.COMPASS_YAW_DEFAULT
+	_cam_game_id = gid
+
 ## Qud's cybernetics terminal, mirrored. Same parked-turn-thread story as the popup and the
 ## picker — the screen awaits its own completionSource, so this channel is the only word we get.
 func _on_cyber(data: Dictionary) -> void:
@@ -401,6 +425,7 @@ func _on_snapshot(data: Dictionary) -> void:
 	Profiler.add_us("server", int(data.get("serverUs", 0)))
 	_inject_player_facing(data)   # the player's cell obj carries no reliable hflip; use the player block's
 	Profiler.begin("ingest")
+	_check_camera_game(data)   # a different game than the stored heading belongs to -> face north
 	store.ingest(data)   # keep the store current even when not rendering, so 3D can start instantly
 	Profiler.done("ingest")
 	# The 3D build/render (meshes, SubViewport) is the heavy GPU work. When render_3d is off (the frame
@@ -1156,11 +1181,18 @@ func _save_settings() -> void:
 				keep_win = prev.get("win", null)
 	var d := {
 		"mode": _cam_rig._mode,
-		"cam_ver": 2,                      # bumped when COMPASS_YAW_DEFAULT flipped to north
+		"cam_ver": 3,                      # 2: COMPASS_YAW_DEFAULT flipped to north. 3: per-game heading
 		# NORMALISED. Q/E accumulate without wrapping, so a well-used session stores things
 		# like 4*PI — mathematically south, but not a value any comparison would recognise
 		# as the default (that is exactly what defeated the cam_ver 2 migration first try).
 		"compass_yaw": fposmod(_cam_rig._compass_yaw, TAU),
+		# WHOSE heading this is. The compass is an orientation IN A WORLD, not a preference like
+		# zoom, so carrying it into a different game is carrying something that no longer refers
+		# to anything. Daniel, on a new character: "the camera is on compass facing west. The
+		# camera should default to north on a new game ... maybe it's remembering the camera from
+		# the last loaded game." It was — the view file is global, so every new character
+		# inherited whatever heading the previous session ended on.
+		"compass_game": _cam_game_id,
 		"compass_45": _cam_rig._compass_45,
 		"look_head": _cam_rig._look_head,
 		"dist": _cam_rig._dist,
@@ -1190,9 +1222,17 @@ func _load_settings() -> void:
 	# every existing user pointing south forever. Treat exactly-the-old-default as unset
 	# and take the new one; any yaw they actually turned to survives untouched.
 	var yaw := fposmod(float(d.get("compass_yaw", _cam_rig._compass_yaw)), TAU)
-	if int(d.get("cam_ver", 1)) < 2 and minf(yaw, TAU - yaw) < 0.01:
+	var ver := int(d.get("cam_ver", 1))
+	if ver < 2 and minf(yaw, TAU - yaw) < 0.01:
+		yaw = _cam_rig.COMPASS_YAW_DEFAULT
+	if ver < 3:
+		# A heading written before cam_ver 3 has no game recorded against it, so there is no way to
+		# tell whose it is — and the odds are it belongs to whatever was played last, not to the
+		# game about to load. Take the default once; from here every heading is stamped with its
+		# game (see _check_camera_game) and only ever resets when the game actually changes.
 		yaw = _cam_rig.COMPASS_YAW_DEFAULT
 	_cam_rig._compass_yaw = yaw
+	_cam_game_id = String(d.get("compass_game", ""))
 	_cam_rig._compass_45 = bool(d.get("compass_45", _cam_rig._compass_45))
 	_cam_rig._look_head = bool(d.get("look_head", _cam_rig._look_head))
 	_cam_rig._dist = clampf(float(d.get("dist", _cam_rig._dist)), _cam_rig.DIST_MIN, _cam_rig.DIST_MAX)
@@ -1649,6 +1689,17 @@ func _write_zone_report() -> void:
 		ho.append("%.3f" % renderer._band_alpha(d, 0.0))
 	lines.append("  hand-over d=1..%d at t0=0   %s" % [renderer.penumbra_radius + 1,
 		" ".join(PackedStringArray(ho))])
+	lines.append("")
+	lines.append("FOG-OF-WAR MESHES (static geometry hidden in never-explored cells)")
+	var mt := 0
+	var mh := 0
+	for e in renderer._known_meshes:
+		if not is_instance_valid(e["n"]):
+			continue
+		mt += 1
+		if not (e["n"] as Node3D).visible:
+			mh += 1
+	lines.append("  tracked %d   hidden %d   showing %d" % [mt, mh, mt - mh])
 	lines.append("")
 	lines.append("SURROUND BAND (_build_unexplored, last turn)")
 	var bs: Dictionary = renderer._band_stats

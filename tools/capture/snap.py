@@ -119,8 +119,17 @@ def cmd_cell(snap, args):
     header(snap)
     for c in snap.get("cells", []):
         if c.get("x") == cx and c.get("y") == cy:
+            # light / visible / explored decide FOG, and none of them were printed here. The
+            # client's rule is `visible != false AND light > 1` -> in sight, else the K/k memory
+            # ghost; `explored` is reported but deliberately NOT a gate (Qud draws terrain in
+            # cells it calls unexplored). The mod OMITS `visible` when true, so absent means seen.
+            vis = c.get("visible", True)
+            lit = int(c.get("light", 200))
+            seen = vis is not False and lit > 1
             print(f"\ncell ({cx},{cy})  bridge={c.get('bridge')} "
                   f"wade={c.get('wade')} swim={c.get('swim')}")
+            print(f"     fog    light={lit} visible={vis} explored={c.get('explored')}"
+                  f"  -> {'IN SIGHT' if seen else 'MEMORY (K/k ghost)'}")
             for i, o in enumerate(c.get("objs", [])):
                 print(f"\n [{i}] layer={o.get('layer')} glyph={o.get('glyph')!r}")
                 print(f"     tile   {o.get('tile','')!r}")

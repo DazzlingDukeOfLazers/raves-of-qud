@@ -207,6 +207,12 @@ def main(argv):
     elif cmd == "fph":
         godot("fph " + argv[1])
         print("godot: fp height", argv[1])
+    elif cmd == "inspect":
+        # `inspect CX CY` -> selection.txt, the same report a Ctrl+click writes. Main has had this
+        # command for a while; control.py never forwarded it, so the documented way to ask a cell
+        # what it rendered as silently did nothing from the CLI.
+        godot("inspect " + argv[1] + " " + argv[2])
+        print("godot: inspect", argv[1], argv[2], "-> selection.txt")
     elif cmd == "zonereport":
         godot("zonereport")
         print("godot: zonereport -> zones.txt")

@@ -235,6 +235,20 @@ func build_report(cx: int, cy: int, hit: Vector3) -> String:
 	var lstr := "n/a (pre-cell-light mod)" if lv < 0 else "%d %s" % [lv, _light_name(lv)]
 	L.append("cell flags: bridge=%s wade=%s swim=%s  light=%s   -> sink %.2f" % [
 		cell.get("bridge", false), cell.get("wade", false), cell.get("swim", false), lstr, sink])
+	# FOG: the two flags that decide whether this cell renders in full colour or as memory, and the
+	# verdict they produce. Neither was printed before, which made "why is this visible?" a question
+	# the report could not answer — and the answer is rarely the one you would guess, because the
+	# two flags are INDEPENDENT (a torch-lit cell behind a wall is light=200 and visible=false) and
+	# because `explored` is deliberately NOT a gate here: Qud reports 356 of Joppa's 2000 cells
+	# unexplored while still DRAWING terrain there, so gating on it blacks out bands Qud shows.
+	var vis: bool = bool(cell.get("visible", true))     # mod omits it when true
+	var expl: bool = bool(cell.get("explored", true))
+	var seen: bool = _renderer.cell_seen(cell) if _renderer != null else vis
+	L.append("fog: visible=%s explored=%s  -> %s%s" % [
+		vis, expl,
+		"IN SIGHT (full colour)" if seen else "MEMORY (K/k ghost)",
+		"   [explored=false but drawn — Qud does this too; explored is not a gate]" \
+			if (not expl and seen) else ""])
 
 	# what the renderer did, keyed by object index so it lines up below
 	var acts := {}

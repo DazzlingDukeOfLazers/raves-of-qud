@@ -391,6 +391,21 @@ var _lights: Array = []           # [{glow, flame, smoke, energy}]
 # they can be dimmed by the cell's light EACH TURN like creatures — they'd otherwise stay
 # lit at night while the ground around them goes dark. [{s: Sprite3D, cell: Vector2i}]
 var _lit_sprites: Array = []
+## Static MESH nodes that must vanish in a cell the player has never explored — the mesh
+## counterpart of _lit_sprites' `known` rule.
+##
+## _relight_static_sprites hides never-seen SPRITES, and that was the whole fog-of-war gate for
+## objects. Anything built as geometry instead of a billboard was never covered: a door renders as
+## a voxel slab, so it stayed on screen in a cell with explored=false. Daniel: "I've selected a
+## door that I can see, even though I believe it should be in the unexplored fog-of-war" — the wire
+## agreed, cell (18,4) light=200 visible=False explored=False.
+##
+## Hidden per TURN rather than skipped at build time on purpose: the static build only re-runs when
+## the zone's object signature changes, and exploring a cell changes neither the objects nor that
+## signature, so a door gated at placement would stay missing after you walked up to it. Adding
+## explored to the signature instead would rebuild the zone on most steps, which is the crossing
+## cost the renderer already spent a session bounding.
+var _known_meshes: Array = []
 # Same idea for connector panels (fences, pipes, axles): they are MeshInstance3D, not
 # Sprite3D, so they dim via a per-instance material's albedo_color, not modulate.
 var _lit_meshes: Array = []       # [{mi: MeshInstance3D, cell: Vector2i}]
@@ -1265,6 +1280,17 @@ func _relight_static_sprites(cells: Array) -> void:
 		tint[k] = _view_tint(cell)
 		seen[k] = _cell_seen(cell)
 		known[k] = _cell_explored(cell)
+	# Static MESH nodes (door slabs and anything else built as geometry): visible only where the
+	# player has explored. Same rule as the sprite `known` gate below, different node type — see
+	# _known_meshes for why this is a per-turn hide rather than a build-time skip.
+	var alive: Array = []
+	for e in _known_meshes:
+		var n = e["n"]
+		if not is_instance_valid(n):
+			continue
+		alive.append(e)
+		n.visible = bool(known.get(e["cell"], true))
+	_known_meshes = alive
 	for e in _lit_sprites:
 		var s = e["s"]
 		if is_instance_valid(s):
@@ -1454,6 +1480,11 @@ func _cell_explored(cell: Dictionary) -> bool:
 	return bool(cell.get("explored", true))
 
 ## Currently in the player's sight AND lit. Mirrors 1:1's `full_1to1` exactly.
+## Public form of _cell_seen, for the inspector's fog verdict — one source, so the report cannot
+## claim a different answer from the one the renderer acted on.
+func cell_seen(cell: Dictionary) -> bool:
+	return _cell_seen(cell)
+
 func _cell_seen(cell: Dictionary) -> bool:
 	# the mod omits `visible` when it is TRUE, so an absent key means seen — never read it as false
 	return bool(cell.get("visible", true)) and int(cell.get("light", 200)) > 1
@@ -3771,6 +3802,7 @@ func _place_door(tile: String, main_c: String, detail_c: String, cx: int, cy: in
 	fmi.position = Vector3(cx, 0, cy)
 	_spawn_parent().add_child(fmi)
 	_track(fmi)
+	_known_meshes.append({"n": fmi, "cell": Vector2i(cx, cy)})
 
 	# trim: panel end strips + top cap + the two jambs (vertex-coloured)
 	var stt := SurfaceTool.new()
