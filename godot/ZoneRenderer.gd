@@ -106,6 +106,37 @@ var penumbra_divisions := 1
 ## ramps that happen to be adjacent. Clear again LIVE_EDGE_FADE tiles in.
 const LIVE_EDGE_FADE := 4
 
+## THE MASTER SWITCH FOR BOTH RAMPS ABOVE — currently OFF, and this is the "bib" being started over.
+##
+## Both ramps land on FROZEN_EDGE_DIM at the shared boundary, which was supposed to make the two
+## halves meet at one brightness. They meet at one ALPHA. That is not the same thing, and it is why
+## four rounds of tuning could not fix it: the alpha is applied over a DIFFERENT BASE COLOUR on each
+## side. Measured at the Joppa north boundary at night, straight down a column of open ground —
+##
+##     the frozen side ramps  (0,1,2) -> (9,32,40)   brightest at the row touching the live zone
+##     the live side is flat            (5,23,28)
+##
+## — so the two rows that are meant to be equal differ by 1.8/1.45/1.48, a different factor per
+## channel. No single alpha produces that, because darkening cannot reconcile two different bases:
+## the live floor is painted-ground tile art under the night grade, the frozen side is remembered
+## art, and past a loaded neighbour it was the bare field plane. Three materials, one ramp.
+##
+## What a rebuild has to do differently: stop computing the surround's colour and EXTEND the edge
+## cells' own ground quads outward instead, repeating each edge cell's tile and colour for the
+## band's depth and darkening as it goes. Then the base matches by construction at every point
+## along the boundary — including where the edge crosses from sand to water, which one tallied
+## colour could never have handled.
+##
+## Everything the ramp needs is still here and still tested — _frozen_light, _live_edge_light, their
+## _at float forms, _veil_bounds and _emit_fade_cell's axis-aware subdivision. Only the per-cell
+## surround emitter was deleted; git has it (see the note in _build_unexplored). Flipping this back
+## on restores the old look exactly, which is the point: it is a baseline to measure against, not a
+## thing to ship.
+##
+## MEASURE AT NIGHT. The daylight check that said the seam matched could not have failed — in full
+## daylight there is barely a penumbra to get wrong.
+const PENUMBRA_ON := false
+
 ## Above this alpha a darkness quad is drawn OPAQUE instead of blended. Not cosmetic — it is what
 ## makes the frozen-zone ramp affordable. A full sheet of alpha-blended quads over every neighbour
 ## is the thing that crashed in _platform_memmove (see _build_darkness), and the ramp would be
@@ -1483,7 +1514,9 @@ func _build_darkness(cells: Array, parent: Node, frozen_off := NOT_FROZEN) -> vo
 			t = 1.0 - _light_frac(cell)
 		# --- VEIL: how far past the edge of the visible it sits ---
 		var v := 0.0
-		if frozen:
+		if not PENUMBRA_ON:
+			pass                                     # the bib is off; every zone renders flat
+		elif frozen:
 			v = 1.0 - _frozen_light(k, frozen_off)   # ramp from the shared boundary, FROZEN_EDGE_DIM
 		elif not _cell_seen(cell):
 			# THE LIVE ZONE'S EDGE FADE ONLY DIMS WHAT YOU CANNOT SEE. It blends the zone into the
@@ -1695,21 +1728,19 @@ func _frozen_light(k: Vector2i, off: Vector2i) -> float:
 func _build_unexplored(parent: Node) -> void:
 	if _one_to_one or _world_map:
 		return
-	# NO PENUMBRA HERE. There was a gradient band — the "bib" — fading the live zone out into
-	# unexplored ground, and it is gone: after four rounds of trying to make its first row meet the
-	# zone's own edge, "let's remove the bib and start over." What it kept getting wrong is worth
-	# recording, because whatever replaces it has to answer the same thing. The ground INSIDE a zone
-	# is darkened by that zone's cells, so a ramp outside has to hand over from THAT, not from a
-	# constant. Measured at the boundary the bib read rgb(7,29,36) against the zone's rgb(5,23,28) —
-	# brighter, and by 1.40/1.26/1.29, a DIFFERENT ratio per channel, so it was never a matter of
-	# tuning one alpha. Anchoring it to the edge's own measured darkness did make the two equal, but
-	# only in full daylight, where there is barely a penumbra to get wrong — a test that cannot fail.
+	# NO PENUMBRA HERE. The gradient band — the "bib" — that faded the live zone out into unexplored
+	# ground is gone, along with _emit_penumbra_cell (the axis-aware per-cell ramp: a ramp is a
+	# distance to a rectangle, so an edge band varies along ONE axis and only the corner blocks need a
+	# full DxD grid — straight DxD everywhere was 231k quads at D=16) and _dark_rect_minus (the
+	# slot-sized rects around the band, as an exact cover). Git has both; recover, do not rederive.
+	#
+	# THIS ROUTE IS ONLY HALF THE BIB, which is worth knowing before you go looking for the rest of
+	# it. This function draws the slots where NO neighbour is loaded. A slot whose zone you HAVE
+	# visited is a frozen zone that draws its own darkness, ramp included, and that is the band you
+	# actually see north of you in Joppa. Deleting the code here left it fully intact on screen.
+	# The switch that turns off both is PENUMBRA_ON — read the note there for why it is off.
 	#
 	# Unvisited ground is solid dark now and the boundary is a hard edge. Starting point, not a look.
-	# The removed emitters are in git: _emit_penumbra_cell carried the axis-aware subdivision (a ramp
-	# is a distance to a rectangle, so an edge band varies along ONE axis and only the corner blocks
-	# need a full DxD grid — straight DxD everywhere was 231k quads at D=16), and _dark_rect_minus
-	# cut the slot-sized rects around the band as an exact cover. Recover them rather than rederive.
 	var zw := int(_live_w)
 	var zh := int(_live_h)
 	# Grid slots something visited already covers: the live zone at (0,0), plus each static neighbour.
