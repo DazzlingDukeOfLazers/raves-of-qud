@@ -1711,8 +1711,16 @@ func _write_zone_report() -> void:
 		# doorway; on screen that reads as a vaguely wrong door, in these numbers it is unmissable.
 		# Shut and in-frame means both spans inside +/-0.5, and the thin one is the leaf's depth.
 		var box := ""
-		if parts.size() > 1 and is_instance_valid(parts[1]):
-			var pv: Node3D = parts[1]
+		# FIND the pivot rather than index it. _door_static holds whatever pieces a door is made of
+		# and that list has already grown once (the frame's inner cap joined it); positional access
+		# silently reported nothing when it did, which looks exactly like a door with no leaf.
+		var pv: Node3D = null
+		for nd in parts:
+			if is_instance_valid(nd) and nd is Node3D:
+				for ch in (nd as Node3D).get_children():
+					if ch is MeshInstance3D:
+						pv = nd
+		if pv != null:
 			for ch in pv.get_children():
 				if ch is MeshInstance3D:
 					var ab: AABB = (ch as MeshInstance3D).get_aabb()

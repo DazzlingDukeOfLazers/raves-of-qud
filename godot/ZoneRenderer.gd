@@ -3806,8 +3806,29 @@ func _door_model_try(frame: Array[Vector2i], leaf: Array[Vector2i], w: int, h: i
 	var rr := fx1 - lx1 - 1
 	if maxi(rl, rr) < 1:
 		return {}                                    # no reveal either side: no outline to have
+	# THE ARCH CUTS THE LEAF'S TOP CORNERS, and those corners are the frame's, not the leaf's. The
+	# leaf is a rigid rectangle — it has to be, it rotates — so its bounding box swallows whatever
+	# the arch curve leaves empty above it, and those transparent pixels then swing with the door.
+	# Daniel: "the door (swinging part) has some bg pixels that should be in the frame on the top."
+	#
+	# The trim is the CONTIGUOUS partial run at the TOP only. Rows further down are also short of
+	# full width — 10, 11, 17 and 18 on the basic door — but those are the leaf's own edge texture,
+	# mid-panel, and trimming on "not full width" alone would cut the door in half.
+	var full := {}
+	for p in leaf:
+		full[p] = true
+	var lyt := ly0
+	while lyt < ly1:
+		var spans := true
+		for x in range(lx0, lx1 + 1):
+			if not full.has(Vector2i(x, lyt)):
+				spans = false
+				break
+		if spans:
+			break
+		lyt += 1
 	var d := {
-		"w": w, "h": h,
+		"w": w, "h": h, "lyt": lyt,
 		"fx0": fx0, "fx1": fx1, "fy0": fy0, "fy1": fy1,
 		"lx0": lx0, "lx1": lx1, "ly0": ly0, "ly1": ly1,
 		# THE HINGE IS OPPOSITE THE KNOB, and the knob is IN THE ART. Daniel: "the default art puts
@@ -3905,7 +3926,7 @@ func _place_door_voxel(tile: String, main_c: String, detail_c: String, cx: int, 
 	var ld := DOOR_LEAF_DEPTH_PX * 0.5 / w
 	var lx0: int = m["lx0"]
 	var lx1: int = m["lx1"]
-	var ly0: int = m["ly0"]
+	var ly0: int = m["lyt"]          # the leaf's true top: the arch's corner rows stay with the frame
 	var ly1: int = m["ly1"]
 
 	# --- FRAME: the art minus the leaf hole, as four strips ---
@@ -3923,6 +3944,28 @@ func _place_door_voxel(tile: String, main_c: String, detail_c: String, cx: int, 
 		_door_face(stf, sp[0], sp[1], sp[2], sp[3], fd, ew, col, row, w, h)
 	_door_edges(stf, float(m["fx0"]), float(m["fx1"]) + 1.0, float(fy0), float(fy1) + 1.0,
 		fd, ew, col, row, w, h)
+	var fmesh_cap := SurfaceTool.new()
+	fmesh_cap.begin(Mesh.PRIMITIVE_TRIANGLES)
+	# CAP THE INSIDE OF THE OPENING. The frame is the art with a hole cut in it, and a hole cut in
+	# a two-sided slab has no sides — the reveal, the arch's soffit and the threshold were all open
+	# edges, so an open door showed the frame's own thickness as nothing at all. Capped in the FIELD
+	# colour (_world_bg), which is what Qud paints behind everything and what a cell reads as when
+	# nothing covers it: the same choice the memory wash and the deep-water backing already make.
+	# Daniel: "can we cap the inside of the door frame with the bg color?"
+	_door_edges(fmesh_cap, float(lx0), float(lx1) + 1.0, float(ly0), float(ly1) + 1.0,
+		fd, ew, col, row, w, h)
+	var cmi := MeshInstance3D.new()
+	var cmesh := ArrayMesh.new()
+	fmesh_cap.commit(cmesh)
+	cmi.mesh = cmesh
+	var cmat: StandardMaterial3D = _color_material(_world_bg).duplicate()
+	cmat.cull_mode = BaseMaterial3D.CULL_DISABLED   # seen from inside the opening, either side
+	cmat.albedo_color = Color(_world_bg.r * lf, _world_bg.g * lf, _world_bg.b * lf)
+	cmi.material_override = cmat
+	cmi.position = Vector3(cx, 0, cy)
+	_spawn_parent().add_child(cmi)
+	_track(cmi)
+	_track_door_mesh(cmi, cx, cy)
 	var fmi := MeshInstance3D.new()
 	var fmesh := ArrayMesh.new()
 	stf.commit(fmesh)
@@ -3987,7 +4030,7 @@ func _place_door_voxel(tile: String, main_c: String, detail_c: String, cx: int, 
 	_track(pivot)
 	_track_door_mesh(pivot, cx, cy)
 	if _live_build:
-		_door_static[Vector2i(cx, cy)] = [fmi, pivot]
+		_door_static[Vector2i(cx, cy)] = [fmi, cmi, pivot]
 	_note(cx, cy, idx, "door VOXEL %s frame cols %d..%d, leaf %d..%d rows %d..%d, hinge %s, %s" % [
 		"E-W" if ew else "N-S", int(m["fx0"]), int(m["fx1"]), lx0, lx1, ly0, ly1,
 		"high" if bool(m["hinge_hi"]) else "low",

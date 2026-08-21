@@ -114,6 +114,15 @@ def _try(frame, leaf, w, h):
     inside = lambda x, y: lx0 <= x <= lx1 and ly0 <= y <= ly1
     surround = {(x, y) for (x, y) in frame if not inside(x, y)}
     boxes = [(y, r[0], r[1]) for y in range(h) for r in runs(surround, y)]
+    # THE ARCH CUTS THE LEAF'S TOP CORNERS, and those corners belong to the frame. The leaf is a
+    # rigid rectangle -- it rotates -- so its bounding box swallows whatever the arch curve leaves
+    # empty above it, and those transparent pixels then swing with the door. Trim the CONTIGUOUS
+    # partial run at the TOP only: rows 10, 11, 17 and 18 of the basic door are also short of full
+    # width, but that is the leaf's own edge texture mid-panel, and trimming on "not full width"
+    # alone would cut the door in half.
+    lyt = ly0
+    while lyt < ly1 and not all((x, lyt) in leaf for x in range(lx0, lx1 + 1)):
+        lyt += 1
     rl = lx0 - fx0 - 1
     rr = fx1 - lx1 - 1
     # A reveal on one side only is not a defect -- a door is hung tight against one jamb and swings
@@ -123,6 +132,7 @@ def _try(frame, leaf, w, h):
         "frame_boxes": boxes,          # (row, x0, x1) each extruded FRAME_DEPTH_PX deep
         "frame_span": (fx0, fx1),
         "leaf_rect": (lx0, lx1, ly0, ly1),
+        "leaf_top": lyt,               # rows ly0..lyt-1 are arch, and stay with the frame
         "hinge_x": lx1 if knob_hi(leaf, lx0, lx1, ly0, ly1) else lx0,
         "reveal_left": rl,             # empty columns between jamb and leaf
         "reveal_right": rr,
@@ -166,7 +176,10 @@ def main(argv):
     print("  tile %dx%d" % (w, h))
     print("  frame span   cols %d..%d   depth %.0fpx" % (m["frame_span"] + (FRAME_DEPTH_PX,)))
     print("  leaf         cols %d..%d  rows %d..%d   depth %.0fpx (recessed, centred)"
-          % (lx0, lx1, ly0, ly1, LEAF_DEPTH_PX))
+          % (lx0, lx1, m["leaf_top"], ly1, LEAF_DEPTH_PX))
+    if m["leaf_top"] > ly0:
+        print("  arch trim    rows %d..%d go to the FRAME (the arch cuts the leaf's top corners)"
+              % (ly0, m["leaf_top"] - 1))
     print("  reveal       %d px left, %d px right   <- the outline, as a recess not a colour"
           % (m["reveal_left"], m["reveal_right"]))
     print("  hinge        vertical axis at col %d (%s; knob is opposite)"
