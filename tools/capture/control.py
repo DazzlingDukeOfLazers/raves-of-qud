@@ -213,6 +213,12 @@ def main(argv):
         # what it rendered as silently did nothing from the CLI.
         godot("inspect " + argv[1] + " " + argv[2])
         print("godot: inspect", argv[1], argv[2], "-> selection.txt")
+    elif cmd == "look":
+        godot("look " + (argv[1] if len(argv) > 1 else ""))
+        print("godot: look", argv[1] if len(argv) > 1 else "(toggle)")
+    elif cmd == "lookreport":
+        godot("lookreport")
+        print("godot: lookreport -> selection.txt")
     elif cmd == "zonereport":
         godot("zonereport")
         print("godot: zonereport -> zones.txt")

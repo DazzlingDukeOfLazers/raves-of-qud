@@ -145,6 +145,83 @@ func inspect_at(cam: Camera3D, mp: Vector2, zscale := 1.0) -> void:
 	DisplayServer.clipboard_set(report)
 	_write(report)
 
+# --- LOOK MODE ---------------------------------------------------------------
+#
+# A CURSOR YOU STEER, with nothing covering the view. The inspector's own panel is a wall of detail
+# and it opened on every pick, which is right for "tell me everything about this tile" and wrong for
+# "let me point at things". Daniel: "I want to highlight something, but the inspector window keeps
+# getting in the way." So look mode reuses the MARKER and leaves the panel shut until asked.
+#
+# It also replaces the Look button's old job. That button drove QUD's Looker — a legacy screen Raves
+# does not mirror, which the game could not be talked out of (measured: neither Esc, nor
+# CmdEscape, nor a second press; the Looker reads raw keys and ignores commands), so the button had
+# to send a raw Escape to undo itself. This is the same affordance without the trap.
+var _look_on := false
+var _look_cell := Vector2i.ZERO
+
+func look_on() -> bool:
+	return _look_on
+
+func look_cell() -> Vector2i:
+	return _look_cell
+
+func look_begin(c: Vector2i) -> void:
+	_look_on = true
+	_look_cell = c
+	_look_mark()
+
+func look_end() -> void:
+	_look_on = false
+	_mark_box.visible = false
+	_mark_pin.visible = false
+
+## Step the cursor, clamped to the zone. Clamped rather than wrapped: running off the edge and
+## reappearing opposite loses you the cursor, which is the one thing this mode cannot afford.
+func look_move(d: Vector2i) -> Vector2i:
+	if not _look_on:
+		return _look_cell
+	var w := 80
+	var h := 25
+	if _renderer != null:
+		w = maxi(1, int(_renderer._live_w))
+		h = maxi(1, int(_renderer._live_h))
+	_look_cell = Vector2i(clampi(_look_cell.x + d.x, 0, w - 1), clampi(_look_cell.y + d.y, 0, h - 1))
+	_look_mark()
+	return _look_cell
+
+func _look_mark() -> void:
+	_selected = _look_cell
+	_mark_box.position = Vector3(_look_cell.x, 0.0, _look_cell.y)
+	_mark_pin.position = Vector3(_look_cell.x, 0.0, _look_cell.y)
+	_mark_box.visible = true
+	_mark_pin.visible = true
+
+## ONE LINE for the message log: what is on this cell, in Qud's own display names and markup.
+## Deliberately not the report — the report is a screenful, and this has to sit in a log beside the
+## game's own messages without drowning them.
+func look_line(cx: int, cy: int) -> String:
+	var c: Dictionary = _by_cell.get(Vector2i(cx, cy), {})
+	var names: Array = []
+	for o in c.get("objs", []):
+		var n := String(o.get("display", o.get("name", "")))
+		if n != "" and not names.has(n):
+			names.append(n)
+	var where := "{{K|(%d,%d)}}" % [cx, cy]
+	if names.is_empty():
+		return "%s {{K|nothing here}}" % where
+	return "%s %s" % [where, ", ".join(PackedStringArray(names))]
+
+## The full report for wherever the cursor is — panel, clipboard and selection.txt, exactly as a
+## Ctrl+click would. Asked for, never volunteered.
+func report_look() -> void:
+	if not _look_on:
+		return
+	var report := build_report(_look_cell.x, _look_cell.y,
+		Vector3(_look_cell.x, 0.0, _look_cell.y))
+	_show(report, _look_cell.x, _look_cell.y)
+	DisplayServer.clipboard_set(report)
+	_write(report)
+
 func _occupied(c: Vector2i) -> bool:
 	return _by_cell.has(c) and (_by_cell[c].get("objs", []) as Array).size() > 0
 

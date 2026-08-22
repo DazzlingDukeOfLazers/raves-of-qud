@@ -624,6 +624,16 @@ func _exec_godot_cmd(cmd: String) -> void:
 			# deterministic test input: key/wheel injection proved unreliable for sweeps.
 			if parts.size() >= 2 and _cam_rig != null:
 				_cam_rig.set_zoom_1to1(float(parts[1]))
+		"look":
+			# `look` toggles the look cursor, `look N` steps it. Driving it from outside is the only
+			# way to test a mode whose whole point is that it does not open a window: there is no
+			# panel to assert on, just a marker in the world and a line in the log.
+			if parts.size() >= 2 and inspector != null and inspector.look_on():
+				_report_look_cell(inspector.look_move(_cam_rig.compass_delta(parts[1].to_upper())))
+			else:
+				look_toggle()
+		"lookreport":
+			look_report()
 		"zonereport":
 			# `zonereport` — write zones.txt: which zones the store holds, where each lands in the
 			# 3x3 slot grid, and what the SURROUND BAND actually built this turn.
@@ -709,15 +719,43 @@ func _process(dt: float) -> void:
 ## Move the player relative to the camera. `intent` is (strafe, forward) in screen
 ## space: (0,1)=forward, (0,-1)=back, (1,0)=right, (-1,0)=left.
 func _move_relative(intent: Vector2) -> void:
-	var h: Vector3 = _cam_rig.camera_heading()
-	var right := h.cross(Vector3.UP)   # camera/body right (world space)
-	if right.length() < 0.001:
-		right = Vector3(1, 0, 0)
-	right = right.normalized()
-	var v := h * intent.y + right * intent.x
-	if v.length() < 0.001:
+	var d: String = _cam_rig.relative_compass(intent)
+	if d == "":
 		return
-	client.send_command("move", {"dir": _cam_rig.dir_to_compass(v.normalized())})
+	# LOOK MODE STEERS THE CURSOR, NOT THE PLAYER. Same keys, same camera-relative mapping — the
+	# only difference is what moves. Daniel: "the keyboard can be used on the playfield to move the
+	# cursor. The control should be relative to the camera direction."
+	if inspector != null and inspector.look_on():
+		var c: Vector2i = inspector.look_move(_cam_rig.compass_delta(d))
+		_report_look_cell(c)
+		return
+	client.send_command("move", {"dir": d})
+
+## Announce the look cursor's cell so the message log can show it.
+func _report_look_cell(c: Vector2i) -> void:
+	if inspector != null:
+		look_changed.emit(true, c, inspector.look_line(c.x, c.y))
+
+## Open the look cursor ON THE PLAYER, or close it. Daniel: "it starts by highlighting the user."
+## Starting anywhere else means hunting for the cursor before you can steer it, and the player is
+## the one cell you can always find.
+func look_toggle() -> void:
+	if inspector == null:
+		return
+	if inspector.look_on():
+		inspector.look_end()
+		look_changed.emit(false, Vector2i.ZERO, "")
+		return
+	var pc: Dictionary = store.live_record().get("snapshot", {}).get("player", {})
+	var c := Vector2i(int(pc.get("x", 0)), int(pc.get("y", 0)))
+	inspector.look_begin(c)
+	_report_look_cell(c)
+
+## Write the full tile report for wherever the look cursor is — the deliberate, asked-for version
+## of what a Ctrl+click does. Nothing pops up until this is pressed, which is the point of the mode.
+func look_report() -> void:
+	if inspector != null and inspector.look_on():
+		inspector.report_look()
 
 ## Send a named Qud command (CmdFire, CmdReload, …) over the bridge — from a Raves hotkey or a UI
 ## button. The mod injects it into Qud's input like a keypress, so any targeting UI opens in the Qud
@@ -808,6 +846,10 @@ signal qud_view_changed(name: String)
 ## A camera mode actually CHANGED (the rig confirmed it). Carries the mode and its controls line
 ## from _MODE_NAMES, so MainFrame can print the controls without keeping its own copy of them.
 signal camera_changed(mode: int, controls: String)
+## The look cursor moved (or opened/closed). `on` false means it left look mode. MainFrame prints
+## the line to the message log and keeps its "report tile" button pointed at the same cell — the
+## frame owns the log, and Main owns the cursor, so this is the seam between them.
+signal look_changed(on: bool, cell: Vector2i, line: String)
 
 func is_one_to_one() -> bool:
 	return _one_to_one
@@ -1408,6 +1450,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		if _cam_rig._mode != CamMode.KEYBOARD and event.keycode == KEY_D:
 			client.send_command("command", {"command": "CmdMoveD"}); return
 		if event.keycode == KEY_ESCAPE:
+			# LOOK MODE LEAVES FIRST, and by itself — the whole complaint about the old Look button
+			# was that it put the game somewhere it could not be talked out of, so this one exits
+			# on the key everyone tries first, before Esc means anything else.
+			if inspector != null and inspector.look_on():
+				look_toggle()
+				return
 			# close the camera/debug menu and any selection, but KEEP the current camera.
 			# With nothing to dismiss, 1:1 Esc = Qud's own binding (CmdSystemMenu,
 			# Commands.xml): the system-menu POPUP opens in Qud and mirrors back into

@@ -1008,11 +1008,16 @@ func _row_vitals_menu() -> Control:
 			cell.mouse_filter = Control.MOUSE_FILTER_STOP
 			cell.gui_input.connect(func(e: InputEvent) -> void:
 				if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
-					if _holo != null:
-						if _qud_view == "Looker":
-							_holo.request_key("escape")
-						else:
-							_holo.request_nav_click("LookButton"))
+					if _holo == null:
+						return
+					# QUD'S LOOKER IS STILL ITS OWN WAY OUT while the game is in it — that trap is
+					# unchanged and still needs a raw Escape. But the button no longer opens it:
+					# it drives RAVES' look cursor, which steers with the arrows, says what it is
+					# over in the message log, and shows nothing until "report tile" is pressed.
+					if _qud_view == "Looker":
+						_holo.request_key("escape")
+					else:
+						_holo.look_toggle())
 			_nav_look_cell = cell
 		if key == "wlock":
 			# No Option behind this one: press QUD'S button and let its own handler decide, then the
@@ -1070,6 +1075,19 @@ func _row_vitals_menu() -> Control:
 ## A camera mode changed -> print its controls to the message log. The controls text comes WITH the
 ## signal (Main owns _MODE_NAMES, which is already the per-mode control list the HUD hint and the
 ## multiview captions use), so there is no second copy here to drift from it.
+## The look cursor moved. Print where it is, and offer the full report as a BUTTON rather than
+## opening it — Daniel: "add button to 'report tile' to the message log", the whole point being
+## that nothing covers the playfield until you ask it to.
+func _on_look_changed(on: bool, _cell: Vector2i, line: String) -> void:
+	if _msglog == null:
+		return
+	if not on:
+		_msglog.set_action_button("", Callable())
+		_msglog.add_message("{{K|look: off}}")
+		return
+	_msglog.add_message("{{C|look:}} " + line)
+	_msglog.set_action_button("report tile", func(): if _holo != null: _holo.look_report())
+
 func _on_camera_changed(_mode: int, controls: String) -> void:
 	if _msglog == null or controls == "":
 		return
@@ -1694,6 +1712,7 @@ func _connect_holodeck() -> void:
 	# Looker) park the turn thread, so this cannot ride the snapshot. See PopupBridge.PollView.
 	_holo.connect("qud_view_changed", _apply_qud_view)
 	_holo.connect("camera_changed", _on_camera_changed)   # print the new camera's controls to the log
+	_holo.connect("look_changed", _on_look_changed)       # the look cursor -> the log + its button
 	# a system-menu pick of "Control Mapping" mirrors into Raves' own screen (Qud
 	# opens its KeybindsScreen from the same answer). BOTH modes — user mode gets
 	# the extra RAVES section (golden restore) that 1:1 hides.

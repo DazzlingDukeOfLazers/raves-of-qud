@@ -560,6 +560,31 @@ func camera_heading() -> Vector3:
 	return h.normalized()
 
 ## Snap a world ground vector to the nearest of Qud's 8 compass directions. +x = east, +z = south.
+## A screen-relative intent (x = right, y = forward) as a COMPASS direction, given where the camera
+## is looking. The one place that maps "the way the player pressed" onto "the way the world calls
+## it" — movement and the look cursor both go through it, so a turned camera moves both the same.
+func relative_compass(intent: Vector2) -> String:
+	var h := camera_heading()
+	var right := h.cross(Vector3.UP)
+	if right.length() < 0.001:
+		right = Vector3(1, 0, 0)
+	var v := h * intent.y + right.normalized() * intent.x
+	return dir_to_compass(v.normalized()) if v.length() > 0.001 else ""
+
+## That compass direction as a CELL DELTA. Qud's y grows SOUTH, so north is -1.
+## Named _delta, not _step: compass_step() above is the Q/E rotation increment, in radians.
+func compass_delta(d: String) -> Vector2i:
+	match d:
+		"E": return Vector2i(1, 0)
+		"SE": return Vector2i(1, 1)
+		"S": return Vector2i(0, 1)
+		"SW": return Vector2i(-1, 1)
+		"W": return Vector2i(-1, 0)
+		"NW": return Vector2i(-1, -1)
+		"N": return Vector2i(0, -1)
+		"NE": return Vector2i(1, -1)
+	return Vector2i.ZERO
+
 func dir_to_compass(v: Vector3) -> String:
 	var idx: int = int(round(atan2(v.z, v.x) / (PI / 4.0))) & 7
 	return ["E", "SE", "S", "SW", "W", "NW", "N", "NE"][idx]

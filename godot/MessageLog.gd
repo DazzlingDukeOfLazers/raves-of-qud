@@ -18,6 +18,8 @@ const FILTER_GRACE := 4   # quiet rounds a line survives before its count starts
 ## this and adjusts the side-column width. dx = mouse motion in px (negative = dragged left = wider log).
 signal left_edge_drag(dx: float)
 var _dragging := false
+var _actions: HBoxContainer          # the one-action row under the log (see _ready)
+var _action_btn: Button = null
 var _grab: Control        # the ||| bar's own hit strip, so only IT shows a resize cursor
 
 var _filter := false
@@ -79,6 +81,13 @@ func _ready() -> void:
 	_rt.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_rt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	v.add_child(_rt)
+	# A ROW FOR ONE ACTION, under the log and empty almost always. It exists so a mode that needs a
+	# deliberate press has somewhere to put it without opening a window over the playfield — the
+	# look cursor's "report tile" is the first, and the reason the row is here at all.
+	_actions = HBoxContainer.new()
+	_actions.visible = false
+	_actions.alignment = BoxContainer.ALIGNMENT_END
+	v.add_child(_actions)
 	# The viewer's own scrolling is the ONLY thing that decides follow-vs-hold — see _on_log_scrolled.
 	var vsb := _rt.get_v_scroll_bar()
 	if vsb != null:
@@ -318,6 +327,28 @@ func _seed_from(lines: Array) -> void:
 ## Anchored at the current stream position rather than appended at render time: appended, it would
 ## re-pin itself to the bottom on every snapshot and never scroll. Bounded so a viewer cycling
 ## cameras cannot grow it without limit.
+## Offer ONE action under the log, or clear it with an empty label. Deliberately one: this is a
+## message log with a button on it, not a toolbar, and a second caller wanting a second button is a
+## sign the thing being built belongs somewhere else.
+func set_action_button(label: String, on_press: Callable) -> void:
+	if _actions == null:
+		return
+	if _action_btn != null:
+		_action_btn.queue_free()
+		_action_btn = null
+	if label == "":
+		_actions.visible = false
+		return
+	var b := Button.new()
+	b.text = label
+	b.focus_mode = Control.FOCUS_NONE   # or it eats the movement arrows (the standing frame rule)
+	b.tooltip_text = "Write the full tile report for the highlighted cell"
+	if on_press.is_valid():
+		b.pressed.connect(on_press)
+	_actions.add_child(b)
+	_action_btn = b
+	_actions.visible = true
+
 func add_message(markup: String) -> void:
 	if markup == "":
 		return
