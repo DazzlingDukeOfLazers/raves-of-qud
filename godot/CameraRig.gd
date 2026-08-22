@@ -292,6 +292,24 @@ func _frame_radius() -> float:
 static func pane_state(yaw := 0.0, zoom := 1.0, cine := 0.0) -> Dictionary:
 	return {"yaw": yaw, "zoom": zoom, "cine": cine}
 
+## A heading carried out of the camera picker, per mode. Empty for every mode the user has not
+## turned there, which is the normal case.
+var _mode_yaw := {}
+
+## Adopt a picker pane's heading so the full-screen view faces the way the pane did.
+##
+## COMPASS and FIRST_PERSON both derive from _compass_yaw, so their offset is FOLDED INTO it —
+## that keeps one heading rather than two, and Q/E goes on turning from where you landed. The other
+## modes measure their offset against something else (the player's facing, an orbit angle), so for
+## them it is stored and applied at the one place the full-screen camera is built.
+func adopt_pane_yaw(mode: int, deg: float) -> void:
+	if is_zero_approx(deg):
+		return
+	if mode == CamMode.COMPASS or mode == CamMode.FIRST_PERSON:
+		_compass_yaw = fposmod(_compass_yaw + deg_to_rad(deg), TAU)
+	else:
+		_mode_yaw[mode] = fposmod(float(_mode_yaw.get(mode, 0.0)) + deg_to_rad(deg), TAU)
+
 func eye_look_for(mode: int, st: Dictionary = {}) -> Array:
 	var yaw_off: float = float(st.get("yaw", 0.0))
 	var zoom: float = maxf(0.05, float(st.get("zoom", 1.0)))
@@ -324,7 +342,7 @@ func eye_look_for(mode: int, st: Dictionary = {}) -> Array:
 			return [_compass_eye(yaw_off, zoom), _player + Vector3(0, look_h(), 0)]
 
 func _update_camera(dt: float) -> void:
-	var el := eye_look_for(_mode)
+	var el := eye_look_for(_mode, {"yaw": float(_mode_yaw.get(_mode, 0.0))})
 	var target_eye: Vector3 = el[0]
 	var target_look: Vector3 = el[1]
 	# When the world is Z-stretched for top-down, aim at the stretched N-S position so the player stays centred.

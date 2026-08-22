@@ -98,8 +98,18 @@ func setup(cam_rig, mode_names: Dictionary, on_pane_inspect: Callable,
 			lbl.tooltip_text = "Switch to this camera"
 			lbl.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 			var pick_mode: int = m
+			# This pane's index: the label is built before its _cams entry is appended, so the
+			# count so far IS the index it will get.
+			var pick_pane: int = _cams.size()
 			lbl.gui_input.connect(func(e: InputEvent):
 				if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+					# TAKE THE HEADING YOU ARE LOOKING AT WITH YOU. A pane's yaw is a per-pane
+					# offset and the full-screen camera was built without one, so picking a view
+					# you had just turned dropped you into it facing somewhere else. Daniel: "when
+					# you change direction in the camera picker, that should be the direction the
+					# camera is in when you select a camera view."
+					_cam_rig.adopt_pane_yaw(pick_mode, pane_yaw_deg(pick_pane))
+					pane_rotate(pick_pane, -pane_yaw_deg(pick_pane))   # the pane keeps no debt
 					# _set_mode closes this grid itself (picking a mode leaves the multi-view), so
 					# there is no toggle to do here -- doing one as well would reopen it.
 					_on_pick_mode.call(pick_mode))
@@ -186,8 +196,12 @@ func _build_pane_ui(cell: Control, i: int, m: int) -> void:
 	col.add_theme_constant_override("separation", 1)
 	var rot := HBoxContainer.new()
 	rot.add_theme_constant_override("separation", 1)
+	# NEGATED: the labels read as "turn the view left / right", and they were doing the opposite.
+	# A pane's yaw is an offset applied to the CAMERA's heading, and turning the camera left swings
+	# the world right — so the sign that is natural to write is the reverse of the one that reads
+	# correctly on a button. Daniel: "reverse the direction of the rotation buttons."
 	for step in [-90, -45, 45, 90]:
-		var deg: float = float(step)
+		var deg: float = -float(step)
 		var lb := ("%d°" % step) if step < 0 else ("+%d°" % step)
 		var rb := _small_btn(lb, "turn this view %d°" % step, 27.0, 18.0)
 		var pi2: int = i
