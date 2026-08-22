@@ -1785,6 +1785,16 @@ func _write_zone_report() -> void:
 					anodes += 1
 	lines.append("ANIM overlays: %s   schedule frames %d, of which drawn %d"
 		% [str(akind), aframes, anodes])
+	# Whether anything is actually riding above its cell, and how far. A bob is a few pixels on a
+	# two-second cycle -- a still cannot show it, and two stills a second apart show a difference
+	# without saying it was the right one.
+	var fl: Array = renderer._float_sprites
+	var fy := ""
+	for e in fl:
+		if is_instance_valid(e["s"]):
+			fy += " %.2f" % (e["s"] as Node3D).position.y
+	lines.append("FLOATING: %d sprites, lift %.3f bob +/-%.3f period %.1fs, y now:%s"
+		% [fl.size(), renderer.FLY_LIFT, renderer.FLY_BOB, renderer.FLY_PERIOD, fy])
 	lines.append("DOOR .vox per design:")
 	lines.append("DOOR art probe: %s" % renderer._door_art_probe("Tiles/sw_door_basic.bmp", "&y", "y"))
 	lines.append("DOORS (cell -> screen pixel, so a door can be photographed without hunting for it)")

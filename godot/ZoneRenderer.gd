@@ -957,9 +957,31 @@ var _plane_up: QuadMesh = null    # the standing (billboarded) overlay quad — 
 ## the feet or above the head.
 const OVERLAY_STAND_Y := 0.5
 
+## HOW HIGH A FLYING CREATURE RIDES, and how far it bobs, straight from the report: "12 voxels
+## above the floor ... +/- 4 voxels on a 2 second timer". A cell is 16 voxels across, so these are
+## in sixteenths of a cell like every other art-derived measure in this file.
+const FLY_LIFT := 12.0 / 16.0
+const FLY_BOB := 4.0 / 16.0
+const FLY_PERIOD := 2.0
+## Sprites currently riding above their cell: [{s, base}]. Cleared with the dynamic pass that
+## created them, like every other per-turn registry here.
+var _float_sprites: Array = []
+
 ## Status icons Qud flashes on a tile that the 3D view states some other way, and so does not need
 ## repeated as a glyph. USER MODE ONLY — 1:1 is parity and shows everything Qud shows.
-const ANIM_STATUS_SHOWN_BY_WORLD := ["status_swimming"]
+## status_flying joins it BECAUSE of the float above — the report is explicit that the height is
+## the signifier and the arrow then has nothing left to say. Before the float there was nothing
+## else in the view saying a thing was aloft, which is exactly why it was kept out of this list
+## when status_swimming went in; the world says it now.
+const ANIM_STATUS_SHOWN_BY_WORLD := ["status_swimming", "status_flying"]
+
+## Is this creature aloft? Read off the ANIMATION SCHEDULE, not a wire flag, because there is no
+## wire flag — the mod ships IsFlying only as an input to `sinks`. Qud swaps Tiles2/status_flying
+## in on frames 5-14 of the shared 60-frame clock (RenderEffectIndicator), so a schedule carrying
+## that tile IS the statement that the thing flies. Same trick as burning, which is detected from
+## its flicker for the same reason.
+func _is_flying(obj: Dictionary) -> bool:
+	return String(obj.get("animSched", "")).contains("status_flying")
 
 # --- 1:1 animation pass (Qud's per-frame render programs, emulated on wall clock) ---
 # Rebuilt every dynamics pass; overlay nodes are children of _dynamic_root, so the
@@ -1105,6 +1127,7 @@ func _rebuild_dynamics(cells: Array) -> void:
 		c.free()
 	_orbiters.clear()           # those orbiter roots were children of _dynamic_root (just freed)
 	_anim_items.clear()         # animator registries: nodes were _dynamic_root children (freed above)
+	_float_sprites.clear()      # ...and the floaters, whose sprites were freed with them
 	_anim_pool_cells.clear()
 	_anim_tnode = null
 	_sparkle_pool.clear()
@@ -3624,6 +3647,30 @@ func _add_glow(s: Sprite3D, tex: Texture2D, tile := "") -> void:
 
 ## Flicker: jitter each light's brightness a little every frame, so torches read
 ## as fire rather than steady lamps. Cheap — modulate the additive quads' alpha.
+## Bob whatever is flying, on a wall clock rather than the 60-frame render clock.
+##
+## Qud's animation clock counts REPAINTS, which is right for anything mirroring one of its render
+## programs — a flash has to land on the frames Qud flashes on. This is not one of those: it is
+## Raves saying "aloft" in a way Qud has no equivalent for, so it runs on seconds and keeps its
+## period whatever the framerate does.
+##
+## Every sprite shares one phase deliberately. Scattering it would read as a swarm each doing its
+## own thing, and the point is a single legible signal: these things are off the ground.
+var _float_t := 0.0
+func _animate_float(dt: float) -> void:
+	if _float_sprites.is_empty():
+		return
+	_float_t = fmod(_float_t + dt, FLY_PERIOD)
+	var off: float = sin(_float_t / FLY_PERIOD * TAU) * FLY_BOB
+	var alive: Array = []
+	for e in _float_sprites:
+		var sp = e["s"]
+		if not is_instance_valid(sp):
+			continue
+		alive.append(e)
+		(sp as Node3D).position.y = float(e["base"]) + off
+	_float_sprites = alive
+
 func _process(_dt: float) -> void:
 	# The driver runs in BOTH modes, on BOTH registries. It was 1:1-only once, and then
 	# ran in user mode over _anim_sprites alone — because _register_anim, which fills
@@ -3633,6 +3680,7 @@ func _process(_dt: float) -> void:
 	# in user mode", having watched himself burn in Qud while the Holodeck stood still.
 	if _one_to_one or not _anim_sprites.is_empty() or not _anim_items.is_empty():
 		_animate_1to1()          # Qud's per-frame render programs (blinks, flashes, sparkles)
+	_animate_float(_dt)          # ...and anything riding above its cell (see FLY_LIFT)
 	if _ib_active:
 		_ib_step()               # advance the incremental live-static build one chunk per frame
 	var gmul := _glow_mul()      # daylight dimming, recomputed once per frame
@@ -7160,6 +7208,15 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			s.modulate = Color(light_frac, light_frac, light_frac) if light_frac < 0.999 else Color.WHITE
 			var submerged: bool = sink > 0.0 and bool(obj.get("sinks", false))
 			_seat(s, btex, tile, cx, cy, sink if submerged else 0.0, position_for(tile) == "float")
+			# FLYING CREATURES ACTUALLY FLY. Filed by Daniel against a giant dragonfly: "make
+			# flying creatures float 12 voxels above the floor in user mode. Then disable/hide/
+			# don't load the up arrow. The floating above is the semantic signifier."
+			#
+			# USER MODE ONLY: 1:1 is parity with a flat grid, where Qud's arrow IS the signifier
+			# and lifting the sprite off its cell would be a divergence, not a fix.
+			if not _one_to_one and _is_flying(obj):
+				s.position.y += FLY_LIFT
+				_float_sprites.append({"s": s, "base": s.position.y})
 			if not _one_to_one:
 				_register_sprite_anim(obj, s, tile, btex)
 			# STACK ORDER: same-cell billboards seat at the same (x,z), so a pile's quads are
