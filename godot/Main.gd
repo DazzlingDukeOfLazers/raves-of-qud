@@ -1799,8 +1799,9 @@ func _write_zone_report() -> void:
 	var fl2: Array = []
 	for e in fl:
 		if is_instance_valid(e["s"]):
-			fl2.append("amp %.3f/T %.1f/y %.2f" % [float(e["amp"]), float(e["period"]),
-				(e["s"] as Node3D).position.y])
+			fl2.append("amp %.3f/T %.1f/y %.2f/maxstep %.4f" % [float(e["amp"]), float(e["period"]),
+				(e["s"] as Node3D).position.y, float(e.get("max_step", 0.0))])
+			e["max_step"] = 0.0
 	lines.append("FLOATING: %d sprites  [%s]" % [fl.size(), "  ".join(PackedStringArray(fl2))])
 	lines.append("DOOR .vox per design:")
 	lines.append("DOOR art probe: %s" % renderer._door_art_probe("Tiles/sw_door_basic.bmp", "&y", "y"))

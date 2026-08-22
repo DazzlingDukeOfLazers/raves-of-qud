@@ -982,6 +982,9 @@ const SWAY_SLOW := 5.0
 ## SPEED means four times the PERIOD, which is the one place that phrasing inverts.
 const SWIM_AMP := 0.25
 const SWIM_SLOW := 4.0
+## The most this drift's clock may advance in one frame. A hitch longer than this makes the motion
+## LAG rather than JUMP — see _animate_float.
+const FLOAT_MAX_STEP := 1.0 / 30.0
 ## Things drifting above or in their cell:
 ## [{s, base: Vector3, amp, period, sway, sway_period, phase}]. Cleared with the dynamic pass that
 ## created them, like every other per-turn registry here.
@@ -3713,7 +3716,18 @@ func _animate_float(dt: float) -> void:
 		return
 	# MONOTONIC, not wrapped to one period: every sprite has its OWN period now, so there is no
 	# single cycle to wrap against. sin() is untroubled by the argument growing at these scales.
-	_float_t += dt
+	#
+	# ...AND CLAMPED, which is what stops the jitter. This clock advances by the FRAME DELTA, and
+	# the frame delta is not small when the renderer has just rebuilt a zone or ingested a
+	# snapshot: measured, a single frame moved a glowfish 0.0322 where the sine's own step at that
+	# amplitude and period is 0.0005 — sixty times, which is a visible hop. Daniel: "there seems to
+	# be some jitter on the glowfish every few seconds", and every few seconds is exactly how often
+	# this renderer does something expensive.
+	#
+	# Clamping trades ABSOLUTE PHASE for smoothness, and for an ambient bob that is the right way
+	# round: nobody can tell that a drifting fish is two hundred milliseconds behind where the wall
+	# clock would put it, and everybody can see it twitch.
+	_float_t += minf(dt, FLOAT_MAX_STEP)
 	var alive: Array = []
 	for e in _float_sprites:
 		if not is_instance_valid(e["s"]):
@@ -3732,7 +3746,18 @@ func _apply_float(e: Dictionary) -> void:
 	var ph: float = float(e["phase"])
 	var dy: float = sin((_float_t / float(e["period"]) + ph) * TAU) * float(e["amp"])
 	var dx: float = sin((_float_t / float(e["sway_period"]) + ph) * TAU) * float(e["sway"])
-	(sp as Node3D).position = Vector3(b.x + dx, b.y + dy, b.z)
+	var np := Vector3(b.x + dx, b.y + dy, b.z)
+	# BIGGEST SINGLE-FRAME STEP SINCE THE LAST REPORT. A sine cannot jump: at these periods one
+	# frame moves a sprite by well under a thousandth of a cell, so anything larger is a
+	# discontinuity — a re-registration, a base that moved, or someone else writing this position.
+	# Daniel: "there seems to be some jitter on the glowfish every few seconds", which is exactly
+	# the kind of thing a still cannot show and a screenshot cannot time.
+	var prev = e.get("last", null)
+	if prev != null:
+		var step: float = (np - (prev as Vector3)).length()
+		e["max_step"] = maxf(float(e.get("max_step", 0.0)), step)
+	e["last"] = np
+	(sp as Node3D).position = np
 
 func _process(_dt: float) -> void:
 	# The driver runs in BOTH modes, on BOTH registries. It was 1:1-only once, and then
