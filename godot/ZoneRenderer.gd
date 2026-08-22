@@ -972,6 +972,7 @@ func _ghost_obj(obj: Dictionary) -> Dictionary:
 func _build_static(id: String, cells: Array) -> void:
 	_cell_top_static.clear()   # sprites die with the old subtree; live cell coords collide across zones
 	_door_static.clear()       # same story for the static door registry
+	_door_tile_at.clear()
 	# ...and the surround band's edge ring, for exactly the same reason. It is keyed by cell coords
 	# too, and a ring cell that has no floor quad in the NEW zone (under a wall, a stair, no ground
 	# object) simply kept the OLD zone's material — so the band around a fresh zone was painted
@@ -3708,6 +3709,10 @@ var _zone_wall_cells := {}    # cell -> wall variant, stashed per static build
 # can walk through it, but it looks closed" — the bake predated the open).
 # Same pattern as the creature winner-visibility registry.
 var _door_static := {}
+## Which tile each door cell is wearing, so the report can say WHICH .vox that design resolved to.
+## A design quietly falling back to the shared model is otherwise invisible — it just looks like a
+## door that has not been modelled yet, which is also what a correctly-resolved one looks like.
+var _door_tile_at := {}
 
 ## Is this tile a door? Family-name test (sw_door_*, security doors, ...);
 ## the report form's "door" verdict can force or override it per family.
@@ -4001,7 +4006,7 @@ func _track_door_mesh(n: Node3D, cx: int, cy: int) -> void:
 ## The hand-authored door model, read once. Empty when there is no file — which is the normal case
 ## for every tile that has not been modelled, and the caller then uses the art-derived door.
 const VoxFileScript = preload("res://VoxFile.gd")
-var _door_vox_cache: Variant = null
+var _door_vox_cache := {}
 ## What the vox mesher actually reads out of a door's art, for the zone report. Sampling the art
 ## per voxel is the whole generalisation, so when doors come out the wrong colour this says whether
 ## the image arrived recoloured, arrived raw, or did not arrive at all.
@@ -4018,14 +4023,20 @@ func _door_art_probe(tile: String, main_c: String, detail_c: String) -> String:
 		out += "(%d,%d)=%s a%.2f " % [pt.x, pt.y, c.to_html(false), c.a]
 	return out
 
-func _door_vox_path() -> String:
-	return _tiles_dir.get_base_dir().path_join("vox").path_join("door.vox")
+## The .vox for THIS door design, else the shared one. `door-<tile stem>.vox` first — that is what
+## tools/capture/png2doorvox.py writes and what a hand-edited design lives in — then door.vox, the
+## one model that covers anything unmodelled.
+func _door_vox_path(tile: String) -> String:
+	var dir := _tiles_dir.get_base_dir().path_join("vox")
+	var stem := tile.get_file().get_basename()
+	var per := dir.path_join("door-%s.vox" % stem)
+	return per if FileAccess.file_exists(per) else dir.path_join("door.vox")
 
-func _door_vox() -> Dictionary:
-	if _door_vox_cache == null:
-		var path := _door_vox_path()
-		_door_vox_cache = VoxFileScript.read(path) if FileAccess.file_exists(path) else {}
-	return _door_vox_cache
+func _door_vox(tile: String) -> Dictionary:
+	var path := _door_vox_path(tile)
+	if not _door_vox_cache.has(path):
+		_door_vox_cache[path] = VoxFileScript.read(path) if FileAccess.file_exists(path) else {}
+	return _door_vox_cache[path]
 
 ## THE HAND-AUTHORED DOOR. Daniel modelled a frame and a leaf in MagicaVoxel and asked to use them
 ## in place of the shape derived from the tile art. Returns false when there is no file, and the
@@ -4038,7 +4049,7 @@ func _door_vox() -> Dictionary:
 ## grey, and the whole reason the art path tints rather than blits is that Qud recolours per object.
 func _place_door_vox(tile: String, main_c: String, detail_c: String, cx: int, cy: int, idx: int,
 		light_frac: float, closed: bool) -> bool:
-	var v := _door_vox()
+	var v := _door_vox(tile)
 	if v.is_empty():
 		return false
 	var nodes: Dictionary = v["nodes"]
@@ -4097,6 +4108,7 @@ func _place_door_vox(tile: String, main_c: String, detail_c: String, cx: int, cy
 	_track_door_mesh(pivot, cx, cy)
 	if _live_build:
 		_door_static[Vector2i(cx, cy)] = [frame_mi, pivot]
+		_door_tile_at[Vector2i(cx, cy)] = tile
 		frame_mi.visible = false                        # born hidden — see the derived path's note
 		pivot.visible = false
 	_note(cx, cy, idx, "door VOX %s (%d + %d voxels, hinge %s, %s)" % [
@@ -4443,6 +4455,7 @@ func _place_door_voxel(tile: String, main_c: String, detail_c: String, cx: int, 
 		# _door_static is not written for them.
 	if _live_build:
 		_door_static[Vector2i(cx, cy)] = [fmi, cmi, pivot]
+		_door_tile_at[Vector2i(cx, cy)] = tile
 		for n in [fmi, cmi, pivot]:
 			(n as Node3D).visible = false
 	_note(cx, cy, idx, "door VOXEL %s frame cols %d..%d, leaf %d..%d rows %d..%d, hinge %s, %s" % [
@@ -4637,6 +4650,7 @@ func _place_door(tile: String, main_c: String, detail_c: String, cx: int, cy: in
 	_track(tmi)
 	if _live_build:
 		_door_static[Vector2i(cx, cy)] = [fmi, tmi]   # dynamics hide + redraw per turn
+		_door_tile_at[Vector2i(cx, cy)] = art_tile
 		for n in [fmi, tmi]:
 			(n as Node3D).visible = false             # born hidden — see the voxel path's note
 	_note(cx, cy, idx, "door slab %s (%dpx deep, %dpx jambs) walls e%d w%d n%d s%d" % [

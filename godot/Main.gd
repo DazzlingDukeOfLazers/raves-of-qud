@@ -1692,13 +1692,20 @@ func _write_zone_report() -> void:
 	lines.append("")
 	# Whether the hand-authored model was found and understood. "no file" is normal; a file that
 	# loads with the wrong node names is the failure that otherwise just looks like nothing changed.
-	var dv: Dictionary = renderer._door_vox()
-	if dv.is_empty():
-		lines.append("DOOR .vox: none loaded (path %s)" % renderer._door_vox_path())
-	else:
-		lines.append("DOOR .vox: %d models, nodes %s  (path %s)"
-			% [(dv["models"] as Array).size(), str((dv["nodes"] as Dictionary).keys()),
-			   renderer._door_vox_path()])
+	# Per DOOR DESIGN now, so a design silently falling back to the shared model is visible here
+	# rather than only as "that one still looks like the basic door".
+	var seen_tiles := {}
+	for dk2 in renderer._door_static.keys():
+		var dt := String(renderer._door_tile_at.get(dk2, ""))
+		if dt == "" or seen_tiles.has(dt):
+			continue
+		seen_tiles[dt] = true
+		var dvp := renderer._door_vox_path(dt)
+		var dvv: Dictionary = renderer._door_vox(dt)
+		lines.append("  vox %-26s -> %-34s %s" % [dt.get_file(), dvp.get_file(),
+			("%d models %s" % [(dvv["models"] as Array).size(),
+				str((dvv["nodes"] as Dictionary).keys())]) if not dvv.is_empty() else "NOT LOADED"])
+	lines.append("DOOR .vox per design:")
 	lines.append("DOOR art probe: %s" % renderer._door_art_probe("Tiles/sw_door_basic.bmp", "&y", "y"))
 	lines.append("DOORS (cell -> screen pixel, so a door can be photographed without hunting for it)")
 	var dks: Array = renderer._door_static.keys()
