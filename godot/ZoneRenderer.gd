@@ -198,6 +198,10 @@ const DARK_ROOF_Y := WALL_H + 0.02   # and just above wall roofs, to dun unlit r
 ## Fixing that needs the sprites hidden rather than covered, which is per-cell work on a frozen
 ## subtree that nothing currently tracks.
 const DARK_SOLID_Y := DARK_FLOOR_Y
+## How dark a departed zone's cell has to bake before what STANDS in it is hidden outright rather
+## than left to the floor quad to cover. Just under full, so a cell only just short of black keeps
+## its contents and the fringe still reads as a fade rather than a cliff of vanishing objects.
+const FROZEN_HIDE_AT := 0.97
 var _dark_mat: StandardMaterial3D
 
 # How a tile's TRANSPARENT pixels are treated when recolouring.
@@ -838,7 +842,22 @@ func _build_zone(cells: Array, offset: Vector2i, skip_creatures: bool, wall_type
 	var wall_cells := {}
 	_group_wall_cells(cells, offset, wall_types, wall_cells)   # pass 1
 	for cell in cells:                                         # pass 2
+		if not _remembered_build:
+			_place_cell(cell, offset, wall_cells, skip_creatures)
+			continue
+		# TAG A REMEMBERED ZONE'S NODES WITH THEIR CELL. The darkness quad lies on the FLOOR (see
+		# DARK_SOLID_Y — raising it above the sprites trades this artifact for a worse one), so a
+		# departed zone's plants and structures go on showing through ground that is fully dark.
+		# The note there says what it needs: "the sprites hidden rather than covered, which is
+		# per-cell work on a frozen subtree that nothing currently tracks." This is the tracking.
+		# Recorded by watching what the bank gains, since _place_cell spawns many node types and
+		# none of them reports back.
+		var before: int = _bank.get_child_count() if _bank != null else 0
 		_place_cell(cell, offset, wall_cells, skip_creatures)
+		if _bank != null:
+			var k := Vector2i(int(cell.get("x", 0)) + offset.x, int(cell.get("y", 0)) + offset.y)
+			for ci in range(before, _bank.get_child_count()):
+				_bank.get_child(ci).set_meta("zcell", k)
 
 ## Pass 1 — group wall cells by TYPE (family + colours + background). Cheap: dict-building only,
 ## no geometry/GPU, so the incremental live build runs this whole pass up front.
@@ -1673,6 +1692,21 @@ func _build_darkness(cells: Array, parent: Node, frozen_off := NOT_FROZEN) -> vo
 	# A departed zone is allowed to reach FULL black; the live zone keeps DARK_MAX's faint floor
 	# ("never pure black"), which is what makes its unlit corners read as gloom rather than a hole.
 	var amax: float = 1.0 if frozen else DARK_MAX
+	# ...and where a departed zone bakes to full dark, HIDE what stands in that cell rather than
+	# only covering the ground under it. Daniel, on a tent in Joppa seen from the zone south of it:
+	# "the tent is fully lit, but should be in the fog-of-war as it's not in the player zone."
+	# It was lit because its cell's darkness is a quad on the FLOOR and the tent stands above it.
+	#
+	# Done HERE, in the bake, because the bake is what re-runs when the zone's relationship to the
+	# live one changes — walk away and more of it goes dark, walk back and it returns. Doing it at
+	# art-build time would freeze whichever view the zone happened to be first seen from, which is
+	# the same staleness the offset guard exists to prevent.
+	if frozen and parent != null:
+		for ch in parent.get_children():
+			if not ch.has_meta("zcell"):
+				continue
+			var zk: Vector2i = ch.get_meta("zcell")
+			(ch as Node3D).visible = _frozen_tone(zk, frozen_off) < FROZEN_HIDE_AT
 	# 1:1: Qud's model needs no overlay — the K/k ghost recolour at place time is the
 	# whole memory look (see _ghost_obj); unexplored cells draw nothing at all.
 	if _one_to_one:

@@ -2591,3 +2591,27 @@ would be gated by an unrelated cell's exploration.
 Before adding any per-turn visibility rule, ask what else writes that flag on the same node.
 `control.py zonereport`'s DOORS section reports the bake as `hidden (ok)` / `VISIBLE (stale!)`,
 because two poses on one cell is invisible in a still unless you know to ask which you are seeing.
+
+## A departed zone's darkness is on the FLOOR, so anything standing up shows through it
+
+`DARK_SOLID_Y` is floor height and the note there says why raising it fails: an opaque plane a
+metre up can be seen UNDER, and at any oblique angle a bright strip of untouched ground appears
+along the whole boundary — measured at both WALL_H + 0.6 and WALL_H + 0.02. So a visited zone that
+bakes to full black still showed its plants and structures standing in it. Daniel, on a tent in
+Joppa seen from the zone south of it: "the tent is fully lit, but should be in the fog-of-war as
+it's not in the player zone."
+
+The fix is the one that note predicted — hide what stands there rather than cover it — and the
+reason it had not been done is that nothing tracked which node belonged to which cell of a frozen
+subtree. `_build_zone` now tags them (by watching what the bank gains, since `_place_cell` spawns
+many node types and none reports back), and the DARKNESS BAKE hides them, not the art build: the
+bake is what re-runs when the zone's relationship to the live one changes, so walking away darkens
+more of it and walking back brings it back. Tagging at art-build time would freeze whichever view
+the zone was first seen from — the same staleness the offset guard exists to prevent.
+
+Walls are exempt and fine: they are greedy-meshed ACROSS cells so no single cell owns one, but
+`_build_darkness` already darkens them with roof and side quads at wall height.
+
+**The cell inspector cannot see any of this.** It knows the live zone only, so inspecting a
+neighbour's cell reports "EMPTY — nothing here" for a tile that is plainly on screen. That is a
+report gap, not a render bug; `snap.py cell` has the same horizon.
