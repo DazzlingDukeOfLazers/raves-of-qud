@@ -3998,6 +3998,234 @@ func _track_door_mesh(n: Node3D, cx: int, cy: int) -> void:
 		return
 	_known_meshes.append({"n": n, "cell": Vector2i(cx, cy)})
 
+## The hand-authored door model, read once. Empty when there is no file — which is the normal case
+## for every tile that has not been modelled, and the caller then uses the art-derived door.
+const VoxFileScript = preload("res://VoxFile.gd")
+var _door_vox_cache: Variant = null
+func _door_vox_path() -> String:
+	return _tiles_dir.get_base_dir().path_join("vox").path_join("door.vox")
+
+func _door_vox() -> Dictionary:
+	if _door_vox_cache == null:
+		var path := _door_vox_path()
+		_door_vox_cache = VoxFileScript.read(path) if FileAccess.file_exists(path) else {}
+	return _door_vox_cache
+
+## THE HAND-AUTHORED DOOR. Daniel modelled a frame and a leaf in MagicaVoxel and asked to use them
+## in place of the shape derived from the tile art. Returns false when there is no file, and the
+## caller falls through to the derived door, which stays the default for every other tile.
+##
+## The file names its parts, so this reads "door" and "frame" rather than guessing by model order.
+## Its two palette colours are read as ROLES, not as literal paint: Qud's own k (#0f3b3a) is the
+## field colour and marks the doorway's cap, everything else takes the object's main colour. That
+## keeps a door yellow when Qud says `&y` — baking the grey in would make every door in the game
+## grey, and the whole reason the art path tints rather than blits is that Qud recolours per object.
+func _place_door_vox(tile: String, main_c: String, detail_c: String, cx: int, cy: int, idx: int,
+		light_frac: float, closed: bool) -> bool:
+	var v := _door_vox()
+	if v.is_empty():
+		return false
+	var nodes: Dictionary = v["nodes"]
+	if not nodes.has("door") or not nodes.has("frame"):
+		return false
+	var models: Array = v["models"]
+	var pal: PackedColorArray = v["palette"]
+	var ew := _door_span_ew(cx, cy)
+	var lf := clampf(light_frac, 0.0, 1.0)
+	var leaf_m: Dictionary = models[int(nodes["door"]["model"])]
+	var frame_m: Dictionary = models[int(nodes["frame"]["model"])]
+	var dims: Vector3i = frame_m["dims"]
+	# Height comes from the FRAME's own extent, exactly as the art path sized against the frame's
+	# rows: a door replaces a wall, so it stands as tall as one whatever the model's headroom.
+	var zmax := 0
+	for e in frame_m["vox"]:
+		zmax = maxi(zmax, int((e[0] as Vector3i).z))
+	var zs: float = WALL_H / float(zmax + 1)
+	var xs: float = 1.0 / float(dims.x)
+	# hinge: the art's knob still decides which side, since the model does not say (see _door_knob_hi)
+	var am := _door_model(tile)
+	var hinge_hi: bool = bool(am.get("hinge_hi", false)) if not am.is_empty() else false
+	var lx0 := 999
+	var lx1 := -1
+	for e in leaf_m["vox"]:
+		var q: Vector3i = e[0]
+		lx0 = mini(lx0, q.x)
+		lx1 = maxi(lx1, q.x)
+	var hinge_x: float = float(lx1 + 1) if hinge_hi else float(lx0)
+
+	var frame_mi := _vox_model_mesh(frame_m, pal, main_c, xs, zs, ew, 0.0, lf, 1.0)
+	frame_mi.position = Vector3(cx, 0, cy)
+	_spawn_parent().add_child(frame_mi)
+	_track(frame_mi)
+	var leaf_mi := _vox_model_mesh(leaf_m, pal, main_c, xs, zs, ew, hinge_x, lf, DOOR_LEAF_DIM)
+	var pivot := Node3D.new()
+	var hx: float = hinge_x * xs - 0.5
+	pivot.position = Vector3(cx, 0, cy) + (Vector3(hx, 0, 0) if ew else Vector3(0, 0, hx))
+	var dir := -1.0 if hinge_hi else 1.0
+	pivot.rotation.y = 0.0 if closed else deg_to_rad(DOOR_OPEN_DEG) * dir * (1.0 if ew else -1.0)
+	pivot.add_child(leaf_mi)
+	_spawn_parent().add_child(pivot)
+	_track(pivot)
+	_track_door_mesh(frame_mi, cx, cy)
+	_track_door_mesh(pivot, cx, cy)
+	if _live_build:
+		_door_static[Vector2i(cx, cy)] = [frame_mi, pivot]
+		frame_mi.visible = false                        # born hidden — see the derived path's note
+		pivot.visible = false
+	_note(cx, cy, idx, "door VOX %s (%d + %d voxels, hinge %s, %s)" % [
+		"E-W" if ew else "N-S", (leaf_m["vox"] as Array).size(), (frame_m["vox"] as Array).size(),
+		"high" if hinge_hi else "low", "closed" if closed else "OPEN"], WALL_H * 0.5)
+	return true
+
+## One .vox model as a mesh: voxels merged into boxes, each box six shaded faces.
+##
+## Merged, because 1032 voxels is 6192 quads before you draw a second door and there are twenty in
+## Joppa. Merging runs along x, then across y, then up z collapses this file to a few dozen boxes —
+## the same trick the art path uses on its per-row runs, one dimension further.
+##
+## `x_off` shifts to the hinge so the leaf's pivot can rotate it; 0 leaves the model where it sits.
+func _vox_model_mesh(m: Dictionary, pal: PackedColorArray, main_c: String, xs: float, zs: float,
+		ew: bool, x_off: float, lf: float, dim: float) -> MeshInstance3D:
+	var occ := {}
+	for e in m["vox"]:
+		occ[e[0]] = int(e[1])
+	var boxes := _vox_boxes(occ)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var body := _qud_color(main_c)
+	var cap := _world_bg.darkened(DOOR_CAP_DARKEN)
+	for b in boxes:
+		var lo: Vector3i = b[0]
+		var hi: Vector3i = b[1]                         # inclusive
+		var is_cap: bool = _vox_is_field(pal[int(b[2])])
+		var base: Color = cap if is_cap else body
+		var k: float = lf * (1.0 if is_cap else dim)
+		_vox_box_faces(st, occ, lo, hi, xs, zs, ew, x_off,
+			Color(base.r * k, base.g * k, base.b * k))
+	var mesh := ArrayMesh.new()
+	st.commit(mesh)
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	mi.material_override = _wall_skin_material()
+	return mi
+
+## Is this palette colour Qud's own k (#0f3b3a) — the field colour, i.e. "this voxel is the hole"?
+## Compared rather than keyed on the palette INDEX: an index is an accident of the editor session,
+## the colour is the thing Daniel actually picked to mean the doorway's cap.
+func _vox_is_field(c: Color) -> bool:
+	return absf(c.r - WORLD_BG_FALLBACK.r) < 0.02 and absf(c.g - WORLD_BG_FALLBACK.g) < 0.02 \
+		and absf(c.b - WORLD_BG_FALLBACK.b) < 0.02
+
+## Greedy-merge occupied voxels of one colour into boxes: [lo, hi, colour_index], hi inclusive.
+func _vox_boxes(occ: Dictionary) -> Array:
+	var todo := {}
+	for k in occ:
+		todo[k] = occ[k]
+	var out: Array = []
+	var keys: Array = todo.keys()
+	keys.sort_custom(func(a, b):
+		if a.z != b.z: return a.z < b.z
+		if a.y != b.y: return a.y < b.y
+		return a.x < b.x)
+	for k in keys:
+		if not todo.has(k):
+			continue
+		var c: int = todo[k]
+		var lo: Vector3i = k
+		var hi: Vector3i = k
+		while todo.get(Vector3i(hi.x + 1, hi.y, hi.z), -1) == c:      # grow +x
+			hi.x += 1
+		var grow := true
+		while grow:                                                    # then +y, whole rows only
+			for x in range(lo.x, hi.x + 1):
+				if todo.get(Vector3i(x, hi.y + 1, hi.z), -1) != c:
+					grow = false
+					break
+			if grow:
+				hi.y += 1
+		grow = true
+		while grow:                                                    # then +z, whole slabs only
+			for y in range(lo.y, hi.y + 1):
+				for x in range(lo.x, hi.x + 1):
+					if todo.get(Vector3i(x, y, hi.z + 1), -1) != c:
+						grow = false
+						break
+				if not grow:
+					break
+			if grow:
+				hi.z += 1
+		for z in range(lo.z, hi.z + 1):
+			for y in range(lo.y, hi.y + 1):
+				for x in range(lo.x, hi.x + 1):
+					todo.erase(Vector3i(x, y, z))
+		out.append([lo, hi, c])
+	return out
+
+## The six faces of one box, skipping any face buried against another voxel, each shaded by its
+## normal — top brightest, sides, bottom darkest. That shading is the only thing giving a voxel
+## its form here: nothing in this renderer lights a mesh directionally.
+func _vox_box_faces(st: SurfaceTool, occ: Dictionary, lo: Vector3i, hi: Vector3i,
+		xs: float, zs: float, ew: bool, x_off: float, c: Color) -> void:
+	var dirs := [Vector3i(1, 0, 0), Vector3i(-1, 0, 0), Vector3i(0, 1, 0),
+		Vector3i(0, -1, 0), Vector3i(0, 0, 1), Vector3i(0, 0, -1)]
+	for dv_v in dirs:
+		var dv: Vector3i = dv_v
+		# BURIED FACES ARE NOT DRAWN. Every one costs fill and none of them is ever seen; the wall
+		# mesher makes the same skip, for the same reason.
+		var buried := true
+		for z in range(lo.z, hi.z + 1):
+			for y in range(lo.y, hi.y + 1):
+				for x in range(lo.x, hi.x + 1):
+					var n: Vector3i = Vector3i(x, y, z) + dv
+					var inside: bool = n.x >= lo.x and n.x <= hi.x and n.y >= lo.y \
+						and n.y <= hi.y and n.z >= lo.z and n.z <= hi.z
+					if not inside and not occ.has(n):
+						buried = false
+						break
+				if not buried: break
+			if not buried: break
+		if buried:
+			continue
+		var shade: float = DOOR_EDGE_TOP if dv.z > 0 else (
+			DOOR_EDGE_BOTTOM if dv.z < 0 else DOOR_EDGE_SIDE)
+		if dv.y != 0:
+			shade = 1.0                                  # the door's own faces, front and back
+		var sc := Color(c.r * shade, c.g * shade, c.b * shade, 1.0)
+		_vox_face(st, lo, hi, dv, xs, zs, ew, x_off, sc)
+
+## One face quad of a voxel box, in the cell's space. Vox x is the door's SPAN, vox y its DEPTH and
+## vox z its height; which world axis the span is depends on the wall run the door sits in.
+func _vox_face(st: SurfaceTool, lo: Vector3i, hi: Vector3i, dv: Vector3i,
+		xs: float, zs: float, ew: bool, x_off: float, c: Color) -> void:
+	var a0: float = (float(lo.x) - x_off) * xs
+	var a1: float = (float(hi.x) + 1.0 - x_off) * xs
+	if x_off == 0.0:
+		a0 -= 0.5
+		a1 -= 0.5
+	var d0: float = float(lo.y) * xs - 0.5
+	var d1: float = float(hi.y + 1) * xs - 0.5
+	var y0: float = float(lo.z) * zs
+	var y1: float = float(hi.z + 1) * zs
+	if dv.x > 0: a0 = a1
+	elif dv.x < 0: a1 = a0
+	elif dv.y > 0: d0 = d1
+	elif dv.y < 0: d1 = d0
+	elif dv.z > 0: y0 = y1
+	else: y1 = y0
+	var q: Array = []
+	if dv.x != 0:
+		q = [[a0, y0, d0], [a0, y0, d1], [a0, y1, d1], [a0, y1, d0]]
+	elif dv.y != 0:
+		q = [[a0, y0, d0], [a1, y0, d0], [a1, y1, d0], [a0, y1, d0]]
+	else:
+		q = [[a0, y0, d0], [a1, y0, d0], [a1, y0, d1], [a0, y0, d1]]
+	for i in [0, 1, 2, 0, 2, 3]:
+		var p: Array = q[i]
+		var wp := (Vector3(p[0], p[1], p[2]) if ew else Vector3(p[2], p[1], p[0]))
+		st.set_color(c)
+		st.set_normal(Vector3(dv.x, dv.z, dv.y) if ew else Vector3(dv.y, dv.z, dv.x))
+		st.add_vertex(wp)
+
 ## Build the voxel door: a FRAME that never moves, and a LEAF hinged inside it.
 ##
 ## The frame is the art with the leaf's rectangle cut out — four textured strips (two jambs, the
@@ -4253,9 +4481,12 @@ func _place_door(tile: String, main_c: String, detail_c: String, cx: int, cy: in
 		var ct := tile.replace("_open", "")
 		if _mask(ct) != null:
 			art_tile = ct
-	# THE VOXEL DOOR FIRST — a frame that stays put and a leaf that rotates inside it. Everything
-	# below is the older single-slab door, kept for the art the model cannot read (a leaf touching
-	# the tile edge, or a sprite that is not a door at all): 23 of the 26 door tiles derive.
+	# THREE DOORS, most specific first. A HAND-AUTHORED .vox wins where one exists — its frame and
+	# leaf are modelled, not inferred, so nothing about it has to be read out of a 16x24 sprite.
+	# Failing that, the door derived from the tile art (23 of the 26 door tiles derive one). Failing
+	# THAT, the old single-slab door, which still renders for art the model cannot read.
+	if _place_door_vox(art_tile, main_c, detail_c, cx, cy, idx, light_frac, closed):
+		return
 	if _place_door_voxel(art_tile, main_c, detail_c, cx, cy, idx, light_frac, closed):
 		return
 	var btex := _colored_tex(art_tile, main_c, detail_c, Fill.ALL)
