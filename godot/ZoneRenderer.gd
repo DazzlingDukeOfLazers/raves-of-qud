@@ -198,10 +198,11 @@ const DARK_ROOF_Y := WALL_H + 0.02   # and just above wall roofs, to dun unlit r
 ## Fixing that needs the sprites hidden rather than covered, which is per-cell work on a frozen
 ## subtree that nothing currently tracks.
 const DARK_SOLID_Y := DARK_FLOOR_Y
-## How dark a departed zone's cell has to bake before what STANDS in it is hidden outright rather
-## than left to the floor quad to cover. Just under full, so a cell only just short of black keeps
-## its contents and the fringe still reads as a fade rather than a cliff of vanishing objects.
-const FROZEN_HIDE_AT := 0.97
+## The least a departed zone's object may be dimmed to. NOT zero: Daniel, after the first version
+## hid them outright, "we should see the tents, just dark." A thing in the fog is still a thing you
+## remember is there, and Qud's own memory is a dim palette rather than a deletion — so the far end
+## of the ramp is a silhouette, not an absence.
+const FROZEN_OBJ_MIN := 0.16
 var _dark_mat: StandardMaterial3D
 
 # How a tile's TRANSPARENT pixels are treated when recolouring.
@@ -1519,6 +1520,38 @@ func _view_tint(cell: Dictionary) -> Color:
 	var f := _light_frac(cell)
 	return Color(f, f, f)
 
+## Dim one node of a departed zone to light fraction `f`, so what STANDS in a cell fades with the
+## ground under it instead of glowing out of it.
+##
+## HIDING THEM WAS THE WRONG INSTRUMENT. The first version switched them off past a threshold and
+## they vanished from the fog entirely — Daniel: "it looks like the tents are now gone ... we should
+## see the tents, just dark." Fog is a dimming, not a deletion.
+##
+## The ORIGINAL brightness is stashed on first touch, because this runs on every re-bake and a
+## multiply applied to an already-dimmed value compounds: walk past a zone a few times and it fades
+## to nothing on its own. Stash-then-scale is idempotent; scale-in-place is not.
+func _dim_frozen_node(n: Node, f: float) -> void:
+	var k: float = clampf(f, FROZEN_OBJ_MIN, 1.0)
+	if n is SpriteBase3D:
+		var sp := n as SpriteBase3D
+		if not sp.has_meta("zmod"):
+			sp.set_meta("zmod", sp.modulate)
+		var b: Color = sp.get_meta("zmod")
+		sp.modulate = Color(b.r * k, b.g * k, b.b * k, b.a)
+		return
+	if n is MeshInstance3D:
+		var mi := n as MeshInstance3D
+		var mat := mi.material_override
+		if mat == null or not (mat is StandardMaterial3D):
+			return          # shares a cached material; leave it rather than duplicate per instance
+		if not mi.has_meta("zalb"):
+			# duplicate ONCE, or every zone sharing this material would dim together
+			mi.material_override = (mat as StandardMaterial3D).duplicate()
+			mi.set_meta("zalb", (mat as StandardMaterial3D).albedo_color)
+		var a: Color = mi.get_meta("zalb")
+		(mi.material_override as StandardMaterial3D).albedo_color = \
+			Color(a.r * k, a.g * k, a.b * k, a.a)
+
 ## Per-cell darkness overlay (cavern lighting). ONE vertex-coloured MIX-black mesh: a quad
 ## over each cell's floor (and its roof, for wall cells) whose ALPHA is how DARK the cell is
 ## (1 - light). Built into _dynamic_root each turn, so it tracks Qud's live light map as
@@ -1706,7 +1739,7 @@ func _build_darkness(cells: Array, parent: Node, frozen_off := NOT_FROZEN) -> vo
 			if not ch.has_meta("zcell"):
 				continue
 			var zk: Vector2i = ch.get_meta("zcell")
-			(ch as Node3D).visible = _frozen_tone(zk, frozen_off) < FROZEN_HIDE_AT
+			_dim_frozen_node(ch, 1.0 - _frozen_tone(zk, frozen_off))
 	# 1:1: Qud's model needs no overlay — the K/k ghost recolour at place time is the
 	# whole memory look (see _ghost_obj); unexplored cells draw nothing at all.
 	if _one_to_one:

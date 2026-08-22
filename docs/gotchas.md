@@ -2601,7 +2601,13 @@ bakes to full black still showed its plants and structures standing in it. Danie
 Joppa seen from the zone south of it: "the tent is fully lit, but should be in the fog-of-war as
 it's not in the player zone."
 
-The fix is the one that note predicted — hide what stands there rather than cover it — and the
+DIM them, do not HIDE them. The first attempt switched them off past a threshold and they left the
+fog entirely; fog is a dimming, not a deletion, and Qud's own memory is a dim palette rather than an
+absence. `FROZEN_OBJ_MIN` is the floor, so the far end of the ramp is a silhouette. And stash the
+node's ORIGINAL brightness on first touch: this runs on every re-bake, and a multiply applied to an
+already-dimmed value compounds — walk past a zone a few times and it fades to nothing on its own.
+
+The fix is the one that note predicted — reach what stands there rather than cover it — and the
 reason it had not been done is that nothing tracked which node belonged to which cell of a frozen
 subtree. `_build_zone` now tags them (by watching what the bank gains, since `_place_cell` spawns
 many node types and none reports back), and the DARKNESS BAKE hides them, not the art build: the
