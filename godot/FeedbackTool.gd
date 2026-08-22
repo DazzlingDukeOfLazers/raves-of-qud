@@ -667,15 +667,16 @@ func _close(save: bool) -> void:
 
 # --- persistence ---------------------------------------------------------------------------------
 
-func _append_record(text: String) -> void:
-	# THE ENVELOPE. Deliberately product-agnostic in its first six fields so the same shape can
-	# carry feedback from other apps later: what/where/who-installed/which-build, then the
-	# app-specific bits. `v` is the schema version — a reader that meets an envelope it does not
-	# understand should keep it, not drop it, and the number is how it decides.
-	#
-	# app_version and platform are not optional extras. A report you cannot pin to an exact build
-	# is close to worthless: "it's broken" against an unknown binary is a conversation, not a bug.
-	var rec := {
+## THE ENVELOPE'S COMMON HALF, on its own so a second kind of report can carry it without copying
+## it. The first six fields are deliberately product-agnostic — what/where/who-installed/which-build
+## — which is the whole reason the feedback-service contract is reusable across apps at all
+## (schema/envelope.v1.md). `v` is the schema version: a reader meeting an envelope it does not
+## understand should KEEP it, not drop it, and the number is how it decides.
+##
+## app_version and platform are not optional extras. A report you cannot pin to an exact build is
+## close to worthless: "it's broken" against an unknown binary is a conversation, not a bug.
+func envelope() -> Dictionary:
+	return {
 		"v": 1,
 		"app": Brand.GAME_NAME,
 		"app_version": Brand.RAVES_VERSION,
@@ -684,6 +685,35 @@ func _append_record(text: String) -> void:
 		"ts": Time.get_datetime_string_from_system(true),   # UTC, sortable
 		"scene": UiState.scene(),
 		"mode": "1to1" if Settings.one_to_one() else "user",
+	}
+
+## File a report from somewhere OTHER than the element form — the tile report form is the first.
+## Same outbox, same envelope, same submitter, so a tile note reaches the service exactly as UI
+## feedback does and the triage view needs no second code path to read it.
+##
+## `kind` separates them for triage ("tile" vs the element form's own records); `label` is what the
+## report is ABOUT, in human words; `key` is the stable grouping key (a tile family, so every note
+## against the same art groups together the way element_key groups a button).
+func file_report(kind: String, label: String, key: String, text: String,
+		extra: Dictionary = {}) -> void:
+	var rec := envelope()
+	rec["kind"] = kind
+	rec["element"] = label
+	rec["element_key"] = key
+	rec["text"] = text
+	rec.merge(extra, true)
+	_write_record(rec)
+
+func _append_record(text: String) -> void:
+	# THE ENVELOPE. Deliberately product-agnostic in its first six fields so the same shape can
+	# carry feedback from other apps later: what/where/who-installed/which-build, then the
+	# app-specific bits. `v` is the schema version — a reader that meets an envelope it does not
+	# understand should keep it, not drop it, and the number is how it decides.
+	#
+	# app_version and platform are not optional extras. A report you cannot pin to an exact build
+	# is close to worthless: "it's broken" against an unknown binary is a conversation, not a bug.
+	var rec := envelope()
+	rec.merge({
 		"element": _target_label,
 		"element_key": _element_key_cached,
 		# NOT an identity — a per-run instance path, kept for local debugging only. See _element_key.
@@ -692,7 +722,7 @@ func _append_record(text: String) -> void:
 		"rect": [int(_target_rect.position.x), int(_target_rect.position.y),
 			int(_target_rect.size.x), int(_target_rect.size.y)],
 		"text": text,
-	}
+	}, true)
 	if _target_image != "":
 		rec["image"] = _target_image
 	if _target_action != "":
@@ -727,6 +757,11 @@ func _append_record(text: String) -> void:
 			rec["shot_attached"] = true
 		else:
 			push_warning("feedback: screenshot could not be saved; filing the note without it")
+	_write_record(rec)
+
+## Append one record to the outbox and try to send it now. Shared by the element form and by
+## file_report, so every kind of report takes the same path out.
+func _write_record(rec: Dictionary) -> void:
 	var path := InputModel.support_dir().path_join(FILE_NAME)
 	var f: FileAccess
 	if FileAccess.file_exists(path):
@@ -740,7 +775,7 @@ func _append_record(text: String) -> void:
 		return
 	f.store_line(JSON.stringify(rec))
 	f.close()
-	print("[feedback] %s -> %s" % [_target_label, path])
+	print("[feedback] %s -> %s" % [String(rec.get("element", "?")), path])
 	# ...and try to send it NOW. A report is most worth having while the thing it describes is still
 	# on screen, and flushing here means the common case never waits for a restart. Offline or a
 	# dead endpoint costs nothing: the line stays in the outbox and the next flush picks it up.

@@ -128,16 +128,37 @@ func _submit() -> void:
 		return
 	var verdict := _verdict.get_item_text(_verdict.selected) if _verdict.selected > 0 else ""
 	var slot := _rule_slot(verdict)
-	if slot != "":
-		_upsert_override(slot, verdict)
-	else:
-		_write_note(verdict)
+	var text := _notes.text.strip_edges()
+	var ok: bool = _upsert_override(slot, verdict) if slot != "" else _write_note(verdict)
+	# ONLY ON SUCCESS — both branches refuse with a reason in _status ("pick a verdict or write a
+	# note", "no tiles dir yet"), and closing over that would throw the text away along with the
+	# explanation of why nothing happened.
+	if not ok:
+		return
+	# ...AND OUT TO THE SERVICE. The local file stays: it is the readable copy, with the full
+	# inspector capture attached, and it is what survives with no network. But a tile report is a
+	# REPORT, and reports have somewhere to go — the same outbox, envelope and submitter the
+	# element form uses (feedback-service, schema/envelope.v1.md). Daniel: "we have a whole
+	# cloudflare thing to send and receive reports. We've done it before." So there is; tile
+	# reports were the one kind that never learned about it.
+	#
+	# BOTH branches send, because both are reports. A standing rule is also somebody saying what a
+	# tile should be; that it happens to be config the renderer reads live does not make it less of
+	# a finding. Keyed by TILE FAMILY, not by cell: every note about the same art groups together,
+	# the way element_key groups every note about one button.
+	var fam := _renderer.tile_family(_tile) if (_renderer != null and _tile != "") else ""
+	FeedbackTool.file_report("tile", "tile %s" % (_tile if _tile != "" else "(none)"),
+		"tile:" + fam, text, {
+			"verdict": verdict,
+			"zone": _zone,
+			"cell": [_cx, _cy],
+			"tile": _tile,
+			"report": _report,
+		})
 	# FILED MEANS DONE. The form sits over the playfield, and leaving it up after a submit meant
 	# dismissing it by hand every time — and worse, invited a second submit of the same thing.
-	# Daniel: "let's make the 'Report this tile' dialog close after submitting."
-	#
 	# `dismissed` is NOT emitted: that means "never mind this tile" and clears the marker, which in
-	# look mode is the CURSOR. Filing a report should leave you pointing where you were.
+	# look mode is the CURSOR. Filing should leave you pointing where you were.
 	_notes.text = ""
 	_verdict.selected = 0
 	hide_panel()
@@ -160,14 +181,14 @@ func _rule_slot(verdict: String) -> String:
 
 ## Merge one rule into overrides.json under this tile's family, preserving the
 ## other slot, every other tile, and any hand edits (read-modify-write).
-func _upsert_override(slot: String, verdict: String) -> void:
+func _upsert_override(slot: String, verdict: String) -> bool:
 	if _tile == "":
 		_status.text = "no tile to attach the rule to"
-		return
+		return false
 	var path := _overrides_path()
 	if path == "":
 		_status.text = "no tiles dir yet — take a turn in Qud"
-		return
+		return false
 	var data := _read_overrides(path)
 	var fam := _renderer.tile_family(_tile)
 	var tiles: Dictionary = data.get("tiles", {})
@@ -178,6 +199,7 @@ func _upsert_override(slot: String, verdict: String) -> void:
 	_write_overrides(path, data)
 	_status.text = "rule set: %s.%s (live next turn)" % [fam, slot]
 	_verdict.selected = 0
+	return true
 
 ## Drop THIS tile's standing rules — the undo for a bad verdict.
 func _clear_override() -> void:
@@ -217,14 +239,14 @@ func _write_overrides(path: String, data: Dictionary) -> void:
 
 # --- one-off notes: reports/*.md --------------------------------------------
 
-func _write_note(verdict: String) -> void:
+func _write_note(verdict: String) -> bool:
 	if verdict == "" and _notes.text.strip_edges() == "":
 		_status.text = "pick a verdict or write a note"
-		return
+		return false
 	var dir := _reports_dir()
 	if dir == "":
 		_status.text = "no tiles dir yet — take a turn in Qud"
-		return
+		return false
 	DirAccess.make_dir_recursive_absolute(dir)
 	var body := PackedStringArray()
 	body.append("# Tile note — (%d, %d)" % [_cx, _cy])
@@ -245,12 +267,12 @@ func _write_note(verdict: String) -> void:
 	var f := FileAccess.open(path, FileAccess.WRITE)
 	if f == null:
 		_status.text = "could not write %s" % path
-		return
+		return false
 	f.store_string("\n".join(body) + "\n")
 	f.close()
 	_status.text = "note filed -> reports/%s" % _note_filename()
-	_notes.text = ""
-	_verdict.selected = 0
+	return true
+
 
 func _note_filename() -> String:
 	var zone := _zone.replace(".", "-")
