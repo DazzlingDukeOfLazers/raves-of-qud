@@ -754,8 +754,21 @@ func look_toggle() -> void:
 ## Write the full tile report for wherever the look cursor is — the deliberate, asked-for version
 ## of what a Ctrl+click does. Nothing pops up until this is pressed, which is the point of the mode.
 func look_report() -> void:
-	if inspector != null and inspector.look_on():
-		inspector.report_look()
+	if inspector == null or not inspector.look_on():
+		return
+	inspector.report_look()
+	# ...AND AIM THE REPORT FORM AT IT. "Report tile" is the name of the FORM — the thing that
+	# picks the object on the tile and files a verdict against it — not of the read-only capture
+	# the inspector panel shows. Opening only the panel gives you the text and none of the actions.
+	# Daniel: "I clicked report tile. That opened up the inspector ... I cannot report the tile or
+	# select the object on the tile. Or select one of the default modifications."
+	#
+	# Same pairing as _inspect(): the two panels are one gesture everywhere else, and the button
+	# had reproduced half of it.
+	var sel = inspector.selected_tile()
+	if sel != null and reporter != null:
+		reporter.set_target(sel.x, sel.y, inspector.zone_id(),
+			inspector.last_objects(), inspector.last_report())
 
 ## Send a named Qud command (CmdFire, CmdReload, …) over the bridge — from a Raves hotkey or a UI
 ## button. The mod injects it into Qud's input like a keypress, so any targeting UI opens in the Qud
