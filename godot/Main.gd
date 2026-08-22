@@ -712,7 +712,10 @@ func _process(dt: float) -> void:
 			RenderingServer.force_draw()
 
 	# Camera modes, held-key zoom/fly, placement, and wall cutaway all live in the rig now.
-	_cam_rig.process(dt, _multiview.is_on())
+	# THE SAME GUARD THE EVENT PATH USES, on the POLLED path — which is where it was missing.
+	# _unhandled_input has consulted TypingGuard for a while; Input.is_key_pressed never did, and
+	# does not consult focus at all, so the camera keys went on firing under a form's caret.
+	_cam_rig.process(dt, _multiview.is_on(), TypingGuard.typing(get_viewport()))
 	if _multiview.is_on():
 		_multiview.update()
 

@@ -169,8 +169,17 @@ func snap() -> void:
 
 ## Per-frame camera update: held-key fly/zoom, then place the eye, then wall cutaway. `multiview_on`
 ## disables the cutaway + top-down stretch (the shared grid stays square, nothing between eye and player).
-func process(dt: float, multiview_on: bool) -> void:
+## `typing` suppresses every POLLED key this reads, without stopping the camera updating.
+##
+## Focus is not enough on its own: a focused LineEdit consumes gui/unhandled input, but
+## Input.is_key_pressed does not consult focus at all — so Q, E, R, W, X, S and D went on driving
+## the camera while a form field had the caret. Daniel: "the 'Report this tile' dialog text field
+## is still passing through text to the playfield." Anything polled has to be gated explicitly.
+func process(dt: float, multiview_on: bool, typing := false) -> void:
 	_mv_on = multiview_on
+	if typing:
+		_update_camera(dt)
+		return
 	if _mode == CamMode.KEYBOARD:
 		_fly(dt)
 	elif _mode == CamMode.MOUSE and not Input.is_key_pressed(KEY_SHIFT):

@@ -132,6 +132,15 @@ func _submit() -> void:
 		_upsert_override(slot, verdict)
 	else:
 		_write_note(verdict)
+	# FILED MEANS DONE. The form sits over the playfield, and leaving it up after a submit meant
+	# dismissing it by hand every time — and worse, invited a second submit of the same thing.
+	# Daniel: "let's make the 'Report this tile' dialog close after submitting."
+	#
+	# `dismissed` is NOT emitted: that means "never mind this tile" and clears the marker, which in
+	# look mode is the CURSOR. Filing a report should leave you pointing where you were.
+	_notes.text = ""
+	_verdict.selected = 0
+	hide_panel()
 
 ## Which overrides slot a verdict belongs in: "shape", "fill", or "" for a note.
 func _rule_slot(verdict: String) -> String:
