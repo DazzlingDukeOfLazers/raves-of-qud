@@ -3756,6 +3756,13 @@ func _apply_float(e: Dictionary) -> void:
 	if prev != null:
 		var step: float = (np - (prev as Vector3)).length()
 		e["max_step"] = maxf(float(e.get("max_step", 0.0)), step)
+		# ...AND WHETHER ANYONE ELSE MOVED IT. The step above compares what this function INTENDED
+		# on two frames, which cannot see a second writer at all — the node could be dragged
+		# somewhere between our writes and the arithmetic would look perfect. Daniel is still
+		# seeing jitter that this probe says is not there, so the probe was asking the wrong
+		# question. Compare against where the node ACTUALLY is.
+		var drift: float = ((sp as Node3D).position - (prev as Vector3)).length()
+		e["max_foreign"] = maxf(float(e.get("max_foreign", 0.0)), drift)
 	e["last"] = np
 	(sp as Node3D).position = np
 
@@ -7302,13 +7309,20 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			#
 			# USER MODE ONLY: 1:1 is parity with a flat grid, where Qud's arrow IS the signifier
 			# and lifting the sprite off its cell would be a divergence, not a fix.
+			# NOTE THE INTENT HERE, REGISTER BELOW. The drift has to capture the sprite's FINAL
+			# resting position as its base, and this is not it: a creature still takes a z-fight
+			# lift further down. Registering here meant the base was one LAYER_STEP low, so every
+			# turn the sprite was nudged up 0.02 and then yanked back down by the next drift frame
+			# — a fixed-size hop, once a turn, which is what "jumping out of the cycle or being
+			# saturated" looks like from the outside.
+			var float_scale := 0.0
 			if not _one_to_one and _is_flying(obj):
 				s.position.y += FLY_LIFT
-				_register_float(s, cx, cy, 1.0)
+				float_scale = 1.0
 			elif not _one_to_one and _is_swimming(obj):
-				# ...and a swimmer stirs the water at a quarter of it. No LIFT: it is IN the water,
-				# and _seat has already put it at the waterline.
-				_register_float(s, cx, cy, SWIM_AMP)
+				# ...a swimmer stirs the water at a quarter of it, and takes no LIFT: it is IN the
+				# water, and _seat has already put it at the waterline.
+				float_scale = SWIM_AMP
 			if not _one_to_one:
 				_register_sprite_anim(obj, s, tile, btex)
 			# STACK ORDER: same-cell billboards seat at the same (x,z), so a pile's quads are
@@ -7325,6 +7339,9 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			# cell now, so same-cell coplanar stacks (the z-flicker source) no longer exist.
 			if not _one_to_one and _is_creature(obj):
 				s.position.y += 0.02
+			# ...and NOW the base is final, so the drift can take it (see the note above).
+			if float_scale > 0.0:
+				_register_float(s, cx, cy, float_scale)
 			s.visible = true
 			if _placing_player and WM_STANDING_CARDS:
 				# "You are here": the player card ignores depth and sorts last, so it's always the

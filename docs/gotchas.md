@@ -2621,3 +2621,28 @@ Walls are exempt and fine: they are greedy-meshed ACROSS cells so no single cell
 **The cell inspector cannot see any of this.** It knows the live zone only, so inspecting a
 neighbour's cell reports "EMPTY — nothing here" for a tile that is plainly on screen. That is a
 report gap, not a render bug; `snap.py cell` has the same horizon.
+
+## A per-frame animation must capture its base AFTER every other writer is done
+
+The float drift stores each sprite's resting position and rewrites `position` from it every frame.
+It captured that base immediately after `_seat` — and a creature takes a further `+= 0.02` z-fight
+lift further down the same function. So every turn the sprite was nudged up one LAYER_STEP and
+yanked back down by the next drift frame: a fixed-size hop, once per turn. Daniel: "it's like it's
+jumping out of the cycle or being saturated" — fixed-size is exactly what "saturated" looks like.
+
+**And the probe that was supposed to catch this could not.** It compared what the animation
+INTENDED on two consecutive frames, which is perfect arithmetic no matter who else moves the node.
+Measuring the NODE's actual position against the last write found it immediately, and the number
+was `0.0200` on every affected sprite — one LAYER_STEP, which named the culprit outright.
+
+Two rules from it:
+
+- when adding a per-frame writer of a transform, find every other write to that node in the placement
+  path first, and capture the base after the last one;
+- a probe on a value you control must read the value back, not re-derive it. Comparing your own
+  intent to your own intent cannot fail.
+
+`zonereport`'s FLOATING line reports `step` (the animation's own frame-to-frame move) beside
+`foreign` (anything else that moved it). A sine has a hard maximum step — `amp * TAU / period * dt`
+— so `step` above that is a hitch, and `foreign` above zero is a second writer. They are different
+faults and they looked identical on screen.
