@@ -4002,6 +4002,22 @@ func _track_door_mesh(n: Node3D, cx: int, cy: int) -> void:
 ## for every tile that has not been modelled, and the caller then uses the art-derived door.
 const VoxFileScript = preload("res://VoxFile.gd")
 var _door_vox_cache: Variant = null
+## What the vox mesher actually reads out of a door's art, for the zone report. Sampling the art
+## per voxel is the whole generalisation, so when doors come out the wrong colour this says whether
+## the image arrived recoloured, arrived raw, or did not arrive at all.
+func _door_art_probe(tile: String, main_c: String, detail_c: String) -> String:
+	var t := _colored_tex(tile, main_c, detail_c, Fill.ALL)
+	if t == null:
+		return "no texture for " + tile
+	var im := t.get_image()
+	if im == null:
+		return "texture has no image (get_image null) for " + tile
+	var out := "%dx%d fmt=%d  " % [im.get_width(), im.get_height(), im.get_format()]
+	for pt in [Vector2i(8, 10), Vector2i(1, 10), Vector2i(8, 2), Vector2i(0, 0)]:
+		var c := im.get_pixel(pt.x, pt.y)
+		out += "(%d,%d)=%s a%.2f " % [pt.x, pt.y, c.to_html(false), c.a]
+	return out
+
 func _door_vox_path() -> String:
 	return _tiles_dir.get_base_dir().path_join("vox").path_join("door.vox")
 
@@ -4053,11 +4069,22 @@ func _place_door_vox(tile: String, main_c: String, detail_c: String, cx: int, cy
 		lx1 = maxi(lx1, q.x)
 	var hinge_x: float = float(lx1 + 1) if hinge_hi else float(lx0)
 
-	var frame_mi := _vox_model_mesh(frame_m, pal, main_c, xs, zs, ew, 0.0, lf, 1.0)
+	# THE MODEL IS THE FORM; THE ART IS THE SURFACE. One .vox generalises to every door design
+	# because the two grids line up exactly: the model is 16 wide and 24 tall in x/z, and so is
+	# every door tile in the game (checked: basic, metal, striped, wavy, window, security, fused,
+	# filigree are all 16x24). So voxel (x,z) IS art pixel (x, h-1-z), and each door wears its own
+	# pixels in the shape Daniel modelled. Without this every door in Joppa renders as the basic
+	# one, which is what "generalize what I did with the door vox file to the other designs" is
+	# asking about -- the answer being that the file did not need generalising, the COLOUR did.
+	var art: Image = null
+	var atex := _colored_tex(tile, main_c, detail_c, Fill.ALL)
+	if atex != null:
+		art = atex.get_image()
+	var frame_mi := _vox_model_mesh(frame_m, pal, main_c, xs, zs, ew, 0.0, lf, 1.0, art)
 	frame_mi.position = Vector3(cx, 0, cy)
 	_spawn_parent().add_child(frame_mi)
 	_track(frame_mi)
-	var leaf_mi := _vox_model_mesh(leaf_m, pal, main_c, xs, zs, ew, hinge_x, lf, DOOR_LEAF_DIM)
+	var leaf_mi := _vox_model_mesh(leaf_m, pal, main_c, xs, zs, ew, hinge_x, lf, DOOR_LEAF_DIM, art)
 	var pivot := Node3D.new()
 	var hx: float = hinge_x * xs - 0.5
 	pivot.position = Vector3(cx, 0, cy) + (Vector3(hx, 0, 0) if ew else Vector3(0, 0, hx))
@@ -4085,23 +4112,48 @@ func _place_door_vox(tile: String, main_c: String, detail_c: String, cx: int, cy
 ##
 ## `x_off` shifts to the hinge so the leaf's pivot can rotate it; 0 leaves the model where it sits.
 func _vox_model_mesh(m: Dictionary, pal: PackedColorArray, main_c: String, xs: float, zs: float,
-		ew: bool, x_off: float, lf: float, dim: float) -> MeshInstance3D:
+		ew: bool, x_off: float, lf: float, dim: float, art: Image) -> MeshInstance3D:
+	var body := _qud_color(main_c)
+	var ah: int = art.get_height() if art != null else 0
+	var aw: int = art.get_width() if art != null else 0
+	# Colour every voxel FIRST, then merge on the colour. Merging on the palette index instead
+	# would fuse voxels the art paints differently and smear one pixel across a whole run.
+	# A FIELD-COLOURED VOXEL IS NOT PAINT, IT IS ABSENCE. Daniel's model fills the cell around the
+	# frame with Qud's k (#0f3b3a) — 520 of the frame's 728 voxels, spanning the full 16 wide —
+	# because MagicaVoxel needs SOME colour to build a shape in, and that is the colour that means
+	# "background" everywhere else in this renderer. Drawing them as solid geometry turned every
+	# door into a black rectangle that also walled up its own opening.
+	#
+	# So they are skipped, and skipped BEFORE occupancy is built, or the frame's real faces would
+	# be culled as buried against them. Two things then come free: the frame's grey faces onto the
+	# doorway are exposed and shade like any other side, which is the cap without a cap; and the
+	# leaf's eight field voxels at x 9..11 — the KNOB — become the notch they are in the art.
 	var occ := {}
+	var seen := {}
 	for e in m["vox"]:
-		occ[e[0]] = int(e[1])
+		if _vox_is_field(pal[int(e[1])]):
+			continue
+		var q: Vector3i = e[0]
+		var c := body
+		if art != null and q.x < aw and q.z < ah:
+			# The art is filled opaque (Fill.ALL), so alpha says nothing about whether a pixel is
+			# real — a transparent one comes back AS the field colour. Ask the colour instead.
+			var a := art.get_pixel(q.x, ah - 1 - q.z)
+			if not _vox_is_field(a):
+				c = a
+		var k: float = lf * dim
+		c = Color(c.r * k, c.g * k, c.b * k)
+		var key := "%02x%02x%02x" % [int(c.r * 255.0), int(c.g * 255.0), int(c.b * 255.0)]
+		if not seen.has(key):
+			seen[key] = c
+		occ[q] = key
 	var boxes := _vox_boxes(occ)
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var body := _qud_color(main_c)
-	var cap := _world_bg.darkened(DOOR_CAP_DARKEN)
 	for b in boxes:
 		var lo: Vector3i = b[0]
 		var hi: Vector3i = b[1]                         # inclusive
-		var is_cap: bool = _vox_is_field(pal[int(b[2])])
-		var base: Color = cap if is_cap else body
-		var k: float = lf * (1.0 if is_cap else dim)
-		_vox_box_faces(st, occ, lo, hi, xs, zs, ew, x_off,
-			Color(base.r * k, base.g * k, base.b * k))
+		_vox_box_faces(st, occ, lo, hi, xs, zs, ew, x_off, seen[b[2]])
 	var mesh := ArrayMesh.new()
 	st.commit(mesh)
 	var mi := MeshInstance3D.new()
@@ -4117,6 +4169,8 @@ func _vox_is_field(c: Color) -> bool:
 		and absf(c.b - WORLD_BG_FALLBACK.b) < 0.02
 
 ## Greedy-merge occupied voxels of one colour into boxes: [lo, hi, colour_index], hi inclusive.
+## Merge on the VALUE stored per voxel, whatever it is — a colour key here, so runs only fuse
+## where the art actually agrees.
 func _vox_boxes(occ: Dictionary) -> Array:
 	var todo := {}
 	for k in occ:
@@ -4130,15 +4184,15 @@ func _vox_boxes(occ: Dictionary) -> Array:
 	for k in keys:
 		if not todo.has(k):
 			continue
-		var c: int = todo[k]
+		var c = todo[k]
 		var lo: Vector3i = k
 		var hi: Vector3i = k
-		while todo.get(Vector3i(hi.x + 1, hi.y, hi.z), -1) == c:      # grow +x
+		while todo.get(Vector3i(hi.x + 1, hi.y, hi.z), null) == c:    # grow +x
 			hi.x += 1
 		var grow := true
 		while grow:                                                    # then +y, whole rows only
 			for x in range(lo.x, hi.x + 1):
-				if todo.get(Vector3i(x, hi.y + 1, hi.z), -1) != c:
+				if todo.get(Vector3i(x, hi.y + 1, hi.z), null) != c:
 					grow = false
 					break
 			if grow:
@@ -4147,7 +4201,7 @@ func _vox_boxes(occ: Dictionary) -> Array:
 		while grow:                                                    # then +z, whole slabs only
 			for y in range(lo.y, hi.y + 1):
 				for x in range(lo.x, hi.x + 1):
-					if todo.get(Vector3i(x, y, hi.z + 1), -1) != c:
+					if todo.get(Vector3i(x, y, hi.z + 1), null) != c:
 						grow = false
 						break
 				if not grow:

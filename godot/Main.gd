@@ -1699,6 +1699,7 @@ func _write_zone_report() -> void:
 		lines.append("DOOR .vox: %d models, nodes %s  (path %s)"
 			% [(dv["models"] as Array).size(), str((dv["nodes"] as Dictionary).keys()),
 			   renderer._door_vox_path()])
+	lines.append("DOOR art probe: %s" % renderer._door_art_probe("Tiles/sw_door_basic.bmp", "&y", "y"))
 	lines.append("DOORS (cell -> screen pixel, so a door can be photographed without hunting for it)")
 	var dks: Array = renderer._door_static.keys()
 	dks.sort_custom(func(a, b): return a.y < b.y or (a.y == b.y and a.x < b.x))
