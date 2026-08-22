@@ -844,7 +844,16 @@ func _build_zone(cells: Array, offset: Vector2i, skip_creatures: bool, wall_type
 	_group_wall_cells(cells, offset, wall_types, wall_cells)   # pass 1
 	for cell in cells:                                         # pass 2
 		if not _remembered_build:
+			# WATCH WHAT THE CELL SPAWNS, so every voxel prop is fog-gated without each builder
+			# having to remember to say so. Doors were registered by hand and were therefore the
+			# only thing covered: a gearbox, a waterwheel, a fence or a conduit box in a cell the
+			# player had never explored went on showing through the fog. Registering ten builders
+			# individually is ten chances to miss one, and the eleventh would not be covered at
+			# all — so the sweep is here, where every one of them passes through.
+			var lbefore: int = _spawn_parent().get_child_count()
 			_place_cell(cell, offset, wall_cells, skip_creatures)
+			_gate_new_meshes(lbefore, int(cell.get("x", 0)) + offset.x,
+				int(cell.get("y", 0)) + offset.y)
 			continue
 		# TAG A REMEMBERED ZONE'S NODES WITH THEIR CELL. The darkness quad lies on the FLOOR (see
 		# DARK_SOLID_Y — raising it above the sprites trades this artifact for a worse one), so a
@@ -859,6 +868,27 @@ func _build_zone(cells: Array, offset: Vector2i, skip_creatures: bool, wall_type
 			var k := Vector2i(int(cell.get("x", 0)) + offset.x, int(cell.get("y", 0)) + offset.y)
 			for ci in range(before, _bank.get_child_count()):
 				_bank.get_child(ci).set_meta("zcell", k)
+
+## Fog-gate every MESH the last cell spawned, from `first` onward in the spawn parent.
+##
+## MESHES ONLY, and that exclusion is load-bearing. Sprites are already gated by
+## _relight_static_sprites, which hides them via ALPHA precisely because the dynamic pass toggles a
+## static winner's `visible` under creatures — two writers of one flag fight, and this file has
+## paid for that lesson twice. Anything that owns its own visibility says so with `vis_owned` and
+## is skipped: doors do, because their bake is hidden by the per-turn redraw that replaces it.
+## Mark nodes whose `visible` belongs to someone else, so the fog sweep leaves them alone. Stated
+## at the point the owner registers them, which is the only place that knows.
+func _own_visibility(nodes: Array) -> void:
+	for n in nodes:
+		if n is Node:
+			(n as Node).set_meta("vis_owned", true)
+
+func _gate_new_meshes(first: int, cx: int, cy: int) -> void:
+	var parent := _spawn_parent()
+	for i in range(first, parent.get_child_count()):
+		var ch := parent.get_child(i)
+		if ch is MeshInstance3D and not ch.has_meta("vis_owned"):
+			_known_meshes.append({"n": ch, "cell": Vector2i(cx, cy)})
 
 ## Pass 1 — group wall cells by TYPE (family + colours + background). Cheap: dict-building only,
 ## no geometry/GPU, so the incremental live build runs this whole pass up front.
@@ -1133,7 +1163,13 @@ func _ib_step() -> void:
 	_noting = true
 	var end: int = min(_ib_idx + IB_CHUNK, _ib_cells.size())
 	for i in range(_ib_idx, end):
+		# ...and gate what this cell spawns, exactly as _build_zone does. THE INCREMENTAL PATH IS
+		# THE LIVE ZONE'S PATH: anything over IB_THRESHOLD cells builds here and never touches
+		# _build_zone, so a sweep placed only there registers nothing at all in a real zone —
+		# which is precisely what it did, reporting "tracked 0" on a zone full of props.
+		var gbefore: int = _spawn_parent().get_child_count()
 		_place_cell(_ib_cells[i], Vector2i.ZERO, _ib_wall_cells, true)
+		_gate_new_meshes(gbefore, int(_ib_cells[i].get("x", 0)), int(_ib_cells[i].get("y", 0)))
 	_ib_idx = end
 	_flush_floor_batch()        # this chunk's floors -> their own MultiMeshes (spreads the spike)
 	if _ib_idx >= _ib_cells.size():
@@ -4213,6 +4249,9 @@ func _door_model(tile: String) -> Dictionary:
 ## `known` by cell coordinate off the LIVE zone's cells, so a neighbour's door at the same local
 ## coordinate would be gated by an unrelated cell's exploration.
 func _track_door_mesh(n: Node3D, cx: int, cy: int) -> void:
+	# The BAKE owns its own visibility (the per-turn redraw hides it), so the generic sweep in
+	# _gate_new_meshes must not claim it — see the note there.
+	n.set_meta("vis_owned", true)
 	if _live_build or _remembered_build:
 		return
 	_known_meshes.append({"n": n, "cell": Vector2i(cx, cy)})
@@ -4323,6 +4362,7 @@ func _place_door_vox(tile: String, main_c: String, detail_c: String, cx: int, cy
 	if _live_build:
 		_door_static[Vector2i(cx, cy)] = [frame_mi, pivot]
 		_door_tile_at[Vector2i(cx, cy)] = tile
+		_own_visibility(_door_static[Vector2i(cx, cy)])
 		frame_mi.visible = false                        # born hidden — see the derived path's note
 		pivot.visible = false
 	_note(cx, cy, idx, "door VOX %s (%d + %d voxels, hinge %s, %s)" % [
@@ -4670,6 +4710,7 @@ func _place_door_voxel(tile: String, main_c: String, detail_c: String, cx: int, 
 	if _live_build:
 		_door_static[Vector2i(cx, cy)] = [fmi, cmi, pivot]
 		_door_tile_at[Vector2i(cx, cy)] = tile
+		_own_visibility(_door_static[Vector2i(cx, cy)])
 		for n in [fmi, cmi, pivot]:
 			(n as Node3D).visible = false
 	_note(cx, cy, idx, "door VOXEL %s frame cols %d..%d, leaf %d..%d rows %d..%d, hinge %s, %s" % [
@@ -4865,6 +4906,7 @@ func _place_door(tile: String, main_c: String, detail_c: String, cx: int, cy: in
 	if _live_build:
 		_door_static[Vector2i(cx, cy)] = [fmi, tmi]   # dynamics hide + redraw per turn
 		_door_tile_at[Vector2i(cx, cy)] = art_tile
+		_own_visibility(_door_static[Vector2i(cx, cy)])
 		for n in [fmi, tmi]:
 			(n as Node3D).visible = false             # born hidden — see the voxel path's note
 	_note(cx, cy, idx, "door slab %s (%dpx deep, %dpx jambs) walls e%d w%d n%d s%d" % [
