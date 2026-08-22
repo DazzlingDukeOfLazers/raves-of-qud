@@ -963,7 +963,27 @@ const OVERLAY_STAND_Y := 0.5
 const FLY_LIFT := 12.0 / 16.0
 const FLY_BOB := 4.0 / 16.0
 const FLY_PERIOD := 2.0
-## Sprites currently riding above their cell: [{s, base}]. Cleared with the dynamic pass that
+## DISTANCE GOVERNS THE MOTION. Daniel: "the closer they are to the player, the more motion they
+## have. The further away, the less. That way, adjacent flying creatures have different periods and
+## don't appear to be a bot-swarm." Which is the real fix for what read as a glitch: seven
+## dragonflies rising and falling in perfect unison does not look like seven creatures.
+##
+## Near is bigger AND quicker — the two pull the same way, so a close one reads as alive and a far
+## one as barely stirring. Neither reaches zero: a thing that stops moving reads as broken.
+const FLY_RANGE_CELLS := 18.0
+const FLY_FAR_AMP := 0.35        # the quietest a distant one gets, as a fraction
+const FLY_FAR_SLOW := 2.2        # ...and the most its period stretches
+## A FRACTION OF THE VERTICAL, SIDEWAYS, AND FAR SLOWER — "veeeery slow horizontal back and forth".
+## On its OWN period, not a phase offset of the bob: two motions sharing a period draw a diagonal,
+## and what this wants is a drift that never quite lines up.
+const SWAY_FRAC := 0.4
+const SWAY_SLOW := 5.0
+## Swimmers get it at a quarter — "1/4 the intensity and speed as floating/flying". Quarter the
+## SPEED means four times the PERIOD, which is the one place that phrasing inverts.
+const SWIM_AMP := 0.25
+const SWIM_SLOW := 4.0
+## Things drifting above or in their cell:
+## [{s, base: Vector3, amp, period, sway, sway_period, phase}]. Cleared with the dynamic pass that
 ## created them, like every other per-turn registry here.
 var _float_sprites: Array = []
 
@@ -982,6 +1002,37 @@ const ANIM_STATUS_SHOWN_BY_WORLD := ["status_swimming", "status_flying"]
 ## its flicker for the same reason.
 func _is_flying(obj: Dictionary) -> bool:
 	return String(obj.get("animSched", "")).contains("status_flying")
+
+## ...and is it swimming? Same reasoning, same schedule, the other status tile.
+func _is_swimming(obj: Dictionary) -> bool:
+	return String(obj.get("animSched", "")).contains("status_swimming")
+
+## Enrol a sprite in the drift, its motion set by how far it is from the player. `scale` is 1.0 for
+## a flyer and SWIM_AMP for a swimmer — the one knob that separates the two.
+##
+## THE PHASE COMES FROM THE CELL, deterministically, and it has to come from somewhere stable:
+## these sprites are rebuilt every turn, so a rolled phase would re-roll with them and the creature
+## would twitch on every step the player takes. It also has to differ between neighbours, or two
+## dragonflies a cell apart move as one — the swarm look this exists to break. A cell hash gives
+## both, and the one moment it DOES change is when the creature moves, which is the one moment a
+## phase change is invisible because the sprite has just jumped a cell anyway.
+func _register_float(s: Sprite3D, cx: int, cy: int, scale: float) -> void:
+	var dist: float = Vector2(float(cx) - float(_player_cell.x), float(cy) - float(_player_cell.y)).length()
+	var near: float = 1.0 - clampf(dist / FLY_RANGE_CELLS, 0.0, 1.0)
+	var amp: float = FLY_BOB * scale * lerpf(FLY_FAR_AMP, 1.0, near)
+	var period: float = (FLY_PERIOD * SWIM_SLOW if scale < 1.0 else FLY_PERIOD) \
+		* lerpf(FLY_FAR_SLOW, 1.0, near)
+	var e := {
+		"s": s, "base": s.position, "amp": amp, "period": maxf(period, 0.1),
+		"sway": amp * SWAY_FRAC, "sway_period": maxf(period * SWAY_SLOW, 0.1),
+		"phase": float(hash(Vector2i(cx, cy)) % 1000) / 1000.0,
+	}
+	# PLACE IT WHERE THE CLOCK SAYS, NOW. Registering at the un-drifted position leaves the sprite
+	# one frame at a height the animation is not at -- every turn, on every floater. That is a pop,
+	# and the likeliest thing behind "I can't tell if there is a different image being displayed or
+	# if the vertical motion has a glitch."
+	_apply_float(e)
+	_float_sprites.append(e)
 
 # --- 1:1 animation pass (Qud's per-frame render programs, emulated on wall clock) ---
 # Rebuilt every dynamics pass; overlay nodes are children of _dynamic_root, so the
@@ -3660,16 +3711,28 @@ var _float_t := 0.0
 func _animate_float(dt: float) -> void:
 	if _float_sprites.is_empty():
 		return
-	_float_t = fmod(_float_t + dt, FLY_PERIOD)
-	var off: float = sin(_float_t / FLY_PERIOD * TAU) * FLY_BOB
+	# MONOTONIC, not wrapped to one period: every sprite has its OWN period now, so there is no
+	# single cycle to wrap against. sin() is untroubled by the argument growing at these scales.
+	_float_t += dt
 	var alive: Array = []
 	for e in _float_sprites:
-		var sp = e["s"]
-		if not is_instance_valid(sp):
+		if not is_instance_valid(e["s"]):
 			continue
 		alive.append(e)
-		(sp as Node3D).position.y = float(e["base"]) + off
+		_apply_float(e)
 	_float_sprites = alive
+
+## One sprite's position for the current clock. Bob and sway on SEPARATE periods, so the two never
+## resolve into a tidy diagonal — which is what a shared period would look like.
+func _apply_float(e: Dictionary) -> void:
+	var sp = e["s"]
+	if not is_instance_valid(sp):
+		return
+	var b: Vector3 = e["base"]
+	var ph: float = float(e["phase"])
+	var dy: float = sin((_float_t / float(e["period"]) + ph) * TAU) * float(e["amp"])
+	var dx: float = sin((_float_t / float(e["sway_period"]) + ph) * TAU) * float(e["sway"])
+	(sp as Node3D).position = Vector3(b.x + dx, b.y + dy, b.z)
 
 func _process(_dt: float) -> void:
 	# The driver runs in BOTH modes, on BOTH registries. It was 1:1-only once, and then
@@ -7216,7 +7279,11 @@ func _place_nonwall(obj: Dictionary, cx: int, cy: int, idx: int, in_wall: bool, 
 			# and lifting the sprite off its cell would be a divergence, not a fix.
 			if not _one_to_one and _is_flying(obj):
 				s.position.y += FLY_LIFT
-				_float_sprites.append({"s": s, "base": s.position.y})
+				_register_float(s, cx, cy, 1.0)
+			elif not _one_to_one and _is_swimming(obj):
+				# ...and a swimmer stirs the water at a quarter of it. No LIFT: it is IN the water,
+				# and _seat has already put it at the waterline.
+				_register_float(s, cx, cy, SWIM_AMP)
 			if not _one_to_one:
 				_register_sprite_anim(obj, s, tile, btex)
 			# STACK ORDER: same-cell billboards seat at the same (x,z), so a pile's quads are

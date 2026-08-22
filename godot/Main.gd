@@ -1793,8 +1793,15 @@ func _write_zone_report() -> void:
 	for e in fl:
 		if is_instance_valid(e["s"]):
 			fy += " %.2f" % (e["s"] as Node3D).position.y
-	lines.append("FLOATING: %d sprites, lift %.3f bob +/-%.3f period %.1fs, y now:%s"
-		% [fl.size(), renderer.FLY_LIFT, renderer.FLY_BOB, renderer.FLY_PERIOD, fy])
+	# Per sprite, because the whole point of the change is that they should NOT agree: distance
+	# sets each one's amplitude and period, so two lines reading the same numbers would mean the
+	# distance term is not doing anything.
+	var fl2: Array = []
+	for e in fl:
+		if is_instance_valid(e["s"]):
+			fl2.append("amp %.3f/T %.1f/y %.2f" % [float(e["amp"]), float(e["period"]),
+				(e["s"] as Node3D).position.y])
+	lines.append("FLOATING: %d sprites  [%s]" % [fl.size(), "  ".join(PackedStringArray(fl2))])
 	lines.append("DOOR .vox per design:")
 	lines.append("DOOR art probe: %s" % renderer._door_art_probe("Tiles/sw_door_basic.bmp", "&y", "y"))
 	lines.append("DOORS (cell -> screen pixel, so a door can be photographed without hunting for it)")
