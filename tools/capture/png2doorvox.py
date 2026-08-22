@@ -8,7 +8,7 @@ pngs would just be 1 voxel thick". So this writes the SHAPE and leaves the depth
 Output matches the hand-authored file's conventions exactly, so editing feels the same:
   * 16 x 16 x 24, z up, the tile's row r at z = 23 - r
   * two models named "door" (the swinging leaf) and "frame", in the scene graph
-  * palette index 246 = the material grey, 255 = Qud's k (#0f3b3a)
+  * palette 246/245 frame and its arch, 244/243 leaf and its detail, 255 = Qud's k (#0f3b3a)
   * everything on ONE y layer (y = 8), the middle of the cell
 
     python3 tools/capture/png2doorvox.py                 # every door tile, skipping any that exist
@@ -33,15 +33,23 @@ from PIL import Image
 
 TILES = doorlib.TILES
 OUT = os.path.expanduser("~/Library/Application Support/RavesOfQud/vox")
-GREY = (187, 187, 187)
-FIELD = (15, 59, 58)
-I_GREY, I_FIELD = 246, 255
+# FOUR COLOURS, SO THE MODEL IS READABLE IN THE EDITOR. One grey for everything made frame and
+# leaf indistinguishable the moment they were both on screen -- Daniel: "the doors appear to be
+# black-on-black ... perhaps with color?" These are for AUTHORING only; in game a door takes its
+# colour from Qud's own art per object (see _vox_model_mesh), so painting here changes nothing that
+# ships and everything about whether the thing can be edited.
+FRAME_MAIN = (198, 170, 130)     # the frame's own pixels — warm, so it reads against the leaf
+FRAME_ARCH = (150, 126, 94)      # the arch curve, derived rather than drawn: darker, so it shows
+LEAF_MAIN = (120, 146, 168)      # the panel — cool, the obvious counterpart to a warm frame
+LEAF_DETAIL = (176, 199, 216)    # its bright pixels: stripes, mullions, window bars
+FIELD = (15, 59, 58)             # Qud's k — "background", the convention the hand file uses
+I_FRAME_MAIN, I_FRAME_ARCH, I_LEAF_MAIN, I_LEAF_DETAIL, I_FIELD = 246, 245, 244, 243, 255
 Y_LAYER = 8
 FORCE = False
 
 
 def parts(path):
-    """(frame_px, leaf_px) as sets of (x, y) in tile coordinates, or (None, why)."""
+    """({frame_px: idx}, {leaf_px: idx}) keyed by palette index, or (None, why)."""
     m, why = doorlib.model(path)
     if m is None:
         return None, why
@@ -61,8 +69,12 @@ def parts(path):
             if n in free and n not in arch:
                 arch.add(n)
                 stack.append(n)
-    leaf = (inside & opaque)
-    frame = (opaque - inside) | arch
+    bright = {(x, y) for (x, y) in opaque
+              if (0.2126 * px[x, y][0] + 0.7152 * px[x, y][1] + 0.0722 * px[x, y][2]) / 255.0 >= 0.5}
+    leaf = {c: (I_LEAF_DETAIL if c in bright else I_LEAF_MAIN) for c in (inside & opaque)}
+    frame = {c: I_FRAME_MAIN for c in (opaque - inside)}
+    for c in arch:
+        frame[c] = I_FRAME_ARCH
     return (frame, leaf), ""
 
 
@@ -98,7 +110,8 @@ def write_vox(path, models, names):
         # writes it straight: the hand-authored file holds (187,187,187) at array position 246 and
         # its voxels reference 246. Matching the editor beats matching the document, since the
         # editor is what has to reopen these.
-        c = {I_GREY: GREY, I_FIELD: FIELD}.get(i, (0, 0, 0))
+        c = {I_FRAME_MAIN: FRAME_MAIN, I_FRAME_ARCH: FRAME_ARCH, I_LEAF_MAIN: LEAF_MAIN,
+             I_LEAF_DETAIL: LEAF_DETAIL, I_FIELD: FIELD}.get(i, (0, 0, 0))
         rgba += bytes((c[0], c[1], c[2], 255))
     body += chunk(b"RGBA", bytes(rgba))
     # node ids: 0 root nTRN, 1 nGRP, then per model (2i+2) nTRN, (2i+3) nSHP
@@ -125,8 +138,8 @@ def gen(name):
         return None, why
     frame, leaf = got
     h = Image.open(path).size[1]
-    def vox(px_set):
-        return [(x, Y_LAYER, h - 1 - y, I_GREY) for (x, y) in sorted(px_set)]
+    def vox(px_map):
+        return [(x, Y_LAYER, h - 1 - y, i) for (x, y), i in sorted(px_map.items())]
     os.makedirs(OUT, exist_ok=True)
     stem = name.rsplit(".", 1)[0]
     for pre in ("Tiles_", "Items_", "terrain_", "Creatures_"):
