@@ -957,6 +957,10 @@ var _plane_up: QuadMesh = null    # the standing (billboarded) overlay quad — 
 ## the feet or above the head.
 const OVERLAY_STAND_Y := 0.5
 
+## Status icons Qud flashes on a tile that the 3D view states some other way, and so does not need
+## repeated as a glyph. USER MODE ONLY — 1:1 is parity and shows everything Qud shows.
+const ANIM_STATUS_SHOWN_BY_WORLD := ["status_swimming"]
+
 # --- 1:1 animation pass (Qud's per-frame render programs, emulated on wall clock) ---
 # Rebuilt every dynamics pass; overlay nodes are children of _dynamic_root, so the
 # rebuild's free() reclaims them — these arrays only hold references for the animator.
@@ -9559,8 +9563,21 @@ func _register_anim(win: Dictionary, cx: int, cy: int) -> void:
 			# what the flash was for, so only frames that genuinely SWAP A TILE (the dawnglider's
 			# flying icon) earn an overlay.
 			var swaps_tile: bool = axes[0] != "" and String(axes[0]) != tile
+			# ...AND NOT A STATUS ICON THE 3D VIEW ALREADY SHOWS. Qud flashes status_swimming over
+			# a wet creature because a flat cell has no other way to say so. Raves sinks that
+			# creature into the water — the glowfish Daniel tagged renders "billboard(submerged
+			# 45%)" — so the icon repeats what the scene is already saying, as a 2D glyph stuck to
+			# a billboard. Daniel: "they have the '~' symbol flashing (wet). I don't think we need
+			# this symbol on the Raves User mode."
+			#
+			# A LIST, not a rule about status icons generally: the flying icon on a dawnglider is
+			# the same KIND of thing and stays, because nothing else in the view says it is aloft.
+			# The test is whether the world already carries the information, which is a judgement
+			# per status, not a property of the folder they live in.
+			var swap_name := String(axes[0]).get_file().get_basename().to_lower()
+			var redundant_3d: bool = ANIM_STATUS_SHOWN_BY_WORLD.has(swap_name)
 			var want_node: bool = (axes[0] != "" or axes[1] != "" or axes[2] != "") \
-					if _one_to_one else swaps_tile
+					if _one_to_one else (swaps_tile and not redundant_3d)
 			if want_node:
 				var stile := String(axes[0]) if axes[0] != "" else tile
 				var smain := _qud_color(String(axes[1])) if axes[1] != "" else _obj_main(win)

@@ -1705,6 +1705,22 @@ func _write_zone_report() -> void:
 		lines.append("  vox %-26s -> %-34s %s" % [dt.get_file(), dvp.get_file(),
 			("%d models %s" % [(dvv["models"] as Array).size(),
 				str((dvv["nodes"] as Dictionary).keys())]) if not dvv.is_empty() else "NOT LOADED"])
+	# What the animation mirror actually BUILT this turn. A schedule frame that was skipped and one
+	# that was drawn look identical in a still, and a flashing overlay is only on screen a sixth of
+	# the time — so counting the nodes is the only way to ask "is that icon still being made?".
+	var akind := {}
+	var aframes := 0
+	var anodes := 0
+	for it in renderer._anim_items:
+		var kd := String(it.get("kind", "?"))
+		akind[kd] = int(akind.get(kd, 0)) + 1
+		if kd == "frames":
+			for fr in it.get("sched", []):
+				aframes += 1
+				if fr.get("node") != null:
+					anodes += 1
+	lines.append("ANIM overlays: %s   schedule frames %d, of which drawn %d"
+		% [str(akind), aframes, anodes])
 	lines.append("DOOR .vox per design:")
 	lines.append("DOOR art probe: %s" % renderer._door_art_probe("Tiles/sw_door_basic.bmp", "&y", "y"))
 	lines.append("DOORS (cell -> screen pixel, so a door can be photographed without hunting for it)")
